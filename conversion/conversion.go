@@ -404,6 +404,15 @@ func Report(driver string, badWrites map[string]int64, BytesRead int64, banner s
 		fmt.Fprint(out, summary)
 		fmt.Fprintf(out, "See file '%s' for details of the schema and data conversions.\n", reportFileName)
 	}
+	
+	//---------Add hook to print structured report---------------
+	//TODO: The text based report should be generated from the structured report.
+	//Refactor the code to remove all the code above this and use the `structuredReport`
+	//object to generate text/csv based report.
+	structuredReport := internal.GenerateStructuredReport(driver, conv, badWrites, true, true)
+	file, _ := json.MarshalIndent(structuredReport, "", " ")
+	structuredReportFileName := strings.TrimSuffix(reportFileName, "report.txt") + "structured_report.json"
+	_ = ioutil.WriteFile(structuredReportFileName, file, 0644)
 }
 
 // getSeekable returns a seekable file (with same content as f) and the size of the content (in bytes).

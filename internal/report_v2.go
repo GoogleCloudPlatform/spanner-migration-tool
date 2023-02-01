@@ -1,0 +1,293 @@
+package internal
+
+import (
+	"strings"
+	"time"
+
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
+)
+
+type Summary struct {
+	Text string `json:"text"`
+}
+
+type IgnoredStatement struct {
+	StatementType string `json:"statementType"`
+	Statement     string `json:"statement"`
+}
+
+type ConversionMetadata struct {
+	ConversionType string        `json:"conversionType"`
+	Duration       time.Duration `json:"duration"`
+}
+
+type StatementStat struct {
+	Statement  string `json:"statement"`
+	Schema     int64  `json:"schema"`
+	Data       int64  `json:"data"`
+	Skip       int64  `json:"skip"`
+	Error      int64  `json:"error"`
+	TotalCount int64  `json:"totalCount"`
+}
+
+type StatementStats struct {
+	DriverName     string          `json:"driverName"`
+	StatementStats []StatementStat `json:"statementStats"`
+}
+
+type NameChange struct {
+	NameChangeType string `json:"nameChangeType"`
+	SourceTable    string `json:"sourceTable"`
+	OldName        string `json:"oldName"`
+	NewName        string `json:"newName"`
+}
+
+type Warning struct {
+	WarningType string `json:"warningType"`
+	WarningText string `json:"warningText"`
+}
+
+type SchemaReport struct {
+	Rating       string `json:"rating"`
+	PkMissing    bool   `json:"pkMissing"`
+	Warnings     int64  `json:"warnings"`
+	TotalColumns int64  `json:"totalColumns"`
+}
+
+type DataReport struct {
+	Rating    string `json:"rating"`
+	BadRows   int64  `json:"badRows"`
+	TotalRows int64  `json:"totalRows"`
+	DryRun    bool   `json:"dryRun"`
+}
+
+type TableReport struct {
+	SrcTableName  string       `json:"srcTableName"`
+	SpTableName   string       `json:"spTableName"`
+	SchemaReport  SchemaReport `json:"schemaReport"`
+	DataReport    DataReport   `json:"dataReport"`
+	Warnings      []Warning    `json:"warnings"`
+	SyntheticPKey string       `json:"syntheticPKey"`
+}
+
+type UnexpectedCondition struct {
+	Count     int64  `json:"count"`
+	Condition string `json:"condition"`
+}
+
+type Report struct {
+	Summary              Summary               `json:"summary"`
+	IgnoredStatements    []IgnoredStatement    `json:"ignoredStatements"`
+	ConversionMetadata   []ConversionMetadata  `json:"conversionMetadata"`
+	MigrationType        string                `json:"migrationType"`
+	StatementStats       StatementStats        `json:"statementStats"`
+	NameChanges          []NameChange          `json:"nameChanges"`
+	TableReports         []TableReport         `json:"tableReports"`
+	UnexpectedConditions []UnexpectedCondition `json:"unexpectedConditions"`
+}
+
+// A report consists of the following parts:
+// 1. Summary (overall quality of conversion)
+// 2. Ignored statements
+// 3. Conversion duration
+// 4. Migration Type
+// 5. Statement stats (in case of dumps)
+// 6. Name changes
+// 7. Individual table reports (Detailed + Quality of conversion for each)
+// 8. Unexpected conditions
+//
+// This method the RAW structured report in JSON format. Several utilities can be built on top of
+// this raw, nested JSON data to output the reports in different user and machine friendly formats
+// such as CSV, TXT etc.
+// Note that creating this functionality separately outside of report.go is done for backward
+// compatibility with the existing text based report. Some logic has also been duplicated.
+// This duplication will be removed once the text based report relies on using the structured data
+// as the source of truth.
+func GenerateStructuredReport(driverName string, conv *Conv, badWrites map[string]int64, printTableReports bool, printUnexpecteds bool) Report {
+	//Create report object
+	var hbReport = Report{}
+	tableReports := AnalyzeTables(conv, badWrites)
+	//1. Generate summary
+	summary := GenerateSummary(conv, tableReports, badWrites)
+	hbReport.Summary = Summary{Text: summary}
+
+	//2. Ignored Statements
+	hbReport.IgnoredStatements = fetchIgnoredStatements(conv)
+
+	//3. Conversion Metadata
+	hbReport.ConversionMetadata = append(hbReport.ConversionMetadata, ConversionMetadata{ConversionType: "Schema", Duration: conv.Audit.SchemaConversionDuration})
+	hbReport.ConversionMetadata = append(hbReport.ConversionMetadata, ConversionMetadata{ConversionType: "Data", Duration: conv.Audit.DataConversionDuration})
+
+	//4. Migration Type
+	hbReport.MigrationType = mapMigrationType(*conv.Audit.MigrationType)
+
+	//5. Statement statistics
+	var isDump bool
+	if strings.Contains(driverName, "dump") {
+		isDump = true
+	}
+	if isDump {
+		hbReport.StatementStats.DriverName = driverName
+		hbReport.StatementStats.StatementStats = fetchStatementStats(driverName, conv)
+	}
+
+	//6. Name changes
+	hbReport.NameChanges = fetchNameChanges(conv)
+
+	//7. Table Reports
+	if printTableReports {
+		hbReport.TableReports = fetchTableReports(tableReports, *conv.Audit.MigrationType, conv.SchemaMode(), conv.Audit.DryRun)
+	}
+
+	//8. Unexpected Conditions
+	if printUnexpecteds {
+		hbReport.UnexpectedConditions = fetchUnexceptedConditions(driverName, conv)
+	}
+
+	return hbReport
+}
+
+func mapMigrationType(migrationType migration.MigrationData_MigrationType) string {
+	if migrationType == migration.MigrationData_DATA_ONLY {
+		return "DATA"
+	}
+	if migrationType == migration.MigrationData_SCHEMA_AND_DATA {
+		return "SCHEMA_AND_DATA"
+	}
+	if migrationType == migration.MigrationData_SCHEMA_ONLY {
+		return "SCHEMA"
+	}
+	return "UNSPECIFIED"
+}
+
+func fetchIgnoredStatements(conv *Conv) (ignoredStatements []IgnoredStatement) {
+	for s := range conv.Stats.Statement {
+		switch s {
+		case "CreateFunctionStmt":
+			ignoredStatements = append(ignoredStatements, IgnoredStatement{StatementType: "function", Statement: s})
+		case "CreateSeqStmt", "CreateSequenceStmt":
+			ignoredStatements = append(ignoredStatements, IgnoredStatement{StatementType: "sequence", Statement: s})
+		case "CreatePLangStmt", "CreateProcedureStmt":
+			ignoredStatements = append(ignoredStatements, IgnoredStatement{StatementType: "procedure", Statement: s})
+		case "CreateTrigStmt":
+			ignoredStatements = append(ignoredStatements, IgnoredStatement{StatementType: "trigger", Statement: s})
+		case "IndexStmt", "CreateIndexStmt":
+			ignoredStatements = append(ignoredStatements, IgnoredStatement{StatementType: "(non-primary) index", Statement: s})
+		case "ViewStmt", "CreateViewStmt":
+			ignoredStatements = append(ignoredStatements, IgnoredStatement{StatementType: "view", Statement: s})
+		}
+	}
+	return ignoredStatements
+}
+
+func fetchStatementStats(driverName string, conv *Conv) (statementStats []StatementStat) {
+	for s, x := range conv.Stats.Statement {
+		statementStats = append(statementStats, StatementStat{Statement: s, Schema: x.Schema, Data: x.Data, Skip: x.Skip, Error: x.Error})
+	}
+	return statementStats
+}
+
+func fetchNameChanges(conv *Conv) (nameChanges []NameChange) {
+	for srcTableName, spTable := range conv.ToSpanner {
+		if srcTableName != spTable.Name {
+			nameChanges = append(nameChanges, NameChange{NameChangeType: "TableName", SourceTable: srcTableName, OldName: srcTableName, NewName: spTable.Name})
+		}
+		for srcColName, spColName := range spTable.Cols {
+			if srcColName != spColName {
+				nameChanges = append(nameChanges, NameChange{NameChangeType: "ColumnName", SourceTable: srcTableName, OldName: srcColName, NewName: spColName})
+			}
+		}
+		for srcFkName, spFkName := range conv.Audit.ToSpannerFkIdx[srcTableName].ForeignKey {
+			if srcFkName != spFkName {
+				nameChanges = append(nameChanges, NameChange{NameChangeType: "ForeignKey", SourceTable: srcTableName, OldName: srcFkName, NewName: spFkName})
+			}
+		}
+		for srcIdxName, spIdxName := range conv.Audit.ToSpannerFkIdx[srcTableName].Index {
+			if srcIdxName != spIdxName {
+				nameChanges = append(nameChanges, NameChange{NameChangeType: "Index", SourceTable: srcTableName, OldName: srcIdxName, NewName: spIdxName})
+			}
+		}
+	}
+	return nameChanges
+}
+
+func fetchTableReports(inputTableReports []tableReport, migrationType migration.MigrationData_MigrationType, schemaOnly bool, dryRun bool) (tableReports []TableReport) {
+	for _, t := range inputTableReports {
+		//1. src and Sp Table Names
+		tableReport := TableReport{SrcTableName: t.SrcTable}
+		if t.SrcTable != t.SpTable {
+			tableReport.SpTableName = t.SpTable
+		}
+		//2. Schema Report
+		if migrationType != migration.MigrationData_DATA_ONLY {
+			tableReport.SchemaReport = getSchemaReport(t.Cols, t.Warnings, t.SyntheticPKey != "")
+		}
+		//3. Data Report
+		if !schemaOnly {
+			tableReport.DataReport = getDataReport(t.rows, t.badRows, dryRun)
+		}
+		//4. Warnings
+		for _, x := range t.Body {
+			for _, l := range x.Lines {
+				tableReport.Warnings = append(tableReport.Warnings, Warning{WarningType: "", WarningText: l})
+			}
+		}
+		//5. Sythetic PKey
+		tableReport.SyntheticPKey = t.SyntheticPKey
+		tableReports = append(tableReports, tableReport)
+	}
+	return tableReports
+}
+
+func getSchemaReport(cols, warnings int64, missingPKey bool) (schemaReport SchemaReport) {
+	schemaReport.TotalColumns = cols
+	schemaReport.Warnings = warnings
+	schemaReport.PkMissing = missingPKey
+	switch {
+	case cols == 0:
+		schemaReport.Rating = "NONE"
+	case warnings == 0 && !missingPKey:
+		schemaReport.Rating = "EXCELLENT"
+	case warnings == 0 && missingPKey:
+		schemaReport.Rating = "EXCELLENT_WITH_MISSING_PRIMARY_KEYS"
+	case good(cols, warnings) && !missingPKey:
+		schemaReport.Rating = "GOOD"
+	case good(cols, warnings) && missingPKey:
+		schemaReport.Rating = "GOOD_WITH_MISSING_PRIMARY_KEYS"
+	case ok(cols, warnings) && !missingPKey:
+		schemaReport.Rating = "OK"
+	case ok(cols, warnings) && missingPKey:
+		schemaReport.Rating = "OK_WITH_MISSING_PRIMARY_KEYS"
+	case !missingPKey:
+		schemaReport.Rating = "POOR"
+	default:
+		schemaReport.Rating = "POOR_WITH_MISSING_PRIMARY_KEYS"
+	}
+	return schemaReport
+}
+
+func getDataReport(rows int64, badRows int64, dryRun bool) (dataReport DataReport) {
+	dataReport.DryRun = dryRun
+	dataReport.TotalRows = rows
+	dataReport.BadRows = badRows
+	switch {
+	case rows == 0:
+		dataReport.Rating = "NONE"
+	case badRows == 0:
+		dataReport.Rating = "EXCELLENT"
+	case good(rows, badRows):
+		dataReport.Rating = "GOOD"
+	case ok(rows, badRows):
+		dataReport.Rating = "OK"
+	default:
+		dataReport.Rating = "POOR"
+	}
+	return dataReport
+}
+
+func fetchUnexceptedConditions(driverName string, conv *Conv) (unexpectedConditions []UnexpectedCondition) {
+	for s, n := range conv.Stats.Unexpected {
+		unexpectedConditions = append(unexpectedConditions, UnexpectedCondition{Count: n, Condition: s})
+	}
+	return unexpectedConditions
+}
