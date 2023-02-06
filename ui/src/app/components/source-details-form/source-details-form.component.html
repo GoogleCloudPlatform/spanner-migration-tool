@@ -10,15 +10,23 @@
     <div class="form-container">
         <div *ngIf="(selectedOption === 'dumpFile')">
             <form [formGroup]="dumpFileForm" (ngSubmit)="setSourceDBDetailsForDump()">
-                <h4>Load from database dump</h4>
+                <h4 class="primary-header">Load from database dump</h4>
                 Dump File
-                <mat-form-field class="full-width" appearance="outline">
+                <mat-form-field appearance="outline">
                     <mat-label>File path</mat-label>
-                    <input matInput placeholder="File path" name="filePath" type="text" formControlName="filePath" />
+                    <input matInput placeholder="File path" name="filePath" type="text" formControlName="filePath"
+                        readonly (click)="file.click()" />
+
+                    <mat-spinner matSuffix *ngIf="uploadStart && !uploadSuccess && !uploadFail" [diameter]="25">
+                    </mat-spinner>
+                    <mat-icon matSuffix *ngIf="uploadStart && uploadSuccess" class="success">check_circle</mat-icon>
+                    <mat-icon matSuffix *ngIf="uploadStart && uploadFail" class="danger">cancel</mat-icon>
                 </mat-form-field>
+                <input hidden #file type="file" (change)="handleFileInput($event)" />
                 <br />
                 <button mat-button color="primary" mat-dialog-close>CANCEL</button>
-                <button mat-raised-button type="submit" color="primary" [disabled]="!dumpFileForm.valid">
+                <button mat-raised-button type="submit" color="primary"
+                    [disabled]="!dumpFileForm.valid || !uploadSuccess">
                     SAVE
                 </button>
                 <div *ngIf="errorMsg!=''" class="failure">
@@ -31,7 +39,7 @@
         </div>
         <div *ngIf="(selectedOption === 'directConnect')">
             <form [formGroup]="directConnectForm" (ngSubmit)="setSourceDBDetailsForDirectConnect()">
-                <h4>Connect to Source Database</h4>
+                <h4 class="primary-header">Connect to Source Database</h4>
                 Connection Detail
                 <mat-form-field class="full-width" appearance="outline">
                     <mat-label>Hostname</mat-label>

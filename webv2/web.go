@@ -292,9 +292,6 @@ type convertFromDumpRequest struct {
 
 func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	if sessionState.Driver != constants.MYSQLDUMP && sessionState.Driver != constants.PGDUMP {
-		http.Error(w, "Connect via direct connect", http.StatusBadRequest)
-	}
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -306,7 +303,7 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-
+	dc.FilePath = "upload-file/" + dc.FilePath
 	_, err = os.Open(dc.FilePath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.FilePath), http.StatusNotFound)
@@ -321,9 +318,6 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 
 func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	if sessionState.Driver == constants.MYSQLDUMP || sessionState.Driver == constants.PGDUMP {
-		http.Error(w, "Connect via dump file", http.StatusBadRequest)
-	}
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
