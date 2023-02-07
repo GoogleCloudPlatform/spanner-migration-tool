@@ -3,40 +3,41 @@ module github.com/cloudspannerecosystem/harbourbridge
 go 1.19
 
 require (
-	cloud.google.com/go v0.107.0
-	cloud.google.com/go/dataflow v0.7.0
-	cloud.google.com/go/datastream v1.5.0
-	cloud.google.com/go/spanner v1.40.0
-	cloud.google.com/go/storage v1.27.0
+	cloud.google.com/go v0.109.0
+	cloud.google.com/go/dataflow v0.8.0
+	cloud.google.com/go/datastream v1.6.0
+	cloud.google.com/go/spanner v1.44.0
+	cloud.google.com/go/storage v1.29.0
 	github.com/DATA-DOG/go-sqlmock v1.5.0
-	github.com/aws/aws-sdk-go v1.35.3
+	github.com/aws/aws-sdk-go v1.44.196
 	github.com/basgys/goxml2json v1.1.0
-	github.com/denisenkom/go-mssqldb v0.11.0
-	github.com/go-sql-driver/mysql v1.6.0
+	github.com/denisenkom/go-mssqldb v0.12.3
+	github.com/go-sql-driver/mysql v1.7.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/subcommands v1.2.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
-	github.com/lib/pq v1.9.0
+	github.com/lib/pq v1.10.7
 	github.com/pganalyze/pg_query_go/v2 v2.2.0
 	github.com/pingcap/tidb v1.1.0-beta.0.20221126021158-6b02a5d8ba7d
 	github.com/pingcap/tidb/parser v0.0.0-20221126021158-6b02a5d8ba7d
-	github.com/sijms/go-ora/v2 v2.2.17
+	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
+	github.com/sijms/go-ora/v2 v2.5.27
 	github.com/stretchr/testify v1.8.1
-	go.uber.org/zap v1.21.0
-	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
-	golang.org/x/net v0.4.0
-	google.golang.org/api v0.103.0
-	google.golang.org/genproto v0.0.0-20221201164419-0e50fba7f41c
-	google.golang.org/grpc v1.51.0
+	go.uber.org/zap v1.24.0
+	golang.org/x/crypto v0.5.0
+	golang.org/x/net v0.5.0
+	google.golang.org/api v0.109.0
+	google.golang.org/genproto v0.0.0-20230113154510-dbe35b8444a5
+	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
 )
 
 require (
-	cloud.google.com/go/compute v1.13.0 // indirect
-	cloud.google.com/go/compute/metadata v0.2.2 // indirect
-	cloud.google.com/go/iam v0.7.0 // indirect
+	cloud.google.com/go/compute v1.15.1 // indirect
+	cloud.google.com/go/compute/metadata v0.2.3 // indirect
+	cloud.google.com/go/iam v0.8.0 // indirect
 	cloud.google.com/go/longrunning v0.3.0 // indirect
 	github.com/BurntSushi/toml v0.4.1 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
@@ -45,7 +46,7 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe // indirect
-	github.com/cncf/xds/go v0.0.0-20221128185840-c261a164b73d // indirect
+	github.com/cncf/xds/go v0.0.0-20230105202645-06c439db220b // indirect
 	github.com/danjacques/gofslock v0.0.0-20191023191349-0a45f885bc37 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/envoyproxy/go-control-plane v0.10.3 // indirect
@@ -54,6 +55,7 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe // indirect
+	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.1 // indirect
@@ -69,7 +71,6 @@ require (
 	github.com/pingcap/kvproto v0.0.0-20220517085838-12e2f5a9d167 // indirect
 	github.com/pingcap/log v1.1.1-0.20221116035753-734d527bc87c // indirect
 	github.com/pingcap/tipb v0.0.0-20220314125451-bfb5c2c55188 // indirect
-	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
@@ -87,11 +88,11 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/exp v0.0.0-20220426173459-3bcf042a4bf5 // indirect
-	golang.org/x/oauth2 v0.3.0 // indirect
+	golang.org/x/oauth2 v0.4.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/term v0.3.0 // indirect
-	golang.org/x/text v0.5.0 // indirect
+	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/term v0.4.0 // indirect
+	golang.org/x/text v0.6.0 // indirect
 	golang.org/x/tools v0.4.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
