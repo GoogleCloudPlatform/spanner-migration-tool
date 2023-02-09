@@ -124,16 +124,16 @@ func (ty Type) PrintColumnDefType() string {
 	return str
 }
 
-func GetPGType(spType string) string {
-	pgType, ok := GOOGLE_SQL_TO_PGSQL_TYPEMAP[spType]
+func GetPGType(spType Type) string {
+	pgType, ok := GOOGLE_SQL_TO_PGSQL_TYPEMAP[spType.Name]
 	if ok {
 		return pgType
 	}
-	return spType
+	return spType.Name
 }
 
 func (ty Type) PGPrintColumnDefType() string {
-	str := GetPGType(ty.Name)
+	str := GetPGType(ty)
 	// PG doesn't support array types, and we don't expect to receive a type
 	// with IsArray set to true. In the unlikely event, set to string type.
 	if ty.IsArray {

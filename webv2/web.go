@@ -614,7 +614,10 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	for key, values := range filteredTypeMap {
 		for i := range values {
 			if sessionState.Dialect == constants.DIALECT_POSTGRESQL {
-				filteredTypeMap[key][i].DisplayT = ddl.GetPGType(filteredTypeMap[key][i].T)
+				spType := ddl.Type{
+					Name: filteredTypeMap[key][i].T,
+				}
+				filteredTypeMap[key][i].DisplayT = ddl.GetPGType(spType)
 			} else {
 				filteredTypeMap[key][i].DisplayT = filteredTypeMap[key][i].T
 			}
