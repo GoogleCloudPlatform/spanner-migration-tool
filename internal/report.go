@@ -874,53 +874,6 @@ func writeUnexpectedConditions(driverName string, conv *Conv, w *bufio.Writer) {
 	reparseInfo()
 }
 
-// justifyLines writes s out to w, adding newlines between words
-// to keep line length under 'limit'. Newlines are indented
-// 'indent' spaces.
-func justifyLines(w *bufio.Writer, s string, limit int, indent int) {
-	n := 0
-	startOfLine := true
-	words := strings.Split(s, " ") // This only handles spaces (newlines, tabs ignored).
-	for _, x := range words {
-		if n+len(x) > limit && !startOfLine {
-			w.WriteString("\n")
-			w.WriteString(strings.Repeat(" ", indent))
-			n = indent
-			startOfLine = true
-		}
-		if startOfLine {
-			w.WriteString(x)
-			n += len(x)
-		} else {
-			w.WriteString(" " + x)
-			n += len(x) + 1
-		}
-		startOfLine = false
-	}
-}
-
-// pct prints a percentage representation of (total-bad)/total
-func pct(total, bad int64) string {
-	if bad == 0 || total == 0 {
-		return "100"
-	}
-	pct := 100.0 * float64(total-bad) / float64(total)
-	if pct > 99.9 {
-		return fmt.Sprintf("%2.5f", pct)
-	}
-	if pct > 95.0 {
-		return fmt.Sprintf("%2.3f", pct)
-	}
-	return fmt.Sprintf("%2.0f", pct)
-}
-
-func writeHeading(w *bufio.Writer, s string) {
-	w.WriteString(strings.Join([]string{
-		"----------------------------\n",
-		s, "\n",
-		"----------------------------\n"}, ""))
-}
-
 func conversionDuration(conv *Conv, w *bufio.Writer) string {
 	res := ""
 	if conv.Audit.DataConversionDuration.Microseconds() != 0 || conv.Audit.SchemaConversionDuration.Microseconds() != 0 {

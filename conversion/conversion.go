@@ -413,6 +413,17 @@ func Report(driver string, badWrites map[string]int64, BytesRead int64, banner s
 	file, _ := json.MarshalIndent(structuredReport, "", " ")
 	structuredReportFileName := strings.TrimSuffix(reportFileName, "report.txt") + "structured_report.json"
 	_ = ioutil.WriteFile(structuredReportFileName, file, 0644)
+	f2, err := os.Create(reportFileName + "v2")
+	if err != nil {
+		fmt.Fprintf(out, "Can't write out report file %s: %v\n", reportFileName, err)
+		fmt.Fprintf(out, "Writing report to stdout\n")
+		f2 = out
+	} else {
+		defer f2.Close()
+	}
+	w2:= bufio.NewWriter(f2)
+	internal.GenerateTextReport(structuredReport, w2)
+	w2.Flush()
 }
 
 // getSeekable returns a seekable file (with same content as f) and the size of the content (in bytes).

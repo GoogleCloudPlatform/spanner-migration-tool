@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//Implements structured report generation for Harbourbridge.
+// Implements structured report generation for Harbourbridge.
 package internal
 
 import (
@@ -57,9 +57,9 @@ type NameChange struct {
 	NewName        string `json:"newName"`
 }
 
-type Warning struct {
-	WarningType string `json:"warningType"`
-	WarningText string `json:"warningText"`
+type Warnings struct {
+	WarningType string   `json:"warningType"`
+	WarningList []string `json:"warningList"`
 }
 
 type SchemaReport struct {
@@ -81,7 +81,7 @@ type TableReport struct {
 	SpTableName   string       `json:"spTableName"`
 	SchemaReport  SchemaReport `json:"schemaReport"`
 	DataReport    DataReport   `json:"dataReport"`
-	Warnings      []Warning    `json:"warnings"`
+	Warnings      []Warnings   `json:"warnings"`
 	SyntheticPKey string       `json:"syntheticPKey"`
 }
 
@@ -90,15 +90,21 @@ type UnexpectedCondition struct {
 	Condition string `json:"condition"`
 }
 
-type Report struct {
-	Summary              Summary               `json:"summary"`
-	IgnoredStatements    []IgnoredStatement    `json:"ignoredStatements"`
-	ConversionMetadata   []ConversionMetadata  `json:"conversionMetadata"`
-	MigrationType        string                `json:"migrationType"`
-	StatementStats       StatementStats        `json:"statementStats"`
-	NameChanges          []NameChange          `json:"nameChanges"`
-	TableReports         []TableReport         `json:"tableReports"`
+type UnexpectedConditions struct {
+	Reparsed             int64
 	UnexpectedConditions []UnexpectedCondition `json:"unexpectedConditions"`
+}
+
+type StructuredReport struct {
+	Summary              Summary              `json:"summary"`
+	IgnoredStatements    []IgnoredStatement   `json:"ignoredStatements"`
+	ConversionMetadata   []ConversionMetadata `json:"conversionMetadata"`
+	MigrationType        string               `json:"migrationType"`
+	StatementStats       StatementStats       `json:"statementStats"`
+	NameChanges          []NameChange         `json:"nameChanges"`
+	TableReports         []TableReport        `json:"tableReports"`
+	UnexpectedConditions UnexpectedConditions `json:"unexpectedConditions"`
+	SchemaOnly           bool                 `json:schemaOnly`
 }
 
 // A report consists of the following parts:
@@ -118,9 +124,10 @@ type Report struct {
 // compatibility with the existing text based report. Some logic has also been duplicated.
 // This duplication will be removed once the text based report relies on using the structured data
 // as the source of truth.
-func GenerateStructuredReport(driverName string, conv *Conv, badWrites map[string]int64, printTableReports bool, printUnexpecteds bool) Report {
+func GenerateStructuredReport(driverName string, conv *Conv, badWrites map[string]int64, printTableReports bool, printUnexpecteds bool) StructuredReport {
 	//Create report object
-	var hbReport = Report{}
+	var hbReport = StructuredReport{}
+	hbReport.SchemaOnly = conv.SchemaMode()
 	tableReports := AnalyzeTables(conv, badWrites)
 	//1. Generate summary
 	summary := GenerateSummary(conv, tableReports, badWrites)
@@ -230,9 +237,8 @@ func fetchTableReports(inputTableReports []tableReport, migrationType migration.
 	for _, t := range inputTableReports {
 		//1. src and Sp Table Names
 		tableReport := TableReport{SrcTableName: t.SrcTable}
-		if t.SrcTable != t.SpTable {
-			tableReport.SpTableName = t.SpTable
-		}
+		tableReport.SpTableName = t.SpTable
+
 		//2. Schema Report
 		if migrationType != migration.MigrationData_DATA_ONLY {
 			tableReport.SchemaReport = getSchemaReport(t.Cols, t.Warnings, t.SyntheticPKey != "")
@@ -243,9 +249,11 @@ func fetchTableReports(inputTableReports []tableReport, migrationType migration.
 		}
 		//4. Warnings
 		for _, x := range t.Body {
+			var warnings = Warnings{WarningType: x.Heading}
 			for _, l := range x.Lines {
-				tableReport.Warnings = append(tableReport.Warnings, Warning{WarningType: "", WarningText: l})
+				warnings.WarningList = append(warnings.WarningList, l)
 			}
+			tableReport.Warnings = append(tableReport.Warnings, warnings)
 		}
 		//5. Sythetic PKey
 		tableReport.SyntheticPKey = t.SyntheticPKey
@@ -300,9 +308,10 @@ func getDataReport(rows int64, badRows int64, dryRun bool) (dataReport DataRepor
 	return dataReport
 }
 
-func fetchUnexceptedConditions(driverName string, conv *Conv) (unexpectedConditions []UnexpectedCondition) {
+func fetchUnexceptedConditions(driverName string, conv *Conv) (unexpectedConditions UnexpectedConditions) {
+	unexpectedConditions.Reparsed = conv.Stats.Reparsed
 	for s, n := range conv.Stats.Unexpected {
-		unexpectedConditions = append(unexpectedConditions, UnexpectedCondition{Count: n, Condition: s})
+		unexpectedConditions.UnexpectedConditions = append(unexpectedConditions.UnexpectedConditions, UnexpectedCondition{Count: n, Condition: s})
 	}
 	return unexpectedConditions
 }
