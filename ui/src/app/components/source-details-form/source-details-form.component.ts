@@ -61,7 +61,6 @@ export class SourceDetailsFormComponent implements OnInit {
       },
       error: (err: any) => {
         this.errorMsg = err.error
-        console.log(this.errorMsg)
       }
     })
   }
