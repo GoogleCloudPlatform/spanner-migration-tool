@@ -309,7 +309,7 @@ func GetFilePrefix(now time.Time) (string, error) {
 			return "", fmt.Errorf("Can not create database name : %v", err)
 		}
 	}
-	return dbName + ".", nil
+	return dbName, nil
 }
 
 func UpdateDataType(conv *internal.Conv, newType, tableId, colId string) error {

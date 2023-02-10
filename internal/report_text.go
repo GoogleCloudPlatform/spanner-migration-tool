@@ -127,15 +127,19 @@ func writeTableReports(structuredReport StructuredReport, w *bufio.Writer) {
 }
 
 func writeNameChanges(structuredReport StructuredReport, w *bufio.Writer) {
-	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
-	w.WriteString("Name Changes in Migration\n")
-	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
-	fmt.Fprintf(w, "%25s %15s %25s %25s\n", "Source Table", "Change", "Old Name", "New Name")
-	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
-	for _, nameChange := range structuredReport.NameChanges {
-		fmt.Fprintf(w, "%25s %15s %25s %25s\n", nameChange.SourceTable, nameChange.NameChangeType, nameChange.OldName, nameChange.NewName)
+	if structuredReport.NameChanges != nil {
+		w.WriteString("-----------------------------------------------------------------------------------------------------\n")
+		w.WriteString("Name Changes in Migration\n")
+		w.WriteString("-----------------------------------------------------------------------------------------------------\n")
+		fmt.Fprintf(w, "%25s %15s %25s %25s\n", "Source Table", "Change", "Old Name", "New Name")
+		w.WriteString("-----------------------------------------------------------------------------------------------------\n")
+		for _, nameChange := range structuredReport.NameChanges {
+			fmt.Fprintf(w, "%25s %15s %25s %25s\n", nameChange.SourceTable, nameChange.NameChangeType, nameChange.OldName, nameChange.NewName)
+		}
+		w.WriteString("-----------------------------------------------------------------------------------------------------\n\n\n")
+	} else {
+		w.WriteString("No Name Changes in Migration\n")
 	}
-	w.WriteString("-----------------------------------------------------------------------------------------------------\n\n\n")
 }
 
 func writeStatementStats(structuredReport StructuredReport, w *bufio.Writer) {

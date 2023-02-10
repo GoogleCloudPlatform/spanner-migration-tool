@@ -910,7 +910,7 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
 	}
-	reportFileName := "frontend/" + filePrefix + "report.txt"
+	reportFileName := "frontend/" + filePrefix
 	sessionState := session.GetSessionState()
 	conversion.Report(sessionState.Driver, nil, ioHelper.BytesRead, "", sessionState.Conv, reportFileName, ioHelper.Out)
 	reportAbsPath, err := filepath.Abs(reportFileName)

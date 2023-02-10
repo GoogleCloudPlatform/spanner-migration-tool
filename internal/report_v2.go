@@ -210,23 +210,36 @@ func fetchStatementStats(driverName string, conv *Conv) (statementStats []Statem
 }
 
 func fetchNameChanges(conv *Conv) (nameChanges []NameChange) {
-	for srcTableName, spTable := range conv.ToSpanner {
-		if srcTableName != spTable.Name {
-			nameChanges = append(nameChanges, NameChange{NameChangeType: "TableName", SourceTable: srcTableName, OldName: srcTableName, NewName: spTable.Name})
+	for tableId, spTable := range conv.SpSchema {
+		srcTable := conv.SrcSchema[tableId]
+		if srcTable.Name != spTable.Name {
+			nameChanges = append(nameChanges, NameChange{NameChangeType: "TableName", SourceTable: srcTable.Name, OldName: srcTable.Name, NewName: spTable.Name})
 		}
-		for srcColName, spColName := range spTable.Cols {
-			if srcColName != spColName {
-				nameChanges = append(nameChanges, NameChange{NameChangeType: "ColumnName", SourceTable: srcTableName, OldName: srcColName, NewName: spColName})
+		for colId, spCol := range spTable.ColDefs {
+			srcCol, ok := srcTable.ColDefs[colId]
+			if !ok {
+				continue
+			}
+			if srcCol.Name != spCol.Name {
+				nameChanges = append(nameChanges, NameChange{NameChangeType: "ColumnName", SourceTable: srcTable.Name, OldName: srcCol.Name, NewName: spCol.Name})
 			}
 		}
-		for srcFkName, spFkName := range conv.Audit.ToSpannerFkIdx[srcTableName].ForeignKey {
-			if srcFkName != spFkName {
-				nameChanges = append(nameChanges, NameChange{NameChangeType: "ForeignKey", SourceTable: srcTableName, OldName: srcFkName, NewName: spFkName})
+		for _, spFk := range conv.SpSchema[tableId].ForeignKeys {
+			srcFk, err := GetSrcFkFromId(conv.SrcSchema[tableId].ForeignKeys, spFk.Id)
+			if err != nil {
+				continue
+			}
+			if srcFk.Name != spFk.Name {
+				nameChanges = append(nameChanges, NameChange{NameChangeType: "ForeignKey", SourceTable: srcTable.Name, OldName: srcFk.Name, NewName: spFk.Name})
 			}
 		}
-		for srcIdxName, spIdxName := range conv.Audit.ToSpannerFkIdx[srcTableName].Index {
-			if srcIdxName != spIdxName {
-				nameChanges = append(nameChanges, NameChange{NameChangeType: "Index", SourceTable: srcTableName, OldName: srcIdxName, NewName: spIdxName})
+		for _, spIdx := range conv.SpSchema[tableId].Indexes {
+			srcIdx, err := GetSrcIndexFromId(conv.SrcSchema[tableId].Indexes, spIdx.Id)
+			if err != nil {
+				continue
+			}
+			if srcIdx.Name != spIdx.Name {
+				nameChanges = append(nameChanges, NameChange{NameChangeType: "Index", SourceTable: srcTable.Name, OldName: srcIdx.Name, NewName: spIdx.Name})
 			}
 		}
 	}
