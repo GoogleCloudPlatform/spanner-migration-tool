@@ -330,12 +330,6 @@ export class DataService {
     this.configSub.next(config)
   }
 
-  initiateSession() {
-    this.fetch.InitiateSession().subscribe((data: any) => {
-      this.currentSessionSub.next(data)
-    })
-  }
-
   updateIsOffline() {
     this.fetch.getIsOffline().subscribe((res: boolean) => {
       this.isOfflineSub.next(res)
