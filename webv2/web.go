@@ -18,8 +18,6 @@
 package webv2
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -539,18 +537,6 @@ func getDDL(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(ddl)
-}
-
-// getOverview returns the overview of conversion.
-func getOverview(w http.ResponseWriter, r *http.Request) {
-	var buf bytes.Buffer
-	bufWriter := bufio.NewWriter(&buf)
-	sessionState := session.GetSessionState()
-	internal.GenerateReport(sessionState.Driver, sessionState.Conv, bufWriter, nil, false, false)
-	bufWriter.Flush()
-	overview := buf.String()
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(overview)
 }
 
 // getTypeMap returns the source to Spanner typemap only for the
@@ -1478,68 +1464,6 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv.SpSchema[table] = sp
 	session.UpdateSessionFile()
 
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
-}
-
-// renameIndexes checks the new names for spanner name validity, ensures the new names are already not used by existing tables
-// secondary indexes or foreign key constraints. If above checks passed then index renaming reflected in the schema else appropriate
-// error thrown.
-func renameIndexes(w http.ResponseWriter, r *http.Request) {
-	table := r.FormValue("table")
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-	}
-
-	renameMap := map[string]string{}
-	if err = json.Unmarshal(reqBody, &renameMap); err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-
-	// Check new name for spanner name validity.
-	newNames := []string{}
-	newNamesMap := map[string]bool{}
-	for _, value := range renameMap {
-		newNames = append(newNames, strings.ToLower(value))
-		newNamesMap[strings.ToLower(value)] = true
-	}
-	if len(newNames) != len(newNamesMap) {
-		http.Error(w, fmt.Sprintf("Found duplicate names in input : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
-		return
-	}
-
-	if ok, invalidNames := utilities.CheckSpannerNamesValidity(newNames); !ok {
-		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
-		return
-	}
-
-	// Check that the new names are not already used by existing tables, secondary indexes or foreign key constraints.
-	if ok, err := utilities.CanRename(newNames, table); !ok {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	sessionState := session.GetSessionState()
-
-	sp := sessionState.Conv.SpSchema[table]
-
-	// Update session with renamed secondary indexes.
-	newIndexes := []ddl.CreateIndex{}
-	for _, index := range sp.Indexes {
-		if newName, ok := renameMap[index.Name]; ok {
-			index.Name = newName
-		}
-		newIndexes = append(newIndexes, index)
-	}
-	sp.Indexes = newIndexes
-
-	sessionState.Conv.SpSchema[table] = sp
-	session.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,

@@ -145,7 +145,7 @@ export class FetchService {
     return this.http.get<ISession[]>(`${this.url}/GetSessions`)
   }
 
-  getConvForAsession(versionId: string) {
+  getConvForSession(versionId: string) {
     return this.http.get(`${this.url}/GetSession/${versionId}`, {
       responseType: 'blob',
     })
@@ -165,10 +165,6 @@ export class FetchService {
 
   setSpannerConfig(payload: ISpannerConfig) {
     return this.http.post<ISpannerConfig>(`${this.url}/SetSpannerConfig`, payload)
-  }
-
-  InitiateSession() {
-    return this.http.post<ISession>(`${this.url}/InitiateSession`, {})
   }
 
   getIsOffline() {

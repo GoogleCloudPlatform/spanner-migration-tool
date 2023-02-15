@@ -37,7 +37,6 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/convert/dump", convertSchemaDump).Methods("POST")
 	router.HandleFunc("/convert/session", loadSession).Methods("POST")
 	router.HandleFunc("/ddl", getDDL).Methods("GET")
-	router.HandleFunc("/overview", getOverview).Methods("GET")
 	router.HandleFunc("/conversion", getConversionRate).Methods("GET")
 	router.HandleFunc("/typemap", getTypeMap).Methods("GET")
 	router.HandleFunc("/report", getReportFile).Methods("GET")
@@ -58,12 +57,10 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/drop/table", dropTable).Methods("POST")
 
 	router.HandleFunc("/update/fks", updateForeignKeys).Methods("POST")
-	router.HandleFunc("/rename/indexes", renameIndexes).Methods("POST")
 	router.HandleFunc("/update/indexes", updateIndexes).Methods("POST")
 
 	// Session Management
 	router.HandleFunc("/IsOffline", session.IsOfflineSession).Methods("GET")
-	router.HandleFunc("/InitiateSession", session.InitiateSession).Methods("POST")
 	router.HandleFunc("/GetSessions", session.GetSessions).Methods("GET")
 	router.HandleFunc("/GetSession/{versionId}", session.GetConv).Methods("GET")
 	router.HandleFunc("/SaveRemoteSession", session.SaveRemoteSession).Methods("POST")

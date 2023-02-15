@@ -20,13 +20,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"time"
 
 	"cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -45,61 +42,6 @@ type SessionParams struct {
 func IsOfflineSession(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(GetSessionState().IsOffline)
-}
-
-func InitiateSession(w http.ResponseWriter, r *http.Request) {
-	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
-	now := time.Now()
-	sessionState := GetSessionState()
-
-	var err error
-	if sessionState.DbName == "" {
-		sessionState.DbName, err = utils.GetDatabaseName(sessionState.Driver, now)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Can not create database name : %v", err), http.StatusInternalServerError)
-		}
-	}
-	dirPath, err := conversion.WriteConvGeneratedFiles(sessionState.Conv, sessionState.DbName, sessionState.Driver, ioHelper.BytesRead, ioHelper.Out)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Cannot write files : %v", err), http.StatusInternalServerError)
-	}
-
-	sessionName := sessionState.DbName + ".session.json"
-	filePath := dirPath + sessionName
-	sessionState.SessionFile = filePath
-
-	scs := SchemaConversionSession{
-		VersionId:       uuid.New().String(),
-		CreateTimestamp: now,
-		SessionMetadata: SessionMetadata{
-			SessionName:  sessionName,
-			DatabaseType: sessionState.Driver,
-			DatabaseName: sessionState.DbName,
-		},
-	}
-
-	var ssvc *SessionService
-	conv, _ := json.Marshal(sessionState.Conv)
-	scs.SchemaConversionObject = string(conv)
-
-	if GetSessionState().IsOffline {
-		ssvc = NewSessionService(context.Background(), NewLocalSessionStore())
-	} else {
-		ctx := context.Background()
-		spannerClient, err := spanner.NewClient(ctx, getMetadataDbUri())
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Spanner Client error : %v", err), http.StatusInternalServerError)
-		}
-		defer spannerClient.Close()
-		ssvc = NewSessionService(ctx, NewRemoteSessionStore(spannerClient))
-
-		scs.Notes = []string{"init"}
-	}
-
-	ssvc.SaveSession(scs)
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(scs)
 }
 
 func GetSessions(w http.ResponseWriter, r *http.Request) {
@@ -231,7 +173,7 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionMetaData := GetSessionState().SessionMetadata
-	
+
 	sessionMetaData.DatabaseName = sm.DatabaseName
 	sessionMetaData.DatabaseType = sm.DatabaseType
 	sessionMetaData.SessionName = sm.SessionName

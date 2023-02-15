@@ -110,7 +110,7 @@ export class SessionListingComponent implements OnInit {
     databaseType: string,
     databaseName: string
   ) {
-    this.fetch.getConvForAsession(versionId).subscribe((data: any) => {
+    this.fetch.getConvForSession(versionId).subscribe((data: any) => {
       var a = document.createElement('a')
       a.href = URL.createObjectURL(data)
       a.download = `${sessionName}_${databaseType}_${databaseName}.json`
