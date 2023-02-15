@@ -4,7 +4,7 @@ export default interface IColumnTabData {
   srcColName: string
   srcDataType: string
   spColName: string
-  spDataType: string
+  spDataType: string | String
   spIsPk: boolean
   srcIsPk: boolean
   spIsNotNull: boolean

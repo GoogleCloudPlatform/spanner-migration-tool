@@ -158,6 +158,8 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 		sm.DatabaseType = sessionState.Driver
 	}
 
+	sm.Dialect = helpers.GetDialectDisplayStringFromDialect(sessionState.Dialect)
+
 	scs := SchemaConversionSession{
 		VersionId:              uuid.New().String(),
 		PreviousVersionId:      []string{},
@@ -177,6 +179,7 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 	sessionMetaData.DatabaseName = sm.DatabaseName
 	sessionMetaData.DatabaseType = sm.DatabaseType
 	sessionMetaData.SessionName = sm.SessionName
+	sessionMetaData.Dialect = sm.Dialect
 
 	GetSessionState().SessionMetadata = sessionMetaData
 

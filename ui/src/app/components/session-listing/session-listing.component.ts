@@ -18,6 +18,7 @@ export class SessionListingComponent implements OnInit {
     'EditorName',
     'DatabaseType',
     'DatabaseName',
+    'Dialect',
     'Notes',
     'CreateTimestamp',
     'Action',
@@ -31,12 +32,14 @@ export class SessionListingComponent implements OnInit {
     editorName: '',
     databaseType: '',
     databaseName: '',
+    dialect: '',
   }
   displayFilter: any = {
     sessionName: false,
     editorName: false,
     databaseType: false,
     databaseName: false,
+    dialect: false,
   }
   constructor(
     private fetch: FetchService,
@@ -97,6 +100,15 @@ export class SessionListingComponent implements OnInit {
         if (
           data.DatabaseName.toLowerCase().includes(
             this.filterColumnsValue.databaseName.toLowerCase()
+          )
+        )
+          return true
+        else return false
+      })
+      .filter((data: any) => {
+        if (
+          data.Dialect.toLowerCase().includes(
+            this.filterColumnsValue.dialect.toLowerCase()
           )
         )
           return true

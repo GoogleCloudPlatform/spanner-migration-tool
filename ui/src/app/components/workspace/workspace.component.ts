@@ -49,6 +49,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   conversionRateCount: ConversionRate = { good: 0, ok: 0, bad: 0 }
   conversionRatePercentages: ConversionRate = { good: 0, ok: 0, bad: 0 }
   currentDatabase: string = 'spanner'
+  dialect: string = ''
   constructor(
     private data: DataService,
     private conversion: ConversionService,
@@ -62,7 +63,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.ddlsumconvObj = this.data.getRateTypemapAndSummary()
-
+    this.conversion.getGoogleSQLToPGSQLTypemap()
+    this.conversion.getPGSQLToGoogleSQLTypemap()
     this.typemapObj = this.data.typeMap.subscribe((types) => {
       this.typeMap = types
     })
@@ -120,6 +122,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
           this.currentObject.id
         )
       }
+      this.dialect = (this.conv.TargetDb === "experimental_postgres") ? "PostgreSQL" : "Google Standard SQL"
     })
 
     this.converObj = this.data.conversionRate.subscribe((rates: any) => {

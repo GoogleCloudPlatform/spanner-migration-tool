@@ -60,6 +60,7 @@ func (st *localStore) GetConvWithMetadata(ctx context.Context, versionId string)
 		EditorName:   match.EditorName,
 		DatabaseType: match.DatabaseType,
 		DatabaseName: match.DatabaseName,
+		Dialect:      match.Dialect,
 	}
 
 	err := json.Unmarshal([]byte(match.SchemaConversionObject), &convm.Conv)

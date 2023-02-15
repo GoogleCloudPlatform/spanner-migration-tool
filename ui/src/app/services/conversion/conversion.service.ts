@@ -9,13 +9,36 @@ import IConv, {
 } from '../../model/conv'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ObjectExplorerNodeType } from 'src/app/app.constants'
+import { Dialect, ObjectExplorerNodeType } from 'src/app/app.constants'
+import { BehaviorSubject } from 'rxjs'
+import { FetchService } from '../fetch/fetch.service'
 
 @Injectable({
   providedIn: 'root',
 })
 export class ConversionService {
-  constructor() {}
+  constructor(private fetch: FetchService,) { }
+  private googleSQLToPGSQLTypeMapSub = new BehaviorSubject(new Map<string, string>())
+  private pgSQLToGoogleSQLTypeMapSub = new BehaviorSubject(new Map<string, string>())
+
+  googleSQLToPGSQLTypeMap = this.googleSQLToPGSQLTypeMapSub.asObservable()
+  pgSQLToGoogleSQLTypeMap = this.pgSQLToGoogleSQLTypeMapSub.asObservable()
+
+  getGoogleSQLToPGSQLTypemap() {
+    return this.fetch.getGoogleSQLToPGSQLTypemap().subscribe({
+      next: (googleSQLToPGSQLTypeMap: any) => {
+        this.googleSQLToPGSQLTypeMapSub.next(new Map<string, string>(Object.entries(googleSQLToPGSQLTypeMap)))
+      },
+    })
+  }
+
+  getPGSQLToGoogleSQLTypemap() {
+    return this.fetch.getPGSQLToGoogleSQLTypemap().subscribe({
+      next: (pgSQLToGoogleSQLTypeMap: any) => {
+        this.pgSQLToGoogleSQLTypeMapSub.next(new Map<string, string>(Object.entries(pgSQLToGoogleSQLTypeMap)))
+      },
+    })
+  }
 
   createTreeNode(
     conv: IConv,
@@ -68,16 +91,16 @@ export class ConversionService {
               parentId: spannerTable.Id,
               children: spannerTable.Indexes
                 ? spannerTable.Indexes.map((index: ICreateIndex, i: number) => {
-                    return {
-                      name: index.Name,
-                      type: ObjectExplorerNodeType.Index,
-                      parent: name,
-                      pos: i,
-                      isSpannerNode: true,
-                      id: index.Id,
-                      parentId: spannerTable.Id,
-                    }
-                  })
+                  return {
+                    name: index.Name,
+                    type: ObjectExplorerNodeType.Index,
+                    parent: name,
+                    pos: i,
+                    isSpannerNode: true,
+                    id: index.Id,
+                    parentId: spannerTable.Id,
+                  }
+                })
                 : [],
             },
           ],
@@ -179,16 +202,16 @@ export class ConversionService {
               parentId: srcTable.Id,
               children: srcTable.Indexes
                 ? srcTable.Indexes.map((index: IIndex, i: number) => {
-                    return {
-                      name: index.Name,
-                      type: ObjectExplorerNodeType.Index,
-                      parent: name,
-                      isSpannerNode: false,
-                      pos: i,
-                      id: index.Id,
-                      parentId: srcTable.Id,
-                    }
-                  })
+                  return {
+                    name: index.Name,
+                    type: ObjectExplorerNodeType.Index,
+                    parent: name,
+                    isSpannerNode: false,
+                    pos: i,
+                    id: index.Id,
+                    parentId: srcTable.Id,
+                  }
+                })
                 : [],
             },
           ],
@@ -222,7 +245,10 @@ export class ConversionService {
     let srcTableIds = Object.keys(data.SrcSchema[srcTableName].ColDefs).map(
       (name: string) => data.SrcSchema[srcTableName].ColDefs[name].Id
     )
-
+    let googleSQLToPGSQLTypemap: Map<String, String>
+    this.googleSQLToPGSQLTypeMap.subscribe((typemap) => {
+      googleSQLToPGSQLTypemap = typemap
+    })
     const res: IColumnTabData[] = data.SrcSchema[srcTableName].ColNames.map(
       (name: string, i: number) => {
         let spColName = data.ToSpanner[srcTableName]?.Cols[name]
@@ -236,11 +262,13 @@ export class ConversionService {
           })
         }
         let spannerColDef = spTableName ? data.SpSchema[spTableName]?.ColDefs[spColName] : null
+        let pgSQLDatatype = spannerColDef ? googleSQLToPGSQLTypemap.get(spannerColDef.T.Name) : ''
+
         return {
           spOrder: spannerColDef ? i + 1 : '',
           srcOrder: i + 1,
           spColName: spannerColDef ? spColName : '',
-          spDataType: spannerColDef ? spannerColDef.T.Name : '',
+          spDataType: spannerColDef ? (data.TargetDb === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
           srcColName: name,
           srcDataType: data.SrcSchema[srcTableName].ColDefs[name].Type.Name,
           spIsPk:
@@ -260,11 +288,12 @@ export class ConversionService {
       data.SpSchema[spTableName]?.ColNames.forEach((name: string, i: number) => {
         if (spTableName && srcTableIds.indexOf(data.SpSchema[spTableName].ColDefs[name].Id) < 0) {
           let spannerColDef = spTableName ? data.SpSchema[spTableName].ColDefs[name] : null
+          let pgSQLDatatype = spannerColDef ? googleSQLToPGSQLTypemap.get(spannerColDef.T.Name) : ''
           res.push({
             spOrder: i + 1,
             srcOrder: '',
             spColName: name,
-            spDataType: spannerColDef ? spannerColDef.T.Name : '',
+            spDataType: spannerColDef ? (data.TargetDb === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
             srcColName: '',
             srcDataType: '',
             spIsPk:
@@ -360,22 +389,22 @@ export class ConversionService {
 
     let res: IIndexData[] = spIndex
       ? spIndex.Keys.map((idx: IIndexKey, i: number) => {
-          return {
-            srcColName:
-              srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i
-                ? srcIndexs[0].Keys[i].Column
-                : '',
-            srcOrder:
-              srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i ? i + 1 : '',
-            srcDesc:
-              srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i
-                ? srcIndexs[0].Keys[i].Desc
-                : undefined,
-            spColName: idx.Col,
-            spOrder: idx.Order,
-            spDesc: idx.Desc,
-          }
-        })
+        return {
+          srcColName:
+            srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i
+              ? srcIndexs[0].Keys[i].Column
+              : '',
+          srcOrder:
+            srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i ? i + 1 : '',
+          srcDesc:
+            srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i
+              ? srcIndexs[0].Keys[i].Desc
+              : undefined,
+          spColName: idx.Col,
+          spOrder: idx.Order,
+          spDesc: idx.Desc,
+        }
+      })
       : []
     let spKeyLength = spIndex ? spIndex.Keys.length : 0
     if (srcIndexs && srcIndexs[0] && spKeyLength < srcIndexs[0].Keys.length) {

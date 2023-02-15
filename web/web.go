@@ -1186,6 +1186,7 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 	return l
 }
 func init() {
+	sessionState.conv = internal.MakeConv()
 	// Initialize mysqlTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
 		var l []typeIssue
@@ -1231,7 +1232,6 @@ func init() {
 		oracleTypeMap[srcTypeName] = l
 	}
 
-	sessionState.conv = internal.MakeConv()
 }
 
 // App connects to the web app.
