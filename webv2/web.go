@@ -2229,8 +2229,6 @@ func initializeTypeMap() {
 		}
 		oracleTypeMap[srcTypeName] = l
 	}
-	config := config.TryInitializeSpannerConfig()
-	session.SetSessionStorageConnectionState(config.GCPProjectID, config.SpannerInstanceID)
 }
 
 func init() {
