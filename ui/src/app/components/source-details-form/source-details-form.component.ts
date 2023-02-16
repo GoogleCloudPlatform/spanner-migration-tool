@@ -66,7 +66,7 @@ export class SourceDetailsFormComponent implements OnInit {
       port: port,
       userName: userName,
       password: password,
-      dbName: dbName
+      dbName: dbName,
     }
     this.fetch.setSourceDBDetailsForDirectConnect(payload).subscribe({
       next: () => {

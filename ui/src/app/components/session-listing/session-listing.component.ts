@@ -18,6 +18,7 @@ export class SessionListingComponent implements OnInit {
     'EditorName',
     'DatabaseType',
     'DatabaseName',
+    'Dialect',
     'Notes',
     'CreateTimestamp',
     'Action',
@@ -31,12 +32,14 @@ export class SessionListingComponent implements OnInit {
     editorName: '',
     databaseType: '',
     databaseName: '',
+    dialect: '',
   }
   displayFilter: any = {
     sessionName: false,
     editorName: false,
     databaseType: false,
     databaseName: false,
+    dialect: false,
   }
   constructor(
     private fetch: FetchService,
@@ -102,6 +105,15 @@ export class SessionListingComponent implements OnInit {
           return true
         else return false
       })
+      .filter((data: any) => {
+        if (
+          data.Dialect.toLowerCase().includes(
+            this.filterColumnsValue.dialect.toLowerCase()
+          )
+        )
+          return true
+        else return false
+      })
   }
 
   downloadSessionFile(
@@ -110,7 +122,7 @@ export class SessionListingComponent implements OnInit {
     databaseType: string,
     databaseName: string
   ) {
-    this.fetch.getConvForAsession(versionId).subscribe((data: any) => {
+    this.fetch.getConvForSession(versionId).subscribe((data: any) => {
       var a = document.createElement('a')
       a.href = URL.createObjectURL(data)
       a.download = `${sessionName}_${databaseType}_${databaseName}.json`

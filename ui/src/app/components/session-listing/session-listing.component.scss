@@ -59,7 +59,8 @@ table {
 .mat-column-SessionName,
 .mat-column-EditorName,
 .mat-column-DatabaseType,
-.mat-column-DatabaseName {
+.mat-column-DatabaseName,
+.mat-column-Dialect {
   width: 13vw;
   min-width: 150px;
 }

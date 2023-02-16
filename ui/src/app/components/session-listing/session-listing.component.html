@@ -98,6 +98,28 @@
         <td mat-cell *matCellDef="let element">{{ element.DatabaseName }}</td>
       </ng-container>
 
+      <ng-container matColumnDef="Dialect">
+        <th mat-header-cell *matHeaderCellDef>
+          <div class="table-header-container">
+            <span>Spanner Dialect</span>
+            <button mat-icon-button (click)="toggleFilterDisplay('dialect')">
+              <mat-icon *ngIf="displayFilter['dialect']">keyboard_arrow_up</mat-icon>
+              <mat-icon *ngIf="!displayFilter['dialect']">filter_list</mat-icon>
+            </button>
+          </div>
+          <mat-form-field *ngIf="displayFilter.dialect" appearance="standard">
+            <mat-label>Filter</mat-label>
+            <input
+              matInput
+              [(ngModel)]="filterColumnsValue.dialect"
+              (keyup)="updateFilterValue($event, 'dialect')"
+              autocomplete="off"
+            />
+          </mat-form-field>
+        </th>
+        <td mat-cell *matCellDef="let element">{{ element.Dialect }}</td>
+      </ng-container>
+
       <ng-container matColumnDef="Notes">
         <th mat-header-cell *matHeaderCellDef>Notes</th>
         <td mat-cell *matCellDef="let element; let i = index">

@@ -270,17 +270,19 @@
                     <mat-select
                       #matSelectspDataType
                       [formControl]="element.get('spDataType')"
-                      selected="element.get('spDataType').value"
                       (selectionChange)="spTableEditSuggestionHandler(i, matSelectspDataType.value)"
                     >
                       <mat-option
                         *ngFor="let t of typeMap[element.get('srcDataType').value]"
-                        [value]="t.T"
+                        [value]="t.DisplayT"
                       >
-                        {{ t.T }}
+                        {{ t.DisplayT }}
                       </mat-option>
-                      <mat-option *ngIf="element.get('srcDataType').value == ''" value="STRING">
+                      <mat-option *ngIf="element.get('srcDataType').value == '' && !isPostgreSQLDialect" value="STRING">
                         STRING
+                      </mat-option>
+                      <mat-option *ngIf="element.get('srcDataType').value == '' && isPostgreSQLDialect" value="VARCHAR">
+                        VARCHAR
                       </mat-option>
                     </mat-select>
                   </mat-form-field>

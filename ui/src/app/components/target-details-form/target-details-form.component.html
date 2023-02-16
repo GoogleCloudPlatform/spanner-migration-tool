@@ -7,12 +7,6 @@
         ng-value="targetDetails.TargetDB" />
     </mat-form-field>
     <br>
-    <mat-form-field appearance="outline">
-      <mat-label>Spanner Dialect</mat-label>
-      <mat-select class="input-field" formControlName="dialect" required="true">
-        <mat-option value="google_standard_sql">Google Standard SQL</mat-option>
-      </mat-select>
-    </mat-form-field>
     <br>
     <b>Region:</b>
     {{region}}
@@ -20,6 +14,10 @@
     <br>
     <b>Spanner Instance:</b>
     {{spannerInstance}}
+    <br>
+    <br>
+    <b>Dialect:</b>
+    {{dialect}}
   </form>
   <div mat-dialog-actions class="buttons-container">
     <button mat-button color="primary" mat-dialog-close>Cancel</button>

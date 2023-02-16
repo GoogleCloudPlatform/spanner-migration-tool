@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
@@ -32,6 +33,8 @@ const (
 	SCHEMA_ONLY            = "Schema"
 	DATA_ONLY              = "Data"
 	LOW_DOWNTIME_MIGRATION = "lowdt"
+	POSTGRESQL_DIALECT     = "PostgreSQL"
+	GOOGLE_SQL_DIALECT     = "Google Standard SQL"
 )
 
 const metadataDbName string = "harbourbridge_metadata"
@@ -69,6 +72,7 @@ func createDatabase(ctx context.Context, uri string) error {
 				EditorName STRING(100) NOT NULL,
 				DatabaseType STRING(50) NOT NULL,
 				DatabaseName STRING(50) NOT NULL,
+				Dialect STRING(50) NOT NULL,
 				Notes ARRAY<STRING(MAX)> NOT NULL,
 				Tags ARRAY<STRING(20)>,
 				SchemaChanges STRING(MAX),
@@ -134,4 +138,11 @@ func GetSourceDatabaseFromDriver(driver string) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported driver type: %v", driver)
 	}
+}
+
+func GetDialectDisplayStringFromDialect(dialect string) string {
+	if strings.ToLower(dialect) == constants.DIALECT_POSTGRESQL {
+		return POSTGRESQL_DIALECT
+	}
+	return GOOGLE_SQL_DIALECT
 }

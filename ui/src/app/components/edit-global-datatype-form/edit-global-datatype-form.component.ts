@@ -1,12 +1,15 @@
 import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core'
 import { FormBuilder, FormGroup, Validators } from '@angular/forms'
 import { IRule } from 'src/app/model/rule'
+import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DataService } from 'src/app/services/data/data.service'
+import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 
 interface IConvSourceType {
   T: string
   Brief: string
+  DisplayT: string
 }
 
 @Component({
@@ -26,7 +29,8 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
   viewRuleData: any = []
   viewRuleFlag: boolean = false
   ruleId: string = ''
-  constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService) {
+  pgSQLToGoogleSQLTypemap: Map<String, String> = new Map()
+  constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService, private conversion: ConversionService, private fetch: FetchService) {
     this.addGlobalDataTypeForm = this.fb.group({
       objectType: ['column', Validators.required],
       table: ['allTable', Validators.required],
@@ -60,13 +64,19 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
         this.addGlobalDataTypeForm.disable()
       }
     })
+    this.conversion.pgSQLToGoogleSQLTypeMap.subscribe((typemap) => {
+      this.pgSQLToGoogleSQLTypemap = typemap
+    })
+
   }
 
   formSubmit(): void {
     const ruleValue = this.addGlobalDataTypeForm.value
     const source = ruleValue.sourceType
     const payload: Record<string, string> = {}
-    payload[source] = ruleValue.destinationType
+    
+    let googleSQLDestinationType = this.pgSQLToGoogleSQLTypemap.get(ruleValue.destinationType)
+    payload[source] = googleSQLDestinationType === undefined ? ruleValue.destinationType : googleSQLDestinationType
     this.applyRule(payload)
     this.resetRuleType.emit('')
     this.sidenav.closeSidenav()
@@ -77,7 +87,7 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     const desTypeDetail = this.conversionType[key]
     const desType: string[] = []
     desTypeDetail.forEach((item: IConvSourceType) => {
-      desType.push(item.T)
+      desType.push(item.DisplayT)
     })
     this.destinationType = desType
   }

@@ -84,6 +84,11 @@ export const Profile = {
   ExistingConnProfile: 'existing',
 }
 
+export const Dialect = {
+  PostgreSQLDialect: 'experimental_postgres',
+  GoogleStandardSQLDialect: 'spanner'
+}
+
 export enum ProgressStatus {
 	SchemaMigrationComplete = 1,
 	SchemaCreationInProgress = 2,
@@ -92,3 +97,8 @@ export enum ProgressStatus {
 	ForeignKeyUpdateInProgress = 5,
   ForeignKeyUpdateComplete = 6
 }
+
+export const DialectList = [
+  { value: 'google_standard_sql', displayName: 'Google Standard SQL Dialect' },
+  { value: 'postgresql', displayName: 'PostgreSQL Dialect' },
+]

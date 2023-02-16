@@ -17,6 +17,7 @@ export default interface IConv {
   DatabaseName: string
   EditorName: string
   Audit: IAudit
+  TargetDb: string
 }
 
 export interface IAudit {
@@ -189,9 +190,11 @@ export interface ISessionSummary {
   NodeCount: number
   ProcessingUnits: number
   Instance: string
+  Dialect: string
 }
 
 export interface ISpannerDetails {
   Region: string
   Instance: string
+  Dialect: string
 }

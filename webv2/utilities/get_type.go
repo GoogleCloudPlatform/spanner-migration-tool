@@ -53,7 +53,9 @@ func GetType(conv *internal.Conv, newType, table, colName string, srcTableName s
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.Driver)
 	}
-	if len(srcCol.Type.ArrayBounds) > 1 {
+	if len(srcCol.Type.ArrayBounds) > 0 && conv.TargetDb == constants.TargetExperimentalPostgres {
+		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	} else if len(srcCol.Type.ArrayBounds) > 1 {
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 		issues = append(issues, internal.MultiDimensionalArray)
 	}

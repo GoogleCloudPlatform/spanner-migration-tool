@@ -10,7 +10,7 @@ import IConv, {
   IPrimaryKey,
   ISessionSummary,
 } from '../../model/conv'
-import IDumpConfig from '../../model/dump-config'
+import IDumpConfig, { IConvertFromDumpRequest } from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
@@ -21,10 +21,10 @@ import IRule from 'src/app/model/rule'
   providedIn: 'root',
 })
 export class FetchService {
-  private url: string = 'http://localhost:8080'
+  private url: string = window.location.origin
   constructor(private http: HttpClient) {}
 
-  connectTodb(payload: IDbConfig) {
+  connectTodb(payload: IDbConfig, dialect: string) {
     const { dbEngine, hostName, port, dbName, userName, password } = payload
     return this.http.post<HttpResponse<null>>(
       `${this.url}/connect`,
@@ -35,6 +35,7 @@ export class FetchService {
         Database: dbName,
         User: userName,
         Password: password,
+        Dialect: dialect,
       },
       { observe: 'response' }
     )
@@ -47,7 +48,7 @@ export class FetchService {
     return this.http.get<IConv>(`${this.url}/convert/infoschema`)
   }
 
-  getSchemaConversionFromDump(payload: IDumpConfig) {
+  getSchemaConversionFromDump(payload: IConvertFromDumpRequest) {
     return this.http.post<IConv>(`${this.url}/convert/dump`, payload)
   }
 
@@ -145,7 +146,7 @@ export class FetchService {
     return this.http.get<ISession[]>(`${this.url}/GetSessions`)
   }
 
-  getConvForAsession(versionId: string) {
+  getConvForSession(versionId: string) {
     return this.http.get(`${this.url}/GetSession/${versionId}`, {
       responseType: 'blob',
     })
@@ -165,10 +166,6 @@ export class FetchService {
 
   setSpannerConfig(payload: ISpannerConfig) {
     return this.http.post<ISpannerConfig>(`${this.url}/SetSpannerConfig`, payload)
-  }
-
-  InitiateSession() {
-    return this.http.post<ISession>(`${this.url}/InitiateSession`, {})
   }
 
   getIsOffline() {
@@ -223,5 +220,11 @@ export class FetchService {
 
   dropRule(ruleId: string) {
     return this.http.post(`${this.url}/dropRule?id=${ruleId}`, {})
+  }
+  getGoogleSQLToPGSQLTypemap() {
+    return this.http.get<Map<string,string>>(`${this.url}/typemap/GetGoogleSQLToPGSQLTypemap`)
+  }
+  getPGSQLToGoogleSQLTypemap() {
+    return this.http.get<Map<string,string>>(`${this.url}/typemap/GetPGSQLToGoogleSQLTypemap`)
   }
 }

@@ -68,12 +68,12 @@ export class PrepareMigrationComponent implements OnInit {
   }
   region: string = ''
   instance: string = ''
+  dialect: string = ''
   nodeCount: number = 0
   processingUnits: number = 0
 
   targetDetails: ITargetDetails = {
     TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
-    Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
     SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
     TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
     ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
@@ -131,6 +131,7 @@ export class PrepareMigrationComponent implements OnInit {
         this.sourceDatabaseType = res.DatabaseType
         this.region = res.Region
         this.instance = res.Instance
+        this.dialect = res.Dialect
         this.processingUnits = res.ProcessingUnits
         this.nodeCount = res.NodeCount
         this.migrationTypes = [
@@ -255,7 +256,6 @@ export class PrepareMigrationComponent implements OnInit {
     dialogRef.afterClosed().subscribe(() => {
       this.targetDetails = {
         TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
-        Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
         SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
         TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
         ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
@@ -303,7 +303,8 @@ export class PrepareMigrationComponent implements OnInit {
   openTargetDetailsForm() {
     let spannerDetails: ISpannerDetails = {
       Region: this.region,
-      Instance: this.instance
+      Instance: this.instance,
+      Dialect: this.dialect,
     }
     let dialogRef = this.dialog.open(TargetDetailsFormComponent, {
       width: '30vw',
@@ -314,7 +315,6 @@ export class PrepareMigrationComponent implements OnInit {
     dialogRef.afterClosed().subscribe(() => {
       this.targetDetails = {
         TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
-        Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
         SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
         TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
         ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
