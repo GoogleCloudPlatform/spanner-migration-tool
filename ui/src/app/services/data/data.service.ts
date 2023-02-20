@@ -76,8 +76,14 @@ export class DataService {
   }
 
   getSchemaConversionFromDb() {
-    this.fetch.getSchemaConversionFromDirectConnect().subscribe((res: IConv) => {
-      this.convSubject.next(res)
+    this.fetch.getSchemaConversionFromDirectConnect().subscribe({
+      next: (res: IConv) => {
+        this.convSubject.next(res)
+      },
+      error: (err: any) => {
+        this.clickEvent.closeDatabaseLoader()
+        this.snackbar.openSnackBar(err.error, 'Close')
+      },
     })
   }
 
