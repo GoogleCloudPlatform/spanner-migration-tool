@@ -570,7 +570,7 @@ func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, 
 		case time.Time:
 			return v, nil
 		}
-	case ddl.JSON, ddl.JSONB:
+	case ddl.JSON:
 		switch v := val.(type) {
 		case string:
 			return string(v), nil

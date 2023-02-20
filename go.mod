@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go v0.107.0
 	cloud.google.com/go/dataflow v0.7.0
 	cloud.google.com/go/datastream v1.5.0
-	cloud.google.com/go/spanner v1.40.0
+	cloud.google.com/go/spanner v1.41.0
 	cloud.google.com/go/storage v1.27.0
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/aws/aws-sdk-go v1.35.3
@@ -22,13 +22,14 @@ require (
 	github.com/pganalyze/pg_query_go/v2 v2.2.0
 	github.com/pingcap/tidb v1.1.0-beta.0.20221126021158-6b02a5d8ba7d
 	github.com/pingcap/tidb/parser v0.0.0-20221126021158-6b02a5d8ba7d
+	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/sijms/go-ora/v2 v2.2.17
 	github.com/stretchr/testify v1.8.1
 	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
 	golang.org/x/net v0.4.0
 	google.golang.org/api v0.103.0
-	google.golang.org/genproto v0.0.0-20221201164419-0e50fba7f41c
+	google.golang.org/genproto v0.0.0-20230202175211-008b39050e57
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 )
@@ -36,7 +37,7 @@ require (
 require (
 	cloud.google.com/go/compute v1.13.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.2 // indirect
-	cloud.google.com/go/iam v0.7.0 // indirect
+	cloud.google.com/go/iam v0.8.0 // indirect
 	cloud.google.com/go/longrunning v0.3.0 // indirect
 	github.com/BurntSushi/toml v0.4.1 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
@@ -69,7 +70,6 @@ require (
 	github.com/pingcap/kvproto v0.0.0-20220517085838-12e2f5a9d167 // indirect
 	github.com/pingcap/log v1.1.1-0.20221116035753-734d527bc87c // indirect
 	github.com/pingcap/tipb v0.0.0-20220314125451-bfb5c2c55188 // indirect
-	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
