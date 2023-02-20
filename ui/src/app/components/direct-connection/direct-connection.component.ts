@@ -5,7 +5,7 @@ import IDbConfig from 'src/app/model/db-config'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { DataService } from 'src/app/services/data/data.service'
 import { LoaderService } from '../../services/loader/loader.service'
-import { InputType, StorageKeys } from 'src/app/app.constants'
+import { DialectList, InputType, StorageKeys } from 'src/app/app.constants'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
@@ -23,6 +23,7 @@ export class DirectConnectionComponent implements OnInit {
     userName: new FormControl('', [Validators.required]),
     password: new FormControl(''),
     dbName: new FormControl('', [Validators.required]),
+    dialect: new FormControl('', [Validators.required]),
   })
 
   dbEngineList = [
@@ -34,6 +35,7 @@ export class DirectConnectionComponent implements OnInit {
 
   connectRequest: any = null
   getSchemaRequest: any = null
+  dialect = DialectList
 
   constructor(
     private router: Router,
@@ -64,7 +66,7 @@ export class DirectConnectionComponent implements OnInit {
     localStorage.clear()
     const { dbEngine, hostName, port, userName, password, dbName } = this.connectForm.value
     const config: IDbConfig = { dbEngine, hostName, port, userName, password, dbName }
-    this.connectRequest = this.fetch.connectTodb(config).subscribe({
+    this.connectRequest =this.fetch.connectTodb(config, dialect).subscribe({
       next: () => {
         this.getSchemaRequest = this.data.getSchemaConversionFromDb()
         this.data.conv.subscribe((res) => {

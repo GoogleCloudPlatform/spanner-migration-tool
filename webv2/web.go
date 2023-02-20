@@ -18,8 +18,6 @@
 package webv2
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -97,6 +95,7 @@ type driverConfig struct {
 	Database string `json:"Database"`
 	User     string `json:"User"`
 	Password string `json:"Password"`
+	Dialect  string `json:"Dialect"`
 }
 
 type sessionSummary struct {
@@ -112,6 +111,7 @@ type sessionSummary struct {
 	NodeCount          int
 	ProcessingUnits    int
 	Instance           string
+	Dialect            string
 }
 
 type progressDetails struct {
@@ -155,8 +155,7 @@ type DatastreamCfg struct {
 	Properties             string           `json:properties`
 }
 
-// databaseConnection creates connection with database when using
-// with postgres and mysql driver.
+// databaseConnection creates connection with database
 func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -205,6 +204,7 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionState.Driver = config.Driver
 	sessionState.SessionFile = ""
+	sessionState.Dialect = config.Dialect
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
 		Host:           config.Host,
 		Port:           config.Port,
@@ -226,7 +226,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 
 	// Setting target db to spanner by default.
-	conv.TargetDb = constants.TargetSpanner
+	conv.TargetDb = utils.DialectToTarget(sessionState.Dialect)
 	var err error
 	switch sessionState.Driver {
 	case constants.MYSQL:
@@ -255,6 +255,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		SessionName:  "NewSession",
 		DatabaseType: sessionState.Driver,
 		DatabaseName: sessionState.DbName,
+		Dialect:      sessionState.Dialect,
 	}
 
 	convm := session.ConvWithMetadata{
@@ -272,6 +273,15 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 type dumpConfig struct {
 	Driver   string `json:"Driver"`
 	FilePath string `json:"Path"`
+}
+
+type spannerDetails struct {
+	Dialect string `json:"Dialect"`
+}
+
+type convertFromDumpRequest struct {
+	Config         dumpConfig     `json:"Config"`
+	SpannerDetails spannerDetails `json:"SpannerDetails"`
 }
 
 func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
@@ -371,22 +381,22 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
-	var dc dumpConfig
+	var dc convertFromDumpRequest
 	err = json.Unmarshal(reqBody, &dc)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	f, err := os.Open(constants.UPLOAD_FILE_DIR + "/" + dc.FilePath)
+	f, err := os.Open(constants.UPLOAD_FILE_DIR + "/" + dc.Config.FilePath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.FilePath), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.Config.FilePath), http.StatusNotFound)
 		return
 	}
 	// We don't support Dynamodb in web hence no need to pass schema sample size here.
-	sourceProfile, _ := profiles.NewSourceProfile("", dc.Driver)
-	sourceProfile.Driver = dc.Driver
+	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver)
+	sourceProfile.Driver = dc.Config.Driver
 	targetProfile, _ := profiles.NewTargetProfile("")
-	targetProfile.TargetDb = constants.TargetSpanner
+	targetProfile.TargetDb = utils.DialectToTarget(dc.SpannerDetails.Dialect)
 	conv, err := conversion.SchemaConv(sourceProfile, targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
@@ -395,8 +405,9 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
-		DatabaseType: dc.Driver,
-		DatabaseName: filepath.Base(dc.FilePath),
+		DatabaseType: dc.Config.Driver,
+		DatabaseName: filepath.Base(dc.Config.FilePath),
+		Dialect:      dc.SpannerDetails.Dialect,
 	}
 
 	sessionState := session.GetSessionState()
@@ -406,12 +417,13 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	index.IndexSuggestion()
 
 	sessionState.SessionMetadata = sessionMetadata
-	sessionState.Driver = dc.Driver
+	sessionState.Driver = dc.Config.Driver
 	sessionState.DbName = ""
 	sessionState.SessionFile = ""
 	sessionState.SourceDB = nil
+	sessionState.Dialect = dc.SpannerDetails.Dialect
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path:           constants.UPLOAD_FILE_DIR + "/" + dc.FilePath,
+		Path:           constants.UPLOAD_FILE_DIR + "/" + dc.Config.FilePath,
 		ConnectionType: helpers.DUMP_MODE,
 	}
 
@@ -481,6 +493,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		SessionName:  "NewSession",
 		DatabaseType: s.Driver,
 		DatabaseName: metadata.DatabaseName,
+		Dialect:      utils.TargetDbToDialect(conv.TargetDb),
 	}
 
 	if sessionMetadata.DatabaseName == "" {
@@ -501,6 +514,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		Path:           constants.UPLOAD_FILE_DIR + "/" + s.FilePath,
 		ConnectionType: helpers.SESSION_FILE_MODE,
 	}
+	sessionState.Dialect = utils.TargetDbToDialect(conv.TargetDb)
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionMetadata,
@@ -527,7 +541,7 @@ func fetchLastLoadedSessionDetails(w http.ResponseWriter, r *http.Request) {
 // build DDL to send to Spanner.
 func getDDL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	c := ddl.Config{Comments: true, ProtectIds: false}
+	c := ddl.Config{Comments: true, ProtectIds: false, TargetDb: sessionState.Conv.TargetDb}
 	var tables []string
 	for t := range sessionState.Conv.SpSchema {
 		tables = append(tables, t)
@@ -556,16 +570,14 @@ func getDDL(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ddl)
 }
 
-// getOverview returns the overview of conversion.
-func getOverview(w http.ResponseWriter, r *http.Request) {
-	var buf bytes.Buffer
-	bufWriter := bufio.NewWriter(&buf)
-	sessionState := session.GetSessionState()
-	internal.GenerateReport(sessionState.Driver, sessionState.Conv, bufWriter, nil, false, false)
-	bufWriter.Flush()
-	overview := buf.String()
+func getGoogleSQLToPGSQLTypemap(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(overview)
+	json.NewEncoder(w).Encode(ddl.GOOGLE_SQL_TO_PGSQL_TYPEMAP)
+}
+
+func getPGSQLToGoogleSQLTypemap(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(ddl.PGSQL_TO_GOOGLE_SQL_TYPEMAP)
 }
 
 // getTypeMap returns the source to Spanner typemap only for the
@@ -578,6 +590,7 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var typeMap map[string][]typeIssue
+	initializeTypeMap()
 	switch sessionState.Driver {
 	case constants.MYSQL, constants.MYSQLDUMP:
 		typeMap = mysqlTypeMap
@@ -611,6 +624,19 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			filteredTypeMap[colDef.Type.Name] = typeMap[colDef.Type.Name]
+		}
+	}
+	for key, values := range filteredTypeMap {
+		for i := range values {
+			if sessionState.Dialect == constants.DIALECT_POSTGRESQL {
+				spType := ddl.Type{
+					Name: filteredTypeMap[key][i].T,
+				}
+				filteredTypeMap[key][i].DisplayT = ddl.GetPGType(spType)
+			} else {
+				filteredTypeMap[key][i].DisplayT = filteredTypeMap[key][i].T
+			}
+
 		}
 	}
 	w.WriteHeader(http.StatusOK)
@@ -1535,6 +1561,7 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionSummary.NodeCount = int(instanceInfo.NodeCount)
 	sessionSummary.ProcessingUnits = int(instanceInfo.ProcessingUnits)
 	sessionSummary.Instance = sessionState.SpannerInstanceID
+	sessionSummary.Dialect = helpers.GetDialectDisplayStringFromDialect(sessionState.Dialect)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sessionSummary)
 }
@@ -1646,7 +1673,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 			sourceDBConnectionDetails.Password, sessionState.DbName)
 	}
 	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
-	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB)
+	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v,dialect=%v", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB, sessionState.Dialect)
 	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION {
 		fileName := sessionState.Conv.Audit.MigrationRequestId + "-streaming.json"
 		sessionState.Bucket, sessionState.RootPath, err = profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, details.TargetDetails.TargetConnectionProfileName)
@@ -2139,8 +2166,9 @@ type SessionState struct {
 
 // Type and issue.
 type typeIssue struct {
-	T     string
-	Brief string
+	T        string
+	Brief    string
+	DisplayT string
 }
 
 type GeneratedResources struct {
@@ -2169,11 +2197,8 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 	return l
 }
 
-func init() {
+func initializeTypeMap() {
 	sessionState := session.GetSessionState()
-
-	utilities.InitObjectId()
-	sessionState.Conv = internal.MakeConv()
 	var toddl common.ToDdl
 	// Initialize mysqlTypeMap.
 	toddl = mysql.InfoSchemaImpl{}.GetToDdl()
@@ -2228,6 +2253,12 @@ func init() {
 		}
 		oracleTypeMap[srcTypeName] = l
 	}
+}
+
+func init() {
+	sessionState := session.GetSessionState()
+	utilities.InitObjectId()
+	sessionState.Conv = internal.MakeConv()
 	config := config.TryInitializeSpannerConfig()
 	session.SetSessionStorageConnectionState(config.GCPProjectID, config.SpannerInstanceID)
 }

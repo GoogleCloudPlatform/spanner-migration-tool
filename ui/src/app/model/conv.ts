@@ -16,6 +16,7 @@ export default interface IConv {
   DatabaseType: string
   DatabaseName: string
   EditorName: string
+  TargetDb: string
 }
 
 export interface IFkeyAndIdxs {
@@ -182,9 +183,11 @@ export interface ISessionSummary {
   NodeCount: number
   ProcessingUnits: number
   Instance: string
+  Dialect: string
 }
 
 export interface ISpannerDetails {
   Region: string
   Instance: string
+  Dialect: string
 }

@@ -333,6 +333,7 @@ func TestReviewTableSchema(t *testing.T) {
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
 					},
 				},
+				TargetDb: constants.TargetSpanner,
 			},
 		},
 	}
@@ -367,7 +368,7 @@ func TestReviewTableSchema(t *testing.T) {
 				status, tc.statusCode)
 		}
 
-		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.tableId])
+		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.tableId], tc.expectedConv.TargetDb)
 
 		if tc.statusCode == http.StatusOK {
 			assert.Equal(t, expectedddl, res.DDL)

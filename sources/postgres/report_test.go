@@ -121,7 +121,7 @@ Warnings
 1) Column 'synth_id' was added because this table didn't have a primary key.
    Spanner requires a primary key for every table.
 2) Some columns will consume more storage in Spanner e.g. for column 'b', source
-   DB type int4 is mapped to Spanner type int64.
+   DB type int4 is mapped to Spanner data type int64.
 3) Column 'c': type int4[4][2] is mapped to string(max). Spanner doesn't support
    multi-dimensional arrays.
 4) Column 'd': type circle is mapped to string(max). No appropriate Spanner
@@ -159,7 +159,7 @@ Warnings
 1) Column 'synth_id' was added because this table didn't have a primary key.
    Spanner requires a primary key for every table.
 2) Some columns will consume more storage in Spanner e.g. for column 'b', source
-   DB type int4 is mapped to Spanner type int64.
+   DB type int4 is mapped to Spanner data type int64.
 
 ----------------------------
 Unexpected Conditions

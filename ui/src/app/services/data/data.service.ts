@@ -4,8 +4,8 @@ import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from
 import IRule from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
-import IUpdateTable from 'src/app/model/update-table'
-import IDumpConfig from 'src/app/model/dump-config'
+import IUpdateTable, { IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
+import IDumpConfig, { IConvertFromDumpRequest } from 'src/app/model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISession from 'src/app/model/session'
 import ISpannerConfig from '../../model/spanner-config'
@@ -13,6 +13,8 @@ import { SnackbarService } from '../snackbar/snackbar.service'
 import ISummary from 'src/app/model/summary'
 import { ClickEventService } from '../click-event/click-event.service'
 import { TableUpdatePubSubService } from '../table-update-pub-sub/table-update-pub-sub.service'
+import { ConversionService } from '../conversion/conversion.service'
+import { Dialect } from 'src/app/app.constants'
 
 @Injectable({
   providedIn: 'root',
@@ -46,12 +48,12 @@ export class DataService {
   currentSession = this.currentSessionSub
     .asObservable()
     .pipe(filter((res) => Object.keys(res).length !== 0))
-
   constructor(
     private fetch: FetchService,
     private snackbar: SnackbarService,
     private clickEvent: ClickEventService,
-    private tableUpdatePubSub: TableUpdatePubSubService
+    private tableUpdatePubSub: TableUpdatePubSubService,
+    private conversion: ConversionService
   ) {
     this.getLastSessionDetails()
     this.getConfig()
@@ -104,7 +106,7 @@ export class DataService {
     })
   }
 
-  getSchemaConversionFromDump(payload: IDumpConfig) {
+  getSchemaConversionFromDump(payload: IConvertFromDumpRequest) {
     return this.fetch.getSchemaConversionFromDump(payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
@@ -185,6 +187,22 @@ export class DataService {
         if (data.error) {
           return data.error
         } else {
+          let googleSQLToPGSQLTypemap: Map<String, String>;
+          this.conversion.googleSQLToPGSQLTypeMap.subscribe((typemap) => {
+            googleSQLToPGSQLTypemap = typemap
+          })
+          this.conv.subscribe((convData: IConv) => {
+            if (convData.TargetDb === Dialect.PostgreSQLDialect) {
+              data.Changes.forEach((table: IReviewInterleaveTableChanges) => {
+                table.InterleaveColumnChanges.forEach((column: ITableColumnChanges) => {
+                  let pgSQLType = googleSQLToPGSQLTypemap.get(column.Type)
+                  let pgSQLUpdateType = googleSQLToPGSQLTypemap.get(column.UpdateType)
+                  column.Type = pgSQLType === undefined? column.Type: pgSQLType 
+                  column.UpdateType = pgSQLUpdateType === undefined? column.UpdateType: pgSQLUpdateType
+                })
+              })
+            }
+          })
           this.tableUpdatePubSub.setTableReviewChanges(data)
           return ''
         }
@@ -329,12 +347,6 @@ export class DataService {
 
   updateConfig(config: ISpannerConfig) {
     this.configSub.next(config)
-  }
-
-  initiateSession() {
-    this.fetch.InitiateSession().subscribe((data: any) => {
-      this.currentSessionSub.next(data)
-    })
   }
 
   updateIsOffline() {

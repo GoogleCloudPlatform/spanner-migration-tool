@@ -46,6 +46,16 @@
         <input matInput name="dbname" type="text" formControlName="dbName" />
       </mat-form-field>
       <br />
+      <h3 class="primary-header">Spanner Dialect</h3>
+      <mat-form-field class="full-width" appearance="outline">
+        <mat-label>Select a spanner dialect</mat-label>
+        <mat-select matSelect name="dialect" formControlName="dialect" appearance="outline">
+          <mat-option *ngFor="let element of dialect" [value]="element.value">
+            {{ element.displayName }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+      <br>
       <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid">
         Connect
       </button>

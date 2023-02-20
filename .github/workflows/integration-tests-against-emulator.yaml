@@ -101,10 +101,8 @@ jobs:
       # init a PostgresSQL database from the test_data
       - name: Install PostgreSQL 12 client required for loading .sql files
         run: |
-          sudo bash -c "echo deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main >> /etc/apt/sources.list.d/pgdg.list"
-          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
           sudo apt-get update
-          sudo apt-get -yq install postgresql-client-12
+          sudo apt-get -yq install postgresql-client
       - run: psql --version
       - run: psql -f test_data/pg_dump.test.out
 

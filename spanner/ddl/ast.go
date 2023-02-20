@@ -73,6 +73,24 @@ const (
 	PGMaxLength = 2621440
 )
 
+var GOOGLE_SQL_TO_PGSQL_TYPEMAP = map[string]string{
+	Bytes:     PGBytea,
+	Float64:   PGFloat8,
+	Int64:     PGInt8,
+	String:    PGVarchar,
+	Timestamp: PGTimestamptz,
+	JSON:      PGJSONB,
+}
+
+var PGSQL_TO_GOOGLE_SQL_TYPEMAP = map[string]string{
+	PGBytea:       Bytes,
+	PGFloat8:      Float64,
+	PGInt8:        Int64,
+	PGVarchar:     String,
+	PGTimestamptz: Timestamp,
+	PGJSONB:       JSON,
+}
+
 // Type represents the type of a column.
 //
 //	type:
@@ -106,24 +124,16 @@ func (ty Type) PrintColumnDefType() string {
 	return str
 }
 
-func (ty Type) PGPrintColumnDefType() string {
-	var str string
-	switch ty.Name {
-	case Bytes:
-		str = PGBytea
-	case Float64:
-		str = PGFloat8
-	case Int64:
-		str = PGInt8
-	case String:
-		str = PGVarchar
-	case Timestamp:
-		str = PGTimestamptz
-	case JSON:
-		str = PGJSONB
-	default:
-		str = ty.Name
+func GetPGType(spType Type) string {
+	pgType, ok := GOOGLE_SQL_TO_PGSQL_TYPEMAP[spType.Name]
+	if ok {
+		return pgType
 	}
+	return spType.Name
+}
+
+func (ty Type) PGPrintColumnDefType() string {
+	str := GetPGType(ty)
 	// PG doesn't support array types, and we don't expect to receive a type
 	// with IsArray set to true. In the unlikely event, set to string type.
 	if ty.IsArray {

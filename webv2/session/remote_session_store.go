@@ -46,6 +46,7 @@ func (st *spannerStore) GetSessionsMetadata(ctx context.Context) ([]SchemaConver
 				EditorName,
 				DatabaseType,
 				DatabaseName,
+				Dialect,
 				Notes,
 				Tags,
 				SchemaChanges,
@@ -82,6 +83,7 @@ func (st *spannerStore) GetConvWithMetadata(ctx context.Context, versionId strin
 								EditorName,
 								DatabaseType,
 								DatabaseName,
+								Dialect,
 								Notes,
 								Tags,
 								VersionId,
@@ -119,6 +121,7 @@ func (st *spannerStore) GetConvWithMetadata(ctx context.Context, versionId strin
 		EditorName:   scs.EditorName,
 		DatabaseType: scs.DatabaseType,
 		DatabaseName: scs.DatabaseName,
+		Dialect:      scs.Dialect,
 		Notes:        scs.Notes,
 		Tags:         scs.Tags,
 	}
