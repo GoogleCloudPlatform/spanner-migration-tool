@@ -1,6 +1,6 @@
 import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core'
 import { FormBuilder, FormGroup, Validators } from '@angular/forms'
-import { IRule } from 'src/app/model/rule'
+import IRule from 'src/app/model/rule'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DataService } from 'src/app/services/data/data.service'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
@@ -28,7 +28,7 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
   destinationType: string[] = []
   viewRuleData: any = []
   viewRuleFlag: boolean = false
-  ruleId: string = ''
+  ruleId: any
   pgSQLToGoogleSQLTypemap: Map<String, String> = new Map()
   constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService, private conversion: ConversionService, private fetch: FetchService) {
     this.addGlobalDataTypeForm = this.fb.group({
