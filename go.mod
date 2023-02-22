@@ -26,8 +26,8 @@ require (
 	github.com/sijms/go-ora/v2 v2.2.17
 	github.com/stretchr/testify v1.8.1
 	go.uber.org/zap v1.21.0
-	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
-	golang.org/x/net v0.4.0
+	golang.org/x/crypto v0.6.1-0.20230215202200-ebe92624d142
+	golang.org/x/net v0.6.0
 	google.golang.org/api v0.103.0
 	google.golang.org/genproto v0.0.0-20230202175211-008b39050e57
 	google.golang.org/grpc v1.51.0
@@ -89,9 +89,9 @@ require (
 	golang.org/x/exp v0.0.0-20220426173459-3bcf042a4bf5 // indirect
 	golang.org/x/oauth2 v0.3.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/term v0.3.0 // indirect
-	golang.org/x/text v0.5.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/tools v0.4.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
