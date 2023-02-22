@@ -61,6 +61,8 @@ type DatastreamCfg struct {
 type DataflowCfg struct {
 	JobName  string
 	Location string
+	Network string
+	Subnetwork string
 }
 
 type StreamingCfg struct {
@@ -381,6 +383,8 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 			MaxWorkers:            maxWorkers,
 			AutoscalingAlgorithm:  2, // 2 corresponds to AUTOSCALING_ALGORITHM_BASIC
 			EnableStreamingEngine: true,
+			Network: dataflowCfg.Network,
+			Subnetwork: fmt.Sprintf("regions/%s/subnetworks/%s", dataflowCfg.Location, dataflowCfg.Subnetwork) ,
 		},
 	}
 

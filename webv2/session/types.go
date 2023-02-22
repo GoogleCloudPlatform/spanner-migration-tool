@@ -53,6 +53,8 @@ type SessionState struct {
 	SpannerInstanceID   string
 	Dialect             string
 	Region              string
+	Network 			string
+	Subnetwork			string
 	SpannerDatabaseName string
 	Bucket              string
 	RootPath            string

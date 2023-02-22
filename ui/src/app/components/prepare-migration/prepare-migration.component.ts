@@ -33,6 +33,7 @@ export class PrepareMigrationComponent implements OnInit {
 
   isSourceConnectionProfileSet: boolean = false
   isTargetConnectionProfileSet: boolean = false
+  isDataflowConfiguration: boolean = true
   isSourceDetailsSet: boolean = false
   isTargetDetailSet: boolean = false
   isMigrationDetailSet: boolean = false
@@ -270,6 +271,8 @@ export class PrepareMigrationComponent implements OnInit {
     }
     )
   }
+
+  
 
   endMigration() {
     let payload: ISourceAndTargetDetails = {

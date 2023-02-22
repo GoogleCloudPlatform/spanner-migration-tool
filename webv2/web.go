@@ -143,6 +143,8 @@ type StreamingCfg struct {
 type DataflowCfg struct {
 	JobName  string `json:"JobName"`
 	Location string `json:"Location"`
+	Network string `json:"Network"`
+	Subnetwork string `json:"Subnetwork"`
 }
 type ConnectionConfig struct {
 	Name     string `json:"name"`
@@ -1739,6 +1741,8 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 		DataflowCfg: DataflowCfg{
 			JobName:  "",
 			Location: sessionState.Region,
+			Network: sessionState.Network,
+			Subnetwork: sessionState.Subnetwork,
 		},
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}
