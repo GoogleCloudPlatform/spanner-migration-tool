@@ -19,7 +19,7 @@
 # This stage builds the HarbourBridge binary using its source code.
 
 # Add golang as the base image for the build stage.
-FROM golang:1.18.3 AS build
+FROM golang:1.20.1 AS build
 
 # Set the default work directory as “/harbourbridge_bin” in the container.
 WORKDIR /harbourbridge_bin
