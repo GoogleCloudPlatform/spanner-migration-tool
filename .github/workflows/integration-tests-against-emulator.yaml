@@ -96,7 +96,7 @@ jobs:
           - 1521:1521
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       # init a PostgresSQL database from the test_data
       - name: Install PostgreSQL 12 client required for loading .sql files
