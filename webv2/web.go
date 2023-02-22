@@ -124,8 +124,14 @@ type progressDetails struct {
 
 type migrationDetails struct {
 	TargetDetails targetDetails `json:"TargetDetails"`
+	DataflowConfig dataflowConfig `json:"DataflowConfig"`
 	MigrationMode string        `json:MigrationMode`
 	MigrationType string        `json:MigrationType`
+}
+
+type dataflowConfig struct {
+	Network string `json:Network`
+	Subnetwork string  `json:Subnetwork`
 }
 
 type targetDetails struct {
@@ -1682,7 +1688,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting target bucket: %v", err)
 		}
-		err = createStreamingCfgFile(sessionState, details.TargetDetails, fileName)
+		err = createStreamingCfgFile(sessionState, details.TargetDetails, details.DataflowConfig, fileName)
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating streaming config file: %v", err)
 		}
@@ -1723,7 +1729,7 @@ func writeSessionFile(sessionState *session.SessionState) error {
 	return nil
 }
 
-func createStreamingCfgFile(sessionState *session.SessionState, targetDetails targetDetails, fileName string) error {
+func createStreamingCfgFile(sessionState *session.SessionState, targetDetails targetDetails, dataflowConfig dataflowConfig, fileName string) error {
 	data := StreamingCfg{
 		DatastreamCfg: DatastreamCfg{
 			StreamId:          "",
@@ -1741,8 +1747,8 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 		DataflowCfg: DataflowCfg{
 			JobName:  "",
 			Location: sessionState.Region,
-			Network: sessionState.Network,
-			Subnetwork: sessionState.Subnetwork,
+			Network: dataflowConfig.Network,
+			Subnetwork: dataflowConfig.Subnetwork,
 		},
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}

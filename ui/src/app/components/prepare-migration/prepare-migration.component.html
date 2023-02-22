@@ -113,12 +113,12 @@
                 </p>
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
                     <span class="bullet">4</span>
-                    <span>Configure Dataflow</span><span><button mat-button class="configure"
-                            (click)="openConnectionProfileForm(false)"
+                    <span>Configure Dataflow (Optional) </span><span><button mat-button class="configure"
+                            (click)="openDataflowForm()"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet">
                             Configure
                             <mat-icon>edit</mat-icon>
-                            <mat-icon *ngIf="isDataflowConfiguration" class="success"
+                            <mat-icon *ngIf="isDataflowConfigurationSet" class="success"
                                 matTooltip="Dataflow Configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>

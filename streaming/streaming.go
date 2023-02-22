@@ -367,7 +367,13 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		inputFilePattern = inputFilePattern + "/"
 	}
 	fmt.Println("Reading files from datastream destination ", inputFilePattern)
-
+	dataflowSubnetwork := ""
+	if dataflowCfg.Network != "" && dataflowCfg.Subnetwork == "" {
+		return fmt.Errorf("if network is specified, subnetwork cannot be empty")
+	}
+	if dataflowCfg.Network != "" && dataflowCfg.Subnetwork != "" {
+		dataflowSubnetwork = fmt.Sprintf("regions/%s/subnetworks/%s", dataflowCfg.Location, dataflowCfg.Subnetwork)
+	}
 	launchParameter := &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-01-29-00_RC00/flex/Cloud_Datastream_to_Spanner"},
@@ -384,7 +390,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 			AutoscalingAlgorithm:  2, // 2 corresponds to AUTOSCALING_ALGORITHM_BASIC
 			EnableStreamingEngine: true,
 			Network: dataflowCfg.Network,
-			Subnetwork: fmt.Sprintf("regions/%s/subnetworks/%s", dataflowCfg.Location, dataflowCfg.Subnetwork) ,
+			Subnetwork: dataflowSubnetwork,
 		},
 	}
 
