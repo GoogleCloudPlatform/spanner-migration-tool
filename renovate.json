@@ -3,6 +3,9 @@
   "extends": [
     "config:base"
   ],
+  "digest": {
+    "enabled": false
+  },
   "packageRules": [
     {
       "groupName": "all non-major dependencies",
