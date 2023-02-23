@@ -6,19 +6,6 @@
   "digest": {
     "enabled": false
   },
-  "packageRules": [
-    {
-      "groupName": "all non-major dependencies",
-      "groupSlug": "all-minor-patch",
-      "matchPackagePatterns": [
-        "*"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch"
-      ]
-    }
-  ],
   "schedule": [
     "before 3am on Monday"
   ],
