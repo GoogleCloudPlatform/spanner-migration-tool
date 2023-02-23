@@ -65,7 +65,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 	sourceProfile, _ := profiles.NewSourceProfile(fmt.Sprintf("schema-sample-size=%d", schemaSampleSize), driver)
 	sourceProfile.Driver = driver
 	targetProfile, _ := profiles.NewTargetProfile("")
-	targetProfile.TargetDb = targetDb
+	targetProfile.Conn.Sp.Dialect = utils.TargetDbToDialect(targetDb)
 	if !dataOnly {
 		// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
 		// which reads the environment variables and constructs the string later on.
@@ -107,7 +107,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 		return fmt.Errorf("can't create admin client: %w", utils.AnalyzeError(err, dbURI))
 	}
 	defer adminClient.Close()
-	err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, driver, targetDb, conv, ioHelper.Out)
+	err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, driver, conv, ioHelper.Out)
 	if err != nil {
 		return fmt.Errorf("can't create/update database: %v", err)
 	}

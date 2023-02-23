@@ -19,7 +19,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"golang.org/x/net/context"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
@@ -53,33 +52,8 @@ type TargetProfileConnection struct {
 }
 
 type TargetProfile struct {
-	TargetDb string
-	Ty       TargetProfileType
-	Conn     TargetProfileConnection
-}
-
-// ToLegacyTargetDb converts source-profile to equivalent legacy global flag
-// -target-db etc since the rest of the codebase still uses the same.
-// TODO: Deprecate this function and pass around TargetProfile across the
-// codebase wherever information about target connection is required.
-func (trg TargetProfile) ToLegacyTargetDb() string {
-	switch trg.Ty {
-	case TargetProfileTypeConnection:
-		{
-			conn := trg.Conn
-			switch conn.Ty {
-			case TargetProfileConnectionTypeSpanner:
-				{
-					sp := conn.Sp
-					return utils.DialectToTarget(sp.Dialect)
-				}
-			default:
-				return constants.TargetSpanner
-			}
-		}
-	default:
-		return constants.TargetSpanner
-	}
+	Ty   TargetProfileType
+	Conn TargetProfileConnection
 }
 
 // This expects that GetResourceIds has already been called once and the project, instance and dbName

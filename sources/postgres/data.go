@@ -119,28 +119,61 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, l
 	// strconv.ParseFloat and strconv.ParseInt) return "invalid syntax"
 	// errors if whitespace were to appear at the start or end of a string.
 	// We do not expect pg_dump to generate such output.
-	switch spannerType.Name {
-	case ddl.Bool:
-		return convBool(val)
-	case ddl.Bytes:
-		return convBytes(val)
-	case ddl.Date:
-		return convDate(val)
-	case ddl.Float64:
-		return convFloat64(val)
-	case ddl.Int64:
-		return convInt64(val)
-	case ddl.Numeric:
-		return convNumeric(conv, val)
-	case ddl.String:
-		return val, nil
-	case ddl.Timestamp:
-		return convTimestamp(srcTypeName, location, val)
-	case ddl.JSON:
-		return val, nil
+	switch conv.SpDialect {
+	case constants.DIALECT_GOOGLESQL:
+		{
+			switch spannerType.Name {
+			case ddl.Bool:
+				return convBool(val)
+			case ddl.Bytes:
+				return convBytes(val)
+			case ddl.Date:
+				return convDate(val)
+			case ddl.Float64:
+				return convFloat64(val)
+			case ddl.Int64:
+				return convInt64(val)
+			case ddl.Numeric:
+				return convNumeric(conv, val)
+			case ddl.String:
+				return val, nil
+			case ddl.Timestamp:
+				return convTimestamp(srcTypeName, location, val)
+			case ddl.JSON:
+				return val, nil
+			default:
+				return val, fmt.Errorf("data conversion not implemented for type %v", spannerType.Name)
+			}
+		}
+	case constants.DIALECT_POSTGRESQL:
+		{
+			switch spannerType.Name {
+			case ddl.PGBool:
+				return convBool(val)
+			case ddl.PGBytea:
+				return convBytes(val)
+			case ddl.PGDate:
+				return convDate(val)
+			case ddl.PGFloat8:
+				return convFloat64(val)
+			case ddl.PGInt8:
+				return convInt64(val)
+			case ddl.PGNumeric:
+				return convPGNumeric(conv, val)
+			case ddl.PGVarchar:
+				return val, nil
+			case ddl.PGTimestamptz:
+				return convTimestamp(srcTypeName, location, val)
+			case ddl.PGJSONB:
+				return val, nil
+			default:
+				return val, fmt.Errorf("data conversion not implemented for type %v", spannerType.Name)
+			}
+		}
 	default:
-		return val, fmt.Errorf("data conversion not implemented for type %v", spannerType.Name)
+		return val, fmt.Errorf("dialect not supported %v", conv.SpDialect)
 	}
+
 }
 
 func convBool(val string) (bool, error) {
@@ -185,19 +218,18 @@ func convInt64(val string) (int64, error) {
 	}
 	return i, err
 }
+func convPGNumeric(conv *internal.Conv, val string) (interface{}, error) {
+	return spanner.PGNumeric{Numeric: val, Valid: true}, nil
+}
 
 // convNumeric maps a source database string value (representing a numeric)
 // into a string representing a valid Spanner numeric.
 func convNumeric(conv *internal.Conv, val string) (interface{}, error) {
-	if conv.TargetDb == constants.TargetExperimentalPostgres {
-		return spanner.PGNumeric{Numeric: val, Valid: true}, nil
-	} else {
-		r := new(big.Rat)
-		if _, ok := r.SetString(val); !ok {
-			return "", fmt.Errorf("can't convert %q to big.Rat", val)
-		}
-		return r, nil
+	r := new(big.Rat)
+	if _, ok := r.SetString(val); !ok {
+		return "", fmt.Errorf("can't convert %q to big.Rat", val)
 	}
+	return r, nil
 }
 
 // convTimestamp maps a source DB timestamp into a go Time (which

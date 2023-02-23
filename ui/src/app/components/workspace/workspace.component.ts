@@ -122,7 +122,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
           this.currentObject.id
         )
       }
-      this.dialect = (this.conv.TargetDb === "experimental_postgres") ? "PostgreSQL" : "Google Standard SQL"
+      this.dialect = (this.conv.SpDialect === "experimental_postgres") ? "PostgreSQL" : "Google Standard SQL"
     })
 
     this.converObj = this.data.conversionRate.subscribe((rates: any) => {

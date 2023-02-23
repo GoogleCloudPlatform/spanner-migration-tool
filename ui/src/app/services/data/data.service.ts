@@ -197,7 +197,7 @@ export class DataService {
             googleSQLToPGSQLTypemap = typemap
           })
           this.conv.subscribe((convData: IConv) => {
-            if (convData.TargetDb === Dialect.PostgreSQLDialect) {
+            if (convData.SpDialect === Dialect.PostgreSQLDialect) {
               data.Changes.forEach((table: IReviewInterleaveTableChanges) => {
                 table.InterleaveColumnChanges.forEach((column: ITableColumnChanges) => {
                   let pgSQLType = googleSQLToPGSQLTypemap.get(column.Type)

@@ -358,7 +358,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				}
 				srcType := srcSchema.ColDefs[srcCol].Type.Print()
 				spType := spSchema.ColDefs[spCol].T.PrintColumnDefType()
-				if conv.TargetDb == constants.TargetExperimentalPostgres {
+				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 					spType = spSchema.ColDefs[spCol].T.PGPrintColumnDefType()
 				}
 				srcName := srcSchema.ColDefs[srcCol].Name

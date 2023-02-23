@@ -120,7 +120,7 @@ func TestToSpannerType(t *testing.T) {
 func TestToExperimentalSpannerType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
-	conv.TargetDb = constants.TargetExperimentalPostgres
+	conv.SpDialect = constants.DIALECT_POSTGRESQL
 	name := "test"
 	srcSchema := schema.Table{
 		Name:     name,
@@ -152,9 +152,9 @@ func TestToExperimentalSpannerType(t *testing.T) {
 		Name:     "ref_table",
 		ColNames: []string{"dref", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"dref": {Name: "dref", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-			"b":    {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c":    {Name: "c", T: ddl.Type{Name: ddl.Bool}},
+			"dref": {Name: "dref", T: ddl.Type{Name: ddl.PGVarchar, Len: int64(6)}},
+			"b":    {Name: "b", T: ddl.Type{Name: ddl.PGFloat8}},
+			"c":    {Name: "c", T: ddl.Type{Name: ddl.PGBool}},
 		},
 		Pks: []ddl.IndexKey{{Col: "dref"}},
 	}
@@ -162,9 +162,9 @@ func TestToExperimentalSpannerType(t *testing.T) {
 		Name:     "ref_table2",
 		ColNames: []string{"aref", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"aref": {Name: "aref", T: ddl.Type{Name: ddl.Int64}},
-			"b":    {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c":    {Name: "c", T: ddl.Type{Name: ddl.Bool}},
+			"aref": {Name: "aref", T: ddl.Type{Name: ddl.PGInt8}},
+			"b":    {Name: "b", T: ddl.Type{Name: ddl.PGFloat8}},
+			"c":    {Name: "c", T: ddl.Type{Name: ddl.PGBool}},
 		},
 		Pks: []ddl.IndexKey{{Col: "aref"}},
 	}
@@ -175,21 +175,21 @@ func TestToExperimentalSpannerType(t *testing.T) {
 		Name:     name,
 		ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.Int64}},
-			"d": {Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-			"e": {Name: "e", T: ddl.Type{Name: ddl.Numeric}},
-			"f": {Name: "f", T: ddl.Type{Name: ddl.Int64}},
-			"g": {Name: "g", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-			"h": {Name: "h", T: ddl.Type{Name: ddl.Date}},
-			"i": {Name: "i", T: ddl.Type{Name: ddl.Numeric}},
-			"j": {Name: "j", T: ddl.Type{Name: ddl.Timestamp}},
-			"k": {Name: "k", T: ddl.Type{Name: ddl.String, Len: int64(50)}},
-			"l": {Name: "l", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-			"m": {Name: "m", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"n": {Name: "n", T: ddl.Type{Name: ddl.Bool}},
-			"o": {Name: "o", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"a": {Name: "a", T: ddl.Type{Name: ddl.PGInt8}},
+			"b": {Name: "b", T: ddl.Type{Name: ddl.PGFloat8}},
+			"c": {Name: "c", T: ddl.Type{Name: ddl.PGInt8}},
+			"d": {Name: "d", T: ddl.Type{Name: ddl.PGVarchar, Len: int64(6)}},
+			"e": {Name: "e", T: ddl.Type{Name: ddl.PGNumeric}},
+			"f": {Name: "f", T: ddl.Type{Name: ddl.PGInt8}},
+			"g": {Name: "g", T: ddl.Type{Name: ddl.PGBytea, Len: ddl.PGMaxLength}},
+			"h": {Name: "h", T: ddl.Type{Name: ddl.PGDate}},
+			"i": {Name: "i", T: ddl.Type{Name: ddl.PGNumeric}},
+			"j": {Name: "j", T: ddl.Type{Name: ddl.PGTimestamptz}},
+			"k": {Name: "k", T: ddl.Type{Name: ddl.PGVarchar, Len: int64(50)}},
+			"l": {Name: "l", T: ddl.Type{Name: ddl.PGBytea, Len: ddl.PGMaxLength}},
+			"m": {Name: "m", T: ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}},
+			"n": {Name: "n", T: ddl.Type{Name: ddl.PGBool}},
+			"o": {Name: "o", T: ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}},
 		},
 
 		Pks: []ddl.IndexKey{{Col: "a"}},

@@ -17,7 +17,7 @@ export default interface IConv {
   DatabaseName: string
   EditorName: string
   Audit: IAudit
-  TargetDb: string
+  SpDialect: string
 }
 
 export interface IAudit {

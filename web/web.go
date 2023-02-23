@@ -140,7 +140,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	}
 	conv := internal.MakeConv()
 	// Setting target db to spanner by default.
-	conv.TargetDb = constants.TargetSpanner
+	conv.SpDialect = constants.DIALECT_GOOGLESQL
 	var err error
 	switch sessionState.driver {
 	case constants.MYSQL:
@@ -194,7 +194,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Driver)
 	sourceProfile.Driver = dc.Driver
 	targetProfile, _ := profiles.NewTargetProfile("")
-	targetProfile.TargetDb = constants.TargetSpanner
+	targetProfile.Conn.Sp.Dialect = constants.DIALECT_GOOGLESQL
 	conv, err := conversion.SchemaConv(sourceProfile, targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
@@ -833,7 +833,7 @@ func rollback(err error) error {
 		return fmt.Errorf("encountered error %w. rollback failed because we don't have a session file", err)
 	}
 	sessionState.conv = internal.MakeConv()
-	sessionState.conv.TargetDb = constants.TargetSpanner
+	sessionState.conv.SpDialect = constants.DIALECT_GOOGLESQL
 	err2 := conversion.ReadSessionFile(sessionState.conv, sessionState.sessionFile)
 	if err2 != nil {
 		return fmt.Errorf("encountered error %w. rollback failed: %v", err, err2)
@@ -1079,7 +1079,11 @@ func getType(newType, table, colName string, srcTableName string) (ddl.CreateTab
 		ty, issues = toSpannerTypeSQLserver(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case constants.ORACLE:
 		toddl := oracle.InfoSchemaImpl{}.GetToDdl()
-		ty, issues = toddl.ToSpannerType(sessionState.conv, newType, srcCol.Type)
+		if sessionState.conv.SpDialect == constants.DIALECT_POSTGRESQL {
+			ty, issues = toddl.ToSpannerPostgreSQLDialectType(sessionState.conv, newType, srcCol.Type)
+		} else {
+			ty, issues = toddl.ToSpannerGSQLDialectType(sessionState.conv, newType, srcCol.Type)
+		}
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.driver)
 	}
@@ -1226,7 +1230,15 @@ func init() {
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
 			srcType := schema.MakeType()
 			srcType.Name = srcTypeName
-			ty, issues := toddl.ToSpannerType(sessionState.conv, spType, srcType)
+			var (
+				ty     ddl.Type
+				issues []internal.SchemaIssue
+			)
+			if sessionState.conv.SpDialect == constants.DIALECT_POSTGRESQL {
+				ty, issues = toddl.ToSpannerPostgreSQLDialectType(sessionState.conv, spType, srcType)
+			} else {
+				ty, issues = toddl.ToSpannerGSQLDialectType(sessionState.conv, spType, srcType)
+			}
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		oracleTypeMap[srcTypeName] = l

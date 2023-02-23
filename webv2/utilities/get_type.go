@@ -40,20 +40,36 @@ func GetType(conv *internal.Conv, newType, table, colName string, srcTableName s
 	switch sessionState.Driver {
 	case constants.MYSQL, constants.MYSQLDUMP:
 		toddl = mysql.InfoSchemaImpl{}.GetToDdl()
-		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
+		if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
+			ty, issues = toddl.ToSpannerPostgreSQLDialectType(conv, newType, srcCol.Type)
+		} else {
+			ty, issues = toddl.ToSpannerGSQLDialectType(conv, newType, srcCol.Type)
+		}
 	case constants.PGDUMP, constants.POSTGRES:
 		toddl = postgres.InfoSchemaImpl{}.GetToDdl()
-		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
+		if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
+			ty, issues = toddl.ToSpannerPostgreSQLDialectType(conv, newType, srcCol.Type)
+		} else {
+			ty, issues = toddl.ToSpannerGSQLDialectType(conv, newType, srcCol.Type)
+		}
 	case constants.SQLSERVER:
 		toddl = sqlserver.InfoSchemaImpl{}.GetToDdl()
-		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
+		if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
+			ty, issues = toddl.ToSpannerPostgreSQLDialectType(conv, newType, srcCol.Type)
+		} else {
+			ty, issues = toddl.ToSpannerGSQLDialectType(conv, newType, srcCol.Type)
+		}
 	case constants.ORACLE:
 		toddl = oracle.InfoSchemaImpl{}.GetToDdl()
-		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
+		if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
+			ty, issues = toddl.ToSpannerPostgreSQLDialectType(conv, newType, srcCol.Type)
+		} else {
+			ty, issues = toddl.ToSpannerGSQLDialectType(conv, newType, srcCol.Type)
+		}
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.Driver)
 	}
-	if len(srcCol.Type.ArrayBounds) > 0 && conv.TargetDb == constants.TargetExperimentalPostgres {
+	if len(srcCol.Type.ArrayBounds) > 0 && conv.SpDialect == constants.DIALECT_POSTGRESQL {
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 	} else if len(srcCol.Type.ArrayBounds) > 1 {
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}

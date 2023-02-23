@@ -61,7 +61,7 @@ export class ObjectDetailComponent implements OnInit {
     this.data.conv.subscribe({
       next: (res: IConv) => {
         this.conv = res
-        this.isPostgreSQLDialect = this.conv.TargetDb === Dialect.PostgreSQLDialect
+        this.isPostgreSQLDialect = this.conv.SpDialect === Dialect.PostgreSQLDialect
       },
     })
   }
@@ -295,7 +295,7 @@ export class ObjectDetailComponent implements OnInit {
             Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
-            ToType: (this.conv.TargetDb === Dialect.PostgreSQLDialect) ? (googleSQLDataType === undefined ? col.spDataType: googleSQLDataType) : col.spDataType,
+            ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (googleSQLDataType === undefined ? col.spDataType: googleSQLDataType) : col.spDataType,
           }
           break
         }

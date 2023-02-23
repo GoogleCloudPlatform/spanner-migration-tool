@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -42,7 +43,7 @@ type Conv struct {
 	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
 	Stats          stats
 	TimezoneOffset string              // Timezone offset for timestamp conversion.
-	TargetDb       string              // The target database to which HarbourBridge is writing.
+	SpDialect      string              // The dialect of the spanner database to which HarbourBridge is writing.
 	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
 	Audit          Audit               // Stores the audit information for the database conversion
 	Rules          []Rule              // Stores applied rules during schema conversion
@@ -211,7 +212,8 @@ func MakeConv() *Conv {
 			StreamingStats: streamingStats{},
 			MigrationType:  migration.MigrationData_SCHEMA_ONLY.Enum(),
 		},
-		Rules: []Rule{},
+		Rules:     []Rule{},
+		SpDialect: constants.DIALECT_GOOGLESQL,
 	}
 }
 

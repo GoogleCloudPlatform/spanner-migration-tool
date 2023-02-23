@@ -15,7 +15,6 @@
 package spanner
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -29,51 +28,53 @@ type ToDdlImpl struct {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 // Functions below implement the common.ToDdl interface
-func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(conv, srcType)
-	if conv.TargetDb == constants.TargetExperimentalPostgres {
-		ty, issues = overrideExperimentalType(srcType, ty, issues)
-	} else {
-		ty.IsArray = len(srcType.ArrayBounds) == 1
+func (tdi ToDdlImpl) ToSpannerGSQLDialectType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+	ty, issues := ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
+	switch srcType.Name {
+	case "BOOL":
+		ty, issues = ddl.Type{Name: ddl.Bool}, nil
+	case "BYTES":
+		ty, issues = ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
+	case "DATE":
+		ty, issues = ddl.Type{Name: ddl.Date}, nil
+	case "FLOAT64":
+		ty, issues = ddl.Type{Name: ddl.Float64}, nil
+	case "INT64":
+		ty, issues = ddl.Type{Name: ddl.Int64}, nil
+	case "JSON":
+		ty, issues = ddl.Type{Name: ddl.JSON}, nil
+	case "NUMERIC":
+		ty, issues = ddl.Type{Name: ddl.Numeric}, nil
+	case "STRING":
+		ty, issues = ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
+	case "TIMESTAMP":
+		ty, issues = ddl.Type{Name: ddl.Timestamp}, nil
 	}
+	ty.IsArray = len(srcType.ArrayBounds) == 1
 	return ty, issues
 }
 
-// toSpannerType maps a scalar source schema type (defined by id and
-// mods) into a Spanner type. This is the core source-to-Spanner type
-// mapping.  toSpannerType returns the Spanner type and a list of type
-// conversion issues encountered.
-func toSpannerTypeInternal(conv *internal.Conv, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+func (tdi ToDdlImpl) ToSpannerPostgreSQLDialectType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+	ty, issues := ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	switch srcType.Name {
 	case "BOOL":
-		return ddl.Type{Name: ddl.Bool}, nil
-	case "BYTES":
-		return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
+		ty, issues = ddl.Type{Name: ddl.PGBool}, nil
+	case "BYTEA":
+		ty, issues = ddl.Type{Name: ddl.PGBytea, Len: srcType.Mods[0]}, nil
 	case "DATE":
-		return ddl.Type{Name: ddl.Date}, nil
-	case "FLOAT64":
-		return ddl.Type{Name: ddl.Float64}, nil
-	case "INT64":
-		return ddl.Type{Name: ddl.Int64}, nil
-	case "JSON":
-		return ddl.Type{Name: ddl.JSON}, nil
+		ty, issues = ddl.Type{Name: ddl.PGDate}, nil
+	case "FLOAT8":
+		ty, issues = ddl.Type{Name: ddl.PGFloat8}, nil
+	case "INT8":
+		ty, issues = ddl.Type{Name: ddl.PGInt8}, nil
+	case "JSONB":
+		ty, issues = ddl.Type{Name: ddl.PGJSONB}, nil
 	case "NUMERIC":
-		return ddl.Type{Name: ddl.Numeric}, nil
-	case "STRING":
-		return ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
-	case "TIMESTAMP":
-		return ddl.Type{Name: ddl.Timestamp}, nil
+		ty, issues = ddl.Type{Name: ddl.PGNumeric}, nil
+	case "VARCHAR":
+		ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: srcType.Mods[0]}, nil
+	case "TIMESTAMPTZ":
+		ty, issues = ddl.Type{Name: ddl.PGTimestamptz}, nil
 	}
-	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
-}
-
-// Override the types to map to experimental postgres types.
-func overrideExperimentalType(srcType schema.Type, originalType ddl.Type, issues []internal.SchemaIssue) (ddl.Type, []internal.SchemaIssue) {
-	switch srcType.Name {
-	case "PG.NUMERIC":
-		return ddl.Type{Name: ddl.Numeric}, nil
-	case "PG.JSONB":
-		return ddl.Type{Name: ddl.JSON}, nil
-	}
-	return originalType, issues
+	return ty, issues
 }

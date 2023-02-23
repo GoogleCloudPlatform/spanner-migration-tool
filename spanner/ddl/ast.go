@@ -69,6 +69,12 @@ const (
 	PGTimestamptz string = "TIMESTAMPTZ"
 	// Jsonb represents the PG.JSONB type
 	PGJSONB string = "JSONB"
+	// PGNumeric represent NUMERIC type.
+	PGNumeric string = "NUMERIC"
+	// PGBool represent BOOL type.
+	PGBool string = "BOOL"
+	// PGDate represent DATE type.
+	PGDate string = "DATE"
 	// PGMaxLength represents sentinel for Type's Len field in PG.
 	PGMaxLength = 2621440
 )
@@ -80,6 +86,7 @@ var GOOGLE_SQL_TO_PGSQL_TYPEMAP = map[string]string{
 	String:    PGVarchar,
 	Timestamp: PGTimestamptz,
 	JSON:      PGJSONB,
+	Numeric:   PGNumeric,
 }
 
 var PGSQL_TO_GOOGLE_SQL_TYPEMAP = map[string]string{
@@ -89,6 +96,7 @@ var PGSQL_TO_GOOGLE_SQL_TYPEMAP = map[string]string{
 	PGVarchar:     String,
 	PGTimestamptz: Timestamp,
 	PGJSONB:       JSON,
+	PGNumeric:     Numeric,
 }
 
 // Type represents the type of a column.
@@ -133,7 +141,7 @@ func GetPGType(spType Type) string {
 }
 
 func (ty Type) PGPrintColumnDefType() string {
-	str := GetPGType(ty)
+	str := ty.Name
 	// PG doesn't support array types, and we don't expect to receive a type
 	// with IsArray set to true. In the unlikely event, set to string type.
 	if ty.IsArray {
@@ -142,7 +150,7 @@ func (ty Type) PGPrintColumnDefType() string {
 	}
 	// PG doesn't support variable length Bytea and thus doesn't support
 	// setting length (or max length) for the Bytes.
-	if ty.Name == String || ty.IsArray {
+	if ty.Name == PGVarchar || ty.IsArray {
 		str += "("
 		if ty.Len == MaxLength || ty.Len == PGMaxLength {
 			str += fmt.Sprintf("%v", PGMaxLength)
@@ -172,12 +180,12 @@ type Config struct {
 	ProtectIds  bool // If true, table and col names are quoted using backticks (avoids reserved-word issue).
 	Tables      bool // If true, print tables
 	ForeignKeys bool // If true, print foreign key constraints.
-	TargetDb    string
+	SpDialect   string
 }
 
 func (c Config) quote(s string) string {
 	if c.ProtectIds {
-		if c.TargetDb == constants.TargetExperimentalPostgres {
+		if c.SpDialect == constants.DIALECT_POSTGRESQL {
 			return s
 		} else {
 			return "`" + s + "`"
@@ -191,7 +199,7 @@ func (c Config) quote(s string) string {
 // needs of PrintCreateTable.
 func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 	var s string
-	if c.TargetDb == constants.TargetExperimentalPostgres {
+	if c.SpDialect == constants.DIALECT_POSTGRESQL {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PGPrintColumnDefType())
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
@@ -303,7 +311,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 
 	var interleave string
 	if ct.Parent != "" {
-		if config.TargetDb == constants.TargetExperimentalPostgres {
+		if config.SpDialect == constants.DIALECT_POSTGRESQL {
 			// PG spanner only supports PRIMARY KEY() inside the CREATE TABLE()
 			// and thus INTERLEAVE follows immediately after closing brace.
 			interleave = " INTERLEAVE IN PARENT " + config.quote(ct.Parent)
@@ -315,7 +323,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	if len(keys) == 0 {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s) %s", tableComment, config.quote(ct.Name), cols, interleave)
 	}
-	if config.TargetDb == constants.TargetExperimentalPostgres {
+	if config.SpDialect == constants.DIALECT_POSTGRESQL {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
 	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
@@ -352,7 +360,7 @@ func (ci CreateIndex) PrintCreateIndex(c Config) string {
 	if ci.Unique {
 		unique = "UNIQUE "
 	}
-	if c.TargetDb == constants.TargetExperimentalPostgres {
+	if c.SpDialect == constants.DIALECT_POSTGRESQL {
 		stored = "INCLUDE"
 	} else {
 		stored = "STORING"

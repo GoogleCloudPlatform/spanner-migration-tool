@@ -29,21 +29,7 @@ type ToDdlImpl struct {
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(srcType, spType)
-	return ty, issues
-}
-
-// toSpannerTypeInternal defines the mapping of source types into Spanner
-// types. Each source type has a default Spanner type, as well as other potential
-// Spanner types it could map to. When calling toSpannerTypeInternal, you specify
-// the source type name (along with any modifiers), and optionally you specify
-// a target Spanner type name (empty string if you don't have one). If the target
-// Spanner type name is specified and is a potential mapping for this source type,
-// then it will be used to build the returned ddl.Type. If not, the default
-// Spanner type for this source type will be used.
-
-func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []internal.SchemaIssue) {
+func (tdi ToDdlImpl) ToSpannerGSQLDialectType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType.Name {
 	case "bigint":
 		switch spType {
@@ -161,4 +147,124 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Time}
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
+}
+
+func (tdi ToDdlImpl) ToSpannerPostgreSQLDialectType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+	switch srcType.Name {
+	case "bigint":
+		switch spType {
+		case ddl.PGVarchar:
+			return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.PGInt8:
+			return ddl.Type{Name: ddl.PGInt8}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.PGInt8}, nil
+		}
+	case "tinyint", "smallint", "int":
+		switch spType {
+		case ddl.PGVarchar:
+			return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.PGInt8:
+			return ddl.Type{Name: ddl.PGInt8}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.PGInt8}, []internal.SchemaIssue{internal.Widened}
+		}
+	case "float", "real":
+		switch spType {
+		case ddl.PGVarchar:
+			return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.PGFloat8}, []internal.SchemaIssue{internal.Widened}
+		}
+	case "numeric", "decimal", "money", "smallmoney":
+		switch spType {
+		case ddl.PGVarchar:
+			return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			// TODO: check mod[0] and mod[1] and generate a warning
+			// if this numeric won't fit in Spanner's NUMERIC.
+			return ddl.Type{Name: ddl.PGNumeric}, nil
+		}
+
+	case "bit":
+		switch spType {
+		case ddl.PGVarchar:
+			return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.PGBool}, nil
+		}
+	case "uniqueidentifier":
+		switch spType {
+		case ddl.PGBytea:
+			if len(srcType.Mods) > 0 && srcType.Mods[0] > 0 {
+				return ddl.Type{Name: ddl.PGBytea, Len: srcType.Mods[0]}, nil
+			}
+			return ddl.Type{Name: ddl.PGBytea, Len: ddl.PGMaxLength}, nil
+		default:
+			if len(srcType.Mods) > 0 && srcType.Mods[0] > 0 {
+				return ddl.Type{Name: ddl.PGVarchar, Len: srcType.Mods[0]}, nil
+			}
+			return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		}
+	case "varchar", "char", "nvarchar", "nchar":
+		switch spType {
+		case ddl.PGBytea:
+			if len(srcType.Mods) > 0 && srcType.Mods[0] > 0 {
+				return ddl.Type{Name: ddl.PGBytea, Len: srcType.Mods[0]}, nil
+			}
+			return ddl.Type{Name: ddl.PGBytea, Len: ddl.PGMaxLength}, nil
+		default:
+			// Sets the source length only if it falls within the allowed length range in Spanner.
+			if len(srcType.Mods) > 0 && srcType.Mods[0] > 0 && srcType.Mods[0] <= ddl.PGMaxLength {
+				return ddl.Type{Name: ddl.PGVarchar, Len: srcType.Mods[0]}, nil
+			}
+			// Raises warning and sets length to MAX when -
+			// Source length is greater than maximum allowed length
+			// -OR-
+			// Source length is "-1" which represents MAX in SQL Server
+			if len(srcType.Mods) > 0 && (srcType.Mods[0] > ddl.PGMaxLength || srcType.Mods[0] < 0) {
+				return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, []internal.SchemaIssue{internal.StringOverflow}
+			}
+			return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		}
+	case "ntext", "text", "xml":
+		switch spType {
+		case ddl.PGBytea:
+			return ddl.Type{Name: ddl.PGBytea, Len: ddl.PGMaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		}
+
+	case "binary", "varbinary", "image":
+		switch spType {
+		case ddl.PGVarchar:
+			return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.PGBytea, Len: ddl.PGMaxLength}, nil
+		}
+	case "date":
+		switch spType {
+		case ddl.PGVarchar:
+			return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.PGDate}, nil
+		}
+	case "datetime2", "datetime", "datetimeoffset", "smalldatetime", "rowversion":
+		switch spType {
+		case ddl.PGVarchar:
+			return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.PGTimestamptz}, []internal.SchemaIssue{internal.Timestamp}
+		}
+	case "timestamp":
+		switch spType {
+		case ddl.PGVarchar:
+			return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.PGInt8}, nil
+		}
+	case "time":
+		return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, []internal.SchemaIssue{internal.Time}
+	}
+	return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 }

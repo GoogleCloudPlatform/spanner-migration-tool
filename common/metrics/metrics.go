@@ -11,7 +11,7 @@ import (
 // GetMigrationData returns migration data comprising source schema details,
 // request id, target dialect, connection mechanism etc based on
 // the conv object, source driver and target db
-func GetMigrationData(conv *internal.Conv, driver, targetDb, typeOfConv string) *migration.MigrationData {
+func GetMigrationData(conv *internal.Conv, driver, typeOfConv string) *migration.MigrationData {
 
 	migrationData := migration.MigrationData{
 		MigrationRequestId: &conv.Audit.MigrationRequestId,
@@ -23,10 +23,10 @@ func GetMigrationData(conv *internal.Conv, driver, targetDb, typeOfConv string) 
 	migrationData.SourceConnectionMechanism, migrationData.Source = getMigrationDataSourceDetails(driver, &migrationData)
 	migrationData.SchemaPatterns = getMigrationDataSchemaPatterns(conv, &migrationData)
 
-	switch targetDb {
-	case constants.TargetSpanner:
+	switch conv.SpDialect {
+	case constants.DIALECT_GOOGLESQL:
 		migrationData.TargetDialect = migration.MigrationData_GOOGLE_STANDARD_SQL.Enum()
-	case constants.TargetExperimentalPostgres:
+	case constants.DIALECT_POSTGRESQL:
 		migrationData.TargetDialect = migration.MigrationData_POSTGRESQL_STANDARD_SQL.Enum()
 	default:
 		migrationData.TargetDialect = migration.MigrationData_TARGET_DIALECT_UNSPECIFIED.Enum()

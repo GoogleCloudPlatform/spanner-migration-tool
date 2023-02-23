@@ -268,7 +268,7 @@ export class ConversionService {
           spOrder: spannerColDef ? i + 1 : '',
           srcOrder: i + 1,
           spColName: spannerColDef ? spColName : '',
-          spDataType: spannerColDef ? (data.TargetDb === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
+          spDataType: spannerColDef ? (data.SpDialect === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
           srcColName: name,
           srcDataType: data.SrcSchema[srcTableName].ColDefs[name].Type.Name,
           spIsPk:
@@ -293,7 +293,7 @@ export class ConversionService {
             spOrder: i + 1,
             srcOrder: '',
             spColName: name,
-            spDataType: spannerColDef ? (data.TargetDb === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
+            spDataType: spannerColDef ? (data.SpDialect === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
             srcColName: '',
             srcDataType: '',
             spIsPk:

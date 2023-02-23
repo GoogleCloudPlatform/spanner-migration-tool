@@ -398,7 +398,7 @@ func TestReviewTableSchema(t *testing.T) {
 					"t1": {Name: "t2", Cols: map[string]string{"a": "aa", "b": "b", "c": "c"}},
 					"t2": {Name: "t2", Cols: map[string]string{"a": "aa", "b": "b", "c": "c"}},
 				},
-				TargetDb: constants.TargetSpanner,
+				SpDialect: constants.DIALECT_GOOGLESQL,
 			},
 		},
 	}
@@ -433,7 +433,7 @@ func TestReviewTableSchema(t *testing.T) {
 				status, tc.statusCode)
 		}
 
-		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.table], tc.expectedConv.TargetDb)
+		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.table], tc.expectedConv.SpDialect)
 
 		if tc.statusCode == http.StatusOK {
 			assert.Equal(t, expectedddl, res.DDL)

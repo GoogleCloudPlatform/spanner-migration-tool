@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -450,7 +450,7 @@ func writeMutation(m *sp.Mutation, streamInfo *StreamingInfo) error {
 // setWriter initializes the write function used to write mutations to Cloud Spanner.
 func setWriter(streamInfo *StreamingInfo, client *sp.Client, conv *internal.Conv) {
 	streamInfo.write = func(m *sp.Mutation) error {
-		migrationData := metrics.GetMigrationData(conv, "", "", constants.DataConv)
+		migrationData := metrics.GetMigrationData(conv, "", constants.DataConv)
 		serializedMigrationData, _ := proto.Marshal(migrationData)
 		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
 		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), constants.MigrationMetadataKey, migrationMetadataValue), []*sp.Mutation{m})

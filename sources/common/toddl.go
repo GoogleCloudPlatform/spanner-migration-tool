@@ -34,6 +34,7 @@ import (
 	"strconv"
 	"unicode"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -44,7 +45,8 @@ import (
 // type expected. In case a particular source to target transoformation is not
 // supported, an error is to be returned by the corresponding method.
 type ToDdl interface {
-	ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue)
+	ToSpannerGSQLDialectType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue)
+	ToSpannerPostgreSQLDialectType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue)
 }
 
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
@@ -76,7 +78,16 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 			continue
 		}
 		spColNames = append(spColNames, colName)
-		ty, issues := toddl.ToSpannerType(conv, "", srcCol.Type)
+		var (
+			ty     ddl.Type
+			issues []internal.SchemaIssue
+		)
+		if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+			ty, issues = toddl.ToSpannerPostgreSQLDialectType(conv, "", srcCol.Type)
+		} else {
+			ty, issues = toddl.ToSpannerGSQLDialectType(conv, "", srcCol.Type)
+		}
+
 		// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
 		if srcCol.Ignored.ForeignKey {
 			issues = append(issues, internal.ForeignKey)
