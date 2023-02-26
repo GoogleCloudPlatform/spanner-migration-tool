@@ -25,10 +25,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// This is just a very basic smoke-test for toSpannerType.
-// The real testing of toSpannerType happens in process_test.go
+// This is just a very basic smoke-test for ToSpannerGSQLDialectType.
+// The real testing of ToSpannerGSQLDialectType happens in process_test.go
 // via the public API ProcessPgDump (see TestProcessPgDump).
-func TestToSpannerType(t *testing.T) {
+func TestToSpannerGSQLDialectType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
 	name := "test"
@@ -97,10 +97,10 @@ func TestToSpannerType(t *testing.T) {
 	assert.Equal(t, expectedIssues, conv.Issues[name])
 }
 
-// This is just a very basic smoke-test for toExperimentalSpannerType.
-// The real testing of toSpannerType happens in process_test.go
+// This is just a very basic smoke-test for ToSpannerPostgreSQLDialectType.
+// The real testing of ToSpannerPostgreSQLDialectType happens in process_test.go
 // via the public API ProcessPgDump (see TestProcessPgDump).
-func TestToExperimentalSpannerType(t *testing.T) {
+func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
 	conv.SpDialect = constants.DIALECT_POSTGRESQL

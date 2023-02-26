@@ -47,13 +47,13 @@ func TestPrintScalarTypePG(t *testing.T) {
 		expected string
 	}{
 		{Type{Name: Bool}, "BOOL"},
-		{Type{Name: Int64}, "INT8"},
-		{Type{Name: Float64}, "FLOAT8"},
-		{Type{Name: String, Len: MaxLength}, "VARCHAR(2621440)"},
-		{Type{Name: String, Len: int64(42)}, "VARCHAR(42)"},
-		{Type{Name: Bytes, Len: MaxLength}, "BYTEA"},
-		{Type{Name: Bytes, Len: int64(42)}, "BYTEA"},
-		{Type{Name: Timestamp}, "TIMESTAMPTZ"},
+		{Type{Name: PGInt8}, "INT8"},
+		{Type{Name: PGFloat8}, "FLOAT8"},
+		{Type{Name: PGVarchar, Len: MaxLength}, "VARCHAR(2621440)"},
+		{Type{Name: PGVarchar, Len: int64(42)}, "VARCHAR(42)"},
+		{Type{Name: PGBytea, Len: MaxLength}, "BYTEA"},
+		{Type{Name: PGBytea, Len: int64(42)}, "BYTEA"},
+		{Type{Name: PGTimestamptz}, "TIMESTAMPTZ"},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.in.PGPrintColumnDefType())
@@ -84,11 +84,11 @@ func TestPrintColumnDefPG(t *testing.T) {
 		protectIds bool
 		expected   string
 	}{
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, expected: "col1 INT8"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}}, expected: "col1 VARCHAR(2621440)"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT8 NOT NULL"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 VARCHAR(2621440) NOT NULL"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "col1 INT8"},
+		{in: ColumnDef{Name: "col1", T: Type{Name: PGInt8}}, expected: "col1 INT8"},
+		{in: ColumnDef{Name: "col1", T: Type{Name: PGInt8, IsArray: true}}, expected: "col1 VARCHAR(2621440)"},
+		{in: ColumnDef{Name: "col1", T: Type{Name: PGInt8}, NotNull: true}, expected: "col1 INT8 NOT NULL"},
+		{in: ColumnDef{Name: "col1", T: Type{Name: PGInt8, IsArray: true}, NotNull: true}, expected: "col1 VARCHAR(2621440) NOT NULL"},
+		{in: ColumnDef{Name: "col1", T: Type{Name: PGInt8}}, protectIds: true, expected: "col1 INT8"},
 	}
 	for _, tc := range tests {
 		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds, SpDialect: constants.DIALECT_POSTGRESQL})
@@ -185,9 +185,9 @@ func TestPrintCreateTable(t *testing.T) {
 
 func TestPrintCreateTablePG(t *testing.T) {
 	cds := make(map[string]ColumnDef)
-	cds["col1"] = ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}
-	cds["col2"] = ColumnDef{Name: "col2", T: Type{Name: String, Len: MaxLength}, NotNull: false}
-	cds["col3"] = ColumnDef{Name: "col3", T: Type{Name: Bytes, Len: int64(42)}, NotNull: false}
+	cds["col1"] = ColumnDef{Name: "col1", T: Type{Name: PGInt8}, NotNull: true}
+	cds["col2"] = ColumnDef{Name: "col2", T: Type{Name: PGVarchar, Len: MaxLength}, NotNull: false}
+	cds["col3"] = ColumnDef{Name: "col3", T: Type{Name: PGBytea, Len: int64(42)}, NotNull: false}
 	t1 := CreateTable{
 		"mytable",
 		[]string{"col1", "col2", "col3"},
@@ -459,8 +459,8 @@ func TestGetPGDDL(t *testing.T) {
 		Name:     "table1",
 		ColNames: []string{"a", "b"},
 		ColDefs: map[string]ColumnDef{
-			"a": {Name: "a", T: Type{Name: Int64}},
-			"b": {Name: "b", T: Type{Name: Int64}},
+			"a": {Name: "a", T: Type{Name: PGInt8}},
+			"b": {Name: "b", T: Type{Name: PGInt8}},
 		},
 		Pks:     []IndexKey{{Col: "a"}},
 		Fks:     []Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "ref_table1", ReferColumns: []string{"ref_b"}}},
@@ -470,9 +470,9 @@ func TestGetPGDDL(t *testing.T) {
 		Name:     "table2",
 		ColNames: []string{"a", "b", "c"},
 		ColDefs: map[string]ColumnDef{
-			"a": {Name: "a", T: Type{Name: Int64}},
-			"b": {Name: "b", T: Type{Name: Int64}},
-			"c": {Name: "c", T: Type{Name: Int64}},
+			"a": {Name: "a", T: Type{Name: PGInt8}},
+			"b": {Name: "b", T: Type{Name: PGInt8}},
+			"c": {Name: "c", T: Type{Name: PGInt8}},
 		},
 		Pks:     []IndexKey{{Col: "a"}},
 		Fks:     []Foreignkey{{Name: "fk2", Columns: []string{"b", "c"}, ReferTable: "ref_table2", ReferColumns: []string{"ref_b", "ref_c"}}},
@@ -482,9 +482,9 @@ func TestGetPGDDL(t *testing.T) {
 		Name:     "table3",
 		ColNames: []string{"a", "b", "c"},
 		ColDefs: map[string]ColumnDef{
-			"a": {Name: "a", T: Type{Name: Int64}},
-			"b": {Name: "b", T: Type{Name: Int64}},
-			"c": {Name: "c", T: Type{Name: Int64}},
+			"a": {Name: "a", T: Type{Name: PGInt8}},
+			"b": {Name: "b", T: Type{Name: PGInt8}},
+			"c": {Name: "c", T: Type{Name: PGInt8}},
 		},
 		Pks:    []IndexKey{{Col: "a"}, {Col: "b"}},
 		Fks:    []Foreignkey{{Name: "fk3", Columns: []string{"c"}, ReferTable: "ref_table3", ReferColumns: []string{"ref_c"}}},

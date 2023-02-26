@@ -274,9 +274,9 @@
                     >
                       <mat-option
                         *ngFor="let t of typeMap[element.get('srcDataType').value]"
-                        [value]="t.DisplayT"
+                        [value]="t.T"
                       >
-                        {{ t.DisplayT }}
+                        {{ t.T }}
                       </mat-option>
                       <mat-option *ngIf="element.get('srcDataType').value == '' && !isPostgreSQLDialect" value="STRING">
                         STRING

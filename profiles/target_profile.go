@@ -17,8 +17,10 @@ package profiles
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"golang.org/x/net/context"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
@@ -141,6 +143,10 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 	}
 	if dialect, ok := params["dialect"]; ok {
 		sp.Dialect = dialect
+	}
+
+	if strings.ToLower(sp.Dialect) != constants.DIALECT_POSTGRESQL {
+		sp.Dialect = constants.DIALECT_GOOGLESQL
 	}
 
 	conn := TargetProfileConnection{Ty: TargetProfileConnectionTypeSpanner, Sp: sp}

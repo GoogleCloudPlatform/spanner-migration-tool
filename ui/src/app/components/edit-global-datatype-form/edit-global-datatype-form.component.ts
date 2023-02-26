@@ -9,7 +9,6 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 interface IConvSourceType {
   T: string
   Brief: string
-  DisplayT: string
 }
 
 @Component({
@@ -64,9 +63,6 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
         this.addGlobalDataTypeForm.disable()
       }
     })
-    this.conversion.pgSQLToGoogleSQLTypeMap.subscribe((typemap) => {
-      this.pgSQLToGoogleSQLTypemap = typemap
-    })
 
   }
 
@@ -75,8 +71,7 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     const source = ruleValue.sourceType
     const payload: Record<string, string> = {}
     
-    let googleSQLDestinationType = this.pgSQLToGoogleSQLTypemap.get(ruleValue.destinationType)
-    payload[source] = googleSQLDestinationType === undefined ? ruleValue.destinationType : googleSQLDestinationType
+    payload[source] = ruleValue.destinationType
     this.applyRule(payload)
     this.resetRuleType.emit('')
     this.sidenav.closeSidenav()
@@ -87,7 +82,7 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     const desTypeDetail = this.conversionType[key]
     const desType: string[] = []
     desTypeDetail.forEach((item: IConvSourceType) => {
-      desType.push(item.DisplayT)
+      desType.push(item.T)
     })
     this.destinationType = desType
   }

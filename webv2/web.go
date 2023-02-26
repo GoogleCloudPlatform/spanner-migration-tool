@@ -558,16 +558,6 @@ func getDDL(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ddl)
 }
 
-func getGoogleSQLToPGSQLTypemap(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ddl.GOOGLE_SQL_TO_PGSQL_TYPEMAP)
-}
-
-func getPGSQLToGoogleSQLTypemap(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ddl.PGSQL_TO_GOOGLE_SQL_TYPEMAP)
-}
-
 // getTypeMap returns the source to Spanner typemap only for the
 // source types used in current conversion.
 func getTypeMap(w http.ResponseWriter, r *http.Request) {
@@ -612,19 +602,6 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			filteredTypeMap[colDef.Type.Name] = typeMap[colDef.Type.Name]
-		}
-	}
-	for key, values := range filteredTypeMap {
-		for i := range values {
-			if sessionState.Dialect == constants.DIALECT_POSTGRESQL {
-				spType := ddl.Type{
-					Name: filteredTypeMap[key][i].T,
-				}
-				filteredTypeMap[key][i].DisplayT = ddl.GetPGType(spType)
-			} else {
-				filteredTypeMap[key][i].DisplayT = filteredTypeMap[key][i].T
-			}
-
 		}
 	}
 	w.WriteHeader(http.StatusOK)
@@ -2185,19 +2162,25 @@ func initializeTypeMap() {
 		ty     ddl.Type
 		issues []internal.SchemaIssue
 	)
+	fmt.Println("conv sp dialect", sessionState.Conv.SpDialect)
 	// Initialize mysqlTypeMap.
 	toddl = mysql.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
 		var l []typeIssue
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			srcType := schema.MakeType()
-			srcType.Name = srcTypeName
-			if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
+		if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
+			for _, spType := range []string{ddl.PGBool, ddl.PGBytea, ddl.PGDate, ddl.PGFloat8, ddl.PGInt8, ddl.PGVarchar, ddl.PGTimestamptz, ddl.PGNumeric, ddl.PGJSONB} {
+				srcType := schema.MakeType()
+				srcType.Name = srcTypeName
 				ty, issues = toddl.ToSpannerPostgreSQLDialectType(sessionState.Conv, spType, srcType)
-			} else {
-				ty, issues = toddl.ToSpannerGSQLDialectType(sessionState.Conv, spType, srcType)
+				l = addTypeToList(ty.Name, spType, issues, l)
 			}
-			l = addTypeToList(ty.Name, spType, issues, l)
+		} else {
+			for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+				srcType := schema.MakeType()
+				srcType.Name = srcTypeName
+				ty, issues = toddl.ToSpannerGSQLDialectType(sessionState.Conv, spType, srcType)
+				l = addTypeToList(ty.Name, spType, issues, l)
+			}
 		}
 		if srcTypeName == "tinyint" {
 			l = append(l, typeIssue{T: ddl.Bool, Brief: "Only tinyint(1) can be converted to BOOL, for any other mods it will be converted to INT64"})
@@ -2208,15 +2191,20 @@ func initializeTypeMap() {
 	toddl = postgres.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
 		var l []typeIssue
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			srcType := schema.MakeType()
-			srcType.Name = srcTypeName
-			if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
+		if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
+			for _, spType := range []string{ddl.PGBool, ddl.PGBytea, ddl.PGDate, ddl.PGFloat8, ddl.PGInt8, ddl.PGVarchar, ddl.PGTimestamptz, ddl.PGNumeric, ddl.PGJSONB} {
+				srcType := schema.MakeType()
+				srcType.Name = srcTypeName
 				ty, issues = toddl.ToSpannerPostgreSQLDialectType(sessionState.Conv, spType, srcType)
-			} else {
-				ty, issues = toddl.ToSpannerGSQLDialectType(sessionState.Conv, spType, srcType)
+				l = addTypeToList(ty.Name, spType, issues, l)
 			}
-			l = addTypeToList(ty.Name, spType, issues, l)
+		} else {
+			for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+				srcType := schema.MakeType()
+				srcType.Name = srcTypeName
+				ty, issues = toddl.ToSpannerGSQLDialectType(sessionState.Conv, spType, srcType)
+				l = addTypeToList(ty.Name, spType, issues, l)
+			}
 		}
 		postgresTypeMap[srcTypeName] = l
 	}
@@ -2225,15 +2213,20 @@ func initializeTypeMap() {
 	toddl = sqlserver.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
 		var l []typeIssue
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			srcType := schema.MakeType()
-			srcType.Name = srcTypeName
-			if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
+		if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
+			for _, spType := range []string{ddl.PGBool, ddl.PGBytea, ddl.PGDate, ddl.PGFloat8, ddl.PGInt8, ddl.PGVarchar, ddl.PGTimestamptz, ddl.PGNumeric, ddl.PGJSONB} {
+				srcType := schema.MakeType()
+				srcType.Name = srcTypeName
 				ty, issues = toddl.ToSpannerPostgreSQLDialectType(sessionState.Conv, spType, srcType)
-			} else {
-				ty, issues = toddl.ToSpannerGSQLDialectType(sessionState.Conv, spType, srcType)
+				l = addTypeToList(ty.Name, spType, issues, l)
 			}
-			l = addTypeToList(ty.Name, spType, issues, l)
+		} else {
+			for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+				srcType := schema.MakeType()
+				srcType.Name = srcTypeName
+				ty, issues = toddl.ToSpannerGSQLDialectType(sessionState.Conv, spType, srcType)
+				l = addTypeToList(ty.Name, spType, issues, l)
+			}
 		}
 		sqlserverTypeMap[srcTypeName] = l
 	}
@@ -2242,15 +2235,20 @@ func initializeTypeMap() {
 	toddl = oracle.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"NUMBER", "BFILE", "BLOB", "CHAR", "CLOB", "DATE", "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT", "LONG", "RAW", "LONG RAW", "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2", "NCLOB", "ROWID", "UROWID", "XMLTYPE", "TIMESTAMP", "INTERVAL", "SDO_GEOMETRY"} {
 		var l []typeIssue
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			srcType := schema.MakeType()
-			srcType.Name = srcTypeName
-			if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
+		if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
+			for _, spType := range []string{ddl.PGBool, ddl.PGBytea, ddl.PGDate, ddl.PGFloat8, ddl.PGInt8, ddl.PGVarchar, ddl.PGTimestamptz, ddl.PGNumeric, ddl.PGJSONB} {
+				srcType := schema.MakeType()
+				srcType.Name = srcTypeName
 				ty, issues = toddl.ToSpannerPostgreSQLDialectType(sessionState.Conv, spType, srcType)
-			} else {
-				ty, issues = toddl.ToSpannerGSQLDialectType(sessionState.Conv, spType, srcType)
+				l = addTypeToList(ty.Name, spType, issues, l)
 			}
-			l = addTypeToList(ty.Name, spType, issues, l)
+		} else {
+			for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+				srcType := schema.MakeType()
+				srcType.Name = srcTypeName
+				ty, issues = toddl.ToSpannerGSQLDialectType(sessionState.Conv, spType, srcType)
+				l = addTypeToList(ty.Name, spType, issues, l)
+			}
 		}
 		oracleTypeMap[srcTypeName] = l
 	}

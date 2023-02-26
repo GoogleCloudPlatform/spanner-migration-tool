@@ -277,10 +277,6 @@ export class ObjectDetailComponent implements OnInit {
     this.isEditMode = false
     let updateData: IUpdateTable = { UpdateCols: {} }
 
-    let pgSQLToGoogleSQLTypemap: Map<String, String>;
-    this.conversion.pgSQLToGoogleSQLTypeMap.subscribe((typemap) => {
-      pgSQLToGoogleSQLTypemap = typemap
-    })
     this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
       for (let j = 0; j < this.tableData.length; j++) {
         if (col.srcColName == this.tableData[j].srcColName) {
@@ -289,13 +285,12 @@ export class ObjectDetailComponent implements OnInit {
             this.tableData[j].spColName == ''
               ? this.tableData[j].srcColName
               : this.tableData[j].spColName
-          let googleSQLDataType = pgSQLToGoogleSQLTypemap.get(col.spDataType)
           updateData.UpdateCols[columnName] = {
             Add: this.tableData[j].spColName == '',
             Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
-            ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (googleSQLDataType === undefined ? col.spDataType: googleSQLDataType) : col.spDataType,
+            ToType: col.spDataType,
           }
           break
         }
@@ -447,7 +442,7 @@ export class ObjectDetailComponent implements OnInit {
     const srDataType = this.localTableData[index].srcDataType
     let brief: string = ''
     this.typeMap[srDataType].forEach((type: any) => {
-      if (spDataType == type.DisplayT) brief = type.Brief
+      if (spDataType == type.T) brief = type.Brief
     })
     this.isSpTableSuggesstionDisplay[index] = brief !== ''
     this.spTableSuggestion[index] = brief

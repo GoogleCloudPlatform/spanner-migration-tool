@@ -31,7 +31,7 @@ func init() {
 	logger.Log = zap.NewNop()
 }
 
-func TestToSpannerType(t *testing.T) {
+func TestToSpannerGSQLDialectType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
 	name := "test"
@@ -106,8 +106,8 @@ func TestToSpannerType(t *testing.T) {
 	assert.Equal(t, int64(3), conv.Unexpecteds())
 }
 
-// This is just a very basic smoke-test for toExperimentalSpannerType.
-func TestToExperimentalSpannerType(t *testing.T) {
+// This is just a very basic smoke-test for TestToSpannerPostgreSQLType.
+func TestToSpannerPostgreSQLType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
 	conv.SpDialect = constants.DIALECT_POSTGRESQL

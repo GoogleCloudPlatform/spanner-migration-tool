@@ -85,8 +85,8 @@ export const Profile = {
 }
 
 export const Dialect = {
-  PostgreSQLDialect: 'experimental_postgres',
-  GoogleStandardSQLDialect: 'spanner'
+  PostgreSQLDialect: 'postgresql',
+  GoogleStandardSQLDialect: 'google_standard_sql'
 }
 
 export enum ProgressStatus {

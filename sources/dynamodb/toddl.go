@@ -26,9 +26,9 @@ type ToDdlImpl struct {
 }
 
 // Functions below implement the common.ToDdl interface
-// toSpannerType maps a scalar source schema type (defined by id and
-// mods) into a Spanner type. This is the core source-to-Spanner type
-// mapping.  toSpannerType returns the Spanner type and a list of type
+// ToSpannerGSQLDialectType maps a scalar source schema type (defined by id and
+// mods) into a Spanner GOOGLE STANDARD SQL dialect type. This is the core source-to-Spanner type
+// mapping.  ToSpannerGSQLDialectType returns the Spanner type and a list of type
 // conversion issues encountered.
 func (tdi ToDdlImpl) ToSpannerGSQLDialectType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType.Name {
@@ -50,6 +50,10 @@ func (tdi ToDdlImpl) ToSpannerGSQLDialectType(conv *internal.Conv, spType string
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	}
 }
+
+// ToSpannerPostgreSQLDialectType maps a scalar source schema type (defined by id and
+// mods) into a Spanner PostgreSQL dialect type. This is the core source-to-Spanner type
+// mapping.
 func (tdi ToDdlImpl) ToSpannerPostgreSQLDialectType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType.Name {
 	case typeNumber:
