@@ -106,5 +106,5 @@ export const DialectList = [
 export const Dataflow = {
   Network: 'network',
   Subnetwork: 'subnetwork',
-  IsDataflowConfigSet: 'IsDataflowConfigSet'
+  IsDataflowConfigSet: 'IsDataflowConfigSet',
 }

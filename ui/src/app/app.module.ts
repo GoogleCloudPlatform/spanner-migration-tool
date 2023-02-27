@@ -41,7 +41,7 @@ import { ConnectionProfileFormComponent } from './components/connection-profile-
 import { SourceDetailsFormComponent } from './components/source-details-form/source-details-form.component'
 import { SidenavReviewChangesComponent } from './components/sidenav-review-changes/sidenav-review-changes.component'
 import { TableColumnChangesPreviewComponent } from './components/table-column-changes-preview/table-column-changes-preview.component'
-import { EndMigrationComponent } from './components/end-migration/end-migration.component';
+import { EndMigrationComponent } from './components/end-migration/end-migration.component'
 import { DataflowFormComponent } from './components/dataflow-form/dataflow-form.component'
 
 @NgModule({
