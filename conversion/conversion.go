@@ -296,6 +296,9 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch dialect: %v", err)
 	}
+	if strings.ToLower(dialect) != constants.DIALECT_POSTGRESQL {
+		dialect = constants.DIALECT_GOOGLESQL
+	}
 
 	if dialect != conv.SpDialect {
 		return nil, fmt.Errorf("dialect specified in target profile does not match spanner dialect")

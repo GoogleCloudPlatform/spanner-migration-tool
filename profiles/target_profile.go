@@ -70,7 +70,7 @@ func (trg TargetProfile) FetchTargetDialect(ctx context.Context) (string, error)
 	if err != nil {
 		return "", fmt.Errorf("cannot connect to target: %v", err)
 	}
-	return result.DatabaseDialect.String(), nil
+	return strings.ToLower(result.DatabaseDialect.String()), nil
 }
 
 func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time.Time, driverName string, out *os.File) (string, string, string, error) {
