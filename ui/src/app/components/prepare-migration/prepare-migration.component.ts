@@ -241,6 +241,8 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.IsTargetConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsSourceDetailsSet)
     localStorage.removeItem(Dataflow.IsDataflowConfigSet)
+    localStorage.removeItem(Dataflow.Network)
+    localStorage.removeItem(Dataflow.Subnetwork)
     localStorage.removeItem(MigrationDetails.IsMigrationInProgress)
     localStorage.removeItem(MigrationDetails.HasSchemaMigrationStarted)
     localStorage.removeItem(MigrationDetails.HasDataMigrationStarted)

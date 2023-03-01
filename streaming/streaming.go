@@ -368,13 +368,44 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	}
 	fmt.Println("Reading files from datastream destination ", inputFilePattern)
 	dataflowSubnetwork := ""
-	if dataflowCfg.Network != "" && dataflowCfg.Subnetwork == "" {
-		return fmt.Errorf("if network is specified, subnetwork cannot be empty")
+	if dataflowCfg.Network != "" {
+		if dataflowCfg.Subnetwork == "" {
+			return fmt.Errorf("if network is specified, subnetwork cannot be empty")
+		} else {
+			dataflowSubnetwork = fmt.Sprintf("regions/%s/subnetworks/%s", dataflowCfg.Location, dataflowCfg.Subnetwork)
+		}
 	}
-	if dataflowCfg.Network != "" && dataflowCfg.Subnetwork != "" {
-		dataflowSubnetwork = fmt.Sprintf("regions/%s/subnetworks/%s", dataflowCfg.Location, dataflowCfg.Subnetwork)
+	
+	launchParameters := createLaunchParameters(dataflowCfg, inputFilePattern, project, datastreamCfg, instance, dbName, streamingCfg, dataflowSubnetwork)
+
+	req := &dataflowpb.LaunchFlexTemplateRequest{
+		ProjectId:       project,
+		LaunchParameter: launchParameters,
+		Location:        dataflowCfg.Location,
 	}
-	launchParameter := &dataflowpb.LaunchFlexTemplateParameter{
+	fmt.Println("Created flex template request body...")
+
+	respDf, err := c.LaunchFlexTemplate(ctx, req)
+	if err != nil {
+		fmt.Printf("flexTemplateRequest: %+v\n", req)
+		return fmt.Errorf("unable to launch template: %v", err)
+	}
+	reportOutput(conv, datastreamCfg, respDf, project)
+	return nil
+}
+
+func reportOutput(conv *internal.Conv, datastreamCfg DatastreamCfg, respDf *dataflowpb.LaunchFlexTemplateResponse, project string) {
+	conv.Audit.StreamingStats.DataStreamName = datastreamCfg.StreamId
+	conv.Audit.StreamingStats.DataflowJobId = respDf.Job.Id
+	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
+	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, respDf.Job.Location, respDf.Job.Name, respDf.Job.Id)
+	fmt.Println("\n------------------------------------------\n" +
+		"The Datastream job: " + fullStreamName + "and the Dataflow job: " + dfJobDetails +
+		" will have to be manually cleaned up via the UI. HarbourBridge will not delete them post completion of the migration.")
+}
+
+func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string) *dataflowpb.LaunchFlexTemplateParameter {
+	return &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-01-29-00_RC00/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
@@ -389,31 +420,10 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 			MaxWorkers:            maxWorkers,
 			AutoscalingAlgorithm:  2, // 2 corresponds to AUTOSCALING_ALGORITHM_BASIC
 			EnableStreamingEngine: true,
-			Network: dataflowCfg.Network,
-			Subnetwork: dataflowSubnetwork,
+			Network:               dataflowCfg.Network,
+			Subnetwork:            dataflowSubnetwork,
 		},
 	}
-
-	req := &dataflowpb.LaunchFlexTemplateRequest{
-		ProjectId:       project,
-		LaunchParameter: launchParameter,
-		Location:        dataflowCfg.Location,
-	}
-	fmt.Println("Created flex template request body...")
-
-	respDf, err := c.LaunchFlexTemplate(ctx, req)
-	if err != nil {
-		fmt.Printf("flexTemplateRequest: %+v\n", req)
-		return fmt.Errorf("unable to launch template: %v", err)
-	}
-	conv.Audit.StreamingStats.DataStreamName = datastreamCfg.StreamId
-	conv.Audit.StreamingStats.DataflowJobId = respDf.Job.Id
-	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
-	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, respDf.Job.Location, respDf.Job.Name, respDf.Job.Id)
-	fmt.Println("\n------------------------------------------\n" +
-		"The Datastream job: " + fullStreamName + "and the Dataflow job: " + dfJobDetails +
-		" will have to be manually cleaned up via the UI. HarbourBridge will not delete them post completion of the migration.")
-	return nil
 }
 
 func getStreamingConfig(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (StreamingCfg, error) {
