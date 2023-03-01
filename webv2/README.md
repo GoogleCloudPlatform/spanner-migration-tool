@@ -28,7 +28,7 @@ make build
 To start HarbourBridge web server, run:
 
 ```sh
-harbourbridge web
+./harbourbridge web
 ```
 
 The UI will launched at http://localhost:8080/.
