@@ -108,10 +108,13 @@ variable if it is not already configured, and
 
 ### Installing HarbourBridge
 
-#### HarbourBridge on gCloud
-You can directly run HarbourBridge from the gCloud CLI instead of building it from source. In order to start using HarbourBridge via Gcloud, the user can [install the harbourbridge component](https://cloud.google.com/sdk/docs/components#installing_components) of gcloud by executing the below command:
+#### HarbourBridge on gCloud (Linux Only)
 
-Note: HarbourBridge on gCloud is currently only supported on the Linux platform.
+<pre>
+<b>Note: HarbourBridge on gCloud is currently only supported on the Linux platform. MacOS is currently not supported.</b>
+</pre>
+
+You can directly run HarbourBridge from the gCloud CLI instead of building it from source. In order to start using HarbourBridge via Gcloud, the user can [install the harbourbridge component](https://cloud.google.com/sdk/docs/components#installing_components) of gcloud by executing the below command:
 
 ```sh
 gcloud components install harbourbridge
