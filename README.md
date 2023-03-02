@@ -323,7 +323,7 @@ HarbourBridge UI provides a unified interface for the migration wherein it gives
 the flexibility to modify the generated spanner schema and run end to end migration from 
 a single interface. It provides the capabilities of editing table details like columns,
 primary key, foreign key, indexes, etc and provides insights on the schema conversion 
-performance along with highlighting important issues and suggestions.
+along with highlighting important issues and suggestions.
 
 Detailed guide on how to use HarbourBridge UI can be found [here](HarbourBridgeUIUserGuide.pdf).
 
