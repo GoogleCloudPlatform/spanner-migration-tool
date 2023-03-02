@@ -317,6 +317,16 @@ By default, these files are prefixed by the name of the Spanner database (with a
 dot separator). The file prefix can be overridden using the `-prefix`
 [option](#options).
 
+## HarbourBridge UI
+
+HarbourBridge UI provides a unified interface for the migration wherein it gives users
+the flexibility to modify the generated spanner schema and run end to end migration from 
+a single interface. It provides the capabilities of editing table details like columns,
+primary key, foreign key, indexes, etc and provides insights on the schema conversion 
+performance along with highlighting important issues and suggestions.
+
+Detailed guide on how to use HarbourBridge UI can be found [here](HarbourBridgeUIUserGuide.pdf).
+
 ## HarbourBridge CLI (command line interface)
 
 HarbourBridge CLI follows [subcommands](https://github.com/google/subcommands)
