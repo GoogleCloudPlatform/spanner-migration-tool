@@ -13,3 +13,8 @@ export interface ISetUpConnectionProfile{
     IsSource: boolean
     SourceDatabaseType: string
 }
+
+export interface IDataflowConfig{
+    Network: string
+    Subnetwork: string
+}

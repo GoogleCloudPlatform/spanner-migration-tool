@@ -1,0 +1,21 @@
+<div mat-dialog-content>
+    <form [formGroup]="dataflowForm" class="dataflow-form">
+      <h2>Dataflow Details</h2>
+      <mat-form-field class="full-width" appearance="outline">
+        <mat-label>VPC Network</mat-label>
+        <input matInput placeholder="VPC Network Name" type="text" formControlName="network"/>
+      </mat-form-field>
+      <br>
+      <mat-form-field class="full-width" appearance="outline">
+        <mat-label>VPC Subnetwork</mat-label>
+        <input matInput placeholder="VPC Subnetwork Name" type="text" formControlName="subnetwork"/>
+      </mat-form-field>
+    </form>
+    <div mat-dialog-actions class="buttons-container">
+      <button mat-button color="primary" mat-dialog-close>Cancel</button>
+      <button mat-button type="submit" color="primary" [disabled]="!(dataflowForm.valid)"
+        (click)="updateDataflowDetails()">
+        Save
+      </button>
+    </div>
+</div>

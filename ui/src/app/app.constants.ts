@@ -102,3 +102,9 @@ export const DialectList = [
   { value: 'google_standard_sql', displayName: 'Google Standard SQL Dialect' },
   { value: 'postgresql', displayName: 'PostgreSQL Dialect' },
 ]
+
+export const Dataflow = {
+  Network: 'network',
+  Subnetwork: 'subnetwork',
+  IsDataflowConfigSet: 'isDataflowConfigSet',
+}

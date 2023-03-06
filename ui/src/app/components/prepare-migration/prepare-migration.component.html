@@ -72,7 +72,7 @@
                 </p>
             </div>
             <div>
-                <h3>Target database details:</h3>
+                <h3>Target details:</h3>
                 <p class="point">
                     <span class="bullet">1</span>
                     <span>Setup Target details</span><span><button mat-button class="configure"
@@ -107,6 +107,19 @@
                             <mat-icon>edit</mat-icon>
                             <mat-icon *ngIf="isTargetConnectionProfileSet" class="success"
                                 matTooltip="Target connection profile configured" matTooltipPosition="above">
+                                check_circle
+                            </mat-icon>
+                        </button></span>
+                </p>
+                <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
+                    <span class="bullet">4</span>
+                    <span>Configure Dataflow (Optional) </span><span><button mat-button class="configure"
+                            (click)="openDataflowForm()"
+                            [disabled]="isMigrationInProgress || !isTargetDetailSet">
+                            Configure
+                            <mat-icon>edit</mat-icon>
+                            <mat-icon *ngIf="isDataflowConfigurationSet" class="success"
+                                matTooltip="Dataflow Configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
                         </button></span>
