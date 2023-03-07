@@ -26,7 +26,7 @@ require (
 	github.com/sijms/go-ora/v2 v2.2.17
 	github.com/stretchr/testify v1.8.1
 	go.uber.org/zap v1.21.0
-	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
+	golang.org/x/crypto v0.1.0
 	golang.org/x/net v0.7.0
 	google.golang.org/api v0.103.0
 	google.golang.org/genproto v0.0.0-20230202175211-008b39050e57
