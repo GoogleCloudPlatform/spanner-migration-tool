@@ -188,7 +188,7 @@ func TestProcessSchema(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize})
+	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1)
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -291,7 +291,7 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize})
+	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1)
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{

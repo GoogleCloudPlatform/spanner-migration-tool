@@ -197,7 +197,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
-	err := common.ProcessSchema(conv, isi)
+	err := common.ProcessSchema(conv, isi, 1)
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"user": ddl.CreateTable{
@@ -378,7 +378,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
-	err := common.ProcessSchema(conv, isi)
+	err := common.ProcessSchema(conv, isi, 1)
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"test": ddl.CreateTable{

@@ -58,18 +58,33 @@ type FkConstraint struct {
 // ProcessSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema) error {
+// numWorkers decides the parallelism while converting tables
+func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) error {
 	tables, err := infoSchema.GetTables()
+	fmt.Println("fetched tables", tables)
 	if err != nil {
 		return err
 	}
-	for _, t := range tables {
-		if err := processTable(conv, t, infoSchema); err != nil {
-			return err
-		}
+
+	if numWorkers < 1 {
+		numWorkers = 20 //Default to 20
 	}
+
+	asyncProcessTable := func(t SchemaAndName) TaskResult[SchemaAndName] {
+		e := processTable(conv, t, infoSchema)
+		res := TaskResult[SchemaAndName]{t, e}
+		return res
+	}
+
+	res, e := RunParallelTasks(tables, numWorkers, asyncProcessTable, true)
+	if e != nil {
+		fmt.Println("exiting due to error while processing schema for table", res)
+		return err
+	}
+
 	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
 	conv.AddPrimaryKeys()
+	fmt.Println("loaded schema")
 	return nil
 }
 
@@ -124,6 +139,7 @@ func SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
 }
 
 func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) error {
+	fmt.Println("processing schema for table", table)
 	primaryKeys, constraints, err := infoSchema.GetConstraints(conv, table)
 	if err != nil {
 		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)

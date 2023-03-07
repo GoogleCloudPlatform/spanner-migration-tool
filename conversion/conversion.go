@@ -172,7 +172,7 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 	if err != nil {
 		return conv, err
 	}
-	return conv, common.ProcessSchema(conv, infoSchema)
+	return conv, common.ProcessSchema(conv, infoSchema, 0)
 }
 
 func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) *writer.BatchWriter {

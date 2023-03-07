@@ -16,8 +16,10 @@ package common
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -45,4 +47,56 @@ func GetColsAndSchemas(conv *internal.Conv, srcTable string) (schema.Table, stri
 		err = fmt.Errorf(fmt.Sprintf("err1=%s, err2=%s, ok=%t", err1, err2, ok))
 	}
 	return srcSchema, spTable, spCols, spSchema, err
+}
+
+type TaskResult[O any] struct {
+	Result O
+	Err    error
+}
+
+// Run multiple tasks in parallel
+// input: 		List of inputs
+// numWorkers: 	Size of worker pool
+// f:			Function to execute the task
+// fastExit: 	If an error is encountered, gracefully exit all running or queued tasks
+// Returns an array of TaskResults and last error
+func RunParallelTasks[I any, O any](input []I, numWorkers int, f func(i I) TaskResult[O],
+	fastExit bool) ([]TaskResult[O], error) {
+	inputChannel := make(chan I, len(input))
+	outputChannel := make(chan TaskResult[O], len(input))
+	wg := &sync.WaitGroup{}
+	defer func() {
+		wg.Wait()
+		close(outputChannel)
+	}()
+
+	logger.Log.Debug(fmt.Sprint("initiating workers", numWorkers))
+	for w := 0; w < numWorkers; w++ {
+		go processAsync(f, inputChannel, outputChannel, wg)
+	}
+
+	for _, in := range input {
+		inputChannel <- in
+	}
+	close(inputChannel)
+
+	out := []TaskResult[O]{}
+	for i := 0; i < len(input); i++ {
+		res := <-outputChannel
+		if fastExit && res.Err != nil {
+			return out, res.Err
+		}
+		out = append(out, res)
+	}
+	logger.Log.Debug(fmt.Sprint("completed processing of %n tasks", len(out)))
+	return out, nil
+}
+
+func processAsync[I any, O any](f func(i I) TaskResult[O], in chan I, out chan TaskResult[O], wg *sync.WaitGroup) {
+	wg.Add(1)
+	for i := range in {
+		logger.Log.Debug(fmt.Sprint("processing task for input", i))
+		out <- f(i)
+	}
+	wg.Done()
 }
