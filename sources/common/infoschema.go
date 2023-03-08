@@ -17,6 +17,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	sp "cloud.google.com/go/spanner"
 
@@ -67,11 +68,14 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) e
 	}
 
 	if numWorkers < 1 {
-		numWorkers = 20 //Default to 20
+		numWorkers = 20 // Default to 20 - observed diminishing returns above this value
 	}
 
-	asyncProcessTable := func(t SchemaAndName) TaskResult[SchemaAndName] {
-		e := processTable(conv, t, infoSchema)
+	asyncProcessTable := func(t SchemaAndName, mutex *sync.Mutex) TaskResult[SchemaAndName] {
+		table, e := processTable(conv, t, infoSchema)
+		mutex.Lock()
+		conv.SrcSchema[table.Name] = table
+		mutex.Unlock()
 		res := TaskResult[SchemaAndName]{t, e}
 		return res
 	}
@@ -138,30 +142,31 @@ func SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
 	}
 }
 
-func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) error {
+func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error) {
+	var t schema.Table
 	fmt.Println("processing schema for table", table)
 	primaryKeys, constraints, err := infoSchema.GetConstraints(conv, table)
 	if err != nil {
-		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)
+		return t, fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 	foreignKeys, err := infoSchema.GetForeignKeys(conv, table)
 	if err != nil {
-		return fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.Schema, table.Name, err)
+		return t, fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 	indexes, err := infoSchema.GetIndexes(conv, table)
 	if err != nil {
-		return fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.Schema, table.Name, err)
+		return t, fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 	colDefs, colNames, err := infoSchema.GetColumns(conv, table, constraints, primaryKeys)
 	if err != nil {
-		return fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
+		return t, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 	name := infoSchema.GetTableName(table.Schema, table.Name)
 	var schemaPKeys []schema.Key
 	for _, k := range primaryKeys {
 		schemaPKeys = append(schemaPKeys, schema.Key{Column: k})
 	}
-	conv.SrcSchema[name] = schema.Table{
+	t = schema.Table{
 		Name:        name,
 		Schema:      table.Schema,
 		ColNames:    colNames,
@@ -169,5 +174,5 @@ func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchem
 		PrimaryKeys: schemaPKeys,
 		Indexes:     indexes,
 		ForeignKeys: foreignKeys}
-	return nil
+	return t, nil
 }

@@ -54,25 +54,29 @@ type TaskResult[O any] struct {
 	Err    error
 }
 
-// Run multiple tasks in parallel
+// Run multiple tasks in parallel. The tasks are expected to be thread safe
 // input: 		List of inputs
 // numWorkers: 	Size of worker pool
 // f:			Function to execute the task
 // fastExit: 	If an error is encountered, gracefully exit all running or queued tasks
 // Returns an array of TaskResults and last error
-func RunParallelTasks[I any, O any](input []I, numWorkers int, f func(i I) TaskResult[O],
+func RunParallelTasks[I any, O any](input []I, numWorkers int, f func(i I, mutex *sync.Mutex) TaskResult[O],
 	fastExit bool) ([]TaskResult[O], error) {
 	inputChannel := make(chan I, len(input))
 	outputChannel := make(chan TaskResult[O], len(input))
+
 	wg := &sync.WaitGroup{}
 	defer func() {
+		for range inputChannel {
+			logger.Log.Debug(fmt.Sprint("clearing out pending tasks"))
+		}
 		wg.Wait()
-		close(outputChannel)
 	}()
 
+	mutex := &sync.Mutex{}
 	logger.Log.Debug(fmt.Sprint("initiating workers", numWorkers))
 	for w := 0; w < numWorkers; w++ {
-		go processAsync(f, inputChannel, outputChannel, wg)
+		go processAsync(f, inputChannel, outputChannel, mutex, wg)
 	}
 
 	for _, in := range input {
@@ -84,6 +88,11 @@ func RunParallelTasks[I any, O any](input []I, numWorkers int, f func(i I) TaskR
 	for i := 0; i < len(input); i++ {
 		res := <-outputChannel
 		if fastExit && res.Err != nil {
+			logger.Log.Debug(fmt.Sprint("stopping worker pool due to encountered error", res.Err))
+			for range inputChannel {
+				logger.Log.Debug(fmt.Sprint("ignoring task to fast exit"))
+			}
+			wg.Wait()
 			return out, res.Err
 		}
 		out = append(out, res)
@@ -92,11 +101,13 @@ func RunParallelTasks[I any, O any](input []I, numWorkers int, f func(i I) TaskR
 	return out, nil
 }
 
-func processAsync[I any, O any](f func(i I) TaskResult[O], in chan I, out chan TaskResult[O], wg *sync.WaitGroup) {
+func processAsync[I any, O any](f func(i I, mutex *sync.Mutex) TaskResult[O], in chan I,
+	out chan TaskResult[O], mutex *sync.Mutex, wg *sync.WaitGroup) {
 	wg.Add(1)
 	for i := range in {
 		logger.Log.Debug(fmt.Sprint("processing task for input", i))
-		out <- f(i)
+		out <- f(i, mutex)
 	}
+	logger.Log.Debug(fmt.Sprint("worker complete"))
 	wg.Done()
 }
