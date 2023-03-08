@@ -242,7 +242,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	case constants.MYSQL:
 		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers)
 	case constants.POSTGRES:
-		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB}, 0)
+		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB}, common.DefaultWorkers)
 	case constants.SQLSERVER:
 		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers)
 	case constants.ORACLE:
