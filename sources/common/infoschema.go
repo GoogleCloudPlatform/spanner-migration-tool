@@ -26,6 +26,8 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
+const DefaultWorkers = 20 // Default to 20 - observed diminishing returns above this value
+
 // InfoSchema contains database information.
 type InfoSchema interface {
 	GetToDdl() ToDdl
@@ -68,7 +70,7 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) e
 	}
 
 	if numWorkers < 1 {
-		numWorkers = 20 // Default to 20 - observed diminishing returns above this value
+		numWorkers = DefaultWorkers
 	}
 
 	asyncProcessTable := func(t SchemaAndName, mutex *sync.Mutex) TaskResult[SchemaAndName] {

@@ -123,15 +123,15 @@ type progressDetails struct {
 }
 
 type migrationDetails struct {
-	TargetDetails targetDetails `json:"TargetDetails"`
+	TargetDetails  targetDetails  `json:"TargetDetails"`
 	DataflowConfig dataflowConfig `json:"DataflowConfig"`
-	MigrationMode string        `json:MigrationMode`
-	MigrationType string        `json:MigrationType`
+	MigrationMode  string         `json:MigrationMode`
+	MigrationType  string         `json:MigrationType`
 }
 
 type dataflowConfig struct {
-	Network string `json:Network`
-	Subnetwork string  `json:Subnetwork`
+	Network    string `json:Network`
+	Subnetwork string `json:Subnetwork`
 }
 
 type targetDetails struct {
@@ -147,9 +147,9 @@ type StreamingCfg struct {
 	TmpDir        string        `json:"tmpDir"`
 }
 type DataflowCfg struct {
-	JobName  string `json:"JobName"`
-	Location string `json:"Location"`
-	Network string `json:"Network"`
+	JobName    string `json:"JobName"`
+	Location   string `json:"Location"`
+	Network    string `json:"Network"`
 	Subnetwork string `json:"Subnetwork"`
 }
 type ConnectionConfig struct {
@@ -240,13 +240,13 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	var err error
 	switch sessionState.Driver {
 	case constants.MYSQL:
-		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, 0)
+		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers)
 	case constants.POSTGRES:
 		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB}, 0)
 	case constants.SQLSERVER:
-		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, 0)
+		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers)
 	case constants.ORACLE:
-		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, 0)
+		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers)
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -1745,9 +1745,9 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 			},
 		},
 		DataflowCfg: DataflowCfg{
-			JobName:  "",
-			Location: sessionState.Region,
-			Network: dataflowConfig.Network,
+			JobName:    "",
+			Location:   sessionState.Region,
+			Network:    dataflowConfig.Network,
 			Subnetwork: dataflowConfig.Subnetwork,
 		},
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
