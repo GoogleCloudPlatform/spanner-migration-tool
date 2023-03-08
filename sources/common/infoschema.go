@@ -17,6 +17,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	sp "cloud.google.com/go/spanner"
 
@@ -24,6 +25,8 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
+
+const DefaultWorkers = 20 // Default to 20 - observed diminishing returns above this value
 
 // InfoSchema contains database information.
 type InfoSchema interface {
@@ -58,18 +61,36 @@ type FkConstraint struct {
 // ProcessSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema) error {
+// numWorkers decides the parallelism while converting tables
+func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) error {
 	tables, err := infoSchema.GetTables()
+	fmt.Println("fetched tables", tables)
 	if err != nil {
 		return err
 	}
-	for _, t := range tables {
-		if err := processTable(conv, t, infoSchema); err != nil {
-			return err
-		}
+
+	if numWorkers < 1 {
+		numWorkers = DefaultWorkers
 	}
+
+	asyncProcessTable := func(t SchemaAndName, mutex *sync.Mutex) TaskResult[SchemaAndName] {
+		table, e := processTable(conv, t, infoSchema)
+		mutex.Lock()
+		conv.SrcSchema[table.Name] = table
+		mutex.Unlock()
+		res := TaskResult[SchemaAndName]{t, e}
+		return res
+	}
+
+	res, e := RunParallelTasks(tables, numWorkers, asyncProcessTable, true)
+	if e != nil {
+		fmt.Println("exiting due to error while processing schema for table", res)
+		return err
+	}
+
 	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
 	conv.AddPrimaryKeys()
+	fmt.Println("loaded schema")
 	return nil
 }
 
@@ -123,29 +144,31 @@ func SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
 	}
 }
 
-func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) error {
+func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error) {
+	var t schema.Table
+	fmt.Println("processing schema for table", table)
 	primaryKeys, constraints, err := infoSchema.GetConstraints(conv, table)
 	if err != nil {
-		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)
+		return t, fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 	foreignKeys, err := infoSchema.GetForeignKeys(conv, table)
 	if err != nil {
-		return fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.Schema, table.Name, err)
+		return t, fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 	indexes, err := infoSchema.GetIndexes(conv, table)
 	if err != nil {
-		return fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.Schema, table.Name, err)
+		return t, fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 	colDefs, colNames, err := infoSchema.GetColumns(conv, table, constraints, primaryKeys)
 	if err != nil {
-		return fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
+		return t, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 	name := infoSchema.GetTableName(table.Schema, table.Name)
 	var schemaPKeys []schema.Key
 	for _, k := range primaryKeys {
 		schemaPKeys = append(schemaPKeys, schema.Key{Column: k})
 	}
-	conv.SrcSchema[name] = schema.Table{
+	t = schema.Table{
 		Name:        name,
 		Schema:      table.Schema,
 		ColNames:    colNames,
@@ -153,5 +176,5 @@ func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchem
 		PrimaryKeys: schemaPKeys,
 		Indexes:     indexes,
 		ForeignKeys: foreignKeys}
-	return nil
+	return t, nil
 }
