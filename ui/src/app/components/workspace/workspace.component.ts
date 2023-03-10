@@ -62,6 +62,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.conversion.getStandardTypeToPGSQLTypemap()
+    this.conversion.getPGSQLToStandardTypeTypemap()
     this.ddlsumconvObj = this.data.getRateTypemapAndSummary()
     this.typemapObj = this.data.typeMap.subscribe((types) => {
       this.typeMap = types

@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestToSpannerGSQLDialectType(t *testing.T) {
+func TestToSpannerType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
 	name := "test"
@@ -115,17 +115,17 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		Name:     name,
 		ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.PGNumeric}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}},
-			"d": {Name: "d", T: ddl.Type{Name: ddl.PGBool}},
-			"e": {Name: "e", T: ddl.Type{Name: ddl.PGBytea, Len: ddl.PGMaxLength}},
-			"f": {Name: "f", T: ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}},
-			"g": {Name: "g", T: ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}},
-			"h": {Name: "h", T: ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}},
-			"i": {Name: "i", T: ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}},
-			"j": {Name: "j", T: ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}},
-			"k": {Name: "k", T: ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}},
+			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
+			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
+			"e": {Name: "e", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"f": {Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"g": {Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"h": {Name: "h", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"i": {Name: "i", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"j": {Name: "j", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"k": {Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		},
 		Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}},
 		Indexes: []ddl.CreateIndex{

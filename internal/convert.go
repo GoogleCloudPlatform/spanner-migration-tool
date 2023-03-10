@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -212,8 +211,7 @@ func MakeConv() *Conv {
 			StreamingStats: streamingStats{},
 			MigrationType:  migration.MigrationData_SCHEMA_ONLY.Enum(),
 		},
-		Rules:     []Rule{},
-		SpDialect: constants.DIALECT_GOOGLESQL,
+		Rules: []Rule{},
 	}
 }
 
@@ -363,11 +361,7 @@ func (conv *Conv) AddPrimaryKeys() {
 			if !primaryKeyPopulated {
 				k := conv.buildPrimaryKey(t)
 				ct.ColNames = append(ct.ColNames, k)
-				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
-					ct.ColDefs[k] = ddl.ColumnDef{Name: k, T: ddl.Type{Name: ddl.PGVarchar, Len: 50}}
-				} else {
-					ct.ColDefs[k] = ddl.ColumnDef{Name: k, T: ddl.Type{Name: ddl.String, Len: 50}}
-				}
+				ct.ColDefs[k] = ddl.ColumnDef{Name: k, T: ddl.Type{Name: ddl.String, Len: 50}}
 				ct.Pks = []ddl.IndexKey{{Col: k}}
 				conv.SyntheticPKeys[t] = SyntheticPKey{k, 0}
 			}

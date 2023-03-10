@@ -16,6 +16,7 @@
 package dynamodb
 
 import (
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -26,11 +27,19 @@ type ToDdlImpl struct {
 }
 
 // Functions below implement the common.ToDdl interface
-// ToSpannerGSQLDialectType maps a scalar source schema type (defined by id and
-// mods) into a Spanner GOOGLE STANDARD SQL dialect type. This is the core source-to-Spanner type
-// mapping.  ToSpannerGSQLDialectType returns the Spanner type and a list of type
+// toSpannerType maps a scalar source schema type (defined by id and
+// mods) into a Spanner type. This is the core source-to-Spanner type
+// mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func (tdi ToDdlImpl) ToSpannerGSQLDialectType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+	ty, issues := toSpannerTypeInternal(conv, srcType)
+	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+		ty = toPostgreSQLDialectType(ty)
+	}
+	return ty, issues
+}
+
+func toSpannerTypeInternal(conv *internal.Conv, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType.Name {
 	case typeNumber:
 		return ddl.Type{Name: ddl.Numeric}, nil
@@ -51,26 +60,10 @@ func (tdi ToDdlImpl) ToSpannerGSQLDialectType(conv *internal.Conv, spType string
 	}
 }
 
-// ToSpannerPostgreSQLDialectType maps a scalar source schema type (defined by id and
-// mods) into a Spanner PostgreSQL dialect type. This is the core source-to-Spanner type
-// mapping.
-func (tdi ToDdlImpl) ToSpannerPostgreSQLDialectType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	switch srcType.Name {
-	case typeNumber:
-		return ddl.Type{Name: ddl.PGNumeric}, nil
-	case typeNumberString, typeString, typeList, typeMap:
-		return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
-	case typeBool:
-		return ddl.Type{Name: ddl.PGBool}, nil
-	case typeBinary:
-		return ddl.Type{Name: ddl.PGBytea, Len: ddl.PGMaxLength}, nil
-	case typeStringSet, typeNumberStringSet:
-		return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
-	case typeNumberSet:
-		return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
-	case typeBinarySet:
-		return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
-	default:
-		return ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, []internal.SchemaIssue{internal.NoGoodType}
+// Override the types to map to PostgreSQL dialect type.
+func toPostgreSQLDialectType(originalType ddl.Type) ddl.Type {
+	if originalType.IsArray {
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 	}
+	return originalType
 }

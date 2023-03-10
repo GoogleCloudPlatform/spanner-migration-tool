@@ -114,12 +114,12 @@ func convScalar(attrVal *dynamodb.AttributeValue, srcType string, spType string)
 		case typeBool:
 			return *attrVal.BOOL, nil
 		}
-	case ddl.Bytes, ddl.PGBytea:
+	case ddl.Bytes:
 		switch srcType {
 		case typeBinary:
 			return attrVal.B, nil
 		}
-	case ddl.String, ddl.PGVarchar:
+	case ddl.String:
 		switch srcType {
 		case typeString:
 			return *attrVal.S, nil

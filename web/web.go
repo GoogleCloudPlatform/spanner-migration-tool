@@ -1079,11 +1079,7 @@ func getType(newType, table, colName string, srcTableName string) (ddl.CreateTab
 		ty, issues = toSpannerTypeSQLserver(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case constants.ORACLE:
 		toddl := oracle.InfoSchemaImpl{}.GetToDdl()
-		if sessionState.conv.SpDialect == constants.DIALECT_POSTGRESQL {
-			ty, issues = toddl.ToSpannerPostgreSQLDialectType(sessionState.conv, newType, srcCol.Type)
-		} else {
-			ty, issues = toddl.ToSpannerGSQLDialectType(sessionState.conv, newType, srcCol.Type)
-		}
+		ty, issues = toddl.ToSpannerType(sessionState.conv, newType, srcCol.Type)
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.driver)
 	}
@@ -1230,15 +1226,7 @@ func init() {
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
 			srcType := schema.MakeType()
 			srcType.Name = srcTypeName
-			var (
-				ty     ddl.Type
-				issues []internal.SchemaIssue
-			)
-			if sessionState.conv.SpDialect == constants.DIALECT_POSTGRESQL {
-				ty, issues = toddl.ToSpannerPostgreSQLDialectType(sessionState.conv, spType, srcType)
-			} else {
-				ty, issues = toddl.ToSpannerGSQLDialectType(sessionState.conv, spType, srcType)
-			}
+			ty, issues := toddl.ToSpannerType(sessionState.conv, spType, srcType)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		oracleTypeMap[srcTypeName] = l

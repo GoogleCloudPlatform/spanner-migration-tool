@@ -9,7 +9,8 @@ import IConv, {
 } from '../../model/conv'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import {ObjectExplorerNodeType } from 'src/app/app.constants'
+import { Dialect, ObjectExplorerNodeType } from 'src/app/app.constants'
+import { BehaviorSubject } from 'rxjs'
 import { FetchService } from '../fetch/fetch.service'
 
 @Injectable({
@@ -17,6 +18,27 @@ import { FetchService } from '../fetch/fetch.service'
 })
 export class ConversionService {
   constructor(private fetch: FetchService,) { }
+  private standardTypeToPGSQLTypeMapSub = new BehaviorSubject(new Map<string, string>())
+  private pgSQLToStandardTypeTypeMapSub = new BehaviorSubject(new Map<string, string>())
+
+  standardTypeToPGSQLTypeMap = this.standardTypeToPGSQLTypeMapSub.asObservable()
+  pgSQLToStandardTypeTypeMap = this.pgSQLToStandardTypeTypeMapSub.asObservable()
+
+  getStandardTypeToPGSQLTypemap() {
+    return this.fetch.getStandardTypeToPGSQLTypemap().subscribe({
+      next: (standardTypeToPGSQLTypeMap: any) => {
+        this.standardTypeToPGSQLTypeMapSub.next(new Map<string, string>(Object.entries(standardTypeToPGSQLTypeMap)))
+      },
+    })
+  }
+
+  getPGSQLToStandardTypeTypemap() {
+    return this.fetch.getPGSQLToStandardTypeTypemap().subscribe({
+      next: (pgSQLToStandardTypeTypeMap: any) => {
+        this.pgSQLToStandardTypeTypeMapSub.next(new Map<string, string>(Object.entries(pgSQLToStandardTypeTypeMap)))
+      },
+    })
+  }
 
   createTreeNode(
     conv: IConv,
@@ -223,6 +245,10 @@ export class ConversionService {
     let srcTableIds = Object.keys(data.SrcSchema[srcTableName].ColDefs).map(
       (name: string) => data.SrcSchema[srcTableName].ColDefs[name].Id
     )
+    let standardTypeToPGSQLTypemap: Map<String, String>
+    this.standardTypeToPGSQLTypeMap.subscribe((typemap) => {
+      standardTypeToPGSQLTypemap = typemap
+    })
     const res: IColumnTabData[] = data.SrcSchema[srcTableName].ColNames.map(
       (name: string, i: number) => {
         let spColName = data.ToSpanner[srcTableName]?.Cols[name]
@@ -236,12 +262,13 @@ export class ConversionService {
           })
         }
         let spannerColDef = spTableName ? data.SpSchema[spTableName]?.ColDefs[spColName] : null
+        let pgSQLDatatype = spannerColDef ? standardTypeToPGSQLTypemap.get(spannerColDef.T.Name) : ''
 
         return {
           spOrder: spannerColDef ? i + 1 : '',
           srcOrder: i + 1,
           spColName: spannerColDef ? spColName : '',
-          spDataType: spannerColDef ? spannerColDef.T.Name : '',
+          spDataType: spannerColDef ? (data.SpDialect === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
           srcColName: name,
           srcDataType: data.SrcSchema[srcTableName].ColDefs[name].Type.Name,
           spIsPk:
@@ -261,11 +288,12 @@ export class ConversionService {
       data.SpSchema[spTableName]?.ColNames.forEach((name: string, i: number) => {
         if (spTableName && srcTableIds.indexOf(data.SpSchema[spTableName].ColDefs[name].Id) < 0) {
           let spannerColDef = spTableName ? data.SpSchema[spTableName].ColDefs[name] : null
+          let pgSQLDatatype = spannerColDef ? standardTypeToPGSQLTypemap.get(spannerColDef.T.Name) : ''
           res.push({
             spOrder: i + 1,
             srcOrder: '',
             spColName: name,
-            spDataType: spannerColDef ? spannerColDef.T.Name : '',
+            spDataType: spannerColDef ? (data.SpDialect === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
             srcColName: '',
             srcDataType: '',
             spIsPk:

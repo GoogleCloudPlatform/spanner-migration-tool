@@ -25,8 +25,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// This is just a very basic smoke-test for ToSpannerGSQLDialectType.
-func TestToSpannerGSQLDialectType(t *testing.T) {
+// This is just a very basic smoke-test for toSpannerType.
+func TestToSpannerType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
 	name := "test"
@@ -102,7 +102,7 @@ func TestToSpannerGSQLDialectType(t *testing.T) {
 	assert.Equal(t, expectedIssues, conv.Issues[name])
 }
 
-// This is just a very basic smoke-test for ToSpannerPostgreSQLDialectType.
+// This is just a very basic smoke-test for toPostgreSQLDialectType.
 func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
@@ -133,9 +133,9 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		Name:     "ref_table",
 		ColNames: []string{"dref", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"dref": ddl.ColumnDef{Name: "dref", T: ddl.Type{Name: ddl.PGVarchar, Len: int64(6)}},
-			"b":    ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.PGFloat8}},
-			"c":    ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.PGBool}},
+			"dref": ddl.ColumnDef{Name: "dref", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
+			"b":    ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c":    ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "dref"}},
 	}
@@ -143,9 +143,9 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		Name:     "ref_table2",
 		ColNames: []string{"aref", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"aref": ddl.ColumnDef{Name: "aref", T: ddl.Type{Name: ddl.PGInt8}},
-			"b":    ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.PGFloat8}},
-			"c":    ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.PGBool}},
+			"aref": ddl.ColumnDef{Name: "aref", T: ddl.Type{Name: ddl.Int64}},
+			"b":    ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c":    ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "aref"}},
 	}
@@ -156,16 +156,16 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		Name:     name,
 		ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.PGInt8}},
-			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.PGFloat8}},
-			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.PGBool}},
-			"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.PGVarchar, Len: int64(6)}},
-			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.PGNumeric}},
-			"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.PGTimestamptz}},
-			"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.PGJSONB}},
-			"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.PGDate}},
-			"i": ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.PGTimestamptz}},
-			"j": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.PGBytea, Len: ddl.PGMaxLength}},
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
+			"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
+			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
+			"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
+			"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.JSON}},
+			"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Date}},
+			"i": ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.Timestamp}},
+			"j": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
 		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},

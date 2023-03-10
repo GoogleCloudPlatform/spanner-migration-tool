@@ -9,6 +9,7 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 interface IConvSourceType {
   T: string
   Brief: string
+  DisplayT: string
 }
 
 @Component({
@@ -28,7 +29,8 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
   viewRuleData: any = []
   viewRuleFlag: boolean = false
   ruleId: string = ''
-  pgSQLToGoogleSQLTypemap: Map<String, String> = new Map()
+  pgSQLToStandardTypeTypemap: Map<String, String> = new Map()
+  standardTypeToPGSQLTypemap: Map<String, String> = new Map()
   constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService, private conversion: ConversionService, private fetch: FetchService) {
     this.addGlobalDataTypeForm = this.fb.group({
       objectType: ['column', Validators.required],
@@ -47,6 +49,12 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
       },
     })
 
+    this.conversion.pgSQLToStandardTypeTypeMap.subscribe((typemap) => {
+      this.pgSQLToStandardTypeTypemap = typemap
+    })
+    this.conversion.standardTypeToPGSQLTypeMap.subscribe((typemap) => {
+      this.standardTypeToPGSQLTypemap = typemap
+    })
     this.sidenav.passRules.subscribe(([data, flag]: any) => {
       this.viewRuleData = data
       this.viewRuleFlag = flag
@@ -57,13 +65,14 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
           Object.keys(this.viewRuleData?.Data)[0]
         )
         this.updateDestinationType(Object.keys(this.viewRuleData?.Data)[0])
+        let pgSQLType = this.standardTypeToPGSQLTypemap.get(Object.values(this.viewRuleData?.Data)[0] as string)
+        
         this.addGlobalDataTypeForm.controls['destinationType'].setValue(
-          Object.values(this.viewRuleData?.Data)[0]
+          pgSQLType === undefined ? Object.values(this.viewRuleData?.Data)[0] : pgSQLType
         )
         this.addGlobalDataTypeForm.disable()
       }
     })
-
   }
 
   formSubmit(): void {
@@ -71,7 +80,8 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     const source = ruleValue.sourceType
     const payload: Record<string, string> = {}
     
-    payload[source] = ruleValue.destinationType
+    let destinationType = this.pgSQLToStandardTypeTypemap.get(ruleValue.destinationType)
+    payload[source] = destinationType === undefined ? ruleValue.destinationType : destinationType
     this.applyRule(payload)
     this.resetRuleType.emit('')
     this.sidenav.closeSidenav()
@@ -82,7 +92,7 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     const desTypeDetail = this.conversionType[key]
     const desType: string[] = []
     desTypeDetail.forEach((item: IConvSourceType) => {
-      desType.push(item.T)
+      desType.push(item.DisplayT)
     })
     this.destinationType = desType
   }

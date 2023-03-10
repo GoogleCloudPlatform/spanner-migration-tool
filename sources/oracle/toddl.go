@@ -32,122 +32,13 @@ var (
 type ToDdlImpl struct {
 }
 
-// ToSpannerGSQLDialectType maps a scalar source schema type (defined by id and
-// mods) into a Spanner GOOGLE STANDARD SQL dialect type. ToSpannerGSQLDialectType
-// returns the Spanner type and a list of type conversion issues encountered.
-func (tdi ToDdlImpl) ToSpannerGSQLDialectType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
-
-	// Oracle ty, issues =s some datatype with the precision,
-	// So will get TIMESTAMP as TIMESTAMP(6),TIMESTAMP(6) WITH TIME ZONE,TIMESTAMP(6) WITH LOCAL TIME ZONE.
-	// To match this case timestampReg Regex defined.
-	if TimestampReg.MatchString(srcType.Name) {
-		switch spType {
-		case ddl.String:
-			ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-		default:
-			ty, issues = ddl.Type{Name: ddl.Timestamp}, nil
-		}
-	}
-
-	// Matching cases like INTERVAL YEAR(2) TO MONTH, INTERVAL DAY(2) TO SECOND(6),etc.
-	if IntervalReg.MatchString(srcType.Name) {
-		switch spType {
-		case ddl.String:
-			ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-		default:
-			if len(srcType.Mods) > 0 {
-				ty, issues = ddl.Type{Name: ddl.String, Len: 30}, nil
-			} else {
-				ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-			}
-		}
-	}
-
-	switch srcType.Name {
-	case "NUMBER":
-		switch spType {
-		case ddl.String:
-			ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-		default:
-			modsLen := len(srcType.Mods)
-			if modsLen == 0 {
-				ty, issues = ddl.Type{Name: ddl.Numeric}, nil
-			} else if modsLen == 1 { // Only precision is available.
-				if srcType.Mods[0] > 29 {
-					// Max precision in Oracle is 38. String representation of the number should not have more than 50 characters
-					// https://docs.oracle.com/cd/B19306_01/server.102/b14237/limits001.htm#i287903
-					ty, issues = ddl.Type{Name: ddl.String, Len: 50}, nil
-				}
-				ty, issues = ddl.Type{Name: ddl.Int64}, nil
-			} else if srcType.Mods[0] > 29 || srcType.Mods[1] > 9 { // When both precision and scale are available and within limit
-				// Max precision in Oracle is 38. String representation of the number should not have more than 50 characters
-				// https://docs.oracle.com/cd/B19306_01/server.102/b14237/limits001.htm#i287903
-				ty, issues = ddl.Type{Name: ddl.String, Len: 50}, nil
-			} else {
-				ty, issues = ddl.Type{Name: ddl.Numeric}, nil
-			}
-		}
-
-	case "BFILE", "BLOB":
-		switch spType {
-		case ddl.String:
-			ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-		default:
-			ty, issues = ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
-		}
-	case "CHAR":
-		if len(srcType.Mods) > 0 {
-			ty, issues = ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
-		} else {
-			ty, issues = ddl.Type{Name: ddl.String}, nil
-		}
-	case "CLOB":
-		ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "DATE":
-		switch spType {
-		case ddl.String:
-			ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-		default:
-			ty, issues = ddl.Type{Name: ddl.Date}, nil
-		}
-	case "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT":
-		switch spType {
-		case ddl.String:
-			ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-		default:
-			ty, issues = ddl.Type{Name: ddl.Float64}, nil
-		}
-	case "LONG":
-		ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "RAW", "LONG RAW":
-		switch spType {
-		case ddl.String:
-			ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-		default:
-			ty, issues = ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
-		}
-	case "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2":
-		if len(srcType.Mods) > 0 {
-			ty, issues = ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
-		} else {
-			ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-		}
-	case "NCLOB":
-		ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "ROWID":
-		ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "UROWID":
-		if len(srcType.Mods) > 0 {
-			ty, issues = ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
-		} else {
-			ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-		}
-	case "XMLTYPE":
-		ty, issues = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "JSON", "OBJECT":
-		ty, issues = ddl.Type{Name: ddl.JSON}, nil
-	}
+// ToSpannerType maps a scalar source schema type (defined by id and
+// mods) into a Spanner type. This is the core source-to-Spanner type
+// mapping.  toSpannerType returns the Spanner type and a list of type
+// conversion issues encountered.
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+	// passing empty spType to execute default case.will get other spType from web pkg
+	ty, issues := toSpannerTypeInternal(conv, spType, srcType)
 	if len(srcType.ArrayBounds) > 1 {
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 		issues = append(issues, internal.MultiDimensionalArray)
@@ -156,126 +47,113 @@ func (tdi ToDdlImpl) ToSpannerGSQLDialectType(conv *internal.Conv, spType string
 	return ty, issues
 }
 
-// ToSpannerPostgreSQLDialectType maps a scalar source schema type (defined by id and
-// mods) into a Spanner PostgreSQL dialect type. ToSpannerPostgreSQLDialectType
-// returns the Spanner type and a list of type conversion issues encountered.
-func (tdi ToDdlImpl) ToSpannerPostgreSQLDialectType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, []internal.SchemaIssue{internal.NoGoodType}
-
-	// Oracle ty, issues =s some datatype with the precision,
+func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+	// Oracle returns some datatype with the precision,
 	// So will get TIMESTAMP as TIMESTAMP(6),TIMESTAMP(6) WITH TIME ZONE,TIMESTAMP(6) WITH LOCAL TIME ZONE.
 	// To match this case timestampReg Regex defined.
 	if TimestampReg.MatchString(srcType.Name) {
 		switch spType {
-		case ddl.PGVarchar:
-			ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
-			ty, issues = ddl.Type{Name: ddl.PGTimestamptz}, nil
+			return ddl.Type{Name: ddl.Timestamp}, nil
 		}
 	}
 
 	// Matching cases like INTERVAL YEAR(2) TO MONTH, INTERVAL DAY(2) TO SECOND(6),etc.
 	if IntervalReg.MatchString(srcType.Name) {
 		switch spType {
-		case ddl.PGVarchar:
-			ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
 			if len(srcType.Mods) > 0 {
-				ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: 30}, nil
-			} else {
-				ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+				return ddl.Type{Name: ddl.String, Len: 30}, nil
 			}
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
 	}
 
 	switch srcType.Name {
 	case "NUMBER":
 		switch spType {
-		case ddl.PGVarchar:
-			ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
 			modsLen := len(srcType.Mods)
 			if modsLen == 0 {
-				ty, issues = ddl.Type{Name: ddl.PGNumeric}, nil
+				return ddl.Type{Name: ddl.Numeric}, nil
 			} else if modsLen == 1 { // Only precision is available.
 				if srcType.Mods[0] > 29 {
 					// Max precision in Oracle is 38. String representation of the number should not have more than 50 characters
 					// https://docs.oracle.com/cd/B19306_01/server.102/b14237/limits001.htm#i287903
-					ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: 50}, nil
+					return ddl.Type{Name: ddl.String, Len: 50}, nil
 				}
-				ty, issues = ddl.Type{Name: ddl.PGInt8}, nil
+				return ddl.Type{Name: ddl.Int64}, nil
 			} else if srcType.Mods[0] > 29 || srcType.Mods[1] > 9 { // When both precision and scale are available and within limit
 				// Max precision in Oracle is 38. String representation of the number should not have more than 50 characters
 				// https://docs.oracle.com/cd/B19306_01/server.102/b14237/limits001.htm#i287903
-				ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: 50}, nil
-			} else {
-				ty, issues = ddl.Type{Name: ddl.PGNumeric}, nil
+				return ddl.Type{Name: ddl.String, Len: 50}, nil
 			}
+
+			return ddl.Type{Name: ddl.Numeric}, nil
 		}
 
 	case "BFILE", "BLOB":
 		switch spType {
-		case ddl.PGVarchar:
-			ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
-			ty, issues = ddl.Type{Name: ddl.PGBytea, Len: ddl.PGMaxLength}, nil
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "CHAR":
 		if len(srcType.Mods) > 0 {
-			ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: srcType.Mods[0]}, nil
-		} else {
-			ty, issues = ddl.Type{Name: ddl.PGVarchar}, nil
+			return ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
 		}
+		return ddl.Type{Name: ddl.String}, nil
 	case "CLOB":
-		ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "DATE":
 		switch spType {
-		case ddl.PGVarchar:
-			ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
-			ty, issues = ddl.Type{Name: ddl.PGDate}, nil
+			return ddl.Type{Name: ddl.Date}, nil
 		}
 	case "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT":
 		switch spType {
-		case ddl.PGVarchar:
-			ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
-			ty, issues = ddl.Type{Name: ddl.PGFloat8}, nil
+			return ddl.Type{Name: ddl.Float64}, nil
 		}
 	case "LONG":
-		ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "RAW", "LONG RAW":
 		switch spType {
-		case ddl.PGVarchar:
-			ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
-			ty, issues = ddl.Type{Name: ddl.PGBytea, Len: ddl.PGMaxLength}, nil
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2":
 		if len(srcType.Mods) > 0 {
-			ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: srcType.Mods[0]}, nil
-		} else {
-			ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+			return ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
 		}
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "NCLOB":
-		ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "ROWID":
-		ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "UROWID":
 		if len(srcType.Mods) > 0 {
-			ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: srcType.Mods[0]}, nil
-		} else {
-			ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+			return ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
 		}
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "XMLTYPE":
-		ty, issues = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}, nil
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "JSON", "OBJECT":
-		ty, issues = ddl.Type{Name: ddl.PGJSONB}, nil
+		return ddl.Type{Name: ddl.JSON}, nil
+	default:
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	}
-	if len(srcType.ArrayBounds) > 1 {
-		ty = ddl.Type{Name: ddl.PGVarchar, Len: ddl.PGMaxLength}
-		issues = append(issues, internal.MultiDimensionalArray)
-	}
-	ty.IsArray = len(srcType.ArrayBounds) == 1
-	return ty, issues
 }

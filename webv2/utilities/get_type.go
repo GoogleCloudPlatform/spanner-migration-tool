@@ -40,32 +40,16 @@ func GetType(conv *internal.Conv, newType, table, colName string, srcTableName s
 	switch sessionState.Driver {
 	case constants.MYSQL, constants.MYSQLDUMP:
 		toddl = mysql.InfoSchemaImpl{}.GetToDdl()
-		if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
-			ty, issues = toddl.ToSpannerPostgreSQLDialectType(conv, newType, srcCol.Type)
-		} else {
-			ty, issues = toddl.ToSpannerGSQLDialectType(conv, newType, srcCol.Type)
-		}
+		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
 	case constants.PGDUMP, constants.POSTGRES:
 		toddl = postgres.InfoSchemaImpl{}.GetToDdl()
-		if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
-			ty, issues = toddl.ToSpannerPostgreSQLDialectType(conv, newType, srcCol.Type)
-		} else {
-			ty, issues = toddl.ToSpannerGSQLDialectType(conv, newType, srcCol.Type)
-		}
+		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
 	case constants.SQLSERVER:
 		toddl = sqlserver.InfoSchemaImpl{}.GetToDdl()
-		if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
-			ty, issues = toddl.ToSpannerPostgreSQLDialectType(conv, newType, srcCol.Type)
-		} else {
-			ty, issues = toddl.ToSpannerGSQLDialectType(conv, newType, srcCol.Type)
-		}
+		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
 	case constants.ORACLE:
 		toddl = oracle.InfoSchemaImpl{}.GetToDdl()
-		if sessionState.Conv.SpDialect == constants.DIALECT_POSTGRESQL {
-			ty, issues = toddl.ToSpannerPostgreSQLDialectType(conv, newType, srcCol.Type)
-		} else {
-			ty, issues = toddl.ToSpannerGSQLDialectType(conv, newType, srcCol.Type)
-		}
+		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.Driver)
 	}

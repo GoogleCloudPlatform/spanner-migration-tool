@@ -69,15 +69,27 @@ const (
 	PGTimestamptz string = "TIMESTAMPTZ"
 	// Jsonb represents the PG.JSONB type
 	PGJSONB string = "JSONB"
-	// PGNumeric represent NUMERIC type.
-	PGNumeric string = "NUMERIC"
-	// PGBool represent BOOL type.
-	PGBool string = "BOOL"
-	// PGDate represent DATE type.
-	PGDate string = "DATE"
 	// PGMaxLength represents sentinel for Type's Len field in PG.
 	PGMaxLength = 2621440
 )
+
+var STANDARD_TYPE_TO_PGSQL_TYPEMAP = map[string]string{
+	Bytes:     PGBytea,
+	Float64:   PGFloat8,
+	Int64:     PGInt8,
+	String:    PGVarchar,
+	Timestamp: PGTimestamptz,
+	JSON:      PGJSONB,
+}
+
+var PGSQL_TO_STANDARD_TYPE_TYPEMAP = map[string]string{
+	PGBytea:       Bytes,
+	PGFloat8:      Float64,
+	PGInt8:        Int64,
+	PGVarchar:     String,
+	PGTimestamptz: Timestamp,
+	PGJSONB:       JSON,
+}
 
 // Type represents the type of a column.
 //
@@ -112,8 +124,16 @@ func (ty Type) PrintColumnDefType() string {
 	return str
 }
 
+func GetPGType(spType Type) string {
+	pgType, ok := STANDARD_TYPE_TO_PGSQL_TYPEMAP[spType.Name]
+	if ok {
+		return pgType
+	}
+	return spType.Name
+}
+
 func (ty Type) PGPrintColumnDefType() string {
-	str := ty.Name
+	str := GetPGType(ty)
 	// PG doesn't support array types, and we don't expect to receive a type
 	// with IsArray set to true. In the unlikely event, set to string type.
 	if ty.IsArray {
@@ -122,7 +142,7 @@ func (ty Type) PGPrintColumnDefType() string {
 	}
 	// PG doesn't support variable length Bytea and thus doesn't support
 	// setting length (or max length) for the Bytes.
-	if ty.Name == PGVarchar || ty.IsArray {
+	if ty.Name == String || ty.IsArray {
 		str += "("
 		if ty.Len == MaxLength || ty.Len == PGMaxLength {
 			str += fmt.Sprintf("%v", PGMaxLength)

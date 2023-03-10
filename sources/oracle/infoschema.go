@@ -204,6 +204,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				ignored.Check = true
 			// Oracle 21c introduces a JSON datatype, before that we used to store json as VARCHAR2, CLOB, and BLOB.
 			// If column has check constraints IS JSON(check for J in constraints array as per GetConstraints function) then update src datatype to JSON
+			// so toSpannerTypeInternal function map this datatype to spanner JSON.
 			case "J":
 				dataType = "JSON"
 				charMaxLen.Valid = false

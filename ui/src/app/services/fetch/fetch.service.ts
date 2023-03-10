@@ -221,4 +221,11 @@ export class FetchService {
   dropRule(ruleId: string) {
     return this.http.post(`${this.url}/dropRule?id=${ruleId}`, {})
   }
+
+  getStandardTypeToPGSQLTypemap() {
+    return this.http.get<Map<string,string>>(`${this.url}/typemap/GetStandardTypeToPGSQLTypemap`)
+  }
+  getPGSQLToStandardTypeTypemap() {
+    return this.http.get<Map<string,string>>(`${this.url}/typemap/GetPGSQLToStandardTypeTypemap`)
+  }
 }

@@ -144,9 +144,10 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 	if dialect, ok := params["dialect"]; ok {
 		sp.Dialect = dialect
 	}
-
-	if strings.ToLower(sp.Dialect) != constants.DIALECT_POSTGRESQL {
+	if sp.Dialect == "" {
 		sp.Dialect = constants.DIALECT_GOOGLESQL
+	} else if strings.ToLower(sp.Dialect) != constants.DIALECT_POSTGRESQL {
+		return TargetProfile{}, fmt.Errorf("dialect not supported %v", sp.Dialect)
 	}
 
 	conn := TargetProfileConnection{Ty: TargetProfileConnectionTypeSpanner, Sp: sp}

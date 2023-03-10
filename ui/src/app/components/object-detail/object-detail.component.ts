@@ -276,7 +276,10 @@ export class ObjectDetailComponent implements OnInit {
   saveColumnTable() {
     this.isEditMode = false
     let updateData: IUpdateTable = { UpdateCols: {} }
-
+    let pgSQLToStandardTypeTypemap: Map<String, String>;
+    this.conversion.pgSQLToStandardTypeTypeMap.subscribe((typemap) => {
+      pgSQLToStandardTypeTypemap = typemap
+    })
     this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
       for (let j = 0; j < this.tableData.length; j++) {
         if (col.srcColName == this.tableData[j].srcColName) {
@@ -285,12 +288,13 @@ export class ObjectDetailComponent implements OnInit {
             this.tableData[j].spColName == ''
               ? this.tableData[j].srcColName
               : this.tableData[j].spColName
+          let standardDataType = pgSQLToStandardTypeTypemap.get(col.spDataType)
           updateData.UpdateCols[columnName] = {
             Add: this.tableData[j].spColName == '',
             Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
-            ToType: col.spDataType,
+            ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType: standardDataType) : col.spDataType,
           }
           break
         }
