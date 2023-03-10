@@ -130,8 +130,9 @@ type migrationDetails struct {
 }
 
 type dataflowConfig struct {
-	Network    string `json:Network`
-	Subnetwork string `json:Subnetwork`
+	Network       string `json:Network`
+	Subnetwork    string `json:Subnetwork`
+	HostProjectId string `json:HostProjectId`
 }
 
 type targetDetails struct {
@@ -147,10 +148,11 @@ type StreamingCfg struct {
 	TmpDir        string        `json:"tmpDir"`
 }
 type DataflowCfg struct {
-	JobName    string `json:"JobName"`
-	Location   string `json:"Location"`
-	Network    string `json:"Network"`
-	Subnetwork string `json:"Subnetwork"`
+	JobName       string `json:"JobName"`
+	Location      string `json:"Location"`
+	Network       string `json:"Network"`
+	Subnetwork    string `json:"Subnetwork"`
+	HostProjectId string `json:"HostProjectId"`
 }
 type ConnectionConfig struct {
 	Name     string `json:"name"`
@@ -1749,6 +1751,7 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 			Location:   sessionState.Region,
 			Network:    dataflowConfig.Network,
 			Subnetwork: dataflowConfig.Subnetwork,
+			HostProjectId: dataflowConfig.HostProjectId,
 		},
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}

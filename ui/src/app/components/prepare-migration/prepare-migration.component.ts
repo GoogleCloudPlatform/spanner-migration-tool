@@ -84,7 +84,8 @@ export class PrepareMigrationComponent implements OnInit {
 
   dataflowConfig: IDataflowConfig = {
     Network: localStorage.getItem(Dataflow.Network) as string,
-    Subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string
+    Subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
+    HostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
   }
 
   refreshMigrationMode() {
@@ -243,6 +244,7 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(Dataflow.IsDataflowConfigSet)
     localStorage.removeItem(Dataflow.Network)
     localStorage.removeItem(Dataflow.Subnetwork)
+    localStorage.removeItem(Dataflow.HostProjectId)
     localStorage.removeItem(MigrationDetails.IsMigrationInProgress)
     localStorage.removeItem(MigrationDetails.HasSchemaMigrationStarted)
     localStorage.removeItem(MigrationDetails.HasDataMigrationStarted)
@@ -293,7 +295,8 @@ export class PrepareMigrationComponent implements OnInit {
     dialogRef.afterClosed().subscribe(() => {
       this.dataflowConfig = {
         Network: localStorage.getItem(Dataflow.Network) as string,
-        Subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string
+        Subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
+        HostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
       }
       this.isDataflowConfigurationSet = localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true'
     }

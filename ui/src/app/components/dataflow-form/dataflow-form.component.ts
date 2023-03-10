@@ -19,6 +19,7 @@ export class DataflowFormComponent implements OnInit {
     this.dataflowForm = this.formBuilder.group({
       network: ['', Validators.required],
       subnetwork: ['', Validators.required],
+      hostProjectId: ['']
     })
   }
 
@@ -29,6 +30,7 @@ export class DataflowFormComponent implements OnInit {
     let formValue = this.dataflowForm.value
     localStorage.setItem(Dataflow.Network, formValue.network)
     localStorage.setItem(Dataflow.Subnetwork, formValue.subnetwork)
+    localStorage.setItem(Dataflow.HostProjectId, formValue.hostProjectId)
     localStorage.setItem(Dataflow.IsDataflowConfigSet, "true")
     this.dialofRef.close()
   }
