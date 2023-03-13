@@ -14,6 +14,7 @@ import { SourceDetailsFormComponent } from '../source-details-form/source-detail
 import { EndMigrationComponent } from '../end-migration/end-migration.component'
 import { IDataflowConfig, ISetUpConnectionProfile } from 'src/app/model/profile'
 import { DataflowFormComponent } from '../dataflow-form/dataflow-form.component'
+import ISpannerConfig from 'src/app/model/spanner-config'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -87,6 +88,12 @@ export class PrepareMigrationComponent implements OnInit {
     Subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
     HostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
   }
+  spannerConfig: ISpannerConfig = {
+    GCPProjectID: '',
+    SpannerInstanceID: '',
+    IsMetadataDbCreated: false,
+    IsConfigValid: false
+  }
 
   refreshMigrationMode() {
     if (!(this.selectedMigrationMode === MigrationModes.schemaOnly) && this.isStreamingSupported && !(this.connectionType === InputType.DumpFile)) {
@@ -120,6 +127,10 @@ export class PrepareMigrationComponent implements OnInit {
 
   ngOnInit(): void {
     this.initializeFromLocalStorage()
+    this.data.config.subscribe((res: ISpannerConfig) => {
+      this.spannerConfig = res
+    })
+    localStorage.setItem(Dataflow.HostProjectId, this.spannerConfig.GCPProjectID)
     this.fetch.getSourceDestinationSummary().subscribe({
       next: (res: ISessionSummary) => {
         this.connectionType = res.ConnectionType
@@ -291,6 +302,7 @@ export class PrepareMigrationComponent implements OnInit {
       width: '30vw',
       minWidth: '400px',
       maxWidth: '500px',
+      data: this.spannerConfig,
     })
     dialogRef.afterClosed().subscribe(() => {
       this.dataflowConfig = {
