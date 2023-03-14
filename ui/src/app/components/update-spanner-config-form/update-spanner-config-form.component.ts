@@ -34,7 +34,6 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
       GCPProjectID: formValue.GCPProjectID,
       SpannerInstanceID: formValue.SpannerInstanceID,
     }
-
     this.fetch.setSpannerConfig(payload).subscribe({
       next: (res: ISpannerConfig) => {
         if (res.IsMetadataDbCreated) {

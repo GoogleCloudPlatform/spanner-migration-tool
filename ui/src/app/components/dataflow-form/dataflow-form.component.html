@@ -1,6 +1,12 @@
 <div mat-dialog-content>
     <form [formGroup]="dataflowForm" class="dataflow-form">
       <h2>Dataflow Details</h2>
+      <mat-form-field class="full-width" appearance="outline" matTooltip="Edit to run Dataflow in a shared VPC"
+      [matTooltipPosition]="'right'" matTooltipHideDelay="100000">
+        <mat-label>Host ProjectID</mat-label>
+        <input matInput placeholder="Host ProjectID" type="text" formControlName="hostProjectId"/>
+      </mat-form-field>
+      <br>
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>VPC Network</mat-label>
         <input matInput placeholder="VPC Network Name" type="text" formControlName="network"/>

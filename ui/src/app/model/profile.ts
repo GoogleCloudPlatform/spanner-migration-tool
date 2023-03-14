@@ -17,4 +17,5 @@ export interface ISetUpConnectionProfile{
 export interface IDataflowConfig{
     Network: string
     Subnetwork: string
+    HostProjectId: string
 }

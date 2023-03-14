@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatDialogRef } from '@angular/material/dialog';
+import { Component, Inject, OnInit } from '@angular/core';
+import { FormControl, FormGroup, Validators } from '@angular/forms';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { Dataflow } from 'src/app/app.constants';
+import ISpannerConfig from 'src/app/model/spanner-config';
 
 @Component({
   selector: 'app-dataflow-form',
@@ -9,16 +10,16 @@ import { Dataflow } from 'src/app/app.constants';
   styleUrls: ['./dataflow-form.component.scss']
 })
 export class DataflowFormComponent implements OnInit {
-
   dataflowForm: FormGroup
 
   constructor(
-    private formBuilder: FormBuilder,
+    @Inject(MAT_DIALOG_DATA) public data: ISpannerConfig,
     private dialofRef: MatDialogRef<DataflowFormComponent>
   ) {
-    this.dataflowForm = this.formBuilder.group({
-      network: ['', Validators.required],
-      subnetwork: ['', Validators.required],
+    this.dataflowForm = new FormGroup({
+      network: new FormControl('', Validators.required),
+      subnetwork: new FormControl('', Validators.required),
+      hostProjectId: new FormControl(data.GCPProjectID, Validators.required),
     })
   }
 
@@ -29,6 +30,7 @@ export class DataflowFormComponent implements OnInit {
     let formValue = this.dataflowForm.value
     localStorage.setItem(Dataflow.Network, formValue.network)
     localStorage.setItem(Dataflow.Subnetwork, formValue.subnetwork)
+    localStorage.setItem(Dataflow.HostProjectId, formValue.hostProjectId)
     localStorage.setItem(Dataflow.IsDataflowConfigSet, "true")
     this.dialofRef.close()
   }

@@ -14,6 +14,7 @@ import { SourceDetailsFormComponent } from '../source-details-form/source-detail
 import { EndMigrationComponent } from '../end-migration/end-migration.component'
 import { IDataflowConfig, ISetUpConnectionProfile } from 'src/app/model/profile'
 import { DataflowFormComponent } from '../dataflow-form/dataflow-form.component'
+import ISpannerConfig from 'src/app/model/spanner-config'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -84,7 +85,14 @@ export class PrepareMigrationComponent implements OnInit {
 
   dataflowConfig: IDataflowConfig = {
     Network: localStorage.getItem(Dataflow.Network) as string,
-    Subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string
+    Subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
+    HostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
+  }
+  spannerConfig: ISpannerConfig = {
+    GCPProjectID: '',
+    SpannerInstanceID: '',
+    IsMetadataDbCreated: false,
+    IsConfigValid: false
   }
 
   refreshMigrationMode() {
@@ -119,6 +127,10 @@ export class PrepareMigrationComponent implements OnInit {
 
   ngOnInit(): void {
     this.initializeFromLocalStorage()
+    this.data.config.subscribe((res: ISpannerConfig) => {
+      this.spannerConfig = res
+    })
+    localStorage.setItem(Dataflow.HostProjectId, this.spannerConfig.GCPProjectID)
     this.fetch.getSourceDestinationSummary().subscribe({
       next: (res: ISessionSummary) => {
         this.connectionType = res.ConnectionType
@@ -243,6 +255,7 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(Dataflow.IsDataflowConfigSet)
     localStorage.removeItem(Dataflow.Network)
     localStorage.removeItem(Dataflow.Subnetwork)
+    localStorage.removeItem(Dataflow.HostProjectId)
     localStorage.removeItem(MigrationDetails.IsMigrationInProgress)
     localStorage.removeItem(MigrationDetails.HasSchemaMigrationStarted)
     localStorage.removeItem(MigrationDetails.HasDataMigrationStarted)
@@ -289,11 +302,13 @@ export class PrepareMigrationComponent implements OnInit {
       width: '30vw',
       minWidth: '400px',
       maxWidth: '500px',
+      data: this.spannerConfig,
     })
     dialogRef.afterClosed().subscribe(() => {
       this.dataflowConfig = {
         Network: localStorage.getItem(Dataflow.Network) as string,
-        Subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string
+        Subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
+        HostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
       }
       this.isDataflowConfigurationSet = localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true'
     }
