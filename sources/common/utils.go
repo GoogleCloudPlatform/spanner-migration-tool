@@ -111,3 +111,10 @@ func processAsync[I any, O any](f func(i I, mutex *sync.Mutex) TaskResult[O], in
 	logger.Log.Debug(fmt.Sprint("worker complete"))
 	wg.Done()
 }
+
+func ToPGDialectType(standardType ddl.Type) ddl.Type {
+	if standardType.IsArray {
+		return ddl.Type{ddl.String, ddl.MaxLength, false}
+	}
+	return standardType
+}

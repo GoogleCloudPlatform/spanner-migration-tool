@@ -19,6 +19,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -34,7 +35,7 @@ type ToDdlImpl struct {
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(conv, srcType)
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
-		ty = toPostgreSQLDialectType(ty)
+		ty = common.ToPGDialectType(ty)
 	}
 	return ty, issues
 }
@@ -58,12 +59,4 @@ func toSpannerTypeInternal(conv *internal.Conv, srcType schema.Type) (ddl.Type, 
 	default:
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	}
-}
-
-// Override the types to map to PostgreSQL dialect type.
-func toPostgreSQLDialectType(originalType ddl.Type) ddl.Type {
-	if originalType.IsArray {
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-	}
-	return originalType
 }
