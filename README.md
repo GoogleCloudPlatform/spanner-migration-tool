@@ -463,8 +463,7 @@ appropriate instance using gcloud.
 `dialect` Specifies the dialect of Spanner database. By default, Spanner
 databases are created with GoogleSQL dialect. You can override the same by
 setting `dialect=PostgreSQL` in the `-target-profile`. Learn more about support
-for PostgreSQL dialect in Cloud Spanner at
-<https://cloud.google.com/spanner/docs/postgresql-interface>.
+for PostgreSQL dialect in Cloud Spanner [here](https://cloud.google.com/spanner/docs/postgresql-interface).
 
 ## Schema Conversion
 
