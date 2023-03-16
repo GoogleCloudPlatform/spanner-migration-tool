@@ -662,3 +662,7 @@ the data. This is not verified during updation of the keys
 - Conversion to Spanner ARRAY type is currently not supported
 - MySQL types BIT and TIME are not converted correctly
 - PostgreSQL types bit, bit varying, bytea and time not converted correctly.
+
+### Access Control
+
+- HarbourBridge does not support database roles and privileges. If users wish to use Spanner [fine-grained access control](https://cloud.google.com/spanner/docs/configure-fgac) as an IAM principal, then they can manually create database roles, grant the appropriate memberships and privileges to these roles, and grant access to database roles to the IAM principal. Alternatively, users can grant [database-level access](https://cloud.google.com/spanner/docs/grant-permissions#database-level_permissions) to an IAM principal.
