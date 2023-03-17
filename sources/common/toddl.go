@@ -77,6 +77,7 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 		}
 		spColNames = append(spColNames, colName)
 		ty, issues := toddl.ToSpannerType(conv, "", srcCol.Type)
+
 		// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
 		if srcCol.Ignored.ForeignKey {
 			issues = append(issues, internal.ForeignKey)

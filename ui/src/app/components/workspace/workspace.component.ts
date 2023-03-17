@@ -62,9 +62,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.conversion.getStandardTypeToPGSQLTypemap()
+    this.conversion.getPGSQLToStandardTypeTypemap()
     this.ddlsumconvObj = this.data.getRateTypemapAndSummary()
-    this.conversion.getGoogleSQLToPGSQLTypemap()
-    this.conversion.getPGSQLToGoogleSQLTypemap()
     this.typemapObj = this.data.typeMap.subscribe((types) => {
       this.typeMap = types
     })
@@ -122,7 +122,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
           this.currentObject.id
         )
       }
-      this.dialect = (this.conv.TargetDb === "experimental_postgres") ? "PostgreSQL" : "Google Standard SQL"
+      this.dialect = (this.conv.SpDialect === "postgresql") ? "PostgreSQL" : "Google Standard SQL"
     })
 
     this.converObj = this.data.conversionRate.subscribe((rates: any) => {

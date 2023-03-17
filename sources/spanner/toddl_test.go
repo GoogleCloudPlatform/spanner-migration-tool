@@ -44,13 +44,13 @@ func TestToSpannerType(t *testing.T) {
 		{"string", false, schema.Type{Name: "STRING", Mods: []int64{100}}, ddl.Type{Name: ddl.String, Len: 100}},
 		{"timestamp", false, schema.Type{Name: "TIMESTAMP"}, ddl.Type{Name: ddl.Timestamp}},
 		// PG target.
-		{"pg_numeric", true, schema.Type{Name: "PG.NUMERIC"}, ddl.Type{Name: ddl.Numeric}},
-		{"pg_json", true, schema.Type{Name: "PG.JSONB"}, ddl.Type{Name: ddl.JSON}},
+		{"pg_numeric", true, schema.Type{Name: "NUMERIC"}, ddl.Type{Name: ddl.Numeric}},
+		{"pg_json", true, schema.Type{Name: "JSONB"}, ddl.Type{Name: ddl.JSON}},
 	}
 	for _, tc := range toDDLTests {
-		conv.TargetDb = constants.TargetSpanner
+		conv.SpDialect = constants.DIALECT_GOOGLESQL
 		if tc.pgTarget {
-			conv.TargetDb = constants.TargetExperimentalPostgres
+			conv.SpDialect = constants.DIALECT_POSTGRESQL
 		}
 		ty, err := toDDLImpl.ToSpannerType(conv, "", tc.columnType)
 		assert.Nil(t, err, tc.name)

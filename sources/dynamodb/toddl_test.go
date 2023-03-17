@@ -80,10 +80,10 @@ func TestToSpannerType(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
-func TestToExperimentalSpannerType(t *testing.T) {
+func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
-	conv.TargetDb = constants.TargetExperimentalPostgres
+	conv.SpDialect = constants.DIALECT_POSTGRESQL
 	name := "test"
 	srcSchema := schema.Table{
 		Name:     name,

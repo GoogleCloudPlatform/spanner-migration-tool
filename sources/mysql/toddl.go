@@ -19,6 +19,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -33,14 +34,13 @@ type ToDdlImpl struct {
 // Functions below implement the common.ToDdl interface
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(srcType, spType)
-	if conv.TargetDb == constants.TargetExperimentalPostgres {
-		ty = overrideExperimentalType(srcType, ty)
-	} else {
-		if len(srcType.ArrayBounds) > 1 {
-			ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-			issues = append(issues, internal.MultiDimensionalArray)
-		}
-		ty.IsArray = len(srcType.ArrayBounds) == 1
+	if len(srcType.ArrayBounds) > 1 {
+		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+		issues = append(issues, internal.MultiDimensionalArray)
+	}
+	ty.IsArray = len(srcType.ArrayBounds) == 1
+	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+		ty = common.ToPGDialectType(ty)
 	}
 	return ty, issues
 }
@@ -187,12 +187,4 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
-}
-
-// Override the types to map to experimental postgres types.
-func overrideExperimentalType(srcType schema.Type, originalType ddl.Type) ddl.Type {
-	if len(srcType.ArrayBounds) > 0 {
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-	}
-	return originalType
 }

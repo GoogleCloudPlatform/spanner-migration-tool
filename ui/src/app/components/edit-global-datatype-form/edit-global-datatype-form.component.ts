@@ -29,7 +29,8 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
   viewRuleData: any = []
   viewRuleFlag: boolean = false
   ruleId: string = ''
-  pgSQLToGoogleSQLTypemap: Map<String, String> = new Map()
+  pgSQLToStandardTypeTypemap: Map<String, String> = new Map()
+  standardTypeToPGSQLTypemap: Map<String, String> = new Map()
   constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService, private conversion: ConversionService, private fetch: FetchService) {
     this.addGlobalDataTypeForm = this.fb.group({
       objectType: ['column', Validators.required],
@@ -48,6 +49,12 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
       },
     })
 
+    this.conversion.pgSQLToStandardTypeTypeMap.subscribe((typemap) => {
+      this.pgSQLToStandardTypeTypemap = typemap
+    })
+    this.conversion.standardTypeToPGSQLTypeMap.subscribe((typemap) => {
+      this.standardTypeToPGSQLTypemap = typemap
+    })
     this.sidenav.passRules.subscribe(([data, flag]: any) => {
       this.viewRuleData = data
       this.viewRuleFlag = flag
@@ -58,16 +65,14 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
           Object.keys(this.viewRuleData?.Data)[0]
         )
         this.updateDestinationType(Object.keys(this.viewRuleData?.Data)[0])
+        let pgSQLType = this.standardTypeToPGSQLTypemap.get(Object.values(this.viewRuleData?.Data)[0] as string)
+        
         this.addGlobalDataTypeForm.controls['destinationType'].setValue(
-          Object.values(this.viewRuleData?.Data)[0]
+          pgSQLType === undefined ? Object.values(this.viewRuleData?.Data)[0] : pgSQLType
         )
         this.addGlobalDataTypeForm.disable()
       }
     })
-    this.conversion.pgSQLToGoogleSQLTypeMap.subscribe((typemap) => {
-      this.pgSQLToGoogleSQLTypemap = typemap
-    })
-
   }
 
   formSubmit(): void {
@@ -75,8 +80,8 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     const source = ruleValue.sourceType
     const payload: Record<string, string> = {}
     
-    let googleSQLDestinationType = this.pgSQLToGoogleSQLTypemap.get(ruleValue.destinationType)
-    payload[source] = googleSQLDestinationType === undefined ? ruleValue.destinationType : googleSQLDestinationType
+    let destinationType = this.pgSQLToStandardTypeTypemap.get(ruleValue.destinationType)
+    payload[source] = destinationType === undefined ? ruleValue.destinationType : destinationType
     this.applyRule(payload)
     this.resetRuleType.emit('')
     this.sidenav.closeSidenav()

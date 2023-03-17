@@ -560,7 +560,7 @@ func GetLegacyModeSupportedDrivers() []string {
 
 // ReadSpannerSchema fills conv by querying Spanner infoschema treating Spanner as both the source and dest.
 func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Client) error {
-	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, TargetDb: conv.TargetDb}
+	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, SpDialect: conv.SpDialect}
 	err := common.ProcessSchema(conv, infoSchema, common.DefaultWorkers)
 	if err != nil {
 		return fmt.Errorf("error trying to read and convert spanner schema: %v", err)
@@ -583,8 +583,8 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 
 // CompareSchema compares the spanner schema of two conv objects and returns specific error if they don't match
 func CompareSchema(conv1, conv2 *internal.Conv) error {
-	if conv1.TargetDb != conv2.TargetDb {
-		return fmt.Errorf("target db don't match")
+	if conv1.SpDialect != conv2.SpDialect {
+		return fmt.Errorf("spanner dialect don't match")
 	}
 	for spannerTableInd := range conv1.SpSchema {
 		sessionTable := conv1.SpSchema[spannerTableInd]
@@ -631,13 +631,6 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 		}
 	}
 	return nil
-}
-
-func DialectToTarget(dialect string) string {
-	if strings.ToLower(dialect) == constants.DIALECT_POSTGRESQL {
-		return constants.TargetExperimentalPostgres
-	}
-	return constants.TargetSpanner
 }
 
 func TargetDbToDialect(targetDb string) string {

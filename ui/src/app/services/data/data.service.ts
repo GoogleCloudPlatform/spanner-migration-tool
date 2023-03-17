@@ -192,16 +192,16 @@ export class DataService {
         if (data.error) {
           return data.error
         } else {
-          let googleSQLToPGSQLTypemap: Map<String, String>;
-          this.conversion.googleSQLToPGSQLTypeMap.subscribe((typemap) => {
-            googleSQLToPGSQLTypemap = typemap
+          let standardDatatypeToPGSQLTypemap: Map<String, String>;
+          this.conversion.standardTypeToPGSQLTypeMap.subscribe((typemap) => {
+            standardDatatypeToPGSQLTypemap = typemap
           })
           this.conv.subscribe((convData: IConv) => {
-            if (convData.TargetDb === Dialect.PostgreSQLDialect) {
+            if (convData.SpDialect === Dialect.PostgreSQLDialect) {
               data.Changes.forEach((table: IReviewInterleaveTableChanges) => {
                 table.InterleaveColumnChanges.forEach((column: ITableColumnChanges) => {
-                  let pgSQLType = googleSQLToPGSQLTypemap.get(column.Type)
-                  let pgSQLUpdateType = googleSQLToPGSQLTypemap.get(column.UpdateType)
+                  let pgSQLType = standardDatatypeToPGSQLTypemap.get(column.Type)
+                  let pgSQLUpdateType = standardDatatypeToPGSQLTypemap.get(column.UpdateType)
                   column.Type = pgSQLType === undefined? column.Type: pgSQLType 
                   column.UpdateType = pgSQLUpdateType === undefined? column.UpdateType: pgSQLUpdateType
                 })

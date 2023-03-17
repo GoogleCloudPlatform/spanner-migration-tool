@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
@@ -14,7 +15,7 @@ import (
 func getTestData() []session.SchemaConversionSession {
 
 	conv := internal.Conv{
-		TargetDb: "test",
+		SpDialect: constants.DIALECT_GOOGLESQL,
 	}
 
 	convStr, _ := json.Marshal(conv)

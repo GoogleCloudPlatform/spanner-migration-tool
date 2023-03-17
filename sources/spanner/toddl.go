@@ -15,7 +15,6 @@
 package spanner
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -31,11 +30,7 @@ type ToDdlImpl struct {
 // Functions below implement the common.ToDdl interface
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(conv, srcType)
-	if conv.TargetDb == constants.TargetExperimentalPostgres {
-		ty, issues = overrideExperimentalType(srcType, ty, issues)
-	} else {
-		ty.IsArray = len(srcType.ArrayBounds) == 1
-	}
+	ty.IsArray = len(srcType.ArrayBounds) == 1
 	return ty, issues
 }
 
@@ -55,7 +50,7 @@ func toSpannerTypeInternal(conv *internal.Conv, srcType schema.Type) (ddl.Type, 
 		return ddl.Type{Name: ddl.Float64}, nil
 	case "INT64":
 		return ddl.Type{Name: ddl.Int64}, nil
-	case "JSON":
+	case "JSON", "JSONB":
 		return ddl.Type{Name: ddl.JSON}, nil
 	case "NUMERIC":
 		return ddl.Type{Name: ddl.Numeric}, nil
@@ -65,15 +60,4 @@ func toSpannerTypeInternal(conv *internal.Conv, srcType schema.Type) (ddl.Type, 
 		return ddl.Type{Name: ddl.Timestamp}, nil
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
-}
-
-// Override the types to map to experimental postgres types.
-func overrideExperimentalType(srcType schema.Type, originalType ddl.Type, issues []internal.SchemaIssue) (ddl.Type, []internal.SchemaIssue) {
-	switch srcType.Name {
-	case "PG.NUMERIC":
-		return ddl.Type{Name: ddl.Numeric}, nil
-	case "PG.JSONB":
-		return ddl.Type{Name: ddl.JSON}, nil
-	}
-	return originalType, issues
 }

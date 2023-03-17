@@ -238,7 +238,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 
 	// Setting target db to spanner by default.
-	conv.TargetDb = utils.DialectToTarget(sessionState.Dialect)
+	conv.SpDialect = sessionState.Dialect
 	var err error
 	switch sessionState.Driver {
 	case constants.MYSQL:
@@ -406,7 +406,6 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver)
 	sourceProfile.Driver = dc.Config.Driver
 	targetProfile, _ := profiles.NewTargetProfile("")
-	targetProfile.TargetDb = utils.DialectToTarget(dc.SpannerDetails.Dialect)
 	conv, err := conversion.SchemaConv(sourceProfile, targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
@@ -494,7 +493,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		SessionName:  "NewSession",
 		DatabaseType: s.Driver,
 		DatabaseName: metadata.DatabaseName,
-		Dialect:      utils.TargetDbToDialect(conv.TargetDb),
+		Dialect:      conv.SpDialect,
 	}
 
 	if sessionMetadata.DatabaseName == "" {
@@ -518,7 +517,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		Path:           s.FilePath,
 		ConnectionType: helpers.SESSION_FILE_MODE,
 	}
-	sessionState.Dialect = utils.TargetDbToDialect(conv.TargetDb)
+	sessionState.Dialect = conv.SpDialect
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionMetadata,
@@ -545,7 +544,7 @@ func fetchLastLoadedSessionDetails(w http.ResponseWriter, r *http.Request) {
 // build DDL to send to Spanner.
 func getDDL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	c := ddl.Config{Comments: true, ProtectIds: false, TargetDb: sessionState.Conv.TargetDb}
+	c := ddl.Config{Comments: true, ProtectIds: false, SpDialect: sessionState.Conv.SpDialect}
 	var tables []string
 	for t := range sessionState.Conv.SpSchema {
 		tables = append(tables, t)
@@ -559,14 +558,14 @@ func getDDL(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ddl)
 }
 
-func getGoogleSQLToPGSQLTypemap(w http.ResponseWriter, r *http.Request) {
+func getStandardTypeToPGSQLTypemap(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ddl.GOOGLE_SQL_TO_PGSQL_TYPEMAP)
+	json.NewEncoder(w).Encode(ddl.STANDARD_TYPE_TO_PGSQL_TYPEMAP)
 }
 
-func getPGSQLToGoogleSQLTypemap(w http.ResponseWriter, r *http.Request) {
+func getPGSQLToStandardTypeTypemap(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ddl.PGSQL_TO_GOOGLE_SQL_TYPEMAP)
+	json.NewEncoder(w).Encode(ddl.PGSQL_TO_STANDARD_TYPE_TYPEMAP)
 }
 
 // getTypeMap returns the source to Spanner typemap only for the
@@ -1709,7 +1708,6 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 	}
 	sourceProfile.Driver = sessionState.Driver
-	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
 }
 
@@ -1976,7 +1974,7 @@ func rollback(err error) error {
 		return fmt.Errorf("encountered error %w. rollback failed because we don't have a session file", err)
 	}
 	sessionState.Conv = internal.MakeConv()
-	sessionState.Conv.TargetDb = constants.TargetSpanner
+	sessionState.Conv.SpDialect = constants.DIALECT_GOOGLESQL
 	err2 := conversion.ReadSessionFile(sessionState.Conv, sessionState.SessionFile)
 	if err2 != nil {
 		return fmt.Errorf("encountered error %w. rollback failed: %v", err, err2)
@@ -2183,6 +2181,7 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 func initializeTypeMap() {
 	sessionState := session.GetSessionState()
 	var toddl common.ToDdl
+
 	// Initialize mysqlTypeMap.
 	toddl = mysql.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {

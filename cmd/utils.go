@@ -63,7 +63,6 @@ func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, sou
 	if err != nil {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", err
 	}
-	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
 
 	sourceProfile, err := profiles.NewSourceProfile(sourceProfileString, source)
 	if err != nil {
@@ -126,7 +125,7 @@ func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, 
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient) error {
-	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
+	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, conv, ioHelper.Out)
 	if err != nil {
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return err
@@ -142,7 +141,7 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 		err error
 	)
 	if !sourceProfile.UseTargetSchema() {
-		err = validateExistingDb(ctx, conv.TargetDb, dbURI, adminClient, client, conv)
+		err = validateExistingDb(ctx, conv.SpDialect, dbURI, adminClient, client, conv)
 		if err != nil {
 			err = fmt.Errorf("error while validating existing database: %v", err)
 			return nil, err
@@ -165,7 +164,7 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 
 func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *SchemaAndDataCmd) (*writer.BatchWriter, error) {
-	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
+	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, conv, ioHelper.Out)
 	if err != nil {
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return nil, err
