@@ -114,6 +114,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	delete(conv.SpSchema[tableId].ColDefs, "")
 	sessionState.Conv = conv
 
 	session.UpdateSessionFile()
