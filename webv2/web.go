@@ -237,7 +237,6 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	}
 	conv := internal.MakeConv()
 
-	// Setting target db to spanner by default.
 	conv.SpDialect = sessionState.Dialect
 	var err error
 	switch sessionState.Driver {
@@ -405,7 +404,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	// We don't support Dynamodb in web hence no need to pass schema sample size here.
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver)
 	sourceProfile.Driver = dc.Config.Driver
-	targetProfile, _ := profiles.NewTargetProfile("")
+	targetProfile, _ := profiles.NewTargetProfile(fmt.Sprintf("dialect=%s", dc.SpannerDetails.Dialect))
 	conv, err := conversion.SchemaConv(sourceProfile, targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
@@ -1745,10 +1744,10 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 			},
 		},
 		DataflowCfg: DataflowCfg{
-			JobName:    "",
-			Location:   sessionState.Region,
-			Network:    dataflowConfig.Network,
-			Subnetwork: dataflowConfig.Subnetwork,
+			JobName:       "",
+			Location:      sessionState.Region,
+			Network:       dataflowConfig.Network,
+			Subnetwork:    dataflowConfig.Subnetwork,
 			HostProjectId: dataflowConfig.HostProjectId,
 		},
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	sp "cloud.google.com/go/spanner"
 	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
@@ -211,7 +212,13 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
                 INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
                   ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND t.TABLE_NAME=k.TABLE_NAME
               WHERE k.TABLE_SCHEMA = ? AND k.TABLE_NAME = ? ORDER BY k.ordinal_position;`
-	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	// Use this when testing the connection pool.
+	if err := isi.Db.PingContext(ctx); err != nil {
+		fmt.Println("error", err)
+	}
+	rows, err := isi.Db.QueryContext(ctx, q, table.Schema, table.Name)
 	if err != nil {
 		return nil, nil, err
 	}

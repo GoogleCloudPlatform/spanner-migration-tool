@@ -142,11 +142,11 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 		sp.Dbname = dbName
 	}
 	if dialect, ok := params["dialect"]; ok {
-		sp.Dialect = dialect
+		sp.Dialect = strings.ToLower(dialect)
 	}
 	if sp.Dialect == "" {
 		sp.Dialect = constants.DIALECT_GOOGLESQL
-	} else if strings.ToLower(sp.Dialect) != constants.DIALECT_POSTGRESQL {
+	} else if sp.Dialect != constants.DIALECT_POSTGRESQL && sp.Dialect != constants.DIALECT_GOOGLESQL {
 		return TargetProfile{}, fmt.Errorf("dialect not supported %v", sp.Dialect)
 	}
 

@@ -124,7 +124,7 @@ func GenerateMYSQLConnectionStr() (string, error) {
 }
 
 func getMYSQLConnectionStr(server, port, user, password, dbName string) string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbName)
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?timeout=10s", user, password, server, port, dbName)
 }
 
 func getSQLSERVERConnectionStr(server, port, user, password, dbName string) string {
