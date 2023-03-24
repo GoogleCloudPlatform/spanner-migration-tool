@@ -121,6 +121,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 		return err
 	}
 	rows := rowsInterface.(*sql.Rows)
+	defer rows.Close()
 	srcCols, _ := rows.Columns()
 	v, iv := buildVals(len(srcCols))
 	for rows.Next() {
@@ -139,11 +140,6 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 			continue
 		}
 		conv.WriteRow(srcTable, spTable, cvtCols, cvtVals)
-	}
-	err = rows.Close()
-	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Couldn't close connection for table %s : err = %s", srcTable, err))
-		return err
 	}
 	return nil
 }
@@ -198,14 +194,11 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
 	var count int64
 	if rows.Next() {
 		err := rows.Scan(&count)
 		return count, err
-	}
-	err = rows.Close()
-	if err != nil {
-		return 0, err
 	}
 	return 0, nil //Check if 0 is ok to return
 }
@@ -226,6 +219,7 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get tables: %w", err)
 	}
+	defer rows.Close()
 	var tableSchema, tableName string
 	var tables []common.SchemaAndName
 	for rows.Next() {
@@ -233,10 +227,6 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 		if !ignored[tableSchema] {
 			tables = append(tables, common.SchemaAndName{Schema: tableSchema, Name: tableName})
 		}
-	}
-	err = rows.Close()
-	if err != nil {
-		return nil, err
 	}
 	return tables, nil
 }
@@ -252,6 +242,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
 	}
+	cols.Close()
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
 	var colName, dataType, isNullable string
@@ -285,10 +276,6 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		colDefs[colName] = c
 		colNames = append(colNames, colName)
 	}
-	err = cols.Close()
-	if err != nil {
-		return nil, nil, err
-	}
 	return colDefs, colNames, nil
 }
 
@@ -306,6 +293,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 	if err != nil {
 		return nil, nil, err
 	}
+	defer rows.Close()
 	var primaryKeys []string
 	var col, constraint string
 	m := make(map[string][]string)
@@ -325,10 +313,6 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 		default:
 			m[col] = append(m[col], constraint)
 		}
-	}
-	err = rows.Close()
-	if err != nil {
-		return nil, nil, err
 	}
 	return primaryKeys, m, nil
 }
@@ -363,6 +347,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	var refTable common.SchemaAndName
 	var col, refCol, fKeyName string
 	fKeys := make(map[string]common.FkConstraint)
@@ -383,10 +368,6 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 		}
 		fKeys[fKeyName] = common.FkConstraint{Name: fKeyName, Table: tableName, Refcols: []string{refCol}, Cols: []string{col}}
 		keyNames = append(keyNames, fKeyName)
-	}
-	err = rows.Close()
-	if err != nil {
-		return nil, err
 	}
 
 	sort.Strings(keyNames)
@@ -439,6 +420,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	var name, column, sequence, isUnique, collation string
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
@@ -455,10 +437,6 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		index := indexMap[name]
 		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
 		indexMap[name] = index
-	}
-	err = rows.Close()
-	if err != nil {
-		return nil, err
 	}
 	for _, k := range indexNames {
 		indexes = append(indexes, indexMap[k])
