@@ -84,8 +84,8 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) e
 
 	res, e := RunParallelTasks(tables, numWorkers, asyncProcessTable, true)
 	if e != nil {
-		fmt.Println("exiting due to error while processing schema for table", res)
-		return err
+		fmt.Printf("exiting due to error: %s , while processing schema for table %s\n", e, res)
+		return e
 	}
 
 	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())

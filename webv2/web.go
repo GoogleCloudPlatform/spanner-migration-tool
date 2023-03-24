@@ -237,7 +237,6 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	}
 	conv := internal.MakeConv()
 
-	// Setting target db to spanner by default.
 	conv.SpDialect = sessionState.Dialect
 	var err error
 	switch sessionState.Driver {
@@ -405,7 +404,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	// We don't support Dynamodb in web hence no need to pass schema sample size here.
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver)
 	sourceProfile.Driver = dc.Config.Driver
-	targetProfile, _ := profiles.NewTargetProfile("")
+	targetProfile, _ := profiles.NewTargetProfile(fmt.Sprintf("dialect=%s", dc.SpannerDetails.Dialect))
 	conv, err := conversion.SchemaConv(sourceProfile, targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
@@ -435,7 +434,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sessionState.SourceDB = nil
 	sessionState.Dialect = dc.SpannerDetails.Dialect
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path:           dc.Config.FilePath,
+		Path:           "upload-file/" + dc.Config.FilePath,
 		ConnectionType: helpers.DUMP_MODE,
 	}
 
@@ -514,7 +513,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.Driver = s.Driver
 	sessionState.SessionFile = s.FilePath
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path:           s.FilePath,
+		Path:           "upload-file/" + s.FilePath,
 		ConnectionType: helpers.SESSION_FILE_MODE,
 	}
 	sessionState.Dialect = conv.SpDialect
@@ -1745,10 +1744,10 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 			},
 		},
 		DataflowCfg: DataflowCfg{
-			JobName:    "",
-			Location:   sessionState.Region,
-			Network:    dataflowConfig.Network,
-			Subnetwork: dataflowConfig.Subnetwork,
+			JobName:       "",
+			Location:      sessionState.Region,
+			Network:       dataflowConfig.Network,
+			Subnetwork:    dataflowConfig.Subnetwork,
 			HostProjectId: dataflowConfig.HostProjectId,
 		},
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,

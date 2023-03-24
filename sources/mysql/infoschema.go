@@ -163,6 +163,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
 	}
+	defer cols.Close()
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
 	var colName, dataType, isNullable, columnType string
