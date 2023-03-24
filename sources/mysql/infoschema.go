@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	sp "cloud.google.com/go/spanner"
 	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
@@ -97,7 +96,6 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 		return err
 	}
 	rows := rowsInterface.(*sql.Rows)
-	defer rows.Close()
 	srcCols, _ := rows.Columns()
 	v, scanArgs := buildVals(len(srcCols))
 	for rows.Next() {
@@ -112,6 +110,11 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 		values := valsToStrings(v)
 		ProcessDataRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, values)
 	}
+	err = rows.Close()
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Couldn't close connection for table %s : err = %s", srcTable, err))
+		return err
+	}
 	return nil
 }
 
@@ -125,11 +128,14 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 	if err != nil {
 		return 0, err
 	}
-	defer rows.Close()
 	var count int64
 	if rows.Next() {
 		err := rows.Scan(&count)
 		return count, err
+	}
+	err = rows.Close()
+	if err != nil {
+		return 0, err
 	}
 	return 0, nil //Check if 0 is ok to return
 }
@@ -145,12 +151,15 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get tables: %w", err)
 	}
-	defer rows.Close()
 	var tableName string
 	var tables []common.SchemaAndName
 	for rows.Next() {
 		rows.Scan(&tableName)
 		tables = append(tables, common.SchemaAndName{Schema: isi.DbName, Name: tableName})
+	}
+	err = rows.Close()
+	if err != nil {
+		return nil, err
 	}
 	return tables, nil
 }
@@ -199,6 +208,11 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		colDefs[colName] = c
 		colNames = append(colNames, colName)
 	}
+	err = cols.Close()
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Couldn't close connection for table %s : err = %s", table.Name, err))
+		return nil, nil, err
+	}
 	return colDefs, colNames, nil
 }
 
@@ -212,17 +226,11 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
                 INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
                   ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND t.TABLE_NAME=k.TABLE_NAME
               WHERE k.TABLE_SCHEMA = ? AND k.TABLE_NAME = ? ORDER BY k.ordinal_position;`
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
-	// Use this when testing the connection pool.
-	if err := isi.Db.PingContext(ctx); err != nil {
-		fmt.Println("error", err)
-	}
-	rows, err := isi.Db.QueryContext(ctx, q, table.Schema, table.Name)
+	rows, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer rows.Close()
+
 	var primaryKeys []string
 	var col, constraint string
 	m := make(map[string][]string)
@@ -242,6 +250,10 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 		default:
 			m[col] = append(m[col], constraint)
 		}
+	}
+	err = rows.Close()
+	if err != nil {
+		return nil, nil, err
 	}
 	return primaryKeys, m, nil
 }
@@ -270,7 +282,6 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	var col, refCol, refTable, fKeyName string
 	fKeys := make(map[string]common.FkConstraint)
 	var keyNames []string
@@ -290,6 +301,10 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 		}
 		fKeys[fKeyName] = common.FkConstraint{Name: fKeyName, Table: refTable, Refcols: []string{refCol}, Cols: []string{col}}
 		keyNames = append(keyNames, fKeyName)
+	}
+	err = rows.Close()
+	if err != nil {
+		return nil, err
 	}
 	sort.Strings(keyNames)
 	for _, k := range keyNames {
@@ -315,7 +330,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+
 	var name, column, sequence, nonUnique string
 	var collation sql.NullString
 	indexMap := make(map[string]schema.Index)
@@ -333,6 +348,10 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		index := indexMap[name]
 		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation.Valid && collation.String == "D")})
 		indexMap[name] = index
+	}
+	err = rows.Close()
+	if err != nil {
+		return nil, err
 	}
 	for _, k := range indexNames {
 		indexes = append(indexes, indexMap[k])

@@ -434,7 +434,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sessionState.SourceDB = nil
 	sessionState.Dialect = dc.SpannerDetails.Dialect
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path:           dc.Config.FilePath,
+		Path:           "upload-file/" + dc.Config.FilePath,
 		ConnectionType: helpers.DUMP_MODE,
 	}
 
@@ -513,7 +513,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.Driver = s.Driver
 	sessionState.SessionFile = s.FilePath
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path:           s.FilePath,
+		Path:           "upload-file/" + s.FilePath,
 		ConnectionType: helpers.SESSION_FILE_MODE,
 	}
 	sessionState.Dialect = conv.SpDialect

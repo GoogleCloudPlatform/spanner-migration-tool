@@ -77,7 +77,6 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
-	github.com/sethvargo/go-retry v0.2.4
 	github.com/shirou/gopsutil/v3 v3.21.12 // indirect
 	github.com/tikv/client-go/v2 v2.0.1-0.20221012074928-624e0ed3cc67 // indirect
 	github.com/tikv/pd/client v0.0.0-20220307081149-841fa61e9710 // indirect

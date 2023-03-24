@@ -18,14 +18,12 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	sp "cloud.google.com/go/spanner"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/sethvargo/go-retry"
 )
 
 const DefaultWorkers = 20 // Default to 20 - observed diminishing returns above this value
@@ -76,25 +74,7 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) e
 	}
 
 	asyncProcessTable := func(t SchemaAndName, mutex *sync.Mutex) TaskResult[SchemaAndName] {
-		var table schema.Table
-		var e error
-		b := retry.NewFibonacci(10 * time.Second)
-
-		// This example demonstrates selectively retrying specific errors. Only errors
-		// wrapped with RetryableError are eligible to be retried.
-		if err := retry.Do(context.Background(), retry.WithMaxRetries(3, b), func(ctx context.Context) error {
-
-			table, e = processTable(conv, t, infoSchema)
-			if e != nil {
-				fmt.Println("error1", e)
-				return retry.RetryableError(fmt.Errorf("bad response: %s", e))
-			}
-			return nil
-		}); err != nil {
-			fmt.Println("error2", err)
-			res := TaskResult[SchemaAndName]{t, err}
-			return res
-		}
+		table, e := processTable(conv, t, infoSchema)
 		mutex.Lock()
 		conv.SrcSchema[table.Name] = table
 		mutex.Unlock()
