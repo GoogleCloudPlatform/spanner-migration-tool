@@ -35,9 +35,9 @@ import (
 
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
-	Client   *spanner.Client
-	Ctx      context.Context
-	TargetDb string
+	Client    *spanner.Client
+	Ctx       context.Context
+	SpDialect string
 }
 
 // GetToDdl function below implement the common.InfoSchema interface.
@@ -85,7 +85,7 @@ func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *s
 
 // GetTableName returns table name.
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
-	if isi.TargetDb == constants.TargetExperimentalPostgres {
+	if isi.SpDialect == constants.DIALECT_POSTGRESQL {
 		if schema == "public" { // Drop public prefix for pg spanner.
 			return tableName
 		}
@@ -101,7 +101,7 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	q := `SELECT table_schema, table_name FROM information_schema.tables 
 	WHERE table_type = 'BASE TABLE' AND table_schema = ''`
-	if isi.TargetDb == constants.TargetExperimentalPostgres {
+	if isi.SpDialect == constants.DIALECT_POSTGRESQL {
 		q = `SELECT table_schema, table_name FROM information_schema.tables 
 	WHERE table_type = 'BASE TABLE' AND table_schema = 'public'`
 	}
@@ -134,7 +134,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			FROM information_schema.columns
 			WHERE table_schema = '' AND table_name = @p1
 			ORDER BY ordinal_position;`
-	if isi.TargetDb == constants.TargetExperimentalPostgres {
+	if isi.SpDialect == constants.DIALECT_POSTGRESQL {
 		q = `SELECT column_name, spanner_type, is_nullable 
 			FROM information_schema.columns
 			WHERE table_schema = 'public' AND table_name = $1
@@ -196,7 +196,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
                 INNER JOIN information_schema.KEY_COLUMN_USAGE AS k
                   ON t.constraint_name = k.constraint_name AND t.constraint_schema = k.constraint_schema
               WHERE k.table_schema = '' AND k.table_name = @p1 ORDER BY k.ordinal_position;`
-	if isi.TargetDb == constants.TargetExperimentalPostgres {
+	if isi.SpDialect == constants.DIALECT_POSTGRESQL {
 		q = `SELECT k.column_name, t.constraint_type
 		FROM information_schema.table_constraints AS t
 		  INNER JOIN information_schema.KEY_COLUMN_USAGE AS k
@@ -249,7 +249,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 			JOIN information_schema.table_constraints AS t ON k.constraint_name = t.constraint_name 
 			WHERE t.constraint_type='FOREIGN KEY' AND t.table_schema = '' AND t.table_name = @p1
 			ORDER BY k.constraint_name, k.ordinal_position;`
-	if isi.TargetDb == constants.TargetExperimentalPostgres {
+	if isi.SpDialect == constants.DIALECT_POSTGRESQL {
 		q = `SELECT  k.constraint_name, k.column_name, c.table_name, c.column_name 
 				FROM information_schema.key_column_usage AS k 
 				JOIN information_schema.constraint_column_usage AS c ON k.constraint_name = c.constraint_name
@@ -320,7 +320,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			JOIN information_schema.indexes AS i
 			ON c.INDEX_NAME=i.INDEX_NAME
 			WHERE c.table_schema = '' AND i.INDEX_TYPE='INDEX' AND c.TABLE_NAME = @p1 ORDER BY c.INDEX_NAME, c.ORDINAL_POSITION;`
-	if isi.TargetDb == constants.TargetExperimentalPostgres {
+	if isi.SpDialect == constants.DIALECT_POSTGRESQL {
 		q = `SELECT distinct c.INDEX_NAME,c.COLUMN_NAME,c.ORDINAL_POSITION,c.COLUMN_ORDERING,i.IS_UNIQUE
 		FROM information_schema.index_columns AS c
 		JOIN information_schema.indexes AS i
@@ -377,7 +377,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 func (isi InfoSchemaImpl) GetInterleaveTables() (map[string]string, error) {
 	q := `SELECT table_name, parent_table_name FROM information_schema.tables 
 	WHERE interleave_type = 'IN PARENT' AND table_type = 'BASE TABLE' AND table_schema = ''`
-	if isi.TargetDb == constants.TargetExperimentalPostgres {
+	if isi.SpDialect == constants.DIALECT_POSTGRESQL {
 		q = `SELECT table_name, parent_table_name FROM information_schema.tables 
 		WHERE interleave_type = 'IN PARENT' AND table_type = 'BASE TABLE' AND table_schema = 'public'`
 	}

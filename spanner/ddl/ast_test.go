@@ -91,7 +91,7 @@ func TestPrintColumnDefPG(t *testing.T) {
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "col1 INT8"},
 	}
 	for _, tc := range tests {
-		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds, TargetDb: constants.TargetExperimentalPostgres})
+		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds, SpDialect: constants.DIALECT_POSTGRESQL})
 		assert.Equal(t, tc.expected, s)
 	}
 }
@@ -109,16 +109,16 @@ func TestPrintPkOrIndexKey(t *testing.T) {
 	tests := []struct {
 		in         IndexKey
 		protectIds bool
-		targetDb   string
+		spDialect  string
 		expected   string
 	}{
 		{in: IndexKey{ColId: "c1"}, expected: "col1"},
 		{in: IndexKey{ColId: "c1", Desc: true}, expected: "col1 DESC"},
 		{in: IndexKey{ColId: "c1"}, protectIds: true, expected: "`col1`"},
-		{in: IndexKey{ColId: "c1"}, protectIds: true, targetDb: constants.TargetExperimentalPostgres, expected: "col1"},
+		{in: IndexKey{ColId: "c1"}, protectIds: true, spDialect: constants.DIALECT_POSTGRESQL, expected: "col1"},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.in.PrintPkOrIndexKey(ct, Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}))
+		assert.Equal(t, tc.expected, tc.in.PrintPkOrIndexKey(ct, Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}))
 	}
 }
 
@@ -260,7 +260,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.ct.PrintCreateTable(Schema{}, Config{ProtectIds: tc.protectIds, TargetDb: constants.TargetExperimentalPostgres}))
+		assert.Equal(t, tc.expected, tc.ct.PrintCreateTable(Schema{}, Config{ProtectIds: tc.protectIds, SpDialect: constants.DIALECT_POSTGRESQL}))
 	}
 }
 
@@ -294,18 +294,18 @@ func TestPrintCreateIndex(t *testing.T) {
 	tests := []struct {
 		name       string
 		protectIds bool
-		targetDb   string
+		spDialect  string
 		index      CreateIndex
 		expected   string
 	}{
 		{"no quote non unique", false, "", ci[0], "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
 		{"quote non unique", true, "", ci[0], "CREATE INDEX `myindex` ON `mytable` (`col1` DESC, `col2`)"},
 		{"unique key", true, "", ci[1], "CREATE UNIQUE INDEX `myindex2` ON `mytable` (`col1` DESC, `col2`)"},
-		{"quote non unique PG", true, constants.TargetExperimentalPostgres, ci[0], "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
-		{"unique key PG", true, constants.TargetExperimentalPostgres, ci[1], "CREATE UNIQUE INDEX myindex2 ON mytable (col1 DESC, col2)"},
+		{"quote non unique PG", true, constants.DIALECT_POSTGRESQL, ci[0], "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
+		{"unique key PG", true, constants.DIALECT_POSTGRESQL, ci[1], "CREATE UNIQUE INDEX myindex2 ON mytable (col1 DESC, col2)"},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.index.PrintCreateIndex(ct, Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}))
+		assert.Equal(t, tc.expected, tc.index.PrintCreateIndex(ct, Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}))
 	}
 }
 
@@ -329,17 +329,17 @@ func TestPrintForeignKey(t *testing.T) {
 	tests := []struct {
 		name       string
 		protectIds bool
-		targetDb   string
+		spDialect  string
 		expected   string
 		fk         Foreignkey
 	}{
 		{"no quote", false, "", "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[0]},
 		{"quote", true, "", "CONSTRAINT `fk_test` FOREIGN KEY (`c1`, `c2`) REFERENCES `ref_table` (`ref_c1`, `ref_c2`)", fk[0]},
 		{"no constraint name", false, "", "FOREIGN KEY (c1) REFERENCES ref_table (ref_c1)", fk[1]},
-		{"quote PG", true, constants.TargetExperimentalPostgres, "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[0]},
+		{"quote PG", true, constants.DIALECT_POSTGRESQL, "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[0]},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.fk.PrintForeignKey(Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}))
+		assert.Equal(t, tc.expected, tc.fk.PrintForeignKey(Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}))
 	}
 }
 
@@ -384,17 +384,17 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 		name       string
 		table      string
 		protectIds bool
-		targetDb   string
+		spDialect  string
 		expected   string
 		fk         Foreignkey
 	}{
 		{"no quote", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[0]},
 		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (productid, userid) REFERENCES `table2` (productid, userid)", spannerSchema["t1"].ForeignKeys[0]},
 		{"no constraint name", "t1", false, "", "ALTER TABLE table1 ADD FOREIGN KEY (productid) REFERENCES table2 (productid)", spannerSchema["t1"].ForeignKeys[1]},
-		{"quote PG", "t1", true, constants.TargetExperimentalPostgres, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[0]},
+		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[0]},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.fk.PrintForeignKeyAlterTable(spannerSchema, Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}, tc.table))
+		assert.Equal(t, tc.expected, tc.fk.PrintForeignKeyAlterTable(spannerSchema, Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}, tc.table))
 	}
 }
 
@@ -532,7 +532,7 @@ func TestGetPGDDL(t *testing.T) {
 			ParentId:    "t1",
 		},
 	}
-	tablesOnly := s.GetDDL(Config{Tables: true, ForeignKeys: false, TargetDb: constants.TargetExperimentalPostgres})
+	tablesOnly := s.GetDDL(Config{Tables: true, ForeignKeys: false, SpDialect: constants.DIALECT_POSTGRESQL})
 	e := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT8,\n" +
@@ -556,14 +556,14 @@ func TestGetPGDDL(t *testing.T) {
 	}
 	assert.ElementsMatch(t, e, tablesOnly)
 
-	fksOnly := s.GetDDL(Config{Tables: false, ForeignKeys: true, TargetDb: constants.TargetExperimentalPostgres})
+	fksOnly := s.GetDDL(Config{Tables: false, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL})
 	e2 := []string{
 		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
 	}
 	assert.ElementsMatch(t, e2, fksOnly)
 
-	tablesAndFks := s.GetDDL(Config{Tables: true, ForeignKeys: true, TargetDb: constants.TargetExperimentalPostgres})
+	tablesAndFks := s.GetDDL(Config{Tables: true, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL})
 	e3 := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT8,\n" +

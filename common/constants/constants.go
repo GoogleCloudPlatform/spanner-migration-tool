@@ -45,6 +45,7 @@ const (
 	ORACLE string = "oracle"
 
 	// Target db for which schema is being generated.
+	// This can be removed once the support for global flags is removed.
 	TargetSpanner              string = "spanner"
 	TargetExperimentalPostgres string = "experimental_postgres"
 

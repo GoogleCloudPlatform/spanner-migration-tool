@@ -40,9 +40,9 @@ func IsColumnPresentInColNames(colIds []string, colId string) bool {
 }
 
 // GetSpannerTableDDL return Spanner Table DDL as string.
-func GetSpannerTableDDL(spannerTable ddl.CreateTable, targetDb string) string {
+func GetSpannerTableDDL(spannerTable ddl.CreateTable, spDialect string) string {
 	sessionState := session.GetSessionState()
-	c := ddl.Config{Comments: true, ProtectIds: false, TargetDb: targetDb}
+	c := ddl.Config{Comments: true, ProtectIds: false, SpDialect: spDialect}
 
 	ddl := spannerTable.PrintCreateTable(sessionState.Conv.SpSchema, c)
 

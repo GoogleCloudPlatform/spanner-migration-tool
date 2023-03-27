@@ -42,6 +42,7 @@ import { SourceDetailsFormComponent } from './components/source-details-form/sou
 import { SidenavReviewChangesComponent } from './components/sidenav-review-changes/sidenav-review-changes.component'
 import { TableColumnChangesPreviewComponent } from './components/table-column-changes-preview/table-column-changes-preview.component'
 import { EndMigrationComponent } from './components/end-migration/end-migration.component'
+import { DataflowFormComponent } from './components/dataflow-form/dataflow-form.component'
 
 @NgModule({
   declarations: [
@@ -77,6 +78,7 @@ import { EndMigrationComponent } from './components/end-migration/end-migration.
     TableColumnChangesPreviewComponent,
     EndMigrationComponent,
     SourceDetailsFormComponent,
+    DataflowFormComponent,
   ],
   imports: [
     BrowserModule,

@@ -109,7 +109,7 @@ func TestToSpannerType(t *testing.T) {
 func TestToExperimentalSpannerType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
-	conv.TargetDb = constants.TargetExperimentalPostgres
+	conv.SpDialect = constants.DIALECT_POSTGRESQL
 	name := "test"
 	tableId := "t1"
 	srcSchema := schema.Table{

@@ -121,9 +121,16 @@ type progressDetails struct {
 }
 
 type migrationDetails struct {
-	TargetDetails targetDetails `json:"TargetDetails"`
-	MigrationMode string        `json:MigrationMode`
-	MigrationType string        `json:MigrationType`
+	TargetDetails  targetDetails  `json:"TargetDetails"`
+	DataflowConfig dataflowConfig `json:"DataflowConfig"`
+	MigrationMode  string         `json:MigrationMode`
+	MigrationType  string         `json:MigrationType`
+}
+
+type dataflowConfig struct {
+	Network       string `json:Network`
+	Subnetwork    string `json:Subnetwork`
+	HostProjectId string `json:HostProjectId`
 }
 
 type targetDetails struct {
@@ -139,8 +146,11 @@ type StreamingCfg struct {
 	TmpDir        string        `json:"tmpDir"`
 }
 type DataflowCfg struct {
-	JobName  string `json:"JobName"`
-	Location string `json:"Location"`
+	JobName       string `json:"JobName"`
+	Location      string `json:"Location"`
+	Network       string `json:"Network"`
+	Subnetwork    string `json:"Subnetwork"`
+	HostProjectId string `json:"HostProjectId"`
 }
 type ConnectionConfig struct {
 	Name     string `json:"name"`
@@ -226,17 +236,17 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 
 	// Setting target db to spanner by default.
-	conv.TargetDb = utils.DialectToTarget(sessionState.Dialect)
+	conv.SpDialect = sessionState.Dialect
 	var err error
 	switch sessionState.Driver {
 	case constants.MYSQL:
-		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB})
+		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers)
 	case constants.POSTGRES:
-		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB})
+		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB}, common.DefaultWorkers)
 	case constants.SQLSERVER:
-		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB})
+		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers)
 	case constants.ORACLE:
-		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB})
+		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers)
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -286,9 +296,6 @@ type convertFromDumpRequest struct {
 
 func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	if sessionState.Driver != constants.MYSQLDUMP && sessionState.Driver != constants.PGDUMP {
-		http.Error(w, "Connect via direct connect", http.StatusBadRequest)
-	}
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -300,7 +307,7 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-
+	dc.FilePath = "upload-file/" + dc.FilePath
 	_, err = os.Open(dc.FilePath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.FilePath), http.StatusNotFound)
@@ -315,9 +322,6 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 
 func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	if sessionState.Driver == constants.MYSQLDUMP || sessionState.Driver == constants.PGDUMP {
-		http.Error(w, "Connect via dump file", http.StatusBadRequest)
-	}
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -396,7 +400,6 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver)
 	sourceProfile.Driver = dc.Config.Driver
 	targetProfile, _ := profiles.NewTargetProfile("")
-	targetProfile.TargetDb = utils.DialectToTarget(dc.SpannerDetails.Dialect)
 	conv, err := conversion.SchemaConv(sourceProfile, targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
@@ -493,7 +496,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		SessionName:  "NewSession",
 		DatabaseType: s.Driver,
 		DatabaseName: metadata.DatabaseName,
-		Dialect:      utils.TargetDbToDialect(conv.TargetDb),
+		Dialect:      conv.SpDialect,
 	}
 
 	if sessionMetadata.DatabaseName == "" {
@@ -514,7 +517,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		Path:           constants.UPLOAD_FILE_DIR + "/" + s.FilePath,
 		ConnectionType: helpers.SESSION_FILE_MODE,
 	}
-	sessionState.Dialect = utils.TargetDbToDialect(conv.TargetDb)
+	sessionState.Dialect = conv.SpDialect
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionMetadata,
@@ -541,7 +544,7 @@ func fetchLastLoadedSessionDetails(w http.ResponseWriter, r *http.Request) {
 // build DDL to send to Spanner.
 func getDDL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	c := ddl.Config{Comments: true, ProtectIds: false, TargetDb: sessionState.Conv.TargetDb}
+	c := ddl.Config{Comments: true, ProtectIds: false, SpDialect: sessionState.Conv.SpDialect}
 	var tables []string
 	for t := range sessionState.Conv.SpSchema {
 		tables = append(tables, t)
@@ -570,14 +573,14 @@ func getDDL(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ddl)
 }
 
-func getGoogleSQLToPGSQLTypemap(w http.ResponseWriter, r *http.Request) {
+func getStandardTypeToPGSQLTypemap(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ddl.GOOGLE_SQL_TO_PGSQL_TYPEMAP)
+	json.NewEncoder(w).Encode(ddl.STANDARD_TYPE_TO_PGSQL_TYPEMAP)
 }
 
-func getPGSQLToGoogleSQLTypemap(w http.ResponseWriter, r *http.Request) {
+func getPGSQLToStandardTypeTypemap(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ddl.PGSQL_TO_GOOGLE_SQL_TYPEMAP)
+	json.NewEncoder(w).Encode(ddl.PGSQL_TO_STANDARD_TYPE_TYPEMAP)
 }
 
 // getTypeMap returns the source to Spanner typemap only for the
@@ -1629,7 +1632,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error)
 	} else {
 		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
-			SkipForeignKeys: false,
+			SkipForeignKeys: true,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
 		log.Println("Starting schema and data migration")
@@ -1680,7 +1683,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting target bucket: %v", err)
 		}
-		err = createStreamingCfgFile(sessionState, details.TargetDetails, fileName)
+		err = createStreamingCfgFile(sessionState, details.TargetDetails, details.DataflowConfig, fileName)
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating streaming config file: %v", err)
 		}
@@ -1699,7 +1702,6 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 	}
 	sourceProfile.Driver = sessionState.Driver
-	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
 }
 
@@ -1721,7 +1723,7 @@ func writeSessionFile(sessionState *session.SessionState) error {
 	return nil
 }
 
-func createStreamingCfgFile(sessionState *session.SessionState, targetDetails targetDetails, fileName string) error {
+func createStreamingCfgFile(sessionState *session.SessionState, targetDetails targetDetails, dataflowConfig dataflowConfig, fileName string) error {
 	data := StreamingCfg{
 		DatastreamCfg: DatastreamCfg{
 			StreamId:          "",
@@ -1737,8 +1739,11 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 			},
 		},
 		DataflowCfg: DataflowCfg{
-			JobName:  "",
-			Location: sessionState.Region,
+			JobName:       "",
+			Location:      sessionState.Region,
+			Network:       dataflowConfig.Network,
+			Subnetwork:    dataflowConfig.Subnetwork,
+			HostProjectId: dataflowConfig.HostProjectId,
 		},
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}
@@ -1978,7 +1983,7 @@ func rollback(err error) error {
 		return fmt.Errorf("encountered error %w. rollback failed because we don't have a session file", err)
 	}
 	sessionState.Conv = internal.MakeConv()
-	sessionState.Conv.TargetDb = constants.TargetSpanner
+	sessionState.Conv.SpDialect = constants.DIALECT_GOOGLESQL
 	err2 := conversion.ReadSessionFile(sessionState.Conv, sessionState.SessionFile)
 	if err2 != nil {
 		return fmt.Errorf("encountered error %w. rollback failed: %v", err, err2)
@@ -2200,6 +2205,7 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 func initializeTypeMap() {
 	sessionState := session.GetSessionState()
 	var toddl common.ToDdl
+
 	// Initialize mysqlTypeMap.
 	toddl = mysql.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {

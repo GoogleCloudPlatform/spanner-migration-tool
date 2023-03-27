@@ -108,11 +108,11 @@ func TestToSpannerType(t *testing.T) {
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
 }
 
-// This is just a very basic smoke-test for toExperimentalSpannerType.
-func TestToExperimentalSpannerType(t *testing.T) {
+// This is just a very basic smoke-test for toPostgreSQLDialectType.
+func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
-	conv.TargetDb = constants.TargetExperimentalPostgres
+	conv.SpDialect = constants.DIALECT_POSTGRESQL
 	name := "test"
 	tableId := "t1"
 	srcSchema := schema.Table{

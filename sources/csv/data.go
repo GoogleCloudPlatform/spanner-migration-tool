@@ -474,7 +474,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, val string) (interfac
 	case ddl.Int64:
 		return convInt64(val)
 	case ddl.Numeric:
-		if conv.TargetDb == constants.TargetExperimentalPostgres {
+		if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 			return spanner.PGNumeric{Numeric: val, Valid: true}, nil
 		}
 		return convNumeric(val)

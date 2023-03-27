@@ -20,24 +20,24 @@ import { FetchService } from '../fetch/fetch.service'
 })
 export class ConversionService {
   constructor(private fetch: FetchService,) { }
-  private googleSQLToPGSQLTypeMapSub = new BehaviorSubject(new Map<string, string>())
-  private pgSQLToGoogleSQLTypeMapSub = new BehaviorSubject(new Map<string, string>())
+  private standardTypeToPGSQLTypeMapSub = new BehaviorSubject(new Map<string, string>())
+  private pgSQLToStandardTypeTypeMapSub = new BehaviorSubject(new Map<string, string>())
 
-  googleSQLToPGSQLTypeMap = this.googleSQLToPGSQLTypeMapSub.asObservable()
-  pgSQLToGoogleSQLTypeMap = this.pgSQLToGoogleSQLTypeMapSub.asObservable()
+  standardTypeToPGSQLTypeMap = this.standardTypeToPGSQLTypeMapSub.asObservable()
+  pgSQLToStandardTypeTypeMap = this.pgSQLToStandardTypeTypeMapSub.asObservable()
 
-  getGoogleSQLToPGSQLTypemap() {
-    return this.fetch.getGoogleSQLToPGSQLTypemap().subscribe({
-      next: (googleSQLToPGSQLTypeMap: any) => {
-        this.googleSQLToPGSQLTypeMapSub.next(new Map<string, string>(Object.entries(googleSQLToPGSQLTypeMap)))
+  getStandardTypeToPGSQLTypemap() {
+    return this.fetch.getStandardTypeToPGSQLTypemap().subscribe({
+      next: (standardTypeToPGSQLTypeMap: any) => {
+        this.standardTypeToPGSQLTypeMapSub.next(new Map<string, string>(Object.entries(standardTypeToPGSQLTypeMap)))
       },
     })
   }
 
-  getPGSQLToGoogleSQLTypemap() {
-    return this.fetch.getPGSQLToGoogleSQLTypemap().subscribe({
-      next: (pgSQLToGoogleSQLTypeMap: any) => {
-        this.pgSQLToGoogleSQLTypeMapSub.next(new Map<string, string>(Object.entries(pgSQLToGoogleSQLTypeMap)))
+  getPGSQLToStandardTypeTypemap() {
+    return this.fetch.getPGSQLToStandardTypeTypemap().subscribe({
+      next: (pgSQLToStandardTypeTypeMap: any) => {
+        this.pgSQLToStandardTypeTypeMapSub.next(new Map<string, string>(Object.entries(pgSQLToStandardTypeTypeMap)))
       },
     })
   }
@@ -244,9 +244,9 @@ export class ConversionService {
     let spColIds = data.SpSchema[tableId] ? data.SpSchema[tableId].ColIds : null
     let srcPks = data.SrcSchema[tableId].PrimaryKeys
     let spPks = spColIds ? data.SpSchema[tableId].PrimaryKeys : null
-    let googleSQLToPGSQLTypemap: Map<String, String>
-    this.googleSQLToPGSQLTypeMap.subscribe((typemap) => {
-      googleSQLToPGSQLTypemap = typemap
+    let standardTypeToPGSQLTypeMap: Map<String, String>
+    this.standardTypeToPGSQLTypeMap.subscribe((typemap) => {
+      standardTypeToPGSQLTypeMap = typemap
     })
     const res: IColumnTabData[] = data.SrcSchema[tableId].ColIds.map((colId: string, i: number) => {
       let spPkOrder
@@ -258,12 +258,12 @@ export class ConversionService {
         })
       }
       let spannerColDef = spTableName ? data.SpSchema[tableId]?.ColDefs[colId] : null
-      let pgSQLDatatype = spannerColDef ? googleSQLToPGSQLTypemap.get(spannerColDef.T.Name) : ''
+      let pgSQLDatatype = spannerColDef ? standardTypeToPGSQLTypeMap.get(spannerColDef.T.Name) : ''
       return {
         spOrder: spannerColDef ? i + 1 : '',
         srcOrder: i + 1,
         spColName: spannerColDef ? spannerColDef.Name : '',
-        spDataType: spannerColDef ? (data.TargetDb === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
+        spDataType: spannerColDef ? (data.SpDialect === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
         srcColName: data.SrcSchema[tableId].ColDefs[colId].Name,
         srcDataType: data.SrcSchema[tableId].ColDefs[colId].Type.Name,
         spIsPk:
@@ -282,12 +282,12 @@ export class ConversionService {
         if (srcColIds.indexOf(colId) < 0) {
           let spColumn = data.SpSchema[tableId].ColDefs[colId]
           let spannerColDef = spTableName ? data.SpSchema[tableId]?.ColDefs[colId] : null
-          let pgSQLDatatype = spannerColDef ? googleSQLToPGSQLTypemap.get(spannerColDef.T.Name) : ''
+          let pgSQLDatatype = spannerColDef ? standardTypeToPGSQLTypeMap.get(spannerColDef.T.Name) : ''
           res.push({
             spOrder: i + 1,
             srcOrder: '',
             spColName: spColumn.Name,
-            spDataType: spannerColDef ? (data.TargetDb === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
+            spDataType: spannerColDef ? (data.SpDialect === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
             srcColName: '',
             srcDataType: '',
             spIsPk: spPks ? spPks.map((p) => p.ColId).indexOf(colId) !== -1 : false,

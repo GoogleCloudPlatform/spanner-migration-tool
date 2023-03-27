@@ -108,10 +108,13 @@ variable if it is not already configured, and
 
 ### Installing HarbourBridge
 
-#### HarbourBridge on gCloud
-You can directly run HarbourBridge from the gCloud CLI instead of building it from source. In order to start using HarbourBridge via Gcloud, the user can [install the harbourbridge component](https://cloud.google.com/sdk/docs/components#installing_components) of gcloud by executing the below command:
+#### HarbourBridge on gCloud (Linux Only)
 
-Note: HarbourBridge on gCloud is currently only supported on the Linux platform.
+<pre>
+<b>Note: HarbourBridge on gCloud is currently only supported on the Linux platform. MacOS is currently not supported.</b>
+</pre>
+
+You can directly run HarbourBridge from the gCloud CLI instead of building it from source. In order to start using HarbourBridge via Gcloud, the user can [install the harbourbridge component](https://cloud.google.com/sdk/docs/components#installing_components) of gcloud by executing the below command:
 
 ```sh
 gcloud components install harbourbridge
@@ -314,6 +317,16 @@ By default, these files are prefixed by the name of the Spanner database (with a
 dot separator). The file prefix can be overridden using the `-prefix`
 [option](#options).
 
+## HarbourBridge UI
+
+HarbourBridge UI provides a unified interface for the migration wherein it gives users
+the flexibility to modify the generated spanner schema and run end to end migration from 
+a single interface. It provides the capabilities of editing table details like columns,
+primary key, foreign key, indexes, etc and provides insights on the schema conversion 
+along with highlighting important issues and suggestions.
+
+Detailed guide on how to use HarbourBridge UI can be found [here](HarbourBridgeUIUserGuide.pdf).
+
 ## HarbourBridge CLI (command line interface)
 
 HarbourBridge CLI follows [subcommands](https://github.com/google/subcommands)
@@ -450,8 +463,7 @@ appropriate instance using gcloud.
 `dialect` Specifies the dialect of Spanner database. By default, Spanner
 databases are created with GoogleSQL dialect. You can override the same by
 setting `dialect=PostgreSQL` in the `-target-profile`. Learn more about support
-for PostgreSQL dialect in Cloud Spanner at
-<https://cloud.google.com/spanner/docs/postgresql-interface>.
+for PostgreSQL dialect in Cloud Spanner [here](https://cloud.google.com/spanner/docs/postgresql-interface).
 
 ## Schema Conversion
 
@@ -650,3 +662,7 @@ the data. This is not verified during updation of the keys
 - Conversion to Spanner ARRAY type is currently not supported
 - MySQL types BIT and TIME are not converted correctly
 - PostgreSQL types bit, bit varying, bytea and time not converted correctly.
+
+### Access Control
+
+- HarbourBridge does not support database roles and privileges. If users wish to use Spanner [fine-grained access control](https://cloud.google.com/spanner/docs/configure-fgac) as an IAM principal, then they can manually create database roles, grant the appropriate memberships and privileges to these roles, and grant access to database roles to the IAM principal. Alternatively, users can grant [database-level access](https://cloud.google.com/spanner/docs/grant-permissions#database-level_permissions) to an IAM principal.

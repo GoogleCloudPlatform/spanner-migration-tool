@@ -1417,7 +1417,7 @@ func TestProcessPgDump_GetPGDDL(t *testing.T) {
 			"	quantity INT8,\n" +
 			"	PRIMARY KEY (productid, userid)\n" +
 			")"
-	c := ddl.Config{Tables: true, TargetDb: conv.TargetDb}
+	c := ddl.Config{Tables: true, SpDialect: conv.SpDialect}
 	assert.Equal(t, expected, strings.Join(conv.SpSchema.GetDDL(c), " "))
 }
 
@@ -1517,7 +1517,7 @@ func runProcessPgDump(s string) (*internal.Conv, []spannerData) {
 
 func runProcessPgDumpPGTarget(s string) (*internal.Conv, []spannerData) {
 	conv := internal.MakeConv()
-	conv.TargetDb = constants.TargetExperimentalPostgres
+	conv.SpDialect = constants.DIALECT_POSTGRESQL
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
 	pgDump := DbDumpImpl{}

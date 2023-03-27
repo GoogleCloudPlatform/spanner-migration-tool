@@ -15,8 +15,12 @@
 package common
 
 import (
+	"fmt"
+	"math/rand"
 	"reflect"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -118,4 +122,18 @@ func TestGetColsAndSchemas(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWorkerPool(t *testing.T) {
+	input := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+
+	f := func(i int, mutex *sync.Mutex) TaskResult[int] {
+		sleepTime := time.Duration(rand.Intn(1000 * 1000))
+		time.Sleep(sleepTime)
+		res := TaskResult[int]{Result: i, Err: nil}
+		return res
+	}
+
+	out, _ := RunParallelTasks(input, 5, f, false)
+	assert.Equal(t, len(input), len(out), fmt.Sprintln("jobs not processed"))
 }

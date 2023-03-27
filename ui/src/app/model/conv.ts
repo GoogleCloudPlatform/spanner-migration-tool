@@ -16,7 +16,7 @@ export default interface IConv {
   DatabaseType: string
   DatabaseName: string
   EditorName: string
-  TargetDb: string
+  SpDialect: string
 }
 
 export interface IFkeyAndIdxs {

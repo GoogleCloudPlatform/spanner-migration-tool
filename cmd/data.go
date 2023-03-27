@@ -122,8 +122,8 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		if err != nil {
 			return subcommands.ExitUsageError
 		}
-		if targetProfile.TargetDb != "" && conv.TargetDb != targetProfile.TargetDb {
-			err = fmt.Errorf("running data migration for Spanner dialect: %v, whereas schema mapping was done for dialect: %v", targetProfile.TargetDb, conv.TargetDb)
+		if targetProfile.Conn.Sp.Dialect != "" && conv.SpDialect != targetProfile.Conn.Sp.Dialect {
+			err = fmt.Errorf("running data migration for Spanner dialect: %v, whereas schema mapping was done for dialect: %v", targetProfile.Conn.Sp.Dialect, conv.SpDialect)
 			return subcommands.ExitUsageError
 		}
 	}
@@ -164,7 +164,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 }
 
 // validateExistingDb validates that the existing spanner schema is in accordance with the one specified in the session file.
-func validateExistingDb(ctx context.Context, targetDb, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, conv *internal.Conv) error {
+func validateExistingDb(ctx context.Context, spDialect, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, conv *internal.Conv) error {
 	dbExists, err := conversion.CheckExistingDb(ctx, adminClient, dbURI)
 	if err != nil {
 		err = fmt.Errorf("can't verify target database: %v", err)
@@ -174,13 +174,13 @@ func validateExistingDb(ctx context.Context, targetDb, dbURI string, adminClient
 		err = fmt.Errorf("target database doesn't exist")
 		return err
 	}
-	err = conversion.ValidateTables(ctx, client, targetDb)
+	err = conversion.ValidateTables(ctx, client, spDialect)
 	if err != nil {
 		err = fmt.Errorf("error validating the tables: %v", err)
 		return err
 	}
 	spannerConv := internal.MakeConv()
-	spannerConv.TargetDb = targetDb
+	spannerConv.SpDialect = spDialect
 	err = utils.ReadSpannerSchema(ctx, spannerConv, client)
 	if err != nil {
 		err = fmt.Errorf("can't read spanner schema: %v", err)

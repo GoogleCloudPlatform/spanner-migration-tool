@@ -392,6 +392,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			AND TAB.is_ms_shipped = 0   
 			AND TAB.name=@p1
 			AND TAB.schema_id = SCHEMA_ID(@p2)
+			AND IX.type != 5 								 -- type=5 for clustered columnstore indexes
 			ORDER BY IX.name ;
 	`
 	rows, err := isi.Db.Query(q2, table.Name, table.Schema)

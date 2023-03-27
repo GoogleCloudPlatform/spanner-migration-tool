@@ -4,6 +4,7 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { InputType, MigrationDetails } from 'src/app/app.constants';
 import IDbConfig from 'src/app/model/db-config';
 import IDumpConfig from 'src/app/model/dump-config';
+import { DataService } from 'src/app/services/data/data.service';
 import { FetchService } from 'src/app/services/fetch/fetch.service';
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
 
@@ -20,8 +21,14 @@ export class SourceDetailsFormComponent implements OnInit {
   selectedOption: string = InputType.DirectConnect
   sourceDatabaseEngine: string = ''
   errorMsg = ''
+  fileToUpload: File | null = null
+
+  uploadStart: boolean = false
+  uploadSuccess: boolean = false
+  uploadFail: boolean = false
   constructor(
     private fetch: FetchService,
+    private dataService: DataService,
     private snack: SnackbarService,
     private dialogRef: MatDialogRef<SourceDetailsFormComponent>,
     @Inject(MAT_DIALOG_DATA) public data: string
@@ -80,6 +87,32 @@ export class SourceDetailsFormComponent implements OnInit {
 
   }
 
+  handleFileInput(e: Event) {
+    let files: FileList | null = (e.target as HTMLInputElement).files
+    if (files) {
+      this.fileToUpload = files.item(0)
+      this.dumpFileForm.patchValue({ filePath: this.fileToUpload?.name })
+      if (this.fileToUpload) {
+        this.uploadFile()
+      }
+    }
+  }
+  uploadFile() {
+    if (this.fileToUpload) {
+      this.uploadStart = true
+      this.uploadFail = false
+      this.uploadSuccess = false
+      const uploadFormData = new FormData()
+      uploadFormData.append('myFile', this.fileToUpload, this.fileToUpload?.name)
+      this.dataService.uploadFile(uploadFormData).subscribe((res: string) => {
+        if (res == '') {
+          this.uploadSuccess = true
+        } else {
+          this.uploadFail = true
+        }
+      })
+    }
+  }
   onItemChange(optionValue: string) {
     this.selectedOption = optionValue
     this.errorMsg = ''

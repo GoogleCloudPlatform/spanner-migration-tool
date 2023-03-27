@@ -5,26 +5,16 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary, ISpannerDetails } from 'src/app/model/conv'
-import IMigrationDetails, {
-  IGeneratedResources,
-  IProgress,
-  ISourceAndTargetDetails,
-} from 'src/app/model/migrate'
-import {
-  InputType,
-  MigrationDetails,
-  MigrationModes,
-  MigrationTypes,
-  ProgressStatus,
-  SourceDbNames,
-  TargetDetails,
-} from 'src/app/app.constants'
+import IMigrationDetails, { IGeneratedResources, IProgress, ISourceAndTargetDetails } from 'src/app/model/migrate'
+import { Dataflow, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
 import { SourceDetailsFormComponent } from '../source-details-form/source-details-form.component'
 import { EndMigrationComponent } from '../end-migration/end-migration.component'
-import { ISetUpConnectionProfile } from 'src/app/model/profile'
+import { IDataflowConfig, ISetUpConnectionProfile } from 'src/app/model/profile'
+import { DataflowFormComponent } from '../dataflow-form/dataflow-form.component'
+import ISpannerConfig from 'src/app/model/spanner-config'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -45,6 +35,7 @@ export class PrepareMigrationComponent implements OnInit {
 
   isSourceConnectionProfileSet: boolean = false
   isTargetConnectionProfileSet: boolean = false
+  isDataflowConfigurationSet: boolean = false
   isSourceDetailsSet: boolean = false
   isTargetDetailSet: boolean = false
   isMigrationDetailSet: boolean = false
@@ -92,6 +83,18 @@ export class PrepareMigrationComponent implements OnInit {
     Publication: localStorage.getItem(TargetDetails.Publication) as string,
   }
 
+  dataflowConfig: IDataflowConfig = {
+    Network: localStorage.getItem(Dataflow.Network) as string,
+    Subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
+    HostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
+  }
+  spannerConfig: ISpannerConfig = {
+    GCPProjectID: '',
+    SpannerInstanceID: '',
+    IsMetadataDbCreated: false,
+    IsConfigValid: false
+  }
+
   refreshMigrationMode() {
     if (
       !(this.selectedMigrationMode === MigrationModes.schemaOnly) &&
@@ -128,6 +131,10 @@ export class PrepareMigrationComponent implements OnInit {
 
   ngOnInit(): void {
     this.initializeFromLocalStorage()
+    this.data.config.subscribe((res: ISpannerConfig) => {
+      this.spannerConfig = res
+    })
+    localStorage.setItem(Dataflow.HostProjectId, this.spannerConfig.GCPProjectID)
     this.fetch.getSourceDestinationSummary().subscribe({
       next: (res: ISessionSummary) => {
         this.connectionType = res.ConnectionType
@@ -209,6 +216,9 @@ export class PrepareMigrationComponent implements OnInit {
       this.isSourceConnectionProfileSet =
         (localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string) === 'true'
     }
+    if (localStorage.getItem(Dataflow.IsDataflowConfigSet) != null) {
+      this.isDataflowConfigurationSet = (localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true')
+    }
     if (localStorage.getItem(MigrationDetails.IsTargetConnectionProfileSet) != null) {
       this.isTargetConnectionProfileSet =
         (localStorage.getItem(MigrationDetails.IsTargetConnectionProfileSet) as string) === 'true'
@@ -276,6 +286,10 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.IsSourceConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsTargetConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsSourceDetailsSet)
+    localStorage.removeItem(Dataflow.IsDataflowConfigSet)
+    localStorage.removeItem(Dataflow.Network)
+    localStorage.removeItem(Dataflow.Subnetwork)
+    localStorage.removeItem(Dataflow.HostProjectId)
     localStorage.removeItem(MigrationDetails.IsMigrationInProgress)
     localStorage.removeItem(MigrationDetails.HasSchemaMigrationStarted)
     localStorage.removeItem(MigrationDetails.HasDataMigrationStarted)
@@ -320,6 +334,24 @@ export class PrepareMigrationComponent implements OnInit {
         this.isMigrationDetailSet = true
       }
     })
+  }
+
+  openDataflowForm() {
+    let dialogRef = this.dialog.open(DataflowFormComponent, {
+      width: '30vw',
+      minWidth: '400px',
+      maxWidth: '500px',
+      data: this.spannerConfig,
+    })
+    dialogRef.afterClosed().subscribe(() => {
+      this.dataflowConfig = {
+        Network: localStorage.getItem(Dataflow.Network) as string,
+        Subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
+        HostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
+      }
+      this.isDataflowConfigurationSet = localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true'
+    }
+    )
   }
 
   endMigration() {
@@ -404,6 +436,7 @@ export class PrepareMigrationComponent implements OnInit {
     this.resetValues()
     let payload: IMigrationDetails = {
       TargetDetails: this.targetDetails,
+      DataflowConfig: this.dataflowConfig,
       MigrationType: this.selectedMigrationType,
       MigrationMode: this.selectedMigrationMode,
     }

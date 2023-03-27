@@ -71,15 +71,16 @@ func checkRedundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) 
 				break
 			}
 		}
+		if len(index[i].Keys) > 0 {
+			indexFirstColumnId := index[i].Keys[0].ColId
 
-		indexFirstColumnId := index[i].Keys[0].ColId
-
-		if primaryKeyFirstColumnId == indexFirstColumnId {
-			columnId := indexFirstColumnId
-			sessionState := session.GetSessionState()
-			schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][columnId]
-			schemaissue = append(schemaissue, internal.RedundantIndex)
-			sessionState.Conv.SchemaIssues[spannerTable.Id][columnId] = schemaissue
+			if primaryKeyFirstColumnId == indexFirstColumnId {
+				columnId := indexFirstColumnId
+				sessionState := session.GetSessionState()
+				schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][columnId]
+				schemaissue = append(schemaissue, internal.RedundantIndex)
+				sessionState.Conv.SchemaIssues[spannerTable.Id][columnId] = schemaissue
+			}
 		}
 	}
 }
@@ -104,48 +105,47 @@ func checkInterleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable)
 					break
 				}
 			}
+			if len(index[i].Keys) > 0 {
+				indexFirstColumnId := index[i].Keys[0].ColId
 
-			indexFirstColumnId := index[i].Keys[0].ColId
+				sessionState := session.GetSessionState()
 
-			sessionState := session.GetSessionState()
+				// Ensuring it is not a redundant index.
+				if primaryKeyFirstColumnId != indexFirstColumnId {
 
-			// Ensuring it is not a redundant index.
-			if primaryKeyFirstColumnId != indexFirstColumnId {
+					schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][indexFirstColumnId]
+					fks := spannerTable.ForeignKeys
 
-				schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][indexFirstColumnId]
-				fks := spannerTable.ForeignKeys
+					for i := range fks {
+						if fks[i].ColIds[0] == indexFirstColumnId {
+							schemaissue = append(schemaissue, internal.InterleaveIndex)
+							sessionState.Conv.SchemaIssues[spannerTable.Id][indexFirstColumnId] = schemaissue
 
-				for i := range fks {
-					if fks[i].ColIds[0] == indexFirstColumnId {
-						schemaissue = append(schemaissue, internal.InterleaveIndex)
-						sessionState.Conv.SchemaIssues[spannerTable.Id][indexFirstColumnId] = schemaissue
-
-					}
-				}
-
-				// Interleave suggestion if the column is of type auto increment.
-				if utilities.IsSchemaIssuePresent(schemaissue, internal.AutoIncrement) {
-					schemaissue = append(schemaissue, internal.AutoIncrementIndex)
-					sessionState.Conv.SchemaIssues[spannerTable.Id][indexFirstColumnId] = schemaissue
-				}
-
-				for _, c := range spannerTable.ColDefs {
-
-					if indexFirstColumnId == c.Id {
-
-						if c.T.Name == ddl.Timestamp {
-
-							columnId := c.Id
-							sessionState := session.GetSessionState()
-							schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][columnId]
-
-							schemaissue = append(schemaissue, internal.AutoIncrementIndex)
-							sessionState.Conv.SchemaIssues[spannerTable.Id][columnId] = schemaissue
 						}
+					}
 
+					// Interleave suggestion if the column is of type auto increment.
+					if utilities.IsSchemaIssuePresent(schemaissue, internal.AutoIncrement) {
+						schemaissue = append(schemaissue, internal.AutoIncrementIndex)
+						sessionState.Conv.SchemaIssues[spannerTable.Id][indexFirstColumnId] = schemaissue
+					}
+
+					for _, c := range spannerTable.ColDefs {
+
+						if indexFirstColumnId == c.Id {
+
+							if c.T.Name == ddl.Timestamp {
+
+								columnId := c.Id
+								sessionState := session.GetSessionState()
+								schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][columnId]
+
+								schemaissue = append(schemaissue, internal.AutoIncrementIndex)
+								sessionState.Conv.SchemaIssues[spannerTable.Id][columnId] = schemaissue
+							}
+						}
 					}
 				}
-
 			}
 
 		}

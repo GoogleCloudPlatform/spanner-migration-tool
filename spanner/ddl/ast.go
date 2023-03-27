@@ -73,7 +73,7 @@ const (
 	PGMaxLength = 2621440
 )
 
-var GOOGLE_SQL_TO_PGSQL_TYPEMAP = map[string]string{
+var STANDARD_TYPE_TO_PGSQL_TYPEMAP = map[string]string{
 	Bytes:     PGBytea,
 	Float64:   PGFloat8,
 	Int64:     PGInt8,
@@ -82,7 +82,7 @@ var GOOGLE_SQL_TO_PGSQL_TYPEMAP = map[string]string{
 	JSON:      PGJSONB,
 }
 
-var PGSQL_TO_GOOGLE_SQL_TYPEMAP = map[string]string{
+var PGSQL_TO_STANDARD_TYPE_TYPEMAP = map[string]string{
 	PGBytea:       Bytes,
 	PGFloat8:      Float64,
 	PGInt8:        Int64,
@@ -125,7 +125,7 @@ func (ty Type) PrintColumnDefType() string {
 }
 
 func GetPGType(spType Type) string {
-	pgType, ok := GOOGLE_SQL_TO_PGSQL_TYPEMAP[spType.Name]
+	pgType, ok := STANDARD_TYPE_TO_PGSQL_TYPEMAP[spType.Name]
 	if ok {
 		return pgType
 	}
@@ -172,12 +172,12 @@ type Config struct {
 	ProtectIds  bool // If true, table and col names are quoted using backticks (avoids reserved-word issue).
 	Tables      bool // If true, print tables
 	ForeignKeys bool // If true, print foreign key constraints.
-	TargetDb    string
+	SpDialect   string
 }
 
 func (c Config) quote(s string) string {
 	if c.ProtectIds {
-		if c.TargetDb == constants.TargetExperimentalPostgres {
+		if c.SpDialect == constants.DIALECT_POSTGRESQL {
 			return s
 		} else {
 			return "`" + s + "`"
@@ -191,7 +191,7 @@ func (c Config) quote(s string) string {
 // needs of PrintCreateTable.
 func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 	var s string
-	if c.TargetDb == constants.TargetExperimentalPostgres {
+	if c.SpDialect == constants.DIALECT_POSTGRESQL {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PGPrintColumnDefType())
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
@@ -304,7 +304,7 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 	var interleave string
 	if ct.ParentId != "" {
 		parent := spSchema[ct.ParentId].Name
-		if config.TargetDb == constants.TargetExperimentalPostgres {
+		if config.SpDialect == constants.DIALECT_POSTGRESQL {
 			// PG spanner only supports PRIMARY KEY() inside the CREATE TABLE()
 			// and thus INTERLEAVE follows immediately after closing brace.
 			interleave = " INTERLEAVE IN PARENT " + config.quote(parent)
@@ -316,7 +316,7 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 	if len(keys) == 0 {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s) %s", tableComment, config.quote(ct.Name), cols, interleave)
 	}
-	if config.TargetDb == constants.TargetExperimentalPostgres {
+	if config.SpDialect == constants.DIALECT_POSTGRESQL {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
 	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
@@ -353,7 +353,7 @@ func (ci CreateIndex) PrintCreateIndex(ct CreateTable, c Config) string {
 	if ci.Unique {
 		unique = "UNIQUE "
 	}
-	if c.TargetDb == constants.TargetExperimentalPostgres {
+	if c.SpDialect == constants.DIALECT_POSTGRESQL {
 		stored = "INCLUDE"
 	} else {
 		stored = "STORING"

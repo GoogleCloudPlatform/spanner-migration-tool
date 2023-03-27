@@ -7,6 +7,8 @@ see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbour
 
 We currently do not support dump file mode for SQL Server. The only way to use HarbourBridge with SQL Server is connecting directly.
 
+We currently do not support clustered columnstore indexes in spanner, therefore such indexes will be skipped during the migration.
+
 Note that either _'sqlserver'_ or _'mssql'_ can be used as an identifier with the flag `-source` in the command line.
 
 ## Example SQL Server Usage

@@ -561,8 +561,8 @@ func GetLegacyModeSupportedDrivers() []string {
 
 // ReadSpannerSchema fills conv by querying Spanner infoschema treating Spanner as both the source and dest.
 func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Client) error {
-	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, TargetDb: conv.TargetDb}
-	err := common.ProcessSchema(conv, infoSchema)
+	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, SpDialect: conv.SpDialect}
+	err := common.ProcessSchema(conv, infoSchema, common.DefaultWorkers)
 	if err != nil {
 		return fmt.Errorf("error trying to read and convert spanner schema: %v", err)
 	}
@@ -586,8 +586,8 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 
 // CompareSchema compares the spanner schema of two conv objects and returns specific error if they don't match
 func CompareSchema(conv1, conv2 *internal.Conv) error {
-	if conv1.TargetDb != conv2.TargetDb {
-		return fmt.Errorf("target db don't match")
+	if conv1.SpDialect != conv2.SpDialect {
+		return fmt.Errorf("spanner dialect don't match")
 	}
 	for _, sessionTable := range conv1.SpSchema {
 		spannerTableId, _ := internal.GetTableIdFromSpName(conv2.SpSchema, sessionTable.Name)
@@ -664,22 +664,15 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 	return nil
 }
 
-func sortKeysByOrder(pks []ddl.IndexKey) {
-	sort.Slice(pks, func(i int, j int) bool {
-		return pks[i].Order < pks[j].Order
-	})
-}
-
-func DialectToTarget(dialect string) string {
-	if strings.ToLower(dialect) == constants.DIALECT_POSTGRESQL {
-		return constants.TargetExperimentalPostgres
-	}
-	return constants.TargetSpanner
-}
-
 func TargetDbToDialect(targetDb string) string {
 	if targetDb == constants.TargetExperimentalPostgres {
 		return constants.DIALECT_POSTGRESQL
 	}
 	return constants.DIALECT_GOOGLESQL
+}
+
+func sortKeysByOrder(pks []ddl.IndexKey) {
+	sort.Slice(pks, func(i int, j int) bool {
+		return pks[i].Order < pks[j].Order
+	})
 }

@@ -463,7 +463,7 @@ func writeMutation(m *sp.Mutation, streamInfo *StreamingInfo) error {
 // setWriter initializes the write function used to write mutations to Cloud Spanner.
 func setWriter(streamInfo *StreamingInfo, client *sp.Client, conv *internal.Conv) {
 	streamInfo.write = func(m *sp.Mutation) error {
-		migrationData := metrics.GetMigrationData(conv, "", "", constants.DataConv)
+		migrationData := metrics.GetMigrationData(conv, "", constants.DataConv)
 		serializedMigrationData, _ := proto.Marshal(migrationData)
 		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
 		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), constants.MigrationMetadataKey, migrationMetadataValue), []*sp.Mutation{m})
