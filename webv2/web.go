@@ -1631,7 +1631,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error)
 	} else {
 		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
-			SkipForeignKeys: true,
+			SkipForeignKeys: false,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
 		log.Println("Starting schema and data migration")
