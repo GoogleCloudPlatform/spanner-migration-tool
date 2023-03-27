@@ -1,5 +1,7 @@
 import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core'
 import { FormBuilder, FormGroup, Validators } from '@angular/forms'
+import { Dialect } from 'src/app/app.constants'
+import IConv from 'src/app/model/conv'
 import IRule from 'src/app/model/rule'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DataService } from 'src/app/services/data/data.service'
@@ -31,6 +33,8 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
   ruleId: any
   pgSQLToStandardTypeTypemap: Map<String, String> = new Map()
   standardTypeToPGSQLTypemap: Map<String, String> = new Map()
+  conv: IConv = {} as IConv
+  isPostgreSQLDialect: boolean = false
   constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService, private conversion: ConversionService, private fetch: FetchService) {
     this.addGlobalDataTypeForm = this.fb.group({
       objectType: ['column', Validators.required],
@@ -46,6 +50,13 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
       next: (res) => {
         this.conversionType = res
         this.sourceType = Object.keys(this.conversionType)
+      },
+    })
+
+    this.data.conv.subscribe({
+      next: (res: IConv) => {
+        this.conv = res
+        this.isPostgreSQLDialect = this.conv.SpDialect === Dialect.PostgreSQLDialect
       },
     })
 
@@ -65,6 +76,21 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
             this.setViewRuleData(this.viewRuleData)
           }
         })
+        this.ruleId = this.viewRuleData?.Id
+        this.addGlobalDataTypeForm.controls['sourceType'].setValue(
+          Object.keys(this.viewRuleData?.Data)[0]
+        )
+        this.updateDestinationType(Object.keys(this.viewRuleData?.Data)[0])
+        if (this.isPostgreSQLDialect) {
+          let pgSQLType = this.standardTypeToPGSQLTypemap.get(Object.values(this.viewRuleData?.Data)[0] as string)
+          this.addGlobalDataTypeForm.controls['destinationType'].setValue(
+            pgSQLType === undefined ? Object.values(this.viewRuleData?.Data)[0] : pgSQLType
+          )
+        } else {
+          this.addGlobalDataTypeForm.controls['destinationType'].setValue(Object.values(this.viewRuleData?.Data)[0])
+        }
+
+        this.addGlobalDataTypeForm.disable()
       }
     })
   }
@@ -73,11 +99,14 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     this.ruleId = data?.Id
     this.addGlobalDataTypeForm.controls['sourceType'].setValue(Object.keys(data?.Data)[0])
     this.updateDestinationType(Object.keys(data?.Data)[0])
-    let pgSQLType = this.standardTypeToPGSQLTypemap.get(Object.values(this.viewRuleData?.Data)[0] as string)
-
-    this.addGlobalDataTypeForm.controls['destinationType'].setValue(
-      pgSQLType === undefined ? Object.values(this.viewRuleData?.Data)[0] : pgSQLType
-    )
+    if (this.isPostgreSQLDialect) {
+      let pgSQLType = this.standardTypeToPGSQLTypemap.get(Object.values(this.viewRuleData?.Data)[0] as string)
+      this.addGlobalDataTypeForm.controls['destinationType'].setValue(
+        pgSQLType === undefined ? Object.values(this.viewRuleData?.Data)[0] : pgSQLType
+      )
+    } else {
+      this.addGlobalDataTypeForm.controls['destinationType'].setValue(Object.values(this.viewRuleData?.Data)[0])
+    }
     this.addGlobalDataTypeForm.disable()
   }
 
@@ -86,8 +115,13 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     const source = ruleValue.sourceType
     const payload: Record<string, string> = {}
 
-    let destinationType = this.pgSQLToStandardTypeTypemap.get(ruleValue.destinationType)
-    payload[source] = destinationType === undefined ? ruleValue.destinationType : destinationType
+    if (this.isPostgreSQLDialect) {
+      let destinationType = this.pgSQLToStandardTypeTypemap.get(ruleValue.destinationType)
+      payload[source] = destinationType === undefined ? ruleValue.destinationType : destinationType
+    } else {
+      payload[source] = ruleValue.destinationType
+    }
+
     this.applyRule(payload)
     this.resetRuleType.emit('')
     this.sidenav.closeSidenav()

@@ -94,8 +94,8 @@ func GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers in
 
 	res, e := RunParallelTasks(tables, numWorkers, asyncProcessTable, true)
 	if e != nil {
-		fmt.Println("exiting due to error while processing schema for table", res)
-		return err
+		fmt.Printf("exiting due to error: %s , while processing schema for table %s\n", e, res)
+		return e
 	}
 	internal.ResolveForeignKeyIds(conv.SrcSchema)
 	return nil
