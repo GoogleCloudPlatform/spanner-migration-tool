@@ -23,31 +23,29 @@ import (
 
 // updateprimaryKey insert or delete primary key column.
 // updateprimaryKey also update desc and order for primaryKey column.
-func updatePrimaryKey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) ddl.CreateTable {
+func updatePrimaryKey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable, synthColId string) (ddl.CreateTable, bool) {
 
-	spannerTable = insertOrRemovePrimarykey(pkRequest, spannerTable)
+	spannerTable, isSynthPkRemoved := insertOrRemovePrimarykey(pkRequest, spannerTable, synthColId)
 
 	for i := 0; i < len(pkRequest.Columns); i++ {
 
-		for j := 0; j < len(spannerTable.Pks); j++ {
+		for j := 0; j < len(spannerTable.PrimaryKeys); j++ {
 
-			id := getColumnId(spannerTable, spannerTable.Pks[j].Col)
+			if pkRequest.Columns[i].ColumnId == spannerTable.PrimaryKeys[j].ColId && spannerTable.PrimaryKeys[j].ColId == pkRequest.Columns[i].ColumnId {
 
-			if pkRequest.Columns[i].ColumnId == id && spannerTable.Pks[j].Col == pkRequest.Columns[i].ColName {
-
-				spannerTable.Pks[j].Desc = pkRequest.Columns[i].Desc
-				spannerTable.Pks[j].Order = pkRequest.Columns[i].Order
+				spannerTable.PrimaryKeys[j].Desc = pkRequest.Columns[i].Desc
+				spannerTable.PrimaryKeys[j].Order = pkRequest.Columns[i].Order
 			}
 
 		}
 	}
 
-	return spannerTable
+	return spannerTable, isSynthPkRemoved
 }
 
 // insertOrRemovePrimarykey performs insert or remove primary key operation based on
-// difference of two pkRequest and spannerTable.Pks.
-func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) ddl.CreateTable {
+// difference of two pkRequest and spannerTable.PrimaryKeys.
+func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable, synthColId string) (ddl.CreateTable, bool) {
 
 	cidRequestList := getColumnIdListFromPrimaryKeyRequest(pkRequest)
 	cidSpannerTableList := getColumnIdListOfSpannerTablePrimaryKey(spannerTable)
@@ -59,21 +57,28 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 	isHotSpot(insert, spannerTable)
 
-	spannerTable.Pks = append(spannerTable.Pks, insert...)
+	spannerTable.PrimaryKeys = append(spannerTable.PrimaryKeys, insert...)
 
-	// primary key Id only presnt in spannertable.Pks
-	// hence remove primary key from  spannertable.Pks
+	// primary key Id only presnt in spannertable.PrimaryKeys
+	// hence remove primary key from  spannertable.PrimaryKeys
 	rightjoin := utilities.Difference(cidSpannerTableList, cidRequestList)
+
+	isSynthPkRemoved := false
+	for _, colId := range rightjoin {
+		if colId == synthColId {
+			isSynthPkRemoved = true
+		}
+	}
 
 	if len(rightjoin) > 0 {
 		nlist := removePrimaryKey(rightjoin, spannerTable)
-		spannerTable.Pks = nlist
+		spannerTable.PrimaryKeys = nlist
 
 	}
 
 	cidRequestList = []string{}
 	cidSpannerTableList = []string{}
-	return spannerTable
+	return spannerTable, isSynthPkRemoved
 }
 
 // addPrimaryKey insert primary key into list of IndexKey.
@@ -88,7 +93,7 @@ func addPrimaryKey(add []string, pkRequest PrimaryKeyRequest, spannerTable ddl.C
 			if val == pkRequest.Columns[i].ColumnId {
 
 				pkey := ddl.IndexKey{}
-				pkey.Col = getColumnName(spannerTable, pkRequest.Columns[i].ColumnId)
+				pkey.ColId = pkRequest.Columns[i].ColumnId
 				pkey.Desc = pkRequest.Columns[i].Desc
 				pkey.Order = pkRequest.Columns[i].Order
 
@@ -96,24 +101,24 @@ func addPrimaryKey(add []string, pkRequest PrimaryKeyRequest, spannerTable ddl.C
 					schemaissue := []internal.SchemaIssue{}
 
 					sessionState := session.GetSessionState()
-					schemaissue = sessionState.Conv.Issues[spannerTable.Name][pkey.Col]
+					schemaissue = sessionState.Conv.SchemaIssues[spannerTable.Name][pkey.ColId]
 
 					if len(schemaissue) > 0 {
 
 						schemaissue = utilities.RemoveSchemaIssues(schemaissue)
 
-						sessionState.Conv.Issues[spannerTable.Name][pkey.Col] = schemaissue
+						sessionState.Conv.SchemaIssues[spannerTable.Name][pkey.ColId] = schemaissue
 
-						if sessionState.Conv.Issues[spannerTable.Name][pkey.Col] == nil {
+						if sessionState.Conv.SchemaIssues[spannerTable.Name][pkey.ColId] == nil {
 
 							s := map[string][]internal.SchemaIssue{
-								pkey.Col: schemaissue,
+								pkey.ColId: schemaissue,
 							}
-							sessionState.Conv.Issues = map[string]map[string][]internal.SchemaIssue{}
+							sessionState.Conv.SchemaIssues = map[string]map[string][]internal.SchemaIssue{}
 
-							sessionState.Conv.Issues[spannerTable.Name] = s
+							sessionState.Conv.SchemaIssues[spannerTable.Name] = s
 						} else {
-							sessionState.Conv.Issues[spannerTable.Name][pkey.Col] = schemaissue
+							sessionState.Conv.SchemaIssues[spannerTable.Name][pkey.ColId] = schemaissue
 						}
 
 					}
@@ -129,37 +134,35 @@ func addPrimaryKey(add []string, pkRequest PrimaryKeyRequest, spannerTable ddl.C
 // removePrimaryKey removes primary key from list of IndexKey.
 func removePrimaryKey(remove []string, spannerTable ddl.CreateTable) []ddl.IndexKey {
 
-	list := spannerTable.Pks
+	list := spannerTable.PrimaryKeys
 
 	for _, val := range remove {
 
-		colname := getColumnName(spannerTable, val)
+		for i := 0; i < len(spannerTable.PrimaryKeys); i++ {
 
-		for i := 0; i < len(spannerTable.Pks); i++ {
-
-			if spannerTable.Pks[i].Col == colname {
+			if spannerTable.PrimaryKeys[i].ColId == val {
 
 				{
 					schemaissue := []internal.SchemaIssue{}
 					sessionState := session.GetSessionState()
-					schemaissue = sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col]
+					schemaissue = sessionState.Conv.SchemaIssues[spannerTable.Name][spannerTable.PrimaryKeys[i].ColId]
 
 					if len(schemaissue) > 0 {
 
 						schemaissue = utilities.RemoveSchemaIssues(schemaissue)
 
-						if sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col] == nil {
+						if sessionState.Conv.SchemaIssues[spannerTable.Name][spannerTable.PrimaryKeys[i].ColId] == nil {
 
 							s := map[string][]internal.SchemaIssue{
-								spannerTable.Pks[i].Col: schemaissue,
+								spannerTable.PrimaryKeys[i].ColId: schemaissue,
 							}
-							sessionState.Conv.Issues = map[string]map[string][]internal.SchemaIssue{}
+							sessionState.Conv.SchemaIssues = map[string]map[string][]internal.SchemaIssue{}
 
-							sessionState.Conv.Issues[spannerTable.Name] = s
+							sessionState.Conv.SchemaIssues[spannerTable.Name] = s
 
 						} else {
 
-							sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col] = schemaissue
+							sessionState.Conv.SchemaIssues[spannerTable.Name][spannerTable.PrimaryKeys[i].ColId] = schemaissue
 
 						}
 

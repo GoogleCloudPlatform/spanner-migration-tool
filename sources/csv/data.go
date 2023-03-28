@@ -87,16 +87,16 @@ func VerifyManifest(conv *internal.Conv, tables []utils.ManifestTable) error {
 		return fmt.Errorf("no tables found")
 	}
 	missing := []string{}
-	for name := range conv.SrcSchema {
+	for _, v := range conv.SrcSchema {
 		found := false
 		for _, table := range tables {
-			if name == table.Table_name {
+			if v.Name == table.Table_name {
 				found = true
 				break
 			}
 		}
 		if !found {
-			missing = append(missing, name)
+			missing = append(missing, v.Name)
 		}
 	}
 	if len(missing) > 0 {
@@ -108,7 +108,8 @@ func VerifyManifest(conv *internal.Conv, tables []utils.ManifestTable) error {
 		if name == "" {
 			return fmt.Errorf("table number %d (0-indexed) does not have a name", i)
 		}
-		if _, ok := conv.SrcSchema[name]; !ok {
+		_, err := internal.GetTableIdFromSrcName(conv.SrcSchema, name)
+		if err != nil {
 			return fmt.Errorf("table %s provided in manifest does not exist in spanner", name)
 		}
 		if len(table.File_patterns) == 0 {
@@ -128,7 +129,16 @@ func SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter ru
 			}
 			r := csvReader.NewReader(csvFile)
 			r.Comma = delimiter
-			count, err := getCSVDataRowCount(r, conv.SpSchema[table.Table_name].ColNames)
+
+			tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, table.Table_name)
+			if err != nil {
+				return fmt.Errorf("table Id not found for spanner table %v", table.Table_name)
+			}
+			colNames := []string{}
+			for _, colIds := range conv.SpSchema[tableId].ColIds {
+				colNames = append(colNames, conv.SpSchema[tableId].ColDefs[colIds].Name)
+			}
+			count, err := getCSVDataRowCount(r, colNames)
 			if err != nil {
 				return fmt.Errorf("error reading file %s for table %s: %v", filePath, table.Table_name, err)
 			}
@@ -175,14 +185,14 @@ func getCSVDataRowCount(r *csvReader.Reader, colNames []string) (int64, error) {
 // ProcessCSV writes data across the tables provided in the manifest file. Each table's data can be provided
 // across multiple CSV files hence, the manifest accepts a list of file paths in the input.
 func ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr string, delimiter rune) error {
-	orderedTableNames := ddl.OrderTables(conv.SpSchema)
+	tableIds := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
 	nameToFiles := map[string][]string{}
 	for _, table := range tables {
 		nameToFiles[table.Table_name] = table.File_patterns
 	}
 	orderedTables := []utils.ManifestTable{}
-	for _, name := range orderedTableNames {
-		orderedTables = append(orderedTables, utils.ManifestTable{name, nameToFiles[name]})
+	for _, id := range tableIds {
+		orderedTables = append(orderedTables, utils.ManifestTable{conv.SpSchema[id].Name, nameToFiles[conv.SpSchema[id].Name]})
 	}
 
 	for _, table := range orderedTables {
@@ -195,7 +205,16 @@ func ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr strin
 			r.Comma = delimiter
 
 			// Default column order is same as in Spanner schema.
-			colNames := conv.SpSchema[table.Table_name].ColNames
+			tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, table.Table_name)
+			if err != nil {
+				return fmt.Errorf("table Id not found for spanner table %v", table.Table_name)
+			}
+
+			colNames := []string{}
+			for _, v := range conv.SpSchema[tableId].ColIds {
+				colNames = append(colNames, conv.SpSchema[tableId].ColDefs[v].Name)
+			}
+
 			srcCols, err := r.Read()
 			if err == io.EOF {
 				conv.Unexpected(fmt.Sprintf("error processing table %s: file %s is empty.", table.Table_name, filePath))
@@ -247,15 +266,25 @@ func processDataRow(conv *internal.Conv, nullStr, tableName string, srcCols []st
 func convertData(conv *internal.Conv, nullStr, tableName string, srcCols []string, values []string) ([]string, []interface{}, error) {
 	var v []interface{}
 	var cvtCols []string
-	colDefs := conv.SpSchema[tableName].ColDefs
+
+	tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, tableName)
+	if err != nil {
+		return cvtCols, v, fmt.Errorf("table Id not found for spanner table %v", tableName)
+	}
+
+	colDefs := conv.SpSchema[tableId].ColDefs
 	for i, val := range values {
 		if val == nullStr {
 			continue
 		}
 		colName := srcCols[i]
-		spColDef := colDefs[colName]
+		colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
+		if err != nil {
+			return cvtCols, v, fmt.Errorf("column Id not found for spanner table %v column %v", tableName, colName)
+		}
+		spColDef := colDefs[colId]
+
 		var x interface{}
-		var err error
 		if spColDef.T.IsArray {
 			x, err = convArray(spColDef.T, val)
 		} else {

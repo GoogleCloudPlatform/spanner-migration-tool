@@ -193,27 +193,24 @@ func TestProcessSchema(t *testing.T) {
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"test_a": {
-			Name:     "test_a",
-			ColNames: []string{"a", "b"},
+			Name:   "test_a",
+			ColIds: []string{"a", "b"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			},
-			Pks: []ddl.IndexKey{{Col: "a"}},
+				"a": {Name: "a", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: true, Comment: ""},
+				"b": {Name: "b", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: false, Comment: ""}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "a", Desc: false, Order: 1}},
 		},
 		"test_b": {
-			Name:     "test_b",
-			ColNames: []string{"a", "b", "c", "d"},
+			Name:   "test_b",
+			ColIds: []string{"a", "b", "c", "d"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-				"d": {Name: "d", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			},
-			Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}},
-		},
-	}
-	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
+				"a": {Name: "a", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: true, Comment: ""},
+				"b": {Name: "b", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: true, Comment: ""},
+				"c": {Name: "c", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: false, Comment: ""},
+				"d": {Name: "d", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: false, Comment: ""}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "a", Desc: false, Order: 1}, {ColId: "b", Desc: false, Order: 2}},
+		}}
+	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
@@ -296,8 +293,8 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"test_a": {
-			Name:     "test_a",
-			ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
+			Name:   "test_a",
+			ColIds: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
@@ -311,10 +308,10 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 				"j": {Name: "j", T: ddl.Type{Name: ddl.Numeric, IsArray: true}},
 				"k": {Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
 			},
-			Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "a", Order: 1}, {ColId: "b", Order: 2}},
 		},
 	}
-	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
+	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
@@ -346,26 +343,26 @@ func TestProcessData(t *testing.T) {
 	cols := []string{"a", "b", "c", "d"}
 	conv := buildConv(
 		ddl.CreateTable{
-			Name:     tableName,
-			ColNames: cols,
+			Name:   tableName,
+			ColIds: cols,
 			ColDefs: map[string]ddl.ColumnDef{
 				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
 				"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
 			},
-			Pks: []ddl.IndexKey{{Col: "a"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "a", Order: 1}},
 		},
 		schema.Table{
-			Name:     tableName,
-			ColNames: cols,
+			Name:   tableName,
+			ColIds: cols,
 			ColDefs: map[string]schema.Column{
 				"a": {Name: "a", Type: schema.Type{Name: typeString}},
 				"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
 				"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
 				"d": {Name: "d", Type: schema.Type{Name: typeBool}},
 			},
-			PrimaryKeys: []schema.Key{{Column: "a"}},
+			PrimaryKeys: []schema.Key{{ColId: "a", Order: 1}},
 		},
 	)
 	conv.SetDataMode()
@@ -434,7 +431,7 @@ func TestInferDataTypes(t *testing.T) {
 		},
 		"empty_stats": {},
 	}
-	colDefs, colNames, err := inferDataTypes(stats, 1000, make([]string, 0))
+	colDefs, _, err := inferDataTypes(stats, 1000, make([]string, 0))
 	assert.Nil(t, err)
 	expectColNames := []string{
 		"all_rows_not_null", "err_row", "err_null_row", "enough_null_row",
@@ -442,8 +439,13 @@ func TestInferDataTypes(t *testing.T) {
 		"not_conflict_row_with_noise", "conflict_row_with_noise",
 		"equal_conflict_row_with_noise",
 	}
-	assert.ElementsMatch(t, expectColNames, colNames)
-	assert.Equal(t, map[string]schema.Column{
+	cnidMap := getSrcColNameIdMap(colDefs)
+	for _, ecn := range expectColNames {
+		acn := cnidMap[ecn]
+		assert.NotEqual(t, "", acn)
+	}
+
+	expColDefs := map[string]schema.Column{
 		"all_rows_not_null":             {Name: "all_rows_not_null", Type: schema.Type{Name: "Number"}, NotNull: true},
 		"err_row":                       {Name: "err_row", Type: schema.Type{Name: "Number"}, NotNull: true},
 		"err_null_row":                  {Name: "err_null_row", Type: schema.Type{Name: "Number"}, NotNull: true},
@@ -454,7 +456,13 @@ func TestInferDataTypes(t *testing.T) {
 		"not_conflict_row_with_noise":   {Name: "not_conflict_row_with_noise", Type: schema.Type{Name: "Number"}, NotNull: false},
 		"conflict_row_with_noise":       {Name: "conflict_row_with_noise", Type: schema.Type{Name: "String"}, NotNull: false},
 		"equal_conflict_row_with_noise": {Name: "equal_conflict_row_with_noise", Type: schema.Type{Name: "String"}, NotNull: false},
-	}, colDefs)
+	}
+
+	for key, ecd := range expColDefs {
+		acd := colDefs[cnidMap[key]]
+		acd.Id = ""
+		assert.Equal(t, ecd, acd)
+	}
 }
 
 func TestScanSampleData(t *testing.T) {
@@ -509,6 +517,14 @@ func TestScanSampleData(t *testing.T) {
 	assert.Equal(t, expectedStats, stats)
 }
 
+func getSrcColNameIdMap(cols map[string]schema.Column) map[string]string {
+	r := make(map[string]string)
+	for _, v := range cols {
+		r[v.Name] = v.Id
+	}
+	return r
+}
+
 func TestInfoSchemaImpl_GetIndexes(t *testing.T) {
 	tableName := "test"
 	attrNameA := "a"
@@ -554,13 +570,18 @@ func TestInfoSchemaImpl_GetIndexes(t *testing.T) {
 	dySchema := common.SchemaAndName{Name: "test"}
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{client, nil, 10}
-	indexes, err := isi.GetIndexes(conv, dySchema)
+	colNameToId := map[string]string{attrNameC: "c1", attrNameD: "c2"}
+	indexes, err := isi.GetIndexes(conv, dySchema, colNameToId)
 	assert.Nil(t, err)
 
 	secIndexes := []schema.Index{
-		{Name: "secondary_index_c", Keys: []schema.Key{{Column: "c"}}},
-		{Name: "secondary_index_d", Keys: []schema.Key{{Column: "d"}}},
+		{Name: "secondary_index_c", Keys: []schema.Key{{ColId: "c1"}}},
+		{Name: "secondary_index_d", Keys: []schema.Key{{ColId: "c2"}}},
 	}
+	for i := range indexes {
+		indexes[i].Id = ""
+	}
+
 	assert.Equal(t, secIndexes, indexes)
 }
 
@@ -685,16 +706,26 @@ func TestInfoSchemaImpl_GetColumns(t *testing.T) {
 
 	isi := InfoSchemaImpl{client, nil, 10}
 
-	colDefs, colNames, err := isi.GetColumns(conv, dySchema, nil, nil)
+	colDefs, _, err := isi.GetColumns(conv, dySchema, nil, nil)
 	assert.Nil(t, err)
 	expectColNames := []string{
 		"a", "b",
 	}
-	assert.ElementsMatch(t, expectColNames, colNames)
-	assert.Equal(t, map[string]schema.Column{
+	expColDefs := map[string]schema.Column{
 		"a": {Name: "a", Type: schema.Type{Name: "String", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}},
-		"b": {Name: "b", Type: schema.Type{Name: "String", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}}},
-		colDefs)
+		"b": {Name: "b", Type: schema.Type{Name: "String", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}}}
+
+	cnidMap := getSrcColNameIdMap(colDefs)
+	for _, ecn := range expectColNames {
+		acn := cnidMap[ecn]
+		assert.NotEqual(t, "", acn)
+	}
+
+	for key, ecd := range expColDefs {
+		acd := colDefs[cnidMap[key]]
+		acd.Id = ""
+		assert.Equal(t, ecd, acd)
+	}
 }
 
 func TestInfoSchemaImpl_GetForeignKeys(t *testing.T) {
@@ -794,31 +825,35 @@ func TestInfoSchemaImpl_ProcessData(t *testing.T) {
 	}
 	isi := InfoSchemaImpl{client, nil, 10}
 
-	tableName := "testtable"
+	tableName := "cart"
+	tableId := "t1"
 	cols := []string{"a", "b", "c", "d"}
+	colIds := []string{"c1", "c2", "c3", "c4"}
 	spSchema := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		Id:     tableId,
+		ColIds: colIds,
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
+			"c1": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c2": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
+			"c3": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c4": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
 		},
-		Pks: []ddl.IndexKey{{Col: "a"}},
+		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 	}
 	conv := buildConv(
 		spSchema,
 		schema.Table{
-			Name:     tableName,
-			ColNames: cols,
+			Name:   tableName,
+			Id:     tableId,
+			ColIds: colIds,
 			ColDefs: map[string]schema.Column{
-				"a": {Name: "a", Type: schema.Type{Name: typeString}},
-				"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
-				"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
-				"d": {Name: "d", Type: schema.Type{Name: typeBool}},
+				"c1": {Name: "a", Type: schema.Type{Name: typeString}},
+				"c2": {Name: "b", Type: schema.Type{Name: typeNumber}},
+				"c3": {Name: "c", Type: schema.Type{Name: typeNumberString}},
+				"c4": {Name: "d", Type: schema.Type{Name: typeBool}},
 			},
-			PrimaryKeys: []schema.Key{{Column: "a"}},
+			PrimaryKeys: []schema.Key{{ColId: "c1"}},
 		},
 	)
 
@@ -827,8 +862,8 @@ func TestInfoSchemaImpl_ProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	err := isi.ProcessData(conv, tableName, conv.SrcSchema[tableName], tableName,
-		cols, spSchema)
+	err := isi.ProcessData(conv, tableId, conv.SrcSchema[tableId],
+		colIds, spSchema)
 	assert.Nil(t, err)
 	assert.Equal(t,
 		[]spannerData{
@@ -940,20 +975,20 @@ func TestInfoSchemaImpl_StartChangeDataCapture(t *testing.T) {
 
 	cols := []string{attrNameA}
 	spSchema := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		ColIds: cols,
 		ColDefs: map[string]ddl.ColumnDef{
 			attrNameA: {Name: attrNameA, T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		},
-		Pks: []ddl.IndexKey{{Col: attrNameA}},
+		PrimaryKeys: []ddl.IndexKey{{ColId: attrNameA}},
 	}
 	srcTable := schema.Table{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		ColIds: cols,
 		ColDefs: map[string]schema.Column{
 			attrNameA: {Name: attrNameA, Type: schema.Type{Name: typeString}},
 		},
-		PrimaryKeys: []schema.Key{{Column: attrNameA}},
+		PrimaryKeys: []schema.Key{{ColId: attrNameA}},
 	}
 	conv := buildConv(spSchema, srcTable)
 	type fields struct {

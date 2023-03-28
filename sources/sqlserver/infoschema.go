@@ -84,38 +84,47 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 // We choose to do all type conversions explicitly ourselves so that
 // we can generate more targeted error messages: hence we pass
 // *interface{} parameters to row.Scan.
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
-	rowsInterface, err := isi.GetRowsFromTable(conv, srcTable)
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, commonColIds []string, spSchema ddl.CreateTable) error {
+	srcTableName := conv.SrcSchema[tableId].Name
+	rowsInterface, err := isi.GetRowsFromTable(conv, tableId)
 	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTable, err))
+		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTableName, err))
 		return err
 	}
 	rows := rowsInterface.(*sql.Rows)
 	defer rows.Close()
 	srcCols, _ := rows.Columns()
 	v, scanArgs := buildVals(len(srcCols))
+	colNameIdMap := internal.GetSrcColNameIdMap(conv.SrcSchema[tableId])
 	for rows.Next() {
 		// get RawBytes from data.
 		err := rows.Scan(scanArgs...)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
 			// Scan failed, so we don't have any data to add to bad rows.
-			conv.StatsAddBadRow(srcTable, conv.DataMode())
+			conv.StatsAddBadRow(srcTableName, conv.DataMode())
 			continue
 		}
 		values := valsToStrings(v)
-		ProcessDataRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, values)
+		newValues, err := common.PrepareValues(conv, tableId, colNameIdMap, commonColIds, srcCols, values)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
+			conv.StatsAddBadRow(srcTableName, conv.DataMode())
+			conv.CollectBadRow(srcTableName, srcCols, values)
+			continue
+		}
+		ProcessDataRow(conv, tableId, commonColIds, srcSchema, spSchema, newValues)
 	}
 	return nil
 }
 
 // GetRowsFromTable returns a sql Rows object for a table.
-func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
-	tbl := conv.SrcSchema[srcTable]
+func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) (interface{}, error) {
+	tbl := conv.SrcSchema[tableId]
 	//To get only the table name by removing the schema name prefix
-	tblName := strings.Replace(srcTable, tbl.Schema+".", "", 1)
+	tblName := strings.Replace(tbl.Name, tbl.Schema+".", "", 1)
 
-	q := getSelectQuery(isi.DbName, tbl.Schema, tblName, tbl.ColNames, tbl.ColDefs)
+	q := getSelectQuery(isi.DbName, tbl.Schema, tblName, tbl.ColIds, tbl.ColDefs)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -123,12 +132,13 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 	return rows, err
 }
 
-func getSelectQuery(srcDb string, schemaName string, tableName string, colNames []string, colDefs map[string]schema.Column) string {
-	var selects = make([]string, len(colNames))
+func getSelectQuery(srcDb string, schemaName string, tableName string, colIds []string, colDefs map[string]schema.Column) string {
+	var selects = make([]string, len(colIds))
 
-	for i, cn := range colNames {
+	for i, colId := range colIds {
+		cn := colDefs[colId].Name
 		var s string
-		switch colDefs[cn].Type.Name {
+		switch colDefs[colId].Type.Name {
 		case geometryType, geographyType:
 			s = fmt.Sprintf("[%s].STAsText() AS %s", cn, cn)
 		case uuidType:
@@ -227,7 +237,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	}
 	defer cols.Close()
 	colDefs := make(map[string]schema.Column)
-	var colNames []string
+	var colIds []string
 	var colName, dataType string
 	var isNullable string
 	var colDefault sql.NullString
@@ -252,16 +262,18 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			}
 		}
 		ignored.Default = colDefault.Valid
+		colId := internal.GenerateColumnId()
 		c := schema.Column{
+			Id:      colId,
 			Name:    colName,
 			Type:    toType(dataType, charMaxLen, numericPrecision, numericScale),
 			NotNull: strings.ToUpper(isNullable) == "NO",
 			Ignored: ignored,
 		}
-		colDefs[colName] = c
-		colNames = append(colNames, colName)
+		colDefs[colId] = c
+		colIds = append(colIds, colId)
 	}
-	return colDefs, colNames, nil
+	return colDefs, colIds, nil
 }
 
 // GetConstraints returns a list of primary keys and by-column map of
@@ -352,16 +364,17 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	for _, k := range keyNames {
 		foreignKeys = append(foreignKeys,
 			schema.ForeignKey{
-				Name:         fKeys[k].Name,
-				Columns:      fKeys[k].Cols,
-				ReferTable:   fKeys[k].Table,
-				ReferColumns: fKeys[k].Refcols})
+				Id:               internal.GenerateForeignkeyId(),
+				Name:             fKeys[k].Name,
+				ColumnNames:      fKeys[k].Cols,
+				ReferTableName:   fKeys[k].Table,
+				ReferColumnNames: fKeys[k].Refcols})
 	}
 	return foreignKeys, nil
 }
 
 // GetIndexes return a list of all indexes for the specified table.
-func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
+func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName, colNameIdMap map[string]string) ([]schema.Index, error) {
 	q2 := `
 		SELECT
 			IX.name, 
@@ -400,13 +413,18 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 
 		if _, found := indexMap[name]; !found {
 			indexNames = append(indexNames, name)
-			indexMap[name] = schema.Index{Name: name, Unique: (isUnique == "true")}
+			indexMap[name] = schema.Index{
+				Id:     internal.GenerateIndexesId(),
+				Name:   name,
+				Unique: (isUnique == "true")}
 		}
 		index := indexMap[name]
 		if isStored == "false" {
-			index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
+			index.Keys = append(index.Keys, schema.Key{
+				ColId: colNameIdMap[column],
+				Desc:  (collation == "DESC")})
 		} else {
-			index.StoredColumns = append(index.StoredColumns, column)
+			index.StoredColumnIds = append(index.StoredColumnIds, colNameIdMap[column])
 		}
 		indexMap[name] = index
 	}

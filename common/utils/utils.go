@@ -42,6 +42,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
@@ -573,10 +574,12 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 		conv.Unexpected(fmt.Sprintf("error trying to fetch interleave table info from schema: %v", err))
 	}
 	// Assign parents if any.
-	for table, parent := range parentTables {
-		spTable := conv.SpSchema[table]
-		spTable.Parent = parent
-		conv.SpSchema[table] = spTable
+	for tableName, parentName := range parentTables {
+		tableId, _ := internal.GetTableIdFromSpName(conv.SpSchema, tableName)
+		parentTableId, _ := internal.GetTableIdFromSpName(conv.SpSchema, parentName)
+		spTable := conv.SpSchema[tableId]
+		spTable.ParentId = parentTableId
+		conv.SpSchema[tableId] = spTable
 	}
 	return nil
 }
@@ -586,24 +589,39 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 	if conv1.SpDialect != conv2.SpDialect {
 		return fmt.Errorf("spanner dialect don't match")
 	}
-	for spannerTableInd := range conv1.SpSchema {
-		sessionTable := conv1.SpSchema[spannerTableInd]
-		spannerTable := conv2.SpSchema[spannerTableInd]
-		if sessionTable.Name != spannerTable.Name || sessionTable.Parent != spannerTable.Parent ||
-			len(sessionTable.Pks) != len(spannerTable.Pks) || len(sessionTable.ColDefs) != len(spannerTable.ColDefs) ||
+	for _, sessionTable := range conv1.SpSchema {
+		spannerTableId, _ := internal.GetTableIdFromSpName(conv2.SpSchema, sessionTable.Name)
+		spannerTable := conv2.SpSchema[spannerTableId]
+
+		sessionTableParentName := conv1.SpSchema[sessionTable.ParentId].Name
+		spannerTableParentName := conv2.SpSchema[spannerTable.ParentId].Name
+
+		if sessionTable.Name != spannerTable.Name || sessionTableParentName != spannerTableParentName ||
+			len(sessionTable.PrimaryKeys) != len(spannerTable.PrimaryKeys) || len(sessionTable.ColDefs) != len(spannerTable.ColDefs) ||
 			len(sessionTable.Indexes) != len(spannerTable.Indexes) {
 			return fmt.Errorf("table detail for table %v don't match", sessionTable.Name)
 		}
-		for primaryKeyIndex := range sessionTable.Pks {
-			if sessionTable.Pks[primaryKeyIndex].Col != spannerTable.Pks[primaryKeyIndex].Col || sessionTable.Pks[primaryKeyIndex].Desc != spannerTable.Pks[primaryKeyIndex].Desc {
+
+		// Sorts both primary key slices based on primary key order
+		sortKeysByOrder(sessionTable.PrimaryKeys)
+		sortKeysByOrder(spannerTable.PrimaryKeys)
+
+		for idx, sessionPk := range sessionTable.PrimaryKeys {
+			sessionTablePkCol := sessionTable.ColDefs[sessionPk.ColId]
+			correspondingSpColId, _ := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionTablePkCol.Name)
+			spannerTablePkCol := spannerTable.ColDefs[correspondingSpColId]
+
+			if sessionTablePkCol.Name != spannerTablePkCol.Name || sessionTable.PrimaryKeys[idx].Desc != spannerTable.PrimaryKeys[idx].Desc {
 				return fmt.Errorf("primary keys for table %v don't match", sessionTable.Name)
 			}
 		}
-		for col := range sessionTable.ColDefs {
-			colDef := sessionTable.ColDefs[col]
-			spannerCol := spannerTable.ColDefs[col]
-			if colDef.Name != spannerCol.Name || colDef.NotNull != spannerCol.NotNull ||
-				colDef.T.IsArray != spannerCol.T.IsArray || colDef.T.Len != spannerCol.T.Len || colDef.T.Name != spannerCol.T.Name {
+
+		for _, sessionColDef := range sessionTable.ColDefs {
+			correspondingSpColId, _ := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionColDef.Name)
+			spannerColDef := spannerTable.ColDefs[correspondingSpColId]
+
+			if sessionColDef.Name != spannerColDef.Name || sessionColDef.NotNull != spannerColDef.NotNull ||
+				sessionColDef.T.IsArray != spannerColDef.T.IsArray || sessionColDef.T.Len != spannerColDef.T.Len || sessionColDef.T.Name != spannerColDef.T.Name {
 				return fmt.Errorf("column detail for table %v don't match", sessionTable.Name)
 			}
 		}
@@ -612,13 +630,26 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 			for _, spannerTableIndex := range spannerTable.Indexes {
 				if sessionTableIndex.Name == spannerTableIndex.Name {
 					found = 1
-					if sessionTableIndex.Table != spannerTableIndex.Table || sessionTableIndex.Unique != spannerTableIndex.Unique ||
+
+					sessionTableName := conv1.SpSchema[sessionTableIndex.TableId].Name
+					spannerTableName := conv2.SpSchema[spannerTableIndex.TableId].Name
+
+					// Sorts both primary key slices based on index key order
+					sortKeysByOrder(sessionTableIndex.Keys)
+					sortKeysByOrder(spannerTableIndex.Keys)
+
+					if sessionTableName != spannerTableName || sessionTableIndex.Unique != spannerTableIndex.Unique ||
 						len(sessionTableIndex.Keys) != len(spannerTableIndex.Keys) {
 						return fmt.Errorf("index %v - details don't match", sessionTableIndex.Name)
 					}
-					for keyIndex := range sessionTableIndex.Keys {
-						if sessionTableIndex.Keys[keyIndex].Col != spannerTableIndex.Keys[keyIndex].Col ||
-							sessionTableIndex.Keys[keyIndex].Desc != spannerTableIndex.Keys[keyIndex].Desc {
+
+					for idx, indexKey := range sessionTableIndex.Keys {
+						sessionIndexColumn := sessionTable.ColDefs[indexKey.ColId]
+						spannerIndexColumnId, _ := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionIndexColumn.Name)
+						spannerIndexColumn := spannerTable.ColDefs[spannerIndexColumnId]
+
+						if sessionIndexColumn.Name != spannerIndexColumn.Name ||
+							sessionTableIndex.Keys[idx].Desc != spannerTableIndex.Keys[idx].Desc {
 							return fmt.Errorf("index %v - keys don't match", sessionTableIndex.Name)
 						}
 					}
@@ -638,4 +669,10 @@ func TargetDbToDialect(targetDb string) string {
 		return constants.DIALECT_POSTGRESQL
 	}
 	return constants.DIALECT_GOOGLESQL
+}
+
+func sortKeysByOrder(pks []ddl.IndexKey) {
+	sort.Slice(pks, func(i int, j int) bool {
+		return pks[i].Order < pks[j].Order
+	})
 }

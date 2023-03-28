@@ -122,10 +122,10 @@ export class FetchService {
   }
 
   restoreTable(tableId: string) {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?tableId=${tableId}`, {})
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?table=${tableId}`, {})
   }
   dropTable(tableId: string) {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/table?tableId=${tableId}`, {})
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/table?table=${tableId}`, {})
   }
 
   updatePk(pkObj: IPrimaryKey) {
@@ -136,9 +136,9 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/update/fks?table=${tableId}`, payload)
   }
 
-  removeFk(tableName: string, fkName: string): any {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableName}`, {
-      Name: fkName,
+  removeFk(tableId: string, fkId: string): any {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableId}`, {
+      Id: fkId,
     })
   }
 
@@ -172,13 +172,13 @@ export class FetchService {
     return this.http.get<boolean>(`${this.url}/IsOffline`)
   }
 
-  updateIndex(tableName: string, payload: ICreateIndex[]) {
-    return this.http.post<IConv>(`${this.url}/update/indexes?table=${tableName}`, payload)
+  updateIndex(tableId: string, payload: ICreateIndex[]) {
+    return this.http.post<IConv>(`${this.url}/update/indexes?table=${tableId}`, payload)
   }
 
-  dropIndex(tableName: string, indexName: string) {
-    return this.http.post<IConv>(`${this.url}/drop/secondaryindex?table=${tableName}`, {
-      Name: indexName,
+  dropIndex(tableId: string, indexName: string) {
+    return this.http.post<IConv>(`${this.url}/drop/secondaryindex?table=${tableId}`, {
+      Id: indexName,
     })
   }
 
@@ -189,12 +189,12 @@ export class FetchService {
     )
   }
 
-  getInterleaveStatus(tableName: string) {
-    return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableName}`)
+  getInterleaveStatus(tableId: string) {
+    return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableId}&update=false`)
   }
 
-  setInterleave(tableName: string) {
-    return this.http.get(`${this.url}/setparent?table=${tableName}&update=true`)
+  setInterleave(tableId: string) {
+    return this.http.get(`${this.url}/setparent?table=${tableId}&update=true`)
   }
 
   getSourceDestinationSummary() {

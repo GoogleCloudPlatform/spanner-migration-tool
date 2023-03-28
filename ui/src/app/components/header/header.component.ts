@@ -64,8 +64,8 @@ export class HeaderComponent implements OnInit {
     this.sidenav.setSidenavComponent('instruction')
   }
   stopLoading() {
-    this.loaderService.stopLoader() 
+    this.loaderService.stopLoader()
+    this.clickEvent.cancelDbLoading()
     this.clickEvent.closeDatabaseLoader()
-
   }
 }

@@ -25,42 +25,50 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-func ProcessDataRow(m map[string]*dynamodb.AttributeValue, conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) {
-	spVals, badCols, srcStrVals := cvtRow(m, srcSchema, spSchema, spCols)
+func ProcessDataRow(m map[string]*dynamodb.AttributeValue, conv *internal.Conv, tableId string, srcSchema schema.Table, colIds []string, spSchema ddl.CreateTable) {
+	spVals, badCols, srcStrVals := cvtRow(m, srcSchema, spSchema, colIds)
+	srcTableName := srcSchema.Name
+	spTableName := spSchema.Name
+	spColNames := []string{}
+	srcColNames := []string{}
+	for _, colId := range colIds {
+		srcColNames = append(srcColNames, srcSchema.ColDefs[colId].Name)
+		spColNames = append(spColNames, spSchema.ColDefs[colId].Name)
+	}
 	if len(badCols) == 0 {
-		conv.WriteRow(srcTable, spTable, spCols, spVals)
+		conv.WriteRow(srcTableName, spTableName, spColNames, spVals)
 	} else {
-		conv.Unexpected(fmt.Sprintf("Data conversion error for table %s in column(s) %s\n", srcTable, badCols))
-		conv.StatsAddBadRow(srcTable, conv.DataMode())
-		conv.CollectBadRow(srcTable, srcSchema.ColNames, srcStrVals)
+		conv.Unexpected(fmt.Sprintf("Data conversion error for table %s in column(s) %s\n", srcTableName, badCols))
+		conv.StatsAddBadRow(srcTableName, conv.DataMode())
+		conv.CollectBadRow(srcTableName, srcColNames, srcStrVals)
 	}
 }
 
-func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table, spSchema ddl.CreateTable, spCols []string) ([]interface{}, []string, []string) {
+func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table, spSchema ddl.CreateTable, colIds []string) ([]interface{}, []string, []string) {
 	var err error
 	var srcStrVals []string
 	var spVals []interface{}
 	var badCols []string
-	for i, srcCol := range srcSchema.ColNames {
+	for _, colId := range colIds {
+		srcColName := srcSchema.ColDefs[colId].Name
 		var spVal interface{}
 		var srcStrVal string
-		if attrsMap[srcCol] == nil {
+		if attrsMap[srcColName] == nil {
 			spVal = nil
 			srcStrVal = "null"
 		} else {
 			// Convert data to the target type.
-			spCol := spCols[i]
-			spColDef := spSchema.ColDefs[spCol]
-			srcColDef := srcSchema.ColDefs[srcCol]
+			spColDef := spSchema.ColDefs[colId]
+			srcColDef := srcSchema.ColDefs[colId]
 			if spColDef.T.IsArray {
-				spVal, err = convArray(attrsMap[srcCol], srcColDef.Type.Name, spColDef.T.Name)
+				spVal, err = convArray(attrsMap[srcColName], srcColDef.Type.Name, spColDef.T.Name)
 			} else {
-				spVal, err = convScalar(attrsMap[srcCol], srcColDef.Type.Name, spColDef.T.Name)
+				spVal, err = convScalar(attrsMap[srcColName], srcColDef.Type.Name, spColDef.T.Name)
 			}
 			if err != nil {
-				badCols = append(badCols, srcCol)
+				badCols = append(badCols, srcColName)
 			}
-			srcStrVal = attrsMap[srcCol].GoString()
+			srcStrVal = attrsMap[srcColName].GoString()
 		}
 		srcStrVals = append(srcStrVals, srcStrVal)
 		spVals = append(spVals, spVal)

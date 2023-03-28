@@ -28,12 +28,11 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
-func GetType(conv *internal.Conv, newType, table, colName string, srcTableName string) (ddl.CreateTable, ddl.Type, error) {
+func GetType(conv *internal.Conv, newType, tableId, colId string) (ddl.CreateTable, ddl.Type, error) {
 	sessionState := session.GetSessionState()
 
-	sp := conv.SpSchema[table]
-	srcColName := conv.ToSource[table].Cols[colName]
-	srcCol := conv.SrcSchema[srcTableName].ColDefs[srcColName]
+	sp := conv.SpSchema[tableId]
+	srcCol := conv.SrcSchema[tableId].ColDefs[colId]
 	var ty ddl.Type
 	var issues []internal.SchemaIssue
 	var toddl common.ToDdl
@@ -65,8 +64,8 @@ func GetType(conv *internal.Conv, newType, table, colName string, srcTableName s
 	if srcCol.Ignored.AutoIncrement {
 		issues = append(issues, internal.AutoIncrement)
 	}
-	if conv.Issues != nil && len(issues) > 0 {
-		conv.Issues[srcTableName][srcCol.Name] = issues
+	if conv.SchemaIssues != nil && len(issues) > 0 {
+		conv.SchemaIssues[tableId][colId] = issues
 	}
 	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
 	return sp, ty, nil

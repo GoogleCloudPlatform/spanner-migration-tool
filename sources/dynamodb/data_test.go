@@ -50,30 +50,34 @@ func TestProcessDataRow(t *testing.T) {
 	}
 
 	tableName := "testtable"
+	tableId := "t1"
 	cols := []string{"a", "b", "c", "d"}
+	colIds := []string{"c1", "c2", "c3", "c4"}
 	spSchema := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		Id:     tableId,
+		ColIds: colIds,
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
+			"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Numeric}},
+			"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c4": {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.Bool}},
 		},
-		Pks: []ddl.IndexKey{{Col: "a"}},
+		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 	}
 	conv := buildConv(
 		spSchema,
 		schema.Table{
-			Name:     tableName,
-			ColNames: cols,
+			Name:   tableName,
+			Id:     tableId,
+			ColIds: colIds,
 			ColDefs: map[string]schema.Column{
-				"a": {Name: "a", Type: schema.Type{Name: typeString}},
-				"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
-				"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
-				"d": {Name: "d", Type: schema.Type{Name: typeBool}},
+				"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: typeString}},
+				"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: typeNumber}},
+				"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: typeNumberString}},
+				"c4": {Name: "d", Id: "c4", Type: schema.Type{Name: typeBool}},
 			},
-			PrimaryKeys: []schema.Key{{Column: "a"}},
+			PrimaryKeys: []schema.Key{{ColId: "c1"}},
 		},
 	)
 	conv.SetDataMode()
@@ -83,7 +87,7 @@ func TestProcessDataRow(t *testing.T) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
 	for _, attrsMap := range items {
-		ProcessDataRow(attrsMap, conv, tableName, conv.SrcSchema[tableName], tableName, cols, spSchema)
+		ProcessDataRow(attrsMap, conv, tableId, conv.SrcSchema[tableId], colIds, spSchema)
 	}
 	assert.Equal(t,
 		[]spannerData{
@@ -99,27 +103,27 @@ func TestProcessDataRow(t *testing.T) {
 
 func TestCvtRowWithError(t *testing.T) {
 	tableName := "testtable"
-	cols := []string{"a"}
+	colIds := []string{"c1"}
 	spSchema := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		ColIds: colIds,
 		ColDefs: map[string]ddl.ColumnDef{
 			// Give a wrong target type.
-			"a": {Name: "a", T: ddl.Type{Name: ddl.Float64}},
+			"c1": {Name: "a", T: ddl.Type{Name: ddl.Float64}},
 		},
 	}
 	srcSchema := schema.Table{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		ColIds: colIds,
 		ColDefs: map[string]schema.Column{
-			"a": {Name: "a", Type: schema.Type{Name: typeString}},
+			"c1": {Name: "a", Type: schema.Type{Name: typeString}},
 		},
 	}
 	strA := "str-1"
 	attrs := map[string]*dynamodb.AttributeValue{
 		"a": {S: &strA},
 	}
-	_, badCols, srcStrVals := cvtRow(attrs, srcSchema, spSchema, cols)
+	_, badCols, srcStrVals := cvtRow(attrs, srcSchema, spSchema, colIds)
 
 	assert.Equal(t, []string{"a"}, badCols)
 	assert.Equal(t, []string{attrs["a"].GoString()}, srcStrVals)
@@ -253,13 +257,7 @@ func TestStripNull(t *testing.T) {
 
 func buildConv(spTable ddl.CreateTable, srcTable schema.Table) *internal.Conv {
 	conv := internal.MakeConv()
-	conv.SpSchema[spTable.Name] = spTable
-	conv.SrcSchema[srcTable.Name] = srcTable
-	conv.ToSource[spTable.Name] = internal.NameAndCols{Name: srcTable.Name, Cols: make(map[string]string)}
-	conv.ToSpanner[srcTable.Name] = internal.NameAndCols{Name: spTable.Name, Cols: make(map[string]string)}
-	for i := range spTable.ColNames {
-		conv.ToSource[spTable.Name].Cols[spTable.ColNames[i]] = srcTable.ColNames[i]
-		conv.ToSpanner[srcTable.Name].Cols[srcTable.ColNames[i]] = spTable.ColNames[i]
-	}
+	conv.SpSchema[spTable.Id] = spTable
+	conv.SrcSchema[srcTable.Id] = srcTable
 	return conv
 }

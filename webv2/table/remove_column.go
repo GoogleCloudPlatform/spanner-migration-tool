@@ -21,86 +21,92 @@ import (
 )
 
 // removeColumn remove given column from schema.
-func removeColumn(table string, colName string, conv *internal.Conv) {
+func RemoveColumn(tableId string, colId string, conv *internal.Conv) {
 
-	sp := conv.SpSchema[table]
+	sp := conv.SpSchema[tableId]
 
-	removeColumnFromTableSchema(conv, table, colName)
-
-	// update foreignKey relationship Table column names.
-	for _, fk := range sp.Fks {
-
-		removeColumnFromTableSchema(conv, fk.ReferTable, colName)
-
+	// remove interleaving if the column to be removed is used in interleaving.
+	isParent, childTableId := IsParent(tableId)
+	if isParent {
+		if isColFistOderPk(conv.SpSchema[tableId].PrimaryKeys, colId) {
+			childSp := conv.SpSchema[childTableId]
+			childSp.ParentId = ""
+			conv.SpSchema[childTableId] = childSp
+		}
 	}
 
-	for _, sp := range conv.SpSchema {
+	if conv.SpSchema[tableId].ParentId != "" {
+		if isColFistOderPk(conv.SpSchema[tableId].PrimaryKeys, colId) {
+			sp.ParentId = ""
+			conv.SpSchema[tableId] = sp
+		}
+	}
 
-		for j := 0; j < len(sp.Fks); j++ {
-			if sp.Fks[j].ReferTable == table {
-				removeColumnFromTableSchema(conv, sp.Name, colName)
+	// remove foreign keys from refer tables.
+	for id, sp := range conv.SpSchema {
+		var updatedFks []ddl.Foreignkey
+		for j := 0; j < len(sp.ForeignKeys); j++ {
+			if sp.ForeignKeys[j].ReferTableId == tableId {
+				fkColPosition := getFkColumnPosition(sp.ForeignKeys[j].ReferColumnIds, colId)
+				if fkColPosition == -1 {
+					updatedFks = append(updatedFks, sp.ForeignKeys[j])
+				} else {
+					delete(conv.UsedNames, sp.ForeignKeys[j].Name)
+				}
+			} else {
+				updatedFks = append(updatedFks, sp.ForeignKeys[j])
 			}
-
 		}
 
+		sp.ForeignKeys = updatedFks
+		conv.SpSchema[id] = sp
 	}
 
-	isParent, childTableName := IsParent(table)
+	//remove column from the table.
+	removeColumnFromTableSchema(conv, tableId, colId)
 
-	if isParent {
-
-		removeColumnFromTableSchema(conv, childTableName, colName)
-
-	}
-
-	if conv.SpSchema[table].Parent != "" {
-
-		removeColumnFromTableSchema(conv, conv.SpSchema[table].Parent, colName)
-	}
 }
 
 // removeColumnFromCurrentTableSchema remove given column from table schema.
-func removeColumnFromTableSchema(conv *internal.Conv, table string, colName string) {
-	sp := conv.SpSchema[table]
+func removeColumnFromTableSchema(conv *internal.Conv, tableId string, colId string) {
+	sp := conv.SpSchema[tableId]
 
-	sp = removeColumnFromSpannerColDefs(sp, colName)
+	sp = removeColumnFromSpannerColDefs(sp, colId)
 
-	sp = removeColumnFromSpannerPK(sp, colName)
+	sp = removeColumnFromSpannerPK(sp, colId)
 
-	sp = removeColumnFromSpannerSecondaryIndex(sp, colName)
+	sp = removeColumnFromSpannerSecondaryIndex(sp, colId)
 
-	sp = removeColumnFromSpannerForeignkeyColumns(sp, colName)
+	sp = removeColumnFromSpannerForeignkeyColumns(sp, colId)
 
-	sp = removeColumnFromSpannerForeignkeyReferColumns(sp, colName)
+	sp = removeColumnFromSpannerForeignkeyReferColumns(sp, colId)
 
-	sp = removeColumnFromSpannerColNames(sp, colName)
+	sp = removeColumnFromSpannerColNames(sp, colId)
 
-	removeSpannerSchemaIssue(table, colName, conv)
+	removeSpannerSchemaIssue(tableId, colId, conv)
 
-	removeColumnFromToSpannerToSource(table, colName, conv)
-
-	conv.SpSchema[table] = sp
+	conv.SpSchema[tableId] = sp
 }
 
 // removeColumnFromSpannerColNames remove given column from ColNames.
-func removeColumnFromSpannerColNames(sp ddl.CreateTable, colName string) ddl.CreateTable {
+func removeColumnFromSpannerColNames(sp ddl.CreateTable, colId string) ddl.CreateTable {
 
-	for i, col := range sp.ColNames {
-		if col == colName {
-			sp.ColNames = utilities.Remove(sp.ColNames, i)
+	for i, col := range sp.ColIds {
+		if col == colId {
+			sp.ColIds = utilities.Remove(sp.ColIds, i)
 			break
 		}
 	}
-	delete(sp.ColDefs, colName)
+	delete(sp.ColDefs, colId)
 	return sp
 }
 
 // removeColumnFromSpannerPK remove given column from Primary Key List.
-func removeColumnFromSpannerPK(sp ddl.CreateTable, colName string) ddl.CreateTable {
+func removeColumnFromSpannerPK(sp ddl.CreateTable, colId string) ddl.CreateTable {
 
-	for i, pk := range sp.Pks {
-		if pk.Col == colName {
-			sp.Pks = utilities.RemovePk(sp.Pks, i)
+	for i, pk := range sp.PrimaryKeys {
+		if pk.ColId == colId {
+			sp.PrimaryKeys = utilities.RemovePk(sp.PrimaryKeys, i)
 			break
 		}
 	}
@@ -108,17 +114,17 @@ func removeColumnFromSpannerPK(sp ddl.CreateTable, colName string) ddl.CreateTab
 }
 
 // removeColumnFromSpannerColDefs remove given column from Spanner ColDefs List.
-func removeColumnFromSpannerColDefs(sp ddl.CreateTable, colName string) ddl.CreateTable {
-	delete(sp.ColDefs, colName)
+func removeColumnFromSpannerColDefs(sp ddl.CreateTable, colId string) ddl.CreateTable {
+	delete(sp.ColDefs, colId)
 	return sp
 }
 
 // removeColumnFromSpannerSecondaryIndex remove given column from Spanner SecondaryIndex List.
-func removeColumnFromSpannerSecondaryIndex(sp ddl.CreateTable, colName string) ddl.CreateTable {
+func removeColumnFromSpannerSecondaryIndex(sp ddl.CreateTable, colId string) ddl.CreateTable {
 
 	for i, index := range sp.Indexes {
 		for j, key := range index.Keys {
-			if key.Col == colName {
+			if key.ColId == colId {
 				sp.Indexes[i].Keys = utilities.RemoveColumnFromSecondaryIndexKey(sp.Indexes[i].Keys, j)
 				break
 			}
@@ -128,32 +134,22 @@ func removeColumnFromSpannerSecondaryIndex(sp ddl.CreateTable, colName string) d
 }
 
 // removeColumnFromSecondaryIndexKey remove given column from Spanner Secondary Schema Issue List.
-func removeSpannerSchemaIssue(table string, colName string, conv *internal.Conv) {
-	if conv.Issues != nil {
-		if conv.Issues[table] != nil && conv.Issues[table][colName] != nil {
-			delete(conv.Issues[table], colName)
+func removeSpannerSchemaIssue(tableId string, colId string, conv *internal.Conv) {
+	if conv.SchemaIssues != nil {
+		if conv.SchemaIssues[tableId] != nil && conv.SchemaIssues[tableId][colId] != nil {
+			delete(conv.SchemaIssues[tableId], colId)
 		}
 	}
 }
 
-// removeColumnFromToSpannerToSource remove given column from ToSpanner and ToSource List.
-func removeColumnFromToSpannerToSource(table string, colName string, conv *internal.Conv) {
-
-	srcTableName := conv.ToSource[table].Name
-
-	srcColName := conv.ToSource[table].Cols[colName]
-	delete(conv.ToSource[table].Cols, colName)
-	delete(conv.ToSpanner[srcTableName].Cols, srcColName)
-}
-
 // removeColumnFromSpannerForeignkeyColumns remove given column from Spanner Foreignkey Columns List.
-func removeColumnFromSpannerForeignkeyColumns(sp ddl.CreateTable, colName string) ddl.CreateTable {
+func removeColumnFromSpannerForeignkeyColumns(sp ddl.CreateTable, colId string) ddl.CreateTable {
 
-	for i, fk := range sp.Fks {
+	for i, fk := range sp.ForeignKeys {
 		j := 0
-		for _, column := range fk.Columns {
-			if column == colName {
-				sp.Fks[i].Columns = utilities.RemoveFkColumn(fk.Columns, j)
+		for _, id := range fk.ColIds {
+			if id == colId {
+				sp.ForeignKeys[i].ColIds = utilities.RemoveFkColumn(fk.ColIds, j)
 			} else {
 				j = j + 1
 			}
@@ -162,22 +158,22 @@ func removeColumnFromSpannerForeignkeyColumns(sp ddl.CreateTable, colName string
 
 	// drop foreing key if the foreign key doesn't have any column left after the update.
 	i := 0
-	for _, fk := range sp.Fks {
-		if len(fk.Columns) <= 0 {
-			sp.Fks = append(sp.Fks[:i], sp.Fks[i+1:]...)
+	for _, fk := range sp.ForeignKeys {
+		if len(fk.ColIds) <= 0 {
+			sp.ForeignKeys = append(sp.ForeignKeys[:i], sp.ForeignKeys[i+1:]...)
 		}
 	}
 	return sp
 }
 
 // removeColumnFromSpannerForeignkeyReferColumns remove given column from Spanner Foreignkey Refer Columns List.
-func removeColumnFromSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName string) ddl.CreateTable {
+func removeColumnFromSpannerForeignkeyReferColumns(sp ddl.CreateTable, colId string) ddl.CreateTable {
 
-	for i, fk := range sp.Fks {
+	for i, fk := range sp.ForeignKeys {
 		j := 0
-		for _, column := range fk.ReferColumns {
-			if column == colName {
-				sp.Fks[i].ReferColumns = utilities.RemoveFkReferColumns(sp.Fks[i].ReferColumns, j)
+		for _, id := range fk.ReferColumnIds {
+			if id == colId {
+				sp.ForeignKeys[i].ReferColumnIds = utilities.RemoveFkReferColumns(sp.ForeignKeys[i].ReferColumnIds, j)
 			} else {
 				j = j + 1
 			}
@@ -185,9 +181,9 @@ func removeColumnFromSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName s
 	}
 	// drop foreign key if the foreign key doesn't have any refer-column left after the update.
 	i := 0
-	for _, fk := range sp.Fks {
-		if len(fk.ReferColumns) <= 0 {
-			sp.Fks = append(sp.Fks[:i], sp.Fks[i+1:]...)
+	for _, fk := range sp.ForeignKeys {
+		if len(fk.ReferColumnIds) <= 0 {
+			sp.ForeignKeys = append(sp.ForeignKeys[:i], sp.ForeignKeys[i+1:]...)
 		}
 	}
 	return sp

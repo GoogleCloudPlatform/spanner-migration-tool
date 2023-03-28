@@ -363,7 +363,11 @@
           </table>
         </div>
 
-        <div [formGroup]="addColumnForm" *ngIf="isEditMode" class="add-column">
+        <div
+          [formGroup]="addColumnForm"
+          *ngIf="isEditMode && srcDataSource.length != spDataSource.length"
+          class="add-column"
+        >
           <mat-form-field appearance="outline" class="column-list">
             <mat-label>Column Name</mat-label>
             <mat-select
@@ -481,7 +485,7 @@
                 <input
                   matInput
                   class="order_input"
-                  type="text"
+                  type="number"
                   [formControl]="element.get('spOrder')"
                   matTooltip="Must have a value greater than 0."
                   [matTooltipDisabled]="!element.get('spOrder')?.hasError('pattern')"
@@ -625,7 +629,6 @@
                   *ngIf="
                     !isFkEditMode &&
                     fkDataSource.length > 0 &&
-                    !interleaveParentName &&
                     currentObject!.isSpannerNode &&
                     !currentObject.isDeleted
                   "
@@ -809,7 +812,7 @@
         <span>SQL</span>
       </ng-template>
       <div class="ddl_container">
-        <pre><code>{{ddlStmts[currentObject!.name]}}</code></pre>
+        <pre><code>{{ddlStmts[currentObject!.id]}}</code></pre>
       </div>
     </mat-tab>
   </mat-tab-group>

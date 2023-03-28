@@ -60,7 +60,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 	}
 	var t updateTable
 
-	table := r.FormValue("table")
+	tableId := r.FormValue("table")
 
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
@@ -70,53 +70,52 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	sessionState := session.GetSessionState()
 
-	var Conv *internal.Conv
-	Conv = nil
-	Conv = sessionState.Conv
+	var conv *internal.Conv
+	conv = nil
+	conv = sessionState.Conv
 
-	for colName, v := range t.UpdateCols {
+	for colId, v := range t.UpdateCols {
 
 		if v.Add {
 
-			addColumn(table, colName, Conv)
+			addColumn(tableId, colId, conv)
 
 		}
 
 		if v.Removed {
 
-			removeColumn(table, colName, Conv)
+			RemoveColumn(tableId, colId, conv)
 
 		}
 
-		if v.Rename != "" && v.Rename != colName {
+		if v.Rename != "" && v.Rename != conv.SpSchema[tableId].ColDefs[colId].Name {
 
-			renameColumn(v.Rename, table, colName, Conv)
-			colName = v.Rename
+			renameColumn(v.Rename, tableId, colId, conv)
 		}
 
 		if v.ToType != "" {
 
-			typeChange, err := utilities.IsTypeChanged(v.ToType, table, colName, Conv)
+			typeChange, err := utilities.IsTypeChanged(v.ToType, tableId, colId, conv)
 
 			if err != nil {
-
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
 			if typeChange {
 
-				UpdateColumnType(v.ToType, table, colName, Conv, w)
+				UpdateColumnType(v.ToType, tableId, colId, conv, w)
 
 			}
 		}
 
 		if v.NotNull != "" {
-			UpdateNotNull(v.NotNull, table, colName, Conv)
+			UpdateNotNull(v.NotNull, tableId, colId, conv)
 		}
 	}
 
-	sessionState.Conv = Conv
+	delete(conv.SpSchema[tableId].ColDefs, "")
+	sessionState.Conv = conv
 
 	session.UpdateSessionFile()
 

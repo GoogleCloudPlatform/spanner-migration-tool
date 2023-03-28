@@ -273,6 +273,10 @@ func TestIntegration_MySQLDUMP_SchemaSubcommand(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	dbName := "test-schema-subcommand"
+
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	defer dropDatabase(t, dbURI)
+
 	dumpFilePath := "../../test_data/mysqldump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 	sessionFile := fmt.Sprintf("%ssession.json", filePrefix)
@@ -301,10 +305,9 @@ func TestIntegration_MySQLDUMP_DataSubcommand(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 	sessionFile := fmt.Sprintf("%ssession.json", filePrefix)
 	runSchemaSubcommand(t, dbName, filePrefix, sessionFile, dumpFilePath)
-
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	runDataSubcommand(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
 	defer dropDatabase(t, dbURI)
+	runDataSubcommand(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
 	checkResults(t, dbURI, false)
 }
 

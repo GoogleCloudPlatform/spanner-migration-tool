@@ -65,6 +65,16 @@ func TestProcessSchemaOracle(t *testing.T) {
 			},
 		},
 		{
+			query: "SELECT (.+) FROM all_tab_columns (.+)",
+			args:  []driver.Value{},
+			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode", "element_type", "element_length", "element_precision", "element_scale"},
+			rows: [][]driver.Value{
+				{"USER_ID", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
+				{"NAME", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
+				{"REF", "NUMBER", "Y", nil, nil, nil, nil, nil, nil, nil, nil, nil}},
+		},
+		// db call to fetch index happens after fetching of column
+		{
 			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
 			args:  []driver.Value{},
 			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
@@ -76,15 +86,6 @@ func TestProcessSchemaOracle(t *testing.T) {
 				{"INDEX_TEST_2", "SYS_NC00007$", 1, "DESC", "NONUNIQUE", "\"NAME\"", "FUNCTION-BASED NORMAL"},
 				{"INDEX_TEST_2", "SYS_NC00009$", 2, "DESC", "NONUNIQUE", "\"USER_ID\"", "FUNCTION-BASED NORMAL"},
 			},
-		},
-		{
-			query: "SELECT (.+) FROM all_tab_columns (.+)",
-			args:  []driver.Value{},
-			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode", "element_type", "element_length", "element_precision", "element_scale"},
-			rows: [][]driver.Value{
-				{"USER_ID", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
-				{"NAME", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
-				{"REF", "NUMBER", "Y", nil, nil, nil, nil, nil, nil, nil, nil, nil}},
 		},
 
 		// test table
@@ -102,17 +103,18 @@ func TestProcessSchemaOracle(t *testing.T) {
 			rows:  [][]driver.Value{},
 		},
 		{
-			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
-			args:  []driver.Value{},
-			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
-			rows:  [][]driver.Value{},
-		},
-		{
 			query: "SELECT (.+) FROM all_tab_columns (.+)",
 			args:  []driver.Value{},
 			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode", "element_type", "element_length", "element_precision", "element_scale"},
 			rows: [][]driver.Value{
 				{"ID", "NUMBER", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil}},
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
+			args:  []driver.Value{},
+			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
+			rows:  [][]driver.Value{},
 		},
 
 		// test2 table [json column test]
@@ -130,12 +132,7 @@ func TestProcessSchemaOracle(t *testing.T) {
 			cols:  []string{"ref_table", "column_name", "ref_column_name", "name"},
 			rows:  [][]driver.Value{},
 		},
-		{
-			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
-			args:  []driver.Value{},
-			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
-			rows:  [][]driver.Value{},
-		},
+
 		{
 			query: "SELECT (.+) FROM all_tab_columns (.+)",
 			args:  []driver.Value{},
@@ -149,7 +146,15 @@ func TestProcessSchemaOracle(t *testing.T) {
 				{"ARRAY_STRING", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "VARCHAR2", 15, nil, nil},
 				{"ARRAY_DATE", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "DATE", nil, nil, nil},
 				{"ARRAY_INT", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "NUMBER", nil, 10, 0},
-				{"OBJECT", "CONTACTS", "N", nil, nil, nil, nil, "OBJECT", nil, nil, nil, nil}}},
+				{"OBJECT", "CONTACTS", "N", nil, nil, nil, nil, "OBJECT", nil, nil, nil, nil}},
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
+			args:  []driver.Value{},
+			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
+			rows:  [][]driver.Value{},
+		},
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
@@ -157,33 +162,33 @@ func TestProcessSchemaOracle(t *testing.T) {
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"USER": {
-			Name:     "USER",
-			ColNames: []string{"USER_ID", "NAME", "REF"},
-			ColDefs:  map[string]ddl.ColumnDef{"USER_ID": {Name: "USER_ID", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}, NotNull: true}, "NAME": {Name: "NAME", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}, NotNull: true}, "REF": {Name: "REF", T: ddl.Type{Name: ddl.Numeric}}},
-			Pks:      []ddl.IndexKey{{Col: "USER_ID"}},
-			Fks:      []ddl.Foreignkey{{Name: "fk_test", Columns: []string{"REF"}, ReferTable: "TEST", ReferColumns: []string{"ID"}}},
+			Name:        "USER",
+			ColIds:      []string{"USER_ID", "NAME", "REF"},
+			ColDefs:     map[string]ddl.ColumnDef{"USER_ID": {Name: "USER_ID", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}, NotNull: true}, "NAME": {Name: "NAME", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}, NotNull: true}, "REF": {Name: "REF", T: ddl.Type{Name: ddl.Numeric}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "USER_ID", Order: 1}},
+			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"REF"}, ReferTableId: "TEST", ReferColumnIds: []string{"ID"}}},
 			Indexes: []ddl.CreateIndex{{
-				Name:   "INDEX1_LAST",
-				Table:  "USER",
-				Unique: false,
-				Keys:   []ddl.IndexKey{{Col: "NAME", Desc: true}},
+				Name:    "INDEX1_LAST",
+				TableId: "USER",
+				Unique:  false,
+				Keys:    []ddl.IndexKey{{ColId: "NAME", Desc: true, Order: 1}},
 			}, {
-				Name:   "INDEX_TEST_2",
-				Table:  "USER",
-				Unique: false,
-				Keys:   []ddl.IndexKey{{Col: "NAME", Desc: true}, {Col: "USER_ID", Desc: true}},
+				Name:    "INDEX_TEST_2",
+				TableId: "USER",
+				Unique:  false,
+				Keys:    []ddl.IndexKey{{ColId: "NAME", Desc: true, Order: 1}, {ColId: "USER_ID", Desc: true, Order: 2}},
 			}},
 		},
 		"TEST": {
-			Name:     "TEST",
-			ColNames: []string{"ID"},
+			Name:   "TEST",
+			ColIds: []string{"ID"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"ID": {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true}},
-			Pks: []ddl.IndexKey{{Col: "ID"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "ID", Order: 1}},
 		},
 		"TEST2": {
-			Name:     "TEST2",
-			ColNames: []string{"ID", "JSON", "REALJSON", "ARRAY_NUM", "ARRAY_FLOAT", "ARRAY_STRING", "ARRAY_DATE", "ARRAY_INT", "OBJECT"},
+			Name:   "TEST2",
+			ColIds: []string{"ID", "JSON", "REALJSON", "ARRAY_NUM", "ARRAY_FLOAT", "ARRAY_STRING", "ARRAY_DATE", "ARRAY_INT", "OBJECT"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"ID":           {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
 				"JSON":         {Name: "JSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
@@ -195,13 +200,20 @@ func TestProcessSchemaOracle(t *testing.T) {
 				"ARRAY_INT":    {Name: "ARRAY_INT", T: ddl.Type{Name: ddl.Int64, IsArray: true}, NotNull: true},
 				"OBJECT":       {Name: "OBJECT", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
 			},
-			Pks: []ddl.IndexKey{{Col: "ID"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "ID", Order: 1}},
 		},
 	}
-	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	assert.Equal(t, len(conv.Issues["USER"]), 0)
-	assert.Equal(t, len(conv.Issues["TEST"]), 0)
-	assert.Equal(t, len(conv.Issues["TEST2"]), 0)
+	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
+	userTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "USER")
+	assert.Equal(t, nil, err)
+	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "TEST")
+	assert.Equal(t, nil, err)
+	test2TableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "TEST2")
+	assert.Equal(t, nil, err)
+
+	assert.Equal(t, len(conv.SchemaIssues[userTableId]), 0)
+	assert.Equal(t, len(conv.SchemaIssues[testTableId]), 0)
+	assert.Equal(t, len(conv.SchemaIssues[test2TableId]), 0)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 

@@ -66,6 +66,8 @@ const (
 	// Scheme used for GCS paths
 	GCS_SCHEME string = "gs"
 
+	// File upload prefix for dump and session load.
+	UPLOAD_FILE_DIR string = "upload-file"
 	// Rule types
 	GlobalDataTypeChange = "global_datatype_change"
 	AddIndex             = "add_index"

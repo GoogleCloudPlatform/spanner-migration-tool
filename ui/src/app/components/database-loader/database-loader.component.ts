@@ -1,4 +1,6 @@
 import { Component, Input, OnInit } from '@angular/core'
+import { Router } from '@angular/router'
+import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 
 @Component({
   selector: 'app-database-loader',
@@ -13,12 +15,17 @@ export class DatabaseLoaderComponent implements OnInit {
     this.timeElapsed += 1
   }, 1000)
 
-  constructor() {}
+  constructor(private router: Router, private clickEvent: ClickEventService) {}
 
   ngOnInit(): void {
     this.timeElapsed = 0
   }
   ngOnDestroy(): void {
     clearInterval(this.timeElapsedInterval)
+  }
+  cancelDbLoad() {
+    this.clickEvent.cancelDbLoading()
+    this.clickEvent.closeDatabaseLoader()
+    this.router.navigate(['/'])
   }
 }

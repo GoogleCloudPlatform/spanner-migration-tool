@@ -38,8 +38,8 @@ type InfoSchema interface {
 	GetRowCount(table SchemaAndName) (int64, error)
 	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, map[string][]string, error)
 	GetForeignKeys(conv *internal.Conv, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
-	GetIndexes(conv *internal.Conv, table SchemaAndName) ([]schema.Index, error)
-	ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error
+	GetIndexes(conv *internal.Conv, table SchemaAndName, colNameIdMp map[string]string) ([]schema.Index, error)
+	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable) error
 	StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error)
 	StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamInfo map[string]interface{}) error
 }
@@ -61,8 +61,18 @@ type FkConstraint struct {
 // ProcessSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-// numWorkers decides the parallelism while converting tables
 func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) error {
+
+	GenerateSrcSchema(conv, infoSchema, numWorkers)
+	initPrimaryKeyOrder(conv)
+	initIndexOrder(conv)
+	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
+	conv.AddPrimaryKeys()
+	fmt.Println("loaded schema")
+	return nil
+}
+
+func GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) error {
 	tables, err := infoSchema.GetTables()
 	fmt.Println("fetched tables", tables)
 	if err != nil {
@@ -76,7 +86,7 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) e
 	asyncProcessTable := func(t SchemaAndName, mutex *sync.Mutex) TaskResult[SchemaAndName] {
 		table, e := processTable(conv, t, infoSchema)
 		mutex.Lock()
-		conv.SrcSchema[table.Name] = table
+		conv.SrcSchema[table.Id] = table
 		mutex.Unlock()
 		res := TaskResult[SchemaAndName]{t, e}
 		return res
@@ -87,10 +97,7 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) e
 		fmt.Printf("exiting due to error: %s , while processing schema for table %s\n", e, res)
 		return e
 	}
-
-	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
-	conv.AddPrimaryKeys()
-	fmt.Println("loaded schema")
+	internal.ResolveForeignKeyIds(conv.SrcSchema)
 	return nil
 }
 
@@ -102,21 +109,20 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) e
 func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
 	// Tables are ordered in alphabetical order with one exception: interleaved
 	// tables appear after the population of their parent table.
-	orderTableNames := ddl.OrderTables(conv.SpSchema)
+	tableIds := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
 
-	for _, spannerTable := range orderTableNames {
-		srcTable, _ := internal.GetSourceTable(conv, spannerTable)
-		srcSchema := conv.SrcSchema[srcTable]
-		spTable, err1 := internal.GetSpannerTable(conv, srcTable)
-		spCols, err2 := internal.GetSpannerCols(conv, srcTable, srcSchema.ColNames)
-		spSchema, ok := conv.SpSchema[spTable]
-		if err1 != nil || err2 != nil || !ok {
-			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
-			conv.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: err1=%s, err2=%s, ok=%t",
-				srcTable, err1, err2, ok))
+	for _, tableId := range tableIds {
+		srcSchema := conv.SrcSchema[tableId]
+		spSchema, ok := conv.SpSchema[tableId]
+		if !ok {
+			conv.Stats.BadRows[srcSchema.Name] += conv.Stats.Rows[srcSchema.Name]
+			conv.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s:ok=%t",
+				srcSchema.Name, ok))
 			continue
 		}
-		err := infoSchema.ProcessData(conv, srcTable, srcSchema, spTable, spCols, spSchema)
+		// Extract spColds without synthetic primary key columnn id.
+		colIds := RemoveSynthId(conv, tableId, spSchema.ColIds)
+		err := infoSchema.ProcessData(conv, tableId, srcSchema, colIds, spSchema)
 		if err != nil {
 			return
 		}
@@ -147,6 +153,7 @@ func SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
 func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error) {
 	var t schema.Table
 	fmt.Println("processing schema for table", table)
+	tblId := internal.GenerateTableId()
 	primaryKeys, constraints, err := infoSchema.GetConstraints(conv, table)
 	if err != nil {
 		return t, fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)
@@ -155,26 +162,35 @@ func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchem
 	if err != nil {
 		return t, fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
-	indexes, err := infoSchema.GetIndexes(conv, table)
-	if err != nil {
-		return t, fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.Schema, table.Name, err)
-	}
-	colDefs, colNames, err := infoSchema.GetColumns(conv, table, constraints, primaryKeys)
+
+	colDefs, colIds, err := infoSchema.GetColumns(conv, table, constraints, primaryKeys)
 	if err != nil {
 		return t, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
 	}
+	colNameIdMap := make(map[string]string)
+	for k, v := range colDefs {
+		colNameIdMap[v.Name] = k
+	}
+
+	indexes, err := infoSchema.GetIndexes(conv, table, colNameIdMap)
+	if err != nil {
+		return t, fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.Schema, table.Name, err)
+	}
+
 	name := infoSchema.GetTableName(table.Schema, table.Name)
 	var schemaPKeys []schema.Key
 	for _, k := range primaryKeys {
-		schemaPKeys = append(schemaPKeys, schema.Key{Column: k})
+		schemaPKeys = append(schemaPKeys, schema.Key{ColId: colNameIdMap[k]})
 	}
 	t = schema.Table{
-		Name:        name,
-		Schema:      table.Schema,
-		ColNames:    colNames,
-		ColDefs:     colDefs,
-		PrimaryKeys: schemaPKeys,
-		Indexes:     indexes,
-		ForeignKeys: foreignKeys}
+		Id:           tblId,
+		Name:         name,
+		Schema:       table.Schema,
+		ColIds:       colIds,
+		ColNameIdMap: colNameIdMap,
+		ColDefs:      colDefs,
+		PrimaryKeys:  schemaPKeys,
+		Indexes:      indexes,
+		ForeignKeys:  foreignKeys}
 	return t, nil
 }
