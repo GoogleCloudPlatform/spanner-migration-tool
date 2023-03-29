@@ -17,6 +17,7 @@ package profiles
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
@@ -53,33 +54,8 @@ type TargetProfileConnection struct {
 }
 
 type TargetProfile struct {
-	TargetDb string
-	Ty       TargetProfileType
-	Conn     TargetProfileConnection
-}
-
-// ToLegacyTargetDb converts source-profile to equivalent legacy global flag
-// -target-db etc since the rest of the codebase still uses the same.
-// TODO: Deprecate this function and pass around TargetProfile across the
-// codebase wherever information about target connection is required.
-func (trg TargetProfile) ToLegacyTargetDb() string {
-	switch trg.Ty {
-	case TargetProfileTypeConnection:
-		{
-			conn := trg.Conn
-			switch conn.Ty {
-			case TargetProfileConnectionTypeSpanner:
-				{
-					sp := conn.Sp
-					return utils.DialectToTarget(sp.Dialect)
-				}
-			default:
-				return constants.TargetSpanner
-			}
-		}
-	default:
-		return constants.TargetSpanner
-	}
+	Ty   TargetProfileType
+	Conn TargetProfileConnection
 }
 
 // This expects that GetResourceIds has already been called once and the project, instance and dbName
@@ -94,7 +70,7 @@ func (trg TargetProfile) FetchTargetDialect(ctx context.Context) (string, error)
 	if err != nil {
 		return "", fmt.Errorf("cannot connect to target: %v", err)
 	}
-	return result.DatabaseDialect.String(), nil
+	return strings.ToLower(result.DatabaseDialect.String()), nil
 }
 
 func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time.Time, driverName string, out *os.File) (string, string, string, error) {
@@ -166,7 +142,12 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 		sp.Dbname = dbName
 	}
 	if dialect, ok := params["dialect"]; ok {
-		sp.Dialect = dialect
+		sp.Dialect = strings.ToLower(dialect)
+	}
+	if sp.Dialect == "" {
+		sp.Dialect = constants.DIALECT_GOOGLESQL
+	} else if sp.Dialect != constants.DIALECT_POSTGRESQL && sp.Dialect != constants.DIALECT_GOOGLESQL {
+		return TargetProfile{}, fmt.Errorf("dialect not supported %v", sp.Dialect)
 	}
 
 	conn := TargetProfileConnection{Ty: TargetProfileConnectionTypeSpanner, Sp: sp}

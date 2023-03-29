@@ -160,9 +160,11 @@ func TestConvertData(t *testing.T) {
 	tableName := "testtable"
 	for _, tc := range singleColTests {
 		col := "a"
+		colId := "c1"
 		conv := buildConv([]ddl.CreateTable{{
 			Name:    tableName,
-			ColDefs: map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.ty}}}})
+			Id:      "t1",
+			ColDefs: map[string]ddl.ColumnDef{colId: ddl.ColumnDef{Name: col, Id: colId, T: tc.ty}}}})
 		_, av, err := convertData(conv, "", tableName, []string{col}, []string{tc.in})
 		// NULL scenario.
 		if tc.ev == nil {
@@ -210,27 +212,29 @@ func TestConvertData(t *testing.T) {
 func getCreateTable() []ddl.CreateTable {
 	return []ddl.CreateTable{
 		{
-			Name:     ALL_TYPES_TABLE,
-			ColNames: []string{"bool_col", "byte_col", "date_col", "float_col", "int_col", "numeric_col", "string_col", "timestamp_col", "json_col"},
+			Name:   ALL_TYPES_TABLE,
+			Id:     "t1",
+			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"bool_col":      {Name: "bool_col", T: ddl.Type{Name: ddl.Bool}},
-				"byte_col":      {Name: "byte_col", T: ddl.Type{Name: ddl.Bytes}},
-				"date_col":      {Name: "date_col", T: ddl.Type{Name: ddl.Date}},
-				"float_col":     {Name: "float_col", T: ddl.Type{Name: ddl.Float64}},
-				"int_col":       {Name: "int_col", T: ddl.Type{Name: ddl.Int64}},
-				"numeric_col":   {Name: "numeric_col", T: ddl.Type{Name: ddl.Numeric}},
-				"string_col":    {Name: "string_col", T: ddl.Type{Name: ddl.String}},
-				"timestamp_col": {Name: "timestamp_col", T: ddl.Type{Name: ddl.Timestamp}},
-				"json_col":      {Name: "json_col", T: ddl.Type{Name: ddl.JSON}},
+				"c1": {Name: "bool_col", Id: "c1", T: ddl.Type{Name: ddl.Bool}},
+				"c2": {Name: "byte_col", Id: "c2", T: ddl.Type{Name: ddl.Bytes}},
+				"c3": {Name: "date_col", Id: "c3", T: ddl.Type{Name: ddl.Date}},
+				"c4": {Name: "float_col", Id: "c4", T: ddl.Type{Name: ddl.Float64}},
+				"c5": {Name: "int_col", Id: "c5", T: ddl.Type{Name: ddl.Int64}},
+				"c6": {Name: "numeric_col", Id: "c6", T: ddl.Type{Name: ddl.Numeric}},
+				"c7": {Name: "string_col", Id: "c7", T: ddl.Type{Name: ddl.String}},
+				"c8": {Name: "timestamp_col", Id: "c8", T: ddl.Type{Name: ddl.Timestamp}},
+				"c9": {Name: "json_col", Id: "c9", T: ddl.Type{Name: ddl.JSON}},
 			},
 		},
 		{
-			Name:     SINGERS_TABLE,
-			ColNames: []string{"SingerId", "FirstName", "LastName"},
+			Name:   SINGERS_TABLE,
+			Id:     "t2",
+			ColIds: []string{"c10", "c11", "c12"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"SingerId":  {Name: "SingerId", T: ddl.Type{Name: ddl.Int64}},
-				"FirstName": {Name: "FirstName", T: ddl.Type{Name: ddl.String}},
-				"LastName":  {Name: "LastName", T: ddl.Type{Name: ddl.String}},
+				"c10": {Name: "SingerId", Id: "c10", T: ddl.Type{Name: ddl.Int64}},
+				"c11": {Name: "FirstName", Id: "c11", T: ddl.Type{Name: ddl.String}},
+				"c12": {Name: "LastName", Id: "c12", T: ddl.Type{Name: ddl.String}},
 			},
 		},
 	}
@@ -239,7 +243,7 @@ func getCreateTable() []ddl.CreateTable {
 func buildConv(spTables []ddl.CreateTable) *internal.Conv {
 	conv := internal.MakeConv()
 	for _, spTable := range spTables {
-		conv.SpSchema[spTable.Name] = spTable
+		conv.SpSchema[spTable.Id] = spTable
 	}
 	return conv
 }

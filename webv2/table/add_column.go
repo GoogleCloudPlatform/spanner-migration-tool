@@ -20,29 +20,22 @@ import (
 )
 
 // addColumn add given column into spannerTable.
-func addColumn(table string, colName string, conv *internal.Conv) {
+func addColumn(tableId string, colId string, conv *internal.Conv) {
 
-	sp := conv.SpSchema[table]
-	src := conv.SrcSchema[table]
+	sp := conv.SpSchema[tableId]
 
-	srcColumnId := src.ColDefs[colName].Id
+	spColName, _ := internal.GetSpannerCol(conv, tableId, colId, conv.SpSchema[tableId].ColDefs)
 
-	sp.ColDefs[colName] = ddl.ColumnDef{
-		Id:   srcColumnId,
-		Name: colName,
+	sp.ColDefs[colId] = ddl.ColumnDef{
+		Id:   colId,
+		Name: spColName,
 	}
 
-	if !IsColumnPresentInColNames(sp.ColNames, colName) {
+	if !IsColumnPresentInColNames(sp.ColIds, colId) {
 
-		sp.ColNames = append(sp.ColNames, colName)
+		sp.ColIds = append(sp.ColIds, colId)
 
 	}
 
-	conv.SpSchema[table] = sp
-
-	srcTableName := conv.ToSource[table].Name
-	srcColName := src.ColDefs[colName].Name
-
-	conv.ToSpanner[srcTableName].Cols[srcColName] = colName
-	conv.ToSource[table].Cols[colName] = srcColName
+	conv.SpSchema[tableId] = sp
 }

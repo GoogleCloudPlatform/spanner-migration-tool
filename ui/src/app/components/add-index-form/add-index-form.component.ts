@@ -1,9 +1,10 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core'
 import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms'
 import IConv, { ICreateIndex } from 'src/app/model/conv'
-import { IRule } from 'src/app/model/rule'
+import IRule from 'src/app/model/rule'
 import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
+import { ConversionService } from 'src/app/services/conversion/conversion.service'
 
 @Component({
   selector: 'app-add-index-form',
@@ -20,11 +21,16 @@ export class AddIndexFormComponent implements OnInit {
   totalColumns: string[] = []
   addColumnsList: string[][] = []
   commonColumns: string[] = []
-  viewRuleData: any = []
+  viewRuleData: IRule = {}
   viewRuleFlag: boolean = false
   conv: IConv = {} as IConv
-  ruleId: string = ''
-  constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService) {
+  ruleId: any = ''
+  constructor(
+    private fb: FormBuilder,
+    private data: DataService,
+    private sidenav: SidenavService,
+    private conversion: ConversionService
+  ) {
     this.addIndexForm = this.fb.group({
       tableName: ['', Validators.required],
       indexName: ['', [Validators.required, Validators.pattern('^[a-zA-Z].{0,59}$')]],
@@ -36,7 +42,9 @@ export class AddIndexFormComponent implements OnInit {
     this.data.conv.subscribe({
       next: (res: IConv) => {
         this.conv = res
-        this.tableNames = Object.keys(res.SpSchema)
+        this.tableNames = Object.keys(res.SpSchema).map(
+          (talbeId: string) => res.SpSchema[talbeId].Name
+        )
       },
     })
     this.sidenav.sidenavAddIndexTable.subscribe({
@@ -46,31 +54,46 @@ export class AddIndexFormComponent implements OnInit {
       },
     })
 
-    this.sidenav.passRules.subscribe(([data, flag]: any) => {
-      this.viewRuleData = data
+    this.sidenav.displayRuleFlag.subscribe((flag: boolean) => {
       this.viewRuleFlag = flag
-
       if (this.viewRuleFlag) {
-        this.ruleId = this.viewRuleData?.Id
-        this.addIndexForm.controls['tableName'].setValue(this.viewRuleData?.Data?.Table)
-        this.addIndexForm.controls['indexName'].setValue(this.viewRuleData?.Data?.Name)
-        this.selectedTableChange(this.viewRuleData?.Data?.Table)
-        this.setColArraysForViewRules(this.viewRuleData?.Data?.Keys)
-        this.addIndexForm.disable()
+        this.sidenav.ruleData.subscribe((data: IRule) => {
+          this.viewRuleData = data
+          if (this.viewRuleData && this.viewRuleFlag) {
+            this.getRuleData(this.viewRuleData)
+          }
+        })
       }
     })
   }
 
-  setColArraysForViewRules(data: any) {
+  getRuleData(data: IRule) {
+    this.ruleId = data?.Id
+    let tableName: string = this.conv.SpSchema[data?.Data?.TableId]?.Name
+    this.addIndexForm.controls['tableName'].setValue(tableName)
+    this.addIndexForm.controls['indexName'].setValue(data?.Data?.Name)
+    this.selectedTableChange(tableName)
+    this.setColArraysForViewRules(data?.Data?.TableId, data?.Data?.Keys)
+    this.addIndexForm.disable()
+  }
+
+  setColArraysForViewRules(tableId: string, data: any) {
     this.ColsArray.clear()
-    for (let i = 0; i < data.length; i++) {
+    if (!data) {
+      return
+    }
+    for (let i = 0; i < data?.length; i++) {
+      this.updateCommonColumns()
+      this.addColumnsList.push([...this.commonColumns])
+
+      let columnName: string = this.conv.SpSchema[tableId]?.ColDefs[data[i].ColId].Name
+
       let newForm = this.fb.group({
-        columnName: [data[i].Col, Validators.required],
+        columnName: [columnName, Validators.required],
         sort: [data[i].Desc.toString(), Validators.required],
       })
-      this.updateCommonColumns()
+
       this.ColsArray.push(newForm)
-      this.addColumnsList.push([...this.commonColumns])
     }
   }
 
@@ -79,7 +102,13 @@ export class AddIndexFormComponent implements OnInit {
   }
 
   selectedTableChange(tableName: string) {
-    this.totalColumns = this.conv.SpSchema[tableName].ColNames
+    let tableId = this.conversion.getTableIdFromSpName(tableName, this.conv)
+    if (tableId) {
+      let spTableData = this.conv.SpSchema[tableId]
+      this.totalColumns = this.conv.SpSchema[tableId].ColIds.map(
+        (colId: string) => spTableData.ColDefs[colId].Name
+      )
+    }
     this.ColsArray.clear()
     this.commonColumns = []
     this.addColumnsList = []
@@ -127,14 +156,21 @@ export class AddIndexFormComponent implements OnInit {
   addIndex() {
     let idxData = this.addIndexForm.value
     let payload: ICreateIndex[] = []
+    let tableId = this.conversion.getTableIdFromSpName(idxData.tableName, this.conv)
     payload.push({
       Name: idxData.indexName,
-      Table: idxData.tableName,
+      TableId: tableId,
       Unique: false,
-      Keys: idxData.ColsArray.map((col: any) => {
+      Keys: idxData.ColsArray.map((col: any, i: number) => {
+        let colId: string = this.conversion.getColIdFromSpannerColName(
+          col.columnName,
+          tableId,
+          this.conv
+        )
         return {
-          Col: col.columnName,
+          ColId: colId,
           Desc: col.sort === 'true',
+          Order: i + 1,
         }
       }),
       Id: '',
@@ -148,13 +184,15 @@ export class AddIndexFormComponent implements OnInit {
 
   applyRule(data: ICreateIndex) {
     let idxData = this.addIndexForm.value
+    let tableId: string = this.conversion.getTableIdFromSpName(idxData.tableName, this.conv)
     let payload: IRule = {
-      name: this.ruleName,
-      type: 'add_index',
-      objectType: 'Table',
-      associatedObjects: idxData.tableName,
-      enabled: true,
-      data: data,
+      Name: this.ruleName,
+      Type: 'add_index',
+      ObjectType: 'Table',
+      AssociatedObjects: tableId,
+      Enabled: true,
+      Data: data,
+      Id: '',
     }
     this.data.applyRule(payload)
   }

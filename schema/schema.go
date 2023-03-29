@@ -33,14 +33,15 @@ import (
 
 // Table represents a database table.
 type Table struct {
-	Name        string
-	Schema      string
-	ColNames    []string          // List of column names (for predictable iteration order e.g. printing).
-	ColDefs     map[string]Column // Details of columns.
-	PrimaryKeys []Key
-	ForeignKeys []ForeignKey
-	Indexes     []Index
-	Id          string
+	Name         string
+	Schema       string
+	ColIds       []string          // List of column Ids (for predictable iteration order e.g. printing).
+	ColDefs      map[string]Column // Details of columns.
+	ColNameIdMap map[string]string `json:"-"` // Computed every time just after conv is generated or after any column renaming
+	PrimaryKeys  []Key
+	ForeignKeys  []ForeignKey
+	Indexes      []Index
+	Id           string
 }
 
 // Column represents a database column.
@@ -60,20 +61,23 @@ type Column struct {
 // CASCADE, SET NULL, NO ACTION, and SET DEFAULT
 // (see https://dev.mysql.com/doc/refman/5.6/en/create-table-foreign-keys.html).
 type ForeignKey struct {
-	Name         string
-	Columns      []string
-	ReferTable   string
-	ReferColumns []string // len(ReferColumns) must be same as len(Columns)
-	OnDelete     string
-	OnUpdate     string
-	Id           string
+	Name             string
+	ColIds           []string
+	ColumnNames      []string `json:"-"`
+	ReferTableId     string
+	ReferTableName   string   `json:"-"`
+	ReferColumnIds   []string // len(ReferColumnIds) must be same as len(ColIds)
+	ReferColumnNames []string `json:"-"`
+	OnDelete         string
+	OnUpdate         string
+	Id               string
 }
 
 // Key respresents a primary key or index key.
 type Key struct {
-	Column string
-	Desc   bool // By default, order is ASC. Set to true to specifiy DESC.
-	Order  int
+	ColId string
+	Desc  bool // By default, order is ASC. Set to true to specifiy DESC.
+	Order int
 }
 
 // Index represents a database index.
@@ -89,11 +93,11 @@ type Key struct {
 // to handle lots of cases for the same concept. Our choice of an index representation for unique is largely
 // motivated by the fact that databases typically implement UNIQUE via an index.
 type Index struct {
-	Name          string
-	Unique        bool
-	Keys          []Key
-	Id            string
-	StoredColumns []string
+	Name            string
+	Unique          bool
+	Keys            []Key
+	Id              string
+	StoredColumnIds []string
 }
 
 // Type represents the type of a column.

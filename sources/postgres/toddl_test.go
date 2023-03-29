@@ -32,69 +32,75 @@ func TestToSpannerType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
 	name := "test"
+	tableId := "t1"
 	srcSchema := schema.Table{
-		Name:     name,
-		ColNames: []string{"a", "b", "c", "d", "e", "f"},
+		Name:   name,
+		Id:     tableId,
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6"},
 		ColDefs: map[string]schema.Column{
-			"a": schema.Column{Name: "a", Type: schema.Type{Name: "int8"}},
-			"b": schema.Column{Name: "b", Type: schema.Type{Name: "float4"}},
-			"c": schema.Column{Name: "c", Type: schema.Type{Name: "bool"}},
-			"d": schema.Column{Name: "d", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-			"e": schema.Column{Name: "e", Type: schema.Type{Name: "numeric"}},
-			"f": schema.Column{Name: "f", Type: schema.Type{Name: "timestamptz"}},
+			"c1": schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "int8"}},
+			"c2": schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "float4"}},
+			"c3": schema.Column{Name: "c", Id: "c3", Type: schema.Type{Name: "bool"}},
+			"c4": schema.Column{Name: "d", Id: "c4", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+			"c5": schema.Column{Name: "e", Id: "c5", Type: schema.Type{Name: "numeric"}},
+			"c6": schema.Column{Name: "f", Id: "c6", Type: schema.Type{Name: "timestamptz"}},
 		},
-		PrimaryKeys: []schema.Key{schema.Key{Column: "a"}},
-		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},
-			schema.ForeignKey{Name: "fk_test2", Columns: []string{"a"}, ReferTable: "ref_table2", ReferColumns: []string{"aRef"}}},
-		Indexes: []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{Column: "a", Desc: false}, schema.Key{Column: "d", Desc: true}}},
-			schema.Index{Name: "index2", Unique: false, Keys: []schema.Key{schema.Key{Column: "d", Desc: true}}}},
+		PrimaryKeys: []schema.Key{schema.Key{ColId: "c1"}},
+		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}},
+			schema.ForeignKey{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c10"}}},
+		Indexes: []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{ColId: "c1", Desc: false}, schema.Key{ColId: "c4", Desc: true}}},
+			schema.Index{Name: "index2", Unique: false, Keys: []schema.Key{schema.Key{ColId: "c4", Desc: true}}}},
 	}
-	conv.SrcSchema[name] = srcSchema
-	conv.SpSchema["ref_table"] = ddl.CreateTable{
-		Name:     "ref_table",
-		ColNames: []string{"dref", "b", "c"},
-		ColDefs: map[string]ddl.ColumnDef{
-			"dref": ddl.ColumnDef{Name: "dref", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-			"b":    ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c":    ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
+	conv.SrcSchema[tableId] = srcSchema
+	conv.SrcSchema["t2"] = schema.Table{
+		Name:   "ref_table",
+		Id:     "t2",
+		ColIds: []string{"c7", "c8", "c9"},
+		ColDefs: map[string]schema.Column{
+			"c7": {Name: "dref", Id: "c7", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+			"c8": {Name: "b", Id: "c8", Type: schema.Type{Name: "float4"}},
+			"c9": {Name: "c", Id: "c9", Type: schema.Type{Name: "bool"}},
 		},
-		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "dref"}},
+		PrimaryKeys: []schema.Key{{ColId: "c7"}},
 	}
-	conv.SpSchema["ref_table2"] = ddl.CreateTable{
-		Name:     "ref_table2",
-		ColNames: []string{"aref", "b", "c"},
-		ColDefs: map[string]ddl.ColumnDef{
-			"aref": ddl.ColumnDef{Name: "aref", T: ddl.Type{Name: ddl.Int64}},
-			"b":    ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c":    ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
+	conv.SrcSchema["t3"] = schema.Table{
+		Name:   "ref_table2",
+		Id:     "t3",
+		ColIds: []string{"c10", "c11", "c12"},
+		ColDefs: map[string]schema.Column{
+			"c10": {Name: "aref", Id: "c10", Type: schema.Type{Name: "int8"}},
+			"c11": {Name: "b", Id: "c11", Type: schema.Type{Name: "float4"}},
+			"c12": {Name: "c", Id: "c12", Type: schema.Type{Name: "bool"}},
 		},
-		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "aref"}},
+		PrimaryKeys: []schema.Key{{ColId: "c10"}},
 	}
+	conv.UsedNames = map[string]bool{"ref_table": true, "ref_table2": true}
 	assert.Nil(t, common.SchemaToSpannerDDL(conv, ToDdlImpl{}))
-	actual := conv.SpSchema[name]
+	actual := conv.SpSchema[tableId]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
-		Name:     name,
-		ColNames: []string{"a", "b", "c", "d", "e", "f"},
+		Name:   name,
+		Id:     tableId,
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
-			"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
-			"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
+			"c1": ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+			"c2": ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
+			"c3": ddl.ColumnDef{Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bool}},
+			"c4": ddl.ColumnDef{Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
+			"c5": ddl.ColumnDef{Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Numeric}},
+			"c6": ddl.ColumnDef{Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Timestamp}},
 		},
-		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},
-			ddl.Foreignkey{Name: "fk_test2", Columns: []string{"a"}, ReferTable: "ref_table2", ReferColumns: []string{"aref"}}},
-		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Table: name, Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "d", Desc: true}}},
-			ddl.CreateIndex{Name: "index2", Table: name, Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "d", Desc: true}}}},
+		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1"}},
+		ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}},
+			ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c10"}}},
+		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", TableId: tableId, Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1", Desc: false}, ddl.IndexKey{ColId: "c4", Desc: true}}},
+			ddl.CreateIndex{Name: "index2", TableId: tableId, Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c4", Desc: true}}}},
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"b": []internal.SchemaIssue{internal.Widened},
+		"c2": []internal.SchemaIssue{internal.Widened},
 	}
-	assert.Equal(t, expectedIssues, conv.Issues[name])
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
 }
 
 // This is just a very basic smoke-test for toExperimentalSpannerType.
@@ -103,78 +109,84 @@ func TestToSpannerType(t *testing.T) {
 func TestToExperimentalSpannerType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
-	conv.TargetDb = constants.TargetExperimentalPostgres
+	conv.SpDialect = constants.DIALECT_POSTGRESQL
 	name := "test"
+	tableId := "t1"
 	srcSchema := schema.Table{
-		Name:     name,
-		ColNames: []string{"a", "b", "c", "d", "e", "f", "g"},
+		Name:   name,
+		Id:     tableId,
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7"},
 		ColDefs: map[string]schema.Column{
-			"a": schema.Column{Name: "a", Type: schema.Type{Name: "int8"}},
-			"b": schema.Column{Name: "b", Type: schema.Type{Name: "float4"}},
-			"c": schema.Column{Name: "c", Type: schema.Type{Name: "bool"}},
-			"d": schema.Column{Name: "d", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-			"e": schema.Column{Name: "e", Type: schema.Type{Name: "numeric"}},
-			"f": schema.Column{Name: "f", Type: schema.Type{Name: "date"}},
-			"g": schema.Column{Name: "g", Type: schema.Type{Name: "json"}},
+			"c1": schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "int8"}},
+			"c2": schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "float4"}},
+			"c3": schema.Column{Name: "c", Id: "c3", Type: schema.Type{Name: "bool"}},
+			"c4": schema.Column{Name: "d", Id: "c4", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+			"c5": schema.Column{Name: "e", Id: "c5", Type: schema.Type{Name: "numeric"}},
+			"c6": schema.Column{Name: "f", Id: "c6", Type: schema.Type{Name: "date"}},
+			"c7": schema.Column{Name: "g", Id: "c7", Type: schema.Type{Name: "json"}},
 		},
-		PrimaryKeys: []schema.Key{schema.Key{Column: "a"}},
-		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},
-			schema.ForeignKey{Name: "fk_test2", Columns: []string{"a"}, ReferTable: "ref_table2", ReferColumns: []string{"aRef"}}},
-		Indexes: []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{Column: "a", Desc: false}, schema.Key{Column: "d", Desc: true}}},
-			schema.Index{Name: "index2", Unique: false, Keys: []schema.Key{schema.Key{Column: "d", Desc: true}}}},
+		PrimaryKeys: []schema.Key{schema.Key{ColId: "c1"}},
+		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}},
+			schema.ForeignKey{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c10"}}},
+		Indexes: []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{ColId: "c1", Desc: false}, schema.Key{ColId: "c4", Desc: true}}},
+			schema.Index{Name: "index2", Unique: false, Keys: []schema.Key{schema.Key{ColId: "c4", Desc: true}}}},
 	}
-	conv.SrcSchema[name] = srcSchema
-	conv.SpSchema["ref_table"] = ddl.CreateTable{
-		Name:     "ref_table",
-		ColNames: []string{"dref", "b", "c"},
-		ColDefs: map[string]ddl.ColumnDef{
-			"dref": ddl.ColumnDef{Name: "dref", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-			"b":    ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c":    ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
+	conv.SrcSchema[tableId] = srcSchema
+	conv.SrcSchema["t2"] = schema.Table{
+		Name:   "ref_table",
+		Id:     "t2",
+		ColIds: []string{"c7", "c8", "c9"},
+		ColDefs: map[string]schema.Column{
+			"c7": {Name: "dref", Id: "c7", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+			"c8": {Name: "b", Id: "c8", Type: schema.Type{Name: "float4"}},
+			"c9": {Name: "c", Id: "c9", Type: schema.Type{Name: "bool"}},
 		},
-		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "dref"}},
+		PrimaryKeys: []schema.Key{{ColId: "c7"}},
 	}
-	conv.SpSchema["ref_table2"] = ddl.CreateTable{
-		Name:     "ref_table2",
-		ColNames: []string{"aref", "b", "c"},
-		ColDefs: map[string]ddl.ColumnDef{
-			"aref": ddl.ColumnDef{Name: "aref", T: ddl.Type{Name: ddl.Int64}},
-			"b":    ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c":    ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
+	conv.SrcSchema["t3"] = schema.Table{
+		Name:   "ref_table2",
+		Id:     "t3",
+		ColIds: []string{"c10", "c11", "c12"},
+		ColDefs: map[string]schema.Column{
+			"c10": {Name: "aref", Id: "c10", Type: schema.Type{Name: "int8"}},
+			"c11": {Name: "b", Id: "c11", Type: schema.Type{Name: "float4"}},
+			"c12": {Name: "c", Id: "c12", Type: schema.Type{Name: "bool"}},
 		},
-		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "aref"}},
+		PrimaryKeys: []schema.Key{{ColId: "c10"}},
 	}
+	conv.UsedNames = map[string]bool{"ref_table": true, "ref_table2": true}
 	assert.Nil(t, common.SchemaToSpannerDDL(conv, ToDdlImpl{}))
-	actual := conv.SpSchema[name]
+	actual := conv.SpSchema[tableId]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
-		Name:     name,
-		ColNames: []string{"a", "b", "c", "d", "e", "f", "g"},
+		Name:   name,
+		Id:     tableId,
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
-			"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
-			"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Date}},
-			"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.JSON}},
+			"c1": ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+			"c2": ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
+			"c3": ddl.ColumnDef{Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bool}},
+			"c4": ddl.ColumnDef{Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
+			"c5": ddl.ColumnDef{Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Numeric}},
+			"c6": ddl.ColumnDef{Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Date}},
+			"c7": ddl.ColumnDef{Name: "g", Id: "c7", T: ddl.Type{Name: ddl.JSON}},
 		},
-		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},
-			ddl.Foreignkey{Name: "fk_test2", Columns: []string{"a"}, ReferTable: "ref_table2", ReferColumns: []string{"aref"}}},
-		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Table: name, Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "d", Desc: true}}},
-			ddl.CreateIndex{Name: "index2", Table: name, Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "d", Desc: true}}}},
+		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1"}},
+		ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}},
+			ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c10"}}},
+		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", TableId: tableId, Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1", Desc: false}, ddl.IndexKey{ColId: "c4", Desc: true}}},
+			ddl.CreateIndex{Name: "index2", TableId: tableId, Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c4", Desc: true}}}},
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"b": []internal.SchemaIssue{internal.Widened},
+		"c2": []internal.SchemaIssue{internal.Widened},
 	}
-	assert.Equal(t, expectedIssues, conv.Issues[name])
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
 }
 
 func dropComments(t *ddl.CreateTable) {
 	t.Comment = ""
-	for _, c := range t.ColNames {
+	for _, c := range t.ColIds {
 		cd := t.ColDefs[c]
 		cd.Comment = ""
 		t.ColDefs[c] = cd

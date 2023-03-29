@@ -140,17 +140,17 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	}
 	conv := internal.MakeConv()
 	// Setting target db to spanner by default.
-	conv.TargetDb = constants.TargetSpanner
+	conv.SpDialect = constants.DIALECT_GOOGLESQL
 	var err error
 	switch sessionState.driver {
 	case constants.MYSQL:
-		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB})
+		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB}, common.DefaultWorkers)
 	case constants.POSTGRES:
-		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.sourceDB})
+		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.sourceDB}, common.DefaultWorkers)
 	case constants.SQLSERVER:
-		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB})
+		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB}, common.DefaultWorkers)
 	case constants.ORACLE:
-		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.dbName), Db: sessionState.sourceDB})
+		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.dbName), Db: sessionState.sourceDB}, common.DefaultWorkers)
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return
@@ -194,7 +194,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Driver)
 	sourceProfile.Driver = dc.Driver
 	targetProfile, _ := profiles.NewTargetProfile("")
-	targetProfile.TargetDb = constants.TargetSpanner
+	targetProfile.Conn.Sp.Dialect = constants.DIALECT_GOOGLESQL
 	conv, err := conversion.SchemaConv(sourceProfile, targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
@@ -223,7 +223,7 @@ func getDDL(w http.ResponseWriter, r *http.Request) {
 	sort.Strings(tables)
 	ddl := make(map[string]string)
 	for _, t := range tables {
-		ddl[t] = sessionState.conv.SpSchema[t].PrintCreateTable(c)
+		ddl[t] = sessionState.conv.SpSchema[t].PrintCreateTable(sessionState.conv.SpSchema, c)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(ddl)
@@ -527,8 +527,8 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 		// Search this table's foreign keys for a suitable parent table.
 		// If there are several possible parent tables, we pick the first one.
 		// TODO: Allow users to pick which parent to use if more than one.
-		for i, fk := range sessionState.conv.SpSchema[table].Fks {
-			refTable := fk.ReferTable
+		for i, fk := range sessionState.conv.SpSchema[table].ForeignKeys {
+			refTable := fk.ReferTableId
 			if _, found := sessionState.conv.SyntheticPKeys[refTable]; found {
 				continue
 			}
@@ -537,8 +537,8 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				tableInterleaveStatus.Parent = refTable
 				if update {
 					sp := sessionState.conv.SpSchema[table]
-					sp.Parent = refTable
-					sp.Fks = removeFk(sp.Fks, i)
+					sp.ParentId = refTable
+					sp.ForeignKeys = removeFk(sp.ForeignKeys, i)
 					sessionState.conv.SpSchema[table] = sp
 				}
 				break
@@ -568,11 +568,11 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
 		return
 	}
-	if position < 0 || position >= len(sp.Fks) {
+	if position < 0 || position >= len(sp.ForeignKeys) {
 		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
 		return
 	}
-	sp.Fks = removeFk(sp.Fks, position)
+	sp.ForeignKeys = removeFk(sp.ForeignKeys, position)
 	sessionState.conv.SpSchema[table] = sp
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
@@ -627,13 +627,13 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 
 	// Update session with renamed foreignkeys.
 	newFKs := []ddl.Foreignkey{}
-	for _, foreignKey := range sp.Fks {
+	for _, foreignKey := range sp.ForeignKeys {
 		if newName, ok := renameMap[foreignKey.Name]; ok {
 			foreignKey.Name = newName
 		}
 		newFKs = append(newFKs, foreignKey)
 	}
-	sp.Fks = newFKs
+	sp.ForeignKeys = newFKs
 
 	sessionState.conv.SpSchema[table] = sp
 	updateSessionFile()
@@ -769,7 +769,7 @@ func canRename(names []string, table string) (bool, error) {
 
 	// Check that this name isn't already used by another foreign key.
 	for _, sp := range sessionState.conv.SpSchema {
-		for _, foreignKey := range sp.Fks {
+		for _, foreignKey := range sp.ForeignKeys {
 			if _, ok := namesMap[foreignKey.Name]; ok {
 				return false, fmt.Errorf("new name : '%s' is used by another foreign key in table : '%s'", foreignKey.Name, sp.Name)
 			}
@@ -833,7 +833,7 @@ func rollback(err error) error {
 		return fmt.Errorf("encountered error %w. rollback failed because we don't have a session file", err)
 	}
 	sessionState.conv = internal.MakeConv()
-	sessionState.conv.TargetDb = constants.TargetSpanner
+	sessionState.conv.SpDialect = constants.DIALECT_GOOGLESQL
 	err2 := conversion.ReadSessionFile(sessionState.conv, sessionState.sessionFile)
 	if err2 != nil {
 		return fmt.Errorf("encountered error %w. rollback failed: %v", err, err2)
@@ -842,8 +842,8 @@ func rollback(err error) error {
 }
 
 func isPartOfPK(col, table string) bool {
-	for _, pk := range sessionState.conv.SpSchema[table].Pks {
-		if pk.Col == col {
+	for _, pk := range sessionState.conv.SpSchema[table].PrimaryKeys {
+		if pk.ColId == col {
 			return true
 		}
 	}
@@ -852,7 +852,7 @@ func isPartOfPK(col, table string) bool {
 
 func isParent(table string) (bool, string) {
 	for _, spSchema := range sessionState.conv.SpSchema {
-		if spSchema.Parent == table {
+		if spSchema.ParentId == table {
 			return true, spSchema.Name
 		}
 	}
@@ -862,7 +862,7 @@ func isParent(table string) (bool, string) {
 func isPartOfSecondaryIndex(col, table string) (bool, string) {
 	for _, index := range sessionState.conv.SpSchema[table].Indexes {
 		for _, key := range index.Keys {
-			if key.Col == col {
+			if key.ColId == col {
 				return true, index.Name
 			}
 		}
@@ -871,8 +871,8 @@ func isPartOfSecondaryIndex(col, table string) (bool, string) {
 }
 
 func isPartOfFK(col, table string) bool {
-	for _, fk := range sessionState.conv.SpSchema[table].Fks {
-		for _, column := range fk.Columns {
+	for _, fk := range sessionState.conv.SpSchema[table].ForeignKeys {
+		for _, column := range fk.ColIds {
 			if column == col {
 				return true
 			}
@@ -887,9 +887,9 @@ func isPartOfFK(col, table string) bool {
 func isReferencedByFK(col, table string) (bool, string) {
 	for _, spSchema := range sessionState.conv.SpSchema {
 		if table != spSchema.Name {
-			for _, fk := range spSchema.Fks {
-				if fk.ReferTable == table {
-					for _, column := range fk.ReferColumns {
+			for _, fk := range spSchema.ForeignKeys {
+				if fk.ReferTableId == table {
+					for _, column := range fk.ReferColumnIds {
 						if column == col {
 							return true, spSchema.Name
 						}
@@ -919,7 +919,7 @@ func canRemoveColumn(colName, table string) (int, error) {
 func canRenameOrChangeType(colName, table string) (int, error) {
 	isPartOfPK := isPartOfPK(colName, table)
 	isParent, childSchema := isParent(table)
-	isChild := sessionState.conv.SpSchema[table].Parent != ""
+	isChild := sessionState.conv.SpSchema[table].ParentId != ""
 	if isPartOfPK && (isParent || isChild) {
 		return http.StatusBadRequest, fmt.Errorf("column : '%s' in table : '%s' is part of parent-child relation with schema : '%s'", colName, table, childSchema)
 	}
@@ -941,11 +941,11 @@ func canRenameOrChangeType(colName, table string) (int, error) {
 }
 
 func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tableInterleaveStatus *TableInterleaveStatus) bool {
-	childPks := sessionState.conv.SpSchema[table].Pks
-	parentPks := sessionState.conv.SpSchema[refTable].Pks
+	childPks := sessionState.conv.SpSchema[table].PrimaryKeys
+	parentPks := sessionState.conv.SpSchema[refTable].PrimaryKeys
 	if len(childPks) >= len(parentPks) {
 		for i, pk := range parentPks {
-			if i >= len(fk.ReferColumns) || pk.Col != fk.ReferColumns[i] || pk.Col != childPks[i].Col || fk.Columns[i] != fk.ReferColumns[i] {
+			if i >= len(fk.ReferColumnIds) || pk.ColId != fk.ReferColumnIds[i] || pk.ColId != childPks[i].ColId || fk.ColIds[i] != fk.ReferColumnIds[i] {
 				return false
 			}
 		}
@@ -962,7 +962,7 @@ func isUniqueName(name string) bool {
 		}
 	}
 	for _, spSchema := range sessionState.conv.SpSchema {
-		for _, fk := range spSchema.Fks {
+		for _, fk := range spSchema.ForeignKeys {
 			if fk.Name == name {
 				return false
 			}
@@ -994,31 +994,31 @@ func removeSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {
 
 func removeColumn(table string, colName string, srcTableName string) {
 	sp := sessionState.conv.SpSchema[table]
-	for i, col := range sp.ColNames {
+	for i, col := range sp.ColIds {
 		if col == colName {
-			sp.ColNames = remove(sp.ColNames, i)
+			sp.ColIds = remove(sp.ColIds, i)
 			break
 		}
 	}
 	delete(sp.ColDefs, colName)
-	for i, pk := range sp.Pks {
-		if pk.Col == colName {
-			sp.Pks = removePk(sp.Pks, i)
+	for i, pk := range sp.PrimaryKeys {
+		if pk.ColId == colName {
+			sp.PrimaryKeys = removePk(sp.PrimaryKeys, i)
 			break
 		}
 	}
 	srcColName := sessionState.conv.ToSource[table].Cols[colName]
 	delete(sessionState.conv.ToSource[table].Cols, colName)
 	delete(sessionState.conv.ToSpanner[srcTableName].Cols, srcColName)
-	delete(sessionState.conv.Issues[srcTableName], srcColName)
+	delete(sessionState.conv.SchemaIssues[srcTableName], srcColName)
 	sessionState.conv.SpSchema[table] = sp
 }
 
 func renameColumn(newName, table, colName, srcTableName string) {
 	sp := sessionState.conv.SpSchema[table]
-	for i, col := range sp.ColNames {
+	for i, col := range sp.ColIds {
 		if col == colName {
-			sp.ColNames[i] = newName
+			sp.ColIds[i] = newName
 			break
 		}
 	}
@@ -1031,9 +1031,9 @@ func renameColumn(newName, table, colName, srcTableName string) {
 		}
 		delete(sp.ColDefs, colName)
 	}
-	for i, pk := range sp.Pks {
-		if pk.Col == colName {
-			sp.Pks[i].Col = newName
+	for i, pk := range sp.PrimaryKeys {
+		if pk.ColId == colName {
+			sp.PrimaryKeys[i].ColId = newName
 			break
 		}
 	}
@@ -1093,8 +1093,8 @@ func getType(newType, table, colName string, srcTableName string) (ddl.CreateTab
 	if srcCol.Ignored.AutoIncrement {
 		issues = append(issues, internal.AutoIncrement)
 	}
-	if sessionState.conv.Issues != nil && len(issues) > 0 {
-		sessionState.conv.Issues[srcTableName][srcCol.Name] = issues
+	if sessionState.conv.SchemaIssues != nil && len(issues) > 0 {
+		sessionState.conv.SchemaIssues[srcTableName][srcCol.Name] = issues
 	}
 	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
 	return sp, ty, nil

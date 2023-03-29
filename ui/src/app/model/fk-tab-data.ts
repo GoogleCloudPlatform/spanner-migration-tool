@@ -1,4 +1,6 @@
 export default interface IFkTabData {
+  srcFkId: string | undefined
+  spFkId: string | undefined
   spName: string
   srcName: string
   spColumns: string[]
@@ -7,5 +9,7 @@ export default interface IFkTabData {
   srcReferTable: string
   spReferColumns: string[]
   srcReferColumns: string[]
-  Id: string
+  spColIds: string[]
+  spReferColumnIds: string[]
+  spReferTableId: string
 }

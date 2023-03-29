@@ -32,14 +32,19 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) {
-	spTable, cvtCols, cvtVals, err := convertData(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, vals)
+func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string) {
+	spTableName, cvtCols, cvtVals, err := convertData(conv, tableId, colIds, srcSchema, spSchema, vals)
+	srcTableName := srcSchema.Name
+	srcCols := []string{}
+	for _, colId := range colIds {
+		srcCols = append(srcCols, srcSchema.ColDefs[colId].Name)
+	}
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
-		conv.StatsAddBadRow(srcTable, conv.DataMode())
-		conv.CollectBadRow(srcTable, srcCols, vals)
+		conv.StatsAddBadRow(srcTableName, conv.DataMode())
+		conv.CollectBadRow(srcTableName, srcCols, vals)
 	} else {
-		conv.WriteRow(srcTable, spTable, cvtCols, cvtVals)
+		conv.WriteRow(srcTableName, spTableName, cvtCols, cvtVals)
 	}
 }
 
@@ -47,23 +52,24 @@ func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcS
 // based on the Spanner and source DB schemas. Note that since entries
 // in vals may be empty, we also return the list of columns (empty
 // cols are dropped).
-func convertData(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) (string, []string, []interface{}, error) {
+func convertData(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string) (string, []string, []interface{}, error) {
 	var c []string
 	var v []interface{}
-	if len(spCols) != len(srcCols) || len(spCols) != len(vals) {
-		return "", []string{}, []interface{}{}, fmt.Errorf("ConvertData: spCols, srcCols and vals don't all have the same lengths: len(spCols)=%d, len(srcCols)=%d, len(vals)=%d", len(spCols), len(srcCols), len(vals))
+	if len(colIds) != len(vals) {
+		return "", []string{}, []interface{}{}, fmt.Errorf("ConvertData: colIds and vals don't all have the same lengths: len(colIds)=%d, len(vals)=%d", len(colIds), len(vals))
 	}
-	for i, spCol := range spCols {
-		srcCol := srcCols[i]
+	for i, colId := range colIds {
 		// Skip columns with 'NULL' values., these values
 		// 'NULL' values are represented as "NULL" (because we retrieve the values as strings).
 		if vals[i] == "NULL" {
 			continue
 		}
-		spColDef, ok1 := spSchema.ColDefs[spCol]
-		srcColDef, ok2 := srcSchema.ColDefs[srcCol]
+
+		spColDef, ok1 := spSchema.ColDefs[colId]
+		srcColDef, ok2 := srcSchema.ColDefs[colId]
+
 		if !ok1 || !ok2 {
-			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for col %s", spCol)
+			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for column id %s", colId)
 		}
 		var x interface{}
 		var err error
@@ -76,15 +82,15 @@ func convertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 			return "", []string{}, []interface{}{}, err
 		}
 		v = append(v, x)
-		c = append(c, spCol)
+		c = append(c, spColDef.Name)
 	}
-	if aux, ok := conv.SyntheticPKeys[spTable]; ok {
-		c = append(c, aux.Col)
+	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
+		c = append(c, conv.SpSchema[tableId].ColDefs[aux.ColId].Name)
 		v = append(v, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
 		aux.Sequence++
-		conv.SyntheticPKeys[spTable] = aux
+		conv.SyntheticPKeys[tableId] = aux
 	}
-	return spTable, c, v, nil
+	return spSchema.Name, c, v, nil
 }
 
 // convScalar converts a source database string value to an
@@ -171,7 +177,7 @@ func convInt64(val string) (int64, error) {
 // convNumeric maps a source database string value (representing a numeric)
 // into a string representing a valid Spanner numeric.
 func convNumeric(conv *internal.Conv, val string) (interface{}, error) {
-	if conv.TargetDb == constants.TargetExperimentalPostgres {
+	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 		return spanner.PGNumeric{Numeric: val, Valid: true}, nil
 	} else {
 		r := new(big.Rat)

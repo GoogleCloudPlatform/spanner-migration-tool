@@ -72,7 +72,7 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 
 	if printTableReports {
 		for _, t := range reports {
-			h := fmt.Sprintf("Table %s", t.SrcTable)
+			h := fmt.Sprintf("Table %s", conv.SpSchema[t.SrcTable].Name)
 			if t.SrcTable != t.SpTable {
 				h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.SpTable)
 			}
@@ -141,9 +141,9 @@ func writeStreamingMigrationReport(driverName string, conv *Conv, w *bufio.Write
 
 	stats := conv.Audit.StreamingStats
 
-	orderTableNames := ddl.OrderTables(conv.SpSchema)
+	tableIds := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
 
-	w.WriteString(fmt.Sprintf("Processed %d out of %d %s successfully.\n", len(stats.TotalRecords), len(orderTableNames), streamName))
+	w.WriteString(fmt.Sprintf("Processed %d out of %d %s successfully.\n", len(stats.TotalRecords), len(tableIds), streamName))
 
 	totalReadRecords := sumNestedMapValues(stats.TotalRecords)
 	w.WriteString(fmt.Sprintf("\nCount of records read from %s: %s\n", streamName, strconv.FormatInt(totalReadRecords, 10)))
@@ -240,51 +240,55 @@ type tableReportBody struct {
 func AnalyzeTables(conv *Conv, badWrites map[string]int64) (r []tableReport) {
 	// Process tables in alphabetical order. This ensures that tables
 	// appear in alphabetical order in report.txt.
-	var tables []string
-	for t := range conv.SrcSchema {
-		tables = append(tables, t)
+	var tableNames []string
+	for _, srcTable := range conv.SrcSchema {
+		tableNames = append(tableNames, srcTable.Name)
 	}
-	sort.Strings(tables)
-	for _, srcTable := range tables {
-		if _, isPresent := conv.ToSpanner[srcTable]; isPresent {
-			r = append(r, buildTableReport(conv, srcTable, badWrites))
+	sort.Strings(tableNames)
+	for _, tableName := range tableNames {
+		tableId, err := GetTableIdFromSrcName(conv.SrcSchema, tableName)
+		if err != nil {
+			continue
+		}
+		if _, isPresent := conv.SpSchema[tableId]; isPresent {
+			r = append(r, buildTableReport(conv, tableId, badWrites))
 		}
 	}
 	return r
 }
 
-func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) tableReport {
-	spTable, err := GetSpannerTable(conv, srcTable)
-	srcSchema, ok1 := conv.SrcSchema[srcTable]
-	spSchema, ok2 := conv.SpSchema[spTable]
-	tr := tableReport{SrcTable: srcTable, SpTable: spTable}
-	if err != nil || !ok1 || !ok2 {
+func buildTableReport(conv *Conv, tableId string, badWrites map[string]int64) tableReport {
+	srcSchema, ok1 := conv.SrcSchema[tableId]
+	spSchema, ok2 := conv.SpSchema[tableId]
+	tr := tableReport{SrcTable: tableId, SpTable: tableId}
+	if !ok1 || !ok2 {
 		m := "bad source-DB-to-Spanner table mapping or Spanner schema"
 		conv.Unexpected("report: " + m)
 		tr.Body = []tableReportBody{{Heading: "Internal error: " + m}}
 		return tr
 	}
 	if *conv.Audit.MigrationType != migration.MigrationData_DATA_ONLY {
-		issues, cols, warnings := AnalyzeCols(conv, srcTable, spTable)
+		issues, cols, warnings := AnalyzeCols(conv, tableId)
 		tr.Cols = cols
 		tr.Warnings = warnings
-		if pk, ok := conv.SyntheticPKeys[spTable]; ok {
-			tr.SyntheticPKey = pk.Col
-			tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, &pk.Col, nil)
-		} else if pk, ok := conv.UniquePKey[spTable]; ok {
-			tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil, pk)
+		if pk, ok := conv.SyntheticPKeys[tableId]; ok {
+			tr.SyntheticPKey = pk.ColId
+			synthColName := conv.SpSchema[tableId].ColDefs[pk.ColId].Name
+			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, &synthColName, nil)
+		} else if pk, ok := conv.UniquePKey[tableId]; ok {
+			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, pk)
 		} else {
-			tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil, nil)
+			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, nil)
 		}
 
 	}
 	if !conv.SchemaMode() {
-		fillRowStats(conv, srcTable, badWrites, &tr)
+		fillRowStats(conv, tableId, badWrites, &tr)
 	}
 	return tr
 }
 
-func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]SchemaIssue, spSchema ddl.CreateTable, srcSchema schema.Table, syntheticPK *string, uniquePK []string) []tableReportBody {
+func buildTableReportBody(conv *Conv, tableId string, issues map[string][]SchemaIssue, spSchema ddl.CreateTable, srcSchema schema.Table, syntheticPK *string, uniquePK []string) []tableReportBody {
 	var body []tableReportBody
 	for _, p := range []struct {
 		heading  string
@@ -296,11 +300,11 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 		{"Error", errors},
 	} {
 		// Print out issues is alphabetical column order.
-		var cols []string
-		for t := range issues {
-			cols = append(cols, t)
+		var colNames []string
+		for colId := range issues {
+			colNames = append(colNames, conv.SpSchema[tableId].ColDefs[colId].Name)
 		}
-		sort.Strings(cols)
+		sort.Strings(colNames)
 		var l []string
 		if syntheticPK != nil {
 			// Warnings about synthetic primary keys must be handled as a special case
@@ -319,19 +323,27 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 		}
 
 		if p.severity == warning {
-			for srcKeyName, spKeyName := range conv.Audit.ToSpannerFkIdx[srcTable].ForeignKey {
-				_, isChanged := FixName(srcKeyName)
-				if isChanged && (srcKeyName != spKeyName) {
-					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcKeyName, spKeyName))
+			for _, spFk := range conv.SpSchema[tableId].ForeignKeys {
+				srcFk, err := GetSrcFkFromId(conv.SrcSchema[tableId].ForeignKeys, spFk.Id)
+				if err != nil {
+					continue
 				}
+				_, isChanged := FixName(srcFk.Name)
+				if isChanged && srcFk.Name != spFk.Name {
+					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcFk.Name, spFk.Name))
+				}
+			}
+			for _, spIdx := range conv.SpSchema[tableId].Indexes {
+				srcIdx, err := GetSrcIndexFromId(conv.SrcSchema[tableId].Indexes, spIdx.Id)
+				if err != nil {
+					continue
+				}
+				_, isChanged := FixName(srcIdx.Name)
+				if isChanged && srcIdx.Name != spIdx.Name {
+					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcIdx.Name, spIdx.Name))
+				}
+			}
 
-			}
-			for srcIdxName, spIdxName := range conv.Audit.ToSpannerFkIdx[srcTable].Index {
-				_, isChanged := FixName(srcIdxName)
-				if isChanged && (srcIdxName != spIdxName) {
-					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcIdxName, spIdxName))
-				}
-			}
 			_, isChanged := FixName(srcSchema.Name)
 			if isChanged && (spSchema.Name != srcSchema.Name) {
 				l = append(l, fmt.Sprintf("%s, Table '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcSchema.Name, spSchema.Name))
@@ -339,8 +351,9 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 		}
 
 		issueBatcher := make(map[SchemaIssue]bool)
-		for _, srcCol := range cols {
-			for _, i := range issues[srcCol] {
+		for _, colName := range colNames {
+			colId, _ := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
+			for _, i := range issues[colId] {
 				if IssueDB[i].severity != p.severity {
 					continue
 				}
@@ -352,17 +365,13 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					}
 					issueBatcher[i] = true
 				}
-				spCol, err := GetSpannerCol(conv, srcTable, srcCol, true)
-				if err != nil {
-					conv.Unexpected(err.Error())
+				srcColType := srcSchema.ColDefs[colId].Type.Print()
+				spColType := spSchema.ColDefs[colId].T.PrintColumnDefType()
+				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+					spColType = spSchema.ColDefs[colId].T.PGPrintColumnDefType()
 				}
-				srcType := srcSchema.ColDefs[srcCol].Type.Print()
-				spType := spSchema.ColDefs[spCol].T.PrintColumnDefType()
-				if conv.TargetDb == constants.TargetExperimentalPostgres {
-					spType = spSchema.ColDefs[spCol].T.PGPrintColumnDefType()
-				}
-				srcName := srcSchema.ColDefs[srcCol].Name
-				spName := spSchema.ColDefs[spCol].Name
+				srcColName := srcSchema.ColDefs[colId].Name
+				spColName := spSchema.ColDefs[colId].Name
 
 				// A note on case: Spanner types are case insensitive, but
 				// default to upper case. In particular, the Spanner AST uses
@@ -372,88 +381,87 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				// Hence we switch to lower-case for Spanner types here.
 				// TODO: add logic to choose case for Spanner types based
 				// on case of srcType.
-				spType = strings.ToLower(spType)
+				spColType = strings.ToLower(spColType)
 				switch i {
 				case DefaultValue:
-					l = append(l, fmt.Sprintf("%s e.g. column '%s'", IssueDB[i].Brief, srcCol))
+					l = append(l, fmt.Sprintf("%s e.g. column '%s'", IssueDB[i].Brief, spColName))
 				case ForeignKey:
-					l = append(l, fmt.Sprintf("Column '%s' uses foreign keys which HarbourBridge does not support yet", srcCol))
+					l = append(l, fmt.Sprintf("Column '%s' uses foreign keys which HarbourBridge does not support yet", spColName))
 				case AutoIncrement:
-					l = append(l, fmt.Sprintf("Column '%s' is an autoincrement column. %s", srcCol, IssueDB[i].Brief))
+					l = append(l, fmt.Sprintf("Column '%s' is an autoincrement column. %s", spColName, IssueDB[i].Brief))
 				case Timestamp:
 					// Avoid the confusing "timestamp is mapped to timestamp" message.
-					l = append(l, fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner data type timestamp e.g. column '%s'. %s", srcCol, IssueDB[i].Brief))
+					l = append(l, fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner type timestamp e.g. column '%s'. %s", spColName, IssueDB[i].Brief))
 				case Datetime:
-					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner data type timestamp e.g. column '%s'. %s", srcCol, IssueDB[i].Brief))
+					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp e.g. column '%s'. %s", spColName, IssueDB[i].Brief))
 				case Widened:
-					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner data type %s", IssueDB[i].Brief, srcCol, srcType, spType))
+					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner data type %s", IssueDB[i].Brief, spColName, srcColType, spColType))
 				case HotspotTimestamp:
-					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case HotspotAutoIncrement:
-					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case InterleavedNotInOrder:
-					parent := getParentForReport(conv, spSchema.Name, spCol, i)
-					str := fmt.Sprintf(" Table %s can be interleaved with table %s %s  %s and Column %s", spSchema.Name, parent, IssueDB[i].Brief, spSchema.Name, srcCol)
+					parent, _, _ := getInterleaveDetail(conv, tableId, colId, i)
+					str := fmt.Sprintf(" Table %s can be interleaved with table %s %s  %s and Column %s", spSchema.Name, parent, IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case InterleavedOrder:
-					parent := getParentForReport(conv, spSchema.Name, spCol, i)
+					parent, _, _ := getInterleaveDetail(conv, tableId, colId, i)
 					str := fmt.Sprintf("Table %s %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief, parent)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case InterleavedAddColumn:
-					parent := getParentForReport(conv, spSchema.Name, spCol, i)
-					str := fmt.Sprintf(" %s %s add %s as a primary key in table %s", IssueDB[i].Brief, parent, srcCol, spSchema.Name)
+					parent, _, _ := getInterleaveDetail(conv, tableId, colId, i)
+					str := fmt.Sprintf(" %s %s add %s as a primary key in table %s", IssueDB[i].Brief, parent, spColName, spSchema.Name)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case InterleavedRenameColumn:
-					fkName, referCol := getFkAndReferColumn(spSchema, srcCol)
-					parent := getParentForReport(conv, spSchema.Name, srcCol, i)
-					str := fmt.Sprintf(" %s %s rename %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, srcCol, spSchema.Name, fkName, referCol)
+					parent, fkName, referColName := getInterleaveDetail(conv, tableId, colId, i)
+					str := fmt.Sprintf(" %s %s rename %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, spColName, spSchema.Name, fkName, referColName)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 
 				case RedundantIndex:
-					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 
 				case AutoIncrementIndex:
-					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 
 				case InterleaveIndex:
-					str := fmt.Sprintf("Column %s of Table %s %s", srcCol, spSchema.Name, IssueDB[i].Brief)
+					str := fmt.Sprintf("Column %s of Table %s %s", spColName, spSchema.Name, IssueDB[i].Brief)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 
 				case IllegalName:
-					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s'", IssueDB[i].Brief, srcName, spName))
+					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s'", IssueDB[i].Brief, srcColName, spColName))
 				default:
-					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", srcCol, srcType, spType, IssueDB[i].Brief))
+					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", spColName, srcColType, spColType, IssueDB[i].Brief))
 				}
 			}
 		}
@@ -470,26 +478,15 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 	return body
 }
 
-func getFkAndReferColumn(spSchema ddl.CreateTable, col string) (fkName string, referCol string) {
-	for _, fk := range spSchema.Fks {
-		for k, v := range fk.Columns {
-			if col == v {
-				return fk.Name, fk.ReferColumns[k]
-			}
-		}
-	}
-	return fkName, referCol
-}
-
-func getParentForReport(conv *Conv, spTableName string, spColName string, issueType SchemaIssue) string {
-	table := conv.SpSchema[spTableName]
-	for _, fk := range table.Fks {
-		for i, col := range fk.Columns {
-			if col != spColName {
+func getInterleaveDetail(conv *Conv, tableId string, colId string, issueType SchemaIssue) (parent, fkName, referColName string) {
+	table := conv.SpSchema[tableId]
+	for _, fk := range table.ForeignKeys {
+		for i, columnId := range fk.ColIds {
+			if columnId != colId {
 				continue
 			}
-			colPkOrder, err1 := getPkOrderForReport(table.Pks, col)
-			refColPkOrder, err2 := getPkOrderForReport(conv.SpSchema[fk.ReferTable].Pks, fk.ReferColumns[i])
+			colPkOrder, err1 := getPkOrderForReport(table.PrimaryKeys, columnId)
+			refColPkOrder, err2 := getPkOrderForReport(conv.SpSchema[fk.ReferTableId].PrimaryKeys, fk.ReferColumnIds[i])
 
 			if err2 != nil || refColPkOrder != 1 {
 				continue
@@ -498,29 +495,30 @@ func getParentForReport(conv *Conv, spTableName string, spColName string, issueT
 			switch issueType {
 			case InterleavedOrder:
 				if colPkOrder == 1 && err1 == nil {
-					return fk.ReferTable
+					return conv.SpSchema[fk.ReferTableId].Name, "", ""
 				}
 			case InterleavedNotInOrder:
 				if err1 == nil && colPkOrder != 1 {
-					return fk.ReferTable
+					return conv.SpSchema[fk.ReferTableId].Name, "", ""
 				}
 			case InterleavedRenameColumn:
 				if err1 == nil {
-					return fk.ReferTable
+					parentTable := conv.SpSchema[fk.ReferTableId]
+					return conv.SpSchema[fk.ReferTableId].Name, fk.Name, parentTable.ColDefs[fk.ReferColumnIds[i]].Name
 				}
 			case InterleavedAddColumn:
 				if err1 != nil {
-					return fk.ReferTable
+					return conv.SpSchema[fk.ReferTableId].Name, "", ""
 				}
 			}
 		}
 	}
-	return ""
+	return "", "", ""
 }
 
-func getPkOrderForReport(pks []ddl.IndexKey, spColName string) (int, error) {
+func getPkOrderForReport(pks []ddl.IndexKey, colId string) (int, error) {
 	for _, pk := range pks {
-		if pk.Col == spColName {
+		if pk.ColId == colId {
 			return pk.Order, nil
 		}
 	}
@@ -595,8 +593,8 @@ const (
 
 // AnalyzeCols returns information about the quality of schema mappings
 // for table 'srcTable'. It assumes 'srcTable' is in the conv.SrcSchema map.
-func AnalyzeCols(conv *Conv, srcTable, spTable string) (map[string][]SchemaIssue, int64, int64) {
-	srcSchema := conv.SrcSchema[srcTable]
+func AnalyzeCols(conv *Conv, tableId string) (map[string][]SchemaIssue, int64, int64) {
+	srcSchema := conv.SrcSchema[tableId]
 	m := make(map[string][]SchemaIssue)
 	warnings := int64(0)
 	warningBatcher := make(map[SchemaIssue]bool)
@@ -604,7 +602,7 @@ func AnalyzeCols(conv *Conv, srcTable, spTable string) (map[string][]SchemaIssue
 	// per column and/or multiple warnings per table.
 	// non-batched warnings: count at most one warning per column.
 	// batched warnings: count at most one warning per table.
-	for c, l := range conv.Issues[srcTable] {
+	for c, l := range conv.SchemaIssues[tableId] {
 		colWarning := false
 		m[c] = l
 		for _, i := range l {
@@ -760,23 +758,36 @@ func reportNameChanges(conv *Conv, w *bufio.Writer) {
 	fmt.Fprintf(w, "%25s %15s %25s %25s\n", "Source Table", "Change", "Old Name", "New Name")
 	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
 
-	for srcTableName, spTable := range conv.ToSpanner {
-		if srcTableName != spTable.Name {
-			fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Table Name", srcTableName, spTable.Name)
+	for tableId, spTable := range conv.SpSchema {
+		srcTable := conv.SrcSchema[tableId]
+		if srcTable.Name != spTable.Name {
+			fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTable.Name, "Table Name", srcTable.Name, spTable.Name)
 		}
-		for srcColName, spColName := range spTable.Cols {
-			if srcColName != spColName {
-				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Column Name", srcColName, spColName)
+		for colId, spCol := range spTable.ColDefs {
+			srcCol, ok := srcTable.ColDefs[colId]
+			if !ok {
+				continue
+			}
+			if srcCol.Name != spCol.Name {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTable.Name, "Column Name", srcCol.Name, spCol.Name)
 			}
 		}
-		for srcFkName, spFkName := range conv.Audit.ToSpannerFkIdx[srcTableName].ForeignKey {
-			if srcFkName != spFkName {
-				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Foreign Key", srcFkName, spFkName)
+		for _, spFk := range conv.SpSchema[tableId].ForeignKeys {
+			srcFk, err := GetSrcFkFromId(conv.SrcSchema[tableId].ForeignKeys, spFk.Id)
+			if err != nil {
+				continue
+			}
+			if srcFk.Name != spFk.Name {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTable.Name, "Foreign Key", srcFk.Name, spFk.Name)
 			}
 		}
-		for srcIdxName, spIdxName := range conv.Audit.ToSpannerFkIdx[srcTableName].Index {
-			if srcIdxName != spIdxName {
-				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Index", srcIdxName, spIdxName)
+		for _, spIdx := range conv.SpSchema[tableId].Indexes {
+			srcIdx, err := GetSrcIndexFromId(conv.SrcSchema[tableId].Indexes, spIdx.Id)
+			if err != nil {
+				continue
+			}
+			if srcIdx.Name != spIdx.Name {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTable.Name, "Index", srcIdx.Name, spIdx.Name)
 			}
 		}
 	}

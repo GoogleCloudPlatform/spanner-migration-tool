@@ -27,7 +27,7 @@ func DetectHotspot() {
 
 	for _, spannerTable := range sessionState.Conv.SpSchema {
 
-		isHotSpot(spannerTable.Pks, spannerTable)
+		isHotSpot(spannerTable.PrimaryKeys, spannerTable)
 	}
 
 }
@@ -47,16 +47,16 @@ func hotspotTimestamp(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 
 		for _, c := range spannerTable.ColDefs {
 
-			if insert[i].Col == c.Name {
+			if insert[i].ColId == c.Id {
 
 				if c.T.Name == ddl.Timestamp {
 
-					columnname := insert[i].Col
+					columnId := insert[i].ColId
 					sessionState := session.GetSessionState()
-					schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
+					schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][columnId]
 
 					schemaissue = append(schemaissue, internal.HotspotTimestamp)
-					sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
+					sessionState.Conv.SchemaIssues[spannerTable.Id][columnId] = schemaissue
 				}
 
 			}
@@ -71,7 +71,7 @@ func hotspotAutoincrement(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 
 	for i := 0; i < len(insert); i++ {
 		for _, c := range spannerTable.ColDefs {
-			if insert[i].Col == c.Name {
+			if insert[i].ColId == c.Name {
 				spannerColumnId := c.Id
 				detecthotspotAutoincrement(spannerTable, spannerColumnId)
 			}
@@ -85,7 +85,7 @@ func hotspotAutoincrement(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 func detecthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId string) {
 
 	sessionState := session.GetSessionState()
-	sourcetable := sessionState.Conv.SrcSchema[spannerTable.Name]
+	sourcetable := sessionState.Conv.SrcSchema[spannerTable.Id]
 
 	for _, s := range sourcetable.ColDefs {
 
@@ -93,12 +93,12 @@ func detecthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId st
 
 			if s.Ignored.AutoIncrement {
 
-				columnname := s.Name
+				columnId := s.Id
 				sessionState := session.GetSessionState()
-				schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
+				schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][columnId]
 
 				schemaissue = append(schemaissue, internal.HotspotAutoIncrement)
-				sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
+				sessionState.Conv.SchemaIssues[spannerTable.Id][columnId] = schemaissue
 
 			}
 

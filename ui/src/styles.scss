@@ -312,11 +312,11 @@ body {
 }
 .radio-button-container mat-radio-button:hover {
   color: #1967d2;
-  ;
 }
 
 .radio-button-group {
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
 .spinner {
@@ -331,15 +331,15 @@ body {
   margin-left: 10px;
 }
 
-.display{
+.display {
   display: block !important;
 }
 
-.hidden{
+.hidden {
   display: none !important;
 }
-.spanner-tab-link{
-  color:  #1967d2;
+.spanner-tab-link {
+  color: #1967d2;
   font-weight: 400;
 }
 #middle-column-toggle-button {

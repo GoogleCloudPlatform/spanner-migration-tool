@@ -45,6 +45,7 @@ const (
 	ORACLE string = "oracle"
 
 	// Target db for which schema is being generated.
+	// This can be removed once the support for global flags is removed.
 	TargetSpanner              string = "spanner"
 	TargetExperimentalPostgres string = "experimental_postgres"
 
@@ -65,6 +66,8 @@ const (
 	// Scheme used for GCS paths
 	GCS_SCHEME string = "gs"
 
+	// File upload prefix for dump and session load.
+	UPLOAD_FILE_DIR string = "upload-file"
 	// Rule types
 	GlobalDataTypeChange = "global_datatype_change"
 	AddIndex             = "add_index"

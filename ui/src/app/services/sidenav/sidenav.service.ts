@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject } from 'rxjs'
+import IRule from 'src/app/model/rule'
 
 @Injectable({
   providedIn: 'root',
@@ -10,7 +11,8 @@ export class SidenavService {
   private sidenavRuleTypeSub = new BehaviorSubject<string>('')
   private sidenavAddIndexTableSub = new BehaviorSubject<string>('')
   private setSidenavDatabaseNameSub = new BehaviorSubject<string>('')
-  private passRuleData = new BehaviorSubject<any>([[], false])
+  private ruleDataSub = new BehaviorSubject<IRule>({})
+  private displayRuleFlagSub = new BehaviorSubject<boolean>(false)
   private setMiddleColumn = new BehaviorSubject<any>(false)
   constructor() {}
   isSidenav = this.sidenavOpenSub.asObservable()
@@ -18,7 +20,8 @@ export class SidenavService {
   sidenavRuleType = this.sidenavRuleTypeSub.asObservable()
   sidenavAddIndexTable = this.sidenavAddIndexTableSub.asObservable()
   sidenavDatabaseName = this.setSidenavDatabaseNameSub.asObservable()
-  passRules = this.passRuleData.asObservable()
+  ruleData = this.ruleDataSub.asObservable()
+  displayRuleFlag = this.displayRuleFlagSub.asObservable()
   setMiddleColumnComponent = this.setMiddleColumn.asObservable()
 
   openSidenav() {
@@ -39,9 +42,13 @@ export class SidenavService {
   setSidenavDatabaseName(DatabaseName: string) {
     this.setSidenavDatabaseNameSub.next(DatabaseName)
   }
-  passRule(data: any, flag: boolean) {
-    this.passRuleData.next([data, flag])
+  setRuleData(data: any) {
+    this.ruleDataSub.next(data)
   }
+  setDisplayRuleFlag(flag: boolean) {
+    this.displayRuleFlagSub.next(flag)
+  }
+
   setMiddleColComponent(flag: boolean) {
     this.setMiddleColumn.next(flag)
   }

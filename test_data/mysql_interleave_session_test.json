@@ -1,306 +1,260 @@
 {
-    "SpSchema": {
-        "cart": {
-            "Name": "cart",
-            "ColNames": [
-                "user_id",
-                "product_id",
-                "quantity"
-            ],
-            "ColDefs": {
-                "product_id": {
-                    "Name": "product_id",
-                    "T": {
-                        "Name": "STRING",
-                        "Len": 20,
-                        "IsArray": false
-                    },
-                    "NotNull": true,
-                    "Comment": "From: product_id varchar(20)"
-                },
-                "quantity": {
-                    "Name": "quantity",
-                    "T": {
-                        "Name": "INT64",
-                        "Len": 0,
-                        "IsArray": false
-                    },
-                    "NotNull": false,
-                    "Comment": "From: quantity bigint"
-                },
-                "user_id": {
-                    "Name": "user_id",
-                    "T": {
-                        "Name": "STRING",
-                        "Len": 20,
-                        "IsArray": false
-                    },
-                    "NotNull": true,
-                    "Comment": "From: user_id varchar(20)"
-                }
-            },
-            "Pks": [
-                {
-                    "Col": "user_id",
-                    "Desc": false,
-                    "seqId": 1
-                },
-                {
-                    "Col": "product_id",
-                    "Desc": false,
-                    "seqId": 2
-                }
-            ],
-            "Fks": [],
-            "Indexes": null,
-            "Parent": "user",
-            "Comment": "Spanner schema for source table cart"
-        },
-        "user": {
-            "Name": "user",
-            "ColNames": [
-                "user_id",
-                "user_name"
-            ],
-            "ColDefs": {
-                "user_id": {
-                    "Name": "user_id",
-                    "T": {
-                        "Name": "STRING",
-                        "Len": 20,
-                        "IsArray": false
-                    },
-                    "NotNull": true,
-                    "Comment": "From: user_id varchar(20)"
-                },
-                "user_name": {
-                    "Name": "user_name",
-                    "T": {
-                        "Name": "STRING",
-                        "Len": 128,
-                        "IsArray": false
-                    },
-                    "NotNull": true,
-                    "Comment": "From: user_name char(128)"
-                }
-            },
-            "Pks": [
-                {
-                    "Col": "user_id",
-                    "Desc": false,
-                    "seqId": 1
-                }
-            ],
-            "Fks": null,
-            "Indexes": null,
-            "Parent": "",
-            "Comment": "Spanner schema for source table user"
-        }
-    },
-    "SyntheticPKeys": {},
-    "SrcSchema": {
-        "cart": {
-            "Name": "cart",
-            "Schema": "test_interleave_table_data",
-            "ColNames": [
-                "user_id",
-                "product_id",
-                "quantity"
-            ],
-            "ColDefs": {
-                "product_id": {
-                    "Name": "product_id",
-                    "Type": {
-                        "Name": "varchar",
-                        "Mods": [
-                            20
-                        ],
-                        "ArrayBounds": null
-                    },
-                    "NotNull": true,
-                    "Ignored": {
-                        "Check": false,
-                        "Identity": false,
-                        "Default": false,
-                        "Exclusion": false,
-                        "ForeignKey": false,
-                        "AutoIncrement": false
-                    }
-                },
-                "quantity": {
-                    "Name": "quantity",
-                    "Type": {
-                        "Name": "bigint",
-                        "Mods": null,
-                        "ArrayBounds": null
-                    },
-                    "NotNull": false,
-                    "Ignored": {
-                        "Check": false,
-                        "Identity": false,
-                        "Default": false,
-                        "Exclusion": false,
-                        "ForeignKey": false,
-                        "AutoIncrement": false
-                    }
-                },
-                "user_id": {
-                    "Name": "user_id",
-                    "Type": {
-                        "Name": "varchar",
-                        "Mods": [
-                            20
-                        ],
-                        "ArrayBounds": null
-                    },
-                    "NotNull": true,
-                    "Ignored": {
-                        "Check": false,
-                        "Identity": false,
-                        "Default": false,
-                        "Exclusion": false,
-                        "ForeignKey": false,
-                        "AutoIncrement": false
-                    }
-                }
-            },
-            "PrimaryKeys": [
-                {
-                    "Column": "user_id",
-                    "Desc": false
-                },
-                {
-                    "Column": "product_id",
-                    "Desc": false
-                }
-            ],
-            "ForeignKeys": [
-                {
-                    "Name": "user_cart",
-                    "Columns": [
-                        "user_id"
-                    ],
-                    "ReferTable": "user",
-                    "ReferColumns": [
-                        "user_id"
-                    ],
-                    "OnDelete": "",
-                    "OnUpdate": ""
-                }
-            ],
-            "Indexes": null
-        },
-        "user": {
-            "Name": "user",
-            "Schema": "test_interleave_table_data",
-            "ColNames": [
-                "user_id",
-                "user_name"
-            ],
-            "ColDefs": {
-                "user_id": {
-                    "Name": "user_id",
-                    "Type": {
-                        "Name": "varchar",
-                        "Mods": [
-                            20
-                        ],
-                        "ArrayBounds": null
-                    },
-                    "NotNull": true,
-                    "Ignored": {
-                        "Check": false,
-                        "Identity": false,
-                        "Default": false,
-                        "Exclusion": false,
-                        "ForeignKey": false,
-                        "AutoIncrement": false
-                    }
-                },
-                "user_name": {
-                    "Name": "user_name",
-                    "Type": {
-                        "Name": "char",
-                        "Mods": [
-                            128
-                        ],
-                        "ArrayBounds": null
-                    },
-                    "NotNull": true,
-                    "Ignored": {
-                        "Check": false,
-                        "Identity": false,
-                        "Default": false,
-                        "Exclusion": false,
-                        "ForeignKey": false,
-                        "AutoIncrement": false
-                    }
-                }
-            },
-            "PrimaryKeys": [
-                {
-                    "Column": "user_id",
-                    "Desc": false
-                }
-            ],
-            "ForeignKeys": null,
-            "Indexes": null
-        }
-    },
-    "SrcDbName": "",
-    "Issues": {
-        "cart": {},
-        "user": {}
-    },
-    "ToSpanner": {
-        "cart": {
-            "Name": "cart",
-            "Cols": {
-                "product_id": "product_id",
-                "quantity": "quantity",
-                "user_id": "user_id"
-            }
-        },
-        "user": {
-            "Name": "user",
-            "Cols": {
-                "user_id": "user_id",
-                "user_name": "user_name"
-            }
-        }
-    },
-    "ToSource": {
-        "cart": {
-            "Name": "cart",
-            "Cols": {
-                "product_id": "product_id",
-                "quantity": "quantity",
-                "user_id": "user_id"
-            }
-        },
-        "user": {
-            "Name": "user",
-            "Cols": {
-                "user_id": "user_id",
-                "user_name": "user_name"
-            }
-        }
-    },
-    "UsedNames": {
-        "cart": true,
-        "user": true,
-        "user_cart": true
-    },
-    "Location": {},
-    "Stats": {
-        "Rows": {},
-        "GoodRows": {},
-        "BadRows": {},
-        "Statement": {},
-        "Unexpected": {},
-        "Reparsed": 0
-    },
-    "TimezoneOffset": "+00:00",
-    "TargetDb": "spanner",
-    "UniquePKey": {}
+	"DatabaseType": "mysql",
+	"SpSchema": {
+		"t46": {
+			"Name": "cart",
+			"ColIds": ["c47", "c48", "c49"],
+			"ColDefs": {
+				"c47": {
+					"Name": "user_id",
+					"T": {
+						"Name": "STRING",
+						"Len": 20,
+						"IsArray": false
+					},
+					"NotNull": true,
+					"Comment": "From: user_id varchar(20)",
+					"Id": "c47"
+				},
+				"c48": {
+					"Name": "product_id",
+					"T": {
+						"Name": "STRING",
+						"Len": 20,
+						"IsArray": false
+					},
+					"NotNull": true,
+					"Comment": "From: product_id varchar(20)",
+					"Id": "c48"
+				},
+				"c49": {
+					"Name": "quantity",
+					"T": {
+						"Name": "INT64",
+						"Len": 0,
+						"IsArray": false
+					},
+					"NotNull": false,
+					"Comment": "From: quantity bigint(20)",
+					"Id": "c49"
+				}
+			},
+			"PrimaryKeys": [
+				{
+					"ColId": "c47",
+					"Desc": false,
+					"Order": 1
+				},
+				{
+					"ColId": "c48",
+					"Desc": false,
+					"Order": 2
+				}
+			],
+			"ForeignKeys": [
+				{
+					"Name": "user_cart",
+					"ColIds": ["c47"],
+					"ReferTableId": "t51",
+					"ReferColumnIds": ["c52"],
+					"Id": "f50"
+				}
+			],
+			"Indexes": null,
+			"ParentId": "",
+			"Comment": "Spanner schema for source table cart",
+			"Id": "t46"
+		},
+		"t51": {
+			"Name": "user",
+			"ColIds": ["c52", "c53"],
+			"ColDefs": {
+				"c52": {
+					"Name": "user_id",
+					"T": {
+						"Name": "STRING",
+						"Len": 20,
+						"IsArray": false
+					},
+					"NotNull": true,
+					"Comment": "From: user_id varchar(20)",
+					"Id": "c52"
+				},
+				"c53": {
+					"Name": "user_name",
+					"T": {
+						"Name": "STRING",
+						"Len": 128,
+						"IsArray": false
+					},
+					"NotNull": true,
+					"Comment": "From: user_name char(128)",
+					"Id": "c53"
+				}
+			},
+			"PrimaryKeys": [
+				{
+					"ColId": "c52",
+					"Desc": false,
+					"Order": 1
+				}
+			],
+			"ForeignKeys": null,
+			"Indexes": null,
+			"ParentId": "",
+			"Comment": "Spanner schema for source table user",
+			"Id": "t51"
+		}
+	},
+	"SyntheticPKeys": {},
+	"SrcSchema": {
+		"t46": {
+			"Name": "cart",
+			"Schema": "",
+			"ColIds": ["c47", "c48", "c49"],
+			"ColDefs": {
+				"c47": {
+					"Name": "user_id",
+					"Type": {
+						"Name": "varchar",
+						"Mods": [20],
+						"ArrayBounds": null
+					},
+					"NotNull": true,
+					"Ignored": {
+						"Check": false,
+						"Identity": false,
+						"Default": false,
+						"Exclusion": false,
+						"ForeignKey": false,
+						"AutoIncrement": false
+					},
+					"Id": "c47"
+				},
+				"c48": {
+					"Name": "product_id",
+					"Type": {
+						"Name": "varchar",
+						"Mods": [20],
+						"ArrayBounds": null
+					},
+					"NotNull": true,
+					"Ignored": {
+						"Check": false,
+						"Identity": false,
+						"Default": false,
+						"Exclusion": false,
+						"ForeignKey": false,
+						"AutoIncrement": false
+					},
+					"Id": "c48"
+				},
+				"c49": {
+					"Name": "quantity",
+					"Type": {
+						"Name": "bigint",
+						"Mods": [20],
+						"ArrayBounds": null
+					},
+					"NotNull": false,
+					"Ignored": {
+						"Check": false,
+						"Identity": false,
+						"Default": false,
+						"Exclusion": false,
+						"ForeignKey": false,
+						"AutoIncrement": false
+					},
+					"Id": "c49"
+				}
+			},
+			"PrimaryKeys": [
+				{
+					"ColId": "c47",
+					"Desc": false,
+					"Order": 1
+				},
+				{
+					"ColId": "c48",
+					"Desc": false,
+					"Order": 2
+				}
+			],
+			"ForeignKeys": [
+				{
+					"Name": "user_cart",
+					"ColIds": ["c47"],
+					"ReferTableId": "t51",
+					"ReferColumnIds": ["c52"],
+					"OnDelete": "",
+					"OnUpdate": "",
+					"Id": "f50"
+				}
+			],
+			"Indexes": null,
+			"Id": "t46"
+		},
+		"t51": {
+			"Name": "user",
+			"Schema": "",
+			"ColIds": ["c52", "c53"],
+			"ColDefs": {
+				"c52": {
+					"Name": "user_id",
+					"Type": {
+						"Name": "varchar",
+						"Mods": [20],
+						"ArrayBounds": null
+					},
+					"NotNull": true,
+					"Ignored": {
+						"Check": false,
+						"Identity": false,
+						"Default": false,
+						"Exclusion": false,
+						"ForeignKey": false,
+						"AutoIncrement": false
+					},
+					"Id": "c52"
+				},
+				"c53": {
+					"Name": "user_name",
+					"Type": {
+						"Name": "char",
+						"Mods": [128],
+						"ArrayBounds": null
+					},
+					"NotNull": true,
+					"Ignored": {
+						"Check": false,
+						"Identity": false,
+						"Default": false,
+						"Exclusion": false,
+						"ForeignKey": false,
+						"AutoIncrement": false
+					},
+					"Id": "c53"
+				}
+			},
+			"PrimaryKeys": [
+				{
+					"ColId": "c52",
+					"Desc": false,
+					"Order": 1
+				}
+			],
+			"ForeignKeys": null,
+			"Indexes": null,
+			"Id": "t51"
+		}
+	},
+	"SchemaIssues": {
+		"t46": {},
+		"t51": {}
+	},
+	"Location": {},
+	"TimezoneOffset": "+00:00",
+	"TargetDb": "spanner",
+	"UniquePKey": {},
+	"Rules": []
 }

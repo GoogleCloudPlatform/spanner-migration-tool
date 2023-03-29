@@ -11,7 +11,7 @@ import (
 // GetMigrationData returns migration data comprising source schema details,
 // request id, target dialect, connection mechanism etc based on
 // the conv object, source driver and target db
-func GetMigrationData(conv *internal.Conv, driver, targetDb, typeOfConv string) *migration.MigrationData {
+func GetMigrationData(conv *internal.Conv, driver, typeOfConv string) *migration.MigrationData {
 
 	migrationData := migration.MigrationData{
 		MigrationRequestId: &conv.Audit.MigrationRequestId,
@@ -23,10 +23,10 @@ func GetMigrationData(conv *internal.Conv, driver, targetDb, typeOfConv string) 
 	migrationData.SourceConnectionMechanism, migrationData.Source = getMigrationDataSourceDetails(driver, &migrationData)
 	migrationData.SchemaPatterns = getMigrationDataSchemaPatterns(conv, &migrationData)
 
-	switch targetDb {
-	case constants.TargetSpanner:
+	switch conv.SpDialect {
+	case constants.DIALECT_GOOGLESQL:
 		migrationData.TargetDialect = migration.MigrationData_GOOGLE_STANDARD_SQL.Enum()
-	case constants.TargetExperimentalPostgres:
+	case constants.DIALECT_POSTGRESQL:
 		migrationData.TargetDialect = migration.MigrationData_POSTGRESQL_STANDARD_SQL.Enum()
 	default:
 		migrationData.TargetDialect = migration.MigrationData_TARGET_DIALECT_UNSPECIFIED.Enum()
@@ -42,25 +42,24 @@ func getMigrationDataSchemaPatterns(conv *internal.Conv, migrationData *migratio
 	numTables := int32(len(conv.SrcSchema))
 	var numForeignKey, numIndexes, numMissingPrimaryKey, numInterleaves, maxInterleaveDepth, numColumns, numWarnings int32 = 0, 0, 0, 0, 0, 0, 0
 
-	for srcTable, srcSchema := range conv.SrcSchema {
+	for srcTableId, srcSchema := range conv.SrcSchema {
 		if len(srcSchema.PrimaryKeys) == 0 {
 			numMissingPrimaryKey++
 		}
-		spTable, _ := internal.GetSpannerTable(conv, srcTable)
-		_, cols, warnings := internal.AnalyzeCols(conv, srcTable, spTable)
+		_, cols, warnings := internal.AnalyzeCols(conv, srcTableId)
 		numColumns += int32(cols)
 		numWarnings += int32(warnings)
 	}
 
 	for _, table := range conv.SpSchema {
-		numForeignKey += int32(len(table.Fks))
+		numForeignKey += int32(len(table.ForeignKeys))
 		numIndexes += int32(len(table.Indexes))
 		depth := 0
-		tableName := table.Name
-		for conv.SpSchema[tableName].Parent != "" {
+		tableId := table.Id
+		for conv.SpSchema[tableId].ParentId != "" {
 			numInterleaves++
 			depth++
-			tableName = conv.SpSchema[tableName].Parent
+			tableId = conv.SpSchema[tableId].ParentId
 		}
 		maxInterleaveDepth = int32(math.Max(float64(maxInterleaveDepth), float64(depth)))
 	}

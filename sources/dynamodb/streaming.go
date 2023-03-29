@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -345,10 +345,23 @@ func ProcessRecord(conv *internal.Conv, streamInfo *StreamingInfo, record *dynam
 	eventName := *record.EventName
 	streamInfo.StatsAddRecord(srcTable, eventName)
 
-	srcSchema, spTable, spCols, spSchema, err := common.GetColsAndSchemas(conv, srcTable)
-	if err != nil {
-		streamInfo.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: %v", srcTable, err))
+	// todo - write a function that will compute schemas and colums and return
+	tableId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, srcTable)
+	srcSchema, ok1 := conv.SrcSchema[tableId]
+	spSchema, ok2 := conv.SpSchema[tableId]
+	if err != nil || !ok1 || !ok2 {
+		streamInfo.Unexpected(fmt.Sprintf("Can't get tableId and schemas for table %s: %v", srcTable, err))
 		return
+	}
+	spTable := spSchema.Name
+	spCols := []string{}
+	srcCols := []string{}
+	srcColIds := srcSchema.ColIds
+	spColIds := spSchema.ColIds
+	commonIds := common.IntersectionOfTwoStringSlices(spColIds, srcColIds)
+	for _, colId := range commonIds {
+		spCols = append(spCols, spSchema.ColDefs[colId].Name)
+		srcCols = append(srcCols, srcSchema.ColDefs[colId].Name)
 	}
 
 	var srcImage map[string]*dynamodb.AttributeValue
@@ -358,12 +371,12 @@ func ProcessRecord(conv *internal.Conv, streamInfo *StreamingInfo, record *dynam
 		srcImage = record.Dynamodb.NewImage
 	}
 
-	spVals, badCols, srcStrVals := cvtRow(srcImage, srcSchema, spSchema, spCols)
+	spVals, badCols, srcStrVals := cvtRow(srcImage, srcSchema, spSchema, commonIds)
 	if len(badCols) == 0 {
 		writeRecord(streamInfo, srcTable, spTable, eventName, spCols, spVals, srcSchema)
 	} else {
 		streamInfo.StatsAddBadRecord(srcTable, eventName)
-		streamInfo.CollectBadRecord(eventName, srcTable, srcSchema.ColNames, srcStrVals)
+		streamInfo.CollectBadRecord(eventName, srcTable, srcCols, srcStrVals)
 	}
 	streamInfo.StatsAddRecordProcessed()
 }
@@ -408,11 +421,11 @@ func removeMutation(srcSchema schema.Table, spTable, srcTable string, spVals []i
 		if spVals[i] == nil {
 			continue
 		}
-		srcKeys = append(srcKeys, srcSchema.ColNames[i])
+		srcKeys = append(srcKeys, srcSchema.ColIds[i])
 		reqSpVals = append(reqSpVals, spVals[i])
 	}
 	primaryKeys := srcSchema.PrimaryKeys
-	if primaryKeys[0].Column != srcKeys[0] {
+	if primaryKeys[0].ColId != srcKeys[0] {
 		reqSpVals[0], reqSpVals[1] = reqSpVals[1], reqSpVals[0]
 	}
 	if len(reqSpVals) == 1 {
@@ -450,7 +463,7 @@ func writeMutation(m *sp.Mutation, streamInfo *StreamingInfo) error {
 // setWriter initializes the write function used to write mutations to Cloud Spanner.
 func setWriter(streamInfo *StreamingInfo, client *sp.Client, conv *internal.Conv) {
 	streamInfo.write = func(m *sp.Mutation) error {
-		migrationData := metrics.GetMigrationData(conv, "", "", constants.DataConv)
+		migrationData := metrics.GetMigrationData(conv, "", constants.DataConv)
 		serializedMigrationData, _ := proto.Marshal(migrationData)
 		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
 		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), constants.MigrationMetadataKey, migrationMetadataValue), []*sp.Mutation{m})

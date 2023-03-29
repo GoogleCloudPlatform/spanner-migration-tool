@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
 import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
-import IRuleContent, { IRule } from 'src/app/model/rule'
+import IRule from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
 import IUpdateTable, { IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
@@ -39,7 +39,7 @@ export class DataService {
     .asObservable()
     .pipe(filter((res) => Object.keys(res).length !== 0))
   typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
-  summary = this.summarySub.asObservable().pipe(filter((res) => res.size >= 0))
+  summary = this.summarySub.asObservable()
   ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   tableInterleaveStatus = this.tableInterleaveStatusSub.asObservable()
   sessions = this.sessionsSub.asObservable()
@@ -79,6 +79,7 @@ export class DataService {
     this.fetch.getSchemaConversionFromDirectConnect().subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
+        this.ruleMapSub.next(res?.Rules)
       },
       error: (err: any) => {
         this.clickEvent.closeDatabaseLoader()
@@ -112,7 +113,7 @@ export class DataService {
   }
 
   getSchemaConversionFromDump(payload: IConvertFromDumpRequest) {
-    this.fetch.getSchemaConversionFromDump(payload).subscribe({
+    return this.fetch.getSchemaConversionFromDump(payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
@@ -125,7 +126,7 @@ export class DataService {
   }
 
   getSchemaConversionFromSession(payload: ISessionConfig) {
-    this.fetch.getSchemaConversionFromSessionFile(payload).subscribe({
+    return this.fetch.getSchemaConversionFromSessionFile(payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
@@ -182,8 +183,8 @@ export class DataService {
     })
   }
 
-  reviewTableUpdate(tableName: string, data: IUpdateTable): Observable<string> {
-    return this.fetch.reviewTableUpdate(tableName, data).pipe(
+  reviewTableUpdate(tableId: string, data: IUpdateTable): Observable<string> {
+    return this.fetch.reviewTableUpdate(tableId, data).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -192,16 +193,16 @@ export class DataService {
         if (data.error) {
           return data.error
         } else {
-          let googleSQLToPGSQLTypemap: Map<String, String>;
-          this.conversion.googleSQLToPGSQLTypeMap.subscribe((typemap) => {
-            googleSQLToPGSQLTypemap = typemap
+          let standardDatatypeToPGSQLTypemap: Map<String, String>;
+          this.conversion.standardTypeToPGSQLTypeMap.subscribe((typemap) => {
+            standardDatatypeToPGSQLTypemap = typemap
           })
           this.conv.subscribe((convData: IConv) => {
-            if (convData.TargetDb === Dialect.PostgreSQLDialect) {
+            if (convData.SpDialect === Dialect.PostgreSQLDialect) {
               data.Changes.forEach((table: IReviewInterleaveTableChanges) => {
                 table.InterleaveColumnChanges.forEach((column: ITableColumnChanges) => {
-                  let pgSQLType = googleSQLToPGSQLTypemap.get(column.Type)
-                  let pgSQLUpdateType = googleSQLToPGSQLTypemap.get(column.UpdateType)
+                  let pgSQLType = standardDatatypeToPGSQLTypemap.get(column.Type)
+                  let pgSQLUpdateType = standardDatatypeToPGSQLTypemap.get(column.UpdateType)
                   column.Type = pgSQLType === undefined? column.Type: pgSQLType 
                   column.UpdateType = pgSQLUpdateType === undefined? column.UpdateType: pgSQLUpdateType
                 })
@@ -215,8 +216,8 @@ export class DataService {
     )
   }
 
-  updateTable(tableName: string, data: IUpdateTable): Observable<string> {
-    return this.fetch.updateTable(tableName, data).pipe(
+  updateTable(tableId: string, data: IUpdateTable): Observable<string> {
+    return this.fetch.updateTable(tableId, data).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -326,8 +327,8 @@ export class DataService {
     )
   }
 
-  dropFk(tableName: string, fkName: string) {
-    return this.fetch.removeFk(tableName, fkName).pipe(
+  dropFk(tableId: string, fkId: string) {
+    return this.fetch.removeFk(tableId, fkId).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -365,6 +366,7 @@ export class DataService {
       next: (res: any) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
+        this.getDdl()
         this.snackbar.openSnackBar('Added new rule.', 'Close', 5)
       },
       error: (err: any) => {
@@ -372,9 +374,8 @@ export class DataService {
       },
     })
   }
-
-  updateIndex(tableName: string, payload: ICreateIndex[]) {
-    return this.fetch.updateIndex(tableName, payload).pipe(
+  updateIndex(tableId: string, payload: ICreateIndex[]) {
+    return this.fetch.updateIndex(tableId, payload).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -391,8 +392,8 @@ export class DataService {
     )
   }
 
-  dropIndex(tableName: string, indexName: string): Observable<string> {
-    return this.fetch.dropIndex(tableName, indexName).pipe(
+  dropIndex(tableId: string, indexId: string): Observable<string> {
+    return this.fetch.dropIndex(tableId, indexId).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -431,14 +432,15 @@ export class DataService {
     )
   }
 
-  getInterleaveConversionForATable(tableName: string) {
-    this.fetch.getInterleaveStatus(tableName).subscribe((res: IInterleaveStatus) => {
+  getInterleaveConversionForATable(tableId: string) {
+    this.fetch.getInterleaveStatus(tableId).subscribe((res: IInterleaveStatus) => {
       this.tableInterleaveStatusSub.next(res)
     })
   }
 
-  setInterleave(tableName: string) {
-    this.fetch.setInterleave(tableName).subscribe((res: any) => {
+  setInterleave(tableId: string) {
+    this.fetch.setInterleave(tableId).subscribe((res: any) => {
+      this.convSubject.next(res.sessionState)
       this.getDdl()
       if (res.sessionState) {
         this.convSubject.next(res.sessionState as IConv)
@@ -469,6 +471,7 @@ export class DataService {
       next: (res: any) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
+        this.getDdl()
         this.snackbar.openSnackBar('Rule deleted successfully', 'Close', 5)
       },
       error: (err: any) => {

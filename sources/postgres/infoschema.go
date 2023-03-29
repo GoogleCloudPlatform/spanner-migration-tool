@@ -83,11 +83,11 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 }
 
 // GetRowsFromTable returns a sql Rows object for a table.
-func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
+func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) (interface{}, error) {
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
-	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[srcTable].Schema, srcTable)
+	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[tableId].Schema, conv.SrcSchema[tableId].Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -114,32 +114,35 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 // We choose to do all type conversions explicitly ourselves so that
 // we can generate more targeted error messages: hence we pass
 // *interface{} parameters to row.Scan.
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
-	rowsInterface, err := isi.GetRowsFromTable(conv, srcTable)
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, colIds []string, spSchema ddl.CreateTable) error {
+	srcTableName := conv.SrcSchema[tableId].Name
+	rowsInterface, err := isi.GetRowsFromTable(conv, tableId)
 	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTable, err))
+		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTableName, err))
 		return err
 	}
 	rows := rowsInterface.(*sql.Rows)
 	defer rows.Close()
 	srcCols, _ := rows.Columns()
 	v, iv := buildVals(len(srcCols))
+	colNameIdMap := internal.GetSrcColNameIdMap(conv.SrcSchema[tableId])
 	for rows.Next() {
 		err := rows.Scan(iv...)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
 			// Scan failed, so we don't have any data to add to bad rows.
-			conv.StatsAddBadRow(srcTable, conv.DataMode())
+			conv.StatsAddBadRow(srcTableName, conv.DataMode())
 			continue
 		}
-		cvtCols, cvtVals, err := convertSQLRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, v)
-		if err != nil {
+		newValues, err1 := common.PrepareValues(conv, tableId, colNameIdMap, colIds, srcCols, v)
+		cvtCols, cvtVals, err2 := convertSQLRow(conv, tableId, colIds, srcSchema, spSchema, newValues)
+		if err1 != nil || err2 != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
-			conv.StatsAddBadRow(srcTable, conv.DataMode())
-			conv.CollectBadRow(srcTable, srcCols, valsToStrings(v))
+			conv.StatsAddBadRow(srcTableName, conv.DataMode())
+			conv.CollectBadRow(srcTableName, srcCols, valsToStrings(v))
 			continue
 		}
-		conv.WriteRow(srcTable, spTable, cvtCols, cvtVals)
+		conv.WriteRow(srcTableName, conv.SpSchema[tableId].Name, cvtCols, cvtVals)
 	}
 	return nil
 }
@@ -150,14 +153,14 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 // ConvertSQLRow returns cols as well as converted values. This is
 // because cols can change when we add a column (synthetic primary
 // key) or because we drop columns (handling of NULL values).
-func convertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, srcVals []interface{}) ([]string, []interface{}, error) {
+func convertSQLRow(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, srcVals []interface{}) ([]string, []interface{}, error) {
 	var vs []interface{}
 	var cs []string
-	for i := range srcCols {
-		srcCd, ok1 := srcSchema.ColDefs[srcCols[i]]
-		spCd, ok2 := spSchema.ColDefs[spCols[i]]
+	for i, colId := range colIds {
+		srcCd, ok1 := srcSchema.ColDefs[colId]
+		spCd, ok2 := spSchema.ColDefs[colId]
 		if !ok1 || !ok2 {
-			return nil, nil, fmt.Errorf("data conversion: can't find schema for column %s of table %s", srcCols[i], srcTable)
+			return nil, nil, fmt.Errorf("data conversion: can't find schema for column id %s of table %s", colId, conv.SrcSchema[tableId].Name)
 		}
 		if srcVals[i] == nil {
 			continue // Skip NULL values (nil is used by database/sql to represent NULL values).
@@ -170,16 +173,16 @@ func convertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSc
 			spVal, err = cvtSQLScalar(conv, srcCd, spCd, srcVals[i])
 		}
 		if err != nil { // Skip entire row if we hit error.
-			return nil, nil, fmt.Errorf("can't convert sql data for column %s of table %s: %w", srcCols[i], srcTable, err)
+			return nil, nil, fmt.Errorf("can't convert sql data for column id %s of table %s: %w", colIds, conv.SrcSchema[tableId].Name, err)
 		}
 		vs = append(vs, spVal)
-		cs = append(cs, srcCols[i])
+		cs = append(cs, spCd.Name)
 	}
-	if aux, ok := conv.SyntheticPKeys[spTable]; ok {
-		cs = append(cs, aux.Col)
+	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
+		cs = append(cs, conv.SpSchema[tableId].ColDefs[aux.ColId].Name)
 		vs = append(vs, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
 		aux.Sequence++
-		conv.SyntheticPKeys[spTable] = aux
+		conv.SyntheticPKeys[tableId] = aux
 	}
 	return cs, vs, nil
 }
@@ -242,8 +245,9 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
 	}
+	defer cols.Close()
 	colDefs := make(map[string]schema.Column)
-	var colNames []string
+	var colIds []string
 	var colName, dataType, isNullable string
 	var colDefault, elementDataType sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
@@ -266,16 +270,18 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			}
 		}
 		ignored.Default = colDefault.Valid
+		colId := internal.GenerateColumnId()
 		c := schema.Column{
+			Id:      colId,
 			Name:    colName,
 			Type:    toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale),
 			NotNull: common.ToNotNull(conv, isNullable),
 			Ignored: ignored,
 		}
-		colDefs[colName] = c
-		colNames = append(colNames, colName)
+		colDefs[colId] = c
+		colIds = append(colIds, colId)
 	}
-	return colDefs, colNames, nil
+	return colDefs, colIds, nil
 }
 
 // GetConstraints returns a list of primary keys and by-column map of
@@ -373,10 +379,11 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	for _, k := range keyNames {
 		foreignKeys = append(foreignKeys,
 			schema.ForeignKey{
-				Name:         fKeys[k].Name,
-				Columns:      fKeys[k].Cols,
-				ReferTable:   fKeys[k].Table,
-				ReferColumns: fKeys[k].Refcols})
+				Id:               internal.GenerateForeignkeyId(),
+				Name:             fKeys[k].Name,
+				ColumnNames:      fKeys[k].Cols,
+				ReferTableName:   fKeys[k].Table,
+				ReferColumnNames: fKeys[k].Refcols})
 	}
 	return foreignKeys, nil
 }
@@ -385,7 +392,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 // Note: Extracting index definitions from PostgreSQL information schema tables is complex.
 // See https://stackoverflow.com/questions/6777456/list-all-index-names-column-names-and-its-table-name-of-a-postgresql-database/44460269#44460269
 // for background.
-func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
+func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName, colNameIdMap map[string]string) ([]schema.Index, error) {
 	q := `SELECT
 			irel.relname AS index_name,
 			a.attname AS column_name,
@@ -431,10 +438,15 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		}
 		if _, found := indexMap[name]; !found {
 			indexNames = append(indexNames, name)
-			indexMap[name] = schema.Index{Name: name, Unique: (isUnique == "true")}
+			indexMap[name] = schema.Index{
+				Id:     internal.GenerateIndexesId(),
+				Name:   name,
+				Unique: (isUnique == "true")}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
+		index.Keys = append(index.Keys, schema.Key{
+			ColId: colNameIdMap[column],
+			Desc:  (collation == "DESC")})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {

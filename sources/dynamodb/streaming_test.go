@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -339,26 +339,30 @@ func TestProcessRecord(t *testing.T) {
 	numVal := big.NewRat(101, 10)
 
 	tableName := "testtable"
+	tableId := "t1"
 	cols := []string{"a", "b"}
+	colIds := []string{"c1", "c2"}
 	spSchema := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		Id:     tableId,
+		ColIds: colIds,
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
+			"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Numeric}},
 		},
-		Pks: []ddl.IndexKey{{Col: "a"}},
+		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 	}
 	conv := buildConv(
 		spSchema,
 		schema.Table{
-			Name:     tableName,
-			ColNames: cols,
+			Name:   tableName,
+			Id:     tableId,
+			ColIds: colIds,
 			ColDefs: map[string]schema.Column{
-				"a": {Name: "a", Type: schema.Type{Name: typeString}},
-				"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
+				"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: typeString}},
+				"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: typeNumber}},
 			},
-			PrimaryKeys: []schema.Key{{Column: "a"}},
+			PrimaryKeys: []schema.Key{{ColId: "c1"}},
 		},
 	)
 
@@ -377,7 +381,7 @@ func TestProcessRecord(t *testing.T) {
 	writes := 0
 	streamInfo.write = func(m *sp.Mutation) error {
 		writes++
-		assert.Equal(t, m, sp.Insert(tableName, []string{"a", "b"}, []interface{}{valA, *numVal}))
+		assert.Equal(t, m, sp.Insert(tableName, cols, []interface{}{valA, *numVal}))
 		return nil
 	}
 	ProcessRecord(conv, streamInfo, record, tableName)
@@ -391,15 +395,15 @@ func Test_getMutation(t *testing.T) {
 	spTable := "testtable_sp"
 	spCols := []string{"a", "b", "c", "d"}
 	srcSchema := schema.Table{
-		Name:     srcTable,
-		ColNames: spCols,
+		Name:   srcTable,
+		ColIds: spCols,
 		ColDefs: map[string]schema.Column{
 			"a": {Name: "a", Type: schema.Type{Name: typeNumber}},
 			"b": {Name: "b", Type: schema.Type{Name: typeString}},
 			"c": {Name: "c", Type: schema.Type{Name: typeBool}},
 			"d": {Name: "d", Type: schema.Type{Name: typeString}},
 		},
-		PrimaryKeys: []schema.Key{schema.Key{Column: "d"}, schema.Key{Column: "b"}},
+		PrimaryKeys: []schema.Key{schema.Key{ColId: "d"}, schema.Key{ColId: "b"}},
 	}
 
 	type args struct {
@@ -458,13 +462,13 @@ func Test_writeRecord(t *testing.T) {
 	streamInfo.DroppedRecords[table] = make(map[string]int64)
 
 	srcSchema := schema.Table{
-		Name:     table,
-		ColNames: []string{"e", "f"},
+		Name:   table,
+		ColIds: []string{"e", "f"},
 		ColDefs: map[string]schema.Column{
 			"e": {Name: "e", Type: schema.Type{Name: typeString}},
 			"f": {Name: "f", Type: schema.Type{Name: typeNumber}},
 		},
-		PrimaryKeys: []schema.Key{schema.Key{Column: "f"}, schema.Key{Column: "e"}},
+		PrimaryKeys: []schema.Key{schema.Key{ColId: "f"}, schema.Key{ColId: "e"}},
 	}
 	tests := []struct {
 		srcTable  string

@@ -9,9 +9,13 @@ export default interface IColumnTabData {
   srcIsPk: boolean
   spIsNotNull: boolean
   srcIsNotNull: boolean
+  srcId: string
+  spId: string
 }
 
 export interface IIndexData {
+  srcColId: string | undefined
+  spColId: string | undefined
   srcColName: string
   spColName: string | undefined
   srcDesc: boolean | undefined | string

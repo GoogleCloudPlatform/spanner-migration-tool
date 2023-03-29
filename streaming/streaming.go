@@ -59,10 +59,11 @@ type DatastreamCfg struct {
 }
 
 type DataflowCfg struct {
-	JobName  string
-	Location string
-	Network string
-	Subnetwork string
+	JobName       string
+	Location      string
+	HostProjectId string
+	Network       string
+	Subnetwork    string
 }
 
 type StreamingCfg struct {
@@ -367,15 +368,21 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		inputFilePattern = inputFilePattern + "/"
 	}
 	fmt.Println("Reading files from datastream destination ", inputFilePattern)
+	var dataflowHostProjectId string
+	if dataflowCfg.HostProjectId == "" {
+		dataflowHostProjectId, _ = utils.GetProject()
+	} else {
+		dataflowHostProjectId = dataflowCfg.HostProjectId
+	}
 	dataflowSubnetwork := ""
 	if dataflowCfg.Network != "" {
 		if dataflowCfg.Subnetwork == "" {
 			return fmt.Errorf("if network is specified, subnetwork cannot be empty")
 		} else {
-			dataflowSubnetwork = fmt.Sprintf("regions/%s/subnetworks/%s", dataflowCfg.Location, dataflowCfg.Subnetwork)
+			dataflowSubnetwork = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/%s/subnetworks/%s", dataflowHostProjectId, dataflowCfg.Location, dataflowCfg.Subnetwork)
 		}
 	}
-	
+
 	launchParameters := createLaunchParameters(dataflowCfg, inputFilePattern, project, datastreamCfg, instance, dbName, streamingCfg, dataflowSubnetwork)
 
 	req := &dataflowpb.LaunchFlexTemplateRequest{
@@ -407,7 +414,7 @@ func printDataflowJob(conv *internal.Conv, datastreamCfg DatastreamCfg, respDf *
 func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string) *dataflowpb.LaunchFlexTemplateParameter {
 	return &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
-		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-01-29-00_RC00/flex/Cloud_Datastream_to_Spanner"},
+		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-03-07-00_RC00/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
 			"inputFilePattern":         inputFilePattern,
 			"streamName":               fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),

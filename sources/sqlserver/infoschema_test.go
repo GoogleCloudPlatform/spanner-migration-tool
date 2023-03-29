@@ -51,25 +51,24 @@ func TestProcessSchema(t *testing.T) {
 				{"production", "product"},
 				{"dbo", "test_ref"},
 			},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"dbo", "user"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows: [][]driver.Value{
 				{"user_id", "PRIMARY KEY"},
 				{"ref", "FOREIGN KEY"}},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"dbo.user"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{
 				{"dbo", "test", "ref", "Id", "fk_test"},
 			},
-		}, {
-			query: "SELECT (.+) FROM sys.indexes (.+)",
-			args:  []driver.Value{"user", "dbo"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "user"},
 			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -77,7 +76,14 @@ func TestProcessSchema(t *testing.T) {
 				{"user_id", "text", "NO", nil, nil, nil, nil},
 				{"name", "text", "NO", nil, nil, nil, nil},
 				{"ref", "bigint", "YES", nil, nil, nil, nil}},
-		}, {
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: "SELECT (.+) FROM sys.indexes (.+)",
+			args:  []driver.Value{"user", "dbo"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"dbo", "test"},
 			cols:  []string{"column_name", "constraint_type"},
@@ -88,12 +94,9 @@ func TestProcessSchema(t *testing.T) {
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"dbo.test"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
-			rows:  [][]driver.Value{{"dbo", "test_ref", "id", "ref_id", "fk_test4"}},
-		}, {
-			query: "SELECT (.+) FROM sys.indexes (.+)",
-			args:  []driver.Value{"test", "dbo"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
-		}, {
+			rows:  [][]driver.Value{{"dbo", "test_ref", "Id", "ref_id", "fk_test4"}},
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "test"},
 			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -137,6 +140,12 @@ func TestProcessSchema(t *testing.T) {
 				{"Xml", "xml", "YES", nil, -1, nil, nil},
 			},
 		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: "SELECT (.+) FROM sys.indexes (.+)",
+			args:  []driver.Value{"test", "dbo"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
+		},
 
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
@@ -146,14 +155,26 @@ func TestProcessSchema(t *testing.T) {
 				{"productid", "PRIMARY KEY"},
 				{"userid", "PRIMARY KEY"},
 			},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"dbo.cart"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{
 				{"production", "product", "productid", "product_id", "fk_test2"},
 				{"dbo", "user", "userid", "user_id", "fk_test3"}},
-		}, {
+		},
+		{
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"dbo", "cart"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			rows: [][]driver.Value{
+				{"productid", "text", "NO", nil, nil, nil, nil},
+				{"userid", "text", "NO", nil, nil, nil, nil},
+				{"quantity", "bigint", "YES", nil, nil, 64, 0}},
+		},
+		// db call to fetch index happens after fetching of column
+		{
 			query: "SELECT (.+) FROM sys.indexes (.+)",
 			args:  []driver.Value{"cart", "dbo"},
 			cols:  []string{"index_name", "column_name", "is_unique", "order", "is_included_column"},
@@ -163,14 +184,6 @@ func TestProcessSchema(t *testing.T) {
 				{"index3", "productid", "true", "DESC", "false"},
 				{"index3", "userid", "true", "ASC", "false"},
 			},
-		}, {
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"dbo", "cart"},
-			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
-			rows: [][]driver.Value{
-				{"productid", "text", "NO", nil, nil, nil, nil},
-				{"userid", "text", "NO", nil, nil, nil, nil},
-				{"quantity", "bigint", "YES", nil, nil, 64, 0}},
 		},
 
 		{
@@ -180,15 +193,13 @@ func TestProcessSchema(t *testing.T) {
 			rows: [][]driver.Value{
 				{"product_id", "PRIMARY KEY"},
 			},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"production.product"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
-		}, {
-			query: "SELECT (.+) FROM sys.indexes (.+)",
-			args:  []driver.Value{"product", "production"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"production", "product"},
 			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -196,6 +207,12 @@ func TestProcessSchema(t *testing.T) {
 				{"product_id", "text", "NO", nil, nil, nil, nil},
 				{"product_name", "text", "NO", nil, nil, nil, nil},
 			},
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: "SELECT (.+) FROM sys.indexes (.+)",
+			args:  []driver.Value{"product", "production"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
 		},
 
 		{
@@ -206,15 +223,13 @@ func TestProcessSchema(t *testing.T) {
 				{"ref_id", "PRIMARY KEY"},
 				{"ref_txt", "PRIMARY KEY"},
 			},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"dbo.test_ref"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
-		}, {
-			query: "SELECT (.+) FROM sys.indexes (.+)",
-			args:  []driver.Value{"test_ref", "dbo"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "test_ref"},
 			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -224,25 +239,31 @@ func TestProcessSchema(t *testing.T) {
 				{"abc", "text", "NO", nil, nil, nil, nil},
 			},
 		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: "SELECT (.+) FROM sys.indexes (.+)",
+			args:  []driver.Value{"test_ref", "dbo"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
+		},
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{"test", db})
+	err := common.ProcessSchema(conv, InfoSchemaImpl{"test", db}, 1)
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"user": {
-			Name:     "user",
-			ColNames: []string{"user_id", "name", "ref"},
+			Name:   "user",
+			ColIds: []string{"user_id", "name", "ref"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"user_id": {Name: "user_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"name":    {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"ref":     {Name: "ref", T: ddl.Type{Name: ddl.Int64}},
 			},
-			Pks: []ddl.IndexKey{{Col: "user_id"}},
-			Fks: []ddl.Foreignkey{{Name: "fk_test", Columns: []string{"ref"}, ReferTable: "test", ReferColumns: []string{"Id"}}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "user_id", Order: 1}},
+			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"Id"}}}},
 		"test": {
 			Name: "test",
-			ColNames: []string{"Id", "BigInt", "Binary", "Bit", "Char", "Date", "DateTime",
+			ColIds: []string{"Id", "BigInt", "Binary", "Bit", "Char", "Date", "DateTime",
 				"DateTime2", "DateTimeOffset", "Decimal", "Float", "Geography", "Geometry", "HierarchyId",
 				"Image", "Int", "Money", "NChar", "NText", "Numeric", "NVarChar", "NVarCharMax", "Real", "SmallDateTime",
 				"SmallInt", "SmallMoney", "SQLVariant", "Text", "Time", "TimeStamp",
@@ -286,44 +307,49 @@ func TestProcessSchema(t *testing.T) {
 				"VarCharMax":       {Name: "VarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Xml":              {Name: "Xml", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 			},
-			Pks: []ddl.IndexKey{{Col: "Id"}},
-			Fks: []ddl.Foreignkey{{Name: "fk_test4", Columns: []string{"Id"}, ReferTable: "test_ref", ReferColumns: []string{"ref_id"}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "Id", Order: 1}},
+			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test4", ColIds: []string{"Id"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id"}}},
 		},
 		"cart": {
-			Name:     "cart",
-			ColNames: []string{"productid", "userid", "quantity"},
+			Name:   "cart",
+			ColIds: []string{"productid", "userid", "quantity"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"productid": {Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"userid":    {Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"quantity":  {Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
 			},
-			Pks: []ddl.IndexKey{{Col: "productid"}, {Col: "userid"}},
-			Fks: []ddl.Foreignkey{{Name: "fk_test2", Columns: []string{"productid"}, ReferTable: "production_product", ReferColumns: []string{"product_id"}},
-				{Name: "fk_test3", Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}},
-			Indexes: []ddl.CreateIndex{{Name: "index1", Table: "cart", Unique: false, Keys: []ddl.IndexKey{{Col: "userid", Desc: false}}},
-				{Name: "index2", Table: "cart", Unique: true, Keys: []ddl.IndexKey{{Col: "userid", Desc: false}}, StoredColumns: []string{"productid"}},
-				{Name: "index3", Table: "cart", Unique: true, Keys: []ddl.IndexKey{{Col: "productid", Desc: true}, {Col: "userid", Desc: false}}}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "productid", Order: 1}, {ColId: "userid", Order: 2}},
+			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "production_product", ReferColumnIds: []string{"product_id"}},
+				{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}}},
+			Indexes: []ddl.CreateIndex{{Name: "index1", TableId: "cart", Unique: false, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false, Order: 1}}},
+				{Name: "index2", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false, Order: 1}}, StoredColumnIds: []string{"productid"}},
+				{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "productid", Desc: true, Order: 1}, {ColId: "userid", Desc: false, Order: 2}}}}},
 		"production_product": {
-			Name:     "production_product",
-			ColNames: []string{"product_id", "product_name"},
+			Name:   "production_product",
+			ColIds: []string{"product_id", "product_name"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"product_id":   {Name: "product_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"product_name": {Name: "product_name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 			},
-			Pks: []ddl.IndexKey{{Col: "product_id"}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "product_id", Order: 1}}},
 		"test_ref": {
-			Name:     "test_ref",
-			ColNames: []string{"ref_id", "ref_txt", "abc"},
+			Name:   "test_ref",
+			ColIds: []string{"ref_id", "ref_txt", "abc"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"ref_id":  {Name: "ref_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 				"ref_txt": {Name: "ref_txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"abc":     {Name: "abc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 			},
-			Pks: []ddl.IndexKey{{Col: "ref_id"}, {Col: "ref_txt"}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "ref_id", Order: 1}, {ColId: "ref_txt", Order: 2}}},
 	}
-	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	assert.Equal(t, len(conv.Issues["cart"]), 0)
-	assert.Equal(t, len(conv.Issues["test"]), 17)
+	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
+
+	cartTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "cart")
+	assert.Equal(t, nil, err)
+	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
+	assert.Equal(t, nil, err)
+	assert.Equal(t, len(conv.SchemaIssues[cartTableId]), 0)
+	assert.Equal(t, len(conv.SchemaIssues[testTableId]), 17)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 
 }

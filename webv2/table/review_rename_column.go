@@ -19,60 +19,61 @@ import (
 )
 
 // reviewRenameColumn review  renaming of Columnname in schmema.
-func reviewRenameColumn(newName, table, colName string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema) []InterleaveTableSchema {
+func reviewRenameColumn(newName, tableId, colId string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema) []InterleaveTableSchema {
 
-	sp := conv.SpSchema[table]
-
-	columnId := sp.ColDefs[colName].Id
+	sp := conv.SpSchema[tableId]
 
 	// review column name update for interleaved child.
-	isParent, childTableName := IsParent(table)
+	isParent, childTableId := IsParent(tableId)
 
 	if isParent {
-		reviewRenameColumnNameTableSchema(conv, childTableName, colName, newName)
-		if _, ok := conv.SpSchema[childTableName].ColDefs[newName]; ok {
-			childColumnId := conv.SpSchema[childTableName].ColDefs[newName].Id
-			interleaveTableSchema = renameInterleaveTableSchema(interleaveTableSchema, childTableName, childColumnId, colName, newName)
+		childColId, err := getColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
+		if err == nil {
+			oldColName := conv.SpSchema[childTableId].ColDefs[childColId].Name
+			reviewRenameColumnNameTableSchema(conv, childTableId, childColId, newName)
+			childTableName := conv.SpSchema[childTableId].Name
+			colType := conv.SpSchema[childTableId].ColDefs[childColId].T.Name
+			interleaveTableSchema = renameInterleaveTableSchema(interleaveTableSchema, childTableName, childColId, oldColName, newName, colType)
+
 		}
 	}
 
 	// review column name update for interleaved parent.
-	parentTableName := conv.SpSchema[table].Parent
+	parentTableId := conv.SpSchema[tableId].ParentId
 
-	if parentTableName != "" {
-		reviewRenameColumnNameTableSchema(conv, parentTableName, colName, newName)
-		if _, ok := conv.SpSchema[parentTableName].ColDefs[newName]; ok {
-			parentColumnId := conv.SpSchema[parentTableName].ColDefs[newName].Id
-			interleaveTableSchema = renameInterleaveTableSchema(interleaveTableSchema, parentTableName, parentColumnId, colName, newName)
+	if parentTableId != "" {
+		parentColId, err := getColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
+		if err == nil {
+			oldColName := conv.SpSchema[parentTableId].ColDefs[parentColId].Name
+			reviewRenameColumnNameTableSchema(conv, parentTableId, parentColId, newName)
+			parentTableName := conv.SpSchema[parentTableId].Name
+			colType := conv.SpSchema[parentTableId].ColDefs[parentColId].T.Name
+			interleaveTableSchema = renameInterleaveTableSchema(interleaveTableSchema, parentTableName, parentColId, oldColName, newName, colType)
+
 		}
 	}
 
-	reviewRenameColumnNameTableSchema(conv, table, colName, newName)
-	if childTableName != "" || parentTableName != "" {
-		interleaveTableSchema = renameInterleaveTableSchema(interleaveTableSchema, table, columnId, colName, newName)
+	oldColName := conv.SpSchema[tableId].ColDefs[colId].Name
+	colType := conv.SpSchema[tableId].ColDefs[colId].T.Name
+	reviewRenameColumnNameTableSchema(conv, tableId, colId, newName)
+	if childTableId != "" || parentTableId != "" {
+		interleaveTableSchema = renameInterleaveTableSchema(interleaveTableSchema, sp.Name, colId, oldColName, newName, colType)
 	}
 
 	return interleaveTableSchema
 }
 
 // reviewRenameColumnNameTableSchema review  renaming of column-name in Table Schema.
-func reviewRenameColumnNameTableSchema(conv *internal.Conv, tableName, colName, newName string) {
-	sp := conv.SpSchema[tableName]
+func reviewRenameColumnNameTableSchema(conv *internal.Conv, tableId, colId, newName string) {
+	sp := conv.SpSchema[tableId]
 
-	_, ok := sp.ColDefs[colName]
+	column, ok := sp.ColDefs[colId]
 
 	if ok {
-		{
-			sp = renameColumnNameInSpannerColNames(sp, colName, newName)
-			sp = renameColumnNameInSpannerColDefs(sp, colName, newName)
-			sp = renameColumnNameInSpannerPK(sp, colName, newName)
-			sp = renameColumnNameInSpannerSecondaryIndex(sp, colName, newName)
-			sp = renameColumnNameInSpannerForeignkeyColumns(sp, colName, newName)
-			sp = renameColumnNameInSpannerColNames(sp, colName, newName)
-			renameColumnNameInToSpannerToSource(tableName, colName, newName, conv)
-			renameColumnNameInSpannerSchemaIssue(tableName, colName, newName, conv)
+		column.Name = newName
 
-			conv.SpSchema[tableName] = sp
-		}
+		sp.ColDefs[colId] = column
+		conv.SpSchema[tableId] = sp
+
 	}
 }

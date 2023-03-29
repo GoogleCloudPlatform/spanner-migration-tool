@@ -19,6 +19,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -28,117 +29,125 @@ import (
 func TestToSpannerType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
-	name := "test"
+	name := "t1"
 	srcSchema := schema.Table{
-		Name:     name,
-		ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
+		Id:     "t1",
+		Name:   name,
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11"},
 		ColDefs: map[string]schema.Column{
-			"a": {Name: "a", Type: schema.Type{Name: typeString}},
-			"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
-			"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
-			"d": {Name: "d", Type: schema.Type{Name: typeBool}},
-			"e": {Name: "e", Type: schema.Type{Name: typeBinary}},
-			"f": {Name: "f", Type: schema.Type{Name: typeList}},
-			"g": {Name: "g", Type: schema.Type{Name: typeMap}},
-			"h": {Name: "h", Type: schema.Type{Name: typeStringSet}},
-			"i": {Name: "i", Type: schema.Type{Name: typeBinarySet}},
-			"j": {Name: "j", Type: schema.Type{Name: typeNumberSet}},
-			"k": {Name: "k", Type: schema.Type{Name: typeNumberStringSet}},
+			"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: typeString}},
+			"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: typeNumber}},
+			"c3":  {Name: "c", Id: "c3", Type: schema.Type{Name: typeNumberString}},
+			"c4":  {Name: "d", Id: "c4", Type: schema.Type{Name: typeBool}},
+			"c5":  {Name: "e", Id: "c5", Type: schema.Type{Name: typeBinary}},
+			"c6":  {Name: "f", Id: "c6", Type: schema.Type{Name: typeList}},
+			"c7":  {Name: "g", Id: "c7", Type: schema.Type{Name: typeMap}},
+			"c8":  {Name: "h", Id: "c8", Type: schema.Type{Name: typeStringSet}},
+			"c9":  {Name: "i", Id: "c9", Type: schema.Type{Name: typeBinarySet}},
+			"c10": {Name: "j", Id: "c10", Type: schema.Type{Name: typeNumberSet}},
+			"c11": {Name: "k", Id: "c11", Type: schema.Type{Name: typeNumberStringSet}},
 		},
-		PrimaryKeys: []schema.Key{{Column: "a"}, {Column: "b"}},
+		PrimaryKeys: []schema.Key{{ColId: "c1"}, {ColId: "c2"}},
 		Indexes: []schema.Index{
-			{Name: "index1", Keys: []schema.Key{{Column: "b"}, {Column: "c"}}},
-			{Name: "test", Keys: []schema.Key{{Column: "d"}}},
+			{Name: "index1", Keys: []schema.Key{{ColId: "c2"}, {ColId: "c3"}}},
+			{Name: "test", Keys: []schema.Key{{ColId: "c4"}}},
 		},
 	}
+	audit := internal.Audit{
+		MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+	}
 	conv.SrcSchema[name] = srcSchema
+	conv.Audit = audit
 	assert.Nil(t, common.SchemaToSpannerDDL(conv, ToDdlImpl{}))
 	actual := conv.SpSchema[name]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
-		Name:     name,
-		ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
+		Name:   "t1",
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
-			"e": {Name: "e", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-			"f": {Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"g": {Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"h": {Name: "h", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
-			"i": {Name: "i", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength, IsArray: true}},
-			"j": {Name: "j", T: ddl.Type{Name: ddl.Numeric, IsArray: true}},
-			"k": {Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
-		},
-		Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}},
+			"c1":  ddl.ColumnDef{Name: "a", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c1"},
+			"c10": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: "NUMERIC", Len: 0, IsArray: true}, NotNull: false, Comment: "", Id: "c10"},
+			"c11": ddl.ColumnDef{Name: "k", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: true}, NotNull: false, Comment: "", Id: "c11"},
+			"c2":  ddl.ColumnDef{Name: "b", T: ddl.Type{Name: "NUMERIC", Len: 0, IsArray: false}, NotNull: false, Comment: "", Id: "c2"},
+			"c3":  ddl.ColumnDef{Name: "c", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c3"},
+			"c4":  ddl.ColumnDef{Name: "d", T: ddl.Type{Name: "BOOL", Len: 0, IsArray: false}, NotNull: false, Comment: "", Id: "c4"},
+			"c5":  ddl.ColumnDef{Name: "e", T: ddl.Type{Name: "BYTES", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c5"},
+			"c6":  ddl.ColumnDef{Name: "f", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c6"},
+			"c7":  ddl.ColumnDef{Name: "g", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c7"},
+			"c8":  ddl.ColumnDef{Name: "h", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: true}, NotNull: false, Comment: "", Id: "c8"},
+			"c9":  ddl.ColumnDef{Name: "i", T: ddl.Type{Name: "BYTES", Len: 9223372036854775807, IsArray: true}, NotNull: false, Comment: "", Id: "c9"}},
+		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1", Desc: false, Order: 0}, ddl.IndexKey{ColId: "c2", Desc: false, Order: 0}},
+		ForeignKeys: []ddl.Foreignkey(nil),
 		Indexes: []ddl.CreateIndex{
-			{Name: "index1", Table: name, Keys: []ddl.IndexKey{{Col: "b"}, {Col: "c"}}},
-			{Name: "test_2", Table: name, Keys: []ddl.IndexKey{{Col: "d"}}},
-		},
-	}
+			ddl.CreateIndex{Name: "index1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c2", Desc: false, Order: 0}, ddl.IndexKey{ColId: "c3", Desc: false, Order: 0}}, Id: "", StoredColumnIds: []string(nil)},
+			ddl.CreateIndex{Name: "test", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c4", Desc: false, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}},
+		Id: "t1"}
 	assert.Equal(t, expected, actual)
 }
 
-func TestToExperimentalSpannerType(t *testing.T) {
+func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
-	conv.TargetDb = constants.TargetExperimentalPostgres
+	conv.SpDialect = constants.DIALECT_POSTGRESQL
 	name := "test"
 	srcSchema := schema.Table{
-		Name:     name,
-		ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
+		Name:   name,
+		Id:     "t1",
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11"},
 		ColDefs: map[string]schema.Column{
-			"a": {Name: "a", Type: schema.Type{Name: typeString}},
-			"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
-			"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
-			"d": {Name: "d", Type: schema.Type{Name: typeBool}},
-			"e": {Name: "e", Type: schema.Type{Name: typeBinary}},
-			"f": {Name: "f", Type: schema.Type{Name: typeList}},
-			"g": {Name: "g", Type: schema.Type{Name: typeMap}},
-			"h": {Name: "h", Type: schema.Type{Name: typeStringSet}},
-			"i": {Name: "i", Type: schema.Type{Name: typeBinarySet}},
-			"j": {Name: "j", Type: schema.Type{Name: typeNumberSet}},
-			"k": {Name: "k", Type: schema.Type{Name: typeNumberStringSet}},
+			"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: typeString}},
+			"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: typeNumber}},
+			"c3":  {Name: "c", Id: "c3", Type: schema.Type{Name: typeNumberString}},
+			"c4":  {Name: "d", Id: "c4", Type: schema.Type{Name: typeBool}},
+			"c5":  {Name: "e", Id: "c5", Type: schema.Type{Name: typeBinary}},
+			"c6":  {Name: "f", Id: "c6", Type: schema.Type{Name: typeList}},
+			"c7":  {Name: "g", Id: "c7", Type: schema.Type{Name: typeMap}},
+			"c8":  {Name: "h", Id: "c8", Type: schema.Type{Name: typeStringSet}},
+			"c9":  {Name: "i", Id: "c9", Type: schema.Type{Name: typeBinarySet}},
+			"c10": {Name: "j", Id: "c10", Type: schema.Type{Name: typeNumberSet}},
+			"c11": {Name: "k", Id: "c11", Type: schema.Type{Name: typeNumberStringSet}},
 		},
-		PrimaryKeys: []schema.Key{{Column: "a"}, {Column: "b"}},
+		PrimaryKeys: []schema.Key{{ColId: "c1"}, {ColId: "c2"}},
 		Indexes: []schema.Index{
-			{Name: "index1", Keys: []schema.Key{{Column: "b"}, {Column: "c"}}},
-			{Name: "test", Keys: []schema.Key{{Column: "d"}}},
+			{Name: "index1", Keys: []schema.Key{{ColId: "c2"}, {ColId: "c3"}}},
+			{Name: "test", Keys: []schema.Key{{ColId: "c4"}}},
 		},
 	}
-	conv.SrcSchema[name] = srcSchema
+	audit := internal.Audit{
+		MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+	}
+	conv.SrcSchema["t1"] = srcSchema
+	conv.Audit = audit
 	assert.Nil(t, common.SchemaToSpannerDDL(conv, ToDdlImpl{}))
-	actual := conv.SpSchema[name]
+	actual := conv.SpSchema["t1"]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
-		Name:     name,
-		ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
+		Name:   "test",
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
-			"e": {Name: "e", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-			"f": {Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"g": {Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"h": {Name: "h", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"i": {Name: "i", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"j": {Name: "j", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"k": {Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-		},
-		Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}},
+			"c1":  ddl.ColumnDef{Name: "a", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c1"},
+			"c10": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c10"},
+			"c11": ddl.ColumnDef{Name: "k", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c11"},
+			"c2":  ddl.ColumnDef{Name: "b", T: ddl.Type{Name: "NUMERIC", Len: 0, IsArray: false}, NotNull: false, Comment: "", Id: "c2"},
+			"c3":  ddl.ColumnDef{Name: "c", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c3"},
+			"c4":  ddl.ColumnDef{Name: "d", T: ddl.Type{Name: "BOOL", Len: 0, IsArray: false}, NotNull: false, Comment: "", Id: "c4"},
+			"c5":  ddl.ColumnDef{Name: "e", T: ddl.Type{Name: "BYTES", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c5"},
+			"c6":  ddl.ColumnDef{Name: "f", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c6"},
+			"c7":  ddl.ColumnDef{Name: "g", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c7"},
+			"c8":  ddl.ColumnDef{Name: "h", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c8"},
+			"c9":  ddl.ColumnDef{Name: "i", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c9"}},
+		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1", Desc: false, Order: 0}, ddl.IndexKey{ColId: "c2", Desc: false, Order: 0}},
+		ForeignKeys: []ddl.Foreignkey(nil),
 		Indexes: []ddl.CreateIndex{
-			{Name: "index1", Table: name, Keys: []ddl.IndexKey{{Col: "b"}, {Col: "c"}}},
-			{Name: "test_2", Table: name, Keys: []ddl.IndexKey{{Col: "d"}}},
-		},
-	}
+			ddl.CreateIndex{Name: "index1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c2", Desc: false, Order: 0}, ddl.IndexKey{ColId: "c3", Desc: false, Order: 0}}, Id: "", StoredColumnIds: []string(nil)},
+			ddl.CreateIndex{Name: "test_2", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c4", Desc: false, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}},
+		Id: "t1"}
 	assert.Equal(t, expected, actual)
 }
 
 func dropComments(t *ddl.CreateTable) {
 	t.Comment = ""
-	for _, c := range t.ColNames {
+	for _, c := range t.ColIds {
 		cd := t.ColDefs[c]
 		cd.Comment = ""
 		t.ColDefs[c] = cd

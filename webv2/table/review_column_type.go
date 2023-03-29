@@ -22,12 +22,16 @@ import (
 )
 
 // ReviewColumnNameType review update of colum type to given newType.
-func ReviewColumnType(newType, table, colName string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, w http.ResponseWriter) (_ []InterleaveTableSchema, err error) {
-	sp := conv.SpSchema[table]
+func ReviewColumnType(newType, tableId, colId string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, w http.ResponseWriter) (_ []InterleaveTableSchema, err error) {
+	sp := conv.SpSchema[tableId]
 
 	// review update of column type for refer table.
-	for _, fk := range sp.Fks {
-		err := reviewColumnTypeChangeTableSchema(conv, fk.ReferTable, colName, newType)
+	for _, fk := range sp.ForeignKeys {
+		fkReferColPosition := getFkColumnPosition(fk.ColIds, colId)
+		if fkReferColPosition == -1 {
+			continue
+		}
+		err = reviewColumnTypeChangeTableSchema(conv, fk.ReferTableId, fk.ReferColumnIds[fkReferColPosition], newType)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return interleaveTableSchema, err
@@ -36,10 +40,13 @@ func ReviewColumnType(newType, table, colName string, conv *internal.Conv, inter
 
 	// review update of column type for table referring to the current table.
 	for _, sp := range conv.SpSchema {
-		for j := 0; j < len(sp.Fks); j++ {
-			if sp.Fks[j].ReferTable == table {
-
-				err = reviewColumnTypeChangeTableSchema(conv, sp.Name, colName, newType)
+		for j := 0; j < len(sp.ForeignKeys); j++ {
+			if sp.ForeignKeys[j].ReferTableId == tableId {
+				fkColPosition := getFkColumnPosition(sp.ForeignKeys[j].ReferColumnIds, colId)
+				if fkColPosition == -1 {
+					continue
+				}
+				err = reviewColumnTypeChangeTableSchema(conv, sp.Id, sp.ForeignKeys[j].ColIds[fkColPosition], newType)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusBadRequest)
 					return interleaveTableSchema, err
@@ -49,62 +56,70 @@ func ReviewColumnType(newType, table, colName string, conv *internal.Conv, inter
 	}
 
 	// review update of column type for child talbe.
-	isParent, childTableName := IsParent(table)
+	isParent, childTableId := IsParent(tableId)
 	if isParent {
-		columnId := conv.SpSchema[childTableName].ColDefs[colName].Id
+		childColId, err := getColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
+		if err == nil {
+			previousType := conv.SpSchema[childTableId].ColDefs[childColId].T.Name
+			err = reviewColumnTypeChangeTableSchema(conv, childTableId, childColId, newType)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return interleaveTableSchema, err
+			}
 
-		previousType := conv.SpSchema[childTableName].ColDefs[colName].T.Name
-		err = reviewColumnTypeChangeTableSchema(conv, childTableName, colName, newType)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return interleaveTableSchema, err
+			childTableName := conv.SpSchema[childTableId].Name
+			childColName := conv.SpSchema[childTableId].ColDefs[childColId].Name
+			interleaveTableSchema = updateTypeOfInterleaveTableSchema(interleaveTableSchema, childTableName, childColId, childColName, previousType, newType)
 		}
-		interleaveTableSchema = updateTypeOfInterleaveTableSchema(interleaveTableSchema, childTableName, columnId, colName, previousType, newType)
 	}
 
 	// review update of column type for parent table.
-	parentTableName := conv.SpSchema[table].Parent
-	if parentTableName != "" {
-		columnId := conv.SpSchema[parentTableName].ColDefs[colName].Id
+	parentTableId := conv.SpSchema[tableId].ParentId
+	if parentTableId != "" {
+		parentColId, err := getColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
+		if err == nil {
+			previousType := conv.SpSchema[parentTableId].ColDefs[parentColId].T.Name
+			err = reviewColumnTypeChangeTableSchema(conv, parentTableId, parentColId, newType)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return interleaveTableSchema, err
+			}
 
-		previousType := conv.SpSchema[parentTableName].ColDefs[colName].T.Name
-		err = reviewColumnTypeChangeTableSchema(conv, parentTableName, colName, newType)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return interleaveTableSchema, err
+			parentTableName := conv.SpSchema[parentTableId].Name
+			parentColName := conv.SpSchema[parentTableId].ColDefs[parentColId].Name
+			interleaveTableSchema = updateTypeOfInterleaveTableSchema(interleaveTableSchema, parentTableName, parentColId, parentColName, previousType, newType)
 		}
-		interleaveTableSchema = updateTypeOfInterleaveTableSchema(interleaveTableSchema, parentTableName, columnId, colName, previousType, newType)
 	}
 
 	// review update of column type for curren table.
-	columnId := conv.SpSchema[table].ColDefs[colName].Id
-	previousType := conv.SpSchema[table].ColDefs[colName].T.Name
-	err = reviewColumnTypeChangeTableSchema(conv, table, colName, newType)
+	previousType := conv.SpSchema[tableId].ColDefs[colId].T.Name
+	err = reviewColumnTypeChangeTableSchema(conv, tableId, colId, newType)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return interleaveTableSchema, err
 	}
 
-	if childTableName != "" || parentTableName != "" {
-		interleaveTableSchema = updateTypeOfInterleaveTableSchema(interleaveTableSchema, table, columnId, colName, previousType, newType)
+	if childTableId != "" || parentTableId != "" {
+		tableName := conv.SpSchema[tableId].Name
+		colName := conv.SpSchema[tableId].ColDefs[colId].Name
+		interleaveTableSchema = updateTypeOfInterleaveTableSchema(interleaveTableSchema, tableName, colId, colName, previousType, newType)
 	}
 
 	return interleaveTableSchema, nil
 }
 
 // reviewColumnTypeChangeTableSchema review update of column type to given newType.
-func reviewColumnTypeChangeTableSchema(conv *internal.Conv, table string, colName string, newType string) error {
-	srcTableName := conv.ToSource[table].Name
-	sp, ty, err := utilities.GetType(conv, newType, table, colName, srcTableName)
+func reviewColumnTypeChangeTableSchema(conv *internal.Conv, tableId string, colId string, newType string) error {
+	sp, ty, err := utilities.GetType(conv, newType, tableId, colId)
 
 	if err != nil {
 		return err
 	}
 
-	colDef := sp.ColDefs[colName]
+	colDef := sp.ColDefs[colId]
 	colDef.T = ty
-	sp.ColDefs[colName] = colDef
-	conv.SpSchema[table] = sp
+	sp.ColDefs[colId] = colDef
+	conv.SpSchema[tableId] = sp
 
 	return nil
 }

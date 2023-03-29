@@ -82,7 +82,7 @@ func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.Tar
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
 		return schemaFromDatabase(sourceProfile, targetProfile)
 	case constants.PGDUMP, constants.MYSQLDUMP:
-		return schemaFromDump(sourceProfile.Driver, targetProfile.TargetDb, ioHelper)
+		return schemaFromDump(sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", sourceProfile.Driver)
 	}
@@ -167,12 +167,12 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 
 func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (*internal.Conv, error) {
 	conv := internal.MakeConv()
-	conv.TargetDb = targetProfile.TargetDb
+	conv.SpDialect = targetProfile.Conn.Sp.Dialect
 	infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
 	if err != nil {
 		return conv, err
 	}
-	return conv, common.ProcessSchema(conv, infoSchema)
+	return conv, common.ProcessSchema(conv, infoSchema, common.DefaultWorkers)
 }
 
 func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) *writer.BatchWriter {
@@ -232,7 +232,7 @@ func getDynamoDBClientConfig() (*aws.Config, error) {
 	return &cfg, nil
 }
 
-func schemaFromDump(driver string, targetDb string, ioHelper *utils.IOStreams) (*internal.Conv, error) {
+func schemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams) (*internal.Conv, error) {
 	f, n, err := getSeekable(ioHelper.In)
 	if err != nil {
 		utils.PrintSeekError(driver, err, ioHelper.Out)
@@ -241,7 +241,7 @@ func schemaFromDump(driver string, targetDb string, ioHelper *utils.IOStreams) (
 	ioHelper.SeekableIn = f
 	ioHelper.BytesRead = n
 	conv := internal.MakeConv()
-	conv.TargetDb = targetDb
+	conv.SpDialect = spDialect
 	p := internal.NewProgress(n, "Generating schema", internal.Verbose(), false, int(internal.SchemaCreationInProgress))
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in dump.
@@ -291,13 +291,16 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 	if targetProfile.Conn.Sp.Dbname == "" {
 		return nil, fmt.Errorf("dbName is mandatory in target-profile for csv source")
 	}
-	conv.TargetDb = targetProfile.ToLegacyTargetDb()
+	conv.SpDialect = targetProfile.Conn.Sp.Dialect
 	dialect, err := targetProfile.FetchTargetDialect(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch dialect: %v", err)
 	}
+	if strings.ToLower(dialect) != constants.DIALECT_POSTGRESQL {
+		dialect = constants.DIALECT_GOOGLESQL
+	}
 
-	if utils.DialectToTarget(dialect) != conv.TargetDb {
+	if dialect != conv.SpDialect {
 		return nil, fmt.Errorf("dialect specified in target profile does not match spanner dialect")
 	}
 
@@ -339,7 +342,7 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client) *writer.BatchWriter {
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
-		migrationData := metrics.GetMigrationData(conv, "", "", constants.DataConv)
+		migrationData := metrics.GetMigrationData(conv, "", constants.DataConv)
 		serializedMigrationData, _ := proto.Marshal(migrationData)
 		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
 		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), constants.MigrationMetadataKey, migrationMetadataValue), m)
@@ -469,8 +472,8 @@ func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminCli
 }
 
 // ValidateTables validates that all the tables in the database are empty.
-func ValidateTables(ctx context.Context, client *sp.Client, targetDb string) error {
-	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, TargetDb: targetDb}
+func ValidateTables(ctx context.Context, client *sp.Client, spDialect string) error {
+	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, SpDialect: spDialect}
 	tables, err := infoSchema.GetTables()
 	if err != nil {
 		return err
@@ -501,13 +504,13 @@ func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient,
 }
 
 // CreatesOrUpdatesDatabase updates an existing Spanner database or creates a new one if one does not exist.
-func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI, driver, targetDb string, conv *internal.Conv, out *os.File) error {
+func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI, driver string, conv *internal.Conv, out *os.File) error {
 	dbExists, err := VerifyDb(ctx, adminClient, dbURI)
 	if err != nil {
 		return err
 	}
 	// Adding migration metadata to the outgoing context.
-	migrationData := metrics.GetMigrationData(conv, driver, targetDb, constants.SchemaConv)
+	migrationData := metrics.GetMigrationData(conv, driver, constants.SchemaConv)
 	serializedMigrationData, _ := proto.Marshal(migrationData)
 	migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
 	ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
@@ -539,8 +542,8 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	req := &adminpb.CreateDatabaseRequest{
 		Parent: fmt.Sprintf("projects/%s/instances/%s", project, instance),
 	}
-	if conv.TargetDb == constants.TargetExperimentalPostgres {
-		// TargetExperimentalPostgres doesn't support:
+	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+		// PostgreSQL dialect doesn't support:
 		// a) backticks around the database name, and
 		// b) DDL statements as part of a CreateDatabase operation (so schema
 		// must be set using a separate UpdateDatabase operation).
@@ -548,7 +551,7 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
 	} else {
 		req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
-		req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, TargetDb: conv.TargetDb})
+		req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect})
 	}
 
 	op, err := adminClient.CreateDatabase(ctx, req)
@@ -560,7 +563,7 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	}
 	fmt.Fprintf(out, "Created database successfully.\n")
 
-	if conv.TargetDb == constants.TargetExperimentalPostgres {
+	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 		// Update schema separately for PG databases.
 		return UpdateDatabase(ctx, adminClient, dbURI, conv, out)
 	}
@@ -574,7 +577,7 @@ func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
 	// Foreign Keys are set to false since we create them post data migration.
-	schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, TargetDb: conv.TargetDb})
+	schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect})
 	req := &adminpb.UpdateDatabaseDdlRequest{
 		Database:   dbURI,
 		Statements: schema,
@@ -596,7 +599,7 @@ func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdm
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
-	fkStmts := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true, TargetDb: conv.TargetDb})
+	fkStmts := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true, SpDialect: conv.SpDialect})
 	if len(fkStmts) == 0 {
 		return nil
 	}
@@ -679,7 +682,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 	// and doesn't add backticks around table and column names. This file is
 	// intended for explanatory and documentation purposes, and is not strictly
 	// legal Cloud Spanner DDL (Cloud Spanner doesn't currently support comments).
-	spDDL := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, TargetDb: conv.TargetDb})
+	spDDL := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect})
 	if len(spDDL) == 0 {
 		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
 	}
@@ -706,7 +709,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 
 	// We change 'Comments' to false and 'ProtectIds' to true below to write out a
 	// schema file that is a legal Cloud Spanner DDL.
-	spDDL = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, TargetDb: conv.TargetDb})
+	spDDL = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect})
 	if len(spDDL) == 0 {
 		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
 	}

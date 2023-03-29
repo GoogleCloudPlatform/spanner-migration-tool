@@ -33,11 +33,11 @@ export class SummaryComponent implements OnInit {
       next: (summary: Map<string, ISummary>) => {
         this.summary = summary
         if (this.currentObject) {
-          let objectName = this.currentObject.name
+          let objectId = this.currentObject.id
           if (this.currentObject.type == 'indexName') {
-            objectName = this.currentObject.parent
+            objectId = this.currentObject.parentId
           }
-          let s = this.summary.get(objectName)
+          let s = this.summary.get(objectId)
           if (s) {
             this.initiateSummaryCollection(s)
             this.summaryCount = s.NotesCount + s.WarningsCount + s.ErrorsCount + s.SuggestionsCount
@@ -62,11 +62,11 @@ export class SummaryComponent implements OnInit {
     this.currentObject = changes?.['currentObject']?.currentValue || this.currentObject
     this.summaryRows = []
     if (this.currentObject) {
-      let objectName = this.currentObject.name
+      let objectId = this.currentObject.id
       if (this.currentObject.type == 'indexName') {
-        objectName = this.currentObject.parent
+        objectId = this.currentObject.parentId
       }
-      let s = this.summary.get(objectName)
+      let s = this.summary.get(objectId)
       if (s) {
         this.initiateSummaryCollection(s)
         this.summaryCount = s.NotesCount + s.WarningsCount + s.ErrorsCount + s.SuggestionsCount
