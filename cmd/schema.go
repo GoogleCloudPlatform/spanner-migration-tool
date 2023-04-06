@@ -43,7 +43,6 @@ type SchemaCmd struct {
 	filePrefix    string // TODO: move filePrefix to global flags
 	logLevel      string
 	dryRun        bool
-	verbose       bool
 }
 
 // Name returns the name of operation.
@@ -76,8 +75,6 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
-	f.BoolVar(&cmd.verbose, "v", false, "verbose: print additional output")
-	f.BoolVar(&cmd.verbose, "verbose", false, "verbose: print additional output")
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -95,7 +92,6 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		return subcommands.ExitFailure
 	}
 	defer logger.Log.Sync()
-	internal.VerboseInit(cmd.verbose)
 
 	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {
