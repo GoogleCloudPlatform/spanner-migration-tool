@@ -39,16 +39,17 @@ import (
 
 // DataCmd struct with flags.
 type DataCmd struct {
-	source          string
-	sourceProfile   string
-	target          string
-	targetProfile   string
-	sessionJSON     string
-	filePrefix      string // TODO: move filePrefix to global flags
-	WriteLimit      int64
-	dryRun          bool
-	logLevel        string
-	SkipForeignKeys bool
+	source                string
+	sourceProfile         string
+	target                string
+	targetProfile         string
+	sessionJSON           string
+	filePrefix            string // TODO: move filePrefix to global flags
+	WriteLimit            int64
+	dryRun                bool
+	logLevel              string
+	SkipForeignKeys       bool
+	SkipMetricsPopulation bool
 }
 
 // Name returns the name of operation.
@@ -84,6 +85,7 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
 	f.BoolVar(&cmd.SkipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
+	f.BoolVar(&cmd.SkipMetricsPopulation, "skip-metrics", false, "Skip metric population skips the outgoing metrics metadata, this flag should be set to true only in case of dev testing")
 }
 
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -115,6 +117,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	// Populate migration request id and migration type in conv object.
 	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
+	conv.Audit.SkipMetricsPopulation = cmd.SkipMetricsPopulation
 	dataCoversionStartTime := time.Now()
 
 	if !sourceProfile.UseTargetSchema() {

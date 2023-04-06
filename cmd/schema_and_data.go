@@ -37,15 +37,16 @@ import (
 
 // SchemaAndDataCmd struct with flags.
 type SchemaAndDataCmd struct {
-	source          string
-	sourceProfile   string
-	target          string
-	targetProfile   string
-	SkipForeignKeys bool
-	filePrefix      string // TODO: move filePrefix to global flags
-	WriteLimit      int64
-	dryRun          bool
-	logLevel        string
+	source                string
+	sourceProfile         string
+	target                string
+	targetProfile         string
+	SkipForeignKeys       bool
+	filePrefix            string // TODO: move filePrefix to global flags
+	WriteLimit            int64
+	dryRun                bool
+	logLevel              string
+	SkipMetricsPopulation bool
 }
 
 // Name returns the name of operation.
@@ -80,6 +81,7 @@ func (cmd *SchemaAndDataCmd) SetFlags(f *flag.FlagSet) {
 	f.Int64Var(&cmd.WriteLimit, "write-limit", DefaultWritersLimit, "Write limit for writes to spanner")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
+	f.BoolVar(&cmd.SkipMetricsPopulation, "skip-metrics", false, "Skip metric population skips the outgoing metrics metadata, this flag should be set to true only in case of dev testing")
 }
 
 func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -129,6 +131,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 
 	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
+	conv.Audit.SkipMetricsPopulation = cmd.SkipMetricsPopulation
 
 	if !cmd.dryRun {
 		conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)

@@ -156,6 +156,7 @@ type Audit struct {
 	DryRun                   bool                                   `json:"-"` // Flag to identify if the migration is a dry run.
 	StreamingStats           streamingStats                         `json:"-"` // Stores information related to streaming migration process.
 	Progress                 Progress                               `json:"-"` // Stores information related to progress of the migration progress
+	SkipMetricsPopulation    bool                                   `json:"-"` // Flag to identify if outgoing metrics metadata needs to skipped
 }
 
 // Stores information related to the streaming migration process.
