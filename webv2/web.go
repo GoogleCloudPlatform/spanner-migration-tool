@@ -1617,27 +1617,23 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionState.Conv.ResetStats()
 	sessionState.Conv.Audit.Progress = internal.Progress{}
+	sessionState.Conv.Audit.SkipMetricsPopulation = false
 	if details.MigrationMode == helpers.SCHEMA_ONLY {
-		schemaCmd := &cmd.SchemaCmd{
-			SkipMetricsPopulation: false,
-		}
 		log.Println("Starting schema only migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
-		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, schemaCmd, sessionState.Conv, &sessionState.Error)
+		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
 	} else if details.MigrationMode == helpers.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
-			SkipForeignKeys:       false,
-			WriteLimit:            cmd.DefaultWritersLimit,
-			SkipMetricsPopulation: false,
+			SkipForeignKeys: false,
+			WriteLimit:      cmd.DefaultWritersLimit,
 		}
 		log.Println("Starting data only migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error)
 	} else {
 		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
-			SkipForeignKeys:       false,
-			WriteLimit:            cmd.DefaultWritersLimit,
-			SkipMetricsPopulation: false,
+			SkipForeignKeys: false,
+			WriteLimit:      cmd.DefaultWritersLimit,
 		}
 		log.Println("Starting schema and data migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
