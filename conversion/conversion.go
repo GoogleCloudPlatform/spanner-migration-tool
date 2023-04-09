@@ -582,6 +582,8 @@ func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 		Database:   dbURI,
 		Statements: schema,
 	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
 	op, err := adminClient.UpdateDatabaseDdl(ctx, req)
 	if err != nil {
 		return fmt.Errorf("can't build UpdateDatabaseDdlRequest: %w", utils.AnalyzeError(err, dbURI))
