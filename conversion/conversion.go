@@ -582,6 +582,8 @@ func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 		Database:   dbURI,
 		Statements: schema,
 	}
+	// Update queries for postgres as target db return response after more
+	// than 1 min for large schemas, therefore, timeout is specified as 5 minutes
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 	op, err := adminClient.UpdateDatabaseDdl(ctx, req)
