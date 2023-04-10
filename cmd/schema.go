@@ -36,14 +36,13 @@ import (
 
 // SchemaCmd struct with flags.
 type SchemaCmd struct {
-	source                string
-	sourceProfile         string
-	target                string
-	targetProfile         string
-	filePrefix            string // TODO: move filePrefix to global flags
-	logLevel              string
-	dryRun                bool
-	SkipMetricsPopulation bool
+	source        string
+	sourceProfile string
+	target        string
+	targetProfile string
+	filePrefix    string // TODO: move filePrefix to global flags
+	logLevel      string
+	dryRun        bool
 }
 
 // Name returns the name of operation.
@@ -76,7 +75,6 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
-	f.BoolVar(&cmd.SkipMetricsPopulation, "skip-metrics", false, "Skip metric population skips the outgoing metrics metadata, this flag should be set to true only in case of dev testing")
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -119,8 +117,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	// Populate migration request id and migration type in conv object.
 	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
-	conv.Audit.SkipMetricsPopulation = cmd.SkipMetricsPopulation
-
+	conv.Audit.SkipMetricsPopulation = os.Getenv("SKIP_METRICS_POPULATION") == "true"
 	if !cmd.dryRun {
 		_, err = MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd, conv, nil)
 		if err != nil {
