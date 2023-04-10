@@ -338,7 +338,7 @@ harbourbridge <subcommand> flags
 
 ### Getting Help
 
-The command `harbourbridge help` displays the available subcommands and the important global flags.
+The command `harbourbridge help` displays the available subcommands.
 
 ```text
     commands   list all subcommand names

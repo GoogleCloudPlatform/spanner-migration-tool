@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 	"github.com/stretchr/testify/assert"
@@ -111,30 +110,6 @@ func prepareIntegrationTest(t *testing.T) string {
 	return tmpdir
 }
 
-func TestIntegration_MYSQLDUMP_Command(t *testing.T) {
-	onlyRunForEmulatorTest(t)
-	t.Parallel()
-
-	tmpdir := prepareIntegrationTest(t)
-	defer os.RemoveAll(tmpdir)
-
-	now := time.Now()
-	dbName, _ := utils.GetDatabaseName(constants.MYSQLDUMP, now)
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	dataFilepath := "../../test_data/mysqldump.test.out"
-	filePrefix := filepath.Join(tmpdir, dbName+".")
-
-	args := fmt.Sprintf("-driver %s -prefix %s -instance %s -dbname %s < %s", constants.MYSQLDUMP, filePrefix, instanceID, dbName, dataFilepath)
-	err := common.RunCommand(args, projectID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Drop the database later.
-	defer dropDatabase(t, dbURI)
-
-	checkResults(t, dbURI, false)
-}
-
 func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
@@ -158,89 +133,6 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 	defer dropDatabase(t, dbURI)
 
 	checkResults(t, dbURI, true)
-}
-
-func TestIntegration_MYSQL_Command(t *testing.T) {
-	onlyRunForEmulatorTest(t)
-	t.Parallel()
-
-	tmpdir := prepareIntegrationTest(t)
-	defer os.RemoveAll(tmpdir)
-
-	now := time.Now()
-	dbName, _ := utils.GetDatabaseName(constants.MYSQL, now)
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	filePrefix := filepath.Join(tmpdir, dbName+".")
-
-	args := fmt.Sprintf("-driver %s -prefix %s -instance %s -dbname %s", constants.MYSQL, filePrefix, instanceID, dbName)
-	err := common.RunCommand(args, projectID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Drop the database later.
-	defer dropDatabase(t, dbURI)
-
-	checkResults(t, dbURI, true)
-}
-
-func runSchemaOnly(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
-	args := fmt.Sprintf("-driver mysqldump -schema-only -instance %s -dbname %s -prefix %s < %s", instanceID, dbName, filePrefix, dumpFilePath)
-	err := common.RunCommand(args, projectID)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func runDataOnly(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFilePath string) {
-	args := fmt.Sprintf("-driver mysqldump -data-only -instance %s -dbname %s -prefix %s -session %s < %s", instanceID, dbName, filePrefix, sessionFile, dumpFilePath)
-	err := common.RunCommand(args, projectID)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestIntegration_MySQLDUMP_SchemaOnly(t *testing.T) {
-	onlyRunForEmulatorTest(t)
-	tmpdir := prepareIntegrationTest(t)
-	defer os.RemoveAll(tmpdir)
-
-	dbName := "test-schema-only-mode"
-	dumpFilePath := "../../test_data/mysqldump.test.out"
-	filePrefix := filepath.Join(tmpdir, dbName+".")
-	sessionFile := fmt.Sprintf("%ssession.json", filePrefix)
-	runSchemaOnly(t, dbName, filePrefix, sessionFile, dumpFilePath)
-	if _, err := os.Stat(fmt.Sprintf("%sreport.txt", filePrefix)); os.IsNotExist(err) {
-		t.Fatalf("report file not generated during schema-only test")
-	}
-	if _, err := os.Stat(fmt.Sprintf("%sschema.ddl.txt", filePrefix)); os.IsNotExist(err) {
-		t.Fatalf("legal ddl file not generated during schema-only test")
-	}
-	if _, err := os.Stat(fmt.Sprintf("%sschema.txt", filePrefix)); os.IsNotExist(err) {
-		t.Fatalf("readable schema file not generated during schema-only test")
-	}
-	if _, err := os.Stat(sessionFile); os.IsNotExist(err) {
-		t.Fatalf("session file not generated during schema-only test")
-	}
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	// Drop the database later.
-	defer dropDatabase(t, dbURI)
-}
-
-func TestIntegration_MySQLDUMP_DataOnly(t *testing.T) {
-	onlyRunForEmulatorTest(t)
-	tmpdir := prepareIntegrationTest(t)
-	defer os.RemoveAll(tmpdir)
-
-	dbName := "test-data-only-mode"
-	dumpFilePath := "../../test_data/mysqldump.test.out"
-	filePrefix := filepath.Join(tmpdir, dbName+".")
-	sessionFile := fmt.Sprintf("%ssession.json", filePrefix)
-	runSchemaOnly(t, dbName, filePrefix, sessionFile, dumpFilePath)
-
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	runDataOnly(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
-	defer dropDatabase(t, dbURI)
-	checkResults(t, dbURI, false)
 }
 
 func runSchemaSubcommand(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {

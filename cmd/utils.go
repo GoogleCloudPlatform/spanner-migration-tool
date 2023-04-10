@@ -28,7 +28,17 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
 )
 
-const completionPercentage = 100
+var (
+	badDataFile = "dropped.txt"
+	reportFile  = "report.txt"
+	schemaFile  = "schema.txt"
+	sessionFile = "session.json"
+)
+
+const (
+	DefaultWritersLimit  = 40
+	completionPercentage = 100
+)
 
 // CreateDatabaseClient creates new database client and admin client.
 func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProfile, driver, dbName string, ioHelper utils.IOStreams) (*database.DatabaseAdminClient, *sp.Client, string, error) {
