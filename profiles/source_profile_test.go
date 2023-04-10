@@ -15,6 +15,7 @@
 package profiles
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -65,6 +66,39 @@ func TestNewSourceProfileFile(t *testing.T) {
 
 		profile := NewSourceProfileFile(tc.params)
 		assert.Equal(t, profile, tc.want, tc.name)
+	}
+}
+
+func TestNewSourceProfileConfigFile(t *testing.T) {
+	
+	testCases := []struct {
+		name          string
+		source        string
+		path          string
+		errorExpected bool
+	}{
+		{
+			name:          "bulk config for mysql",
+			source:        "mysql",
+			path:          filepath.Join("..", "test_data", "mysql_shard_bulk.cfg"),
+			errorExpected: false,
+		},
+		{
+			name:          "streaming config for mysql",
+			source:        "mysql",
+			path:          filepath.Join("..", "test_data", "mysql_shard_streaming.cfg"),
+			errorExpected: false,
+		},
+		{
+			name:          "config for non-mysql",
+			source:        "postgres",
+			path:          "",
+			errorExpected: true,
+		},
+	}
+	for _, tc := range testCases {
+		_, err := NewSourceProfileConfig(tc.source, tc.path)
+		assert.Equal(t, tc.errorExpected, err != nil)
 	}
 }
 

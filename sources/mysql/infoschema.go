@@ -376,7 +376,7 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
 	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
 
-	err := streaming.StartDataflow(ctx, isi.SourceProfile, isi.TargetProfile, streamingCfg, conv)
+	err := streaming.StartDataflow(ctx, isi.TargetProfile, streamingCfg, conv)
 	if err != nil {
 		err = fmt.Errorf("error starting dataflow: %v", err)
 		return err
