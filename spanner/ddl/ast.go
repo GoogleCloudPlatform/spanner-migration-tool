@@ -54,6 +54,9 @@ const (
 	MaxLength = math.MaxInt64
 	// StringMaxLength represents maximum allowed STRING length.
 	StringMaxLength = 2621440
+	// BytesMaxLength represents maximum allowed BYTES length.
+	BytesMaxLength        = 10485760
+	MaxNonKeyColumnLength = 1677721600
 
 	// Types specific to Spanner with postgresql dialect, when they differ from
 	// Spanner with google_standard_sql.

@@ -66,9 +66,9 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
 
-  srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcIsPk', 'srcIsNotNull']
+  srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
 
-  spDisplayedColumns = ['spColName', 'spDataType', 'spIsPk', 'spIsNotNull', 'dropButton']
+  spDisplayedColumns = ['spColName', 'spDataType', 'spColMaxLength', 'spIsPk', 'spIsNotNull', 'dropButton']
   displayedFkColumns = [
     'srcName',
     'srcColumns',
@@ -188,24 +188,40 @@ export class ObjectDetailComponent implements OnInit {
     this.spRowArray = new FormArray([])
     this.localTableData.forEach((row) => {
       if (row.spOrder) {
+        let fb = new FormGroup({
+          srcOrder: new FormControl(row.srcOrder),
+          srcColName: new FormControl(row.srcColName),
+          srcDataType: new FormControl(row.srcDataType),
+          srcIsPk: new FormControl(row.srcIsPk),
+          srcIsNotNull: new FormControl(row.srcIsNotNull),
+          srcColMaxLength: new FormControl(row.srcColMaxLength),
+          spOrder: new FormControl(row.srcOrder),
+          spColName: new FormControl(row.spColName, [
+            Validators.required,
+            Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
+          ]),
+          spDataType: new FormControl(row.spDataType),
+          spIsPk: new FormControl(row.spIsPk),
+          spIsNotNull: new FormControl(row.spIsNotNull),spId: new FormControl(row.spId),
+          srcId: new FormControl(row.srcId),
+          spColMaxLength: new FormControl(row.spColMaxLength, [
+            Validators.required]),
+        })
+        if (row.spDataType === 'STRING' || row.spDataType === 'BYTES' || row.spDataType === 'VARCHAR') {
+          fb.get('spColMaxLength')?.setValidators([Validators.required, Validators.pattern('([1-9][0-9]*|MAX)')])
+          if (row.spColMaxLength === undefined) {
+            fb.get('spColMaxLength')?.setValue('MAX')
+          }
+          else if (row.spColMaxLength !== 'MAX' && row.spColMaxLength > 2621440) {
+            fb.get('spColMaxLength')?.setValue('MAX')
+          }
+
+        } else {
+          fb.controls['spColMaxLength'].clearValidators()
+        }
+        fb.controls['spColMaxLength'].updateValueAndValidity()
         this.spRowArray.push(
-          new FormGroup({
-            srcOrder: new FormControl(row.srcOrder),
-            srcColName: new FormControl(row.srcColName),
-            srcDataType: new FormControl(row.srcDataType),
-            srcIsPk: new FormControl(row.srcIsPk),
-            srcIsNotNull: new FormControl(row.srcIsNotNull),
-            spOrder: new FormControl(row.srcOrder),
-            spColName: new FormControl(row.spColName, [
-              Validators.required,
-              Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
-            ]),
-            spDataType: new FormControl(row.spDataType),
-            spIsPk: new FormControl(row.spIsPk),
-            spIsNotNull: new FormControl(row.spIsNotNull),
-            spId: new FormControl(row.spId),
-            srcId: new FormControl(row.srcId),
-          })
+          fb
         )
       }
     })
@@ -224,6 +240,7 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(col.srcDataType),
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
+            srcColMaxLength: new FormControl(col.srcColMaxLength),
             spOrder: new FormControl(col.spOrder),
             spColName: new FormControl(col.spColName),
             spDataType: new FormControl(col.spDataType),
@@ -231,6 +248,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsNotNull: new FormControl(col.spIsNotNull),
             spId: new FormControl(col.spId),
             srcId: new FormControl(col.srcId),
+            spColMaxLength: new FormControl(col.spColMaxLength),
           })
         )
       } else {
@@ -241,6 +259,7 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(col.srcDataType),
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
+            srcColMaxLength: new FormControl(col.srcColMaxLength),
             spOrder: new FormControl(col.srcOrder),
             spColName: new FormControl(col.srcColName),
             spDataType: new FormControl(
@@ -248,6 +267,7 @@ export class ObjectDetailComponent implements OnInit {
             ),
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
+            spColMaxLength: new FormControl(col.spColMaxLength),
           })
         )
       }
@@ -290,12 +310,22 @@ export class ObjectDetailComponent implements OnInit {
         if (col.srcColName == this.tableData[j].srcColName) {
           let oldRow = this.tableData[j]
           let standardDataType = pgSQLToStandardTypeTypemap.get(col.spDataType)
+          if (col.spColMaxLength !== undefined && col.spColMaxLength !== 'MAX' && col.spColMaxLength > 2621440) {
+           col.spColMaxLength = 'MAX'
+          }
+          if (typeof(col.spColMaxLength) === 'number') {
+            col.spColMaxLength = col.spColMaxLength.toString()
+          }
+          if (col.spDataType != 'STRING' && col.spDataType != 'BYTES') {
+            col.spColMaxLength = ""
+          }
           updateData.UpdateCols[this.tableData[j].srcId] = {
             Add: this.tableData[j].spId == '',
             Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
-            ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType: standardDataType) : col.spDataType,
+            ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
+            MaxColLength: col.spColMaxLength
           }
           break
         }
@@ -309,6 +339,7 @@ export class ObjectDetailComponent implements OnInit {
         NotNull: '',
         Removed: true,
         ToType: '',
+        MaxColLength: '',
       }
     })
 
@@ -349,6 +380,7 @@ export class ObjectDetailComponent implements OnInit {
     this.localTableData[index].spOrder = -1
     this.localTableData[index].spIsPk = this.droppedColumns[addedRowIndex].spIsPk
     this.localTableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
+    this.localTableData[index].spColMaxLength = this.droppedColumns[addedRowIndex].spColMaxLength
     let ind = this.droppedColumns
       .map((col: IColumnTabData) => col.spColName)
       .indexOf(this.addedColumnName)
@@ -429,6 +461,7 @@ export class ObjectDetailComponent implements OnInit {
         col.spIsNotNull = false
         col.spIsPk = false
         col.spOrder = ''
+        col.spColMaxLength = ''
       }
     })
     this.setSpTableRows()
@@ -673,8 +706,8 @@ export class ObjectDetailComponent implements OnInit {
               ({ ColId }) => ColId === row.spId
             ) !== 'undefined'
               ? this.conv.SpSchema[this.currentObject!.id].PrimaryKeys.find(
-                  ({ ColId }) => ColId === row.spId
-                )!.Desc
+                ({ ColId }) => ColId === row.spId
+              )!.Desc
               : false,
           Order: parseInt(row.spOrder as string),
         })
@@ -902,7 +935,6 @@ export class ObjectDetailComponent implements OnInit {
 
   saveFk() {
     let spFkArr: IForeignKey[] = []
-    console.log(this.fkArray, 'fkarray')
 
     this.fkArray.value.forEach((fk: IFkTabData) => {
       spFkArr.push({
@@ -1192,10 +1224,10 @@ export class ObjectDetailComponent implements OnInit {
       srcColId: undefined,
       spColId: this.currentObject
         ? this.conversion.getColIdFromSpannerColName(
-            this.addIndexKeyForm.value.columnName,
-            this.currentObject.parentId,
-            this.conv
-          )
+          this.addIndexKeyForm.value.columnName,
+          this.currentObject.parentId,
+          this.conv
+        )
         : '',
     })
     this.setIndexRows()
@@ -1240,7 +1272,7 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
 
-  selectedColumnChange(tableId: string) {}
+  selectedColumnChange(tableId: string) { }
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index

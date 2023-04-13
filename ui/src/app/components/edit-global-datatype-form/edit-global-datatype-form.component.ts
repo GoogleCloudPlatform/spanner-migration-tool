@@ -76,21 +76,6 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
             this.setViewRuleData(this.viewRuleData)
           }
         })
-        this.ruleId = this.viewRuleData?.Id
-        this.addGlobalDataTypeForm.controls['sourceType'].setValue(
-          Object.keys(this.viewRuleData?.Data)[0]
-        )
-        this.updateDestinationType(Object.keys(this.viewRuleData?.Data)[0])
-        if (this.isPostgreSQLDialect) {
-          let pgSQLType = this.standardTypeToPGSQLTypemap.get(Object.values(this.viewRuleData?.Data)[0] as string)
-          this.addGlobalDataTypeForm.controls['destinationType'].setValue(
-            pgSQLType === undefined ? Object.values(this.viewRuleData?.Data)[0] : pgSQLType
-          )
-        } else {
-          this.addGlobalDataTypeForm.controls['destinationType'].setValue(Object.values(this.viewRuleData?.Data)[0])
-        }
-
-        this.addGlobalDataTypeForm.disable()
       }
     })
   }

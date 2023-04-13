@@ -151,7 +151,7 @@
         <div class="column-table-container">
           <table mat-table [dataSource]="srcDataSource">
             <ng-container matColumnDef="srcDatabase">
-              <th mat-header-cell class="db_name" *matHeaderCellDef colspan="5">{{ srcDbName }}</th>
+              <th mat-header-cell class="db_name" *matHeaderCellDef colspan="6">{{ srcDbName }}</th>
             </ng-container>
 
             <ng-container matColumnDef="srcOrder">
@@ -172,6 +172,13 @@
               <th mat-header-cell class="table_header" *matHeaderCellDef>Type</th>
               <td mat-cell *matCellDef="let element">
                 {{ element.get('srcDataType').value }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="srcColMaxLength">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Max Length</th>
+              <td mat-cell *matCellDef="let element">
+                {{ element.get('srcColMaxLength').value }}
               </td>
             </ng-container>
 
@@ -215,7 +222,7 @@
 
           <table mat-table [dataSource]="spDataSource">
             <ng-container matColumnDef="spDatabase">
-              <th mat-header-cell *matHeaderCellDef class="db_name" colspan="6">
+              <th mat-header-cell *matHeaderCellDef class="db_name" colspan="7">
                 <div class="spanner_edit-button">
                   <span>Spanner</span>
                   <div *ngIf="!isEditMode && !currentObject.isDeleted">
@@ -288,6 +295,24 @@
                   </mat-form-field>
                   <p *ngIf="!isEditMode">{{ element.get('spDataType').value }}</p>
                 </div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="spColMaxLength">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Max Length</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="isEditMode && (element.get('spDataType').value === 'STRING'||element.get('spDataType').value === 'BYTES' || element.get('spDataType').value === 'VARCHAR')">
+                  <input
+                    matInput
+                    class="name_input"
+                    type="text"
+                    [formControl]="element.get('spColMaxLength')"
+                    matTooltip="Specify the length in numeric or use MAX"
+                  />
+                </div>
+                <p *ngIf="!isEditMode && (element.get('spDataType').value === 'STRING'||element.get('spDataType').value === 'BYTES' || element.get('spDataType').value === 'VARCHAR')">
+                  {{ element.get('spColMaxLength').value }}
+                </p>
               </td>
             </ng-container>
 

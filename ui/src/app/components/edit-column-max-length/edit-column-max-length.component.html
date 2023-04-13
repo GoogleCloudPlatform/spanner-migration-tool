@@ -1,0 +1,39 @@
+<div [formGroup]="editColMaxLengthForm">
+    <mat-form-field appearance="outline">
+        <mat-label>Table is</mat-label>
+        <mat-select matSelect class="input-field"
+            formControlName="tableName" required="true">
+            <mat-option *ngFor="let table of tableNames" [value]="table">{{ table }}</mat-option>
+        </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+        <mat-label>and column is</mat-label>
+        <mat-select matSelect class="input-field" formControlName="column" required="true">
+            <mat-option value="allColumn">All column</mat-option>
+        </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+        <mat-label>and Spanner Type is</mat-label>
+        <mat-select matSelect class="input-field"
+            formControlName="spDataType" required="true">
+            <mat-option *ngFor="let type of spTypes" [value]="type.value">{{ type.name }}</mat-option>
+        </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+        <mat-label>Max column length</mat-label>
+        <input matInput class="input-field" formControlName="maxColLength" />
+    </mat-form-field>
+    <div *ngIf="!viewRuleFlag">
+        <button
+          mat-raised-button
+          (click)="formSubmit()"
+          color="primary"
+          [disabled]="!(editColMaxLengthForm.valid && ruleNameValid)"
+        >
+          ADD RULE
+        </button>
+      </div>
+      <div *ngIf="viewRuleFlag">
+        <button mat-raised-button (click)="deleteRule()" color="primary">DELETE RULE</button>
+      </div>
+</div>

@@ -19,8 +19,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
@@ -126,6 +129,19 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.NotNull != "" {
 			UpdateNotNull(v.NotNull, tableId, colId, conv)
+		}
+
+		if v.MaxColLength != "" {
+			var colMaxLength int64
+			if strings.ToLower(v.MaxColLength) == "max" {
+				colMaxLength = ddl.MaxLength
+			} else {
+				colMaxLength, _ = strconv.ParseInt(v.MaxColLength, 10, 64)
+			}
+			interleaveTableSchema, err = ReviewColumnSize(colMaxLength, tableId, colId, conv, interleaveTableSchema, w)
+			if err != nil {
+				return
+			}
 		}
 	}
 

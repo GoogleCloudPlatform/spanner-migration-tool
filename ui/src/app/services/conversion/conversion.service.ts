@@ -248,6 +248,7 @@ export class ConversionService {
     this.standardTypeToPGSQLTypeMap.subscribe((typemap) => {
       standardTypeToPGSQLTypeMap = typemap
     })
+    const spColMax = 9223372036854776000
     const res: IColumnTabData[] = data.SrcSchema[tableId].ColIds.map((colId: string, i: number) => {
       let spPkOrder
       if (spTableName) {
@@ -275,6 +276,8 @@ export class ConversionService {
         srcIsNotNull: data.SrcSchema[tableId].ColDefs[colId].NotNull,
         srcId: colId,
         spId: spannerColDef ? colId : '',
+        spColMaxLength: spannerColDef?.T.Len != 0 ? (spannerColDef?.T.Len != spColMax ? spannerColDef?.T.Len: 'MAX') : '',
+        srcColMaxLength: data.SrcSchema[tableId].ColDefs[colId].Type.Mods != null ? data.SrcSchema[tableId].ColDefs[colId].Type.Mods[0] : ''
       }
     })
     if (spColIds) {
@@ -296,6 +299,8 @@ export class ConversionService {
             srcIsNotNull: false,
             srcId: '',
             spId: colId,
+            srcColMaxLength: '',
+            spColMaxLength: spannerColDef?.T.Len
           })
         }
       })

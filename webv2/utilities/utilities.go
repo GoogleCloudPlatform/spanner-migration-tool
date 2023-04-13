@@ -140,6 +140,14 @@ func RemoveSchemaIssues(schemaissue []internal.SchemaIssue) []internal.SchemaIss
 
 	case IsSchemaIssuePresent(schemaissue, internal.InterleavedRenameColumn):
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
+		fallthrough
+
+	case IsSchemaIssuePresent(schemaissue, internal.InterleavedChangeColumnType):
+		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnType)
+		fallthrough
+
+	case IsSchemaIssuePresent(schemaissue, internal.InterleavedChangeColumnSize):
+		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
 	}
 
 	return schemaissue
@@ -332,4 +340,37 @@ func GetInterleavedFk(conv *internal.Conv, tableId string, srcColId string) (sch
 		}
 	}
 	return schema.ForeignKey{}, fmt.Errorf("interleaved Foreign key not found")
+}
+
+var DATATYPE_TO_STORAGE_SIZE = map[string]int64{
+	ddl.Bool:      1,
+	ddl.Date:      4,
+	ddl.Float64:   8,
+	ddl.Int64:     8,
+	ddl.JSON:      ddl.StringMaxLength,
+	ddl.Numeric:   22,
+	ddl.Timestamp: 12,
+}
+
+func GetMaxNonKeyColLength(spTable ddl.CreateTable) int64 {
+	sum := int64(0)
+	for _, colDef := range spTable.ColDefs {
+		if colDef.T.Name == ddl.String {
+			if colDef.T.Len == ddl.MaxLength {
+				sum += ddl.StringMaxLength
+			} else {
+				sum += colDef.T.Len
+			}
+
+		} else if colDef.T.Name == ddl.Bytes {
+			if colDef.T.Len == ddl.MaxLength {
+				sum += ddl.BytesMaxLength
+			} else {
+				sum += colDef.T.Len
+			}
+		} else {
+			sum += DATATYPE_TO_STORAGE_SIZE[colDef.T.Name]
+		}
+	}
+	return sum
 }

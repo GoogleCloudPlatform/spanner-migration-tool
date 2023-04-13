@@ -82,7 +82,6 @@ export class ConnectionProfileFormComponent implements OnInit {
       },
       error: (err: any) => {
         this.testSuccess = false
-        console.log(err)
         this.errorMsg = err
       },
     })

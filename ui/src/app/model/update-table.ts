@@ -4,6 +4,7 @@ interface IUpdateCol {
   Rename: string
   NotNull: string
   ToType: string | String
+  MaxColLength: string | undefined | Number
 }
 export interface ITableColumnChanges {
   ColumnId: string

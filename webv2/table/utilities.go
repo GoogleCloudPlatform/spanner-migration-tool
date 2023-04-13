@@ -195,6 +195,15 @@ func updateInterleaveTableSchema(conv *internal.Conv, interleaveTableSchema []In
 			}
 			if col.UpdateType == "" {
 				interleaveTableSchema[k].InterleaveColumnChanges[ind].UpdateType = col.Type
+				table := v.Table
+				if conv.SpSchema[table].ColDefs[col.UpdateColumnName].T.Len != 0 {
+					length := conv.SpSchema[table].ColDefs[col.UpdateColumnName].T.Len
+					if length == ddl.MaxLength {
+						interleaveTableSchema[k].InterleaveColumnChanges[ind].UpdateType += "(MAX)"
+					} else {
+						interleaveTableSchema[k].InterleaveColumnChanges[ind].UpdateType += fmt.Sprintf("(%v)", length)
+					}
+				}
 			}
 		}
 	}

@@ -15,7 +15,7 @@ export class RuleComponent implements OnInit {
   @Input() currentObject: FlatNode | null = null
   @Output() lengthOfRules: EventEmitter<number> = new EventEmitter<number>()
 
-  constructor(private sidenavService: SidenavService, private data: DataService) {}
+  constructor(private sidenavService: SidenavService, private data: DataService) { }
 
   ngOnInit(): void {
     this.dataSource = []
@@ -36,7 +36,8 @@ export class RuleComponent implements OnInit {
       let globalData: any = []
       let currentData: any = []
       globalData = this.currentDataSource.filter(
-        (rule: any) => rule?.Type === 'global_datatype_change'
+        (rule: any) => rule?.Type === 'global_datatype_change' ||
+          (rule?.Type === 'edit_column_max_length' && rule?.AssociatedObjects === 'All table')
       )
       if (
         this.currentObject &&

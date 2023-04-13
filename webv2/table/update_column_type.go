@@ -83,18 +83,10 @@ func UpdateColumnType(newType, tableId, colId string, conv *internal.Conv, w htt
 
 // UpdateColumnTypeTableSchema updates column type to newtype for a column of a table.
 func UpdateColumnTypeChangeTableSchema(conv *internal.Conv, tableId string, colId string, newType string, w http.ResponseWriter) error {
-
-	sp, ty, err := utilities.GetType(conv, newType, tableId, colId)
-
+	err := utilities.UpdateDataType(conv, newType, tableId, colId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
-
-	colDef := sp.ColDefs[colId]
-	colDef.T = ty
-	sp.ColDefs[colId] = colDef
-	conv.SpSchema[tableId] = sp
-
 	return nil
 }
