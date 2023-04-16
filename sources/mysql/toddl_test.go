@@ -34,7 +34,7 @@ func TestToSpannerType(t *testing.T) {
 	srcSchema := schema.Table{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12"},
 		ColDefs: map[string]schema.Column{
 			"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
 			"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: "float"}},
@@ -46,6 +46,8 @@ func TestToSpannerType(t *testing.T) {
 			"c8":  {Name: "h", Id: "c8", Type: schema.Type{Name: "date"}},
 			"c9":  {Name: "i", Id: "c9", Type: schema.Type{Name: "timestamp"}},
 			"c10": {Name: "j", Id: "c10", Type: schema.Type{Name: "bit"}},
+			"c11": {Name: "k", Id: "c11", Type: schema.Type{Name: "bit", Mods: []int64{1}}},
+			"c12": {Name: "l", Id: "c12", Type: schema.Type{Name: "bit", Mods: []int64{2}}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{ColId: "c1"}},
 		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c11"}},
@@ -82,7 +84,7 @@ func TestToSpannerType(t *testing.T) {
 	expected := ddl.CreateTable{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"c1":  ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 			"c2":  ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
@@ -94,6 +96,8 @@ func TestToSpannerType(t *testing.T) {
 			"c8":  ddl.ColumnDef{Name: "h", Id: "c8", T: ddl.Type{Name: ddl.Date}},
 			"c9":  ddl.ColumnDef{Name: "i", Id: "c9", T: ddl.Type{Name: ddl.Timestamp}},
 			"c10": ddl.ColumnDef{Name: "j", Id: "c10", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"c11": ddl.ColumnDef{Name: "k", Id: "c11", T: ddl.Type{Name: ddl.Bool}},
+			"c12": ddl.ColumnDef{Name: "l", Id: "c12", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 		},
 		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1"}},
 		ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c11"}},

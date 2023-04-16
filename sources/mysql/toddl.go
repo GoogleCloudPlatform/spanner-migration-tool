@@ -116,6 +116,10 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
+			// bit(1) is a bool in MySQL
+			if len(srcType.Mods) > 0 && srcType.Mods[0] == 1 {
+				return ddl.Type{Name: ddl.Bool}, nil
+			}
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "varchar", "char":
