@@ -342,10 +342,14 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client) *writer.BatchWriter {
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
-		migrationData := metrics.GetMigrationData(conv, "", constants.DataConv)
-		serializedMigrationData, _ := proto.Marshal(migrationData)
-		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
-		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), constants.MigrationMetadataKey, migrationMetadataValue), m)
+		ctx := context.Background()
+		if !conv.Audit.SkipMetricsPopulation {
+			migrationData := metrics.GetMigrationData(conv, "", constants.DataConv)
+			serializedMigrationData, _ := proto.Marshal(migrationData)
+			migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
+			ctx = metadata.AppendToOutgoingContext(context.Background(), constants.MigrationMetadataKey, migrationMetadataValue)
+		}
+		_, err := client.Apply(ctx, m)
 		if err != nil {
 			return err
 		}
@@ -509,11 +513,13 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 	if err != nil {
 		return err
 	}
-	// Adding migration metadata to the outgoing context.
-	migrationData := metrics.GetMigrationData(conv, driver, constants.SchemaConv)
-	serializedMigrationData, _ := proto.Marshal(migrationData)
-	migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
-	ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
+	if !conv.Audit.SkipMetricsPopulation {
+		// Adding migration metadata to the outgoing context.
+		migrationData := metrics.GetMigrationData(conv, driver, constants.SchemaConv)
+		serializedMigrationData, _ := proto.Marshal(migrationData)
+		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
+		ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
+	}
 	if dbExists {
 		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out)
 		if err != nil {
@@ -582,6 +588,10 @@ func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 		Database:   dbURI,
 		Statements: schema,
 	}
+	// Update queries for postgres as target db return response after more
+	// than 1 min for large schemas, therefore, timeout is specified as 5 minutes
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
 	op, err := adminClient.UpdateDatabaseDdl(ctx, req)
 	if err != nil {
 		return fmt.Errorf("can't build UpdateDatabaseDdlRequest: %w", utils.AnalyzeError(err, dbURI))

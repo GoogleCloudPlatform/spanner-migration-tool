@@ -115,6 +115,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	// Populate migration request id and migration type in conv object.
 	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
+	conv.Audit.SkipMetricsPopulation = os.Getenv("SKIP_METRICS_POPULATION") == "true"
 	dataCoversionStartTime := time.Now()
 
 	if !sourceProfile.UseTargetSchema() {

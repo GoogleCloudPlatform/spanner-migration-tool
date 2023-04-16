@@ -1617,6 +1617,8 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionState.Conv.ResetStats()
 	sessionState.Conv.Audit.Progress = internal.Progress{}
+	// Set env variable SKIP_METRICS_POPULATION to true in case of dev testing
+	sessionState.Conv.Audit.SkipMetricsPopulation = os.Getenv("SKIP_METRICS_POPULATION") == "true"
 	if details.MigrationMode == helpers.SCHEMA_ONLY {
 		log.Println("Starting schema only migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
