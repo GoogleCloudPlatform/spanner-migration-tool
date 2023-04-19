@@ -2220,6 +2220,9 @@ func initializeTypeMap() {
 		if srcTypeName == "tinyint" {
 			l = append(l, typeIssue{T: ddl.Bool, Brief: "Only tinyint(1) can be converted to BOOL, for any other mods it will be converted to INT64"})
 		}
+		if srcTypeName == "bit" {
+			l = append(l, typeIssue{T: ddl.Bool, Brief: "Only bit(1) can be converted to BOOL, for any other mods it will be converted to BYTES"})
+		}
 		mysqlTypeMap[srcTypeName] = l
 	}
 	// Initialize postgresTypeMap.

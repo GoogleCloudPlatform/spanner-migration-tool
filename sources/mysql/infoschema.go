@@ -403,6 +403,15 @@ func toType(dataType string, columnType string, charLen sql.NullInt64, numericPr
 			return schema.Type{Name: dataType}
 		}
 		return schema.Type{Name: dataType, Mods: []int64{length}}
+	// We only want to parse the length for bits when it is present, in the form bit(12). columnType can also be just 'bit',
+	// in which case we skip this parsing.
+	case dataType == "bit" && len(columnType) > len("bit"):
+		var length int64
+		_, err := fmt.Sscanf(columnType, "bit(%d)", &length)
+		if err != nil {
+			return schema.Type{Name: dataType}
+		}
+		return schema.Type{Name: dataType, Mods: []int64{length}}
 	default:
 		return schema.Type{Name: dataType}
 	}
