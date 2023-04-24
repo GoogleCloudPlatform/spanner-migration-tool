@@ -98,6 +98,7 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string) error {
 	if dsCfg.StreamId == "" && dsCfg.StreamDisplayName == "" {
 		// TODO: Update names to have more info like dbname.
 		streamId, err := utils.GenerateName("hb-stream-" + dbName)
+		streamId = strings.Replace(streamId, "_", "-", -1)
 		if err != nil {
 			return fmt.Errorf("error generating stream name: %v", err)
 		}
