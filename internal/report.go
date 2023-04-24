@@ -31,7 +31,7 @@ import (
 // detailed report to w and returns a brief summary (as a string).
 func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites map[string]int64, printTableReports bool, printUnexpecteds bool) string {
 	reports := AnalyzeTables(conv, badWrites)
-	summary := GenerateSummary(conv, reports, badWrites)
+	_, summary := GenerateSummary(conv, reports, badWrites)
 	writeHeading(w, "Summary of Conversion")
 	w.WriteString(summary)
 	ignored := IgnoredStatements(conv)
@@ -77,7 +77,8 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 				h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.SpTable)
 			}
 			writeHeading(w, h)
-			w.WriteString(rateConversion(t.rows, t.badRows, t.Cols, t.Warnings, t.SyntheticPKey != "", false, conv.SchemaMode(), *conv.Audit.MigrationType, conv.Audit.DryRun))
+			_, rateConverstionString := rateConversion(t.rows, t.badRows, t.Cols, t.Warnings, t.SyntheticPKey != "", false, conv.SchemaMode(), *conv.Audit.MigrationType, conv.Audit.DryRun)
+			w.WriteString(rateConverstionString)
 			w.WriteString("\n")
 			for _, x := range t.Body {
 				fmt.Fprintf(w, "%s\n", x.Heading)
@@ -657,7 +658,7 @@ func RateSchema(cols, warnings int64, missingPKey, summary bool) (string, string
 	}
 }
 
-func rateData(rows int64, badRows int64, dryRun bool) string {
+func rateData(rows int64, badRows int64, dryRun bool) (string, string) {
 	reportText := ""
 	if dryRun {
 		reportText = "successfully converted"
@@ -667,15 +668,15 @@ func rateData(rows int64, badRows int64, dryRun bool) string {
 	s := fmt.Sprintf(" (%s%% of %d rows %s to Spanner)", pct(rows, badRows), rows, reportText)
 	switch {
 	case rows == 0:
-		return "NONE (no data rows found)"
+		return "NONE","NONE (no data rows found)"
 	case badRows == 0:
-		return fmt.Sprintf("EXCELLENT (all %d rows %s to Spanner)", rows, reportText)
+		return "EXCELLENT", fmt.Sprintf("EXCELLENT (all %d rows %s to Spanner)", rows, reportText)
 	case good(rows, badRows):
-		return "GOOD" + s
+		return "GOOD", "GOOD" + s
 	case ok(rows, badRows):
-		return "OK" + s
+		return "OK", "OK" + s
 	default:
-		return "POOR" + s
+		return "POOR", "POOR" + s
 	}
 }
 
@@ -687,20 +688,24 @@ func ok(total, badCount int64) bool {
 	return float64(badCount) < (float64(total))/3
 }
 
-func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool, migrationType migration.MigrationData_MigrationType, dryRun bool) string {
+func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool, migrationType migration.MigrationData_MigrationType, dryRun bool) (string, string) {
 	rate := ""
+	var rating string
 	if migrationType != migration.MigrationData_DATA_ONLY {
-		_, rateSchemaReport := RateSchema(cols, warnings, missingPKey, summary)
+		var rateSchemaReport string
+		rating, rateSchemaReport = RateSchema(cols, warnings, missingPKey, summary)
 		rate = rate + fmt.Sprintf("Schema conversion: %s.\n", rateSchemaReport)
 	}
 	if !schemaOnly {
-		rate = rate + fmt.Sprintf("Data conversion: %s.\n", rateData(rows, badRows, dryRun))
+		var rateDataReport string
+		rating, rateDataReport = rateData(rows, badRows, dryRun)
+		rate = rate + fmt.Sprintf("Data conversion: %s.\n", rateDataReport)
 	}
-	return rate
+	return rating, rate
 }
 
 // GenerateSummary creates a summarized version of a tableReport.
-func GenerateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) string {
+func GenerateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) (string, string) {
 	cols := int64(0)
 	warnings := int64(0)
 	missingPKey := false

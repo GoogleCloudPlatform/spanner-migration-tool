@@ -24,6 +24,7 @@ import (
 
 type Summary struct {
 	Text string `json:"text"`
+	Rating string `json:"rating"`
 }
 
 type IgnoredStatement struct {
@@ -130,8 +131,8 @@ func GenerateStructuredReport(driverName string, conv *Conv, badWrites map[strin
 	hbReport.SchemaOnly = conv.SchemaMode()
 	tableReports := AnalyzeTables(conv, badWrites)
 	//1. Generate summary
-	summary := GenerateSummary(conv, tableReports, badWrites)
-	hbReport.Summary = Summary{Text: summary}
+	rating, summary := GenerateSummary(conv, tableReports, badWrites)
+	hbReport.Summary = Summary{Text: summary, Rating: rating}
 
 	//2. Ignored Statements
 	hbReport.IgnoredStatements = fetchIgnoredStatements(conv)
