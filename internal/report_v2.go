@@ -159,7 +159,7 @@ func GenerateStructuredReport(driverName string, conv *Conv, badWrites map[strin
 
 	//7. Table Reports
 	if printTableReports {
-		hbReport.TableReports = fetchTableReports(tableReports, *conv.Audit.MigrationType, conv.SchemaMode(), conv.Audit.DryRun)
+		hbReport.TableReports = fetchTableReports(tableReports, conv)
 	}
 
 	//8. Unexpected Conditions
@@ -247,19 +247,21 @@ func fetchNameChanges(conv *Conv) (nameChanges []NameChange) {
 	return nameChanges
 }
 
-func fetchTableReports(inputTableReports []tableReport, migrationType migration.MigrationData_MigrationType, schemaOnly bool, dryRun bool) (tableReports []TableReport) {
+func fetchTableReports(inputTableReports []tableReport, conv *Conv) (tableReports []TableReport) {
 	for _, t := range inputTableReports {
 		//1. src and Sp Table Names
-		tableReport := TableReport{SrcTableName: t.SrcTable}
-		tableReport.SpTableName = t.SpTable
+		tableReport := TableReport{SrcTableName: conv.SrcSchema[t.SrcTable].Name}
+		tableReport.SpTableName = conv.SrcSchema[t.SrcTable].Name
 
 		//2. Schema Report
+		migrationType := *conv.Audit.MigrationType
 		if migrationType != migration.MigrationData_DATA_ONLY {
 			tableReport.SchemaReport = getSchemaReport(t.Cols, t.Warnings, t.SyntheticPKey != "")
 		}
 		//3. Data Report
+		schemaOnly := conv.SchemaMode()
 		if !schemaOnly {
-			tableReport.DataReport = getDataReport(t.rows, t.badRows, dryRun)
+			tableReport.DataReport = getDataReport(t.rows, t.badRows, conv.Audit.DryRun)
 		}
 		//4. Warnings
 		for _, x := range t.Body {
