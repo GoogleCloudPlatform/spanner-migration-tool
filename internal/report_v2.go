@@ -285,22 +285,14 @@ func getSchemaReport(cols, warnings int64, missingPKey bool) (schemaReport Schem
 	switch {
 	case cols == 0:
 		schemaReport.Rating = "NONE"
-	case warnings == 0 && !missingPKey:
+	case warnings == 0:
 		schemaReport.Rating = "EXCELLENT"
-	case warnings == 0 && missingPKey:
-		schemaReport.Rating = "EXCELLENT_WITH_MISSING_PRIMARY_KEYS"
-	case good(cols, warnings) && !missingPKey:
+	case good(cols, warnings):
 		schemaReport.Rating = "GOOD"
-	case good(cols, warnings) && missingPKey:
-		schemaReport.Rating = "GOOD_WITH_MISSING_PRIMARY_KEYS"
-	case ok(cols, warnings) && !missingPKey:
+	case ok(cols, warnings):
 		schemaReport.Rating = "OK"
-	case ok(cols, warnings) && missingPKey:
-		schemaReport.Rating = "OK_WITH_MISSING_PRIMARY_KEYS"
-	case !missingPKey:
-		schemaReport.Rating = "POOR"
 	default:
-		schemaReport.Rating = "POOR_WITH_MISSING_PRIMARY_KEYS"
+		schemaReport.Rating = "POOR"
 	}
 	return schemaReport
 }
