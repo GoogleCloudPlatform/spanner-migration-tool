@@ -84,7 +84,6 @@ type TableReport struct {
 	SchemaReport  SchemaReport `json:"schemaReport"`
 	DataReport    DataReport   `json:"dataReport"`
 	Warnings      []Warnings   `json:"warnings"`
-	SyntheticPKey string       `json:"syntheticPKey"`
 }
 
 type UnexpectedCondition struct {
@@ -268,8 +267,6 @@ func fetchTableReports(inputTableReports []tableReport, conv *internal.Conv) (ta
 			}
 			tableReport.Warnings = append(tableReport.Warnings, warnings)
 		}
-		//5. Sythetic PKey
-		tableReport.SyntheticPKey = t.SyntheticPKey
 		tableReports = append(tableReports, tableReport)
 	}
 	return tableReports
