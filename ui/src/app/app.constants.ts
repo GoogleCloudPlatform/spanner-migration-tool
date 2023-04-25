@@ -44,7 +44,8 @@ export enum ObjectDetailNodeType {
 
 export enum MigrationTypes {
   bulkMigration = 'bulk',
-  lowDowntimeMigration = 'lowdt'
+  lowDowntimeMigration = 'lowdt',
+  dataprocMigration = 'dproc'
 }
 
 export enum MigrationDetails {
@@ -108,4 +109,11 @@ export const Dataflow = {
   Subnetwork: 'subnetwork',
   HostProjectId: 'hostProjectId',
   IsDataflowConfigSet: 'isDataflowConfigSet',
+}
+
+export const Dataproc = {
+  Subnetwork: 'subnetwork',
+  Hostname: 'hostname',
+  Port: 'port',
+  IsDataprocConfigSet: 'isDataprocConfigSet',
 }
