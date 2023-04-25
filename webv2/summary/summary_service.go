@@ -1,14 +1,14 @@
 package summary
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
 // getSummary returns table wise summary of conversion.
 func getSummary() map[string]ConversionSummary {
 	sessionState := session.GetSessionState()
-	reports := internal.AnalyzeTables(sessionState.Conv, nil)
+	reports := reports.AnalyzeTables(sessionState.Conv, nil)
 
 	summary := make(map[string]ConversionSummary)
 	for _, t := range reports {

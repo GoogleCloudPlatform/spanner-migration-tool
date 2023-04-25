@@ -1,4 +1,4 @@
-package internal
+package reports
 
 import (
 	"bufio"
@@ -8,6 +8,9 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 )
+
+//report_text.go contains the logic to convert a structured harbourbridge 
+//report to a human readable text report.
 
 func GenerateTextReport(structuredReport StructuredReport, w *bufio.Writer) {
 	writeHeading(w, "Summary of Conversion")

@@ -39,6 +39,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
@@ -871,10 +872,10 @@ func addIndex(newIndex ddl.CreateIndex) (ddl.CreateIndex, error) {
 // getConversionRate returns table wise color coded conversion rate.
 func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	reports := internal.AnalyzeTables(sessionState.Conv, nil)
+	hb_reports := reports.AnalyzeTables(sessionState.Conv, nil)
 	rate := make(map[string]string)
-	for _, t := range reports {
-		rate[t.SpTable], _ = internal.RateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "", false)
+	for _, t := range hb_reports {
+		rate[t.SpTable], _ = reports.RateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "", false)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(rate)
@@ -2193,7 +2194,7 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 		if len(issues) > 0 {
 			var briefs []string
 			for _, issue := range issues {
-				briefs = append(briefs, internal.IssueDB[issue].Brief)
+				briefs = append(briefs, reports.IssueDB[issue].Brief)
 			}
 			l = append(l, typeIssue{T: spType, Brief: fmt.Sprintf(strings.Join(briefs, ", "))})
 		} else {

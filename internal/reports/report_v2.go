@@ -13,12 +13,13 @@
 // limitations under the License.
 
 // Implements structured report generation for Harbourbridge.
-package internal
+package reports
 
 import (
 	"strings"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 )
 
@@ -121,11 +122,7 @@ type StructuredReport struct {
 // This method the RAW structured report in JSON format. Several utilities can be built on top of
 // this raw, nested JSON data to output the reports in different user and machine friendly formats
 // such as CSV, TXT etc.
-// Note that creating this functionality separately outside of report.go is done for backward
-// compatibility with the existing text based report. Some logic has also been duplicated.
-// This duplication will be removed once the text based report relies on using the structured data
-// as the source of truth.
-func GenerateStructuredReport(driverName string, conv *Conv, badWrites map[string]int64, printTableReports bool, printUnexpecteds bool) StructuredReport {
+func GenerateStructuredReport(driverName string, conv *internal.Conv, badWrites map[string]int64, printTableReports bool, printUnexpecteds bool) StructuredReport {
 	//Create report object
 	var hbReport = StructuredReport{}
 	hbReport.SchemaOnly = conv.SchemaMode()
@@ -183,7 +180,7 @@ func mapMigrationType(migrationType migration.MigrationData_MigrationType) strin
 	return "UNSPECIFIED"
 }
 
-func fetchIgnoredStatements(conv *Conv) (ignoredStatements []IgnoredStatement) {
+func fetchIgnoredStatements(conv *internal.Conv) (ignoredStatements []IgnoredStatement) {
 	for s := range conv.Stats.Statement {
 		switch s {
 		case "CreateFunctionStmt":
@@ -203,14 +200,14 @@ func fetchIgnoredStatements(conv *Conv) (ignoredStatements []IgnoredStatement) {
 	return ignoredStatements
 }
 
-func fetchStatementStats(driverName string, conv *Conv) (statementStats []StatementStat) {
+func fetchStatementStats(driverName string, conv *internal.Conv) (statementStats []StatementStat) {
 	for s, x := range conv.Stats.Statement {
 		statementStats = append(statementStats, StatementStat{Statement: s, Schema: x.Schema, Data: x.Data, Skip: x.Skip, Error: x.Error})
 	}
 	return statementStats
 }
 
-func fetchNameChanges(conv *Conv) (nameChanges []NameChange) {
+func fetchNameChanges(conv *internal.Conv) (nameChanges []NameChange) {
 	for tableId, spTable := range conv.SpSchema {
 		srcTable := conv.SrcSchema[tableId]
 		if srcTable.Name != spTable.Name {
@@ -226,7 +223,7 @@ func fetchNameChanges(conv *Conv) (nameChanges []NameChange) {
 			}
 		}
 		for _, spFk := range conv.SpSchema[tableId].ForeignKeys {
-			srcFk, err := GetSrcFkFromId(conv.SrcSchema[tableId].ForeignKeys, spFk.Id)
+			srcFk, err := internal.GetSrcFkFromId(conv.SrcSchema[tableId].ForeignKeys, spFk.Id)
 			if err != nil {
 				continue
 			}
@@ -235,7 +232,7 @@ func fetchNameChanges(conv *Conv) (nameChanges []NameChange) {
 			}
 		}
 		for _, spIdx := range conv.SpSchema[tableId].Indexes {
-			srcIdx, err := GetSrcIndexFromId(conv.SrcSchema[tableId].Indexes, spIdx.Id)
+			srcIdx, err := internal.GetSrcIndexFromId(conv.SrcSchema[tableId].Indexes, spIdx.Id)
 			if err != nil {
 				continue
 			}
@@ -247,7 +244,7 @@ func fetchNameChanges(conv *Conv) (nameChanges []NameChange) {
 	return nameChanges
 }
 
-func fetchTableReports(inputTableReports []tableReport, conv *Conv) (tableReports []TableReport) {
+func fetchTableReports(inputTableReports []tableReport, conv *internal.Conv) (tableReports []TableReport) {
 	for _, t := range inputTableReports {
 		//1. src and Sp Table Names
 		tableReport := TableReport{SrcTableName: conv.SrcSchema[t.SrcTable].Name}
@@ -316,7 +313,7 @@ func getDataReport(rows int64, badRows int64, dryRun bool) (dataReport DataRepor
 	return dataReport
 }
 
-func fetchUnexceptedConditions(driverName string, conv *Conv) (unexpectedConditions UnexpectedConditions) {
+func fetchUnexceptedConditions(driverName string, conv *internal.Conv) (unexpectedConditions UnexpectedConditions) {
 	unexpectedConditions.Reparsed = conv.Stats.Reparsed
 	for s, n := range conv.Stats.Unexpected {
 		unexpectedConditions.UnexpectedConditions = append(unexpectedConditions.UnexpectedConditions, UnexpectedCondition{Count: n, Condition: s})

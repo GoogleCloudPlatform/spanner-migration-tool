@@ -49,6 +49,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
@@ -377,7 +378,7 @@ func Report(driver string, badWrites map[string]int64, BytesRead int64, banner s
 
 	//Write the structured report file
 	structuredReportFileName := reportFileName + "_structured_report.json"
-	structuredReport := internal.GenerateStructuredReport(driver, conv, badWrites, true, true)
+	structuredReport := reports.GenerateStructuredReport(driver, conv, badWrites, true, true)
 	fBytes, _ := json.MarshalIndent(structuredReport, "", " ")
 	f, err := os.Create(structuredReportFileName)
 	if err != nil {
@@ -401,7 +402,7 @@ func Report(driver string, badWrites map[string]int64, BytesRead int64, banner s
 	}
 	w:= bufio.NewWriter(f)
 	w.WriteString(banner)
-	internal.GenerateTextReport(structuredReport, w)
+	reports.GenerateTextReport(structuredReport, w)
 	w.Flush()
 
 	var isDump bool
