@@ -377,7 +377,7 @@ func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, clie
 func Report(driver string, badWrites map[string]int64, BytesRead int64, banner string, conv *internal.Conv, reportFileName string, out *os.File) {
 
 	//Write the structured report file
-	structuredReportFileName := reportFileName + "_structured_report.json"
+	structuredReportFileName := reportFileName + "structured_report.json"
 	structuredReport := reports.GenerateStructuredReport(driver, conv, badWrites, true, true)
 	fBytes, _ := json.MarshalIndent(structuredReport, "", " ")
 	f, err := os.Create(structuredReportFileName)
@@ -391,7 +391,7 @@ func Report(driver string, badWrites map[string]int64, BytesRead int64, banner s
 	f.Write(fBytes)
 
 	//Write the text report file from the structured report
-	textReportFileName := reportFileName + "_report.txt"
+	textReportFileName := reportFileName + "report.txt"
 	f, err = os.Create(textReportFileName)
 	if err != nil {
 		fmt.Fprintf(out, "Can't write out report file %s: %v\n", reportFileName, err)
