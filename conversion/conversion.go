@@ -424,60 +424,6 @@ func Report(driver string, badWrites map[string]int64, BytesRead int64, banner s
 	}
 }
 
-// Report generates a report of schema and data conversion.
-// func Report(driver string, badWrites map[string]int64, BytesRead int64, banner string, conv *internal.Conv, reportFileName string, out *os.File) {
-// 	f, err := os.Create(reportFileName)
-// 	if err != nil {
-// 		fmt.Fprintf(out, "Can't write out report file %s: %v\n", reportFileName, err)
-// 		fmt.Fprintf(out, "Writing report to stdout\n")
-// 		f = out
-// 	} else {
-// 		defer f.Close()
-// 	}
-// 	w := bufio.NewWriter(f)
-// 	w.WriteString(banner)
-
-// 	summary := internal.GenerateReport(driver, conv, w, badWrites, true, true)
-// 	w.Flush()
-// 	var isDump bool
-// 	if strings.Contains(driver, "dump") {
-// 		isDump = true
-// 	}
-// 	if isDump {
-// 		fmt.Fprintf(out, "Processed %d bytes of %s data (%d statements, %d rows of data, %d errors, %d unexpected conditions).\n",
-// 			BytesRead, driver, conv.Statements(), conv.Rows(), conv.StatementErrors(), conv.Unexpecteds())
-// 	} else {
-// 		fmt.Fprintf(out, "Processed source database via %s driver (%d rows of data, %d unexpected conditions).\n",
-// 			driver, conv.Rows(), conv.Unexpecteds())
-// 	}
-// 	// We've already written summary to f (as part of GenerateReport).
-// 	// In the case where f is stdout, don't write a duplicate copy.
-// 	if f != out {
-// 		fmt.Fprint(out, summary)
-// 		fmt.Fprintf(out, "See file '%s' for details of the schema and data conversions.\n", reportFileName)
-// 	}
-	
-// 	//---------Add hook to print structured report---------------
-// 	//TODO: The text based report should be generated from the structured report.
-// 	//Refactor the code to remove all the code above this and use the `structuredReport`
-// 	//object to generate text/csv based report.
-// 	structuredReport := internal.GenerateStructuredReport(driver, conv, badWrites, true, true)
-// 	file, _ := json.MarshalIndent(structuredReport, "", " ")
-// 	structuredReportFileName := strings.TrimSuffix(reportFileName, "report.txt") + "structured_report.json"
-// 	_ = ioutil.WriteFile(structuredReportFileName, file, 0644)
-// 	f2, err := os.Create(reportFileName + "v2")
-// 	if err != nil {
-// 		fmt.Fprintf(out, "Can't write out report file %s: %v\n", reportFileName, err)
-// 		fmt.Fprintf(out, "Writing report to stdout\n")
-// 		f2 = out
-// 	} else {
-// 		defer f2.Close()
-// 	}
-// 	w2:= bufio.NewWriter(f2)
-// 	internal.GenerateTextReport(structuredReport, w2)
-// 	w2.Flush()
-// }
-
 // getSeekable returns a seekable file (with same content as f) and the size of the content (in bytes).
 func getSeekable(f *os.File) (*os.File, int64, error) {
 	_, err := f.Seek(0, 0)
