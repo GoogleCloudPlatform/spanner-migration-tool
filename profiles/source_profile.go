@@ -359,6 +359,7 @@ func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileCo
 type SourceProfileConnection struct {
 	Ty        SourceProfileConnectionType
 	Streaming bool
+	Dataproc  bool
 	Mysql     SourceProfileConnectionMySQL
 	Pg        SourceProfileConnectionPostgreSQL
 	Dydb      SourceProfileConnectionDynamoDB
@@ -379,6 +380,9 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 			}
 			if conn.Mysql.StreamingConfig != "" {
 				conn.Streaming = true
+			}
+			if params["dprocCfg"] != "" {
+				conn.Dataproc = true
 			}
 		}
 	case "postgresql", "postgres", "pg":

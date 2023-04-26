@@ -187,6 +187,39 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 	return batchWriter
 }
 
+func performDataprocMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
+	common.SetRowStats(conv, infoSchema)
+	batchWriter := populateDataConv(conv, config, client)
+
+	//Adding all dataproc configs to a map
+	dataprocConfig := map[string]string{}
+	dataprocConfig["hostname"] = sourceProfile.Conn.Mysql.Host
+	dataprocConfig["port"] = sourceProfile.Conn.Mysql.Port
+	dataprocConfig["user"] = sourceProfile.Conn.Mysql.User
+	dataprocConfig["pwd"] = sourceProfile.Conn.Mysql.Pwd
+	dataprocConfig["targetdb"] = targetProfile.Dc.TargetDB
+	dataprocConfig["instance"] = targetProfile.Conn.Sp.Instance
+	dataprocConfig["project"] = targetProfile.Conn.Sp.Project
+	if len(targetProfile.Dc.Hostname) > 1 {
+		dataprocConfig["hostname"] = targetProfile.Dc.Hostname
+	}
+	if len(targetProfile.Dc.Port) > 1 {
+		dataprocConfig["port"] = targetProfile.Dc.Port
+	}
+	if len(targetProfile.Dc.Subnetwork) > 1 {
+		dataprocConfig["subnet"] = targetProfile.Dc.Subnetwork
+	}
+
+	err := common.ProcessDataWithDataproc(conv, infoSchema, dataprocConfig)
+
+	if err != nil {
+		return batchWriter, err
+	}
+
+	batchWriter.Flush()
+	return batchWriter, nil
+}
+
 func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
 	switch sourceProfile.Driver {
 	// Skip snapshot migration via harbourbridge for mysql and oracle since dataflow job will job will handle this from backfilled data.
@@ -205,6 +238,9 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 		return nil, err
 	}
 	var streamInfo map[string]interface{}
+	if sourceProfile.Conn.Dataproc {
+		return performDataprocMigration(sourceProfile, targetProfile, config, conv, client, infoSchema)
+	}
 	if sourceProfile.Conn.Streaming {
 		streamInfo, err = infoSchema.StartChangeDataCapture(ctx, conv)
 		if err != nil {

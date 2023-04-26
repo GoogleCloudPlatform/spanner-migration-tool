@@ -33,6 +33,7 @@ const (
 	SCHEMA_ONLY            = "Schema"
 	DATA_ONLY              = "Data"
 	LOW_DOWNTIME_MIGRATION = "lowdt"
+	DATAPROC_MIGRATION     = "dproc"
 	POSTGRESQL_DIALECT     = "PostgreSQL"
 	GOOGLE_SQL_DIALECT     = "Google Standard SQL"
 )

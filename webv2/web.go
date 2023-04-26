@@ -123,6 +123,7 @@ type progressDetails struct {
 type migrationDetails struct {
 	TargetDetails  targetDetails  `json:"TargetDetails"`
 	DataflowConfig dataflowConfig `json:"DataflowConfig"`
+	DataprocConfig dataprocConfig `json:"DataprocConfig"`
 	MigrationMode  string         `json:MigrationMode`
 	MigrationType  string         `json:MigrationType`
 }
@@ -131,6 +132,12 @@ type dataflowConfig struct {
 	Network       string `json:Network`
 	Subnetwork    string `json:Subnetwork`
 	HostProjectId string `json:HostProjectId`
+}
+
+type dataprocConfig struct {
+	Subnetwork string `json:"Subnetwork"`
+	Hostname   string `json:"Hostname"`
+	Port       string `json:"Port"`
 }
 
 type targetDetails struct {
@@ -152,6 +159,7 @@ type DataflowCfg struct {
 	Subnetwork    string `json:"Subnetwork"`
 	HostProjectId string `json:"HostProjectId"`
 }
+
 type ConnectionConfig struct {
 	Name     string `json:"name"`
 	Location string `json:"location"`
@@ -1663,6 +1671,18 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(generatedResources)
 }
 
+func getDataprocJobs(w http.ResponseWriter, r *http.Request) {
+	var dataprocJobs DataprocJobs
+	sessionState := session.GetSessionState()
+
+	if len(sessionState.Conv.Audit.DataprocStats.DataprocJobUrls) > 0 {
+		dataprocJobs.DataprocJobUrls = sessionState.Conv.Audit.DataprocStats.DataprocJobUrls
+		dataprocJobs.DataprocJobIds = sessionState.Conv.Audit.DataprocStats.DataprocJobIds
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(dataprocJobs)
+}
+
 func getSourceAndTargetProfiles(sessionState *session.SessionState, details migrationDetails) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
 	var (
 		sourceProfileString string
@@ -1689,6 +1709,15 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating streaming config file: %v", err)
 		}
 		sourceProfileString = sourceProfileString + fmt.Sprintf(",streamingCfg=%v", fileName)
+	} else if details.MigrationType == helpers.DATAPROC_MIGRATION {
+		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
+		sessionState.RootPath = "/"
+
+		dprocConfig := helpers.DATAPROC_MIGRATION
+		sourceProfileString = sourceProfileString + fmt.Sprintf(",dprocCfg=%v", dprocConfig)
+		targetProfileString = targetProfileString + fmt.Sprintf(",dpsubnetwork=%v,dphostname=%v,dpport=%v,targetdb=%v", details.DataprocConfig.Subnetwork, details.DataprocConfig.Hostname, details.DataprocConfig.Port, details.TargetDetails.TargetDB)
+
 	} else {
 		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
@@ -2186,6 +2215,11 @@ type GeneratedResources struct {
 	DataStreamJobUrl  string
 	DataflowJobName   string
 	DataflowJobUrl    string
+}
+
+type DataprocJobs struct {
+	DataprocJobUrls []string
+	DataprocJobIds  []string
 }
 
 func addTypeToList(convertedType string, spType string, issues []internal.SchemaIssue, l []typeIssue) []typeIssue {
