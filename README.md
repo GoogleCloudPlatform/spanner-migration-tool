@@ -198,7 +198,7 @@ new Cloud Spanner database with this schema, and finally, populate this new
 database with the data from the source database.
 If the project has multiple instances, then list of available instances
 will be shown and you will have to pick one of the available instances and
-set the `--instance` flag in target-profile. The new Cloud Spanner database
+set the `instance` flag in target-profile. The new Cloud Spanner database
 will have a name of the form `{SOURCE}_{DATE}_{RANDOM}`, where`{SOURCE}` is the
 value of the source flag,`{DATE}`is today's date, and`{RANDOM}` is a random
 suffix for uniqueness.
