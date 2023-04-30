@@ -72,8 +72,10 @@ func TestReviewTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
@@ -100,9 +102,11 @@ func TestReviewTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
-						"c1": {internal.Widened},
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
 					},
 				},
 				Audit: internal.Audit{
@@ -202,9 +206,11 @@ func TestReviewTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 					}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
-						"c3": {internal.Widened},
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c3": {internal.Widened},
+						},
 					},
 				},
 				Audit: internal.Audit{
@@ -222,7 +228,7 @@ func TestReviewTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 					}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {},
 				},
 				Audit: internal.Audit{

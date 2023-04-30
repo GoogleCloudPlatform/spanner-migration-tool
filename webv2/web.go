@@ -841,6 +841,7 @@ func setGlobalDataType(typeMap map[string]string) {
 				utilities.UpdateDataType(sessionState.Conv, typeMap[srcColDef.Type.Name], tableId, colId)
 			}
 		}
+		common.ComputeNonKeyColumnSize(sessionState.Conv, tableId)
 	}
 }
 
@@ -857,6 +858,7 @@ func setSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string) {
 					sessionState.Conv.SpSchema[tId].ColDefs[colDef.Id] = spColDef
 				}
 			}
+			common.ComputeNonKeyColumnSize(sessionState.Conv, tId)
 		}
 	} else {
 		for _, colDef := range sessionState.Conv.SpSchema[associatedObjects].ColDefs {
@@ -868,6 +870,7 @@ func setSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string) {
 				sessionState.Conv.SpSchema[associatedObjects].ColDefs[colDef.Id] = spColDef
 			}
 		}
+		common.ComputeNonKeyColumnSize(sessionState.Conv, associatedObjects)
 	}
 }
 
@@ -880,6 +883,7 @@ func revertSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string)
 					utilities.UpdateDataType(sessionState.Conv, spColMaxLength.SpDataType, tId, colId)
 				}
 			}
+			common.ComputeNonKeyColumnSize(sessionState.Conv, tId)
 		}
 	} else {
 		for colId, colDef := range sessionState.Conv.SpSchema[associatedObjects].ColDefs {
@@ -887,6 +891,7 @@ func revertSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string)
 				utilities.UpdateDataType(sessionState.Conv, spColMaxLength.SpDataType, associatedObjects, colId)
 			}
 		}
+		common.ComputeNonKeyColumnSize(sessionState.Conv, associatedObjects)
 	}
 }
 
@@ -913,6 +918,7 @@ func revertGlobalDataType(typeMap map[string]string) {
 				utilities.UpdateDataType(sessionState.Conv, "", tableId, colId)
 			}
 		}
+		common.ComputeNonKeyColumnSize(sessionState.Conv, tableId)
 	}
 }
 
@@ -953,7 +959,7 @@ func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	hb_reports := reports.AnalyzeTables(sessionState.Conv, nil)
 	rate := make(map[string]string)
 	for _, t := range hb_reports {
-		rate[t.SpTable], _ = reports.RateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "", false)
+		rate[t.SpTable], _ = internal.RateSchema(t.Cols, t.Warnings, t.Errors, t.SyntheticPKey != "", false)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(rate)
@@ -1032,25 +1038,25 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 		schemaissue := []internal.SchemaIssue{}
 
 		colId := childPks[childindex].ColId
-		schemaissue = sessionState.Conv.SchemaIssues[tableId][colId]
+		schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
 		if update {
 			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 		} else {
 			schemaissue = append(schemaissue, internal.InterleavedOrder)
 		}
 
-		sessionState.Conv.SchemaIssues[tableId][colId] = schemaissue
+		sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaissue
 	} else {
 		// Remove "Table cart can be converted as Interleaved Table" suggestion from columns
 		// of the table if interleaving is not possible.
 		for _, colId := range sessionState.Conv.SpSchema[tableId].ColIds {
 			schemaIssue := []internal.SchemaIssue{}
-			for _, v := range sessionState.Conv.SchemaIssues[tableId][colId] {
+			for _, v := range sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] {
 				if v != internal.InterleavedOrder {
 					schemaIssue = append(schemaIssue, v)
 				}
 			}
-			sessionState.Conv.SchemaIssues[tableId][colId] = schemaIssue
+			sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaIssue
 		}
 	}
 
@@ -1136,7 +1142,7 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 						schemaissue := []internal.SchemaIssue{}
 
 						colId := childPks[childindex].ColId
-						schemaissue = sessionState.Conv.SchemaIssues[tableId][colId]
+						schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
 
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
@@ -1145,7 +1151,7 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnType)
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
 
-						sessionState.Conv.SchemaIssues[tableId][colId] = schemaissue
+						sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaissue
 						tableInterleaveStatus.Possible = true
 						tableInterleaveStatus.Parent = refTableId
 						tableInterleaveStatus.Comment = ""
@@ -1161,7 +1167,7 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 						colId := fk.ColIds[referColIndex]
 
 						schemaissue := []internal.SchemaIssue{}
-						schemaissue = sessionState.Conv.SchemaIssues[tableId][colId]
+						schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
 
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
@@ -1171,7 +1177,7 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 
 						schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
 
-						sessionState.Conv.SchemaIssues[tableId][colId] = schemaissue
+						sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaissue
 
 					}
 				}
@@ -1319,7 +1325,10 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	delete(spSchema, tableId)
-	issues[tableId] = map[string][]internal.SchemaIssue{}
+	issues[tableId] = internal.TableIssues{
+		TableLevelIssues:  []internal.SchemaIssue{},
+		ColumnLevelIssues: map[string][]internal.SchemaIssue{},
+	}
 	delete(syntheticPkey, tableId)
 
 	//drop reference foreign key
@@ -1347,7 +1356,7 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 
 	//remove interleavable suggestion on droping the parent table
 	for tableName, tableIssues := range issues {
-		for colName, colIssues := range tableIssues {
+		for colName, colIssues := range tableIssues.ColumnLevelIssues {
 			updatedColIssues := []internal.SchemaIssue{}
 			for _, val := range colIssues {
 				if val != internal.InterleavedOrder {
@@ -1355,9 +1364,9 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			if len(updatedColIssues) == 0 {
-				delete(issues[tableName], colName)
+				delete(issues[tableName].ColumnLevelIssues, colName)
 			} else {
-				issues[tableName][colName] = updatedColIssues
+				issues[tableName].ColumnLevelIssues[colName] = updatedColIssues
 			}
 		}
 	}
@@ -1506,13 +1515,13 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 			// To remove the interleavable suggestions if they exist on dropping fk
 			colId := sp.ForeignKeys[position].ColIds[0]
 			schemaIssue := []internal.SchemaIssue{}
-			for _, v := range sessionState.Conv.SchemaIssues[tableId][colId] {
+			for _, v := range sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] {
 				if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder && v != internal.InterleavedChangeColumnSize && v != internal.InterleavedChangeColumnType {
 					schemaIssue = append(schemaIssue, v)
 				}
 			}
 			if _, ok := sessionState.Conv.SchemaIssues[tableId]; ok {
-				sessionState.Conv.SchemaIssues[tableId][colId] = schemaIssue
+				sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaIssue
 			}
 
 			sp.ForeignKeys = utilities.RemoveFk(updatedFKs, dropFkId)
@@ -2198,7 +2207,7 @@ func updateInterleaveSuggestion(colIds []string, tableId string, issue internal.
 
 		schemaissue := []internal.SchemaIssue{}
 
-		schemaissue = sessionState.Conv.SchemaIssues[tableId][colIds[i]]
+		schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIds[i]]
 
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
@@ -2209,14 +2218,16 @@ func updateInterleaveSuggestion(colIds []string, tableId string, issue internal.
 
 		schemaissue = append(schemaissue, issue)
 
-		if sessionState.Conv.SchemaIssues[tableId] == nil {
+		if sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues == nil {
 
 			s := map[string][]internal.SchemaIssue{
 				colIds[i]: schemaissue,
 			}
-			sessionState.Conv.SchemaIssues[tableId] = s
+			sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
+				ColumnLevelIssues: s,
+			}
 		} else {
-			sessionState.Conv.SchemaIssues[tableId][colIds[i]] = schemaissue
+			sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIds[i]] = schemaissue
 		}
 	}
 }
@@ -2228,7 +2239,7 @@ func removeInterleaveSuggestions(colIds []string, tableId string) {
 
 		schemaissue := []internal.SchemaIssue{}
 
-		schemaissue = sessionState.Conv.SchemaIssues[tableId][colIds[i]]
+		schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIds[i]]
 
 		if len(schemaissue) == 0 {
 			continue
@@ -2241,14 +2252,16 @@ func removeInterleaveSuggestions(colIds []string, tableId string) {
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnType)
 
-		if sessionState.Conv.SchemaIssues[tableId] == nil {
+		if sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues == nil {
 
 			s := map[string][]internal.SchemaIssue{
 				colIds[i]: schemaissue,
 			}
-			sessionState.Conv.SchemaIssues[tableId] = s
+			sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
+				ColumnLevelIssues: s,
+			}
 		} else {
-			sessionState.Conv.SchemaIssues[tableId][colIds[i]] = schemaissue
+			sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIds[i]] = schemaissue
 		}
 
 	}

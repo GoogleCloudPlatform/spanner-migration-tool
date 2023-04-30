@@ -68,7 +68,14 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 	}
 	var spColIds []string
 	spColDef := make(map[string]ddl.ColumnDef)
-	conv.SchemaIssues[srcTable.Id] = make(map[string][]internal.SchemaIssue)
+
+	var (
+		totalNonKeyColumnSize int
+		tableLevelIssues      []internal.SchemaIssue
+	)
+
+	columnLevelIssues := make(map[string][]internal.SchemaIssue)
+
 	// Iterate over columns using ColNames order.
 	for _, srcColId := range srcTable.ColIds {
 		srcCol := srcTable.ColDefs[srcColId]
@@ -95,7 +102,7 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 			issues = append(issues, internal.AutoIncrement)
 		}
 		if len(issues) > 0 {
-			conv.SchemaIssues[srcTable.Id][srcColId] = issues
+			columnLevelIssues[srcColId] = issues
 		}
 		spColDef[srcColId] = ddl.ColumnDef{
 			Name:    colName,
@@ -104,6 +111,16 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			Id:      srcColId,
 		}
+		if !checkIfColumnIsPartOfPK(srcColId, srcTable.PrimaryKeys) {
+			totalNonKeyColumnSize += getColumnSize(ty.Name, ty.Len)
+		}
+	}
+	if totalNonKeyColumnSize > ddl.MaxNonKeyColumnLength {
+		tableLevelIssues = append(tableLevelIssues, internal.RowLimitExceeded)
+	}
+	conv.SchemaIssues[srcTable.Id] = internal.TableIssues{
+		TableLevelIssues:  tableLevelIssues,
+		ColumnLevelIssues: columnLevelIssues,
 	}
 	comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
 	conv.SpSchema[srcTable.Id] = ddl.CreateTable{

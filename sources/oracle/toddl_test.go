@@ -107,7 +107,7 @@ func TestToSpannerType(t *testing.T) {
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 	// 1 FK issue, 2 index col not found
 	assert.Equal(t, int64(3), conv.Unexpecteds())
 }
@@ -196,7 +196,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 	// 1 FK issue, 2 index col not found
 	assert.Equal(t, int64(3), conv.Unexpecteds())
 }

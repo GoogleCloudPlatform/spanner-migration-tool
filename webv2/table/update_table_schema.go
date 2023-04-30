@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
@@ -125,9 +126,11 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 				spColDef.T.Len, _ = strconv.ParseInt(v.MaxColLength, 10, 64)
 			}
 			sp.ColDefs[colId] = spColDef
-
+			conv.SpSchema[tableId] = sp
 		}
 	}
+
+	common.ComputeNonKeyColumnSize(conv, tableId)
 
 	delete(conv.SpSchema[tableId].ColDefs, "")
 	sessionState.Conv = conv

@@ -202,7 +202,7 @@ export class ObjectDetailComponent implements OnInit {
           ]),
           spDataType: new FormControl(row.spDataType),
           spIsPk: new FormControl(row.spIsPk),
-          spIsNotNull: new FormControl(row.spIsNotNull),spId: new FormControl(row.spId),
+          spIsNotNull: new FormControl(row.spIsNotNull), spId: new FormControl(row.spId),
           srcId: new FormControl(row.srcId),
           spColMaxLength: new FormControl(row.spColMaxLength, [
             Validators.required]),
@@ -212,10 +212,13 @@ export class ObjectDetailComponent implements OnInit {
           if (row.spColMaxLength === undefined) {
             fb.get('spColMaxLength')?.setValue('MAX')
           }
-          else if (row.spColMaxLength !== 'MAX' && row.spColMaxLength > 2621440) {
-            fb.get('spColMaxLength')?.setValue('MAX')
+          else if (row.spColMaxLength !== 'MAX') {
+            if ((row.spDataType === 'STRING' || row.spDataType === 'VARCHAR') && row.spColMaxLength > 2621440) {
+              fb.get('spColMaxLength')?.setValue('MAX')
+            } else if (row.spDataType === 'BYTES' && row.spColMaxLength > 10485760) {
+              fb.get('spColMaxLength')?.setValue('MAX')
+            }
           }
-
         } else {
           fb.controls['spColMaxLength'].clearValidators()
         }
@@ -310,13 +313,17 @@ export class ObjectDetailComponent implements OnInit {
         if (col.srcColName == this.tableData[j].srcColName) {
           let oldRow = this.tableData[j]
           let standardDataType = pgSQLToStandardTypeTypemap.get(col.spDataType)
-          if (col.spColMaxLength !== undefined && col.spColMaxLength !== 'MAX' && col.spColMaxLength > 2621440) {
-           col.spColMaxLength = 'MAX'
+          if (col.spColMaxLength !== undefined && col.spColMaxLength !== 'MAX') {
+            if ((col.spDataType === 'STRING' || col.spDataType === 'VARCHAR') && col.spColMaxLength > 2621440) {
+              col.spColMaxLength = 'MAX'
+            } else if (col.spDataType === 'BYTES' && col.spColMaxLength > 10485760) {
+              col.spColMaxLength = 'MAX'
+            } 
           }
-          if (typeof(col.spColMaxLength) === 'number') {
+          if (typeof (col.spColMaxLength) === 'number') {
             col.spColMaxLength = col.spColMaxLength.toString()
           }
-          if (col.spDataType != 'STRING' && col.spDataType != 'BYTES') {
+          if (col.spDataType != 'STRING' && col.spDataType != 'BYTES'&& col.spDataType != 'VARCHAR') {
             col.spColMaxLength = ""
           }
           updateData.UpdateCols[this.tableData[j].srcId] = {

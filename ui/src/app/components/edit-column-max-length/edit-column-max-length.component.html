@@ -19,7 +19,7 @@
             <mat-option *ngFor="let type of spTypes" [value]="type.value">{{ type.name }}</mat-option>
         </mat-select>
     </mat-form-field>
-    <mat-form-field appearance="outline">
+    <mat-form-field appearance="outline" [hintLabel]="hintlabel">
         <mat-label>Max column length</mat-label>
         <input matInput class="input-field" formControlName="maxColLength" />
     </mat-form-field>

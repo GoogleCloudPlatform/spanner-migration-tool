@@ -77,9 +77,9 @@ func checkRedundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) 
 			if primaryKeyFirstColumnId == indexFirstColumnId {
 				columnId := indexFirstColumnId
 				sessionState := session.GetSessionState()
-				schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][columnId]
+				schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[columnId]
 				schemaissue = append(schemaissue, internal.RedundantIndex)
-				sessionState.Conv.SchemaIssues[spannerTable.Id][columnId] = schemaissue
+				sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[columnId] = schemaissue
 			}
 		}
 	}
@@ -113,13 +113,13 @@ func checkInterleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable)
 				// Ensuring it is not a redundant index.
 				if primaryKeyFirstColumnId != indexFirstColumnId {
 
-					schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][indexFirstColumnId]
+					schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[indexFirstColumnId]
 					fks := spannerTable.ForeignKeys
 
 					for i := range fks {
 						if fks[i].ColIds[0] == indexFirstColumnId {
 							schemaissue = append(schemaissue, internal.InterleaveIndex)
-							sessionState.Conv.SchemaIssues[spannerTable.Id][indexFirstColumnId] = schemaissue
+							sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[indexFirstColumnId] = schemaissue
 
 						}
 					}
@@ -127,7 +127,7 @@ func checkInterleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable)
 					// Interleave suggestion if the column is of type auto increment.
 					if utilities.IsSchemaIssuePresent(schemaissue, internal.AutoIncrement) {
 						schemaissue = append(schemaissue, internal.AutoIncrementIndex)
-						sessionState.Conv.SchemaIssues[spannerTable.Id][indexFirstColumnId] = schemaissue
+						sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[indexFirstColumnId] = schemaissue
 					}
 
 					for _, c := range spannerTable.ColDefs {
@@ -138,10 +138,10 @@ func checkInterleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable)
 
 								columnId := c.Id
 								sessionState := session.GetSessionState()
-								schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][columnId]
+								schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[columnId]
 
 								schemaissue = append(schemaissue, internal.AutoIncrementIndex)
-								sessionState.Conv.SchemaIssues[spannerTable.Id][columnId] = schemaissue
+								sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[columnId] = schemaissue
 							}
 						}
 					}
@@ -166,25 +166,27 @@ func RemoveIndexIssues(tableId string, Index ddl.CreateIndex) {
 			schemaissue := []internal.SchemaIssue{}
 			sessionState := session.GetSessionState()
 			if sessionState.Conv.SchemaIssues != nil {
-				schemaissue = sessionState.Conv.SchemaIssues[tableId][columnId]
+				schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
 			}
 
 			if len(schemaissue) > 0 {
 
 				schemaissue = removeColumnIssue(schemaissue)
 
-				if sessionState.Conv.SchemaIssues[tableId][columnId] == nil {
+				if sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] == nil {
 
 					s := map[string][]internal.SchemaIssue{
 						columnId: schemaissue,
 					}
-					sessionState.Conv.SchemaIssues = map[string]map[string][]internal.SchemaIssue{}
+					sessionState.Conv.SchemaIssues = map[string]internal.TableIssues{}
 
-					sessionState.Conv.SchemaIssues[tableId] = s
+					sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
+						ColumnLevelIssues: s,
+					}
 
 				} else {
 
-					sessionState.Conv.SchemaIssues[tableId][columnId] = schemaissue
+					sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = schemaissue
 
 				}
 			}

@@ -62,9 +62,11 @@ func TestUpdateTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 					}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
-						"c3": {internal.Widened},
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c3": {internal.Widened},
+						},
 					},
 				},
 				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
@@ -80,8 +82,10 @@ func TestUpdateTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 					}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{},
+					},
 				},
 			},
 		},
@@ -120,7 +124,8 @@ func TestUpdateTableSchema(t *testing.T) {
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},
 
-				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
+				Audit:        internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
+				SchemaIssues: make(map[string]internal.TableIssues),
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -147,6 +152,9 @@ func TestUpdateTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {},
+				},
 			},
 		},
 		{
@@ -182,8 +190,8 @@ func TestUpdateTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},
-
-				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
+				SchemaIssues: make(map[string]internal.TableIssues),
+				Audit:        internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -208,6 +216,9 @@ func TestUpdateTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {},
+				},
 			},
 		},
 		{
@@ -242,8 +253,10 @@ func TestUpdateTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
@@ -268,9 +281,11 @@ func TestUpdateTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
-						"c1": {internal.Widened},
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
 					},
 				},
 			},
@@ -332,7 +347,8 @@ func TestUpdateTableSchema(t *testing.T) {
 						PrimaryKeys: []schema.Key{{ColId: "c4", Desc: false}},
 					},
 				},
-				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
+				Audit:        internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
+				SchemaIssues: make(map[string]internal.TableIssues),
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -380,6 +396,9 @@ func TestUpdateTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c4", Desc: false}},
 					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {},
 				},
 			},
 		},

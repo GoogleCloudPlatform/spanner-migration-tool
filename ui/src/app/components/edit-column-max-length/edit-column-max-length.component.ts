@@ -26,6 +26,7 @@ export class EditColumnMaxLengthComponent implements OnInit {
   viewRuleFlag: boolean = false
   conv: IConv = {} as IConv
   spTypes: any =[]
+  hintlabel: string = ''
 
   constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService, private conversion: ConversionService) {
     this.editColMaxLengthForm = this.fb.group({
@@ -51,6 +52,7 @@ export class EditColumnMaxLengthComponent implements OnInit {
               value: 'STRING',
             },
           ]
+          this.hintlabel = 'Max 2621440 for VARCHAR'
         } else {
           this.spTypes = [
           {
@@ -62,6 +64,7 @@ export class EditColumnMaxLengthComponent implements OnInit {
             value: 'BYTES',
           },
         ]
+        this.hintlabel = 'Max 2621440 for STRING and 10485760 for BYTES'
         }
       },
     })
@@ -87,6 +90,11 @@ export class EditColumnMaxLengthComponent implements OnInit {
 
   formSubmit(): void {
     const ruleValue = this.editColMaxLengthForm.value
+    if ((ruleValue.spDataType === 'STRING' || ruleValue.spDataType === 'VARCHAR') && ruleValue.spColMaxLength > 2621440) {
+      ruleValue.spColMaxLength = 9223372036854775807
+    } else if (ruleValue.spDataType === 'BYTES' && ruleValue.spColMaxLength > 10485760) {
+      ruleValue.spColMaxLength = 9223372036854775807
+    } 
     const data: IColMaxLength = {
       spDataType: ruleValue.spDataType,
       spColMaxLength: ruleValue.maxColLength

@@ -270,8 +270,10 @@ func TestSetParentTable(t *testing.T) {
 					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t1", ReferColumnIds: []string{"c1"}},
 						ddl.Foreignkey{Name: "fk2", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"c2"}}},
 				}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -297,8 +299,10 @@ func TestSetParentTable(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 			},
 			table:            "t1",
@@ -331,8 +335,10 @@ func TestSetParentTable(t *testing.T) {
 					},
 				},
 				SyntheticPKeys: map[string]internal.SyntheticPKey{"t2": internal.SyntheticPKey{ColId: "synth_id"}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -367,8 +373,10 @@ func TestSetParentTable(t *testing.T) {
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
 					},
 				},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -403,8 +411,10 @@ func TestSetParentTable(t *testing.T) {
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
 					},
 				},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -439,8 +449,10 @@ func TestSetParentTable(t *testing.T) {
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
 					},
 				},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -476,8 +488,10 @@ func TestSetParentTable(t *testing.T) {
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
 					},
 				},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -524,8 +538,10 @@ func TestSetParentTable(t *testing.T) {
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
 					},
 				},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -1391,7 +1407,7 @@ func TestDropTable(t *testing.T) {
 	sessionState.Driver = constants.MYSQL
 
 	c3 := &internal.Conv{
-		SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+		SchemaIssues: map[string]internal.TableIssues{
 			"t1": {},
 			"t2": {},
 		},
@@ -1536,7 +1552,7 @@ func TestRestoreTable(t *testing.T) {
 			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 		},
 
-		SchemaIssues: map[string]map[string][]internal.SchemaIssue{},
+		SchemaIssues: map[string]internal.TableIssues{},
 	}
 
 	sessionState.Conv = conv
@@ -1603,7 +1619,7 @@ func TestRemoveParentTable(t *testing.T) {
 			tableId:    "t1",
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {},
 					"t2": {},
 				},
@@ -1691,7 +1707,7 @@ func TestRemoveParentTable(t *testing.T) {
 			tableId:    "A",
 			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {},
 					"t2": {},
 				},
@@ -1969,7 +1985,7 @@ func TestApplyRule(t *testing.T) {
 		payload        string
 		statusCode     int64
 		expectedSchema ddl.CreateTable
-		expectedIssues map[string][]internal.SchemaIssue
+		expectedIssues internal.TableIssues
 	}{
 		{
 			name: "Test type change",
@@ -2023,19 +2039,21 @@ func TestApplyRule(t *testing.T) {
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 			},
-			expectedIssues: map[string][]internal.SchemaIssue{
-				"c1":  {internal.Widened},
-				"c2":  {internal.Widened},
-				"c3":  {internal.Widened},
-				"c5":  {internal.Widened},
-				"c6":  {internal.Widened},
-				"c7":  {internal.Widened, internal.Serial},
-				"c10": {internal.Widened},
-				"c11": {internal.Widened},
-				"c12": {internal.Widened},
-				"c13": {internal.Widened, internal.Serial},
-				"c15": {internal.Widened},
-				"c16": {internal.Widened},
+			expectedIssues: internal.TableIssues{
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{
+					"c1":  {internal.Widened},
+					"c2":  {internal.Widened},
+					"c3":  {internal.Widened},
+					"c5":  {internal.Widened},
+					"c6":  {internal.Widened},
+					"c7":  {internal.Widened, internal.Serial},
+					"c10": {internal.Widened},
+					"c11": {internal.Widened},
+					"c12": {internal.Widened},
+					"c13": {internal.Widened, internal.Serial},
+					"c15": {internal.Widened},
+					"c16": {internal.Widened},
+				},
 			},
 		},
 		{
@@ -2078,15 +2096,17 @@ func TestApplyRule(t *testing.T) {
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 			},
-			expectedIssues: map[string][]internal.SchemaIssue{
-				"c1":  {internal.Widened},
-				"c2":  {internal.Widened},
-				"c3":  {internal.Widened},
-				"c7":  {internal.Serial},
-				"c12": {internal.Widened},
-				"c13": {internal.Serial},
-				"c15": {internal.Timestamp},
-				"c16": {internal.Widened},
+			expectedIssues: internal.TableIssues{
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{
+					"c1":  {internal.Widened},
+					"c2":  {internal.Widened},
+					"c3":  {internal.Widened},
+					"c7":  {internal.Serial},
+					"c12": {internal.Widened},
+					"c13": {internal.Serial},
+					"c15": {internal.Timestamp},
+					"c16": {internal.Widened},
+				},
 			},
 		},
 		{
@@ -2141,7 +2161,7 @@ func TestApplyRule(t *testing.T) {
 		payload        string
 		statusCode     int64
 		expectedSchema ddl.CreateTable
-		expectedIssues map[string][]internal.SchemaIssue
+		expectedIssues internal.TableIssues
 	}{
 		{
 			name: "Test type change",
@@ -2195,17 +2215,19 @@ func TestApplyRule(t *testing.T) {
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 			},
-			expectedIssues: map[string][]internal.SchemaIssue{
-				"c1":  {internal.Widened},
-				"c3":  {internal.Widened},
-				"c5":  {internal.Widened},
-				"c10": {internal.Widened},
-				"c11": {internal.Widened},
-				"c12": {internal.Widened},
-				"c13": {internal.Widened},
-				"c14": {internal.Widened},
-				"c15": {internal.Widened},
-				"c16": {internal.Time},
+			expectedIssues: internal.TableIssues{
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{
+					"c1":  {internal.Widened},
+					"c3":  {internal.Widened},
+					"c5":  {internal.Widened},
+					"c10": {internal.Widened},
+					"c11": {internal.Widened},
+					"c12": {internal.Widened},
+					"c13": {internal.Widened},
+					"c14": {internal.Widened},
+					"c15": {internal.Widened},
+					"c16": {internal.Time},
+				},
 			},
 		},
 		{
@@ -2247,12 +2269,14 @@ func TestApplyRule(t *testing.T) {
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 			},
-			expectedIssues: map[string][]internal.SchemaIssue{
-				"c1":  {internal.Widened},
-				"c3":  {internal.Widened},
-				"c10": {internal.Widened},
-				"c12": {internal.Widened},
-				"c15": {internal.Time},
+			expectedIssues: internal.TableIssues{
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{
+					"c1":  {internal.Widened},
+					"c3":  {internal.Widened},
+					"c10": {internal.Widened},
+					"c12": {internal.Widened},
+					"c15": {internal.Time},
+				},
 			},
 		},
 		{
@@ -2355,7 +2379,7 @@ func TestDropRule(t *testing.T) {
 			ruleId:     "r101",
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -2402,7 +2426,7 @@ func TestDropRule(t *testing.T) {
 				},
 			},
 			expectedConv: &internal.Conv{
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -2603,14 +2627,18 @@ func buildConvMySQL(conv *internal.Conv) {
 		},
 	}
 
-	conv.SchemaIssues = map[string]map[string][]internal.SchemaIssue{
+	conv.SchemaIssues = map[string]internal.TableIssues{
 		"t1": {
-			"c10": {internal.Widened},
-			"c12": {internal.Widened},
-			"c15": {internal.Time},
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{
+				"c10": {internal.Widened},
+				"c12": {internal.Widened},
+				"c15": {internal.Time},
+			},
 		},
 		"t2": {
-			"c17": {internal.Widened},
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{
+				"c17": {internal.Widened},
+			},
 		},
 	}
 	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"c20", 0}
@@ -2691,16 +2719,20 @@ func buildConvPostgres(conv *internal.Conv) {
 		},
 	}
 
-	conv.SchemaIssues = map[string]map[string][]internal.SchemaIssue{
+	conv.SchemaIssues = map[string]internal.TableIssues{
 		"t1": {
-			"c2":  {internal.Widened},   //b
-			"c7":  {internal.Serial},    //g
-			"c12": {internal.Widened},   //l
-			"c13": {internal.Serial},    //m
-			"c15": {internal.Timestamp}, //o
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{
+				"c2":  {internal.Widened},   //b
+				"c7":  {internal.Serial},    //g
+				"c12": {internal.Widened},   //l
+				"c13": {internal.Serial},    //m
+				"c15": {internal.Timestamp}, //o
+			},
 		},
 		"t2": {
-			"c18": {internal.Widened},
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{
+				"c18": {internal.Widened},
+			},
 		},
 	}
 	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"c20", 0}

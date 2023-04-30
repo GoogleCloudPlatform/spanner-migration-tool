@@ -218,3 +218,84 @@ func ToPGDialectType(standardType ddl.Type) ddl.Type {
 	}
 	return standardType
 }
+
+func getColumnSize(dataType string, length int64) int {
+	// Data type sizes are referred from https://cloud.google.com/spanner/docs/reference/standard-sql/data-types#storage_size_for_data_types
+	switch dataType {
+	case ddl.Int64:
+	case ddl.Float64:
+		return 64
+	case ddl.Bool:
+		return 1
+	case ddl.Date:
+		return 4
+	case ddl.JSON:
+		return ddl.StringMaxLength
+	case ddl.Numeric:
+		return 22
+	case ddl.Timestamp:
+		return 12
+	case ddl.String:
+		if length == ddl.MaxLength {
+			return ddl.StringMaxLength
+		} else {
+			return int(length)
+		}
+	case ddl.Bytes:
+		if length == ddl.MaxLength {
+			return ddl.BytesMaxLength
+		} else {
+			return int(length)
+		}
+	}
+	return 0
+}
+
+func checkIfColumnIsPartOfPK(id string, primaryKey []schema.Key) bool {
+	for _, key := range primaryKey {
+		if key.ColId == id {
+			return true
+		}
+	}
+	return false
+}
+
+func checkIfColumnIsPartOfSpSchemaPK(id string, primaryKey []ddl.IndexKey) bool {
+	for _, key := range primaryKey {
+		if key.ColId == id {
+			return true
+		}
+	}
+	return false
+}
+
+func ComputeNonKeyColumnSize(conv *internal.Conv, tableId string) {
+	totalNonKeyColumnSize := 0
+	tableLevelIssues := conv.SchemaIssues[tableId].TableLevelIssues
+	tableLevelIssues = removeSchemaIssue(tableLevelIssues, internal.RowLimitExceeded)
+	for _, colDef := range conv.SpSchema[tableId].ColDefs {
+		if !checkIfColumnIsPartOfSpSchemaPK(colDef.Id, conv.SpSchema[tableId].PrimaryKeys) {
+			totalNonKeyColumnSize += getColumnSize(colDef.T.Name, colDef.T.Len)
+		}
+	}
+	if totalNonKeyColumnSize > ddl.MaxNonKeyColumnLength {
+		tableLevelIssues = append(tableLevelIssues, internal.RowLimitExceeded)
+	}
+	conv.SchemaIssues[tableId] = internal.TableIssues{
+		TableLevelIssues:  tableLevelIssues,
+		ColumnLevelIssues: conv.SchemaIssues[tableId].ColumnLevelIssues,
+	}
+}
+
+// removeSchemaIssue removes issue from the given list.
+func removeSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
+	k := 0
+	for i := 0; i < len(schemaissue); {
+		if schemaissue[i] != issue {
+			schemaissue[k] = schemaissue[i]
+			k++
+		}
+		i++
+	}
+	return schemaissue[0:k]
+}

@@ -305,7 +305,7 @@ func TestProcessSchema(t *testing.T) {
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	cartTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "cart")
 	assert.Equal(t, nil, err)
-	assert.Equal(t, len(conv.SchemaIssues[cartTableId]), 0)
+	assert.Equal(t, len(conv.SchemaIssues[cartTableId].ColumnLevelIssues), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
 		"aint": []internal.SchemaIssue{internal.Widened},
 		"bs":   []internal.SchemaIssue{internal.DefaultValue},
@@ -317,7 +317,7 @@ func TestProcessSchema(t *testing.T) {
 	}
 	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
 	assert.Equal(t, nil, err)
-	internal.AssertTableIssues(conv, t, testTableId, expectedIssues, conv.SchemaIssues[testTableId])
+	internal.AssertTableIssues(conv, t, testTableId, expectedIssues, conv.SchemaIssues[testTableId].ColumnLevelIssues)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 

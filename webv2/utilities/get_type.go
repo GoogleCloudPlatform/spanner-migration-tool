@@ -65,7 +65,7 @@ func GetType(conv *internal.Conv, newType, tableId, colId string) (ddl.CreateTab
 		issues = append(issues, internal.AutoIncrement)
 	}
 	if conv.SchemaIssues != nil && len(issues) > 0 {
-		conv.SchemaIssues[tableId][colId] = issues
+		conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = issues
 	}
 	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
 	return sp, ty, nil
