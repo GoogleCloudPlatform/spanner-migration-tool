@@ -7,7 +7,7 @@ import { InfodialogComponent } from '../infodialog/infodialog.component'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
+import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
@@ -213,9 +213,9 @@ export class ObjectDetailComponent implements OnInit {
             fb.get('spColMaxLength')?.setValue('MAX')
           }
           else if (row.spColMaxLength !== 'MAX') {
-            if ((row.spDataType === 'STRING' || row.spDataType === 'VARCHAR') && row.spColMaxLength > 2621440) {
+            if ((row.spDataType === 'STRING' || row.spDataType === 'VARCHAR') && row.spColMaxLength > ColLength.StringMaxLength) {
               fb.get('spColMaxLength')?.setValue('MAX')
-            } else if (row.spDataType === 'BYTES' && row.spColMaxLength > 10485760) {
+            } else if (row.spDataType === 'BYTES' && row.spColMaxLength > ColLength.ByteMaxLength) {
               fb.get('spColMaxLength')?.setValue('MAX')
             }
           }
@@ -314,9 +314,9 @@ export class ObjectDetailComponent implements OnInit {
           let oldRow = this.tableData[j]
           let standardDataType = pgSQLToStandardTypeTypemap.get(col.spDataType)
           if (col.spColMaxLength !== undefined && col.spColMaxLength !== 'MAX') {
-            if ((col.spDataType === 'STRING' || col.spDataType === 'VARCHAR') && col.spColMaxLength > 2621440) {
+            if ((col.spDataType === 'STRING' || col.spDataType === 'VARCHAR') && col.spColMaxLength > ColLength.StringMaxLength) {
               col.spColMaxLength = 'MAX'
-            } else if (col.spDataType === 'BYTES' && col.spColMaxLength > 10485760) {
+            } else if (col.spDataType === 'BYTES' && col.spColMaxLength > ColLength.ByteMaxLength) {
               col.spColMaxLength = 'MAX'
             } 
           }

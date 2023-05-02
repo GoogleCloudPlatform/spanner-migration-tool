@@ -26,7 +26,7 @@ func RemoveColumn(tableId string, colId string, conv *internal.Conv) {
 	sp := conv.SpSchema[tableId]
 
 	// remove interleaving if the column to be removed is used in interleaving.
-	isParent, childTableId := IsParent(tableId)
+	isParent, childTableId := utilities.IsParent(tableId)
 	if isParent {
 		if isColFistOderPk(conv.SpSchema[tableId].PrimaryKeys, colId) {
 			childSp := conv.SpSchema[childTableId]

@@ -53,6 +53,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/table"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 	"github.com/google/uuid"
 	"github.com/pkg/browser"
@@ -865,9 +866,8 @@ func setSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string) {
 			if colDef.T.Name == spColMaxLength.SpDataType {
 				spColDef := colDef
 				if spColDef.T.Len == ddl.MaxLength {
-					spColDef.T.Len, _ = strconv.ParseInt(spColMaxLength.SpColMaxLength, 10, 64)
+					table.UpdateColumnSize(spColMaxLength.SpColMaxLength, associatedObjects, colDef.Id, sessionState.Conv)
 				}
-				sessionState.Conv.SpSchema[associatedObjects].ColDefs[colDef.Id] = spColDef
 			}
 		}
 		common.ComputeNonKeyColumnSize(sessionState.Conv, associatedObjects)
@@ -880,7 +880,7 @@ func revertSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string)
 		for tId := range sessionState.Conv.SpSchema {
 			for colId, colDef := range sessionState.Conv.SpSchema[tId].ColDefs {
 				if colDef.T.Name == spColMaxLength.SpDataType {
-					utilities.UpdateDataType(sessionState.Conv, spColMaxLength.SpDataType, tId, colId)
+					utilities.UpdateMaxColumnLen(sessionState.Conv, spColMaxLength.SpDataType, tId, colId)
 				}
 			}
 			common.ComputeNonKeyColumnSize(sessionState.Conv, tId)
@@ -888,7 +888,7 @@ func revertSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string)
 	} else {
 		for colId, colDef := range sessionState.Conv.SpSchema[associatedObjects].ColDefs {
 			if colDef.T.Name == spColMaxLength.SpDataType {
-				utilities.UpdateDataType(sessionState.Conv, spColMaxLength.SpDataType, associatedObjects, colId)
+				utilities.UpdateMaxColumnLen(sessionState.Conv, spColMaxLength.SpDataType, associatedObjects, colId)
 			}
 		}
 		common.ComputeNonKeyColumnSize(sessionState.Conv, associatedObjects)

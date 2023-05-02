@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Dialect } from 'src/app/app.constants';
+import { ColLength, Dialect } from 'src/app/app.constants';
 import IConv from 'src/app/model/conv';
 import { IColMaxLength } from 'src/app/model/edit-table';
 import IRule from 'src/app/model/rule';
@@ -25,7 +25,7 @@ export class EditColumnMaxLengthComponent implements OnInit {
   viewRuleData: any = []
   viewRuleFlag: boolean = false
   conv: IConv = {} as IConv
-  spTypes: any =[]
+  spTypes: any = []
   hintlabel: string = ''
 
   constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService, private conversion: ConversionService) {
@@ -52,19 +52,19 @@ export class EditColumnMaxLengthComponent implements OnInit {
               value: 'STRING',
             },
           ]
-          this.hintlabel = 'Max 2621440 for VARCHAR'
+          this.hintlabel = 'Max ' + ColLength.StringMaxLength + ' for VARCHAR'
         } else {
           this.spTypes = [
-          {
-            name: 'STRING',
-            value: 'STRING',
-          },
-          {
-            name: 'BYTES',
-            value: 'BYTES',
-          },
-        ]
-        this.hintlabel = 'Max 2621440 for STRING and 10485760 for BYTES'
+            {
+              name: 'STRING',
+              value: 'STRING',
+            },
+            {
+              name: 'BYTES',
+              value: 'BYTES',
+            },
+          ]
+          this.hintlabel = 'Max ' + ColLength.StringMaxLength + ' for STRING and ' + ColLength.ByteMaxLength + ' for BYTES'
         }
       },
     })
@@ -85,16 +85,16 @@ export class EditColumnMaxLengthComponent implements OnInit {
         })
       }
     })
-    
+
   }
 
   formSubmit(): void {
     const ruleValue = this.editColMaxLengthForm.value
-    if ((ruleValue.spDataType === 'STRING' || ruleValue.spDataType === 'VARCHAR') && ruleValue.spColMaxLength > 2621440) {
-      ruleValue.spColMaxLength = 9223372036854775807
-    } else if (ruleValue.spDataType === 'BYTES' && ruleValue.spColMaxLength > 10485760) {
-      ruleValue.spColMaxLength = 9223372036854775807
-    } 
+    if ((ruleValue.spDataType === 'STRING' || ruleValue.spDataType === 'VARCHAR') && ruleValue.spColMaxLength > ColLength.StringMaxLength) {
+      ruleValue.spColMaxLength = ColLength.StorageMaxLength
+    } else if (ruleValue.spDataType === 'BYTES' && ruleValue.spColMaxLength > ColLength.ByteMaxLength) {
+      ruleValue.spColMaxLength = ColLength.StorageMaxLength
+    }
     const data: IColMaxLength = {
       spDataType: ruleValue.spDataType,
       spColMaxLength: ruleValue.maxColLength

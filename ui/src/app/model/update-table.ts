@@ -12,6 +12,8 @@ export interface ITableColumnChanges {
   Type: string | String
   UpdateColumnName: string
   UpdateType: string | String
+  Size: Number
+  UpdateSize: Number
 }
 export interface IReviewInterleaveTableChanges {
   InterleaveColumnChanges: ITableColumnChanges[]

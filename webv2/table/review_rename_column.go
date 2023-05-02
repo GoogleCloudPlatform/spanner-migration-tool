@@ -16,6 +16,7 @@ package table
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
 // reviewRenameColumn review  renaming of Columnname in schmema.
@@ -24,10 +25,10 @@ func reviewRenameColumn(newName, tableId, colId string, conv *internal.Conv, int
 	sp := conv.SpSchema[tableId]
 
 	// review column name update for interleaved child.
-	isParent, childTableId := IsParent(tableId)
+	isParent, childTableId := utilities.IsParent(tableId)
 
 	if isParent {
-		childColId, err := getColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
+		childColId, err := utilities.GetColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
 		if err == nil {
 			oldColName := conv.SpSchema[childTableId].ColDefs[childColId].Name
 			reviewRenameColumnNameTableSchema(conv, childTableId, childColId, newName)
@@ -42,7 +43,7 @@ func reviewRenameColumn(newName, tableId, colId string, conv *internal.Conv, int
 	parentTableId := conv.SpSchema[tableId].ParentId
 
 	if parentTableId != "" {
-		parentColId, err := getColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
+		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
 		if err == nil {
 			oldColName := conv.SpSchema[parentTableId].ColDefs[parentColId].Name
 			reviewRenameColumnNameTableSchema(conv, parentTableId, parentColId, newName)

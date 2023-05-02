@@ -14,7 +14,8 @@ import ISummary from 'src/app/model/summary'
 import { ClickEventService } from '../click-event/click-event.service'
 import { TableUpdatePubSubService } from '../table-update-pub-sub/table-update-pub-sub.service'
 import { ConversionService } from '../conversion/conversion.service'
-import { Dialect } from 'src/app/app.constants'
+import { ColLength, Dialect } from 'src/app/app.constants'
+import { Console } from 'console'
 
 @Injectable({
   providedIn: 'root',
@@ -198,22 +199,37 @@ export class DataService {
             standardDatatypeToPGSQLTypemap = typemap
           })
           this.conv.subscribe((convData: IConv) => {
-            if (convData.SpDialect === Dialect.PostgreSQLDialect) {
-              data.Changes.forEach((table: IReviewInterleaveTableChanges) => {
-                table.InterleaveColumnChanges.forEach((column: ITableColumnChanges) => {
+
+            data.Changes.forEach((table: IReviewInterleaveTableChanges) => {
+              table.InterleaveColumnChanges.forEach((column: ITableColumnChanges) => {
+                if (convData.SpDialect === Dialect.PostgreSQLDialect) {
                   let pgSQLType = standardDatatypeToPGSQLTypemap.get(column.Type)
                   let pgSQLUpdateType = standardDatatypeToPGSQLTypemap.get(column.UpdateType)
-                  column.Type = pgSQLType === undefined? column.Type: pgSQLType 
-                  column.UpdateType = pgSQLUpdateType === undefined? column.UpdateType: pgSQLUpdateType
-                })
+                  column.Type = pgSQLType === undefined ? column.Type : pgSQLType
+                  column.UpdateType = pgSQLUpdateType === undefined ? column.UpdateType : pgSQLUpdateType
+                }
+                if (column.Type === 'VARCHAR' || column.Type === 'STRING' || column.Type === 'BYTES') {
+                  column.Type += this.updateColumnSize(column.Size)
+                }
+                if (column.UpdateType === 'VARCHAR'|| column.UpdateType === 'STRING' || column.UpdateType === 'BYTES') {
+                  column.UpdateType += this.updateColumnSize(column.UpdateSize)
+                }
               })
-            }
+            })
           })
           this.tableUpdatePubSub.setTableReviewChanges(data)
           return ''
         }
       })
     )
+  }
+
+  updateColumnSize(size: Number): string {
+    if (size === ColLength.StorageMaxLength) {
+      return '(MAX)'
+    } else {
+      return '(' + size + ')'
+    }
   }
 
   updateTable(tableId: string, data: IUpdateTable): Observable<string> {

@@ -16,8 +16,11 @@ package table
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
@@ -57,9 +60,9 @@ func UpdateColumnType(newType, tableId, colId string, conv *internal.Conv, w htt
 	}
 
 	// update column type of child table.
-	isParent, childTableId := IsParent(tableId)
+	isParent, childTableId := utilities.IsParent(tableId)
 	if isParent {
-		childColId, err := getColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
+		childColId, err := utilities.GetColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
 		if err == nil {
 			err = UpdateColumnTypeChangeTableSchema(conv, childTableId, childColId, newType, w)
 			if err != nil {
@@ -71,7 +74,7 @@ func UpdateColumnType(newType, tableId, colId string, conv *internal.Conv, w htt
 	// update column type of parent table.
 	parentTableId := conv.SpSchema[tableId].ParentId
 	if parentTableId != "" {
-		parentColId, err := getColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
+		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
 		if err == nil {
 			err = UpdateColumnTypeChangeTableSchema(conv, parentTableId, parentColId, newType, w)
 			if err != nil {
@@ -79,6 +82,43 @@ func UpdateColumnType(newType, tableId, colId string, conv *internal.Conv, w htt
 			}
 		}
 	}
+}
+
+func UpdateColumnSize(newSize, tableId, colId string, conv *internal.Conv) {
+	sp := conv.SpSchema[tableId]
+	UpdateColumnSizeChangeTableSchema(conv, tableId, colId, newSize)
+	// update column size of child table.
+	isParent, childTableId := utilities.IsParent(tableId)
+	if isParent {
+		childColId, err := utilities.GetColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
+		if err == nil {
+			UpdateColumnSizeChangeTableSchema(conv, childTableId, childColId, newSize)
+		}
+	}
+
+	// update column size of parent table.
+	parentTableId := conv.SpSchema[tableId].ParentId
+	if parentTableId != "" {
+		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
+		if err == nil {
+			UpdateColumnSizeChangeTableSchema(conv, parentTableId, parentColId, newSize)
+		}
+	}
+}
+
+// UpdateColumnSizeTableSchema updates column size to newSize for a column of a table.
+func UpdateColumnSizeChangeTableSchema(conv *internal.Conv, tableId string, colId string, newSize string) {
+	sp := conv.SpSchema[tableId]
+	spColDef := sp.ColDefs[colId]
+	len := int64(0)
+	if strings.ToLower(newSize) == "max" {
+		len = ddl.MaxLength
+	} else {
+		len, _ = strconv.ParseInt(newSize, 10, 64)
+	}
+	spColDef.T.Len = len
+	sp.ColDefs[colId] = spColDef
+	conv.SpSchema[tableId] = sp
 }
 
 // UpdateColumnTypeTableSchema updates column type to newtype for a column of a table.

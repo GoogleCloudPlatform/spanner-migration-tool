@@ -41,8 +41,10 @@ type InterleaveTableSchema struct {
 type InterleaveColumn struct {
 	ColumnName       string
 	Type             string
+	Size             int
 	UpdateColumnName string
 	UpdateType       string
+	UpdateSize       int
 	ColumnId         string
 }
 
@@ -138,9 +140,11 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 			} else {
 				colMaxLength, _ = strconv.ParseInt(v.MaxColLength, 10, 64)
 			}
-			interleaveTableSchema, err = ReviewColumnSize(colMaxLength, tableId, colId, conv, interleaveTableSchema, w)
-			if err != nil {
-				return
+			if conv.SpSchema[tableId].ColDefs[colId].T.Len != colMaxLength {
+				interleaveTableSchema, err = ReviewColumnSize(colMaxLength, tableId, colId, conv, interleaveTableSchema, w)
+				if err != nil {
+					return
+				}
 			}
 		}
 	}
