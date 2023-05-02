@@ -219,36 +219,30 @@ func ToPGDialectType(standardType ddl.Type) ddl.Type {
 	return standardType
 }
 
+// Data type sizes are referred from https://cloud.google.com/spanner/docs/reference/standard-sql/data-types#storage_size_for_data_types
+var DATATYPE_TO_STORAGE_SIZE = map[string]int{
+	ddl.Bool:      1,
+	ddl.Date:      4,
+	ddl.Float64:   8,
+	ddl.Int64:     8,
+	ddl.JSON:      ddl.StringMaxLength,
+	ddl.Numeric:   22,
+	ddl.Timestamp: 12,
+}
+
 func getColumnSize(dataType string, length int64) int {
-	// Data type sizes are referred from https://cloud.google.com/spanner/docs/reference/standard-sql/data-types#storage_size_for_data_types
-	switch dataType {
-	case ddl.Int64:
-	case ddl.Float64:
-		return 64
-	case ddl.Bool:
-		return 1
-	case ddl.Date:
-		return 4
-	case ddl.JSON:
-		return ddl.StringMaxLength
-	case ddl.Numeric:
-		return 22
-	case ddl.Timestamp:
-		return 12
-	case ddl.String:
+	if dataType == ddl.String {
 		if length == ddl.MaxLength {
 			return ddl.StringMaxLength
-		} else {
-			return int(length)
 		}
-	case ddl.Bytes:
+		return int(length)
+	} else if dataType == ddl.Bytes {
 		if length == ddl.MaxLength {
 			return ddl.BytesMaxLength
-		} else {
-			return int(length)
 		}
+		return int(length)
 	}
-	return 0
+	return DATATYPE_TO_STORAGE_SIZE[dataType]
 }
 
 func checkIfColumnIsPartOfPK(id string, primaryKey []schema.Key) bool {

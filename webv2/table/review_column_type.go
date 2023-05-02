@@ -62,6 +62,7 @@ func ReviewColumnType(newType, tableId, colId string, conv *internal.Conv, inter
 		childColId, err := utilities.GetColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
 		if err == nil {
 			previousType := conv.SpSchema[childTableId].ColDefs[childColId].T.Name
+			previousSize := int(conv.SpSchema[childTableId].ColDefs[childColId].T.Len)
 			err = reviewColumnTypeChangeTableSchema(conv, childTableId, childColId, newType)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -70,7 +71,7 @@ func ReviewColumnType(newType, tableId, colId string, conv *internal.Conv, inter
 
 			childTableName := conv.SpSchema[childTableId].Name
 			childColName := conv.SpSchema[childTableId].ColDefs[childColId].Name
-			previousSize, newSize := populateColumnSize(previousType, newType, int(conv.SpSchema[childTableId].ColDefs[childColId].T.Len), 0)
+			previousSize, newSize := populateColumnSize(previousType, newType, previousSize, 0)
 			interleaveTableSchema = updateTypeOfInterleaveTableSchema(interleaveTableSchema, childTableName, childColId, childColName, previousType, newType, previousSize, newSize)
 		}
 	}
@@ -81,6 +82,7 @@ func ReviewColumnType(newType, tableId, colId string, conv *internal.Conv, inter
 		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
 		if err == nil {
 			previousType := conv.SpSchema[parentTableId].ColDefs[parentColId].T.Name
+			previousSize := int(conv.SpSchema[parentTableId].ColDefs[parentColId].T.Len)
 			err = reviewColumnTypeChangeTableSchema(conv, parentTableId, parentColId, newType)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -89,13 +91,14 @@ func ReviewColumnType(newType, tableId, colId string, conv *internal.Conv, inter
 
 			parentTableName := conv.SpSchema[parentTableId].Name
 			parentColName := conv.SpSchema[parentTableId].ColDefs[parentColId].Name
-			previousSize, newSize := populateColumnSize(previousType, newType, int(conv.SpSchema[parentTableId].ColDefs[parentColId].T.Len), 0)
+			previousSize, newSize := populateColumnSize(previousType, newType, previousSize, 0)
 			interleaveTableSchema = updateTypeOfInterleaveTableSchema(interleaveTableSchema, parentTableName, parentColId, parentColName, previousType, newType, previousSize, newSize)
 		}
 	}
 
 	// review update of column type for curren table.
 	previousType := conv.SpSchema[tableId].ColDefs[colId].T.Name
+	previousSize := int(conv.SpSchema[tableId].ColDefs[colId].T.Len)
 	err = reviewColumnTypeChangeTableSchema(conv, tableId, colId, newType)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -105,7 +108,7 @@ func ReviewColumnType(newType, tableId, colId string, conv *internal.Conv, inter
 	if childTableId != "" || parentTableId != "" {
 		tableName := conv.SpSchema[tableId].Name
 		colName := conv.SpSchema[tableId].ColDefs[colId].Name
-		previousSize, newSize := populateColumnSize(previousType, newType, int(conv.SpSchema[tableId].ColDefs[colId].T.Len), 0)
+		previousSize, newSize := populateColumnSize(previousType, newType, previousSize, 0)
 		interleaveTableSchema = updateTypeOfInterleaveTableSchema(interleaveTableSchema, tableName, colId, colName, previousType, newType, previousSize, newSize)
 	}
 

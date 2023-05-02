@@ -11,7 +11,7 @@ import IConv, {
 } from '../../model/conv'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { Dialect, ObjectExplorerNodeType } from 'src/app/app.constants'
+import { ColLength, Dialect, ObjectExplorerNodeType } from 'src/app/app.constants'
 import { BehaviorSubject } from 'rxjs'
 import { FetchService } from '../fetch/fetch.service'
 
@@ -248,7 +248,7 @@ export class ConversionService {
     this.standardTypeToPGSQLTypeMap.subscribe((typemap) => {
       standardTypeToPGSQLTypeMap = typemap
     })
-    const spColMax = 9223372036854776000
+    const spColMax = ColLength.StorageMaxLength
     const res: IColumnTabData[] = data.SrcSchema[tableId].ColIds.map((colId: string, i: number) => {
       let spPkOrder
       if (spTableName) {
