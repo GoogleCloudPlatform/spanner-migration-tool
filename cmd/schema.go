@@ -101,7 +101,9 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 
 	// If filePrefix not explicitly set, use generated dbName.
 	if cmd.filePrefix == "" {
-		cmd.filePrefix = dbName + "."
+		cmd.filePrefix = fmt.Sprintf("%s.", dbName)
+	} else {
+		cmd.filePrefix = fmt.Sprintf("%s.", cmd.filePrefix)
 	}
 
 	schemaConversionStartTime := time.Now()
