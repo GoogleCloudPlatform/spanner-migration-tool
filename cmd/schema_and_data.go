@@ -107,10 +107,9 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 
 	// If filePrefix not explicitly set, use dbName as prefix.
 	if cmd.filePrefix == "" {
-		cmd.filePrefix = fmt.Sprintf("%s.", dbName)
-	} else {
-		cmd.filePrefix = fmt.Sprintf("%s.", cmd.filePrefix)
+		cmd.filePrefix = dbName
 	}
+	cmd.filePrefix = fmt.Sprintf("%s.", cmd.filePrefix)
 
 	var (
 		conv   *internal.Conv
