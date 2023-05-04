@@ -103,7 +103,6 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	if cmd.filePrefix == "" {
 		cmd.filePrefix = dbName
 	}
-	cmd.filePrefix = fmt.Sprintf("%s.", cmd.filePrefix)
 
 	schemaConversionStartTime := time.Now()
 	var conv *internal.Conv

@@ -109,7 +109,6 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	if cmd.filePrefix == "" {
 		cmd.filePrefix = dbName
 	}
-	cmd.filePrefix = fmt.Sprintf("%s.", cmd.filePrefix)
 
 	var (
 		conv   *internal.Conv
