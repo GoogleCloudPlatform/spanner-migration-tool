@@ -105,7 +105,7 @@ type StructuredReport struct {
 	NameChanges          []NameChange         `json:"nameChanges"`
 	TableReports         []TableReport        `json:"tableReports"`
 	UnexpectedConditions UnexpectedConditions `json:"unexpectedConditions"`
-	SchemaOnly           bool                 `json:schemaOnly`
+	SchemaOnly           bool                 `json:"-"`
 }
 
 // A report consists of the following parts:
@@ -124,7 +124,6 @@ type StructuredReport struct {
 func GenerateStructuredReport(driverName string, conv *internal.Conv, badWrites map[string]int64, printTableReports bool, printUnexpecteds bool) StructuredReport {
 	//Create report object
 	var hbReport = StructuredReport{}
-	hbReport.SchemaOnly = conv.SchemaMode()
 	tableReports := AnalyzeTables(conv, badWrites)
 	//1. Generate summary
 	rating, summary := GenerateSummary(conv, tableReports, badWrites)
@@ -276,18 +275,7 @@ func getSchemaReport(cols, warnings int64, missingPKey bool) (schemaReport Schem
 	schemaReport.TotalColumns = cols
 	schemaReport.Warnings = warnings
 	schemaReport.PkMissing = missingPKey
-	switch {
-	case cols == 0:
-		schemaReport.Rating = "NONE"
-	case warnings == 0:
-		schemaReport.Rating = "EXCELLENT"
-	case good(cols, warnings):
-		schemaReport.Rating = "GOOD"
-	case ok(cols, warnings):
-		schemaReport.Rating = "OK"
-	default:
-		schemaReport.Rating = "POOR"
-	}
+	schemaReport.Rating, _ = RateSchema(cols, warnings, missingPKey, false)
 	return schemaReport
 }
 
@@ -295,18 +283,7 @@ func getDataReport(rows int64, badRows int64, dryRun bool) (dataReport DataRepor
 	dataReport.DryRun = dryRun
 	dataReport.TotalRows = rows
 	dataReport.BadRows = badRows
-	switch {
-	case rows == 0:
-		dataReport.Rating = "NONE"
-	case badRows == 0:
-		dataReport.Rating = "EXCELLENT"
-	case good(rows, badRows):
-		dataReport.Rating = "GOOD"
-	case ok(rows, badRows):
-		dataReport.Rating = "OK"
-	default:
-		dataReport.Rating = "POOR"
-	}
+	dataReport.Rating, _ = rateData(rows, badRows, dryRun)
 	return dataReport
 }
 

@@ -149,6 +149,5 @@
              "condition":"Testing unexpected messages"
           }
        ]
-    },
-    "SchemaOnly":false
+    }
  }
