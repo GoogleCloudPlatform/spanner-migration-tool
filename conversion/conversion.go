@@ -174,6 +174,9 @@ func getInfoSchemaForShard(shardConnInfo profiles.DirectConnectionConfig, driver
 	params["dbName"] = shardConnInfo.DbName
 	params["port"] = shardConnInfo.Port
 	params["password"] = shardConnInfo.Password
+	//while adding other sources, a switch-case will be added here on the basis of the driver input param passed.
+	//pased on the driver name, profiles.NewSourceProfileConnection<DBName> will need to be called to create
+	//the source profile information.
 	sourceProfileConnectionMySQL, err := profiles.NewSourceProfileConnectionMySQL(params)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse connection configuration for the primary shard")
@@ -200,19 +203,20 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 	switch sourceProfile.Ty {
 	case profiles.SourceProfileTypeConfig:
 		//Find Primary Shard Name
-		if sourceProfile.Config.ConfigType == "bulk" {
-			schemaShard := sourceProfile.Config.ShardConfigurationBulk.SchemaShard
-			infoSchema, err = getInfoSchemaForShard(schemaShard, sourceProfile.Driver, targetProfile)
+		if sourceProfile.Config.ConfigType == constants.BULK_MIGRATION {
+			schemaSource := sourceProfile.Config.ShardConfigurationBulk.SchemaSource
+			infoSchema, err = getInfoSchemaForShard(schemaSource, sourceProfile.Driver, targetProfile)
 			if err != nil {
 				return conv, err
 			}
-		} else if sourceProfile.Config.ConfigType == "dataflow" {
-			schemaShard := sourceProfile.Config.ShardConfigurationDataflow.SchemaShard
-			infoSchema, err = getInfoSchemaForShard(schemaShard, sourceProfile.Driver, targetProfile)
+		} else if sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
+			schemaSource := sourceProfile.Config.ShardConfigurationDataflow.SchemaSource
+			infoSchema, err = getInfoSchemaForShard(schemaSource, sourceProfile.Driver, targetProfile)
 			if err != nil {
 				return conv, err
 			}
-		} else if sourceProfile.Config.ConfigType == "dms" {
+		} else if sourceProfile.Config.ConfigType == constants.DMS_MIGRATION {
+			// TODO: Define the schema processing logic for DMS migrations here.
 			return conv, fmt.Errorf("dms based migrations are not implemented yet")
 		} else {
 			return conv, fmt.Errorf("unknown type of migration, please select one of bulk, dataflow or dms")
@@ -258,14 +262,14 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 	case profiles.SourceProfileTypeConfig:
 		////There are three cases to cover here, bulk migrations and sharded migrations (and later DMS)
 		//We provide an if-else based handling for each within the sharded code branch
-		//This will be determined via the configType, which can be "bulk", "streaming" or "dms"
-		if sourceProfile.Config.ConfigType == "bulk" {
+		//This will be determined via the configType, which can be "bulk", "dataflow" or "dms"
+		if sourceProfile.Config.ConfigType == constants.BULK_MIGRATION {
 			var bw *writer.BatchWriter
 
 			//Migrate the data from the data shards, the schema shard needs to be specified here again.
 			for _, dataShard := range sourceProfile.Config.ShardConfigurationBulk.DataShards {
 				//Create a connection profile object for it
-				fmt.Printf("Migrating shard: %v\n", dataShard.DbName)
+				fmt.Printf("Initiating migration for shard: %v\n", dataShard.DbName)
 				infoSchema, err := getInfoSchemaForShard(dataShard, sourceProfile.Driver, targetProfile)
 				if err != nil {
 					return nil, err
@@ -275,16 +279,18 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			}
 			//finally, once all shard migrations are complete, return the batch writer object
 			return bw, nil
-		} else if sourceProfile.Config.ConfigType == "dataflow" {
+		} else if sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
 			//STEP - 1 - Create batch for each physical shard
 			asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) common.TaskResult[*profiles.DataShard] {
 				//create streaming cfg from the config source type.
 				streamingCfg := streaming.CreateStreamingConfig(*p)
-				//update the cfg with the HB defaults
+				//verify the CFG and update it with HB defaults
 				err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname)
+				err = fmt.Errorf("error processing shard: %s, error: %w", p.DataShardId, err)
 				if err != nil {
 					return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 				}
+				fmt.Printf("Initiating migration for shard: %v\n", p.DataShardId)
 				//launch the stream for the physical shard
 				err = streaming.LaunchStream(ctx, sourceProfile.Driver, p.LogicalShards, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
 				if err != nil {
@@ -299,7 +305,8 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 				return nil, fmt.Errorf("unable to start minimal downtime migrations: %v", err)
 			}
 			return &writer.BatchWriter{}, nil
-		} else if sourceProfile.Config.ConfigType == "dms" {
+		} else if sourceProfile.Config.ConfigType == constants.DMS_MIGRATION {
+			// TODO: Define the data processing logic for DMS migrations here.
 			return nil, fmt.Errorf("dms configType is not implemented yet, please use one of 'bulk' or 'dataflow'")
 		} else {
 			return nil, fmt.Errorf("configType should be one of 'bulk', 'dataflow' or 'dms'")

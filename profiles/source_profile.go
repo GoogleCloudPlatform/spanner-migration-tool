@@ -326,8 +326,8 @@ func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileCo
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
 	db, dbOk := params["dbName"]
-	port, _ := params["port"]
-	pwd, _ := params["password"]
+	port := params["port"]
+	pwd := params["password"]
 
 	streamingConfig, cfgOk := params["streamingCfg"]
 	if cfgOk && streamingConfig == "" {
@@ -432,11 +432,12 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 }
 
 type DirectConnectionConfig struct {
-	Host     string `json:"host"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-	Port     string `json:"port"`
-	DbName   string `json:"dbName"`
+	DataShardId string `json:"dataShardId"`
+	Host        string `json:"host"`
+	User        string `json:"user"`
+	Password    string `json:"password"`
+	Port        string `json:"port"`
+	DbName      string `json:"dbName"`
 }
 
 type DatastreamConnProfile struct {
@@ -452,33 +453,32 @@ type DataflowConfig struct {
 }
 
 type DataShard struct {
-	DataShardId           string                `json:"dataShardId"`
-	SrcConnectionProfile  DatastreamConnProfile `json:"srcConnectionProfile"`
-	DestConnectionProfile DatastreamConnProfile `json:"destConnectionProfile"`
-	DataflowConfig        DataflowConfig        `json:"dataflowConfig"`
-	TmpDir                string                `json:"tmpDir"`
-	StreamLocation        string                `json:"streamLocation"`
-	LogicalShards         []LogicalShard        `json:"databases"`
+	DataShardId          string                `json:"dataShardId"`
+	SrcConnectionProfile DatastreamConnProfile `json:"srcConnectionProfile"`
+	DstConnectionProfile DatastreamConnProfile `json:"dstConnectionProfile"`
+	DataflowConfig       DataflowConfig        `json:"dataflowConfig"`
+	TmpDir               string                `json:"tmpDir"`
+	StreamLocation       string                `json:"streamLocation"`
+	LogicalShards        []LogicalShard        `json:"databases"`
 }
 
 type LogicalShard struct {
-	DbName         string   `json:"dbName"`
-	TableInclude   []string `json:"tableInclude"`
-	TableExclude   []string `json:"tableExclude"`
-	LogicalShardId string   `json:"databaseId"`
-	RefDataShardId string   `json:"refDataShardId"`
+	DbName         string `json:"dbName"`
+	LogicalShardId string `json:"databaseId"`
+	RefDataShardId string `json:"refDataShardId"`
 }
 
 type ShardConfigurationDataflow struct {
-	SchemaShard DirectConnectionConfig `json:"schemaShard"`
-	DataShards  []*DataShard   `json:"dataShards"`
+	SchemaSource DirectConnectionConfig `json:"schemaSource"`
+	DataShards   []*DataShard           `json:"dataShards"`
 }
 
 type ShardConfigurationBulk struct {
-	SchemaShard DirectConnectionConfig   `json:"schemaShard"`
-	DataShards  []DirectConnectionConfig `json:"dataShards"`
+	SchemaSource DirectConnectionConfig   `json:"schemaSource"`
+	DataShards   []DirectConnectionConfig `json:"dataShards"`
 }
 
+// TODO: Define the sharding structure for DMS migrations here.
 type ShardConfigurationDMS struct {
 }
 
@@ -492,18 +492,18 @@ type SourceProfileConfig struct {
 func NewSourceProfileConfig(source string, path string) (SourceProfileConfig, error) {
 	//given the source, the fact that this 'config=', determine the appropiate object to marshal into
 	switch source {
-		case constants.MYSQL: 
-			//load the JSON configuration into file
-			configFile, err := ioutil.ReadFile(path)
-			if err != nil {
-				return SourceProfileConfig{}, fmt.Errorf("cannot read config file due to: %v", err)
-			}
-			sourceProfileConfig := SourceProfileConfig{}
-			//unmarshal the JSON into object
-			err = json.Unmarshal(configFile, &sourceProfileConfig)
-			return sourceProfileConfig, err
-		default:
-			return SourceProfileConfig{}, fmt.Errorf("sharded migrations are currrently only supported for MySQL databases")
+	case constants.MYSQL:
+		//load the JSON configuration into file
+		configFile, err := ioutil.ReadFile(path)
+		if err != nil {
+			return SourceProfileConfig{}, fmt.Errorf("cannot read config file due to: %v", err)
+		}
+		sourceProfileConfig := SourceProfileConfig{}
+		//unmarshal the JSON into object
+		err = json.Unmarshal(configFile, &sourceProfileConfig)
+		return sourceProfileConfig, err
+	default:
+		return SourceProfileConfig{}, fmt.Errorf("sharded migrations are currrently only supported for MySQL databases")
 	}
 }
 
@@ -582,7 +582,7 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 	case SourceProfileTypeConfig:
 		{
 			switch strings.ToLower(source) {
-			case "mysql":
+			case constants.MYSQL:
 				return constants.MYSQL, nil
 			default:
 				return "", fmt.Errorf("specifying source-profile using config for non-mysql databases not implemented")

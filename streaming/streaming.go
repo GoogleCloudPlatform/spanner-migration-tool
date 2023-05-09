@@ -161,44 +161,16 @@ func ReadStreamingConfig(file, dbName string) (StreamingCfg, error) {
 }
 
 func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard) *datastreampb.SourceConfig_MysqlSourceConfig {
-	excludeDbList := []*datastreampb.MysqlDatabase{}
 	includeDbList := []*datastreampb.MysqlDatabase{}
 	for _, db := range dbList {
-		//collect table List
-		includeTableList := []*datastreampb.MysqlTable{}
-		for _, table := range db.TableInclude {
-			includeTable := &datastreampb.MysqlTable{
-				Table: table,
-			}
-			includeTableList = append(includeTableList, includeTable)
-		}
 		//create include db object
 		includeDb := &datastreampb.MysqlDatabase{
 			Database:    db.DbName,
-			MysqlTables: includeTableList,
 		}
 		includeDbList = append(includeDbList, includeDb)
-
-		//exclude table list
-		excludeTableList := []*datastreampb.MysqlTable{}
-		for _, table := range db.TableExclude {
-			excludeTable := &datastreampb.MysqlTable{
-				Table: table,
-			}
-			excludeTableList = append(excludeTableList, excludeTable)
-		}
-		//Only create an exclude object for the database if there are some exclude tables that are specified
-		if len(excludeTableList) != 0 {
-			excludeDb := &datastreampb.MysqlDatabase{
-				Database:    db.DbName,
-				MysqlTables: excludeTableList,
-			}
-			excludeDbList = append(excludeDbList, excludeDb)
-		}
 	}
 	mysqlSrcCfg := &datastreampb.MysqlSourceConfig{
 		IncludeObjects: &datastreampb.MysqlRdbms{MysqlDatabases: includeDbList},
-		ExcludeObjects: &datastreampb.MysqlRdbms{MysqlDatabases: excludeDbList},
 	}
 	return &datastreampb.SourceConfig_MysqlSourceConfig{MysqlSourceConfig: mysqlSrcCfg}
 }
@@ -500,7 +472,7 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 	datastreamCfg.SourceConnectionConfig = srcConnCfg
 	//set dst connection profile
 	dstConnCfg := DstConnCfg{}
-	inputDstConnProfile := pl.DestConnectionProfile
+	inputDstConnProfile := pl.DstConnectionProfile
 	dstConnCfg.Name = inputDstConnProfile.Name
 	dstConnCfg.Location = inputDstConnProfile.Location
 	datastreamCfg.DestinationConnectionConfig = dstConnCfg
