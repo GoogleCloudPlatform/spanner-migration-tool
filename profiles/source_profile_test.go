@@ -70,35 +70,69 @@ func TestNewSourceProfileFile(t *testing.T) {
 }
 
 func TestNewSourceProfileConfigFile(t *testing.T) {
-	
+	type validationFn func(SourceProfileConfig) 
 	testCases := []struct {
 		name          string
 		source        string
 		path          string
 		errorExpected bool
+		validationFn validationFn 
 	}{
 		{
 			name:          "bulk config for mysql",
 			source:        "mysql",
 			path:          filepath.Join("..", "test_data", "mysql_shard_bulk.cfg"),
 			errorExpected: false,
+			validationFn: func(spc SourceProfileConfig) {
+				assert.NotNil(t, spc.ShardConfigurationBulk)
+				assert.NotNil(t, spc.ShardConfigurationBulk.SchemaSource)
+				assert.NotEmpty(t, spc.ShardConfigurationBulk.SchemaSource.DbName)
+				assert.NotEmpty(t, spc.ShardConfigurationBulk.SchemaSource.Host)
+				assert.NotEmpty(t, spc.ShardConfigurationBulk.SchemaSource.Password)
+				assert.NotEmpty(t, spc.ShardConfigurationBulk.SchemaSource.Port)
+				assert.NotEmpty(t, spc.ShardConfigurationBulk.SchemaSource.User)
+				assert.NotNil(t, spc.ShardConfigurationBulk.DataShards)
+				assert.NotEmpty(t, spc.ShardConfigurationBulk.DataShards[0].DataShardId)
+				assert.NotEmpty(t, spc.ShardConfigurationBulk.DataShards[0].DbName)
+				assert.NotEmpty(t, spc.ShardConfigurationBulk.DataShards[0].User)
+				assert.NotEmpty(t, spc.ShardConfigurationBulk.DataShards[0].Password)
+				assert.NotEmpty(t, spc.ShardConfigurationBulk.DataShards[0].Port)
+			},
 		},
 		{
 			name:          "streaming config for mysql",
 			source:        "mysql",
 			path:          filepath.Join("..", "test_data", "mysql_shard_streaming.cfg"),
 			errorExpected: false,
+			validationFn: func(spc SourceProfileConfig) {
+				assert.NotNil(t, spc.ShardConfigurationDataflow)
+				assert.NotNil(t, spc.ShardConfigurationDataflow.SchemaSource)
+				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.DbName)
+				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.Host)
+				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.Password)
+				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.Port)
+				assert.NotEmpty(t, spc.ShardConfigurationDataflow.SchemaSource.User)
+				assert.NotNil(t, spc.ShardConfigurationDataflow.DataShards)
+				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].DataShardId)
+				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].TmpDir)
+				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].StreamLocation)
+				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].DataflowConfig)
+				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].DstConnectionProfile)
+				assert.NotEmpty(t, spc.ShardConfigurationDataflow.DataShards[0].SrcConnectionProfile)
+			},
 		},
 		{
 			name:          "config for non-mysql",
 			source:        "postgres",
 			path:          "",
 			errorExpected: true,
+			validationFn: func(spc SourceProfileConfig) {},
 		},
 	}
 	for _, tc := range testCases {
-		_, err := NewSourceProfileConfig(tc.source, tc.path)
+		sourceProfileConfig, err := NewSourceProfileConfig(tc.source, tc.path)
 		assert.Equal(t, tc.errorExpected, err != nil)
+		tc.validationFn(sourceProfileConfig)
 	}
 }
 
