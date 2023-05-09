@@ -286,8 +286,8 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 				streamingCfg := streaming.CreateStreamingConfig(*p)
 				//verify the CFG and update it with HB defaults
 				err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname)
-				err = fmt.Errorf("error processing shard: %s, error: %w", p.DataShardId, err)
 				if err != nil {
+					err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
 					return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 				}
 				fmt.Printf("Initiating migration for shard: %v\n", p.DataShardId)

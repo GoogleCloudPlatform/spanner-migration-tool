@@ -67,7 +67,7 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) 
 	// Ideally we would pass schema/name as a query parameter,
 	// but MySQL doesn't support this. So we quote it instead.
 	colNameList := buildColNameList(srcSchema, srcCols)
-	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, srcSchema.Schema, srcSchema.Name)
+	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, isi.DbName, srcSchema.Name)
 	rows, err := isi.Db.Query(q)
 	return rows, err
 }
