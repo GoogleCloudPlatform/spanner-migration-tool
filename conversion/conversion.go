@@ -374,11 +374,11 @@ func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, clie
 }
 
 // Report generates a report of schema and data conversion.
-func Report(driver string, badWrites map[string]int64, BytesRead int64, banner string, conv *internal.Conv, reportFileName string, out *os.File) {
+func Report(driver string, badWrites map[string]int64, BytesRead int64, banner string, conv *internal.Conv, reportFileName string, dbName string, out *os.File) {
 
 	//Write the structured report file
 	structuredReportFileName := fmt.Sprintf("%s.%s", reportFileName, "structured_report.json")
-	structuredReport := reports.GenerateStructuredReport(driver, conv, badWrites, true, true)
+	structuredReport := reports.GenerateStructuredReport(driver, dbName, conv, badWrites, true, true)
 	fBytes, _ := json.MarshalIndent(structuredReport, "", " ")
 	f, err := os.Create(structuredReportFileName)
 	if err != nil {
@@ -786,7 +786,7 @@ func WriteConvGeneratedFiles(conv *internal.Conv, dbName string, driver string, 
 	schemaFileName := dirPath + dbName + "_schema.txt"
 	WriteSchemaFile(conv, now, schemaFileName, out)
 	reportFileName := dirPath + dbName
-	Report(driver, nil, BytesRead, "", conv, reportFileName, out)
+	Report(driver, nil, BytesRead, "", conv, reportFileName, dbName, out)
 	sessionFileName := dirPath + dbName + ".session.json"
 	WriteSessionFile(conv, sessionFileName, out)
 	return dirPath, nil

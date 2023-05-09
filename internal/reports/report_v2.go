@@ -26,6 +26,7 @@ import (
 type Summary struct {
 	Text string `json:"text"`
 	Rating string `json:"rating"`
+	DbName string `json:"dbName"`
 }
 
 type IgnoredStatement struct {
@@ -121,13 +122,13 @@ type StructuredReport struct {
 // This method the RAW structured report in JSON format. Several utilities can be built on top of
 // this raw, nested JSON data to output the reports in different user and machine friendly formats
 // such as CSV, TXT etc.
-func GenerateStructuredReport(driverName string, conv *internal.Conv, badWrites map[string]int64, printTableReports bool, printUnexpecteds bool) StructuredReport {
+func GenerateStructuredReport(driverName string, dbName string, conv *internal.Conv, badWrites map[string]int64, printTableReports bool, printUnexpecteds bool) StructuredReport {
 	//Create report object
 	var hbReport = StructuredReport{}
 	tableReports := AnalyzeTables(conv, badWrites)
 	//1. Generate summary
 	rating, summary := GenerateSummary(conv, tableReports, badWrites)
-	hbReport.Summary = Summary{Text: summary, Rating: rating}
+	hbReport.Summary = Summary{Text: summary, Rating: rating, DbName: dbName}
 
 	//2. Ignored Statements
 	hbReport.IgnoredStatements = fetchIgnoredStatements(conv)

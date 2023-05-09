@@ -129,7 +129,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	schemaCoversionEndTime := time.Now()
 	conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
 	banner := utils.GetBanner(schemaConversionStartTime, dbName)
-	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, banner, conv, cmd.filePrefix, ioHelper.Out)
+	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, banner, conv, cmd.filePrefix, dbName, ioHelper.Out)
 	// Cleanup hb tmp data directory.
 	os.RemoveAll(filepath.Join(os.TempDir(), constants.HB_TMP_DIR))
 	return subcommands.ExitSuccess

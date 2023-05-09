@@ -11,7 +11,8 @@ import (
 
 //report_text.go contains the logic to convert a structured harbourbridge 
 //report to a human readable text report.
-
+// The structure of the report created is present in (internal/reports/REPORT.md)
+// A sample report can be found in (test_data/mysql_text_report.txt)
 func GenerateTextReport(structuredReport StructuredReport, w *bufio.Writer) {
 	writeHeading(w, "Summary of Conversion")
 	w.WriteString(structuredReport.Summary.Text)
@@ -88,6 +89,19 @@ func writeUnexpectedConditionsv2(structuredReport StructuredReport, w *bufio.Wri
 	reparseInfo()
 }
 
+// Generates table by table report from the structured report in a text based format.
+// This looks like the following -
+// ----------------------------
+// Table no_pk
+// ----------------------------
+// Schema conversion: POOR (67% of 3 columns mapped cleanly) + missing primary key.
+// Data conversion: POOR (60% of 5000 rows written to Spanner).
+
+// Warnings
+// 1) Column 'synth_id' was added because this table didn't have a primary key.
+//    Spanner requires a primary key for every table.
+// 2) Some columns will consume more storage in Spanner e.g. for column 'b', source
+//    DB type int(11) is mapped to Spanner data type int64.
 func writeTableReports(structuredReport StructuredReport, w *bufio.Writer) {
 	for _, tableReport := range structuredReport.TableReports {
 		h := fmt.Sprintf("Table %s", tableReport.SrcTableName)
