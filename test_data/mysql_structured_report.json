@@ -2,7 +2,7 @@
    "summary":{
       "text":"Schema conversion: POOR (65% of 17006 columns mapped cleanly) + some missing primary keys.\nData conversion: POOR (66% of 6000 rows written to Spanner).\n",
       "rating":"POOR",
-      "dbName": "harbourbridge"
+      "dbName": "sampleDB"
    },
    "ignoredStatements":null,
    "conversionMetadata":[

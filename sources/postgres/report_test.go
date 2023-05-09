@@ -71,7 +71,7 @@ func TestReport(t *testing.T) {
 	}
 	buf := new(bytes.Buffer)
 	w := bufio.NewWriter(buf)
-	actualStructuredReport := reports.GenerateStructuredReport(constants.PGDUMP, conv, badWrites, true, true)
+	actualStructuredReport := reports.GenerateStructuredReport(constants.PGDUMP, "sampleDB", conv, badWrites, true, true)
 	var expectedStructuredReport reports.StructuredReport
 	expectedBytes, _ := ioutil.ReadFile(filepath.Join("..", "..", "test_data", "postgres_structured_report.json"))
 	_ = json.Unmarshal(expectedBytes, &expectedStructuredReport)
