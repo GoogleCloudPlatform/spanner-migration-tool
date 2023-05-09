@@ -215,7 +215,7 @@ func TestIntegration_DYNAMODB_Command(t *testing.T) {
 	now := time.Now()
 	dbName, _ := utils.GetDatabaseName(constants.DYNAMODB, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	filePrefix := filepath.Join(tmpdir, dbName+".")
+	filePrefix := filepath.Join(tmpdir, dbName)
 
 	args := fmt.Sprintf(`schema-and-data -source=%s -prefix=%s -target-profile="instance=%s,dbName=%s"`, constants.DYNAMODB, filePrefix, instanceID, dbName)
 	err := common.RunCommand(args, projectID)

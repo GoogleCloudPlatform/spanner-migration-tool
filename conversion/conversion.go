@@ -49,6 +49,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
@@ -373,8 +374,25 @@ func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, clie
 }
 
 // Report generates a report of schema and data conversion.
-func Report(driver string, badWrites map[string]int64, BytesRead int64, banner string, conv *internal.Conv, reportFileName string, out *os.File) {
-	f, err := os.Create(reportFileName)
+func Report(driver string, badWrites map[string]int64, BytesRead int64, banner string, conv *internal.Conv, reportFileName string, dbName string, out *os.File) {
+
+	//Write the structured report file
+	structuredReportFileName := fmt.Sprintf("%s.%s", reportFileName, "structured_report.json")
+	structuredReport := reports.GenerateStructuredReport(driver, dbName, conv, badWrites, true, true)
+	fBytes, _ := json.MarshalIndent(structuredReport, "", " ")
+	f, err := os.Create(structuredReportFileName)
+	if err != nil {
+		fmt.Fprintf(out, "Can't write out structured report file %s: %v\n", reportFileName, err)
+		fmt.Fprintf(out, "Writing report to stdout\n")
+		f = out
+	} else {
+		defer f.Close()
+	}
+	f.Write(fBytes)
+
+	//Write the text report file from the structured report
+	textReportFileName := fmt.Sprintf("%s.%s", reportFileName, "report.txt")
+	f, err = os.Create(textReportFileName)
 	if err != nil {
 		fmt.Fprintf(out, "Can't write out report file %s: %v\n", reportFileName, err)
 		fmt.Fprintf(out, "Writing report to stdout\n")
@@ -384,9 +402,9 @@ func Report(driver string, badWrites map[string]int64, BytesRead int64, banner s
 	}
 	w := bufio.NewWriter(f)
 	w.WriteString(banner)
-
-	summary := internal.GenerateReport(driver, conv, w, badWrites, true, true)
+	reports.GenerateTextReport(structuredReport, w)
 	w.Flush()
+
 	var isDump bool
 	if strings.Contains(driver, "dump") {
 		isDump = true
@@ -401,7 +419,7 @@ func Report(driver string, badWrites map[string]int64, BytesRead int64, banner s
 	// We've already written summary to f (as part of GenerateReport).
 	// In the case where f is stdout, don't write a duplicate copy.
 	if f != out {
-		fmt.Fprint(out, summary)
+		fmt.Fprint(out, structuredReport.Summary.Text)
 		fmt.Fprintf(out, "See file '%s' for details of the schema and data conversions.\n", reportFileName)
 	}
 }
@@ -767,8 +785,8 @@ func WriteConvGeneratedFiles(conv *internal.Conv, dbName string, driver string, 
 	}
 	schemaFileName := dirPath + dbName + "_schema.txt"
 	WriteSchemaFile(conv, now, schemaFileName, out)
-	reportFileName := dirPath + dbName + "_report.txt"
-	Report(driver, nil, BytesRead, "", conv, reportFileName, out)
+	reportFileName := dirPath + dbName
+	Report(driver, nil, BytesRead, "", conv, reportFileName, dbName, out)
 	sessionFileName := dirPath + dbName + ".session.json"
 	WriteSessionFile(conv, sessionFileName, out)
 	return dirPath, nil

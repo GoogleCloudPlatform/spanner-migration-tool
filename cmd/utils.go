@@ -29,10 +29,9 @@ import (
 )
 
 var (
-	badDataFile = "dropped.txt"
-	reportFile  = "report.txt"
-	schemaFile  = "schema.txt"
-	sessionFile = "session.json"
+	badDataFile = ".dropped.txt"
+	schemaFile  = ".schema.txt"
+	sessionFile = ".session.json"
 )
 
 const (

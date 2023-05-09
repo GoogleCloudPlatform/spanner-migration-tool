@@ -155,9 +155,9 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 
 	// If filePrefix not explicitly set, use dbName as prefix.
 	if cmd.filePrefix == "" {
-		cmd.filePrefix = targetProfile.Conn.Sp.Dbname + "."
+		cmd.filePrefix = targetProfile.Conn.Sp.Dbname
 	}
-	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
+	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix, dbName, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
 	// Cleanup hb tmp data directory.
 	os.RemoveAll(filepath.Join(os.TempDir(), constants.HB_TMP_DIR))
