@@ -967,7 +967,13 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile, targetProfile profiles.
 		if err != nil {
 			return nil, err
 		}
-		return postgres.InfoSchemaImpl{Db: db, SourceProfile: sourceProfile, TargetProfile: targetProfile}, nil
+		temp := false
+		return postgres.InfoSchemaImpl{
+			Db:            db,
+			SourceProfile: sourceProfile,
+			TargetProfile: targetProfile,
+			IsSchemaUnique: &temp, //this is a workaround to set a bool pointer
+		}, nil
 	case constants.DYNAMODB:
 		mySession := session.Must(session.NewSession())
 		dydbClient := dydb.New(mySession, connectionConfig.(*aws.Config))
