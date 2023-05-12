@@ -165,7 +165,7 @@ func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard) *datastreampb.So
 	for _, db := range dbList {
 		//create include db object
 		includeDb := &datastreampb.MysqlDatabase{
-			Database:    db.DbName,
+			Database: db.DbName,
 		}
 		includeDbList = append(includeDbList, includeDb)
 	}
@@ -454,34 +454,23 @@ func getStreamingConfig(sourceProfile profiles.SourceProfile, targetProfile prof
 
 func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 	//create dataflowcfg from pl receiver object
-	dataflowCfg := DataflowCfg{}
 	inputDataflowConfig := pl.DataflowConfig
-	dataflowCfg.Location = inputDataflowConfig.Location
-	dataflowCfg.Network = inputDataflowConfig.Network
-	dataflowCfg.HostProjectId = inputDataflowConfig.HostProjectId
-	dataflowCfg.Subnetwork = inputDataflowConfig.Subnetwork
+	dataflowCfg := DataflowCfg{Location: inputDataflowConfig.Location,
+		Network:       inputDataflowConfig.Network,
+		HostProjectId: inputDataflowConfig.HostProjectId,
+		Subnetwork:    inputDataflowConfig.Subnetwork}
 	//create src and dst datastream from pl receiver object
-	datastreamCfg := DatastreamCfg{}
-	//set stream config
-	datastreamCfg.StreamLocation = pl.StreamLocation
+	datastreamCfg := DatastreamCfg{StreamLocation: pl.StreamLocation} 
 	//set src connection profile
 	inputSrcConnProfile := pl.SrcConnectionProfile
-	srcConnCfg := SrcConnCfg{}
-	srcConnCfg.Location = inputSrcConnProfile.Location
-	srcConnCfg.Name = inputSrcConnProfile.Name
+	srcConnCfg := SrcConnCfg{Location: inputSrcConnProfile.Location, Name: inputSrcConnProfile.Name}
 	datastreamCfg.SourceConnectionConfig = srcConnCfg
 	//set dst connection profile
-	dstConnCfg := DstConnCfg{}
 	inputDstConnProfile := pl.DstConnectionProfile
-	dstConnCfg.Name = inputDstConnProfile.Name
-	dstConnCfg.Location = inputDstConnProfile.Location
+	dstConnCfg := DstConnCfg{Name: inputDstConnProfile.Name, Location: inputDstConnProfile.Location}
 	datastreamCfg.DestinationConnectionConfig = dstConnCfg
 	//create the streamingCfg object
-	streamingCfg := StreamingCfg{}
-	streamingCfg.DataflowCfg = dataflowCfg
-	streamingCfg.DatastreamCfg = datastreamCfg
-	//set the Temp GCS dir
-	streamingCfg.TmpDir = pl.TmpDir
+	streamingCfg := StreamingCfg{DataflowCfg: dataflowCfg, DatastreamCfg: datastreamCfg, TmpDir: pl.TmpDir}
 	return streamingCfg
 }
 

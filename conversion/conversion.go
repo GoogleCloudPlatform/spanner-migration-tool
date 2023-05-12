@@ -264,50 +264,11 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 		//We provide an if-else based handling for each within the sharded code branch
 		//This will be determined via the configType, which can be "bulk", "dataflow" or "dms"
 		if sourceProfile.Config.ConfigType == constants.BULK_MIGRATION {
-			var bw *writer.BatchWriter
-
-			//Migrate the data from the data shards, the schema shard needs to be specified here again.
-			for _, dataShard := range sourceProfile.Config.ShardConfigurationBulk.DataShards {
-				//Create a connection profile object for it
-				fmt.Printf("Initiating migration for shard: %v\n", dataShard.DbName)
-				infoSchema, err := getInfoSchemaForShard(dataShard, sourceProfile.Driver, targetProfile)
-				if err != nil {
-					return nil, err
-				}
-				//finally perform a snapshot migration for the shard
-				bw = performSnapshotMigration(config, conv, client, infoSchema)
-			}
-			//finally, once all shard migrations are complete, return the batch writer object
-			return bw, nil
+			return dataFromDatabaseForBulkMigration(sourceProfile, targetProfile, config, conv, client)
 		} else if sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-			//STEP - 1 - Create batch for each physical shard
-			asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) common.TaskResult[*profiles.DataShard] {
-				//create streaming cfg from the config source type.
-				streamingCfg := streaming.CreateStreamingConfig(*p)
-				//verify the CFG and update it with HB defaults
-				err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname)
-				if err != nil {
-					err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
-					return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
-				}
-				fmt.Printf("Initiating migration for shard: %v\n", p.DataShardId)
-				//launch the stream for the physical shard
-				err = streaming.LaunchStream(ctx, sourceProfile.Driver, p.LogicalShards, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
-				if err != nil {
-					return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
-				}
-				//perform streaming migration via dataflow
-				err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
-				return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
-			}
-			_, err := common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 5, asyncProcessShards, true)
-			if err != nil {
-				return nil, fmt.Errorf("unable to start minimal downtime migrations: %v", err)
-			}
-			return &writer.BatchWriter{}, nil
+			return dataFromDatabaseForDataflowMigration(targetProfile, ctx, sourceProfile, conv)
 		} else if sourceProfile.Config.ConfigType == constants.DMS_MIGRATION {
-			// TODO: Define the data processing logic for DMS migrations here.
-			return nil, fmt.Errorf("dms configType is not implemented yet, please use one of 'bulk' or 'dataflow'")
+			return dataFromDatabaseForDMSMigration()
 		} else {
 			return nil, fmt.Errorf("configType should be one of 'bulk', 'dataflow' or 'dms'")
 		}
@@ -334,6 +295,63 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 		}
 		return performSnapshotMigration(config, conv, client, infoSchema), nil
 	}
+}
+
+// TODO: Define the data processing logic for DMS migrations here.
+func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
+	return nil, fmt.Errorf("dms configType is not implemented yet, please use one of 'bulk' or 'dataflow'")
+}
+
+//1. Create batch for each physical shard
+//2. Create streaming cfg from the config source type.
+//3. Verify the CFG and update it with HB defaults
+//4. Launch the stream for the physical shard
+//5. Perform streaming migration via dataflow
+func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
+	asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) common.TaskResult[*profiles.DataShard] {
+
+		streamingCfg := streaming.CreateStreamingConfig(*p)
+
+		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname)
+		if err != nil {
+			err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
+			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+		}
+		fmt.Printf("Initiating migration for shard: %v\n", p.DataShardId)
+
+		err = streaming.LaunchStream(ctx, sourceProfile.Driver, p.LogicalShards, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
+		if err != nil {
+			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+		}
+
+		err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
+		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+	}
+	_, err := common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 5, asyncProcessShards, true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to start minimal downtime migrations: %v", err)
+	}
+	return &writer.BatchWriter{}, nil
+}
+
+//1. Migrate the data from the data shards, the schema shard needs to be specified here again.
+//2. Create a connection profile object for it
+//3. Perform a snapshot migration for the shard
+//4. Once all shard migrations are complete, return the batch writer object
+func dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
+	var bw *writer.BatchWriter
+	for _, dataShard := range sourceProfile.Config.ShardConfigurationBulk.DataShards {
+
+		fmt.Printf("Initiating migration for shard: %v\n", dataShard.DbName)
+		infoSchema, err := getInfoSchemaForShard(dataShard, sourceProfile.Driver, targetProfile)
+		if err != nil {
+			return nil, err
+		}
+
+		bw = performSnapshotMigration(config, conv, client, infoSchema)
+	}
+
+	return bw, nil
 }
 
 func getDynamoDBClientConfig() (*aws.Config, error) {
