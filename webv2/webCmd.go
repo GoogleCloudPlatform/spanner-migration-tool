@@ -24,9 +24,7 @@ import (
 	"path/filepath"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/google/subcommands"
-	"go.uber.org/zap"
 )
 
 var FrontendDir embed.FS
@@ -35,6 +33,7 @@ type WebCmd struct {
 	DistDir  embed.FS
 	logLevel string
 	open     bool
+	port	int
 }
 
 // Name returns the name of operation.
@@ -54,6 +53,7 @@ func (cmd *WebCmd) Usage() string {
 func (cmd *WebCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.open, "open", false, "Opens the Harbourbridge web interface in the default browser, defaults to false")
+	f.IntVar(&cmd.port, "port", 8080, "The port in which Harbourbridge will run, defaults to 8080")
 }
 
 func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -62,10 +62,9 @@ func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{
 	var err error
 	defer func() {
 		if err != nil {
-			logger.Log.Fatal("FATAL error", zap.Error(err))
+			fmt.Printf("FATAL error, unable to start webapp: %s", err)
 		}
 	}()
-	defer logger.Log.Sync()
-	App(cmd.logLevel, cmd.open)
+	err = App(cmd.logLevel, cmd.open, cmd.port)
 	return subcommands.ExitSuccess
 }

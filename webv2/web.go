@@ -2273,16 +2273,16 @@ func init() {
 }
 
 // App connects to the web app v2.
-func App(logLevel string, open bool) {
+func App(logLevel string, open bool, port int) error {
 	err := logger.InitializeLogger(logLevel)
 	if err != nil {
-		log.Fatal("Error initialising webapp, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]")
+		return fmt.Errorf("error initialising webapp, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]")
 	}
-	addr := ":8080"
+	addr := fmt.Sprintf(":%s",strconv.Itoa(port))
 	router := getRoutes()
-	fmt.Println("Harbourbridge UI started at:", fmt.Sprintf("http://localhost%s", addr))
+	fmt.Println("Starting Harbourbridge UI at:", fmt.Sprintf("http://localhost%s", addr))
 	if open {
 		browser.OpenURL(fmt.Sprintf("http://localhost%s", addr))
 	}
-	log.Fatal(http.ListenAndServe(addr, handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}), handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"}), handlers.AllowedOrigins([]string{"*"}))(router)))
+	return http.ListenAndServe(addr, handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}), handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"}), handlers.AllowedOrigins([]string{"*"}))(router))
 }
