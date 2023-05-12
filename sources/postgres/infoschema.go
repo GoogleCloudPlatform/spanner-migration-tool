@@ -103,7 +103,7 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) 
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
-	isSchemaNamePrefixed := strings.HasPrefix(conv.SrcSchema[tableId].Name, conv.SrcSchema[tableId].Schema)
+	isSchemaNamePrefixed := strings.HasPrefix(conv.SrcSchema[tableId].Name+".", conv.SrcSchema[tableId].Schema)
 	var tableName string
 	if isSchemaNamePrefixed {
 		tableName = strings.TrimPrefix(conv.SrcSchema[tableId].Name, conv.SrcSchema[tableId].Schema+".")

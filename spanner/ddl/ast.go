@@ -197,7 +197,7 @@ func isIdentifierReservedInPG(identifier string) bool {
 
 func isSourceCaseSensitive(source string) bool {
 	switch source {
-	case constants.POSTGRES:
+	case constants.POSTGRES, constants.PGDUMP:
 		return true
 	default:
 		return false

@@ -2276,7 +2276,7 @@ func init() {
 func App(logLevel string, open bool, port int) error {
 	err := logger.InitializeLogger(logLevel)
 	if err != nil {
-		return fmt.Errorf("error initialising webapp, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]")
+		return fmt.Errorf("error initialising webapp, did you specify a valid log-level? [DEBUG, INFO]")
 	}
 	addr := fmt.Sprintf(":%s",strconv.Itoa(port))
 	router := getRoutes()
