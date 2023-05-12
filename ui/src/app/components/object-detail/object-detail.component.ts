@@ -136,6 +136,7 @@ export class ObjectDetailComponent implements OnInit {
     columnName: new FormControl('', [Validators.required]),
   })
   pkObj: IPrimaryKey = {} as IPrimaryKey
+  dataTypesWithColLen: string[]=['STRING','BYTES','VARCHAR']
 
   ngOnChanges(changes: SimpleChanges): void {
     this.fkData = changes['fkData']?.currentValue || this.fkData
@@ -207,7 +208,7 @@ export class ObjectDetailComponent implements OnInit {
           spColMaxLength: new FormControl(row.spColMaxLength, [
             Validators.required]),
         })
-        if (row.spDataType === 'STRING' || row.spDataType === 'BYTES' || row.spDataType === 'VARCHAR') {
+        if (this.dataTypesWithColLen.indexOf(row.spDataType.toString())) {
           fb.get('spColMaxLength')?.setValidators([Validators.required, Validators.pattern('([1-9][0-9]*|MAX)')])
           if (row.spColMaxLength === undefined) {
             fb.get('spColMaxLength')?.setValue('MAX')

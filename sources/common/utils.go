@@ -283,13 +283,14 @@ func ComputeNonKeyColumnSize(conv *internal.Conv, tableId string) {
 
 // removeSchemaIssue removes issue from the given list.
 func removeSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
-	k := 0
-	for i := 0; i < len(schemaissue); {
-		if schemaissue[i] != issue {
-			schemaissue[k] = schemaissue[i]
-			k++
+	ind := -1
+	for i := 0; i < len(schemaissue); i++ {
+		if schemaissue[i] == issue {
+			ind = i
 		}
-		i++
 	}
-	return schemaissue[0:k]
+	if ind != -1 {
+		return append(schemaissue[:ind], schemaissue[ind+1:]...)
+	}
+	return schemaissue
 }

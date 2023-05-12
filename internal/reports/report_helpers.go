@@ -36,6 +36,7 @@ type tableReport struct {
 	badRows       int64
 	Cols          int64
 	Warnings      int64
+	Errors        int64
 	SyntheticPKey string // Empty string means no synthetic primary key was needed.
 	Body          []tableReportBody
 }
@@ -80,14 +81,15 @@ func buildTableReport(conv *internal.Conv, tableId string, badWrites map[string]
 		issues, cols, warnings := AnalyzeCols(conv, tableId)
 		tr.Cols = cols
 		tr.Warnings = warnings
+		tr.Errors = int64(len(conv.SchemaIssues[tableId].TableLevelIssues))
 		if pk, ok := conv.SyntheticPKeys[tableId]; ok {
 			tr.SyntheticPKey = pk.ColId
 			synthColName := conv.SpSchema[tableId].ColDefs[pk.ColId].Name
-			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, &synthColName, nil)
+			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, &synthColName, nil, conv.SchemaIssues[tableId].TableLevelIssues)
 		} else if pk, ok := conv.UniquePKey[tableId]; ok {
-			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, pk)
+			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, pk, conv.SchemaIssues[tableId].TableLevelIssues)
 		} else {
-			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, nil)
+			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, nil, conv.SchemaIssues[tableId].TableLevelIssues)
 		}
 
 	}
@@ -97,7 +99,7 @@ func buildTableReport(conv *internal.Conv, tableId string, badWrites map[string]
 	return tr
 }
 
-func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string][]internal.SchemaIssue, spSchema ddl.CreateTable, srcSchema schema.Table, syntheticPK *string, uniquePK []string) []tableReportBody {
+func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string][]internal.SchemaIssue, spSchema ddl.CreateTable, srcSchema schema.Table, syntheticPK *string, uniquePK []string, tableLevelIssues []internal.SchemaIssue) []tableReportBody {
 	var body []tableReportBody
 	for _, p := range []struct {
 		heading  string
@@ -115,6 +117,14 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 		}
 		sort.Strings(colNames)
 		var l []string
+		if p.severity == errors && len(tableLevelIssues) != 0 {
+			for _, issue := range tableLevelIssues {
+				if issue == internal.RowLimitExceeded {
+					l = append(l, IssueDB[internal.RowLimitExceeded].Brief)
+				}
+			}
+
+		}
 		if syntheticPK != nil {
 			// Warnings about synthetic primary keys must be handled as a special case
 			// because we have a Spanner column with no matching source DB col.
@@ -245,7 +255,20 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					if !internal.Contains(l, str) {
 						l = append(l, str)
 					}
+				case internal.InterleavedChangeColumnType:
+					parent, fkName, referColName := getInterleaveDetail(conv, tableId, colId, i)
+					str := fmt.Sprintf(" %s %s change column type %s of column %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, spColType, spColName, spSchema.Name, fkName, referColName)
 
+					if !internal.Contains(l, str) {
+						l = append(l, str)
+					}
+				case internal.InterleavedChangeColumnSize:
+					parent, fkName, referColName := getInterleaveDetail(conv, tableId, colId, i)
+					str := fmt.Sprintf(" %s %s change column size of column %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, spColName, spSchema.Name, fkName, referColName)
+
+					if !internal.Contains(l, str) {
+						l = append(l, str)
+					}
 				case internal.RedundantIndex:
 					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
@@ -311,6 +334,8 @@ func getInterleaveDetail(conv *internal.Conv, tableId string, colId string, issu
 					return conv.SpSchema[fk.ReferTableId].Name, "", ""
 				}
 			case internal.InterleavedRenameColumn:
+			case internal.InterleavedChangeColumnSize:
+			case internal.InterleavedChangeColumnType:
 				if err1 == nil {
 					parentTable := conv.SpSchema[fk.ReferTableId]
 					return conv.SpSchema[fk.ReferTableId].Name, fk.Name, parentTable.ColDefs[fk.ReferColumnIds[i]].Name
@@ -364,31 +389,34 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	severity severity
 	batch    bool // Whether multiple instances of this issue are combined.
 }{
-	internal.DefaultValue:            {Brief: "Some columns have default values which Spanner does not support", severity: warning, batch: true},
-	internal.ForeignKey:              {Brief: "Spanner does not support foreign keys", severity: warning},
-	internal.MultiDimensionalArray:   {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
-	internal.NoGoodType:              {Brief: "No appropriate Spanner type", severity: warning},
-	internal.Numeric:                 {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning},
-	internal.NumericThatFits:         {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: suggestion},
-	internal.Decimal:                 {Brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning},
-	internal.DecimalThatFits:         {Brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", severity: suggestion},
-	internal.Serial:                  {Brief: "Spanner does not support autoincrementing types", severity: warning},
-	internal.AutoIncrement:           {Brief: "Spanner does not support auto_increment attribute", severity: warning},
-	internal.Timestamp:               {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: suggestion, batch: true},
-	internal.Datetime:                {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: warning, batch: true},
-	internal.Time:                    {Brief: "Spanner does not support time/year types", severity: warning, batch: true},
-	internal.Widened:                 {Brief: "Some columns will consume more storage in Spanner", severity: warning, batch: true},
-	internal.StringOverflow:          {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
-	internal.HotspotTimestamp:        {Brief: "Timestamp Hotspot Occured", severity: warning},
-	internal.HotspotAutoIncrement:    {Brief: "Autoincrement Hotspot Occured", severity: warning},
-	internal.InterleavedOrder:        {Brief: "can be converted as Interleaved with Table", severity: suggestion},
-	internal.RedundantIndex:          {Brief: "Redundant Index", severity: warning},
-	internal.AutoIncrementIndex:      {Brief: "Auto increment column in Index can create a Hotspot", severity: warning},
-	internal.InterleaveIndex:         {Brief: "can be converted to an Interleave Index", severity: suggestion},
-	internal.InterleavedNotInOrder:   {Brief: "if primary key order parameter is changed to 1 for the table", severity: suggestion},
-	internal.InterleavedAddColumn:    {Brief: "Candidate for Interleaved Table", severity: suggestion},
-	internal.IllegalName:             {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning},
-	internal.InterleavedRenameColumn: {Brief: "Candidate for Interleaved Table", severity: suggestion},
+	internal.DefaultValue:                {Brief: "Some columns have default values which Spanner does not support", severity: warning, batch: true},
+	internal.ForeignKey:                  {Brief: "Spanner does not support foreign keys", severity: warning},
+	internal.MultiDimensionalArray:       {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
+	internal.NoGoodType:                  {Brief: "No appropriate Spanner type", severity: warning},
+	internal.Numeric:                     {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning},
+	internal.NumericThatFits:             {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: suggestion},
+	internal.Decimal:                     {Brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning},
+	internal.DecimalThatFits:             {Brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", severity: suggestion},
+	internal.Serial:                      {Brief: "Spanner does not support autoincrementing types", severity: warning},
+	internal.AutoIncrement:               {Brief: "Spanner does not support auto_increment attribute", severity: warning},
+	internal.Timestamp:                   {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: suggestion, batch: true},
+	internal.Datetime:                    {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: warning, batch: true},
+	internal.Time:                        {Brief: "Spanner does not support time/year types", severity: warning, batch: true},
+	internal.Widened:                     {Brief: "Some columns will consume more storage in Spanner", severity: warning, batch: true},
+	internal.StringOverflow:              {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
+	internal.HotspotTimestamp:            {Brief: "Timestamp Hotspot Occured", severity: warning},
+	internal.HotspotAutoIncrement:        {Brief: "Autoincrement Hotspot Occured", severity: warning},
+	internal.InterleavedOrder:            {Brief: "can be converted as Interleaved with Table", severity: suggestion},
+	internal.RedundantIndex:              {Brief: "Redundant Index", severity: warning},
+	internal.AutoIncrementIndex:          {Brief: "Auto increment column in Index can create a Hotspot", severity: warning},
+	internal.InterleaveIndex:             {Brief: "can be converted to an Interleave Index", severity: suggestion},
+	internal.InterleavedNotInOrder:       {Brief: "if primary key order parameter is changed to 1 for the table", severity: suggestion},
+	internal.InterleavedAddColumn:        {Brief: "Candidate for Interleaved Table", severity: suggestion},
+	internal.IllegalName:                 {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning},
+	internal.InterleavedRenameColumn:     {Brief: "Candidate for Interleaved Table", severity: suggestion},
+	internal.InterleavedChangeColumnType: {Brief: "Candidate for Interleaved Table", severity: suggestion},
+	internal.InterleavedChangeColumnSize: {Brief: "Candidate for Interleaved Table", severity: suggestion},
+	internal.RowLimitExceeded:            {Brief: "Non key columns exceed the spanner limit of 1600 MB. Please modify the column sizes", severity: errors},
 }
 
 type severity int
@@ -411,7 +439,7 @@ func AnalyzeCols(conv *internal.Conv, tableId string) (map[string][]internal.Sch
 	// per column and/or multiple warnings per table.
 	// non-batched warnings: count at most one warning per column.
 	// batched warnings: count at most one warning per table.
-	for c, l := range conv.SchemaIssues[tableId] {
+	for c, l := range conv.SchemaIssues[tableId].ColumnLevelIssues {
 		colWarning := false
 		m[c] = l
 		for _, i := range l {
@@ -438,7 +466,7 @@ func AnalyzeCols(conv *internal.Conv, tableId string) (map[string][]internal.Sch
 // 'summary' indicates whether this is a per-table rating or an overall
 // summary rating.
 
-func RateSchema(cols, warnings int64, missingPKey, summary bool) (string, string) {
+func RateSchema(cols, warnings, errors int64, missingPKey, summary bool) (string, string) {
 	pkMsg := "missing primary key"
 	s := fmt.Sprintf(" (%s%% of %d columns mapped cleanly)", pct(cols, warnings), cols)
 	if summary {
@@ -447,6 +475,8 @@ func RateSchema(cols, warnings int64, missingPKey, summary bool) (string, string
 	switch {
 	case cols == 0:
 		return "NONE", "NONE (no schema found)"
+	case errors != 0:
+		return "POOR", "POOR" + s
 	case warnings == 0 && !missingPKey:
 		return "EXCELLENT", fmt.Sprintf("EXCELLENT (all %d columns mapped cleanly)", cols)
 	case warnings == 0 && missingPKey:
@@ -496,12 +526,12 @@ func ok(total, badCount int64) bool {
 	return float64(badCount) < (float64(total))/3
 }
 
-func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool, migrationType migration.MigrationData_MigrationType, dryRun bool) (string, string) {
+func rateConversion(rows, badRows, cols, warnings, errors int64, missingPKey, summary bool, schemaOnly bool, migrationType migration.MigrationData_MigrationType, dryRun bool) (string, string) {
 	rate := ""
 	var rating string
 	if migrationType != migration.MigrationData_DATA_ONLY {
 		var rateSchemaReport string
-		rating, rateSchemaReport = RateSchema(cols, warnings, missingPKey, summary)
+		rating, rateSchemaReport = RateSchema(cols, warnings, errors, missingPKey, summary)
 		rate = rate + fmt.Sprintf("Schema conversion: %s.\n", rateSchemaReport)
 	}
 	if !schemaOnly {
@@ -516,6 +546,7 @@ func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bo
 func GenerateSummary(conv *internal.Conv, r []tableReport, badWrites map[string]int64) (string, string) {
 	cols := int64(0)
 	warnings := int64(0)
+	errors := int64(0)
 	missingPKey := false
 	for _, t := range r {
 		weight := t.rows // Weight col data by how many rows in table.
@@ -538,5 +569,5 @@ func GenerateSummary(conv *internal.Conv, r []tableReport, badWrites map[string]
 	for _, n := range badWrites {
 		badRows += n
 	}
-	return rateConversion(rows, badRows, cols, warnings, missingPKey, true, conv.SchemaMode(), *conv.Audit.MigrationType, conv.Audit.DryRun)
+	return rateConversion(rows, badRows, cols, warnings, errors, missingPKey, true, conv.SchemaMode(), *conv.Audit.MigrationType, conv.Audit.DryRun)
 }

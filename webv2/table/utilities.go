@@ -162,21 +162,16 @@ func updateTypeOfInterleaveColumn(interleaveTableSchema []InterleaveTableSchema,
 }
 
 func updateSizeOfInterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, colType string, previousSize, newSize int) []InterleaveTableSchema {
-
 	tableIndex := isTablePresent(interleaveTableSchema, table)
-
 	interleaveTableSchema = createInterleaveTableSchema(interleaveTableSchema, table, tableIndex)
-
 	interleaveTableSchema = updateSizeOfInterleaveColumn(interleaveTableSchema, table, columnId, colName, colType, previousSize, newSize)
 	return interleaveTableSchema
 }
 
 func updateSizeOfInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, colType string, previousSize, newSize int) []InterleaveTableSchema {
-
 	tableIndex := isTablePresent(interleaveTableSchema, table)
 	colIndex := isColumnPresent(interleaveTableSchema[tableIndex].InterleaveColumnChanges, columnId)
 	interleaveTableSchema = createInterleaveColumnSize(interleaveTableSchema, tableIndex, colIndex, columnId, colName, colType, previousSize, newSize)
-
 	if tableIndex != -1 && colIndex != -1 {
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnId = columnId
 		if interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnName == "" {
@@ -188,24 +183,19 @@ func updateSizeOfInterleaveColumn(interleaveTableSchema []InterleaveTableSchema,
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].Size = previousSize
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].UpdateSize = newSize
 	}
-
 	return interleaveTableSchema
 }
 
 func createInterleaveColumnSize(interleaveTableSchema []InterleaveTableSchema, tableIndex int, colIndex int, columnId, colName, colType string, previousSize, newSize int) []InterleaveTableSchema {
-
-	if colIndex == -1 {
-		if columnId != "" {
-			interleaveColumn := InterleaveColumn{}
-			interleaveColumn.ColumnId = columnId
-			interleaveColumn.ColumnName = colName
-			interleaveColumn.Type = colType
-			interleaveColumn.Size = previousSize
-			interleaveColumn.UpdateSize = newSize
-			interleaveTableSchema[tableIndex].InterleaveColumnChanges = append(interleaveTableSchema[tableIndex].InterleaveColumnChanges, interleaveColumn)
-		}
+	if colIndex == -1 && columnId != "" {
+		interleaveColumn := InterleaveColumn{}
+		interleaveColumn.ColumnId = columnId
+		interleaveColumn.ColumnName = colName
+		interleaveColumn.Type = colType
+		interleaveColumn.Size = previousSize
+		interleaveColumn.UpdateSize = newSize
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges = append(interleaveTableSchema[tableIndex].InterleaveColumnChanges, interleaveColumn)
 	}
-
 	return interleaveTableSchema
 }
 
