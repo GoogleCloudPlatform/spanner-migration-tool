@@ -52,7 +52,7 @@ func (cmd *WebCmd) Usage() string {
 }
 
 func (cmd *WebCmd) SetFlags(f *flag.FlagSet) {
-	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
+	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.open, "open", false, "Opens the Harbourbridge web interface in the default browser, defaults to false")
 }
 

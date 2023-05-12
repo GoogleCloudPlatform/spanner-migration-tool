@@ -92,6 +92,8 @@ func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 	if *isi.IsSchemaUnique { // Drop schema name as prefix if only one schema is detected.
 		return tableName
+	} else if schema == "public" {
+		return tableName
 	}
 	return fmt.Sprintf("%s.%s", schema, tableName)
 }
