@@ -5,12 +5,23 @@
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Database Engine</mat-label>
-        <mat-select matSelect name="dbEngine" formControlName="dbEngine" appearance="outline">
+        <mat-select formControlName="dbEngine" (selectionChange)="refreshDbOptions()">
           <mat-option *ngFor="let element of dbEngineList" [value]="element.value">
             {{ element.displayName }}
           </mat-option>
         </mat-select>
       </mat-form-field>
+
+      <div class="shardingConfig" *ngIf="(connectForm.value.dbEngine === 'mysql')">
+        <mat-form-field appearance="outline">
+          <mat-label>Sharded Migration</mat-label>
+          <mat-select formControlName="isSharded">
+            <mat-option *ngFor="let element of shardedResponseList" [value]="element.value">
+              {{ element.displayName }}
+            </mat-option>
+            </mat-select>
+          </mat-form-field>
+      </div>
 
       <h3 class="primary-header">Connection Detail</h3>
 

@@ -10,7 +10,8 @@
 <br />
 <div class="body">
     <div class="definition-container">
-        <h2>Source and Target Database definitions</h2>
+        <h2 *ngIf="isSharded">Source and Target Database definitions</h2>
+        <h2 *ngIf="isSharded">Source and Target Database definitions (per shard)</h2>
         <div class="summary">
             <table mat-table [dataSource]="dataSource">
                 <ng-container matColumnDef="Title">
@@ -56,12 +57,27 @@
             <mat-card-title>Prerequisites</mat-card-title>
             <mat-card-subtitle>Before we begin, please ensure you have done the following:</mat-card-subtitle>
             <hr />
-            <div *ngIf="(connectionType ==='sessionFile') && !(selectedMigrationMode ==='Schema')">
+            <div *ngIf="(connectionType ==='sessionFile') && !(selectedMigrationMode ==='Schema') && !isSharded">
                 <h3>Source database details:</h3>
                 <p class="point">
                     <span class="bullet">1</span>
                     <span>Setup Source database details</span><span><button mat-button class="configure"
                             (click)="openSourceDetailsForm()" [disabled]="isMigrationInProgress">
+                            Configure
+                            <mat-icon>edit</mat-icon>
+                            <mat-icon *ngIf="isSourceDetailsSet" class="success" matTooltip="Source details configured"
+                                matTooltipPosition="above">
+                                check_circle
+                            </mat-icon>
+                        </button></span>
+                </p>
+            </div>
+            <div *ngIf="isSharded && (selectedMigrationType === 'bulk')">
+                <h3>Source databases details:</h3>
+                <p class="point">
+                    <span class="bullet">1</span>
+                    <span>Setup Source databases details</span><span><button mat-button class="configure"
+                            (click)="openShardedBulkSourceDetailsForm()" [disabled]="isMigrationInProgress">
                             Configure
                             <mat-icon>edit</mat-icon>
                             <mat-icon *ngIf="isSourceDetailsSet" class="success" matTooltip="Source details configured"
@@ -85,7 +101,20 @@
                             </mat-icon>
                         </button></span>
                 </p>
-                <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
+                <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && isSharded">
+                    <span class="bullet">2</span>
+                    <span>Setup Migration profile</span><span><button mat-button class="configure"
+                            (click)="openMigrationProfileForm()"
+                            [disabled]="isMigrationInProgress || !isTargetDetailSet">
+                            Configure
+                            <mat-icon>edit</mat-icon>
+                            <mat-icon *ngIf="isSourceConnectionProfileSet" class="success"
+                                matTooltip="Source connection profile configured" matTooltipPosition="above">
+                                check_circle
+                            </mat-icon>
+                        </button></span>
+                </p>
+                <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && !isSharded">
                     <span class="bullet">2</span>
                     <span>Setup source connection profile</span><span><button mat-button class="configure"
                             (click)="openConnectionProfileForm(true)"
@@ -98,7 +127,7 @@
                             </mat-icon>
                         </button></span>
                 </p>
-                <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
+                <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && !isSharded">
                     <span class="bullet">3</span>
                     <span>Setup target connection profile</span><span><button mat-button class="configure"
                             (click)="openConnectionProfileForm(false)"
@@ -112,7 +141,8 @@
                         </button></span>
                 </p>
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
-                    <span class="bullet">4</span>
+                    <span class="bullet" *ngIf="isSharded">3</span>
+                    <span class="bullet" *ngIf="!isSharded">4</span>
                     <span>Configure Dataflow (Optional) </span><span><button mat-button class="configure"
                             (click)="openDataflowForm()"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet">
@@ -126,6 +156,12 @@
                 </p>
             </div>
         </mat-card>
+        <br />
+    </div>
+    <div *ngIf="(isSourceDetailsSet) && isSharded">
+        <h3> Source Details</h3>
+        <span><b>Source Database: </b>{{ sourceDatabaseType }}</span><br />
+        <span><b>Number of shards configured: </b> {{ numberOfShards }}</span><br />
         <br />
     </div>
     <div *ngIf="isTargetDetailSet">
@@ -163,12 +199,21 @@
         <h3> Generated Resources:</h3>
         <li>Spanner database: <a [href]="resourcesGenerated.DatabaseUrl" target="_blank">{{resourcesGenerated.DatabaseName}}</a></li>
         <li>GCS bucket: <a [href]="resourcesGenerated.BucketUrl" target="_blank">{{resourcesGenerated.BucketName}}</a></li>
-        <span *ngIf="resourcesGenerated.DataStreamJobName!=='' && (selectedMigrationType ==='lowdt')">
+        <span *ngIf="resourcesGenerated.DataStreamJobName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
             <li> Datastream job: <a
                     [href]="resourcesGenerated.DataStreamJobUrl" target="_blank">{{resourcesGenerated.DataStreamJobName}}</a></li>
         </span>
-        <span *ngIf="resourcesGenerated.DataflowJobName!=='' && (selectedMigrationType ==='lowdt')">
+        <span *ngIf="resourcesGenerated.DataflowJobName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
             <li>Dataflow job: <a [href]="resourcesGenerated.DataflowJobUrl" target="_blank">{{resourcesGenerated.DataflowJobName}}</a>
+            </li>
+        </span>
+        <span *ngIf="resourcesGenerated.DataStreamJobName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
+            <li *ngFor="let stream of resourcesGenerated.ShardToDatastreamMap | keyvalue"> 
+                Datastream job for shardId: {{ stream.key }} - <a [href]="stream.value.JobUrl" target="_blank">{{stream.value.JobName}}</a></li>
+        </span>
+        <span *ngIf="resourcesGenerated.DataflowJobName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
+            <li *ngFor="let dfJob of resourcesGenerated.ShardToDataflowMap | keyvalue">
+                Dataflow job for shardId: {{ dfJob.key }} - <a [href]="dfJob.value.JobUrl" target="_blank">{{dfJob.value.JobName}}</a>
             </li>
         </span>
     </div>

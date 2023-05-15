@@ -1,0 +1,66 @@
+<div class="connect-load-database-container">
+    <div class="form-container">
+        <form [formGroup]="directConnectForm" class="shard-bulk-form">
+            <h4 class="primary-header">Add Data Shard Connection Details</h4>
+
+            <mat-form-field appearance="outline">
+                <mat-label>Input Type</mat-label>
+                <mat-select formControlName="inputType">
+                    <mat-option *ngFor="let element of inputOptionsList" [value]="element.value">
+                        {{ element.displayName }}
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <div class="textInput" *ngIf="(directConnectForm.value.inputType === 'text')">
+                <mat-form-field appearance="outline">
+                    <mat-label>Paste JSON Configuration</mat-label>
+                    <textarea name="textInput" formControlName="textInput" matInput cdkTextareaAutosize
+                        #autosize="cdkTextareaAutosize" cdkAutosizeMinRows="5" cdkAutosizeMaxRows="20"></textarea>
+                </mat-form-field>
+            </div>
+            <div class="formInput" *ngIf="(directConnectForm.value.inputType === 'form')">
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Hostname</mat-label>
+                    <input matInput placeholder="127.0.0.1" name="hostName" type="text" formControlName="hostName" />
+                </mat-form-field>
+
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Port</mat-label>
+                    <input matInput placeholder="3306" name="port" type="text" formControlName="port" />
+                    <mat-error> Only numbers are allowed. </mat-error>
+                </mat-form-field>
+                <br />
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>User name</mat-label>
+                    <input matInput placeholder="root" name="userName" type="text" formControlName="userName" />
+                </mat-form-field>
+
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Password</mat-label>
+                    <input matInput name="password" type="password" formControlName="password" />
+                </mat-form-field>
+                <br />
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Database Name</mat-label>
+                    <input matInput name="dbname" type="text" formControlName="dbName" />
+                </mat-form-field>
+                <br />
+            </div>
+            <button mat-button color="primary" mat-dialog-close>CANCEL</button>
+            <button *ngIf="(directConnectForm.value.inputType === 'form')" mat-raised-button type="submit"
+                color="accent" (click)="saveDetailsAndReset()">
+                ADD MORE
+            </button>
+            <button mat-raised-button type="submit" color="primary" (click)="finalizeConnDetails()">
+                FINISH
+            </button>
+            <div *ngIf="errorMsg!=''" class="failure">
+                <span class="left-text">{{ errorMsg }}</span>
+                <mat-icon class="icon error" [matTooltip]="errorMsg" matTooltipPosition="above">
+                    error
+                </mat-icon>
+            </div>
+        </form>
+    </div>
+</div>

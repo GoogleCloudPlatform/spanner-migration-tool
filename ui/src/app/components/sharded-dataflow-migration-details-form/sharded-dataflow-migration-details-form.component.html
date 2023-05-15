@@ -1,0 +1,188 @@
+<div mat-dialog-content class="connect-load-database-container">
+    <form [formGroup]="migrationProfileForm" class="conn-profile-form">
+        <span class="mat-h3 header-title">Configure Migration Profile</span>
+        <br>
+        <mat-form-field appearance="outline">
+            <mat-label>Input Type</mat-label>
+            <mat-select formControlName="inputType">
+                <mat-option *ngFor="let element of inputOptionsList" [value]="element.value">
+                    {{ element.displayName }}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+        <div class="textInput" *ngIf="(migrationProfileForm.value.inputType === 'text')">
+            <mat-form-field appearance="outline" class="json-input">
+                <mat-label>Paste JSON Configuration</mat-label>
+                <textarea name="textInput" formControlName="textInput" matInput cdkTextareaAutosize
+                    #autosize="cdkTextareaAutosize" cdkAutosizeMinRows="5" cdkAutosizeMaxRows="20"></textarea>
+            </mat-form-field>
+        </div>
+        <div class="textInput" *ngIf="(migrationProfileForm.value.inputType === 'form')">
+            <hr>
+            <span class="mat-h4 header-title">Configure Source Profile</span>
+            <div class="source-radio-button-container">
+                <mat-radio-group formControlName="sourceProfileOption" [(ngModel)]="selectedSourceProfileOption"
+                    class="radio-button-container">
+                    <mat-radio-button *ngFor="let option of profileOptions" [value]="option.value" class="radio-button"
+                        (change)="onItemChange(option.value, 'source')">
+                        {{option.display}}</mat-radio-button>
+                </mat-radio-group>
+            </div>
+            <br>
+            <div *ngIf="(selectedSourceProfileOption === 'existing')">
+                <mat-form-field appearance="outline">
+                    <mat-label>Select source connection profile</mat-label>
+                    <mat-select class="input-field" formControlName="existingSourceProfile" required="true"
+                        ng-value="selectedProfile">
+                        <mat-option *ngFor="let profile of sourceProfileList" [value]="profile.DisplayName">
+                            {{profile.DisplayName}}
+                        </mat-option>
+                    </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                    <mat-label>Data Shard Id</mat-label>
+                    <input matInput placeholder="Data ShardId" type="text" formControlName="dataShardId"
+                        required="true" />
+                </mat-form-field>
+            </div>
+            <div *ngIf="(selectedSourceProfileOption === 'new')">
+                <mat-form-field appearance="outline">
+                    <mat-label>Host</mat-label>
+                    <input matInput placeholder="Host" type="text" formControlName="host" required="true" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                    <mat-label>User</mat-label>
+                    <input matInput placeholder="User" type="text" formControlName="user" required="true" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                    <mat-label>Port</mat-label>
+                    <input matInput placeholder="Port" type="text" formControlName="port" required="true" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                    <mat-label>Password</mat-label>
+                    <input matInput placeholder="Password" type="password" formControlName="password" required="true" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                    <mat-label>Connection profile name</mat-label>
+                    <input matInput placeholder="Connection profile name" type="text" formControlName="newSourceProfile"
+                        required="true" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                    <mat-label>Data Shard Id</mat-label>
+                    <input matInput placeholder="Data ShardId" type="text" formControlName="dataShardId"
+                        required="true" />
+                </mat-form-field>
+            </div>
+            <div *ngIf="(selectedSourceProfileOption === 'new')">
+                <div><b>Copy the public IPs below, and use them to configure the network firewall to accept
+                        connections
+                        from them.</b><a
+                        href="https://cloud.google.com/datastream/docs/network-connectivity-options#ipallowlists">Learn
+                        More</a></div>
+                <br>
+                <li *ngFor="let ip of ipList" class="connection-form-container">
+                    <span class="left-text">{{ip}}</span>
+                    <span>
+                        <mat-icon class="icon copy" [cdkCopyToClipboard]="ip" matTooltip="Copy">file_copy</mat-icon>
+                    </span>
+                </li>
+                <div *ngIf="!testSuccess && errorMsg != ''" class="failure">
+                    <span class="left-text">Test connection failed</span>
+                    <mat-icon class="icon error" matTooltip="Test connection failed" matTooltipPosition="above">
+                        error
+                    </mat-icon>
+                </div>
+                <br>
+                <mat-icon *ngIf="testSuccess" class="success" matTooltip="Test connection successful"
+                    matTooltipPosition="above">
+                    check_circle
+                </mat-icon>
+                <button mat-raised-button type="button" color="primary"
+                    (click)="createOrTestConnection(true, true)">TEST
+                    CONNECTION</button>
+                <mat-icon *ngIf="createSrcConnSuccess" class="success" matTooltip="Profile creation successful"
+                    matTooltipPosition="above">
+                    check_circle
+                </mat-icon>
+                <button mat-raised-button type="button" color="warn"
+                    (click)="createOrTestConnection(true, false)">CREATE
+                    PROFILE</button>
+            </div>
+            <hr>
+            <span class="mat-h4 header-title">Configure ShardId and Database Names</span>
+            <br><br>
+            <span class="border">
+                <ng-container formArrayName="shardMappingTable">
+                    <ng-container *ngFor="let shardTableRowForm of shardMappingTable.controls; let i = index">
+                        <div class="shard-mapping-form-row" [formGroupName]="i">
+                            <mat-form-field appearance="outline">
+                                <mat-label>Logical Shard ID</mat-label>
+                                <input matInput formControlName="logicalShardId" placeholder="Enter Logical ShardID">
+                            </mat-form-field>
+                            <mat-form-field appearance="outline">
+                                <mat-label>Database Name</mat-label>
+                                <input matInput formControlName="dbName" placeholder="Enter Database Name">
+                            </mat-form-field>
+                            <mat-icon class="delete-btn" (click)="deleteRow(i)">
+                                delete_forever</mat-icon>
+                        </div>
+                    </ng-container>
+                </ng-container>
+            </span>
+            <div class="table-buttons">
+                <button mat-raised-button color="primary" (click)="addRow()" type="button">ADD ROW</button>
+            </div>
+            <br>
+            <hr>
+            <span class="mat-h4 header-title">Configure Target Profile</span>
+            <div class="target-radio-button-container">
+                <mat-radio-group formControlName="targetProfileOption" [(ngModel)]="selectedTargetProfileOption"
+                    class="radio-button-container">
+                    <mat-radio-button *ngFor="let option of profileOptions" [value]="option.value" class="radio-button"
+                        (change)="onItemChange(option.value, 'target')">
+                        {{option.display}}</mat-radio-button>
+                </mat-radio-group>
+            </div>
+            <br>
+            <div *ngIf="(selectedTargetProfileOption === 'existing')">
+                <mat-form-field appearance="outline">
+                    <mat-label>Select target connection profile</mat-label>
+                    <mat-select class="input-field" formControlName="existingTargetProfile" required="true"
+                        ng-value="selectedProfile">
+                        <mat-option *ngFor="let profile of targetProfileList" [value]="profile.DisplayName">
+                            {{profile.DisplayName}}
+                        </mat-option>
+                    </mat-select>
+                </mat-form-field>
+            </div>
+            <div *ngIf="(selectedTargetProfileOption === 'new')">
+                <mat-form-field appearance="outline">
+                    <mat-label>Connection profile name</mat-label>
+                    <input matInput placeholder="Connection profile name" type="text" formControlName="newTargetProfile"
+                        required="true" />
+                </mat-form-field>
+                <mat-icon *ngIf="createTgtConnSuccess" class="success" matTooltip="Profile creation successful"
+                    matTooltipPosition="above">
+                    check_circle
+                </mat-icon>
+                <button mat-raised-button type="button" color="warn"
+                    (click)="createOrTestConnection(false, false)">CREATE
+                    PROFILE</button>
+            </div>
+        </div>
+        <button mat-button color="primary" mat-dialog-close>CANCEL</button>
+        <button *ngIf="(migrationProfileForm.value.inputType === 'form')" mat-raised-button type="submit" color="accent"
+            (click)="saveDetailsAndReset()">
+            ADD MORE
+        </button>
+        <button mat-raised-button type="submit" color="primary" (click)="finalizeConnDetails()">
+            FINISH
+        </button>
+        <div *ngIf="errorMsg!=''" class="failure">
+            <span class="left-text">{{ errorMsg }}</span>
+            <mat-icon class="icon error" [matTooltip]="errorMsg" matTooltipPosition="above">
+                error
+            </mat-icon>
+        </div>
+    </form>
+</div>

@@ -254,6 +254,12 @@ func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config write
 	}
 }
 
+func updateShardsWithDataflowConfig(shardedDataflowConfig profiles.ShardConfigurationDataflow) {
+	for _, dataShard := range shardedDataflowConfig.DataShards {
+		dataShard.DataflowConfig = shardedDataflowConfig.DataflowConfig
+	}
+}
+
 func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
 	//handle migrating data for sharded migrations differently
 	//sharded migrations are identified via the config= flag, if that flag is not present
@@ -308,10 +314,11 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 //4. Launch the stream for the physical shard
 //5. Perform streaming migration via dataflow
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
+	updateShardsWithDataflowConfig(sourceProfile.Config.ShardConfigurationDataflow)
+	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
+	conv.Audit.StreamingStats.ShardToDataflowJobMap = make(map[string]string)
 	asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) common.TaskResult[*profiles.DataShard] {
-
 		streamingCfg := streaming.CreateStreamingConfig(*p)
-
 		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname)
 		if err != nil {
 			err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
