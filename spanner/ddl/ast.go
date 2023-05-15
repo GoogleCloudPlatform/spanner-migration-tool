@@ -91,6 +91,16 @@ var PGSQL_TO_STANDARD_TYPE_TYPEMAP = map[string]string{
 	PGJSONB:       JSON,
 }
 
+//List taken from - https://www.postgresql.org/docs/current/sql-keywords-appendix.html
+//Assumption is that this list PGSQL dialect uses the same keywords
+var PGSQL_RESERVED_KEYWORD_LIST = []string{"ALL", "ANALYSE", "ANALYZE", "AND", "ANY", "ASC",
+	"ASYMMETRIC", "BOTH", "CASE", "CAST", "CHECK", "COLLATE", "COLUMN", "CONSTRAINT", "CURRENT_CATALOG",
+	"CURRENT_DATE", "CURRENT_ROLE", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER", "DEFAULT",
+	"DEFERRABLE", "DESC", "DISTINCT", "DO", "ELSE", "END", "FALSE", "FOREIGN", "IN", "INITIALLY",
+	"LATERAL", "LEADING", "LOCALTIME", "LOCALTIMESTAMP", "NOT", "NULL", "ONLY", "OR", "PLACING",
+	"PRIMARY", "REFERENCES", "SELECT", "SESSION_USER", "SOME", "SYMMETRIC", "TABLE", "THEN",
+	"TRAILING", "TRUE", "UNIQUE", "USER", "USING", "VARIADIC", "WHEN"}
+
 // Type represents the type of a column.
 //
 //	type:
@@ -173,12 +183,35 @@ type Config struct {
 	Tables      bool // If true, print tables
 	ForeignKeys bool // If true, print foreign key constraints.
 	SpDialect   string
+	Source		string //SourceDB information for determining case-sensitivity handling for PGSQL
+}
+
+func isIdentifierReservedInPG(identifier string) bool {
+	for _, KEYWORD := range PGSQL_RESERVED_KEYWORD_LIST {
+		if strings.EqualFold(KEYWORD, identifier) {
+			return true
+		}
+	}
+	return false
+}
+
+func isSourceCaseSensitive(source string) bool {
+	switch source {
+	case constants.POSTGRES, constants.PGDUMP:
+		return true
+	default:
+		return false
+	}
 }
 
 func (c Config) quote(s string) string {
 	if c.ProtectIds {
 		if c.SpDialect == constants.DIALECT_POSTGRESQL {
-			return s
+			if isIdentifierReservedInPG(s) || isSourceCaseSensitive(c.Source) {
+				return "\"" + s + "\""
+			} else {
+				return s
+			}
 		} else {
 			return "`" + s + "`"
 		}

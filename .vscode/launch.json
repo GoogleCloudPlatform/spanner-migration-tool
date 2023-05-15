@@ -33,7 +33,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceRoot}/main.go",
-            "args": ["schema-and-data", "-source=XXX", "--target-profile='instance=XXX'", "--source-profile='host=XXX,port=XXX,user=XXX,password=XXX,dbName=XXX'","--log-level=DEBUG"
+            "args": ["schema-and-data", "-source=XXX", "--target-profile=instance=XXX", "--source-profile=host=XXX,port=XXX,user=XXX,password=XXX,dbName=XXX","--log-level=DEBUG"
             ]
         }
     ]
