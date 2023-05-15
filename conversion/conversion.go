@@ -539,12 +539,12 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 		ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
 	}
 	if dbExists {
-		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out)
+		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out, driver)
 		if err != nil {
 			return fmt.Errorf("can't update database schema: %v", err)
 		}
 	} else {
-		err := CreateDatabase(ctx, adminClient, dbURI, conv, out)
+		err := CreateDatabase(ctx, adminClient, dbURI, conv, out, driver)
 		if err != nil {
 			return fmt.Errorf("can't create database: %v", err)
 		}
@@ -556,7 +556,7 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 // It automatically determines an appropriate project, selects a
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
-func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
+func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string) error {
 	project, instance, dbName := utils.ParseDbURI(dbURI)
 	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... \n", dbName, instance)
 	// The schema we send to Spanner excludes comments (since Cloud
@@ -575,7 +575,7 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
 	} else {
 		req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
-		req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect})
+		req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver})
 	}
 
 	op, err := adminClient.CreateDatabase(ctx, req)
@@ -589,19 +589,19 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 		// Update schema separately for PG databases.
-		return UpdateDatabase(ctx, adminClient, dbURI, conv, out)
+		return UpdateDatabase(ctx, adminClient, dbURI, conv, out, driver)
 	}
 	return nil
 }
 
 // UpdateDatabase updates an existing spanner database.
-func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
+func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string) error {
 	fmt.Fprintf(out, "Updating schema for %s with default permissions ... \n", dbURI)
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
 	// Foreign Keys are set to false since we create them post data migration.
-	schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect})
+	schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver})
 	req := &adminpb.UpdateDatabaseDdlRequest{
 		Database:   dbURI,
 		Statements: schema,
@@ -623,11 +623,11 @@ func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 
 // UpdateDDLForeignKeys updates the Spanner database with foreign key
 // constraints using ALTER TABLE statements.
-func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
+func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string) error {
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
-	fkStmts := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true, SpDialect: conv.SpDialect})
+	fkStmts := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver})
 	if len(fkStmts) == 0 {
 		return nil
 	}
@@ -699,7 +699,7 @@ Recommended value is between 20-30.`)
 // WriteSchemaFile writes DDL statements in a file. It includes CREATE TABLE
 // statements and ALTER TABLE statements to add foreign keys.
 // The parameter name should end with a .txt.
-func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
+func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.File, driver string) {
 	f, err := os.Create(name)
 	if err != nil {
 		fmt.Fprintf(out, "Can't create schema file %s: %v\n", name, err)
@@ -710,7 +710,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 	// and doesn't add backticks around table and column names. This file is
 	// intended for explanatory and documentation purposes, and is not strictly
 	// legal Cloud Spanner DDL (Cloud Spanner doesn't currently support comments).
-	spDDL := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect})
+	spDDL := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver})
 	if len(spDDL) == 0 {
 		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
 	}
@@ -737,7 +737,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 
 	// We change 'Comments' to false and 'ProtectIds' to true below to write out a
 	// schema file that is a legal Cloud Spanner DDL.
-	spDDL = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect})
+	spDDL = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver})
 	if len(spDDL) == 0 {
 		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
 	}
@@ -784,7 +784,7 @@ func WriteConvGeneratedFiles(conv *internal.Conv, dbName string, driver string, 
 		return "", err
 	}
 	schemaFileName := dirPath + dbName + "_schema.txt"
-	WriteSchemaFile(conv, now, schemaFileName, out)
+	WriteSchemaFile(conv, now, schemaFileName, out, driver)
 	reportFileName := dirPath + dbName
 	Report(driver, nil, BytesRead, "", conv, reportFileName, dbName, out)
 	sessionFileName := dirPath + dbName + ".session.json"
@@ -967,7 +967,13 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile, targetProfile profiles.
 		if err != nil {
 			return nil, err
 		}
-		return postgres.InfoSchemaImpl{Db: db, SourceProfile: sourceProfile, TargetProfile: targetProfile}, nil
+		temp := false
+		return postgres.InfoSchemaImpl{
+			Db:            db,
+			SourceProfile: sourceProfile,
+			TargetProfile: targetProfile,
+			IsSchemaUnique: &temp, //this is a workaround to set a bool pointer
+		}, nil
 	case constants.DYNAMODB:
 		mySession := session.Must(session.NewSession())
 		dydbClient := dydb.New(mySession, connectionConfig.(*aws.Config))

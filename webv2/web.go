@@ -242,7 +242,8 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	case constants.MYSQL:
 		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers)
 	case constants.POSTGRES:
-		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB}, common.DefaultWorkers)
+		temp := false
+		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers)
 	case constants.SQLSERVER:
 		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers)
 	case constants.ORACLE:
@@ -544,7 +545,7 @@ func fetchLastLoadedSessionDetails(w http.ResponseWriter, r *http.Request) {
 // build DDL to send to Spanner.
 func getDDL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	c := ddl.Config{Comments: true, ProtectIds: false, SpDialect: sessionState.Conv.SpDialect}
+	c := ddl.Config{Comments: true, ProtectIds: false, SpDialect: sessionState.Conv.SpDialect, Source: sessionState.Driver}
 	var tables []string
 	for t := range sessionState.Conv.SpSchema {
 		tables = append(tables, t)
@@ -893,7 +894,7 @@ func getSchemaFile(w http.ResponseWriter, r *http.Request) {
 	schemaFileName := "frontend/" + filePrefix + "schema.txt"
 
 	sessionState := session.GetSessionState()
-	conversion.WriteSchemaFile(sessionState.Conv, now, schemaFileName, ioHelper.Out)
+	conversion.WriteSchemaFile(sessionState.Conv, now, schemaFileName, ioHelper.Out, sessionState.Driver)
 	schemaAbsPath, err := filepath.Abs(schemaFileName)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), http.StatusInternalServerError)
@@ -2272,16 +2273,16 @@ func init() {
 }
 
 // App connects to the web app v2.
-func App(logLevel string, open bool) {
+func App(logLevel string, open bool, port int) error {
 	err := logger.InitializeLogger(logLevel)
 	if err != nil {
-		log.Fatal("Error initialising webapp, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]")
+		return fmt.Errorf("error initialising webapp, did you specify a valid log-level? [DEBUG, INFO]")
 	}
-	addr := ":8080"
+	addr := fmt.Sprintf(":%s",strconv.Itoa(port))
 	router := getRoutes()
-	fmt.Println("Harbourbridge UI started at:", fmt.Sprintf("http://localhost%s", addr))
+	fmt.Println("Starting Harbourbridge UI at:", fmt.Sprintf("http://localhost%s", addr))
 	if open {
 		browser.OpenURL(fmt.Sprintf("http://localhost%s", addr))
 	}
-	log.Fatal(http.ListenAndServe(addr, handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}), handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"}), handlers.AllowedOrigins([]string{"*"}))(router)))
+	return http.ListenAndServe(addr, handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}), handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"}), handlers.AllowedOrigins([]string{"*"}))(router))
 }

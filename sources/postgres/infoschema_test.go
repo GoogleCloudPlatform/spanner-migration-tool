@@ -229,7 +229,7 @@ func TestProcessSchema(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}}, 1)
+	err := common.ProcessSchema(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, 1)
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"user": ddl.CreateTable{
@@ -363,7 +363,7 @@ func TestProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessData(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}})
+	common.ProcessData(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()})
 
 	assert.Equal(t,
 		[]spannerData{
@@ -504,7 +504,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}}, 1)
+	err := common.ProcessSchema(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, 1)
 	assert.Nil(t, err)
 	conv.SetDataMode()
 	var rows []spannerData
@@ -512,7 +512,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessData(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}})
+	common.ProcessData(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()})
 	assert.Equal(t, []spannerData{
 		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), "0"}},
 		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), "-9223372036854775808"}}},
@@ -539,7 +539,7 @@ func TestSetRowStats(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	conv.SetDataMode()
-	common.SetRowStats(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}})
+	common.SetRowStats(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()})
 	assert.Equal(t, int64(5), conv.Stats.Rows["test1"])
 	assert.Equal(t, int64(142), conv.Stats.Rows["test2"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
@@ -561,4 +561,9 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 
 	}
 	return db
+}
+
+func newFalsePtr() *bool {
+	temp := false
+	return &temp
 }

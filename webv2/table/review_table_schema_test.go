@@ -368,7 +368,7 @@ func TestReviewTableSchema(t *testing.T) {
 				status, tc.statusCode)
 		}
 
-		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.tableId], tc.expectedConv.SpDialect)
+		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.tableId], tc.expectedConv.SpDialect, sessionState.Driver)
 
 		if tc.statusCode == http.StatusOK {
 			assert.Equal(t, expectedddl, res.DDL)
