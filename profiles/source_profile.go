@@ -15,7 +15,9 @@
 package profiles
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -324,8 +326,8 @@ func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileCo
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
 	db, dbOk := params["dbName"]
-	port, _ := params["port"]
-	pwd, _ := params["password"]
+	port := params["port"]
+	pwd := params["password"]
 
 	streamingConfig, cfgOk := params["streamingCfg"]
 	if cfgOk && streamingConfig == "" {
@@ -429,12 +431,80 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 	return conn, nil
 }
 
-type SourceProfileConfig struct {
-	path string
+type DirectConnectionConfig struct {
+	DataShardId string `json:"dataShardId"`
+	Host        string `json:"host"`
+	User        string `json:"user"`
+	Password    string `json:"password"`
+	Port        string `json:"port"`
+	DbName      string `json:"dbName"`
 }
 
-func NewSourceProfileConfig(path string) SourceProfileConfig {
-	return SourceProfileConfig{path: path}
+type DatastreamConnProfile struct {
+	Name     string `json:"name"`
+	Location string `json:"location"`
+}
+
+type DataflowConfig struct {
+	Location      string `json:"location"`
+	Network       string `json:"network"`
+	Subnetwork    string `json:"subnetwork"`
+	HostProjectId string `json:"hostProjectId"`
+}
+
+type DataShard struct {
+	DataShardId          string                `json:"dataShardId"`
+	SrcConnectionProfile DatastreamConnProfile `json:"srcConnectionProfile"`
+	DstConnectionProfile DatastreamConnProfile `json:"dstConnectionProfile"`
+	DataflowConfig       DataflowConfig        `json:"dataflowConfig"`
+	TmpDir               string                `json:"tmpDir"`
+	StreamLocation       string                `json:"streamLocation"`
+	LogicalShards        []LogicalShard        `json:"databases"`
+}
+
+type LogicalShard struct {
+	DbName         string `json:"dbName"`
+	LogicalShardId string `json:"databaseId"`
+	RefDataShardId string `json:"refDataShardId"`
+}
+
+type ShardConfigurationDataflow struct {
+	SchemaSource DirectConnectionConfig `json:"schemaSource"`
+	DataShards   []*DataShard           `json:"dataShards"`
+}
+
+type ShardConfigurationBulk struct {
+	SchemaSource DirectConnectionConfig   `json:"schemaSource"`
+	DataShards   []DirectConnectionConfig `json:"dataShards"`
+}
+
+// TODO: Define the sharding structure for DMS migrations here.
+type ShardConfigurationDMS struct {
+}
+
+type SourceProfileConfig struct {
+	ConfigType                 string                     `json:"configType"`
+	ShardConfigurationBulk     ShardConfigurationBulk     `json:"shardConfigurationBulk"`
+	ShardConfigurationDataflow ShardConfigurationDataflow `json:"shardConfigurationDataflow"`
+	ShardConfigurationDMS      ShardConfigurationDMS      `json:"shardConfigurationDMS"`
+}
+
+func NewSourceProfileConfig(source string, path string) (SourceProfileConfig, error) {
+	//given the source, the fact that this 'config=', determine the appropiate object to marshal into
+	switch source {
+	case constants.MYSQL:
+		//load the JSON configuration into file
+		configFile, err := ioutil.ReadFile(path)
+		if err != nil {
+			return SourceProfileConfig{}, fmt.Errorf("cannot read config file due to: %v", err)
+		}
+		sourceProfileConfig := SourceProfileConfig{}
+		//unmarshal the JSON into object
+		err = json.Unmarshal(configFile, &sourceProfileConfig)
+		return sourceProfileConfig, err
+	default:
+		return SourceProfileConfig{}, fmt.Errorf("sharded migrations are currrently only supported for MySQL databases")
+	}
 }
 
 type SourceProfileCsv struct {
@@ -510,7 +580,14 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 			}
 		}
 	case SourceProfileTypeConfig:
-		return "", fmt.Errorf("specifying source-profile using config not implemented")
+		{
+			switch strings.ToLower(source) {
+			case constants.MYSQL:
+				return constants.MYSQL, nil
+			default:
+				return "", fmt.Errorf("specifying source-profile using config for non-mysql databases not implemented")
+			}
+		}
 	case SourceProfileTypeCsv:
 		return constants.CSV, nil
 	default:
@@ -553,8 +630,8 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 		// File is not passed in from stdin or specified using "file" flag.
 		return SourceProfile{Ty: SourceProfileTypeFile}, fmt.Errorf("file not specified, but format set to %v", format)
 	} else if file, ok := params["config"]; ok {
-		config := NewSourceProfileConfig(file)
-		return SourceProfile{Ty: SourceProfileTypeConfig, Config: config}, fmt.Errorf("source-profile type config not yet implemented")
+		config, err := NewSourceProfileConfig(strings.ToLower(source), file)
+		return SourceProfile{Ty: SourceProfileTypeConfig, Config: config}, err
 	} else {
 		// Assume connection profile type connection by default, since
 		// connection parameters could be specified as part of environment
