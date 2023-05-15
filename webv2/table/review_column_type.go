@@ -115,9 +115,29 @@ func ReviewColumnType(newType, tableId, colId string, conv *internal.Conv, inter
 	return interleaveTableSchema, nil
 }
 
-func ReviewColumnSize(colSize int64, tableId, colId string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, w http.ResponseWriter) ([]InterleaveTableSchema, error) {
+func ReviewColumnSize(colSize int64, tableId, colId string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema) []InterleaveTableSchema {
 	sp := conv.SpSchema[tableId]
-	// review update of column size for child talbe.
+	// review update of column size for child table.
+	interleaveTableSchema, childTableId := reviewColumnSizeForChildTable(colSize, tableId, colId, conv, interleaveTableSchema, sp)
+
+	// review update of column size for parent table.
+	interleaveTableSchema, parentTableId := reviewColumnSizeForParentTable(colSize, tableId, colId, conv, interleaveTableSchema, sp)
+
+	// review update of column size for current table.
+	colType := conv.SpSchema[tableId].ColDefs[colId].T.Name
+	previousSize := int(conv.SpSchema[tableId].ColDefs[colId].T.Len)
+	reviewColumnSizeChangeTableSchema(conv, tableId, colId, colSize)
+
+	if childTableId != "" || parentTableId != "" {
+		tableName := conv.SpSchema[tableId].Name
+		colName := conv.SpSchema[tableId].ColDefs[colId].Name
+		previousSize, newSize := populateColumnSize(colType, colType, int(previousSize), int(colSize))
+		interleaveTableSchema = updateSizeOfInterleaveTableSchema(interleaveTableSchema, tableName, colId, colName, colType, previousSize, newSize)
+	}
+	return interleaveTableSchema
+}
+
+func reviewColumnSizeForChildTable(colSize int64, tableId, colId string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, sp ddl.CreateTable) (_ []InterleaveTableSchema, childTableId string) {
 	isParent, childTableId := utilities.IsParent(tableId)
 	if isParent {
 		childColId, err := utilities.GetColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
@@ -131,9 +151,11 @@ func ReviewColumnSize(colSize int64, tableId, colId string, conv *internal.Conv,
 			interleaveTableSchema = updateSizeOfInterleaveTableSchema(interleaveTableSchema, childTableName, childColId, childColName, colType, previousSize, newSize)
 		}
 	}
+	return interleaveTableSchema, childTableId
+}
 
-	// review update of column size for parent table.
-	parentTableId := conv.SpSchema[tableId].ParentId
+func reviewColumnSizeForParentTable(colSize int64, tableId, colId string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, sp ddl.CreateTable) (_ []InterleaveTableSchema, parentTableId string) {
+	parentTableId = conv.SpSchema[tableId].ParentId
 	if parentTableId != "" {
 		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
 		if err == nil {
@@ -146,19 +168,7 @@ func ReviewColumnSize(colSize int64, tableId, colId string, conv *internal.Conv,
 			interleaveTableSchema = updateSizeOfInterleaveTableSchema(interleaveTableSchema, parentTableName, parentColId, parentColName, colType, previousSize, newSize)
 		}
 	}
-
-	// review update of column size for current table.
-	colType := conv.SpSchema[tableId].ColDefs[colId].T.Name
-	previousSize := int(conv.SpSchema[tableId].ColDefs[colId].T.Len)
-	reviewColumnSizeChangeTableSchema(conv, tableId, colId, colSize)
-
-	if childTableId != "" || parentTableId != "" {
-		tableName := conv.SpSchema[tableId].Name
-		colName := conv.SpSchema[tableId].ColDefs[colId].Name
-		previousSize, newSize := populateColumnSize(colType, colType, int(previousSize), int(colSize))
-		interleaveTableSchema = updateSizeOfInterleaveTableSchema(interleaveTableSchema, tableName, colId, colName, colType, previousSize, newSize)
-	}
-	return interleaveTableSchema, nil
+	return interleaveTableSchema, parentTableId
 }
 
 func populateColumnSize(previousType, newType string, prevSize int, newSize int) (int, int) {

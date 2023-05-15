@@ -876,11 +876,12 @@ func setSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string) {
 
 func revertSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string) {
 	sessionState := session.GetSessionState()
+	spColLen, _ := strconv.ParseInt(spColMaxLength.SpColMaxLength, 10, 64)
 	if associatedObjects == "All table" {
 		for tId := range sessionState.Conv.SpSchema {
 			for colId, colDef := range sessionState.Conv.SpSchema[tId].ColDefs {
 				if colDef.T.Name == spColMaxLength.SpDataType {
-					utilities.UpdateMaxColumnLen(sessionState.Conv, spColMaxLength.SpDataType, tId, colId)
+					utilities.UpdateMaxColumnLen(sessionState.Conv, spColMaxLength.SpDataType, tId, colId, spColLen)
 				}
 			}
 			common.ComputeNonKeyColumnSize(sessionState.Conv, tId)
@@ -888,7 +889,7 @@ func revertSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string)
 	} else {
 		for colId, colDef := range sessionState.Conv.SpSchema[associatedObjects].ColDefs {
 			if colDef.T.Name == spColMaxLength.SpDataType {
-				utilities.UpdateMaxColumnLen(sessionState.Conv, spColMaxLength.SpDataType, associatedObjects, colId)
+				utilities.UpdateMaxColumnLen(sessionState.Conv, spColMaxLength.SpDataType, associatedObjects, colId, spColLen)
 			}
 		}
 		common.ComputeNonKeyColumnSize(sessionState.Conv, associatedObjects)
@@ -959,7 +960,7 @@ func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	hb_reports := reports.AnalyzeTables(sessionState.Conv, nil)
 	rate := make(map[string]string)
 	for _, t := range hb_reports {
-		rate[t.SpTable], _ = internal.RateSchema(t.Cols, t.Warnings, t.Errors, t.SyntheticPKey != "", false)
+		rate[t.SpTable], _ = reports.RateSchema(t.Cols, t.Warnings, t.Errors, t.SyntheticPKey != "", false)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(rate)
@@ -1148,7 +1149,6 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnType)
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
 
 						sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaissue
@@ -1172,7 +1172,6 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnType)
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
 
 						schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
@@ -1516,7 +1515,7 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 			colId := sp.ForeignKeys[position].ColIds[0]
 			schemaIssue := []internal.SchemaIssue{}
 			for _, v := range sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] {
-				if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder && v != internal.InterleavedChangeColumnSize && v != internal.InterleavedChangeColumnType {
+				if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder && v != internal.InterleavedChangeColumnSize {
 					schemaIssue = append(schemaIssue, v)
 				}
 			}
@@ -2182,9 +2181,6 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 	}
 
 	if parentTable.ColDefs[parentPks[0].ColId].Name == childTable.ColDefs[childPks[0].ColId].Name &&
-		parentTable.ColDefs[parentPks[0].ColId].T.Name != childTable.ColDefs[childPks[0].ColId].T.Name {
-		updateInterleaveSuggestion([]string{childPks[0].ColId}, tableId, internal.InterleavedChangeColumnType)
-	} else if parentTable.ColDefs[parentPks[0].ColId].Name == childTable.ColDefs[childPks[0].ColId].Name &&
 		parentTable.ColDefs[parentPks[0].ColId].T.Len != childTable.ColDefs[childPks[0].ColId].T.Len {
 		updateInterleaveSuggestion([]string{childPks[0].ColId}, tableId, internal.InterleavedChangeColumnSize)
 	} else if len(canInterleavedOnRename) > 0 {
@@ -2214,7 +2210,6 @@ func updateInterleaveSuggestion(colIds []string, tableId string, issue internal.
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
-		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnType)
 
 		schemaissue = append(schemaissue, issue)
 
@@ -2250,7 +2245,6 @@ func removeInterleaveSuggestions(colIds []string, tableId string) {
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
-		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnType)
 
 		if sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues == nil {
 

@@ -255,13 +255,6 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					if !internal.Contains(l, str) {
 						l = append(l, str)
 					}
-				case internal.InterleavedChangeColumnType:
-					parent, fkName, referColName := getInterleaveDetail(conv, tableId, colId, i)
-					str := fmt.Sprintf(" %s %s change column type %s of column %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, spColType, spColName, spSchema.Name, fkName, referColName)
-
-					if !internal.Contains(l, str) {
-						l = append(l, str)
-					}
 				case internal.InterleavedChangeColumnSize:
 					parent, fkName, referColName := getInterleaveDetail(conv, tableId, colId, i)
 					str := fmt.Sprintf(" %s %s change column size of column %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, spColName, spSchema.Name, fkName, referColName)
@@ -335,7 +328,6 @@ func getInterleaveDetail(conv *internal.Conv, tableId string, colId string, issu
 				}
 			case internal.InterleavedRenameColumn:
 			case internal.InterleavedChangeColumnSize:
-			case internal.InterleavedChangeColumnType:
 				if err1 == nil {
 					parentTable := conv.SpSchema[fk.ReferTableId]
 					return conv.SpSchema[fk.ReferTableId].Name, fk.Name, parentTable.ColDefs[fk.ReferColumnIds[i]].Name
@@ -414,7 +406,6 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.InterleavedAddColumn:        {Brief: "Candidate for Interleaved Table", severity: suggestion},
 	internal.IllegalName:                 {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning},
 	internal.InterleavedRenameColumn:     {Brief: "Candidate for Interleaved Table", severity: suggestion},
-	internal.InterleavedChangeColumnType: {Brief: "Candidate for Interleaved Table", severity: suggestion},
 	internal.InterleavedChangeColumnSize: {Brief: "Candidate for Interleaved Table", severity: suggestion},
 	internal.RowLimitExceeded:            {Brief: "Non key columns exceed the spanner limit of 1600 MB. Please modify the column sizes", severity: errors},
 }

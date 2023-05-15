@@ -54,7 +54,10 @@ func UpdateColumnType(newType, tableId, colId string, conv *internal.Conv, w htt
 				if fkColPosition == -1 {
 					continue
 				}
-				UpdateColumnTypeChangeTableSchema(conv, sp.Name, sp.ForeignKeys[j].ColIds[fkColPosition], newType, w)
+				err = UpdateColumnTypeChangeTableSchema(conv, sp.Id, sp.ForeignKeys[j].ColIds[fkColPosition], newType, w)
+				if err != nil {
+					return
+				}
 			}
 		}
 	}

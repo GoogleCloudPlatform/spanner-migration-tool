@@ -101,7 +101,6 @@ const (
 	InterleavedAddColumn
 	IllegalName
 	InterleavedRenameColumn
-	InterleavedChangeColumnType
 	InterleavedChangeColumnSize
 	RowLimitExceeded
 )

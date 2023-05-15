@@ -142,10 +142,6 @@ func RemoveSchemaIssues(schemaissue []internal.SchemaIssue) []internal.SchemaIss
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
 		fallthrough
 
-	case IsSchemaIssuePresent(schemaissue, internal.InterleavedChangeColumnType):
-		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnType)
-		fallthrough
-
 	case IsSchemaIssuePresent(schemaissue, internal.InterleavedChangeColumnSize):
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
 	}
@@ -331,22 +327,23 @@ func UpdateDataType(conv *internal.Conv, newType, tableId, colId string) error {
 	return nil
 }
 
-func updateColLen(conv *internal.Conv, dataType, tableId, colId string) error {
+// Update the column length with the default mapping length in case its same as the length in the rule added
+func updateColLen(conv *internal.Conv, dataType, tableId, colId string, spColLen int64) error {
 	sp, ty, err := GetType(conv, dataType, tableId, colId)
 	if err != nil {
 		return err
 	}
-	if ty.Len == ddl.MaxLength {
-		colDef := sp.ColDefs[colId]
+	colDef := sp.ColDefs[colId]
+	if colDef.T.Len == spColLen {
 		colDef.T.Len = ty.Len
 		sp.ColDefs[colId] = colDef
 	}
 	return nil
 }
 
-func UpdateMaxColumnLen(conv *internal.Conv, dataType, tableId, colId string) error {
+func UpdateMaxColumnLen(conv *internal.Conv, dataType, tableId, colId string, spColLen int64) error {
 
-	err := updateColLen(conv, dataType, tableId, colId)
+	err := updateColLen(conv, dataType, tableId, colId, spColLen)
 	if err != nil {
 		return err
 	}
@@ -356,7 +353,7 @@ func UpdateMaxColumnLen(conv *internal.Conv, dataType, tableId, colId string) er
 	if isParent {
 		childColId, err := GetColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
 		if err == nil {
-			err = updateColLen(conv, dataType, childTableId, childColId)
+			err = updateColLen(conv, dataType, childTableId, childColId, spColLen)
 			if err != nil {
 				return err
 			}
@@ -368,7 +365,7 @@ func UpdateMaxColumnLen(conv *internal.Conv, dataType, tableId, colId string) er
 	if parentTableId != "" {
 		parentColId, err := GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
 		if err == nil {
-			err = updateColLen(conv, dataType, parentTableId, parentColId)
+			err = updateColLen(conv, dataType, parentTableId, parentColId, spColLen)
 			if err != nil {
 				return err
 			}

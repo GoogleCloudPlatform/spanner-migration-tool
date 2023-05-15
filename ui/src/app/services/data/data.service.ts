@@ -208,10 +208,10 @@ export class DataService {
                   column.Type = pgSQLType === undefined ? column.Type : pgSQLType
                   column.UpdateType = pgSQLUpdateType === undefined ? column.UpdateType : pgSQLUpdateType
                 }
-                if (column.Type === 'VARCHAR' || column.Type === 'STRING' || column.Type === 'BYTES') {
+                if (ColLength.DataTypes.indexOf(column.Type.toString())>-1) {
                   column.Type += this.updateColumnSize(column.Size)
                 }
-                if (column.UpdateType === 'VARCHAR'|| column.UpdateType === 'STRING' || column.UpdateType === 'BYTES') {
+                if (ColLength.DataTypes.indexOf(column.UpdateType.toString())>-1) {
                   column.UpdateType += this.updateColumnSize(column.UpdateSize)
                 }
               })

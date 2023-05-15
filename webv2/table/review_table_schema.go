@@ -141,10 +141,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 				colMaxLength, _ = strconv.ParseInt(v.MaxColLength, 10, 64)
 			}
 			if conv.SpSchema[tableId].ColDefs[colId].T.Len != colMaxLength {
-				interleaveTableSchema, err = ReviewColumnSize(colMaxLength, tableId, colId, conv, interleaveTableSchema, w)
-				if err != nil {
-					return
-				}
+				interleaveTableSchema = ReviewColumnSize(colMaxLength, tableId, colId, conv, interleaveTableSchema)
 			}
 		}
 	}
