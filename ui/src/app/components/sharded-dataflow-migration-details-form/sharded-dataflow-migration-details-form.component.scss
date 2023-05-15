@@ -1,0 +1,53 @@
+.icon {
+    font-size: 15px;
+}
+
+.connection-form-container {
+    display: block;
+}
+
+.left-text {
+    width: 40%;
+    display: inline-block;
+}
+
+.shard-mapping-form-row {
+    width: 80%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.table-header {
+    width: 80%;
+    margin: auto;
+    text-align: right;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+form,
+.table-body {
+  flex: auto;
+  overflow-y: auto;
+}
+
+.table-buttons {
+    margin-left: 70%;
+}
+
+.radio-button-container {
+    display: flex;
+    flex-direction: row;
+    margin: 15px 0;
+    align-items: flex-start;
+}
+
+.radio-button {
+    margin: 5px;
+  }
+
+.json-input {
+    width: 100%;
+}

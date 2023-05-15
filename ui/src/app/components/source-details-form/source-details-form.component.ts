@@ -69,6 +69,7 @@ export class SourceDetailsFormComponent implements OnInit {
     const { hostName, port, userName, password, dbName } = this.directConnectForm.value
     let payload: IDbConfig = {
       dbEngine: this.sourceDatabaseEngine,
+      isSharded: false,
       hostName: hostName,
       port: port,
       userName: userName,

@@ -5,16 +5,19 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary, ISpannerDetails } from 'src/app/model/conv'
-import IMigrationDetails, { IGeneratedResources, IProgress, ISourceAndTargetDetails } from 'src/app/model/migrate'
+import IMigrationDetails, { IGeneratedResources, IProgress, ISourceAndTargetDetails, ResourceDetails } from 'src/app/model/migrate'
 import { Dataflow, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
 import { SourceDetailsFormComponent } from '../source-details-form/source-details-form.component'
 import { EndMigrationComponent } from '../end-migration/end-migration.component'
-import { IDataflowConfig, ISetUpConnectionProfile } from 'src/app/model/profile'
+import { IDataflowConfig, ISetUpConnectionProfile, IShardedDataflowMigration } from 'src/app/model/profile'
 import { DataflowFormComponent } from '../dataflow-form/dataflow-form.component'
 import ISpannerConfig from 'src/app/model/spanner-config'
+import { ShardedBulkSourceDetailsFormComponent } from '../sharded-bulk-source-details-form/sharded-bulk-source-details-form.component'
+import { IShardSessionDetails } from 'src/app/model/db-config'
+import { ShardedDataflowMigrationDetailsFormComponent } from '../sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -68,10 +71,14 @@ export class PrepareMigrationComponent implements OnInit {
     DataStreamJobUrl: '',
     DataflowJobName: '',
     DataflowJobUrl: '',
+    ShardToDatastreamMap: new Map<string, ResourceDetails>(),
+    ShardToDataflowMap: new Map<string, ResourceDetails>(),
   }
   region: string = ''
   instance: string = ''
   dialect: string = ''
+  isSharded: boolean = false
+  numberOfShards: string = ''
   nodeCount: number = 0
   processingUnits: number = 0
 
@@ -84,9 +91,9 @@ export class PrepareMigrationComponent implements OnInit {
   }
 
   dataflowConfig: IDataflowConfig = {
-    Network: localStorage.getItem(Dataflow.Network) as string,
-    Subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-    HostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
+    network: localStorage.getItem(Dataflow.Network) as string,
+    subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
+    hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
   }
   spannerConfig: ISpannerConfig = {
     GCPProjectID: '',
@@ -155,6 +162,7 @@ export class PrepareMigrationComponent implements OnInit {
         this.region = res.Region
         this.instance = res.Instance
         this.dialect = res.Dialect
+        this.isSharded = res.IsSharded
         this.processingUnits = res.ProcessingUnits
         this.nodeCount = res.NodeCount
         this.migrationTypes = [
@@ -277,6 +285,12 @@ export class PrepareMigrationComponent implements OnInit {
       this.generatingResources =
         (localStorage.getItem(MigrationDetails.GeneratingResources) as string) === 'true'
     }
+    if (localStorage.getItem(MigrationDetails.NumberOfShards) != null) {
+      this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
+    }
+    if (localStorage.getItem(MigrationDetails.NumberOfShards) != null) {
+      this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
+    }
   }
 
   clearLocalStorage() {
@@ -301,6 +315,7 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.ForeignKeyUpdateProgress)
     localStorage.removeItem(MigrationDetails.HasForeignKeyUpdateStarted)
     localStorage.removeItem(MigrationDetails.GeneratingResources)
+    localStorage.removeItem(MigrationDetails.NumberOfShards)
   }
   openConnectionProfileForm(isSource: boolean) {
     let payload: ISetUpConnectionProfile = {
@@ -336,6 +351,44 @@ export class PrepareMigrationComponent implements OnInit {
     })
   }
 
+  openMigrationProfileForm() {
+    let payload: IShardedDataflowMigration = {
+      IsSource: false,
+      SourceDatabaseType: this.sourceDatabaseType,
+      Region: this.region
+    }
+    let dialogRef = this.dialog.open(ShardedDataflowMigrationDetailsFormComponent, {
+      width: '30vw',
+      minWidth: '1200px',
+      maxWidth: '1600px',
+      data: payload,
+    })
+    dialogRef.afterClosed().subscribe(() => {
+      this.targetDetails = {
+        TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
+        SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
+        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
+        ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
+        Publication: localStorage.getItem(TargetDetails.Publication) as string,
+      }
+      this.isSourceConnectionProfileSet =
+        (localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string) === 'true'
+      this.isTargetConnectionProfileSet =
+        (localStorage.getItem(MigrationDetails.IsTargetConnectionProfileSet) as string) === 'true'
+      if (
+        this.isTargetDetailSet &&
+        this.isSourceConnectionProfileSet &&
+        this.isTargetConnectionProfileSet
+      ) {
+        localStorage.setItem(MigrationDetails.IsMigrationDetailSet, 'true')
+        this.isMigrationDetailSet = true
+      }
+    }
+    )
+  }
+
+
+
   openDataflowForm() {
     let dialogRef = this.dialog.open(DataflowFormComponent, {
       width: '30vw',
@@ -345,9 +398,9 @@ export class PrepareMigrationComponent implements OnInit {
     })
     dialogRef.afterClosed().subscribe(() => {
       this.dataflowConfig = {
-        Network: localStorage.getItem(Dataflow.Network) as string,
-        Subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-        HostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
+        network: localStorage.getItem(Dataflow.Network) as string,
+        subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
+        hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
       }
       this.isDataflowConfigurationSet = localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true'
     }
@@ -380,6 +433,23 @@ export class PrepareMigrationComponent implements OnInit {
     dialogRef.afterClosed().subscribe(() => {
       this.isSourceDetailsSet =
         (localStorage.getItem(MigrationDetails.IsSourceDetailsSet) as string) === 'true'
+    })
+  }
+
+  openShardedBulkSourceDetailsForm() {
+    let payload: IShardSessionDetails = {
+      sourceDatabaseEngine: this.sourceDatabaseType,
+      isRestoredSession: this.connectionType
+    }
+    let dialogRef = this.dialog.open(ShardedBulkSourceDetailsFormComponent, {
+      width: '30vw',
+      minWidth: '400px',
+      maxWidth: '500px',
+      data: payload
+    })
+    dialogRef.afterClosed().subscribe(() => {
+      this.isSourceDetailsSet = localStorage.getItem(MigrationDetails.IsSourceDetailsSet) as string === 'true'
+      this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
     })
   }
 
@@ -437,6 +507,7 @@ export class PrepareMigrationComponent implements OnInit {
     let payload: IMigrationDetails = {
       TargetDetails: this.targetDetails,
       DataflowConfig: this.dataflowConfig,
+      IsSharded: this.isSharded,
       MigrationType: this.selectedMigrationType,
       MigrationMode: this.selectedMigrationMode,
     }
@@ -668,6 +739,8 @@ export class PrepareMigrationComponent implements OnInit {
       DataStreamJobUrl: '',
       DataflowJobName: '',
       DataflowJobUrl: '',
+      ShardToDatastreamMap: new Map<string, ResourceDetails>(),
+      ShardToDataflowMap: new Map<string, ResourceDetails>()
     }
     this.initializeLocalStorage()
   }

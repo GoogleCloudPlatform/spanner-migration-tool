@@ -184,6 +184,7 @@ export interface ISessionSummary {
   ProcessingUnits: number
   Instance: string
   Dialect: string
+  IsSharded: boolean
 }
 
 export interface ISpannerDetails {

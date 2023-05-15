@@ -16,6 +16,7 @@ import { TableUpdatePubSubService } from '../table-update-pub-sub/table-update-p
 import { ConversionService } from '../conversion/conversion.service'
 import { ColLength, Dialect } from 'src/app/app.constants'
 import { Console } from 'console'
+import IDbConfig from 'src/app/model/db-config'
 
 @Injectable({
   providedIn: 'root',
