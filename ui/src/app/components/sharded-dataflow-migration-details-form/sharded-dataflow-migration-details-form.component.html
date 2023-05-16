@@ -134,6 +134,8 @@
             </div>
             <br>
             <hr>
+            <div class="btm">
+                <div class="btm-1">
             <span class="mat-h4 header-title">Configure Target Profile</span>
             <div class="target-radio-button-container">
                 <mat-radio-group formControlName="targetProfileOption" [(ngModel)]="selectedTargetProfileOption"
@@ -169,15 +171,27 @@
                     (click)="createOrTestConnection(false, false)">CREATE
                     PROFILE</button>
             </div>
-        </div>
+        
         <button mat-button color="primary" mat-dialog-close>CANCEL</button>
-        <button *ngIf="(migrationProfileForm.value.inputType === 'form')" mat-raised-button type="submit" color="accent"
+        <button *ngIf="(migrationProfileForm.value.inputType === 'form')" mat-raised-button type="submit" [disabled]="migrationProfileForm.invalid" color="accent"
             (click)="saveDetailsAndReset()">
             ADD MORE
         </button>
-        <button mat-raised-button type="submit" color="primary" (click)="finalizeConnDetails()">
+        <button mat-raised-button type="submit" [disabled]="migrationProfileForm.invalid" color="primary" (click)="finalizeConnDetails()">
             FINISH
         </button>
+    </div>
+        <div class="btm-2">
+            <mat-card>
+                <mat-card-header>
+                  <mat-card-title>Total Configured Shards</mat-card-title>
+                  <mat-card-subtitle>{{ numShards }} shards configured.</mat-card-subtitle>
+                </mat-card-header>
+            </mat-card>
+        </div>
+    </div>
+    
+    </div>
         <div *ngIf="errorMsg!=''" class="failure">
             <span class="left-text">{{ errorMsg }}</span>
             <mat-icon class="icon error" [matTooltip]="errorMsg" matTooltipPosition="above">

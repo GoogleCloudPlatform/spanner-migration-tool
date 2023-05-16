@@ -38,6 +38,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   createSrcConnSuccess: boolean = false
   createTgtConnSuccess: boolean = false
   region: string
+  numShards: number = this.dataShardIdList.length
 
   inputOptionsList = [
     { value: 'text', displayName: 'Text' },
@@ -204,6 +205,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       dataShardId: [],
       shardMappingTable: this.formBuilder.array([shardTableRowForm])
     })
+    this.snack.openSnackBar('Shard configured successfully, please configure the next', 'Close', 5)
   }
 
   finalizeConnDetails() {
@@ -298,6 +300,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       }
     }
     this.shardIdToDBMappingTable.push(shardIdToDBMapping)
+    this.numShards = this.dataShardIdList.length
   }
 
   createOrTestConnection(isSource: boolean, isValidateOnly: boolean) {
