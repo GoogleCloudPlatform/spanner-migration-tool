@@ -5,6 +5,7 @@ import { MigrationDetails, StorageKeys } from 'src/app/app.constants';
 import IDbConfig, { IDbConfigs, IShardSessionDetails } from 'src/app/model/db-config';
 import { DataService } from 'src/app/services/data/data.service';
 import { FetchService } from 'src/app/services/fetch/fetch.service';
+import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
 
 @Component({
   selector: 'app-sharded-bulk-source-details-form',
@@ -33,6 +34,7 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
 
   constructor(
     private fetch: FetchService,
+    private snack: SnackbarService,
     private dataService: DataService,
     private dialogRef: MatDialogRef<ShardedBulkSourceDetailsFormComponent>,
     @Inject(MAT_DIALOG_DATA) public data: IShardSessionDetails
@@ -83,16 +85,16 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
       dbName: dbName,
     }
     this.shardConnDetailsList.push(connConfig)
-    this.directConnectForm.reset()
     this.directConnectForm = new FormGroup({
       inputType: new FormControl('form'),
-      textInput: new FormControl(''),
-      hostName: new FormControl(''),
-      port: new FormControl(''),
-      userName: new FormControl(''),
-      dbName: new FormControl(''),
-      password: new FormControl(''),
+      textInput: new FormControl('', [Validators.required]),
+      hostName: new FormControl('', [Validators.required]),
+      port: new FormControl('', [Validators.required]),
+      userName: new FormControl('', [Validators.required]),
+      dbName: new FormControl('', [Validators.required]),
+      password: new FormControl('', [Validators.required]),
     })
+    this.snack.openSnackBar('Shard configured successfully, please configure the next', 'Close', 5)
   }
   finalizeConnDetails() {
     let inputType: string = this.directConnectForm.value.inputType
