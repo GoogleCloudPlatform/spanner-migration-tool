@@ -78,7 +78,7 @@ export class PrepareMigrationComponent implements OnInit {
   instance: string = ''
   dialect: string = ''
   isSharded: boolean = false
-  numberOfShards: string = ''
+  numberOfShards: string = '0'
   nodeCount: number = 0
   processingUnits: number = 0
 
@@ -371,6 +371,7 @@ export class PrepareMigrationComponent implements OnInit {
         ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
         Publication: localStorage.getItem(TargetDetails.Publication) as string,
       }
+      this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
       this.isSourceConnectionProfileSet =
         (localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string) === 'true'
       this.isTargetConnectionProfileSet =

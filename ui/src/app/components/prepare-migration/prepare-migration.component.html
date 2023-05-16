@@ -158,12 +158,11 @@
         </mat-card>
         <br />
     </div>
-    <div *ngIf="(isSourceDetailsSet) && isSharded">
+    <div *ngIf="isSharded">
         <h3> Source Details</h3>
         <span><b>Source Database: </b>{{ sourceDatabaseType }}</span><br />
         <span><b>Number of shards configured: </b> {{ numberOfShards }}</span><br />
         <br />
-    </div>
     <div *ngIf="isTargetDetailSet">
         <h3>Target Details</h3>
         <span><b>Spanner Database: </b>{{ targetDetails.TargetDB }}</span><br />

@@ -124,7 +124,6 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
     this.sourceConnDetails.isRestoredSession = this.shardSessionDetails.isRestoredSession
     this.fetch.setShardsSourceDBDetailsForBulk(this.sourceConnDetails).subscribe({
       next: () => {
-        localStorage.setItem(MigrationDetails.IsSourceDetailsSet, "true")
         localStorage.setItem(MigrationDetails.NumberOfShards, this.sourceConnDetails.dbConfigs.length.toString())
         this.dialogRef.close()
       },
