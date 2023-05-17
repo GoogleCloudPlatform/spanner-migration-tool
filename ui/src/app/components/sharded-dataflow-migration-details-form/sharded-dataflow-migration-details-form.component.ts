@@ -38,7 +38,8 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   createSrcConnSuccess: boolean = false
   createTgtConnSuccess: boolean = false
   region: string
-  numShards: number = this.dataShardIdList.length
+  physicalShards: number = 0
+  logicalShards: number = 0
 
   inputOptionsList = [
     { value: 'text', displayName: 'Text' },
@@ -104,7 +105,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   }
 
   initFromLocalStorage() {
-    
+
   }
 
   get shardMappingTable() {
@@ -187,11 +188,11 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       for (const key in this.migrationProfileForm.controls) {
         this.migrationProfileForm.get(key)?.clearValidators();
         this.migrationProfileForm.get(key)?.updateValueAndValidity();
-    }
-    this.migrationProfileForm.get('textInput')?.setValidators([Validators.required])
+      }
+      this.migrationProfileForm.get('textInput')?.setValidators([Validators.required])
     }
     else {
-      this.onItemChange('new','source')
+      this.onItemChange('new', 'source')
       this.onItemChange('new', 'target')
       this.migrationProfileForm.controls['textInput'].clearValidators()
       this.migrationProfileForm.controls['textInput'].updateValueAndValidity()
@@ -224,38 +225,44 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   }
 
   finalizeConnDetails() {
-    let formValue = this.migrationProfileForm.value
-    let inputType: string = formValue.inputType
-    if (inputType === "form") {
-      //save the latest values from the form in the arrays as well
-      this.handleConnConfigsFromForm()
-      //create the configuration to be passed to the backend.
-      let dataShards: Array<IDataShard> = []
-      //this can be the length of any of the lists
-      const numShards = this.definedSrcConnProfileList.length;
-      for (let i = 0; i < numShards; i++) {
-        const dataShardId = this.dataShardIdList[i]
-        const srcConnProfile = this.definedSrcConnProfileList[i]
-        const tgtConnProfile = this.definedTgtConnProfileList[i]
-        const shardIdToDBMapping = this.shardIdToDBMappingTable[i]  
-        let dataShard: IDataShard = {
-          dataShardId: dataShardId,
-          srcConnectionProfile: srcConnProfile,
-          dstConnectionProfile: tgtConnProfile,
-          streamLocation: this.region,
-          databases: shardIdToDBMapping
+      let formValue = this.migrationProfileForm.value
+      let inputType: string = formValue.inputType
+      if (inputType === "form") {
+        //The user can also hit "Finish" while trying to 
+        //configure a non-first shard, in that case we should
+        //consider it a valid shard only if the full information
+        //is provided.
+        if (this.migrationProfileForm.valid) {
+          this.handleConnConfigsFromForm()
         }
-        dataShards.push(dataShard)
+        //create the configuration to be passed to the backend.
+        let dataShards: Array<IDataShard> = []
+        //this can be the length of any of the lists
+        const numShards = this.definedSrcConnProfileList.length;
+        for (let i = 0; i < numShards; i++) {
+          const dataShardId = this.dataShardIdList[i]
+          const srcConnProfile = this.definedSrcConnProfileList[i]
+          const tgtConnProfile = this.definedTgtConnProfileList[i]
+          const shardIdToDBMapping = this.shardIdToDBMappingTable[i]
+          let dataShard: IDataShard = {
+            dataShardId: dataShardId,
+            srcConnectionProfile: srcConnProfile,
+            dstConnectionProfile: tgtConnProfile,
+            streamLocation: this.region,
+            databases: shardIdToDBMapping
+          }
+          dataShards.push(dataShard)
+        }
+        this.migrationProfile.shardConfigurationDataflow.dataShards = dataShards
+      } else {
+        try {
+          this.migrationProfile = JSON.parse(formValue.textInput)
+        } catch (err) {
+          this.errorMsg = 'Unable to parse JSON'
+          throw new Error(this.errorMsg)
+        }
       }
-      this.migrationProfile.shardConfigurationDataflow.dataShards = dataShards
-    } else {
-      try {
-        this.migrationProfile = JSON.parse(formValue.textInput)
-      } catch (err) {
-        this.errorMsg = 'Unable to parse JSON'
-        throw new Error(this.errorMsg)
-      }
-    }
+    
     this.fetch.setShardSourceDBDetailsForDataflow(this.migrationProfile).subscribe({
       next: () => {
         localStorage.setItem(MigrationDetails.IsSourceConnectionProfileSet, "true")
@@ -315,7 +322,28 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       }
     }
     this.shardIdToDBMappingTable.push(shardIdToDBMapping)
-    this.numShards = this.dataShardIdList.length
+    this.physicalShards = this.dataShardIdList.length
+    this.logicalShards = this.logicalShards + shardIdToDBMapping.length
+  }
+
+  determineFormValidity(): boolean {
+    if (this.definedSrcConnProfileList.length > 0) {
+      //means atleast one shard is configured. Finish should be enabled in this case.
+      //if all the values are filled, the last form values should be converted
+      //into a shard and if the user decides midway to hit finish, the partially filled 
+      //values should be discarded. This handling will be done in handleConnConfigsFromForm()
+      //method
+      return true
+    }
+    else if (this.migrationProfileForm.valid) {
+      //this is the first shard being configured, and user wants to hit Finish
+      //Enable the button so that the shard config can be submitted on button click.
+      return true
+    }
+    else {
+      //all other cases
+      return false
+    }
   }
 
   createOrTestConnection(isSource: boolean, isValidateOnly: boolean) {
@@ -338,7 +366,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
         ValidateOnly: isValidateOnly,
       }
     }
-      this.fetch.createConnectionProfile(payload).subscribe({
+    this.fetch.createConnectionProfile(payload).subscribe({
       next: () => {
         if (isValidateOnly) {
           this.testSuccess = true

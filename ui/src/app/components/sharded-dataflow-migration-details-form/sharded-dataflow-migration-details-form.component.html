@@ -178,7 +178,8 @@
             <mat-card>
                 <mat-card-header>
                   <mat-card-title>Total Configured Shards</mat-card-title>
-                  <mat-card-subtitle>{{ numShards }} shards configured.</mat-card-subtitle>
+                  <mat-card-subtitle>{{ physicalShards }} physical instances configured.</mat-card-subtitle>
+                  <mat-card-subtitle>{{ logicalShards }} logical shards configured.</mat-card-subtitle>
                 </mat-card-header>
             </mat-card>
         </div>
@@ -190,7 +191,7 @@
             (click)="saveDetailsAndReset()">
             ADD MORE
         </button>
-        <button mat-raised-button type="submit" [disabled]="!migrationProfileForm.valid" color="primary" (click)="finalizeConnDetails()">
+        <button mat-raised-button type="submit" [disabled]="!determineFormValidity()" color="primary" (click)="finalizeConnDetails()">
             FINISH
         </button>
         <div *ngIf="errorMsg!=''" class="failure">

@@ -351,8 +351,6 @@ func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request)
 	//Take the received object and store it into session state.
 	sessionState := session.GetSessionState()
 	reqBody, err := ioutil.ReadAll(r.Body)
-	fmt.Println("Received reqObject - ")
-	fmt.Printf("%+v\n\n", string(reqBody))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
