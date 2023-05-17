@@ -4,7 +4,7 @@
         <br>
         <mat-form-field appearance="outline">
             <mat-label>Input Type</mat-label>
-            <mat-select formControlName="inputType">
+            <mat-select #inputType formControlName="inputType" (selectionChange)="setValidators(inputType.value)">
                 <mat-option *ngFor="let element of inputOptionsList" [value]="element.value">
                     {{ element.displayName }}
                 </mat-option>
@@ -172,14 +172,7 @@
                     PROFILE</button>
             </div>
         
-        <button mat-button color="primary" mat-dialog-close>CANCEL</button>
-        <button *ngIf="(migrationProfileForm.value.inputType === 'form')" mat-raised-button type="submit" [disabled]="migrationProfileForm.invalid" color="accent"
-            (click)="saveDetailsAndReset()">
-            ADD MORE
-        </button>
-        <button mat-raised-button type="submit" [disabled]="migrationProfileForm.invalid" color="primary" (click)="finalizeConnDetails()">
-            FINISH
-        </button>
+        
     </div>
         <div class="btm-2">
             <mat-card>
@@ -190,13 +183,22 @@
             </mat-card>
         </div>
     </div>
-    
     </div>
+    <div class="last-btns">
+    <button mat-button color="primary" mat-dialog-close>CANCEL</button>
+        <button *ngIf="(migrationProfileForm.value.inputType === 'form')" mat-raised-button type="submit" [disabled]="migrationProfileForm.invalid" color="accent"
+            (click)="saveDetailsAndReset()">
+            ADD MORE
+        </button>
+        <button mat-raised-button type="submit" [disabled]="!migrationProfileForm.valid" color="primary" (click)="finalizeConnDetails()">
+            FINISH
+        </button>
         <div *ngIf="errorMsg!=''" class="failure">
             <span class="left-text">{{ errorMsg }}</span>
             <mat-icon class="icon error" [matTooltip]="errorMsg" matTooltipPosition="above">
                 error
             </mat-icon>
         </div>
+    </div>
     </form>
 </div>

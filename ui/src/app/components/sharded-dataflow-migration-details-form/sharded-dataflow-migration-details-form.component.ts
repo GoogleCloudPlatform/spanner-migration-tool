@@ -180,7 +180,22 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
         this.migrationProfileForm.controls['existingTargetProfile'].updateValueAndValidity()
       }
     }
+  }
 
+  setValidators(inputType: string) {
+    if (inputType == "text") {
+      for (const key in this.migrationProfileForm.controls) {
+        this.migrationProfileForm.get(key)?.clearValidators();
+        this.migrationProfileForm.get(key)?.updateValueAndValidity();
+    }
+    this.migrationProfileForm.get('textInput')?.setValidators([Validators.required])
+    }
+    else {
+      this.onItemChange('new','source')
+      this.onItemChange('new', 'target')
+      this.migrationProfileForm.controls['textInput'].clearValidators()
+      this.migrationProfileForm.controls['textInput'].updateValueAndValidity()
+    }
   }
 
   saveDetailsAndReset() {

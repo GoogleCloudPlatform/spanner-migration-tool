@@ -363,11 +363,6 @@ func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request)
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	fmt.Println("Received config object - ")
-	fmt.Printf("%+v\n\n", srcConfig)
-	for _, d := range srcConfig.MigrationProfile.ShardConfigurationDataflow.DataShards {
-		fmt.Printf("%+v\n", d)
-	}
 	sessionState.SourceProfileConfig = srcConfig.MigrationProfile
 	w.WriteHeader(http.StatusOK)
 }
@@ -385,8 +380,6 @@ func setShardsSourceDBDetailsForBulk(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	fmt.Println("Received config object - ")
-	fmt.Printf("%+v\n\n", shardConfigs)
 	var connDetailsList []profiles.DirectConnectionConfig
 	for i, config := range shardConfigs.DbConfigs {
 		dataSourceName := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
