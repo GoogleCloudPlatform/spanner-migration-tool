@@ -260,7 +260,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       next: () => {
         localStorage.setItem(MigrationDetails.IsSourceConnectionProfileSet, "true")
         localStorage.setItem(MigrationDetails.IsTargetConnectionProfileSet, "true")
-        localStorage.setItem(MigrationDetails.NumberOfShards, this.dataShardIdList.length.toString())
+        localStorage.setItem(MigrationDetails.NumberOfShards, this.migrationProfile.shardConfigurationDataflow.dataShards.length.toString())
         this.dialogRef.close()
       },
       error: (err: any) => {
