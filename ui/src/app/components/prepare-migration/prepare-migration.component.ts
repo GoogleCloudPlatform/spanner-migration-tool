@@ -79,6 +79,7 @@ export class PrepareMigrationComponent implements OnInit {
   dialect: string = ''
   isSharded: boolean = false
   numberOfShards: string = '0'
+  numberOfInstances: string = '0'
   nodeCount: number = 0
   processingUnits: number = 0
 
@@ -288,8 +289,8 @@ export class PrepareMigrationComponent implements OnInit {
     if (localStorage.getItem(MigrationDetails.NumberOfShards) != null) {
       this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
     }
-    if (localStorage.getItem(MigrationDetails.NumberOfShards) != null) {
-      this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
+    if (localStorage.getItem(MigrationDetails.NumberOfInstances) != null) {
+      this.numberOfInstances = localStorage.getItem(MigrationDetails.NumberOfInstances) as string
     }
   }
 
@@ -316,6 +317,7 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.HasForeignKeyUpdateStarted)
     localStorage.removeItem(MigrationDetails.GeneratingResources)
     localStorage.removeItem(MigrationDetails.NumberOfShards)
+    localStorage.removeItem(MigrationDetails.NumberOfInstances)
   }
   openConnectionProfileForm(isSource: boolean) {
     let payload: ISetUpConnectionProfile = {
@@ -372,6 +374,7 @@ export class PrepareMigrationComponent implements OnInit {
         Publication: localStorage.getItem(TargetDetails.Publication) as string,
       }
       this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
+      this.numberOfInstances = localStorage.getItem(MigrationDetails.NumberOfInstances) as string
       this.isSourceConnectionProfileSet =
         (localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string) === 'true'
       this.isTargetConnectionProfileSet =
@@ -451,6 +454,7 @@ export class PrepareMigrationComponent implements OnInit {
     dialogRef.afterClosed().subscribe(() => {
       this.isSourceDetailsSet = localStorage.getItem(MigrationDetails.IsSourceDetailsSet) as string === 'true'
       this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
+      this.numberOfInstances = localStorage.getItem(MigrationDetails.NumberOfShards) as string
     })
   }
 

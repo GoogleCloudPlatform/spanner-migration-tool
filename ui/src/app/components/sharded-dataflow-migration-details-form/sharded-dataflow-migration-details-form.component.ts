@@ -3,7 +3,7 @@ import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MigrationDetails, Profile, StorageKeys } from 'src/app/app.constants';
 import IDbConfig from 'src/app/model/db-config';
-import IConnectionProfile, { ICreateConnectionProfile, ICreateConnectionProfileV2, IDataShard, IDatastreamConnProfile, IDirectConnectionConfig, ILogicalShard, IMigrationProfile, ISetUpConnectionProfile, IShardConfigurationDataflow, IShardedDataflowMigration } from 'src/app/model/profile';
+import IConnectionProfile, { ICreateConnectionProfileV2, IDataShard, IDatastreamConnProfile, IDirectConnectionConfig, ILogicalShard, IMigrationProfile, IShardConfigurationDataflow, IShardedDataflowMigration } from 'src/app/model/profile';
 import { FetchService } from 'src/app/services/fetch/fetch.service';
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
 
@@ -267,13 +267,22 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       next: () => {
         localStorage.setItem(MigrationDetails.IsSourceConnectionProfileSet, "true")
         localStorage.setItem(MigrationDetails.IsTargetConnectionProfileSet, "true")
-        localStorage.setItem(MigrationDetails.NumberOfShards, this.migrationProfile.shardConfigurationDataflow.dataShards.length.toString())
+        localStorage.setItem(MigrationDetails.NumberOfShards, this.determineTotalLogicalShardsConfigured().toString())
+        localStorage.setItem(MigrationDetails.NumberOfInstances, this.migrationProfile.shardConfigurationDataflow.dataShards.length.toString())
         this.dialogRef.close()
       },
       error: (err: any) => {
         this.errorMsg = err.error
       }
     })
+  }
+
+  determineTotalLogicalShardsConfigured(): number {
+    let totalLogicalShards: number = 0
+    this.migrationProfile.shardConfigurationDataflow.dataShards.forEach(dataShard => {
+      totalLogicalShards = totalLogicalShards + dataShard.databases.length
+    })
+    return totalLogicalShards
   }
 
   handleConnConfigsFromForm() {

@@ -1,7 +1,10 @@
 <div mat-dialog-content class="connect-load-database-container">
     <form [formGroup]="migrationProfileForm" class="conn-profile-form">
-        <span class="mat-h3 header-title">Configure Migration Profile</span>
+        <span class="mat-h2 header-title">Configure Migration Profile</span>
         <br>
+        <b>Note: Please configure the schema source used for schema conversion if you want to Harbourbridge to migrate data from it as well.</b>
+        <div class="top">
+        <div class="top-1">
         <mat-form-field appearance="outline">
             <mat-label>Input Type</mat-label>
             <mat-select #inputType formControlName="inputType" (selectionChange)="setValidators(inputType.value)">
@@ -10,6 +13,17 @@
                 </mat-option>
             </mat-select>
         </mat-form-field>
+        </div>
+        <div class="top-2" *ngIf="(migrationProfileForm.value.inputType === 'form')">
+            <mat-card>
+                <mat-card-header>
+                  <mat-card-title>Total Configured Shards</mat-card-title>
+                  <mat-card-subtitle>{{ physicalShards }} physical instances configured.</mat-card-subtitle>
+                  <mat-card-subtitle>{{ logicalShards }} logical shards configured.</mat-card-subtitle>
+                </mat-card-header>
+            </mat-card>
+        </div>
+    </div>
         <div class="textInput" *ngIf="(migrationProfileForm.value.inputType === 'text')">
             <mat-form-field appearance="outline" class="json-input">
                 <mat-label>Paste JSON Configuration</mat-label>
@@ -18,7 +32,7 @@
             </mat-form-field>
         </div>
         <div class="textInput" *ngIf="(migrationProfileForm.value.inputType === 'form')">
-            <hr>
+            
             <span class="mat-h4 header-title">Configure Source Profile</span>
             <div class="source-radio-button-container">
                 <mat-radio-group formControlName="sourceProfileOption" [(ngModel)]="selectedSourceProfileOption"
@@ -134,8 +148,6 @@
             </div>
             <br>
             <hr>
-            <div class="btm">
-                <div class="btm-1">
             <span class="mat-h4 header-title">Configure Target Profile</span>
             <div class="target-radio-button-container">
                 <mat-radio-group formControlName="targetProfileOption" [(ngModel)]="selectedTargetProfileOption"
@@ -171,25 +183,13 @@
                     (click)="createOrTestConnection(false, false)">CREATE
                     PROFILE</button>
             </div>
-        
-        
-    </div>
-        <div class="btm-2">
-            <mat-card>
-                <mat-card-header>
-                  <mat-card-title>Total Configured Shards</mat-card-title>
-                  <mat-card-subtitle>{{ physicalShards }} physical instances configured.</mat-card-subtitle>
-                  <mat-card-subtitle>{{ logicalShards }} logical shards configured.</mat-card-subtitle>
-                </mat-card-header>
-            </mat-card>
-        </div>
-    </div>
+            <hr>
     </div>
     <div class="last-btns">
     <button mat-button color="primary" mat-dialog-close>CANCEL</button>
         <button *ngIf="(migrationProfileForm.value.inputType === 'form')" mat-raised-button type="submit" [disabled]="migrationProfileForm.invalid" color="accent"
             (click)="saveDetailsAndReset()">
-            ADD MORE
+            ADD MORE SHARDS
         </button>
         <button mat-raised-button type="submit" [disabled]="!determineFormValidity()" color="primary" (click)="finalizeConnDetails()">
             FINISH

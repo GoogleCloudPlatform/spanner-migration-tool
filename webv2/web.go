@@ -2485,10 +2485,12 @@ type GeneratedResources struct {
 	DatabaseUrl          string                     `json:"DatabaseUrl"`
 	BucketName           string                     `json:"BucketName"`
 	BucketUrl            string                     `json:"BucketUrl"`
+	//Used for single instance migration flow
 	DataStreamJobName    string                     `json:"DataStreamJobName"`
 	DataStreamJobUrl     string                     `json:"DataStreamJobUrl"`
 	DataflowJobName      string                     `json:"DataflowJobName"`
 	DataflowJobUrl       string                     `json:"DataflowJobUrl"`
+	//Used for sharded migration flow
 	ShardToDatastreamMap map[string]ResourceDetails `json:"ShardToDatastreamMap"`
 	ShardToDataflowMap   map[string]ResourceDetails `json:"ShardToDataflowMap"`
 }
