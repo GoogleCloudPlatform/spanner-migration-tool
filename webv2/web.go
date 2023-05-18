@@ -242,8 +242,6 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		Password:       config.Password,
 		ConnectionType: helpers.DIRECT_CONNECT_MODE,
 	}
-	fmt.Printf("config obj -%v\n", config)
-	fmt.Printf("sessionState obj -%v\n", sessionState)
 	w.WriteHeader(http.StatusOK)
 }
 
