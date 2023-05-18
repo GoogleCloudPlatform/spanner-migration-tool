@@ -52,22 +52,24 @@ form,
     width: 100%;
 }
 
-.btm {
+.top {
     border: 3px solid #fff;
     padding: 20px;
 }
 
-.btm-1 {
+.top-1 {
     width: 60%;
     float: left;
 } 
 
-.btm-2 {
+.top-2 {
     width: 40%;
     float: right;
+    flex: auto;
 } 
 
 .last-btns {
+    padding: 20px;
     width: 100%;
     float: left;
 

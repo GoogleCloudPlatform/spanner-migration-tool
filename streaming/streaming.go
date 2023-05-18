@@ -171,6 +171,7 @@ func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard) *datastreampb.So
 		}
 		includeDbList = append(includeDbList, includeDb)
 	}
+	//TODO: Clean up fmt.Printf logs and replace them with zap logger.
 	fmt.Printf("Include DB List for datastream: %+v\n", includeDbList)
 	mysqlSrcCfg := &datastreampb.MysqlSourceConfig{
 		IncludeObjects: &datastreampb.MysqlRdbms{MysqlDatabases: includeDbList},
@@ -313,7 +314,7 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 	defer c.Close()
 	fmt.Println("Created dataflow job client...")
 	dsClient, err := datastream.NewClient(ctx)
-	fmt.Println("Created datastream client client...")
+	fmt.Println("Created datastream client...")
 	if err != nil {
 		return fmt.Errorf("datastream client can not be created: %v", err)
 	}
