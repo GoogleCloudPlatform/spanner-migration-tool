@@ -112,7 +112,14 @@
                                 matTooltip="Source connection profile configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
-                        </button></span>
+                        </button>
+                        <button mat-button class="configure"
+                        (click)="downloadConfiguration()"
+                        [disabled]="isMigrationInProgress || !isTargetDetailSet || !isTargetConnectionProfileSet">
+                            Download
+                            <mat-icon matTooltip="Download configured shards as JSON" matTooltipPosition="above">download</mat-icon>
+                        </button>
+                    </span>
                 </p>
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && !isSharded">
                     <span class="bullet">2</span>

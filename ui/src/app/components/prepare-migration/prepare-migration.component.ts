@@ -12,7 +12,7 @@ import { DataService } from 'src/app/services/data/data.service'
 import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
 import { SourceDetailsFormComponent } from '../source-details-form/source-details-form.component'
 import { EndMigrationComponent } from '../end-migration/end-migration.component'
-import { IDataflowConfig, ISetUpConnectionProfile, IShardedDataflowMigration } from 'src/app/model/profile'
+import { IDataflowConfig, IMigrationProfile, ISetUpConnectionProfile, IShardedDataflowMigration } from 'src/app/model/profile'
 import { DataflowFormComponent } from '../dataflow-form/dataflow-form.component'
 import ISpannerConfig from 'src/app/model/spanner-config'
 import { ShardedBulkSourceDetailsFormComponent } from '../sharded-bulk-source-details-form/sharded-bulk-source-details-form.component'
@@ -74,6 +74,7 @@ export class PrepareMigrationComponent implements OnInit {
     ShardToDatastreamMap: new Map<string, ResourceDetails>(),
     ShardToDataflowMap: new Map<string, ResourceDetails>(),
   }
+  configuredMigrationProfile!: IMigrationProfile
   region: string = ''
   instance: string = ''
   dialect: string = ''
@@ -692,6 +693,25 @@ export class PrepareMigrationComponent implements OnInit {
       this.schemaMigrationProgress.toString()
     )
     localStorage.setItem(MigrationDetails.SchemaProgressMessage, this.schemaProgressMessage)
+  }
+
+  downloadConfiguration() {
+    this.fetch.getSourceProfile().subscribe({
+      next: (res: IMigrationProfile) => {
+        this.configuredMigrationProfile = res
+      },
+      error: (err: any) => {
+        this.snack.openSnackBar(err.error, 'Close')
+      },
+    })
+    var a = document.createElement('a')
+    // JS automatically converts the input (64bit INT) to '9223372036854776000' during conversion as this is the max value in JS.
+    // However the max value received from server is '9223372036854775807'
+    // Therefore an explicit replacement is necessary in the JSON content in the file.
+    let resJson = JSON.stringify(this.configuredMigrationProfile, null, '\t').replace(/9223372036854776000/g, '9223372036854775807')
+    a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
+    a.download = `shardConfig.cfg`
+    a.click()
   }
 
   fetchGeneratedResources() {
