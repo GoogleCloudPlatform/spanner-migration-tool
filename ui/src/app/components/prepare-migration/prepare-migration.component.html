@@ -10,7 +10,7 @@
 <br />
 <div class="body">
     <div class="definition-container">
-        <h2 *ngIf="isSharded">Source and Target Database definitions</h2>
+        <h2 *ngIf="!isSharded">Source and Target Database definitions</h2>
         <h2 *ngIf="isSharded">Source and Target Database definitions (per shard)</h2>
         <div class="summary">
             <table mat-table [dataSource]="dataSource">
@@ -72,7 +72,7 @@
                         </button></span>
                 </p>
             </div>
-            <div *ngIf="isSharded && (selectedMigrationType === 'bulk')">
+            <div *ngIf="isSharded && (selectedMigrationType === 'bulk') && !(selectedMigrationMode ==='Schema')">
                 <h3>Source databases details:</h3>
                 <p class="point">
                     <span class="bullet">1</span>
