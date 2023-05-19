@@ -374,8 +374,12 @@ export class PrepareMigrationComponent implements OnInit {
         ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
         Publication: localStorage.getItem(TargetDetails.Publication) as string,
       }
-      this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
-      this.numberOfInstances = localStorage.getItem(MigrationDetails.NumberOfInstances) as string
+      if (localStorage.getItem(MigrationDetails.NumberOfShards) != null) {
+        this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
+      }
+      if (localStorage.getItem(MigrationDetails.NumberOfInstances) != null) {
+        this.numberOfInstances = localStorage.getItem(MigrationDetails.NumberOfInstances) as string
+      }
       this.isSourceConnectionProfileSet =
         (localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string) === 'true'
       this.isTargetConnectionProfileSet =
