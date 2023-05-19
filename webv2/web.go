@@ -345,6 +345,14 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+//getSourceProfileConfig returns the configured source profile by the user
+func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	sourceProfileConfig := sessionState.SourceProfileConfig
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(sourceProfileConfig)
+}
+
 func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request) {
 	//Take the received object and store it into session state.
 	sessionState := session.GetSessionState()

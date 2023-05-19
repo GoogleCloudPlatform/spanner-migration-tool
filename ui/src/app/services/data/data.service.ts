@@ -17,6 +17,7 @@ import { ConversionService } from '../conversion/conversion.service'
 import { ColLength, Dialect } from 'src/app/app.constants'
 import { Console } from 'console'
 import IDbConfig from 'src/app/model/db-config'
+import { IMigrationProfile } from 'src/app/model/profile'
 
 @Injectable({
   providedIn: 'root',

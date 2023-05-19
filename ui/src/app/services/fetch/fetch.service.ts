@@ -22,7 +22,7 @@ import IRule from 'src/app/model/rule'
   providedIn: 'root',
 })
 export class FetchService {
-  private url: string = 'http://localhost:8080'
+  private url: string = window.location.origin
   constructor(private http: HttpClient) {}
 
   connectTodb(payload: IDbConfig, dialect: string) {
@@ -93,6 +93,10 @@ export class FetchService {
     return this.http.post(`${this.url}/SetShardsSourceDBDetailsForDataflow`, {
       MigrationProfile: payload
     })
+  }
+
+  getSourceProfile() {
+    return this.http.get<IMigrationProfile>(`${this.url}/GetSourceProfileConfig`)
   }
 
   getSchemaConversionFromSessionFile(payload: ISessionConfig) {
