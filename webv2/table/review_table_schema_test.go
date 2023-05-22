@@ -72,8 +72,10 @@ func TestReviewTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
@@ -100,9 +102,11 @@ func TestReviewTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
-						"c1": {internal.Widened},
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
 					},
 				},
 				Audit: internal.Audit{
@@ -202,9 +206,11 @@ func TestReviewTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 					}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
-						"c3": {internal.Widened},
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c3": {internal.Widened},
+						},
 					},
 				},
 				Audit: internal.Audit{
@@ -222,7 +228,7 @@ func TestReviewTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 					}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {},
 				},
 				Audit: internal.Audit{
@@ -264,6 +270,49 @@ func TestReviewTableSchema(t *testing.T) {
 						ColIds: []string{"c1", "c2", "c3"},
 						ColDefs: map[string]ddl.ColumnDef{
 							"c1": {Name: "aa", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+		},
+		{
+			name:    "Test change length success",
+			tableId: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"c1": { "MaxColLength": "20" }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: 20}},
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
@@ -327,6 +376,68 @@ func TestReviewTableSchema(t *testing.T) {
 						ColIds: []string{"c1", "c2", "c3"},
 						ColDefs: map[string]ddl.ColumnDef{
 							"c1": {Name: "aa", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
+					},
+				},
+				SpDialect: constants.DIALECT_GOOGLESQL,
+			},
+		},
+		{
+			name:    "Test change length success for interleaved table",
+			tableId: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"c1": { "MaxColLength": "20" }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
+						ParentId:    "t2",
+					},
+					"t2": {
+						Name:   "t2",
+						ColIds: []string{"c1", "2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
+					},
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: 20}, NotNull: true},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
+						ParentId:    "t2",
+					},
+					"t2": {
+						Name:   "t2",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: 20}, NotNull: true},
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},

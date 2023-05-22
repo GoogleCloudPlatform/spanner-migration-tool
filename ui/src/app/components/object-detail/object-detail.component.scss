@@ -180,7 +180,9 @@
   .mat-column-srcDataType,
   .mat-column-spDataType,
   .mat-column-spIndexColName,
-  .mat-column-srcIndexColName {
+  .mat-column-srcIndexColName,
+  .mat-column-spColMaxLength,
+  .mat-column-srcColMaxLength {
     min-width: 100px;
   }
 

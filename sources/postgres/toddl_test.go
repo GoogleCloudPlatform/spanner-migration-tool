@@ -100,7 +100,7 @@ func TestToSpannerType(t *testing.T) {
 	expectedIssues := map[string][]internal.SchemaIssue{
 		"c2": []internal.SchemaIssue{internal.Widened},
 	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 }
 
 // This is just a very basic smoke-test for toExperimentalSpannerType.
@@ -181,7 +181,7 @@ func TestToExperimentalSpannerType(t *testing.T) {
 	expectedIssues := map[string][]internal.SchemaIssue{
 		"c2": []internal.SchemaIssue{internal.Widened},
 	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 }
 
 func dropComments(t *ddl.CreateTable) {

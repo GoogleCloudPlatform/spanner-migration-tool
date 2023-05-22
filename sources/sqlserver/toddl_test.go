@@ -119,7 +119,7 @@ func TestToSpannerType(t *testing.T) {
 		"c10": {internal.Timestamp},
 		"c13": {internal.NoGoodType},
 	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 }
 
 // This is just a very basic smoke-test for toSpannerPostgreSQLDialectType.
@@ -217,7 +217,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		"c10": {internal.Timestamp},
 		"c13": {internal.NoGoodType},
 	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 }
 
 func dropComments(t *ddl.CreateTable) {

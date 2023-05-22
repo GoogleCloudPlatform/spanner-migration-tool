@@ -26,7 +26,7 @@ func RemoveColumn(tableId string, colId string, conv *internal.Conv) {
 	sp := conv.SpSchema[tableId]
 
 	// remove interleaving if the column to be removed is used in interleaving.
-	isParent, childTableId := IsParent(tableId)
+	isParent, childTableId := utilities.IsParent(tableId)
 	if isParent {
 		if isColFistOderPk(conv.SpSchema[tableId].PrimaryKeys, colId) {
 			childSp := conv.SpSchema[childTableId]
@@ -136,8 +136,8 @@ func removeColumnFromSpannerSecondaryIndex(sp ddl.CreateTable, colId string) ddl
 // removeColumnFromSecondaryIndexKey remove given column from Spanner Secondary Schema Issue List.
 func removeSpannerSchemaIssue(tableId string, colId string, conv *internal.Conv) {
 	if conv.SchemaIssues != nil {
-		if conv.SchemaIssues[tableId] != nil && conv.SchemaIssues[tableId][colId] != nil {
-			delete(conv.SchemaIssues[tableId], colId)
+		if conv.SchemaIssues[tableId].ColumnLevelIssues != nil && conv.SchemaIssues[tableId].ColumnLevelIssues[colId] != nil {
+			delete(conv.SchemaIssues[tableId].ColumnLevelIssues, colId)
 		}
 	}
 }

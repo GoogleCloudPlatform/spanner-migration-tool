@@ -15,8 +15,6 @@
 package table
 
 import (
-	"fmt"
-
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
@@ -49,13 +47,13 @@ func GetSpannerTableDDL(spannerTable ddl.CreateTable, spDialect string, driver s
 	return ddl
 }
 
-func renameInterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, tableName, colId, oldName string, newName string, colType string) []InterleaveTableSchema {
+func renameInterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, tableName, colId, oldName, newName, colType string, colSize int) []InterleaveTableSchema {
 
 	tableIndex := isTablePresent(interleaveTableSchema, tableName)
 
 	interleaveTableSchema = createInterleaveTableSchema(interleaveTableSchema, tableName, tableIndex)
 
-	interleaveTableSchema = renameInterleaveColumn(interleaveTableSchema, tableName, colId, oldName, newName, colType)
+	interleaveTableSchema = renameInterleaveColumn(interleaveTableSchema, tableName, colId, oldName, newName, colType, colSize)
 
 	return interleaveTableSchema
 }
@@ -84,26 +82,26 @@ func createInterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, 
 	return interleaveTableSchema
 }
 
-func renameInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, newName, colType string) []InterleaveTableSchema {
+func renameInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, newName, colType string, colSize int) []InterleaveTableSchema {
 	tableIndex := isTablePresent(interleaveTableSchema, table)
 
 	colIndex := isColumnPresent(interleaveTableSchema[tableIndex].InterleaveColumnChanges, columnId)
 
-	interleaveTableSchema = createInterleaveColumn(interleaveTableSchema, tableIndex, colIndex, columnId, colName, newName, colType)
+	interleaveTableSchema = createInterleaveColumn(interleaveTableSchema, tableIndex, colIndex, columnId, colName, newName, colType, colSize)
 
 	if tableIndex != -1 && colIndex != -1 {
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnId = columnId
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnName = colName
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].UpdateColumnName = newName
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].Type = colType
-
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].Size = colSize
 	}
 
 	return interleaveTableSchema
 
 }
 
-func createInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, tableIndex int, colIndex int, columnId, colName, newName, colType string) []InterleaveTableSchema {
+func createInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, tableIndex int, colIndex int, columnId, colName, newName, colType string, colSize int) []InterleaveTableSchema {
 
 	if colIndex == -1 {
 
@@ -114,6 +112,7 @@ func createInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table
 			interleaveColumn.ColumnName = colName
 			interleaveColumn.UpdateColumnName = newName
 			interleaveColumn.Type = colType
+			interleaveColumn.Size = colSize
 
 			interleaveTableSchema[tableIndex].InterleaveColumnChanges = append(interleaveTableSchema[tableIndex].InterleaveColumnChanges, interleaveColumn)
 		}
@@ -133,21 +132,21 @@ func isColumnPresent(interleaveColumn []InterleaveColumn, columnId string) int {
 	return -1
 }
 
-func updateTypeOfInterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, columnId string, colName string, previousType string, updateType string) []InterleaveTableSchema {
+func updateTypeOfInterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, previousType, updateType string, previousSize, newSize int) []InterleaveTableSchema {
 
 	tableIndex := isTablePresent(interleaveTableSchema, table)
 
 	interleaveTableSchema = createInterleaveTableSchema(interleaveTableSchema, table, tableIndex)
 
-	interleaveTableSchema = updateTypeOfInterleaveColumn(interleaveTableSchema, table, columnId, colName, previousType, updateType)
+	interleaveTableSchema = updateTypeOfInterleaveColumn(interleaveTableSchema, table, columnId, colName, previousType, updateType, previousSize, newSize)
 	return interleaveTableSchema
 }
 
-func updateTypeOfInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, previousType, updateType string) []InterleaveTableSchema {
+func updateTypeOfInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, previousType, updateType string, previousSize, newSize int) []InterleaveTableSchema {
 
 	tableIndex := isTablePresent(interleaveTableSchema, table)
 	colIndex := isColumnPresent(interleaveTableSchema[tableIndex].InterleaveColumnChanges, columnId)
-	interleaveTableSchema = createInterleaveColumnType(interleaveTableSchema, tableIndex, colIndex, columnId, colName, previousType, updateType)
+	interleaveTableSchema = createInterleaveColumnType(interleaveTableSchema, tableIndex, colIndex, columnId, colName, previousType, updateType, previousSize, newSize)
 
 	if tableIndex != -1 && colIndex != -1 {
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnId = columnId
@@ -156,12 +155,39 @@ func updateTypeOfInterleaveColumn(interleaveTableSchema []InterleaveTableSchema,
 		}
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].Type = previousType
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].UpdateType = updateType
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].Size = previousSize
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].UpdateSize = newSize
 	}
 
 	return interleaveTableSchema
 }
 
-func createInterleaveColumnType(interleaveTableSchema []InterleaveTableSchema, tableIndex int, colIndex int, columnId string, colName string, previousType string, updateType string) []InterleaveTableSchema {
+func updateInterleaveTableSchemaForChangeInSize(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, colType string, previousSize, newSize int) []InterleaveTableSchema {
+	tableIndex := isTablePresent(interleaveTableSchema, table)
+	interleaveTableSchema = createInterleaveTableSchema(interleaveTableSchema, table, tableIndex)
+	interleaveTableSchema = updateInterleaveColumnForChangeInSize(interleaveTableSchema, table, columnId, colName, colType, previousSize, newSize)
+	return interleaveTableSchema
+}
+
+func updateInterleaveColumnForChangeInSize(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, colType string, previousSize, newSize int) []InterleaveTableSchema {
+	tableIndex := isTablePresent(interleaveTableSchema, table)
+	colIndex := isColumnPresent(interleaveTableSchema[tableIndex].InterleaveColumnChanges, columnId)
+	interleaveTableSchema = createInterleaveColumnType(interleaveTableSchema, tableIndex, colIndex, columnId, colName, colType, colType, previousSize, newSize)
+	if tableIndex != -1 && colIndex != -1 {
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnId = columnId
+		if interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnName == "" {
+			interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnName = colName
+		}
+		if interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].Type == "" {
+			interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].Type = colType
+		}
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].Size = previousSize
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].UpdateSize = newSize
+	}
+	return interleaveTableSchema
+}
+
+func createInterleaveColumnType(interleaveTableSchema []InterleaveTableSchema, tableIndex int, colIndex int, columnId, colName, previousType, updateType string, previousSize, newSize int) []InterleaveTableSchema {
 
 	if colIndex == -1 {
 		if columnId != "" {
@@ -170,6 +196,8 @@ func createInterleaveColumnType(interleaveTableSchema []InterleaveTableSchema, t
 			interleaveColumn.ColumnName = colName
 			interleaveColumn.Type = previousType
 			interleaveColumn.UpdateType = updateType
+			interleaveColumn.Size = previousSize
+			interleaveColumn.UpdateSize = newSize
 			interleaveTableSchema[tableIndex].InterleaveColumnChanges = append(interleaveTableSchema[tableIndex].InterleaveColumnChanges, interleaveColumn)
 		}
 	}
@@ -196,6 +224,9 @@ func updateInterleaveTableSchema(conv *internal.Conv, interleaveTableSchema []In
 			if col.UpdateType == "" {
 				interleaveTableSchema[k].InterleaveColumnChanges[ind].UpdateType = col.Type
 			}
+			if col.UpdateSize == 0 {
+				interleaveTableSchema[k].InterleaveColumnChanges[ind].UpdateSize = col.Size
+			}
 		}
 	}
 	return interleaveTableSchema
@@ -215,26 +246,6 @@ func UpdateNotNull(notNullChange, tableId, colId string, conv *internal.Conv) {
 		spColDef.NotNull = false
 		sp.ColDefs[colId] = spColDef
 	}
-}
-
-func IsParent(tableId string) (bool, string) {
-	sessionState := session.GetSessionState()
-
-	for _, spSchema := range sessionState.Conv.SpSchema {
-		if spSchema.ParentId == tableId {
-			return true, spSchema.Id
-		}
-	}
-	return false, ""
-}
-
-func getColIdFromSpannerName(conv *internal.Conv, tableId, colName string) (string, error) {
-	for _, col := range conv.SpSchema[tableId].ColDefs {
-		if col.Name == colName {
-			return col.Id, nil
-		}
-	}
-	return "", fmt.Errorf("column id not found for spaner column %v", colName)
 }
 
 func getFkColumnPosition(colIds []string, colId string) int {

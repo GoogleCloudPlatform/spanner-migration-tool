@@ -105,7 +105,7 @@ func TestToSpannerType(t *testing.T) {
 		"c1": []internal.SchemaIssue{internal.Widened},
 		"c2": []internal.SchemaIssue{internal.Widened},
 	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 }
 
 // This is just a very basic smoke-test for toPostgreSQLDialectType.
@@ -189,7 +189,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		"c1": []internal.SchemaIssue{internal.Widened},
 		"c2": []internal.SchemaIssue{internal.Widened},
 	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 }
 
 func dropComments(t *ddl.CreateTable) {

@@ -109,3 +109,10 @@ export const Dataflow = {
   HostProjectId: 'hostProjectId',
   IsDataflowConfigSet: 'isDataflowConfigSet',
 }
+
+export const ColLength = {
+  StorageMaxLength: 9223372036854775807,
+  StringMaxLength: 2621440,
+  ByteMaxLength: 10485760,
+  DataTypes: ['STRING','BYTES','VARCHAR']
+}

@@ -4,6 +4,7 @@ interface IUpdateCol {
   Rename: string
   NotNull: string
   ToType: string | String
+  MaxColLength: string | undefined | Number
 }
 export interface ITableColumnChanges {
   ColumnId: string
@@ -11,6 +12,8 @@ export interface ITableColumnChanges {
   Type: string | String
   UpdateColumnName: string
   UpdateType: string | String
+  Size: Number
+  UpdateSize: Number
 }
 export interface IReviewInterleaveTableChanges {
   InterleaveColumnChanges: ITableColumnChanges[]

@@ -24,7 +24,7 @@ import (
 )
 
 type Summary struct {
-	Text string `json:"text"`
+	Text   string `json:"text"`
 	Rating string `json:"rating"`
 	DbName string `json:"dbName"`
 }
@@ -80,11 +80,11 @@ type DataReport struct {
 }
 
 type TableReport struct {
-	SrcTableName  string       `json:"srcTableName"`
-	SpTableName   string       `json:"spTableName"`
-	SchemaReport  SchemaReport `json:"schemaReport"`
-	DataReport    DataReport   `json:"dataReport"`
-	Warnings      []Warnings   `json:"warnings"`
+	SrcTableName string       `json:"srcTableName"`
+	SpTableName  string       `json:"spTableName"`
+	SchemaReport SchemaReport `json:"schemaReport"`
+	DataReport   DataReport   `json:"dataReport"`
+	Warnings     []Warnings   `json:"warnings"`
 }
 
 type UnexpectedCondition struct {
@@ -252,7 +252,7 @@ func fetchTableReports(inputTableReports []tableReport, conv *internal.Conv) (ta
 		//2. Schema Report
 		migrationType := *conv.Audit.MigrationType
 		if migrationType != migration.MigrationData_DATA_ONLY {
-			tableReport.SchemaReport = getSchemaReport(t.Cols, t.Warnings, t.SyntheticPKey != "")
+			tableReport.SchemaReport = getSchemaReport(t.Cols, t.Warnings, t.Errors, t.SyntheticPKey != "")
 		}
 		//3. Data Report
 		schemaOnly := conv.SchemaMode()
@@ -272,11 +272,11 @@ func fetchTableReports(inputTableReports []tableReport, conv *internal.Conv) (ta
 	return tableReports
 }
 
-func getSchemaReport(cols, warnings int64, missingPKey bool) (schemaReport SchemaReport) {
+func getSchemaReport(cols, warnings, errors int64, missingPKey bool) (schemaReport SchemaReport) {
 	schemaReport.TotalColumns = cols
 	schemaReport.Warnings = warnings
 	schemaReport.PkMissing = missingPKey
-	schemaReport.Rating, _ = RateSchema(cols, warnings, missingPKey, false)
+	schemaReport.Rating, _ = RateSchema(cols, warnings, errors, missingPKey, false)
 	return schemaReport
 }
 

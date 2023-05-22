@@ -11,7 +11,7 @@ import IRule from 'src/app/model/rule'
 })
 export class SidenavRuleComponent implements OnInit {
   @Input() currentRules: any = []
-  constructor(private sidenav: SidenavService, private data: DataService) {}
+  constructor(private sidenav: SidenavService, private data: DataService) { }
 
   ruleForm: FormGroup = new FormGroup({
     ruleName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z].{0,59}$')]),
@@ -52,7 +52,7 @@ export class SidenavRuleComponent implements OnInit {
     this.ruleForm.disable()
     this.ruleForm.controls['ruleName'].setValue(data?.Name)
     this.ruleForm.controls['ruleType'].setValue(
-      this.viewRuleData?.Type === 'add_index' ? 'addIndex' : 'globalDataType'
+      this.getViewRuleType(this.viewRuleData?.Type)
     )
   }
 
@@ -67,5 +67,14 @@ export class SidenavRuleComponent implements OnInit {
     this.ruleForm.controls['ruleType'].setValue('')
     this.ruleForm.controls['ruleName'].setValue('')
     this.ruleForm.markAsUntouched()
+  }
+
+  getViewRuleType(ruleType: any) {
+    switch (ruleType) {
+      case 'add_index': return 'addIndex'
+      case 'global_datatype_change': return'globalDataType'
+      case 'edit_column_max_length': return 'changeMaxLength'
+    }
+    return ''
   }
 }
