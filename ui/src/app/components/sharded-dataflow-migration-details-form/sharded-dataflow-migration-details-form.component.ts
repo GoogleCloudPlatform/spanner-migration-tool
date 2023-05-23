@@ -33,6 +33,8 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   ]
   profileName = ''
   errorMsg = ''
+  errorSrcMsg = ''
+  errorTgtMsg = ''
   sourceDatabaseType: string = ''
   testSuccess: boolean = false
   createSrcConnSuccess: boolean = false
@@ -382,8 +384,10 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
         } else {
           if (isSource) {
             this.createSrcConnSuccess = true
+            this.errorSrcMsg = ''
           } else {
             this.createTgtConnSuccess = true
+            this.errorTgtMsg = ''
           }
         }
       },
@@ -393,12 +397,14 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
         } else {
           if (isSource) {
             this.createSrcConnSuccess = false
+            this.errorSrcMsg = err.error
           } else {
             this.createTgtConnSuccess = false
+            this.errorTgtMsg = err.error
           }
         }
         console.log(err)
-        this.errorMsg = err
+        
       },
     })
   }

@@ -2,28 +2,30 @@
     <form [formGroup]="migrationProfileForm" class="conn-profile-form">
         <span class="mat-h2 header-title">Configure Migration Profile</span>
         <br>
-        <b>Note: Please configure the schema source used for schema conversion if you want Harbourbridge to migrate data from it as well.</b>
+        <b>Note: Please configure the schema source used for schema conversion if you want Harbourbridge to migrate data
+            from it as well.</b>
         <div class="top">`
-        <div class="top-1">
-        <mat-form-field appearance="outline">
-            <mat-label>Input Type</mat-label>
-            <mat-select #inputType formControlName="inputType" (selectionChange)="setValidators(inputType.value)">
-                <mat-option *ngFor="let element of inputOptionsList" [value]="element.value">
-                    {{ element.displayName }}
-                </mat-option>
-            </mat-select>
-        </mat-form-field>
+            <div class="top-1">
+                <mat-form-field appearance="outline">
+                    <mat-label>Input Type</mat-label>
+                    <mat-select #inputType formControlName="inputType"
+                        (selectionChange)="setValidators(inputType.value)">
+                        <mat-option *ngFor="let element of inputOptionsList" [value]="element.value">
+                            {{ element.displayName }}
+                        </mat-option>
+                    </mat-select>
+                </mat-form-field>
+            </div>
+            <div class="top-2" *ngIf="(migrationProfileForm.value.inputType === 'form')">
+                <mat-card>
+                    <mat-card-header>
+                        <mat-card-title>Total Configured Shards</mat-card-title>
+                        <mat-card-subtitle>{{ physicalShards }} physical instances configured.</mat-card-subtitle>
+                        <mat-card-subtitle>{{ logicalShards }} logical shards configured.</mat-card-subtitle>
+                    </mat-card-header>
+                </mat-card>
+            </div>
         </div>
-        <div class="top-2" *ngIf="(migrationProfileForm.value.inputType === 'form')">
-            <mat-card>
-                <mat-card-header>
-                  <mat-card-title>Total Configured Shards</mat-card-title>
-                  <mat-card-subtitle>{{ physicalShards }} physical instances configured.</mat-card-subtitle>
-                  <mat-card-subtitle>{{ logicalShards }} logical shards configured.</mat-card-subtitle>
-                </mat-card-header>
-            </mat-card>
-        </div>
-    </div>
         <div class="textInput" *ngIf="(migrationProfileForm.value.inputType === 'text')">
             <mat-form-field appearance="outline" class="json-input">
                 <mat-label>Paste JSON Configuration</mat-label>
@@ -32,7 +34,7 @@
             </mat-form-field>
         </div>
         <div class="textInput" *ngIf="(migrationProfileForm.value.inputType === 'form')">
-            
+
             <span class="mat-h4 header-title">Configure Source Profile</span>
             <div class="source-radio-button-container">
                 <mat-radio-group formControlName="sourceProfileOption" [(ngModel)]="selectedSourceProfileOption"
@@ -100,7 +102,7 @@
                         <mat-icon class="icon copy" [cdkCopyToClipboard]="ip" matTooltip="Copy">file_copy</mat-icon>
                     </span>
                 </li>
-                <div *ngIf="!testSuccess && errorMsg != ''" class="failure">
+                <div *ngIf="!testSuccess && errorSrcMsg != ''" class="failure">
                     <span class="left-text">Test connection failed</span>
                     <mat-icon class="icon error" matTooltip="Test connection failed" matTooltipPosition="above">
                         error
@@ -182,24 +184,28 @@
                 <button mat-raised-button type="button" color="warn"
                     (click)="createOrTestConnection(false, false)">CREATE
                     PROFILE</button>
+                <div *ngIf="errorTgtMsg!=''" class="failure">
+                    <span class="left-text">{{ errorTgtMsg }}</span>
+                </div>
             </div>
             <hr>
-    </div>
-    <div class="last-btns">
-    <button mat-button color="primary" mat-dialog-close>CANCEL</button>
-        <button *ngIf="(migrationProfileForm.value.inputType === 'form')" mat-raised-button type="submit" [disabled]="migrationProfileForm.invalid" color="accent"
-            (click)="saveDetailsAndReset()">
-            ADD MORE SHARDS
-        </button>
-        <button mat-raised-button type="submit" [disabled]="!determineFormValidity()" color="primary" (click)="finalizeConnDetails()">
-            FINISH
-        </button>
-        <div *ngIf="errorMsg!=''" class="failure">
-            <span class="left-text">{{ errorMsg }}</span>
-            <mat-icon class="icon error" [matTooltip]="errorMsg" matTooltipPosition="above">
-                error
-            </mat-icon>
         </div>
-    </div>
+        <div class="last-btns">
+            <button mat-button color="primary" mat-dialog-close>CANCEL</button>
+            <button *ngIf="(migrationProfileForm.value.inputType === 'form')" mat-raised-button type="submit"
+                [disabled]="migrationProfileForm.invalid" color="accent" (click)="saveDetailsAndReset()">
+                ADD MORE SHARDS
+            </button>
+            <button mat-raised-button type="submit" [disabled]="!determineFormValidity()" color="primary"
+                (click)="finalizeConnDetails()">
+                FINISH
+            </button>
+            <div *ngIf="errorMsg!=''" class="failure">
+                <span class="left-text">{{ errorMsg }}</span>
+                <mat-icon class="icon error" [matTooltip]="errorMsg" matTooltipPosition="above">
+                    error
+                </mat-icon>
+            </div>
+        </div>
     </form>
 </div>
