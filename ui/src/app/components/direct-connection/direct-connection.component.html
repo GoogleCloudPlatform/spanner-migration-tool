@@ -19,10 +19,12 @@
             <mat-option *ngFor="let element of shardedResponseList" [value]="element.value">
               {{ element.displayName }}
             </mat-option>
-            </mat-select>
-          </mat-form-field>
-          <br>
-          <b *ngIf="(connectForm.value.isSharded)">Note: For sharded migrations, please enter below the details of the shard you want Harbourbridge to read the schema from.</b>
+          </mat-select>
+        </mat-form-field>
+        <br>
+        <b *ngIf="(connectForm.value.isSharded)">Note: For sharded migrations, please enter below the details of the
+          shard you want Harbourbridge to read the schema from. Connection information for other shards will need to be
+          configured before migration, so please keep it handy.</b>
       </div>
 
       <br>
@@ -30,13 +32,7 @@
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Hostname</mat-label>
-        <input
-          matInput
-          placeholder="127.0.0.1"
-          name="hostName"
-          type="text"
-          formControlName="hostName"
-        />
+        <input matInput placeholder="127.0.0.1" name="hostName" type="text" formControlName="hostName" />
       </mat-form-field>
 
       <mat-form-field class="full-width" appearance="outline">
