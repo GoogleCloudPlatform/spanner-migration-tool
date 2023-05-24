@@ -99,6 +99,8 @@ func getRoutes() *mux.Router {
 
 	router.HandleFunc("/uploadFile", uploadFile).Methods("POST")
 
+	router.HandleFunc("/GetErrors", getErrors).Methods("GET")
+
 	router.PathPrefix("/").Handler(frontendStatic)
 	return router
 }

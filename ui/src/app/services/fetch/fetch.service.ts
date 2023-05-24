@@ -142,6 +142,10 @@ export class FetchService {
     })
   }
 
+  getErrors() {
+    return this.http.get<string[]>(`${this.url}/GetErrors`)
+  }
+
   getSessions() {
     return this.http.get<ISession[]>(`${this.url}/GetSessions`)
   }

@@ -16,6 +16,8 @@ import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 import IViewAssesmentData from 'src/app/model/view-assesment'
 import IDbConfig from 'src/app/model/db-config'
+import { InfodialogComponent } from '../infodialog/infodialog.component'
+import { FetchService } from 'src/app/services/fetch/fetch.service'
 
 @Component({
   selector: 'app-workspace',
@@ -56,7 +58,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private sidenav: SidenavService,
     private router: Router,
-    private clickEvent: ClickEventService
+    private clickEvent: ClickEventService,
+    private fetch: FetchService,
   ) {
     this.currentObject = null
   }
@@ -301,7 +304,25 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     return false
   }
   prepareMigration() {
-    this.router.navigate(['/prepare-migration'])
+    this.fetch.getErrors().subscribe({
+      next: (res: any) => {
+        if (res != null && res.length !=0)
+        {
+          let errMsg = 'Please fix the errors for the following tables to move ahead: '+ res.join(',')
+          this.dialog.open(InfodialogComponent, {
+            data: { message: errMsg, type: 'error', title: 'Error in Spanner Draft' },
+            maxWidth: '500px',
+          })
+        } else if (this.isOfflineStatus) {
+          this.dialog.open(InfodialogComponent, {
+            data: { message: "Please configure spanner project id and instance id to proceed", type: 'error', title: 'Configure Spanner' },
+            maxWidth: '500px',
+          })
+        } else {
+          this.router.navigate(['/prepare-migration'])
+        }
+      }
+    }) 
   }
   spannerTab() {
     this.clickEvent.setTabToSpanner()

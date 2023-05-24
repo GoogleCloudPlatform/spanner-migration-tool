@@ -653,6 +653,20 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(filteredTypeMap)
 }
 
+// getErrors checks the errors in the spanner schema
+// and returns a list of tables with errors
+func getErrors(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	var tableNames []string
+	for id, issues := range sessionState.Conv.SchemaIssues {
+		if len(issues.TableLevelIssues) != 0 {
+			tableNames = append(tableNames, sessionState.Conv.SpSchema[id].Name)
+		}
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(tableNames)
+}
+
 // applyRule allows to add rules that changes the schema
 // currently it supports two types of operations viz. SetGlobalDataType and AddIndex
 func applyRule(w http.ResponseWriter, r *http.Request) {
@@ -2376,7 +2390,7 @@ func App(logLevel string, open bool, port int) error {
 	if err != nil {
 		return fmt.Errorf("error initialising webapp, did you specify a valid log-level? [DEBUG, INFO]")
 	}
-	addr := fmt.Sprintf(":%s",strconv.Itoa(port))
+	addr := fmt.Sprintf(":%s", strconv.Itoa(port))
 	router := getRoutes()
 	fmt.Println("Starting Harbourbridge UI at:", fmt.Sprintf("http://localhost%s", addr))
 	if open {
