@@ -165,7 +165,7 @@
         </mat-card>
         <br />
     </div>
-    <div *ngIf="isSharded">
+    <div *ngIf="!(selectedMigrationMode ==='Schema') && isSharded">
         <h3> Source Details</h3>
         <span><b>Source Database: </b>{{ sourceDatabaseType }}</span><br />
         <span><b>Number of physical instances configured: </b> {{ numberOfInstances }}</span><br />

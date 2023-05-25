@@ -114,13 +114,14 @@
                     check_circle
                 </mat-icon>
                 <button mat-raised-button type="button" color="primary"
+                [disabled]="!determineConnectionProfileInfoValidity()"
                     (click)="createOrTestConnection(true, true)">TEST
                     CONNECTION</button>
                 <mat-icon *ngIf="createSrcConnSuccess" class="success" matTooltip="Profile creation successful"
                     matTooltipPosition="above">
                     check_circle
                 </mat-icon>
-                <button mat-raised-button type="button" color="warn"
+                <button mat-raised-button type="button" color="warn" [disabled]="!testSuccess"
                     (click)="createOrTestConnection(true, false)">CREATE
                     PROFILE</button>
             </div>

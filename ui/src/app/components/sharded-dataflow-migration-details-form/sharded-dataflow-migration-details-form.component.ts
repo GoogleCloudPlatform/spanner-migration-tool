@@ -192,6 +192,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
         this.migrationProfileForm.get(key)?.updateValueAndValidity();
       }
       this.migrationProfileForm.get('textInput')?.setValidators([Validators.required])
+      this.migrationProfileForm.controls['textInput'].updateValueAndValidity()
     }
     else {
       this.onItemChange('new', 'source')
@@ -355,6 +356,11 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       //all other cases
       return false
     }
+  }
+
+  determineConnectionProfileInfoValidity(): boolean {
+    let formValue = this.migrationProfileForm.value
+    return formValue.host != null && formValue.port != null && formValue.user != null && formValue.password != null && formValue.newSourceProfile != null
   }
 
   createOrTestConnection(isSource: boolean, isValidateOnly: boolean) {

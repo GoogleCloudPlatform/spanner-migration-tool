@@ -2,10 +2,13 @@
     <div class="form-container">
         <form [formGroup]="directConnectForm" class="shard-bulk-form">
             <h4 class="primary-header">Add Data Shard Connection Details</h4>
-
+            <b>Note: Please configure the schema source used for schema conversion if you want Harbourbridge to migrate data
+                from it as well.</b>
+            <br>
+            <br>
             <mat-form-field appearance="outline">
                 <mat-label>Input Type</mat-label>
-                <mat-select formControlName="inputType">
+                <mat-select #inputType formControlName="inputType" (selectionChange)="setValidators(inputType.value)">
                     <mat-option *ngFor="let element of inputOptionsList" [value]="element.value">
                         {{ element.displayName }}
                     </mat-option>
@@ -49,10 +52,11 @@
             </div>
             <button mat-button color="primary" mat-dialog-close>CANCEL</button>
             <button *ngIf="(directConnectForm.value.inputType === 'form')" mat-raised-button type="submit"
-                color="accent" (click)="saveDetailsAndReset()">
+                [disabled]="directConnectForm.invalid" color="accent" (click)="saveDetailsAndReset()">
                 ADD MORE SHARDS
             </button>
-            <button mat-raised-button type="submit" color="primary" (click)="finalizeConnDetails()">
+            <button mat-raised-button type="submit" color="primary" [disabled]="!determineFormValidity()"
+                (click)="finalizeConnDetails()">
                 FINISH
             </button>
             <div *ngIf="errorMsg!=''" class="failure">

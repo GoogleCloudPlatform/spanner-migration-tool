@@ -453,7 +453,7 @@ export class PrepareMigrationComponent implements OnInit {
     let dialogRef = this.dialog.open(ShardedBulkSourceDetailsFormComponent, {
       width: '30vw',
       minWidth: '400px',
-      maxWidth: '500px',
+      maxWidth: '550px',
       data: payload
     })
     dialogRef.afterClosed().subscribe(() => {
