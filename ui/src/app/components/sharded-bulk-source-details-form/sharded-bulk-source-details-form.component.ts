@@ -43,13 +43,7 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
       sourceDatabaseEngine: data.sourceDatabaseEngine,
       isRestoredSession: data.isRestoredSession
     }
-  }
 
-  ngOnInit(): void {
-    this.initFromLocalStorage()
-  }
-
-  initFromLocalStorage() {
     let schemaSourceConfig: IDbConfig = {
       dbEngine: '',
       isSharded: false,
@@ -73,6 +67,58 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
     })
   }
 
+  ngOnInit(): void {
+    this.initFromLocalStorage()
+  }
+
+  initFromLocalStorage() {
+  }
+
+  setValidators(inputType: string) {
+    if (inputType == "text") {
+      for (const key in this.directConnectForm.controls) {
+        this.directConnectForm.get(key)?.clearValidators();
+        this.directConnectForm.get(key)?.updateValueAndValidity();
+      }
+      this.directConnectForm.get('textInput')?.setValidators([Validators.required])
+    }
+    else {
+      this.directConnectForm.get('hostName')?.setValidators([Validators.required])
+      this.directConnectForm.controls['hostName'].updateValueAndValidity()
+      this.directConnectForm.get('port')?.setValidators([Validators.required])
+      this.directConnectForm.controls['port'].updateValueAndValidity()
+      this.directConnectForm.get('userName')?.setValidators([Validators.required])
+      this.directConnectForm.controls['userName'].updateValueAndValidity()
+      this.directConnectForm.get('dbName')?.setValidators([Validators.required])
+      this.directConnectForm.controls['dbName'].updateValueAndValidity()
+      this.directConnectForm.get('password')?.setValidators([Validators.required])
+      this.directConnectForm.controls['password'].updateValueAndValidity()
+      this.directConnectForm.controls['textInput'].clearValidators()
+      this.directConnectForm.controls['textInput'].updateValueAndValidity()
+    }
+  }
+
+  determineFormValidity(): boolean {
+    if (this.shardConnDetailsList.length > 0) {
+      //means atleast one shard is configured. Finish should be enabled in this case.
+      //if all the values are filled, the last form values should be converted
+      //into a shard and if the user decides midway to hit finish, the partially filled 
+      //values should be discarded. This handling will be done in handleConnConfigsFromForm()
+      //method
+      return true
+    }
+    else if (this.directConnectForm.valid) {
+      //this is the first shard being configured, and user wants to hit Finish
+      //Enable the button so that the shard config can be submitted on button click.
+      return true
+    }
+    else {
+      //all other cases
+      return false
+    }
+  }
+
+
   saveDetailsAndReset() {
     const { hostName, port, userName, password, dbName } = this.directConnectForm.value
     let connConfig: IDbConfig = {
@@ -86,14 +132,15 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
     }
     this.shardConnDetailsList.push(connConfig)
     this.directConnectForm = new FormGroup({
-      inputType: new FormControl('form'),
-      textInput: new FormControl('', [Validators.required]),
-      hostName: new FormControl('', [Validators.required]),
-      port: new FormControl('', [Validators.required]),
-      userName: new FormControl('', [Validators.required]),
-      dbName: new FormControl('', [Validators.required]),
-      password: new FormControl('', [Validators.required]),
+      inputType: new FormControl('form', Validators.required),
+      textInput: new FormControl(''),
+      hostName: new FormControl(''),
+      port: new FormControl(''),
+      userName: new FormControl(''),
+      dbName: new FormControl(''),
+      password: new FormControl(''),
     })
+    this.setValidators('form')
     this.snack.openSnackBar('Shard configured successfully, please configure the next', 'Close', 5)
   }
   finalizeConnDetails() {
