@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConversionService } from '../../services/conversion/conversion.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
-import IConv from '../../model/conv'
+import IConv, { ITableIdAndName } from '../../model/conv'
 import { Subscription } from 'rxjs/internal/Subscription'
 import { MatDialog } from '@angular/material/dialog'
 import IFkTabData from 'src/app/model/fk-tab-data'
@@ -304,11 +304,12 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     return false
   }
   prepareMigration() {
-    this.fetch.getErrors().subscribe({
-      next: (res: any) => {
+    this.fetch.getTableWithErrors().subscribe({
+      next: (res: ITableIdAndName[]) => {
         if (res != null && res.length !=0)
         {
-          let errMsg = 'Please fix the errors for the following tables to move ahead: '+ res.join(',')
+          console.log(res.map(x => x.Name).join(', '));
+          let errMsg = 'Please fix the errors for the following tables to move ahead: '+ res.map(x => x.Name).join(', ')
           this.dialog.open(InfodialogComponent, {
             data: { message: errMsg, type: 'error', title: 'Error in Spanner Draft' },
             maxWidth: '500px',

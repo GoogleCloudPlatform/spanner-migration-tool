@@ -172,6 +172,11 @@ type ColMaxLength struct {
 	SpColMaxLength string `json:"spColMaxLength"`
 }
 
+type TableIdAndName struct {
+	Id   string `json:"Id"`
+	Name string `json:"Name"`
+}
+
 // databaseConnection creates connection with database
 func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -653,18 +658,22 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(filteredTypeMap)
 }
 
-// getErrors checks the errors in the spanner schema
+// getTableWithErrors checks the errors in the spanner schema
 // and returns a list of tables with errors
-func getErrors(w http.ResponseWriter, r *http.Request) {
+func getTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	var tableNames []string
+	var tableIdName []TableIdAndName
 	for id, issues := range sessionState.Conv.SchemaIssues {
 		if len(issues.TableLevelIssues) != 0 {
-			tableNames = append(tableNames, sessionState.Conv.SpSchema[id].Name)
+			t := TableIdAndName{
+				Id:   id,
+				Name: sessionState.Conv.SpSchema[id].Name,
+			}
+			tableIdName = append(tableIdName, t)
 		}
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(tableNames)
+	json.NewEncoder(w).Encode(tableIdName)
 }
 
 // applyRule allows to add rules that changes the schema
