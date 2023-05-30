@@ -191,3 +191,8 @@ export interface ISpannerDetails {
   Instance: string
   Dialect: string
 }
+
+export interface ITableIdAndName {
+  Id: string
+  Name: string
+}

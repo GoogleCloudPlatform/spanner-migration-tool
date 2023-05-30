@@ -9,6 +9,7 @@ import IConv, {
   IInterleaveStatus,
   IPrimaryKey,
   ISessionSummary,
+  ITableIdAndName,
 } from '../../model/conv'
 import IDumpConfig, { IConvertFromDumpRequest } from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
@@ -140,6 +141,10 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableId}`, {
       Id: fkId,
     })
+  }
+
+  getTableWithErrors() {
+    return this.http.get<ITableIdAndName[]>(`${this.url}/GetTableWithErrors`)
   }
 
   getSessions() {

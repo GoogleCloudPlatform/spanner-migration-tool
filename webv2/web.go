@@ -172,6 +172,11 @@ type ColMaxLength struct {
 	SpColMaxLength string `json:"spColMaxLength"`
 }
 
+type TableIdAndName struct {
+	Id   string `json:"Id"`
+	Name string `json:"Name"`
+}
+
 // databaseConnection creates connection with database
 func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -651,6 +656,24 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(filteredTypeMap)
+}
+
+// getTableWithErrors checks the errors in the spanner schema
+// and returns a list of tables with errors
+func getTableWithErrors(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	var tableIdName []TableIdAndName
+	for id, issues := range sessionState.Conv.SchemaIssues {
+		if len(issues.TableLevelIssues) != 0 {
+			t := TableIdAndName{
+				Id:   id,
+				Name: sessionState.Conv.SpSchema[id].Name,
+			}
+			tableIdName = append(tableIdName, t)
+		}
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(tableIdName)
 }
 
 // applyRule allows to add rules that changes the schema
@@ -2376,7 +2399,7 @@ func App(logLevel string, open bool, port int) error {
 	if err != nil {
 		return fmt.Errorf("error initialising webapp, did you specify a valid log-level? [DEBUG, INFO]")
 	}
-	addr := fmt.Sprintf(":%s",strconv.Itoa(port))
+	addr := fmt.Sprintf(":%s", strconv.Itoa(port))
 	router := getRoutes()
 	fmt.Println("Starting Harbourbridge UI at:", fmt.Sprintf("http://localhost%s", addr))
 	if open {
