@@ -1567,7 +1567,7 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 
 	conv := sessionState.Conv
 
-	spIndex := common.CvtIndexHelper(conv, tableId, srcIndex, conv.SpSchema[tableId].ColIds)
+	spIndex := common.CvtIndexHelper(conv, tableId, srcIndex, conv.SpSchema[tableId].ColIds, conv.SpSchema[tableId].ColDefs)
 	spIndexes := conv.SpSchema[tableId].Indexes
 	spIndexes = append(spIndexes, spIndex)
 	spTable := conv.SpSchema[tableId]
