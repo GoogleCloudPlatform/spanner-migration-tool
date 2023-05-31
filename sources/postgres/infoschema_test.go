@@ -229,7 +229,7 @@ func TestProcessSchema(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, 1)
+	err := common.ProcessSchema(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, 1, false)
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"user": ddl.CreateTable{
@@ -504,7 +504,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, 1)
+	err := common.ProcessSchema(conv, InfoSchemaImpl{db, profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, 1, false)
 	assert.Nil(t, err)
 	conv.SetDataMode()
 	var rows []spannerData

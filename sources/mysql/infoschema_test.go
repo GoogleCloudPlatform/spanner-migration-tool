@@ -366,7 +366,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
-	err := common.ProcessSchema(conv, isi, 1)
+	err := common.ProcessSchema(conv, isi, 1, false)
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"test": ddl.CreateTable{

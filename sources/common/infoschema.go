@@ -61,13 +61,16 @@ type FkConstraint struct {
 // ProcessSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) error {
+func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, isSharded bool) error {
 
 	GenerateSrcSchema(conv, infoSchema, numWorkers)
 	initPrimaryKeyOrder(conv)
 	initIndexOrder(conv)
 	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
 	conv.AddPrimaryKeys()
+	if isSharded {
+		conv.AddShardIdColumn()
+	}
 	fmt.Println("loaded schema")
 	return nil
 }
@@ -120,8 +123,8 @@ func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
 				srcSchema.Name, ok))
 			continue
 		}
-		// Extract spColds without synthetic primary key columnn id.
-		colIds := RemoveSynthId(conv, tableId, spSchema.ColIds)
+		// Extract common spColds.
+		colIds := GetCommonColumnIds(conv, tableId, spSchema.ColIds)
 		err := infoSchema.ProcessData(conv, tableId, srcSchema, colIds, spSchema)
 		if err != nil {
 			return

@@ -46,6 +46,7 @@ type Conv struct {
 	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
 	Audit          Audit               `json:"-"` // Stores the audit information for the database conversion
 	Rules          []Rule              // Stores applied rules during schema conversion
+	ShardId        string
 }
 
 type TableIssues struct {
@@ -103,7 +104,11 @@ const (
 	InterleavedRenameColumn
 	InterleavedChangeColumnSize
 	RowLimitExceeded
+	ShardIdColumnAdded
+	ShardIdColumnPrimaryKey
 )
+
+const shardIdColumn = "migration_shard_id"
 
 // NameAndCols contains the name of a table and its columns.
 // Used to map between source DB and Spanner table and column names.
@@ -168,16 +173,16 @@ type Audit struct {
 
 // Stores information related to the streaming migration process.
 type streamingStats struct {
-	Streaming        bool                        // Flag for confirmation of streaming migration.
-	TotalRecords     map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
-	BadRecords       map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
-	DroppedRecords   map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
-	SampleBadRecords []string                    // Records that generated errors during conversion.
-	SampleBadWrites  []string                    // Records that faced errors while writing to Cloud Spanner.
-	DataStreamName   string
-	DataflowJobId    string
+	Streaming                bool                        // Flag for confirmation of streaming migration.
+	TotalRecords             map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
+	BadRecords               map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
+	DroppedRecords           map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
+	SampleBadRecords         []string                    // Records that generated errors during conversion.
+	SampleBadWrites          []string                    // Records that faced errors while writing to Cloud Spanner.
+	DataStreamName           string
+	DataflowJobId            string
 	ShardToDataStreamNameMap map[string]string
-	ShardToDataflowJobMap map[string]string
+	ShardToDataflowJobMap    map[string]string
 }
 
 // Stores information related to rules during schema conversion
@@ -341,6 +346,20 @@ func (conv *Conv) SampleBadRows(n int) []string {
 		}
 	}
 	return l
+}
+
+func (conv *Conv) AddShardIdColumn() {
+	for t, ct := range conv.SpSchema {
+		colName := shardIdColumn
+		columnId := GenerateColumnId()
+		ct.ColIds = append(ct.ColIds, columnId)
+		ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: true}
+		ct.ShardIdColumn = columnId
+		conv.SpSchema[t] = ct
+		var issues []SchemaIssue
+		issues = append(issues, ShardIdColumnAdded, ShardIdColumnPrimaryKey)
+		conv.SchemaIssues[ct.Id].ColumnLevelIssues[columnId] = issues
+	}
 }
 
 // AddPrimaryKeys analyzes all tables in conv.schema and adds synthetic primary

@@ -95,6 +95,11 @@ func ConvertData(conv *internal.Conv, tableId string, colIds []string, srcSchema
 		aux.Sequence++
 		conv.SyntheticPKeys[tableId] = aux
 	}
+	colId := conv.SpSchema[tableId].ShardIdColumn
+	if colId != "" {
+		c = append(c, conv.SpSchema[tableId].ColDefs[colId].Name)
+		v = append(v, conv.ShardId)
+	}
 	return conv.SpSchema[tableId].Name, c, v, nil
 }
 

@@ -243,7 +243,7 @@
             <ng-container matColumnDef="spColName">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
               <td mat-cell *matCellDef="let element">
-                <div *ngIf="isEditMode && element.get('spDataType').value !== ''">
+                <div *ngIf="isEditMode && element.get('spDataType').value !== '' && element.get('srcId').value !== ''">
                   <input
                     matInput
                     class="name_input"
@@ -253,7 +253,7 @@
                     [matTooltipDisabled]="!element.get('spColName')?.hasError('pattern')"
                   />
                 </div>
-                <p *ngIf="!isEditMode">{{ element.get('spColName').value }}</p>
+                <p *ngIf="!isEditMode || element.get('srcId').value === ''">{{ element.get('spColName').value }}</p>
               </td>
             </ng-container>
 
@@ -272,7 +272,7 @@
                   <mat-form-field
                     appearance="legacy"
                     class="w-100"
-                    *ngIf="isEditMode && element.get('spDataType').value !== ''"
+                    *ngIf="isEditMode && element.get('spDataType').value !== '' && element.get('srcId').value !== ''"
                   >
                     <mat-select
                       #matSelectspDataType
@@ -293,7 +293,7 @@
                       </mat-option>
                     </mat-select>
                   </mat-form-field>
-                  <p *ngIf="!isEditMode">{{ element.get('spDataType').value }}</p>
+                  <p *ngIf="!isEditMode || element.get('srcId').value === ''">{{ element.get('spDataType').value }}</p>
                 </div>
               </td>
             </ng-container>
@@ -302,7 +302,7 @@
               <th mat-header-cell class="table_header" *matHeaderCellDef>Max Length</th>
               <td mat-cell *matCellDef="let element">
                 <div *ngIf ="dataTypesWithColLen.indexOf(element.get('spDataType').value)>-1">
-                <div *ngIf="isEditMode && element.get('srcDataType').value != ''">
+                <div *ngIf="isEditMode && element.get('srcDataType').value != '' && element.get('spId').value !== shardIdCol">
                   <input
                     matInput
                     class="name_input"
@@ -311,7 +311,7 @@
                     matTooltip="Specify the length in numeric or use MAX"
                   />
                 </div>
-                <p *ngIf="!isEditMode">
+                <p *ngIf="!isEditMode || element.get('spId').value === shardIdCol">
                   {{ element.get('spColMaxLength').value }}
                 </p>
               </div>
@@ -346,13 +346,13 @@
               </th>
               <td mat-cell *matCellDef="let element">
                 <div class="notNullContent">
-                  <div *ngIf="isEditMode && element.get('spDataType').value !== ''">
+                  <div *ngIf="isEditMode && element.get('spDataType').value !== '' && element.get('spId').value !== shardIdCol">
                     <mat-checkbox
                       color="primary"
                       [formControl]="element.get('spIsNotNull')"
                     ></mat-checkbox>
                   </div>
-                  <p *ngIf="!isEditMode">
+                  <p *ngIf="!isEditMode || element.get('spId').value === shardIdCol">
                     {{ element.get('spIsNotNull').value ? 'Not Null' : '' }}
                   </p>
                 </div>
@@ -371,7 +371,8 @@
                   *ngIf="
                     isEditMode &&
                     currentObject!.isSpannerNode &&
-                    !(element.get('spDataType').value === '')
+                    !(element.get('spDataType').value === '') &&
+                    element.get('spId').value !== shardIdCol
                   "
                 >
                   <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>

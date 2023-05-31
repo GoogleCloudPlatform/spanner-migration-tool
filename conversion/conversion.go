@@ -200,8 +200,10 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 	//fetch the schema. We reuse the SourceProfileConnection object for this purpose.
 	var infoSchema common.InfoSchema
 	var err error
+	isSharded := false
 	switch sourceProfile.Ty {
 	case profiles.SourceProfileTypeConfig:
+		isSharded = true
 		//Find Primary Shard Name
 		if sourceProfile.Config.ConfigType == constants.BULK_MIGRATION {
 			schemaSource := sourceProfile.Config.ShardConfigurationBulk.SchemaSource
@@ -227,7 +229,7 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 			return conv, err
 		}
 	}
-	return conv, common.ProcessSchema(conv, infoSchema, common.DefaultWorkers)
+	return conv, common.ProcessSchema(conv, infoSchema, common.DefaultWorkers, isSharded)
 }
 
 func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) *writer.BatchWriter {
@@ -308,11 +310,11 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 	return nil, fmt.Errorf("dms configType is not implemented yet, please use one of 'bulk' or 'dataflow'")
 }
 
-//1. Create batch for each physical shard
-//2. Create streaming cfg from the config source type.
-//3. Verify the CFG and update it with HB defaults
-//4. Launch the stream for the physical shard
-//5. Perform streaming migration via dataflow
+// 1. Create batch for each physical shard
+// 2. Create streaming cfg from the config source type.
+// 3. Verify the CFG and update it with HB defaults
+// 4. Launch the stream for the physical shard
+// 5. Perform streaming migration via dataflow
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
 	updateShardsWithDataflowConfig(sourceProfile.Config.ShardConfigurationDataflow)
 	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
@@ -341,10 +343,10 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 	return &writer.BatchWriter{}, nil
 }
 
-//1. Migrate the data from the data shards, the schema shard needs to be specified here again.
-//2. Create a connection profile object for it
-//3. Perform a snapshot migration for the shard
-//4. Once all shard migrations are complete, return the batch writer object
+// 1. Migrate the data from the data shards, the schema shard needs to be specified here again.
+// 2. Create a connection profile object for it
+// 3. Perform a snapshot migration for the shard
+// 4. Once all shard migrations are complete, return the batch writer object
 func dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
 	var bw *writer.BatchWriter
 	for _, dataShard := range sourceProfile.Config.ShardConfigurationBulk.DataShards {
@@ -354,7 +356,7 @@ func dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targ
 		if err != nil {
 			return nil, err
 		}
-
+		conv.ShardId = dataShard.DataShardId
 		bw = performSnapshotMigration(config, conv, client, infoSchema)
 	}
 
@@ -1106,9 +1108,9 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile, targetProfile profiles.
 		}
 		temp := false
 		return postgres.InfoSchemaImpl{
-			Db:            db,
-			SourceProfile: sourceProfile,
-			TargetProfile: targetProfile,
+			Db:             db,
+			SourceProfile:  sourceProfile,
+			TargetProfile:  targetProfile,
 			IsSchemaUnique: &temp, //this is a workaround to set a bool pointer
 		}, nil
 	case constants.DYNAMODB:

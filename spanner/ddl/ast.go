@@ -94,8 +94,8 @@ var PGSQL_TO_STANDARD_TYPE_TYPEMAP = map[string]string{
 	PGJSONB:       JSON,
 }
 
-//List taken from - https://www.postgresql.org/docs/current/sql-keywords-appendix.html
-//Assumption is that this list PGSQL dialect uses the same keywords
+// List taken from - https://www.postgresql.org/docs/current/sql-keywords-appendix.html
+// Assumption is that this list PGSQL dialect uses the same keywords
 var PGSQL_RESERVED_KEYWORD_LIST = []string{"ALL", "ANALYSE", "ANALYZE", "AND", "ANY", "ASC",
 	"ASYMMETRIC", "BOTH", "CASE", "CAST", "CHECK", "COLLATE", "COLUMN", "CONSTRAINT", "CURRENT_CATALOG",
 	"CURRENT_DATE", "CURRENT_ROLE", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER", "DEFAULT",
@@ -186,7 +186,7 @@ type Config struct {
 	Tables      bool // If true, print tables
 	ForeignKeys bool // If true, print foreign key constraints.
 	SpDialect   string
-	Source		string //SourceDB information for determining case-sensitivity handling for PGSQL
+	Source      string //SourceDB information for determining case-sensitivity handling for PGSQL
 }
 
 func isIdentifierReservedInPG(identifier string) bool {
@@ -290,15 +290,16 @@ func (k Foreignkey) PrintForeignKey(c Config) string {
 //
 //	create_table: CREATE TABLE table_name ([column_def, ...] ) primary_key [, cluster]
 type CreateTable struct {
-	Name        string
-	ColIds      []string             // Provides names and order of columns
-	ColDefs     map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
-	PrimaryKeys []IndexKey
-	ForeignKeys []Foreignkey
-	Indexes     []CreateIndex
-	ParentId    string //if not empty, this table will be interleaved
-	Comment     string
-	Id          string
+	Name          string
+	ColIds        []string // Provides names and order of columns
+	ShardIdColumn string
+	ColDefs       map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
+	PrimaryKeys   []IndexKey
+	ForeignKeys   []Foreignkey
+	Indexes       []CreateIndex
+	ParentId      string //if not empty, this table will be interleaved
+	Comment       string
+	Id            string
 }
 
 // PrintCreateTable unparses a CREATE TABLE statement.

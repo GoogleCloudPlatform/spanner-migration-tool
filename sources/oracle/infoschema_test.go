@@ -158,7 +158,7 @@ func TestProcessSchemaOracle(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}, 1)
+	err := common.ProcessSchema(conv, InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}, 1, false)
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"USER": {

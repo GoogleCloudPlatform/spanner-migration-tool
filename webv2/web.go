@@ -138,7 +138,7 @@ type migrationDetails struct {
 	DataflowConfig dataflowConfig `json:"DataflowConfig"`
 	MigrationMode  string         `json:MigrationMode`
 	MigrationType  string         `json:MigrationType`
-	IsSharded      bool         `json:"IsSharded"`
+	IsSharded      bool           `json:"IsSharded"`
 }
 
 type dataflowConfig struct {
@@ -259,14 +259,14 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	var err error
 	switch sessionState.Driver {
 	case constants.MYSQL:
-		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers)
+		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, sessionState.IsSharded)
 	case constants.POSTGRES:
 		temp := false
-		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers)
+		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers, sessionState.IsSharded)
 	case constants.SQLSERVER:
-		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers)
+		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, sessionState.IsSharded)
 	case constants.ORACLE:
-		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers)
+		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, sessionState.IsSharded)
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -340,7 +340,7 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-//getSourceProfileConfig returns the configured source profile by the user
+// getSourceProfileConfig returns the configured source profile by the user
 func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sourceProfileConfig := sessionState.SourceProfileConfig
@@ -2463,15 +2463,15 @@ type ResourceDetails struct {
 	JobUrl  string `json:"JobUrl"`
 }
 type GeneratedResources struct {
-	DatabaseName         string                     `json:"DatabaseName"`
-	DatabaseUrl          string                     `json:"DatabaseUrl"`
-	BucketName           string                     `json:"BucketName"`
-	BucketUrl            string                     `json:"BucketUrl"`
+	DatabaseName string `json:"DatabaseName"`
+	DatabaseUrl  string `json:"DatabaseUrl"`
+	BucketName   string `json:"BucketName"`
+	BucketUrl    string `json:"BucketUrl"`
 	//Used for single instance migration flow
-	DataStreamJobName    string                     `json:"DataStreamJobName"`
-	DataStreamJobUrl     string                     `json:"DataStreamJobUrl"`
-	DataflowJobName      string                     `json:"DataflowJobName"`
-	DataflowJobUrl       string                     `json:"DataflowJobUrl"`
+	DataStreamJobName string `json:"DataStreamJobName"`
+	DataStreamJobUrl  string `json:"DataStreamJobUrl"`
+	DataflowJobName   string `json:"DataflowJobName"`
+	DataflowJobUrl    string `json:"DataflowJobUrl"`
 	//Used for sharded migration flow
 	ShardToDatastreamMap map[string]ResourceDetails `json:"ShardToDatastreamMap"`
 	ShardToDataflowMap   map[string]ResourceDetails `json:"ShardToDataflowMap"`

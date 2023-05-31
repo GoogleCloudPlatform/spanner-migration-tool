@@ -103,18 +103,17 @@ func IntersectionOfTwoStringSlices(a []string, b []string) []string {
 	return set
 }
 
-func RemoveSynthId(conv *internal.Conv, tableId string, colIds []string) []string {
-	synthPk, found := conv.SyntheticPKeys[tableId]
-	if !found {
-		return colIds
-	}
+func GetCommonColumnIds(conv *internal.Conv, tableId string, colIds []string) []string {
+	srcSchema := conv.SrcSchema[tableId]
+	var commonColIds []string
 	for i, colId := range colIds {
-		if synthPk.ColId == colId {
-			colIds = append(colIds[:i], colIds[i+1:]...)
+		_, found := srcSchema.ColDefs[colId]
+		if found {
+			commonColIds = append(commonColIds, colIds[i])
 		}
 	}
 
-	return colIds
+	return commonColIds
 }
 
 func PrepareColumns(conv *internal.Conv, tableId string, srcCols []string) ([]string, error) {
