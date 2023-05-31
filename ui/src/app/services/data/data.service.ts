@@ -4,7 +4,7 @@ import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from
 import IRule from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
-import IUpdateTable, { IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
+import IUpdateTable, { IAddColumn, IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
 import IDumpConfig, { IConvertFromDumpRequest } from 'src/app/model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISession from 'src/app/model/session'
@@ -373,6 +373,19 @@ export class DataService {
   updateIsOffline() {
     this.fetch.getIsOffline().subscribe((res: boolean) => {
       this.isOfflineSub.next(res)
+    })
+  }
+
+  addColumn(tableId: string,payload: IAddColumn) {
+    this.fetch.addColumn(tableId,payload).subscribe({
+      next: (res: any) => {
+        this.convSubject.next(res)
+        this.getDdl()
+        this.snackbar.openSnackBar('Added new column.', 'Close', 5)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
+      },
     })
   }
 

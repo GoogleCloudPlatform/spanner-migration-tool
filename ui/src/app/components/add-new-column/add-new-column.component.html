@@ -1,0 +1,39 @@
+<div mat-dialog-content>
+    <form [formGroup]="addNewColumnForm" class="add-new-column-form">
+        <h2>Column Details</h2>
+        <mat-form-field class="full-width" appearance="outline">
+            <mat-label>Name</mat-label>
+            <input matInput placeholder="Column Name" type="text" formControlName="name"/>
+        </mat-form-field>
+        <br>
+        <mat-form-field appearance="outline">
+            <mat-label>Datatype</mat-label>
+            <mat-select [(ngModel)]="selectedDatatype" class="input-field" formControlName="datatype" required="true" (selectionChange)="changeValidator()">
+                <mat-option *ngFor="let datatype of datatypes" [value]="datatype">{{datatype}}</mat-option>
+            </mat-select>
+        </mat-form-field>
+        <br>
+        <div *ngIf="selectedDatatype ==='STRING' || selectedDatatype ==='VARCHAR' || selectedDatatype ==='BYTES'">
+            <mat-form-field class="full-width" appearance="outline">
+                <mat-label>Length</mat-label>
+                <input matInput placeholder="Length" type="text" formControlName="length"/>
+            </mat-form-field>
+            <br>
+        </div>
+        <mat-form-field appearance="outline">
+            <mat-label>IsNullable</mat-label>
+            <mat-select [(ngModel)]="selectedNull" formControlName="isNullable" required="true">
+                <mat-option *ngFor="let element of isNullable" [value]="element.value">
+                    {{ element.displayName }}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+    </form>
+    <div mat-dialog-actions class="buttons-container">
+        <button mat-button color="primary" mat-dialog-close>CANCEL</button>
+        <button mat-button type="submit" color="primary" [disabled]="!(addNewColumnForm.valid)"
+            (click)="addNewColumn()">
+            ADD
+        </button>
+    </div>
+</div>

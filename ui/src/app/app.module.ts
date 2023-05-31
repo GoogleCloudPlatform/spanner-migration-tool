@@ -46,6 +46,7 @@ import { DataflowFormComponent } from './components/dataflow-form/dataflow-form.
 import { EditColumnMaxLengthComponent } from './components/edit-column-max-length/edit-column-max-length.component';
 import { ShardedBulkSourceDetailsFormComponent } from './components/sharded-bulk-source-details-form/sharded-bulk-source-details-form.component';
 import { ShardedDataflowMigrationDetailsFormComponent } from './components/sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component'
+import { AddNewColumnComponent } from './components/add-new-column/add-new-column.component'
 
 @NgModule({
   declarations: [
@@ -85,6 +86,7 @@ import { ShardedDataflowMigrationDetailsFormComponent } from './components/shard
     EditColumnMaxLengthComponent,
     ShardedBulkSourceDetailsFormComponent,
     ShardedDataflowMigrationDetailsFormComponent,
+    AddNewColumnComponent,
   ],
   imports: [
     BrowserModule,
