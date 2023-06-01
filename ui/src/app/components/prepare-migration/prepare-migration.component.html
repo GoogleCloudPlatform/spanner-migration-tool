@@ -156,7 +156,7 @@
                         </button></span>
                 </p>
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
-                    <span class="bullet" *ngIf="isSharded">5</span>
+                    <span class="bullet" *ngIf="isSharded">4</span>
                     <span>Download configuration as JSON </span><span><button mat-button class="configure"
                             (click)="downloadConfiguration()"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet || !isTargetConnectionProfileSet">
