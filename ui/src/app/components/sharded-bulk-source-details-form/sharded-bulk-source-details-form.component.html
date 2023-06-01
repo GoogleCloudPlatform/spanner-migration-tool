@@ -49,6 +49,11 @@
                     <input matInput name="dbname" type="text" formControlName="dbName" />
                 </mat-form-field>
                 <br />
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Shard ID</mat-label>
+                    <input matInput name="shardId" type="text" formControlName="shardId" />
+                </mat-form-field>
+                <br />
             </div>
             <button mat-button color="primary" mat-dialog-close>CANCEL</button>
             <button *ngIf="(directConnectForm.value.inputType === 'form')" mat-raised-button type="submit"

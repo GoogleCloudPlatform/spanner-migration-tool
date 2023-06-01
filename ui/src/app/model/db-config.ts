@@ -8,6 +8,7 @@ export default interface IDbConfig {
   userName: string
   password: string
   dbName: string
+  shardId?: string
 }
 
 export interface IDbConfigs {

@@ -400,6 +400,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       error: (err: any) => {
         if (isValidateOnly) {
           this.testSuccess = false
+          this.errorSrcMsg = err.error
         } else {
           if (isSource) {
             this.createSrcConnSuccess = false

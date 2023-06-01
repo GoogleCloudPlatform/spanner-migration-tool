@@ -91,14 +91,15 @@ var oracleTypeMap = make(map[string][]typeIssue)
 // driverConfig contains the parameters needed to make a direct database connection. It is
 // used to communicate via HTTP with the frontend.
 type driverConfig struct {
-	Driver    string `json:"Driver"`
-	IsSharded bool   `json:"IsSharded"`
-	Host      string `json:"Host"`
-	Port      string `json:"Port"`
-	Database  string `json:"Database"`
-	User      string `json:"User"`
-	Password  string `json:"Password"`
-	Dialect   string `json:"Dialect"`
+	Driver      string `json:"Driver"`
+	IsSharded   bool   `json:"IsSharded"`
+	Host        string `json:"Host"`
+	Port        string `json:"Port"`
+	Database    string `json:"Database"`
+	User        string `json:"User"`
+	Password    string `json:"Password"`
+	Dialect     string `json:"Dialect"`
+	DataShardId string `json:"DataShardId"`
 }
 
 type driverConfigs struct {
@@ -142,7 +143,7 @@ type migrationDetails struct {
 	DataflowConfig dataflowConfig `json:"DataflowConfig"`
 	MigrationMode  string         `json:MigrationMode`
 	MigrationType  string         `json:MigrationType`
-	IsSharded      bool         `json:"IsSharded"`
+	IsSharded      bool           `json:"IsSharded"`
 }
 
 type dataflowConfig struct {
@@ -349,7 +350,7 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-//getSourceProfileConfig returns the configured source profile by the user
+// getSourceProfileConfig returns the configured source profile by the user
 func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sourceProfileConfig := sessionState.SourceProfileConfig
@@ -422,11 +423,12 @@ func setShardsSourceDBDetailsForBulk(w http.ResponseWriter, r *http.Request) {
 		sessionState.DbName = config.Database
 		sessionState.SessionFile = ""
 		connDetail := profiles.DirectConnectionConfig{
-			Host:     config.Host,
-			Port:     config.Port,
-			User:     config.User,
-			Password: config.Password,
-			DbName:   config.Database,
+			Host:        config.Host,
+			Port:        config.Port,
+			User:        config.User,
+			Password:    config.Password,
+			DbName:      config.Database,
+			DataShardId: config.DataShardId,
 		}
 		connDetailsList = append(connDetailsList, connDetail)
 		//set the first shard as the schema shard when restoring from a session file
@@ -2501,15 +2503,15 @@ type ResourceDetails struct {
 	JobUrl  string `json:"JobUrl"`
 }
 type GeneratedResources struct {
-	DatabaseName         string                     `json:"DatabaseName"`
-	DatabaseUrl          string                     `json:"DatabaseUrl"`
-	BucketName           string                     `json:"BucketName"`
-	BucketUrl            string                     `json:"BucketUrl"`
+	DatabaseName string `json:"DatabaseName"`
+	DatabaseUrl  string `json:"DatabaseUrl"`
+	BucketName   string `json:"BucketName"`
+	BucketUrl    string `json:"BucketUrl"`
 	//Used for single instance migration flow
-	DataStreamJobName    string                     `json:"DataStreamJobName"`
-	DataStreamJobUrl     string                     `json:"DataStreamJobUrl"`
-	DataflowJobName      string                     `json:"DataflowJobName"`
-	DataflowJobUrl       string                     `json:"DataflowJobUrl"`
+	DataStreamJobName string `json:"DataStreamJobName"`
+	DataStreamJobUrl  string `json:"DataStreamJobUrl"`
+	DataflowJobName   string `json:"DataflowJobName"`
+	DataflowJobUrl    string `json:"DataflowJobUrl"`
 	//Used for sharded migration flow
 	ShardToDatastreamMap map[string]ResourceDetails `json:"ShardToDatastreamMap"`
 	ShardToDataflowMap   map[string]ResourceDetails `json:"ShardToDataflowMap"`

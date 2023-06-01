@@ -466,8 +466,12 @@ export class PrepareMigrationComponent implements OnInit {
     })
     dialogRef.afterClosed().subscribe(() => {
       this.isSourceDetailsSet = localStorage.getItem(MigrationDetails.IsSourceDetailsSet) as string === 'true'
-      this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
-      this.numberOfInstances = localStorage.getItem(MigrationDetails.NumberOfShards) as string
+      if (localStorage.getItem(MigrationDetails.NumberOfShards) != null) {
+        this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
+      }
+      if (localStorage.getItem(MigrationDetails.NumberOfInstances) != null) {
+        this.numberOfInstances = localStorage.getItem(MigrationDetails.NumberOfInstances) as string
+      }
     })
   }
 

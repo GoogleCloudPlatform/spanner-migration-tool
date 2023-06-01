@@ -81,6 +81,7 @@ export class FetchService {
         Database: dbConfig.dbName,
         User: dbConfig.userName,
         Password: dbConfig.password,
+        DataShardId: dbConfig.shardId,
       })
     })
     return this.http.post(`${this.url}/SetShardsSourceDBDetailsForBulk`, {
