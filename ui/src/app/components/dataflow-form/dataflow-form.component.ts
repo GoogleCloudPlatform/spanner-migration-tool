@@ -1,11 +1,8 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { error } from 'console';
 import { Dataflow } from 'src/app/app.constants';
-import { IDataflowConfig } from 'src/app/model/profile';
 import ISpannerConfig from 'src/app/model/spanner-config';
-import { FetchService } from 'src/app/services/fetch/fetch.service';
 
 @Component({
   selector: 'app-dataflow-form',
