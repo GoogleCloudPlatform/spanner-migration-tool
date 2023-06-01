@@ -412,6 +412,14 @@ export class PrepareMigrationComponent implements OnInit {
         hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
       }
       this.isDataflowConfigurationSet = localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true'
+      if (this.isSharded) {
+        this.fetch.setDataflowDetailsForShardedMigrations(this.dataflowConfig).subscribe({
+          next: () => {},
+          error: (err: any) => {
+            this.snack.openSnackBar(err.error, 'Close')
+          }
+        })
+      }
     }
     )
   }
@@ -458,8 +466,12 @@ export class PrepareMigrationComponent implements OnInit {
     })
     dialogRef.afterClosed().subscribe(() => {
       this.isSourceDetailsSet = localStorage.getItem(MigrationDetails.IsSourceDetailsSet) as string === 'true'
-      this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
-      this.numberOfInstances = localStorage.getItem(MigrationDetails.NumberOfShards) as string
+      if (localStorage.getItem(MigrationDetails.NumberOfShards) != null) {
+        this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
+      }
+      if (localStorage.getItem(MigrationDetails.NumberOfInstances) != null) {
+        this.numberOfInstances = localStorage.getItem(MigrationDetails.NumberOfInstances) as string
+      }
     })
   }
 

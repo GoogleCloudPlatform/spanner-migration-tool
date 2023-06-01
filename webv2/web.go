@@ -91,14 +91,15 @@ var oracleTypeMap = make(map[string][]typeIssue)
 // driverConfig contains the parameters needed to make a direct database connection. It is
 // used to communicate via HTTP with the frontend.
 type driverConfig struct {
-	Driver    string `json:"Driver"`
-	IsSharded bool   `json:"IsSharded"`
-	Host      string `json:"Host"`
-	Port      string `json:"Port"`
-	Database  string `json:"Database"`
-	User      string `json:"User"`
-	Password  string `json:"Password"`
-	Dialect   string `json:"Dialect"`
+	Driver      string `json:"Driver"`
+	IsSharded   bool   `json:"IsSharded"`
+	Host        string `json:"Host"`
+	Port        string `json:"Port"`
+	Database    string `json:"Database"`
+	User        string `json:"User"`
+	Password    string `json:"Password"`
+	Dialect     string `json:"Dialect"`
+	DataShardId string `json:"DataShardId"`
 }
 
 type driverConfigs struct {
@@ -108,6 +109,10 @@ type driverConfigs struct {
 
 type shardedDataflowConfig struct {
 	MigrationProfile profiles.SourceProfileConfig
+}
+
+type DataflowLocation struct {
+	DataflowConfig profiles.DataflowConfig
 }
 
 type sessionSummary struct {
@@ -182,6 +187,11 @@ type DatastreamCfg struct {
 type ColMaxLength struct {
 	SpDataType     string `json:"spDataType"`
 	SpColMaxLength string `json:"spColMaxLength"`
+}
+
+type TableIdAndName struct {
+	Id   string `json:"Id"`
+	Name string `json:"Name"`
 }
 
 // databaseConnection creates connection with database
@@ -348,6 +358,23 @@ func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sourceProfileConfig)
 }
 
+func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var dataflowLocation DataflowLocation
+	err = json.Unmarshal(reqBody, &dataflowLocation)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = dataflowLocation.DataflowConfig
+	w.WriteHeader(http.StatusOK)
+}
+
 func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request) {
 	//Take the received object and store it into session state.
 	sessionState := session.GetSessionState()
@@ -396,15 +423,16 @@ func setShardsSourceDBDetailsForBulk(w http.ResponseWriter, r *http.Request) {
 		sessionState.DbName = config.Database
 		sessionState.SessionFile = ""
 		connDetail := profiles.DirectConnectionConfig{
-			Host:     config.Host,
-			Port:     config.Port,
-			User:     config.User,
-			Password: config.Password,
-			DbName:   config.Database,
+			Host:        config.Host,
+			Port:        config.Port,
+			User:        config.User,
+			Password:    config.Password,
+			DbName:      config.Database,
+			DataShardId: config.DataShardId,
 		}
 		connDetailsList = append(connDetailsList, connDetail)
 		//set the first shard as the schema shard when restoring from a session file
-		if shardConfigs.IsRestoredSession == "sessionFile" {
+		if shardConfigs.IsRestoredSession == constants.SESSION_FILE {
 			if i == 0 {
 				sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
 					Host:           config.Host,
@@ -744,6 +772,24 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(filteredTypeMap)
+}
+
+// getTableWithErrors checks the errors in the spanner schema
+// and returns a list of tables with errors
+func getTableWithErrors(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	var tableIdName []TableIdAndName
+	for id, issues := range sessionState.Conv.SchemaIssues {
+		if len(issues.TableLevelIssues) != 0 {
+			t := TableIdAndName{
+				Id:   id,
+				Name: sessionState.Conv.SpSchema[id].Name,
+			}
+			tableIdName = append(tableIdName, t)
+		}
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(tableIdName)
 }
 
 // applyRule allows to add rules that changes the schema
@@ -1931,12 +1977,6 @@ func getSourceProfileStringForShardedMigrations(sessionState *session.SessionSta
 
 func createConfigFileForShardedDataflowMigration(sessionState *session.SessionState, details migrationDetails, fileName string) error {
 	sourceProfileConfig := sessionState.SourceProfileConfig
-	sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		Location:      sessionState.Region,
-		HostProjectId: details.DataflowConfig.HostProjectId,
-		Network:       details.DataflowConfig.Network,
-		Subnetwork:    details.DataflowConfig.Subnetwork,
-	}
 	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
 	for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
 		rootPath := dataShard.DataShardId

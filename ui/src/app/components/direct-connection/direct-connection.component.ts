@@ -93,7 +93,7 @@ export class DirectConnectionComponent implements OnInit {
     })
   }
 
-  refreshDbOptions() {
+  refreshDbSpecifcConnectionOptions() {
     this.connectForm.value.isSharded = false
   }
 }

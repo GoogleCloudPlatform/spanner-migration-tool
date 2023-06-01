@@ -9,12 +9,13 @@ import IConv, {
   IInterleaveStatus,
   IPrimaryKey,
   ISessionSummary,
+  ITableIdAndName,
 } from '../../model/conv'
 import IDumpConfig, { IConvertFromDumpRequest } from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
-import IConnectionProfile, { ICreateConnectionProfileV2, IMigrationProfile } from 'src/app/model/profile'
+import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IMigrationProfile } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
 
 @Injectable({
@@ -80,6 +81,7 @@ export class FetchService {
         Database: dbConfig.dbName,
         User: dbConfig.userName,
         Password: dbConfig.password,
+        DataShardId: dbConfig.shardId,
       })
     })
     return this.http.post(`${this.url}/SetShardsSourceDBDetailsForBulk`, {
@@ -91,6 +93,12 @@ export class FetchService {
   setShardSourceDBDetailsForDataflow(payload: IMigrationProfile) {
     return this.http.post(`${this.url}/SetShardsSourceDBDetailsForDataflow`, {
       MigrationProfile: payload
+    })
+  }
+
+  setDataflowDetailsForShardedMigrations(payload: IDataflowConfig) {
+    return this.http.post(`${this.url}/SetDataflowDetailsForShardedMigrations`, {
+      DataflowConfig: payload
     })
   }
 
@@ -170,6 +178,10 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableId}`, {
       Id: fkId,
     })
+  }
+
+  getTableWithErrors() {
+    return this.http.get<ITableIdAndName[]>(`${this.url}/GetTableWithErrors`)
   }
 
   getSessions() {

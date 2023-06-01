@@ -71,7 +71,7 @@ type StreamingCfg struct {
 	DatastreamCfg DatastreamCfg
 	DataflowCfg   DataflowCfg
 	TmpDir        string
-	DataShardId string
+	DataShardId   string
 }
 
 // VerifyAndUpdateCfg checks the fields and errors out if certain fields are empty.
@@ -438,11 +438,11 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		fmt.Printf("flexTemplateRequest: %+v\n", req)
 		return fmt.Errorf("unable to launch template: %v", err)
 	}
-	printDataflowJob(conv, datastreamCfg, respDf, project, streamingCfg.DataShardId)
+	storeGeneratedResources(conv, datastreamCfg, respDf, project, streamingCfg.DataShardId)
 	return nil
 }
 
-func printDataflowJob(conv *internal.Conv, datastreamCfg DatastreamCfg, respDf *dataflowpb.LaunchFlexTemplateResponse, project string, dataShardId string) {
+func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, respDf *dataflowpb.LaunchFlexTemplateResponse, project string, dataShardId string) {
 	conv.Audit.StreamingStats.DataStreamName = datastreamCfg.StreamId
 	conv.Audit.StreamingStats.DataflowJobId = respDf.Job.Id
 	if dataShardId != "" {
@@ -502,7 +502,7 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 		HostProjectId: inputDataflowConfig.HostProjectId,
 		Subnetwork:    inputDataflowConfig.Subnetwork}
 	//create src and dst datastream from pl receiver object
-	datastreamCfg := DatastreamCfg{StreamLocation: pl.StreamLocation} 
+	datastreamCfg := DatastreamCfg{StreamLocation: pl.StreamLocation}
 	//set src connection profile
 	inputSrcConnProfile := pl.SrcConnectionProfile
 	srcConnCfg := SrcConnCfg{Location: inputSrcConnProfile.Location, Name: inputSrcConnProfile.Name}

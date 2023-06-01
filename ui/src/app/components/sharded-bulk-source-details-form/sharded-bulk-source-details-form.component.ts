@@ -64,6 +64,7 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
       userName: new FormControl(schemaSourceConfig.userName, [Validators.required]),
       dbName: new FormControl(schemaSourceConfig.dbName, [Validators.required]),
       password: new FormControl(schemaSourceConfig.password),
+      shardId: new FormControl('', [Validators.required]),
     })
   }
 
@@ -81,6 +82,7 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
         this.directConnectForm.get(key)?.updateValueAndValidity();
       }
       this.directConnectForm.get('textInput')?.setValidators([Validators.required])
+      this.directConnectForm.controls['textInput'].updateValueAndValidity()
     }
     else {
       this.directConnectForm.get('hostName')?.setValidators([Validators.required])
@@ -93,6 +95,8 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
       this.directConnectForm.controls['dbName'].updateValueAndValidity()
       this.directConnectForm.get('password')?.setValidators([Validators.required])
       this.directConnectForm.controls['password'].updateValueAndValidity()
+      this.directConnectForm.get('shardId')?.setValidators([Validators.required])
+      this.directConnectForm.controls['shardId'].updateValueAndValidity()
       this.directConnectForm.controls['textInput'].clearValidators()
       this.directConnectForm.controls['textInput'].updateValueAndValidity()
     }
@@ -120,7 +124,7 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
 
 
   saveDetailsAndReset() {
-    const { hostName, port, userName, password, dbName } = this.directConnectForm.value
+    const { hostName, port, userName, password, dbName, shardId } = this.directConnectForm.value
     let connConfig: IDbConfig = {
       dbEngine: this.shardSessionDetails.sourceDatabaseEngine,
       isSharded: false,
@@ -129,6 +133,7 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
       userName: userName,
       password: password,
       dbName: dbName,
+      shardId: shardId,
     }
     this.shardConnDetailsList.push(connConfig)
     this.directConnectForm = new FormGroup({
@@ -139,6 +144,7 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
       userName: new FormControl(''),
       dbName: new FormControl(''),
       password: new FormControl(''),
+      shardId: new FormControl(''),
     })
     this.setValidators('form')
     this.snack.openSnackBar('Shard configured successfully, please configure the next', 'Close', 5)
@@ -146,7 +152,7 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
   finalizeConnDetails() {
     let inputType: string = this.directConnectForm.value.inputType
     if (inputType === "form") {
-      const { hostName, port, userName, password, dbName } = this.directConnectForm.value
+      const { hostName, port, userName, password, dbName, shardId } = this.directConnectForm.value
       let connConfig: IDbConfig = {
         dbEngine: this.shardSessionDetails.sourceDatabaseEngine,
         isSharded: false,
@@ -155,6 +161,7 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
         userName: userName,
         password: password,
         dbName: dbName,
+        shardId: shardId,
       }
       this.shardConnDetailsList.push(connConfig)
       this.sourceConnDetails.dbConfigs = this.shardConnDetailsList
@@ -174,6 +181,8 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
     this.fetch.setShardsSourceDBDetailsForBulk(this.sourceConnDetails).subscribe({
       next: () => {
         localStorage.setItem(MigrationDetails.NumberOfShards, this.sourceConnDetails.dbConfigs.length.toString())
+        localStorage.setItem(MigrationDetails.NumberOfInstances, this.sourceConnDetails.dbConfigs.length.toString())
+        localStorage.setItem(MigrationDetails.IsSourceDetailsSet, "true")
         this.dialogRef.close()
       },
       error: (err: any) => {

@@ -1,3 +1,5 @@
+import { Interface } from "readline"
+
 export default interface IDbConfig {
   dbEngine: string
   isSharded: boolean
@@ -6,6 +8,7 @@ export default interface IDbConfig {
   userName: string
   password: string
   dbName: string
+  shardId?: string
 }
 
 export interface IDbConfigs {
