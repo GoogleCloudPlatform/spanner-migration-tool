@@ -412,6 +412,14 @@ export class PrepareMigrationComponent implements OnInit {
         hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
       }
       this.isDataflowConfigurationSet = localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true'
+      if (this.isSharded) {
+        this.fetch.setDataflowDetailsForShardedMigrations(this.dataflowConfig).subscribe({
+          next: () => {},
+          error: (err: any) => {
+            this.snack.openSnackBar(err.error, 'Close')
+          }
+        })
+      }
     }
     )
   }

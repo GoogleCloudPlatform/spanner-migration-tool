@@ -113,12 +113,6 @@
                                 check_circle
                             </mat-icon>
                         </button>
-                        <button mat-button class="configure"
-                        (click)="downloadConfiguration()"
-                        [disabled]="isMigrationInProgress || !isTargetDetailSet || !isTargetConnectionProfileSet">
-                            Download
-                            <mat-icon matTooltip="Download configured shards as JSON" matTooltipPosition="above">download</mat-icon>
-                        </button>
                     </span>
                 </p>
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && !isSharded">
@@ -159,6 +153,15 @@
                                 matTooltip="Dataflow Configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
+                        </button></span>
+                </p>
+                <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
+                    <span class="bullet" *ngIf="isSharded">5</span>
+                    <span>Download configuration as JSON </span><span><button mat-button class="configure"
+                            (click)="downloadConfiguration()"
+                            [disabled]="isMigrationInProgress || !isTargetDetailSet || !isTargetConnectionProfileSet">
+                            Download
+                            <mat-icon matTooltip="Download configured shards as JSON" matTooltipPosition="above">download</mat-icon>
                         </button></span>
                 </p>
             </div>

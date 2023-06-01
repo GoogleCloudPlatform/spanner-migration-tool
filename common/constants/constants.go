@@ -78,4 +78,5 @@ const (
 	//DMS migration type
 	DMS_MIGRATION       = "dms"
 	EditColumnMaxLength = "edit_column_max_length"
+	SESSION_FILE = "sessionFile"
 )

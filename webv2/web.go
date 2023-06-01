@@ -110,6 +110,10 @@ type shardedDataflowConfig struct {
 	MigrationProfile profiles.SourceProfileConfig
 }
 
+type DataflowLocation struct {
+	DataflowConfig profiles.DataflowConfig
+}
+
 type sessionSummary struct {
 	DatabaseType       string
 	ConnectionDetail   string
@@ -353,6 +357,23 @@ func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sourceProfileConfig)
 }
 
+func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var dataflowLocation DataflowLocation
+	err = json.Unmarshal(reqBody, &dataflowLocation)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = dataflowLocation.DataflowConfig
+	w.WriteHeader(http.StatusOK)
+}
+
 func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request) {
 	//Take the received object and store it into session state.
 	sessionState := session.GetSessionState()
@@ -409,7 +430,7 @@ func setShardsSourceDBDetailsForBulk(w http.ResponseWriter, r *http.Request) {
 		}
 		connDetailsList = append(connDetailsList, connDetail)
 		//set the first shard as the schema shard when restoring from a session file
-		if shardConfigs.IsRestoredSession == "sessionFile" {
+		if shardConfigs.IsRestoredSession == constants.SESSION_FILE {
 			if i == 0 {
 				sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
 					Host:           config.Host,
@@ -1954,12 +1975,6 @@ func getSourceProfileStringForShardedMigrations(sessionState *session.SessionSta
 
 func createConfigFileForShardedDataflowMigration(sessionState *session.SessionState, details migrationDetails, fileName string) error {
 	sourceProfileConfig := sessionState.SourceProfileConfig
-	sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		Location:      sessionState.Region,
-		HostProjectId: details.DataflowConfig.HostProjectId,
-		Network:       details.DataflowConfig.Network,
-		Subnetwork:    details.DataflowConfig.Subnetwork,
-	}
 	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
 	for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
 		rootPath := dataShard.DataShardId
