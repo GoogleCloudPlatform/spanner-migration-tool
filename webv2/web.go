@@ -371,8 +371,13 @@ func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Reque
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = dataflowLocation.DataflowConfig
-	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig.Location = sessionState.Region
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
+		Location: sessionState.Region,
+		Network: dataflowLocation.DataflowConfig.Network,
+		Subnetwork: dataflowLocation.DataflowConfig.Subnetwork,
+		HostProjectId: dataflowLocation.DataflowConfig.HostProjectId,
+	}
+	fmt.Printf("dataflowConfig - %v+ \n", sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -1978,10 +1983,22 @@ func getSourceProfileStringForShardedMigrations(sessionState *session.SessionSta
 
 func createConfigFileForShardedDataflowMigration(sessionState *session.SessionState, details migrationDetails, fileName string) error {
 	sourceProfileConfig := sessionState.SourceProfileConfig
+	if (sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig == profiles.DataflowConfig{}) {
+		sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
+			Location: sessionState.Region,
+			Network: details.DataflowConfig.Network,
+			Subnetwork: details.DataflowConfig.Subnetwork,
+			HostProjectId: details.DataflowConfig.HostProjectId,
+		}
+	}
+	fmt.Printf("dataflowConfig - %v+ \n", sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig)
 	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
 	for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
-		rootPath := dataShard.DataShardId
-		dataShard.TmpDir = "gs://" + sessionState.Bucket + rootPath
+		bucket, rootPath, err := profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, dataShard.DstConnectionProfile.Name)
+		if err != nil {
+			return fmt.Errorf("error while getting target bucket: %v", err)
+		}
+		dataShard.TmpDir = "gs://" + bucket + rootPath
 	}
 	file, err := json.MarshalIndent(sourceProfileConfig, "", " ")
 	if err != nil {
