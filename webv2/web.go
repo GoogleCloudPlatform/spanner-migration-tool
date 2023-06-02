@@ -1994,8 +1994,11 @@ func createConfigFileForShardedDataflowMigration(sessionState *session.SessionSt
 	fmt.Printf("dataflowConfig - %v+ \n", sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig)
 	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
 	for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
-		rootPath := dataShard.DataShardId
-		dataShard.TmpDir = "gs://" + sessionState.Bucket + rootPath
+		bucket, rootPath, err := profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, dataShard.DstConnectionProfile.Name)
+		if err != nil {
+			return fmt.Errorf("error while getting target bucket: %v", err)
+		}
+		dataShard.TmpDir = "gs://" + bucket + rootPath
 	}
 	file, err := json.MarshalIndent(sourceProfileConfig, "", " ")
 	if err != nil {
