@@ -122,25 +122,25 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string) error {
 		streamingCfg.DataflowCfg.JobName = jobName
 	}
 
-	filePath := streamingCfg.TmpDir
-	u, err := utils.ParseGCSFilePath(filePath)
-	if err != nil {
-		return fmt.Errorf("parseFilePath: unable to parse file path: %v", err)
-	}
-	// We update the TmpDir in case any '/' were added in ParseGCSFilePath().
-	streamingCfg.TmpDir = u.String()
-	bucketName := u.Host
-	ctx := context.Background()
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to create GCS client")
-	}
-	defer client.Close()
-	bucket := client.Bucket(bucketName)
-	_, err = bucket.Attrs(ctx)
-	if err != nil {
-		return fmt.Errorf("bucket %s does not exist", bucketName)
-	}
+	// filePath := streamingCfg.TmpDir
+	// u, err := utils.ParseGCSFilePath(filePath)
+	// if err != nil {
+	// 	return fmt.Errorf("parseFilePath: unable to parse file path: %v", err)
+	// }
+	// // We update the TmpDir in case any '/' were added in ParseGCSFilePath().
+	// streamingCfg.TmpDir = u.String()
+	// bucketName := u.Host
+	// ctx := context.Background()
+	// client, err := storage.NewClient(ctx)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create GCS client")
+	// }
+	// defer client.Close()
+	// bucket := client.Bucket(bucketName)
+	// _, err = bucket.Attrs(ctx)
+	// if err != nil {
+	// 	return fmt.Errorf("bucket %s does not exist", bucketName)
+	// }
 	return nil
 }
 
