@@ -24,7 +24,6 @@ import (
 
 	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
 	datastream "cloud.google.com/go/datastream/apiv1"
-	"cloud.google.com/go/storage"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
