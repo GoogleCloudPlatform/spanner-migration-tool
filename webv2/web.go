@@ -371,8 +371,13 @@ func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Reque
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = dataflowLocation.DataflowConfig
-	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig.Location = sessionState.Region
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
+		Location: sessionState.Region,
+		Network: dataflowLocation.DataflowConfig.Network,
+		Subnetwork: dataflowLocation.DataflowConfig.Subnetwork,
+		HostProjectId: dataflowLocation.DataflowConfig.HostProjectId,
+	}
+	fmt.Printf("dataflowConfig - %v+ \n", sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig)
 	w.WriteHeader(http.StatusOK)
 }
 
