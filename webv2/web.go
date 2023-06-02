@@ -372,6 +372,7 @@ func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = dataflowLocation.DataflowConfig
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig.Location = sessionState.Region
 	w.WriteHeader(http.StatusOK)
 }
 
