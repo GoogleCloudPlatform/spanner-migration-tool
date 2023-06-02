@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -377,7 +378,6 @@ func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Reque
 		Subnetwork: dataflowLocation.DataflowConfig.Subnetwork,
 		HostProjectId: dataflowLocation.DataflowConfig.HostProjectId,
 	}
-	fmt.Printf("dataflowConfig - %v+ \n", sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -1983,7 +1983,8 @@ func getSourceProfileStringForShardedMigrations(sessionState *session.SessionSta
 
 func createConfigFileForShardedDataflowMigration(sessionState *session.SessionState, details migrationDetails, fileName string) error {
 	sourceProfileConfig := sessionState.SourceProfileConfig
-	if (sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig == profiles.DataflowConfig{}) {
+	if (reflect.DeepEqual(sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig, profiles.DataflowConfig{})) {
+		fmt.Printf("Here!!")
 		sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
 			Location: sessionState.Region,
 			Network: details.DataflowConfig.Network,
@@ -1991,7 +1992,6 @@ func createConfigFileForShardedDataflowMigration(sessionState *session.SessionSt
 			HostProjectId: details.DataflowConfig.HostProjectId,
 		}
 	}
-	fmt.Printf("dataflowConfig - %v+ \n", sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig)
 	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
 	for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
 		bucket, rootPath, err := profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, dataShard.DstConnectionProfile.Name)
