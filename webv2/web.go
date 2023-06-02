@@ -1983,6 +1983,15 @@ func getSourceProfileStringForShardedMigrations(sessionState *session.SessionSta
 
 func createConfigFileForShardedDataflowMigration(sessionState *session.SessionState, details migrationDetails, fileName string) error {
 	sourceProfileConfig := sessionState.SourceProfileConfig
+	if (sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig == profiles.DataflowConfig{}) {
+		sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
+			Location: sessionState.Region,
+			Network: details.DataflowConfig.Network,
+			Subnetwork: details.DataflowConfig.Subnetwork,
+			HostProjectId: details.DataflowConfig.HostProjectId,
+		}
+	}
+	fmt.Printf("dataflowConfig - %v+ \n", sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig)
 	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
 	for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
 		rootPath := dataShard.DataShardId
