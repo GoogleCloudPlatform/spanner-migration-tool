@@ -396,6 +396,14 @@ func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	sessionState.SourceProfileConfig = srcConfig.MigrationProfile
+	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
+	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
+		Location: sessionState.Region,
+		Network: "",
+		Subnetwork: "",
+		HostProjectId: sessionState.GCPProjectID,
+	}
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -1983,15 +1991,6 @@ func getSourceProfileStringForShardedMigrations(sessionState *session.SessionSta
 
 func createConfigFileForShardedDataflowMigration(sessionState *session.SessionState, details migrationDetails, fileName string) error {
 	sourceProfileConfig := sessionState.SourceProfileConfig
-	if (reflect.DeepEqual(sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig, profiles.DataflowConfig{})) {
-		fmt.Printf("Here!!")
-		sourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-			Location: sessionState.Region,
-			Network: details.DataflowConfig.Network,
-			Subnetwork: details.DataflowConfig.Subnetwork,
-			HostProjectId: details.DataflowConfig.HostProjectId,
-		}
-	}
 	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
 	for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
 		bucket, rootPath, err := profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, dataShard.DstConnectionProfile.Name)
