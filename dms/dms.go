@@ -82,42 +82,6 @@ type SessionFileCfg struct {
 	FileContent string
 }
 
-// // LaunchDMSJob creates and launches a DMS Job.
-// func LaunchDMSJob(ctx context.Context) error {
-// 	dmsClient, err := dms.NewDataMigrationClient(ctx)
-// 	if err != nil {
-// 		return fmt.Errorf("dms client can not be created: %v", err)
-// 	}
-// 	defer dmsClient.Close()
-// 	fmt.Println("Created dms client...")
-
-// 	req := &clouddmspb.CreateMigrationJobRequest{
-// 		Parent:         "projects/span-cloud-testing/locations/us-central1",
-// 		MigrationJobId: "test-migration-job-12",
-// 		MigrationJob: &clouddmspb.MigrationJob{
-// 			Labels:              map[string]string{"sharded_migration_id": "hb_migration_id_1234"},
-// 			Type:                clouddmspb.MigrationJob_CONTINUOUS,
-// 			Source:              "projects/span-cloud-testing/locations/us-central1/connectionProfiles/msql-conn1",
-// 			Destination:         "projects/span-cloud-testing/locations/us-central1/connectionProfiles/span-conn1",
-// 			ConversionWorkspace: &clouddmspb.ConversionWorkspaceInfo{Name: "projects/span-cloud-testing/locations/us-central1/conversionWorkspaces/conversion1", CommitId: "ceecaaa4"},
-// 			Connectivity:        nil,
-// 			SourceDatabase:      nil,
-// 			DestinationDatabase: nil,
-// 		},
-// 	}
-
-// 	op, err := dmsClient.CreateMigrationJob(ctx, req)
-// 	if err != nil {
-// 		return fmt.Errorf("dms migration job could not be created: %v", err)
-// 	}
-// 	dmsJob, err := op.Wait(ctx)
-// 	if err != nil {
-// 		return fmt.Errorf("dms migration job could not be created (while waiting): %v", err)
-// 	}
-// 	fmt.Printf("Created dms job. JobId=%v", dmsJob.Name)
-// 	return nil
-// }
-
 // CreateDMSJob creates a DMS Job.
 func CreateDMSJob(ctx context.Context, job DMSJobCfg) error {
 	dmsClient, err := dms.NewDataMigrationClient(ctx)
@@ -161,34 +125,6 @@ func CreateDMSJob(ctx context.Context, job DMSJobCfg) error {
 	fmt.Printf("Created dms job. JobId=%v", dmsJob.Name)
 	return nil
 }
-
-// // CreateMySQLConnectionProfile creates a MySQL connection profile in DMS
-// func CreateMySQLConnectionProfile(ctx context.Context) error {
-
-// 	req := ConnectionProfile{
-// 		Name:        "projects/span-cloud-testing/locations/us-central1/connectionProfiles/msql-conn1",
-// 		DisplayName: "MySQL conn 1",
-// 		MySQL: &MySqlConnectionProfile{
-// 			Host:     "relational.fit.cvut.cz",
-// 			Port:     3306,
-// 			Username: "guest",
-// 			Password: "relational",
-// 			// PrivateConn: &PrivateConnectivity{PrivateConnection: "projects/span-cloud-testing/locations/us-central1/privateConnections/djagaluru-test"},
-// 		},
-// 	}
-
-// 	d, err := NewDmsHttpClient(ctx, nil)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	err = d.createConnectionProfile(ctx, "span-cloud-testing", "us-central1", "msql-conn1", &req)
-// 	if err != nil {
-// 		return fmt.Errorf("MySQL connection profile could not be created: %v", err)
-// 	}
-// 	fmt.Printf("Created MySQL connection profile. Id=%v", "msql-conn1")
-// 	return nil
-// }
 
 // CreateMySQLConnectionProfile creates a MySQL connection profile in DMS
 func CreateMySQLConnectionProfile(ctx context.Context, sourceConnCfg SrcConnCfg) error {
@@ -235,20 +171,6 @@ func CreateMySQLConnectionProfile(ctx context.Context, sourceConnCfg SrcConnCfg)
 	return nil
 }
 
-// // CreateSpannerConnectionProfile creates a Spanner connection profile in DMS
-// func CreateSpannerConnectionProfile(ctx context.Context) error {
-// 	req := ConnectionProfile{
-// 		Name:        "projects/span-cloud-testing/locations/us-central1/connectionProfiles/span-conn1",
-// 		DisplayName: "Spanner Connection 1",
-// 		Spanner:     &SpannerConnectionProfile{Database: "projects/span-cloud-testing/instances/djagaluru-dms-test/databases/migration_test"},
-// 	}
-// 	d, err := NewDmsHttpClient(ctx, nil)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return d.createConnectionProfile(ctx, "span-cloud-testing", "us-central1", "span-conn1", &req)
-// }
-
 // CreateSpannerConnectionProfile creates a Spanner connection profile in DMS
 func CreateSpannerConnectionProfile(ctx context.Context, destinationConfig DstConnCfg) error {
 	name := "projects/%s/locations/%s/connectionProfiles/%s"
@@ -274,55 +196,6 @@ func CreateSpannerConnectionProfile(ctx context.Context, destinationConfig DstCo
 	}
 	return client.createConnectionProfile(ctx, destinationConfig.Project, destinationConfig.Location, destinationConfig.ConnectionProfileID, &req)
 }
-
-// // CreateConversionWorkspace creates a conversion workspace and uploads session file
-// func CreateConversionWorkspace(ctx context.Context, workspaceCfg ConversionWorkspaceCfg) error {
-// 	dmsClient, err := dms.NewDataMigrationClient(ctx)
-// 	if err != nil {
-// 		return fmt.Errorf("dms client can not be created: %v", err)
-// 	}
-// 	defer dmsClient.Close()
-// 	fmt.Println("Created dms client...")
-
-// 	req := ConversionWorkspace{
-// 		Name:           "projects/span-cloud-testing/locations/us-central1/conversionWorkspaces/conversion1",
-// 		Source:         DBEngineInfo{Engine: MYSQL},
-// 		Destination:    DBEngineInfo{Engine: SPANNER},
-// 		GlobalSettings: settings{V2: "true"},
-// 	}
-// 	client, err := NewDmsHttpClient(ctx, dmsClient)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	err = client.createConversionWorkspace(ctx, "span-cloud-testing", "us-central1", "conversion1", &req)
-// 	if err != nil {
-// 		return fmt.Errorf("Conversion workspace could not be created: %v", err)
-// 	}
-
-// 	importReq := &clouddmspb.ImportMappingRulesRequest{
-// 		Parent:      "projects/span-cloud-testing/locations/us-central1/conversionWorkspaces/conversion1",
-// 		RulesFormat: clouddmspb.ImportRulesFileFormat_IMPORT_RULES_FILE_FORMAT_HARBOUR_BRIDGE_SESSION_FILE,
-// 		AutoCommit:  true,
-// 		RulesFiles: []*clouddmspb.ImportMappingRulesRequest_RulesFile{
-// 			{
-// 				RulesSourceFilename: "hb_session_1",
-// 				RulesContent:        sessionFileContent,
-// 			},
-// 		},
-// 	}
-
-// 	importOp, err := dmsClient.ImportMappingRules(ctx, importReq)
-// 	if err != nil {
-// 		return fmt.Errorf("Could not create mapping rules from Harbourbridge session, err=%v, importOp=%v", err, importOp)
-// 	}
-// 	conversionWorkspace, err := importOp.Wait(ctx)
-// 	if err != nil {
-// 		return fmt.Errorf("Conversion workspace not be created (after waiting): %v, conversionWorkspace=%v", err, conversionWorkspace)
-// 	}
-
-// 	fmt.Printf("Created ConversionWorkspace. Id=%v", conversionWorkspace.Name)
-// 	return nil
-// }
 
 // CreateConversionWorkspace creates a conversion workspace and uploads session file
 func CreateConversionWorkspace(ctx context.Context, workspaceCfg ConversionWorkspaceCfg) (string, error) {
