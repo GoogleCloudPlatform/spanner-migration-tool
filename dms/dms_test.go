@@ -61,7 +61,11 @@ func createMySQLConn(ctx context.Context) error {
 			Password: mysql_password,
 		},
 	}
-	return CreateMySQLConnectionProfile(ctx, source)
+	err := CreateMySQLConnectionProfile(ctx, source, true)
+	if err != nil {
+		return err
+	}
+	return CreateMySQLConnectionProfile(ctx, source, false)
 }
 
 func createSpannerConn(ctx context.Context) error {
@@ -75,7 +79,11 @@ func createSpannerConn(ctx context.Context) error {
 			Database: spanner_database,
 		},
 	}
-	return CreateSpannerConnectionProfile(ctx, dst)
+	err := CreateSpannerConnectionProfile(ctx, dst, true)
+	if err != nil {
+		return err
+	}
+	return CreateSpannerConnectionProfile(ctx, dst, false)
 }
 
 func createConvWorkspace(ctx context.Context) (string, error) {

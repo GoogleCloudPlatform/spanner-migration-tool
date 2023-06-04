@@ -139,11 +139,15 @@ func NewDmsHttpClient(ctx context.Context, dmsClient *dms.DataMigrationClient) (
 }
 
 // createConnectionProfile REST API
-func (d *dmsHttpClient) createConnectionProfile(ctx context.Context, project string, location string, connectionProfileID string, connectionProfile *ConnectionProfile) error {
+func (d *dmsHttpClient) createConnectionProfile(ctx context.Context, project string, location string, connectionProfileID string, connectionProfile *ConnectionProfile, testConnectivityOnly bool) error {
 
 	connectionProfileURL := "https://datamigration.googleapis.com/v1/projects/%s/locations/%s/connectionProfiles?connectionProfileId=%s"
 
 	connectionProfileURL = fmt.Sprintf(connectionProfileURL, project, location, connectionProfileID)
+
+	if testConnectivityOnly {
+		connectionProfileURL = connectionProfileURL + "&validateOnly=true"
+	}
 
 	request, err := json.MarshalIndent(connectionProfile, "", " ")
 

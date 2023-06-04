@@ -127,7 +127,7 @@ func CreateDMSJob(ctx context.Context, job DMSJobCfg) error {
 }
 
 // CreateMySQLConnectionProfile creates a MySQL connection profile in DMS
-func CreateMySQLConnectionProfile(ctx context.Context, sourceConnCfg SrcConnCfg) error {
+func CreateMySQLConnectionProfile(ctx context.Context, sourceConnCfg SrcConnCfg, testConnectivityOnly bool) error {
 	name := "projects/%s/locations/%s/connectionProfiles/%s"
 
 	name = fmt.Sprintf(name, sourceConnCfg.Project, sourceConnCfg.Location, sourceConnCfg.ConnectionProfileID)
@@ -163,7 +163,7 @@ func CreateMySQLConnectionProfile(ctx context.Context, sourceConnCfg SrcConnCfg)
 		return err
 	}
 
-	err = client.createConnectionProfile(ctx, sourceConnCfg.Project, sourceConnCfg.Location, sourceConnCfg.ConnectionProfileID, &req)
+	err = client.createConnectionProfile(ctx, sourceConnCfg.Project, sourceConnCfg.Location, sourceConnCfg.ConnectionProfileID, &req, testConnectivityOnly)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func CreateMySQLConnectionProfile(ctx context.Context, sourceConnCfg SrcConnCfg)
 }
 
 // CreateSpannerConnectionProfile creates a Spanner connection profile in DMS
-func CreateSpannerConnectionProfile(ctx context.Context, destinationConfig DstConnCfg) error {
+func CreateSpannerConnectionProfile(ctx context.Context, destinationConfig DstConnCfg, testConnectivityOnly bool) error {
 	name := "projects/%s/locations/%s/connectionProfiles/%s"
 	name = fmt.Sprintf(name, destinationConfig.Project, destinationConfig.Location, destinationConfig.ConnectionProfileID)
 	spannerDB := "projects/%s/instances/%s/databases/%s"
@@ -194,7 +194,7 @@ func CreateSpannerConnectionProfile(ctx context.Context, destinationConfig DstCo
 	if err != nil {
 		return err
 	}
-	return client.createConnectionProfile(ctx, destinationConfig.Project, destinationConfig.Location, destinationConfig.ConnectionProfileID, &req)
+	return client.createConnectionProfile(ctx, destinationConfig.Project, destinationConfig.Location, destinationConfig.ConnectionProfileID, &req, testConnectivityOnly)
 }
 
 // CreateConversionWorkspace creates a conversion workspace and uploads session file
