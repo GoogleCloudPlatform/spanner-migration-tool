@@ -95,7 +95,8 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 			renameColumn(v.Rename, tableId, colId, conv)
 		}
 
-		if v.ToType != "" {
+		_, found := conv.SrcSchema[tableId].ColDefs[colId]
+		if v.ToType != "" && found {
 
 			typeChange, err := utilities.IsTypeChanged(v.ToType, tableId, colId, conv)
 
