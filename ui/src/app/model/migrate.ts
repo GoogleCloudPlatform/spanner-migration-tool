@@ -6,6 +6,7 @@ export default interface IMigrationDetails {
     DataflowConfig: IDataflowConfig
     MigrationType: string
     MigrationMode: string
+    IsSharded: boolean
 }
 
 export interface IProgress {
@@ -23,6 +24,13 @@ export interface IGeneratedResources {
     DataStreamJobUrl: string
     DataflowJobName: string
     DataflowJobUrl: string
+    ShardToDatastreamMap: Map<string, ResourceDetails>
+    ShardToDataflowMap: Map<string, ResourceDetails>
+}
+
+export interface ResourceDetails {
+    JobName: string
+    JobUrl: string
 }
 
 export interface ISourceAndTargetDetails {
