@@ -2,7 +2,7 @@ import { HttpClient, HttpResponse } from '@angular/common/http'
 import { Injectable } from '@angular/core'
 import IDbConfig, { IDbConfigs } from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
-import IUpdateTable, { IReviewUpdateTable } from '../../model/update-table'
+import IUpdateTable, { IAddColumn, IReviewUpdateTable } from '../../model/update-table'
 import IConv, {
   ICreateIndex,
   IForeignKey,
@@ -172,6 +172,10 @@ export class FetchService {
 
   updateFk(tableId: string, payload: IForeignKey[]): any {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/update/fks?table=${tableId}`, payload)
+  }
+
+  addColumn(tableId: string,payload: IAddColumn) {
+    return this.http.post(`${this.url}/AddColumn?table=${tableId}`, payload)
   }
 
   removeFk(tableId: string, fkId: string): any {

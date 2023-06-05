@@ -71,6 +71,8 @@ func getRoutes() *mux.Router {
 	// primarykey
 	router.HandleFunc("/primaryKey", primarykey.PrimaryKey).Methods("POST")
 
+	router.HandleFunc("/AddColumn", table.AddNewColumn).Methods("POST")
+
 	// Summary
 	router.HandleFunc("/summary", summary.GetSummary).Methods("GET")
 

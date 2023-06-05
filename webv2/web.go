@@ -1100,7 +1100,7 @@ func addIndex(newIndex ddl.CreateIndex) (ddl.CreateIndex, error) {
 		newIndexes[i].Id = internal.GenerateIndexesId()
 	}
 
-	sessionState.Conv.UsedNames[newIndex.Name] = true
+	sessionState.Conv.UsedNames[strings.ToLower(newIndex.Name)] = true
 	sp.Indexes = append(sp.Indexes, newIndexes...)
 	sessionState.Conv.SpSchema[newIndex.TableId] = sp
 	return newIndexes[0], nil
@@ -1270,7 +1270,7 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 
 			if update && sp.ParentId == "" && setInterleave {
 				usedNames := sessionState.Conv.UsedNames
-				delete(usedNames, sp.ForeignKeys[i].Name)
+				delete(usedNames, strings.ToLower(sp.ForeignKeys[i].Name))
 				sp.ParentId = refTableId
 				sp.ForeignKeys = utilities.RemoveFk(sp.ForeignKeys, sp.ForeignKeys[i].Id)
 			}
@@ -1467,7 +1467,7 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 
 	//remove deleted name from usedName
 	usedNames := sessionState.Conv.UsedNames
-	delete(usedNames, sessionState.Conv.SpSchema[tableId].Name)
+	delete(usedNames, strings.ToLower(sessionState.Conv.SpSchema[tableId].Name))
 	for _, index := range sessionState.Conv.SpSchema[tableId].Indexes {
 		delete(usedNames, index.Name)
 	}
@@ -1648,7 +1648,7 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 	for _, foreignKey := range sp.ForeignKeys {
 		for _, updatedForeignkey := range newFKs {
 			if foreignKey.Id == updatedForeignkey.Id && len(updatedForeignkey.ColIds) != 0 && updatedForeignkey.ReferTableId != "" {
-				delete(usedNames, foreignKey.Name)
+				delete(usedNames, strings.ToLower(foreignKey.Name))
 				foreignKey.Name = updatedForeignkey.Name
 				updatedFKs = append(updatedFKs, foreignKey)
 			}
@@ -2249,7 +2249,7 @@ func dropSecondaryIndexHelper(tableId, idxId string) error {
 	}
 
 	usedNames := sessionState.Conv.UsedNames
-	delete(usedNames, sp.Indexes[position].Name)
+	delete(usedNames, strings.ToLower(sp.Indexes[position].Name))
 	index.RemoveIndexIssues(tableId, sp.Indexes[position])
 
 	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)
