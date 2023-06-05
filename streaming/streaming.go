@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"sync"
 	"time"
 
 	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
@@ -70,6 +71,7 @@ type StreamingCfg struct {
 	DatastreamCfg DatastreamCfg
 	DataflowCfg   DataflowCfg
 	TmpDir        string
+	DataShardId string
 }
 
 // VerifyAndUpdateCfg checks the fields and errors out if certain fields are empty.
@@ -169,6 +171,8 @@ func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard) *datastreampb.So
 		}
 		includeDbList = append(includeDbList, includeDb)
 	}
+	//TODO: Clean up fmt.Printf logs and replace them with zap logger.
+	fmt.Printf("Include DB List for datastream: %+v\n", includeDbList)
 	mysqlSrcCfg := &datastreampb.MysqlSourceConfig{
 		IncludeObjects: &datastreampb.MysqlRdbms{MysqlDatabases: includeDbList},
 	}
@@ -302,41 +306,72 @@ func LaunchStream(ctx context.Context, driver string, dbList []profiles.LogicalS
 }
 
 func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, region string) error {
+	//create clients
 	c, err := dataflow.NewJobsV1Beta3Client(ctx)
 	if err != nil {
 		return fmt.Errorf("could not create job client: %v", err)
 	}
 	defer c.Close()
 	fmt.Println("Created dataflow job client...")
+	dsClient, err := datastream.NewClient(ctx)
+	fmt.Println("Created datastream client...")
+	if err != nil {
+		return fmt.Errorf("datastream client can not be created: %v", err)
+	}
+	defer dsClient.Close()
 
+	//clean up for single instance migrations
+	if conv.Audit.StreamingStats.DataflowJobId != "" {
+		CleanupDataflowJob(ctx, c, conv.Audit.StreamingStats.DataflowJobId, projectID, region)
+	}
+	if conv.Audit.StreamingStats.DataStreamName != "" {
+		CleanupDatastream(ctx, dsClient, conv.Audit.StreamingStats.DataStreamName, projectID, region)
+	}
+	// clean up jobs for sharded migrations (with error handling)
+	for _, dfId := range conv.Audit.StreamingStats.ShardToDataflowJobMap {
+		err := CleanupDataflowJob(ctx, c, dfId, projectID, region)
+		if err != nil {
+			fmt.Printf("Cleanup of the dataflow job: %s was unsuccessful, please clean up the job manually", dfId)
+		}
+	}
+	for _, dsName := range conv.Audit.StreamingStats.ShardToDataStreamNameMap {
+		err := CleanupDatastream(ctx, dsClient, dsName, projectID, region)
+		if err != nil {
+			fmt.Printf("Cleanup of the datastream: %s was unsuccessful, please clean up the stream manually", dsName)
+		}
+	}
+	fmt.Println("Clean up complete")
+	return nil
+}
+
+func CleanupDatastream(ctx context.Context, client *datastream.Client, dsName string, projectID, region string) error {
+	req := &datastreampb.DeleteStreamRequest{
+		Name: fmt.Sprintf("projects/%s/locations/%s/streams/%s", projectID, region, dsName),
+	}
+	_, err := client.DeleteStream(ctx, req)
+	if err != nil {
+		return fmt.Errorf("error while deleting datastream job: %v", err)
+	}
+	return nil
+}
+
+func CleanupDataflowJob(ctx context.Context, client *dataflow.JobsV1Beta3Client, dataflowJobId string, projectID, region string) error {
 	job := &dataflowpb.Job{
-		Id:             conv.Audit.StreamingStats.DataflowJobId,
+		Id:             dataflowJobId,
 		ProjectId:      projectID,
 		RequestedState: dataflowpb.JobState_JOB_STATE_CANCELLED,
 	}
 
 	dfReq := &dataflowpb.UpdateJobRequest{
 		ProjectId: projectID,
-		JobId:     conv.Audit.StreamingStats.DataflowJobId,
+		JobId:     dataflowJobId,
 		Location:  region,
 		Job:       job,
 	}
-	_, err = c.UpdateJob(ctx, dfReq)
+	_, err := client.UpdateJob(ctx, dfReq)
 	if err != nil {
 		fmt.Println(err)
 		return fmt.Errorf("error while cancelling dataflow job: %v", err)
-	}
-	dsClient, err := datastream.NewClient(ctx)
-	if err != nil {
-		return fmt.Errorf("datastream client can not be created: %v", err)
-	}
-	defer dsClient.Close()
-	req := &datastreampb.DeleteStreamRequest{
-		Name: fmt.Sprintf("projects/%s/locations/%s/streams/%s", projectID, region, conv.Audit.StreamingStats.DataStreamName),
-	}
-	_, err = dsClient.DeleteStream(ctx, req)
-	if err != nil {
-		return fmt.Errorf("error while deleting datastream job: %v", err)
 	}
 	return nil
 }
@@ -403,13 +438,20 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		fmt.Printf("flexTemplateRequest: %+v\n", req)
 		return fmt.Errorf("unable to launch template: %v", err)
 	}
-	printDataflowJob(conv, datastreamCfg, respDf, project)
+	storeGeneratedResources(conv, datastreamCfg, respDf, project, streamingCfg.DataShardId)
 	return nil
 }
 
-func printDataflowJob(conv *internal.Conv, datastreamCfg DatastreamCfg, respDf *dataflowpb.LaunchFlexTemplateResponse, project string) {
+func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, respDf *dataflowpb.LaunchFlexTemplateResponse, project string, dataShardId string) {
 	conv.Audit.StreamingStats.DataStreamName = datastreamCfg.StreamId
 	conv.Audit.StreamingStats.DataflowJobId = respDf.Job.Id
+	if dataShardId != "" {
+		var resourceMutex sync.Mutex
+		resourceMutex.Lock()
+		conv.Audit.StreamingStats.ShardToDataStreamNameMap[dataShardId] = datastreamCfg.StreamId
+		conv.Audit.StreamingStats.ShardToDataflowJobMap[dataShardId] = respDf.Job.Id
+		resourceMutex.Unlock()
+	}
 	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
 	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, respDf.Job.Location, respDf.Job.Name, respDf.Job.Id)
 	fmt.Println("\n------------------------------------------\n" +
@@ -470,7 +512,7 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 	dstConnCfg := DstConnCfg{Name: inputDstConnProfile.Name, Location: inputDstConnProfile.Location}
 	datastreamCfg.DestinationConnectionConfig = dstConnCfg
 	//create the streamingCfg object
-	streamingCfg := StreamingCfg{DataflowCfg: dataflowCfg, DatastreamCfg: datastreamCfg, TmpDir: pl.TmpDir}
+	streamingCfg := StreamingCfg{DataflowCfg: dataflowCfg, DatastreamCfg: datastreamCfg, TmpDir: pl.TmpDir, DataShardId: pl.DataShardId}
 	return streamingCfg
 }
 

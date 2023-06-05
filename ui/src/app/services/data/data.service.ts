@@ -15,7 +15,6 @@ import { ClickEventService } from '../click-event/click-event.service'
 import { TableUpdatePubSubService } from '../table-update-pub-sub/table-update-pub-sub.service'
 import { ConversionService } from '../conversion/conversion.service'
 import { ColLength, Dialect } from 'src/app/app.constants'
-import { Console } from 'console'
 
 @Injectable({
   providedIn: 'root',

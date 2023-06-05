@@ -197,7 +197,7 @@ func RunParallelTasks[I any, O any](input []I, numWorkers int, f func(i I, mutex
 		}
 		out = append(out, res)
 	}
-	logger.Log.Debug(fmt.Sprint("completed processing of %n tasks", len(out)))
+	logger.Log.Debug(fmt.Sprintf("completed processing of %d tasks", len(out)))
 	return out, nil
 }
 

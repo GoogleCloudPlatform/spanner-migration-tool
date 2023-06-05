@@ -43,7 +43,9 @@ import { SidenavReviewChangesComponent } from './components/sidenav-review-chang
 import { TableColumnChangesPreviewComponent } from './components/table-column-changes-preview/table-column-changes-preview.component'
 import { EndMigrationComponent } from './components/end-migration/end-migration.component'
 import { DataflowFormComponent } from './components/dataflow-form/dataflow-form.component';
-import { EditColumnMaxLengthComponent } from './components/edit-column-max-length/edit-column-max-length.component'
+import { EditColumnMaxLengthComponent } from './components/edit-column-max-length/edit-column-max-length.component';
+import { ShardedBulkSourceDetailsFormComponent } from './components/sharded-bulk-source-details-form/sharded-bulk-source-details-form.component';
+import { ShardedDataflowMigrationDetailsFormComponent } from './components/sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component'
 
 @NgModule({
   declarations: [
@@ -81,6 +83,8 @@ import { EditColumnMaxLengthComponent } from './components/edit-column-max-lengt
     SourceDetailsFormComponent,
     DataflowFormComponent,
     EditColumnMaxLengthComponent,
+    ShardedBulkSourceDetailsFormComponent,
+    ShardedDataflowMigrationDetailsFormComponent,
   ],
   imports: [
     BrowserModule,
