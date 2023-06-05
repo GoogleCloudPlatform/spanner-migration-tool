@@ -120,7 +120,8 @@ func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
 				srcSchema.Name, ok))
 			continue
 		}
-		// Extract common spColds.
+		// Extract common spColds. We get column ids common to both source and
+		// spanner table so that we can read these records from source
 		colIds := GetCommonColumnIds(conv, tableId, spSchema.ColIds)
 		err := infoSchema.ProcessData(conv, tableId, srcSchema, colIds, spSchema)
 		if err != nil {

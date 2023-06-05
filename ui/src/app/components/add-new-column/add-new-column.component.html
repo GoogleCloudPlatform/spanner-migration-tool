@@ -3,27 +3,28 @@
         <h2>Column Details</h2>
         <mat-form-field class="full-width" appearance="outline">
             <mat-label>Name</mat-label>
-            <input matInput placeholder="Column Name" type="text" formControlName="name"/>
+            <input matInput placeholder="Column Name" type="text" formControlName="name" />
         </mat-form-field>
         <br>
         <mat-form-field appearance="outline">
             <mat-label>Datatype</mat-label>
-            <mat-select [(ngModel)]="selectedDatatype" class="input-field" formControlName="datatype" required="true" (selectionChange)="changeValidator()">
+            <mat-select [(ngModel)]="selectedDatatype" class="input-field" formControlName="datatype" required="true"
+                (selectionChange)="changeValidator()">
                 <mat-option *ngFor="let datatype of datatypes" [value]="datatype">{{datatype}}</mat-option>
             </mat-select>
         </mat-form-field>
         <br>
-        <div *ngIf="selectedDatatype ==='STRING' || selectedDatatype ==='VARCHAR' || selectedDatatype ==='BYTES'">
+        <div *ngIf="dataTypesWithColLen.indexOf(selectedDatatype)>-1">
             <mat-form-field class="full-width" appearance="outline">
                 <mat-label>Length</mat-label>
-                <input matInput placeholder="Length" type="text" formControlName="length"/>
+                <input matInput placeholder="Length" type="text" formControlName="length" />
             </mat-form-field>
             <br>
         </div>
         <mat-form-field appearance="outline">
             <mat-label>IsNullable</mat-label>
             <mat-select [(ngModel)]="selectedNull" formControlName="isNullable" required="true">
-                <mat-option *ngFor="let element of isNullable" [value]="element.value">
+                <mat-option *ngFor="let element of isColumnNullable" [value]="element.value">
                     {{ element.displayName }}
                 </mat-option>
             </mat-select>

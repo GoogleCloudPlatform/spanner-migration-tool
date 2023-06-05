@@ -17,6 +17,7 @@ package utilities
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"time"
 
@@ -276,7 +277,7 @@ func CheckSpannerNamesValidity(input []string) (bool, []string) {
 func CanRename(names []string, table string) (bool, error) {
 	sessionState := session.GetSessionState()
 	for _, name := range names {
-		if _, ok := sessionState.Conv.UsedNames[name]; ok {
+		if _, ok := sessionState.Conv.UsedNames[strings.ToLower(name)]; ok {
 			return false, fmt.Errorf("new name : '%s' is used by another entity", name)
 		}
 	}

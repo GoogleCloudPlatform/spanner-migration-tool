@@ -101,7 +101,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.Rename != "" && v.Rename != conv.SpSchema[tableId].ColDefs[colId].Name {
 
 			for _, c := range conv.SpSchema[tableId].ColDefs {
-				if c.Name == v.Rename {
+				if strings.EqualFold(c.Name, v.Rename) {
 					http.Error(w, fmt.Sprintf("Multiple columns with similar name cannot exist for column : %v", v.Rename), http.StatusBadRequest)
 					return
 				}

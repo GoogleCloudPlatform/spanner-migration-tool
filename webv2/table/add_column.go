@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 
@@ -56,17 +55,17 @@ func addColumn(tableId string, colId string, conv *internal.Conv) {
 }
 
 func AddNewColumn(w http.ResponseWriter, r *http.Request) {
-	log.Println("request started", "method", r.Method, "path", r.URL.Path)
+	fmt.Println("request started", "method", r.Method, "path", r.URL.Path)
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Println("request's body Read Error")
+		fmt.Println("request's body Read Error")
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 	}
 	tableId := r.FormValue("table")
 	details := columnDetails{}
 	err = json.Unmarshal(reqBody, &details)
 	if err != nil {
-		log.Println("request's Body parse error")
+		fmt.Println("request's Body parse error")
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
@@ -81,7 +80,7 @@ func AddNewColumn(w http.ResponseWriter, r *http.Request) {
 	usedNames := internal.ComputeUsedNames(sessionState.Conv)
 	_, found := usedNames[strings.ToLower(details.Name)]
 	if found {
-		http.Error(w, fmt.Sprintf("Name '%v' is in used names, please use a different column name", details.Name), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Specified name: '%v' is an existing identifier, please use a different column name", details.Name), http.StatusBadRequest)
 		return
 	}
 	ct := sessionState.Conv.SpSchema[tableId]

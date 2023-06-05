@@ -1,21 +1,17 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { ColLength, Dialect } from 'src/app/app.constants';
+import { ColLength, DataTypes, Dialect } from 'src/app/app.constants';
 import { IColumn, ISpannerDetails } from 'src/app/model/conv';
+import { IAddColumnProps } from 'src/app/model/edit-table';
 import { IAddColumn } from 'src/app/model/update-table';
 import { DataService } from 'src/app/services/data/data.service';
 import { TargetDetailsFormComponent } from '../target-details-form/target-details-form.component';
-interface IAddColumnProps {
-  dialect: string
-  tableId: string
-}
 @Component({
   selector: 'app-add-new-column',
   templateUrl: './add-new-column.component.html',
   styleUrls: ['./add-new-column.component.scss']
 })
-
 
 export class AddNewColumnComponent implements OnInit {
   dialect: string = ""
@@ -24,6 +20,7 @@ export class AddNewColumnComponent implements OnInit {
   selectedDatatype: string = ""
   tableId: string = ""
   selectedNull: boolean = true
+  dataTypesWithColLen: string[] = ColLength.DataTypes
   constructor(
     private formBuilder: FormBuilder,
     private dataService: DataService,
@@ -40,16 +37,16 @@ export class AddNewColumnComponent implements OnInit {
   }
 
 
-  isNullable = [
+  isColumnNullable = [
     { value: false, displayName: 'No' },
     { value: true, displayName: 'Yes' },
   ]
 
   ngOnInit(): void {
     if (this.dialect == Dialect.GoogleStandardSQLDialect) {
-      this.datatypes = ['BOOL','BYTES','DATE','FLOAT64','INT64','STRING', 'TIMESTAMP', 'NUMERIC', 'JSON']
+      this.datatypes = DataTypes.GoogleStandardSQL
     } else {
-      this.datatypes = ['BOOL','BYTEA','DATE','FLOAT8','INT8','VARCHAR', 'TIMESTAMPTZ', 'NUMERIC', 'JSONB']
+      this.datatypes = DataTypes.PostgreSQL
     }
   }
 
