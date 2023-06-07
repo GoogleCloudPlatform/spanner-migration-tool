@@ -174,7 +174,8 @@ func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard) *datastreampb.So
 	//TODO: Clean up fmt.Printf logs and replace them with zap logger.
 	fmt.Printf("Include DB List for datastream: %+v\n", includeDbList)
 	mysqlSrcCfg := &datastreampb.MysqlSourceConfig{
-		IncludeObjects: &datastreampb.MysqlRdbms{MysqlDatabases: includeDbList},
+		IncludeObjects:             &datastreampb.MysqlRdbms{MysqlDatabases: includeDbList},
+		MaxConcurrentBackfillTasks: 50,
 	}
 	return &datastreampb.SourceConfig_MysqlSourceConfig{MysqlSourceConfig: mysqlSrcCfg}
 }
@@ -184,7 +185,8 @@ func getOracleSourceStreamConfig(dbName string) *datastreampb.SourceConfig_Oracl
 		Schema: dbName,
 	}
 	oracleSrcCfg := &datastreampb.OracleSourceConfig{
-		IncludeObjects: &datastreampb.OracleRdbms{OracleSchemas: []*datastreampb.OracleSchema{oracledb}},
+		IncludeObjects:             &datastreampb.OracleRdbms{OracleSchemas: []*datastreampb.OracleSchema{oracledb}},
+		MaxConcurrentBackfillTasks: 50,
 	}
 	return &datastreampb.SourceConfig_OracleSourceConfig{OracleSourceConfig: oracleSrcCfg}
 }
@@ -206,9 +208,10 @@ func getPostgreSQLSourceStreamConfig(properties string) (*datastreampb.SourceCon
 		return nil, fmt.Errorf("replication slot or publication not specified")
 	}
 	postgresSrcCfg := &datastreampb.PostgresqlSourceConfig{
-		ExcludeObjects:  &datastreampb.PostgresqlRdbms{PostgresqlSchemas: excludeObjects},
-		ReplicationSlot: replicationSlot,
-		Publication:     publication,
+		ExcludeObjects:             &datastreampb.PostgresqlRdbms{PostgresqlSchemas: excludeObjects},
+		ReplicationSlot:            replicationSlot,
+		Publication:                publication,
+		MaxConcurrentBackfillTasks: 50,
 	}
 	return &datastreampb.SourceConfig_PostgresqlSourceConfig{PostgresqlSourceConfig: postgresSrcCfg}, nil
 }
@@ -502,7 +505,7 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 		HostProjectId: inputDataflowConfig.HostProjectId,
 		Subnetwork:    inputDataflowConfig.Subnetwork}
 	//create src and dst datastream from pl receiver object
-	datastreamCfg := DatastreamCfg{StreamLocation: pl.StreamLocation} 
+	datastreamCfg := DatastreamCfg{StreamLocation: pl.StreamLocation}
 	//set src connection profile
 	inputSrcConnProfile := pl.SrcConnectionProfile
 	srcConnCfg := SrcConnCfg{Location: inputSrcConnProfile.Location, Name: inputSrcConnProfile.Name}
