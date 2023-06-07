@@ -224,6 +224,9 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       dataShardId: [],
       shardMappingTable: this.formBuilder.array([shardTableRowForm])
     })
+    this.testSuccess = false
+    this.createSrcConnSuccess = false
+    this.createTgtConnSuccess = false
     this.snack.openSnackBar('Shard configured successfully, please configure the next', 'Close', 5)
   }
 

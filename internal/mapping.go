@@ -128,7 +128,9 @@ func GetSpannerCols(conv *Conv, tableId string, srcCols []string) ([]string, err
 // of the following things:
 // a) the new foreign key name is legal
 // b) the new foreign key name doesn't clash with other Spanner
+//
 //	foreign key names
+//
 // Note that foreign key constraint names in Spanner have to be globally unique
 // (across the database). But in some source databases, such as PostgreSQL,
 // they only have to be unique for a table. Hence we must map each source
@@ -144,7 +146,9 @@ func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
 // We need to make sure of the following things:
 // a) the new index name is legal
 // b) the new index name doesn't clash with other Spanner
+//
 //	index names
+//
 // Note that index key constraint names in Spanner have to be globally unique
 // (across the database). But in some source databases, such as MySQL,
 // they only have to be unique for a table. Hence we must map each source
@@ -198,17 +202,17 @@ func resolveFks(conv *Conv, table string, fks []ddl.Foreignkey) []ddl.Foreignkey
 		var err error
 		if fk.ColIds, err = resolveColRefs(conv, table, fk.ColIds); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't resolve Columns in foreign key constraint: %s", err))
-			delete(conv.UsedNames, fk.Name)
+			delete(conv.UsedNames, strings.ToLower(fk.Name))
 			continue
 		}
 		if fk.ReferTableId, err = resolveTableRef(conv, fk.ReferTableId); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't resolve ReferTable in foreign key constraint: %s", err))
-			delete(conv.UsedNames, fk.Name)
+			delete(conv.UsedNames, strings.ToLower(fk.Name))
 			continue
 		}
 		if fk.ReferColumnIds, err = resolveColRefs(conv, fk.ReferTableId, fk.ReferColumnIds); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't resolve ReferColumnIds in foreign key constraint: %s", err))
-			delete(conv.UsedNames, fk.Name)
+			delete(conv.UsedNames, strings.ToLower(fk.Name))
 			continue
 		}
 		resolved = append(resolved, fk)

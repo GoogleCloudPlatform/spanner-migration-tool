@@ -112,7 +112,6 @@ func GetCommonColumnIds(conv *internal.Conv, tableId string, colIds []string) []
 			commonColIds = append(commonColIds, colIds[i])
 		}
 	}
-
 	return commonColIds
 }
 

@@ -22,6 +22,7 @@ import { ConversionService } from 'src/app/services/conversion/conversion.servic
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
+import { AddNewColumnComponent } from '../add-new-column/add-new-column.component'
 
 @Component({
   selector: 'app-object-detail',
@@ -122,6 +123,7 @@ export class ObjectDetailComponent implements OnInit {
   currentTabIndex: number = 0
   addedColumnName: string = ''
   droppedColumns: IColumnTabData[] = []
+  droppedSourceColumns: string[] = []
   pkColumnNames: string[] = []
   indexColumnNames: string[] = []
   shardIdCol: string = ''
@@ -137,7 +139,7 @@ export class ObjectDetailComponent implements OnInit {
     columnName: new FormControl('', [Validators.required]),
   })
   pkObj: IPrimaryKey = {} as IPrimaryKey
-  dataTypesWithColLen: string[]=ColLength.DataTypes
+  dataTypesWithColLen: string[] = ColLength.DataTypes
 
   ngOnChanges(changes: SimpleChanges): void {
     this.fkData = changes['fkData']?.currentValue || this.fkData
@@ -210,7 +212,7 @@ export class ObjectDetailComponent implements OnInit {
           spColMaxLength: new FormControl(row.spColMaxLength, [
             Validators.required]),
         })
-        if (this.dataTypesWithColLen.indexOf(row.spDataType.toString())>-1) {
+        if (this.dataTypesWithColLen.indexOf(row.spDataType.toString()) > -1) {
           fb.get('spColMaxLength')?.setValidators([Validators.required, Validators.pattern('([1-9][0-9]*|MAX)')])
           if (row.spColMaxLength === undefined) {
             fb.get('spColMaxLength')?.setValue('MAX')
@@ -286,8 +288,9 @@ export class ObjectDetailComponent implements OnInit {
     this.localTableData.forEach((col) => {
       if (!col.spColName) {
         this.srcRowArray.value.forEach((element: IColumnTabData) => {
-          if (col.srcColName == element.srcColName) {
+          if (col.srcColName == element.srcColName && element.srcColName != '') {
             this.droppedColumns.push(element)
+            this.droppedSourceColumns.push(element.srcColName)
           }
         })
       }
@@ -313,22 +316,22 @@ export class ObjectDetailComponent implements OnInit {
     })
     this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
       for (let j = 0; j < this.tableData.length; j++) {
-        if (col.srcColName == this.tableData[j].srcColName) {
-          let oldRow = this.tableData[j]
-          let standardDataType = pgSQLToStandardTypeTypemap.get(col.spDataType)
-          if (col.spColMaxLength !== undefined && col.spColMaxLength !== 'MAX') {
-            if ((col.spDataType === 'STRING' || col.spDataType === 'VARCHAR') && col.spColMaxLength > ColLength.StringMaxLength) {
-              col.spColMaxLength = 'MAX'
-            } else if (col.spDataType === 'BYTES' && col.spColMaxLength > ColLength.ByteMaxLength) {
-              col.spColMaxLength = 'MAX'
-            } 
+        let oldRow = this.tableData[j]
+        let standardDataType = pgSQLToStandardTypeTypemap.get(col.spDataType)
+        if (col.spColMaxLength !== undefined && col.spColMaxLength !== 'MAX') {
+          if ((col.spDataType === 'STRING' || col.spDataType === 'VARCHAR') && col.spColMaxLength > ColLength.StringMaxLength) {
+            col.spColMaxLength = 'MAX'
+          } else if (col.spDataType === 'BYTES' && col.spColMaxLength > ColLength.ByteMaxLength) {
+            col.spColMaxLength = 'MAX'
           }
-          if (typeof (col.spColMaxLength) === 'number') {
-            col.spColMaxLength = col.spColMaxLength.toString()
-          }
-          if (col.spDataType != 'STRING' && col.spDataType != 'BYTES'&& col.spDataType != 'VARCHAR') {
-            col.spColMaxLength = ""
-          }
+        }
+        if (typeof (col.spColMaxLength) === 'number') {
+          col.spColMaxLength = col.spColMaxLength.toString()
+        }
+        if (col.spDataType != 'STRING' && col.spDataType != 'BYTES' && col.spDataType != 'VARCHAR') {
+          col.spColMaxLength = ""
+        }
+        if (col.srcId == this.tableData[j].srcId && this.tableData[j].srcId != '') {
           updateData.UpdateCols[this.tableData[j].srcId] = {
             Add: this.tableData[j].spId == '',
             Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
@@ -339,11 +342,21 @@ export class ObjectDetailComponent implements OnInit {
           }
           break
         }
+        else if (col.spId == this.tableData[j].spId) {
+          updateData.UpdateCols[this.tableData[j].spId] = {
+            Add: this.tableData[j].spId == '',
+            Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
+            NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
+            Removed: false,
+            ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
+            MaxColLength: col.spColMaxLength
+          }
+        }
       }
     })
 
     this.droppedColumns.forEach((col: IColumnTabData) => {
-      updateData.UpdateCols[col.srcId] = {
+      updateData.UpdateCols[col.spId] = {
         Add: false,
         Rename: '',
         NotNull: '',
@@ -375,11 +388,23 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
 
+  addNewColumn() {
+    this.dialog.open(AddNewColumnComponent, {
+      width: '30vw',
+      minWidth: '400px',
+      maxWidth: '500px',
+      data: {
+        dialect: this.conv.SpDialect,
+        tableId: this.currentObject?.id,
+      }
+    })
+  }
+
   setColumn(columnName: string) {
     this.addedColumnName = columnName
   }
 
-  addColumn() {
+  restoreColumn() {
     let index = this.tableData.map((item) => item.srcColName).indexOf(this.addedColumnName)
 
     let addedRowIndex = this.droppedColumns
@@ -396,6 +421,9 @@ export class ObjectDetailComponent implements OnInit {
       .indexOf(this.addedColumnName)
     if (ind > -1) {
       this.droppedColumns.splice(ind, 1)
+      if (this.droppedSourceColumns.indexOf(this.addedColumnName) > -1) {
+        this.droppedSourceColumns.splice(this.droppedSourceColumns.indexOf(this.addedColumnName), 1)
+      }
     }
     this.setSpTableRows()
   }
@@ -405,7 +433,7 @@ export class ObjectDetailComponent implements OnInit {
     let srcColId = element.get('srcId').value
     let spColId = element.get('spId').value
     let colId = srcColId != '' ? srcColId : spColId
-    let spColName = this.conv.SpSchema[this.currentObject!.id].ColDefs[colId].Name
+    let spColName = element.get('spColName').value
 
     let associatedIndexes = this.getAssociatedIndexs(colId)
     if (this.checkIfPkColumn(colId) || associatedIndexes.length != 0) {
@@ -430,11 +458,14 @@ export class ObjectDetailComponent implements OnInit {
       })
     } else {
       this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
-        if (col.srcId === srcColId) {
+        if (col.spId === spColId) {
           this.droppedColumns.push(col)
         }
       })
-      this.dropColumnFromUI(srcColName)
+      this.dropColumnFromUI(spColId)
+      if (srcColName !== '') {
+        this.droppedSourceColumns.push(srcColName)
+      }
     }
   }
 
@@ -467,10 +498,10 @@ export class ObjectDetailComponent implements OnInit {
     return indexes
   }
 
-  dropColumnFromUI(colName: string) {
+  dropColumnFromUI(spColId: string) {
     this.localTableData.forEach((col: IColumnTabData, i: number) => {
-      if (colName == col.srcColName) {
-        col.spColName = col.spColName
+      if (col.spId == spColId) {
+        col.spColName = ''
         col.spDataType = ''
         col.spIsNotNull = false
         col.spIsPk = false
@@ -1285,8 +1316,6 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
   }
-
-  selectedColumnChange(tableId: string) { }
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
