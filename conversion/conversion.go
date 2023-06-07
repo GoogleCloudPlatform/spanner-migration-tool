@@ -74,7 +74,7 @@ var (
 	// This number should not be too high so as to not hit the AdminQuota limit.
 	// AdminQuota limits are mentioned here: https://cloud.google.com/spanner/quotas#administrative_limits
 	// If facing a quota limit error, consider reducing this value.
-	MaxWorkers = 20
+	MaxWorkers = 50
 )
 
 // SchemaConv performs the schema conversion
@@ -308,11 +308,11 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 	return nil, fmt.Errorf("dms configType is not implemented yet, please use one of 'bulk' or 'dataflow'")
 }
 
-//1. Create batch for each physical shard
-//2. Create streaming cfg from the config source type.
-//3. Verify the CFG and update it with HB defaults
-//4. Launch the stream for the physical shard
-//5. Perform streaming migration via dataflow
+// 1. Create batch for each physical shard
+// 2. Create streaming cfg from the config source type.
+// 3. Verify the CFG and update it with HB defaults
+// 4. Launch the stream for the physical shard
+// 5. Perform streaming migration via dataflow
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
 	updateShardsWithDataflowConfig(sourceProfile.Config.ShardConfigurationDataflow)
 	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
@@ -341,10 +341,10 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 	return &writer.BatchWriter{}, nil
 }
 
-//1. Migrate the data from the data shards, the schema shard needs to be specified here again.
-//2. Create a connection profile object for it
-//3. Perform a snapshot migration for the shard
-//4. Once all shard migrations are complete, return the batch writer object
+// 1. Migrate the data from the data shards, the schema shard needs to be specified here again.
+// 2. Create a connection profile object for it
+// 3. Perform a snapshot migration for the shard
+// 4. Once all shard migrations are complete, return the batch writer object
 func dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
 	var bw *writer.BatchWriter
 	for _, dataShard := range sourceProfile.Config.ShardConfigurationBulk.DataShards {
@@ -775,8 +775,8 @@ time to create foreign keys (over 5 mins per batch of Foreign Keys even with no 
 Harbourbridge does not have control over a single foreign key creation time. The number 
 of concurrent Foreign Key Creation Requests sent to spanner can be increased by 
 tweaking the MaxWorkers variable (https://github.com/cloudspannerecosystem/harbourbridge/blob/master/conversion/conversion.go#L89).
-However, setting it to a very high value might lead to exceeding the admin quota limit.
-Recommended value is between 20-30.`)
+However, setting it to a very high value might lead to exceeding the admin quota limit. Harbourbridge tries to stay under the
+admin quota limit by spreading the FK creation requests over time.`)
 	}
 	msg := fmt.Sprintf("Updating schema of database %s with foreign key constraints ...", dbURI)
 	conv.Audit.Progress = *internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose(), true, int(internal.ForeignKeyUpdateInProgress))
@@ -823,6 +823,8 @@ Recommended value is between 20-30.`)
 			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
 			logger.Log.Debug("Updated schema with statement", zap.String("fkStmt", fkStmt))
 		}(fkStmt, workerID)
+		// Send out an FK creation request every second, with total of maxWorkers request being present in a batch.
+		time.Sleep(time.Second)
 	}
 	// Wait for all the goroutines to finish.
 	for i := 1; i <= MaxWorkers; i++ {
@@ -1106,9 +1108,9 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile, targetProfile profiles.
 		}
 		temp := false
 		return postgres.InfoSchemaImpl{
-			Db:            db,
-			SourceProfile: sourceProfile,
-			TargetProfile: targetProfile,
+			Db:             db,
+			SourceProfile:  sourceProfile,
+			TargetProfile:  targetProfile,
 			IsSchemaUnique: &temp, //this is a workaround to set a bool pointer
 		}, nil
 	case constants.DYNAMODB:
