@@ -377,7 +377,7 @@ func CleanupDataflowJob(ctx context.Context, client *dataflow.JobsV1Beta3Client,
 }
 
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
-func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) error {
+func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv, dbNameToShardIdMap string) error {
 	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
@@ -424,7 +424,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		}
 	}
 
-	launchParameters := createLaunchParameters(dataflowCfg, inputFilePattern, project, datastreamCfg, instance, dbName, streamingCfg, dataflowSubnetwork)
+	launchParameters := createLaunchParameters(dataflowCfg, inputFilePattern, project, datastreamCfg, instance, dbName, streamingCfg, dataflowSubnetwork, dbNameToShardIdMap)
 
 	req := &dataflowpb.LaunchFlexTemplateRequest{
 		ProjectId:       project,
@@ -459,10 +459,11 @@ func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, r
 		" will have to be manually cleaned up via the UI. HarbourBridge will not delete them post completion of the migration.")
 }
 
-func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string) *dataflowpb.LaunchFlexTemplateParameter {
+func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork, dbNameToShardIdMap string) *dataflowpb.LaunchFlexTemplateParameter {
+	fmt.Println("-----", dbNameToShardIdMap, "------")
 	return &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
-		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-03-07-00_RC00/flex/Cloud_Datastream_to_Spanner"},
+		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://khajanchi-gsql/images/datastream-to-spanner-image-spec.json"},
 		Parameters: map[string]string{
 			"inputFilePattern":         inputFilePattern,
 			"streamName":               fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
@@ -470,6 +471,7 @@ func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, pr
 			"databaseId":               dbName,
 			"sessionFilePath":          streamingCfg.TmpDir + "session.json",
 			"deadLetterQueueDirectory": inputFilePattern + "dlq",
+			"shardingConfig":           dbNameToShardIdMap,
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			MaxWorkers:            maxWorkers,
@@ -538,7 +540,7 @@ func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, 
 	return streamingCfg, nil
 }
 
-func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) error {
+func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv, dbNameToShardIdMap string) error {
 
 	convJSON, err := json.MarshalIndent(conv, "", " ")
 	if err != nil {
@@ -548,7 +550,7 @@ func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, st
 	if err != nil {
 		return fmt.Errorf("error while writing to GCS: %v", err)
 	}
-	err = LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv)
+	err = LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv, dbNameToShardIdMap)
 	if err != nil {
 		return fmt.Errorf("error launching dataflow: %v", err)
 	}

@@ -320,8 +320,16 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
 	conv.Audit.StreamingStats.ShardToDataflowJobMap = make(map[string]string)
 	asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) common.TaskResult[*profiles.DataShard] {
+		x := make(map[string]string)
+		for _, l := range p.LogicalShards {
+			x[l.DbName] = l.LogicalShardId
+		}
+		dbNameToShardIdMap, err := json.Marshal(x)
+		if err != nil {
+			fmt.Printf("failed to compute db name to shard id map: %s", err.Error())
+		}
 		streamingCfg := streaming.CreateStreamingConfig(*p)
-		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname)
+		err = streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname)
 		if err != nil {
 			err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
@@ -332,8 +340,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
-
-		err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
+		err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv, string(dbNameToShardIdMap))
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
 	_, err := common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 5, asyncProcessShards, true)
