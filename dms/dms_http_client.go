@@ -46,16 +46,20 @@ type SpannerConnectionProfile struct {
 }
 
 type MySqlConnectionProfile struct {
-	Host        string               `json:"host,omitempty"`
-	Port        int32                `json:"port,omitempty"`
-	Username    string               `json:"username,omitempty"`
-	Password    string               `json:"password,omitempty"`
-	PrivateConn *PrivateConnectivity `json:"privateConnectivity,omitempty"`
+	Host                        string               `json:"host,omitempty"`
+	Port                        int32                `json:"port,omitempty"`
+	Username                    string               `json:"username,omitempty"`
+	Password                    string               `json:"password,omitempty"`
+	PrivateConn                 *PrivateConnectivity `json:"privateConnectivity,omitempty"`
+	StaticServiceIpConnectivity *StaticConnectivity  `json:"staticServiceIpConnectivity,omitempty"`
 }
 
 type PrivateConnectivity struct {
 	// projects/{project}/locations/{location}/privateConnections/{privateConnection}
 	PrivateConnection string `json:"private_connection,omitempty"`
+}
+
+type StaticConnectivity struct {
 }
 
 type ConnectionProfile_State string
@@ -139,7 +143,7 @@ func NewDmsHttpClient(ctx context.Context, dmsClient *dms.DataMigrationClient) (
 }
 
 // createConnectionProfile REST API
-func (d *dmsHttpClient) createConnectionProfile(ctx context.Context, project string, location string, connectionProfileID string, connectionProfile *ConnectionProfile, testConnectivityOnly bool) error {
+func (d *dmsHttpClient) callCreateConnectionProfile(ctx context.Context, project string, location string, connectionProfileID string, connectionProfile *ConnectionProfile, testConnectivityOnly bool) error {
 
 	connectionProfileURL := "https://datamigration.googleapis.com/v1/projects/%s/locations/%s/connectionProfiles?connectionProfileId=%s"
 
@@ -155,6 +159,7 @@ func (d *dmsHttpClient) createConnectionProfile(ctx context.Context, project str
 		return fmt.Errorf("Could not marshal dms connectionProfile json: %v", err)
 	}
 
+	fmt.Printf("Request body:%v\n", string(request))
 	resp, err := d.httpClient.Post(connectionProfileURL, "application/json", bytes.NewBuffer(request))
 
 	if err != nil {
@@ -168,7 +173,7 @@ func (d *dmsHttpClient) createConnectionProfile(ctx context.Context, project str
 	if err != nil {
 		return fmt.Errorf("Error reading response body, err=%v", err)
 	}
-	// fmt.Printf("Response Body, body=%s\n", string(body))
+	fmt.Printf("Response Body, body=%s\n", string(body))
 
 	var op Operation
 	err = json.Unmarshal(body, &op)
@@ -198,7 +203,7 @@ func (d *dmsHttpClient) WaitForConnectionProfileOperation(ctx context.Context, o
 }
 
 // createConversionWorkspace REST API
-func (d *dmsHttpClient) createConversionWorkspace(ctx context.Context, project, location, conversionProfileID string, conversionWorkspace *ConversionWorkspace) error {
+func (d *dmsHttpClient) callCreateConversionWorkspace(ctx context.Context, project, location, conversionProfileID string, conversionWorkspace *ConversionWorkspace) error {
 	conversionWorkspaceURL := "https://datamigration.googleapis.com/v1/projects/%s/locations/%s/conversionWorkspaces?conversionWorkspaceId=%s"
 
 	conversionWorkspaceURL = fmt.Sprintf(conversionWorkspaceURL, project, location, conversionProfileID)

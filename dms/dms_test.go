@@ -15,7 +15,6 @@ package dms
 
 import (
 	"context"
-	"fmt"
 	"testing"
 )
 
@@ -43,17 +42,19 @@ func TestDMS(t *testing.T) {
 	if err != nil {
 		t.Errorf("createWorkspace(...) Error: %v", err)
 	}
+	t.Logf("commitId=%v, err=%v", commitID, err)
 	err = createJob(ctx, commitID)
 	if err != nil {
 		t.Errorf("createJob(...) Error: %v", err)
 	}
+	ips, err := fetchStaticIps(ctx, project, "us-central1")
+	t.Logf("ips:%v, err:%v", ips, err)
+	t.Fatalf("exists:")
 }
 
 func createMySQLConn(ctx context.Context) error {
 	source := SrcConnCfg{
-		Project:             project,
-		Location:            "us-central1",
-		ConnectionProfileID: "mysql-conn",
+		ConnectionProfileID: ResourceIdentifier{Project: project, Location: "us-central1", ID: "mysql-conn"},
 		MySQLCfg: MySQLConnCfg{
 			Host:     mysql_host,
 			Port:     3306,
@@ -61,59 +62,50 @@ func createMySQLConn(ctx context.Context) error {
 			Password: mysql_password,
 		},
 	}
-	err := CreateMySQLConnectionProfile(ctx, source, true)
+	err := TestMySQLConnectionProfile(ctx, source)
 	if err != nil {
 		return err
 	}
-	return CreateMySQLConnectionProfile(ctx, source, false)
+	return CreateMySQLConnectionProfile(ctx, source)
 }
 
 func createSpannerConn(ctx context.Context) error {
 	dst := DstConnCfg{
-		Project:             project,
-		Location:            "us-central1",
-		ConnectionProfileID: "span-conn",
+		ConnectionProfileID: ResourceIdentifier{Project: project, Location: "us-central1", ID: "span-conn"},
 		SpannerCfg: SpannerConnCfg{
 			Project:  project,
 			Instance: spanner_instance,
 			Database: spanner_database,
 		},
 	}
-	err := CreateSpannerConnectionProfile(ctx, dst, true)
+	err := TestSpannerConnectionProfile(ctx, dst)
 	if err != nil {
 		return err
 	}
-	return CreateSpannerConnectionProfile(ctx, dst, false)
+	return CreateSpannerConnectionProfile(ctx, dst)
 }
 
 func createConvWorkspace(ctx context.Context) (string, error) {
 	w := ConversionWorkspaceCfg{
-		ID:       "conversion1",
-		Project:  project,
-		Location: "us-central1",
+		ConversionWorkspaceID: ResourceIdentifier{Project: project, Location: "us-central1", ID: "conversion1"},
 		SessionFile: SessionFileCfg{
 			FileName:    "test_filename",
 			FileContent: sessionFileContent,
 		},
+		SourceConnectionProfileID: ResourceIdentifier{Project: project, Location: "us-central1", ID: "mysql-conn"},
 	}
-	return CreateConversionWorkspace(ctx, w)
+	return createConversionWorkspace(ctx, w)
 }
 
 func createJob(ctx context.Context, commitID string) error {
-	connFormat := "projects/%s/locations/%s/connectionProfiles/%s"
-	sourceConn := fmt.Sprintf(connFormat, project, "us-central1", "mysql-conn")
-	destConn := fmt.Sprintf(connFormat, project, "us-central1", "span-conn")
-	workspaceID := fmt.Sprintf("projects/%s/locations/%s/conversionWorkspaces/%s", project, "us-central1", "conversion1")
 	j := DMSJobCfg{
-		ID:                          "jobID",
-		Project:                     project,
-		Location:                    "us-central1",
-		SourceConnProfileID:         sourceConn,
-		DestinationConnProfileID:    destConn,
-		ConversionWorkspaceID:       workspaceID,
+		JobID:                       ResourceIdentifier{Project: project, Location: "us-central1", ID: "jobid1"},
+		SourceConnProfileID:         ResourceIdentifier{Project: project, Location: "us-central1", ID: "mysql-conn"},
+		DestinationConnProfileID:    ResourceIdentifier{Project: project, Location: "us-central1", ID: "span-conn"},
+		ConversionWorkspaceID:       ResourceIdentifier{Project: project, Location: "us-central1", ID: "conversion1"},
 		ConversionWorkspaceCommitID: commitID,
 	}
-	return CreateDMSJob(ctx, j)
+	return createDMSJob(ctx, j)
 }
 
 const sessionFileContent = `
@@ -121,118 +113,105 @@ const sessionFileContent = `
 	"SessionName": "NewSession",
 	"EditorName": "",
 	"DatabaseType": "mysql",
-	"DatabaseName": "employees",
+	"DatabaseName": "single",
 	"Notes": null,
 	"Tags": null,
 	"SpSchema": {
-	  "t1": {
-		"Name": "EMPLOYEES",
+	  "t187": {
+		"Name": "ORDERS",
 		"ColIds": [
-		  "c1",
-		  "c2",
-		  "c3",
-		  "c4",
-		  "c5",
-		  "c6"
+		  "c188",
+		  "c189",
+		  "c190",
+		  "c191",
+		  "c192"
 		],
 		"ColDefs": {
-		  "c1": {
-			"Name": "EmpNo",
+		  "c188": {
+			"Name": "OrderID",
 			"T": {
 			  "Name": "INT64",
 			  "Len": 0,
 			  "IsArray": false
 			},
 			"NotNull": true,
-			"Comment": "From: emp_no int",
-			"Id": "c1"
+			"Comment": "From: OrderID int",
+			"Id": "c188"
 		  },
-		  "c2": {
-			"Name": "BirthDate",
+		  "c189": {
+			"Name": "CustomerID",
+			"T": {
+			  "Name": "INT64",
+			  "Len": 0,
+			  "IsArray": false
+			},
+			"NotNull": true,
+			"Comment": "From: CustomerID int",
+			"Id": "c189"
+		  },
+		  "c190": {
+			"Name": "Status",
+			"T": {
+			  "Name": "STRING",
+			  "Len": 2000,
+			  "IsArray": false
+			},
+			"NotNull": true,
+			"Comment": "From: Status varchar(2000)",
+			"Id": "c190"
+		  },
+		  "c191": {
+			"Name": "SalesmanID",
+			"T": {
+			  "Name": "INT64",
+			  "Len": 0,
+			  "IsArray": false
+			},
+			"NotNull": false,
+			"Comment": "From: SalesmanID int",
+			"Id": "c191"
+		  },
+		  "c192": {
+			"Name": "OrderDate",
 			"T": {
 			  "Name": "DATE",
 			  "Len": 0,
 			  "IsArray": false
 			},
 			"NotNull": true,
-			"Comment": "From: birth_date date",
-			"Id": "c2"
-		  },
-		  "c3": {
-			"Name": "FirstName",
-			"T": {
-			  "Name": "STRING",
-			  "Len": 14,
-			  "IsArray": false
-			},
-			"NotNull": true,
-			"Comment": "From: first_name varchar(14)",
-			"Id": "c3"
-		  },
-		  "c4": {
-			"Name": "LastName",
-			"T": {
-			  "Name": "STRING",
-			  "Len": 16,
-			  "IsArray": false
-			},
-			"NotNull": true,
-			"Comment": "From: last_name varchar(16)",
-			"Id": "c4"
-		  },
-		  "c5": {
-			"Name": "Gender",
-			"T": {
-			  "Name": "STRING",
-			  "Len": 10,
-			  "IsArray": false
-			},
-			"NotNull": true,
-			"Comment": "From: gender string",
-			"Id": "c5"
-		  },
-		  "c6": {
-			"Name": "HireDate",
-			"T": {
-			  "Name": "DATE",
-			  "Len": 0,
-			  "IsArray": false
-			},
-			"NotNull": true,
-			"Comment": "From: hire_date date",
-			"Id": "c6"
+			"Comment": "From: OrderDate date",
+			"Id": "c192"
 		  }
 		},
 		"PrimaryKeys": [
-			{
-				"ColId": "c1",
-				"Desc": false,
-				"Order": 1
-			}
+		  {
+			"ColId": "c188",
+			"Desc": false,
+			"Order": 1
+		  }
 		],
 		"ForeignKeys": null,
 		"Indexes": null,
-		"Id": "t1",
 		"ParentId": "",
-		"Comment": "Spanner schema for source table employees"
+		"Comment": "Spanner schema for source table ORDERS",
+		"Id": "t187"
 	  }
 	},
-	"SyntheticPKeys": null,
+	"SyntheticPKeys": {},
 	"SrcSchema": {
-	  "t1": {
-		"Name": "employees",
-		"Schema": "employees",
+	  "t187": {
+		"Name": "ORDERS",
+		"Schema": "single",
 		"ColIds": [
-		  "c1",
-		  "c2",
-		  "c3",
-		  "c4",
-		  "c5",
-		  "c6"
+		  "c188",
+		  "c189",
+		  "c190",
+		  "c191",
+		  "c192"
 		],
 		"ColDefs": {
-		  "c1": {
-			"Name": "emp_no",
+		  "c188": {
+			"Name": "OrderID",
 			"Type": {
 			  "Name": "int",
 			  "Mods": null,
@@ -247,10 +226,66 @@ const sessionFileContent = `
 			  "ForeignKey": false,
 			  "AutoIncrement": false
 			},
-			"Id": "c1"
+			"Id": "c188"
 		  },
-		  "c2": {
-			"Name": "birth_date",
+		  "c189": {
+			"Name": "CustomerID",
+			"Type": {
+			  "Name": "int",
+			  "Mods": null,
+			  "ArrayBounds": null
+			},
+			"NotNull": true,
+			"Ignored": {
+			  "Check": false,
+			  "Identity": false,
+			  "Default": false,
+			  "Exclusion": false,
+			  "ForeignKey": false,
+			  "AutoIncrement": false
+			},
+			"Id": "c189"
+		  },
+		  "c190": {
+			"Name": "Status",
+			"Type": {
+			  "Name": "varchar",
+			  "Mods": [
+				2000
+			  ],
+			  "ArrayBounds": null
+			},
+			"NotNull": true,
+			"Ignored": {
+			  "Check": false,
+			  "Identity": false,
+			  "Default": false,
+			  "Exclusion": false,
+			  "ForeignKey": false,
+			  "AutoIncrement": false
+			},
+			"Id": "c190"
+		  },
+		  "c191": {
+			"Name": "SalesmanID",
+			"Type": {
+			  "Name": "int",
+			  "Mods": null,
+			  "ArrayBounds": null
+			},
+			"NotNull": false,
+			"Ignored": {
+			  "Check": false,
+			  "Identity": false,
+			  "Default": false,
+			  "Exclusion": false,
+			  "ForeignKey": false,
+			  "AutoIncrement": false
+			},
+			"Id": "c191"
+		  },
+		  "c192": {
+			"Name": "OrderDate",
 			"Type": {
 			  "Name": "date",
 			  "Mods": null,
@@ -260,105 +295,42 @@ const sessionFileContent = `
 			"Ignored": {
 			  "Check": false,
 			  "Identity": false,
-			  "Default": true,
+			  "Default": false,
 			  "Exclusion": false,
 			  "ForeignKey": false,
 			  "AutoIncrement": false
 			},
-			"Id": "c2"
-		  },
-		  "c3": {
-			"Name": "first_name",
-			"Type": {
-			  "Name": "varchar",
-			  "Mods": [
-				14
-			  ],
-			  "ArrayBounds": null
-			},
-			"NotNull": true,
-			"Ignored": {
-			  "Check": false,
-			  "Identity": false,
-			  "Default": true,
-			  "Exclusion": false,
-			  "ForeignKey": false,
-			  "AutoIncrement": false
-			},
-			"Id": "c3"
-		  },
-		  "c4": {
-			"Name": "last_name",
-			"Type": {
-			  "Name": "varchar",
-			  "Mods": [
-				16
-			  ],
-			  "ArrayBounds": null
-			},
-			"NotNull": true,
-			"Ignored": {
-			  "Check": false,
-			  "Identity": false,
-			  "Default": true,
-			  "Exclusion": false,
-			  "ForeignKey": false,
-			  "AutoIncrement": false
-			},
-			"Id": "c4"
-		  },
-		  "c5": {
-			"Name": "gender",
-			"Type": {
-			  "Name": "string",
-			  "Mods": null,
-			  "ArrayBounds": null
-			},
-			"NotNull": true,
-			"Ignored": {
-			  "Check": false,
-			  "Identity": false,
-			  "Default": true,
-			  "Exclusion": false,
-			  "ForeignKey": false,
-			  "AutoIncrement": false
-			},
-			"Id": "c5"
-		  },
-		  "c6": {
-			"Name": "hire_date",
-			"Type": {
-			  "Name": "date",
-			  "Mods": null,
-			  "ArrayBounds": null
-			},
-			"NotNull": true,
-			"Ignored": {
-			  "Check": false,
-			  "Identity": false,
-			  "Default": true,
-			  "Exclusion": false,
-			  "ForeignKey": false,
-			  "AutoIncrement": false
-			},
-			"Id": "c6"
+			"Id": "c192"
 		  }
 		},
 		"PrimaryKeys": [
-			{
-				"ColId": "c1",
-				"Desc": false,
-				"Order": 1
-			}
+		  {
+			"ColId": "c188",
+			"Desc": false,
+			"Order": 1
+		  }
 		],
 		"ForeignKeys": null,
 		"Indexes": null,
-		"Id": "t1"
+		"Id": "t187"
+	  }
+	},
+	"SchemaIssues": {
+	  "t187": {
+		"c188": [
+		  13
+		],
+		"c189": [
+		  13
+		],
+		"c191": [
+		  13
+		]
 	  }
 	},
 	"Location": {},
 	"TimezoneOffset": "+00:00",
 	"TargetDb": "spanner",
-	"UniquePKey": {}
-  }
-`
+	"UniquePKey": {},
+	"Rules": []
+  }`
