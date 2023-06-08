@@ -25,6 +25,103 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestToSpannerTypeInternal(t *testing.T) {
+
+	_, errCheck := toSpannerTypeInternal(schema.Type{"bool", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bool", []int64{1, 2, 3}, []int64{1, 2, 3}}, `INT64`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"tinyint", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"tinyint", []int64{1, 2, 3}, []int64{1, 2, 3}}, `INT64`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"double", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"float", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"decimal", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bigint", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"int", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bit", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"char", []int64{1, 2, 3}, []int64{1, 2, 3}}, `BYTES`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"char", []int64{}, []int64{1, 2, 3}}, `BYTES`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"char", []int64{}, []int64{1, 2, 3}}, `DEFAULT`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"text", []int64{}, []int64{1, 2, 3}}, `BYTES`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"json", []int64{}, []int64{1, 2, 3}}, `BYTES`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"binary", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"binary", []int64{1, 2, 3}, []int64{1, 2, 3}}, `DEFAULT`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"blob", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"date", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"datetime", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"timestamp", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"time", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"DEFAULT", []int64{1, 2, 3}, []int64{1, 2, 3}}, `DEFAULT`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+
+}
+
 // This is just a very basic smoke-test for toSpannerType.
 func TestToSpannerType(t *testing.T) {
 	conv := internal.MakeConv()

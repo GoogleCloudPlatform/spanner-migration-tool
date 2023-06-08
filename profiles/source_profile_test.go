@@ -70,13 +70,13 @@ func TestNewSourceProfileFile(t *testing.T) {
 }
 
 func TestNewSourceProfileConfigFile(t *testing.T) {
-	type validationFn func(SourceProfileConfig) 
+	type validationFn func(SourceProfileConfig)
 	testCases := []struct {
 		name          string
 		source        string
 		path          string
 		errorExpected bool
-		validationFn validationFn 
+		validationFn  validationFn
 	}{
 		{
 			name:          "bulk config for mysql",
@@ -126,7 +126,7 @@ func TestNewSourceProfileConfigFile(t *testing.T) {
 			source:        "postgres",
 			path:          "",
 			errorExpected: true,
-			validationFn: func(spc SourceProfileConfig) {},
+			validationFn:  func(spc SourceProfileConfig) {},
 		},
 	}
 	for _, tc := range testCases {
@@ -215,5 +215,136 @@ func TestNewSourceProfileConnectionDynamoDB(t *testing.T) {
 	for _, tc := range testCases {
 		_, err := NewSourceProfileConnectionDynamoDB(tc.params)
 		assert.Equal(t, tc.errorExpected, err != nil)
+	}
+}
+
+func TestNewSourceProfileConnectionSqlServer(t *testing.T) {
+	// Avoid getting/settinng env variables in the unit tests.
+	testCases := []struct {
+		name          string
+		params        map[string]string
+		errorExpected bool
+	}{
+		{
+			name:          "mandatory params provided",
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "password": "e"},
+			errorExpected: false,
+		},
+		{
+			name:          "host not provided",
+			params:        map[string]string{"user": "b", "dbName": "c", "password": "e"},
+			errorExpected: true,
+		},
+		{
+			name:          "user not provided",
+			params:        map[string]string{"host": "a", "dbName": "c", "password": "e"},
+			errorExpected: true,
+		},
+		{
+			name:          "dbName not provided",
+			params:        map[string]string{"host": "a", "user": "b", "password": "e"},
+			errorExpected: true,
+		},
+		{
+			name:          "all params provided",
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "d", "password": "e"},
+			errorExpected: false,
+		},
+		{
+			name:          "empty host param",
+			params:        map[string]string{"host": "", "user": "b", "dbName": "c"},
+			errorExpected: true,
+		},
+		{
+			name:          "empty user param",
+			params:        map[string]string{"host": "a", "user": "", "dbName": "c"},
+			errorExpected: true,
+		},
+		{
+			name:          "empty dbName param",
+			params:        map[string]string{"host": "a", "user": "b", "dbName": ""},
+			errorExpected: true,
+		},
+		{
+			name:          "empty password param",
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "password": ""},
+			errorExpected: false,
+		},
+		{
+			name:          "empty port",
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "", "password": "e"},
+			errorExpected: false,
+		},
+		{
+			name:          "No param provided",
+			params:        map[string]string{},
+			errorExpected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		_, sqlServer := NewSourceProfileConnectionSqlServer(tc.params)
+		assert.Equal(t, tc.errorExpected, sqlServer != nil)
+	}
+}
+
+// code for testing oracle connection
+func TestNewSourceProfileConnectionOracle(t *testing.T) {
+	// Avoid getting/settinng env variables in the unit tests.
+	testCases := []struct {
+		name          string
+		params        map[string]string
+		errorExpected bool
+	}{
+		{
+			name:          "streamingCfg is blank",
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "d", "password": "e", "streamingCfg": ""},
+			errorExpected: true,
+		},
+		{
+			name:          "host is blank",
+			params:        map[string]string{"host": "", "user": "b", "dbName": "c", "port": "d", "password": "e", "streamingCfg": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "user is blank",
+			params:        map[string]string{"host": "a", "user": "", "dbName": "c", "port": "d", "password": "e", "streamingCfg": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "dbname is blank",
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "", "port": "d", "password": "e", "streamingCfg": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "host is not specified",
+			params:        map[string]string{"user": "b", "dbName": "c", "port": "d", "password": "e", "streamingCfg": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "user is not specified",
+			params:        map[string]string{"host": "a", "dbName": "c", "port": "d", "password": "e", "streamingCfg": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "dbname is not specified",
+			params:        map[string]string{"host": "a", "user": "b", "port": "d", "password": "e", "streamingCfg": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "port is blank",
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "", "password": "e", "streamingCfg": "f"},
+			errorExpected: false,
+		},
+		{
+			name:          "password is blank",
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "d", "password": "", "streamingCfg": "f"},
+			errorExpected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		_, oracleErr := NewSourceProfileConnectionOracle(tc.params)
+		assert.Equal(t, tc.errorExpected, oracleErr != nil)
 	}
 }

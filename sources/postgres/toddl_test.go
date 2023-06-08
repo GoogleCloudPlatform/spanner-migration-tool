@@ -25,6 +25,94 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestToSpannerTypeInternal(t *testing.T) {
+	_, errCheck := toSpannerTypeInternal(schema.Type{"bool", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bool", []int64{1, 2, 3}, []int64{1, 2, 3}}, `INT64`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bigserial", []int64{1, 2, 3}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bpchar", []int64{1, 2, 3}, []int64{1, 2, 3}}, `BYTES`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bpchar", []int64{}, []int64{1, 2, 3}}, `BYTES`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bpchar", []int64{}, []int64{1, 2, 3}}, `DEFAULT`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bytea", []int64{}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"date", []int64{}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"float8", []int64{}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"float4", []int64{}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"int8", []int64{}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"int4", []int64{}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"int2", []int64{}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"numeric", []int64{}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"serial", []int64{}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"text", []int64{}, []int64{1, 2, 3}}, `BYTES`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"timestamptz", []int64{}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"timestamp", []int64{}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck == nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"json", []int64{}, []int64{1, 2, 3}}, `STRING`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"varchar", []int64{}, []int64{1, 2, 3}}, `BYTES`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"varchar", []int64{1, 2, 3}, []int64{1, 2, 3}}, `BYTES`)
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+
+}
+
 // This is just a very basic smoke-test for toSpannerType.
 // The real testing of toSpannerType happens in process_test.go
 // via the public API ProcessPgDump (see TestProcessPgDump).

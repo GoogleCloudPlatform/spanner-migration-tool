@@ -137,3 +137,154 @@ func TestWorkerPool(t *testing.T) {
 	out, _ := RunParallelTasks(input, 5, f, false)
 	assert.Equal(t, len(input), len(out), fmt.Sprintln("jobs not processed"))
 }
+
+func TestPrepareColumns(t *testing.T) {
+	tc := []struct {
+		name           string
+		conv           *internal.Conv
+		tableId        string
+		srcCols        []string
+		expectedColIds []string
+	}{
+		{
+			name: "when source and spaner tables have same set of columns",
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+			},
+			tableId:        "t1",
+			srcCols:        []string{"a", "b"},
+			expectedColIds: []string{"c1", "c2"},
+		},
+		{
+			name: "when a column is deleted on spanner table",
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+			},
+			tableId:        "t1",
+			srcCols:        []string{"a", "b"},
+			expectedColIds: []string{"c1"},
+		},
+	}
+	for _, tc := range tc {
+		res, err := PrepareColumns(tc.conv, tc.tableId, tc.srcCols)
+		assert.Equal(t, nil, err)
+		assert.Equal(t, tc.expectedColIds, res)
+	}
+}
+
+func TestPrepareValues(t *testing.T) {
+	tc := []struct {
+		name              string
+		conv              *internal.Conv
+		tableId           string
+		srcColNameToIdMap map[string]string
+		commonId          []string
+		srcCols           []string
+		values            []string
+		expectedValues    []string
+	}{
+		{
+			name: "when source and spaner tables have same set of columns",
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+			},
+			tableId:           "t1",
+			srcColNameToIdMap: map[string]string{"a": "c1", "b": "c2"},
+			commonId:          []string{"c1", "c2"},
+			srcCols:           []string{"a", "b"},
+			values:            []string{"1234", "xyz"},
+			expectedValues:    []string{"1234", "xyz"},
+		},
+		{
+			name: "when a column is deleted on spanner table",
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+			},
+			tableId:           "t1",
+			srcColNameToIdMap: map[string]string{"a": "c1", "b": "c2"},
+			commonId:          []string{"c1"},
+			srcCols:           []string{"a", "b"},
+			values:            []string{"1234", "xyz"},
+			expectedValues:    []string{"1234"},
+		},
+	}
+	for _, tc := range tc {
+		res, err := PrepareValues(tc.conv, tc.tableId, tc.srcColNameToIdMap, tc.commonId, tc.srcCols, tc.values)
+		assert.Equal(t, nil, err)
+		assert.Equal(t, tc.expectedValues, res)
+	}
+}

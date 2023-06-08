@@ -31,6 +31,83 @@ func init() {
 	logger.Log = zap.NewNop()
 }
 
+func TestToSpannerTypeInternal(t *testing.T) {
+	conv := internal.MakeConv()
+	_, errCheck := toSpannerTypeInternal(conv, "STRING", schema.Type{`TIMESTAMP`, []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{`INTERVAL`, []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "DEFAULT", schema.Type{`INTERVAL`, []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "DEFAULT", schema.Type{`INTERVAL`, []int64{}, []int64{}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{`NUMBER`, []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "DEFAULT", schema.Type{`NUMBER`, []int64{31}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "DEFAULT", schema.Type{`NUMBER`, []int64{31, 11}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{`BLOB`, []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{`CHAR`, []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{`CHAR`, []int64{}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{`CLOB`, []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{`DATE`, []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{`FLOAT`, []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{`RAW`, []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "DEFAULT", schema.Type{`RAW`, []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{`ROWID`, []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{`UROWID`, []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{`UROWID`, []int64{}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in timestamp string")
+	}
+
+}
+
 func TestToSpannerType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
