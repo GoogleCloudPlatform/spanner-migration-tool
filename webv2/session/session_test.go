@@ -1,8 +1,13 @@
 package session_test
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -10,6 +15,8 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func getTestData() []session.SchemaConversionSession {
@@ -168,4 +175,222 @@ func TestSaveSession(t *testing.T) {
 	if got != expect {
 		t.Errorf("Expected: %d, got: %d", expect, got)
 	}
+}
+
+func TestIsSessionNameUnique(t *testing.T) {
+	store := session.NewLocalSessionStore()
+
+	sessions := []session.SchemaConversionSession{
+		{
+			VersionId:              "1234",
+			SchemaConversionObject: "test_object",
+			SessionMetadata: session.SessionMetadata{
+				SessionName:  "Test Session 1",
+				EditorName:   "Test Editor",
+				DatabaseType: "MySQL",
+				DatabaseName: "test_db",
+				Dialect:      "mysql",
+			},
+		},
+		{
+			VersionId:              "5678",
+			SchemaConversionObject: "test_object",
+			SessionMetadata: session.SessionMetadata{
+				SessionName:  "Test Session 1",
+				EditorName:   "Test Editor",
+				DatabaseType: "MySQL",
+				DatabaseName: "test_db",
+				Dialect:      "mysql",
+			},
+		},
+		{
+			VersionId:              "9101",
+			SchemaConversionObject: "test_object",
+			SessionMetadata: session.SessionMetadata{
+				SessionName:  "Test Session 2",
+				EditorName:   "Test Editor",
+				DatabaseType: "MySQL",
+				DatabaseName: "test_db",
+				Dialect:      "mysql",
+			},
+		},
+	}
+
+	for i := range sessions {
+		err := store.SaveSession(context.Background(), sessions[i])
+		assert.Nil(t, err)
+	}
+
+	testCases := []struct {
+		Name        string
+		Session     session.SchemaConversionSession
+		Expect      bool
+		ExpectError error
+	}{
+		{
+			Name: "NotUnique",
+			Session: session.SchemaConversionSession{
+				VersionId:              "9999",
+				SchemaConversionObject: "test_object",
+				SessionMetadata: session.SessionMetadata{
+					SessionName:  "Test Session 1",
+					EditorName:   "Test Editor",
+					DatabaseType: "MySQL",
+					DatabaseName: "test_db",
+					Dialect:      "mysql",
+				},
+			},
+			Expect:      false,
+			ExpectError: nil,
+		},
+		{
+			Name: "Unique",
+			Session: session.SchemaConversionSession{
+				VersionId:              "8888",
+				SchemaConversionObject: "test_object",
+				SessionMetadata: session.SessionMetadata{
+					SessionName:  "Test Session 3",
+					EditorName:   "Test Editor",
+					DatabaseType: "MySQL",
+					DatabaseName: "test_db",
+					Dialect:      "mysql",
+				},
+			},
+			Expect:      true,
+			ExpectError: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			actual, err := store.IsSessionNameUnique(context.Background(), tc.Session)
+			assert.Equal(t, tc.Expect, actual)
+			assert.Equal(t, tc.ExpectError, err)
+		})
+	}
+}
+
+func TestSessionNameError(t *testing.T) {
+	err := &session.SessionNameError{DbName: "my_db", DbType: "PostgreSQL"}
+	expected := "session name already exists for database 'my_db' and database type 'PostgreSQL'."
+	if err.Error() != expected {
+		t.Errorf("Expected error message '%s', but got '%s'", expected, err.Error())
+	}
+}
+
+func TestGetSessionState(t *testing.T) {
+	// Call GetSessionState twice and ensure that it returns the same non-nil SessionState instance
+	state1 := session.GetSessionState()
+	state2 := session.GetSessionState()
+	if state1 == nil || state2 == nil {
+		t.Errorf("Expected GetSessionState to return a non-nil SessionState instance, but got nil")
+	}
+	if state1 != state2 {
+		t.Errorf("Expected GetSessionState to return the same SessionState instance, but got different instances")
+	}
+}
+func TestReadSessionFileForSessionMetadata(t *testing.T) {
+	expectedMetadata := &session.SessionMetadata{
+		DatabaseName: "mydb",
+		DatabaseType: "postgres",
+	}
+
+	// Create a temporary file and write the JSON-encoded metadata to it
+	file, err := ioutil.TempFile("", "metadata_*.json")
+	require.NoError(t, err)
+
+	err = json.NewEncoder(file).Encode(expectedMetadata)
+	require.NoError(t, err)
+
+	// Read the metadata from the temporary file
+	actualMetadata := &session.SessionMetadata{}
+	err = session.ReadSessionFileForSessionMetadata(actualMetadata, file.Name())
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedMetadata, actualMetadata)
+}
+
+func TestIsOfflineSession(t *testing.T) {
+
+	session.GetSessionState().IsOffline = true
+
+	// Create a new request to the endpoint
+	req, err := http.NewRequest("GET", "/isoffline", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a response recorder to record the response from the handler
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(session.IsOfflineSession)
+
+	// Call the handler and record the response
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
+	}
+
+	// Check that the response body is what we expect
+	expected := true
+	if rr.Body.String() != fmt.Sprintf("%t\n", expected) {
+		t.Errorf("handler returned unexpected body: got %v want %v",
+			rr.Body.String(), expected)
+	}
+}
+
+func TestSetSessionStorageConnectionState(t *testing.T) {
+
+	dbCreated, configValid := session.SetSessionStorageConnectionState("", "")
+	if dbCreated != false {
+		t.Errorf("Expected dbCreated to be false, but got %v", dbCreated)
+	}
+	if configValid != false {
+		t.Errorf("Expected configValid to be false, but got %v", configValid)
+	}
+	if session.GetSessionState().IsOffline != true {
+		t.Error("Expected IsOffline to be true, but got false")
+	}
+
+	dbCreated, configValid = session.SetSessionStorageConnectionState("my-project-id", "")
+	if dbCreated != false {
+		t.Errorf("Expected dbCreated to be false, but got %v", dbCreated)
+	}
+	if configValid != false {
+		t.Errorf("Expected configValid to be false, but got %v", configValid)
+	}
+	if session.GetSessionState().IsOffline != true {
+		t.Error("Expected IsOffline to be true, but got false")
+	}
+
+	dbCreated, configValid = session.SetSessionStorageConnectionState("", "my-instance-id")
+	if dbCreated != false {
+		t.Errorf("Expected dbCreated to be false, but got %v", dbCreated)
+	}
+	if configValid != false {
+		t.Errorf("Expected configValid to be false, but got %v", configValid)
+	}
+	if session.GetSessionState().IsOffline != true {
+		t.Error("Expected IsOffline to be true, but got false")
+	}
+}
+
+func TestSessionSave(t *testing.T) {
+
+	ctx := context.Background()
+	store := session.NewLocalSessionStore()
+	ss := session.NewSessionService(ctx, store)
+
+	scs1 := session.SchemaConversionSession{
+		SessionMetadata: session.SessionMetadata{
+			DatabaseName: "my-db-1",
+			DatabaseType: "mysql",
+		},
+	}
+	err := ss.SaveSession(scs1)
+	if err != nil {
+		t.Errorf("Expected no error, but got %v", err)
+	}
+
 }
