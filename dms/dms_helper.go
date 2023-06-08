@@ -291,7 +291,7 @@ func seedWorkspace(ctx context.Context, dmsClient *dms.DataMigrationClient, work
 	seedReq := &clouddmspb.SeedConversionWorkspaceRequest{
 		Name:       name,
 		AutoCommit: true,
-		SeedFrom:   &clouddmspb.SeedConversionWorkspaceRequest_SourceConnectionProfile{SourceConnectionProfile: workspaceCfg.SourceConnectionProfileID.ID},
+		SeedFrom:   &clouddmspb.SeedConversionWorkspaceRequest_SourceConnectionProfile{SourceConnectionProfile: connectionProfileID(workspaceCfg.SourceConnectionProfileID)},
 	}
 
 	seedOp, err := dmsClient.SeedConversionWorkspace(ctx, seedReq)
