@@ -353,7 +353,7 @@ func (conv *Conv) AddShardIdColumn() {
 		colName := shardIdColumn
 		columnId := GenerateColumnId()
 		ct.ColIds = append(ct.ColIds, columnId)
-		ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: true}
+		ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false}
 		ct.ShardIdColumn = columnId
 		conv.SpSchema[t] = ct
 		var issues []SchemaIssue

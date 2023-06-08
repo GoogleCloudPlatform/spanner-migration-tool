@@ -463,7 +463,7 @@ func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, pr
 	fmt.Println("-----", dbNameToShardIdMap, "------")
 	return &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
-		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://khajanchi-gsql/images/datastream-to-spanner-image-spec.json"},
+		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-03-07-00_RC00/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
 			"inputFilePattern":         inputFilePattern,
 			"streamName":               fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),

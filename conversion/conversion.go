@@ -320,11 +320,11 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
 	conv.Audit.StreamingStats.ShardToDataflowJobMap = make(map[string]string)
 	asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) common.TaskResult[*profiles.DataShard] {
-		x := make(map[string]string)
+		dbNameToShardIdMap := make(map[string]string)
 		for _, l := range p.LogicalShards {
-			x[l.DbName] = l.LogicalShardId
+			dbNameToShardIdMap[l.DbName] = l.LogicalShardId
 		}
-		dbNameToShardIdMap, err := json.Marshal(x)
+		dbNameToShardId, err := json.Marshal(dbNameToShardIdMap)
 		if err != nil {
 			fmt.Printf("failed to compute db name to shard id map: %s", err.Error())
 		}
@@ -340,7 +340,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
-		err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv, string(dbNameToShardIdMap))
+		err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv, string(dbNameToShardId))
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
 	_, err := common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 5, asyncProcessShards, true)

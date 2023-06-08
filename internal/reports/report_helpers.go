@@ -411,7 +411,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.InterleavedRenameColumn:     {Brief: "Candidate for Interleaved Table", severity: suggestion},
 	internal.InterleavedChangeColumnSize: {Brief: "Candidate for Interleaved Table", severity: suggestion},
 	internal.RowLimitExceeded:            {Brief: "Non key columns exceed the spanner limit of 1600 MB. Please modify the column sizes", severity: errors},
-	internal.ShardIdColumnAdded:          {Brief: "Column migration_shard_id was added because this is a sharded migration", severity: note},
+	internal.ShardIdColumnAdded:          {Brief: "Column migration_shard_id was added because this is a sharded migration and this column cannot be dropped", severity: note},
 	internal.ShardIdColumnPrimaryKey:     {Brief: "Column migration_shard_id is not a part of primary key. You may go to the Primary Key tab and add this column as a part of Primary Key", severity: suggestion},
 }
 
