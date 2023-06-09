@@ -139,8 +139,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1", Desc: false, Order: 0}, ddl.IndexKey{ColId: "c2", Desc: false, Order: 0}},
 		ForeignKeys: []ddl.Foreignkey(nil),
 		Indexes: []ddl.CreateIndex{
-			ddl.CreateIndex{Name: "index1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c2", Desc: false, Order: 0}, ddl.IndexKey{ColId: "c3", Desc: false, Order: 0}}, Id: "", StoredColumnIds: []string(nil)},
-			ddl.CreateIndex{Name: "test_2", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c4", Desc: false, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}},
+			ddl.CreateIndex{Name: "test_1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c4", Desc: false, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}},
 		Id: "t1"}
 	assert.Equal(t, expected, actual)
 }
