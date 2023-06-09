@@ -211,11 +211,10 @@ func Test_cvtForeignKeys(t *testing.T) {
 }
 
 func Test_cvtIndexes(t *testing.T) {
-	conv := internal.MakeConv()
 	tableId := "t1"
-	spCols := []string{"c1", "c2", "c3"}
+	spColIds := []string{"c1", "c2", "c3"}
 
-	spSchema := []ddl.CreateIndex{
+	spIndexes := []ddl.CreateIndex{
 		{
 			Name:    "indexName",
 			TableId: "t1",
@@ -230,7 +229,7 @@ func Test_cvtIndexes(t *testing.T) {
 		},
 	}
 
-	srcIndexs := []schema.Index{
+	srcIndexes := []schema.Index{
 		{
 			Name:   "indexName",
 			Unique: true,
@@ -244,35 +243,64 @@ func Test_cvtIndexes(t *testing.T) {
 		},
 	}
 
+	conv := internal.Conv{
+		SrcSchema: map[string]schema.Table{
+			"t1": {
+				Name:   "table1",
+				Id:     "t1",
+				ColIds: []string{"c1", "c2", "c3"},
+				ColDefs: map[string]schema.Column{
+					"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: ddl.String, Mods: []int64{255}}},
+					"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: ddl.String, Mods: []int64{255}}},
+					"c3": {Name: "c", Id: "cc3", Type: schema.Type{Name: ddl.String, Mods: []int64{255}}},
+				},
+				Indexes: srcIndexes,
+			},
+		},
+		UsedNames: map[string]bool{},
+		SpSchema: ddl.Schema{
+			"t1": ddl.CreateTable{
+				Name:   "table1",
+				ColIds: []string{"c1", "c2", "c3"},
+				ColDefs: map[string]ddl.ColumnDef{
+					"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: 255}},
+					"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 255}},
+					"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: 255}},
+				},
+				Id: "t1",
+			},
+		},
+	}
+
 	type arg struct {
 		conv       *internal.Conv
 		tableId    string
 		srcIndexes []schema.Index
-		spCols     []string
+		spColIds   []string
 	}
 
 	tests := []struct {
-		name                string
-		args                arg
-		ExpectedCreateIndex []ddl.CreateIndex
+		name              string
+		args              arg
+		ExpectedSpIndexes []ddl.CreateIndex
 	}{
 		{
 			name: "Adding IndexKey to the table",
 			args: arg{
-				conv:       conv,
+				conv:       &conv,
 				tableId:    tableId,
-				srcIndexes: srcIndexs,
-				spCols:     spCols,
+				srcIndexes: srcIndexes,
+				spColIds:   spColIds,
 			},
-			ExpectedCreateIndex: spSchema,
+			ExpectedSpIndexes: spIndexes,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := cvtIndexes(tt.args.conv, tt.args.tableId, tt.args.srcIndexes, tt.args.spCols)
-			if !reflect.DeepEqual(got, tt.ExpectedCreateIndex) {
-				t.Errorf("cvtIndexes() = %v and wants %v", got, tt.ExpectedCreateIndex)
+			got := cvtIndexes(tt.args.conv, tt.args.tableId, tt.args.srcIndexes, tt.args.spColIds, tt.args.conv.SpSchema[tt.args.tableId].ColDefs)
+			if !reflect.DeepEqual(got, tt.ExpectedSpIndexes) {
+				t.Errorf("cvtIndexes() = %v and wants %v", got, tt.ExpectedSpIndexes)
 			}
 		})
 	}
