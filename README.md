@@ -644,6 +644,7 @@ Please refer to the [issues section](https://github.com/GoogleCloudPlatform/span
 
 - Loading dump files from SQL Server, Oracle and DynamoDB is not supported
 - Schema Only Mode does not create foreign keys
+- Foreign key actions such as [ON DELETE CASCADE](https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language#create_table) are not supported. If you do not specify a foreign key action, Spanner infers NO ACTION as the default action
 - Migration of check constraints, functions and views is not supported
 - Schema recommendations are based on static analysis of the schema only
 - PG Spanner dialect support is limited, and is not currently available on the UI
