@@ -46,12 +46,19 @@ type Conv struct {
 	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
 	Audit          Audit               `json:"-"` // Stores the audit information for the database conversion
 	Rules          []Rule              // Stores applied rules during schema conversion
-	ShardId        string
 }
 
 type TableIssues struct {
 	ColumnLevelIssues map[string][]SchemaIssue
 	TableLevelIssues  []SchemaIssue
+}
+
+type AdditionalSchemaAttributes struct {
+	IsSharded bool
+}
+
+type AdditionalDataAttributes struct {
+	ShardId string
 }
 
 type mode int
@@ -108,7 +115,7 @@ const (
 	ShardIdColumnPrimaryKey
 )
 
-const shardIdColumn = "migration_shard_id"
+const ShardIdColumn = "migration_shard_id"
 
 // NameAndCols contains the name of a table and its columns.
 // Used to map between source DB and Spanner table and column names.
@@ -350,7 +357,7 @@ func (conv *Conv) SampleBadRows(n int) []string {
 
 func (conv *Conv) AddShardIdColumn() {
 	for t, ct := range conv.SpSchema {
-		colName := shardIdColumn
+		colName := ShardIdColumn
 		columnId := GenerateColumnId()
 		ct.ColIds = append(ct.ColIds, columnId)
 		ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false}

@@ -229,17 +229,20 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 			return conv, err
 		}
 	}
-	return conv, common.ProcessSchema(conv, infoSchema, common.DefaultWorkers, isSharded)
+	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
+		IsSharded: isSharded,
+	}
+	return conv, common.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes)
 }
 
-func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) *writer.BatchWriter {
+func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema, additionalAttributes internal.AdditionalDataAttributes) *writer.BatchWriter {
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
 	if !conv.Audit.DryRun {
 		conv.Audit.Progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false, int(internal.DataWriteInProgress))
 	}
 	batchWriter := populateDataConv(conv, config, client)
-	common.ProcessData(conv, infoSchema)
+	common.ProcessData(conv, infoSchema, additionalAttributes)
 	batchWriter.Flush()
 	return batchWriter
 }
@@ -250,7 +253,7 @@ func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config write
 	case constants.MYSQL, constants.ORACLE, constants.POSTGRES:
 		return &writer.BatchWriter{}, nil
 	case constants.DYNAMODB:
-		return performSnapshotMigration(config, conv, client, infoSchema), nil
+		return performSnapshotMigration(config, conv, client, infoSchema, internal.AdditionalDataAttributes{ShardId: ""}), nil
 	default:
 		return &writer.BatchWriter{}, fmt.Errorf("streaming migration not supported for driver %s", sourceProfile.Driver)
 	}
@@ -301,7 +304,7 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			}
 			return bw, nil
 		}
-		return performSnapshotMigration(config, conv, client, infoSchema), nil
+		return performSnapshotMigration(config, conv, client, infoSchema, internal.AdditionalDataAttributes{ShardId: ""}), nil
 	}
 }
 
@@ -340,7 +343,8 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
-		err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv, string(dbNameToShardId))
+		streamingCfg.DataflowCfg.DbNameToShardIdMap = dbNameToShardId
+		err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
 	_, err := common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 5, asyncProcessShards, true)
@@ -363,8 +367,10 @@ func dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targ
 		if err != nil {
 			return nil, err
 		}
-		conv.ShardId = dataShard.DataShardId
-		bw = performSnapshotMigration(config, conv, client, infoSchema)
+		additionalDataAttributes := internal.AdditionalDataAttributes{
+			ShardId: dataShard.DataShardId,
+		}
+		bw = performSnapshotMigration(config, conv, client, infoSchema, additionalDataAttributes)
 	}
 
 	return bw, nil

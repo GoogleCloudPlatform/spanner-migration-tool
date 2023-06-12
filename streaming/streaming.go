@@ -60,11 +60,12 @@ type DatastreamCfg struct {
 }
 
 type DataflowCfg struct {
-	JobName       string
-	Location      string
-	HostProjectId string
-	Network       string
-	Subnetwork    string
+	JobName            string
+	Location           string
+	HostProjectId      string
+	Network            string
+	Subnetwork         string
+	DbNameToShardIdMap []byte
 }
 
 type StreamingCfg struct {
@@ -377,7 +378,7 @@ func CleanupDataflowJob(ctx context.Context, client *dataflow.JobsV1Beta3Client,
 }
 
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
-func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv, dbNameToShardIdMap string) error {
+func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) error {
 	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
@@ -424,7 +425,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		}
 	}
 
-	launchParameters := createLaunchParameters(dataflowCfg, inputFilePattern, project, datastreamCfg, instance, dbName, streamingCfg, dataflowSubnetwork, dbNameToShardIdMap)
+	launchParameters := createLaunchParameters(dataflowCfg, inputFilePattern, project, datastreamCfg, instance, dbName, streamingCfg, dataflowSubnetwork)
 
 	req := &dataflowpb.LaunchFlexTemplateRequest{
 		ProjectId:       project,
@@ -459,8 +460,7 @@ func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, r
 		" will have to be manually cleaned up via the UI. HarbourBridge will not delete them post completion of the migration.")
 }
 
-func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork, dbNameToShardIdMap string) *dataflowpb.LaunchFlexTemplateParameter {
-	fmt.Println("-----", dbNameToShardIdMap, "------")
+func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string) *dataflowpb.LaunchFlexTemplateParameter {
 	return &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-03-07-00_RC00/flex/Cloud_Datastream_to_Spanner"},
@@ -471,7 +471,7 @@ func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, pr
 			"databaseId":               dbName,
 			"sessionFilePath":          streamingCfg.TmpDir + "session.json",
 			"deadLetterQueueDirectory": inputFilePattern + "dlq",
-			"shardingConfig":           dbNameToShardIdMap,
+			"shardingConfig":           string(streamingCfg.DataflowCfg.DbNameToShardIdMap),
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			MaxWorkers:            maxWorkers,
@@ -540,7 +540,7 @@ func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, 
 	return streamingCfg, nil
 }
 
-func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv, dbNameToShardIdMap string) error {
+func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) error {
 
 	convJSON, err := json.MarshalIndent(conv, "", " ")
 	if err != nil {
@@ -550,7 +550,7 @@ func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, st
 	if err != nil {
 		return fmt.Errorf("error while writing to GCS: %v", err)
 	}
-	err = LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv, dbNameToShardIdMap)
+	err = LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv)
 	if err != nil {
 		return fmt.Errorf("error launching dataflow: %v", err)
 	}

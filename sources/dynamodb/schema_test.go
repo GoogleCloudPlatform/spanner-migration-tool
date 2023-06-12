@@ -188,7 +188,7 @@ func TestProcessSchema(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, false)
+	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -288,7 +288,7 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, false)
+	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -371,7 +371,7 @@ func TestProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessData(conv, InfoSchemaImpl{client, nil, 10})
+	common.ProcessData(conv, InfoSchemaImpl{client, nil, 10}, internal.AdditionalDataAttributes{})
 	assert.Equal(t,
 		[]spannerData{
 			{
@@ -863,7 +863,7 @@ func TestInfoSchemaImpl_ProcessData(t *testing.T) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
 	err := isi.ProcessData(conv, tableId, conv.SrcSchema[tableId],
-		colIds, spSchema)
+		colIds, spSchema, internal.AdditionalDataAttributes{})
 	assert.Nil(t, err)
 	assert.Equal(t,
 		[]spannerData{
