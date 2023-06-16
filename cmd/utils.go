@@ -134,7 +134,7 @@ func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, 
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient) error {
-	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, conv, ioHelper.Out)
+	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, conv, ioHelper.Out, sourceProfile.Config.ConfigType)
 	if err != nil {
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return err
@@ -163,7 +163,7 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 	}
 	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	if !cmd.SkipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, sourceProfile.Driver); err != nil {
+		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, sourceProfile.Driver, sourceProfile.Config.ConfigType); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 			return bw, err
 		}
@@ -173,7 +173,7 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 
 func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *SchemaAndDataCmd) (*writer.BatchWriter, error) {
-	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, conv, ioHelper.Out)
+	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, conv, ioHelper.Out, sourceProfile.Config.ConfigType)
 	if err != nil {
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return nil, err
@@ -187,7 +187,7 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 
 	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	if !cmd.SkipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, sourceProfile.Driver); err != nil {
+		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, sourceProfile.Driver, sourceProfile.Config.ConfigType); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 			return bw, err
 		}

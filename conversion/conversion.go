@@ -663,7 +663,7 @@ func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient,
 }
 
 // CreatesOrUpdatesDatabase updates an existing Spanner database or creates a new one if one does not exist.
-func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI, driver string, conv *internal.Conv, out *os.File) error {
+func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI, driver string, conv *internal.Conv, out *os.File, migrationType string) error {
 	dbExists, err := VerifyDb(ctx, adminClient, dbURI)
 	if err != nil {
 		return err
@@ -676,12 +676,15 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 		ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
 	}
 	if dbExists {
+		if conv.SpDialect != constants.DIALECT_POSTGRESQL && migrationType == constants.DATAFLOW_MIGRATION {
+			return fmt.Errorf("Harbourbridge does not support minimal downtime schema/schema-and-data migrations to an existing database.")
+		}
 		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out, driver)
 		if err != nil {
 			return fmt.Errorf("can't update database schema: %v", err)
 		}
 	} else {
-		err := CreateDatabase(ctx, adminClient, dbURI, conv, out, driver)
+		err := CreateDatabase(ctx, adminClient, dbURI, conv, out, driver, migrationType)
 		if err != nil {
 			return fmt.Errorf("can't create database: %v", err)
 		}
@@ -693,7 +696,7 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 // It automatically determines an appropriate project, selects a
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
-func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string) error {
+func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string, migrationType string) error {
 	project, instance, dbName := utils.ParseDbURI(dbURI)
 	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... \n", dbName, instance)
 	// The schema we send to Spanner excludes comments (since Cloud
@@ -712,7 +715,12 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
 	} else {
 		req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
-		req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver})
+		if migrationType == constants.DATAFLOW_MIGRATION {
+			req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver})
+		} else {
+			req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver})
+		}
+
 	}
 
 	op, err := adminClient.CreateDatabase(ctx, req)
@@ -760,7 +768,13 @@ func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 
 // UpdateDDLForeignKeys updates the Spanner database with foreign key
 // constraints using ALTER TABLE statements.
-func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string) error {
+func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string, migrationType string) error {
+
+	if conv.SpDialect != constants.DIALECT_POSTGRESQL && migrationType == constants.DATAFLOW_MIGRATION {
+		//foreign keys were applied as part of CreateDatabase
+		return nil
+	}
+
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).

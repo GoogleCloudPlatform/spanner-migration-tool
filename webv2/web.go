@@ -1966,6 +1966,9 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 	}
 	sourceProfile.Driver = sessionState.Driver
+	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION {
+		sourceProfile.Config.ConfigType = constants.DATAFLOW_MIGRATION
+	}
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
 }
 
