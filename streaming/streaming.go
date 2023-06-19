@@ -461,25 +461,17 @@ func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, r
 }
 
 func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string) *dataflowpb.LaunchFlexTemplateParameter {
-	transformationContextMap := map[string]interface{}{
-		"SchemaToShardId": streamingCfg.DataflowCfg.DbNameToShardIdMap,
-	}
-	transformationContext, err := json.Marshal(transformationContextMap)
-	if err != nil {
-		fmt.Printf("failed to compute transformation context: %s", err.Error())
-	}
-	fmt.Println(string(transformationContext))
 	return &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://khajanchi-gsql/images/datastream-to-spanner-image-spec.json"},
 		Parameters: map[string]string{
-			"inputFilePattern":         inputFilePattern,
-			"streamName":               fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
-			"instanceId":               instance,
-			"databaseId":               dbName,
-			"sessionFilePath":          streamingCfg.TmpDir + "session.json",
-			"deadLetterQueueDirectory": inputFilePattern + "dlq",
-			"transformationContext":    string(transformationContext),
+			"inputFilePattern":              inputFilePattern,
+			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
+			"instanceId":                    instance,
+			"databaseId":                    dbName,
+			"sessionFilePath":               streamingCfg.TmpDir + "session.json",
+			"deadLetterQueueDirectory":      inputFilePattern + "dlq",
+			"transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			MaxWorkers:            maxWorkers,
@@ -555,6 +547,17 @@ func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, st
 		return fmt.Errorf("can't encode session state to JSON: %v", err)
 	}
 	err = utils.WriteToGCS(streamingCfg.TmpDir, "session.json", string(convJSON))
+	if err != nil {
+		return fmt.Errorf("error while writing to GCS: %v", err)
+	}
+	transformationContextMap := map[string]interface{}{
+		"SchemaToShardId": streamingCfg.DataflowCfg.DbNameToShardIdMap,
+	}
+	transformationContext, err := json.Marshal(transformationContextMap)
+	if err != nil {
+		return fmt.Errorf("failed to compute transformation context: %s", err.Error())
+	}
+	err = utils.WriteToGCS(streamingCfg.TmpDir, "transformationContext.json", string(transformationContext))
 	if err != nil {
 		return fmt.Errorf("error while writing to GCS: %v", err)
 	}
