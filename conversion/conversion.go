@@ -327,12 +327,8 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		for _, l := range p.LogicalShards {
 			dbNameToShardIdMap[l.DbName] = l.LogicalShardId
 		}
-		dbNameToShardId, err := json.Marshal(dbNameToShardIdMap)
-		if err != nil {
-			fmt.Printf("failed to compute db name to shard id map: %s", err.Error())
-		}
 		streamingCfg := streaming.CreateStreamingConfig(*p)
-		err = streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname)
+		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname)
 		if err != nil {
 			err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
@@ -343,7 +339,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
-		streamingCfg.DataflowCfg.DbNameToShardIdMap = dbNameToShardId
+		streamingCfg.DataflowCfg.DbNameToShardIdMap = dbNameToShardIdMap
 		err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}

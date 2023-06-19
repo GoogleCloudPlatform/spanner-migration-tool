@@ -65,7 +65,7 @@ type DataflowCfg struct {
 	HostProjectId      string
 	Network            string
 	Subnetwork         string
-	DbNameToShardIdMap []byte
+	DbNameToShardIdMap map[string]string
 }
 
 type StreamingCfg struct {
@@ -461,9 +461,17 @@ func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, r
 }
 
 func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string) *dataflowpb.LaunchFlexTemplateParameter {
+	transformationContextMap := map[string]interface{}{
+		"SchemaToShardId": streamingCfg.DataflowCfg.DbNameToShardIdMap,
+	}
+	transformationContext, err := json.Marshal(transformationContextMap)
+	if err != nil {
+		fmt.Printf("failed to compute transformation context: %s", err.Error())
+	}
+	fmt.Println(string(transformationContext))
 	return &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
-		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-03-07-00_RC00/flex/Cloud_Datastream_to_Spanner"},
+		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://khajanchi-gsql/images/datastream-to-spanner-image-spec.json"},
 		Parameters: map[string]string{
 			"inputFilePattern":         inputFilePattern,
 			"streamName":               fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
@@ -471,7 +479,7 @@ func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, pr
 			"databaseId":               dbName,
 			"sessionFilePath":          streamingCfg.TmpDir + "session.json",
 			"deadLetterQueueDirectory": inputFilePattern + "dlq",
-			"shardingConfig":           string(streamingCfg.DataflowCfg.DbNameToShardIdMap),
+			"transformationContext":    string(transformationContext),
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			MaxWorkers:            maxWorkers,
