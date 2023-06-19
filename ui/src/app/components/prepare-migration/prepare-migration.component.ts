@@ -41,6 +41,7 @@ export class PrepareMigrationComponent implements OnInit {
   isDataflowConfigurationSet: boolean = false
   isSourceDetailsSet: boolean = false
   isTargetDetailSet: boolean = false
+  isForeignKeySkipped: boolean = false
   isMigrationDetailSet: boolean = false
   isStreamingSupported: boolean = false
   hasDataMigrationStarted: boolean = false
@@ -103,7 +104,10 @@ export class PrepareMigrationComponent implements OnInit {
     IsMetadataDbCreated: false,
     IsConfigValid: false
   }
-
+  skipForeignKeyResponseList = [
+    { value: false, displayName: 'No'},
+    { value: true, displayName: 'Yes'},
+  ]
   refreshMigrationMode() {
     if (
       !(this.selectedMigrationMode === MigrationModes.schemaOnly) &&
@@ -213,6 +217,9 @@ export class PrepareMigrationComponent implements OnInit {
     if (localStorage.getItem(MigrationDetails.MigrationType) != null) {
       this.selectedMigrationType = localStorage.getItem(MigrationDetails.MigrationType) as string
     }
+    if (localStorage.getItem(MigrationDetails.isForeignKeySkipped) != null) {
+      this.isForeignKeySkipped = localStorage.getItem(MigrationDetails.isForeignKeySkipped) === 'true'
+    }
     if (localStorage.getItem(MigrationDetails.IsMigrationInProgress) != null) {
       this.isMigrationInProgress =
         (localStorage.getItem(MigrationDetails.IsMigrationInProgress) as string) === 'true'
@@ -298,6 +305,7 @@ export class PrepareMigrationComponent implements OnInit {
   clearLocalStorage() {
     localStorage.removeItem(MigrationDetails.MigrationMode)
     localStorage.removeItem(MigrationDetails.MigrationType)
+    localStorage.removeItem(MigrationDetails.isForeignKeySkipped)
     localStorage.removeItem(MigrationDetails.IsTargetDetailSet)
     localStorage.removeItem(MigrationDetails.IsSourceConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsTargetConnectionProfileSet)
@@ -532,6 +540,7 @@ export class PrepareMigrationComponent implements OnInit {
       IsSharded: this.isSharded,
       MigrationType: this.selectedMigrationType,
       MigrationMode: this.selectedMigrationMode,
+      skipForeignKeys: this.isForeignKeySkipped,
     }
     this.fetch.migrate(payload).subscribe({
       next: () => {
@@ -788,6 +797,7 @@ export class PrepareMigrationComponent implements OnInit {
   initializeLocalStorage() {
     localStorage.setItem(MigrationDetails.MigrationMode, this.selectedMigrationMode)
     localStorage.setItem(MigrationDetails.MigrationType, this.selectedMigrationType)
+    localStorage.setItem(MigrationDetails.isForeignKeySkipped, this.isForeignKeySkipped.toString())
     localStorage.setItem(
       MigrationDetails.IsMigrationInProgress,
       this.isMigrationInProgress.toString()
