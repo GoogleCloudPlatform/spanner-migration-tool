@@ -25,6 +25,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -71,11 +72,11 @@ func TestGetTypeMapPostgres(t *testing.T) {
 	expectedTypemap := map[string][]typeIssue{
 		"bool": {
 			{T: ddl.Bool, DisplayT: ddl.Bool},
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"bigserial": {
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Serial].Brief, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief + ", " + internal.IssueDB[internal.Serial].Brief, DisplayT: ddl.String}},
+			{T: ddl.Int64, Brief: reports.IssueDB[internal.Serial].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief + ", " + reports.IssueDB[internal.Serial].Brief, DisplayT: ddl.String}},
 		"bpchar": {
 			{T: ddl.Bytes, DisplayT: ddl.Bytes},
 			{T: ddl.String, DisplayT: ddl.String}},
@@ -84,34 +85,34 @@ func TestGetTypeMapPostgres(t *testing.T) {
 			{T: ddl.String, DisplayT: ddl.String}},
 		"date": {
 			{T: ddl.Date, DisplayT: ddl.Date},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"float8": {
 			{T: ddl.Float64, DisplayT: ddl.Float64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"float4": {
-			{T: ddl.Float64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"int8": {
 			{T: ddl.Int64, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"int4": {
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"numeric": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
 			{T: ddl.Numeric, DisplayT: ddl.Numeric}},
 		"serial": {
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Serial].Brief, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief + ", " + internal.IssueDB[internal.Serial].Brief, DisplayT: ddl.String}},
+			{T: ddl.Int64, Brief: reports.IssueDB[internal.Serial].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief + ", " + reports.IssueDB[internal.Serial].Brief, DisplayT: ddl.String}},
 		"text": {
 			{T: ddl.Bytes, DisplayT: ddl.Bytes},
 			{T: ddl.String, DisplayT: ddl.String}},
 		"timestamptz": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
 			{T: ddl.Timestamp, DisplayT: ddl.Timestamp}},
 		"timestamp": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
-			{T: ddl.Timestamp, Brief: internal.IssueDB[internal.Timestamp].Brief, DisplayT: ddl.Timestamp}},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Timestamp, Brief: reports.IssueDB[internal.Timestamp].Brief, DisplayT: ddl.Timestamp}},
 		"varchar": {
 			{T: ddl.Bytes, DisplayT: ddl.Bytes},
 			{T: ddl.String, DisplayT: ddl.String}},
@@ -166,8 +167,8 @@ func TestGetTypeMapMySQL(t *testing.T) {
 	expectedTypemap := map[string][]typeIssue{
 		"bool": {
 			{T: ddl.Bool, DisplayT: ddl.Bool},
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"varchar": {
 			{T: ddl.Bytes, DisplayT: ddl.Bytes},
 			{T: ddl.String, DisplayT: ddl.String}},
@@ -186,31 +187,31 @@ func TestGetTypeMapMySQL(t *testing.T) {
 			{T: ddl.Bytes, DisplayT: ddl.Bytes},
 			{T: ddl.String, DisplayT: ddl.String}},
 		"integer": {
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"smallint": {
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.Int64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"double": {
 			{T: ddl.Float64, DisplayT: ddl.Float64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"float": {
-			{T: ddl.Float64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"numeric": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
 			{T: ddl.Numeric, DisplayT: ddl.Numeric}},
 		"decimal": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
 			{T: ddl.Numeric, DisplayT: ddl.Numeric}},
 		"date": {
 			{T: ddl.Date, DisplayT: ddl.Date},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"timestamp": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
 			{T: ddl.Timestamp, DisplayT: ddl.Timestamp}},
 		"time": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Time].Brief, DisplayT: ddl.String}},
+			{T: ddl.String, Brief: reports.IssueDB[internal.Time].Brief, DisplayT: ddl.String}},
 	}
 	assert.Equal(t, expectedTypemap, typemap)
 
@@ -269,8 +270,10 @@ func TestSetParentTable(t *testing.T) {
 					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t1", ReferColumnIds: []string{"c1"}},
 						ddl.Foreignkey{Name: "fk2", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"c2"}}},
 				}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -296,8 +299,10 @@ func TestSetParentTable(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 			},
 			table:            "t1",
@@ -330,8 +335,10 @@ func TestSetParentTable(t *testing.T) {
 					},
 				},
 				SyntheticPKeys: map[string]internal.SyntheticPKey{"t2": internal.SyntheticPKey{ColId: "synth_id"}},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -366,8 +373,10 @@ func TestSetParentTable(t *testing.T) {
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
 					},
 				},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -402,8 +411,10 @@ func TestSetParentTable(t *testing.T) {
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
 					},
 				},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -438,8 +449,10 @@ func TestSetParentTable(t *testing.T) {
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
 					},
 				},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -475,8 +488,10 @@ func TestSetParentTable(t *testing.T) {
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
 					},
 				},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -523,8 +538,10 @@ func TestSetParentTable(t *testing.T) {
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
 					},
 				},
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -1390,7 +1407,7 @@ func TestDropTable(t *testing.T) {
 	sessionState.Driver = constants.MYSQL
 
 	c3 := &internal.Conv{
-		SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+		SchemaIssues: map[string]internal.TableIssues{
 			"t1": {},
 			"t2": {},
 		},
@@ -1535,7 +1552,7 @@ func TestRestoreTable(t *testing.T) {
 			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 		},
 
-		SchemaIssues: map[string]map[string][]internal.SchemaIssue{},
+		SchemaIssues: map[string]internal.TableIssues{},
 	}
 
 	sessionState.Conv = conv
@@ -1602,7 +1619,7 @@ func TestRemoveParentTable(t *testing.T) {
 			tableId:    "t1",
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {},
 					"t2": {},
 				},
@@ -1690,7 +1707,7 @@ func TestRemoveParentTable(t *testing.T) {
 			tableId:    "A",
 			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {},
 					"t2": {},
 				},
@@ -1968,7 +1985,7 @@ func TestApplyRule(t *testing.T) {
 		payload        string
 		statusCode     int64
 		expectedSchema ddl.CreateTable
-		expectedIssues map[string][]internal.SchemaIssue
+		expectedIssues internal.TableIssues
 	}{
 		{
 			name: "Test type change",
@@ -2022,19 +2039,21 @@ func TestApplyRule(t *testing.T) {
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 			},
-			expectedIssues: map[string][]internal.SchemaIssue{
-				"c1":  {internal.Widened},
-				"c2":  {internal.Widened},
-				"c3":  {internal.Widened},
-				"c5":  {internal.Widened},
-				"c6":  {internal.Widened},
-				"c7":  {internal.Widened, internal.Serial},
-				"c10": {internal.Widened},
-				"c11": {internal.Widened},
-				"c12": {internal.Widened},
-				"c13": {internal.Widened, internal.Serial},
-				"c15": {internal.Widened},
-				"c16": {internal.Widened},
+			expectedIssues: internal.TableIssues{
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{
+					"c1":  {internal.Widened},
+					"c2":  {internal.Widened},
+					"c3":  {internal.Widened},
+					"c5":  {internal.Widened},
+					"c6":  {internal.Widened},
+					"c7":  {internal.Widened, internal.Serial},
+					"c10": {internal.Widened},
+					"c11": {internal.Widened},
+					"c12": {internal.Widened},
+					"c13": {internal.Widened, internal.Serial},
+					"c15": {internal.Widened},
+					"c16": {internal.Widened},
+				},
 			},
 		},
 		{
@@ -2077,15 +2096,17 @@ func TestApplyRule(t *testing.T) {
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 			},
-			expectedIssues: map[string][]internal.SchemaIssue{
-				"c1":  {internal.Widened},
-				"c2":  {internal.Widened},
-				"c3":  {internal.Widened},
-				"c7":  {internal.Serial},
-				"c12": {internal.Widened},
-				"c13": {internal.Serial},
-				"c15": {internal.Timestamp},
-				"c16": {internal.Widened},
+			expectedIssues: internal.TableIssues{
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{
+					"c1":  {internal.Widened},
+					"c2":  {internal.Widened},
+					"c3":  {internal.Widened},
+					"c7":  {internal.Serial},
+					"c12": {internal.Widened},
+					"c13": {internal.Serial},
+					"c15": {internal.Timestamp},
+					"c16": {internal.Widened},
+				},
 			},
 		},
 		{
@@ -2140,7 +2161,7 @@ func TestApplyRule(t *testing.T) {
 		payload        string
 		statusCode     int64
 		expectedSchema ddl.CreateTable
-		expectedIssues map[string][]internal.SchemaIssue
+		expectedIssues internal.TableIssues
 	}{
 		{
 			name: "Test type change",
@@ -2194,17 +2215,19 @@ func TestApplyRule(t *testing.T) {
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 			},
-			expectedIssues: map[string][]internal.SchemaIssue{
-				"c1":  {internal.Widened},
-				"c3":  {internal.Widened},
-				"c5":  {internal.Widened},
-				"c10": {internal.Widened},
-				"c11": {internal.Widened},
-				"c12": {internal.Widened},
-				"c13": {internal.Widened},
-				"c14": {internal.Widened},
-				"c15": {internal.Widened},
-				"c16": {internal.Time},
+			expectedIssues: internal.TableIssues{
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{
+					"c1":  {internal.Widened},
+					"c3":  {internal.Widened},
+					"c5":  {internal.Widened},
+					"c10": {internal.Widened},
+					"c11": {internal.Widened},
+					"c12": {internal.Widened},
+					"c13": {internal.Widened},
+					"c14": {internal.Widened},
+					"c15": {internal.Widened},
+					"c16": {internal.Time},
+				},
 			},
 		},
 		{
@@ -2246,12 +2269,14 @@ func TestApplyRule(t *testing.T) {
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 			},
-			expectedIssues: map[string][]internal.SchemaIssue{
-				"c1":  {internal.Widened},
-				"c3":  {internal.Widened},
-				"c10": {internal.Widened},
-				"c12": {internal.Widened},
-				"c15": {internal.Time},
+			expectedIssues: internal.TableIssues{
+				ColumnLevelIssues: map[string][]internal.SchemaIssue{
+					"c1":  {internal.Widened},
+					"c3":  {internal.Widened},
+					"c10": {internal.Widened},
+					"c12": {internal.Widened},
+					"c15": {internal.Time},
+				},
 			},
 		},
 		{
@@ -2354,7 +2379,7 @@ func TestDropRule(t *testing.T) {
 			ruleId:     "r101",
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -2401,7 +2426,7 @@ func TestDropRule(t *testing.T) {
 				},
 			},
 			expectedConv: &internal.Conv{
-				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
+				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -2602,14 +2627,18 @@ func buildConvMySQL(conv *internal.Conv) {
 		},
 	}
 
-	conv.SchemaIssues = map[string]map[string][]internal.SchemaIssue{
+	conv.SchemaIssues = map[string]internal.TableIssues{
 		"t1": {
-			"c10": {internal.Widened},
-			"c12": {internal.Widened},
-			"c15": {internal.Time},
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{
+				"c10": {internal.Widened},
+				"c12": {internal.Widened},
+				"c15": {internal.Time},
+			},
 		},
 		"t2": {
-			"c17": {internal.Widened},
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{
+				"c17": {internal.Widened},
+			},
 		},
 	}
 	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"c20", 0}
@@ -2690,16 +2719,20 @@ func buildConvPostgres(conv *internal.Conv) {
 		},
 	}
 
-	conv.SchemaIssues = map[string]map[string][]internal.SchemaIssue{
+	conv.SchemaIssues = map[string]internal.TableIssues{
 		"t1": {
-			"c2":  {internal.Widened},   //b
-			"c7":  {internal.Serial},    //g
-			"c12": {internal.Widened},   //l
-			"c13": {internal.Serial},    //m
-			"c15": {internal.Timestamp}, //o
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{
+				"c2":  {internal.Widened},   //b
+				"c7":  {internal.Serial},    //g
+				"c12": {internal.Widened},   //l
+				"c13": {internal.Serial},    //m
+				"c15": {internal.Timestamp}, //o
+			},
 		},
 		"t2": {
-			"c18": {internal.Widened},
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{
+				"c18": {internal.Widened},
+			},
 		},
 	}
 	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"c20", 0}

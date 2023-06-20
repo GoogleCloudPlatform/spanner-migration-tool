@@ -42,7 +42,11 @@ import { SourceDetailsFormComponent } from './components/source-details-form/sou
 import { SidenavReviewChangesComponent } from './components/sidenav-review-changes/sidenav-review-changes.component'
 import { TableColumnChangesPreviewComponent } from './components/table-column-changes-preview/table-column-changes-preview.component'
 import { EndMigrationComponent } from './components/end-migration/end-migration.component'
-import { DataflowFormComponent } from './components/dataflow-form/dataflow-form.component'
+import { DataflowFormComponent } from './components/dataflow-form/dataflow-form.component';
+import { EditColumnMaxLengthComponent } from './components/edit-column-max-length/edit-column-max-length.component';
+import { ShardedBulkSourceDetailsFormComponent } from './components/sharded-bulk-source-details-form/sharded-bulk-source-details-form.component';
+import { ShardedDataflowMigrationDetailsFormComponent } from './components/sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component'
+import { AddNewColumnComponent } from './components/add-new-column/add-new-column.component'
 import { DataprocFormComponent } from './components/dataproc-form/dataproc-form.component'
 
 @NgModule({
@@ -80,6 +84,10 @@ import { DataprocFormComponent } from './components/dataproc-form/dataproc-form.
     EndMigrationComponent,
     SourceDetailsFormComponent,
     DataflowFormComponent,
+    EditColumnMaxLengthComponent,
+    ShardedBulkSourceDetailsFormComponent,
+    ShardedDataflowMigrationDetailsFormComponent,
+    AddNewColumnComponent,
     DataprocFormComponent,
   ],
   imports: [

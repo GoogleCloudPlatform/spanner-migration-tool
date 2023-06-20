@@ -16,6 +16,7 @@ package table
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
 // renameColumn renames given column to newname and update in schema.
@@ -24,10 +25,10 @@ func renameColumn(newName, tableId, colId string, conv *internal.Conv) {
 	sp := conv.SpSchema[tableId]
 
 	// update interleave table relation.
-	isParent, childTableId := IsParent(tableId)
+	isParent, childTableId := utilities.IsParent(tableId)
 
 	if isParent {
-		childColId, err := getColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
+		childColId, err := utilities.GetColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
 		if err == nil {
 			renameColumnNameTableSchema(conv, childTableId, childColId, newName)
 		}
@@ -35,7 +36,7 @@ func renameColumn(newName, tableId, colId string, conv *internal.Conv) {
 
 	if conv.SpSchema[tableId].ParentId != "" {
 		parentTableId := conv.SpSchema[tableId].ParentId
-		parentColId, err := getColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
+		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
 		if err == nil {
 			renameColumnNameTableSchema(conv, parentTableId, parentColId, newName)
 		}

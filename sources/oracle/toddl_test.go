@@ -107,7 +107,7 @@ func TestToSpannerType(t *testing.T) {
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 	// 1 FK issue, 2 index col not found
 	assert.Equal(t, int64(3), conv.Unexpecteds())
 }
@@ -191,12 +191,11 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 		ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c12"}},
 			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c15"}}},
-		Indexes: []ddl.CreateIndex{{Name: "index1", TableId: tableId, Unique: true, Keys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c4", Desc: true}}},
-			{Name: "index_with_0_key", TableId: tableId, Unique: true, Keys: nil}},
+		Indexes: []ddl.CreateIndex{{Name: "index_with_0_key", TableId: tableId, Unique: true, Keys: nil}},
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 	// 1 FK issue, 2 index col not found
 	assert.Equal(t, int64(3), conv.Unexpecteds())
 }

@@ -19,8 +19,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
@@ -38,8 +41,10 @@ type InterleaveTableSchema struct {
 type InterleaveColumn struct {
 	ColumnName       string
 	Type             string
+	Size             int
 	UpdateColumnName string
 	UpdateType       string
+	UpdateSize       int
 	ColumnId         string
 }
 
@@ -96,7 +101,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.Rename != "" && v.Rename != conv.SpSchema[tableId].ColDefs[colId].Name {
 
 			for _, c := range conv.SpSchema[tableId].ColDefs {
-				if c.Name == v.Rename {
+				if strings.EqualFold(c.Name, v.Rename) {
 					http.Error(w, fmt.Sprintf("Multiple columns with similar name cannot exist for column : %v", v.Rename), http.StatusBadRequest)
 					return
 				}
@@ -106,7 +111,8 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		}
 
-		if v.ToType != "" {
+		_, found := conv.SrcSchema[tableId].ColDefs[colId]
+		if v.ToType != "" && found {
 
 			typeChange, err := utilities.IsTypeChanged(v.ToType, tableId, colId, conv)
 
@@ -127,9 +133,21 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.NotNull != "" {
 			UpdateNotNull(v.NotNull, tableId, colId, conv)
 		}
+
+		if v.MaxColLength != "" {
+			var colMaxLength int64
+			if strings.ToLower(v.MaxColLength) == "max" {
+				colMaxLength = ddl.MaxLength
+			} else {
+				colMaxLength, _ = strconv.ParseInt(v.MaxColLength, 10, 64)
+			}
+			if conv.SpSchema[tableId].ColDefs[colId].T.Len != colMaxLength {
+				interleaveTableSchema = ReviewColumnSize(colMaxLength, tableId, colId, conv, interleaveTableSchema)
+			}
+		}
 	}
 
-	ddl := GetSpannerTableDDL(conv.SpSchema[tableId], conv.SpDialect)
+	ddl := GetSpannerTableDDL(conv.SpSchema[tableId], conv.SpDialect, sessionState.Driver)
 
 	interleaveTableSchema = trimRedundantInterleaveTableSchema(interleaveTableSchema)
 	// update interleaveTableSchema by filling the missing fields.

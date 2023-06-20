@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/civil"
@@ -38,9 +39,22 @@ import (
 
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
-	Db            *sql.DB
-	SourceProfile profiles.SourceProfile
-	TargetProfile profiles.TargetProfile
+	Db             *sql.DB
+	SourceProfile  profiles.SourceProfile
+	TargetProfile  profiles.TargetProfile
+	IsSchemaUnique *bool
+}
+
+func (isi InfoSchemaImpl) populateSchemaIsUnique(schemaAndNames []common.SchemaAndName) {
+	schemaSet := make(map[string]struct{})
+	for _, table := range schemaAndNames {
+		schemaSet[table.Schema] = struct{}{}
+	}
+	if len(schemaSet) == 1 {
+		*isi.IsSchemaUnique = true
+	} else {
+		*isi.IsSchemaUnique = false
+	}
 }
 
 // StartChangeDataCapture is used for automatic triggering of Datastream job when
@@ -61,7 +75,7 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
 	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
 
-	err := streaming.StartDataflow(ctx, isi.SourceProfile, isi.TargetProfile, streamingCfg, conv)
+	err := streaming.StartDataflow(ctx, isi.TargetProfile, streamingCfg, conv)
 	if err != nil {
 		err = fmt.Errorf("error starting dataflow: %v", err)
 		return err
@@ -76,7 +90,9 @@ func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 
 // GetTableName returns table name.
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
-	if schema == "public" { // Drop 'public' prefix.
+	if *isi.IsSchemaUnique { // Drop schema name as prefix if only one schema is detected.
+		return tableName
+	} else if schema == "public" {
 		return tableName
 	}
 	return fmt.Sprintf("%s.%s", schema, tableName)
@@ -87,7 +103,14 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) 
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
-	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[tableId].Schema, conv.SrcSchema[tableId].Name)
+	isSchemaNamePrefixed := strings.HasPrefix(conv.SrcSchema[tableId].Name, conv.SrcSchema[tableId].Schema+".")
+	var tableName string
+	if isSchemaNamePrefixed {
+		tableName = strings.TrimPrefix(conv.SrcSchema[tableId].Name, conv.SrcSchema[tableId].Schema+".")
+	} else {
+		tableName = conv.SrcSchema[tableId].Name
+	}
+	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[tableId].Schema, tableName)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -231,6 +254,7 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 			tables = append(tables, common.SchemaAndName{Schema: tableSchema, Name: tableName})
 		}
 	}
+	isi.populateSchemaIsUnique(tables)
 	return tables, nil
 }
 
@@ -463,9 +487,9 @@ func toType(dataType string, elementDataType sql.NullString, charLen sql.NullInt
 		// TODO: handle case of multiple array bounds.
 	case charLen.Valid:
 		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
-	case dataType == "numeric" && numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
+	case numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
-	case dataType == "numeric" && numericPrecision.Valid:
+	case numericPrecision.Valid:
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
 	default:
 		return schema.Type{Name: dataType}

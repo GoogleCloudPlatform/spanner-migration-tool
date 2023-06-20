@@ -17,6 +17,7 @@ package internal
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -28,8 +29,8 @@ type Counter struct {
 
 var Cntr Counter
 
-// contains check string present in list.
-func contains(l []string, str string) bool {
+// Contains check string present in list.
+func Contains(l []string, str string) bool {
 	for _, s := range l {
 		if s == str {
 			return true
@@ -140,12 +141,12 @@ func GetSrcIndexFromId(indexes []schema.Index, indexId string) (schema.Index, er
 func ComputeUsedNames(conv *Conv) map[string]bool {
 	usedNames := make(map[string]bool)
 	for _, table := range conv.SpSchema {
-		usedNames[table.Name] = true
+		usedNames[strings.ToLower(table.Name)] = true
 		for _, index := range table.Indexes {
-			usedNames[index.Name] = true
+			usedNames[strings.ToLower(index.Name)] = true
 		}
 		for _, fk := range table.ForeignKeys {
-			usedNames[fk.Name] = true
+			usedNames[strings.ToLower(fk.Name)] = true
 		}
 	}
 	return usedNames

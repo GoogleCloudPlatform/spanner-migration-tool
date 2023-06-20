@@ -184,10 +184,16 @@ export interface ISessionSummary {
   ProcessingUnits: number
   Instance: string
   Dialect: string
+  IsSharded: boolean
 }
 
 export interface ISpannerDetails {
   Region: string
   Instance: string
   Dialect: string
+}
+
+export interface ITableIdAndName {
+  Id: string
+  Name: string
 }

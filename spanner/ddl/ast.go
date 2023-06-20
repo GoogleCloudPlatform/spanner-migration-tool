@@ -54,6 +54,9 @@ const (
 	MaxLength = math.MaxInt64
 	// StringMaxLength represents maximum allowed STRING length.
 	StringMaxLength = 2621440
+	// BytesMaxLength represents maximum allowed BYTES length.
+	BytesMaxLength        = 10485760
+	MaxNonKeyColumnLength = 1677721600
 
 	// Types specific to Spanner with postgresql dialect, when they differ from
 	// Spanner with google_standard_sql.
@@ -90,6 +93,17 @@ var PGSQL_TO_STANDARD_TYPE_TYPEMAP = map[string]string{
 	PGTimestamptz: Timestamp,
 	PGJSONB:       JSON,
 }
+
+// PGDialect keyword list
+// Assumption is that this list PGSQL dialect uses the same keywords
+var PGSQL_RESERVED_KEYWORD_LIST = []string{"ALL","ANALYSE","ANALYZE","AND","ANY","ARRAY","AS","ASC","ASYMMETRIC","AUTHORIZATION","BETWEEN","BIGINT","BINARY","BIT","BOOLEAN","BOTH","CASE","CAST",
+"CHAR","CHARACTER","CHECK","COALESCE","COLLATE","COLLATION","COLUMN","CONCURRENTLY","CONSTRAINT","CREATE","CROSS","CURRENT_CATALOG","CURRENT_DATE","CURRENT_ROLE","CURRENT_SCHEMA",
+"CURRENT_TIME","CURRENT_TIMESTAMP","CURRENT_USER","DEC","DECIMAL","DEFAULT","DEFERRABLE","DESC","DISTINCT","DO","ELSE","END","EXCEPT","EXISTS","EXTRACT","FALSE","FETCH","FLOAT","FOR","FOREIGN",
+"FREEZE","FROM","FULL","GRANT","GREATEST","GROUP","GROUPING","HAVING","ILIKE","IN","INITIALLY","INNER","INOUT","INT","INTEGER","INTERSECT","INTERVAL","INTO","IS","ISNULL","JOIN","LATERAL","LEADING",
+"LEAST","LEFT","LIKE","LIMIT","LOCALTIME","LOCALTIMESTAMP","NATIONAL","NATURAL","NCHAR","NONE","NORMALIZE","NOT","NOTNULL","NULL","NULLIF","NUMERIC","OFFSET","ON","ONLY","OR","ORDER","OUT","OUTER",
+"OVERLAPS","OVERLAY","PLACING","POSITION","PRECISION","PRIMARY","REAL","REFERENCES","RETURNING","RIGHT","ROW","SELECT","SESSION_USER","SETOF","SIMILAR","SMALLINT","SOME","SUBSTRING","SYMMETRIC",
+"TABLE","TABLESAMPLE","THEN","TIME","TIMESTAMP","TO","TRAILING","TREAT","TRIM","TRUE","UNION","UNIQUE","USER","USING","VALUES","VARCHAR","VARIADIC","VERBOSE","WHEN","WHERE","WINDOW","WITH",
+"XMLATTRIBUTES","XMLCONCAT","XMLELEMENT","XMLEXISTS","XMLFOREST","XMLNAMESPACES","XMLPARSE","XMLPI","XMLROOT","XMLSERIALIZE","XMLTABLE"}
 
 // Type represents the type of a column.
 //
@@ -173,12 +187,35 @@ type Config struct {
 	Tables      bool // If true, print tables
 	ForeignKeys bool // If true, print foreign key constraints.
 	SpDialect   string
+	Source      string //SourceDB information for determining case-sensitivity handling for PGSQL
+}
+
+func isIdentifierReservedInPG(identifier string) bool {
+	for _, KEYWORD := range PGSQL_RESERVED_KEYWORD_LIST {
+		if strings.EqualFold(KEYWORD, identifier) {
+			return true
+		}
+	}
+	return false
+}
+
+func isSourceCaseSensitive(source string) bool {
+	switch source {
+	case constants.POSTGRES, constants.PGDUMP:
+		return true
+	default:
+		return false
+	}
 }
 
 func (c Config) quote(s string) string {
 	if c.ProtectIds {
 		if c.SpDialect == constants.DIALECT_POSTGRESQL {
-			return s
+			if isIdentifierReservedInPG(s) || isSourceCaseSensitive(c.Source) {
+				return "\"" + s + "\""
+			} else {
+				return s
+			}
 		} else {
 			return "`" + s + "`"
 		}

@@ -119,7 +119,7 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 
 	dbName := "mysql-dc-schema-and-data"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	filePrefix := filepath.Join(tmpdir, dbName+".")
+	filePrefix := filepath.Join(tmpdir, dbName)
 
 	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDATABASE"), os.Getenv("MYSQLPWD")
 	envVars := common.ClearEnvVariables([]string{"MYSQLHOST", "MYSQLUSER", "MYSQLDATABASE", "MYSQLPWD"})
@@ -170,16 +170,16 @@ func TestIntegration_MySQLDUMP_SchemaSubcommand(t *testing.T) {
 	defer dropDatabase(t, dbURI)
 
 	dumpFilePath := "../../test_data/mysqldump.test.out"
-	filePrefix := filepath.Join(tmpdir, dbName+".")
-	sessionFile := fmt.Sprintf("%ssession.json", filePrefix)
+	filePrefix := filepath.Join(tmpdir, dbName)
+	sessionFile := fmt.Sprintf("%s.session.json", filePrefix)
 	runSchemaSubcommand(t, dbName, filePrefix, sessionFile, dumpFilePath)
-	if _, err := os.Stat(fmt.Sprintf("%sreport.txt", filePrefix)); os.IsNotExist(err) {
+	if _, err := os.Stat(fmt.Sprintf("%s.report.txt", filePrefix)); os.IsNotExist(err) {
 		t.Fatalf("report file not generated during schema-only test")
 	}
-	if _, err := os.Stat(fmt.Sprintf("%sschema.ddl.txt", filePrefix)); os.IsNotExist(err) {
+	if _, err := os.Stat(fmt.Sprintf("%s.schema.ddl.txt", filePrefix)); os.IsNotExist(err) {
 		t.Fatalf("legal ddl file not generated during schema-only test")
 	}
-	if _, err := os.Stat(fmt.Sprintf("%sschema.txt", filePrefix)); os.IsNotExist(err) {
+	if _, err := os.Stat(fmt.Sprintf("%s.schema.txt", filePrefix)); os.IsNotExist(err) {
 		t.Fatalf("readable schema file not generated during schema-only test")
 	}
 	if _, err := os.Stat(sessionFile); os.IsNotExist(err) {
@@ -194,8 +194,8 @@ func TestIntegration_MySQLDUMP_DataSubcommand(t *testing.T) {
 
 	dbName := "test-data-subcommand"
 	dumpFilePath := "../../test_data/mysqldump.test.out"
-	filePrefix := filepath.Join(tmpdir, dbName+".")
-	sessionFile := fmt.Sprintf("%ssession.json", filePrefix)
+	filePrefix := filepath.Join(tmpdir, dbName)
+	sessionFile := fmt.Sprintf("%s.session.json", filePrefix)
 	runSchemaSubcommand(t, dbName, filePrefix, sessionFile, dumpFilePath)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	defer dropDatabase(t, dbURI)
@@ -210,7 +210,7 @@ func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
 
 	dbName := "test-schema-and-data"
 	dumpFilePath := "../../test_data/mysqldump.test.out"
-	filePrefix := filepath.Join(tmpdir, dbName+".")
+	filePrefix := filepath.Join(tmpdir, dbName)
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)

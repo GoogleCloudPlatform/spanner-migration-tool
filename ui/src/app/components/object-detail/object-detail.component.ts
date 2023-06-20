@@ -7,7 +7,7 @@ import { InfodialogComponent } from '../infodialog/infodialog.component'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
+import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
@@ -22,6 +22,7 @@ import { ConversionService } from 'src/app/services/conversion/conversion.servic
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
+import { AddNewColumnComponent } from '../add-new-column/add-new-column.component'
 
 @Component({
   selector: 'app-object-detail',
@@ -66,9 +67,9 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
 
-  srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcIsPk', 'srcIsNotNull']
+  srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
 
-  spDisplayedColumns = ['spColName', 'spDataType', 'spIsPk', 'spIsNotNull', 'dropButton']
+  spDisplayedColumns = ['spColName', 'spDataType', 'spColMaxLength', 'spIsPk', 'spIsNotNull', 'dropButton']
   displayedFkColumns = [
     'srcName',
     'srcColumns',
@@ -122,6 +123,7 @@ export class ObjectDetailComponent implements OnInit {
   currentTabIndex: number = 0
   addedColumnName: string = ''
   droppedColumns: IColumnTabData[] = []
+  droppedSourceColumns: string[] = []
   pkColumnNames: string[] = []
   indexColumnNames: string[] = []
   addColumnForm = new FormGroup({
@@ -136,6 +138,7 @@ export class ObjectDetailComponent implements OnInit {
     columnName: new FormControl('', [Validators.required]),
   })
   pkObj: IPrimaryKey = {} as IPrimaryKey
+  dataTypesWithColLen: string[] = ColLength.DataTypes
 
   ngOnChanges(changes: SimpleChanges): void {
     this.fkData = changes['fkData']?.currentValue || this.fkData
@@ -188,24 +191,43 @@ export class ObjectDetailComponent implements OnInit {
     this.spRowArray = new FormArray([])
     this.localTableData.forEach((row) => {
       if (row.spOrder) {
+        let fb = new FormGroup({
+          srcOrder: new FormControl(row.srcOrder),
+          srcColName: new FormControl(row.srcColName),
+          srcDataType: new FormControl(row.srcDataType),
+          srcIsPk: new FormControl(row.srcIsPk),
+          srcIsNotNull: new FormControl(row.srcIsNotNull),
+          srcColMaxLength: new FormControl(row.srcColMaxLength),
+          spOrder: new FormControl(row.srcOrder),
+          spColName: new FormControl(row.spColName, [
+            Validators.required,
+            Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
+          ]),
+          spDataType: new FormControl(row.spDataType),
+          spIsPk: new FormControl(row.spIsPk),
+          spIsNotNull: new FormControl(row.spIsNotNull), spId: new FormControl(row.spId),
+          srcId: new FormControl(row.srcId),
+          spColMaxLength: new FormControl(row.spColMaxLength, [
+            Validators.required]),
+        })
+        if (this.dataTypesWithColLen.indexOf(row.spDataType.toString()) > -1) {
+          fb.get('spColMaxLength')?.setValidators([Validators.required, Validators.pattern('([1-9][0-9]*|MAX)')])
+          if (row.spColMaxLength === undefined) {
+            fb.get('spColMaxLength')?.setValue('MAX')
+          }
+          else if (row.spColMaxLength !== 'MAX') {
+            if ((row.spDataType === 'STRING' || row.spDataType === 'VARCHAR') && row.spColMaxLength > ColLength.StringMaxLength) {
+              fb.get('spColMaxLength')?.setValue('MAX')
+            } else if (row.spDataType === 'BYTES' && row.spColMaxLength > ColLength.ByteMaxLength) {
+              fb.get('spColMaxLength')?.setValue('MAX')
+            }
+          }
+        } else {
+          fb.controls['spColMaxLength'].clearValidators()
+        }
+        fb.controls['spColMaxLength'].updateValueAndValidity()
         this.spRowArray.push(
-          new FormGroup({
-            srcOrder: new FormControl(row.srcOrder),
-            srcColName: new FormControl(row.srcColName),
-            srcDataType: new FormControl(row.srcDataType),
-            srcIsPk: new FormControl(row.srcIsPk),
-            srcIsNotNull: new FormControl(row.srcIsNotNull),
-            spOrder: new FormControl(row.srcOrder),
-            spColName: new FormControl(row.spColName, [
-              Validators.required,
-              Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
-            ]),
-            spDataType: new FormControl(row.spDataType),
-            spIsPk: new FormControl(row.spIsPk),
-            spIsNotNull: new FormControl(row.spIsNotNull),
-            spId: new FormControl(row.spId),
-            srcId: new FormControl(row.srcId),
-          })
+          fb
         )
       }
     })
@@ -224,6 +246,7 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(col.srcDataType),
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
+            srcColMaxLength: new FormControl(col.srcColMaxLength),
             spOrder: new FormControl(col.spOrder),
             spColName: new FormControl(col.spColName),
             spDataType: new FormControl(col.spDataType),
@@ -231,6 +254,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsNotNull: new FormControl(col.spIsNotNull),
             spId: new FormControl(col.spId),
             srcId: new FormControl(col.srcId),
+            spColMaxLength: new FormControl(col.spColMaxLength),
           })
         )
       } else {
@@ -241,6 +265,7 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(col.srcDataType),
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
+            srcColMaxLength: new FormControl(col.srcColMaxLength),
             spOrder: new FormControl(col.srcOrder),
             spColName: new FormControl(col.srcColName),
             spDataType: new FormControl(
@@ -248,6 +273,7 @@ export class ObjectDetailComponent implements OnInit {
             ),
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
+            spColMaxLength: new FormControl(col.spColMaxLength),
           })
         )
       }
@@ -260,8 +286,9 @@ export class ObjectDetailComponent implements OnInit {
     this.localTableData.forEach((col) => {
       if (!col.spColName) {
         this.srcRowArray.value.forEach((element: IColumnTabData) => {
-          if (col.srcColName == element.srcColName) {
+          if (col.srcColName == element.srcColName && element.srcColName != '') {
             this.droppedColumns.push(element)
+            this.droppedSourceColumns.push(element.srcColName)
           }
         })
       }
@@ -287,28 +314,53 @@ export class ObjectDetailComponent implements OnInit {
     })
     this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
       for (let j = 0; j < this.tableData.length; j++) {
-        if (col.srcColName == this.tableData[j].srcColName) {
-          let oldRow = this.tableData[j]
-          let standardDataType = pgSQLToStandardTypeTypemap.get(col.spDataType)
+        let oldRow = this.tableData[j]
+        let standardDataType = pgSQLToStandardTypeTypemap.get(col.spDataType)
+        if (col.spColMaxLength !== undefined && col.spColMaxLength !== 'MAX') {
+          if ((col.spDataType === 'STRING' || col.spDataType === 'VARCHAR') && col.spColMaxLength > ColLength.StringMaxLength) {
+            col.spColMaxLength = 'MAX'
+          } else if (col.spDataType === 'BYTES' && col.spColMaxLength > ColLength.ByteMaxLength) {
+            col.spColMaxLength = 'MAX'
+          }
+        }
+        if (typeof (col.spColMaxLength) === 'number') {
+          col.spColMaxLength = col.spColMaxLength.toString()
+        }
+        if (col.spDataType != 'STRING' && col.spDataType != 'BYTES' && col.spDataType != 'VARCHAR') {
+          col.spColMaxLength = ""
+        }
+        if (col.srcId == this.tableData[j].srcId && this.tableData[j].srcId != '') {
           updateData.UpdateCols[this.tableData[j].srcId] = {
             Add: this.tableData[j].spId == '',
             Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
-            ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType: standardDataType) : col.spDataType,
+            ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
+            MaxColLength: col.spColMaxLength
           }
           break
+        }
+        else if (col.spId == this.tableData[j].spId) {
+          updateData.UpdateCols[this.tableData[j].spId] = {
+            Add: this.tableData[j].spId == '',
+            Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
+            NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
+            Removed: false,
+            ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
+            MaxColLength: col.spColMaxLength
+          }
         }
       }
     })
 
     this.droppedColumns.forEach((col: IColumnTabData) => {
-      updateData.UpdateCols[col.srcId] = {
+      updateData.UpdateCols[col.spId] = {
         Add: false,
         Rename: '',
         NotNull: '',
         Removed: true,
         ToType: '',
+        MaxColLength: '',
       }
     })
 
@@ -334,11 +386,23 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
 
+  addNewColumn() {
+    this.dialog.open(AddNewColumnComponent, {
+      width: '30vw',
+      minWidth: '400px',
+      maxWidth: '500px',
+      data: {
+        dialect: this.conv.SpDialect,
+        tableId: this.currentObject?.id,
+      }
+    })
+  }
+
   setColumn(columnName: string) {
     this.addedColumnName = columnName
   }
 
-  addColumn() {
+  restoreColumn() {
     let index = this.tableData.map((item) => item.srcColName).indexOf(this.addedColumnName)
 
     let addedRowIndex = this.droppedColumns
@@ -349,11 +413,15 @@ export class ObjectDetailComponent implements OnInit {
     this.localTableData[index].spOrder = -1
     this.localTableData[index].spIsPk = this.droppedColumns[addedRowIndex].spIsPk
     this.localTableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
+    this.localTableData[index].spColMaxLength = this.droppedColumns[addedRowIndex].spColMaxLength
     let ind = this.droppedColumns
       .map((col: IColumnTabData) => col.spColName)
       .indexOf(this.addedColumnName)
     if (ind > -1) {
       this.droppedColumns.splice(ind, 1)
+      if (this.droppedSourceColumns.indexOf(this.addedColumnName) > -1) {
+        this.droppedSourceColumns.splice(this.droppedSourceColumns.indexOf(this.addedColumnName), 1)
+      }
     }
     this.setSpTableRows()
   }
@@ -363,7 +431,7 @@ export class ObjectDetailComponent implements OnInit {
     let srcColId = element.get('srcId').value
     let spColId = element.get('spId').value
     let colId = srcColId != '' ? srcColId : spColId
-    let spColName = this.conv.SpSchema[this.currentObject!.id].ColDefs[colId].Name
+    let spColName = element.get('spColName').value
 
     let associatedIndexes = this.getAssociatedIndexs(colId)
     if (this.checkIfPkColumn(colId) || associatedIndexes.length != 0) {
@@ -388,11 +456,14 @@ export class ObjectDetailComponent implements OnInit {
       })
     } else {
       this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
-        if (col.srcColName === srcColName) {
+        if (col.spId === spColId) {
           this.droppedColumns.push(col)
         }
       })
-      this.dropColumnFromUI(srcColName)
+      this.dropColumnFromUI(spColId)
+      if (srcColName !== '') {
+        this.droppedSourceColumns.push(srcColName)
+      }
     }
   }
 
@@ -421,14 +492,15 @@ export class ObjectDetailComponent implements OnInit {
     return indexes
   }
 
-  dropColumnFromUI(colName: string) {
+  dropColumnFromUI(spColId: string) {
     this.localTableData.forEach((col: IColumnTabData, i: number) => {
-      if (colName == col.srcColName) {
-        col.spColName = col.spColName
+      if (col.spId == spColId) {
+        col.spColName = ''
         col.spDataType = ''
         col.spIsNotNull = false
         col.spIsPk = false
         col.spOrder = ''
+        col.spColMaxLength = ''
       }
     })
     this.setSpTableRows()
@@ -673,8 +745,8 @@ export class ObjectDetailComponent implements OnInit {
               ({ ColId }) => ColId === row.spId
             ) !== 'undefined'
               ? this.conv.SpSchema[this.currentObject!.id].PrimaryKeys.find(
-                  ({ ColId }) => ColId === row.spId
-                )!.Desc
+                ({ ColId }) => ColId === row.spId
+              )!.Desc
               : false,
           Order: parseInt(row.spOrder as string),
         })
@@ -902,7 +974,6 @@ export class ObjectDetailComponent implements OnInit {
 
   saveFk() {
     let spFkArr: IForeignKey[] = []
-    console.log(this.fkArray, 'fkarray')
 
     this.fkArray.value.forEach((fk: IFkTabData) => {
       spFkArr.push({
@@ -1192,10 +1263,10 @@ export class ObjectDetailComponent implements OnInit {
       srcColId: undefined,
       spColId: this.currentObject
         ? this.conversion.getColIdFromSpannerColName(
-            this.addIndexKeyForm.value.columnName,
-            this.currentObject.parentId,
-            this.conv
-          )
+          this.addIndexKeyForm.value.columnName,
+          this.currentObject.parentId,
+          this.conv
+        )
         : '',
     })
     this.setIndexRows()
@@ -1239,8 +1310,6 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
   }
-
-  selectedColumnChange(tableId: string) {}
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index

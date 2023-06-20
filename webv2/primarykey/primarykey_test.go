@@ -49,6 +49,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 		Audit: internal.Audit{
 			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 		},
+		SchemaIssues: make(map[string]internal.TableIssues),
 	}
 
 	sessionState.Conv = c
@@ -93,6 +94,9 @@ func TestUpdatePrimaryKey(t *testing.T) {
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1, Desc: false}},
 				Id:          "t1",
 			}},
+		SchemaIssues: map[string]internal.TableIssues{
+			"t1": {},
+		},
 	}
 
 	assert.Equal(t, expectedConv, res)
@@ -119,6 +123,7 @@ func TestAddPrimaryKey(t *testing.T) {
 		Audit: internal.Audit{
 			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 		},
+		SchemaIssues: make(map[string]internal.TableIssues),
 	}
 
 	sessionState.Conv = c
@@ -169,6 +174,9 @@ func TestAddPrimaryKey(t *testing.T) {
 				Id:          "t1",
 			},
 		},
+		SchemaIssues: map[string]internal.TableIssues{
+			"t1": {},
+		},
 	}
 
 	assert.Equal(t, expectedConv, res)
@@ -197,6 +205,7 @@ func TestRemovePrimaryKey(t *testing.T) {
 		Audit: internal.Audit{
 			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 		},
+		SchemaIssues: make(map[string]internal.TableIssues),
 	}
 
 	sessionState.Conv = c
@@ -245,6 +254,9 @@ func TestRemovePrimaryKey(t *testing.T) {
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1, Desc: true}},
 				Id:          "t1",
 			}},
+		SchemaIssues: map[string]internal.TableIssues{
+			"t1": {},
+		},
 	}
 	assert.Equal(t, expectedConv, res)
 }
@@ -270,6 +282,7 @@ func TestPrimarykey(t *testing.T) {
 		Audit: internal.Audit{
 			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 		},
+		SchemaIssues: make(map[string]internal.TableIssues),
 	}
 
 	sessionState.Conv = c

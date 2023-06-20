@@ -11,6 +11,8 @@ export default interface IColumnTabData {
   srcIsNotNull: boolean
   srcId: string
   spId: string
+  srcColMaxLength: Number | string | undefined
+  spColMaxLength: Number | string | undefined
 }
 
 export interface IIndexData {
@@ -22,4 +24,14 @@ export interface IIndexData {
   srcOrder: number | string
   spOrder: number | string | undefined
   spDesc: boolean | undefined | string
+}
+
+export interface IColMaxLength {
+  spDataType: string,
+  spColMaxLength: Number | string | undefined
+}
+
+export interface IAddColumnProps {
+  dialect: string
+  tableId: string
 }

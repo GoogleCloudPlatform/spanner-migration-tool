@@ -5,24 +5,34 @@
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Database Engine</mat-label>
-        <mat-select matSelect name="dbEngine" formControlName="dbEngine" appearance="outline">
+        <mat-select formControlName="dbEngine" (selectionChange)="refreshDbSpecifcConnectionOptions()">
           <mat-option *ngFor="let element of dbEngineList" [value]="element.value">
             {{ element.displayName }}
           </mat-option>
         </mat-select>
       </mat-form-field>
 
+      <div class="shardingConfig" *ngIf="(connectForm.value.dbEngine === 'mysql')">
+        <mat-form-field appearance="outline">
+          <mat-label>Sharded Migration</mat-label>
+          <mat-select formControlName="isSharded">
+            <mat-option *ngFor="let element of shardedResponseList" [value]="element.value">
+              {{ element.displayName }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+        <br>
+        <b *ngIf="(connectForm.value.isSharded)">Note: For sharded migrations, please enter below the details of the
+          shard you want Harbourbridge to read the schema from. The complete connection configuration of all the shards
+          will be taken in later, during data migration.</b>
+      </div>
+
+      <br>
       <h3 class="primary-header">Connection Detail</h3>
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Hostname</mat-label>
-        <input
-          matInput
-          placeholder="127.0.0.1"
-          name="hostName"
-          type="text"
-          formControlName="hostName"
-        />
+        <input matInput placeholder="127.0.0.1" name="hostName" type="text" formControlName="hostName" />
       </mat-form-field>
 
       <mat-form-field class="full-width" appearance="outline">

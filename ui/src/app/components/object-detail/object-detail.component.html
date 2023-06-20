@@ -10,19 +10,10 @@
 
   <div class="select-table-message">
     <div class="image">
-      <svg
-        width="40"
-        height="40"
-        viewBox="0 0 19 18"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          fill-rule="evenodd"
-          clip-rule="evenodd"
+      <svg width="40" height="40" viewBox="0 0 19 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill-rule="evenodd" clip-rule="evenodd"
           d="M2.90723 0C1.80266 0 0.907227 0.89543 0.907227 2V16C0.907227 17.1046 1.80266 18 2.90723 18H16.9072C18.0118 18 18.9072 17.1046 18.9072 16V2C18.9072 0.895431 18.0118 0 16.9072 0H2.90723ZM5.90723 3H3.90723V5H5.90723V3ZM6.90723 3H8.90723V5H6.90723V3ZM5.90723 8H3.90723V10H5.90723V8ZM6.90723 8H8.90723V10H6.90723V8ZM5.90723 13H3.90723V15H5.90723V13ZM6.90723 13H8.90723V15H6.90723V13ZM15.9072 3H9.90723V5H15.9072V3ZM9.90723 8H15.9072V10H9.90723V8ZM15.9072 13H9.90723V15H15.9072V13Z"
-          fill="#3367D6"
-        />
+          fill="#3367D6" />
       </svg>
     </div>
     <div class="inner-text">
@@ -40,87 +31,48 @@
   <div class="title_container">
     <span>
       <h3 class="title">
-        <mat-icon
-          class="icon material-icons-outlined"
-          *ngIf="currentObject!.type === ObjectExplorerNodeType.Table"
-          >table_chart</mat-icon
-        >
-        <svg
-          *ngIf="currentObject!.type === ObjectExplorerNodeType.Index"
-          class="icon"
-          width="18"
-          height="20"
-          viewBox="0 0 12 14"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
+        <mat-icon class="icon material-icons-outlined" *ngIf="currentObject!.type === ObjectExplorerNodeType.Table">
+          table_chart</mat-icon>
+        <svg *ngIf="currentObject!.type === ObjectExplorerNodeType.Index" class="icon" width="18" height="20"
+          viewBox="0 0 12 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd"
             d="M11.005 14C11.555 14 12 13.554 12 13.002V5L10 3V12H2V14H11.005ZM0 0.996C0 0.446 0.438 0 1.003 0H7L9 2.004V10.004C9 10.554 8.554 11 8.002 11H0.998C0.867035 11.0003 0.737304 10.9747 0.616233 10.9248C0.495162 10.8748 0.385128 10.8015 0.292428 10.709C0.199729 10.6165 0.126186 10.5066 0.0760069 10.3856C0.0258282 10.2646 -2.64036e-07 10.135 0 10.004V0.996ZM6 1L5 5.5H2L6 1ZM3 10L4 5.5H7L3 10Z"
-            fill="black"
-            fill-opacity="0.54"
-          />
+            fill="black" fill-opacity="0.54" />
         </svg>
         <span class="mr10">{{ ' ' + currentObject!.name + ' ' }}</span>
-        <span *ngIf="currentObject!.parent != ''"
-          >( TABLE: {{ currentObject!.parent | uppercase }} )
+        <span *ngIf="currentObject!.parent != ''">( TABLE: {{ currentObject!.parent | uppercase }} )
         </span>
 
         <!-- If come from source tree then hide edit button then this centeral panel should be view only  -->
-        <button
-          mat-button
-          color="primary"
-          class="icon drop"
-          (click)="dropIndex()"
-          *ngIf="
+        <button mat-button color="primary" class="icon drop" (click)="dropIndex()" *ngIf="
             currentObject!.isSpannerNode &&
             !currentObject!.isDeleted &&
             currentObject!.type === 'indexName'
-          "
-        >
+          ">
           <mat-icon>delete</mat-icon>
           <span>DROP INDEX</span>
         </button>
-        <button
-          mat-button
-          color="primary"
-          class="icon drop"
-          (click)="restoreIndex()"
-          *ngIf="
+        <button mat-button color="primary" class="icon drop" (click)="restoreIndex()" *ngIf="
             currentObject!.isSpannerNode &&
             currentObject!.isDeleted &&
             currentObject!.type == ObjectExplorerNodeType.Index
-          "
-        >
+          ">
           <mat-icon>undo</mat-icon>
           <span> RESTORE INDEX</span>
         </button>
-        <button
-          mat-button
-          color="primary"
-          class="icon drop"
-          (click)="dropTable()"
-          *ngIf="
+        <button mat-button color="primary" class="icon drop" (click)="dropTable()" *ngIf="
             currentObject!.isSpannerNode &&
             currentObject!.type !== 'indexName' &&
             !currentObject!.isDeleted
-          "
-        >
+          ">
           <mat-icon>delete</mat-icon>
           <span>DROP TABLE</span>
         </button>
-        <button
-          mat-button
-          color="primary"
-          class="icon drop"
-          (click)="restoreSpannerTable()"
-          *ngIf="
+        <button mat-button color="primary" class="icon drop" (click)="restoreSpannerTable()" *ngIf="
             currentObject!.isSpannerNode &&
             currentObject!.isDeleted &&
             currentObject!.type == ObjectExplorerNodeType.Table
-          "
-        >
+          ">
           <mat-icon>undo</mat-icon>
           <span> RESTORE TABLE</span>
         </button>
@@ -138,11 +90,8 @@
     </button>
   </div>
 
-  <mat-tab-group
-    [ngClass]="{ 'height-on-edit': isEditMode || isPkEditMode || isFkEditMode }"
-    *ngIf="currentObject!.type === 'tableName'"
-    (selectedTabChange)="tabChanged($event)"
-  >
+  <mat-tab-group [ngClass]="{ 'height-on-edit': isEditMode || isPkEditMode || isFkEditMode }"
+    *ngIf="currentObject!.type === 'tableName'" (selectedTabChange)="tabChanged($event)">
     <mat-tab>
       <ng-template mat-tab-label>
         <span>COLUMNS </span>
@@ -151,7 +100,7 @@
         <div class="column-table-container">
           <table mat-table [dataSource]="srcDataSource">
             <ng-container matColumnDef="srcDatabase">
-              <th mat-header-cell class="db_name" *matHeaderCellDef colspan="5">{{ srcDbName }}</th>
+              <th mat-header-cell class="db_name" *matHeaderCellDef colspan="6">{{ srcDbName }}</th>
             </ng-container>
 
             <ng-container matColumnDef="srcOrder">
@@ -175,23 +124,21 @@
               </td>
             </ng-container>
 
+            <ng-container matColumnDef="srcColMaxLength">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Max Length</th>
+              <td mat-cell *matCellDef="let element">
+                {{ element.get('srcColMaxLength').value }}
+              </td>
+            </ng-container>
+
             <ng-container matColumnDef="srcIsPk">
               <th class="table_header" mat-header-cell *matHeaderCellDef>Pk</th>
               <td mat-cell *matCellDef="let element">
                 <div *ngIf="element.get('srcIsPk').value">
-                  <svg
-                    width="14"
-                    height="8"
-                    viewBox="0 0 14 8"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      fill-rule="evenodd"
-                      clip-rule="evenodd"
+                  <svg width="14" height="8" viewBox="0 0 14 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" clip-rule="evenodd"
                       d="M4 8C5.86384 8 7.42994 6.72523 7.87398 5H10V7H13V5H14V3H7.87398C7.42994 1.27477 5.86384 0 4 0C1.79086 0 0 1.79086 0 4C0 6.20914 1.79086 8 4 8ZM6 4C6 5.10457 5.10457 6 4 6C2.89543 6 2 5.10457 2 4C2 2.89543 2.89543 2 4 2C5.10457 2 6 2.89543 6 4Z"
-                      fill="black"
-                    />
+                      fill="black" />
                   </svg>
                 </div>
               </td>
@@ -206,27 +153,27 @@
 
             <tr mat-header-row *matHeaderRowDef="['srcDatabase']"></tr>
             <tr mat-header-row *matHeaderRowDef="srcDisplayedColumns"></tr>
-            <tr
-              mat-row
-              [ngClass]="{ 'scr-column-data-edit-mode': isEditMode }"
-              *matRowDef="let row; columns: srcDisplayedColumns"
-            ></tr>
+            <tr mat-row [ngClass]="{ 'scr-column-data-edit-mode': isEditMode }"
+              *matRowDef="let row; columns: srcDisplayedColumns"></tr>
           </table>
 
           <table mat-table [dataSource]="spDataSource">
             <ng-container matColumnDef="spDatabase">
-              <th mat-header-cell *matHeaderCellDef class="db_name" colspan="6">
+              <th mat-header-cell *matHeaderCellDef class="db_name" colspan="7">
                 <div class="spanner_edit-button">
                   <span>Spanner</span>
                   <div *ngIf="!isEditMode && !currentObject.isDeleted">
-                    <button
-                      mat-stroked-button
-                      color="primary"
-                      (click)="toggleEdit()"
-                      *ngIf="currentObject!.isSpannerNode"
-                    >
+                    <button mat-stroked-button color="primary" (click)="toggleEdit()"
+                      *ngIf="currentObject!.isSpannerNode">
                       <mat-icon class="edit-icon">edit</mat-icon>
                       EDIT
+                    </button>
+                  </div>
+                  <div *ngIf="!isEditMode && !currentObject.isDeleted">
+                    <button mat-stroked-button color="primary" (click)="addNewColumn()"
+                      *ngIf="currentObject!.isSpannerNode">
+                      <mat-icon class="edit-icon">edit</mat-icon>
+                      ADD COLUMN
                     </button>
                   </div>
                 </div>
@@ -237,14 +184,9 @@
               <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
               <td mat-cell *matCellDef="let element">
                 <div *ngIf="isEditMode && element.get('spDataType').value !== ''">
-                  <input
-                    matInput
-                    class="name_input"
-                    type="text"
-                    [formControl]="element.get('spColName')"
+                  <input matInput class="name_input" type="text" [formControl]="element.get('spColName')"
                     matTooltip="No special characters allowed except underscore."
-                    [matTooltipDisabled]="!element.get('spColName')?.hasError('pattern')"
-                  />
+                    [matTooltipDisabled]="!element.get('spColName')?.hasError('pattern')" />
                 </div>
                 <p *ngIf="!isEditMode">{{ element.get('spColName').value }}</p>
               </td>
@@ -254,28 +196,15 @@
               <th mat-header-cell class="table_header" *matHeaderCellDef>Type</th>
               <td mat-cell *matCellDef="let element; let i = index">
                 <div class="sp-datatype-data-cells">
-                  <span
-                    *ngIf="isSpTableSuggesstionDisplay[i] && element.get('spDataType').value !== ''"
+                  <span *ngIf="isSpTableSuggesstionDisplay[i] && element.get('spDataType').value !== ''"
                     class="material-icons summary-type warning sp-datatype-suggestion-icon"
-                    [matTooltip]="spTableSuggestion[i]"
-                    matTooltipPosition="above"
-                    >warning</span
-                  >
+                    [matTooltip]="spTableSuggestion[i]" matTooltipPosition="above">warning</span>
 
-                  <mat-form-field
-                    appearance="legacy"
-                    class="w-100"
-                    *ngIf="isEditMode && element.get('spDataType').value !== ''"
-                  >
-                    <mat-select
-                      #matSelectspDataType
-                      [formControl]="element.get('spDataType')"
-                      (selectionChange)="spTableEditSuggestionHandler(i, matSelectspDataType.value)"
-                    >
-                      <mat-option
-                        *ngFor="let t of typeMap[element.get('srcDataType').value]"
-                        [value]="t.DisplayT"
-                      >
+                  <mat-form-field appearance="legacy" class="w-100"
+                    *ngIf="isEditMode && element.get('spDataType').value !== '' && element.get('srcId').value !== ''">
+                    <mat-select #matSelectspDataType [formControl]="element.get('spDataType')"
+                      (selectionChange)="spTableEditSuggestionHandler(i, matSelectspDataType.value)">
+                      <mat-option *ngFor="let t of typeMap[element.get('srcDataType').value]" [value]="t.DisplayT">
                         {{ t.DisplayT }}
                       </mat-option>
                       <mat-option *ngIf="element.get('srcDataType').value == '' && !isPostgreSQLDialect" value="STRING">
@@ -286,7 +215,22 @@
                       </mat-option>
                     </mat-select>
                   </mat-form-field>
-                  <p *ngIf="!isEditMode">{{ element.get('spDataType').value }}</p>
+                  <p *ngIf="!isEditMode || element.get('srcId').value === ''">{{ element.get('spDataType').value }}</p>
+                </div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="spColMaxLength">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Max Length</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="dataTypesWithColLen.indexOf(element.get('spDataType').value)>-1">
+                  <div *ngIf="isEditMode && element.get('spDataType').value != ''">
+                    <input matInput class="name_input" type="text" [formControl]="element.get('spColMaxLength')"
+                      matTooltip="Specify the length in numeric or use MAX" />
+                  </div>
+                  <p *ngIf="!isEditMode">
+                    {{ element.get('spColMaxLength').value }}
+                  </p>
                 </div>
               </td>
             </ng-container>
@@ -295,19 +239,10 @@
               <th class="table_header" mat-header-cell *matHeaderCellDef>Pk</th>
               <td mat-cell *matCellDef="let element">
                 <div *ngIf="element.get('spIsPk').value">
-                  <svg
-                    width="14"
-                    height="8"
-                    viewBox="0 0 14 8"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      fill-rule="evenodd"
-                      clip-rule="evenodd"
+                  <svg width="14" height="8" viewBox="0 0 14 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" clip-rule="evenodd"
                       d="M4 8C5.86384 8 7.42994 6.72523 7.87398 5H10V7H13V5H14V3H7.87398C7.42994 1.27477 5.86384 0 4 0C1.79086 0 0 1.79086 0 4C0 6.20914 1.79086 8 4 8ZM6 4C6 5.10457 5.10457 6 4 6C2.89543 6 2 5.10457 2 4C2 2.89543 2.89543 2 4 2C5.10457 2 6 2.89543 6 4Z"
-                      fill="black"
-                    />
+                      fill="black" />
                   </svg>
                 </div>
               </td>
@@ -320,10 +255,7 @@
               <td mat-cell *matCellDef="let element">
                 <div class="notNullContent">
                   <div *ngIf="isEditMode && element.get('spDataType').value !== ''">
-                    <mat-checkbox
-                      color="primary"
-                      [formControl]="element.get('spIsNotNull')"
-                    ></mat-checkbox>
+                    <mat-checkbox color="primary" [formControl]="element.get('spIsNotNull')"></mat-checkbox>
                   </div>
                   <p *ngIf="!isEditMode">
                     {{ element.get('spIsNotNull').value ? 'Not Null' : '' }}
@@ -334,19 +266,12 @@
 
             <ng-container matColumnDef="dropButton">
               <th mat-header-cell class="table_header" *matHeaderCellDef></th>
-              <td
-                mat-cell
-                *matCellDef="let element"
-                [ngClass]="{ 'drop-button-left-border': isEditMode }"
-              >
-                <div
-                  class="actions"
-                  *ngIf="
+              <td mat-cell *matCellDef="let element" [ngClass]="{ 'drop-button-left-border': isEditMode }">
+                <div class="actions" *ngIf="
                     isEditMode &&
                     currentObject!.isSpannerNode &&
                     !(element.get('spDataType').value === '')
-                  "
-                >
+                  ">
                   <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
                   <mat-menu #menu="matMenu" xPosition="before">
                     <button mat-menu-item (click)="dropColumn(element)">
@@ -363,35 +288,21 @@
           </table>
         </div>
 
-        <div
-          [formGroup]="addColumnForm"
-          *ngIf="isEditMode && srcDataSource.length != spDataSource.length"
-          class="add-column"
-        >
+        <div [formGroup]="addColumnForm" *ngIf="isEditMode && droppedSourceColumns.length != 0"
+          class="add-column">
           <mat-form-field appearance="outline" class="column-list">
             <mat-label>Column Name</mat-label>
-            <mat-select
-              matSelect
-              class="input-field"
-              (selectionChange)="setColumn($event.value)"
-              formControlName="columnName"
-              required="true"
-            >
-              <mat-option *ngFor="let column of droppedColumns" [value]="column.srcColName">{{
-                column.srcColName
-              }}</mat-option>
+            <mat-select matSelect class="input-field" (selectionChange)="setColumn($event.value)"
+              formControlName="columnName" required="true">
+              <mat-option *ngFor="let column of droppedSourceColumns" [value]="column">{{
+                column
+                }}</mat-option>
             </mat-select>
           </mat-form-field>
 
-          <button
-            mat-button
-            color="primary"
-            class="add-column-btn"
-            type="button"
-            (click)="addColumn()"
-          >
+          <button mat-button color="primary" class="add-column-btn" type="button" (click)="restoreColumn()">
             <mat-icon>add</mat-icon>
-            ADD COLUMN
+            RESTORE COLUMN
           </button>
         </div>
       </div>
@@ -411,14 +322,12 @@
             <th mat-header-cell *matHeaderCellDef class="db_name" colspan="6">
               <div class="spanner_edit-button">
                 <span>Spanner</span>
-                <div
-                  *ngIf="
+                <div *ngIf="
                     !isPkEditMode &&
                     pkDataSource.length > 0 &&
                     currentObject!.isSpannerNode &&
                     !currentObject.isDeleted
-                  "
-                >
+                  ">
                   <button mat-stroked-button color="primary" (click)="togglePkEdit()">
                     <mat-icon class="edit-icon">edit</mat-icon>
                     EDIT
@@ -453,19 +362,10 @@
             <th class="table_header" mat-header-cell *matHeaderCellDef>PK</th>
             <td mat-cell *matCellDef="let element">
               <div *ngIf="element.get('srcIsPk').value">
-                <svg
-                  width="14"
-                  height="8"
-                  viewBox="0 0 14 8"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    clip-rule="evenodd"
+                <svg width="14" height="8" viewBox="0 0 14 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path fill-rule="evenodd" clip-rule="evenodd"
                     d="M4 8C5.86384 8 7.42994 6.72523 7.87398 5H10V7H13V5H14V3H7.87398C7.42994 1.27477 5.86384 0 4 0C1.79086 0 0 1.79086 0 4C0 6.20914 1.79086 8 4 8ZM6 4C6 5.10457 5.10457 6 4 6C2.89543 6 2 5.10457 2 4C2 2.89543 2.89543 2 4 2C5.10457 2 6 2.89543 6 4Z"
-                    fill="black"
-                  />
+                    fill="black" />
                 </svg>
               </div>
             </td>
@@ -482,14 +382,9 @@
             <th class="table_header" mat-header-cell *matHeaderCellDef>Order</th>
             <td mat-cell *matCellDef="let element">
               <div *ngIf="isPkEditMode && element.get('spColName').value !== ''">
-                <input
-                  matInput
-                  class="order_input"
-                  type="number"
-                  [formControl]="element.get('spOrder')"
+                <input matInput class="order_input" type="number" [formControl]="element.get('spOrder')"
                   matTooltip="Must have a value greater than 0."
-                  [matTooltipDisabled]="!element.get('spOrder')?.hasError('pattern')"
-                />
+                  [matTooltipDisabled]="!element.get('spOrder')?.hasError('pattern')" />
               </div>
               <p *ngIf="!isPkEditMode">{{ element.get('spOrder').value }}</p>
             </td>
@@ -506,13 +401,9 @@
             <th mat-header-cell class="table_header" *matHeaderCellDef>Type</th>
             <td mat-cell *matCellDef="let element; let i = index">
               <div class="sp-datatype-data-cells">
-                <span
-                  *ngIf="isSpTableSuggesstionDisplay[i] && element.get('spColName').value !== ''"
+                <span *ngIf="isSpTableSuggesstionDisplay[i] && element.get('spColName').value !== ''"
                   class="material-icons summary-type warning sp-datatype-suggestion-icon"
-                  [matTooltip]="spTableSuggestion[i]"
-                  matTooltipPosition="above"
-                  >warning</span
-                >
+                  [matTooltip]="spTableSuggestion[i]" matTooltipPosition="above">warning</span>
                 <p>{{ element.get('spDataType').value }}</p>
               </div>
             </td>
@@ -522,19 +413,10 @@
             <th class="table_header" mat-header-cell *matHeaderCellDef>Pk</th>
             <td mat-cell *matCellDef="let element">
               <div *ngIf="element.get('spIsPk').value">
-                <svg
-                  width="14"
-                  height="8"
-                  viewBox="0 0 14 8"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    clip-rule="evenodd"
+                <svg width="14" height="8" viewBox="0 0 14 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path fill-rule="evenodd" clip-rule="evenodd"
                     d="M4 8C5.86384 8 7.42994 6.72523 7.87398 5H10V7H13V5H14V3H7.87398C7.42994 1.27477 5.86384 0 4 0C1.79086 0 0 1.79086 0 4C0 6.20914 1.79086 8 4 8ZM6 4C6 5.10457 5.10457 6 4 6C2.89543 6 2 5.10457 2 4C2 2.89543 2.89543 2 4 2C5.10457 2 6 2.89543 6 4Z"
-                    fill="black"
-                  />
+                    fill="black" />
                 </svg>
               </div>
             </td>
@@ -553,19 +435,12 @@
 
           <ng-container matColumnDef="dropButton">
             <th mat-header-cell class="table_header" *matHeaderCellDef></th>
-            <td
-              mat-cell
-              *matCellDef="let element"
-              [ngClass]="{ 'drop-button-left-border': isPkEditMode }"
-            >
-              <div
-                class="actions"
-                *ngIf="
+            <td mat-cell *matCellDef="let element" [ngClass]="{ 'drop-button-left-border': isPkEditMode }">
+              <div class="actions" *ngIf="
                   isPkEditMode &&
                   currentObject!.isSpannerNode &&
                   !(element.get('spColName').value === '')
-                "
-              >
+                ">
                 <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
                 <mat-menu #menu="matMenu" xPosition="before">
                   <button [disabled]="!isPkEditMode" mat-menu-item (click)="dropPk(element)">
@@ -584,26 +459,15 @@
         <div [formGroup]="addPkColumnForm" *ngIf="isPkEditMode" class="add-pk-column">
           <mat-form-field appearance="outline" class="column-list">
             <mat-label>Column Name</mat-label>
-            <mat-select
-              matSelect
-              class="input-field"
-              (selectionChange)="setPkColumn($event.value)"
-              formControlName="columnName"
-              required="true"
-            >
+            <mat-select matSelect class="input-field" (selectionChange)="setPkColumn($event.value)"
+              formControlName="columnName" required="true">
               <mat-option *ngFor="let column of pkColumnNames" [value]="column">{{
                 column
-              }}</mat-option>
+                }}</mat-option>
             </mat-select>
           </mat-form-field>
 
-          <button
-            mat-button
-            color="primary"
-            class="add-column-btn"
-            type="button"
-            (click)="addPkColumn()"
-          >
+          <button mat-button color="primary" class="add-column-btn" type="button" (click)="addPkColumn()">
             <mat-icon>add</mat-icon>
             ADD COLUMN
           </button>
@@ -625,14 +489,12 @@
             <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
               <div class="spanner_edit-button">
                 <span>Spanner</span>
-                <div
-                  *ngIf="
+                <div *ngIf="
                     !isFkEditMode &&
                     fkDataSource.length > 0 &&
                     currentObject!.isSpannerNode &&
                     !currentObject.isDeleted
-                  "
-                >
+                  ">
                   <button mat-stroked-button color="primary" (click)="toggleFkEdit()">
                     <mat-icon class="edit-icon">edit</mat-icon>
                     EDIT
@@ -674,14 +536,9 @@
             <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
             <td mat-cell *matCellDef="let element">
               <div *ngIf="isFkEditMode && !(element.get('spReferTable').value === '')">
-                <input
-                  matInput
-                  class="name_input"
-                  type="text"
-                  [formControl]="element.get('spName')"
+                <input matInput class="name_input" type="text" [formControl]="element.get('spName')"
                   matTooltip="No special characters allowed except underscore."
-                  [matTooltipDisabled]="!element.get('spName')?.hasError('pattern')"
-                />
+                  [matTooltipDisabled]="!element.get('spName')?.hasError('pattern')" />
               </div>
 
               <p *ngIf="!isFkEditMode">{{ element.get('spName').value }}</p>
@@ -713,37 +570,21 @@
 
           <ng-container matColumnDef="dropButton" stickyEnd>
             <th mat-header-cell class="table_header" *matHeaderCellDef></th>
-            <td
-              mat-cell
-              *matCellDef="let element"
-              [ngClass]="{ 'drop-button-left-border': isFkEditMode }"
-            >
-              <div
-                class="actions"
-                *ngIf="
+            <td mat-cell *matCellDef="let element" [ngClass]="{ 'drop-button-left-border': isFkEditMode }">
+              <div class="actions" *ngIf="
                   isFkEditMode &&
                   currentObject!.isSpannerNode &&
                   !(element.get('spReferTable').value === '')
-                "
-              >
+                ">
                 <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
                 <mat-menu #menu="matMenu" xPosition="before">
-                  <button
-                    [disabled]="element.get('spName').value === ''"
-                    mat-menu-item
-                    (click)="dropFk(element)"
-                  >
+                  <button [disabled]="element.get('spName').value === ''" mat-menu-item (click)="dropFk(element)">
                     <span>Drop Foreign Key</span>
                   </button>
-                  <button
-                    *ngIf="
+                  <button *ngIf="
                       interleaveStatus.tableInterleaveStatus &&
                       interleaveStatus.tableInterleaveStatus.Possible
-                    "
-                    [disabled]="element.get('spName').value === ''"
-                    mat-menu-item
-                    (click)="setInterleave()"
-                  >
+                    " [disabled]="element.get('spName').value === ''" mat-menu-item (click)="setInterleave()">
                     <span>Convert to interleave</span>
                   </button>
                 </mat-menu>
@@ -758,51 +599,36 @@
       </div>
     </mat-tab>
 
-    <mat-tab
-      label="INTERLEAVE"
-      *ngIf="
+    <mat-tab label="INTERLEAVE" *ngIf="
         ((interleaveStatus.tableInterleaveStatus &&
           interleaveStatus.tableInterleaveStatus.Possible) ||
           this.interleaveParentName !== null) &&
         currentObject.isSpannerNode
-      "
-    >
+      ">
       <div class="interleave-tab-container">
-        <button
-          *ngIf="
+        <button *ngIf="
             interleaveStatus.tableInterleaveStatus &&
             interleaveStatus.tableInterleaveStatus.Possible &&
             this.interleaveParentName === null
-          "
-          mat-raised-button
-          color="primary"
-          (click)="setInterleave()"
-        >
+          " mat-raised-button color="primary" (click)="setInterleave()">
           Convert to Interleave
         </button>
-        <button
-          *ngIf="
+        <button *ngIf="
             (interleaveStatus.tableInterleaveStatus &&
               !interleaveStatus.tableInterleaveStatus.Possible) ||
             this.interleaveParentName !== null
-          "
-          mat-raised-button
-          color="primary"
-          (click)="removeInterleave()"
-        >
+          " mat-raised-button color="primary" (click)="removeInterleave()">
           Convert Back to Foreign Key
         </button>
         <br />
-        <div
-          *ngIf="
+        <div *ngIf="
             (interleaveStatus.tableInterleaveStatus &&
               !interleaveStatus.tableInterleaveStatus.Possible) ||
             this.interleaveParentName !== null
-          "
-        >
+          ">
           This table is interleaved with
-          <span class="interleave-parent-table">{{ interleaveParentName }}</span
-          >. Click on the above button to convert back to foreign key.
+          <span class="interleave-parent-table">{{ interleaveParentName }}</span>. Click on the above button to convert
+          back to foreign key.
         </div>
       </div>
     </mat-tab>
@@ -828,9 +654,7 @@
           <div class="spanner_edit-button">
             <span>Spanner</span>
 
-            <div
-              *ngIf="!isIndexEditMode && !currentObject!.isDeleted && currentObject!.isSpannerNode"
-            >
+            <div *ngIf="!isIndexEditMode && !currentObject!.isDeleted && currentObject!.isSpannerNode">
               <button mat-stroked-button color="primary" (click)="toggleIndexEdit()">
                 <mat-icon class="edit-icon">edit</mat-icon>
                 EDIT
@@ -877,23 +701,15 @@
         <th class="table_header" mat-header-cell *matHeaderCellDef>Column Order</th>
         <td mat-cell *matCellDef="let element">
           <div *ngIf="isIndexEditMode && element.get('spColName').value">
-            <input
-              matInput
-              class="order_input"
-              type="number"
-              [formControl]="element.get('spOrder')"
-            />
+            <input matInput class="order_input" type="number" [formControl]="element.get('spOrder')" />
           </div>
           <p *ngIf="!isIndexEditMode">{{ element.get('spOrder').value }}</p>
         </td>
       </ng-container>
       <ng-container matColumnDef="dropButton">
         <th mat-header-cell class="table_header" *matHeaderCellDef></th>
-        <td
-          mat-cell
-          *matCellDef="let element; let i = index"
-          [ngClass]="{ 'drop-button-left-border': isIndexEditMode }"
-        >
+        <td mat-cell *matCellDef="let element; let i = index"
+          [ngClass]="{ 'drop-button-left-border': isIndexEditMode }">
           <div *ngIf="isIndexEditMode && element.get('spColName').value">
             <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
             <mat-menu #menu="matMenu" xPosition="before">
@@ -909,17 +725,14 @@
       <tr mat-header-row *matHeaderRowDef="indexDisplayedColumns"></tr>
       <tr mat-row class="index-data-row" *matRowDef="let row; columns: indexDisplayedColumns"></tr>
     </table>
-    <div
-      [formGroup]="addIndexKeyForm"
-      *ngIf="isIndexEditMode && indexColumnNames.length > 0"
-      class="add-index-column-container"
-    >
+    <div [formGroup]="addIndexKeyForm" *ngIf="isIndexEditMode && indexColumnNames.length > 0"
+      class="add-index-column-container">
       <mat-form-field appearance="outline" class="index-column-list">
         <mat-label>Column Name</mat-label>
         <mat-select matSelect class="input-field" formControlName="columnName">
           <mat-option *ngFor="let column of indexColumnNames" [value]="column">{{
             column
-          }}</mat-option>
+            }}</mat-option>
         </mat-select>
       </mat-form-field>
       <mat-form-field appearance="outline" class="index-column-order">
@@ -929,13 +742,8 @@
           <mat-option value="desc">Descending</mat-option>
         </mat-select>
       </mat-form-field>
-      <button
-        mat-raised-button
-        color="primary"
-        type="submit"
-        [disabled]="!addIndexKeyForm.valid"
-        (click)="addIndexKey()"
-      >
+      <button mat-raised-button color="primary" type="submit" [disabled]="!addIndexKeyForm.valid"
+        (click)="addIndexKey()">
         <mat-icon>add</mat-icon>
         <span> ADD COLUMN</span>
       </button>
@@ -946,21 +754,11 @@
     <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode"></mat-divider>
 
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
-      <button
-        mat-raised-button
-        color="primary"
-        (click)="saveColumnTable()"
-        [disabled]="!spRowArray.valid"
-      >
+      <button mat-raised-button color="primary" (click)="saveColumnTable()" [disabled]="!spRowArray.valid">
         SAVE & CONVERT
       </button>
-      <button
-        class="cancel-button"
-        mat-raised-button
-        color="primary"
-        (click)="toggleEdit()"
-        *ngIf="currentObject!.isSpannerNode"
-      >
+      <button class="cancel-button" mat-raised-button color="primary" (click)="toggleEdit()"
+        *ngIf="currentObject!.isSpannerNode">
         CANCEL
       </button>
     </div>
@@ -968,37 +766,22 @@
       <button mat-raised-button color="primary" (click)="savePk()" [disabled]="!pkArray.valid">
         SAVE & CONVERT
       </button>
-      <button
-        class="cancel-button"
-        mat-raised-button
-        color="primary"
-        (click)="togglePkEdit()"
-        *ngIf="currentObject!.isSpannerNode"
-      >
+      <button class="cancel-button" mat-raised-button color="primary" (click)="togglePkEdit()"
+        *ngIf="currentObject!.isSpannerNode">
         CANCEL
       </button>
     </div>
     <div class="save-button" *ngIf="isFkEditMode && currentTabIndex === 2">
       <button mat-raised-button color="primary" (click)="saveFk()">SAVE & CONVERT</button>
-      <button
-        class="cancel-button"
-        mat-raised-button
-        color="primary"
-        (click)="toggleFkEdit()"
-        *ngIf="currentObject!.isSpannerNode"
-      >
+      <button class="cancel-button" mat-raised-button color="primary" (click)="toggleFkEdit()"
+        *ngIf="currentObject!.isSpannerNode">
         CANCEL
       </button>
     </div>
     <div class="save-button" *ngIf="isIndexEditMode && currentTabIndex === -1">
       <button mat-raised-button color="primary" (click)="saveIndex()">SAVE & CONVERT</button>
-      <button
-        class="cancel-button"
-        mat-raised-button
-        color="primary"
-        (click)="toggleIndexEdit()"
-        *ngIf="currentObject!.isSpannerNode"
-      >
+      <button class="cancel-button" mat-raised-button color="primary" (click)="toggleIndexEdit()"
+        *ngIf="currentObject!.isSpannerNode">
         CANCEL
       </button>
     </div>

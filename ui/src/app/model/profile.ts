@@ -1,26 +1,80 @@
-export default interface IConnectionProfile{
+export default interface IConnectionProfile {
     DisplayName: string
     Name: string
 }
 
-export interface ICreateConnectionProfile{
+export interface ICreateConnectionProfile {
     Id: string
     ValidateOnly: boolean
     IsSource: boolean
 }
 
-export interface ISetUpConnectionProfile{
+export interface ICreateConnectionProfileV2 {
+    Id: string
+    ValidateOnly: boolean
+    IsSource: boolean
+    Host?: string,
+    Port?: string,
+    User?: string,
+    Password?: string
+}
+
+export interface ISetUpConnectionProfile {
     IsSource: boolean
     SourceDatabaseType: string
 }
 
-export interface IDataflowConfig{
-    Network: string
-    Subnetwork: string
-    HostProjectId: string
+export interface IShardedDataflowMigration {
+    IsSource: boolean
+    SourceDatabaseType: string
+    Region: string
 }
 
-export interface IDataprocConfig{
+export interface IDataflowConfig {
+    network: string
+    subnetwork: string
+    hostProjectId: string
+}
+
+export interface IDirectConnectionConfig {
+    host: string
+    user: string
+    password: string
+    port: string
+    dbName: string
+}
+
+export interface IDatastreamConnProfile {
+    name: string
+    location?: string
+}
+
+export interface ILogicalShard {
+    dbName: string
+    databaseId: string
+    refDataShardId: string
+}
+
+
+export interface IDataShard {
+    dataShardId: string
+    srcConnectionProfile: IDatastreamConnProfile
+    dstConnectionProfile: IDatastreamConnProfile
+    streamLocation: string
+    databases: Array<ILogicalShard>
+}
+
+export interface IShardConfigurationDataflow {
+    schemaSource: IDirectConnectionConfig
+    dataShards: Array<IDataShard>
+}
+
+export interface IMigrationProfile {
+    configType: string
+    shardConfigurationDataflow: IShardConfigurationDataflow
+}
+
+export interface IDataprocConfig {
     Subnetwork: string
     Hostname: string
     Port: string

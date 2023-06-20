@@ -1,20 +1,21 @@
 import { HttpClient, HttpResponse } from '@angular/common/http'
 import { Injectable } from '@angular/core'
-import IDbConfig from 'src/app/model/db-config'
+import IDbConfig, { IDbConfigs } from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
-import IUpdateTable, { IReviewUpdateTable } from '../../model/update-table'
+import IUpdateTable, { IAddColumn, IReviewUpdateTable } from '../../model/update-table'
 import IConv, {
   ICreateIndex,
   IForeignKey,
   IInterleaveStatus,
   IPrimaryKey,
   ISessionSummary,
+  ITableIdAndName,
 } from '../../model/conv'
 import IDumpConfig, { IConvertFromDumpRequest } from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IDataprocJobs, IGeneratedResources, IProgress } from 'src/app/model/migrate'
-import IConnectionProfile, { ICreateConnectionProfile } from 'src/app/model/profile'
+import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IMigrationProfile } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
 
 @Injectable({
@@ -25,11 +26,12 @@ export class FetchService {
   constructor(private http: HttpClient) {}
 
   connectTodb(payload: IDbConfig, dialect: string) {
-    const { dbEngine, hostName, port, dbName, userName, password } = payload
+    const { dbEngine, isSharded, hostName, port, dbName, userName, password } = payload
     return this.http.post<HttpResponse<null>>(
       `${this.url}/connect`,
       {
         Driver: dbEngine,
+        IsSharded: isSharded,
         Host: hostName,
         Port: port,
         Database: dbName,
@@ -68,6 +70,42 @@ export class FetchService {
     })
   }
 
+  setShardsSourceDBDetailsForBulk(payload: IDbConfigs) {
+    const { dbConfigs, isRestoredSession } = payload
+    let mappedDBConfig: Array<any> = []
+    dbConfigs.forEach( (dbConfig) => {
+      mappedDBConfig.push( {
+        Driver: dbConfig.dbEngine,
+        Host: dbConfig.hostName,
+        Port: dbConfig.port,
+        Database: dbConfig.dbName,
+        User: dbConfig.userName,
+        Password: dbConfig.password,
+        DataShardId: dbConfig.shardId,
+      })
+    })
+    return this.http.post(`${this.url}/SetShardsSourceDBDetailsForBulk`, {
+      DbConfigs: mappedDBConfig,
+      IsRestoredSession: isRestoredSession
+    })
+  }
+
+  setShardSourceDBDetailsForDataflow(payload: IMigrationProfile) {
+    return this.http.post(`${this.url}/SetShardsSourceDBDetailsForDataflow`, {
+      MigrationProfile: payload
+    })
+  }
+
+  setDataflowDetailsForShardedMigrations(payload: IDataflowConfig) {
+    return this.http.post(`${this.url}/SetDataflowDetailsForShardedMigrations`, {
+      DataflowConfig: payload
+    })
+  }
+
+  getSourceProfile() {
+    return this.http.get<IMigrationProfile>(`${this.url}/GetSourceProfileConfig`)
+  }
+
   getSchemaConversionFromSessionFile(payload: ISessionConfig) {
     return this.http.post<IConv>(`${this.url}/convert/session`, payload)
   }
@@ -94,7 +132,7 @@ export class FetchService {
     return this.http.get<string[]>(`${this.url}/GetStaticIps`)
   }
 
-  createConnectionProfile(payload: ICreateConnectionProfile) {
+  createConnectionProfile(payload: ICreateConnectionProfileV2) {
     return this.http.post(`${this.url}/CreateConnectionProfile`, payload)
   }
 
@@ -140,10 +178,18 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/update/fks?table=${tableId}`, payload)
   }
 
+  addColumn(tableId: string,payload: IAddColumn) {
+    return this.http.post(`${this.url}/AddColumn?table=${tableId}`, payload)
+  }
+
   removeFk(tableId: string, fkId: string): any {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableId}`, {
       Id: fkId,
     })
+  }
+
+  getTableWithErrors() {
+    return this.http.get<ITableIdAndName[]>(`${this.url}/GetTableWithErrors`)
   }
 
   getSessions() {

@@ -11,7 +11,7 @@ import IConv, {
 } from '../../model/conv'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { Dialect, ObjectExplorerNodeType } from 'src/app/app.constants'
+import { ColLength, Dialect, ObjectExplorerNodeType } from 'src/app/app.constants'
 import { BehaviorSubject } from 'rxjs'
 import { FetchService } from '../fetch/fetch.service'
 
@@ -248,6 +248,7 @@ export class ConversionService {
     this.standardTypeToPGSQLTypeMap.subscribe((typemap) => {
       standardTypeToPGSQLTypeMap = typemap
     })
+    const spColMax = ColLength.StorageMaxLength
     const res: IColumnTabData[] = data.SrcSchema[tableId].ColIds.map((colId: string, i: number) => {
       let spPkOrder
       if (spTableName) {
@@ -275,6 +276,8 @@ export class ConversionService {
         srcIsNotNull: data.SrcSchema[tableId].ColDefs[colId].NotNull,
         srcId: colId,
         spId: spannerColDef ? colId : '',
+        spColMaxLength: spannerColDef?.T.Len != 0 ? (spannerColDef?.T.Len != spColMax ? spannerColDef?.T.Len: 'MAX') : '',
+        srcColMaxLength: data.SrcSchema[tableId].ColDefs[colId].Type.Mods != null ? data.SrcSchema[tableId].ColDefs[colId].Type.Mods[0] : ''
       }
     })
     if (spColIds) {
@@ -296,6 +299,8 @@ export class ConversionService {
             srcIsNotNull: false,
             srcId: '',
             spId: colId,
+            srcColMaxLength: '',
+            spColMaxLength: spannerColDef?.T.Len
           })
         }
       })

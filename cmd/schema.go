@@ -73,7 +73,7 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
-	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
+	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 }
 
@@ -101,7 +101,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 
 	// If filePrefix not explicitly set, use generated dbName.
 	if cmd.filePrefix == "" {
-		cmd.filePrefix = dbName + "."
+		cmd.filePrefix = dbName
 	}
 
 	schemaConversionStartTime := time.Now()
@@ -111,7 +111,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		return subcommands.ExitFailure
 	}
 
-	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out)
+	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out, sourceProfile.Driver)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 
 	// Populate migration request id and migration type in conv object.
@@ -129,7 +129,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	schemaCoversionEndTime := time.Now()
 	conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
 	banner := utils.GetBanner(schemaConversionStartTime, dbName)
-	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
+	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, banner, conv, cmd.filePrefix, dbName, ioHelper.Out)
 	// Cleanup hb tmp data directory.
 	os.RemoveAll(filepath.Join(os.TempDir(), constants.HB_TMP_DIR))
 	return subcommands.ExitSuccess

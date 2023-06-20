@@ -17,6 +17,7 @@ package utilities
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"time"
 
@@ -140,6 +141,10 @@ func RemoveSchemaIssues(schemaissue []internal.SchemaIssue) []internal.SchemaIss
 
 	case IsSchemaIssuePresent(schemaissue, internal.InterleavedRenameColumn):
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
+		fallthrough
+
+	case IsSchemaIssuePresent(schemaissue, internal.InterleavedChangeColumnSize):
+		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
 	}
 
 	return schemaissue
@@ -272,7 +277,7 @@ func CheckSpannerNamesValidity(input []string) (bool, []string) {
 func CanRename(names []string, table string) (bool, error) {
 	sessionState := session.GetSessionState()
 	for _, name := range names {
-		if _, ok := sessionState.Conv.UsedNames[name]; ok {
+		if _, ok := sessionState.Conv.UsedNames[strings.ToLower(name)]; ok {
 			return false, fmt.Errorf("new name : '%s' is used by another entity", name)
 		}
 	}
@@ -309,7 +314,7 @@ func GetFilePrefix(now time.Time) (string, error) {
 			return "", fmt.Errorf("Can not create database name : %v", err)
 		}
 	}
-	return dbName + ".", nil
+	return dbName, nil
 }
 
 func UpdateDataType(conv *internal.Conv, newType, tableId, colId string) error {
@@ -321,6 +326,73 @@ func UpdateDataType(conv *internal.Conv, newType, tableId, colId string) error {
 	colDef.T = ty
 	sp.ColDefs[colId] = colDef
 	return nil
+}
+
+// Update the column length with the default mapping length in case its same as the length in the rule added
+func updateColLen(conv *internal.Conv, dataType, tableId, colId string, spColLen int64) error {
+	sp, ty, err := GetType(conv, dataType, tableId, colId)
+	if err != nil {
+		return err
+	}
+	colDef := sp.ColDefs[colId]
+	if colDef.T.Len == spColLen {
+		colDef.T.Len = ty.Len
+		sp.ColDefs[colId] = colDef
+	}
+	return nil
+}
+
+func UpdateMaxColumnLen(conv *internal.Conv, dataType, tableId, colId string, spColLen int64) error {
+
+	err := updateColLen(conv, dataType, tableId, colId, spColLen)
+	if err != nil {
+		return err
+	}
+	sp := conv.SpSchema[tableId]
+	// update column size of child table.
+	isParent, childTableId := IsParent(tableId)
+	if isParent {
+		childColId, err := GetColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
+		if err == nil {
+			err = updateColLen(conv, dataType, childTableId, childColId, spColLen)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// update column size of parent table.
+	parentTableId := conv.SpSchema[tableId].ParentId
+	if parentTableId != "" {
+		parentColId, err := GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
+		if err == nil {
+			err = updateColLen(conv, dataType, parentTableId, parentColId, spColLen)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func GetColIdFromSpannerName(conv *internal.Conv, tableId, colName string) (string, error) {
+	for _, col := range conv.SpSchema[tableId].ColDefs {
+		if col.Name == colName {
+			return col.Id, nil
+		}
+	}
+	return "", fmt.Errorf("column id not found for spaner column %v", colName)
+}
+
+func IsParent(tableId string) (bool, string) {
+	sessionState := session.GetSessionState()
+
+	for _, spSchema := range sessionState.Conv.SpSchema {
+		if spSchema.ParentId == tableId {
+			return true, spSchema.Id
+		}
+	}
+	return false, ""
 }
 
 func GetInterleavedFk(conv *internal.Conv, tableId string, srcColId string) (schema.ForeignKey, error) {
