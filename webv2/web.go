@@ -139,11 +139,12 @@ type progressDetails struct {
 }
 
 type migrationDetails struct {
-	TargetDetails  targetDetails  `json:"TargetDetails"`
-	DataflowConfig dataflowConfig `json:"DataflowConfig"`
-	MigrationMode  string         `json:MigrationMode`
-	MigrationType  string         `json:MigrationType`
-	IsSharded      bool           `json:"IsSharded"`
+	TargetDetails   targetDetails  `json:"TargetDetails"`
+	DataflowConfig  dataflowConfig `json:"DataflowConfig"`
+	MigrationMode   string         `json:MigrationMode`
+	MigrationType   string         `json:MigrationType`
+	IsSharded       bool           `json:"IsSharded"`
+	SkipForeignKeys bool           `json:"skipForeignKeys"`
 }
 
 type dataflowConfig struct {
@@ -372,9 +373,9 @@ func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		Location: sessionState.Region,
-		Network: dataflowLocation.DataflowConfig.Network,
-		Subnetwork: dataflowLocation.DataflowConfig.Subnetwork,
+		Location:      sessionState.Region,
+		Network:       dataflowLocation.DataflowConfig.Network,
+		Subnetwork:    dataflowLocation.DataflowConfig.Subnetwork,
 		HostProjectId: dataflowLocation.DataflowConfig.HostProjectId,
 	}
 	w.WriteHeader(http.StatusOK)
@@ -398,9 +399,9 @@ func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request)
 	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
 	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		Location: sessionState.Region,
-		Network: "",
-		Subnetwork: "",
+		Location:      sessionState.Region,
+		Network:       "",
+		Subnetwork:    "",
 		HostProjectId: sessionState.GCPProjectID,
 	}
 	w.WriteHeader(http.StatusOK)
@@ -1869,7 +1870,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
 	} else if details.MigrationMode == helpers.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
-			SkipForeignKeys: false,
+			SkipForeignKeys: details.SkipForeignKeys,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
 		log.Println("Starting data only migration")
@@ -1877,7 +1878,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error)
 	} else {
 		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
-			SkipForeignKeys: false,
+			SkipForeignKeys: details.SkipForeignKeys,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
 		log.Println("Starting schema and data migration")
