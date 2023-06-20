@@ -42,7 +42,17 @@
             </mat-option>
         </mat-select>
     </mat-form-field>
-    <br>
+    <div *ngIf="!(selectedMigrationMode === 'Schema'); else elseBlock">
+        <mat-form-field appearance="outline">
+          <mat-label>Skip Foreign Key Creation:</mat-label>
+          <mat-select [(ngModel)]="isForeignKeySkipped">
+            <mat-option *ngFor="let element of skipForeignKeyResponseList" [value]="element.value">
+              {{ element.displayName }}
+            </mat-option>
+        </mat-select>
+    </mat-form-field>
+    </div>
+    <ng-template #elseBlock> <br> </ng-template>
     <mat-form-field appearance="outline">
         <mat-label>Migration Type:</mat-label>
         <mat-select [(ngModel)]="selectedMigrationType" (selectionChange)="refreshPrerequisites()">
@@ -51,7 +61,6 @@
             </mat-option>
         </mat-select>
     </mat-form-field>
-    <br />
     <div class="prerequisites">
         <mat-card>
             <mat-card-title>Prerequisites</mat-card-title>
