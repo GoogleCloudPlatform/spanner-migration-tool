@@ -67,7 +67,7 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) 
 	// Ideally we would pass schema/name as a query parameter,
 	// but MySQL doesn't support this. So we quote it instead.
 	colNameList := buildColNameList(srcSchema, srcCols)
-	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, srcSchema.Schema, srcSchema.Name)
+	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, isi.DbName, srcSchema.Name)
 	rows, err := isi.Db.Query(q)
 	return rows, err
 }
@@ -376,7 +376,7 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
 	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
 
-	err := streaming.StartDataflow(ctx, isi.SourceProfile, isi.TargetProfile, streamingCfg, conv)
+	err := streaming.StartDataflow(ctx, isi.TargetProfile, streamingCfg, conv)
 	if err != nil {
 		err = fmt.Errorf("error starting dataflow: %v", err)
 		return err
@@ -390,10 +390,6 @@ func toType(dataType string, columnType string, charLen sql.NullInt64, numericPr
 		return schema.Type{Name: dataType, ArrayBounds: []int64{-1}}
 	case charLen.Valid:
 		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
-	case dataType == "decimal" && numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
-		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
-	case dataType == "decimal" && numericPrecision.Valid:
-		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
 	// We only want to parse the length for tinyints when it is present, in the form tinyint(12). columnType can also be just 'tinyint',
 	// in which case we skip this parsing.
 	case dataType == "tinyint" && len(columnType) > len("tinyint"):
@@ -403,6 +399,10 @@ func toType(dataType string, columnType string, charLen sql.NullInt64, numericPr
 			return schema.Type{Name: dataType}
 		}
 		return schema.Type{Name: dataType, Mods: []int64{length}}
+	case numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
+		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
+	case numericPrecision.Valid:
+		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
 	default:
 		return schema.Type{Name: dataType}
 	}

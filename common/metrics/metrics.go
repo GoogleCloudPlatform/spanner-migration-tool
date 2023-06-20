@@ -5,6 +5,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 )
 
@@ -46,7 +47,7 @@ func getMigrationDataSchemaPatterns(conv *internal.Conv, migrationData *migratio
 		if len(srcSchema.PrimaryKeys) == 0 {
 			numMissingPrimaryKey++
 		}
-		_, cols, warnings := internal.AnalyzeCols(conv, srcTableId)
+		_, cols, warnings := reports.AnalyzeCols(conv, srcTableId)
 		numColumns += int32(cols)
 		numWarnings += int32(warnings)
 	}

@@ -15,9 +15,23 @@
 package table
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
+
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
+
+type columnDetails struct {
+	Name       string `json:"Name"`
+	Datatype   string `json:"Datatype"`
+	Length     int    `json:"Length"`
+	IsNullable bool   `json:"IsNullable"`
+}
 
 // addColumn add given column into spannerTable.
 func addColumn(tableId string, colId string, conv *internal.Conv) {
@@ -38,4 +52,46 @@ func addColumn(tableId string, colId string, conv *internal.Conv) {
 	}
 
 	conv.SpSchema[tableId] = sp
+}
+
+func AddNewColumn(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("request started", "method", r.Method, "path", r.URL.Path)
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		fmt.Println("request's body Read Error")
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+	tableId := r.FormValue("table")
+	details := columnDetails{}
+	err = json.Unmarshal(reqBody, &details)
+	if err != nil {
+		fmt.Println("request's Body parse error")
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	sessionState := session.GetSessionState()
+	for _, c := range sessionState.Conv.SpSchema[tableId].ColDefs {
+		if strings.EqualFold(c.Name, details.Name) {
+			http.Error(w, fmt.Sprintf("Multiple columns with similar name cannot exist for column : %v", details.Name), http.StatusBadRequest)
+			return
+		}
+	}
+	usedNames := internal.ComputeUsedNames(sessionState.Conv)
+	_, found := usedNames[strings.ToLower(details.Name)]
+	if found {
+		http.Error(w, fmt.Sprintf("Specified name: '%v' is an existing identifier, please use a different column name", details.Name), http.StatusBadRequest)
+		return
+	}
+	ct := sessionState.Conv.SpSchema[tableId]
+	columnId := internal.GenerateColumnId()
+	ct.ColIds = append(ct.ColIds, columnId)
+	ct.ColDefs[columnId] = ddl.ColumnDef{Name: details.Name, Id: columnId, T: ddl.Type{Name: details.Datatype, Len: int64(details.Length)}, NotNull: !details.IsNullable}
+	sessionState.Conv.SpSchema[tableId] = ct
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
 }

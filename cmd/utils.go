@@ -29,10 +29,9 @@ import (
 )
 
 var (
-	badDataFile = "dropped.txt"
-	reportFile  = "report.txt"
-	schemaFile  = "schema.txt"
-	sessionFile = "session.json"
+	badDataFile = ".dropped.txt"
+	schemaFile  = ".schema.txt"
+	sessionFile = ".session.json"
 )
 
 const (
@@ -164,7 +163,7 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 	}
 	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	if !cmd.SkipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
+		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, sourceProfile.Driver); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 			return bw, err
 		}
@@ -188,7 +187,7 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 
 	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	if !cmd.SkipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
+		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, sourceProfile.Driver); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 			return bw, err
 		}

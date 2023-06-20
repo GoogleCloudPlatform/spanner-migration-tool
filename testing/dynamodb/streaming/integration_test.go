@@ -325,7 +325,7 @@ func TestIntegration_DYNAMODB_Streaming_Command(t *testing.T) {
 	now := time.Now()
 	dbName, _ := utils.GetDatabaseName(constants.DYNAMODB, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	filePrefix := filepath.Join(tmpdir, dbName+".")
+	filePrefix := filepath.Join(tmpdir, dbName)
 
 	client, err := spanner.NewClient(ctx, dbURI)
 	if err != nil {

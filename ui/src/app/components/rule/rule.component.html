@@ -21,7 +21,9 @@
       <ng-container matColumnDef="type">
         <th mat-header-cell *matHeaderCellDef class="table-header">Rule type</th>
         <td mat-cell *matCellDef="let element">
-          {{ element?.Type === 'add_index' ? 'Add Index' : 'Global Datatype Change' }}
+          <div *ngIf="element?.Type === 'add_index'">Add Index</div>
+          <div *ngIf="element?.Type === 'global_datatype_change'">Global Datatype Change</div>
+          <div *ngIf="element?.Type === 'edit_column_max_length'">Column default max length change</div>
         </td>
       </ng-container>
 

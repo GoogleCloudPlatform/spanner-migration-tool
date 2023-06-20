@@ -53,10 +53,10 @@ func hotspotTimestamp(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 
 					columnId := insert[i].ColId
 					sessionState := session.GetSessionState()
-					schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][columnId]
+					schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[columnId]
 
 					schemaissue = append(schemaissue, internal.HotspotTimestamp)
-					sessionState.Conv.SchemaIssues[spannerTable.Id][columnId] = schemaissue
+					sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[columnId] = schemaissue
 				}
 
 			}
@@ -95,10 +95,10 @@ func detecthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId st
 
 				columnId := s.Id
 				sessionState := session.GetSessionState()
-				schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][columnId]
+				schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[columnId]
 
 				schemaissue = append(schemaissue, internal.HotspotAutoIncrement)
-				sessionState.Conv.SchemaIssues[spannerTable.Id][columnId] = schemaissue
+				sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[columnId] = schemaissue
 
 			}
 

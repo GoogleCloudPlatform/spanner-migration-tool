@@ -195,12 +195,12 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 	for _, tc := range testCases {
 		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
 		conv := BuildConv(t, tc.numCols, tc.numFks, false)
-		err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, conv, os.Stdout)
+		err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, conv, os.Stdout, "")
 		if err != nil {
 			t.Fatal(err)
 		}
 		conversion.MaxWorkers = tc.numWorkers
-		if err = conversion.UpdateDDLForeignKeys(ctx, databaseAdmin, dbURI, conv, os.Stdout); err != nil {
+		if err = conversion.UpdateDDLForeignKeys(ctx, databaseAdmin, dbURI, conv, os.Stdout, ""); err != nil {
 			t.Fatalf("\nCan't perform update operation on db %s with foreign keys: %v\n", tc.dbName, err)
 		}
 
@@ -226,7 +226,7 @@ func TestVerifyDb(t *testing.T) {
 	for _, tc := range testCases {
 		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
 		if tc.dbExists {
-			err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, BuildConv(t, 2, 0, tc.emptySchema), os.Stdout)
+			err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, BuildConv(t, 2, 0, tc.emptySchema), os.Stdout, "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -250,7 +250,7 @@ func TestVerifyDb(t *testing.T) {
 func TestCheckExistingDb(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, "check-db-exists")
-	err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, internal.MakeConv(), os.Stdout)
+	err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, internal.MakeConv(), os.Stdout, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +283,7 @@ func TestValidateDDL(t *testing.T) {
 
 	for _, tc := range testCases {
 		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
-		err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, BuildConv(t, 2, 0, tc.emptySchema), os.Stdout)
+		err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, BuildConv(t, 2, 0, tc.emptySchema), os.Stdout, "")
 		if err != nil {
 			t.Fatal(err)
 		}

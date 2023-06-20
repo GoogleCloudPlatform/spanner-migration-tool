@@ -82,7 +82,7 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 	f.Int64Var(&cmd.WriteLimit, "write-limit", DefaultWritersLimit, "Write limit for writes to spanner")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
-	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
+	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.SkipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 }
 
@@ -155,9 +155,9 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 
 	// If filePrefix not explicitly set, use dbName as prefix.
 	if cmd.filePrefix == "" {
-		cmd.filePrefix = targetProfile.Conn.Sp.Dbname + "."
+		cmd.filePrefix = targetProfile.Conn.Sp.Dbname
 	}
-	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
+	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix, dbName, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
 	// Cleanup hb tmp data directory.
 	os.RemoveAll(filepath.Join(os.TempDir(), constants.HB_TMP_DIR))

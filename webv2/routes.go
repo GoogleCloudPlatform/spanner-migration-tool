@@ -71,6 +71,8 @@ func getRoutes() *mux.Router {
 	// primarykey
 	router.HandleFunc("/primaryKey", primarykey.PrimaryKey).Methods("POST")
 
+	router.HandleFunc("/AddColumn", table.AddNewColumn).Methods("POST")
+
 	// Summary
 	router.HandleFunc("/summary", summary.GetSummary).Methods("GET")
 
@@ -97,8 +99,13 @@ func getRoutes() *mux.Router {
 
 	router.HandleFunc("/SetSourceDBDetailsForDump", setSourceDBDetailsForDump).Methods("POST")
 	router.HandleFunc("/SetSourceDBDetailsForDirectConnect", setSourceDBDetailsForDirectConnect).Methods("POST")
-
+	router.HandleFunc("/SetShardsSourceDBDetailsForBulk", setShardsSourceDBDetailsForBulk).Methods("POST")
+	router.HandleFunc("/SetShardsSourceDBDetailsForDataflow", setShardsSourceDBDetailsForDataflow).Methods("POST")
+	router.HandleFunc("/SetDataflowDetailsForShardedMigrations", setDataflowDetailsForShardedMigrations).Methods("POST")
+	router.HandleFunc("/GetSourceProfileConfig", getSourceProfileConfig).Methods("GET")
 	router.HandleFunc("/uploadFile", uploadFile).Methods("POST")
+
+	router.HandleFunc("/GetTableWithErrors", getTableWithErrors).Methods("GET")
 
 	router.PathPrefix("/").Handler(frontendStatic)
 	return router

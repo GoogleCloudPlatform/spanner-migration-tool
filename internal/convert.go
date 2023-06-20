@@ -28,14 +28,14 @@ import (
 
 // Conv contains all schema and data conversion state.
 type Conv struct {
-	mode           mode                                // Schema mode or data mode.
-	SpSchema       ddl.Schema                          // Maps Spanner table name to Spanner schema.
-	SyntheticPKeys map[string]SyntheticPKey            // Maps Spanner table name to synthetic primary key (if needed).
-	SrcSchema      map[string]schema.Table             // Maps source-DB table name to schema information.
-	SchemaIssues   map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
-	ToSpanner      map[string]NameAndCols              `json:"-"` // Maps from source-DB table name to Spanner name and column mapping.
-	ToSource       map[string]NameAndCols              `json:"-"` // Maps from Spanner table name to source-DB table name and column mapping.
-	UsedNames      map[string]bool                     `json:"-"` // Map storing the names that are already assigned to tables, indices or foreign key contraints.
+	mode           mode                     // Schema mode or data mode.
+	SpSchema       ddl.Schema               // Maps Spanner table name to Spanner schema.
+	SyntheticPKeys map[string]SyntheticPKey // Maps Spanner table name to synthetic primary key (if needed).
+	SrcSchema      map[string]schema.Table  // Maps source-DB table name to schema information.
+	SchemaIssues   map[string]TableIssues   // Maps source-DB table/col to list of schema conversion issues.
+	ToSpanner      map[string]NameAndCols   `json:"-"` // Maps from source-DB table name to Spanner name and column mapping.
+	ToSource       map[string]NameAndCols   `json:"-"` // Maps from Spanner table name to source-DB table name and column mapping.
+	UsedNames      map[string]bool          `json:"-"` // Map storing the names that are already assigned to tables, indices or foreign key contraints.
 	dataSink       func(table string, cols []string, values []interface{})
 	DataFlush      func()              `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
 	Location       *time.Location      // Timezone (for timestamp conversion).
@@ -46,6 +46,11 @@ type Conv struct {
 	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
 	Audit          Audit               `json:"-"` // Stores the audit information for the database conversion
 	Rules          []Rule              // Stores applied rules during schema conversion
+}
+
+type TableIssues struct {
+	ColumnLevelIssues map[string][]SchemaIssue
+	TableLevelIssues  []SchemaIssue
 }
 
 type mode int
@@ -96,6 +101,8 @@ const (
 	InterleavedAddColumn
 	IllegalName
 	InterleavedRenameColumn
+	InterleavedChangeColumnSize
+	RowLimitExceeded
 )
 
 // NameAndCols contains the name of a table and its columns.
@@ -170,6 +177,8 @@ type streamingStats struct {
 	SampleBadWrites  []string                    // Records that faced errors while writing to Cloud Spanner.
 	DataStreamName   string
 	DataflowJobId    string
+	ShardToDataStreamNameMap map[string]string
+	ShardToDataflowJobMap map[string]string
 }
 
 type dataprocStats struct {
@@ -195,7 +204,7 @@ func MakeConv() *Conv {
 		SpSchema:       ddl.NewSchema(),
 		SyntheticPKeys: make(map[string]SyntheticPKey),
 		SrcSchema:      make(map[string]schema.Table),
-		SchemaIssues:   make(map[string]map[string][]SchemaIssue),
+		SchemaIssues:   make(map[string]TableIssues),
 		ToSpanner:      make(map[string]NameAndCols),
 		ToSource:       make(map[string]NameAndCols),
 		UsedNames:      make(map[string]bool),

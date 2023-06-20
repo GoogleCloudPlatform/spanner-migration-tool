@@ -31,9 +31,11 @@ package common
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"unicode"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -68,7 +70,14 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 	}
 	var spColIds []string
 	spColDef := make(map[string]ddl.ColumnDef)
-	conv.SchemaIssues[srcTable.Id] = make(map[string][]internal.SchemaIssue)
+
+	var (
+		totalNonKeyColumnSize int
+		tableLevelIssues      []internal.SchemaIssue
+	)
+
+	columnLevelIssues := make(map[string][]internal.SchemaIssue)
+
 	// Iterate over columns using ColNames order.
 	for _, srcColId := range srcTable.ColIds {
 		srcCol := srcTable.ColDefs[srcColId]
@@ -95,7 +104,7 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 			issues = append(issues, internal.AutoIncrement)
 		}
 		if len(issues) > 0 {
-			conv.SchemaIssues[srcTable.Id][srcColId] = issues
+			columnLevelIssues[srcColId] = issues
 		}
 		spColDef[srcColId] = ddl.ColumnDef{
 			Name:    colName,
@@ -104,6 +113,16 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			Id:      srcColId,
 		}
+		if !checkIfColumnIsPartOfPK(srcColId, srcTable.PrimaryKeys) {
+			totalNonKeyColumnSize += getColumnSize(ty.Name, ty.Len)
+		}
+	}
+	if totalNonKeyColumnSize > ddl.MaxNonKeyColumnLength {
+		tableLevelIssues = append(tableLevelIssues, internal.RowLimitExceeded)
+	}
+	conv.SchemaIssues[srcTable.Id] = internal.TableIssues{
+		TableLevelIssues:  tableLevelIssues,
+		ColumnLevelIssues: columnLevelIssues,
 	}
 	comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
 	conv.SpSchema[srcTable.Id] = ddl.CreateTable{
@@ -112,7 +131,7 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 		ColDefs:     spColDef,
 		PrimaryKeys: cvtPrimaryKeys(conv, srcTable.Id, srcTable.PrimaryKeys),
 		ForeignKeys: cvtForeignKeys(conv, spTableName, srcTable.Id, srcTable.ForeignKeys, isRestore),
-		Indexes:     cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds),
+		Indexes:     cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef),
 		Comment:     comment,
 		Id:          srcTable.Id}
 	return nil
@@ -183,11 +202,13 @@ func CvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTableId st
 	return spKey, nil
 }
 
-func cvtIndexes(conv *internal.Conv, tableId string, srcIndexes []schema.Index, spColIds []string) []ddl.CreateIndex {
+func cvtIndexes(conv *internal.Conv, tableId string, srcIndexes []schema.Index, spColIds []string, spColDef map[string]ddl.ColumnDef) []ddl.CreateIndex {
 	var spIndexes []ddl.CreateIndex
 	for _, srcIndex := range srcIndexes {
-		spIndex := CvtIndexHelper(conv, tableId, srcIndex, spColIds)
-		spIndexes = append(spIndexes, spIndex)
+		spIndex := CvtIndexHelper(conv, tableId, srcIndex, spColIds, spColDef)
+		if (!reflect.DeepEqual(spIndex, ddl.CreateIndex{})) {
+			spIndexes = append(spIndexes, spIndex)
+		}
 	}
 	return spIndexes
 }
@@ -225,7 +246,7 @@ func cvtForeignKeysForAReferenceTable(conv *internal.Conv, tableId string, refer
 	return spKeys
 }
 
-func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, spColIds []string) ddl.CreateIndex {
+func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, spColIds []string, spColDef map[string]ddl.ColumnDef) ddl.CreateIndex {
 	var spKeys []ddl.IndexKey
 	var spStoredColIds []string
 
@@ -234,6 +255,13 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 		for _, v := range spColIds {
 			if v == k.ColId {
 				isPresent = true
+				if (conv.SpDialect == constants.DIALECT_POSTGRESQL) {
+					if(spColDef[v].T.Name == ddl.Numeric) {
+						//index on NUMERIC is not supported in PGSQL Dialect currently.
+						//Indexes which contains a NUMERIC column in it will need to be skipped.
+						return ddl.CreateIndex{}
+					}
+				}
 				break
 			}
 		}

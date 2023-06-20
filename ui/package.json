@@ -23,7 +23,7 @@
     "adjust-sourcemap-loader": "^5.0.0",
     "babel-loader": "^9.1.0",
     "loader-utils": "^3.2.1",
-    "rxjs": "~7.5.0",
+    "rxjs": "~7.8.0",
     "terser": "^5.15.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.11.4"

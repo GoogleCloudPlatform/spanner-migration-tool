@@ -21,6 +21,7 @@ import (
 	"net/http"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
@@ -33,11 +34,12 @@ import (
 // (4) NotNull: "ADDED", "REMOVED" or "".
 // (5) ToType: New type or empty string.
 type updateCol struct {
-	Add     bool   `json:"Add"`
-	Removed bool   `json:"Removed"`
-	Rename  string `json:"Rename"`
-	NotNull string `json:"NotNull"`
-	ToType  string `json:"ToType"`
+	Add          bool   `json:"Add"`
+	Removed      bool   `json:"Removed"`
+	Rename       string `json:"Rename"`
+	NotNull      string `json:"NotNull"`
+	ToType       string `json:"ToType"`
+	MaxColLength string `json:MaxColLength`
 }
 
 type updateTable struct {
@@ -93,7 +95,8 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 			renameColumn(v.Rename, tableId, colId, conv)
 		}
 
-		if v.ToType != "" {
+		_, found := conv.SrcSchema[tableId].ColDefs[colId]
+		if v.ToType != "" && found {
 
 			typeChange, err := utilities.IsTypeChanged(v.ToType, tableId, colId, conv)
 
@@ -112,7 +115,12 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.NotNull != "" {
 			UpdateNotNull(v.NotNull, tableId, colId, conv)
 		}
+		if v.MaxColLength != "" {
+			UpdateColumnSize(v.MaxColLength, tableId, colId, conv)
+		}
 	}
+
+	common.ComputeNonKeyColumnSize(conv, tableId)
 
 	delete(conv.SpSchema[tableId].ColDefs, "")
 	sessionState.Conv = conv

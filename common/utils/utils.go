@@ -287,9 +287,9 @@ func GetInstance(ctx context.Context, project string, out *os.File) (string, err
 	for i, x := range l {
 		fmt.Fprintf(out, " %d) %s\n", i+1, x)
 	}
-	fmt.Fprintf(out, "Please pick one of the available instances and set the flag '--instance'\n\n")
+	fmt.Fprintf(out, "Please pick one of the available instances and set the instance inside the '--target-profile' flag\n\n")
 	return "", fmt.Errorf("auto-selection of instance failed: project %s has more than one Spanner instance. "+
-		"Please use the flag '--instance' to select an instance", project)
+		"Please set the instance inside the '--target-profile' flag", project)
 }
 
 func getInstances(ctx context.Context, project string) ([]string, error) {

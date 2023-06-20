@@ -348,8 +348,8 @@ func TestProcessSchema(t *testing.T) {
 	assert.Equal(t, nil, err)
 	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
 	assert.Equal(t, nil, err)
-	assert.Equal(t, len(conv.SchemaIssues[cartTableId]), 0)
-	assert.Equal(t, len(conv.SchemaIssues[testTableId]), 17)
+	assert.Equal(t, len(conv.SchemaIssues[cartTableId].ColumnLevelIssues), 0)
+	assert.Equal(t, len(conv.SchemaIssues[testTableId].ColumnLevelIssues), 17)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 
 }

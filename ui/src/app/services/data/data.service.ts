@@ -4,7 +4,7 @@ import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from
 import IRule from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
-import IUpdateTable, { IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
+import IUpdateTable, { IAddColumn, IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
 import IDumpConfig, { IConvertFromDumpRequest } from 'src/app/model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISession from 'src/app/model/session'
@@ -14,7 +14,7 @@ import ISummary from 'src/app/model/summary'
 import { ClickEventService } from '../click-event/click-event.service'
 import { TableUpdatePubSubService } from '../table-update-pub-sub/table-update-pub-sub.service'
 import { ConversionService } from '../conversion/conversion.service'
-import { Dialect } from 'src/app/app.constants'
+import { ColLength, Dialect } from 'src/app/app.constants'
 
 @Injectable({
   providedIn: 'root',
@@ -198,22 +198,37 @@ export class DataService {
             standardDatatypeToPGSQLTypemap = typemap
           })
           this.conv.subscribe((convData: IConv) => {
-            if (convData.SpDialect === Dialect.PostgreSQLDialect) {
-              data.Changes.forEach((table: IReviewInterleaveTableChanges) => {
-                table.InterleaveColumnChanges.forEach((column: ITableColumnChanges) => {
+
+            data.Changes.forEach((table: IReviewInterleaveTableChanges) => {
+              table.InterleaveColumnChanges.forEach((column: ITableColumnChanges) => {
+                if (convData.SpDialect === Dialect.PostgreSQLDialect) {
                   let pgSQLType = standardDatatypeToPGSQLTypemap.get(column.Type)
                   let pgSQLUpdateType = standardDatatypeToPGSQLTypemap.get(column.UpdateType)
-                  column.Type = pgSQLType === undefined? column.Type: pgSQLType 
-                  column.UpdateType = pgSQLUpdateType === undefined? column.UpdateType: pgSQLUpdateType
-                })
+                  column.Type = pgSQLType === undefined ? column.Type : pgSQLType
+                  column.UpdateType = pgSQLUpdateType === undefined ? column.UpdateType : pgSQLUpdateType
+                }
+                if (ColLength.DataTypes.indexOf(column.Type.toString())>-1) {
+                  column.Type += this.updateColumnSize(column.Size)
+                }
+                if (ColLength.DataTypes.indexOf(column.UpdateType.toString())>-1) {
+                  column.UpdateType += this.updateColumnSize(column.UpdateSize)
+                }
               })
-            }
+            })
           })
           this.tableUpdatePubSub.setTableReviewChanges(data)
           return ''
         }
       })
     )
+  }
+
+  updateColumnSize(size: Number): string {
+    if (size === ColLength.StorageMaxLength) {
+      return '(MAX)'
+    } else {
+      return '(' + size + ')'
+    }
   }
 
   updateTable(tableId: string, data: IUpdateTable): Observable<string> {
@@ -358,6 +373,19 @@ export class DataService {
   updateIsOffline() {
     this.fetch.getIsOffline().subscribe((res: boolean) => {
       this.isOfflineSub.next(res)
+    })
+  }
+
+  addColumn(tableId: string,payload: IAddColumn) {
+    this.fetch.addColumn(tableId,payload).subscribe({
+      next: (res: any) => {
+        this.convSubject.next(res)
+        this.getDdl()
+        this.snackbar.openSnackBar('Added new column.', 'Close', 5)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
+      },
     })
   }
 

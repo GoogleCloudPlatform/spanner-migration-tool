@@ -21,6 +21,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/index"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/table"
@@ -135,7 +136,7 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
+	common.ComputeNonKeyColumnSize(sessionState.Conv, pkRequest.TableId)
 	RemoveInterleave(sessionState.Conv, spannerTable)
 	session.UpdateSessionFile()
 
