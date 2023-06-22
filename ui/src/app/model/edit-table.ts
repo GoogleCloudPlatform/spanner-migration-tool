@@ -30,3 +30,8 @@ export interface IColMaxLength {
   spDataType: string,
   spColMaxLength: Number | string | undefined
 }
+
+export interface IAddColumnProps {
+  dialect: string
+  tableId: string
+}

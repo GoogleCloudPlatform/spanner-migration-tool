@@ -469,8 +469,9 @@ type LogicalShard struct {
 }
 
 type ShardConfigurationDataflow struct {
-	SchemaSource DirectConnectionConfig `json:"schemaSource"`
-	DataShards   []*DataShard           `json:"dataShards"`
+	SchemaSource   DirectConnectionConfig `json:"schemaSource"`
+	DataShards     []*DataShard           `json:"dataShards"`
+	DataflowConfig DataflowConfig         `json:"dataflowConfig"`
 }
 
 type ShardConfigurationBulk struct {

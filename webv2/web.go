@@ -91,13 +91,28 @@ var oracleTypeMap = make(map[string][]typeIssue)
 // driverConfig contains the parameters needed to make a direct database connection. It is
 // used to communicate via HTTP with the frontend.
 type driverConfig struct {
-	Driver   string `json:"Driver"`
-	Host     string `json:"Host"`
-	Port     string `json:"Port"`
-	Database string `json:"Database"`
-	User     string `json:"User"`
-	Password string `json:"Password"`
-	Dialect  string `json:"Dialect"`
+	Driver      string `json:"Driver"`
+	IsSharded   bool   `json:"IsSharded"`
+	Host        string `json:"Host"`
+	Port        string `json:"Port"`
+	Database    string `json:"Database"`
+	User        string `json:"User"`
+	Password    string `json:"Password"`
+	Dialect     string `json:"Dialect"`
+	DataShardId string `json:"DataShardId"`
+}
+
+type driverConfigs struct {
+	DbConfigs         []driverConfig `json:"DbConfigs"`
+	IsRestoredSession string         `json:"IsRestoredSession"`
+}
+
+type shardedDataflowConfig struct {
+	MigrationProfile profiles.SourceProfileConfig
+}
+
+type DataflowLocation struct {
+	DataflowConfig profiles.DataflowConfig
 }
 
 type sessionSummary struct {
@@ -114,6 +129,7 @@ type sessionSummary struct {
 	ProcessingUnits    int
 	Instance           string
 	Dialect            string
+	IsSharded          bool
 }
 
 type progressDetails struct {
@@ -123,10 +139,12 @@ type progressDetails struct {
 }
 
 type migrationDetails struct {
-	TargetDetails  targetDetails  `json:"TargetDetails"`
-	DataflowConfig dataflowConfig `json:"DataflowConfig"`
-	MigrationMode  string         `json:MigrationMode`
-	MigrationType  string         `json:MigrationType`
+	TargetDetails   targetDetails  `json:"TargetDetails"`
+	DataflowConfig  dataflowConfig `json:"DataflowConfig"`
+	MigrationMode   string         `json:MigrationMode`
+	MigrationType   string         `json:MigrationType`
+	IsSharded       bool           `json:"IsSharded"`
+	SkipForeignKeys bool           `json:"skipForeignKeys"`
 }
 
 type dataflowConfig struct {
@@ -227,6 +245,7 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	sessionState.Driver = config.Driver
 	sessionState.SessionFile = ""
 	sessionState.Dialect = config.Dialect
+	sessionState.IsSharded = config.IsSharded
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
 		Host:           config.Host,
 		Port:           config.Port,
@@ -329,6 +348,117 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 		Path:           dc.FilePath,
 		ConnectionType: helpers.DUMP_MODE,
 	}
+	w.WriteHeader(http.StatusOK)
+}
+
+// getSourceProfileConfig returns the configured source profile by the user
+func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	sourceProfileConfig := sessionState.SourceProfileConfig
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(sourceProfileConfig)
+}
+
+func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var dataflowLocation DataflowLocation
+	err = json.Unmarshal(reqBody, &dataflowLocation)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
+		Location:      sessionState.Region,
+		Network:       dataflowLocation.DataflowConfig.Network,
+		Subnetwork:    dataflowLocation.DataflowConfig.Subnetwork,
+		HostProjectId: dataflowLocation.DataflowConfig.HostProjectId,
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request) {
+	//Take the received object and store it into session state.
+	sessionState := session.GetSessionState()
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var srcConfig shardedDataflowConfig
+	err = json.Unmarshal(reqBody, &srcConfig)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	sessionState.SourceProfileConfig = srcConfig.MigrationProfile
+	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
+	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
+		Location:      sessionState.Region,
+		Network:       "",
+		Subnetwork:    "",
+		HostProjectId: sessionState.GCPProjectID,
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func setShardsSourceDBDetailsForBulk(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var shardConfigs driverConfigs
+	err = json.Unmarshal(reqBody, &shardConfigs)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	var connDetailsList []profiles.DirectConnectionConfig
+	for i, config := range shardConfigs.DbConfigs {
+		dataSourceName := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
+		sourceDB, err := sql.Open(config.Driver, dataSourceName)
+		if err != nil {
+			http.Error(w, "Database connection error, check connection properties.", http.StatusInternalServerError)
+			return
+		}
+		// Open doesn't open a connection. Validate database connection.
+		err = sourceDB.Ping()
+		if err != nil {
+			http.Error(w, "Database connection error, check connection properties.", http.StatusInternalServerError)
+			return
+		}
+		sessionState.DbName = config.Database
+		sessionState.SessionFile = ""
+		connDetail := profiles.DirectConnectionConfig{
+			Host:        config.Host,
+			Port:        config.Port,
+			User:        config.User,
+			Password:    config.Password,
+			DbName:      config.Database,
+			DataShardId: config.DataShardId,
+		}
+		connDetailsList = append(connDetailsList, connDetail)
+		//set the first shard as the schema shard when restoring from a session file
+		if shardConfigs.IsRestoredSession == constants.SESSION_FILE {
+			if i == 0 {
+				sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
+					Host:           config.Host,
+					Port:           config.Port,
+					User:           config.User,
+					Password:       config.Password,
+					ConnectionType: helpers.DIRECT_CONNECT_MODE,
+				}
+			}
+		}
+	}
+	sessionState.ShardedDbConnDetails = connDetailsList
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -971,7 +1101,7 @@ func addIndex(newIndex ddl.CreateIndex) (ddl.CreateIndex, error) {
 		newIndexes[i].Id = internal.GenerateIndexesId()
 	}
 
-	sessionState.Conv.UsedNames[newIndex.Name] = true
+	sessionState.Conv.UsedNames[strings.ToLower(newIndex.Name)] = true
 	sp.Indexes = append(sp.Indexes, newIndexes...)
 	sessionState.Conv.SpSchema[newIndex.TableId] = sp
 	return newIndexes[0], nil
@@ -1141,7 +1271,7 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 
 			if update && sp.ParentId == "" && setInterleave {
 				usedNames := sessionState.Conv.UsedNames
-				delete(usedNames, sp.ForeignKeys[i].Name)
+				delete(usedNames, strings.ToLower(sp.ForeignKeys[i].Name))
 				sp.ParentId = refTableId
 				sp.ForeignKeys = utilities.RemoveFk(sp.ForeignKeys, sp.ForeignKeys[i].Id)
 			}
@@ -1338,7 +1468,7 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 
 	//remove deleted name from usedName
 	usedNames := sessionState.Conv.UsedNames
-	delete(usedNames, sessionState.Conv.SpSchema[tableId].Name)
+	delete(usedNames, strings.ToLower(sessionState.Conv.SpSchema[tableId].Name))
 	for _, index := range sessionState.Conv.SpSchema[tableId].Indexes {
 		delete(usedNames, index.Name)
 	}
@@ -1438,7 +1568,7 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 
 	conv := sessionState.Conv
 
-	spIndex := common.CvtIndexHelper(conv, tableId, srcIndex, conv.SpSchema[tableId].ColIds)
+	spIndex := common.CvtIndexHelper(conv, tableId, srcIndex, conv.SpSchema[tableId].ColIds, conv.SpSchema[tableId].ColDefs)
 	spIndexes := conv.SpSchema[tableId].Indexes
 	spIndexes = append(spIndexes, spIndex)
 	spTable := conv.SpSchema[tableId]
@@ -1519,7 +1649,7 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 	for _, foreignKey := range sp.ForeignKeys {
 		for _, updatedForeignkey := range newFKs {
 			if foreignKey.Id == updatedForeignkey.Id && len(updatedForeignkey.ColIds) != 0 && updatedForeignkey.ReferTableId != "" {
-				delete(usedNames, foreignKey.Name)
+				delete(usedNames, strings.ToLower(foreignKey.Name))
 				foreignKey.Name = updatedForeignkey.Name
 				updatedFKs = append(updatedFKs, foreignKey)
 			}
@@ -1679,6 +1809,7 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionSummary.ProcessingUnits = int(instanceInfo.ProcessingUnits)
 	sessionSummary.Instance = sessionState.SpannerInstanceID
 	sessionSummary.Dialect = helpers.GetDialectDisplayStringFromDialect(sessionState.Dialect)
+	sessionSummary.IsSharded = sessionState.IsSharded
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sessionSummary)
 }
@@ -1713,7 +1844,6 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-
 	sessionState := session.GetSessionState()
 	sessionState.Error = nil
 	ctx := context.Background()
@@ -1740,7 +1870,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
 	} else if details.MigrationMode == helpers.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
-			SkipForeignKeys: false,
+			SkipForeignKeys: details.SkipForeignKeys,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
 		log.Println("Starting data only migration")
@@ -1748,7 +1878,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error)
 	} else {
 		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
-			SkipForeignKeys: false,
+			SkipForeignKeys: details.SkipForeignKeys,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
 		log.Println("Starting schema and data migration")
@@ -1766,6 +1896,8 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	generatedResources.DatabaseUrl = fmt.Sprintf("https://pantheon.corp.google.com/spanner/instances/%v/databases/%v/details/tables?project=%v", sessionState.SpannerInstanceID, sessionState.SpannerDatabaseName, sessionState.GCPProjectID)
 	generatedResources.BucketName = sessionState.Bucket + sessionState.RootPath
 	generatedResources.BucketUrl = fmt.Sprintf("https://pantheon.corp.google.com/storage/browser/%v", sessionState.Bucket+sessionState.RootPath)
+	generatedResources.ShardToDataflowMap = make(map[string]ResourceDetails)
+	generatedResources.ShardToDatastreamMap = make(map[string]ResourceDetails)
 	if sessionState.Conv.Audit.StreamingStats.DataStreamName != "" {
 		generatedResources.DataStreamJobName = sessionState.Conv.Audit.StreamingStats.DataStreamName
 		generatedResources.DataStreamJobUrl = fmt.Sprintf("https://pantheon.corp.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataStreamName, sessionState.GCPProjectID)
@@ -1773,6 +1905,16 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	if sessionState.Conv.Audit.StreamingStats.DataflowJobId != "" {
 		generatedResources.DataflowJobName = sessionState.Conv.Audit.StreamingStats.DataflowJobId
 		generatedResources.DataflowJobUrl = fmt.Sprintf("https://pantheon.corp.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
+	}
+	for shardId, dsName := range sessionState.Conv.Audit.StreamingStats.ShardToDataStreamNameMap {
+		url := fmt.Sprintf("https://pantheon.corp.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, dsName, sessionState.GCPProjectID)
+		resourceDetails := ResourceDetails{JobName: dsName, JobUrl: url}
+		generatedResources.ShardToDatastreamMap[shardId] = resourceDetails
+	}
+	for shardId, dfId := range sessionState.Conv.Audit.StreamingStats.ShardToDataflowJobMap {
+		url := fmt.Sprintf("https://pantheon.corp.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, dfId, sessionState.GCPProjectID)
+		resourceDetails := ResourceDetails{JobName: dfId, JobUrl: url}
+		generatedResources.ShardToDataflowMap[shardId] = resourceDetails
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(generatedResources)
@@ -1786,14 +1928,20 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 	sourceDBConnectionDetails := sessionState.SourceDBConnDetails
 	if sourceDBConnectionDetails.ConnectionType == helpers.DUMP_MODE {
 		sourceProfileString = fmt.Sprintf("file=%v,format=dump", sourceDBConnectionDetails.Path)
+	} else if details.IsSharded {
+		sourceProfileString, err = getSourceProfileStringForShardedMigrations(sessionState, details)
+		if err != nil {
+			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating config to initiate sharded migration:%v", err)
+		}
 	} else {
 		sourceProfileString = fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,dbName=%v",
 			sourceDBConnectionDetails.Host, sourceDBConnectionDetails.Port, sourceDBConnectionDetails.User,
 			sourceDBConnectionDetails.Password, sessionState.DbName)
 	}
+
 	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
 	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v,dialect=%v", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB, sessionState.Dialect)
-	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION {
+	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION && !details.IsSharded {
 		fileName := sessionState.Conv.Audit.MigrationRequestId + "-streaming.json"
 		sessionState.Bucket, sessionState.RootPath, err = profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, details.TargetDetails.TargetConnectionProfileName)
 		if err != nil {
@@ -1818,7 +1966,77 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 	}
 	sourceProfile.Driver = sessionState.Driver
+	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION {
+		sourceProfile.Config.ConfigType = constants.DATAFLOW_MIGRATION
+	}
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
+}
+
+func getSourceProfileStringForShardedMigrations(sessionState *session.SessionState, details migrationDetails) (string, error) {
+	fileName := "HB-" + uuid.New().String() + "-sharding.cfg"
+	if details.MigrationType != helpers.LOW_DOWNTIME_MIGRATION {
+		err := createConfigFileForShardedBulkMigration(sessionState, details, fileName)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("config=%v", fileName), nil
+	} else if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION {
+		err := createConfigFileForShardedDataflowMigration(sessionState, details, fileName)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("config=%v", fileName), nil
+	} else {
+		return "", fmt.Errorf("this migration type is not implemented yet")
+	}
+
+}
+
+func createConfigFileForShardedDataflowMigration(sessionState *session.SessionState, details migrationDetails, fileName string) error {
+	sourceProfileConfig := sessionState.SourceProfileConfig
+	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
+	for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
+		bucket, rootPath, err := profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, dataShard.DstConnectionProfile.Name)
+		if err != nil {
+			return fmt.Errorf("error while getting target bucket: %v", err)
+		}
+		dataShard.TmpDir = "gs://" + bucket + rootPath
+	}
+	file, err := json.MarshalIndent(sourceProfileConfig, "", " ")
+	if err != nil {
+		return fmt.Errorf("error while marshalling json: %v", err)
+	}
+	err = ioutil.WriteFile(fileName, file, 0644)
+	if err != nil {
+		return fmt.Errorf("error while writing json to file: %v", err)
+	}
+	return nil
+}
+
+func createConfigFileForShardedBulkMigration(sessionState *session.SessionState, details migrationDetails, fileName string) error {
+	sourceProfileConfig := profiles.SourceProfileConfig{
+		ConfigType: constants.BULK_MIGRATION,
+		ShardConfigurationBulk: profiles.ShardConfigurationBulk{
+			SchemaSource: profiles.DirectConnectionConfig{
+				Host:     sessionState.SourceDBConnDetails.Host,
+				User:     sessionState.SourceDBConnDetails.User,
+				Password: sessionState.SourceDBConnDetails.Password,
+				Port:     sessionState.SourceDBConnDetails.Port,
+				DbName:   sessionState.DbName,
+			},
+			DataShards: sessionState.ShardedDbConnDetails,
+		},
+	}
+	file, err := json.MarshalIndent(sourceProfileConfig, "", " ")
+	if err != nil {
+		return fmt.Errorf("error while marshalling json: %v", err)
+	}
+
+	err = ioutil.WriteFile(fileName, file, 0644)
+	if err != nil {
+		return fmt.Errorf("error while writing json to file: %v", err)
+	}
+	return nil
 }
 
 func writeSessionFile(sessionState *session.SessionState) error {
@@ -2035,7 +2253,7 @@ func dropSecondaryIndexHelper(tableId, idxId string) error {
 	}
 
 	usedNames := sessionState.Conv.UsedNames
-	delete(usedNames, sp.Indexes[position].Name)
+	delete(usedNames, strings.ToLower(sp.Indexes[position].Name))
 	index.RemoveIndexIssues(tableId, sp.Indexes[position])
 
 	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)
@@ -2300,15 +2518,23 @@ type typeIssue struct {
 	DisplayT string
 }
 
+type ResourceDetails struct {
+	JobName string `json:"JobName"`
+	JobUrl  string `json:"JobUrl"`
+}
 type GeneratedResources struct {
-	DatabaseName      string
-	DatabaseUrl       string
-	BucketName        string
-	BucketUrl         string
-	DataStreamJobName string
-	DataStreamJobUrl  string
-	DataflowJobName   string
-	DataflowJobUrl    string
+	DatabaseName string `json:"DatabaseName"`
+	DatabaseUrl  string `json:"DatabaseUrl"`
+	BucketName   string `json:"BucketName"`
+	BucketUrl    string `json:"BucketUrl"`
+	//Used for single instance migration flow
+	DataStreamJobName string `json:"DataStreamJobName"`
+	DataStreamJobUrl  string `json:"DataStreamJobUrl"`
+	DataflowJobName   string `json:"DataflowJobName"`
+	DataflowJobUrl    string `json:"DataflowJobUrl"`
+	//Used for sharded migration flow
+	ShardToDatastreamMap map[string]ResourceDetails `json:"ShardToDatastreamMap"`
+	ShardToDataflowMap   map[string]ResourceDetails `json:"ShardToDataflowMap"`
 }
 
 func addTypeToList(convertedType string, spType string, issues []internal.SchemaIssue, l []typeIssue) []typeIssue {

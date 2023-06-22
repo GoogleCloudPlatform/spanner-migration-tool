@@ -120,7 +120,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 	}
 
-	details := connectionProfileReq{}
+	details := connectionProfileReqV2{}
 	err = json.Unmarshal(reqBody, &details)
 	if err != nil {
 		log.Println("request's Body parse error")
@@ -148,20 +148,31 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		},
 		ValidateOnly: details.ValidateOnly,
 	}
+	var bucketName string
 	if !details.IsSource {
-		err = utils.CreateGCSBucket(strings.ToLower(sessionState.Conv.Audit.MigrationRequestId), sessionState.GCPProjectID)
+
+		if sessionState.IsSharded {
+			bucketName = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId + "-" + details.Id)
+		} else {
+			bucketName = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
+		}
+		err = utils.CreateGCSBucket(bucketName, sessionState.GCPProjectID)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error while creating bucket: %v", err), http.StatusBadRequest)
 			return
 		}
 	}
-	setConnectionProfile(details.IsSource, *sessionState, req, databaseType)
+	if sessionState.IsSharded {
+		setConnectionProfileFromRequest(details, bucketName, req, databaseType)
+	} else {
+		setConnectionProfileFromSessionState(details.IsSource, *sessionState, req, databaseType)
+	}
+
 	op, err := dsClient.CreateConnectionProfile(ctx, req)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error while creating connection profile: %v", err), http.StatusBadRequest)
 		return
 	}
-
 	_, err = op.Wait(ctx)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error while creating connection profile: %v", err), http.StatusBadRequest)
@@ -169,7 +180,33 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func setConnectionProfile(isSource bool, sessionState session.SessionState, req *datastreampb.CreateConnectionProfileRequest, databaseType string) {
+func setConnectionProfileFromRequest(details connectionProfileReqV2, bucketName string, req *datastreampb.CreateConnectionProfileRequest, databaseType string) error {
+	if details.IsSource {
+		port, _ := strconv.ParseInt((details.Port), 10, 32)
+		if databaseType == constants.MYSQL {
+			req.ConnectionProfile.Profile = &datastreampb.ConnectionProfile_MysqlProfile{
+				MysqlProfile: &datastreampb.MysqlProfile{
+					Hostname: details.Host,
+					Port:     int32(port),
+					Username: details.User,
+					Password: details.Password,
+				},
+			}
+			return nil
+		} else {
+			return fmt.Errorf("this database type is not currently implemented for sharded migrations")
+		}
+	} else {
+		req.ConnectionProfile.Profile = &datastreampb.ConnectionProfile_GcsProfile{
+			GcsProfile: &datastreampb.GcsProfile{
+				Bucket:   bucketName,
+				RootPath: "/",
+			},
+		}
+		return nil
+	}
+}
+func setConnectionProfileFromSessionState(isSource bool, sessionState session.SessionState, req *datastreampb.CreateConnectionProfileRequest, databaseType string) {
 	if isSource {
 		port, _ := strconv.ParseInt((sessionState.SourceDBConnDetails.Port), 10, 32)
 		if databaseType == constants.MYSQL {
@@ -226,6 +263,16 @@ type connectionProfileReq struct {
 	Id           string
 	ValidateOnly bool
 	IsSource     bool
+}
+
+type connectionProfileReqV2 struct {
+	Id           string
+	ValidateOnly bool
+	IsSource     bool
+	Host         string
+	Port         string
+	Password     string
+	User         string
 }
 
 type connectionProfile struct {

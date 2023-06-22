@@ -32,3 +32,10 @@ export interface IReviewUpdateTable {
   Changes: IReviewInterleaveTableChanges[]
   DDL: string
 }
+
+export interface IAddColumn {
+  Name: string
+  Datatype: string
+  Length: number
+  IsNullable: boolean
+}

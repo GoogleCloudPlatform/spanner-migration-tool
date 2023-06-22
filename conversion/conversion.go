@@ -74,7 +74,7 @@ var (
 	// This number should not be too high so as to not hit the AdminQuota limit.
 	// AdminQuota limits are mentioned here: https://cloud.google.com/spanner/quotas#administrative_limits
 	// If facing a quota limit error, consider reducing this value.
-	MaxWorkers = 20
+	MaxWorkers = 50
 )
 
 // SchemaConv performs the schema conversion
@@ -254,6 +254,12 @@ func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config write
 	}
 }
 
+func updateShardsWithDataflowConfig(shardedDataflowConfig profiles.ShardConfigurationDataflow) {
+	for _, dataShard := range shardedDataflowConfig.DataShards {
+		dataShard.DataflowConfig = shardedDataflowConfig.DataflowConfig
+	}
+}
+
 func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
 	//handle migrating data for sharded migrations differently
 	//sharded migrations are identified via the config= flag, if that flag is not present
@@ -302,16 +308,17 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 	return nil, fmt.Errorf("dms configType is not implemented yet, please use one of 'bulk' or 'dataflow'")
 }
 
-//1. Create batch for each physical shard
-//2. Create streaming cfg from the config source type.
-//3. Verify the CFG and update it with HB defaults
-//4. Launch the stream for the physical shard
-//5. Perform streaming migration via dataflow
+// 1. Create batch for each physical shard
+// 2. Create streaming cfg from the config source type.
+// 3. Verify the CFG and update it with HB defaults
+// 4. Launch the stream for the physical shard
+// 5. Perform streaming migration via dataflow
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
+	updateShardsWithDataflowConfig(sourceProfile.Config.ShardConfigurationDataflow)
+	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
+	conv.Audit.StreamingStats.ShardToDataflowJobMap = make(map[string]string)
 	asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) common.TaskResult[*profiles.DataShard] {
-
 		streamingCfg := streaming.CreateStreamingConfig(*p)
-
 		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname)
 		if err != nil {
 			err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
@@ -334,10 +341,10 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 	return &writer.BatchWriter{}, nil
 }
 
-//1. Migrate the data from the data shards, the schema shard needs to be specified here again.
-//2. Create a connection profile object for it
-//3. Perform a snapshot migration for the shard
-//4. Once all shard migrations are complete, return the batch writer object
+// 1. Migrate the data from the data shards, the schema shard needs to be specified here again.
+// 2. Create a connection profile object for it
+// 3. Perform a snapshot migration for the shard
+// 4. Once all shard migrations are complete, return the batch writer object
 func dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
 	var bw *writer.BatchWriter
 	for _, dataShard := range sourceProfile.Config.ShardConfigurationBulk.DataShards {
@@ -656,7 +663,7 @@ func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient,
 }
 
 // CreatesOrUpdatesDatabase updates an existing Spanner database or creates a new one if one does not exist.
-func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI, driver string, conv *internal.Conv, out *os.File) error {
+func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI, driver string, conv *internal.Conv, out *os.File, migrationType string) error {
 	dbExists, err := VerifyDb(ctx, adminClient, dbURI)
 	if err != nil {
 		return err
@@ -669,12 +676,15 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 		ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
 	}
 	if dbExists {
+		if conv.SpDialect != constants.DIALECT_POSTGRESQL && migrationType == constants.DATAFLOW_MIGRATION {
+			return fmt.Errorf("Harbourbridge does not support minimal downtime schema/schema-and-data migrations to an existing database.")
+		}
 		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out, driver)
 		if err != nil {
 			return fmt.Errorf("can't update database schema: %v", err)
 		}
 	} else {
-		err := CreateDatabase(ctx, adminClient, dbURI, conv, out, driver)
+		err := CreateDatabase(ctx, adminClient, dbURI, conv, out, driver, migrationType)
 		if err != nil {
 			return fmt.Errorf("can't create database: %v", err)
 		}
@@ -686,7 +696,7 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 // It automatically determines an appropriate project, selects a
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
-func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string) error {
+func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string, migrationType string) error {
 	project, instance, dbName := utils.ParseDbURI(dbURI)
 	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... \n", dbName, instance)
 	// The schema we send to Spanner excludes comments (since Cloud
@@ -705,7 +715,12 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
 	} else {
 		req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
-		req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver})
+		if migrationType == constants.DATAFLOW_MIGRATION {
+			req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver})
+		} else {
+			req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver})
+		}
+
 	}
 
 	op, err := adminClient.CreateDatabase(ctx, req)
@@ -753,7 +768,13 @@ func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 
 // UpdateDDLForeignKeys updates the Spanner database with foreign key
 // constraints using ALTER TABLE statements.
-func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string) error {
+func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string, migrationType string) error {
+
+	if conv.SpDialect != constants.DIALECT_POSTGRESQL && migrationType == constants.DATAFLOW_MIGRATION {
+		//foreign keys were applied as part of CreateDatabase
+		return nil
+	}
+
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
@@ -768,8 +789,8 @@ time to create foreign keys (over 5 mins per batch of Foreign Keys even with no 
 Harbourbridge does not have control over a single foreign key creation time. The number 
 of concurrent Foreign Key Creation Requests sent to spanner can be increased by 
 tweaking the MaxWorkers variable (https://github.com/cloudspannerecosystem/harbourbridge/blob/master/conversion/conversion.go#L89).
-However, setting it to a very high value might lead to exceeding the admin quota limit.
-Recommended value is between 20-30.`)
+However, setting it to a very high value might lead to exceeding the admin quota limit. Harbourbridge tries to stay under the
+admin quota limit by spreading the FK creation requests over time.`)
 	}
 	msg := fmt.Sprintf("Updating schema of database %s with foreign key constraints ...", dbURI)
 	conv.Audit.Progress = *internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose(), true, int(internal.ForeignKeyUpdateInProgress))
@@ -816,6 +837,8 @@ Recommended value is between 20-30.`)
 			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
 			logger.Log.Debug("Updated schema with statement", zap.String("fkStmt", fkStmt))
 		}(fkStmt, workerID)
+		// Send out an FK creation request every second, with total of maxWorkers request being present in a batch.
+		time.Sleep(time.Second)
 	}
 	// Wait for all the goroutines to finish.
 	for i := 1; i <= MaxWorkers; i++ {
@@ -1099,9 +1122,9 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile, targetProfile profiles.
 		}
 		temp := false
 		return postgres.InfoSchemaImpl{
-			Db:            db,
-			SourceProfile: sourceProfile,
-			TargetProfile: targetProfile,
+			Db:             db,
+			SourceProfile:  sourceProfile,
+			TargetProfile:  targetProfile,
 			IsSchemaUnique: &temp, //this is a workaround to set a bool pointer
 		}, nil
 	case constants.DYNAMODB:

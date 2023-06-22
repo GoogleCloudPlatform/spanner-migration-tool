@@ -65,7 +65,10 @@ export enum MigrationDetails {
   HasForeignKeyUpdateStarted = 'hasForeignKeyUpdateStarted',
   ForeignKeyProgressMessage = 'foreignKeyProgressMessage',
   ForeignKeyUpdateProgress = 'foreignKeyUpdateProgress',
-  GeneratingResources = 'generatingResources'
+  GeneratingResources = 'generatingResources',
+  NumberOfShards = 'numberOfShards',
+  NumberOfInstances = 'numberOfInstances',
+  isForeignKeySkipped = 'isForeignKeySkipped'
 }
 
 export enum TargetDetails {
@@ -115,4 +118,9 @@ export const ColLength = {
   StringMaxLength: 2621440,
   ByteMaxLength: 10485760,
   DataTypes: ['STRING','BYTES','VARCHAR']
+}
+
+export const DataTypes = {
+  GoogleStandardSQL : ['BOOL','BYTES','DATE','FLOAT64','INT64','STRING', 'TIMESTAMP', 'NUMERIC', 'JSON'],
+  PostgreSQL : ['BOOL','BYTEA','DATE','FLOAT8','INT8','VARCHAR', 'TIMESTAMPTZ', 'NUMERIC', 'JSONB']
 }
