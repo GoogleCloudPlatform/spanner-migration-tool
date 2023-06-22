@@ -34,13 +34,13 @@ import (
 // srcTable and srcCols are the source table and columns respectively,
 // and vals contains string data to be converted to appropriate types
 // to send to Spanner. ProcessDataRow is only called in DataMode.
-func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string) {
+func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string, additionalAttributes internal.AdditionalDataAttributes) {
 	srcTableName := srcSchema.Name
 	srcCols := []string{}
 	for _, colId := range colIds {
 		srcCols = append(srcCols, srcSchema.ColDefs[colId].Name)
 	}
-	spTableName, cvtCols, cvtVals, err := ConvertData(conv, tableId, colIds, srcSchema, spSchema, vals)
+	spTableName, cvtCols, cvtVals, err := ConvertData(conv, tableId, colIds, srcSchema, spSchema, vals, additionalAttributes)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 		conv.StatsAddBadRow(srcTableName, conv.DataMode())
@@ -54,7 +54,7 @@ func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSch
 // based on the Spanner and source DB schemas. Note that since entries
 // in vals may be empty, we also return the list of columns (empty
 // cols are dropped).
-func ConvertData(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string) (string, []string, []interface{}, error) {
+func ConvertData(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string, additionalAttributes internal.AdditionalDataAttributes) (string, []string, []interface{}, error) {
 	var c []string
 	var v []interface{}
 	if len(colIds) != len(vals) {
@@ -94,6 +94,11 @@ func ConvertData(conv *internal.Conv, tableId string, colIds []string, srcSchema
 		v = append(v, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
 		aux.Sequence++
 		conv.SyntheticPKeys[tableId] = aux
+	}
+	colId := conv.SpSchema[tableId].ShardIdColumn
+	if colId != "" {
+		c = append(c, conv.SpSchema[tableId].ColDefs[colId].Name)
+		v = append(v, additionalAttributes.ShardId)
 	}
 	return conv.SpSchema[tableId].Name, c, v, nil
 }

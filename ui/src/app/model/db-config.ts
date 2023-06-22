@@ -1,4 +1,3 @@
-// import { Interface } from "readline"
 
 export default interface IDbConfig {
   dbEngine: string

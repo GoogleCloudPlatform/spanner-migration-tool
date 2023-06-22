@@ -308,7 +308,7 @@ func TestProcessData(t *testing.T) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
 	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
-	common.ProcessData(conv, isi)
+	common.ProcessData(conv, isi, internal.AdditionalDataAttributes{})
 	assert.Equal(t,
 		[]spannerData{
 			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
@@ -366,7 +366,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
-	err := common.ProcessSchema(conv, isi, 1)
+	err := common.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{})
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"test": ddl.CreateTable{
@@ -395,7 +395,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessData(conv, isi)
+	common.ProcessData(conv, isi, internal.AdditionalDataAttributes{})
 	assert.Equal(t, []spannerData{
 		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), "0"}},
 		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), "-9223372036854775808"}}},

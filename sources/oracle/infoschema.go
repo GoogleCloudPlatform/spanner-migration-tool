@@ -100,7 +100,7 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colIds []
 }
 
 // ProcessData performs data conversion for source database.
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, commonColIds []string, spSchema ddl.CreateTable) error {
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, commonColIds []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error {
 	srcTableName := conv.SrcSchema[tableId].Name
 	rowsInterface, err := isi.GetRowsFromTable(conv, tableId)
 	if err != nil {

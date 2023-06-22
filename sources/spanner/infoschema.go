@@ -46,7 +46,7 @@ func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 }
 
 // We leave the 5 functions below empty to be able to pass this as an infoSchema interface. We don't need these for now.
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable) error {
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error {
 	return nil
 }
 

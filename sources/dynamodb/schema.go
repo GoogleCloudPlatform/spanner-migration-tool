@@ -181,7 +181,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 // on the source and Spanner schemas), and write it to Spanner. If we can't
 // get/process data for a table, we skip that table and process the remaining
 // tables.
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, colIds []string, spSchema ddl.CreateTable) error {
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, colIds []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error {
 	rows, err := isi.GetRowsFromTable(conv, tableId)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", conv.SrcSchema[tableId].Name, err))

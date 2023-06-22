@@ -39,7 +39,7 @@ type InfoSchema interface {
 	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, map[string][]string, error)
 	GetForeignKeys(conv *internal.Conv, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
 	GetIndexes(conv *internal.Conv, table SchemaAndName, colNameIdMp map[string]string) ([]schema.Index, error)
-	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable) error
+	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error
 	StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error)
 	StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamInfo map[string]interface{}) error
 }
@@ -61,13 +61,16 @@ type FkConstraint struct {
 // ProcessSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) error {
+func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes) error {
 
 	GenerateSrcSchema(conv, infoSchema, numWorkers)
 	initPrimaryKeyOrder(conv)
 	initIndexOrder(conv)
 	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
 	conv.AddPrimaryKeys()
+	if attributes.IsSharded {
+		conv.AddShardIdColumn()
+	}
 	fmt.Println("loaded schema")
 	return nil
 }
@@ -106,7 +109,7 @@ func GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers in
 // (based on the source and Spanner schemas), and write it to Spanner.
 // If we can't get/process data for a table, we skip that table and process
 // the remaining tables.
-func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
+func ProcessData(conv *internal.Conv, infoSchema InfoSchema, additionalAttributes internal.AdditionalDataAttributes) {
 	// Tables are ordered in alphabetical order with one exception: interleaved
 	// tables appear after the population of their parent table.
 	tableIds := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
@@ -123,7 +126,7 @@ func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
 		// Extract common spColds. We get column ids common to both source and
 		// spanner table so that we can read these records from source
 		colIds := GetCommonColumnIds(conv, tableId, spSchema.ColIds)
-		err := infoSchema.ProcessData(conv, tableId, srcSchema, colIds, spSchema)
+		err := infoSchema.ProcessData(conv, tableId, srcSchema, colIds, spSchema, additionalAttributes)
 		if err != nil {
 			return
 		}
