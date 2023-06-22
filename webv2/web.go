@@ -139,11 +139,12 @@ type progressDetails struct {
 }
 
 type migrationDetails struct {
-	TargetDetails  targetDetails  `json:"TargetDetails"`
-	DataflowConfig dataflowConfig `json:"DataflowConfig"`
-	MigrationMode  string         `json:MigrationMode`
-	MigrationType  string         `json:MigrationType`
-	IsSharded      bool           `json:"IsSharded"`
+	TargetDetails   targetDetails  `json:"TargetDetails"`
+	DataflowConfig  dataflowConfig `json:"DataflowConfig"`
+	MigrationMode   string         `json:MigrationMode`
+	MigrationType   string         `json:MigrationType`
+	IsSharded       bool           `json:"IsSharded"`
+	SkipForeignKeys bool           `json:"skipForeignKeys"`
 }
 
 type dataflowConfig struct {
@@ -1570,7 +1571,7 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 
 	conv := sessionState.Conv
 
-	spIndex := common.CvtIndexHelper(conv, tableId, srcIndex, conv.SpSchema[tableId].ColIds)
+	spIndex := common.CvtIndexHelper(conv, tableId, srcIndex, conv.SpSchema[tableId].ColIds, conv.SpSchema[tableId].ColDefs)
 	spIndexes := conv.SpSchema[tableId].Indexes
 	spIndexes = append(spIndexes, spIndex)
 	spTable := conv.SpSchema[tableId]
@@ -1872,7 +1873,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
 	} else if details.MigrationMode == helpers.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
-			SkipForeignKeys: false,
+			SkipForeignKeys: details.SkipForeignKeys,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
 		log.Println("Starting data only migration")
@@ -1880,7 +1881,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error)
 	} else {
 		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
-			SkipForeignKeys: false,
+			SkipForeignKeys: details.SkipForeignKeys,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
 		log.Println("Starting schema and data migration")
@@ -1968,6 +1969,9 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 	}
 	sourceProfile.Driver = sessionState.Driver
+	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION {
+		sourceProfile.Config.ConfigType = constants.DATAFLOW_MIGRATION
+	}
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
 }
 

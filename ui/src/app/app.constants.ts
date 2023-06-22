@@ -67,7 +67,8 @@ export enum MigrationDetails {
   ForeignKeyUpdateProgress = 'foreignKeyUpdateProgress',
   GeneratingResources = 'generatingResources',
   NumberOfShards = 'numberOfShards',
-  NumberOfInstances = 'numberOfInstances'
+  NumberOfInstances = 'numberOfInstances',
+  isForeignKeySkipped = 'isForeignKeySkipped'
 }
 
 export enum TargetDetails {
