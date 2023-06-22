@@ -175,10 +175,14 @@ func validateExistingDb(ctx context.Context, spDialect, dbURI string, adminClien
 		err = fmt.Errorf("target database doesn't exist")
 		return err
 	}
-	err = conversion.ValidateTables(ctx, client, spDialect)
+	var nonEmptyTableName string
+	nonEmptyTableName, err = conversion.ValidateTables(ctx, client, spDialect)
 	if err != nil {
 		err = fmt.Errorf("error validating the tables: %v", err)
 		return err
+	}
+	if nonEmptyTableName != "" {
+		fmt.Printf("WARNING: Some tables in the database are non-empty e.g %s, overwriting these tables can lead to unintended behaviour. If this is unintended, please reconsider your migration attempt.\n\n", nonEmptyTableName)
 	}
 	spannerConv := internal.MakeConv()
 	spannerConv.SpDialect = spDialect
