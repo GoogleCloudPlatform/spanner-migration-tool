@@ -1,6 +1,6 @@
 <div class="connect-load-database-container">
   <div class="form-container">
-    <form [formGroup]="connectForm" (ngSubmit)="connectToDb()">
+    <form [formGroup]="connectForm">
       <h3 class="primary-header">Connect to Source Database</h3>
 
       <mat-form-field class="full-width" appearance="outline">
@@ -66,7 +66,14 @@
         </mat-select>
       </mat-form-field>
       <br>
-      <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid">
+      <mat-icon *ngIf="isTestConnectionSuccessful" class="success" matTooltip="Source Connection Successful"
+        matTooltipPosition="above">
+        check_circle
+      </mat-icon>
+      <button mat-raised-button type="submit" color="accent" [disabled]="!connectForm.valid" (click)="testConn()">
+        Test Connection
+      </button>
+      <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid" (click)="connectToDb()">
         Connect
       </button>
       <button mat-raised-button [routerLink]="'/'">Cancel</button>

@@ -34,6 +34,8 @@ export class DirectConnectionComponent implements OnInit {
     { value: 'postgres', displayName: 'PostgreSQL' },
   ]
 
+  isTestConnectionSuccessful = false
+
   connectRequest: any = null
   getSchemaRequest: any = null
   shardedResponseList = [
@@ -66,6 +68,22 @@ export class DirectConnectionComponent implements OnInit {
           }
         }
       },
+    })
+  }
+
+  testConn() {
+    const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect } = this.connectForm.value
+    localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value))
+    const config: IDbConfig = { dbEngine, isSharded, hostName, port, userName, password, dbName }
+    this.connectRequest =this.fetch.connectTodb(config, dialect).subscribe({
+      next: () => {
+        this.isTestConnectionSuccessful = true
+        this.snackbarService.openSnackBar('Harbourbridge was able to successfully ping source database', 'Close', 3)
+      },
+      error: (e) => { 
+        this.isTestConnectionSuccessful = false
+        this.snackbarService.openSnackBar(e.error, 'Close')
+      }
     })
   }
 
