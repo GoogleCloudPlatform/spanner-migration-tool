@@ -5,7 +5,7 @@ import IDbConfig from 'src/app/model/db-config'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { DataService } from 'src/app/services/data/data.service'
 import { LoaderService } from '../../services/loader/loader.service'
-import { DialectList, InputType, SourceDbNames, StorageKeys } from 'src/app/app.constants'
+import { DialectList, InputType, PersistedFormValues, StorageKeys } from 'src/app/app.constants'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
@@ -53,6 +53,10 @@ export class DirectConnectionComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    //initialise component with the previously persisted values if present.
+    if (localStorage.getItem(PersistedFormValues.DirectConnectForm) != null) {
+      this.connectForm.setValue(JSON.parse(localStorage.getItem(PersistedFormValues.DirectConnectForm) as string))
+    }
     this.clickEvent.cancelDbLoad.subscribe({
       next: (res: boolean) => {
         if (res && this.connectRequest) {
@@ -71,6 +75,7 @@ export class DirectConnectionComponent implements OnInit {
     this.data.resetStore()
     localStorage.clear()
     const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect } = this.connectForm.value
+    localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value))
     const config: IDbConfig = { dbEngine, isSharded, hostName, port, userName, password, dbName }
     this.connectRequest =this.fetch.connectTodb(config, dialect).subscribe({
       next: () => {
@@ -83,10 +88,12 @@ export class DirectConnectionComponent implements OnInit {
           localStorage.setItem(StorageKeys.Type, InputType.DirectConnect)
           localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
           this.clickEvent.closeDatabaseLoader()
+          //after a successful load, remove the persisted values.
+          localStorage.removeItem(PersistedFormValues.DirectConnectForm)
           this.router.navigate(['/workspace'])
         })
       },
-      error: (e) => {
+      error: (e) => { 
         this.snackbarService.openSnackBar(e.error, 'Close')
         this.clickEvent.closeDatabaseLoader()
       },
