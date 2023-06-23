@@ -204,6 +204,10 @@ type Rule struct {
 	AddedOn           datetime.DateTime
 }
 
+type Tables struct {
+	TableList []string `json:"TableList"`
+}
+
 // MakeConv returns a default-configured Conv.
 func MakeConv() *Conv {
 	return &Conv{

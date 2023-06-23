@@ -61,7 +61,15 @@ func (isi InfoSchemaImpl) populateSchemaIsUnique(schemaAndNames []common.SchemaA
 // performing a streaming migration.
 func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
 	mp := make(map[string]interface{})
-	streamingCfg, err := streaming.StartDatastream(ctx, isi.SourceProfile, isi.TargetProfile)
+	var (
+		tableList []string
+		err error
+	)
+	tableList, err = common.GetIncludedSrcTablesFromConv(conv)
+	if err != nil {
+		err = fmt.Errorf("error fetching the tableList to setup datastream migration, defaulting to all tables: %v", err)
+	}
+	streamingCfg, err := streaming.StartDatastream(ctx, isi.SourceProfile, isi.TargetProfile, tableList)
 	if err != nil {
 		err = fmt.Errorf("error starting datastream: %v", err)
 		return nil, err
@@ -69,6 +77,8 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 	mp["streamingCfg"] = streamingCfg
 	return mp, err
 }
+
+
 
 // StartStreamingMigration is used for automatic triggering of Dataflow job when
 // performing a streaming migration.

@@ -1,0 +1,40 @@
+<div mat-dialog-content>
+    <h2 *ngIf="data.operation == 'SKIP'">Skip {{eligibleTables.length}} table(s)?</h2>
+    <h2 *ngIf="data.operation == 'RESTORE'">Restore {{eligibleTables.length}} table(s)?</h2>
+    <mat-dialog-content>
+    <div class="form-container">
+      <form>
+        <span *ngIf="data.operation == 'SKIP'" class="form-custom-label">
+            Confirm skip by typing the following below: <b>SKIP</b><br>
+        </span>
+        <span *ngIf="data.operation == 'RESTORE'" class="form-custom-label">
+            Confirm restoration by typing the following below: <b>RESTORE</b><br>
+        </span>
+        <mat-form-field appearance="outline">
+          <mat-label>Confirm</mat-label>
+          <input matInput type="text" [formControl]="confirmationInput" />
+        </mat-form-field>
+        <div *ngIf="data.operation == 'SKIP' && ineligibleTables.length != 0">
+            <b>Note:</b> You selected {{ data.tables.length }} tables. {{ ineligibleTables.length }} table(s) will not be skipped since they are already skipped.<br>
+            <b>Already skipped tables:</b> {{ ineligibleTables }}
+        </div>
+        <div *ngIf="data.operation == 'RESTORE' && ineligibleTables.length != 0">
+            <b>Note:</b> You selected {{ data.tables.length }} tables. {{ ineligibleTables.length }} table(s) will not be restored since they are already active.<br>
+            <b>Already active tables:</b> {{ ineligibleTables }}
+        </div>
+      </form>
+    </div>
+</mat-dialog-content>
+  <div mat-dialog-actions class="buttons-container">
+    <button mat-button color="primary" mat-dialog-close>Cancel</button>
+    <button
+      mat-button
+      (click)="confirm()"
+      type="submit"
+      color="primary"
+      [disabled]="!confirmationInput.valid"
+    >
+      Confirm
+    </button>
+  </div>
+  

@@ -15,6 +15,7 @@ import { ClickEventService } from '../click-event/click-event.service'
 import { TableUpdatePubSubService } from '../table-update-pub-sub/table-update-pub-sub.service'
 import { ConversionService } from '../conversion/conversion.service'
 import { ColLength, Dialect } from 'src/app/app.constants'
+import { ITables } from 'src/app/model/migrate'
 
 @Injectable({
   providedIn: 'root',
@@ -268,6 +269,25 @@ export class DataService {
     )
   }
 
+  restoreTables(tables: ITables): Observable<string> {
+    return this.fetch.restoreTables(tables).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.snackbar.openSnackBar('Selected tables restored successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
+  }
+
   restoreTable(tableId: string): Observable<string> {
     return this.fetch.restoreTable(tableId).pipe(
       catchError((e: any) => {
@@ -299,7 +319,26 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
-          this.snackbar.openSnackBar('Table dropped successfully', 'Close', 5)
+          this.snackbar.openSnackBar('Table skipped successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
+  }
+
+  dropTables(tables: ITables): Observable<string> {
+    return this.fetch.dropTables(tables).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.snackbar.openSnackBar('Selected tables skipped successfully', 'Close', 5)
           return ''
         }
       })
@@ -434,7 +473,7 @@ export class DataService {
           this.convSubject.next(data)
           this.getDdl()
           this.ruleMapSub.next(data?.Rules)
-          this.snackbar.openSnackBar('Index dropped successfully', 'Close', 5)
+          this.snackbar.openSnackBar('Index skipped successfully', 'Close', 5)
           return ''
         }
       })

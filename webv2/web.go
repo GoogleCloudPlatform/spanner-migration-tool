@@ -1407,12 +1407,30 @@ type DropDetail struct {
 	Name string `json:"Name"`
 }
 
-func restoreTable(w http.ResponseWriter, r *http.Request) {
-	tableId := r.FormValue("table")
+func restoreTables(w http.ResponseWriter, r *http.Request) {
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var tables internal.Tables
+	err = json.Unmarshal(reqBody, &tables)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	var convm session.ConvWithMetadata
+	for _, tableId := range tables.TableList {
+		convm = restoreTableHelper(w, tableId)
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
+func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
-		return
 	}
 	if tableId == "" {
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
@@ -1435,13 +1453,11 @@ func restoreTable(w http.ResponseWriter, r *http.Request) {
 		toddl = postgres.DbDumpImpl{}.GetToDdl()
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
-		return
 	}
 
 	err := common.SrcTableToSpannerDDL(conv, toddl, sessionState.Conv.SrcSchema[tableId])
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Restoring spanner table fail"), http.StatusBadRequest)
-		return
 	}
 	conv.AddPrimaryKeys()
 	sessionState.Conv = conv
@@ -1451,16 +1467,41 @@ func restoreTable(w http.ResponseWriter, r *http.Request) {
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
 	}
+	return convm
+}
+
+func restoreTable(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("table")
+	convm := restoreTableHelper(w, tableId)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
 
-func dropTable(w http.ResponseWriter, r *http.Request) {
-	tableId := r.FormValue("table")
+func dropTables(w http.ResponseWriter, r *http.Request) {
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var tables internal.Tables
+	err = json.Unmarshal(reqBody, &tables)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	var convm session.ConvWithMetadata
+	for _, tableId := range tables.TableList {
+		convm = dropTableHelper(w, tableId)
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
+func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
-		return
+		return session.ConvWithMetadata{}
 	}
 	if tableId == "" {
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
@@ -1534,6 +1575,12 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
 	}
+	return convm
+}
+
+func dropTable(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("table")
+	convm := dropTableHelper(w, tableId)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
