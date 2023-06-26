@@ -78,7 +78,7 @@ export class DirectConnectionComponent implements OnInit {
     this.connectRequest =this.fetch.connectTodb(config, dialect).subscribe({
       next: () => {
         this.isTestConnectionSuccessful = true
-        this.snackbarService.openSnackBar('Harbourbridge was able to successfully ping source database', 'Close', 3)
+        this.snackbarService.openSnackBar('SUCCESS! Harbourbridge was able to successfully ping source database', 'Close', 3)
       },
       error: (e) => { 
         this.isTestConnectionSuccessful = false

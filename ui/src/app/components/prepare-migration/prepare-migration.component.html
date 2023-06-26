@@ -2,7 +2,7 @@
     <div class="breadcrumb">
         <a class="breadcrumb_source" mat-button [routerLink]="'/'">Select Source</a>
         <span>></span>
-        <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema({{dialect}} Dialect)</a>
+        <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema ({{dialect}} Dialect)</a>
         <span>></span>
         <a class="breadcrumb_prepare_migration" mat-button [routerLink]="'/prepare-migration'"><b>Prepare Migration</b></a>
     </div>
@@ -64,17 +64,30 @@
     </mat-form-field>
     <mat-icon class="configure" [matTooltip]="migrationTypesHelpText.get(selectedMigrationType)!">info</mat-icon>
     <br/>
-    <div class="prerequisites">
+    <div class="prepare-migration-card">
         <mat-card>
             <mat-card-title>Prerequisites</mat-card-title>
             <mat-card-subtitle>Before we begin, please ensure you have done the following:</mat-card-subtitle>
-            <div class="static-prereqs" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && isSharded">
-                <ul >
-                    <li>Please ensure that the source is <a href="https://cloud.google.com/datastream/docs/sources" target="_blank">configured</a> for Datastream change data capture.</li>
-                    <li>Please ensure that Dataflow <a href="https://cloud.google.com/dataflow/docs/concepts/security-and-permissions" target="_blank">permissions</a> and <a href="https://cloud.google.com/dataflow/docs/guides/routes-firewall" target="_blank">networking</a> are correctly setup.</li>
-                </ul>
+            <div class="static-prereqs" *ngIf="(selectedMigrationType ==='bulk') && !(selectedMigrationMode ==='Schema')">
+                <p class="point">
+                    <span class="bullet">1</span>
+                    <span>Please ensure that the application default credentials deployed on this machine have permissions to write to Spanner.</span>
+                </p>
             </div>
-            <hr />
+            <div class="static-prereqs" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
+                <p class="point">
+                    <span class="bullet">1</span>
+                    <span>Please ensure that the source is <a href="https://cloud.google.com/datastream/docs/sources" target="_blank">configured</a> for Datastream change data capture.</span>
+                </p>
+                <p class="point">
+                    <span class="bullet">2</span>
+                    <span>Please ensure that Dataflow <a href="https://cloud.google.com/dataflow/docs/concepts/security-and-permissions" target="_blank">permissions</a> and <a href="https://cloud.google.com/dataflow/docs/guides/routes-firewall" target="_blank">networking</a> are correctly setup.</span>
+                </p>
+            </div>
+            </mat-card>
+    </div>
+    <div class="prepare-migration-card">
+        <mat-card>
             <div *ngIf="(connectionType ==='sessionFile') && !(selectedMigrationMode ==='Schema') && !isSharded">
                 <h3>Source database details:</h3>
                 <p class="point">
