@@ -34,7 +34,7 @@ export class PrepareMigrationComponent implements OnInit {
     private fetch: FetchService,
     private snack: SnackbarService,
     private data: DataService
-  ) {}
+  ) { }
 
   isSourceConnectionProfileSet: boolean = false
   isTargetConnectionProfileSet: boolean = false
@@ -105,9 +105,21 @@ export class PrepareMigrationComponent implements OnInit {
     IsConfigValid: false
   }
   skipForeignKeyResponseList = [
-    { value: false, displayName: 'No'},
-    { value: true, displayName: 'Yes'},
+    { value: false, displayName: 'No' },
+    { value: true, displayName: 'Yes' },
   ]
+
+  migrationModesHelpText = new Map<string, string>([
+    ["Schema", "Migrates only the schema of the source database to the configured Spanner instance."],
+    ["Data", "Migrates the data from the source database to the configured Spanner database. The configured database should already contain the schema."],
+    ["Schema And Data", "Migrates both the schema and the data from the source database to Spanner."]
+  ]);
+
+  migrationTypesHelpText = new Map<string, string>([
+    ["bulk", "Uses this machine's resources to copy data from the source database to Spanner. This is only useful for small migrations."],
+    ["lowdt", "Uses change data capture via Datastream to setup a continuous data replication pipeline from source to Spanner, using Dataflow jobs to perform the actual data migration."],
+  ]);
+
   refreshMigrationMode() {
     if (
       !(this.selectedMigrationMode === MigrationModes.schemaOnly) &&
@@ -422,7 +434,7 @@ export class PrepareMigrationComponent implements OnInit {
       this.isDataflowConfigurationSet = localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true'
       if (this.isSharded) {
         this.fetch.setDataflowDetailsForShardedMigrations(this.dataflowConfig).subscribe({
-          next: () => {},
+          next: () => { },
           error: (err: any) => {
             this.snack.openSnackBar(err.error, 'Close')
           }
@@ -832,5 +844,5 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.setItem(MigrationDetails.IsTargetDetailSet, this.isTargetDetailSet.toString())
     localStorage.setItem(MigrationDetails.GeneratingResources, this.generatingResources.toString())
   }
-  ngOnDestroy() {}
+  ngOnDestroy() { }
 }

@@ -42,6 +42,7 @@
             </mat-option>
         </mat-select>
     </mat-form-field>
+    <mat-icon class="configure" [matTooltip]="migrationModesHelpText.get(selectedMigrationMode)!">info</mat-icon>
     <br>
     <div *ngIf="!(selectedMigrationMode === 'Schema')">
         <mat-form-field appearance="outline">
@@ -61,6 +62,7 @@
             </mat-option>
         </mat-select>
     </mat-form-field>
+    <mat-icon class="configure" [matTooltip]="migrationTypesHelpText.get(selectedMigrationType)!">info</mat-icon>
     <br/>
     <div class="prerequisites">
         <mat-card>
@@ -92,7 +94,9 @@
                 <h3>Source databases details:</h3>
                 <p class="point">
                     <span class="bullet">1</span>
-                    <span>Setup Source databases details</span><span><button mat-button class="configure"
+                    <span>Setup Source Connection details
+                        <mat-icon class="configure" matTooltip="Configure the connection info of all source shards to connect to and migrate data from.">info</mat-icon></span>
+                        <span><button mat-button class="configure"
                             (click)="openShardedBulkSourceDetailsForm()" [disabled]="isMigrationInProgress">
                             Configure
                             <mat-icon>edit</mat-icon>
