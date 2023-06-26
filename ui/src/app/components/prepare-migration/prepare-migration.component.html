@@ -66,6 +66,12 @@
         <mat-card>
             <mat-card-title>Prerequisites</mat-card-title>
             <mat-card-subtitle>Before we begin, please ensure you have done the following:</mat-card-subtitle>
+            <div class="static-prereqs" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && isSharded">
+                <ul >
+                    <li>Please ensure that the source is <a href="https://cloud.google.com/datastream/docs/sources" target="_blank">configured</a> for Datastream change data capture.</li>
+                    <li>Please ensure that Dataflow <a href="https://cloud.google.com/dataflow/docs/concepts/security-and-permissions" target="_blank">permissions</a> and <a href="https://cloud.google.com/dataflow/docs/guides/routes-firewall" target="_blank">networking</a> are correctly setup.</li>
+                </ul>
+            </div>
             <hr />
             <div *ngIf="(connectionType ==='sessionFile') && !(selectedMigrationMode ==='Schema') && !isSharded">
                 <h3>Source database details:</h3>
@@ -101,7 +107,9 @@
                 <h3>Target details:</h3>
                 <p class="point">
                     <span class="bullet">1</span>
-                    <span>Setup Target details</span><span><button mat-button class="configure"
+                    <span>Configure Spanner Database
+                        <mat-icon class="configure" matTooltip="Configure the database in Spanner you want this migration to write to (up till now only GCP Project ID and Spanner Instance name have been configured.)">info</mat-icon></span>
+                    <span><button mat-button class="configure"
                             (click)="openTargetDetailsForm()" [disabled]="isMigrationInProgress">
                             Configure
                             <mat-icon>edit</mat-icon>
@@ -113,7 +121,9 @@
                 </p>
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && isSharded">
                     <span class="bullet">2</span>
-                    <span>Setup Migration profile</span><span><button mat-button class="configure"
+                    <span>Configure Datastream
+                        <mat-icon class="configure" matTooltip="Datastream will be used to capture change events from the source database. Please ensure you have met the pre-requistes required for setting up Datastream in your GCP environment. ">info</mat-icon></span>
+                    <span><button mat-button class="configure"
                             (click)="openMigrationProfileForm()"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet">
                             Configure
@@ -154,7 +164,9 @@
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
                     <span class="bullet" *ngIf="isSharded">3</span>
                     <span class="bullet" *ngIf="!isSharded">4</span>
-                    <span>Configure Dataflow (Optional) </span><span><button mat-button class="configure"
+                    <span>Configure Dataflow (Optional)
+                        <mat-icon class="configure" matTooltip="Dataflow will be used to perform the actual migration of data from source to Spanner. This helps you configure the execution environment for Dataflow jobs e.g VPC.">info</mat-icon></span>
+                    <span><button mat-button class="configure"
                             (click)="openDataflowForm()"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet">
                             Configure
@@ -167,7 +179,9 @@
                 </p>
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && isSharded">
                     <span class="bullet" *ngIf="isSharded">4</span>
-                    <span>Download configuration as JSON </span><span><button mat-button class="configure"
+                    <span>Download configuration as JSON
+                        <mat-icon class="configure" matTooltip="Download the configuration done above as JSON.">info</mat-icon></span>
+                    <span><button mat-button class="configure"
                             (click)="downloadConfiguration()"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet || !isTargetConnectionProfileSet">
                             Download
@@ -237,6 +251,9 @@
                 Dataflow job for shardId: {{ dfJob.key }} - <a [href]="dfJob.value.JobUrl" target="_blank">{{dfJob.value.JobName}}</a>
             </li>
         </span>
+        <br><br>
+        <b>Note: </b>HarbourBridge has orchestrated the migration successfully. For minimal downtime migrations, it is safe to close HarbourBridge now without affecting the progress of the migration.
+        Please note that HarbourBridge does not save the IDs of the Dataflow jobs created once closed, so please keep copy over the links in the Generated Resources section above before closing HarbourBridge.
     </div>
     <div class="migrate">
         <span *ngIf="!isLowDtMigrationRunning">
