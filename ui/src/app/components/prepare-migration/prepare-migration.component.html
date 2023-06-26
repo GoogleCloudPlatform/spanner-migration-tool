@@ -104,7 +104,7 @@
                 </p>
             </div>
             <div *ngIf="isSharded && (selectedMigrationType === 'bulk') && !(selectedMigrationMode ==='Schema')">
-                <h3>Source databases details:</h3>
+                <mat-card-title>Source databases details:</mat-card-title>
                 <p class="point">
                     <span class="bullet">1</span>
                     <span>Setup Source Connection details
@@ -121,7 +121,7 @@
                 </p>
             </div>
             <div>
-                <h3>Target details:</h3>
+                <mat-card-title>Target details:</mat-card-title>
                 <p class="point">
                     <span class="bullet">1</span>
                     <span>Configure Spanner Database
@@ -207,22 +207,45 @@
                 </p>
             </div>
         </mat-card>
-        <br />
     </div>
-    <div *ngIf="!(selectedMigrationMode ==='Schema') && isSharded">
-        <h3> Source Details</h3>
-        <span><b>Source Database: </b>{{ sourceDatabaseType }}</span><br />
-        <span><b>Number of physical instances configured: </b> {{ numberOfInstances }}</span><br />
-        <span><b>Number of logical shards configured: </b> {{ numberOfShards }}</span><br />
-        <br />
+    <div class="prepare-migration-card" *ngIf="!(selectedMigrationMode ==='Schema') && isSharded">
+        <mat-card>
+            <mat-card-title>Configured Source Details</mat-card-title>
+                <p class="point">
+                    <span class="bullet">1</span>
+                    <span><b>Source Database: </b>{{ sourceDatabaseType }}</span>
+                </p>
+                <p class="point">
+                    <span class="bullet">2</span>
+                    <span><b>Number of physical instances configured: </b> {{ numberOfInstances }}</span>
+                </p>
+                <p class="point">
+                    <span class="bullet">3</span>
+                    <span><b>Number of logical shards configured: </b> {{ numberOfShards }}</span>
+                </p>
+        </mat-card>
     </div>
-    <div *ngIf="isTargetDetailSet">
-        <h3>Target Details</h3>
-        <span><b>Spanner Database: </b>{{ targetDetails.TargetDB }}</span><br />
-        <span><b>Spanner Dialect: </b>{{ dialect }}</span><br />
-        <span><b>Region: </b>{{ region }}</span><br />
-        <span><b>Spanner Instance: </b>{{ instance }} (Nodes: {{nodeCount}}, Processing Units:
-            {{processingUnits}})</span><br />
+    <div class="prepare-migration-card" *ngIf="isTargetDetailSet">
+        <mat-card>
+            <mat-card-title>Configured Target Details</mat-card-title>
+            <p class="point">
+                <span class="bullet">1</span>
+                <span><b>Spanner Database: </b>{{ targetDetails.TargetDB }}</span>
+            </p>
+            <p class="point">
+                <span class="bullet">2</span>
+                <span><b>Spanner Dialect: </b>{{ dialect }}</span>
+            </p>
+            <p class="point">
+                <span class="bullet">3</span>
+                <span><b>Region: </b>{{ region }}</span>
+            </p>
+            <p class="point">
+                <span class="bullet">4</span>
+                <span><b>Spanner Instance: </b>{{ instance }} (Nodes: {{nodeCount}}, Processing Units:
+                    {{processingUnits}})</span>
+            </p>
+        </mat-card>
     </div>
     <div *ngIf="hasSchemaMigrationStarted" class="progress_bar">
         <br>
