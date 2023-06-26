@@ -73,7 +73,7 @@
       <button mat-raised-button type="submit" color="accent" [disabled]="!connectForm.valid" (click)="testConn()">
         Test Connection
       </button>
-      <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid" (click)="connectToDb()">
+      <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid || !isTestConnectionSuccessful" (click)="connectToDb()">
         Connect
       </button>
       <button mat-raised-button [routerLink]="'/'">Cancel</button>

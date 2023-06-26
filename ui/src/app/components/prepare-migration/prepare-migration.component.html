@@ -64,7 +64,7 @@
     </mat-form-field>
     <mat-icon class="configure" [matTooltip]="migrationTypesHelpText.get(selectedMigrationType)!">info</mat-icon>
     <br/>
-    <div class="prepare-migration-card">
+    <div class="mat-card-class">
         <mat-card>
             <mat-card-title>Prerequisites</mat-card-title>
             <mat-card-subtitle>Before we begin, please ensure you have done the following:</mat-card-subtitle>
@@ -86,7 +86,7 @@
             </div>
             </mat-card>
     </div>
-    <div class="prepare-migration-card">
+    <div class="mat-card-class">
         <mat-card>
             <div *ngIf="(connectionType ==='sessionFile') && !(selectedMigrationMode ==='Schema') && !isSharded">
                 <h3>Source database details:</h3>
@@ -208,7 +208,7 @@
             </div>
         </mat-card>
     </div>
-    <div class="prepare-migration-card" *ngIf="!(selectedMigrationMode ==='Schema') && isSharded">
+    <div class="mat-card-class" *ngIf="!(selectedMigrationMode ==='Schema') && isSharded">
         <mat-card>
             <mat-card-title>Configured Source Details</mat-card-title>
                 <p class="point">
@@ -225,7 +225,7 @@
                 </p>
         </mat-card>
     </div>
-    <div class="prepare-migration-card" *ngIf="isTargetDetailSet">
+    <div class="mat-card-class" *ngIf="isTargetDetailSet">
         <mat-card>
             <mat-card-title>Configured Target Details</mat-card-title>
             <p class="point">
