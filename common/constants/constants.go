@@ -71,12 +71,16 @@ const (
 	// Rule types
 	GlobalDataTypeChange = "global_datatype_change"
 	AddIndex             = "add_index"
+
 	//bulk migration type
 	BULK_MIGRATION = "bulk"
 	//dataflow migration type
 	DATAFLOW_MIGRATION = "dataflow"
 	//DMS migration type
-	DMS_MIGRATION       = "dms"
+	DMS_MIGRATION = "dms"
+	//dataproc migration type
+	DATAPROC_MIGRATION = "dproc"
+
 	EditColumnMaxLength = "edit_column_max_length"
-	SESSION_FILE = "sessionFile"
+	SESSION_FILE        = "sessionFile"
 )

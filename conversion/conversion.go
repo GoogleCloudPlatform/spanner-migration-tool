@@ -248,21 +248,21 @@ func performDataprocMigration(sourceProfile profiles.SourceProfile, targetProfil
 
 	//Adding all dataproc configs to a map
 	dataprocConfig := map[string]string{}
-	dataprocConfig["hostname"] = sourceProfile.Conn.Mysql.Host
-	dataprocConfig["port"] = sourceProfile.Conn.Mysql.Port
-	dataprocConfig["user"] = sourceProfile.Conn.Mysql.User
-	dataprocConfig["pwd"] = sourceProfile.Conn.Mysql.Pwd
-	dataprocConfig["targetdb"] = targetProfile.Dc.TargetDB
+	dataprocConfig["hostname"] = sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.Host
+	dataprocConfig["port"] = sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.Port
+	dataprocConfig["user"] = sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.User
+	dataprocConfig["pwd"] = sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.Password
+	dataprocConfig["targetdb"] = targetProfile.Conn.Sp.Dbname
 	dataprocConfig["instance"] = targetProfile.Conn.Sp.Instance
 	dataprocConfig["project"] = targetProfile.Conn.Sp.Project
-	if len(targetProfile.Dc.Hostname) > 1 {
-		dataprocConfig["hostname"] = targetProfile.Dc.Hostname
+	if len(sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Hostname) > 1 {
+		dataprocConfig["hostname"] = sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Hostname
 	}
-	if len(targetProfile.Dc.Port) > 1 {
-		dataprocConfig["port"] = targetProfile.Dc.Port
+	if len(sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Port) > 1 {
+		dataprocConfig["port"] = sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Port
 	}
-	if len(targetProfile.Dc.Subnetwork) > 1 {
-		dataprocConfig["subnet"] = targetProfile.Dc.Subnetwork
+	if len(sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Subnetwork) > 1 {
+		dataprocConfig["subnet"] = sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Subnetwork
 	}
 
 	err := common.ProcessDataWithDataproc(conv, infoSchema, dataprocConfig)
@@ -301,15 +301,17 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 	case profiles.SourceProfileTypeConfig:
 		////There are three cases to cover here, bulk migrations and sharded migrations (and later DMS)
 		//We provide an if-else based handling for each within the sharded code branch
-		//This will be determined via the configType, which can be "bulk", "dataflow" or "dms"
+		//This will be determined via the configType, which can be "bulk", "dataflow", "dms" or "dataproc"
 		if sourceProfile.Config.ConfigType == constants.BULK_MIGRATION {
 			return dataFromDatabaseForBulkMigration(sourceProfile, targetProfile, config, conv, client)
 		} else if sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
 			return dataFromDatabaseForDataflowMigration(targetProfile, ctx, sourceProfile, conv)
 		} else if sourceProfile.Config.ConfigType == constants.DMS_MIGRATION {
 			return dataFromDatabaseForDMSMigration()
+		} else if sourceProfile.Config.ConfigType == constants.DATAPROC_MIGRATION {
+			return dataFromDatabaseForDataprocMigration(sourceProfile, targetProfile, config, conv, client)
 		} else {
-			return nil, fmt.Errorf("configType should be one of 'bulk', 'dataflow' or 'dms'")
+			return nil, fmt.Errorf("configType should be one of 'bulk', 'dataflow', 'dms' or 'dataproc'")
 		}
 	default:
 		infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
@@ -332,9 +334,6 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			}
 			return bw, nil
 		}
-		if sourceProfile.Conn.Dataproc {
-			return performDataprocMigration(sourceProfile, targetProfile, config, conv, client, infoSchema)
-		}
 		return performSnapshotMigration(config, conv, client, infoSchema), nil
 	}
 }
@@ -342,6 +341,17 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 // TODO: Define the data processing logic for DMS migrations here.
 func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 	return nil, fmt.Errorf("dms configType is not implemented yet, please use one of 'bulk' or 'dataflow'")
+}
+
+// TODO: Add sharding support
+// Perform dataproc migration via dataflow
+func dataFromDatabaseForDataprocMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
+	schemaSource := sourceProfile.Config.ShardConfigurationDataproc.SchemaSource
+	infoSchema, err := getInfoSchemaForShard(schemaSource, sourceProfile.Driver, targetProfile)
+	if err != nil {
+		return nil, err
+	}
+	return performDataprocMigration(sourceProfile, targetProfile, config, conv, client, infoSchema)
 }
 
 // 1. Create batch for each physical shard

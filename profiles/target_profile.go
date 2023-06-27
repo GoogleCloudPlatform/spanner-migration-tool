@@ -53,17 +53,9 @@ type TargetProfileConnection struct {
 	Sp TargetProfileConnectionSpanner
 }
 
-type DataprocConfig struct {
-	Hostname   string
-	Subnetwork string
-	Port       string
-	TargetDB   string
-}
-
 type TargetProfile struct {
 	Ty   TargetProfileType
 	Conn TargetProfileConnection
-	Dc   DataprocConfig
 }
 
 // This expects that GetResourceIds has already been called once and the project, instance and dbName
@@ -137,7 +129,6 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 	}
 
 	sp := TargetProfileConnectionSpanner{}
-	dc := DataprocConfig{}
 	if endpoint, ok := params["endpoint"]; ok {
 		sp.Endpoint = endpoint
 	}
@@ -153,18 +144,6 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 	if dialect, ok := params["dialect"]; ok {
 		sp.Dialect = strings.ToLower(dialect)
 	}
-	if dpsubnet, ok := params["dpsubnetwork"]; ok {
-		dc.Subnetwork = dpsubnet
-	}
-	if dphost, ok := params["dphostname"]; ok {
-		dc.Hostname = dphost
-	}
-	if dpport, ok := params["dpport"]; ok {
-		dc.Port = dpport
-	}
-	if dptarget, ok := params["targetdb"]; ok {
-		dc.TargetDB = dptarget
-	}
 	if sp.Dialect == "" {
 		sp.Dialect = constants.DIALECT_GOOGLESQL
 	} else if sp.Dialect != constants.DIALECT_POSTGRESQL && sp.Dialect != constants.DIALECT_GOOGLESQL {
@@ -172,5 +151,5 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 	}
 
 	conn := TargetProfileConnection{Ty: TargetProfileConnectionTypeSpanner, Sp: sp}
-	return TargetProfile{Ty: TargetProfileTypeConnection, Conn: conn, Dc: dc}, nil
+	return TargetProfile{Ty: TargetProfileTypeConnection, Conn: conn}, nil
 }

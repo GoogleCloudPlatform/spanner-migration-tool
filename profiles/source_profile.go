@@ -456,6 +456,13 @@ type DataflowConfig struct {
 	HostProjectId string `json:"hostProjectId"`
 }
 
+type DataprocConfig struct {
+	Hostname   string
+	Subnetwork string
+	Port       string
+	TargetDB   string
+}
+
 type DataShard struct {
 	DataShardId          string                `json:"dataShardId"`
 	SrcConnectionProfile DatastreamConnProfile `json:"srcConnectionProfile"`
@@ -487,11 +494,19 @@ type ShardConfigurationBulk struct {
 type ShardConfigurationDMS struct {
 }
 
+// TODO: Define the sharding structure for dataproc migrations here.
+type ShardConfigurationDataproc struct {
+	SchemaSource DirectConnectionConfig `json:"schemaSource"`
+	// DataShards     []*DataShard           `json:"dataShards"`
+	DataprocConfig DataprocConfig `json:"dataprocConfig"`
+}
+
 type SourceProfileConfig struct {
 	ConfigType                 string                     `json:"configType"`
 	ShardConfigurationBulk     ShardConfigurationBulk     `json:"shardConfigurationBulk"`
 	ShardConfigurationDataflow ShardConfigurationDataflow `json:"shardConfigurationDataflow"`
 	ShardConfigurationDMS      ShardConfigurationDMS      `json:"shardConfigurationDMS"`
+	ShardConfigurationDataproc ShardConfigurationDataproc `json:"shardConfigurationDataproc"`
 }
 
 func NewSourceProfileConfig(source string, path string) (SourceProfileConfig, error) {
