@@ -106,6 +106,10 @@ func getRoutes() *mux.Router {
 
 	router.HandleFunc("/GetTableWithErrors", getTableWithErrors).Methods("GET")
 
+	//Transformation
+	router.HandleFunc("/applyDataTransformation", applyDataTransformation).Methods("POST")
+	router.HandleFunc("/dropTransformation", dropTransformation).Methods("POST")
+
 	router.PathPrefix("/").Handler(frontendStatic)
 	return router
 }

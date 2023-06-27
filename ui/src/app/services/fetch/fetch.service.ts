@@ -16,7 +16,7 @@ import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
 import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IMigrationProfile } from 'src/app/model/profile'
-import IRule from 'src/app/model/rule'
+import IRule, { ITransformation } from 'src/app/model/rule'
 
 @Injectable({
   providedIn: 'root',
@@ -266,6 +266,14 @@ export class FetchService {
 
   dropRule(ruleId: string) {
     return this.http.post(`${this.url}/dropRule?id=${ruleId}`, {})
+  }
+
+  applyDataTransformation(payload: ITransformation) {
+    return this.http.post(`${this.url}/applyDataTransformation`, payload)
+  }
+
+  dropTransformation(ruleId: string) {
+    return this.http.post(`${this.url}/dropTransformation?id=${ruleId}`, {})
   }
 
   getStandardTypeToPGSQLTypemap() {

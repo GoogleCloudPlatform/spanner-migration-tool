@@ -17,7 +17,6 @@ package mysql
 import (
 	"fmt"
 	"math/big"
-	"math/bits"
 	"strconv"
 	"strings"
 	"time"
@@ -28,13 +27,14 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/transformation"
 )
 
 // ProcessDataRow converts a row of data and writes it out to Spanner.
 // srcTable and srcCols are the source table and columns respectively,
 // and vals contains string data to be converted to appropriate types
 // to send to Spanner. ProcessDataRow is only called in DataMode.
-func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string) {
+func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string, mapSrcColIdToVal map[string]string) {
 	srcTableName := srcSchema.Name
 	srcCols := []string{}
 	for _, colId := range colIds {
@@ -45,7 +45,17 @@ func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSch
 		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 		conv.StatsAddBadRow(srcTableName, conv.DataMode())
 		conv.CollectBadRow(srcTableName, srcCols, vals)
-	} else {
+		return
+	}
+	toddl := InfoSchemaImpl{}.GetToDdl()
+	cvtCols, cvtVals, err = transformation.ProcessDataTransformation(conv, tableId, cvtCols, cvtVals, mapSrcColIdToVal, toddl)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Error while transforming data: %s\n", err))
+		conv.StatsAddBadRow(srcTableName, conv.DataMode())
+		conv.CollectBadRow(srcTableName, srcCols, vals)
+		return
+	}
+	if cvtVals != nil {
 		conv.WriteRow(srcTableName, spTableName, cvtCols, cvtVals)
 	}
 }
@@ -88,12 +98,6 @@ func ConvertData(conv *internal.Conv, tableId string, colIds []string, srcSchema
 		}
 		v = append(v, x)
 		c = append(c, spCol)
-	}
-	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
-		c = append(c, conv.SpSchema[tableId].ColDefs[aux.ColId].Name)
-		v = append(v, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
-		aux.Sequence++
-		conv.SyntheticPKeys[tableId] = aux
 	}
 	return conv.SpSchema[tableId].Name, c, v, nil
 }

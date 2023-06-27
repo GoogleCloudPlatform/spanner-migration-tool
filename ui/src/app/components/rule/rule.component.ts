@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, OnInit, Output, SimpleChanges } from '@
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { DataService } from 'src/app/services/data/data.service'
 import { FlatNode } from 'src/app/model/schema-object-node'
+import { ITransformation } from 'src/app/model/rule'
 
 @Component({
   selector: 'app-rule',
@@ -11,6 +12,7 @@ import { FlatNode } from 'src/app/model/schema-object-node'
 export class RuleComponent implements OnInit {
   dataSource: any = []
   currentDataSource: any = []
+  transformations: ITransformation[] = []
   displayedColumns = ['order', 'name', 'type', 'objectType', 'associatedObject', 'enabled', 'view']
   @Input() currentObject: FlatNode | null = null
   @Output() lengthOfRules: EventEmitter<number> = new EventEmitter<number>()
@@ -22,9 +24,15 @@ export class RuleComponent implements OnInit {
     this.data.rule.subscribe({
       next: (data: any) => {
         this.currentDataSource = data
-        this.updateRules()
+        this.data.transformation.subscribe({
+          next: (data: any) => {
+            this.transformations = data
+            this.updateRules()
+          },
+        })
       },
     })
+
   }
 
   ngOnChanges(): void {
@@ -32,42 +40,53 @@ export class RuleComponent implements OnInit {
   }
 
   updateRules(): void {
-    if (this.currentDataSource) {
-      let globalData: any = []
-      let currentData: any = []
-      globalData = this.currentDataSource.filter(
-        (rule: any) => rule?.Type === 'global_datatype_change' ||
-          (rule?.Type === 'edit_column_max_length' && rule?.AssociatedObjects === 'All table')
-      )
-      if (
-        this.currentObject &&
-        (this.currentObject?.type === 'tableName' || this.currentObject?.type === 'indexName')
-      ) {
-        currentData = this.currentDataSource
-          .filter(
-            (rule: any) =>
-              rule?.AssociatedObjects === this.currentObject?.id ||
-              rule?.AssociatedObjects === this.currentObject?.parentId ||
-              rule?.AssociatedObjects === this.currentObject?.name ||
-              rule?.AssociatedObjects === this.currentObject?.parent
-          )
-          .map((rule: any) => {
-            let tableName: string = ''
-            if (this.currentObject?.type === 'tableName') {
-              tableName = this.currentObject.name
-            } else if (this.currentObject?.type === 'indexName') {
-              tableName = this.currentObject.parent
-            }
-            rule.AssociatedObjects = tableName
-            return rule
-          })
+    if (this.currentDataSource || this.transformations) {
+      if (this.currentDataSource) {
+        let globalData: any = []
+        let currentData: any = []
+        globalData = this.currentDataSource.filter(
+          (rule: any) => rule?.Type === 'global_datatype_change' ||
+            (rule?.Type === 'edit_column_max_length' && rule?.AssociatedObjects === 'All table')
+        )
+        if (
+          this.currentObject &&
+          (this.currentObject?.type === 'tableName' || this.currentObject?.type === 'indexName')
+        ) {
+          currentData = this.filterForCurrentObject(this.currentDataSource)
+        }
+        this.dataSource = [...globalData, ...currentData]
       }
-      this.dataSource = [...globalData, ...currentData]
-      this.lengthOfRules.emit(this.dataSource.length)
-    } else {
+      if (this.transformations) {
+        let currentData = this.filterForCurrentObject(this.transformations)
+        this.dataSource = [...this.dataSource, ...currentData]
+      }
+    } else { 
       this.dataSource = []
-      this.lengthOfRules.emit(0)
     }
+    this.lengthOfRules.emit(this.dataSource.length)
+  }
+
+  filterForCurrentObject(currentDataSource: any) {
+    let currentData: any = []
+    currentData = currentDataSource
+      .filter(
+        (rule: any) =>
+          rule?.AssociatedObjects === this.currentObject?.id ||
+          rule?.AssociatedObjects === this.currentObject?.parentId ||
+          rule?.AssociatedObjects === this.currentObject?.name ||
+          rule?.AssociatedObjects === this.currentObject?.parent
+      )
+      .map((rule: any) => {
+        let tableId: string = ''
+        if (this.currentObject?.type === 'tableName') {
+          tableId = this.currentObject.id
+        } else if (this.currentObject?.type === 'indexName') {
+          tableId = this.currentObject.parentId
+        }
+        rule.AssociatedObjects = tableId
+        return rule
+      })
+      return currentData
   }
 
   openSidenav(): void {

@@ -15,6 +15,8 @@
 package table
 
 import (
+	"strings"
+
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
@@ -51,7 +53,7 @@ func RemoveColumn(tableId string, colId string, conv *internal.Conv) {
 				if fkColPosition == -1 {
 					updatedFks = append(updatedFks, sp.ForeignKeys[j])
 				} else {
-					delete(conv.UsedNames, sp.ForeignKeys[j].Name)
+					delete(conv.UsedNames, strings.ToLower(sp.ForeignKeys[j].Name))
 				}
 			} else {
 				updatedFks = append(updatedFks, sp.ForeignKeys[j])

@@ -28,24 +28,25 @@ import (
 
 // Conv contains all schema and data conversion state.
 type Conv struct {
-	mode           mode                     // Schema mode or data mode.
-	SpSchema       ddl.Schema               // Maps Spanner table name to Spanner schema.
-	SyntheticPKeys map[string]SyntheticPKey // Maps Spanner table name to synthetic primary key (if needed).
-	SrcSchema      map[string]schema.Table  // Maps source-DB table name to schema information.
-	SchemaIssues   map[string]TableIssues   // Maps source-DB table/col to list of schema conversion issues.
-	ToSpanner      map[string]NameAndCols   `json:"-"` // Maps from source-DB table name to Spanner name and column mapping.
-	ToSource       map[string]NameAndCols   `json:"-"` // Maps from Spanner table name to source-DB table name and column mapping.
-	UsedNames      map[string]bool          `json:"-"` // Map storing the names that are already assigned to tables, indices or foreign key contraints.
-	dataSink       func(table string, cols []string, values []interface{})
-	DataFlush      func()              `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
-	Location       *time.Location      // Timezone (for timestamp conversion).
-	sampleBadRows  rowSamples          // Rows that generated errors during conversion.
-	Stats          stats               `json:"-"`
-	TimezoneOffset string              // Timezone offset for timestamp conversion.
-	SpDialect      string              // The dialect of the spanner database to which HarbourBridge is writing.
-	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
-	Audit          Audit               `json:"-"` // Stores the audit information for the database conversion
-	Rules          []Rule              // Stores applied rules during schema conversion
+	mode            mode                     // Schema mode or data mode.
+	SpSchema        ddl.Schema               // Maps Spanner table name to Spanner schema.
+	SyntheticPKeys  map[string]SyntheticPKey // Maps Spanner table name to synthetic primary key (if needed).
+	SrcSchema       map[string]schema.Table  // Maps source-DB table name to schema information.
+	SchemaIssues    map[string]TableIssues   // Maps source-DB table/col to list of schema conversion issues.
+	ToSpanner       map[string]NameAndCols   `json:"-"` // Maps from source-DB table name to Spanner name and column mapping.
+	ToSource        map[string]NameAndCols   `json:"-"` // Maps from Spanner table name to source-DB table name and column mapping.
+	UsedNames       map[string]bool          `json:"-"` // Map storing the names that are already assigned to tables, indices or foreign key contraints.
+	dataSink        func(table string, cols []string, values []interface{})
+	DataFlush       func()              `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
+	Location        *time.Location      // Timezone (for timestamp conversion).
+	sampleBadRows   rowSamples          // Rows that generated errors during conversion.
+	Stats           stats               `json:"-"`
+	TimezoneOffset  string              // Timezone offset for timestamp conversion.
+	SpDialect       string              // The dialect of the spanner database to which HarbourBridge is writing.
+	UniquePKey      map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
+	Audit           Audit               `json:"-"` // Stores the audit information for the database conversion
+	Rules           []Rule              // Stores applied rules during schema conversion
+	Transformations []Transformation    // Stores applied data transformation
 }
 
 type TableIssues struct {
@@ -168,16 +169,16 @@ type Audit struct {
 
 // Stores information related to the streaming migration process.
 type streamingStats struct {
-	Streaming        bool                        // Flag for confirmation of streaming migration.
-	TotalRecords     map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
-	BadRecords       map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
-	DroppedRecords   map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
-	SampleBadRecords []string                    // Records that generated errors during conversion.
-	SampleBadWrites  []string                    // Records that faced errors while writing to Cloud Spanner.
-	DataStreamName   string
-	DataflowJobId    string
+	Streaming                bool                        // Flag for confirmation of streaming migration.
+	TotalRecords             map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
+	BadRecords               map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
+	DroppedRecords           map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
+	SampleBadRecords         []string                    // Records that generated errors during conversion.
+	SampleBadWrites          []string                    // Records that faced errors while writing to Cloud Spanner.
+	DataStreamName           string
+	DataflowJobId            string
 	ShardToDataStreamNameMap map[string]string
-	ShardToDataflowJobMap map[string]string
+	ShardToDataflowJobMap    map[string]string
 }
 
 // Stores information related to rules during schema conversion
@@ -190,6 +191,21 @@ type Rule struct {
 	Enabled           bool
 	Data              interface{}
 	AddedOn           datetime.DateTime
+}
+
+// Stores information related to data transformations
+type Transformation struct {
+	Id                string
+	Name              string
+	Type              string
+	ObjectType        string
+	AssociatedObjects string
+	Enabled           bool
+	AddedOn           datetime.DateTime
+	Function          string
+	Input             interface{}
+	Action            string
+	ActionConfig      interface{}
 }
 
 // MakeConv returns a default-configured Conv.
@@ -217,7 +233,8 @@ func MakeConv() *Conv {
 			StreamingStats: streamingStats{},
 			MigrationType:  migration.MigrationData_SCHEMA_ONLY.Enum(),
 		},
-		Rules: []Rule{},
+		Rules:           []Rule{},
+		Transformations: []Transformation{},
 	}
 }
 

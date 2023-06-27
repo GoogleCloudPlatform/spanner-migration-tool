@@ -76,7 +76,7 @@ export class EditColumnMaxLengthComponent implements OnInit {
           this.viewRuleData = data
           if (this.viewRuleData) {
             this.ruleId = this.viewRuleData?.Id
-            let tableName: string = this.viewRuleData?.AssociatedObjects
+            let tableName: string = this.conv.SpSchema[this.viewRuleData?.AssociatedObjects].Name
             this.editColMaxLengthForm.controls['tableName'].setValue(tableName)
             this.editColMaxLengthForm.controls['spDataType'].setValue(this.viewRuleData?.Data?.spDataType)
             this.editColMaxLengthForm.controls['maxColLength'].setValue(this.viewRuleData?.Data?.spColMaxLength)

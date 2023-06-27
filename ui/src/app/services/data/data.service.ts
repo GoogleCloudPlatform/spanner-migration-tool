@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
 import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
-import IRule from 'src/app/model/rule'
+import IRule, { ITransformation } from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
 import IUpdateTable, { IAddColumn, IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
@@ -32,8 +32,10 @@ export class DataService {
   private currentSessionSub = new BehaviorSubject({} as ISession)
   private isOfflineSub = new BehaviorSubject<boolean>(false)
   private ruleMapSub = new BehaviorSubject<IRule[]>([])
+  private transformationMapSub = new BehaviorSubject<ITransformation[]>([])
 
   rule = this.ruleMapSub.asObservable()
+  transformation = this.transformationMapSub.asObservable()
   conv = this.convSubject.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   conversionRate = this.conversionRateSub
     .asObservable()
@@ -80,6 +82,7 @@ export class DataService {
       next: (res: IConv) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
+        this.transformationMapSub.next(res?.Transformations)
       },
       error: (err: any) => {
         this.clickEvent.closeDatabaseLoader()
@@ -105,6 +108,7 @@ export class DataService {
       next: (res: IConv) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
+        this.transformationMapSub.next(res?.Transformations)
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')
@@ -117,6 +121,7 @@ export class DataService {
       next: (res: IConv) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
+        this.transformationMapSub.next(res?.Transformations)
       },
       error: (err: any) => {
         this.clickEvent.closeDatabaseLoader()
@@ -130,6 +135,7 @@ export class DataService {
       next: (res: IConv) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
+        this.transformationMapSub.next(res?.Transformations)
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')
@@ -143,6 +149,7 @@ export class DataService {
       next: (res: IConv) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
+        this.transformationMapSub.next(res?.Transformations)
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')
@@ -394,6 +401,7 @@ export class DataService {
       next: (res: any) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
+        console.log("Rule", res?.Rules)
         this.getDdl()
         this.snackbar.openSnackBar('Added new rule.', 'Close', 5)
       },
@@ -434,6 +442,7 @@ export class DataService {
           this.convSubject.next(data)
           this.getDdl()
           this.ruleMapSub.next(data?.Rules)
+          this.transformationMapSub.next(data?.Transformations)
           this.snackbar.openSnackBar('Index dropped successfully', 'Close', 5)
           return ''
         }
@@ -492,6 +501,34 @@ export class DataService {
         }
       })
     )
+  }
+
+  applyDataTransformation(payload: ITransformation) {
+    this.fetch.applyDataTransformation(payload).subscribe({
+      next: (res: any) => {
+        this.convSubject.next(res)
+        this.transformationMapSub.next(res?.Transformations)
+        this.getDdl()
+        this.snackbar.openSnackBar('Added new data transformation.', 'Close', 5)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
+      },
+    })
+  }
+
+  dropTransformation(ruleId: string) {
+    return this.fetch.dropTransformation(ruleId).subscribe({
+      next: (res: any) => {
+        this.convSubject.next(res)
+        this.transformationMapSub.next(res?.Transformations)
+        this.getDdl()
+        this.snackbar.openSnackBar('Transformation rule deleted successfully', 'Close', 5)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
+      },
+    })
   }
 
   dropRule(ruleId: string) {

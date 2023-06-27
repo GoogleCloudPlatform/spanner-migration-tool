@@ -123,3 +123,28 @@ export const DataTypes = {
   GoogleStandardSQL : ['BOOL','BYTES','DATE','FLOAT64','INT64','STRING', 'TIMESTAMP', 'NUMERIC', 'JSON'],
   PostgreSQL : ['BOOL','BYTEA','DATE','FLOAT8','INT8','VARCHAR', 'TIMESTAMPTZ', 'NUMERIC', 'JSONB']
 }
+
+export const Transformation = {
+  Functions: ['noOp', 'generateUUID', 'toTimestamp', 'mathOp', 'logicalOp', 'compare'],
+  ZeroOperandFunction: ['generateUUID'],
+  UnaryFunction: ['noOp', 'toTimestamp'],
+  BinaryFunction: ['mathOp', 'logicalOp', 'compare'],
+  InputType: ['context','variable', 'static', 'source-column'],
+  MathOperators : [
+    { value: 'add', display: '+' },
+    { value: 'subtract', display: '-' },
+    { value: 'multiply', display: '*' },
+    { value: 'divide', display: '/' },
+  ],
+  LogicalOperators : [
+    { value: 'and', display: '&&' },
+    { value: 'or', display: '||' },
+    { value: 'xor', display: '^' },
+    { value: 'not', display: '!' },
+  ],
+  CompareOperators : [
+    { value: 'lessThan', display: '<' },
+    { value: 'moreThan', display: '>' },
+    { value: 'equal', display: '==' },
+  ],
+}

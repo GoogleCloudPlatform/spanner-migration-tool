@@ -1,0 +1,158 @@
+<div [formGroup]="applyDataTransformationForm">
+    <mat-form-field appearance="outline">
+        <mat-label>For Table</mat-label>
+        <mat-select matSelect class="input-field" (selectionChange)="selectedTableChange($event.value)"
+            formControlName="tableName">
+            <mat-option *ngFor="let table of tableDetails" [value]="table.value">{{ table.display }}</mat-option>
+        </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+        <mat-label>Function</mat-label>
+        <mat-select matSelect class="input-field" formControlName="function"
+            (selectionChange)="onFunctionSelectionChange($event.value)">
+            <mat-option *ngFor="let function of functions" [value]="function">{{ function }}</mat-option>
+        </mat-select>
+    </mat-form-field>
+    <div *ngIf="binaryFunction.indexOf(selectedFunction)>-1">
+        <mat-form-field appearance="outline">
+            <mat-label>Operator</mat-label>
+            <mat-select matSelect class="input-field" formControlName="operator" [(ngModel)]="selectedOperator"
+                required="true" (selectionChange)="onOperatorChange()">
+                <mat-option *ngFor="let operator of operatorArray" [value]="operator.value">{{ operator.display }}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+    </div>
+    <div
+        *ngIf="zeroOperandFunction.indexOf(selectedFunction) === -1 || (binaryFunction.indexOf(selectedFunction) > -1 && selectedOperator !== 'not')">
+        <h3>Input definition</h3>
+        <mat-form-field appearance="outline">
+            <mat-label>Input Type</mat-label>
+            <mat-select matSelect class="input-field" formControlName="firstInputType"
+                [(ngModel)]="selectedFirstInputType" (selectionChange)="updateInputValidators('first')">
+                <mat-option *ngFor="let type of inputType" [value]="type">{{ type }}</mat-option>
+            </mat-select>
+        </mat-form-field>
+
+        <div *ngIf="selectedFirstInputType === 'source-column' || selectedFirstInputType === 'variable'">
+            <mat-form-field appearance="outline">
+                <mat-label>{{ selectedFirstInputType === 'source-column' ? 'Column name' : 'Variable name' }}</mat-label>
+                <mat-select matSelect class="input-field"
+                    [formControlName]="selectedFirstInputType === 'source-column' ? 'firstColumnName' : 'firstVariableName'"
+                    [(ngModel)]="selectedFirstInputValue">
+                    <mat-option *ngFor="let option of getInputOptions(selectedFirstInputType)" [value]="option.value">{{
+                        option.display }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+        </div>
+
+        <div *ngIf="selectedFirstInputType==='static'">
+            <mat-form-field appearance="outline">
+                <mat-label>Static datatype</mat-label>
+                <mat-select matSelect class="input-field" formControlName="firstStaticDataType"
+                    [(ngModel)]="selectedFirstStaticDataType">
+                    <mat-option *ngFor="let datatype of datatypes" [value]="datatype">{{
+                        datatype }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+                <mat-label>Static value</mat-label>
+                <input matInput class="input-field" formControlName="firstStaticValue" />
+            </mat-form-field>
+        </div>
+
+        <div *ngIf="binaryFunction.indexOf(selectedFunction) > -1 && selectedOperator !== 'not'">
+            <mat-form-field appearance="outline">
+                <mat-label>Second Input Type</mat-label>
+                <mat-select matSelect class="input-field" formControlName="secondInputType"
+                    [(ngModel)]="selectedSecondInputType" (selectionChange)="updateInputValidators('second')">
+                    <mat-option *ngFor="let type of inputType" [value]="type">{{ type }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <div *ngIf="selectedSecondInputType === 'source-column' || selectedSecondInputType === 'variable'">
+                <mat-form-field appearance="outline">
+                    <mat-label>{{ selectedSecondInputType === 'source-column' ? 'Column name' : 'Variable name' }}</mat-label>
+                    <mat-select matSelect class="input-field"
+                        [formControlName]="selectedSecondInputType === 'source-column' ? 'secondColumnName' : 'secondVariableName'"
+                        [(ngModel)]="selectedSecondInputValue">
+                        <mat-option *ngFor="let option of getInputOptions(selectedSecondInputType)"
+                            [value]="option.value">{{ option.display }}</mat-option>
+                    </mat-select>
+                </mat-form-field>
+            </div>
+            <div *ngIf="selectedSecondInputType==='static'">
+                <mat-form-field appearance="outline">
+                    <mat-label>Static datatype</mat-label>
+                    <mat-select matSelect class="input-field" formControlName="secondStaticDataType"
+                        [(ngModel)]="selectedSecondStaticDataType">
+                        <mat-option *ngFor="let datatype of datatypes" [value]="datatype">{{
+                            datatype }}</mat-option>
+                    </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                    <mat-label>Static value</mat-label>
+                    <input matInput class="input-field" formControlName="secondStaticValue" />
+                </mat-form-field>
+            </div>
+        </div>
+    </div>
+    <div>
+        <h3>Output definition</h3>
+        <mat-form-field appearance="outline">
+            <mat-label>Output Action</mat-label>
+            <mat-select matSelect class="input-field" formControlName="outputAction" [(ngModel)]="selectedOutputAction"
+                required (selectionChange)="addValidators()">
+                <mat-option *ngFor="let action of outputAction" [value]="action.value">{{ action.displayName }}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+        <div *ngIf="selectedOutputAction==='filter'">
+            <mat-form-field appearance="outline">
+                <mat-label>Filter Action</mat-label>
+                <mat-select matSelect class="input-field" formControlName="filterAction"
+                    [(ngModel)]="selectedFilterAction" required>
+                    <mat-option *ngFor="let option of filterOptionList" [value]="option.value">{{ option.displayName }}
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
+        </div>
+        <div *ngIf="selectedOutputAction==='writeToColumn'">
+            <mat-form-field appearance="outline">
+                <mat-label>Spanner Column</mat-label>
+                <mat-select matSelect class="input-field" formControlName="outputColumn"
+                    [(ngModel)]="selectedOutputColumn" required>
+                    <mat-option *ngFor="let spannerColumn of spannerColumns" [value]="spannerColumn.value">{{
+                        spannerColumn.display }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+        </div>
+        <div *ngIf="selectedOutputAction==='writeToVar'">
+            <h4>New Variable</h4>
+            <mat-form-field appearance="outline">
+                <mat-label>Variable datatype</mat-label>
+                <mat-select matSelect class="input-field" formControlName="outputVarDatatype"
+                    [(ngModel)]="selectedOutputDatatype" required>
+                    <mat-option *ngFor="let datatype of datatypes" [value]="datatype">{{
+                        datatype }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+                <mat-label>Variable name</mat-label>
+                <input matInput class="input-field" formControlName="outputVarValue" />
+            </mat-form-field>
+        </div>
+    </div>
+
+
+    <div mat-dialog-actions class="buttons-container" *ngIf="!viewRuleFlag">
+        <button class="bottom-btn" mat-raised-button type="submit" color="primary"
+            [disabled]="!(applyDataTransformationForm.valid)" (click)="applyDataTransformation()">
+            APPLY
+        </button>
+    </div>
+    <div *ngIf="viewRuleFlag">
+        <button class="bottom-btn" mat-raised-button type="submit" color="primary" (click)="deleteRule()">
+            DELETE RULE
+        </button>
+    </div>

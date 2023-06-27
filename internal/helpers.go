@@ -73,6 +73,9 @@ func GenerateIndexesId() string {
 func GenerateRuleId() string {
 	return GenerateId("r")
 }
+func GenerateTransformationId() string {
+	return GenerateId("t")
+}
 
 func GetSrcColNameIdMap(srcs schema.Table) map[string]string {
 	if len(srcs.ColNameIdMap) > 0 {

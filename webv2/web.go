@@ -372,9 +372,9 @@ func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		Location: sessionState.Region,
-		Network: dataflowLocation.DataflowConfig.Network,
-		Subnetwork: dataflowLocation.DataflowConfig.Subnetwork,
+		Location:      sessionState.Region,
+		Network:       dataflowLocation.DataflowConfig.Network,
+		Subnetwork:    dataflowLocation.DataflowConfig.Subnetwork,
 		HostProjectId: dataflowLocation.DataflowConfig.HostProjectId,
 	}
 	w.WriteHeader(http.StatusOK)
@@ -398,9 +398,9 @@ func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request)
 	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
 	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		Location: sessionState.Region,
-		Network: "",
-		Subnetwork: "",
+		Location:      sessionState.Region,
+		Network:       "",
+		Subnetwork:    "",
 		HostProjectId: sessionState.GCPProjectID,
 	}
 	w.WriteHeader(http.StatusOK)
@@ -805,8 +805,33 @@ func getTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(tableIdName)
 }
 
+func applyDataTransformation(w http.ResponseWriter, r *http.Request) {
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var transformation internal.Transformation
+	err = json.Unmarshal(reqBody, &transformation)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	sessionState := session.GetSessionState()
+	transformationId := internal.GenerateTransformationId()
+	transformation.Id = transformationId
+	sessionState.Conv.Transformations = append(sessionState.Conv.Transformations, transformation)
+	session.UpdateSessionFile()
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
 // applyRule allows to add rules that changes the schema
-// currently it supports two types of operations viz. SetGlobalDataType and AddIndex
+// currently it supports three types of operations viz. SetGlobalDataType, AddIndex and SetColumnLength
 func applyRule(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -871,9 +896,41 @@ func applyRule(w http.ResponseWriter, r *http.Request) {
 
 	ruleId := internal.GenerateRuleId()
 	rule.Id = ruleId
-
 	sessionState := session.GetSessionState()
 	sessionState.Conv.Rules = append(sessionState.Conv.Rules, rule)
+	session.UpdateSessionFile()
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
+func dropTransformation(w http.ResponseWriter, r *http.Request) {
+	ruleId := r.FormValue("id")
+	if ruleId == "" {
+		http.Error(w, "Transformation id is empty", http.StatusBadRequest)
+		return
+	}
+	sessionState := session.GetSessionState()
+	conv := sessionState.Conv
+	position := -1
+
+	for i, t := range conv.Transformations {
+		if t.Id == ruleId {
+			position = i
+			break
+		}
+	}
+	if position == -1 {
+		http.Error(w, "Transformation to be deleted not found", http.StatusBadRequest)
+		return
+	}
+	sessionState.Conv.Transformations = append(conv.Transformations[:position], conv.Transformations[position+1:]...)
+	if len(sessionState.Conv.Transformations) == 0 {
+		sessionState.Conv.Transformations = nil
+	}
 	session.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,

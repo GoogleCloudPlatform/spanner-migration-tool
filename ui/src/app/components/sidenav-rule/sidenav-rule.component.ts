@@ -32,7 +32,7 @@ export class SidenavRuleComponent implements OnInit {
     this.sidenav.displayRuleFlag.subscribe((flag: boolean) => {
       this.viewRuleFlag = flag
       if (this.viewRuleFlag) {
-        this.sidenav.ruleData.subscribe((data: IRule) => {
+        this.sidenav.ruleData.subscribe((data: any) => {
           this.viewRuleData = data
           this.setViewRuleData(this.viewRuleData)
         })
@@ -48,7 +48,7 @@ export class SidenavRuleComponent implements OnInit {
     })
   }
 
-  setViewRuleData(data: IRule) {
+  setViewRuleData(data: any) {
     this.ruleForm.disable()
     this.ruleForm.controls['ruleName'].setValue(data?.Name)
     this.ruleForm.controls['ruleType'].setValue(
@@ -74,6 +74,7 @@ export class SidenavRuleComponent implements OnInit {
       case 'add_index': return 'addIndex'
       case 'global_datatype_change': return'globalDataType'
       case 'edit_column_max_length': return 'changeMaxLength'
+      case 'apply_data_transformation': return 'applyDataTransformation'
     }
     return ''
   }

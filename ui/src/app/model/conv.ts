@@ -1,4 +1,4 @@
-import IRule from './rule'
+import IRule, { ITransformation } from './rule'
 
 export default interface IConv {
   SpSchema: Record<string, ICreateTable>
@@ -6,6 +6,7 @@ export default interface IConv {
   SrcSchema: Record<string, ITable>
   SchemaIssues: Record<string, number>[]
   Rules: IRule[]
+  Transformations: ITransformation[]
   ToSpanner: Record<string, NameAndCols>
   ToSource: Record<string, NameAndCols>
   UsedNames: Record<string, boolean>
