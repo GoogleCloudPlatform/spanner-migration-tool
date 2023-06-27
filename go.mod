@@ -5,7 +5,7 @@ go 1.19
 require (
 	cloud.google.com/go v0.110.2
 	cloud.google.com/go/dataflow v0.8.0
-	cloud.google.com/go/dataproc v1.8.0
+	cloud.google.com/go/dataproc v1.12.0
 	cloud.google.com/go/datastream v1.8.0
 	cloud.google.com/go/spanner v1.45.0
 	cloud.google.com/go/storage v1.29.0
