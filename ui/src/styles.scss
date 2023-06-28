@@ -135,8 +135,8 @@ body {
   }
 }
 
-.prerequisites {
-  padding: 0;
+.mat-card-class {
+  padding: 10px;
   width: 600px;
   .mat-card-title {
     font-size: 13pt;
@@ -341,6 +341,7 @@ body {
 .spanner-tab-link {
   color: #1967d2;
   font-weight: 400;
+  cursor: pointer;
 }
 #middle-column-toggle-button {
   z-index: 100;
