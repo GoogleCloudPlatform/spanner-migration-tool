@@ -181,7 +181,7 @@ func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard, tableList []stri
 	for _, db := range dbList {
 		//create include db object
 		includeDb := &datastreampb.MysqlDatabase{
-			Database: db.DbName,
+			Database:    db.DbName,
 			MysqlTables: mysqlTables,
 		}
 		includeDbList = append(includeDbList, includeDb)
@@ -189,7 +189,7 @@ func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard, tableList []stri
 	//TODO: Clean up fmt.Printf logs and replace them with zap logger.
 	fmt.Printf("Include DB List for datastream: %+v\n", includeDbList)
 	mysqlSrcCfg := &datastreampb.MysqlSourceConfig{
-		IncludeObjects:                         &datastreampb.MysqlRdbms{MysqlDatabases: includeDbList},
+		IncludeObjects:             &datastreampb.MysqlRdbms{MysqlDatabases: includeDbList},
 		MaxConcurrentBackfillTasks: 50,
 	}
 	return &datastreampb.SourceConfig_MysqlSourceConfig{MysqlSourceConfig: mysqlSrcCfg}
@@ -242,7 +242,7 @@ func getPostgreSQLSourceStreamConfig(properties string) (*datastreampb.SourceCon
 func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, datastreamCfg DatastreamCfg) error {
 	switch sourceProfile.Driver {
 	case constants.MYSQL:
-		// For MySQL, it supports sharded migrations and batching databases in a physical machine into a single 
+		// For MySQL, it supports sharded migrations and batching databases in a physical machine into a single
 		//Datastream, so dbList is passed.
 		srcCfg.SourceStreamConfig = getMysqlSourceStreamConfig(dbList, datastreamCfg.tableList)
 		return nil
@@ -494,13 +494,14 @@ func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, pr
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-03-07-00_RC00/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
-			"inputFilePattern":              inputFilePattern,
-			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
-			"instanceId":                    instance,
-			"databaseId":                    dbName,
-			"sessionFilePath":               streamingCfg.TmpDir + "session.json",
-			"deadLetterQueueDirectory":      inputFilePattern + "dlq",
-			"transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
+			"inputFilePattern":         inputFilePattern,
+			"streamName":               fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
+			"instanceId":               instance,
+			"databaseId":               dbName,
+			"sessionFilePath":          streamingCfg.TmpDir + "session.json",
+			"deadLetterQueueDirectory": inputFilePattern + "dlq",
+			// TODO(khajanchi): Uncomment this one dataflow template is released
+			// "transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			MaxWorkers:            maxWorkers,
