@@ -21,6 +21,7 @@
             </mat-option>
           </mat-select>
         </mat-form-field>
+        <mat-icon class="configure" matTooltip="Configure multiple source database instances (shards) and consolidate them by migrating to a single Cloud Spanner instance to take advantage of Spanner's horizontal scalability and consistency semantics.">info</mat-icon>
         <br>
         <b *ngIf="(connectForm.value.isSharded)">Note: For sharded migrations, please enter below the details of the
           shard you want Harbourbridge to read the schema from. The complete connection configuration of all the shards
