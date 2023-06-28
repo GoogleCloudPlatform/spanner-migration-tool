@@ -154,7 +154,9 @@
                 </p>
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && !isSharded">
                     <span class="bullet">2</span>
-                    <span>Setup source connection profile</span><span><button mat-button class="configure"
+                    <span>Setup source connection profile
+                        <mat-icon class="configure" matTooltip="Configure the source connection profile to allow Datastream to read from your source database">info</mat-icon></span>
+                    <span><button mat-button class="configure"
                             (click)="openConnectionProfileForm(true)"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet">
                             Configure
@@ -167,7 +169,9 @@
                 </p>
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && !isSharded">
                     <span class="bullet">3</span>
-                    <span>Setup target connection profile</span><span><button mat-button class="configure"
+                    <span>Setup target connection profile
+                    <mat-icon class="configure" matTooltip="Create a connection profile for datastream to write to a GCS bucket. Harbourbridge will automatically create the bucket for you.">info</mat-icon></span>
+                    <span><button mat-button class="configure"
                             (click)="openConnectionProfileForm(false)"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet">
                             Configure

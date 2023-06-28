@@ -4,7 +4,12 @@
     alt="database-loader-gif"
     class="loader-gif"
   />
-  <h3 *ngIf="loaderType === 'direct'">Connecting to {{ databaseName }} database...</h3>
+  <h3 *ngIf="loaderType === 'direct'">Populating schema for {{ databaseName }} database. Please wait...</h3>
+  <h4 *ngIf="loaderType === 'direct'">Tip: Harbourbridge will read the information schema at source and automatically map it to Cloud Spanner</h4>
+
+  <h3 *ngIf="loaderType === 'test-connection'">Testing connection to {{ databaseName }} database...</h3>
+  <h4 *ngIf="loaderType === 'test-connection'">Tip: Harbourbridge is attempting to ping the source database, it will retry a couple of times before timing out.</h4>
+
   <h3 *ngIf="loaderType === 'dump'">Loading the dump file...</h3>
   <h3 *ngIf="loaderType === 'session'">Loading the session file...</h3>
   <h5>{{ timeElapsed }} seconds have elapsed</h5>

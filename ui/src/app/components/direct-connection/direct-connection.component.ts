@@ -72,6 +72,7 @@ export class DirectConnectionComponent implements OnInit {
   }
 
   testConn() {
+    this.clickEvent.openDatabaseLoader('test-connection', this.connectForm.value.dbName)
     const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect } = this.connectForm.value
     localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value))
     const config: IDbConfig = { dbEngine, isSharded, hostName, port, userName, password, dbName }
@@ -83,6 +84,7 @@ export class DirectConnectionComponent implements OnInit {
       error: (e) => { 
         this.isTestConnectionSuccessful = false
         this.snackbarService.openSnackBar(e.error, 'Close')
+        this.clickEvent.closeDatabaseLoader()
       }
     })
   }
