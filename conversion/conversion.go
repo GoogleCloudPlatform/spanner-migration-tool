@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -48,6 +49,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/cloudspannerecosystem/harbourbridge/dproc"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
@@ -242,35 +244,72 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 	return batchWriter
 }
 
+func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, conv *internal.Conv, infoSchema common.InfoSchema) error {
+
+	orderTableNamesByID := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
+	numberOfTables := int64(len(orderTableNamesByID))
+
+	if !conv.Audit.DryRun {
+		conv.Audit.Progress = *internal.NewProgress(numberOfTables, "Writing data to Spanner via Dataproc", internal.Verbose(), false, int(internal.DataWriteInProgress))
+		fmt.Println()
+	}
+
+	// Extract location from subnet
+	subnet := sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Subnetwork
+	region_string := subnet[0:strings.Index(subnet, "/subnetworks")]
+	location := subnet[strings.LastIndex(region_string, "/")+1 : strings.LastIndex(subnet, "/subnetworks")]
+
+	batchClient, err := dproc.CreateDataprocBatchClient(location)
+	if err != nil {
+		log.Fatalf("error creating the batch client: %s\n", err)
+		return err
+	}
+	fmt.Println("Dataproc batch client created")
+	defer batchClient.Close()
+
+	progressCtr := 0
+	for _, spannerTableID := range orderTableNamesByID {
+
+		srcTable := conv.SrcSchema[spannerTableID].Name
+
+		srcSchema := conv.SrcSchema[spannerTableID]
+
+		primaryKeys, _, _ := infoSchema.GetConstraints(conv, common.SchemaAndName{Name: srcTable, Schema: srcSchema.Schema})
+
+		dataprocRequestParams, err := dproc.GetDataprocRequestParams(sourceProfile, targetProfile, srcSchema.Schema, srcTable, strings.Join(primaryKeys, ","), location, subnet)
+		if err != nil {
+			return err
+		}
+
+		id, err := dproc.TriggerDataprocTemplate(batchClient, srcTable, srcSchema.Schema, strings.Join(primaryKeys, ","), dataprocRequestParams)
+		if err != nil {
+			return err
+		}
+		if conv.DataFlush != nil {
+			conv.DataFlush()
+		}
+
+		if !conv.Audit.DryRun {
+			progressCtr++
+			conv.Audit.Progress.MaybeReport(int64(progressCtr))
+		}
+
+		//TODO: eenclona@ will remove hardcoded us-central1
+		url := fmt.Sprintf("https://pantheon.corp.google.com/dataproc/batches/us-central1/%s", id)
+		conv.Audit.DataprocStats.DataprocJobUrls = append(conv.Audit.DataprocStats.DataprocJobUrls, url)
+		conv.Audit.DataprocStats.DataprocJobIds = append(conv.Audit.DataprocStats.DataprocJobIds, id)
+	}
+
+	return nil
+}
+
 func performDataprocMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
 	common.SetRowStats(conv, infoSchema)
 	batchWriter := populateDataConv(conv, config, client)
-
-	//Adding all dataproc configs to a map
-	dataprocConfig := map[string]string{}
-	dataprocConfig["hostname"] = sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.Host
-	dataprocConfig["port"] = sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.Port
-	dataprocConfig["user"] = sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.User
-	dataprocConfig["pwd"] = sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.Password
-	dataprocConfig["targetdb"] = targetProfile.Conn.Sp.Dbname
-	dataprocConfig["instance"] = targetProfile.Conn.Sp.Instance
-	dataprocConfig["project"] = targetProfile.Conn.Sp.Project
-	if len(sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Hostname) > 1 {
-		dataprocConfig["hostname"] = sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Hostname
-	}
-	if len(sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Port) > 1 {
-		dataprocConfig["port"] = sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Port
-	}
-	if len(sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Subnetwork) > 1 {
-		dataprocConfig["subnet"] = sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Subnetwork
-	}
-
-	err := common.ProcessDataWithDataproc(conv, infoSchema, dataprocConfig)
-
+	err := processDataWithDataproc(sourceProfile, targetProfile, conv, infoSchema)
 	if err != nil {
 		return batchWriter, err
 	}
-
 	batchWriter.Flush()
 	return batchWriter, nil
 }

@@ -17,8 +17,6 @@ package common
 import (
 	"context"
 	"fmt"
-	"log"
-	"strings"
 	"sync"
 
 	sp "cloud.google.com/go/spanner"
@@ -26,10 +24,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-
-	dataproc "cloud.google.com/go/dataproc/apiv1"
-	"cloud.google.com/go/dataproc/apiv1/dataprocpb"
-	"google.golang.org/api/option"
 )
 
 const DefaultWorkers = 20 // Default to 20 - observed diminishing returns above this value
@@ -137,141 +131,6 @@ func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
 			conv.DataFlush()
 		}
 	}
-}
-
-func ProcessDataWithDataproc(conv *internal.Conv, infoSchema InfoSchema, dataprocConfig map[string]string) error {
-
-	orderTableNamesByID := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
-	numberOfTables := int64(len(orderTableNamesByID))
-
-	if !conv.Audit.DryRun {
-		conv.Audit.Progress = *internal.NewProgress(numberOfTables, "Writing data to Spanner via Dataproc", internal.Verbose(), false, int(internal.DataWriteInProgress))
-	}
-
-	progressCtr := 0
-
-	for _, spannerTableID := range orderTableNamesByID {
-
-		srcTable := conv.SrcSchema[spannerTableID].Name
-
-		srcSchema := conv.SrcSchema[spannerTableID]
-
-		primaryKeys, _, _ := infoSchema.GetConstraints(conv, SchemaAndName{Name: srcTable, Schema: srcSchema.Schema})
-
-		id, err := TriggerDataprocTemplate(srcTable, srcSchema.Schema, strings.Join(primaryKeys, ","), dataprocConfig)
-		if err != nil {
-			return err
-		}
-		if conv.DataFlush != nil {
-			conv.DataFlush()
-		}
-
-		if !conv.Audit.DryRun {
-			progressCtr++
-			conv.Audit.Progress.MaybeReport(int64(progressCtr))
-		}
-
-		//TODO: eenclona@ will remove hardcoded us-central1 to be parametarized
-		url := fmt.Sprintf("https://pantheon.corp.google.com/dataproc/batches/us-central1/%s", id)
-		conv.Audit.DataprocStats.DataprocJobUrls = append(conv.Audit.DataprocStats.DataprocJobUrls, url)
-		conv.Audit.DataprocStats.DataprocJobIds = append(conv.Audit.DataprocStats.DataprocJobIds, id)
-
-	}
-
-	return nil
-}
-
-// Function to trigger dataproc template
-func TriggerDataprocTemplate(srcTable string, srcSchema string, primaryKeys string, dataprocConfig map[string]string) (string, error) {
-	ctx := context.Background()
-
-	println("Triggering Dataproc template for " + srcSchema + "." + srcTable)
-
-	// Extract location from subnet
-	subnet := dataprocConfig["subnet"]
-	region_string := subnet[0:strings.Index(subnet, "/subnetworks")]
-	location := subnet[strings.LastIndex(region_string, "/")+1 : strings.LastIndex(subnet, "/subnetworks")]
-
-	// Create the batch controller cliermnt.
-	batchEndpoint := fmt.Sprintf("%s-dataproc.googleapis.com:443", location)
-	batchClient, err := dataproc.NewBatchControllerClient(ctx, option.WithEndpoint(batchEndpoint))
-
-	if err != nil {
-		log.Fatalf("error creating the batch client: %s\n", err)
-		return "", err
-	}
-
-	defer batchClient.Close()
-
-	req := &dataprocpb.CreateBatchRequest{
-		Parent: "projects/" + dataprocConfig["project"] + "/locations/" + location,
-		Batch: &dataprocpb.Batch{
-			RuntimeConfig: &dataprocpb.RuntimeConfig{
-				Version: "1.1",
-			},
-			EnvironmentConfig: &dataprocpb.EnvironmentConfig{
-				ExecutionConfig: &dataprocpb.ExecutionConfig{
-					Network: &dataprocpb.ExecutionConfig_SubnetworkUri{
-						SubnetworkUri: dataprocConfig["subnet"],
-					},
-				},
-			},
-			BatchConfig: &dataprocpb.Batch_SparkBatch{
-				SparkBatch: &dataprocpb.SparkBatch{
-					Driver: &dataprocpb.SparkBatch_MainClass{
-						MainClass: "com.google.cloud.dataproc.templates.main.DataProcTemplate",
-					},
-					Args: []string{"--template",
-						"JDBCTOSPANNER",
-						"--templateProperty",
-						"project.id=" + dataprocConfig["project"],
-						"--templateProperty",
-						"jdbctospanner.jdbc.url=jdbc:mysql://" + dataprocConfig["hostname"] + ":" + dataprocConfig["port"] + "/" + srcSchema + "?user=" + dataprocConfig["user"] + "&password=" + dataprocConfig["pwd"],
-						"--templateProperty",
-						"jdbctospanner.jdbc.driver.class.name=com.mysql.jdbc.Driver",
-						"--templateProperty",
-						"jdbctospanner.sql=select * from " + srcSchema + "." + srcTable,
-						"--templateProperty",
-						"jdbctospanner.output.instance=" + dataprocConfig["instance"],
-						"--templateProperty",
-						"jdbctospanner.output.database=" + dataprocConfig["targetdb"],
-						"--templateProperty",
-						"jdbctospanner.output.table=" + srcTable,
-						"--templateProperty",
-						"jdbctospanner.output.primaryKey=" + primaryKeys,
-						"--templateProperty",
-						"jdbctospanner.output.saveMode=Append",
-						"--templateProperty",
-						"jdbctospanner.output.batch.size=500",
-						"--templateProperty",
-						"jdbctospanner.jdbc.fetchsize=1000"},
-					JarFileUris: []string{"file:///usr/lib/spark/external/spark-avro.jar",
-						"gs://dataproc-templates-binaries/latest/java/dataproc-templates.jar",
-						"gs://dataproc-templates/jars/mysql-connector-java.jar"},
-				},
-			},
-		},
-	}
-
-	op, err := batchClient.CreateBatch(ctx, req)
-	if err != nil {
-		println("error creating the batch: " + err.Error() + " \n")
-		return "", err
-	}
-
-	resp, err := op.Wait(ctx)
-	if err != nil {
-		println("error completing the batch: " + err.Error() + " \n")
-		println("Failing data migration from Dataproc template for " + srcSchema + "." + srcTable + " with batch id: " + resp.GetName())
-		return resp.GetName(), err
-	}
-
-	batchName := resp.GetName()
-
-	splittedBatchName := strings.Split(batchName, "/")
-	jobId := splittedBatchName[5]
-
-	return jobId, err
 }
 
 // SetRowStats populates conv with the number of rows in each table.
