@@ -430,7 +430,6 @@ func NewSchema() Schema {
 
 // Tables are ordered in alphabetical order with one exception: interleaved
 // tables appear after the definition of their parent table.
-// t1 t2 .... t5 (t5 is parent and t4 child)
 // 
 // TODO: Move this method to mapping.go and preserve the table names in sorted
 // order in conv so that we don't need to order the table names multiple times.
