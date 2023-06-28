@@ -295,7 +295,7 @@ func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile
 		}
 
 		//TODO: eenclona@ will remove hardcoded us-central1
-		url := fmt.Sprintf("https://pantheon.corp.google.com/dataproc/batches/us-central1/%s", id)
+		url := fmt.Sprintf("https://console.cloud.google.com/dataproc/batches/us-central1/%s", id)
 		conv.Audit.DataprocMetadata.DataprocJobUrls = append(conv.Audit.DataprocMetadata.DataprocJobUrls, url)
 		conv.Audit.DataprocMetadata.DataprocJobIds = append(conv.Audit.DataprocMetadata.DataprocJobIds, id)
 	}
