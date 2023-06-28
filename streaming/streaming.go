@@ -181,7 +181,7 @@ func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard, tableList []stri
 	for _, db := range dbList {
 		//create include db object
 		includeDb := &datastreampb.MysqlDatabase{
-			Database: db.DbName,
+			Database:    db.DbName,
 			MysqlTables: mysqlTables,
 		}
 		includeDbList = append(includeDbList, includeDb)
@@ -189,7 +189,7 @@ func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard, tableList []stri
 	//TODO: Clean up fmt.Printf logs and replace them with zap logger.
 	fmt.Printf("Include DB List for datastream: %+v\n", includeDbList)
 	mysqlSrcCfg := &datastreampb.MysqlSourceConfig{
-		IncludeObjects:                         &datastreampb.MysqlRdbms{MysqlDatabases: includeDbList},
+		IncludeObjects:             &datastreampb.MysqlRdbms{MysqlDatabases: includeDbList},
 		MaxConcurrentBackfillTasks: 50,
 	}
 	return &datastreampb.SourceConfig_MysqlSourceConfig{MysqlSourceConfig: mysqlSrcCfg}
@@ -242,7 +242,7 @@ func getPostgreSQLSourceStreamConfig(properties string) (*datastreampb.SourceCon
 func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, datastreamCfg DatastreamCfg) error {
 	switch sourceProfile.Driver {
 	case constants.MYSQL:
-		// For MySQL, it supports sharded migrations and batching databases in a physical machine into a single 
+		// For MySQL, it supports sharded migrations and batching databases in a physical machine into a single
 		//Datastream, so dbList is passed.
 		srcCfg.SourceStreamConfig = getMysqlSourceStreamConfig(dbList, datastreamCfg.tableList)
 		return nil
@@ -445,8 +445,14 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	} else {
 		dataflowHostProjectId = dataflowCfg.HostProjectId
 	}
+
 	dataflowSubnetwork := ""
+
+	// If custom network is not selected, use public IP. Typical for internal testing flow.
+	workerIpAddressConfig := dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PUBLIC
+
 	if dataflowCfg.Network != "" {
+		workerIpAddressConfig = dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PRIVATE
 		if dataflowCfg.Subnetwork == "" {
 			return fmt.Errorf("if network is specified, subnetwork cannot be empty")
 		} else {
@@ -454,7 +460,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		}
 	}
 
-	launchParameters := createLaunchParameters(dataflowCfg, inputFilePattern, project, datastreamCfg, instance, dbName, streamingCfg, dataflowSubnetwork)
+	launchParameters := createLaunchParameters(dataflowCfg, inputFilePattern, project, datastreamCfg, instance, dbName, streamingCfg, dataflowSubnetwork, workerIpAddressConfig)
 
 	req := &dataflowpb.LaunchFlexTemplateRequest{
 		ProjectId:       project,
@@ -489,7 +495,7 @@ func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, r
 		" will have to be manually cleaned up via the UI. HarbourBridge will not delete them post completion of the migration.")
 }
 
-func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string) *dataflowpb.LaunchFlexTemplateParameter {
+func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string, workerIpAddressConfig dataflowpb.WorkerIPAddressConfiguration) *dataflowpb.LaunchFlexTemplateParameter {
 	return &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-03-07-00_RC00/flex/Cloud_Datastream_to_Spanner"},
@@ -508,6 +514,7 @@ func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, pr
 			EnableStreamingEngine: true,
 			Network:               dataflowCfg.Network,
 			Subnetwork:            dataflowSubnetwork,
+			IpConfiguration:       workerIpAddressConfig,
 		},
 	}
 }
