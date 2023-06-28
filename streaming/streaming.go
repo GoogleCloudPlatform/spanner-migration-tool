@@ -500,13 +500,14 @@ func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, pr
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-03-07-00_RC00/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
-			"inputFilePattern":              inputFilePattern,
-			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
-			"instanceId":                    instance,
-			"databaseId":                    dbName,
-			"sessionFilePath":               streamingCfg.TmpDir + "session.json",
-			"deadLetterQueueDirectory":      inputFilePattern + "dlq",
-			"transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
+			"inputFilePattern":         inputFilePattern,
+			"streamName":               fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
+			"instanceId":               instance,
+			"databaseId":               dbName,
+			"sessionFilePath":          streamingCfg.TmpDir + "session.json",
+			"deadLetterQueueDirectory": inputFilePattern + "dlq",
+			// TODO(khajanchi): Uncomment this one dataflow template is released
+			// "transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			MaxWorkers:            maxWorkers,
