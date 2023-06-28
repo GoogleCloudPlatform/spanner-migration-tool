@@ -445,8 +445,14 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	} else {
 		dataflowHostProjectId = dataflowCfg.HostProjectId
 	}
+
 	dataflowSubnetwork := ""
+
+	// If custom network is not selected, use public IP. Typical for internal testing flow.
+	workerIpAddressConfig := dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PUBLIC
+
 	if dataflowCfg.Network != "" {
+		workerIpAddressConfig = dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PRIVATE
 		if dataflowCfg.Subnetwork == "" {
 			return fmt.Errorf("if network is specified, subnetwork cannot be empty")
 		} else {
@@ -454,7 +460,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		}
 	}
 
-	launchParameters := createLaunchParameters(dataflowCfg, inputFilePattern, project, datastreamCfg, instance, dbName, streamingCfg, dataflowSubnetwork)
+	launchParameters := createLaunchParameters(dataflowCfg, inputFilePattern, project, datastreamCfg, instance, dbName, streamingCfg, dataflowSubnetwork, workerIpAddressConfig)
 
 	req := &dataflowpb.LaunchFlexTemplateRequest{
 		ProjectId:       project,
@@ -489,7 +495,7 @@ func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, r
 		" will have to be manually cleaned up via the UI. HarbourBridge will not delete them post completion of the migration.")
 }
 
-func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string) *dataflowpb.LaunchFlexTemplateParameter {
+func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string, workerIpAddressConfig dataflowpb.WorkerIPAddressConfiguration) *dataflowpb.LaunchFlexTemplateParameter {
 	return &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-03-07-00_RC00/flex/Cloud_Datastream_to_Spanner"},
@@ -509,6 +515,7 @@ func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, pr
 			EnableStreamingEngine: true,
 			Network:               dataflowCfg.Network,
 			Subnetwork:            dataflowSubnetwork,
+			IpConfiguration:       workerIpAddressConfig,
 		},
 	}
 }
