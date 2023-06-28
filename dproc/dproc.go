@@ -62,6 +62,7 @@ func GetDataprocRequestParams(sourceProfile profiles.SourceProfile, targetProfil
 		jdbcParams["url"] = fmt.Sprintf("jdbc:mysql://%s:%s/%s?user=%s&password=%s", host, port, srcSchema, user, pwd)
 		jdbcParams["driver"] = "com.mysql.jdbc.Driver"
 		jdbcParams["sql"] = fmt.Sprintf("select * from %s.%s", srcSchema, srcTable)
+		jdbcParams["jar"] = "gs://dataproc-templates/jars/mysql-connector-java.jar"
 	} else {
 		return DataprocRequestParams{}, fmt.Errorf("dataproc migration for source %s not supported", sourceProfile.Driver)
 	}
