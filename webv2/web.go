@@ -1932,9 +1932,9 @@ func getDataprocJobs(w http.ResponseWriter, r *http.Request) {
 	var dataprocJobs DataprocJobs
 	sessionState := session.GetSessionState()
 
-	if len(sessionState.Conv.Audit.DataprocStats.DataprocJobUrls) > 0 {
-		dataprocJobs.DataprocJobUrls = sessionState.Conv.Audit.DataprocStats.DataprocJobUrls
-		dataprocJobs.DataprocJobIds = sessionState.Conv.Audit.DataprocStats.DataprocJobIds
+	if len(sessionState.Conv.Audit.DataprocMetadata.DataprocJobUrls) > 0 {
+		dataprocJobs.DataprocJobUrls = sessionState.Conv.Audit.DataprocMetadata.DataprocJobUrls
+		dataprocJobs.DataprocJobIds = sessionState.Conv.Audit.DataprocMetadata.DataprocJobIds
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(dataprocJobs)

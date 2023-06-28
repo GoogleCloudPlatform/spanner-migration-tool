@@ -164,24 +164,24 @@ type Audit struct {
 	StreamingStats           streamingStats                         `json:"-"` // Stores information related to streaming migration process.
 	Progress                 Progress                               `json:"-"` // Stores information related to progress of the migration progress
 	SkipMetricsPopulation    bool                                   `json:"-"` // Flag to identify if outgoing metrics metadata needs to skipped
-	DataprocStats            dataprocStats                          `json:"-"` // Stores information related to dataproc migration process
+	DataprocMetadata         dataprocMetadata                       `json:"-"` // Stores information related to dataproc migration process
 }
 
 // Stores information related to the streaming migration process.
 type streamingStats struct {
-	Streaming        bool                        // Flag for confirmation of streaming migration.
-	TotalRecords     map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
-	BadRecords       map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
-	DroppedRecords   map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
-	SampleBadRecords []string                    // Records that generated errors during conversion.
-	SampleBadWrites  []string                    // Records that faced errors while writing to Cloud Spanner.
-	DataStreamName   string
-	DataflowJobId    string
+	Streaming                bool                        // Flag for confirmation of streaming migration.
+	TotalRecords             map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
+	BadRecords               map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
+	DroppedRecords           map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
+	SampleBadRecords         []string                    // Records that generated errors during conversion.
+	SampleBadWrites          []string                    // Records that faced errors while writing to Cloud Spanner.
+	DataStreamName           string
+	DataflowJobId            string
 	ShardToDataStreamNameMap map[string]string
-	ShardToDataflowJobMap map[string]string
+	ShardToDataflowJobMap    map[string]string
 }
 
-type dataprocStats struct {
+type dataprocMetadata struct {
 	DataprocJobUrls []string
 	DataprocJobIds  []string
 }
