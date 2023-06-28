@@ -127,4 +127,5 @@ export const DataTypes = {
 
 export enum PersistedFormValues {
     DirectConnectForm = 'directConnectForm',
+    IsConnectionSuccessful = 'isConnectionSuccessful'
 }
