@@ -6,7 +6,7 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary, ISpannerDetails } from 'src/app/model/conv'
 import IMigrationDetails, { IGeneratedResources, IDataprocJobs, IProgress, ISourceAndTargetDetails, ResourceDetails } from 'src/app/model/migrate'
-import { Dataflow, Dataproc, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
+import { Dataflow, Dataproc, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressRefreshInterval, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
@@ -640,7 +640,7 @@ export class PrepareMigrationComponent implements OnInit {
   subscribeMigrationProgress() {
     var displayStreamingMsg = false
     var displayDataprocMsg = false
-    this.subscription = interval(5000).subscribe((x => {
+    this.subscription = interval(ProgressRefreshInterval).subscribe((x => {
       this.fetch.getProgress().subscribe({
         next: (res: IProgress) => {
           if (res.ErrorMessage == '') {

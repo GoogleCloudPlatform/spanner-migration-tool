@@ -93,6 +93,8 @@ export const Dialect = {
   GoogleStandardSQLDialect: 'google_standard_sql'
 }
 
+export const ProgressRefreshInterval = 5000
+
 export enum ProgressStatus {
 	SchemaMigrationComplete = 1,
 	SchemaCreationInProgress = 2,
