@@ -17,9 +17,9 @@ export class DataprocFormComponent implements OnInit {
     private dialofRef: MatDialogRef<DataprocFormComponent>
   ) {
     this.dataprocForm = this.formBuilder.group({
-      subnetwork: ['', Validators.required],
+      subnetwork: ['', [Validators.required, Validators.pattern('^projects/[^/]+/regions/[^/]+/subnetworks/[^/]+')]],
       hostname: ['', {optional: true}],
-      port: ['', {optional: true}],
+      port: ['', Validators.pattern('^[0-9]+$')],
     })
   }
 
