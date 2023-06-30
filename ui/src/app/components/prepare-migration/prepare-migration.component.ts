@@ -116,6 +116,7 @@ export class PrepareMigrationComponent implements OnInit {
     { value: false, displayName: 'No'},
     { value: true, displayName: 'Yes'},
   ]
+
   dataprocConfig: IDataprocConfig = {
     Subnetwork: localStorage.getItem(Dataproc.Subnetwork) as string,
     Hostname: localStorage.getItem(Dataproc.Hostname) as string,
@@ -699,7 +700,6 @@ export class PrepareMigrationComponent implements OnInit {
               this.dataMigrationProgress = parseInt(localStorage.getItem(MigrationDetails.DataMigrationProgress) as string)
 
               if (this.selectedMigrationType == MigrationTypes.dataprocMigration) {
-                this.markSchemaMigrationComplete()
                 if (!displayDataprocMsg) {
                   this.snack.openSnackBar('Setting up Dataproc jobs', 'Close')
                   displayDataprocMsg = true
@@ -884,7 +884,7 @@ export class PrepareMigrationComponent implements OnInit {
     this.dataprocJobsGenerated = {
       DataprocJobUrls: [],
       DataprocJobIds: []
-      
+     
     }
     this.initializeLocalStorage()
   }
