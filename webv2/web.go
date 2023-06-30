@@ -358,6 +358,16 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sourceProfileConfig := sessionState.SourceProfileConfig
+	if (sourceProfileConfig.ConfigType == "dataflow") {
+		for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
+			bucket, rootPath, err := profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, dataShard.DstConnectionProfile.Name)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("error while getting target bucket: %v", err), http.StatusInternalServerError)
+				return
+			}
+			dataShard.TmpDir = "gs://" + bucket + rootPath
+		}
+	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sourceProfileConfig)
 }
@@ -1460,6 +1470,9 @@ func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithM
 		http.Error(w, fmt.Sprintf("Restoring spanner table fail"), http.StatusBadRequest)
 	}
 	conv.AddPrimaryKeys()
+	if sessionState.IsSharded {
+		conv.AddShardIdColumn()
+	}
 	sessionState.Conv = conv
 	primarykey.DetectHotspot()
 

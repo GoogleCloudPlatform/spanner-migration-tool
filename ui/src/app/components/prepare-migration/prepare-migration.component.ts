@@ -35,7 +35,7 @@ export class PrepareMigrationComponent implements OnInit {
     private fetch: FetchService,
     private snack: SnackbarService,
     private data: DataService
-  ) {}
+  ) { }
 
   isSourceConnectionProfileSet: boolean = false
   isTargetConnectionProfileSet: boolean = false
@@ -113,8 +113,8 @@ export class PrepareMigrationComponent implements OnInit {
     IsConfigValid: false
   }
   skipForeignKeyResponseList = [
-    { value: false, displayName: 'No'},
-    { value: true, displayName: 'Yes'},
+    { value: false, displayName: 'No' },
+    { value: true, displayName: 'Yes' },
   ]
 
   dataprocConfig: IDataprocConfig = {
@@ -473,7 +473,7 @@ export class PrepareMigrationComponent implements OnInit {
       this.isDataflowConfigurationSet = localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true'
       if (this.isSharded) {
         this.fetch.setDataflowDetailsForShardedMigrations(this.dataflowConfig).subscribe({
-          next: () => {},
+          next: () => { },
           error: (err: any) => {
             this.snack.openSnackBar(err.error, 'Close')
           }
@@ -816,7 +816,7 @@ export class PrepareMigrationComponent implements OnInit {
     // Therefore an explicit replacement is necessary in the JSON content in the file.
     let resJson = JSON.stringify(this.configuredMigrationProfile, null, '\t').replace(/9223372036854776000/g, '9223372036854775807')
     a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
-    a.download = `shardConfig.cfg`
+    a.download = localStorage.getItem(TargetDetails.TargetDB) as string + "-" + this.configuredMigrationProfile.configType + `-shardConfig.cfg`
     a.click()
   }
 
@@ -937,5 +937,5 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.setItem(MigrationDetails.IsTargetDetailSet, this.isTargetDetailSet.toString())
     localStorage.setItem(MigrationDetails.GeneratingResources, this.generatingResources.toString())
   }
-  ngOnDestroy() {}
+  ngOnDestroy() { }
 }

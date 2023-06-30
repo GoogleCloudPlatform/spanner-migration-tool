@@ -483,7 +483,10 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setShardIdColumn() {
-    this.shardIdCol = this.conv.SpSchema[this.currentObject!.id].ShardIdColumn
+    if (this.conv.SpSchema[this.currentObject!.id] !== undefined) {
+      this.shardIdCol = this.conv.SpSchema[this.currentObject!.id].ShardIdColumn
+    }
+    
   }
 
   getAssociatedIndexs(colId: string) {
