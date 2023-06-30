@@ -1470,7 +1470,9 @@ func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithM
 		http.Error(w, fmt.Sprintf("Restoring spanner table fail"), http.StatusBadRequest)
 	}
 	conv.AddPrimaryKeys()
-	conv.AddShardIdColumn()
+	if sessionState.IsSharded {
+		conv.AddShardIdColumn()
+	}
 	sessionState.Conv = conv
 	primarykey.DetectHotspot()
 
