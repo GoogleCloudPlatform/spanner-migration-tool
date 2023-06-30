@@ -19,6 +19,7 @@ import (
 	"math"
 	"math/bits"
 	"reflect"
+	"sort"
 	"time"
 
 	"cloud.google.com/go/civil"
@@ -51,89 +52,105 @@ func ProcessDataTransformation(conv *internal.Conv, tableId string, cvtCols []st
 	)
 	tempVar := make(map[string]variable)
 	for _, rule := range conv.Transformations {
-		inputs, ok := rule.Input.([]interface{})
-		if !ok {
-			return nil, nil, fmt.Errorf("input not of expected type, input:%s", rule.Input)
-		}
-		var firstInput, secondInput, operator inputValue
-		for _, input := range inputs {
-			y, err := getValue(input, mapSrcColIdToVal, conv, tableId, tempVar, toddl)
-			if err != nil {
-				return nil, nil, fmt.Errorf("could not parse value for:%s, error:%w", input, err)
+		if rule.AssociatedObjects == tableId {
+			inputs, ok := rule.Input.([]interface{})
+			if !ok {
+				return nil, nil, fmt.Errorf("input not of expected type, input:%s", rule.Input)
 			}
-			if y.inputType == "operator" {
-				operator = y
-			} else {
-				isEmpty := reflect.DeepEqual(firstInput, inputValue{})
-				if isEmpty {
-					firstInput = y
+			var firstInput, secondInput, operator inputValue
+			for _, input := range inputs {
+				y, err := getValue(input, mapSrcColIdToVal, conv, tableId, tempVar, toddl)
+				if err != nil {
+					return nil, nil, fmt.Errorf("could not parse value for:%s, error:%w", input, err)
+				}
+				if y.inputType == "operator" {
+					operator = y
 				} else {
-					secondInput = y
+					isEmpty := reflect.DeepEqual(firstInput, inputValue{})
+					if isEmpty {
+						firstInput = y
+					} else {
+						secondInput = y
+					}
 				}
 			}
-		}
-		var x interface{}
-		var err error
-		switch rule.Function {
-		case "mathOp":
-			x, err = applyMathOp(firstInput, secondInput, operator)
+			var x interface{}
+			var err error
+			switch rule.Function {
+			case "mathOp":
+				x, err = applyMathOp(firstInput, secondInput, operator)
+			case "noOp":
+				x = firstInput.value
+			case "generateUUID":
+				x = generateUuid()
+			case "bitReverse":
+				x, err = bitReverse(firstInput)
+			case "floor":
+				x, err = applyFloor(firstInput)
+			case "ceil":
+				x, err = applyCeil(firstInput)
+			case "compare":
+				x, err = applyCompare(firstInput, secondInput, operator)
+			}
 			if err != nil {
 				return nil, nil, err
 			}
-		case "noOp":
-			x = firstInput.value
-		case "generateUUID":
-			x = generateUuid()
-		case "bitReverse":
-
-		}
-		actionConfig, ok := rule.ActionConfig.(map[string]interface{})
-		if !ok {
-			return nil, nil, fmt.Errorf("action config not of correct type for rule id:%s", rule.Id)
-		}
-		if rule.Action == "writeToColumn" {
-			column, ok := actionConfig["column"].(string)
+			actionConfig, ok := rule.ActionConfig.(map[string]interface{})
 			if !ok {
-				return nil, nil, fmt.Errorf("could not parse column of action config with rule id:%s", rule.Id)
+				return nil, nil, fmt.Errorf("action config not of correct type for rule id:%s", rule.Id)
 			}
-			mapSpannerColIdToVal[column] = x
-		} else if rule.Action == "writeToVar" {
-			varValue, ok := actionConfig["varName"].(map[string]interface{})
-			if !ok {
-				return nil, nil, fmt.Errorf("could not parse variable of action config with rule id:%s", rule.Id)
-			}
-			value, ok := varValue["value"].(string)
-			if !ok {
-				return nil, nil, fmt.Errorf("could not parse value for variable: %s", varValue)
-			}
-			dataType, ok := varValue["datatype"].(string)
-			if !ok {
-				return nil, nil, fmt.Errorf("could not parse datatype for variable: %s", varValue)
-			}
-			if conv.SpDialect == constants.DIALECT_POSTGRESQL {
-				standardType, ok := ddl.PGSQL_TO_STANDARD_TYPE_TYPEMAP[dataType]
-				if ok {
-					dataType = standardType
+			if rule.Action == "writeToColumn" {
+				column, ok := actionConfig["column"].(string)
+				if !ok {
+					return nil, nil, fmt.Errorf("could not parse column of action config with rule id:%s", rule.Id)
 				}
-			}
-			tempVar[value] = variable{
-				value:    x,
-				dataType: dataType,
-			}
-		} else if rule.Action == "filter" {
-			filterAction, ok := actionConfig["include"].(string)
-			if !ok {
-				return nil, nil, fmt.Errorf("could not parse filter action: %s", actionConfig["include"])
-			}
-			if x == true && filterAction == "true" {
-				return nil, nil, nil
+				mapSpannerColIdToVal[column] = x
+			} else if rule.Action == "writeToVar" {
+				varValue, ok := actionConfig["varName"].(map[string]interface{})
+				if !ok {
+					return nil, nil, fmt.Errorf("could not parse variable of action config with rule id:%s", rule.Id)
+				}
+				value, ok := varValue["value"].(string)
+				if !ok {
+					return nil, nil, fmt.Errorf("could not parse value for variable: %s", varValue)
+				}
+				dataType, ok := varValue["datatype"].(string)
+				if !ok {
+					return nil, nil, fmt.Errorf("could not parse datatype for variable: %s", varValue)
+				}
+				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+					standardType, ok := ddl.PGSQL_TO_STANDARD_TYPE_TYPEMAP[dataType]
+					if ok {
+						dataType = standardType
+					}
+				}
+				tempVar[value] = variable{
+					value:    x,
+					dataType: dataType,
+				}
+			} else if rule.Action == "filter" {
+				filterAction, ok := actionConfig["include"].(string)
+				if !ok {
+					return nil, nil, fmt.Errorf("could not parse filter action: %s", actionConfig["include"])
+				}
+				if x == true && filterAction == "true" {
+					return nil, nil, nil
+				}
 			}
 		}
 	}
-	fmt.Println(mapSpannerColIdToVal)
-	for colId, value := range mapSpannerColIdToVal {
-		spannerCols = append(spannerCols, conv.SpSchema[tableId].ColDefs[colId].Name)
-		spannerVals = append(spannerVals, value)
+
+	keys := make([]string, 0, len(mapSpannerColIdToVal))
+	for key := range mapSpannerColIdToVal {
+		keys = append(keys, key)
+	}
+
+	// Sort the keys
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		spannerCols = append(spannerCols, conv.SpSchema[tableId].ColDefs[key].Name)
+		spannerVals = append(spannerVals, mapSpannerColIdToVal[key])
 	}
 	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
 		spannerCols = append(spannerCols, conv.SpSchema[tableId].ColDefs[aux.ColId].Name)
@@ -255,24 +272,8 @@ func applyCeil(firstInput inputValue) (interface{}, error) {
 	return nil, fmt.Errorf("unsupported data type: %T", firstInput.value)
 }
 
-func applyMod(firstInput, secondInput inputValue) (interface{}, error) {
-	switch firstInput.value.(type) {
-	case int64:
-		switch secondInput.value.(type) {
-		case int64:
-			return firstInput.value.(int64) % secondInput.value.(int64), nil
-		}
-	case float64:
-		switch secondInput.value.(type) {
-		case float64:
-			return math.Mod(firstInput.value.(float64), secondInput.value.(float64)), nil
-		}
-	}
-	return nil, fmt.Errorf("unsupported data types: %T, %T", firstInput.value, secondInput.value)
-}
-
-func applyCompare(rule internal.Transformation, firstInput, secondInput inputValue) (interface{}, error) {
-	switch rule.Function {
+func applyCompare(firstInput, secondInput, operator inputValue) (interface{}, error) {
+	switch operator.value {
 	case "equalTo":
 		return compareEqual(firstInput, secondInput)
 	case "greaterThan":
@@ -280,94 +281,48 @@ func applyCompare(rule internal.Transformation, firstInput, secondInput inputVal
 	case "lessThan":
 		return compareLessThan(firstInput, secondInput)
 	}
-	return nil, fmt.Errorf("unsupported comparison operation: %s", rule.Function)
+	return nil, fmt.Errorf("unsupported comparison operation: %s", operator.value)
 }
 
 func compareEqual(firstInput, secondInput inputValue) (bool, error) {
-	switch firstInput.value.(type) {
-	case int64:
-		switch secondInput.value.(type) {
-		case int64:
-			return firstInput.value.(int64) == secondInput.value.(int64), nil
-		}
-	case float64:
-		switch secondInput.value.(type) {
-		case float64:
-			return firstInput.value.(float64) == secondInput.value.(float64), nil
-		}
-	case bool:
-		switch secondInput.value.(type) {
-		case bool:
-			return firstInput.value.(bool) == secondInput.value.(bool), nil
-		}
-	case []byte:
-		switch secondInput.value.(type) {
-		case []byte:
-			return string(firstInput.value.([]byte)) == string(secondInput.value.([]byte)), nil
-		}
-	case civil.Date:
-		switch secondInput.value.(type) {
-		case civil.Date:
-			return firstInput.value.(civil.Date) == secondInput.value.(civil.Date), nil
-			// or: return firstInput.value.(civil.Date).Equal(secondInput.value.(civil.Date)), nil
-		}
-	case time.Time:
-		switch secondInput.value.(type) {
-		case time.Time:
-			return firstInput.value.(time.Time).Equal(secondInput.value.(time.Time)), nil
-		}
+	if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Int64 {
+		return firstInput.value.(int64) == secondInput.value.(int64), nil
+	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Float64 {
+		return firstInput.value.(float64) == secondInput.value.(float64), nil
+	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Bool {
+		return firstInput.value.(bool) == secondInput.value.(bool), nil
+	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Bytes {
+		return string(firstInput.value.([]byte)) == string(secondInput.value.([]byte)), nil
+	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Date {
+		return firstInput.value.(civil.Date) == secondInput.value.(civil.Date), nil
+	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Timestamp {
+		return firstInput.value.(time.Time).Equal(secondInput.value.(time.Time)), nil
 	}
 	return false, fmt.Errorf("unsupported data types for comparison: %T, %T", firstInput.value, secondInput.value)
 }
 
 func compareGreaterThan(firstInput, secondInput inputValue) (bool, error) {
-	switch firstInput.value.(type) {
-	case int64:
-		switch secondInput.value.(type) {
-		case int64:
-			return firstInput.value.(int64) > secondInput.value.(int64), nil
-		}
-	case float64:
-		switch secondInput.value.(type) {
-		case float64:
-			return firstInput.value.(float64) > secondInput.value.(float64), nil
-		}
-	case civil.Date:
-		switch secondInput.value.(type) {
-		case civil.Date:
-			return firstInput.value.(civil.Date).After(secondInput.value.(civil.Date)), nil
-		}
-	case time.Time:
-		switch secondInput.value.(type) {
-		case time.Time:
-			return firstInput.value.(time.Time).After(secondInput.value.(time.Time)), nil
-		}
+	if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Int64 {
+		return firstInput.value.(int64) > secondInput.value.(int64), nil
+	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Float64 {
+		return firstInput.value.(float64) > secondInput.value.(float64), nil
+	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Date {
+		return firstInput.value.(civil.Date).After(secondInput.value.(civil.Date)), nil
+	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Timestamp {
+		return firstInput.value.(time.Time).After(secondInput.value.(time.Time)), nil
 	}
 	return false, fmt.Errorf("unsupported data types for comparison: %T, %T", firstInput.value, secondInput.value)
 }
 
 func compareLessThan(firstInput, secondInput inputValue) (bool, error) {
-	switch firstInput.value.(type) {
-	case int64:
-		switch secondInput.value.(type) {
-		case int64:
-			return firstInput.value.(int64) < secondInput.value.(int64), nil
-		}
-	case float64:
-		switch secondInput.value.(type) {
-		case float64:
-			return firstInput.value.(float64) < secondInput.value.(float64), nil
-		}
-	case civil.Date:
-		switch secondInput.value.(type) {
-		case civil.Date:
-			return firstInput.value.(civil.Date).Before(secondInput.value.(civil.Date)), nil
-		}
-	case time.Time:
-		switch secondInput.value.(type) {
-		case time.Time:
-			return firstInput.value.(time.Time).Before(secondInput.value.(time.Time)), nil
-		}
+	if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Int64 {
+		return firstInput.value.(int64) < secondInput.value.(int64), nil
+	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Float64 {
+		return firstInput.value.(float64) < secondInput.value.(float64), nil
+	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Date {
+		return firstInput.value.(civil.Date).Before(secondInput.value.(civil.Date)), nil
+	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Timestamp {
+		return firstInput.value.(time.Time).Before(secondInput.value.(time.Time)), nil
 	}
 	return false, fmt.Errorf("unsupported data types for comparison: %T, %T", firstInput.value, secondInput.value)
 }
@@ -466,6 +421,29 @@ func applyMathOp(firstInput, secondInput, operator inputValue) (interface{}, err
 			}
 		default:
 			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
+		}
+	case "mod":
+		switch firstInput.value.(type) {
+		case int64:
+			switch secondInput.value.(type) {
+			case int64:
+				return firstInput.value.(int64) % secondInput.value.(int64), nil
+			case float64:
+				return math.Mod(float64(firstInput.value.(int64)), secondInput.value.(float64)), nil
+			default:
+				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput)
+			}
+		case float64:
+			switch secondInput.value.(type) {
+			case int64:
+				return math.Mod(firstInput.value.(float64), float64(secondInput.value.(int64))), nil
+			case float64:
+				return math.Mod(firstInput.value.(float64), secondInput.value.(float64)), nil
+			default:
+				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput)
+			}
+		default:
+			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput)
 		}
 	}
 

@@ -84,7 +84,6 @@ func ConvertData(conv *internal.Conv, tableId string, colIds []string, srcSchema
 		if !ok1 || !ok2 {
 			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for colId %s", colId)
 		}
-		spCol := spColDef.Name
 
 		var x interface{}
 		var err error
@@ -97,7 +96,7 @@ func ConvertData(conv *internal.Conv, tableId string, colIds []string, srcSchema
 			return "", []string{}, []interface{}{}, err
 		}
 		v = append(v, x)
-		c = append(c, spCol)
+		c = append(c, colId)
 	}
 	return conv.SpSchema[tableId].Name, c, v, nil
 }

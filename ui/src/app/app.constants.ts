@@ -125,9 +125,9 @@ export const DataTypes = {
 }
 
 export const Transformation = {
-  Functions: ['noOp', 'generateUUID', 'toTimestamp', 'mathOp', 'logicalOp', 'compare'],
+  Functions: ['noOp', 'generateUUID', 'toTimestamp', 'mathOp', 'logicalOp', 'compare', 'bitReverse'],
   ZeroOperandFunction: ['generateUUID'],
-  UnaryFunction: ['noOp', 'toTimestamp'],
+  UnaryFunction: ['noOp', 'toTimestamp', 'bitReverse'],
   BinaryFunction: ['mathOp', 'logicalOp', 'compare'],
   InputType: ['context','variable', 'static', 'source-column'],
   MathOperators : [
@@ -135,6 +135,7 @@ export const Transformation = {
     { value: 'subtract', display: '-' },
     { value: 'multiply', display: '*' },
     { value: 'divide', display: '/' },
+    { value: 'mod', display: '%' },
   ],
   LogicalOperators : [
     { value: 'and', display: '&&' },
@@ -144,7 +145,7 @@ export const Transformation = {
   ],
   CompareOperators : [
     { value: 'lessThan', display: '<' },
-    { value: 'moreThan', display: '>' },
-    { value: 'equal', display: '==' },
+    { value: 'greaterThan', display: '>' },
+    { value: 'equalTo', display: '==' },
   ],
 }
