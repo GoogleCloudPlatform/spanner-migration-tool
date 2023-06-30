@@ -104,7 +104,7 @@
                 </li>
                 <div *ngIf="!testSuccess && errorSrcMsg != ''" class="failure">
                     <span class="left-text">Test connection failed</span>
-                    <mat-icon class="icon error" matTooltip="Test connection failed" matTooltipPosition="above">
+                    <mat-icon class="icon error" [matTooltip]="errorSrcMsg" matTooltipPosition="above">
                         error
                     </mat-icon>
                 </div>

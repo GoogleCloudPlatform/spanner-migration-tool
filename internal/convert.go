@@ -361,15 +361,17 @@ func (conv *Conv) SampleBadRows(n int) []string {
 
 func (conv *Conv) AddShardIdColumn() {
 	for t, ct := range conv.SpSchema {
-		colName := ShardIdColumn
-		columnId := GenerateColumnId()
-		ct.ColIds = append(ct.ColIds, columnId)
-		ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false}
-		ct.ShardIdColumn = columnId
-		conv.SpSchema[t] = ct
-		var issues []SchemaIssue
-		issues = append(issues, ShardIdColumnAdded, ShardIdColumnPrimaryKey)
-		conv.SchemaIssues[ct.Id].ColumnLevelIssues[columnId] = issues
+		if ct.ShardIdColumn == "" {
+			colName := ShardIdColumn
+			columnId := GenerateColumnId()
+			ct.ColIds = append(ct.ColIds, columnId)
+			ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false}
+			ct.ShardIdColumn = columnId
+			conv.SpSchema[t] = ct
+			var issues []SchemaIssue
+			issues = append(issues, ShardIdColumnAdded, ShardIdColumnPrimaryKey)
+			conv.SchemaIssues[ct.Id].ColumnLevelIssues[columnId] = issues
+		}
 	}
 }
 
