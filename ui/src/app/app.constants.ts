@@ -134,3 +134,8 @@ export const Dataproc = {
   Port: 'port',
   IsDataprocConfigSet: 'isDataprocConfigSet',
 }
+
+export enum PersistedFormValues {
+    DirectConnectForm = 'directConnectForm',
+    IsConnectionSuccessful = 'isConnectionSuccessful'
+}

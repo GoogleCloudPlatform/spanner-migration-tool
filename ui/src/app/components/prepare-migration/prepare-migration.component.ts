@@ -122,6 +122,17 @@ export class PrepareMigrationComponent implements OnInit {
     Hostname: localStorage.getItem(Dataproc.Hostname) as string,
     Port: localStorage.getItem(Dataproc.Port) as string
   }
+  
+  migrationModesHelpText = new Map<string, string>([
+    ["Schema", "Migrates only the schema of the source database to the configured Spanner instance."],
+    ["Data", "Migrates the data from the source database to the configured Spanner database. The configured database should already contain the schema."],
+    ["Schema And Data", "Migrates both the schema and the data from the source database to Spanner."]
+  ]);
+
+  migrationTypesHelpText = new Map<string, string>([
+    ["bulk", "Uses this machine's resources to copy data from the source database to Spanner. This is only useful for small migrations."],
+    ["lowdt", "Uses change data capture via Datastream to setup a continuous data replication pipeline from source to Spanner, using Dataflow jobs to perform the actual data migration."],
+  ]);
 
   refreshMigrationMode() {
     if (

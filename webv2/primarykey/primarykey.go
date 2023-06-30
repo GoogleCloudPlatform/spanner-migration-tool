@@ -101,26 +101,29 @@ func addPrimaryKey(add []string, pkRequest PrimaryKeyRequest, spannerTable ddl.C
 					schemaissue := []internal.SchemaIssue{}
 
 					sessionState := session.GetSessionState()
-					schemaissue = sessionState.Conv.SchemaIssues[spannerTable.Name].ColumnLevelIssues[pkey.ColId]
+					schemaissue = sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[pkey.ColId]
 
 					if len(schemaissue) > 0 {
 
 						schemaissue = utilities.RemoveSchemaIssues(schemaissue)
+						if pkey.ColId == sessionState.Conv.SpSchema[spannerTable.Id].ShardIdColumn {
+							schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.ShardIdColumnPrimaryKey)
+						}
 
-						sessionState.Conv.SchemaIssues[spannerTable.Name].ColumnLevelIssues[pkey.ColId] = schemaissue
+						sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[pkey.ColId] = schemaissue
 
-						if sessionState.Conv.SchemaIssues[spannerTable.Name].ColumnLevelIssues[pkey.ColId] == nil {
+						if sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[pkey.ColId] == nil {
 
 							s := map[string][]internal.SchemaIssue{
 								pkey.ColId: schemaissue,
 							}
 							sessionState.Conv.SchemaIssues = map[string]internal.TableIssues{}
 
-							sessionState.Conv.SchemaIssues[spannerTable.Name] = internal.TableIssues{
+							sessionState.Conv.SchemaIssues[spannerTable.Id] = internal.TableIssues{
 								ColumnLevelIssues: s,
 							}
 						} else {
-							sessionState.Conv.SchemaIssues[spannerTable.Name].ColumnLevelIssues[pkey.ColId] = schemaissue
+							sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[pkey.ColId] = schemaissue
 						}
 
 					}
@@ -147,26 +150,29 @@ func removePrimaryKey(remove []string, spannerTable ddl.CreateTable) []ddl.Index
 				{
 					schemaissue := []internal.SchemaIssue{}
 					sessionState := session.GetSessionState()
-					schemaissue = sessionState.Conv.SchemaIssues[spannerTable.Name].ColumnLevelIssues[spannerTable.PrimaryKeys[i].ColId]
+					schemaissue = sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[spannerTable.PrimaryKeys[i].ColId]
 
 					if len(schemaissue) > 0 {
 
 						schemaissue = utilities.RemoveSchemaIssues(schemaissue)
+						if spannerTable.PrimaryKeys[i].ColId == sessionState.Conv.SpSchema[spannerTable.Id].ShardIdColumn {
+							schemaissue = append(schemaissue, internal.ShardIdColumnPrimaryKey)
+						}
 
-						if sessionState.Conv.SchemaIssues[spannerTable.Name].ColumnLevelIssues[spannerTable.PrimaryKeys[i].ColId] == nil {
+						if sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[spannerTable.PrimaryKeys[i].ColId] == nil {
 
 							s := map[string][]internal.SchemaIssue{
 								spannerTable.PrimaryKeys[i].ColId: schemaissue,
 							}
 							sessionState.Conv.SchemaIssues = map[string]internal.TableIssues{}
 
-							sessionState.Conv.SchemaIssues[spannerTable.Name] = internal.TableIssues{
+							sessionState.Conv.SchemaIssues[spannerTable.Id] = internal.TableIssues{
 								ColumnLevelIssues: s,
 							}
 
 						} else {
 
-							sessionState.Conv.SchemaIssues[spannerTable.Name].ColumnLevelIssues[spannerTable.PrimaryKeys[i].ColId] = schemaissue
+							sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[spannerTable.PrimaryKeys[i].ColId] = schemaissue
 
 						}
 

@@ -14,7 +14,7 @@ import IConv, {
 import IDumpConfig, { IConvertFromDumpRequest } from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
-import IMigrationDetails, { IDataprocJobs, IGeneratedResources, IProgress } from 'src/app/model/migrate'
+import IMigrationDetails, { IDataprocJobs, IGeneratedResources, IProgress, ITables } from 'src/app/model/migrate'
 import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IMigrationProfile } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
 
@@ -163,11 +163,19 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/removeParent?tableId=${tableId}`, {})
   }
 
+  restoreTables(payload: ITables) {
+    return this.http.post(`${this.url}/restore/tables`, payload)
+  }
+
   restoreTable(tableId: string) {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?table=${tableId}`, {})
   }
   dropTable(tableId: string) {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/table?table=${tableId}`, {})
+  }
+  
+  dropTables(payload: ITables) {
+    return this.http.post(`${this.url}/drop/tables`, payload)
   }
 
   updatePk(pkObj: IPrimaryKey) {

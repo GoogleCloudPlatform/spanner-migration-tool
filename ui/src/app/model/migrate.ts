@@ -46,3 +46,13 @@ export interface ISourceAndTargetDetails {
     SourceDatabaseName: string
     SourceDatabaseType: string
 }
+
+export interface ITables {
+    TableList: string[]
+}
+
+export interface ITableState {
+    TableName: string
+    TableId: string
+    isDeleted: boolean
+}

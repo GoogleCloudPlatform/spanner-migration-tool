@@ -25,8 +25,8 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   dataShardIdList: string[] = []
   migrationProfile: IMigrationProfile;
   ipList: string[] = []
-  selectedSourceProfileOption = Profile.NewConnProfile
-  selectedTargetProfileOption = Profile.NewConnProfile
+  selectedSourceProfileOption = Profile.ExistingConnProfile
+  selectedTargetProfileOption = Profile.ExistingConnProfile
   profileOptions = [
     { value: Profile.NewConnProfile, display: 'Create a new connection profile' },
     { value: Profile.ExistingConnProfile, display: 'Choose an existing connection profile' },
@@ -224,6 +224,8 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       dataShardId: [],
       shardMappingTable: this.formBuilder.array([shardTableRowForm])
     })
+    this.selectedSourceProfileOption = Profile.ExistingConnProfile
+    this.selectedTargetProfileOption = Profile.ExistingConnProfile
     this.testSuccess = false
     this.createSrcConnSuccess = false
     this.createTgtConnSuccess = false

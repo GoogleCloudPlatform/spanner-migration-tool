@@ -126,6 +126,7 @@ export class ObjectDetailComponent implements OnInit {
   droppedSourceColumns: string[] = []
   pkColumnNames: string[] = []
   indexColumnNames: string[] = []
+  shardIdCol: string = ''
   addColumnForm = new FormGroup({
     columnName: new FormControl('', [Validators.required]),
   })
@@ -179,6 +180,7 @@ export class ObjectDetailComponent implements OnInit {
       this.setPkRows()
       this.setFkRows()
       this.updateSpTableSuggestion()
+      this.setShardIdColumn()
     } else if (this.currentObject?.type === ObjectExplorerNodeType.Index) {
       this.indexOrderValidation()
       this.setIndexRows()
@@ -478,6 +480,10 @@ export class ObjectDetailComponent implements OnInit {
       isPkColumn = true
     }
     return isPkColumn
+  }
+
+  setShardIdColumn() {
+    this.shardIdCol = this.conv.SpSchema[this.currentObject!.id].ShardIdColumn
   }
 
   getAssociatedIndexs(colId: string) {

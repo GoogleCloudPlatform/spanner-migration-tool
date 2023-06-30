@@ -5,7 +5,7 @@ import IDbConfig from 'src/app/model/db-config'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { DataService } from 'src/app/services/data/data.service'
 import { LoaderService } from '../../services/loader/loader.service'
-import { DialectList, InputType, SourceDbNames, StorageKeys } from 'src/app/app.constants'
+import { DialectList, InputType, PersistedFormValues, StorageKeys } from 'src/app/app.constants'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
@@ -34,6 +34,8 @@ export class DirectConnectionComponent implements OnInit {
     { value: 'postgres', displayName: 'PostgreSQL' },
   ]
 
+  isTestConnectionSuccessful = false
+
   connectRequest: any = null
   getSchemaRequest: any = null
   shardedResponseList = [
@@ -53,6 +55,13 @@ export class DirectConnectionComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    //initialise component with the previously persisted values if present.
+    if (localStorage.getItem(PersistedFormValues.DirectConnectForm) != null) {
+      this.connectForm.setValue(JSON.parse(localStorage.getItem(PersistedFormValues.DirectConnectForm) as string))
+    }
+    if (localStorage.getItem(PersistedFormValues.IsConnectionSuccessful) != null) {
+      this.isTestConnectionSuccessful = localStorage.getItem(PersistedFormValues.IsConnectionSuccessful) === 'true'
+    }
     this.clickEvent.cancelDbLoad.subscribe({
       next: (res: boolean) => {
         if (res && this.connectRequest) {
@@ -65,12 +74,34 @@ export class DirectConnectionComponent implements OnInit {
     })
   }
 
+  testConn() {
+    this.clickEvent.openDatabaseLoader('test-connection', this.connectForm.value.dbName)
+    const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect } = this.connectForm.value
+    localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value))
+    const config: IDbConfig = { dbEngine, isSharded, hostName, port, userName, password, dbName }
+    this.connectRequest =this.fetch.connectTodb(config, dialect).subscribe({
+      next: () => {
+        this.snackbarService.openSnackBar('SUCCESS! Harbourbridge was able to successfully ping source database', 'Close', 3)
+        //Datbase loader causes the direct connection form to get refreshed hence this value needs to be persisted to local storage.
+        localStorage.setItem(PersistedFormValues.IsConnectionSuccessful, "true")
+        this.clickEvent.closeDatabaseLoader()
+      },
+      error: (e) => { 
+        this.isTestConnectionSuccessful = false
+        this.snackbarService.openSnackBar(e.error, 'Close')
+        localStorage.setItem(PersistedFormValues.IsConnectionSuccessful, "false")
+        this.clickEvent.closeDatabaseLoader()
+      }
+    })
+  }
+
   connectToDb() {
     this.clickEvent.openDatabaseLoader('direct', this.connectForm.value.dbName)
     window.scroll(0, 0)
     this.data.resetStore()
     localStorage.clear()
     const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect } = this.connectForm.value
+    localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value))
     const config: IDbConfig = { dbEngine, isSharded, hostName, port, userName, password, dbName }
     this.connectRequest =this.fetch.connectTodb(config, dialect).subscribe({
       next: () => {
@@ -83,10 +114,12 @@ export class DirectConnectionComponent implements OnInit {
           localStorage.setItem(StorageKeys.Type, InputType.DirectConnect)
           localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
           this.clickEvent.closeDatabaseLoader()
+          //after a successful load, remove the persisted values.
+          localStorage.removeItem(PersistedFormValues.DirectConnectForm)
           this.router.navigate(['/workspace'])
         })
       },
-      error: (e) => {
+      error: (e) => { 
         this.snackbarService.openSnackBar(e.error, 'Close')
         this.clickEvent.closeDatabaseLoader()
       },
