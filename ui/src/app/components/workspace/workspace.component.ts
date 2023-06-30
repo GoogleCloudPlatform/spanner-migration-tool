@@ -18,6 +18,7 @@ import IViewAssesmentData from 'src/app/model/view-assesment'
 import IDbConfig from 'src/app/model/db-config'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
+import IStructuredReport from '../../model/download-artifacts'
 
 @Component({
   selector: 'app-workspace',
@@ -52,6 +53,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   conversionRatePercentages: ConversionRate = { good: 0, ok: 0, bad: 0 }
   currentDatabase: string = 'spanner'
   dialect: string = ''
+  structuredReport!: IStructuredReport
   constructor(
     private data: DataService,
     private conversion: ConversionService,
@@ -268,6 +270,52 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
     a.download = `${this.conv.SessionName}_${this.conv.DatabaseType}_${this.conv.DatabaseName}.json`
     a.click()
+  }
+  
+  downloadArtifacts(){
+    this.downloadStructuredReport()
+    this.downloadSession()
+    this.downloadTextReport()
+    this.downloadDDL()
+  }
+
+  // downloads structured report of the migration in JSON format
+  downloadStructuredReport(){
+    var a = document.createElement('a')
+    this.fetch.getDStructuredReport().subscribe({ 
+      next: (res: IStructuredReport) => {
+        let resJson = JSON.stringify(res).replace(/9223372036854776000/g, '9223372036854775807')
+        a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
+        a.download = `${this.conv.DatabaseName}_migration_structuredReport.json`
+        a.click()
+      }
+    })
+  }
+
+  // downloads text report of the migration in text format in more human readable form
+  downloadTextReport(){
+    var a = document.createElement('a')
+    this.fetch.getDTextReport().subscribe({  
+      next: (res: string) => {
+        a.href = 'data:text;charset=utf-8,' + encodeURIComponent(res)
+        a.download = `${this.conv.DatabaseName}_migration_textReport.txt`
+        a.click()
+      }
+    })
+  }
+
+  // downloads text file of Spanner's DDL of the schema. However this is optimized for reading and includes comments, foreign keys
+  // and doesn't add backticks around table and column names. This is not strictly
+	// legal Cloud Spanner DDL (Cloud Spanner doesn't currently support comments).
+  downloadDDL(){
+    var a = document.createElement('a')
+    this.fetch.getDSpannerDDL().subscribe({  
+      next: (res: string) => {
+        a.href = 'data:text;charset=utf-8,' + encodeURIComponent(res)
+        a.download = `${this.conv.DatabaseName}_spannerDDL.txt`
+        a.click()
+      }
+    })
   }
 
   updateSpannerTable(data: IUpdateTableArgument) {
