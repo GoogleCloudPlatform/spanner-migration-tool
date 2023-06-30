@@ -747,7 +747,7 @@ export class PrepareMigrationComponent implements OnInit {
     // Therefore an explicit replacement is necessary in the JSON content in the file.
     let resJson = JSON.stringify(this.configuredMigrationProfile, null, '\t').replace(/9223372036854776000/g, '9223372036854775807')
     a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
-    a.download = localStorage.getItem(TargetDetails.TargetDB) as string + this.configuredMigrationProfile.configType + `-shardConfig.cfg`
+    a.download = localStorage.getItem(TargetDetails.TargetDB) as string + "-" + this.configuredMigrationProfile.configType + `-shardConfig.cfg`
     a.click()
   }
 
