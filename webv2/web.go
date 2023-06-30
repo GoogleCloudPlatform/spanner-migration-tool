@@ -233,13 +233,13 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	sourceDB, err := sql.Open(config.Driver, dataSourceName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Database connection error, check connection properties."), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Database connection error, check connection properties, ERROR: %v", err), http.StatusInternalServerError)
 		return
 	}
 	// Open doesn't open a connection. Validate database connection.
 	err = sourceDB.Ping()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Database connection error, check connection properties."), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Database connection error, check connection properties, ERROR: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -276,16 +276,19 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 
 	conv.SpDialect = sessionState.Dialect
 	var err error
+	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
+		IsSharded: sessionState.IsSharded,
+	}
 	switch sessionState.Driver {
 	case constants.MYSQL:
-		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers)
+		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes)
 	case constants.POSTGRES:
 		temp := false
-		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers)
+		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers, additionalSchemaAttributes)
 	case constants.SQLSERVER:
-		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers)
+		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes)
 	case constants.ORACLE:
-		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers)
+		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes)
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -1412,12 +1415,30 @@ type DropDetail struct {
 	Name string `json:"Name"`
 }
 
-func restoreTable(w http.ResponseWriter, r *http.Request) {
-	tableId := r.FormValue("table")
+func restoreTables(w http.ResponseWriter, r *http.Request) {
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var tables internal.Tables
+	err = json.Unmarshal(reqBody, &tables)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	var convm session.ConvWithMetadata
+	for _, tableId := range tables.TableList {
+		convm = restoreTableHelper(w, tableId)
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
+func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
-		return
 	}
 	if tableId == "" {
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
@@ -1440,13 +1461,11 @@ func restoreTable(w http.ResponseWriter, r *http.Request) {
 		toddl = postgres.DbDumpImpl{}.GetToDdl()
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
-		return
 	}
 
 	err := common.SrcTableToSpannerDDL(conv, toddl, sessionState.Conv.SrcSchema[tableId])
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Restoring spanner table fail"), http.StatusBadRequest)
-		return
 	}
 	conv.AddPrimaryKeys()
 	sessionState.Conv = conv
@@ -1456,16 +1475,41 @@ func restoreTable(w http.ResponseWriter, r *http.Request) {
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
 	}
+	return convm
+}
+
+func restoreTable(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("table")
+	convm := restoreTableHelper(w, tableId)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
 
-func dropTable(w http.ResponseWriter, r *http.Request) {
-	tableId := r.FormValue("table")
+func dropTables(w http.ResponseWriter, r *http.Request) {
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var tables internal.Tables
+	err = json.Unmarshal(reqBody, &tables)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	var convm session.ConvWithMetadata
+	for _, tableId := range tables.TableList {
+		convm = dropTableHelper(w, tableId)
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
+func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
-		return
+		return session.ConvWithMetadata{}
 	}
 	if tableId == "" {
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
@@ -1539,6 +1583,12 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
 	}
+	return convm
+}
+
+func dropTable(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("table")
+	convm := dropTableHelper(w, tableId)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
@@ -1993,6 +2043,9 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 	}
 	sourceProfile.Driver = sessionState.Driver
+	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION {
+		sourceProfile.Config.ConfigType = constants.DATAFLOW_MIGRATION
+	}
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
 }
 

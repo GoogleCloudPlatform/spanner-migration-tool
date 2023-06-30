@@ -53,6 +53,14 @@ type TableIssues struct {
 	TableLevelIssues  []SchemaIssue
 }
 
+type AdditionalSchemaAttributes struct {
+	IsSharded bool
+}
+
+type AdditionalDataAttributes struct {
+	ShardId string
+}
+
 type mode int
 
 const (
@@ -103,7 +111,11 @@ const (
 	InterleavedRenameColumn
 	InterleavedChangeColumnSize
 	RowLimitExceeded
+	ShardIdColumnAdded
+	ShardIdColumnPrimaryKey
 )
+
+const ShardIdColumn = "migration_shard_id"
 
 // NameAndCols contains the name of a table and its columns.
 // Used to map between source DB and Spanner table and column names.
@@ -196,6 +208,10 @@ type Rule struct {
 	Enabled           bool
 	Data              interface{}
 	AddedOn           datetime.DateTime
+}
+
+type Tables struct {
+	TableList []string `json:"TableList"`
 }
 
 // MakeConv returns a default-configured Conv.
@@ -347,6 +363,20 @@ func (conv *Conv) SampleBadRows(n int) []string {
 		}
 	}
 	return l
+}
+
+func (conv *Conv) AddShardIdColumn() {
+	for t, ct := range conv.SpSchema {
+		colName := ShardIdColumn
+		columnId := GenerateColumnId()
+		ct.ColIds = append(ct.ColIds, columnId)
+		ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false}
+		ct.ShardIdColumn = columnId
+		conv.SpSchema[t] = ct
+		var issues []SchemaIssue
+		issues = append(issues, ShardIdColumnAdded, ShardIdColumnPrimaryKey)
+		conv.SchemaIssues[ct.Id].ColumnLevelIssues[columnId] = issues
+	}
 }
 
 // AddPrimaryKeys analyzes all tables in conv.schema and adds synthetic primary

@@ -282,7 +282,10 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					if !internal.Contains(l, str) {
 						l = append(l, str)
 					}
-
+				case internal.ShardIdColumnAdded:
+					l = append(l, IssueDB[i].Brief)
+				case internal.ShardIdColumnPrimaryKey:
+					l = append(l, IssueDB[i].Brief)
 				case internal.IllegalName:
 					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s'", IssueDB[i].Brief, srcColName, spColName))
 				default:
@@ -408,6 +411,8 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.InterleavedRenameColumn:     {Brief: "Candidate for Interleaved Table", severity: suggestion},
 	internal.InterleavedChangeColumnSize: {Brief: "Candidate for Interleaved Table", severity: suggestion},
 	internal.RowLimitExceeded:            {Brief: "Non key columns exceed the spanner limit of 1600 MB. Please modify the column sizes", severity: errors},
+	internal.ShardIdColumnAdded:          {Brief: "Column migration_shard_id was added because this is a sharded migration and this column cannot be dropped", severity: note},
+	internal.ShardIdColumnPrimaryKey:     {Brief: "Column migration_shard_id is not a part of primary key. You may go to the Primary Key tab and add this column as a part of Primary Key", severity: suggestion},
 }
 
 type severity int
