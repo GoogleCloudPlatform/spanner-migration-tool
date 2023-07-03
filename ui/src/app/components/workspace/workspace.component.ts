@@ -18,7 +18,7 @@ import IViewAssesmentData from 'src/app/model/view-assesment'
 import IDbConfig from 'src/app/model/db-config'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
-import IStructuredReport from '../../model/download-artifacts'
+import IStructuredReport from '../../model/structured-report'
 
 @Component({
   selector: 'app-workspace',

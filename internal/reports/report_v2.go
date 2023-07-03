@@ -106,7 +106,7 @@ type StructuredReport struct {
 	NameChanges          []NameChange         `json:"nameChanges"`
 	TableReports         []TableReport        `json:"tableReports"`
 	UnexpectedConditions UnexpectedConditions `json:"unexpectedConditions"`
-	SchemaOnly           bool                 `json:"schemaOnly"`
+	SchemaOnly           bool                 `json:"-"`
 }
 
 // A report consists of the following parts:

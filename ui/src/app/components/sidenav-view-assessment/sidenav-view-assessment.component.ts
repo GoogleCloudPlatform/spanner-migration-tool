@@ -3,7 +3,7 @@ import ConversionRate from 'src/app/model/conversion-rate'
 import IViewAssesmentData from 'src/app/model/view-assesment'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
-import IStructuredReport from '../../model/download-artifacts'
+import IStructuredReport from '../../model/structured-report'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 
 @Component({
@@ -90,7 +90,7 @@ export class SidenavViewAssessmentComponent implements OnInit {
   }
 
   //downloads text report of the migration in text format in more human readable form
-  downloadTextreport(){
+  downloadTextReport(){
     var a = document.createElement('a')
     this.fetch.getDTextReport().subscribe({  
       next: (res: string) => {
@@ -109,6 +109,6 @@ export class SidenavViewAssessmentComponent implements OnInit {
   
   downloadReports(){
     this.downloadStructuredReport()
-    this.downloadTextreport()
+    this.downloadTextReport()
   }
 }

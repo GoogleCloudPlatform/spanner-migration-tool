@@ -17,7 +17,7 @@ import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
 import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IMigrationProfile } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
-import IStructuredReport from 'src/app/model/download-artifacts'
+import IStructuredReport from 'src/app/model/structured-report'
 
 @Injectable({
   providedIn: 'root',

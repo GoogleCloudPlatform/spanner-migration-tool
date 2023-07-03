@@ -18,6 +18,8 @@
 package webv2
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -32,8 +34,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"bufio"
-	"bytes"
 
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
@@ -1169,11 +1169,11 @@ func getDStructuredReport(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(structuredReport)
 }
 
-func getDTextReport(w http.ResponseWriter, r *http.Request){
+func getDTextReport(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
 	// creates a new buffer
-	buffer := bytes.NewBuffer([]byte{})	
+	buffer := bytes.NewBuffer([]byte{})
 	// initializes buffered writer that writes data to buffer
 	wb := bufio.NewWriter(buffer)
 	reports.GenerateTextReport(structuredReport, wb)
@@ -1182,13 +1182,13 @@ func getDTextReport(w http.ResponseWriter, r *http.Request){
 	// introduces a byte slice to represent the content of buffer
 	data := buffer.Bytes()
 	// converts byte slice to corressponding string representation
-    decodedString := string(data)
+	decodedString := string(data)
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "text/plain")
 	json.NewEncoder(w).Encode(decodedString)
 }
 
-func getDSpannerDDL(w http.ResponseWriter, r *http.Request){
+func getDSpannerDDL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	conv := sessionState.Conv
 	now := time.Now()
