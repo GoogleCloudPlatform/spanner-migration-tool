@@ -14,4 +14,33 @@
 
 package transformation
 
-const ()
+const (
+	MathOperation         = "mathOp"
+	NoOp                  = "noOp"
+	GenerateUUID          = "generateUUID"
+	BitReverse            = "bitReverse"
+	Floor                 = "floor"
+	Ceil                  = "ceil"
+	Compare               = "compare"
+	LogicalOp             = "logicalOp"
+	WriteToColumnAction   = "writeToColumn"
+	WriteToVariableAction = "writeToVar"
+	FilterAction          = "filter"
+	Include               = "include"
+	SourceColumn          = "source-column"
+	Operator              = "operator"
+	Static                = "static"
+	Variable              = "variable"
+	AndOperator           = "and"
+	OrOperator            = "or"
+	XorOperator           = "xor"
+	NotOperator           = "not"
+	EqualToOperator       = "equalTo"
+	GreaterThanOperator   = "greaterThan"
+	LesserThanOperator    = "lessThan"
+	AddOperator           = "add"
+	SubtractOperator      = "subtract"
+	MultiplyOperator      = "multiply"
+	DivideOperator        = "divide"
+	ModOperator           = "mod"
+)

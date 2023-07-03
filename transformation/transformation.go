@@ -63,7 +63,7 @@ func ProcessDataTransformation(conv *internal.Conv, tableId string, cvtCols []st
 				if err != nil {
 					return nil, nil, fmt.Errorf("could not parse value for:%s, error:%w", input, err)
 				}
-				if y.inputType == "operator" {
+				if y.inputType == Operator {
 					operator = y
 				} else {
 					isEmpty := reflect.DeepEqual(firstInput, inputValue{})
@@ -77,20 +77,22 @@ func ProcessDataTransformation(conv *internal.Conv, tableId string, cvtCols []st
 			var x interface{}
 			var err error
 			switch rule.Function {
-			case "mathOp":
+			case MathOperation:
 				x, err = applyMathOp(firstInput, secondInput, operator)
-			case "noOp":
+			case NoOp:
 				x = firstInput.value
-			case "generateUUID":
+			case GenerateUUID:
 				x = generateUuid()
-			case "bitReverse":
+			case BitReverse:
 				x, err = bitReverse(firstInput)
-			case "floor":
+			case Floor:
 				x, err = applyFloor(firstInput)
-			case "ceil":
+			case Ceil:
 				x, err = applyCeil(firstInput)
-			case "compare":
+			case Compare:
 				x, err = applyCompare(firstInput, secondInput, operator)
+			case LogicalOp:
+				x, err = applyLogicalOp(firstInput, secondInput, operator)
 			}
 			if err != nil {
 				return nil, nil, err
@@ -99,13 +101,13 @@ func ProcessDataTransformation(conv *internal.Conv, tableId string, cvtCols []st
 			if !ok {
 				return nil, nil, fmt.Errorf("action config not of correct type for rule id:%s", rule.Id)
 			}
-			if rule.Action == "writeToColumn" {
+			if rule.Action == WriteToColumnAction {
 				column, ok := actionConfig["column"].(string)
 				if !ok {
 					return nil, nil, fmt.Errorf("could not parse column of action config with rule id:%s", rule.Id)
 				}
 				mapSpannerColIdToVal[column] = x
-			} else if rule.Action == "writeToVar" {
+			} else if rule.Action == WriteToVariableAction {
 				varValue, ok := actionConfig["varName"].(map[string]interface{})
 				if !ok {
 					return nil, nil, fmt.Errorf("could not parse variable of action config with rule id:%s", rule.Id)
@@ -128,10 +130,10 @@ func ProcessDataTransformation(conv *internal.Conv, tableId string, cvtCols []st
 					value:    x,
 					dataType: dataType,
 				}
-			} else if rule.Action == "filter" {
-				filterAction, ok := actionConfig["include"].(string)
+			} else if rule.Action == FilterAction {
+				filterAction, ok := actionConfig[Include].(string)
 				if !ok {
-					return nil, nil, fmt.Errorf("could not parse filter action: %s", actionConfig["include"])
+					return nil, nil, fmt.Errorf("could not parse filter action: %s", actionConfig[Include])
 				}
 				if x == true && filterAction == "true" {
 					return nil, nil, nil
@@ -169,7 +171,7 @@ func getValue(inputInterface interface{}, mapSourceColIdToVal map[string]string,
 		return inputValue{}, fmt.Errorf("could not parse type for input: %s", input["type"])
 	}
 	switch inputType {
-	case "source-column":
+	case SourceColumn:
 		value, ok := input["value"].(string)
 		if !ok {
 			return inputValue{}, fmt.Errorf("could not parse value for input: %s", input)
@@ -186,7 +188,7 @@ func getValue(inputInterface interface{}, mapSourceColIdToVal map[string]string,
 			inputType: inputType,
 			dataType:  ty.Name,
 		}, nil
-	case "operator":
+	case Operator:
 		value, ok := input["value"].(string)
 		if !ok {
 			return inputValue{}, fmt.Errorf("could not parse value for input: %s", input)
@@ -196,7 +198,7 @@ func getValue(inputInterface interface{}, mapSourceColIdToVal map[string]string,
 			inputType: inputType,
 			dataType:  "",
 		}, nil
-	case "static":
+	case Static:
 		dataType, ok := input["datatype"].(string)
 		if !ok {
 			return inputValue{}, fmt.Errorf("could not parse datatype for input: %s", input)
@@ -220,7 +222,7 @@ func getValue(inputInterface interface{}, mapSourceColIdToVal map[string]string,
 			inputType: inputType,
 			dataType:  dataType,
 		}, nil
-	case "variable":
+	case Variable:
 		value, ok := input["value"].(string)
 		if !ok {
 			return inputValue{}, fmt.Errorf("could not parse value for input: %s", input)
@@ -272,13 +274,153 @@ func applyCeil(firstInput inputValue) (interface{}, error) {
 	return nil, fmt.Errorf("unsupported data type: %T", firstInput.value)
 }
 
+func applyLogicalOp(firstInput, secondInput, operator inputValue) (interface{}, error) {
+	switch operator.value {
+	case AndOperator:
+		return logicalAnd(firstInput, secondInput)
+	case OrOperator:
+		return logicalOr(firstInput, secondInput)
+	case XorOperator:
+		return logicalXor(firstInput, secondInput)
+	case NotOperator:
+		return logicalNot(firstInput)
+	}
+	return nil, fmt.Errorf("unsupported comparison operation: %s", operator.value)
+}
+
+// Logical AND operator
+func logicalAnd(a, b interface{}) (bool, error) {
+	switch a := a.(type) {
+	case bool:
+		if b, ok := b.(bool); ok {
+			return a && b, nil
+		}
+	case int64:
+		if b, ok := b.(int64); ok {
+			return a != 0 && b != 0, nil
+		}
+	case float64:
+		if b, ok := b.(float64); ok {
+			return a != 0.0 && b != 0.0, nil
+		}
+	case string:
+		if b, ok := b.(string); ok {
+			return a != "" && b != "", nil
+		}
+	case []byte:
+		if b, ok := b.([]byte); ok {
+			return len(a) != 0 && len(b) != 0, nil
+		}
+	case civil.Date:
+		if b, ok := b.(civil.Date); ok {
+			return a != civil.Date{} && b != civil.Date{}, nil
+		}
+	case time.Time:
+		if b, ok := b.(time.Time); ok {
+			return !a.IsZero() && !b.IsZero(), nil
+		}
+	}
+	return false, fmt.Errorf("unsupported type for logical operation: %T", a)
+}
+
+// Logical OR operator
+func logicalOr(a, b interface{}) (bool, error) {
+	switch a := a.(type) {
+	case bool:
+		if b, ok := b.(bool); ok {
+			return a || b, nil
+		}
+	case int64:
+		if b, ok := b.(int64); ok {
+			return a != 0 || b != 0, nil
+		}
+	case float64:
+		if b, ok := b.(float64); ok {
+			return a != 0.0 || b != 0.0, nil
+		}
+	case string:
+		if b, ok := b.(string); ok {
+			return a != "" || b != "", nil
+		}
+	case []byte:
+		if b, ok := b.([]byte); ok {
+			return len(a) != 0 || len(b) != 0, nil
+		}
+	case civil.Date:
+		if b, ok := b.(civil.Date); ok {
+			return a != civil.Date{} || b != civil.Date{}, nil
+		}
+	case time.Time:
+		if b, ok := b.(time.Time); ok {
+			return !a.IsZero() || !b.IsZero(), nil
+		}
+	}
+	return false, fmt.Errorf("unsupported type for logical operation: %T", a)
+}
+
+// Logical XOR operator
+func logicalXor(a, b interface{}) (bool, error) {
+	switch a := a.(type) {
+	case bool:
+		if b, ok := b.(bool); ok {
+			return (a && !b) || (!a && b), nil
+		}
+	case int64:
+		if b, ok := b.(int64); ok {
+			return (a != 0) != (b != 0), nil
+		}
+	case float64:
+		if b, ok := b.(float64); ok {
+			return (a != 0.0) != (b != 0.0), nil
+		}
+	case string:
+		if b, ok := b.(string); ok {
+			return (a != "") != (b != ""), nil
+		}
+	case []byte:
+		if b, ok := b.([]byte); ok {
+			return (len(a) != 0) != (len(b) != 0), nil
+		}
+	case civil.Date:
+		if b, ok := b.(civil.Date); ok {
+			return (a != civil.Date{}) != (b != civil.Date{}), nil
+		}
+	case time.Time:
+		if b, ok := b.(time.Time); ok {
+			return (!a.IsZero()) != (!b.IsZero()), nil
+		}
+	}
+	return false, fmt.Errorf("unsupported type for logical operation: %T", a)
+}
+
+// Logical NOT operator
+func logicalNot(a interface{}) (bool, error) {
+	switch a := a.(type) {
+	case bool:
+		return !a, nil
+	case int64:
+		return a == 0, nil
+	case float64:
+		return a == 0.0, nil
+	case string:
+		return a == "", nil
+	case []byte:
+		return len(a) == 0, nil
+	case civil.Date:
+		return a == civil.Date{}, nil
+	case time.Time:
+		return a.IsZero(), nil
+	}
+	return false, fmt.Errorf("unsupported type for logical operation: %T", a)
+}
+
 func applyCompare(firstInput, secondInput, operator inputValue) (interface{}, error) {
 	switch operator.value {
-	case "equalTo":
+	case EqualToOperator:
 		return compareEqual(firstInput, secondInput)
-	case "greaterThan":
+	case GreaterThanOperator:
 		return compareGreaterThan(firstInput, secondInput)
-	case "lessThan":
+	case LesserThanOperator:
 		return compareLessThan(firstInput, secondInput)
 	}
 	return nil, fmt.Errorf("unsupported comparison operation: %s", operator.value)

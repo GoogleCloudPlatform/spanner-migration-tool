@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"math/bits"
 	"strconv"
 	"strings"
 	"time"
@@ -30,9 +29,10 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/transformation"
 )
 
-func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string) {
+func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string, mapSrcColIdToVal map[string]string) {
 	spTableName, cvtCols, cvtVals, err := convertData(conv, tableId, colIds, srcSchema, spSchema, vals)
 	srcTableName := srcSchema.Name
 	srcCols := []string{}
@@ -43,7 +43,17 @@ func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSch
 		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 		conv.StatsAddBadRow(srcTableName, conv.DataMode())
 		conv.CollectBadRow(srcTableName, srcCols, vals)
-	} else {
+		return
+	}
+	toddl := InfoSchemaImpl{}.GetToDdl()
+	cvtCols, cvtVals, err = transformation.ProcessDataTransformation(conv, tableId, cvtCols, cvtVals, mapSrcColIdToVal, toddl)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Error while transforming data: %s\n", err))
+		conv.StatsAddBadRow(srcTableName, conv.DataMode())
+		conv.CollectBadRow(srcTableName, srcCols, vals)
+		return
+	}
+	if cvtVals != nil {
 		conv.WriteRow(srcTableName, spTableName, cvtCols, cvtVals)
 	}
 }
@@ -83,12 +93,6 @@ func convertData(conv *internal.Conv, tableId string, colIds []string, srcSchema
 		}
 		v = append(v, x)
 		c = append(c, spColDef.Name)
-	}
-	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
-		c = append(c, conv.SpSchema[tableId].ColDefs[aux.ColId].Name)
-		v = append(v, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
-		aux.Sequence++
-		conv.SyntheticPKeys[tableId] = aux
 	}
 	return spSchema.Name, c, v, nil
 }
