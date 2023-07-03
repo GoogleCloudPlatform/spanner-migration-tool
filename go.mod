@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.110.2
 	cloud.google.com/go/dataflow v0.8.0
 	cloud.google.com/go/datastream v1.8.0
+	cloud.google.com/go/pubsub v1.31.0
 	cloud.google.com/go/spanner v1.45.0
 	cloud.google.com/go/storage v1.29.0
 	github.com/DATA-DOG/go-sqlmock v1.5.0
@@ -93,7 +94,6 @@ require (
 	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/term v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
-	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
