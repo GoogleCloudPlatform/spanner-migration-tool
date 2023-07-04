@@ -5,6 +5,7 @@ import { ClickEventService } from 'src/app/services/click-event/click-event.serv
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import IStructuredReport from '../../model/structured-report'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
+import * as JSZip from 'jszip'
 
 @Component({
   selector: 'app-sidenav-view-assessment',
@@ -76,9 +77,9 @@ export class SidenavViewAssessmentComponent implements OnInit {
   }
 
   // downloads structured report of the migration in JSON format
-  downloadStructuredReport(){
+  downloadStructuredReport() {
     var a = document.createElement('a')
-    this.fetch.getDStructuredReport().subscribe({ 
+    this.fetch.getDStructuredReport().subscribe({
       next: (res: IStructuredReport) => {
         let resJson = JSON.stringify(res).replace(/9223372036854776000/g, '9223372036854775807')
         a.href = 'data:text;charset=utf-8,' + encodeURIComponent(resJson)
@@ -106,9 +107,31 @@ export class SidenavViewAssessmentComponent implements OnInit {
       }
     })
   }
-  
-  downloadReports(){
-    this.downloadStructuredReport()
-    this.downloadTextReport()
+
+  downloadReports() {
+    let zip = new JSZip()
+    this.fetch.getDStructuredReport().subscribe({
+      next: (resStructured: IStructuredReport) => {
+        let fileNameHeader = resStructured.summary.dbName
+        let resJson = JSON.stringify(resStructured).replace(/9223372036854776000/g, '9223372036854775807')
+        let fileName = fileNameHeader + '_migration_structuredReport.json'
+        // add the structured report in zip file
+        zip.file(fileName, resJson)
+        this.fetch.getDTextReport().subscribe({
+          next: (resText: string) => {
+            // add the text report in zip file
+            zip.file(fileNameHeader + '_migration_textReport.txt', resText)
+            // Generate the zip file asynchronously
+            zip.generateAsync({ type: 'blob' })
+              .then((blob: Blob) => {
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `${fileNameHeader}_reports`;
+                a.click();
+              })
+          }
+        })
+      }
+    })
   }
 }

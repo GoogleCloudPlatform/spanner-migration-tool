@@ -19,6 +19,7 @@ import IDbConfig from 'src/app/model/db-config'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import IStructuredReport from '../../model/structured-report'
+import * as JSZip from 'jszip'
 
 @Component({
   selector: 'app-workspace',
@@ -273,10 +274,40 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
   
   downloadArtifacts(){
-    this.downloadStructuredReport()
-    this.downloadSession()
-    this.downloadTextReport()
-    this.downloadDDL()
+    let zip = new JSZip()
+    let fileNameHeader = `${this.conv.DatabaseName}`
+    this.fetch.getDStructuredReport().subscribe({ 
+      next: (resStructured: IStructuredReport) => {
+        let resJson = JSON.stringify(resStructured).replace(/9223372036854776000/g, '9223372036854775807')
+        let fileName = fileNameHeader + '_migration_structuredReport.json'
+        // add structured report to zip file
+        zip.file(fileName, resJson)
+        this.fetch.getDTextReport().subscribe({  
+          next: (resText: string) => {
+            // add text report to zip file
+            zip.file(fileNameHeader + '_migration_textReport.txt', resText)
+            this.fetch.getDSpannerDDL().subscribe({  
+              next: (resDDL: string) => {
+                // add spanner DDL to zip file
+                zip.file(fileNameHeader + '_spannerDDL.txt', resDDL)
+                let resJsonSession = JSON.stringify(this.conv).replace(/9223372036854776000/g, '9223372036854775807')
+                let sessionFileName = `${this.conv.SessionName}_${this.conv.DatabaseType}_${fileNameHeader}.json`
+                // add session to zip file
+                zip.file(sessionFileName, resJsonSession)
+                // Generate the zip file asynchronously
+                zip.generateAsync({ type: 'blob' })
+                .then((blob: Blob) => {
+                  var a = document.createElement('a');
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `${fileNameHeader}_artifcats`;
+                  a.click();
+                })
+              }
+            })
+          }
+        })
+      }
+    })
   }
 
   // downloads structured report of the migration in JSON format
