@@ -248,7 +248,7 @@ func TestProcessSchema(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{"test", db}, 1)
+	err := common.ProcessSchema(conv, InfoSchemaImpl{"test", db}, 1, internal.AdditionalSchemaAttributes{})
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"user": {

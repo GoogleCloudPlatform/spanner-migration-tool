@@ -130,6 +130,7 @@ func TestPrintCreateTable(t *testing.T) {
 	t1 := CreateTable{
 		"mytable",
 		[]string{"col1", "col2", "col3"},
+		"",
 		cds,
 		[]IndexKey{{ColId: "col1", Desc: true}},
 		nil,
@@ -141,6 +142,7 @@ func TestPrintCreateTable(t *testing.T) {
 	t2 := CreateTable{
 		"mytable",
 		[]string{"col1", "col2", "col3"},
+		"",
 		cds,
 		[]IndexKey{{ColId: "col1", Desc: true}},
 		nil,
@@ -200,6 +202,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 	t1 := CreateTable{
 		"mytable",
 		[]string{"col1", "col2", "col3"},
+		"",
 		cds,
 		[]IndexKey{{ColId: "col1", Desc: true}},
 		nil,
@@ -211,6 +214,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 	t2 := CreateTable{
 		"mytable",
 		[]string{"col1", "col2", "col3"},
+		"",
 		cds,
 		[]IndexKey{{ColId: "col1", Desc: true}},
 		nil,

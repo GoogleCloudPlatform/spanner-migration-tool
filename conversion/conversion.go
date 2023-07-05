@@ -201,8 +201,10 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 	//fetch the schema. We reuse the SourceProfileConnection object for this purpose.
 	var infoSchema common.InfoSchema
 	var err error
+	isSharded := false
 	switch sourceProfile.Ty {
 	case profiles.SourceProfileTypeConfig:
+		isSharded = true
 		//Find Primary Shard Name
 		if sourceProfile.Config.ConfigType == constants.BULK_MIGRATION {
 			schemaSource := sourceProfile.Config.ShardConfigurationBulk.SchemaSource
@@ -231,17 +233,20 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 			return conv, err
 		}
 	}
-	return conv, common.ProcessSchema(conv, infoSchema, common.DefaultWorkers)
+	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
+		IsSharded: isSharded,
+	}
+	return conv, common.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes)
 }
 
-func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) *writer.BatchWriter {
+func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema, additionalAttributes internal.AdditionalDataAttributes) *writer.BatchWriter {
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
 	if !conv.Audit.DryRun {
 		conv.Audit.Progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false, int(internal.DataWriteInProgress))
 	}
 	batchWriter := populateDataConv(conv, config, client)
-	common.ProcessData(conv, infoSchema)
+	common.ProcessData(conv, infoSchema, additionalAttributes)
 	batchWriter.Flush()
 	return batchWriter
 }
@@ -252,7 +257,7 @@ func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config write
 	case constants.MYSQL, constants.ORACLE, constants.POSTGRES:
 		return &writer.BatchWriter{}, nil
 	case constants.DYNAMODB:
-		return performSnapshotMigration(config, conv, client, infoSchema), nil
+		return performSnapshotMigration(config, conv, client, infoSchema, internal.AdditionalDataAttributes{ShardId: ""}), nil
 	default:
 		return &writer.BatchWriter{}, fmt.Errorf("streaming migration not supported for driver %s", sourceProfile.Driver)
 	}
@@ -304,7 +309,7 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			}
 			return bw, nil
 		}
-		return performSnapshotMigration(config, conv, client, infoSchema), nil
+		return performSnapshotMigration(config, conv, client, infoSchema, internal.AdditionalDataAttributes{ShardId: ""}), nil
 	}
 }
 
@@ -357,24 +362,33 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 	updateShardsWithDataflowConfig(sourceProfile.Config.ShardConfigurationDataflow)
 	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
 	conv.Audit.StreamingStats.ShardToDataflowJobMap = make(map[string]string)
+	tableList, err := common.GetIncludedSrcTablesFromConv(conv)
+	if err != nil {
+		fmt.Printf("unable to determine tableList from schema, falling back to full database")
+		tableList = []string{}
+	}
 	asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) common.TaskResult[*profiles.DataShard] {
+		dbNameToShardIdMap := make(map[string]string)
+		for _, l := range p.LogicalShards {
+			dbNameToShardIdMap[l.DbName] = l.LogicalShardId
+		}
 		streamingCfg := streaming.CreateStreamingConfig(*p)
-		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname)
+		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname, tableList)
 		if err != nil {
 			err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		fmt.Printf("Initiating migration for shard: %v\n", p.DataShardId)
 
-		err = streaming.LaunchStream(ctx, sourceProfile.Driver, p.LogicalShards, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
+		err = streaming.LaunchStream(ctx, sourceProfile, p.LogicalShards, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
-
+		streamingCfg.DataflowCfg.DbNameToShardIdMap = dbNameToShardIdMap
 		err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
-	_, err := common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 5, asyncProcessShards, true)
+	_, err = common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 5, asyncProcessShards, true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start minimal downtime migrations: %v", err)
 	}
@@ -394,8 +408,10 @@ func dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targ
 		if err != nil {
 			return nil, err
 		}
-
-		bw = performSnapshotMigration(config, conv, client, infoSchema)
+		additionalDataAttributes := internal.AdditionalDataAttributes{
+			ShardId: dataShard.DataShardId,
+		}
+		bw = performSnapshotMigration(config, conv, client, infoSchema, additionalDataAttributes)
 	}
 
 	return bw, nil
@@ -671,22 +687,23 @@ func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminCli
 }
 
 // ValidateTables validates that all the tables in the database are empty.
-func ValidateTables(ctx context.Context, client *sp.Client, spDialect string) error {
+// It returns the name of the first non-empty table if found, and an empty string otherwise.
+func ValidateTables(ctx context.Context, client *sp.Client, spDialect string) (string, error) {
 	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, SpDialect: spDialect}
 	tables, err := infoSchema.GetTables()
 	if err != nil {
-		return err
+		return "", err
 	}
 	for _, table := range tables {
 		count, err := infoSchema.GetRowCount(table)
 		if err != nil {
-			return err
+			return "", err
 		}
 		if count != 0 {
-			return fmt.Errorf("table %v should be empty for data migration to take place", table.Name)
+			return table.Name, nil
 		}
 	}
-	return nil
+	return "", nil
 }
 
 // ValidateDDL verifies if an existing DB's ddl follows what is supported by harbourbridge. Currently,

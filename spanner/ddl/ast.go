@@ -96,14 +96,14 @@ var PGSQL_TO_STANDARD_TYPE_TYPEMAP = map[string]string{
 
 // PGDialect keyword list
 // Assumption is that this list PGSQL dialect uses the same keywords
-var PGSQL_RESERVED_KEYWORD_LIST = []string{"ALL","ANALYSE","ANALYZE","AND","ANY","ARRAY","AS","ASC","ASYMMETRIC","AUTHORIZATION","BETWEEN","BIGINT","BINARY","BIT","BOOLEAN","BOTH","CASE","CAST",
-"CHAR","CHARACTER","CHECK","COALESCE","COLLATE","COLLATION","COLUMN","CONCURRENTLY","CONSTRAINT","CREATE","CROSS","CURRENT_CATALOG","CURRENT_DATE","CURRENT_ROLE","CURRENT_SCHEMA",
-"CURRENT_TIME","CURRENT_TIMESTAMP","CURRENT_USER","DEC","DECIMAL","DEFAULT","DEFERRABLE","DESC","DISTINCT","DO","ELSE","END","EXCEPT","EXISTS","EXTRACT","FALSE","FETCH","FLOAT","FOR","FOREIGN",
-"FREEZE","FROM","FULL","GRANT","GREATEST","GROUP","GROUPING","HAVING","ILIKE","IN","INITIALLY","INNER","INOUT","INT","INTEGER","INTERSECT","INTERVAL","INTO","IS","ISNULL","JOIN","LATERAL","LEADING",
-"LEAST","LEFT","LIKE","LIMIT","LOCALTIME","LOCALTIMESTAMP","NATIONAL","NATURAL","NCHAR","NONE","NORMALIZE","NOT","NOTNULL","NULL","NULLIF","NUMERIC","OFFSET","ON","ONLY","OR","ORDER","OUT","OUTER",
-"OVERLAPS","OVERLAY","PLACING","POSITION","PRECISION","PRIMARY","REAL","REFERENCES","RETURNING","RIGHT","ROW","SELECT","SESSION_USER","SETOF","SIMILAR","SMALLINT","SOME","SUBSTRING","SYMMETRIC",
-"TABLE","TABLESAMPLE","THEN","TIME","TIMESTAMP","TO","TRAILING","TREAT","TRIM","TRUE","UNION","UNIQUE","USER","USING","VALUES","VARCHAR","VARIADIC","VERBOSE","WHEN","WHERE","WINDOW","WITH",
-"XMLATTRIBUTES","XMLCONCAT","XMLELEMENT","XMLEXISTS","XMLFOREST","XMLNAMESPACES","XMLPARSE","XMLPI","XMLROOT","XMLSERIALIZE","XMLTABLE"}
+var PGSQL_RESERVED_KEYWORD_LIST = []string{"ALL", "ANALYSE", "ANALYZE", "AND", "ANY", "ARRAY", "AS", "ASC", "ASYMMETRIC", "AUTHORIZATION", "BETWEEN", "BIGINT", "BINARY", "BIT", "BOOLEAN", "BOTH", "CASE", "CAST",
+	"CHAR", "CHARACTER", "CHECK", "COALESCE", "COLLATE", "COLLATION", "COLUMN", "CONCURRENTLY", "CONSTRAINT", "CREATE", "CROSS", "CURRENT_CATALOG", "CURRENT_DATE", "CURRENT_ROLE", "CURRENT_SCHEMA",
+	"CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER", "DEC", "DECIMAL", "DEFAULT", "DEFERRABLE", "DESC", "DISTINCT", "DO", "ELSE", "END", "EXCEPT", "EXISTS", "EXTRACT", "FALSE", "FETCH", "FLOAT", "FOR", "FOREIGN",
+	"FREEZE", "FROM", "FULL", "GRANT", "GREATEST", "GROUP", "GROUPING", "HAVING", "ILIKE", "IN", "INITIALLY", "INNER", "INOUT", "INT", "INTEGER", "INTERSECT", "INTERVAL", "INTO", "IS", "ISNULL", "JOIN", "LATERAL", "LEADING",
+	"LEAST", "LEFT", "LIKE", "LIMIT", "LOCALTIME", "LOCALTIMESTAMP", "NATIONAL", "NATURAL", "NCHAR", "NONE", "NORMALIZE", "NOT", "NOTNULL", "NULL", "NULLIF", "NUMERIC", "OFFSET", "ON", "ONLY", "OR", "ORDER", "OUT", "OUTER",
+	"OVERLAPS", "OVERLAY", "PLACING", "POSITION", "PRECISION", "PRIMARY", "REAL", "REFERENCES", "RETURNING", "RIGHT", "ROW", "SELECT", "SESSION_USER", "SETOF", "SIMILAR", "SMALLINT", "SOME", "SUBSTRING", "SYMMETRIC",
+	"TABLE", "TABLESAMPLE", "THEN", "TIME", "TIMESTAMP", "TO", "TRAILING", "TREAT", "TRIM", "TRUE", "UNION", "UNIQUE", "USER", "USING", "VALUES", "VARCHAR", "VARIADIC", "VERBOSE", "WHEN", "WHERE", "WINDOW", "WITH",
+	"XMLATTRIBUTES", "XMLCONCAT", "XMLELEMENT", "XMLEXISTS", "XMLFOREST", "XMLNAMESPACES", "XMLPARSE", "XMLPI", "XMLROOT", "XMLSERIALIZE", "XMLTABLE"}
 
 // Type represents the type of a column.
 //
@@ -291,15 +291,16 @@ func (k Foreignkey) PrintForeignKey(c Config) string {
 //
 //	create_table: CREATE TABLE table_name ([column_def, ...] ) primary_key [, cluster]
 type CreateTable struct {
-	Name        string
-	ColIds      []string             // Provides names and order of columns
-	ColDefs     map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
-	PrimaryKeys []IndexKey
-	ForeignKeys []Foreignkey
-	Indexes     []CreateIndex
-	ParentId    string //if not empty, this table will be interleaved
-	Comment     string
-	Id          string
+	Name          string
+	ColIds        []string // Provides names and order of columns
+	ShardIdColumn string
+	ColDefs       map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
+	PrimaryKeys   []IndexKey
+	ForeignKeys   []Foreignkey
+	Indexes       []CreateIndex
+	ParentId      string //if not empty, this table will be interleaved
+	Comment       string
+	Id            string
 }
 
 // PrintCreateTable unparses a CREATE TABLE statement.
@@ -429,6 +430,7 @@ func NewSchema() Schema {
 
 // Tables are ordered in alphabetical order with one exception: interleaved
 // tables appear after the definition of their parent table.
+// 
 // TODO: Move this method to mapping.go and preserve the table names in sorted
 // order in conv so that we don't need to order the table names multiple times.
 func GetSortedTableIdsBySpName(s Schema) []string {
