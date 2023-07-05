@@ -115,6 +115,7 @@ func CreateConversionWorkspace(ctx context.Context, schemaDBName string, dataSha
 		Conv:         conv,
 		DatabaseName: schemaDBName,
 	}
+	// TODO: create shardIdMap
 	convJSON, err := json.MarshalIndent(convWithMapping, "", " ")
 
 	if err != nil {
@@ -153,6 +154,6 @@ func storeGeneratedResources(conv *internal.Conv, dmsCfg DMSCfg, dataShardId str
 	}
 	dmsJobName := fmt.Sprintf("projects/%s/locations/%s/migrationJobs/%s", dmsCfg.DMSJobCfg.JobID.Project, dmsCfg.DMSJobCfg.JobID.Location, dmsCfg.DMSJobCfg.JobID.ID)
 	fmt.Println("\n------------------------------------------\n" +
-		"The DMS job: " + dmsJobName + 
+		"The DMS job: " + dmsJobName +
 		" will have to be manually cleaned up via the UI. HarbourBridge will not delete them post completion of the migration.")
 }

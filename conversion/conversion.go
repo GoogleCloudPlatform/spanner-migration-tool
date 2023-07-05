@@ -315,8 +315,6 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 // 5. Create and launch DMS Jobs
 func dataFromDatabaseForDMSMigration(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
 	conv.Audit.StreamingStats.ShardToDMSJobMap = make(map[string]string)
-	// TODO: create shardIdMap
-	// TODO: maybe create Spanner connection profile
 	var conversionWorkspaceID *dms.ResourceIdentifier
 	var commitId string
 	var dmsCfgs []dms.DMSCfg
