@@ -341,7 +341,7 @@ func GenerateName(prefix string) (string, error) {
 		return "", fmt.Errorf("error generating name: %w", err)
 
 	}
-	return fmt.Sprintf("%s_%x-%x", prefix, b[0:2], b[2:4]), nil
+	return fmt.Sprintf("%s-%x-%x", prefix, b[0:2], b[2:4]), nil
 }
 
 // parseURI parses an unknown URI string that could be a database, instance or project URI.

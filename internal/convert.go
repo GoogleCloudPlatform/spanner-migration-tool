@@ -174,10 +174,15 @@ type streamingStats struct {
 	DroppedRecords   map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
 	SampleBadRecords []string                    // Records that generated errors during conversion.
 	SampleBadWrites  []string                    // Records that faced errors while writing to Cloud Spanner.
-	DataStreamName   string
-	DataflowJobId    string
+	// Dataflow resources
+	DataStreamName           string
+	DataflowJobId            string
 	ShardToDataStreamNameMap map[string]string
-	ShardToDataflowJobMap map[string]string
+	ShardToDataflowJobMap    map[string]string
+	// DMS resources
+	ConversionWorkspaceName string
+	DMSJobId                string
+	ShardToDMSJobMap        map[string]string
 }
 
 // Stores information related to rules during schema conversion

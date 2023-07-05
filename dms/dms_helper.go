@@ -76,9 +76,10 @@ type DMSJobCfg struct {
 }
 
 type ConversionWorkspaceCfg struct {
-	ConversionWorkspaceID     ResourceIdentifier
-	SessionFile               SessionFileCfg
-	SourceConnectionProfileID ResourceIdentifier
+	ConversionWorkspaceID          ResourceIdentifier
+	SessionFile                    SessionFileCfg
+	SourceConnectionProfileID      ResourceIdentifier
+	DestinationConnectionProfileID ResourceIdentifier
 }
 
 type SessionFileCfg struct {
@@ -93,7 +94,7 @@ func createDMSJob(ctx context.Context, job DMSJobCfg) error {
 		return fmt.Errorf("dms client can not be created: %v", err)
 	}
 	defer dmsClient.Close()
-	fmt.Println("Created dms client...")
+	fmt.Printf("Creating DMS Job. JobId=%s\n", job.JobID.ID)
 
 	parent := fmt.Sprintf(LocationResourceFormat, job.JobID.Project, job.JobID.Location)
 	name := migrationJobID(job.JobID)
@@ -124,20 +125,20 @@ func createDMSJob(ctx context.Context, job DMSJobCfg) error {
 	if err != nil {
 		return fmt.Errorf("dms migration job could not be created (after waiting): %v", err)
 	}
-	fmt.Printf("Created dms job. JobId=%v", dmsJob.Name)
+	fmt.Printf("Created DMS job. JobId=%v\n", dmsJob.Name)
 	return nil
 }
 
-// launchDMSJob creates a DMS Job.
+// launchDMSJob starts a DMS Job.
 func launchDMSJob(ctx context.Context, job DMSJobCfg) error {
 	dmsClient, err := dms.NewDataMigrationClient(ctx)
 	if err != nil {
 		return fmt.Errorf("dms client can not be created: %v", err)
 	}
 	defer dmsClient.Close()
-	fmt.Println("Created dms client...")
 
 	name := migrationJobID(job.JobID)
+	fmt.Printf("Starting DMS job. JobID=%v\n", name)
 
 	req := &clouddmspb.StartMigrationJobRequest{
 		Name: name,
@@ -151,7 +152,7 @@ func launchDMSJob(ctx context.Context, job DMSJobCfg) error {
 	if err != nil {
 		return fmt.Errorf("dms migration job could not be started (after waiting): %v", err)
 	}
-	fmt.Printf("Launched dms job. JobId=%v", dmsJob.Name)
+	fmt.Printf("Started DMS job. JobId=%v\n", dmsJob.Name)
 	return nil
 }
 
@@ -172,6 +173,12 @@ func createMySQLConnectionProfile(ctx context.Context, sourceConnCfg SrcConnCfg,
 		staticConnectivity = &StaticConnectivity{}
 	}
 
+	if testConnectivityOnly {
+		fmt.Printf("Testing connectivity of MySQL Connection profile. ID=%v\n", name)
+	} else {
+		fmt.Printf("Creating MySQL connection profile. ID=%v\n", name)
+	}
+
 	req := ConnectionProfile{
 		Name:        name,
 		DisplayName: sourceConnCfg.ConnectionProfileID.ID,
@@ -189,7 +196,6 @@ func createMySQLConnectionProfile(ctx context.Context, sourceConnCfg SrcConnCfg,
 		return fmt.Errorf("dms client can not be created: %v", err)
 	}
 	defer dmsClient.Close()
-	fmt.Println("Created dms client...")
 
 	client, err := NewDmsHttpClient(ctx, dmsClient)
 	if err != nil {
@@ -200,7 +206,11 @@ func createMySQLConnectionProfile(ctx context.Context, sourceConnCfg SrcConnCfg,
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Created MySQL connection profile. Id=%v", sourceConnCfg.ConnectionProfileID)
+	if testConnectivityOnly {
+		fmt.Printf("Test connectivity for MySQL connection profile successful. ID=%v\n", name)
+	} else {
+		fmt.Printf("Created MySQL connection profile. Id=%v \n", name)
+	}
 	return nil
 }
 
@@ -219,13 +229,27 @@ func createSpannerConnectionProfile(ctx context.Context, destinationConfig DstCo
 		return fmt.Errorf("dms client can not be created: %v", err)
 	}
 	defer dmsClient.Close()
-	fmt.Println("Created dms client...")
+
+	if testConnectivityOnly {
+		fmt.Printf("Testing connectivity of Spanner Connection profile. ID=%v\n", name)
+	} else {
+		fmt.Printf("Creating Spanner connection profile. ID=%v\n", name)
+	}
 
 	client, err := NewDmsHttpClient(ctx, dmsClient)
 	if err != nil {
 		return err
 	}
-	return client.callCreateConnectionProfile(ctx, destinationConfig.ConnectionProfileID.Project, destinationConfig.ConnectionProfileID.Location, destinationConfig.ConnectionProfileID.ID, &req, testConnectivityOnly)
+	err = client.callCreateConnectionProfile(ctx, destinationConfig.ConnectionProfileID.Project, destinationConfig.ConnectionProfileID.Location, destinationConfig.ConnectionProfileID.ID, &req, testConnectivityOnly)
+	if err != nil {
+		return err
+	}
+	if testConnectivityOnly {
+		fmt.Printf("Test connectivity for Spanner connection profile successful. ID=%v\n", name)
+	} else {
+		fmt.Printf("Created Spanner connection profile. Id=%v \n", name)
+	}
+	return nil
 }
 
 func DoesConnectionProfileExist(ctx context.Context, project, location, connectionProfileID string) (bool, error) {
@@ -237,7 +261,6 @@ func DoesConnectionProfileExist(ctx context.Context, project, location, connecti
 		return false, fmt.Errorf("dms client can not be created: %v", err)
 	}
 	defer dmsClient.Close()
-	fmt.Println("Created dms client...")
 
 	req := &clouddmspb.GetConnectionProfileRequest{Name: name}
 	conn, err := dmsClient.GetConnectionProfile(ctx, req)
@@ -254,33 +277,46 @@ func createConversionWorkspace(ctx context.Context, workspaceCfg ConversionWorks
 		return "", fmt.Errorf("dms client can not be created: %v", err)
 	}
 	defer dmsClient.Close()
-	fmt.Println("Created dms client...")
 
 	client, err := NewDmsHttpClient(ctx, dmsClient)
 	if err != nil {
 		return "", err
 	}
 
+	fmt.Printf("Creating conversion workspace. ID=%v\n", conversionWorkspaceID(workspaceCfg.ConversionWorkspaceID))
 	err = createWorkspace(ctx, client, workspaceCfg)
 	if err != nil {
 		return "", err
 	}
 
+	fmt.Printf("Seeding conversion workspace. ID=%v\n", conversionWorkspaceID(workspaceCfg.ConversionWorkspaceID))
 	err = seedWorkspace(ctx, dmsClient, workspaceCfg)
 	if err != nil {
 		return "", err
 	}
 
-	return importSessionFile(ctx, dmsClient, workspaceCfg)
+	fmt.Printf("Importing mapping rules into conversion workspace. ID=%v\n", conversionWorkspaceID(workspaceCfg.ConversionWorkspaceID))
+	err = importSessionFile(ctx, dmsClient, workspaceCfg)
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Printf("Converting conversion workspace. ID=%v\n", conversionWorkspaceID(workspaceCfg.ConversionWorkspaceID))
+	commitID, err := convertWorkspace(ctx, dmsClient, workspaceCfg)
+	if err != nil {
+		return "", err
+	}
+	fmt.Printf("Successfully created conversion workspace. ID=%v\n\n", conversionWorkspaceID(workspaceCfg.ConversionWorkspaceID))
+	return commitID, err
 }
 
 func createWorkspace(ctx context.Context, client *dmsHttpClient, workspaceCfg ConversionWorkspaceCfg) error {
 	name := conversionWorkspaceID(workspaceCfg.ConversionWorkspaceID)
 	req := ConversionWorkspace{
-		Name:        name,
-		Source:      DBEngineInfo{Engine: MYSQL},
-		Destination: DBEngineInfo{Engine: SPANNER},
-		// GlobalSettings: settings{V2: "true"},
+		Name:           name,
+		Source:         DBEngineInfo{Engine: MYSQL},
+		Destination:    DBEngineInfo{Engine: SPANNER},
+		GlobalSettings: settings{V2: "true"},
 	}
 	return client.callCreateConversionWorkspace(ctx, workspaceCfg.ConversionWorkspaceID.Project, workspaceCfg.ConversionWorkspaceID.Location, workspaceCfg.ConversionWorkspaceID.ID, &req)
 }
@@ -296,23 +332,21 @@ func seedWorkspace(ctx context.Context, dmsClient *dms.DataMigrationClient, work
 
 	seedOp, err := dmsClient.SeedConversionWorkspace(ctx, seedReq)
 	if err != nil {
-		return fmt.Errorf("Could not seed Conversion workspace, err=%v", err)
+		return fmt.Errorf("could not seed Conversion workspace, err=%v", err)
 	}
 	_, err = seedOp.Wait(ctx)
 	if err != nil {
-		return fmt.Errorf("Could not seed Conversion workspace, err=%v", err)
+		return fmt.Errorf("could not seed Conversion workspace, err=%v", err)
 	}
 	return nil
 }
 
-func importSessionFile(ctx context.Context, dmsClient *dms.DataMigrationClient, workspaceCfg ConversionWorkspaceCfg) (string, error) {
-	name := conversionWorkspaceID(workspaceCfg.ConversionWorkspaceID)
+func importSessionFile(ctx context.Context, dmsClient *dms.DataMigrationClient, workspaceCfg ConversionWorkspaceCfg) error {
 
-	importReq := &clouddmspb.ImportMappingRulesRequest{
-		Parent:      name,
-		RulesFormat: clouddmspb.ImportRulesFileFormat_IMPORT_RULES_FILE_FORMAT_HARBOUR_BRIDGE_SESSION_FILE,
+	importReq := ImportRequest{
+		RulesFormat: "IMPORT_RULES_FILE_FORMAT_HARBOUR_BRIDGE_SESSION_FILE",
 		AutoCommit:  true,
-		RulesFiles: []*clouddmspb.ImportMappingRulesRequest_RulesFile{
+		RulesFiles: []rules{
 			{
 				RulesSourceFilename: workspaceCfg.SessionFile.FileName,
 				RulesContent:        workspaceCfg.SessionFile.FileContent,
@@ -320,15 +354,31 @@ func importSessionFile(ctx context.Context, dmsClient *dms.DataMigrationClient, 
 		},
 	}
 
-	importOp, err := dmsClient.ImportMappingRules(ctx, importReq)
+	client, err := NewDmsHttpClient(ctx, dmsClient)
 	if err != nil {
-		return "", fmt.Errorf("Could not create mapping rules from Harbourbridge session, err=%v", err)
+		return err
 	}
-	conversionWorkspace, err := importOp.Wait(ctx)
+	err = client.callImportMappingRules(ctx, workspaceCfg.ConversionWorkspaceID.Project, workspaceCfg.ConversionWorkspaceID.Location, workspaceCfg.ConversionWorkspaceID.ID, &importReq)
+	return err
+}
+
+func convertWorkspace(ctx context.Context, dmsClient *dms.DataMigrationClient, workspaceCfg ConversionWorkspaceCfg) (string, error) {
+	name := conversionWorkspaceID(workspaceCfg.ConversionWorkspaceID)
+
+	req := &clouddmspb.ConvertConversionWorkspaceRequest{
+		Name:       name,
+		AutoCommit: true,
+	}
+
+	op, err := dmsClient.ConvertConversionWorkspace(ctx, req)
 	if err != nil {
-		return "", fmt.Errorf("Could not create mapping rules from Harbourbridge session (after waiting): %v", err)
+		return "", fmt.Errorf("could not convert conversion workspace, err=%v", err)
 	}
-	return conversionWorkspace.LatestCommitId, nil
+	workspace, err := op.Wait(ctx)
+	if err != nil {
+		return "", fmt.Errorf("could not convert conversion workspace (after waiting): %v", err)
+	}
+	return workspace.LatestCommitId, nil
 }
 
 func fetchStaticIps(ctx context.Context, project, location string) ([]string, error) {
@@ -337,7 +387,6 @@ func fetchStaticIps(ctx context.Context, project, location string) ([]string, er
 		return nil, fmt.Errorf("dms client can not be created: %v", err)
 	}
 	defer dmsClient.Close()
-	fmt.Println("Created dms client...")
 
 	name := fmt.Sprintf(LocationResourceFormat, project, location)
 	iter := dmsClient.FetchStaticIps(ctx, &clouddmspb.FetchStaticIpsRequest{Name: name})

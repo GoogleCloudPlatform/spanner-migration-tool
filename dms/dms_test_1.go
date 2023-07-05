@@ -30,31 +30,44 @@ const (
 func TestDMS(t *testing.T) {
 	ctx := context.Background()
 
-	err := createSpannerConn(ctx)
+	err := CreateSpannerConn(ctx)
 	if err != nil {
-		t.Errorf("createSpannerConn(...) Error: %v", err)
+		t.Errorf(" createSpannerConn(...) Error: %v ", err)
 	}
-	err = createMySQLConn(ctx)
+	err = CreateMySQLConn(ctx, "mysql-conn1")
 	if err != nil {
-		t.Errorf("createMySQLConn(...) Error: %v", err)
+		t.Errorf(" createMySQLConn(...) Error: %v ", err)
 	}
-	commitID, err := createConvWorkspace(ctx)
+	commitID, err := CreateConvWorkspace(ctx, "mysql-conn1")
 	if err != nil {
-		t.Errorf("createWorkspace(...) Error: %v", err)
+		t.Errorf(" createWorkspace(...) Error: %v ", err)
 	}
-	t.Logf("commitId=%v, err=%v", commitID, err)
-	err = createJob(ctx, commitID)
+	// Shard1
+	t.Logf(" commitId=%v, err=%v ", commitID, err)
+	err = CreateJob(ctx, commitID, "mysql-conn1", "job1")
 	if err != nil {
-		t.Errorf("createJob(...) Error: %v", err)
+		t.Errorf(" createJob(...) Error: %v ", err)
+	}
+
+	// Shard2
+	err = CreateMySQLConn(ctx, "mysql-conn2")
+	if err != nil {
+		t.Errorf(" createMySQLConn(...) Error: %v ", err)
+	}
+	err = CreateJob(ctx, commitID, "mysql-conn2", "job2")
+	if err != nil {
+		t.Errorf(" createJob(...) Error: %v ", err)
 	}
 	ips, err := fetchStaticIps(ctx, project, "us-central1")
 	t.Logf("ips:%v, err:%v", ips, err)
-	t.Fatalf("exists:")
 }
 
-func createMySQLConn(ctx context.Context) error {
+func CreateMySQLConn(ctx context.Context, id string) error {
+	if id == "" {
+		id = "mysql-conn"
+	}
 	source := SrcConnCfg{
-		ConnectionProfileID: ResourceIdentifier{Project: project, Location: "us-central1", ID: "mysql-conn"},
+		ConnectionProfileID: ResourceIdentifier{Project: project, Location: "us-central1", ID: id},
 		MySQLCfg: MySQLConnCfg{
 			Host:     mysql_host,
 			Port:     3306,
@@ -69,9 +82,9 @@ func createMySQLConn(ctx context.Context) error {
 	return CreateMySQLConnectionProfile(ctx, source)
 }
 
-func createSpannerConn(ctx context.Context) error {
+func CreateSpannerConn(ctx context.Context) error {
 	dst := DstConnCfg{
-		ConnectionProfileID: ResourceIdentifier{Project: project, Location: "us-central1", ID: "span-conn"},
+		ConnectionProfileID: ResourceIdentifier{Project: project, Location: "us-central1", ID: "span-conn1"},
 		SpannerCfg: SpannerConnCfg{
 			Project:  project,
 			Instance: spanner_instance,
@@ -85,35 +98,41 @@ func createSpannerConn(ctx context.Context) error {
 	return CreateSpannerConnectionProfile(ctx, dst)
 }
 
-func createConvWorkspace(ctx context.Context) (string, error) {
+func CreateConvWorkspace(ctx context.Context, mySQLConnID string) (string, error) {
 	w := ConversionWorkspaceCfg{
 		ConversionWorkspaceID: ResourceIdentifier{Project: project, Location: "us-central1", ID: "conversion1"},
 		SessionFile: SessionFileCfg{
 			FileName:    "test_filename",
-			FileContent: sessionFileContent,
+			FileContent: SessionFileContent,
 		},
-		SourceConnectionProfileID: ResourceIdentifier{Project: project, Location: "us-central1", ID: "mysql-conn"},
+		SourceConnectionProfileID:      ResourceIdentifier{Project: project, Location: "us-central1", ID: mySQLConnID},
+		DestinationConnectionProfileID: ResourceIdentifier{Project: project, Location: "us-central1", ID: "span-conn"},
 	}
 	return createConversionWorkspace(ctx, w)
 }
 
-func createJob(ctx context.Context, commitID string) error {
+func CreateJob(ctx context.Context, commitID string, mysqlConnID string, jobID string) error {
 	j := DMSJobCfg{
-		JobID:                       ResourceIdentifier{Project: project, Location: "us-central1", ID: "jobid1"},
-		SourceConnProfileID:         ResourceIdentifier{Project: project, Location: "us-central1", ID: "mysql-conn"},
+		JobID:                       ResourceIdentifier{Project: project, Location: "us-central1", ID: jobID},
+		SourceConnProfileID:         ResourceIdentifier{Project: project, Location: "us-central1", ID: mysqlConnID},
 		DestinationConnProfileID:    ResourceIdentifier{Project: project, Location: "us-central1", ID: "span-conn"},
 		ConversionWorkspaceID:       ResourceIdentifier{Project: project, Location: "us-central1", ID: "conversion1"},
 		ConversionWorkspaceCommitID: commitID,
 	}
-	return createDMSJob(ctx, j)
+	err := createDMSJob(ctx, j)
+	if err != nil {
+		return err
+	}
+	return launchDMSJob(ctx, j)
 }
 
-const sessionFileContent = `
+const SessionFileContent = `
 {
 	"SessionName": "NewSession",
 	"EditorName": "",
 	"DatabaseType": "mysql",
 	"DatabaseName": "single",
+	"Dialect": "google_standard_sql",
 	"Notes": null,
 	"Tags": null,
 	"SpSchema": {
@@ -150,7 +169,7 @@ const sessionFileContent = `
 			"Id": "c189"
 		  },
 		  "c190": {
-			"Name": "Status",
+			"Name": "Sts",
 			"T": {
 			  "Name": "STRING",
 			  "Len": 2000,
@@ -161,7 +180,7 @@ const sessionFileContent = `
 			"Id": "c190"
 		  },
 		  "c191": {
-			"Name": "SalesmanID",
+			"Name": "SID",
 			"T": {
 			  "Name": "INT64",
 			  "Len": 0,
@@ -315,22 +334,9 @@ const sessionFileContent = `
 		"Id": "t187"
 	  }
 	},
-	"SchemaIssues": {
-	  "t187": {
-		"c188": [
-		  13
-		],
-		"c189": [
-		  13
-		],
-		"c191": [
-		  13
-		]
-	  }
-	},
 	"Location": {},
 	"TimezoneOffset": "+00:00",
-	"TargetDb": "spanner",
 	"UniquePKey": {},
+	"SpDialect": "google_standard_sql",
 	"Rules": []
   }`

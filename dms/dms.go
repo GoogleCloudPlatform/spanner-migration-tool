@@ -15,7 +15,19 @@ package dms
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"sync"
+
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 )
+
+type DMSCfg struct {
+	DataShard profiles.DMSDataShard
+	DMSJobCfg DMSJobCfg
+}
 
 // Test MySQL Connectivity
 func TestMySQLConnectionProfile(ctx context.Context, srcConn SrcConnCfg) error {
@@ -37,21 +49,110 @@ func CreateSpannerConnectionProfile(ctx context.Context, destConn DstConnCfg) er
 	return createSpannerConnectionProfile(ctx, destConn, false)
 }
 
-// Migrate
-func Migrate(ctx context.Context, workspaceCfg ConversionWorkspaceCfg, jobCfg DMSJobCfg) error {
-	commitID, err := createConversionWorkspace(ctx, workspaceCfg)
+func CreateDMSConfig(pl profiles.DMSDataShard, destination profiles.TargetProfileConnectionSpanner, conversionWorkspace ResourceIdentifier, commitId string) (*DMSCfg, error) {
+	// validate
+	if pl.SrcConnectionProfile.Name == "" {
+		return nil, fmt.Errorf("please specify DMSDataShard.SrcConnectionProfile.Name in the config")
+	}
+	if pl.SrcConnectionProfile.Location == "" {
+		return nil, fmt.Errorf("please specify DMSDataShard.SrcConnectionProfile.Location in the config")
+	}
+	if pl.DMSConfig.JobLocation == "" {
+		return nil, fmt.Errorf("please specify DMSDataShard.DMSConfig.JobLocation in the config")
+	}
+	// create dmsCfg from pl receiver object
+	jobId, err := utils.GenerateName("hb-dms-job")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	jobCfg.ConversionWorkspaceCommitID = commitID
-	err = createDMSJob(ctx, jobCfg)
-	if err != nil {
-		return err
+	inputDmsConfig := pl.DMSConfig
+	dmsJobCfg := DMSJobCfg{
+		JobID: ResourceIdentifier{
+			Location: inputDmsConfig.JobLocation,
+			Project:  destination.Project,
+			ID:       jobId,
+		},
 	}
-	return launchDMSJob(ctx, jobCfg)
+	//create src and dst connection profile objects from pl receiver object
+	inputSrcConnProfile := pl.SrcConnectionProfile
+	dmsJobCfg.SourceConnProfileID = ResourceIdentifier{
+		ID:       inputSrcConnProfile.Name,
+		Location: inputSrcConnProfile.Location,
+		Project:  destination.Project,
+	}
+	dstConnectionProfileId, err := utils.GenerateName("hb-spanner")
+	if err != nil {
+		return nil, err
+	}
+	//set dst connection profile
+	dmsJobCfg.DestinationConnProfileID = ResourceIdentifier{
+		ID:       dstConnectionProfileId,
+		Location: inputSrcConnProfile.Location,
+		Project:  destination.Project,
+	}
+	// Set conversion workspace details
+	dmsJobCfg.ConversionWorkspaceID = conversionWorkspace
+	dmsJobCfg.ConversionWorkspaceCommitID = commitId
+	return &DMSCfg{DataShard: pl, DMSJobCfg: dmsJobCfg}, nil
 }
 
-// Test MySQL Connection Profiles Bulk
-// Create MySQL Connection Profiles Bulk
-// Migrate Bulk
+type ConvWithShardIdMapping struct {
+	*internal.Conv
+	DatabaseName string `json:"DatabaseName"`
+}
+
+func CreateConversionWorkspace(ctx context.Context, schemaDBName string, dataShard *profiles.DMSDataShard, project string, conv *internal.Conv) (*ResourceIdentifier, string, error) {
+	workspaceId, err := utils.GenerateName("hb-dms")
+	if err != nil {
+		return nil, "", err
+	}
+	filename, err := utils.GenerateName("hb-session")
+	if err != nil {
+		return nil, "", err
+	}
+	convWithMapping := ConvWithShardIdMapping{
+		Conv:         conv,
+		DatabaseName: schemaDBName,
+	}
+	convJSON, err := json.MarshalIndent(convWithMapping, "", " ")
+
+	if err != nil {
+		return nil, "", err
+	}
+	workspaceCfg := ConversionWorkspaceCfg{
+		ConversionWorkspaceID: ResourceIdentifier{Project: project, Location: dataShard.SrcConnectionProfile.Location, ID: workspaceId},
+		SessionFile: SessionFileCfg{
+			FileName:    filename,
+			FileContent: string(convJSON),
+		},
+		SourceConnectionProfileID: ResourceIdentifier{Project: project, Location: dataShard.SrcConnectionProfile.Location, ID: dataShard.SrcConnectionProfile.Name},
+	}
+	commitId, err := createConversionWorkspace(ctx, workspaceCfg)
+	return &workspaceCfg.ConversionWorkspaceID, commitId, err
+}
+
+// CreateAndLaunchDMSJob
+func CreateAndLaunchDMSJob(ctx context.Context, dmsCfg DMSCfg, targetProfile profiles.TargetProfileConnectionSpanner, conv *internal.Conv) error {
+	err := createDMSJob(ctx, dmsCfg.DMSJobCfg)
+	if err != nil {
+		return err
+	}
+	storeGeneratedResources(conv, dmsCfg, dmsCfg.DataShard.DataShardId)
+	return launchDMSJob(ctx, dmsCfg.DMSJobCfg)
+}
+
+func storeGeneratedResources(conv *internal.Conv, dmsCfg DMSCfg, dataShardId string) {
+	conv.Audit.StreamingStats.DMSJobId = dmsCfg.DMSJobCfg.JobID.ID
+	conv.Audit.StreamingStats.ConversionWorkspaceName = dmsCfg.DMSJobCfg.ConversionWorkspaceID.ID
+	if dataShardId != "" {
+		var resourceMutex sync.Mutex
+		resourceMutex.Lock()
+		conv.Audit.StreamingStats.ShardToDMSJobMap[dataShardId] = dmsCfg.DMSJobCfg.JobID.ID
+		resourceMutex.Unlock()
+	}
+	dmsJobName := fmt.Sprintf("projects/%s/locations/%s/migrationJobs/%s", dmsCfg.DMSJobCfg.JobID.Project, dmsCfg.DMSJobCfg.JobID.Location, dmsCfg.DMSJobCfg.JobID.ID)
+	fmt.Println("\n------------------------------------------\n" +
+		"The DMS job: " + dmsJobName + 
+		" will have to be manually cleaned up via the UI. HarbourBridge will not delete them post completion of the migration.")
+}
