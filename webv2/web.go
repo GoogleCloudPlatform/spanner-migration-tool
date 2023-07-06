@@ -1162,6 +1162,7 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(reportAbsPath))
 }
 
+// generates a downloadable structured report and send it as a JSON response  
 func getDStructuredReport(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
@@ -1169,6 +1170,7 @@ func getDStructuredReport(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(structuredReport)
 }
 
+// generates a downloadable text report and send it as a JSON response
 func getDTextReport(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
@@ -1188,6 +1190,7 @@ func getDTextReport(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(decodedString)
 }
 
+// generates a downloadable DDL(spanner) and send it as a JSON response
 func getDSpannerDDL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	conv := sessionState.Conv
