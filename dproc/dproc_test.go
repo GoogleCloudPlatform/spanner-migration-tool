@@ -65,7 +65,7 @@ func TestGetDataprocRequestParams(t *testing.T) {
 					"--templateProperty",
 					"project.id=test-project",
 					"--templateProperty",
-					"jdbctospanner.jdbc.url=jdbc:mysql://0.0.0.0:3306/test_schema?user=test&password=test",
+					"jdbctospanner.jdbc.url=jdbc:mysql://0.0.0.0:3306/test?user=test&password=test",
 					"--templateProperty",
 					"jdbctospanner.jdbc.driver.class.name=com.mysql.jdbc.Driver",
 					"--templateProperty",

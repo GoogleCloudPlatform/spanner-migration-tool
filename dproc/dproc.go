@@ -47,6 +47,7 @@ func GetDataprocRequestParams(sourceProfile profiles.SourceProfile, targetProfil
 	port := sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.Port
 	user := sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.User
 	pwd := sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.Password
+	srcDb := sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.DbName
 	spDb := targetProfile.Conn.Sp.Dbname
 	spInstance := targetProfile.Conn.Sp.Instance
 	spProject := targetProfile.Conn.Sp.Project
@@ -59,7 +60,7 @@ func GetDataprocRequestParams(sourceProfile profiles.SourceProfile, targetProfil
 
 	jdbcParams := map[string]string{}
 	if sourceProfile.Driver == constants.MYSQL {
-		jdbcParams["url"] = fmt.Sprintf("jdbc:mysql://%s:%s/%s?user=%s&password=%s", host, port, srcSchema, user, pwd)
+		jdbcParams["url"] = fmt.Sprintf("jdbc:mysql://%s:%s/%s?user=%s&password=%s", host, port, srcDb, user, pwd)
 		jdbcParams["driver"] = "com.mysql.jdbc.Driver"
 		jdbcParams["sql"] = fmt.Sprintf("select * from %s.%s", srcSchema, srcTable)
 		jdbcParams["jar"] = "gs://dataproc-templates/jars/mysql-connector-java.jar"
