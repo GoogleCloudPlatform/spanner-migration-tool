@@ -130,14 +130,14 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 			// because we have a Spanner column with no matching source DB col.
 			// Much of the generic code for processing issues assumes we have both.
 			if p.severity == warning {
-				l = append(l, fmt.Sprintf("Column '%s' was added because this table didn't have a primary key. Spanner requires a primary key for every table", *syntheticPK))
+				l = append(l, fmt.Sprintf("Column '%s' was added because table '%s didn't have a primary key. Spanner requires a primary key for every table", *syntheticPK, conv.SpSchema[tableId].Name))
 			}
 		}
 		if uniquePK != nil {
 			// Warning about using a column with unique constraint as primary key
 			// in case primary key is absent.
 			if p.severity == warning {
-				l = append(l, fmt.Sprintf("UNIQUE constraint on column(s) '%s' replaced with primary key since this table didn't have one. Spanner requires a primary key for every table", strings.Join(uniquePK, ", ")))
+				l = append(l, fmt.Sprintf("UNIQUE constraint on column(s) '%s' replaced with primary key since table '%s' didn't have one. Spanner requires a primary key for every table", strings.Join(uniquePK, ", "), conv.SpSchema[tableId].Name))
 			}
 		}
 
