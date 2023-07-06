@@ -94,6 +94,7 @@ export interface ISpannerForeignKey {
 export interface ICreateTable {
   Name: string
   ColIds: string[]
+  ShardIdColumn: string
   ColDefs: Record<string, IColumnDef>
   PrimaryKeys: IIndexKey[]
   ForeignKeys: IForeignKey[]

@@ -191,7 +191,30 @@
             placeholder="Filter by name"
           />
         </div>
+        <div clas="delete-selected-btn">
+          <button
+            mat-button
+            color="primary"
+            class="icon drop"
+            [disabled]="!checkDropSelection()"
+            (click)="dropSelected()">
+            <mat-icon>delete</mat-icon>
+            <span>SKIP</span>
+          </button>
+        </div>
+        <div clas="restore-selected-btn">
+          <button
+            mat-button
+            color="primary"
+            class="icon drop"
+            [disabled]="!checkRestoreSelection()"
+            (click)="restoreSelected()">
+            <mat-icon>undo</mat-icon>
+            <span>RESTORE</span>
+          </button>
+        </div>
       </div>
+      
 
       <div class="explorer-table">
         <table mat-table [dataSource]="dataSource">
@@ -260,8 +283,12 @@
             <td
               mat-cell
               *matCellDef="let data"
-              [ngClass]="{ sidebar_link: true, 'gray-out': data.isDeleted }"
+              [ngClass]="{ sidebar_link: true}"
             >
+            <mat-checkbox class="checklist-node"
+            *ngIf="!isIndexLikeNode(data)"
+            [checked]="checklistSelection.isSelected(data)"
+            (change)="selectionToggle(data);"></mat-checkbox>
               <button
                 mat-icon-button
                 [style.visibility]="!data.expandable ? 'hidden' : ''"
@@ -302,7 +329,7 @@
                   </svg>
                 </ng-template>
               </button>
-              <span (click)="objectSelected(data)" class="sidebar_link">
+              <span (click)="objectSelected(data)" class="sidebar_link" [ngClass]="{'gray-out': data.isDeleted}">
                 <span>
                   <svg
                     *ngIf="isTableNode(data.type)"

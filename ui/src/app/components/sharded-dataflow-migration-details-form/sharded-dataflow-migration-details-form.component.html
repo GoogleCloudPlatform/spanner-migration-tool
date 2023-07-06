@@ -1,6 +1,6 @@
 <div mat-dialog-content class="connect-load-database-container">
     <form [formGroup]="migrationProfileForm" class="conn-profile-form">
-        <span class="mat-h2 header-title">Configure Migration Profile</span>
+        <span class="mat-h2 header-title">Datastream Details</span>
         <br>
         <b>Note: Please configure the schema source used for schema conversion if you want Harbourbridge to migrate data
             from it as well.</b>
@@ -93,7 +93,7 @@
                 <div><b>Copy the public IPs below, and use them to configure the network firewall to accept
                         connections
                         from them.</b><a
-                        href="https://cloud.google.com/datastream/docs/network-connectivity-options#ipallowlists">Learn
+                        href="https://cloud.google.com/datastream/docs/network-connectivity-options#ipallowlists" target="_blank">Learn
                         More</a></div>
                 <br>
                 <li *ngFor="let ip of ipList" class="connection-form-container">
@@ -104,7 +104,7 @@
                 </li>
                 <div *ngIf="!testSuccess && errorSrcMsg != ''" class="failure">
                     <span class="left-text">Test connection failed</span>
-                    <mat-icon class="icon error" matTooltip="Test connection failed" matTooltipPosition="above">
+                    <mat-icon class="icon error" [matTooltip]="errorSrcMsg" matTooltipPosition="above">
                         error
                     </mat-icon>
                 </div>
