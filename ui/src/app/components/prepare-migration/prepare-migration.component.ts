@@ -613,7 +613,6 @@ export class PrepareMigrationComponent implements OnInit {
     }
     this.fetch.migrate(payload).subscribe({
       next: () => {
-        //TODO: eenclona@ will update this with migration status of dataproc job
         if (this.selectedMigrationMode == MigrationModes.dataOnly) {
           if (this.selectedMigrationType == MigrationTypes.bulkMigration) {
             this.hasDataMigrationStarted = true
