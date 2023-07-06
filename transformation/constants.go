@@ -14,6 +14,8 @@
 
 package transformation
 
+import "github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+
 const (
 	MathOperation         = "mathOp"
 	NoOp                  = "noOp"
@@ -44,3 +46,20 @@ const (
 	DivideOperator        = "divide"
 	ModOperator           = "mod"
 )
+
+var SupportedFunctionsConst = SupportedFunctions{
+	Functions: map[string]FunctionDefinition{
+		"mathOp": {
+			Name:        "mathOp",
+			Description: "xyz",
+			Comment:     "abc",
+			Input: [][]string{
+				{ddl.Int64, ddl.Float64},
+				{"+"},
+				{ddl.Int64, ddl.Float64},
+			},
+			Output: []string{ddl.Int64, ddl.Float64},
+		},
+		// Add more function definitions as needed
+	},
+}

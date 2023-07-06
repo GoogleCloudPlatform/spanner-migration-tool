@@ -18,7 +18,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math/bits"
 	"reflect"
 	"sort"
 	"strconv"
@@ -35,6 +34,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/streaming"
+	"github.com/cloudspannerecosystem/harbourbridge/transformation"
 )
 
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
@@ -149,6 +149,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 	srcCols, _ := rows.Columns()
 	v, iv := buildVals(len(srcCols))
 	colNameIdMap := internal.GetSrcColNameIdMap(conv.SrcSchema[tableId])
+
 	for rows.Next() {
 		err := rows.Scan(iv...)
 		if err != nil {
@@ -158,14 +159,29 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 			continue
 		}
 		newValues, err1 := common.PrepareValues(conv, tableId, colNameIdMap, colIds, srcCols, v)
+		values := valsToStrings(v)
+		mapSrcColIdToVal := make(map[string]string)
+		for i, srcolName := range srcCols {
+			mapSrcColIdToVal[colNameIdMap[srcolName]] = values[i]
+		}
 		cvtCols, cvtVals, err2 := convertSQLRow(conv, tableId, colIds, srcSchema, spSchema, newValues)
 		if err1 != nil || err2 != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
 			conv.StatsAddBadRow(srcTableName, conv.DataMode())
-			conv.CollectBadRow(srcTableName, srcCols, valsToStrings(v))
+			conv.CollectBadRow(srcTableName, srcCols, values)
 			continue
 		}
-		conv.WriteRow(srcTableName, conv.SpSchema[tableId].Name, cvtCols, cvtVals)
+		toddl := InfoSchemaImpl{}.GetToDdl()
+		cvtCols, cvtVals, err = transformation.ProcessDataTransformation(conv, tableId, cvtCols, cvtVals, mapSrcColIdToVal, toddl)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Error while transforming data: %s\n", err))
+			conv.StatsAddBadRow(srcTableName, conv.DataMode())
+			conv.CollectBadRow(srcTableName, srcCols, values)
+			continue
+		}
+		if cvtVals != nil {
+			conv.WriteRow(srcTableName, conv.SpSchema[tableId].Name, cvtCols, cvtVals)
+		}
 	}
 	return nil
 }
@@ -199,13 +215,7 @@ func convertSQLRow(conv *internal.Conv, tableId string, colIds []string, srcSche
 			return nil, nil, fmt.Errorf("can't convert sql data for column id %s of table %s: %w", colIds, conv.SrcSchema[tableId].Name, err)
 		}
 		vs = append(vs, spVal)
-		cs = append(cs, spCd.Name)
-	}
-	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
-		cs = append(cs, conv.SpSchema[tableId].ColDefs[aux.ColId].Name)
-		vs = append(vs, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
-		aux.Sequence++
-		conv.SyntheticPKeys[tableId] = aux
+		cs = append(cs, colId)
 	}
 	return cs, vs, nil
 }

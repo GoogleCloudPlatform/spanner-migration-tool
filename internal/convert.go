@@ -203,9 +203,15 @@ type Transformation struct {
 	Enabled           bool
 	AddedOn           datetime.DateTime
 	Function          string
-	Input             interface{}
+	Input             []Input
 	Action            string
-	ActionConfig      interface{}
+	ActionConfig      map[string]interface{}
+}
+
+type Input struct {
+	Type     string
+	Value    string
+	DataType string
 }
 
 // MakeConv returns a default-configured Conv.

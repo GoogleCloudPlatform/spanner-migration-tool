@@ -27,24 +27,24 @@ func main() {
 				"Function": "mathOp",
 				"Input": [
 					{
-						"type": "source-column",
-						"value": "c1"
+						"Type": "source-column",
+						"Value": "c1"
 					},
 					{
-						"type": "operator",
-						"value": "add"
+						"Type": "operator",
+						"Value": "add"
 					},
 					{
-						"datatype": "INT64",
-						"type": "static",
-						"value": "2"
+						"Datatype": "INT64",
+						"Type": "static",
+						"Value": "2"
 					}
 				],
 				"Action": "writeToVar",
 				"ActionConfig": {
-					"varName": {
-						"datatype": "STRING",
-						"value": "v1"
+					"VarName": {
+						"Datatype": "STRING",
+						"Value": "v1"
 					}
 				}
 			}

@@ -27,6 +27,18 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
+type SupportedFunctions struct {
+	Functions map[string]FunctionDefinition
+}
+
+type FunctionDefinition struct {
+	Name        string
+	Description string
+	Comment     string
+	Input       [][]string
+	Output      []string
+}
+
 func convScalar(conv *internal.Conv, dataType string, val string) (interface{}, error) {
 	// Whitespace within the val string is considered part of the data value.
 	// Note that many of the underlying conversions functions we use (like

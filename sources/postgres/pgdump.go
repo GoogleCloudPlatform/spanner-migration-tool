@@ -108,7 +108,11 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 						conv.CollectBadRow(srcTableName, colNames, vals)
 						continue
 					}
-					ProcessDataRow(conv, ci.table, commonColIds, newVals)
+					mapSrcColIdToVal := make(map[string]string)
+					for i, srcolName := range colNames {
+						mapSrcColIdToVal[colNameIdMap[srcolName]] = vals[i]
+					}
+					ProcessDataRow(conv, ci.table, commonColIds, newVals, mapSrcColIdToVal)
 				}
 			}
 		}
@@ -196,7 +200,11 @@ func processCopyBlock(conv *internal.Conv, tableId string, commonColIds, srcCols
 			conv.CollectBadRow(srcTableName, srcCols, values)
 			continue
 		}
-		ProcessDataRow(conv, tableId, commonColIds, newValues)
+		mapSrcColIdToVal := make(map[string]string)
+		for i, srcolName := range srcCols {
+			mapSrcColIdToVal[colNameIdMap[srcolName]] = values[i]
+		}
+		ProcessDataRow(conv, tableId, commonColIds, newValues, mapSrcColIdToVal)
 	}
 }
 

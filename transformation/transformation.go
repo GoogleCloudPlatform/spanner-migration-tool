@@ -41,6 +41,275 @@ type variable struct {
 	dataType string
 }
 
+type input int
+
+const (
+	operator input = iota
+	operand
+)
+
+func ProcessDataTransformatioNew(conv *internal.Conv, tableId string, cvtCols []string, cvtVals []interface{}, mapSrcColIdToVal map[string]string, toddl common.ToDdl) ([]string, []interface{}, error) {
+	spCols, spVals, err := processTransformationFunction(conv, tableId, mapSrcColIdToVal, toddl)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Error occured while processing data transformation")
+	}
+	// call method for synthetic primary key
+	// call method for shard id column
+	return spCols, spVals, err
+}
+
+func processTransformationFunction(conv *internal.Conv, tableId string, mapSrcColIdToVal map[string]string, toddl common.ToDdl) ([]string, []interface{}, error) {
+
+	for _, rule := range conv.Transformations {
+		if rule.AssociatedObjects == tableId {
+			var x interface{}
+			var err error
+			switch rule.Function {
+			case MathOperation:
+				x, err = applyMathOpNew(rule, conv, tableId, mapSrcColIdToVal)
+				fmt.Println(x)
+			}
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+	return nil, nil, nil
+}
+
+func applyMathOpNew(rule internal.Transformation, conv *internal.Conv, tableId string, mapSourceColIdToVal map[string]string, tempVar map[string]variable, toddl common.ToDdl) (interface{}, error) {
+	firstInput, operator, secondInput, err := extract2Operand1Operator(rule, mapSourceColIdToVal, conv, tableId, tempVar, toddl, MathOperation)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validateOutputDatatype(rule, conv, tableId, MathOperation)
+	if err != nil {
+		return nil, err
+	}
+	var output interface{}
+	switch operator.value.(string) {
+	case "add":
+		switch firstInput.value.(type) {
+		case int64:
+			switch secondInput.value.(type) {
+			case int64:
+				output = firstInput.value.(int64) + secondInput.value.(int64)
+			case float64:
+				output = float64(firstInput.value.(int64)) + secondInput.value.(float64)
+			default:
+				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
+			}
+		case float64:
+			switch secondInput.value.(type) {
+			case int64:
+				output = firstInput.value.(float64) + float64(secondInput.value.(int64))
+			case float64:
+				output = firstInput.value.(float64) + secondInput.value.(float64)
+			default:
+				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
+			}
+		default:
+			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
+		}
+	case "subtract":
+		switch firstInput.value.(type) {
+		case int64:
+			switch secondInput.value.(type) {
+			case int64:
+				output = firstInput.value.(int64) - secondInput.value.(int64)
+			case float64:
+				output = float64(firstInput.value.(int64)) - secondInput.value.(float64)
+			default:
+				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
+			}
+		case float64:
+			switch secondInput.value.(type) {
+			case int64:
+				output = firstInput.value.(float64) - float64(secondInput.value.(int64))
+			case float64:
+				output = firstInput.value.(float64) - secondInput.value.(float64)
+			default:
+				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
+			}
+		default:
+			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
+		}
+	case "multiply":
+		switch firstInput.value.(type) {
+		case int64:
+			switch secondInput.value.(type) {
+			case int64:
+				output = firstInput.value.(int64) * secondInput.value.(int64)
+			case float64:
+				output = float64(firstInput.value.(int64)) * secondInput.value.(float64)
+			default:
+				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
+			}
+		case float64:
+			switch secondInput.value.(type) {
+			case int64:
+				output = firstInput.value.(float64) * float64(secondInput.value.(int64))
+			case float64:
+				output = firstInput.value.(float64) * secondInput.value.(float64)
+			default:
+				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
+			}
+		default:
+			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
+		}
+	case "divide":
+		switch firstInput.value.(type) {
+		case int64:
+			switch secondInput.value.(type) {
+			case int64:
+				output = float64(firstInput.value.(int64)) / float64(secondInput.value.(int64))
+			case float64:
+				output = float64(firstInput.value.(int64)) / secondInput.value.(float64)
+			default:
+				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
+			}
+		case float64:
+			switch secondInput.value.(type) {
+			case int64:
+				output = firstInput.value.(float64) / float64(secondInput.value.(int64))
+			case float64:
+				output = firstInput.value.(float64) / secondInput.value.(float64)
+			default:
+				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
+			}
+		default:
+			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
+		}
+	case "mod":
+		switch firstInput.value.(type) {
+		case int64:
+			switch secondInput.value.(type) {
+			case int64:
+				output = firstInput.value.(int64) % secondInput.value.(int64)
+			case float64:
+				output = math.Mod(float64(firstInput.value.(int64)), secondInput.value.(float64))
+			default:
+				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput)
+			}
+		case float64:
+			switch secondInput.value.(type) {
+			case int64:
+				output = math.Mod(firstInput.value.(float64), float64(secondInput.value.(int64)))
+			case float64:
+				output = math.Mod(firstInput.value.(float64), secondInput.value.(float64))
+			default:
+				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput)
+			}
+		default:
+			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput)
+		}
+	}
+
+	return output, nil
+}
+
+func validateOutputDatatype(rule internal.Transformation, conv *internal.Conv, tableId, functionName string) error {
+	actionConfig := rule.ActionConfig
+	if rule.Action == WriteToColumnAction {
+		column, ok := actionConfig["column"].(string)
+		if !ok {
+			return fmt.Errorf("could not parse column of action config with rule id:%s", rule.Id)
+		}
+		if !checkIfExists(conv.SpSchema[tableId].ColDefs[column].T.Name, SupportedFunctionsConst.Functions[functionName].Output) {
+			return fmt.Errorf("Generated output doesn't match with column datatype for rule id: %s", rule.Id)
+		}
+	}
+	return nil
+}
+
+func extract2Operand1Operator(rule internal.Transformation, mapSourceColIdToVal map[string]string, conv *internal.Conv, tableId string, tempVar map[string]variable, toddl common.ToDdl, functionName string) (inputValue, inputValue, inputValue, error) {
+	firstInput, err := extractAndValidateInput(rule, 0, mapSourceColIdToVal, conv, tableId, tempVar, toddl, functionName, operand)
+	secondInput, err := extractAndValidateInput(rule, 1, mapSourceColIdToVal, conv, tableId, tempVar, toddl, functionName, operator)
+	thirdInput, err := extractAndValidateInput(rule, 2, mapSourceColIdToVal, conv, tableId, tempVar, toddl, functionName, operand)
+	return firstInput, secondInput, thirdInput, err
+}
+
+func extractInput(input internal.Input, mapSourceColIdToVal map[string]string, conv *internal.Conv, tableId string, tempVar map[string]variable, toddl common.ToDdl) (inputValue, error) {
+	switch input.Type {
+	case SourceColumn:
+		ty, _ := toddl.ToSpannerType(conv, "", conv.SrcSchema[tableId].ColDefs[input.Value].Type)
+		parsedValue, err := convScalar(conv, ty.Name, mapSourceColIdToVal[input.Value])
+		fmt.Println("source Value parsed:", input.Value)
+		if err != nil {
+			return inputValue{}, err
+		}
+		return inputValue{
+			value:     parsedValue,
+			inputType: input.Type,
+			dataType:  ty.Name,
+		}, nil
+	case Operator:
+		value := input.Value
+		return inputValue{
+			value:     value,
+			inputType: input.Type,
+			dataType:  "",
+		}, nil
+	case Static:
+		dataType := input.DataType
+		if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+			standardType, ok := ddl.PGSQL_TO_STANDARD_TYPE_TYPEMAP[dataType]
+			if ok {
+				dataType = standardType
+			}
+		}
+		parsedValue, err := convScalar(conv, dataType, input.Value)
+		if err != nil {
+			return inputValue{}, err
+		}
+		return inputValue{
+			value:     parsedValue,
+			inputType: input.Type,
+			dataType:  dataType,
+		}, nil
+	case Variable:
+		varValue, ok := tempVar[input.Value]
+		if !ok {
+			return inputValue{}, fmt.Errorf("could not get variable value for: %s", input.Value)
+		}
+		return inputValue{
+			value:     varValue.value,
+			inputType: input.Type,
+			dataType:  varValue.dataType,
+		}, nil
+	}
+	return inputValue{}, fmt.Errorf("unsupported input type: %s", input.Type)
+}
+
+func extractAndValidateInput(rule internal.Transformation, index int64, mapSourceColIdToVal map[string]string, conv *internal.Conv, tableId string, tempVar map[string]variable, toddl common.ToDdl, functionName string, input input) (inputValue, error) {
+	extractedInput, err := extractInput(rule.Input[index], mapSourceColIdToVal, conv, tableId, tempVar, toddl)
+	if err != nil {
+		return inputValue{}, err
+	}
+	var found bool
+	if input == operator {
+		found = checkIfExists(extractedInput.value.(string), SupportedFunctionsConst.Functions[functionName].Input[index])
+	} else if input == operand {
+		found = checkIfExists(extractedInput.dataType, SupportedFunctionsConst.Functions[functionName].Input[index])
+	}
+	if !found {
+		return extractedInput, fmt.Errorf("Input type not valid for: %s", rule.Input[index])
+	}
+	return extractedInput, nil
+}
+
+func checkIfExists(val string, allowedVals []string) bool {
+	found := false
+	for _, allowedVal := range allowedVals {
+		if allowedVal == val {
+			found = true
+			break
+		}
+	}
+	return found
+}
+
 func ProcessDataTransformation(conv *internal.Conv, tableId string, cvtCols []string, cvtVals []interface{}, mapSrcColIdToVal map[string]string, toddl common.ToDdl) ([]string, []interface{}, error) {
 	mapSpannerColIdToVal := make(map[string]interface{})
 	for i, spCol := range cvtCols {
@@ -53,10 +322,7 @@ func ProcessDataTransformation(conv *internal.Conv, tableId string, cvtCols []st
 	tempVar := make(map[string]variable)
 	for _, rule := range conv.Transformations {
 		if rule.AssociatedObjects == tableId {
-			inputs, ok := rule.Input.([]interface{})
-			if !ok {
-				return nil, nil, fmt.Errorf("input not of expected type, input:%s", rule.Input)
-			}
+			inputs := rule.Input
 			var firstInput, secondInput, operator inputValue
 			for _, input := range inputs {
 				y, err := getValue(input, mapSrcColIdToVal, conv, tableId, tempVar, toddl)
@@ -97,10 +363,7 @@ func ProcessDataTransformation(conv *internal.Conv, tableId string, cvtCols []st
 			if err != nil {
 				return nil, nil, err
 			}
-			actionConfig, ok := rule.ActionConfig.(map[string]interface{})
-			if !ok {
-				return nil, nil, fmt.Errorf("action config not of correct type for rule id:%s", rule.Id)
-			}
+			actionConfig := rule.ActionConfig
 			if rule.Action == WriteToColumnAction {
 				column, ok := actionConfig["column"].(string)
 				if !ok {
@@ -108,15 +371,15 @@ func ProcessDataTransformation(conv *internal.Conv, tableId string, cvtCols []st
 				}
 				mapSpannerColIdToVal[column] = x
 			} else if rule.Action == WriteToVariableAction {
-				varValue, ok := actionConfig["varName"].(map[string]interface{})
+				varValue, ok := actionConfig["VarName"].(map[string]interface{})
 				if !ok {
 					return nil, nil, fmt.Errorf("could not parse variable of action config with rule id:%s", rule.Id)
 				}
-				value, ok := varValue["value"].(string)
+				value, ok := varValue["Value"].(string)
 				if !ok {
 					return nil, nil, fmt.Errorf("could not parse value for variable: %s", varValue)
 				}
-				dataType, ok := varValue["datatype"].(string)
+				dataType, ok := varValue["Datatype"].(string)
 				if !ok {
 					return nil, nil, fmt.Errorf("could not parse datatype for variable: %s", varValue)
 				}
@@ -163,19 +426,10 @@ func ProcessDataTransformation(conv *internal.Conv, tableId string, cvtCols []st
 	return spannerCols, spannerVals, nil
 }
 
-func getValue(inputInterface interface{}, mapSourceColIdToVal map[string]string, conv *internal.Conv, tableId string, tempVar map[string]variable, toddl common.ToDdl) (inputValue, error) {
-	input := inputInterface.(map[string]interface{})
-	fmt.Println(input)
-	inputType, ok := input["type"].(string)
-	if !ok {
-		return inputValue{}, fmt.Errorf("could not parse type for input: %s", input["type"])
-	}
-	switch inputType {
+func getValue(input internal.Input, mapSourceColIdToVal map[string]string, conv *internal.Conv, tableId string, tempVar map[string]variable, toddl common.ToDdl) (inputValue, error) {
+	switch input.Type {
 	case SourceColumn:
-		value, ok := input["value"].(string)
-		if !ok {
-			return inputValue{}, fmt.Errorf("could not parse value for input: %s", input)
-		}
+		value := input.Value
 		fmt.Println("Source Column:", mapSourceColIdToVal[value])
 		ty, _ := toddl.ToSpannerType(conv, "", conv.SrcSchema[tableId].ColDefs[value].Type)
 		parsedValue, err := convScalar(conv, ty.Name, mapSourceColIdToVal[value])
@@ -185,59 +439,47 @@ func getValue(inputInterface interface{}, mapSourceColIdToVal map[string]string,
 		}
 		return inputValue{
 			value:     parsedValue,
-			inputType: inputType,
+			inputType: input.Type,
 			dataType:  ty.Name,
 		}, nil
 	case Operator:
-		value, ok := input["value"].(string)
-		if !ok {
-			return inputValue{}, fmt.Errorf("could not parse value for input: %s", input)
-		}
+		value := input.Value
 		return inputValue{
 			value:     value,
-			inputType: inputType,
+			inputType: input.Type,
 			dataType:  "",
 		}, nil
 	case Static:
-		dataType, ok := input["datatype"].(string)
-		if !ok {
-			return inputValue{}, fmt.Errorf("could not parse datatype for input: %s", input)
-		}
+		dataType := input.DataType
 		if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 			standardType, ok := ddl.PGSQL_TO_STANDARD_TYPE_TYPEMAP[dataType]
 			if ok {
 				dataType = standardType
 			}
 		}
-		value, ok := input["value"].(string)
-		if !ok {
-			return inputValue{}, fmt.Errorf("could not parse value for input: %s", input)
-		}
+		value := input.Value
 		parsedValue, err := convScalar(conv, dataType, value)
 		if err != nil {
 			return inputValue{}, err
 		}
 		return inputValue{
 			value:     parsedValue,
-			inputType: inputType,
+			inputType: input.Type,
 			dataType:  dataType,
 		}, nil
 	case Variable:
-		value, ok := input["value"].(string)
-		if !ok {
-			return inputValue{}, fmt.Errorf("could not parse value for input: %s", input)
-		}
+		value := input.Value
 		varValue, ok := tempVar[value]
 		if !ok {
 			return inputValue{}, fmt.Errorf("could not get variable value for: %s", value)
 		}
 		return inputValue{
 			value:     varValue.value,
-			inputType: inputType,
+			inputType: input.Type,
 			dataType:  varValue.dataType,
 		}, nil
 	}
-	return inputValue{}, fmt.Errorf("unsupported input type: %s", inputType)
+	return inputValue{}, fmt.Errorf("unsupported input type: %s", input.Type)
 }
 
 func bitReverse(firstInput inputValue) (int64, error) {
@@ -470,7 +712,6 @@ func compareLessThan(firstInput, secondInput inputValue) (bool, error) {
 }
 
 func applyMathOp(firstInput, secondInput, operator inputValue) (interface{}, error) {
-	fmt.Println(firstInput, secondInput)
 	switch operator.value.(string) {
 	case "add":
 		switch firstInput.value.(type) {

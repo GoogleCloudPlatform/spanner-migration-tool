@@ -92,7 +92,7 @@ func convertData(conv *internal.Conv, tableId string, colIds []string, srcSchema
 			return "", []string{}, []interface{}{}, err
 		}
 		v = append(v, x)
-		c = append(c, spColDef.Name)
+		c = append(c, colId)
 	}
 	return spSchema.Name, c, v, nil
 }
