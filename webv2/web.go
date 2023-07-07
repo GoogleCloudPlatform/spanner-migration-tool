@@ -18,6 +18,8 @@
 package webv2
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -1171,6 +1173,52 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(reportAbsPath))
+}
+
+// generates a downloadable structured report and send it as a JSON response  
+func getDStructuredReport(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(structuredReport)
+}
+
+// generates a downloadable text report and send it as a JSON response
+func getDTextReport(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
+	// creates a new buffer
+	buffer := bytes.NewBuffer([]byte{})
+	// initializes buffered writer that writes data to buffer
+	wb := bufio.NewWriter(buffer)
+	reports.GenerateTextReport(structuredReport, wb)
+	// flushes buffered data to writer
+	wb.Flush()
+	// introduces a byte slice to represent the content of buffer
+	data := buffer.Bytes()
+	// converts byte slice to corressponding string representation
+	decodedString := string(data)
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "text/plain")
+	json.NewEncoder(w).Encode(decodedString)
+}
+
+// generates a downloadable DDL(spanner) and send it as a JSON response
+func getDSpannerDDL(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	conv := sessionState.Conv
+	now := time.Now()
+	spDDL := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: sessionState.Driver})
+	if len(spDDL) == 0 {
+		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
+	}
+	l := []string{
+		fmt.Sprintf("-- Schema generated %s\n", now.Format("2006-01-02 15:04:05")),
+		strings.Join(spDDL, ";\n\n"),
+		"\n",
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(strings.Join(l, ""))
 }
 
 // TableInterleaveStatus stores data regarding interleave status.
