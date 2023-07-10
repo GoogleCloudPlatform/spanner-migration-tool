@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO: add unit tests for otjer methods in dproc package
-
 func TestGetDataprocRequestParams(t *testing.T) {
 	type paramsStruct struct {
 		sourceProfile profiles.SourceProfile
@@ -22,11 +20,14 @@ func TestGetDataprocRequestParams(t *testing.T) {
 		subnet        string
 	}
 
-	sourceProfile, _ := profiles.NewSourceProfile(fmt.Sprintf("config=%v", filepath.Join("..", "test_data", "mysql_shard_dataproc.cfg")), "mysql")
-	sourceProfile.Driver, _ = sourceProfile.ToLegacyDriver("mysql")
+	sourceProfileMySQL, _ := profiles.NewSourceProfile(fmt.Sprintf("config=%v", filepath.Join("..", "test_data", "mysql_shard_dataproc.cfg")), "mysql")
+	sourceProfileMySQL.Driver, _ = sourceProfileMySQL.ToLegacyDriver("mysql")
+
+	sourceProfileOracle, _ := profiles.NewSourceProfile(fmt.Sprintf("config=%v", filepath.Join("..", "test_data", "mysql_shard_dataproc.cfg")), "oracle")
+	sourceProfileOracle.Driver, _ = sourceProfileMySQL.ToLegacyDriver("oracle")
+
 	targetProfile, _ := profiles.NewTargetProfile("project=test-project,instance=sp-test-instance,dbName=sp-test-db")
 
-	// TODO: add more test cases
 	testCases := []struct {
 		name          string
 		params        paramsStruct
@@ -48,9 +49,23 @@ func TestGetDataprocRequestParams(t *testing.T) {
 			errorExpected: true,
 		},
 		{
+			name: "valid oracle source profile and target profile",
+			params: paramsStruct{
+				sourceProfile: sourceProfileOracle,
+				targetProfile: targetProfile,
+				srcSchema:     "test_schema",
+				srcTable:      "test_table",
+				primaryKeys:   "pk1,pk2",
+				location:      "us-central1",
+				subnet:        "projects/test-project/regions/us-central1/subnetworks/test-subnet",
+			},
+			want:          DataprocRequestParams{},
+			errorExpected: true,
+		},
+		{
 			name: "valid mysql source profile and target profile",
 			params: paramsStruct{
-				sourceProfile: sourceProfile,
+				sourceProfile: sourceProfileMySQL,
 				targetProfile: targetProfile,
 				srcSchema:     "test_schema",
 				srcTable:      "test_table",
