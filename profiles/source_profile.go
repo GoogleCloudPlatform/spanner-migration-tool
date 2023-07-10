@@ -511,19 +511,41 @@ type SourceProfileConfig struct {
 
 func NewSourceProfileConfig(source string, path string) (SourceProfileConfig, error) {
 	//given the source, the fact that this 'config=', determine the appropiate object to marshal into
-	switch source {
-	case constants.MYSQL:
-		//load the JSON configuration into file
-		configFile, err := ioutil.ReadFile(path)
-		if err != nil {
-			return SourceProfileConfig{}, fmt.Errorf("cannot read config file due to: %v", err)
+	//load the JSON configuration into file
+	configFile, err := ioutil.ReadFile(path)
+	if err != nil {
+		return SourceProfileConfig{}, fmt.Errorf("cannot read config file due to: %v", err)
+	}
+	sourceProfileConfig := SourceProfileConfig{}
+	//unmarshal the JSON into object
+	err = json.Unmarshal(configFile, &sourceProfileConfig)
+	if err != nil {
+		return SourceProfileConfig{}, err
+	}
+
+	switch sourceProfileConfig.ConfigType {
+	case constants.DATAPROC_MIGRATION:
+		switch source {
+		case constants.MYSQL, constants.POSTGRES:
+			return sourceProfileConfig, err
+		default:
+			return SourceProfileConfig{}, fmt.Errorf("dataproc migrations are currrently only supported for MySQL/Postgres databases")
 		}
-		sourceProfileConfig := SourceProfileConfig{}
-		//unmarshal the JSON into object
-		err = json.Unmarshal(configFile, &sourceProfileConfig)
-		return sourceProfileConfig, err
 	default:
-		return SourceProfileConfig{}, fmt.Errorf("sharded migrations are currrently only supported for MySQL databases")
+		switch source {
+		case constants.MYSQL:
+			//load the JSON configuration into file
+			configFile, err := ioutil.ReadFile(path)
+			if err != nil {
+				return SourceProfileConfig{}, fmt.Errorf("cannot read config file due to: %v", err)
+			}
+			sourceProfileConfig := SourceProfileConfig{}
+			//unmarshal the JSON into object
+			err = json.Unmarshal(configFile, &sourceProfileConfig)
+			return sourceProfileConfig, err
+		default:
+			return SourceProfileConfig{}, fmt.Errorf("sharded migrations are currrently only supported for MySQL databases")
+		}
 	}
 }
 
@@ -601,11 +623,23 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 		}
 	case SourceProfileTypeConfig:
 		{
-			switch strings.ToLower(source) {
-			case constants.MYSQL:
-				return constants.MYSQL, nil
+			switch src.Config.ConfigType {
+			case constants.DATAPROC_MIGRATION:
+				switch strings.ToLower(source) {
+				case constants.MYSQL:
+					return constants.MYSQL, nil
+				case constants.POSTGRES:
+					return constants.POSTGRES, nil
+				default:
+					return "", fmt.Errorf("specifying source-profile using config for non mysql/postgres databases not implemented")
+				}
 			default:
-				return "", fmt.Errorf("specifying source-profile using config for non-mysql databases not implemented")
+				switch strings.ToLower(source) {
+				case constants.MYSQL:
+					return constants.MYSQL, nil
+				default:
+					return "", fmt.Errorf("specifying source-profile using config for non-mysql databases not implemented")
+				}
 			}
 		}
 	case SourceProfileTypeCsv:
