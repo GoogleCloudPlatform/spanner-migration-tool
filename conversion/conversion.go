@@ -269,7 +269,7 @@ func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile
 		log.Fatalf("error creating the batch client: %s\n", err)
 		return err
 	}
-	fmt.Println("Dataproc batch client created")
+	logger.Log.Debug(fmt.Sprint("Dataproc batch client created"))
 	defer batchClient.Close()
 
 	progressCtr := 0

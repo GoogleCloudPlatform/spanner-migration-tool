@@ -21,6 +21,7 @@ import (
 	dataproc "cloud.google.com/go/dataproc/apiv1"
 	"cloud.google.com/go/dataproc/apiv1/dataprocpb"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"google.golang.org/api/option"
 )
@@ -118,7 +119,7 @@ func CreateDataprocBatchClient(location string) (*dataproc.BatchControllerClient
 func TriggerDataprocTemplate(batchClient *dataproc.BatchControllerClient, srcTable string, srcSchema string, primaryKeys string, dataprocRequestParams DataprocRequestParams) (string, error) {
 	ctx := context.Background()
 
-	fmt.Printf("Triggering Dataproc template for %s.%s\n", srcSchema, srcTable)
+	logger.Log.Info(fmt.Sprintf("Triggering Dataproc template for %s.%s\n", srcSchema, srcTable))
 	req := &dataprocpb.CreateBatchRequest{
 		Parent: "projects/" + dataprocRequestParams.Project + "/locations/" + dataprocRequestParams.Location,
 		Batch: &dataprocpb.Batch{
@@ -146,14 +147,14 @@ func TriggerDataprocTemplate(batchClient *dataproc.BatchControllerClient, srcTab
 
 	op, err := batchClient.CreateBatch(ctx, req)
 	if err != nil {
-		fmt.Printf("error creating the batch: %s\n", err.Error())
+		logger.Log.Error(fmt.Sprintf("error creating the batch: %s\n", err.Error()))
 		return "", err
 	}
 
 	resp, err := op.Wait(ctx)
 	if err != nil {
-		fmt.Printf("error completing the batch: %s\n", err.Error())
-		fmt.Printf("Failing data migration from Dataproc template for %s.%s with batch id: %s\n", srcSchema, srcTable, resp.GetName())
+		logger.Log.Error(fmt.Sprintf("error completing the batch: %s\n", err.Error()))
+		logger.Log.Error(fmt.Sprintf("Failing data migration from Dataproc template for %s.%s with batch id: %s\n", srcSchema, srcTable, resp.GetName()))
 		return resp.GetName(), err
 	}
 
