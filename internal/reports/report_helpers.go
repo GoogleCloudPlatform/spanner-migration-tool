@@ -149,7 +149,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				}
 				_, isChanged := internal.FixName(srcFk.Name)
 				if isChanged && srcFk.Name != spFk.Name {
-					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[internal.IllegalName].Brief, srcFk.Name, spFk.Name))
+					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s' for table '%s'", IssueDB[internal.IllegalName].Brief, srcFk.Name, spFk.Name, conv.SpSchema[tableId].Name))
 				}
 			}
 			for _, spIdx := range conv.SpSchema[tableId].Indexes {
@@ -159,7 +159,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				}
 				_, isChanged := internal.FixName(srcIdx.Name)
 				if isChanged && srcIdx.Name != spIdx.Name {
-					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[internal.IllegalName].Brief, srcIdx.Name, spIdx.Name))
+					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s' for table '%s'", IssueDB[internal.IllegalName].Brief, srcIdx.Name, spIdx.Name, conv.SpSchema[tableId].Name))
 				}
 			}
 
@@ -203,18 +203,18 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				spColType = strings.ToLower(spColType)
 				switch i {
 				case internal.DefaultValue:
-					l = append(l, fmt.Sprintf("%s e.g. column '%s'", IssueDB[i].Brief, spColName))
+					l = append(l, fmt.Sprintf("%s for table '%s' e.g. column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName))
 				case internal.ForeignKey:
-					l = append(l, fmt.Sprintf("Column '%s' uses foreign keys which HarbourBridge does not support yet", spColName))
+					l = append(l, fmt.Sprintf("Column '%s' in table '%s' uses foreign keys which HarbourBridge does not support yet", conv.SpSchema[tableId].Name, spColName))
 				case internal.AutoIncrement:
-					l = append(l, fmt.Sprintf("Column '%s' is an autoincrement column. %s", spColName, IssueDB[i].Brief))
+					l = append(l, fmt.Sprintf("Column '%s' is an autoincrement column in table '%s'. %s", spColName, conv.SpSchema[tableId].Name, IssueDB[i].Brief))
 				case internal.Timestamp:
 					// Avoid the confusing "timestamp is mapped to timestamp" message.
-					l = append(l, fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner type timestamp e.g. column '%s'. %s", spColName, IssueDB[i].Brief))
+					l = append(l, fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner type timestamp in table '%s' e.g. column '%s'. %s", conv.SpSchema[tableId].Name, spColName, IssueDB[i].Brief))
 				case internal.Datetime:
-					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp e.g. column '%s'. %s", spColName, IssueDB[i].Brief))
+					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp in table '%s' e.g. column '%s'. %s", conv.SpSchema[tableId].Name, spColName, IssueDB[i].Brief))
 				case internal.Widened:
-					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner data type %s", IssueDB[i].Brief, spColName, srcColType, spColType))
+					l = append(l, fmt.Sprintf("%s in table '%s' e.g. for column '%s', source DB type %s is mapped to Spanner data type %s", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName, srcColType, spColType))
 				case internal.HotspotTimestamp:
 					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
@@ -243,7 +243,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					}
 				case internal.InterleavedAddColumn:
 					parent, _, _ := getInterleaveDetail(conv, tableId, colId, i)
-					str := fmt.Sprintf(" %s %s add %s as a primary key in table %s", IssueDB[i].Brief, parent, spColName, spSchema.Name)
+					str := fmt.Sprintf("Table '%s' is %s %s add %s as a primary key in table %s", conv.SpSchema[tableId].Name, IssueDB[i].Brief, parent, spColName, spSchema.Name)
 
 					if !internal.Contains(l, str) {
 						l = append(l, str)
@@ -283,13 +283,13 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						l = append(l, str)
 					}
 				case internal.ShardIdColumnAdded:
-					l = append(l, IssueDB[i].Brief)
+					l = append(l, fmt.Sprintf("Table '%s': %s %s", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[conv.SpSchema[tableId].ShardIdColumn].Name, IssueDB[i].Brief))
 				case internal.ShardIdColumnPrimaryKey:
-					l = append(l, IssueDB[i].Brief)
+					l = append(l, fmt.Sprintf("Table '%s': %s %s", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[conv.SpSchema[tableId].ShardIdColumn].Name, IssueDB[i].Brief))
 				case internal.IllegalName:
-					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s'", IssueDB[i].Brief, srcColName, spColName))
+					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s' for table '%s'", IssueDB[i].Brief, srcColName, spColName, conv.SpSchema[tableId].Name))
 				default:
-					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", spColName, srcColType, spColType, IssueDB[i].Brief))
+					l = append(l, fmt.Sprintf("Table '%s':Column '%s', type %s is mapped to %s. %s", conv.SpSchema[tableId].Name, spColName, srcColType, spColType, IssueDB[i].Brief))
 				}
 			}
 		}
@@ -384,7 +384,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	severity severity
 	batch    bool // Whether multiple instances of this issue are combined.
 }{
-	internal.DefaultValue:                {Brief: "Some columns have default values which Spanner does not support", severity: warning, batch: true},
+	internal.DefaultValue:                {Brief: "Some columns have default values which HarbourBridge does not migrate. Please add the default constraints manually after the migration is complete", severity: warning, batch: true},
 	internal.ForeignKey:                  {Brief: "Spanner does not support foreign keys", severity: warning},
 	internal.MultiDimensionalArray:       {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
 	internal.NoGoodType:                  {Brief: "No appropriate Spanner type", severity: warning},
@@ -411,8 +411,8 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.InterleavedRenameColumn:     {Brief: "Candidate for Interleaved Table", severity: suggestion},
 	internal.InterleavedChangeColumnSize: {Brief: "Candidate for Interleaved Table", severity: suggestion},
 	internal.RowLimitExceeded:            {Brief: "Non key columns exceed the spanner limit of 1600 MB. Please modify the column sizes", severity: errors},
-	internal.ShardIdColumnAdded:          {Brief: "Column migration_shard_id was added because this is a sharded migration and this column cannot be dropped", severity: note},
-	internal.ShardIdColumnPrimaryKey:     {Brief: "Column migration_shard_id is not a part of primary key. You may go to the Primary Key tab and add this column as a part of Primary Key", severity: suggestion},
+	internal.ShardIdColumnAdded:          {Brief: "column was added because this is a sharded migration and this column cannot be dropped", severity: note},
+	internal.ShardIdColumnPrimaryKey:     {Brief: "column is not a part of primary key. You may go to the Primary Key tab and add this column as a part of Primary Key", severity: suggestion},
 }
 
 type severity int

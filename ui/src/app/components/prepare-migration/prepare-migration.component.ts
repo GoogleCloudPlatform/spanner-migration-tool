@@ -743,19 +743,20 @@ export class PrepareMigrationComponent implements OnInit {
     this.fetch.getSourceProfile().subscribe({
       next: (res: IMigrationProfile) => {
         this.configuredMigrationProfile = res
+        var a = document.createElement('a')
+        // JS automatically converts the input (64bit INT) to '9223372036854776000' during conversion as this is the max value in JS.
+        // However the max value received from server is '9223372036854775807'
+        // Therefore an explicit replacement is necessary in the JSON content in the file.
+        let resJson = JSON.stringify(this.configuredMigrationProfile, null, '\t').replace(/9223372036854776000/g, '9223372036854775807')
+        a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
+        a.download = localStorage.getItem(TargetDetails.TargetDB) as string + "-" + this.configuredMigrationProfile.configType + `-shardConfig.cfg`
+        a.click()
       },
       error: (err: any) => {
         this.snack.openSnackBar(err.error, 'Close')
       },
     })
-    var a = document.createElement('a')
-    // JS automatically converts the input (64bit INT) to '9223372036854776000' during conversion as this is the max value in JS.
-    // However the max value received from server is '9223372036854775807'
-    // Therefore an explicit replacement is necessary in the JSON content in the file.
-    let resJson = JSON.stringify(this.configuredMigrationProfile, null, '\t').replace(/9223372036854776000/g, '9223372036854775807')
-    a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
-    a.download = localStorage.getItem(TargetDetails.TargetDB) as string + "-" + this.configuredMigrationProfile.configType + `-shardConfig.cfg`
-    a.click()
+
   }
 
   fetchGeneratedResources() {

@@ -1,5 +1,5 @@
 import { Component, Inject, OnInit } from '@angular/core';
-import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MigrationDetails, Profile, StorageKeys } from 'src/app/app.constants';
 import IDbConfig from 'src/app/model/db-config';
@@ -28,8 +28,8 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   selectedSourceProfileOption = Profile.ExistingConnProfile
   selectedTargetProfileOption = Profile.ExistingConnProfile
   profileOptions = [
-    { value: Profile.NewConnProfile, display: 'Create a new connection profile' },
     { value: Profile.ExistingConnProfile, display: 'Choose an existing connection profile' },
+    { value: Profile.NewConnProfile, display: 'Create a new connection profile' },
   ]
   profileName = ''
   errorMsg = ''
@@ -66,7 +66,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
     });
     this.migrationProfileForm = this.formBuilder.group({
       inputType: ['form', Validators.required],
-      textInput: [],
+      textInput: [''],
       sourceProfileOption: [Profile.NewConnProfile, Validators.required],
       targetProfileOption: [Profile.NewConnProfile, Validators.required],
       newSourceProfile: [],
@@ -186,12 +186,23 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   }
 
   setValidators(inputType: string) {
-    if (inputType == "text") {
+    if (inputType === "text") {
       for (const key in this.migrationProfileForm.controls) {
-        this.migrationProfileForm.get(key)?.clearValidators();
-        this.migrationProfileForm.get(key)?.updateValueAndValidity();
+        this.migrationProfileForm.controls[key].clearValidators()
+        this.migrationProfileForm.controls[key].updateValueAndValidity()
       }
-      this.migrationProfileForm.get('textInput')?.setValidators([Validators.required])
+      const shardMappingTableArray = this.migrationProfileForm.get('shardMappingTable') as FormArray;
+      shardMappingTableArray.controls.forEach((control: AbstractControl) => {
+        const group = control as FormGroup;
+        const logicalShardIdControl = group.get('logicalShardId');
+        const dbNameControl = group.get('dbName');
+
+        logicalShardIdControl?.clearValidators();
+        logicalShardIdControl?.updateValueAndValidity();
+        dbNameControl?.clearValidators();
+        dbNameControl?.updateValueAndValidity();
+      });
+      this.migrationProfileForm.controls['textInput'].setValidators([Validators.required])
       this.migrationProfileForm.controls['textInput'].updateValueAndValidity()
     }
     else {
@@ -233,44 +244,44 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   }
 
   finalizeConnDetails() {
-      let formValue = this.migrationProfileForm.value
-      let inputType: string = formValue.inputType
-      if (inputType === "form") {
-        //The user can also hit "Finish" while trying to 
-        //configure a non-first shard, in that case we should
-        //consider it a valid shard only if the full information
-        //is provided.
-        if (this.migrationProfileForm.valid) {
-          this.handleConnConfigsFromForm()
-        }
-        //create the configuration to be passed to the backend.
-        let dataShards: Array<IDataShard> = []
-        //this can be the length of any of the lists
-        const numShards = this.definedSrcConnProfileList.length;
-        for (let i = 0; i < numShards; i++) {
-          const dataShardId = this.dataShardIdList[i]
-          const srcConnProfile = this.definedSrcConnProfileList[i]
-          const tgtConnProfile = this.definedTgtConnProfileList[i]
-          const shardIdToDBMapping = this.shardIdToDBMappingTable[i]
-          let dataShard: IDataShard = {
-            dataShardId: dataShardId,
-            srcConnectionProfile: srcConnProfile,
-            dstConnectionProfile: tgtConnProfile,
-            streamLocation: this.region,
-            databases: shardIdToDBMapping
-          }
-          dataShards.push(dataShard)
-        }
-        this.migrationProfile.shardConfigurationDataflow.dataShards = dataShards
-      } else {
-        try {
-          this.migrationProfile = JSON.parse(formValue.textInput)
-        } catch (err) {
-          this.errorMsg = 'Unable to parse JSON'
-          throw new Error(this.errorMsg)
-        }
+    let formValue = this.migrationProfileForm.value
+    let inputType: string = formValue.inputType
+    if (inputType === "form") {
+      //The user can also hit "Finish" while trying to 
+      //configure a non-first shard, in that case we should
+      //consider it a valid shard only if the full information
+      //is provided.
+      if (this.migrationProfileForm.valid) {
+        this.handleConnConfigsFromForm()
       }
-    
+      //create the configuration to be passed to the backend.
+      let dataShards: Array<IDataShard> = []
+      //this can be the length of any of the lists
+      const numShards = this.definedSrcConnProfileList.length;
+      for (let i = 0; i < numShards; i++) {
+        const dataShardId = this.dataShardIdList[i]
+        const srcConnProfile = this.definedSrcConnProfileList[i]
+        const tgtConnProfile = this.definedTgtConnProfileList[i]
+        const shardIdToDBMapping = this.shardIdToDBMappingTable[i]
+        let dataShard: IDataShard = {
+          dataShardId: dataShardId,
+          srcConnectionProfile: srcConnProfile,
+          dstConnectionProfile: tgtConnProfile,
+          streamLocation: this.region,
+          databases: shardIdToDBMapping
+        }
+        dataShards.push(dataShard)
+      }
+      this.migrationProfile.shardConfigurationDataflow.dataShards = dataShards
+    } else {
+      try {
+        this.migrationProfile = JSON.parse(formValue.textInput)
+      } catch (err) {
+        this.errorMsg = 'Unable to parse JSON'
+        throw new Error(this.errorMsg)
+      }
+    }
+
     this.fetch.setShardSourceDBDetailsForDataflow(this.migrationProfile).subscribe({
       next: () => {
         localStorage.setItem(MigrationDetails.IsSourceConnectionProfileSet, "true")
@@ -415,8 +426,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
             this.errorTgtMsg = err.error
           }
         }
-        console.log(err)
-        
+
       },
     })
   }

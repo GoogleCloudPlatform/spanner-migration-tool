@@ -9,7 +9,7 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
-import { Subscription, take } from 'rxjs'
+import { flatMap, Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
 import IConv, {
   ICreateIndex,
@@ -159,6 +159,7 @@ export class ObjectDetailComponent implements OnInit {
     this.srcRowArray = new FormArray([])
     this.spRowArray = new FormArray([])
     this.droppedColumns = []
+    this.droppedSourceColumns = []
     this.pkColumnNames = []
     this.interleaveParentName = this.getInterleaveParentFromConv()
 
@@ -275,7 +276,7 @@ export class ObjectDetailComponent implements OnInit {
             ),
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
-            spColMaxLength: new FormControl(col.spColMaxLength),
+            spColMaxLength: new FormControl(col.srcColMaxLength),
           })
         )
       }
