@@ -132,7 +132,7 @@ export class PrepareMigrationComponent implements OnInit {
     ) {
       this.migrationTypes = [
         {
-          name: 'Bulk Migration',
+          name: 'Bulk Migration(Experimental)',
           value: MigrationTypes.bulkMigration,
         },
         {
@@ -144,7 +144,7 @@ export class PrepareMigrationComponent implements OnInit {
       this.selectedMigrationType = MigrationTypes.bulkMigration
       this.migrationTypes = [
         {
-          name: 'Bulk Migration',
+          name: 'Bulk Migration(Experimental)',
           value: MigrationTypes.bulkMigration,
         },
       ]
@@ -192,7 +192,7 @@ export class PrepareMigrationComponent implements OnInit {
         this.nodeCount = res.NodeCount
         this.migrationTypes = [
           {
-            name: 'Bulk Migration',
+            name: 'Bulk Migration(Experimental)',
             value: MigrationTypes.bulkMigration,
           },
           {
@@ -204,7 +204,7 @@ export class PrepareMigrationComponent implements OnInit {
           this.selectedMigrationType = MigrationTypes.bulkMigration
           this.migrationTypes = [
             {
-              name: 'Bulk Migration',
+              name: 'Bulk Migration(Experimental)',
               value: MigrationTypes.bulkMigration,
             },
           ]

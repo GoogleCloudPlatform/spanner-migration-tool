@@ -24,6 +24,7 @@ export class DataService {
   private convSubject = new BehaviorSubject<IConv>({} as IConv)
   private conversionRateSub = new BehaviorSubject({})
   private typeMapSub = new BehaviorSubject({})
+  private defaultTypeMapSub = new BehaviorSubject({})
   private summarySub = new BehaviorSubject(new Map<string, ISummary>())
   private ddlSub = new BehaviorSubject({})
   private tableInterleaveStatusSub = new BehaviorSubject({} as IInterleaveStatus)
@@ -40,6 +41,7 @@ export class DataService {
     .asObservable()
     .pipe(filter((res) => Object.keys(res).length !== 0))
   typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  defaultTypeMap = this.defaultTypeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   summary = this.summarySub.asObservable()
   ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   tableInterleaveStatus = this.tableInterleaveStatusSub.asObservable()
@@ -65,6 +67,7 @@ export class DataService {
     this.convSubject.next({} as IConv)
     this.conversionRateSub.next({})
     this.typeMapSub.next({})
+    this.defaultTypeMapSub.next({})
     this.summarySub.next(new Map<string, ISummary>())
     this.ddlSub.next({})
     this.tableInterleaveStatusSub.next({} as IInterleaveStatus)
@@ -161,6 +164,7 @@ export class DataService {
     return forkJoin({
       rates: this.fetch.getConversionRate(),
       typeMap: this.fetch.getTypeMap(),
+      defaultTypeMap: this.fetch.getSpannerDefaultTypeMap(),
       summary: this.fetch.getSummary(),
       ddl: this.fetch.getDdl(),
     })
@@ -169,9 +173,10 @@ export class DataService {
           return of(err)
         })
       )
-      .subscribe(({ rates, typeMap, summary, ddl }: any) => {
+      .subscribe(({ rates, typeMap,defaultTypeMap, summary, ddl }: any) => {
         this.conversionRateSub.next(rates)
         this.typeMapSub.next(typeMap)
+        this.defaultTypeMapSub.next(defaultTypeMap)
         this.summarySub.next(new Map<string, ISummary>(Object.entries(summary)))
         this.ddlSub.next(ddl)
       })

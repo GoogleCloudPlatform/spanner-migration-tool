@@ -42,6 +42,7 @@ export class ObjectDetailComponent implements OnInit {
 
   @Input() currentObject: FlatNode | null = null
   @Input() typeMap: any = {}
+  @Input() defaultTypeMap: any = {}
   @Input() ddlStmts: any = {}
   @Input() fkData: IFkTabData[] = []
   @Input() tableData: IColumnTabData[] = []
@@ -261,24 +262,24 @@ export class ObjectDetailComponent implements OnInit {
           })
         )
       } else {
-        this.srcRowArray.push(
-          new FormGroup({
-            srcOrder: new FormControl(col.srcOrder),
-            srcColName: new FormControl(col.srcColName),
-            srcDataType: new FormControl(col.srcDataType),
-            srcIsPk: new FormControl(col.srcIsPk),
-            srcIsNotNull: new FormControl(col.srcIsNotNull),
-            srcColMaxLength: new FormControl(col.srcColMaxLength),
-            spOrder: new FormControl(col.srcOrder),
-            spColName: new FormControl(col.srcColName),
-            spDataType: new FormControl(
-              this.typeMap[col.srcDataType] ? this.typeMap[col.srcDataType][0].T : ''
-            ),
-            spIsPk: new FormControl(col.srcIsPk),
-            spIsNotNull: new FormControl(col.srcIsNotNull),
-            spColMaxLength: new FormControl(col.srcColMaxLength),
-          })
-        )
+          this.srcRowArray.push(
+            new FormGroup({
+              srcOrder: new FormControl(col.srcOrder),
+              srcColName: new FormControl(col.srcColName),
+              srcDataType: new FormControl(col.srcDataType),
+              srcIsPk: new FormControl(col.srcIsPk),
+              srcIsNotNull: new FormControl(col.srcIsNotNull),
+              srcColMaxLength: new FormControl(col.srcColMaxLength),
+              spOrder: new FormControl(col.srcOrder),
+              spColName: new FormControl(col.srcColName),
+              spDataType: new FormControl(
+                this.defaultTypeMap[col.srcDataType].Name
+              ),
+              spIsPk: new FormControl(col.srcIsPk),
+              spIsNotNull: new FormControl(col.srcIsNotNull),
+              spColMaxLength: new FormControl(col.srcColMaxLength),
+            })
+          )
       }
     })
 

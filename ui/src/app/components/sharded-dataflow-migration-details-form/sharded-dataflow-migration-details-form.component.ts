@@ -42,6 +42,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   region: string
   physicalShards: number = 0
   logicalShards: number = 0
+  testingSourceConnection: boolean = false
 
   inputOptionsList = [
     { value: 'text', displayName: 'Text' },
@@ -380,6 +381,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   }
 
   createOrTestConnection(isSource: boolean, isValidateOnly: boolean) {
+    this.testingSourceConnection = true
     let formValue = this.migrationProfileForm.value
     let payload: ICreateConnectionProfileV2
     if (isSource) {
@@ -402,6 +404,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
     this.fetch.createConnectionProfile(payload).subscribe({
       next: () => {
         if (isValidateOnly) {
+          this.testingSourceConnection = false
           this.testSuccess = true
         } else {
           if (isSource) {
@@ -415,6 +418,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       },
       error: (err: any) => {
         if (isValidateOnly) {
+          this.testingSourceConnection = false
           this.testSuccess = false
           this.errorSrcMsg = err.error
         } else {

@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConversionService } from '../../services/conversion/conversion.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
-import IConv, { ITableIdAndName } from '../../model/conv'
+import IConv, { ITableIdAndName, IType } from '../../model/conv'
 import { Subscription } from 'rxjs/internal/Subscription'
 import { MatDialog } from '@angular/material/dialog'
 import IFkTabData from 'src/app/model/fk-tab-data'
@@ -33,8 +33,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   tableData: IColumnTabData[] = []
   indexData: IIndexData[] = []
   typeMap: Record<string, Record<string, string>> | boolean = false
+  defaultTypeMap: Record<string, IType> | boolean = false
   conversionRates: Record<string, string> = {}
   typemapObj!: Subscription
+  defaultTypemapObj!: Subscription
   convObj!: Subscription
   converObj!: Subscription
   ddlsumconvObj!: Subscription
@@ -73,6 +75,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.ddlsumconvObj = this.data.getRateTypemapAndSummary()
     this.typemapObj = this.data.typeMap.subscribe((types) => {
       this.typeMap = types
+    })
+
+    this.defaultTypemapObj = this.data.defaultTypeMap.subscribe((types) => {
+      this.defaultTypeMap = types
     })
 
     this.ddlObj = this.data.ddl.subscribe((res) => {
