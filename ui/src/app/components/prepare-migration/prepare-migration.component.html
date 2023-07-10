@@ -209,7 +209,7 @@
                             <mat-icon matTooltip="Download configured shards as JSON" matTooltipPosition="above">download</mat-icon>
                         </button></span>
                 </p>
-                <p class="point" *ngIf="(selectedMigrationType ==='dproc') && !(selectedMigrationMode ==='Schema')">
+                <p class="point" *ngIf="(selectedMigrationType ==='dataproc') && !(selectedMigrationMode ==='Schema')">
                     <span class="bullet">2</span>
                     <span>Configure Dataproc</span><span><button mat-button class="configure"
                             (click)="openDataprocForm()"
@@ -314,7 +314,7 @@
         Please note that HarbourBridge does not save the IDs of the Dataflow jobs created once closed, so please keep copy over the links in the Generated Resources section above before closing HarbourBridge.
     </div>
     <div *ngIf="isDataprocJobsGenerated">
-        <span *ngIf="selectedMigrationType ==='dproc' && dataprocJobsGenerated.DataprocJobUrls.length > 0">
+        <span *ngIf="selectedMigrationType ==='dataproc' && dataprocJobsGenerated.DataprocJobUrls.length > 0">
             <h4>Dataproc Jobs: </h4>
             <ul *ngFor="let url of dataprocJobsGenerated.DataprocJobUrls; let i = index">
                 <li><a [href]="url" target="_blank">{{dataprocJobsGenerated.DataprocJobIds[i]}}</a></li>
@@ -324,7 +324,7 @@
     <div class="migrate">
         <span *ngIf="!isLowDtMigrationRunning && !isDprocMigrationRunning">
             <button mat-raised-button type="submit" color="primary" (click)="migrate()"
-                [disabled]="!((isTargetDetailSet && (selectedMigrationType ==='lowdt') && isSourceConnectionProfileSet && isTargetConnectionProfileSet) || (isTargetDetailSet && (selectedMigrationType ==='bulk')) || (isTargetDetailSet && (selectedMigrationType === 'dproc') && isDataprocConfigurationSet) || isMigrationInProgress)">Migrate</button>
+                [disabled]="!((isTargetDetailSet && (selectedMigrationType ==='lowdt') && isSourceConnectionProfileSet && isTargetConnectionProfileSet) || (isTargetDetailSet && (selectedMigrationType ==='bulk')) || (isTargetDetailSet && (selectedMigrationType === 'dataproc') && isDataprocConfigurationSet) || isMigrationInProgress)">Migrate</button>
         </span>
         <span *ngIf="isLowDtMigrationRunning">
             <button mat-raised-button color="primary" (click)="endMigration()">End Migration</button>
