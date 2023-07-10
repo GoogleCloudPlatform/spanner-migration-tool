@@ -79,7 +79,7 @@ const (
 	//DMS migration type
 	DMS_MIGRATION = "dms"
 	//dataproc migration type
-	DATAPROC_MIGRATION = "dproc"
+	DATAPROC_MIGRATION = "dataproc"
 
 	EditColumnMaxLength = "edit_column_max_length"
 	SESSION_FILE        = "sessionFile"

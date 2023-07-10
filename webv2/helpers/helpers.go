@@ -34,7 +34,7 @@ const (
 	DATA_ONLY              = "Data"
 	BULK_MIGRATION         = "bulk"
 	LOW_DOWNTIME_MIGRATION = "lowdt"
-	DATAPROC_MIGRATION     = "dproc"
+	DATAPROC_MIGRATION     = "dataproc"
 	POSTGRESQL_DIALECT     = "PostgreSQL"
 	GOOGLE_SQL_DIALECT     = "Google Standard SQL"
 )
