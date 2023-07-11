@@ -130,7 +130,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 			// because we have a Spanner column with no matching source DB col.
 			// Much of the generic code for processing issues assumes we have both.
 			if p.severity == warning {
-				l = append(l, fmt.Sprintf("Column '%s' was added because table '%s didn't have a primary key. Spanner requires a primary key for every table", *syntheticPK, conv.SpSchema[tableId].Name))
+				l = append(l, fmt.Sprintf("Column '%s' was added because table '%s' didn't have a primary key. Spanner requires a primary key for every table", *syntheticPK, conv.SpSchema[tableId].Name))
 			}
 		}
 		if uniquePK != nil {
@@ -214,7 +214,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				case internal.Datetime:
 					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp in table '%s' e.g. column '%s'. %s", conv.SpSchema[tableId].Name, spColName, IssueDB[i].Brief))
 				case internal.Widened:
-					l = append(l, fmt.Sprintf("%s in table '%s' e.g. for column '%s', source DB type %s is mapped to Spanner data type %s", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName, srcColType, spColType))
+					l = append(l, fmt.Sprintf("Table %s: %s e.g. for column '%s', source DB type %s is mapped to Spanner data type %s", conv.SpSchema[tableId].Name, IssueDB[i].Brief, spColName, srcColType, spColType))
 				case internal.HotspotTimestamp:
 					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
@@ -289,7 +289,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				case internal.IllegalName:
 					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s' for table '%s'", IssueDB[i].Brief, srcColName, spColName, conv.SpSchema[tableId].Name))
 				default:
-					l = append(l, fmt.Sprintf("Table '%s':Column '%s', type %s is mapped to %s. %s", conv.SpSchema[tableId].Name, spColName, srcColType, spColType, IssueDB[i].Brief))
+					l = append(l, fmt.Sprintf("Table '%s': Column '%s', type %s is mapped to %s. %s", conv.SpSchema[tableId].Name, spColName, srcColType, spColType, IssueDB[i].Brief))
 				}
 			}
 		}
