@@ -202,6 +202,10 @@ type TableIdAndName struct {
 	Name string `json:"Name"`
 }
 
+type ShardIdPrimaryKey struct {
+	AddedAtTheStart bool `json:"AddedAtTheStart"`
+}
+
 // databaseConnection creates connection with database
 func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -299,6 +303,25 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv = conv
 
+	if sessionState.IsSharded {
+		setShardIdColumnAsPrimaryKey(true)
+		ruleId := internal.GenerateRuleId()
+		rule := internal.Rule{
+			Id:                ruleId,
+			Name:              ruleId,
+			Type:              constants.AddShardIdPrimaryKey,
+			AssociatedObjects: "All Tables",
+			Data: ShardIdPrimaryKey{
+				AddedAtTheStart: true,
+			},
+			Enabled: true,
+		}
+
+		sessionState := session.GetSessionState()
+		sessionState.Conv.Rules = append(sessionState.Conv.Rules, rule)
+		session.UpdateSessionFile()
+	}
+
 	primarykey.DetectHotspot()
 	index.IndexSuggestion()
 
@@ -311,9 +334,8 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionMetadata,
-		Conv:            *conv,
+		Conv:            *sessionState.Conv,
 	}
-	sessionState.Conv = conv
 	sessionState.SessionMetadata = sessionMetadata
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -911,6 +933,19 @@ func applyRule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		setSpColMaxLength(colMaxLength, rule.AssociatedObjects)
+	} else if rule.Type == constants.AddShardIdPrimaryKey {
+		d, err := json.Marshal(rule.Data)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		var shardIdPrimaryKey ShardIdPrimaryKey
+		err = json.Unmarshal(d, &shardIdPrimaryKey)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		setShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
 	} else {
 		http.Error(w, "Invalid rule type", http.StatusInternalServerError)
 		return
@@ -1000,6 +1035,19 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		revertSpColMaxLength(colMaxLength, rule.AssociatedObjects)
+	} else if rule.Type == constants.AddShardIdPrimaryKey {
+		d, err := json.Marshal(rule.Data)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		var shardIdPrimaryKey ShardIdPrimaryKey
+		err = json.Unmarshal(d, &shardIdPrimaryKey)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		revertShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
 	} else {
 		http.Error(w, "Invalid rule type", http.StatusInternalServerError)
 		return
@@ -1017,6 +1065,67 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 
+}
+
+func setShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
+	sessionState := session.GetSessionState()
+	if isAddedAtFirst {
+		for _, table := range sessionState.Conv.SpSchema {
+			pkRequest := primarykey.PrimaryKeyRequest{
+				TableId: table.Id,
+				Columns: []ddl.IndexKey{{ColId: table.ShardIdColumn, Order: 1}},
+			}
+			for index := range table.PrimaryKeys {
+				pk := table.PrimaryKeys[index]
+				pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order + 1, Desc: pk.Desc})
+			}
+			primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+		}
+	} else {
+		for _, table := range sessionState.Conv.SpSchema {
+			size := len(table.PrimaryKeys)
+			pkRequest := primarykey.PrimaryKeyRequest{
+				TableId: table.Id,
+				Columns: table.PrimaryKeys,
+			}
+			pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: table.ShardIdColumn, Order: size + 1})
+			primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+		}
+	}
+
+}
+
+func revertShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
+	sessionState := session.GetSessionState()
+	if isAddedAtFirst {
+		for _, table := range sessionState.Conv.SpSchema {
+			pkRequest := primarykey.PrimaryKeyRequest{
+				TableId: table.Id,
+				Columns: []ddl.IndexKey{},
+			}
+			for index := range table.PrimaryKeys {
+				pk := table.PrimaryKeys[index]
+				if pk.ColId != table.ShardIdColumn {
+					pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order - 1, Desc: pk.Desc})
+				}
+			}
+			primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+		}
+	} else {
+		for _, table := range sessionState.Conv.SpSchema {
+			pkRequest := primarykey.PrimaryKeyRequest{
+				TableId: table.Id,
+				Columns: []ddl.IndexKey{},
+			}
+			for index := range table.PrimaryKeys {
+				pk := table.PrimaryKeys[index]
+				if pk.ColId != table.ShardIdColumn {
+					pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order, Desc: pk.Desc})
+				}
+			}
+			primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+		}
+	}
 }
 
 // setGlobalDataType allows to change Spanner type globally.
@@ -1206,7 +1315,7 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(reportAbsPath))
 }
 
-// generates a downloadable structured report and send it as a JSON response  
+// generates a downloadable structured report and send it as a JSON response
 func getDStructuredReport(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)

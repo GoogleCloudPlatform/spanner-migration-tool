@@ -162,13 +162,7 @@ export interface IInterleaveStatus {
 
 export interface IPrimaryKey {
   TableId: string
-  Columns: IPkColumnDefs[]
-}
-
-export interface IPkColumnDefs {
-  ColumnId: string
-  Desc: boolean
-  Order: number
+  Columns: IIndexKey[]
 }
 
 export interface ISessionSummary {
@@ -197,4 +191,8 @@ export interface ISpannerDetails {
 export interface ITableIdAndName {
   Id: string
   Name: string
+}
+
+export interface IShardIdPrimaryKey {
+  AddedAtTheStart: boolean
 }

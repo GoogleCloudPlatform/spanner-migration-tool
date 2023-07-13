@@ -30,6 +30,7 @@
           <mat-option value="globalDataType">Change global data type</mat-option>
           <mat-option value="addIndex">Add Index</mat-option>
           <mat-option value="changeMaxLength">Change default max column length</mat-option>
+          <mat-option *ngIf="shardedMigration" value="addShardIdPrimaryKey">Add shard id column as primary key</mat-option>
         </mat-select>
       </mat-form-field>
 
@@ -58,6 +59,14 @@
         [ruleName]="rulename"
         [ruleType]="ruletype"
       ></app-edit-column-max-length>
+    </div>
+    <div *ngIf="ruleType.value === 'addShardIdPrimaryKey'">
+      <app-add-shard-id-primary-key
+        [ruleNameValid]="ruleForm.valid"
+        (resetRuleType)="resetRuleType()"
+        [ruleName]="rulename"
+        [ruleType]="ruletype"
+      ></app-add-shard-id-primary-key>
     </div>
   </div>
 </div>

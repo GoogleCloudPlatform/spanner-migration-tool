@@ -37,6 +37,7 @@ export class RuleComponent implements OnInit {
       let currentData: any = []
       globalData = this.currentDataSource.filter(
         (rule: any) => rule?.Type === 'global_datatype_change' ||
+          rule?.Type === 'add_shard_id_primary_key' ||
           (rule?.Type === 'edit_column_max_length' && rule?.AssociatedObjects === 'All table')
       )
       if (

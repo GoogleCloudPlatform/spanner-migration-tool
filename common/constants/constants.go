@@ -76,7 +76,8 @@ const (
 	//dataflow migration type
 	DATAFLOW_MIGRATION = "dataflow"
 	//DMS migration type
-	DMS_MIGRATION       = "dms"
-	EditColumnMaxLength = "edit_column_max_length"
-	SESSION_FILE = "sessionFile"
+	DMS_MIGRATION        = "dms"
+	EditColumnMaxLength  = "edit_column_max_length"
+	AddShardIdPrimaryKey = "add_shard_id_primary_key"
+	SESSION_FILE         = "sessionFile"
 )
