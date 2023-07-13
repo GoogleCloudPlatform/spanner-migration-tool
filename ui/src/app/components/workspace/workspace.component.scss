@@ -109,3 +109,18 @@ app-object-detail {
 ::ng-deep .column-right .mat-tab-header-pagination-after {
   margin-right: 40px;
 }
+.split-button-left{
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  box-shadow: none;
+  padding-right: 1px;
+}
+.split-button-right{
+  box-shadow: none;
+  width: 30px !important;
+  min-width: unset !important;
+  padding: 0 2px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-right: 7px;
+}

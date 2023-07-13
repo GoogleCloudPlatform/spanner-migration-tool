@@ -1,9 +1,25 @@
 <div class="sidenav-view-assessment-container">
   <div class="sidenav-view-assessment-header">
     <span class="mat-h2 header-title">Assessment report</span>
+    <div class="btn-source-select">
+    <button  mat-raised-button color="primary" class="split-button-left" (click)="downloadReports()">
+      DOWNLOAD REPORTS
+    </button>
+    <button  mat-raised-button color="primary" class="split-button-right" [matMenuTriggerFor]="menu">
+      <mat-icon aria-hidden="false" aria-label="More options">expand_more</mat-icon>
+    </button>
+    <mat-menu #menu="matMenu" xPosition="before">
+      <button mat-menu-item (click)="downloadTextReport()">
+        Download Text Report
+      </button>
+      <button mat-menu-item (click)="downloadStructuredReport()">
+        Download Structured Report
+      </button>
+    </mat-menu>
     <button class="close-button" mat-icon-button color="primary" (click)="closeSidenav()">
       <mat-icon class="close-icon">close</mat-icon>
     </button>
+  </div>
   </div>
   <div class="content">
     <p>

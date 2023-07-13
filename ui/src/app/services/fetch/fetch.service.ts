@@ -17,6 +17,7 @@ import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IGeneratedResources, IProgress, ITables } from 'src/app/model/migrate'
 import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IMigrationProfile } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
+import IStructuredReport from 'src/app/model/structured-report'
 
 @Injectable({
   providedIn: 'root',
@@ -108,6 +109,18 @@ export class FetchService {
 
   getSchemaConversionFromSessionFile(payload: ISessionConfig) {
     return this.http.post<IConv>(`${this.url}/convert/session`, payload)
+  }
+
+  getDStructuredReport(){
+    return this.http.get<IStructuredReport>(`${this.url}/downloadStructuredReport`)
+  }
+
+  getDTextReport(){
+    return this.http.get<string>(`${this.url}/downloadTextReport`)
+  }
+
+  getDSpannerDDL(){
+    return this.http.get<string>(`${this.url}/downloadDDL`)
   }
 
   getConversionRate() {
