@@ -440,7 +440,7 @@ type DirectConnectionConfig struct {
 	DbName      string `json:"dbName"`
 }
 
-type DatastreamConnProfile struct {
+type ConnectionProfileID struct {
 	Name     string `json:"name"`
 	Location string `json:"location"`
 }
@@ -453,13 +453,13 @@ type DataflowConfig struct {
 }
 
 type DataShard struct {
-	DataShardId          string                `json:"dataShardId"`
-	SrcConnectionProfile DatastreamConnProfile `json:"srcConnectionProfile"`
-	DstConnectionProfile DatastreamConnProfile `json:"dstConnectionProfile"`
-	DataflowConfig       DataflowConfig        `json:"dataflowConfig"`
-	TmpDir               string                `json:"tmpDir"`
-	StreamLocation       string                `json:"streamLocation"`
-	LogicalShards        []LogicalShard        `json:"databases"`
+	DataShardId          string              `json:"dataShardId"`
+	SrcConnectionProfile ConnectionProfileID `json:"srcConnectionProfile"`
+	DstConnectionProfile ConnectionProfileID `json:"dstConnectionProfile"`
+	DataflowConfig       DataflowConfig      `json:"dataflowConfig"`
+	TmpDir               string              `json:"tmpDir"`
+	StreamLocation       string              `json:"streamLocation"`
+	LogicalShards        []LogicalShard      `json:"databases"`
 }
 
 type LogicalShard struct {
@@ -479,8 +479,20 @@ type ShardConfigurationBulk struct {
 	DataShards   []DirectConnectionConfig `json:"dataShards"`
 }
 
-// TODO: Define the sharding structure for DMS migrations here.
 type ShardConfigurationDMS struct {
+	SchemaSource DirectConnectionConfig `json:"schemaSource"`
+	DataShards   []*DMSDataShard        `json:"dataShards"`
+}
+
+type DMSDataShard struct {
+	DataShardId          string              `json:"dataShardId"`
+	SrcConnectionProfile ConnectionProfileID `json:"srcConnectionProfile"`
+	LogicalShards        []LogicalShard      `json:"databases"`
+	DMSConfig            DMSConfig           `json:"dmsConfig"`
+}
+
+type DMSConfig struct {
+	JobLocation string `json:"location"`
 }
 
 type SourceProfileConfig struct {

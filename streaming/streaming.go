@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"strings"
 	"sync"
 	"time"
 
@@ -102,7 +101,6 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 	if dsCfg.StreamId == "" && dsCfg.StreamDisplayName == "" {
 		// TODO: Update names to have more info like dbname.
 		streamId, err := utils.GenerateName("hb-stream-" + dbName)
-		streamId = strings.Replace(streamId, "_", "-", -1)
 		if err != nil {
 			return fmt.Errorf("error generating stream name: %v", err)
 		}
@@ -120,7 +118,6 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 	if dfCfg.JobName == "" {
 		// Update names to have more info like dbname.
 		jobName, err := utils.GenerateName("hb-dataflow-" + dbName)
-		jobName = strings.Replace(jobName, "_", "-", -1)
 		if err != nil {
 			return fmt.Errorf("error generating stream name: %v", err)
 		}

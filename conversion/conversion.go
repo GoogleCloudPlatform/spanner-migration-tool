@@ -48,6 +48,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/cloudspannerecosystem/harbourbridge/dms"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
@@ -218,8 +219,11 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 				return conv, err
 			}
 		} else if sourceProfile.Config.ConfigType == constants.DMS_MIGRATION {
-			// TODO: Define the schema processing logic for DMS migrations here.
-			return conv, fmt.Errorf("dms based migrations are not implemented yet")
+			schemaSource := sourceProfile.Config.ShardConfigurationDMS.SchemaSource
+			infoSchema, err = getInfoSchemaForShard(schemaSource, sourceProfile.Driver, targetProfile)
+			if err != nil {
+				return conv, err
+			}
 		} else {
 			return conv, fmt.Errorf("unknown type of migration, please select one of bulk, dataflow or dms")
 		}
@@ -249,7 +253,7 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 
 func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
 	switch sourceProfile.Driver {
-	// Skip snapshot migration via harbourbridge for mysql and oracle since dataflow job will job will handle this from backfilled data.
+	// Skip snapshot migration via harbourbridge for mysql and oracle since dataflow job will handle this from backfilled data.
 	case constants.MYSQL, constants.ORACLE, constants.POSTGRES:
 		return &writer.BatchWriter{}, nil
 	case constants.DYNAMODB:
@@ -279,11 +283,12 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 		} else if sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
 			return dataFromDatabaseForDataflowMigration(targetProfile, ctx, sourceProfile, conv)
 		} else if sourceProfile.Config.ConfigType == constants.DMS_MIGRATION {
-			return dataFromDatabaseForDMSMigration()
+			return dataFromDatabaseForDMSMigration(ctx, sourceProfile, targetProfile, conv)
 		} else {
 			return nil, fmt.Errorf("configType should be one of 'bulk', 'dataflow' or 'dms'")
 		}
 	default:
+		// TODO: Handle non-sharded migration for DMS
 		infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
 		if err != nil {
 			return nil, err
@@ -308,9 +313,44 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 	}
 }
 
-// TODO: Define the data processing logic for DMS migrations here.
-func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
-	return nil, fmt.Errorf("dms configType is not implemented yet, please use one of 'bulk' or 'dataflow'")
+// 1. Create shardIdMap and create ConversionWorkspace
+// 2. Create batch for each physical shard
+// 3. Create streaming cfg from the config source type.
+// 4. Verify the CFG and update it with HB defaults
+// 5. Create and launch DMS Jobs
+func dataFromDatabaseForDMSMigration(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
+	conv.Audit.StreamingStats.ShardToDMSJobMap = make(map[string]string)
+	var conversionWorkspaceID *dms.ResourceIdentifier
+	var commitId string
+	var dmsCfgs []dms.DMSCfg
+	var err error
+	for _, dataShard := range sourceProfile.Config.ShardConfigurationDMS.DataShards {
+		if commitId == "" {
+			conversionWorkspaceID, commitId, err = dms.CreateConversionWorkspace(ctx, sourceProfile.Config.ShardConfigurationDMS.SchemaSource.DbName, dataShard, targetProfile.Conn.Sp.Project, conv)
+			if err != nil {
+				err = fmt.Errorf("could not create conversion workspace in dms, error: %v", err)
+				return nil, err
+			}
+		}
+		dmsCfg, err := dms.CreateDMSConfig(*dataShard, targetProfile.Conn.Sp, *conversionWorkspaceID, commitId)
+		if err != nil {
+			err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", dataShard.DataShardId, err)
+			return nil, err
+		}
+		dmsCfgs = append(dmsCfgs, *dmsCfg)
+	}
+	asyncProcessShards := func(p dms.DMSCfg, mutex *sync.Mutex) common.TaskResult[*dms.DMSCfg] {
+		fmt.Printf("Initiating dms migration for shard: %v\n", p.DataShard.DataShardId)
+
+		err = dms.CreateAndLaunchDMSJob(ctx, p, targetProfile.Conn.Sp, conv)
+
+		return common.TaskResult[*dms.DMSCfg]{Result: &p, Err: err}
+	}
+	_, err = common.RunParallelTasks(dmsCfgs, 5, asyncProcessShards, true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to start dms migrations: %v", err)
+	}
+	return &writer.BatchWriter{}, nil
 }
 
 // 1. Create batch for each physical shard
