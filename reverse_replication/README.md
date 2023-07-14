@@ -1,6 +1,6 @@
 # Reverse Replication Setup
 
-HarbourBridge currently does not support reverse replication out-of-the-box.
+Spanner migration tool currently does not support reverse replication out-of-the-box.
 The launcher.go script can be used instead to setup the resources required for a 
 reverse replication pipeline.
 
@@ -26,7 +26,7 @@ The script takes in multiple arguments to orchestrate the pipeline. They are:
 - `pubSubDataTopicId`: id pub/sub data topic, pre-existing topics should use the same project as Spanner.
 - `pubSubEndpoint`: Pub/Sub endpoint, defaults to same endpoint as the Dataflow region.
 - `sourceShardsFilePath`: GCS file path for file containing shard info. Details on structure mentioned later.
-- `sessionFilePath`: GCS file path for session file generated via HarbourBridge.
+- `sessionFilePath`: GCS file path for session file generated via Spanner migration tool.
 - `machineType`: dataflow worker machine type, defaults to n2-standard-4.
 - `orderingWorkers`: number of workers for ordering job. Defaults to 5.
 - `writerWorkers`: number of workers for writer job. Defaults to 5.

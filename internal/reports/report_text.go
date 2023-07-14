@@ -9,7 +9,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 )
 
-//report_text.go contains the logic to convert a structured harbourbridge 
+//report_text.go contains the logic to convert a structured spanner migration tool 
 //report to a human readable text report.
 // The structure of the report created is present in (internal/reports/REPORT.md)
 // A sample report can be found in (test_data/mysql_text_report.txt)
@@ -36,7 +36,7 @@ func GenerateTextReport(structuredReport StructuredReport, w *bufio.Writer) {
 		"a table-by-table listing of "+structuredReport.MigrationType+" conversion details. "+
 		"For background on the "+structuredReport.MigrationType+" conversion process used, "+
 		"and explanations of the terms and notes used in this "+
-		"report, see HarbourBridge's README.", 80, 0)
+		"report, see Spanner migration tool's README.", 80, 0)
 	w.WriteString("\n\n")
 	if isDump {
 		writeStatementStats(structuredReport, w)

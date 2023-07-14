@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package utils contains common helper functions used across multiple other packages.
-// Utils should not import any harbourbridge packages.
+// Utils should not import any Spanner migration tool packages.
 package utils
 
 import (
@@ -56,7 +56,7 @@ type IOStreams struct {
 	BytesRead           int64
 }
 
-// Harbourbridge accepts a manifest file in the form of a json which unmarshalls into the ManifestTables struct.
+// Spanner migration tool accepts a manifest file in the form of a json which unmarshalls into the ManifestTables struct.
 type ManifestTable struct {
 	Table_name    string   `json:"table_name"`
 	File_patterns []string `json:"file_patterns"`
@@ -406,7 +406,7 @@ func PrintPermissionsWarning(driver string, out *os.File) {
 		`
 WARNING: Please check that permissions for this Spanner instance are
 appropriate. Spanner manages access control at the database level, and the
-database created by HarbourBridge will inherit default permissions from this
+database created by Spanner migration tool will inherit default permissions from this
 instance. All data written to Spanner will be visible to anyone who can
 access the created database. Note that `+driver+` table-level and row-level
 ACLs are dropped during conversion since they are not supported by Spanner.

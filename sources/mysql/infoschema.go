@@ -259,8 +259,8 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 
 // GetForeignKeys return list all the foreign keys constraints.
 // MySQL supports cross-database foreign key constraints. We ignore
-// them because HarbourBridge works database at a time (a specific run
-// of HarbourBridge focuses on a specific database) and so we can't handle
+// them because the Spanner migration tool works database at a time (a specific run
+// of the Spanner migration tool focuses on a specific database) and so we can't handle
 // them effectively.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
 	q := `SELECT k.REFERENCED_TABLE_NAME,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME,k.CONSTRAINT_NAME

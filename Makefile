@@ -9,7 +9,7 @@ build:
 # Build a static binary
 build-static:
 	go build -a -tags osusergo,netgo -ldflags '-w -extldflags "-static"' -o harbourbridge main.go
-# Create a new release for Harbourbridge.
+# Create a new release for Spanner migration tool.
 release:
 	./release.sh ${VERSION}
 # Update vendor dependencies

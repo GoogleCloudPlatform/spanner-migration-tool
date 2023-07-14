@@ -66,7 +66,7 @@ func setupGlobalFlags() {
 	flag.StringVar(&pubSubDataTopicId, "pubSubDataTopicId", "", "id pub/sub data topic, pre-existing topics should use the same project as Spanner.")
 	flag.StringVar(&pubSubEndpoint, "pubSubEndpoint", "", "pub/sub endpoint, defaults to same endpoint as the dataflow region.")
 	flag.StringVar(&sourceShardsFilePath, "sourceShardsFilePath", "", "gcs file path for file containing shard info")
-	flag.StringVar(&sessionFilePath, "sessionFilePath", "", "gcs file path for session file generated via HarbourBridge")
+	flag.StringVar(&sessionFilePath, "sessionFilePath", "", "gcs file path for session file generated via Spanner migration tool")
 	flag.StringVar(&machineType, "machineType", "n2-standard-4", "dataflow worker machine type, defaults to n2-standard-4")
 	flag.IntVar(&orderingWorkers, "orderingWorkers", 5, "number of workers for ordering job")
 	flag.IntVar(&writerWorkers, "writerWorkers", 5, "number of workers for writer job")

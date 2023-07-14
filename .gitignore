@@ -1,7 +1,7 @@
 .idea/
 main
-web/harbour_bridge_output/
-harbour_bridge_output/
+web/spanner_migration_tool_output/
+spanner_migration_tool_output/
 *__debug_bin*
 *.code-workspace
 .DS_Store

@@ -42,7 +42,7 @@ type Conv struct {
 	sampleBadRows  rowSamples          // Rows that generated errors during conversion.
 	Stats          stats               `json:"-"`
 	TimezoneOffset string              // Timezone offset for timestamp conversion.
-	SpDialect      string              // The dialect of the spanner database to which HarbourBridge is writing.
+	SpDialect      string              // The dialect of the spanner database to which Spanner migration tool is writing.
 	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
 	Audit          Audit               `json:"-"` // Stores the audit information for the database conversion
 	Rules          []Rule              // Stores applied rules during schema conversion
