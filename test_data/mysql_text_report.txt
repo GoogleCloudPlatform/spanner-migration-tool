@@ -7,8 +7,8 @@ Data conversion: POOR (66% of 6000 rows written to Spanner).
 The remainder of this report provides stats on the mysqldump statements
 processed, followed by a table-by-table listing of SCHEMA_AND_DATA conversion
 details. For background on the SCHEMA_AND_DATA conversion process used, and
-explanations of the terms and notes used in this report, see Spanner migration tool's
-README.
+explanations of the terms and notes used in this report, see Spanner migration
+tool's README.
 
 ----------------------------
 Statements Processed
