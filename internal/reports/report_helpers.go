@@ -384,7 +384,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	severity severity
 	batch    bool // Whether multiple instances of this issue are combined.
 }{
-	internal.DefaultValue:                {Brief: "Some columns have default values which HarbourBridge does not migrate. Please add the default constraints manually after the migration is complete", severity: warning, batch: true},
+	internal.DefaultValue:                {Brief: "Some columns have default values which HarbourBridge does not migrate. Please add the default constraints manually after the migration is complete", severity: note, batch: true},
 	internal.ForeignKey:                  {Brief: "Spanner does not support foreign keys", severity: warning},
 	internal.MultiDimensionalArray:       {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
 	internal.NoGoodType:                  {Brief: "No appropriate Spanner type", severity: warning},

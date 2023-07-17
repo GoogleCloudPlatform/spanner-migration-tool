@@ -19,6 +19,7 @@ import { ShardedBulkSourceDetailsFormComponent } from '../sharded-bulk-source-de
 import { IShardSessionDetails } from 'src/app/model/db-config'
 import { ShardedDataflowMigrationDetailsFormComponent } from '../sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
+import { downloadSession } from 'src/app/utils/utils'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -859,14 +860,7 @@ export class PrepareMigrationComponent implements OnInit {
     this.sidenav.setSidenavDatabaseName(this.conv.DatabaseName)
   }
   downloadSession() {
-    var a = document.createElement('a')
-    // JS automatically converts the input (64bit INT) to '9223372036854776000' during conversion as this is the max value in JS.
-    // However the max value received from server is '9223372036854775807'
-    // Therefore an explicit replacement is necessary in the JSON content in the file.
-    let resJson = JSON.stringify(this.conv).replace(/9223372036854776000/g, '9223372036854775807')
-    a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
-    a.download = `${this.conv.SessionName}_${this.conv.DatabaseType}_${this.conv.DatabaseName}.json`
-    a.click()
+    downloadSession(this.conv)
   }
 
   ngOnDestroy() { }

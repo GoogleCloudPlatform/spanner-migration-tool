@@ -12,7 +12,7 @@ import { InputType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.cons
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 import ConversionRate from 'src/app/model/conversion-rate'
 import { Router } from '@angular/router'
-import { extractSourceDbName } from 'src/app/utils/utils'
+import { downloadSession, extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 import IViewAssesmentData from 'src/app/model/view-assesment'
 import IDbConfig from 'src/app/model/db-config'
@@ -269,14 +269,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.sidenav.setSidenavDatabaseName(this.conv.DatabaseName)
   }
   downloadSession() {
-    var a = document.createElement('a')
-    // JS automatically converts the input (64bit INT) to '9223372036854776000' during conversion as this is the max value in JS.
-    // However the max value received from server is '9223372036854775807'
-    // Therefore an explicit replacement is necessary in the JSON content in the file.
-    let resJson = JSON.stringify(this.conv).replace(/9223372036854776000/g, '9223372036854775807')
-    a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
-    a.download = `${this.conv.SessionName}_${this.conv.DatabaseType}_${this.conv.DatabaseName}.json`
-    a.click()
+    downloadSession(this.conv)
   }
   
   downloadArtifacts(){
