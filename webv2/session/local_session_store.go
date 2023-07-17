@@ -20,7 +20,7 @@ import (
 	"fmt"
 )
 
-const hbOutputDirPath string = "harbour_bridge_output"
+const hbOutputDirPath string = "spanner_migration_tool_output"
 
 type localStore struct {
 	sessions []SchemaConversionSession
