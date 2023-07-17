@@ -24,15 +24,11 @@ func main() {
 				"AddedOn": {
 					"TimeOffset": null
 				},
-				"Function": "mathOp",
+				"Function": "round",
 				"Input": [
 					{
 						"Type": "source-column",
 						"Value": "c1"
-					},
-					{
-						"Type": "operator",
-						"Value": "add"
 					},
 					{
 						"Datatype": "INT64",
@@ -40,12 +36,9 @@ func main() {
 						"Value": "2"
 					}
 				],
-				"Action": "writeToVar",
+				"Action": "writeToColumn",
 				"ActionConfig": {
-					"VarName": {
-						"Datatype": "STRING",
-						"Value": "v1"
-					}
+					"column": "c1"
 				}
 			}
 			]
@@ -66,7 +59,7 @@ func main() {
 	cvtCols := []string{"c1", "c2"}
 	cvtVals := []interface{}{10, 0}
 	colNameIdMap := map[string]string{
-		"c1": "60",
+		"c1": "60.3426",
 		"c2": "2",
 	}
 	// Access the transformation data
@@ -79,7 +72,7 @@ func main() {
 			Id:     "t1",
 			ColIds: []string{"c1", "c2"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"c1": {Name: "col", Id: "c1", T: ddl.Type{Name: ddl.Int64}}},
+				"c1": {Name: "col", Id: "c1", T: ddl.Type{Name: ddl.Float64}}},
 		},
 	}
 	conv.SrcSchema = map[string]schema.Table{
@@ -88,11 +81,11 @@ func main() {
 			Id:     "t1",
 			ColIds: []string{"c1", "c2"},
 			ColDefs: map[string]schema.Column{
-				"c1": {Name: "col", Id: "c1", Type: schema.Type{Name: "int"}}},
+				"c1": {Name: "col", Id: "c1", Type: schema.Type{Name: "float"}}},
 		},
 	}
 
-	_, x, err := transformation.ProcessDataTransformation(conv, "t1", cvtCols, cvtVals, colNameIdMap, mysql.InfoSchemaImpl{}.GetToDdl())
+	_, x, err := transformation.ProcessTransformation(conv, "t1", cvtCols, cvtVals, colNameIdMap, mysql.InfoSchemaImpl{}.GetToDdl())
 	if err != nil {
 		fmt.Println(err)
 	} else {
