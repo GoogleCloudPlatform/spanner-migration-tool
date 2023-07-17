@@ -48,7 +48,7 @@ func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSch
 		return
 	}
 	toddl := InfoSchemaImpl{}.GetToDdl()
-	cvtCols, cvtVals, err = transformation.ProcessDataTransformation(conv, tableId, cvtCols, cvtVals, mapSrcColIdToVal, toddl)
+	cvtCols, cvtVals, err = transformation.ProcessTransformation(conv, tableId, cvtCols, cvtVals, mapSrcColIdToVal, toddl)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Error while transforming data: %s\n", err))
 		conv.StatsAddBadRow(srcTableName, conv.DataMode())

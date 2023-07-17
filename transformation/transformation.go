@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
-	"reflect"
 	"sort"
 	"time"
 
@@ -41,193 +40,160 @@ type variable struct {
 	dataType string
 }
 
-type input int
-
-const (
-	operator input = iota
-	operand
-)
-
-func ProcessDataTransformatioNew(conv *internal.Conv, tableId string, cvtCols []string, cvtVals []interface{}, mapSrcColIdToVal map[string]string, toddl common.ToDdl) ([]string, []interface{}, error) {
-	spCols, spVals, err := processTransformationFunction(conv, tableId, mapSrcColIdToVal, toddl)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Error occured while processing data transformation")
+func ProcessTransformation(conv *internal.Conv, tableId string, cvtCols []string, cvtVals []interface{}, mapSrcColIdToVal map[string]string, toddl common.ToDdl) ([]string, []interface{}, error) {
+	mapSpannerColIdToVal := make(map[string]interface{})
+	for i, spCol := range cvtCols {
+		mapSpannerColIdToVal[spCol] = cvtVals[i]
 	}
-	// call method for synthetic primary key
-	// call method for shard id column
-	return spCols, spVals, err
+
+	spannerCols, spannerVals, err := processDataTransformation(conv, tableId, toddl, mapSrcColIdToVal, mapSpannerColIdToVal)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error occured while processing data transformation: %w", err)
+	}
+
+	spannerCols, spannerVals = processSyntheticPKeys(conv, tableId, spannerVals, spannerCols)
+
+	return spannerCols, spannerVals, nil
 }
 
-func processTransformationFunction(conv *internal.Conv, tableId string, mapSrcColIdToVal map[string]string, toddl common.ToDdl) ([]string, []interface{}, error) {
+func processSyntheticPKeys(conv *internal.Conv, tableId string, spannerVals []interface{}, spannerCols []string) ([]string, []interface{}) {
+	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
+		spannerCols = append(spannerCols, conv.SpSchema[tableId].ColDefs[aux.ColId].Name)
+		spannerVals = append(spannerVals, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
+		aux.Sequence++
+		conv.SyntheticPKeys[tableId] = aux
+	}
+	return spannerCols, spannerVals
+}
 
+func processDataTransformation(conv *internal.Conv, tableId string, toddl common.ToDdl, mapSrcColIdToVal map[string]string, mapSpannerColIdToVal map[string]interface{}) ([]string, []interface{}, error) {
+	tempVar := make(map[string]variable)
 	for _, rule := range conv.Transformations {
 		if rule.AssociatedObjects == tableId {
+			extractedInput, err := extractAndValidateInput(rule, mapSrcColIdToVal, conv, tableId, tempVar, toddl)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to extract input for rule id: %v, error: %w", rule.Id, err)
+			}
 			var x interface{}
-			var err error
 			switch rule.Function {
 			case MathOperation:
-				x, err = applyMathOpNew(rule, conv, tableId, mapSrcColIdToVal)
-				fmt.Println(x)
+				x, err = applyMathOp(extractedInput[0], extractedInput[1], extractedInput[2])
+			case NoOp:
+				x = extractedInput[0].value
+			case GenerateUUID:
+				x = generateUuid()
+			case BitReverse:
+				x, err = bitReverse(extractedInput[0])
+			case Floor:
+				x, err = applyFloor(extractedInput[0])
+			case Ceil:
+				x, err = applyCeil(extractedInput[0])
+			case Compare:
+				x, err = applyCompare(extractedInput[0], extractedInput[1], extractedInput[2])
+			case BinaryLogicalOp:
+				x, err = applyBinaryLogicalOp(extractedInput[0], extractedInput[1], extractedInput[2])
+			case UnaryLogicalOp:
+				x, err = logicalNot(extractedInput[1])
+			case ToInteger:
+				x, err = toInteger(extractedInput[0])
+			case ToFloat:
+				x, err = toFloat(extractedInput[0])
+			case Round:
+				x, err = applyRound(extractedInput[0], extractedInput[1])
 			}
 			if err != nil {
 				return nil, nil, err
 			}
+			mapSpannerColIdToVal, tempVar, err = storeAndValidateOutput(rule, x, conv, mapSpannerColIdToVal, tempVar, tableId)
+			if err != nil {
+				return nil, nil, fmt.Errorf("error occured while storing output for rule: %v, %w", rule.Id, err)
+			}
+			if mapSpannerColIdToVal == nil {
+				return nil, nil, nil
+			}
 		}
 	}
-	return nil, nil, nil
+
+	var (
+		spannerVals []interface{}
+		spannerCols []string
+	)
+
+	keys := make([]string, 0, len(mapSpannerColIdToVal))
+	for key := range mapSpannerColIdToVal {
+		keys = append(keys, key)
+	}
+
+	// Sort the keys
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		spannerCols = append(spannerCols, conv.SpSchema[tableId].ColDefs[key].Name)
+		spannerVals = append(spannerVals, mapSpannerColIdToVal[key])
+	}
+
+	return spannerCols, spannerVals, nil
 }
 
-func applyMathOpNew(rule internal.Transformation, conv *internal.Conv, tableId string, mapSourceColIdToVal map[string]string, tempVar map[string]variable, toddl common.ToDdl) (interface{}, error) {
-	firstInput, operator, secondInput, err := extract2Operand1Operator(rule, mapSourceColIdToVal, conv, tableId, tempVar, toddl, MathOperation)
+func storeAndValidateOutput(rule internal.Transformation, x interface{}, conv *internal.Conv, mapSpannerColIdToVal map[string]interface{}, tempVar map[string]variable, tableId string) (map[string]interface{}, map[string]variable, error) {
+	err := validateOutputDatatype(rule, conv, tableId)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
-	err = validateOutputDatatype(rule, conv, tableId, MathOperation)
-	if err != nil {
-		return nil, err
-	}
-	var output interface{}
-	switch operator.value.(string) {
-	case "add":
-		switch firstInput.value.(type) {
-		case int64:
-			switch secondInput.value.(type) {
-			case int64:
-				output = firstInput.value.(int64) + secondInput.value.(int64)
-			case float64:
-				output = float64(firstInput.value.(int64)) + secondInput.value.(float64)
-			default:
-				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
-			}
-		case float64:
-			switch secondInput.value.(type) {
-			case int64:
-				output = firstInput.value.(float64) + float64(secondInput.value.(int64))
-			case float64:
-				output = firstInput.value.(float64) + secondInput.value.(float64)
-			default:
-				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
-			}
-		default:
-			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
+	actionConfig := rule.ActionConfig
+	if rule.Action == WriteToColumnAction {
+		column, ok := actionConfig["column"].(string)
+		if !ok {
+			return nil, nil, fmt.Errorf("could not parse column of action config with rule id:%s", rule.Id)
 		}
-	case "subtract":
-		switch firstInput.value.(type) {
-		case int64:
-			switch secondInput.value.(type) {
-			case int64:
-				output = firstInput.value.(int64) - secondInput.value.(int64)
-			case float64:
-				output = float64(firstInput.value.(int64)) - secondInput.value.(float64)
-			default:
-				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
-			}
-		case float64:
-			switch secondInput.value.(type) {
-			case int64:
-				output = firstInput.value.(float64) - float64(secondInput.value.(int64))
-			case float64:
-				output = firstInput.value.(float64) - secondInput.value.(float64)
-			default:
-				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
-			}
-		default:
-			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
+		mapSpannerColIdToVal[column] = x
+	} else if rule.Action == WriteToVariableAction {
+		varValue, ok := actionConfig["VarName"].(map[string]interface{})
+		if !ok {
+			return nil, nil, fmt.Errorf("could not parse variable of action config with rule id:%s", rule.Id)
 		}
-	case "multiply":
-		switch firstInput.value.(type) {
-		case int64:
-			switch secondInput.value.(type) {
-			case int64:
-				output = firstInput.value.(int64) * secondInput.value.(int64)
-			case float64:
-				output = float64(firstInput.value.(int64)) * secondInput.value.(float64)
-			default:
-				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
-			}
-		case float64:
-			switch secondInput.value.(type) {
-			case int64:
-				output = firstInput.value.(float64) * float64(secondInput.value.(int64))
-			case float64:
-				output = firstInput.value.(float64) * secondInput.value.(float64)
-			default:
-				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
-			}
-		default:
-			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
+		value, ok := varValue["Value"].(string)
+		if !ok {
+			return nil, nil, fmt.Errorf("could not parse value for variable: %s", varValue)
 		}
-	case "divide":
-		switch firstInput.value.(type) {
-		case int64:
-			switch secondInput.value.(type) {
-			case int64:
-				output = float64(firstInput.value.(int64)) / float64(secondInput.value.(int64))
-			case float64:
-				output = float64(firstInput.value.(int64)) / secondInput.value.(float64)
-			default:
-				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
-			}
-		case float64:
-			switch secondInput.value.(type) {
-			case int64:
-				output = firstInput.value.(float64) / float64(secondInput.value.(int64))
-			case float64:
-				output = firstInput.value.(float64) / secondInput.value.(float64)
-			default:
-				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput.value)
-			}
-		default:
-			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
+		dataType, ok := varValue["Datatype"].(string)
+		if !ok {
+			return nil, nil, fmt.Errorf("could not parse datatype for variable: %s", varValue)
 		}
-	case "mod":
-		switch firstInput.value.(type) {
-		case int64:
-			switch secondInput.value.(type) {
-			case int64:
-				output = firstInput.value.(int64) % secondInput.value.(int64)
-			case float64:
-				output = math.Mod(float64(firstInput.value.(int64)), secondInput.value.(float64))
-			default:
-				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput)
+		if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+			standardType, ok := ddl.PGSQL_TO_STANDARD_TYPE_TYPEMAP[dataType]
+			if ok {
+				dataType = standardType
 			}
-		case float64:
-			switch secondInput.value.(type) {
-			case int64:
-				output = math.Mod(firstInput.value.(float64), float64(secondInput.value.(int64)))
-			case float64:
-				output = math.Mod(firstInput.value.(float64), secondInput.value.(float64))
-			default:
-				return nil, fmt.Errorf("unsupported type for second input value: %T", secondInput)
-			}
-		default:
-			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput)
+		}
+		tempVar[value] = variable{
+			value:    x,
+			dataType: dataType,
+		}
+	} else if rule.Action == FilterAction {
+		filterAction, ok := actionConfig[Include].(string)
+		if !ok {
+			return nil, nil, fmt.Errorf("could not parse filter action: %s", actionConfig[Include])
+		}
+		if x == true && filterAction == "true" {
+			return nil, nil, nil
 		}
 	}
-
-	return output, nil
+	return mapSpannerColIdToVal, tempVar, nil
 }
 
-func validateOutputDatatype(rule internal.Transformation, conv *internal.Conv, tableId, functionName string) error {
+func validateOutputDatatype(rule internal.Transformation, conv *internal.Conv, tableId string) error {
 	actionConfig := rule.ActionConfig
 	if rule.Action == WriteToColumnAction {
 		column, ok := actionConfig["column"].(string)
 		if !ok {
 			return fmt.Errorf("could not parse column of action config with rule id:%s", rule.Id)
 		}
-		if !checkIfExists(conv.SpSchema[tableId].ColDefs[column].T.Name, SupportedFunctionsConst.Functions[functionName].Output) {
-			return fmt.Errorf("Generated output doesn't match with column datatype for rule id: %s", rule.Id)
+		if !checkIfExists(conv.SpSchema[tableId].ColDefs[column].T.Name, SupportedFunctionsConst.Functions[rule.Function].Output) {
+			return fmt.Errorf("generated output doesn't match with column datatype for rule id: %s", rule.Id)
 		}
 	}
 	return nil
-}
-
-func extract2Operand1Operator(rule internal.Transformation, mapSourceColIdToVal map[string]string, conv *internal.Conv, tableId string, tempVar map[string]variable, toddl common.ToDdl, functionName string) (inputValue, inputValue, inputValue, error) {
-	firstInput, err := extractAndValidateInput(rule, 0, mapSourceColIdToVal, conv, tableId, tempVar, toddl, functionName, operand)
-	secondInput, err := extractAndValidateInput(rule, 1, mapSourceColIdToVal, conv, tableId, tempVar, toddl, functionName, operator)
-	thirdInput, err := extractAndValidateInput(rule, 2, mapSourceColIdToVal, conv, tableId, tempVar, toddl, functionName, operand)
-	return firstInput, secondInput, thirdInput, err
 }
 
 func extractInput(input internal.Input, mapSourceColIdToVal map[string]string, conv *internal.Conv, tableId string, tempVar map[string]variable, toddl common.ToDdl) (inputValue, error) {
@@ -235,7 +201,6 @@ func extractInput(input internal.Input, mapSourceColIdToVal map[string]string, c
 	case SourceColumn:
 		ty, _ := toddl.ToSpannerType(conv, "", conv.SrcSchema[tableId].ColDefs[input.Value].Type)
 		parsedValue, err := convScalar(conv, ty.Name, mapSourceColIdToVal[input.Value])
-		fmt.Println("source Value parsed:", input.Value)
 		if err != nil {
 			return inputValue{}, err
 		}
@@ -282,21 +247,32 @@ func extractInput(input internal.Input, mapSourceColIdToVal map[string]string, c
 	return inputValue{}, fmt.Errorf("unsupported input type: %s", input.Type)
 }
 
-func extractAndValidateInput(rule internal.Transformation, index int64, mapSourceColIdToVal map[string]string, conv *internal.Conv, tableId string, tempVar map[string]variable, toddl common.ToDdl, functionName string, input input) (inputValue, error) {
-	extractedInput, err := extractInput(rule.Input[index], mapSourceColIdToVal, conv, tableId, tempVar, toddl)
-	if err != nil {
-		return inputValue{}, err
+func extractAndValidateInput(rule internal.Transformation, mapSourceColIdToVal map[string]string, conv *internal.Conv, tableId string, tempVar map[string]variable, toddl common.ToDdl) ([]inputValue, error) {
+
+	var extractedInputs []inputValue
+	functionName := rule.Function
+	if len(rule.Input) != len(SupportedFunctionsConst.Functions[functionName].Input) {
+		return []inputValue{}, fmt.Errorf("number of inputs specified do not match the function definition")
 	}
-	var found bool
-	if input == operator {
-		found = checkIfExists(extractedInput.value.(string), SupportedFunctionsConst.Functions[functionName].Input[index])
-	} else if input == operand {
-		found = checkIfExists(extractedInput.dataType, SupportedFunctionsConst.Functions[functionName].Input[index])
+	for index := range SupportedFunctionsConst.Functions[functionName].Input {
+		extractedInput, err := extractInput(rule.Input[index], mapSourceColIdToVal, conv, tableId, tempVar, toddl)
+		if err != nil {
+			return []inputValue{}, err
+		}
+		if len(SupportedFunctionsConst.Functions[functionName].Input[index]) > 0 {
+			var found bool
+			if checkIfExists(SupportedFunctionsConst.Functions[functionName].Input[index][0], OperatorList) {
+				found = checkIfExists(extractedInput.value.(string), SupportedFunctionsConst.Functions[functionName].Input[index])
+			} else {
+				found = checkIfExists(extractedInput.dataType, SupportedFunctionsConst.Functions[functionName].Input[index])
+			}
+			if !found {
+				return []inputValue{}, fmt.Errorf("input type not valid for: %s", rule.Input[index])
+			}
+			extractedInputs = append(extractedInputs, extractedInput)
+		}
 	}
-	if !found {
-		return extractedInput, fmt.Errorf("Input type not valid for: %s", rule.Input[index])
-	}
-	return extractedInput, nil
+	return extractedInputs, nil
 }
 
 func checkIfExists(val string, allowedVals []string) bool {
@@ -310,176 +286,22 @@ func checkIfExists(val string, allowedVals []string) bool {
 	return found
 }
 
-func ProcessDataTransformation(conv *internal.Conv, tableId string, cvtCols []string, cvtVals []interface{}, mapSrcColIdToVal map[string]string, toddl common.ToDdl) ([]string, []interface{}, error) {
-	mapSpannerColIdToVal := make(map[string]interface{})
-	for i, spCol := range cvtCols {
-		mapSpannerColIdToVal[spCol] = cvtVals[i]
+func toInteger(firstInput inputValue) (int64, error) {
+	switch firstInput.value.(type) {
+	case string:
+		return convInt64(firstInput.value.(string))
+	default:
+		return 0, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
 	}
-	var (
-		spannerVals []interface{}
-		spannerCols []string
-	)
-	tempVar := make(map[string]variable)
-	for _, rule := range conv.Transformations {
-		if rule.AssociatedObjects == tableId {
-			inputs := rule.Input
-			var firstInput, secondInput, operator inputValue
-			for _, input := range inputs {
-				y, err := getValue(input, mapSrcColIdToVal, conv, tableId, tempVar, toddl)
-				if err != nil {
-					return nil, nil, fmt.Errorf("could not parse value for:%s, error:%w", input, err)
-				}
-				if y.inputType == Operator {
-					operator = y
-				} else {
-					isEmpty := reflect.DeepEqual(firstInput, inputValue{})
-					if isEmpty {
-						firstInput = y
-					} else {
-						secondInput = y
-					}
-				}
-			}
-			var x interface{}
-			var err error
-			switch rule.Function {
-			case MathOperation:
-				x, err = applyMathOp(firstInput, secondInput, operator)
-			case NoOp:
-				x = firstInput.value
-			case GenerateUUID:
-				x = generateUuid()
-			case BitReverse:
-				x, err = bitReverse(firstInput)
-			case Floor:
-				x, err = applyFloor(firstInput)
-			case Ceil:
-				x, err = applyCeil(firstInput)
-			case Compare:
-				x, err = applyCompare(firstInput, secondInput, operator)
-			case LogicalOp:
-				x, err = applyLogicalOp(firstInput, secondInput, operator)
-			}
-			if err != nil {
-				return nil, nil, err
-			}
-			actionConfig := rule.ActionConfig
-			if rule.Action == WriteToColumnAction {
-				column, ok := actionConfig["column"].(string)
-				if !ok {
-					return nil, nil, fmt.Errorf("could not parse column of action config with rule id:%s", rule.Id)
-				}
-				mapSpannerColIdToVal[column] = x
-			} else if rule.Action == WriteToVariableAction {
-				varValue, ok := actionConfig["VarName"].(map[string]interface{})
-				if !ok {
-					return nil, nil, fmt.Errorf("could not parse variable of action config with rule id:%s", rule.Id)
-				}
-				value, ok := varValue["Value"].(string)
-				if !ok {
-					return nil, nil, fmt.Errorf("could not parse value for variable: %s", varValue)
-				}
-				dataType, ok := varValue["Datatype"].(string)
-				if !ok {
-					return nil, nil, fmt.Errorf("could not parse datatype for variable: %s", varValue)
-				}
-				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
-					standardType, ok := ddl.PGSQL_TO_STANDARD_TYPE_TYPEMAP[dataType]
-					if ok {
-						dataType = standardType
-					}
-				}
-				tempVar[value] = variable{
-					value:    x,
-					dataType: dataType,
-				}
-			} else if rule.Action == FilterAction {
-				filterAction, ok := actionConfig[Include].(string)
-				if !ok {
-					return nil, nil, fmt.Errorf("could not parse filter action: %s", actionConfig[Include])
-				}
-				if x == true && filterAction == "true" {
-					return nil, nil, nil
-				}
-			}
-		}
-	}
-
-	keys := make([]string, 0, len(mapSpannerColIdToVal))
-	for key := range mapSpannerColIdToVal {
-		keys = append(keys, key)
-	}
-
-	// Sort the keys
-	sort.Strings(keys)
-
-	for _, key := range keys {
-		spannerCols = append(spannerCols, conv.SpSchema[tableId].ColDefs[key].Name)
-		spannerVals = append(spannerVals, mapSpannerColIdToVal[key])
-	}
-	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
-		spannerCols = append(spannerCols, conv.SpSchema[tableId].ColDefs[aux.ColId].Name)
-		spannerVals = append(spannerVals, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
-		aux.Sequence++
-		conv.SyntheticPKeys[tableId] = aux
-	}
-	return spannerCols, spannerVals, nil
 }
 
-func getValue(input internal.Input, mapSourceColIdToVal map[string]string, conv *internal.Conv, tableId string, tempVar map[string]variable, toddl common.ToDdl) (inputValue, error) {
-	switch input.Type {
-	case SourceColumn:
-		value := input.Value
-		fmt.Println("Source Column:", mapSourceColIdToVal[value])
-		ty, _ := toddl.ToSpannerType(conv, "", conv.SrcSchema[tableId].ColDefs[value].Type)
-		parsedValue, err := convScalar(conv, ty.Name, mapSourceColIdToVal[value])
-		fmt.Println("source Value parsed:", value)
-		if err != nil {
-			return inputValue{}, err
-		}
-		return inputValue{
-			value:     parsedValue,
-			inputType: input.Type,
-			dataType:  ty.Name,
-		}, nil
-	case Operator:
-		value := input.Value
-		return inputValue{
-			value:     value,
-			inputType: input.Type,
-			dataType:  "",
-		}, nil
-	case Static:
-		dataType := input.DataType
-		if conv.SpDialect == constants.DIALECT_POSTGRESQL {
-			standardType, ok := ddl.PGSQL_TO_STANDARD_TYPE_TYPEMAP[dataType]
-			if ok {
-				dataType = standardType
-			}
-		}
-		value := input.Value
-		parsedValue, err := convScalar(conv, dataType, value)
-		if err != nil {
-			return inputValue{}, err
-		}
-		return inputValue{
-			value:     parsedValue,
-			inputType: input.Type,
-			dataType:  dataType,
-		}, nil
-	case Variable:
-		value := input.Value
-		varValue, ok := tempVar[value]
-		if !ok {
-			return inputValue{}, fmt.Errorf("could not get variable value for: %s", value)
-		}
-		return inputValue{
-			value:     varValue.value,
-			inputType: input.Type,
-			dataType:  varValue.dataType,
-		}, nil
+func toFloat(firstInput inputValue) (float64, error) {
+	switch firstInput.value.(type) {
+	case string:
+		return convFloat64(firstInput.value.(string))
+	default:
+		return 0, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
 	}
-	return inputValue{}, fmt.Errorf("unsupported input type: %s", input.Type)
 }
 
 func bitReverse(firstInput inputValue) (int64, error) {
@@ -494,6 +316,18 @@ func bitReverse(firstInput inputValue) (int64, error) {
 func generateUuid() string {
 	uuid := uuid.New()
 	return uuid.String()
+}
+
+func applyRound(firstInput, secondInput inputValue) (interface{}, error) {
+	switch val := firstInput.value.(type) {
+	case int64:
+		return val, nil
+	case float64:
+		scale := math.Pow10(int(secondInput.value.(int64)))
+		return math.Round(val*scale) / scale, nil
+	default:
+		return nil, fmt.Errorf("unsupported data type: %T", val)
+	}
 }
 
 func applyFloor(firstInput inputValue) (interface{}, error) {
@@ -516,7 +350,7 @@ func applyCeil(firstInput inputValue) (interface{}, error) {
 	return nil, fmt.Errorf("unsupported data type: %T", firstInput.value)
 }
 
-func applyLogicalOp(firstInput, secondInput, operator inputValue) (interface{}, error) {
+func applyBinaryLogicalOp(firstInput, operator, secondInput inputValue) (interface{}, error) {
 	switch operator.value {
 	case AndOperator:
 		return logicalAnd(firstInput, secondInput)
@@ -524,8 +358,6 @@ func applyLogicalOp(firstInput, secondInput, operator inputValue) (interface{}, 
 		return logicalOr(firstInput, secondInput)
 	case XorOperator:
 		return logicalXor(firstInput, secondInput)
-	case NotOperator:
-		return logicalNot(firstInput)
 	}
 	return nil, fmt.Errorf("unsupported comparison operation: %s", operator.value)
 }
@@ -656,7 +488,7 @@ func logicalNot(a interface{}) (bool, error) {
 	return false, fmt.Errorf("unsupported type for logical operation: %T", a)
 }
 
-func applyCompare(firstInput, secondInput, operator inputValue) (interface{}, error) {
+func applyCompare(firstInput, operator, secondInput inputValue) (interface{}, error) {
 	switch operator.value {
 	case EqualToOperator:
 		return compareEqual(firstInput, secondInput)
@@ -669,51 +501,53 @@ func applyCompare(firstInput, secondInput, operator inputValue) (interface{}, er
 }
 
 func compareEqual(firstInput, secondInput inputValue) (bool, error) {
-	if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Int64 {
+	if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Int64 {
 		return firstInput.value.(int64) == secondInput.value.(int64), nil
-	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Float64 {
+	} else if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Float64 {
 		return firstInput.value.(float64) == secondInput.value.(float64), nil
-	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Bool {
+	} else if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Bool {
 		return firstInput.value.(bool) == secondInput.value.(bool), nil
-	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Bytes {
+	} else if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Bytes {
 		return string(firstInput.value.([]byte)) == string(secondInput.value.([]byte)), nil
-	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Date {
+	} else if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Date {
 		return firstInput.value.(civil.Date) == secondInput.value.(civil.Date), nil
-	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Timestamp {
+	} else if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Timestamp {
 		return firstInput.value.(time.Time).Equal(secondInput.value.(time.Time)), nil
+	} else if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.String {
+		return firstInput.value == secondInput.value, nil
 	}
 	return false, fmt.Errorf("unsupported data types for comparison: %T, %T", firstInput.value, secondInput.value)
 }
 
 func compareGreaterThan(firstInput, secondInput inputValue) (bool, error) {
-	if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Int64 {
+	if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Int64 {
 		return firstInput.value.(int64) > secondInput.value.(int64), nil
-	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Float64 {
+	} else if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Float64 {
 		return firstInput.value.(float64) > secondInput.value.(float64), nil
-	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Date {
+	} else if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Date {
 		return firstInput.value.(civil.Date).After(secondInput.value.(civil.Date)), nil
-	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Timestamp {
+	} else if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Timestamp {
 		return firstInput.value.(time.Time).After(secondInput.value.(time.Time)), nil
 	}
 	return false, fmt.Errorf("unsupported data types for comparison: %T, %T", firstInput.value, secondInput.value)
 }
 
 func compareLessThan(firstInput, secondInput inputValue) (bool, error) {
-	if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Int64 {
+	if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Int64 {
 		return firstInput.value.(int64) < secondInput.value.(int64), nil
-	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Float64 {
+	} else if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Float64 {
 		return firstInput.value.(float64) < secondInput.value.(float64), nil
-	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Date {
+	} else if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Date {
 		return firstInput.value.(civil.Date).Before(secondInput.value.(civil.Date)), nil
-	} else if firstInput.dataType == secondInput.dataType || firstInput.dataType == ddl.Timestamp {
+	} else if firstInput.dataType == secondInput.dataType && firstInput.dataType == ddl.Timestamp {
 		return firstInput.value.(time.Time).Before(secondInput.value.(time.Time)), nil
 	}
 	return false, fmt.Errorf("unsupported data types for comparison: %T, %T", firstInput.value, secondInput.value)
 }
 
-func applyMathOp(firstInput, secondInput, operator inputValue) (interface{}, error) {
+func applyMathOp(firstInput, operator, secondInput inputValue) (interface{}, error) {
 	switch operator.value.(string) {
-	case "add":
+	case AddOperator:
 		switch firstInput.value.(type) {
 		case int64:
 			switch secondInput.value.(type) {
@@ -736,7 +570,7 @@ func applyMathOp(firstInput, secondInput, operator inputValue) (interface{}, err
 		default:
 			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
 		}
-	case "subtract":
+	case SubtractOperator:
 		switch firstInput.value.(type) {
 		case int64:
 			switch secondInput.value.(type) {
@@ -759,7 +593,7 @@ func applyMathOp(firstInput, secondInput, operator inputValue) (interface{}, err
 		default:
 			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
 		}
-	case "multiply":
+	case MultiplyOperator:
 		switch firstInput.value.(type) {
 		case int64:
 			switch secondInput.value.(type) {
@@ -782,7 +616,7 @@ func applyMathOp(firstInput, secondInput, operator inputValue) (interface{}, err
 		default:
 			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
 		}
-	case "divide":
+	case DivideOperator:
 		switch firstInput.value.(type) {
 		case int64:
 			switch secondInput.value.(type) {
@@ -805,7 +639,7 @@ func applyMathOp(firstInput, secondInput, operator inputValue) (interface{}, err
 		default:
 			return nil, fmt.Errorf("unsupported type for first input value: %T", firstInput.value)
 		}
-	case "mod":
+	case ModOperator:
 		switch firstInput.value.(type) {
 		case int64:
 			switch secondInput.value.(type) {

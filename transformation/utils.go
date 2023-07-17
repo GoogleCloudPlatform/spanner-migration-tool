@@ -125,7 +125,7 @@ func convTimestamp(val string) (t time.Time, err error) {
 
 	t, err = time.Parse("2006-01-02 15:04:05", val)
 	if err != nil {
-		return t, fmt.Errorf("can't convert to timestamp, value:", val)
+		return t, fmt.Errorf("can't convert to timestamp, value:%v", val)
 	}
 	return t, err
 }
