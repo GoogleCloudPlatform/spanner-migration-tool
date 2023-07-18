@@ -113,7 +113,11 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 			conv.CollectBadRow(srcTableName, srcCols, values)
 			continue
 		}
-		ProcessDataRow(conv, tableId, commonColIds, srcSchema, spSchema, newValues)
+		mapSrcColIdToVal := make(map[string]string)
+		for i, srcolName := range srcCols {
+			mapSrcColIdToVal[colNameIdMap[srcolName]] = values[i]
+		}
+		ProcessDataRow(conv, tableId, commonColIds, srcSchema, spSchema, newValues, additionalAttributes, mapSrcColIdToVal)
 	}
 	return nil
 }

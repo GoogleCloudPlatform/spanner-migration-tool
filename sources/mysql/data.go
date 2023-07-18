@@ -17,7 +17,6 @@ package mysql
 import (
 	"fmt"
 	"math/big"
-	"math/bits"
 	"strconv"
 	"strings"
 	"time"
@@ -28,13 +27,14 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/transformation"
 )
 
 // ProcessDataRow converts a row of data and writes it out to Spanner.
 // srcTable and srcCols are the source table and columns respectively,
 // and vals contains string data to be converted to appropriate types
 // to send to Spanner. ProcessDataRow is only called in DataMode.
-func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string, additionalAttributes internal.AdditionalDataAttributes) {
+func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string, additionalAttributes internal.AdditionalDataAttributes, mapSrcColIdToVal map[string]string) {
 	srcTableName := srcSchema.Name
 	srcCols := []string{}
 	for _, colId := range colIds {
@@ -45,7 +45,17 @@ func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSch
 		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 		conv.StatsAddBadRow(srcTableName, conv.DataMode())
 		conv.CollectBadRow(srcTableName, srcCols, vals)
-	} else {
+		return
+	}
+	toddl := InfoSchemaImpl{}.GetToDdl()
+	cvtCols, cvtVals, err = transformation.ProcessTransformation(conv, tableId, cvtCols, cvtVals, mapSrcColIdToVal, toddl, additionalAttributes)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Error while transforming data: %s\n", err))
+		conv.StatsAddBadRow(srcTableName, conv.DataMode())
+		conv.CollectBadRow(srcTableName, srcCols, vals)
+		return
+	}
+	if cvtVals != nil {
 		conv.WriteRow(srcTableName, spTableName, cvtCols, cvtVals)
 	}
 }
@@ -74,7 +84,6 @@ func ConvertData(conv *internal.Conv, tableId string, colIds []string, srcSchema
 		if !ok1 || !ok2 {
 			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for colId %s", colId)
 		}
-		spCol := spColDef.Name
 
 		var x interface{}
 		var err error
@@ -87,18 +96,7 @@ func ConvertData(conv *internal.Conv, tableId string, colIds []string, srcSchema
 			return "", []string{}, []interface{}{}, err
 		}
 		v = append(v, x)
-		c = append(c, spCol)
-	}
-	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
-		c = append(c, conv.SpSchema[tableId].ColDefs[aux.ColId].Name)
-		v = append(v, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
-		aux.Sequence++
-		conv.SyntheticPKeys[tableId] = aux
-	}
-	colId := conv.SpSchema[tableId].ShardIdColumn
-	if colId != "" {
-		c = append(c, conv.SpSchema[tableId].ColDefs[colId].Name)
-		v = append(v, additionalAttributes.ShardId)
+		c = append(c, colId)
 	}
 	return conv.SpSchema[tableId].Name, c, v, nil
 }

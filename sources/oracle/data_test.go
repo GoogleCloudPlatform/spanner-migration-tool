@@ -17,7 +17,6 @@ package oracle
 import (
 	"fmt"
 	"math/big"
-	"math/bits"
 	"testing"
 	"time"
 
@@ -66,7 +65,7 @@ func TestProcessDataRow(t *testing.T) {
 	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {
 		rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 	})
-	ProcessDataRow(conv, tableId, colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], []string{"4.2", "6", "2022-01-19T09:34:06.47Z", "p"})
+	ProcessDataRow(conv, tableId, colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], []string{"4.2", "6", "2022-01-19T09:34:06.47Z", "p"}, internal.AdditionalDataAttributes{}, nil)
 	assert.Equal(t, []spannerData{{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), getTime("2022-01-19T09:34:06.47Z"), "p"}}}, rows)
 }
 
@@ -121,68 +120,11 @@ func TestConvertData(t *testing.T) {
 			if tc.srcTy == "OBJECT" {
 				assert.Nil(t, err, tc.name)
 				assert.Equal(t, at, tableName, tc.name+": table mismatch")
-				assert.Equal(t, ac, []string{col}, tc.name+": column mismatch")
+				assert.Equal(t, ac, []string{colId}, tc.name+": column mismatch")
 				assert.Equal(t, len(fmt.Sprint(av[0])), len(outputJson), tc.name+": value mismatch")
 			} else {
-				checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
+				checkResults(t, at, ac, av, err, tableName, []string{colId}, []interface{}{tc.e}, tc.name)
 			}
-		})
-	}
-}
-
-func TestConvertsyntheticPKey(t *testing.T) {
-	syntheticPKeyTests := []struct {
-		name   string
-		cols   []string // Input columns.
-		colIds []string
-		vals   []string      // Input values.
-		ecols  []string      // Expected columns.
-		evals  []interface{} // Expected values.
-	}{
-		{
-			name:   "Sequence 0",
-			cols:   []string{"a", "b", "c"},
-			colIds: []string{"c1", "c2", "c3"},
-			vals:   []string{"6", "6.6", "t"},
-			ecols:  []string{"a", "b", "c", "synth_id"},
-			evals:  []interface{}{int64(6), float64(6.6), "t", "0"},
-		},
-		{
-			name:   "Sequence 1",
-			cols:   []string{"a"},
-			colIds: []string{"c1"},
-			vals:   []string{"7"},
-			ecols:  []string{"a", "synth_id"},
-			evals:  []interface{}{int64(7), fmt.Sprintf("%d", int64(bits.Reverse64(1)))},
-		},
-	}
-	tableName := "testtable"
-	tableId := "t1"
-	spTable := ddl.CreateTable{
-		Name:   tableName,
-		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4"},
-		ColDefs: map[string]ddl.ColumnDef{
-			"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
-			"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
-			"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
-			"c4": {Name: "synth_id", Id: "c4", T: ddl.Type{Name: ddl.String, Len: 50}},
-		}}
-	srcTable := schema.Table{
-		Name:   tableName,
-		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3"},
-		ColDefs: map[string]schema.Column{
-			"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "NUMBER"}},
-			"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "FLOAT"}},
-			"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "CHAR", Mods: []int64{1}}},
-		}}
-	conv := buildConv(spTable, srcTable)
-	conv.SyntheticPKeys[tableId] = internal.SyntheticPKey{ColId: "c4", Sequence: 0}
-	for _, tc := range syntheticPKeyTests {
-		t.Run(tc.name, func(t *testing.T) {
-			atable, acols, avals, err := convertData(conv, tableId, tc.colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], tc.vals)
-			checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 		})
 	}
 }
@@ -201,7 +143,7 @@ func TestConvertMultiColData(t *testing.T) {
 			cols:   []string{"a", "b", "c"},
 			colIds: []string{"c1", "c2", "c3"},
 			vals:   []string{"6", "6.6", "1"},
-			ecols:  []string{"a", "b", "c"},
+			ecols:  []string{"c1", "c2", "c3"},
 			evals:  []interface{}{int64(6), float64(6.6), "1"},
 		},
 		{
@@ -209,7 +151,7 @@ func TestConvertMultiColData(t *testing.T) {
 			cols:   []string{"b", "c", "a"},
 			colIds: []string{"c2", "c3", "c1"},
 			vals:   []string{"6.6", "1", "6"},
-			ecols:  []string{"b", "c", "a"},
+			ecols:  []string{"c2", "c3", "c1"},
 			evals:  []interface{}{float64(6.6), "1", int64(6)},
 		},
 		{
@@ -217,7 +159,7 @@ func TestConvertMultiColData(t *testing.T) {
 			cols:   []string{"a", "b", "c"},
 			colIds: []string{"c1", "c2", "c3"},
 			vals:   []string{"6", "NULL", "1"},
-			ecols:  []string{"a", "c"},
+			ecols:  []string{"c1", "c3"},
 			evals:  []interface{}{int64(6), "1"},
 		},
 		{
@@ -225,7 +167,7 @@ func TestConvertMultiColData(t *testing.T) {
 			cols:   []string{"a"},
 			colIds: []string{"c1"},
 			vals:   []string{"6"},
-			ecols:  []string{"a"},
+			ecols:  []string{"c1"},
 			evals:  []interface{}{int64(6)},
 		},
 	}

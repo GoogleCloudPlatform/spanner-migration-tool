@@ -434,7 +434,7 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 	columnId := "c1"
 	for _, tc := range tc {
 		col := "a"
-		cols := []string{col}
+		cols := []string{columnId}
 
 		conv := buildConv(ddl.CreateTable{
 			Name:    tableName,

@@ -16,7 +16,6 @@ package postgres
 
 import (
 	"fmt"
-	"math/bits"
 	"testing"
 	"time"
 
@@ -60,7 +59,7 @@ func TestProcessDataRow(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	ProcessDataRow(conv, tableId, colIds, []string{"4.2", "6", "prisoner zero"})
+	ProcessDataRow(conv, tableId, colIds, []string{"4.2", "6", "prisoner zero"}, internal.AdditionalDataAttributes{}, nil)
 	assert.Equal(t, []spannerData{spannerData{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero"}}}, rows)
 }
 
@@ -130,7 +129,7 @@ func TestConvertData(t *testing.T) {
 				ColDefs: map[string]schema.Column{colId: schema.Column{Name: col, Id: colId, Type: schema.Type{Name: tc.srcTy}}}})
 		conv.SetLocation(time.UTC)
 		at, ac, av, err := ConvertData(conv, tableId, []string{colId}, []string{tc.in})
-		checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
+		checkResults(t, at, ac, av, err, tableName, []string{colId}, []interface{}{tc.e}, tc.name)
 	}
 
 	timestampTests := []struct {
@@ -163,7 +162,7 @@ func TestConvertData(t *testing.T) {
 		atable, ac, av, err := ConvertData(conv, tableId, []string{colId}, []string{tc.in})
 		assert.Nil(t, err, tc.name)
 		assert.Equal(t, atable, tableName, tc.name+": table mismatch")
-		assert.Equal(t, []string{col}, ac, tc.name+": column mismatch")
+		assert.Equal(t, []string{colId}, ac, tc.name+": column mismatch")
 		// Avoid assert.Equal for time.Time (it forces location equality).
 		// Instead use Time.Equals, which determines equality based on whether
 		// two times represent the same instant.
@@ -187,7 +186,7 @@ func TestConvertData(t *testing.T) {
 			cols:   []string{"a", "b", "c"},
 			colIds: []string{"c1", "c2", "c3"},
 			vals:   []string{"6", "6.6", "true"},
-			ecols:  []string{"a", "b", "c"},
+			ecols:  []string{"c1", "c2", "c3"},
 			evals:  []interface{}{int64(6), float64(6.6), true},
 		},
 		{
@@ -195,7 +194,7 @@ func TestConvertData(t *testing.T) {
 			cols:   []string{"b", "c", "a"},
 			colIds: []string{"c2", "c3", "c1"},
 			vals:   []string{"6.6", "true", "6"},
-			ecols:  []string{"b", "c", "a"},
+			ecols:  []string{"c2", "c3", "c1"},
 			evals:  []interface{}{float64(6.6), true, int64(6)},
 		},
 		{
@@ -203,7 +202,7 @@ func TestConvertData(t *testing.T) {
 			cols:   []string{"a", "b", "c"},
 			colIds: []string{"c1", "c2", "c3"},
 			vals:   []string{"6", "\\N", "true"},
-			ecols:  []string{"a", "c"},
+			ecols:  []string{"c1", "c3"},
 			evals:  []interface{}{int64(6), true},
 		},
 		{
@@ -211,7 +210,7 @@ func TestConvertData(t *testing.T) {
 			cols:   []string{"a"},
 			colIds: []string{"c1"},
 			vals:   []string{"6"},
-			ecols:  []string{"a"},
+			ecols:  []string{"c1"},
 			evals:  []interface{}{int64(6)},
 		},
 	}
@@ -264,39 +263,6 @@ func TestConvertData(t *testing.T) {
 		conv := buildConv(spTable, srcTable)
 		_, _, _, err := ConvertData(conv, tableId, tc.cols, tc.vals)
 		assert.NotNil(t, err, tc.name)
-	}
-
-	syntheticPKeyTests := []struct {
-		name   string
-		cols   []string // Input columns.
-		colIds []string
-		vals   []string      // Input values.
-		ecols  []string      // Expected columns.
-		evals  []interface{} // Expected values.
-	}{
-		{
-			name:   "Sequence 0",
-			cols:   []string{"a", "b", "c"},
-			colIds: []string{"c1", "c2", "c3"},
-			vals:   []string{"6", "6.6", "true"},
-			ecols:  []string{"a", "b", "c", "synth_id"},
-			evals:  []interface{}{int64(6), float64(6.6), true, "0"},
-		},
-		{
-			name:   "Sequence 1",
-			cols:   []string{"a"},
-			colIds: []string{"c1"},
-			vals:   []string{"7"},
-			ecols:  []string{"a", "synth_id"},
-			evals:  []interface{}{int64(7), fmt.Sprintf("%d", int64(bits.Reverse64(1)))},
-		},
-	}
-	spTable.ColDefs["c4"] = ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50, IsArray: false}}
-	conv := buildConv(spTable, srcTable)
-	conv.SyntheticPKeys[spTable.Id] = internal.SyntheticPKey{ColId: "c4", Sequence: 0}
-	for _, tc := range syntheticPKeyTests {
-		atable, acols, avals, err := ConvertData(conv, tableId, tc.colIds, tc.vals)
-		checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 	}
 }
 

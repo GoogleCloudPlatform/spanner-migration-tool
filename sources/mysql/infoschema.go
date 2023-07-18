@@ -124,7 +124,12 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 			continue
 		}
 
-		ProcessDataRow(conv, tableId, commonColIds, srcSchema, spSchema, newValues, additionalAttributes)
+		mapSrcColIdToVal := make(map[string]string)
+		for i, srcolName := range srcCols {
+			mapSrcColIdToVal[colNameIdMap[srcolName]] = values[i]
+		}
+
+		ProcessDataRow(conv, tableId, commonColIds, srcSchema, spSchema, newValues, additionalAttributes, mapSrcColIdToVal)
 	}
 	return nil
 }
@@ -364,7 +369,7 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 	mp := make(map[string]interface{})
 	var (
 		tableList []string
-		err error
+		err       error
 	)
 	tableList, err = common.GetIncludedSrcTablesFromConv(conv)
 	streamingCfg, err := streaming.StartDatastream(ctx, isi.SourceProfile, isi.TargetProfile, tableList)

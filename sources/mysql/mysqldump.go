@@ -763,7 +763,11 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 			conv.CollectBadRow(srcSchema.Name, srcCols, values)
 			continue
 		}
-		ProcessDataRow(conv, tableId, commonColIds, srcSchema, spSchema, newValues, internal.AdditionalDataAttributes{ShardId: ""})
+		mapSrcColIdToVal := make(map[string]string)
+		for i, srcolName := range srcCols {
+			mapSrcColIdToVal[colNameIdMap[srcolName]] = values[i]
+		}
+		ProcessDataRow(conv, tableId, commonColIds, srcSchema, spSchema, newValues, internal.AdditionalDataAttributes{ShardId: ""}, mapSrcColIdToVal)
 	}
 }
 
