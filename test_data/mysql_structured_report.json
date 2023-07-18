@@ -60,9 +60,9 @@
          "srcTableName":"default_value",
          "spTableName":"default_value",
          "schemaReport":{
-            "rating":"POOR",
+            "rating":"EXCELLENT",
             "pkMissing":false,
-            "warnings":1,
+            "warnings":0,
             "totalColumns":2
          },
          "dataReport":{
@@ -73,7 +73,7 @@
          },
          "warnings":[
             {
-               "warningType":"Warning",
+               "warningType":"Note",
                "warningList":[
                   "Some columns have default values which HarbourBridge does not migrate. Please add the default constraints manually after the migration is complete for table 'default_value' e.g. column 'b'"
                ]

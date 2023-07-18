@@ -44,10 +44,10 @@ Warnings
 ----------------------------
 Table default_value
 ----------------------------
-Schema conversion: POOR (50% of 2 columns mapped cleanly).
+Schema conversion: EXCELLENT (100% of 2 columns mapped cleanly).
 Data conversion: NONE (100% of 0 rows written to Spanner).
 
-Warning
+Note
 1) Some columns have default values which HarbourBridge does not migrate. Please
    add the default constraints manually after the migration is complete for table
    'default_value' e.g. column 'b'.
