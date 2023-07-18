@@ -157,6 +157,10 @@ export class FetchService {
     return this.http.get(`${this.url}/typemap`)
   }
 
+  getSpannerDefaultTypeMap() {
+    return this.http.get(`${this.url}/spannerDefaultTypeMap`)
+  }
+
   reviewTableUpdate(tableName: string, data: IUpdateTable): any {
     return this.http.post<HttpResponse<IReviewUpdateTable>>(
       `${this.url}/typemap/reviewTableSchema?table=${tableName}`,
