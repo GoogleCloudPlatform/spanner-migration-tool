@@ -28,7 +28,6 @@ export class SidenavRuleComponent implements OnInit {
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
-        console.log(1, res)
         const keys = Object.keys(res.SpSchema) as Array<string>
         if (res.SpSchema[keys[0]].ShardIdColumn != '') {
           this.shardedMigration = true

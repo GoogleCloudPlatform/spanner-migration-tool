@@ -1069,62 +1069,46 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 
 func setShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
 	sessionState := session.GetSessionState()
-	if isAddedAtFirst {
-		for _, table := range sessionState.Conv.SpSchema {
-			pkRequest := primarykey.PrimaryKeyRequest{
-				TableId: table.Id,
-				Columns: []ddl.IndexKey{{ColId: table.ShardIdColumn, Order: 1}},
-			}
-			for index := range table.PrimaryKeys {
-				pk := table.PrimaryKeys[index]
-				pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order + 1, Desc: pk.Desc})
-			}
-			primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+	for _, table := range sessionState.Conv.SpSchema {
+		pkRequest := primarykey.PrimaryKeyRequest{
+			TableId: table.Id,
+			Columns: []ddl.IndexKey{},
 		}
-	} else {
-		for _, table := range sessionState.Conv.SpSchema {
+		increment := 0
+		if isAddedAtFirst {
+			increment = 1
+			pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: table.ShardIdColumn, Order: 1})
+		}
+		for index := range table.PrimaryKeys {
+			pk := table.PrimaryKeys[index]
+			pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order + increment, Desc: pk.Desc})
+		}
+		if !isAddedAtFirst {
 			size := len(table.PrimaryKeys)
-			pkRequest := primarykey.PrimaryKeyRequest{
-				TableId: table.Id,
-				Columns: table.PrimaryKeys,
-			}
 			pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: table.ShardIdColumn, Order: size + 1})
-			primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
 		}
+		primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
 	}
-
 }
 
 func revertShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
 	sessionState := session.GetSessionState()
-	if isAddedAtFirst {
-		for _, table := range sessionState.Conv.SpSchema {
-			pkRequest := primarykey.PrimaryKeyRequest{
-				TableId: table.Id,
-				Columns: []ddl.IndexKey{},
-			}
-			for index := range table.PrimaryKeys {
-				pk := table.PrimaryKeys[index]
-				if pk.ColId != table.ShardIdColumn {
-					pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order - 1, Desc: pk.Desc})
-				}
-			}
-			primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+	for _, table := range sessionState.Conv.SpSchema {
+		pkRequest := primarykey.PrimaryKeyRequest{
+			TableId: table.Id,
+			Columns: []ddl.IndexKey{},
 		}
-	} else {
-		for _, table := range sessionState.Conv.SpSchema {
-			pkRequest := primarykey.PrimaryKeyRequest{
-				TableId: table.Id,
-				Columns: []ddl.IndexKey{},
-			}
-			for index := range table.PrimaryKeys {
-				pk := table.PrimaryKeys[index]
-				if pk.ColId != table.ShardIdColumn {
-					pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order, Desc: pk.Desc})
+		for index := range table.PrimaryKeys {
+			pk := table.PrimaryKeys[index]
+			if pk.ColId != table.ShardIdColumn {
+				decrement := 0
+				if isAddedAtFirst {
+					decrement = 1
 				}
+				pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order - decrement, Desc: pk.Desc})
 			}
-			primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
 		}
+		primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
 	}
 }
 
