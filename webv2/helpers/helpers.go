@@ -32,7 +32,9 @@ const (
 	SESSION_FILE_MODE      = "sessionFile"
 	SCHEMA_ONLY            = "Schema"
 	DATA_ONLY              = "Data"
+	BULK_MIGRATION         = "bulk"
 	LOW_DOWNTIME_MIGRATION = "lowdt"
+	DATAPROC_MIGRATION     = "dataproc"
 	POSTGRESQL_DIALECT     = "PostgreSQL"
 	GOOGLE_SQL_DIALECT     = "Google Standard SQL"
 )

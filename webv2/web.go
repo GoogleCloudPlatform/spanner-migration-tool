@@ -143,6 +143,7 @@ type progressDetails struct {
 type migrationDetails struct {
 	TargetDetails   targetDetails  `json:"TargetDetails"`
 	DataflowConfig  dataflowConfig `json:"DataflowConfig"`
+	DataprocConfig  dataprocConfig `json:"DataprocConfig"`
 	MigrationMode   string         `json:MigrationMode`
 	MigrationType   string         `json:MigrationType`
 	IsSharded       bool           `json:"IsSharded"`
@@ -153,6 +154,12 @@ type dataflowConfig struct {
 	Network       string `json:Network`
 	Subnetwork    string `json:Subnetwork`
 	HostProjectId string `json:HostProjectId`
+}
+
+type dataprocConfig struct {
+	Subnetwork string `json:"Subnetwork"`
+	Hostname   string `json:"Hostname"`
+	Port       string `json:"Port"`
 }
 
 type targetDetails struct {
@@ -174,6 +181,7 @@ type DataflowCfg struct {
 	Subnetwork    string `json:"Subnetwork"`
 	HostProjectId string `json:"HostProjectId"`
 }
+
 type ConnectionConfig struct {
 	Name     string `json:"name"`
 	Location string `json:"location"`
@@ -2031,6 +2039,18 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(generatedResources)
 }
 
+func getDataprocJobs(w http.ResponseWriter, r *http.Request) {
+	var dataprocJobs DataprocJobs
+	sessionState := session.GetSessionState()
+
+	if len(sessionState.Conv.Audit.DataprocMetadata.DataprocJobUrls) > 0 {
+		dataprocJobs.DataprocJobUrls = sessionState.Conv.Audit.DataprocMetadata.DataprocJobUrls
+		dataprocJobs.DataprocJobIds = sessionState.Conv.Audit.DataprocMetadata.DataprocJobIds
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(dataprocJobs)
+}
+
 func getSourceAndTargetProfiles(sessionState *session.SessionState, details migrationDetails) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
 	var (
 		sourceProfileString string
@@ -2045,9 +2065,16 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating config to initiate sharded migration:%v", err)
 		}
 	} else {
-		sourceProfileString = fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,dbName=%v",
-			sourceDBConnectionDetails.Host, sourceDBConnectionDetails.Port, sourceDBConnectionDetails.User,
-			sourceDBConnectionDetails.Password, sessionState.DbName)
+		if details.MigrationType == helpers.DATAPROC_MIGRATION {
+			sourceProfileString, err = getSourceProfileStringForShardedMigrations(sessionState, details)
+			if err != nil {
+				return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating config to initiate sharded migration:%v", err)
+			}
+		} else {
+			sourceProfileString = fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,dbName=%v",
+				sourceDBConnectionDetails.Host, sourceDBConnectionDetails.Port, sourceDBConnectionDetails.User,
+				sourceDBConnectionDetails.Password, sessionState.DbName)
+		}
 	}
 
 	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
@@ -2085,7 +2112,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 
 func getSourceProfileStringForShardedMigrations(sessionState *session.SessionState, details migrationDetails) (string, error) {
 	fileName := "HB-" + uuid.New().String() + "-sharding.cfg"
-	if details.MigrationType != helpers.LOW_DOWNTIME_MIGRATION {
+	if details.MigrationType == helpers.BULK_MIGRATION {
 		err := createConfigFileForShardedBulkMigration(sessionState, details, fileName)
 		if err != nil {
 			return "", err
@@ -2097,10 +2124,47 @@ func getSourceProfileStringForShardedMigrations(sessionState *session.SessionSta
 			return "", err
 		}
 		return fmt.Sprintf("config=%v", fileName), nil
+	} else if details.MigrationType == helpers.DATAPROC_MIGRATION {
+		err := createConfigFileForShardedDataprocMigration(sessionState, details, fileName)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("config=%v", fileName), nil
 	} else {
 		return "", fmt.Errorf("this migration type is not implemented yet")
 	}
 
+}
+
+func createConfigFileForShardedDataprocMigration(sessionState *session.SessionState, details migrationDetails, fileName string) error {
+	sourceProfileConfig := profiles.SourceProfileConfig{
+		ConfigType: constants.DATAPROC_MIGRATION,
+		ShardConfigurationDataproc: profiles.ShardConfigurationDataproc{
+			SchemaSource: profiles.DirectConnectionConfig{
+				Host:     sessionState.SourceDBConnDetails.Host,
+				User:     sessionState.SourceDBConnDetails.User,
+				Password: sessionState.SourceDBConnDetails.Password,
+				Port:     sessionState.SourceDBConnDetails.Port,
+				DbName:   sessionState.DbName,
+			},
+			DataprocConfig: profiles.DataprocConfig{
+				Hostname:   details.DataprocConfig.Hostname,
+				Subnetwork: details.DataprocConfig.Subnetwork,
+				Port:       details.DataprocConfig.Port,
+				TargetDB:   details.TargetDetails.TargetDB,
+			},
+		},
+	}
+	file, err := json.MarshalIndent(sourceProfileConfig, "", " ")
+	if err != nil {
+		return fmt.Errorf("error while marshalling json: %v", err)
+	}
+
+	err = ioutil.WriteFile(fileName, file, 0644)
+	if err != nil {
+		return fmt.Errorf("error while writing json to file: %v", err)
+	}
+	return nil
 }
 
 func createConfigFileForShardedDataflowMigration(sessionState *session.SessionState, details migrationDetails, fileName string) error {
@@ -2646,6 +2710,11 @@ type GeneratedResources struct {
 	//Used for sharded migration flow
 	ShardToDatastreamMap map[string]ResourceDetails `json:"ShardToDatastreamMap"`
 	ShardToDataflowMap   map[string]ResourceDetails `json:"ShardToDataflowMap"`
+}
+
+type DataprocJobs struct {
+	DataprocJobUrls []string
+	DataprocJobIds  []string
 }
 
 func addTypeToList(convertedType string, spType string, issues []internal.SchemaIssue, l []typeIssue) []typeIssue {
