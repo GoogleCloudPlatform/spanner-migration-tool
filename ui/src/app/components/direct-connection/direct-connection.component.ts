@@ -81,7 +81,7 @@ export class DirectConnectionComponent implements OnInit {
     const config: IDbConfig = { dbEngine, isSharded, hostName, port, userName, password, dbName }
     this.connectRequest =this.fetch.connectTodb(config, dialect).subscribe({
       next: () => {
-        this.snackbarService.openSnackBar('SUCCESS! Harbourbridge was able to successfully ping source database', 'Close', 3)
+        this.snackbarService.openSnackBar('SUCCESS! Spanner migration tool was able to successfully ping source database', 'Close', 3)
         //Datbase loader causes the direct connection form to get refreshed hence this value needs to be persisted to local storage.
         localStorage.setItem(PersistedFormValues.IsConnectionSuccessful, "true")
         this.clickEvent.closeDatabaseLoader()
