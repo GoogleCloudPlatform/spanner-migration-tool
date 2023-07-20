@@ -15,7 +15,6 @@ import IConv, {
   ICreateIndex,
   IForeignKey,
   IIndexKey,
-  IPkColumnDefs,
   IPrimaryKey,
 } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
@@ -746,11 +745,11 @@ export class ObjectDetailComponent implements OnInit {
 
   getPkRequestObj() {
     let tableId: string = this.conv.SpSchema[this.currentObject!.id].Id
-    let Columns: { ColumnId: string; Desc: boolean; Order: number }[] = []
+    let Columns: { ColId: string; Desc: boolean; Order: number }[] = []
     this.pkData.forEach((row: IColumnTabData) => {
       if (row.spIsPk)
         Columns.push({
-          ColumnId: row.spId,
+          ColId: row.spId,
           Desc:
             typeof this.conv.SpSchema[this.currentObject!.id].PrimaryKeys.find(
               ({ ColId }) => ColId === row.spId
@@ -1354,11 +1353,11 @@ export class ObjectDetailComponent implements OnInit {
       return false
     })[0]
     if (this.pkObj.Columns.length < 1) return true
-    let updatedFirstOrderPk = this.pkObj.Columns.filter((pk: IPkColumnDefs) => {
+    let updatedFirstOrderPk = this.pkObj.Columns.filter((pk: IIndexKey) => {
       if (pk.Order == 1) return true
       return false
     })[0]
-    if (firstOrderPk && firstOrderPk.ColId != updatedFirstOrderPk.ColumnId) return true
+    if (firstOrderPk && firstOrderPk.ColId != updatedFirstOrderPk.ColId) return true
     return false
   }
 }
