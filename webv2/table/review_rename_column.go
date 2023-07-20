@@ -15,8 +15,8 @@
 package table
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 )
 
 // reviewRenameColumn review  renaming of Columnname in schmema.

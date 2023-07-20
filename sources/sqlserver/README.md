@@ -2,8 +2,8 @@
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
 using data from an existing SQL Server database. This README provides
-details of the tool's SQL Server capabilities. For general HarbourBridge information
-see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-spanner-evaluation-and-migration).
+details of the tool's SQL Server capabilities. For general Spanner migration tool information
+see this [README](https://github.com/GoogleCloudPlatform/spanner-migration-tool#spanner-migration-tool-spanner-evaluation-and-migration).
 
 We currently do not support dump file mode for SQL Server. The only way to use HarbourBridge with SQL Server is connecting directly.
 
@@ -16,7 +16,7 @@ Note that either _'sqlserver'_ or _'mssql'_ can be used as an identifier with th
 HarbourBridge can be run directly on a SQL Server database (via go's database/sql package).
 
 The following examples assume a `harbourbridge` alias has been setup as described
-in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
+in the [Installing HarbourBridge](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
 
 ### Directly connecting to a SQL Server database
 

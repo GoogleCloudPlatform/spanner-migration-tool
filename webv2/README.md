@@ -1,9 +1,9 @@
 # HarbourBridge: Schema Assistant
 
-HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and
-migration. This README provides details of the HarbourBridge schema assistant,
-which supports schema customization. For general HarbourBridge information see
-this [README](https://github.com/cloudspannerecosystem/harbourbridge).
+Spanner migration tool is a stand-alone open source tool for Cloud Spanner evaluation and
+migration. This README provides details of the Spanner migration tool schema assistant,
+which supports schema customization. For general Spanner migration tool information see
+this [README](https://github.com/GoogleCloudPlatform/spanner-migration-tool).
 
 ### Starting web server for HarbourBridge
 
@@ -11,9 +11,9 @@ The following examples assume `harbourbridge` alias has been setup as
 following.
 
 ```sh
-git clone https://github.com/cloudspannerecosystem/harbourbridge
+git clone https://github.com/GoogleCloudPlatform/spanner-migration-tool
 cd harbourbridge
-alias harbourbridge="go run github.com/cloudspannerecosystem/harbourbridge"
+alias harbourbridge="go run github.com/GoogleCloudPlatform/spanner-migration-tool"
 ```
 
 HarbourBridge's Web API feature can be used with all the driver modes available,

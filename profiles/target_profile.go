@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"golang.org/x/net/context"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )

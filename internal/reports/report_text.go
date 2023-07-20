@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 )
 
 //report_text.go contains the logic to convert a structured harbourbridge 

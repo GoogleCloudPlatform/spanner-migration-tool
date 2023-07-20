@@ -15,10 +15,10 @@
 package index
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
+	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 )
 
 // IndexSuggestion adds redundant index issue and interleved index suggestion in issues and suggestions tab.

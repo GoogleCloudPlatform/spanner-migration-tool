@@ -27,7 +27,7 @@ func RunCommand(args string, projectID string) error {
 	// is because file prefixes use `now` from here (the test function) and
 	// the generated time in the files uses a `now` inside the command, which
 	// can be different.
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge %v", args))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/GoogleCloudPlatform/spanner-migration-tool %v", args))
 	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr

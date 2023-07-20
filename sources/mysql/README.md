@@ -2,8 +2,8 @@
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and migration,
 using data from an existing database. This README provides
-details of the tool's MySQL capabilities. For general HarbourBridge information
-see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-spanner-evaluation-and-migration).
+details of the tool's MySQL capabilities. For general Spanner migration tool information
+see this [README](https://github.com/GoogleCloudPlatform/spanner-migration-tool#spanner-migration-tool-spanner-evaluation-and-migration).
 
 ## Example MySQL Usage
 
@@ -11,7 +11,7 @@ HarbourBridge can either be used with mysqldump or it can be run directly
 on a MySQL database (via go's database/sql package).
 
 The following examples assume a `harbourbridge` alias has been setup as described
-in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
+in the [Installing HarbourBridge](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
 
 ### Using HarbourBridge with mysqldump
 

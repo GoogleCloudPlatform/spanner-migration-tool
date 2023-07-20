@@ -19,8 +19,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 // GetSpannerTable maps a source DB table name into a legal Spanner table

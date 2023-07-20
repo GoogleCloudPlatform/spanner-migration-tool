@@ -23,7 +23,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/google/subcommands"
 )
 

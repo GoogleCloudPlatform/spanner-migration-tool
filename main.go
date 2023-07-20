@@ -29,9 +29,9 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/sijms/go-ora/v2"
 
-	"github.com/cloudspannerecosystem/harbourbridge/cmd"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/cmd"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2"
 	"github.com/google/subcommands"
 )
 

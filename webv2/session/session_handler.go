@@ -23,9 +23,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	helpers "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )

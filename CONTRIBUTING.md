@@ -32,6 +32,6 @@ This project follows
 We support VSCode out of the box for debugging the project.
 Follow these steps to use the debugger
 1. Setup the [Delve debugger](https://github.com/golang/vscode-go)
-2. Add the command line arguments in the [launch.json](https://github.com/cloudspannerecosystem/harbourbridge/blob/master/.vscode/launch.json)
+2. Add the command line arguments in the [launch.json](https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/.vscode/launch.json)
 3. Run the project from main.go
 
