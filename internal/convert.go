@@ -115,7 +115,10 @@ const (
 	ShardIdColumnPrimaryKey
 )
 
-const ShardIdColumn = "migration_shard_id"
+const (
+	ShardIdColumn       = "migration_shard_id"
+	SyntheticPrimaryKey = "synth_id"
+)
 
 // NameAndCols contains the name of a table and its columns.
 // Used to map between source DB and Spanner table and column names.
@@ -362,7 +365,7 @@ func (conv *Conv) SampleBadRows(n int) []string {
 func (conv *Conv) AddShardIdColumn() {
 	for t, ct := range conv.SpSchema {
 		if ct.ShardIdColumn == "" {
-			colName := ShardIdColumn
+			colName := conv.buildColumnNameWithBase(t, ShardIdColumn)
 			columnId := GenerateColumnId()
 			ct.ColIds = append(ct.ColIds, columnId)
 			ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false}
@@ -397,7 +400,7 @@ func (conv *Conv) AddPrimaryKeys() {
 				}
 			}
 			if !primaryKeyPopulated {
-				k := conv.buildPrimaryKey(t)
+				k := conv.buildColumnNameWithBase(t, SyntheticPrimaryKey)
 				columnId := GenerateColumnId()
 				ct.ColIds = append(ct.ColIds, columnId)
 				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}}
@@ -414,8 +417,7 @@ func (conv *Conv) SetLocation(loc *time.Location) {
 	conv.Location = loc
 }
 
-func (conv *Conv) buildPrimaryKey(tableId string) string {
-	base := "synth_id"
+func (conv *Conv) buildColumnNameWithBase(tableId, base string) string {
 	if _, ok := conv.SpSchema[tableId]; !ok {
 		conv.Unexpected(fmt.Sprintf("Table doesn't exist for tableId %s: ", tableId))
 		return base

@@ -86,6 +86,11 @@ var postgresTypeMap = make(map[string][]typeIssue)
 var sqlserverTypeMap = make(map[string][]typeIssue)
 var oracleTypeMap = make(map[string][]typeIssue)
 
+var mysqlDefaultTypeMap = make(map[string]ddl.Type)
+var postgresDefaultTypeMap = make(map[string]ddl.Type)
+var sqlserverDefaultTypeMap = make(map[string]ddl.Type)
+var oracleDefaultTypeMap = make(map[string]ddl.Type)
+
 // TODO:(searce) organize this file according to go style guidelines: generally
 // have public constants and public type definitions first, then public
 // functions, and finally helper functions (usually in order of importance).
@@ -360,7 +365,7 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sourceProfileConfig := sessionState.SourceProfileConfig
-	if (sourceProfileConfig.ConfigType == "dataflow") {
+	if sourceProfileConfig.ConfigType == "dataflow" {
 		for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
 			bucket, rootPath, err := profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, dataShard.DstConnectionProfile.Name)
 			if err != nil {
@@ -738,6 +743,32 @@ func getStandardTypeToPGSQLTypemap(w http.ResponseWriter, r *http.Request) {
 func getPGSQLToStandardTypeTypemap(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(ddl.PGSQL_TO_STANDARD_TYPE_TYPEMAP)
+}
+
+func spannerDefaultTypeMap(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, "Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner.", http.StatusNotFound)
+		return
+	}
+
+	var typeMap map[string]ddl.Type
+	switch sessionState.Driver {
+	case constants.MYSQL, constants.MYSQLDUMP:
+		typeMap = mysqlDefaultTypeMap
+	case constants.POSTGRES, constants.PGDUMP:
+		typeMap = postgresDefaultTypeMap
+	case constants.SQLSERVER:
+		typeMap = sqlserverDefaultTypeMap
+	case constants.ORACLE:
+		typeMap = oracleDefaultTypeMap
+	default:
+		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(typeMap)
 }
 
 // getTypeMap returns the source to Spanner typemap only for the
@@ -2671,27 +2702,31 @@ func initializeTypeMap() {
 	toddl = mysql.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
 		var l []typeIssue
+		srcType := schema.MakeType()
+		srcType.Name = srcTypeName
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			srcType := schema.MakeType()
-			srcType.Name = srcTypeName
 			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		if srcTypeName == "tinyint" {
 			l = append(l, typeIssue{T: ddl.Bool, Brief: "Only tinyint(1) can be converted to BOOL, for any other mods it will be converted to INT64"})
 		}
+		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType)
+		mysqlDefaultTypeMap[srcTypeName] = ty
 		mysqlTypeMap[srcTypeName] = l
 	}
 	// Initialize postgresTypeMap.
 	toddl = postgres.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
 		var l []typeIssue
+		srcType := schema.MakeType()
+		srcType.Name = srcTypeName
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			srcType := schema.MakeType()
-			srcType.Name = srcTypeName
 			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
+		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType)
+		postgresDefaultTypeMap[srcTypeName] = ty
 		postgresTypeMap[srcTypeName] = l
 	}
 
@@ -2699,12 +2734,14 @@ func initializeTypeMap() {
 	toddl = sqlserver.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
 		var l []typeIssue
+		srcType := schema.MakeType()
+		srcType.Name = srcTypeName
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			srcType := schema.MakeType()
-			srcType.Name = srcTypeName
 			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
+		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType)
+		sqlserverDefaultTypeMap[srcTypeName] = ty
 		sqlserverTypeMap[srcTypeName] = l
 	}
 
@@ -2712,12 +2749,14 @@ func initializeTypeMap() {
 	toddl = oracle.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"NUMBER", "BFILE", "BLOB", "CHAR", "CLOB", "DATE", "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT", "LONG", "RAW", "LONG RAW", "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2", "NCLOB", "ROWID", "UROWID", "XMLTYPE", "TIMESTAMP", "INTERVAL", "SDO_GEOMETRY"} {
 		var l []typeIssue
+		srcType := schema.MakeType()
+		srcType.Name = srcTypeName
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			srcType := schema.MakeType()
-			srcType.Name = srcTypeName
 			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
+		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType)
+		oracleDefaultTypeMap[srcTypeName] = ty
 		oracleTypeMap[srcTypeName] = l
 	}
 }
