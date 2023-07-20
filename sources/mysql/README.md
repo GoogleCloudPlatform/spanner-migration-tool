@@ -11,7 +11,7 @@ HarbourBridge can either be used with mysqldump or it can be run directly
 on a MySQL database (via go's database/sql package).
 
 The following examples assume a `harbourbridge` alias has been setup as described
-in the [Installing HarbourBridge](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
+in the [Installing Spanner migration tool](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
 
 ### Using HarbourBridge with mysqldump
 

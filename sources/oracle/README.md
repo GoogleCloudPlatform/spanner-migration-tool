@@ -14,7 +14,7 @@ Note that _'oracle'_ can be used as an identifier with the flag `-source` in the
 HarbourBridge can be run directly on a Oracle database (via go's database/sql package).
 
 The following examples assume a `harbourbridge` alias has been setup as described
-in the [Installing HarbourBridge](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
+in the [Installing Spanner migration tool](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
 
 ### Directly connecting to an Oracle database
 
