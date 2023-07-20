@@ -1,5 +1,5 @@
-## Spanner migration Report
-A Spanner migration report consists of elements defined below. A sample structured report can be found [here](/test_data/mysql_structured_report.json).
+## Spanner migration tool Report
+A Spanner migration tool report consists of elements defined below. A sample structured report can be found [here](/test_data/mysql_structured_report.json).
 
 #### Summary
 Defines the overall quality of the conversion perfomed by the Spanner migration tool along with a rating.
