@@ -113,8 +113,16 @@
                     matTooltipPosition="above">
                     check_circle
                 </mat-icon>
+                <div *ngIf="testingSourceConnection">
+                    <br>
+                    <span class="spinner">
+                        <mat-spinner [diameter]="20">
+                        </mat-spinner>
+                    </span>
+                    <span class="spinner-small-text">Testing Connection</span><br>
+                </div>
                 <button mat-raised-button type="button" color="primary"
-                [disabled]="!determineConnectionProfileInfoValidity()"
+                [disabled]="!determineConnectionProfileInfoValidity() || testingSourceConnection"
                     (click)="createOrTestConnection(true, true)">TEST
                     CONNECTION</button>
                 <mat-icon *ngIf="createSrcConnSuccess" class="success" matTooltip="Profile creation successful"
@@ -127,6 +135,7 @@
             </div>
             <hr>
             <span class="mat-h4 header-title">Configure ShardId and Database Names</span>
+            <mat-icon class="configure" matTooltip="Logical Shard ID value will be used to populate the migration_shard_id column added as part of sharded database migration">info</mat-icon>
             <br><br>
             <span class="border">
                 <ng-container formArrayName="shardMappingTable">

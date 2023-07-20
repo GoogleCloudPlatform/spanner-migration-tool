@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConversionService } from '../../services/conversion/conversion.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
-import IConv, { ITableIdAndName } from '../../model/conv'
+import IConv, { ITableIdAndName, IType } from '../../model/conv'
 import { Subscription } from 'rxjs/internal/Subscription'
 import { MatDialog } from '@angular/material/dialog'
 import IFkTabData from 'src/app/model/fk-tab-data'
@@ -12,7 +12,7 @@ import { InputType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.cons
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 import ConversionRate from 'src/app/model/conversion-rate'
 import { Router } from '@angular/router'
-import { extractSourceDbName } from 'src/app/utils/utils'
+import { downloadSession, extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 import IViewAssesmentData from 'src/app/model/view-assesment'
 import IDbConfig from 'src/app/model/db-config'
@@ -33,8 +33,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   tableData: IColumnTabData[] = []
   indexData: IIndexData[] = []
   typeMap: Record<string, Record<string, string>> | boolean = false
+  defaultTypeMap: Record<string, IType> | boolean = false
   conversionRates: Record<string, string> = {}
   typemapObj!: Subscription
+  defaultTypemapObj!: Subscription
   convObj!: Subscription
   converObj!: Subscription
   ddlsumconvObj!: Subscription
@@ -73,6 +75,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.ddlsumconvObj = this.data.getRateTypemapAndSummary()
     this.typemapObj = this.data.typeMap.subscribe((types) => {
       this.typeMap = types
+    })
+
+    this.defaultTypemapObj = this.data.defaultTypeMap.subscribe((types) => {
+      this.defaultTypeMap = types
     })
 
     this.ddlObj = this.data.ddl.subscribe((res) => {
@@ -263,14 +269,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.sidenav.setSidenavDatabaseName(this.conv.DatabaseName)
   }
   downloadSession() {
-    var a = document.createElement('a')
-    // JS automatically converts the input (64bit INT) to '9223372036854776000' during conversion as this is the max value in JS.
-    // However the max value received from server is '9223372036854775807'
-    // Therefore an explicit replacement is necessary in the JSON content in the file.
-    let resJson = JSON.stringify(this.conv).replace(/9223372036854776000/g, '9223372036854775807')
-    a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
-    a.download = `${this.conv.SessionName}_${this.conv.DatabaseType}_${this.conv.DatabaseName}.json`
-    a.click()
+    downloadSession(this.conv)
   }
   
   downloadArtifacts(){

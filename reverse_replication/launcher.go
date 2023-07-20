@@ -56,14 +56,14 @@ const (
 func setupGlobalFlags() {
 	flag.StringVar(&projectId, "projectId", "", "projectId")
 	flag.StringVar(&dataflowRegion, "dataflowRegion", "", "region for dataflow jobs")
-	flag.StringVar(&jobNamePrefix, "jobNamePrefix", "reverse-rep", "job name prefix for the dataflow jobs, defaults to reverse-rep")
+	flag.StringVar(&jobNamePrefix, "jobNamePrefix", "reverse-rep", "job name prefix for the dataflow jobs, defaults to reverse-rep. Automatically converted to lower case due to Dataflow name constraints.")
 	flag.StringVar(&changeStreamName, "changeStreamName", "reverseReplicationStream", "change stream name, defaults to reverseReplicationStream")
 	flag.StringVar(&instanceId, "instanceId", "", "spanner instance id")
 	flag.StringVar(&dbName, "dbName", "", "spanner database name")
 	flag.StringVar(&metadataInstance, "metadataInstance", "", "spanner instance name to store changestream metadata, defaults to target Spanner instance")
 	flag.StringVar(&metadataDatabase, "metadataDatabase", "change-stream-metadata", "spanner database name to store changestream metadata, defaults to change-stream-metadata")
 	flag.StringVar(&startTimestamp, "startTimestamp", "", "timestamp from which the changestream should start reading changes in RFC 3339 format, defaults to empty string which is equivalent to the current timestamp.")
-	flag.StringVar(&pubSubDataTopicId, "pubSubDataTopicId", "", "id pub/sub data topic, pre-existing topics should use the same project as Spanner.")
+	flag.StringVar(&pubSubDataTopicId, "pubSubDataTopicId", "reverse-replication", "pub/sub data topic id. DO NOT INCLUDE the prefix 'projects/<project_name>/topics/'. Defaults to 'reverse-replication'")
 	flag.StringVar(&pubSubEndpoint, "pubSubEndpoint", "", "pub/sub endpoint, defaults to same endpoint as the dataflow region.")
 	flag.StringVar(&sourceShardsFilePath, "sourceShardsFilePath", "", "gcs file path for file containing shard info")
 	flag.StringVar(&sessionFilePath, "sessionFilePath", "", "gcs file path for session file generated via HarbourBridge")
@@ -78,6 +78,12 @@ func prechecks() error {
 	}
 	if dataflowRegion == "" {
 		return fmt.Errorf("please specify a valid dataflowRegion")
+	}
+	if jobNamePrefix == "" {
+		return fmt.Errorf("please specify a non-empty jobNamePrefix")
+	} else {
+		// Capital letters not allowed in Dataflow job names.
+		jobNamePrefix = strings.ToLower(jobNamePrefix)
 	}
 	if changeStreamName == "" {
 		return fmt.Errorf("please specify a valid changeStreamName")
@@ -97,8 +103,9 @@ func prechecks() error {
 		fmt.Println("metadataDatabase not provided, defaulting to: ", metadataDatabase)
 	}
 	if pubSubDataTopicId == "" {
-		pubSubDataTopicId = "reverse-replication"
-		fmt.Println("pubSubDataTopicId not provided, defaulting to ", pubSubDataTopicId)
+		return fmt.Errorf("please specify a valid pubSubDataTopicId")
+	} else if strings.Contains(pubSubDataTopicId, "/") {
+		return fmt.Errorf("please specify a valid pubSubDataTopicId. '/' is not a valid character for topic id. DO NOT INCLUDE the prefix 'projects/<project_name>/topics/' for this flag.")
 	}
 	if sourceShardsFilePath == "" {
 		return fmt.Errorf("please specify a valid sourceShardsFilePath")
