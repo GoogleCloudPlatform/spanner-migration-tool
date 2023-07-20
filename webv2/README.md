@@ -12,7 +12,7 @@ following.
 
 ```sh
 git clone https://github.com/GoogleCloudPlatform/spanner-migration-tool
-cd harbourbridge
+cd spanner-migration-tool
 alias harbourbridge="go run github.com/GoogleCloudPlatform/spanner-migration-tool"
 ```
 

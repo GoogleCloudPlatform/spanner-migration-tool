@@ -145,7 +145,7 @@ and use "go run".
 
 ```sh
 git clone https://github.com/GoogleCloudPlatform/spanner-migration-tool
-cd harbourbridge
+cd spanner-migration-tool
 go run github.com/GoogleCloudPlatform/spanner-migration-tool help
 ```
 
