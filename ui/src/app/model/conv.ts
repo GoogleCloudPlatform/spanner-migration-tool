@@ -17,6 +17,7 @@ export default interface IConv {
   DatabaseName: string
   EditorName: string
   SpDialect: string
+  IsSharded: boolean
 }
 
 export interface IFkeyAndIdxs {

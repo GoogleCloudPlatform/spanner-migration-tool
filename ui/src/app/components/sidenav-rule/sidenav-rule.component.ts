@@ -29,7 +29,7 @@ export class SidenavRuleComponent implements OnInit {
     this.data.conv.subscribe({
       next: (res: IConv) => {
         const keys = Object.keys(res.SpSchema) as Array<string>
-        if (res.SpSchema[keys[0]].ShardIdColumn != '') {
+        if (res.IsSharded) {
           this.shardedMigration = true
         } else {
           this.shardedMigration = false

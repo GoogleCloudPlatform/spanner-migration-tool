@@ -46,6 +46,7 @@ type Conv struct {
 	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
 	Audit          Audit               `json:"-"` // Stores the audit information for the database conversion
 	Rules          []Rule              // Stores applied rules during schema conversion
+	IsSharded      bool                // Flag denoting if the migration is sharded or not
 }
 
 type TableIssues struct {

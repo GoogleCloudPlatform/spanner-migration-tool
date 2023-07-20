@@ -278,6 +278,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 
 	conv.SpDialect = sessionState.Dialect
+	conv.IsSharded = sessionState.IsSharded
 	var err error
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: sessionState.IsSharded,
@@ -1643,6 +1644,7 @@ func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithM
 	}
 	conv.AddPrimaryKeys()
 	if sessionState.IsSharded {
+		conv.IsSharded = true
 		conv.AddShardIdColumn()
 	}
 	sessionState.Conv = conv
