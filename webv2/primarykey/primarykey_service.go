@@ -40,7 +40,7 @@ func getColumnIdListFromPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []string 
 	cidlist := []string{}
 
 	for i := 0; i < len(pkRequest.Columns); i++ {
-		cidlist = append(cidlist, pkRequest.Columns[i].ColumnId)
+		cidlist = append(cidlist, pkRequest.Columns[i].ColId)
 	}
 	return cidlist
 }

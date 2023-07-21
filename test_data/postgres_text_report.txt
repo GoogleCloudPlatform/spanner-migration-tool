@@ -7,7 +7,7 @@ Data conversion: POOR (66% of 6000 rows written to Spanner).
 The remainder of this report provides stats on the pg_dump statements processed,
 followed by a table-by-table listing of SCHEMA_AND_DATA conversion details. For
 background on the SCHEMA_AND_DATA conversion process used, and explanations of
-the terms and notes used in this report, see HarbourBridge's README.
+the terms and notes used in this report, see Spanner migration tool's README.
 
 ----------------------------
 Statements Processed
@@ -48,9 +48,9 @@ Schema conversion: EXCELLENT (100% of 2 columns mapped cleanly).
 Data conversion: NONE (100% of 0 rows written to Spanner).
 
 Note
-1) Some columns have default values which HarbourBridge does not migrate. Please
-   add the default constraints manually after the migration is complete for table
-   'default_value' e.g. column 'b'.
+1) Some columns have default values which Spanner migration tool does not
+   migrate. Please add the default constraints manually after the migration is
+   complete for table 'default_value' e.g. column 'b'.
 
 ----------------------------
 Table excellent_schema

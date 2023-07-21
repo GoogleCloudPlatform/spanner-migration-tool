@@ -31,7 +31,7 @@ import (
 )
 
 // session contains the metadata for a session file.
-// A session file is a snapshot of an ongoing HarbourBridge conversion session,
+// A session file is a snapshot of an ongoing Spanner migration tool conversion session,
 // and consists of an internal.Conv struct in JSON format.
 type SessionParams struct {
 	Driver    string `json:"driver"`

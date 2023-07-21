@@ -88,7 +88,7 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	// Cleanup hb tmp data directory in case residuals remain from prev runs.
-	os.RemoveAll(filepath.Join(os.TempDir(), constants.HB_TMP_DIR))
+	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))
 	var err error
 	defer func() {
 		if err != nil {
@@ -160,7 +160,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix, dbName, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
 	// Cleanup hb tmp data directory.
-	os.RemoveAll(filepath.Join(os.TempDir(), constants.HB_TMP_DIR))
+	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))
 	return subcommands.ExitSuccess
 }
 

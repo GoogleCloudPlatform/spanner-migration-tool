@@ -1,11 +1,11 @@
-# HarbourBridge: Schema Assistant
+# Spanner migration tool: Schema Assistant
 
 Spanner migration tool is a stand-alone open source tool for Cloud Spanner evaluation and
 migration. This README provides details of the Spanner migration tool schema assistant,
 which supports schema customization. For general Spanner migration tool information see
 this [README](https://github.com/GoogleCloudPlatform/spanner-migration-tool).
 
-### Starting web server for HarbourBridge
+### Starting web server for Spanner migration tool
 
 The following examples assume `harbourbridge` alias has been setup as
 following.
@@ -16,16 +16,16 @@ cd spanner-migration-tool
 alias harbourbridge="go run github.com/GoogleCloudPlatform/spanner-migration-tool"
 ```
 
-HarbourBridge's Web API feature can be used with all the driver modes available,
+Spanner migration tool's Web API feature can be used with all the driver modes available,
 using mysql or postgres dump or direct connection.
 
-To generate the HarbourBridge binary, run:
+To generate the Spanner migration tool binary, run:
 
 ```sh
 make build
 ```
 
-To start HarbourBridge web server, run:
+To start Spanner migration tool web server, run:
 
 ```sh
 ./harbourbridge web

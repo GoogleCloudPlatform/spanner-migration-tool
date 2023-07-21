@@ -31,7 +31,7 @@ func updatePrimaryKey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable,
 
 		for j := 0; j < len(spannerTable.PrimaryKeys); j++ {
 
-			if pkRequest.Columns[i].ColumnId == spannerTable.PrimaryKeys[j].ColId && spannerTable.PrimaryKeys[j].ColId == pkRequest.Columns[i].ColumnId {
+			if pkRequest.Columns[i].ColId == spannerTable.PrimaryKeys[j].ColId && spannerTable.PrimaryKeys[j].ColId == pkRequest.Columns[i].ColId {
 
 				spannerTable.PrimaryKeys[j].Desc = pkRequest.Columns[i].Desc
 				spannerTable.PrimaryKeys[j].Order = pkRequest.Columns[i].Order
@@ -90,10 +90,10 @@ func addPrimaryKey(add []string, pkRequest PrimaryKeyRequest, spannerTable ddl.C
 
 		for i := 0; i < len(pkRequest.Columns); i++ {
 
-			if val == pkRequest.Columns[i].ColumnId {
+			if val == pkRequest.Columns[i].ColId {
 
 				pkey := ddl.IndexKey{}
-				pkey.ColId = pkRequest.Columns[i].ColumnId
+				pkey.ColId = pkRequest.Columns[i].ColId
 				pkey.Desc = pkRequest.Columns[i].Desc
 				pkey.Order = pkRequest.Columns[i].Order
 

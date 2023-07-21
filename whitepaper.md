@@ -1,6 +1,6 @@
-# HarbourBridge Whitepaper
+# Spanner migration tool Whitepaper
 
-This whitepaper provides some context for HarbourBridge and describes our plans
+This whitepaper provides some context for Spanner migration tool (formerly known as HarbourBridge) and describes our plans
 and aspirations.
 
 ## Initial Version
@@ -33,14 +33,14 @@ punted on this issue in the interests of developing a simple turnkey tool.
 ## Next Steps
 
 While continuing to support the turnkey PostgreSQL evaluation use-case, we plan
-to expand to other databases and as well as evolve the HarbourBridge codebase to
+to expand to other databases and as well as evolve the Spanner migration tool codebase to
 address production database migration needs:
 
 * **Support for other databases.** MySQL would be a logical next step, but we
 want to go beyond that and plan for any source database that users might want to
 use. To get there, we will need to find a more scalable way to access schema and
 data from the source database. While pg_dump was a useful way to get
-HarbourBridge boot-strapped, it requires us to parse the "dump" output of each
+Spanner migration tool boot-strapped, it requires us to parse the "dump" output of each
 source database, which represents significant upfront work and a long-term
 maintenance burden.
 
@@ -49,7 +49,7 @@ splitting out the schema migration functionality into a separate stand-alone
 tool with a UI that guides users through the schema conversion choices,
 providing options, advice and links to documentation for each choice.
 
-* **Support for larger databases.** The initial version of HarbourBridge is only
+* **Support for larger databases.** The initial version of Spanner migration tool is only
 intended for databases up to a few GB. While it can be used for larger
 databases, it is missing key features to robustly support such usage. For
 example, our write-path for sending data to Spanner does not appropriately take

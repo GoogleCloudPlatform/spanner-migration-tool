@@ -1,19 +1,19 @@
-# HarbourBridge: MySQL-to-Spanner Evaluation and Migration
+# Spanner migration tool: MySQL-to-Spanner Evaluation and Migration
 
-HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and migration,
+Spanner migration tool is a stand-alone open source tool for Cloud Spanner evaluation and migration,
 using data from an existing database. This README provides
 details of the tool's MySQL capabilities. For general Spanner migration tool information
 see this [README](https://github.com/GoogleCloudPlatform/spanner-migration-tool#spanner-migration-tool-spanner-evaluation-and-migration).
 
 ## Example MySQL Usage
 
-HarbourBridge can either be used with mysqldump or it can be run directly
+Spanner migration tool can either be used with mysqldump or it can be run directly
 on a MySQL database (via go's database/sql package).
 
 The following examples assume a `harbourbridge` alias has been setup as described
 in the [Installing Spanner migration tool](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
 
-### Using HarbourBridge with mysqldump
+### Using Spanner migration tool with mysqldump
 
 The tool can be used to migrate schema from an existing mysqldump file:
 
@@ -32,7 +32,7 @@ For example, run
 harbourbridge data -session=mydb.session.json -source=mysql -target-profile="instance=my-spanner-instance,dbName=my-spanner-database-name" < my_mysqldump_file
 ```
 
-You can also run HarbourBridge in a schema-and-data mode, where it will perform both
+You can also run Spanner migration tool in a schema-and-data mode, where it will perform both
 schema and data migration. This is useful for quick evaluation when source
 database size is small.
 
@@ -40,7 +40,7 @@ database size is small.
 harbourbridge schema-and-data -source=mysql -target-profile="instance=my-spanner-instance" < my_mysqldump_file
 ```
 
-HarbourBridge generates a report file, a schema file, and a bad-data file (if
+Spanner migration tool generates a report file, a schema file, and a bad-data file (if
 there are bad-data rows). You can control where these files are written by
 specifying a file prefix. For example,
 
@@ -56,11 +56,11 @@ harbourbridge schema -prefix=~/spanner-eval-mydb/ -source=mysql < my_mysqldump_f
 ```
 
 would write the files into the directory `~/spanner-eval-mydb/`. Note
-that HarbourBridge will not create directories as it writes these files.
+that Spanner migration tool will not create directories as it writes these files.
 
 ### Directly connecting to a MySQL database
 
-In this case, HarbourBridge connects directly to the MySQL database to retrieve
+In this case, Spanner migration tool connects directly to the MySQL database to retrieve
 table schema and data. Set the `-source=mysql` and corresponding source profile
 connection parameters `host`, `port`, `user`, `dbName` and `password`.
 
@@ -82,7 +82,7 @@ are also applicable in direct connect mode.
 
 ## Schema Conversion
 
-The HarbourBridge tool maps MySQL types to Spanner types as follows:
+The Spanner migration tool maps MySQL types to Spanner types as follows:
 
 | MySQL Type                                        | Spanner Type    | Notes                           |
 | ------------------------------------------------- | --------------- | ------------------------------- |
@@ -184,7 +184,7 @@ an eight-byte integer.
 
 Spanner requires primary keys for all tables. MySQL recommends the use of
 primary keys for all tables, but does not enforce this. When converting a table
-without a primary key, HarbourBridge will create a new primary key of type
+without a primary key, Spanner migration tool will create a new primary key of type
 INT64. By default, the name of the new column is `synth_id`. If there is already
 a column with that name, then a variation is used to avoid collisions.
 
@@ -226,7 +226,7 @@ conversion.
 See
 [Migrating from MySQL to Cloud Spanner](https://cloud.google.com/solutions/migrating-mysql-to-spanner)
 for a general discussion of MySQL to Spanner migration issues.
-HarbourBridge follows most of the recommendations in that guide. The main
+Spanner migration tool follows most of the recommendations in that guide. The main
 difference is that we map a few more types to `STRING(MAX)`.
 
 ## Data Conversion
@@ -248,7 +248,7 @@ mysqldump output and use the timezone offset specified. Otherwise, we use '+00:0
 Spanner requires that `STRING` values be UTF-8 encoded. All Spanner functions
 and operators that act on `STRING` values operate on Unicode characters rather
 than bytes. Since we map many MySQL types (including `TEXT` and `CHAR`
-types) to Spanner's `STRING` type, HarbourBridge is effectively a UTF-8 based
+types) to Spanner's `STRING` type, Spanner migration tool is effectively a UTF-8 based
 tool.
 
 Note that the tool itself does not do any encoding/decoding or UTF-8 checks: it

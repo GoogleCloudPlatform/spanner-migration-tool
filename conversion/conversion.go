@@ -104,7 +104,7 @@ func DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetP
 		return dataFromDatabase(ctx, sourceProfile, targetProfile, config, conv, client)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
-			return nil, fmt.Errorf("harbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
+			return nil, fmt.Errorf("spanner migration tool does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
 		}
 		return dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly)
 	case constants.CSV:
@@ -249,7 +249,7 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 
 func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
 	switch sourceProfile.Driver {
-	// Skip snapshot migration via harbourbridge for mysql and oracle since dataflow job will job will handle this from backfilled data.
+	// Skip snapshot migration via Spanner migration tool for mysql and oracle since dataflow job will job will handle this from backfilled data.
 	case constants.MYSQL, constants.ORACLE, constants.POSTGRES:
 		return &writer.BatchWriter{}, nil
 	case constants.DYNAMODB:
@@ -666,7 +666,7 @@ func ValidateTables(ctx context.Context, client *sp.Client, spDialect string) (s
 	return "", nil
 }
 
-// ValidateDDL verifies if an existing DB's ddl follows what is supported by harbourbridge. Currently,
+// ValidateDDL verifies if an existing DB's ddl follows what is supported by Spanner migration tool. Currently,
 // we only support empty schema when db already exists.
 func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) error {
 	dbDdl, err := adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{Database: dbURI})
@@ -674,7 +674,7 @@ func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient,
 		return fmt.Errorf("can't fetch database ddl: %v", err)
 	}
 	if len(dbDdl.Statements) != 0 {
-		return fmt.Errorf("harbourBridge supports writing to existing databases only if they have an empty schema")
+		return fmt.Errorf("spanner migration tool supports writing to existing databases only if they have an empty schema")
 	}
 	return nil
 }
@@ -694,7 +694,7 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 	}
 	if dbExists {
 		if conv.SpDialect != constants.DIALECT_POSTGRESQL && migrationType == constants.DATAFLOW_MIGRATION {
-			return fmt.Errorf("Harbourbridge does not support minimal downtime schema/schema-and-data migrations to an existing database.")
+			return fmt.Errorf("spanner migration tool does not support minimal downtime schema/schema-and-data migrations to an existing database")
 		}
 		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out, driver)
 		if err != nil {
@@ -803,7 +803,7 @@ func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdm
 		fmt.Println(`
 Warning: Large number of foreign keys detected. Spanner can take a long amount of 
 time to create foreign keys (over 5 mins per batch of Foreign Keys even with no data). 
-Harbourbridge does not have control over a single foreign key creation time. The number 
+Spanner migration tool does not have control over a single foreign key creation time. The number 
 of concurrent Foreign Key Creation Requests sent to spanner can be increased by 
 tweaking the MaxWorkers variable (https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/conversion/conversion.go#L89).
 However, setting it to a very high value might lead to exceeding the admin quota limit. Spanner migration tool tries to stay under the
@@ -947,7 +947,7 @@ func WriteSessionFile(conv *internal.Conv, name string, out *os.File) {
 // where it writes the sessionfile, report summary and DDLs then returns the directory where it writes.
 func WriteConvGeneratedFiles(conv *internal.Conv, dbName string, driver string, BytesRead int64, out *os.File) (string, error) {
 	now := time.Now()
-	dirPath := "harbour_bridge_output/" + dbName + "/"
+	dirPath := "spanner_migration_tool_output/" + dbName + "/"
 	err := os.MkdirAll(dirPath, os.ModePerm)
 	if err != nil {
 		fmt.Fprintf(out, "Can't create directory %s: %v\n", dirPath, err)

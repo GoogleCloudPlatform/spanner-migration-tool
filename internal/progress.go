@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package internal implements database-agnostic functionality for
-// HarbourBridge.
+// Spanner migration tool.
 package internal
 
 import (

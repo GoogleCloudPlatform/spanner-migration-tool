@@ -56,7 +56,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 
 	input := PrimaryKeyRequest{
 		TableId: "t1",
-		Columns: []Column{{ColumnId: "c1", Desc: false, Order: 1}},
+		Columns: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -130,7 +130,7 @@ func TestAddPrimaryKey(t *testing.T) {
 
 	input := PrimaryKeyRequest{
 		TableId: "t1",
-		Columns: []Column{{ColumnId: "c1", Desc: true, Order: 1}, {ColumnId: "c2", Desc: false, Order: 2}},
+		Columns: []ddl.IndexKey{{ColId: "c1", Desc: true, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -212,7 +212,7 @@ func TestRemovePrimaryKey(t *testing.T) {
 
 	input := PrimaryKeyRequest{
 		TableId: "t1",
-		Columns: []Column{{ColumnId: "c1", Desc: true, Order: 1}},
+		Columns: []ddl.IndexKey{{ColId: "c1", Desc: true, Order: 1}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -298,7 +298,7 @@ func TestPrimarykey(t *testing.T) {
 			name: "Table Id Not found",
 			input: PrimaryKeyRequest{
 				TableId: "t2",
-				Columns: []Column{{ColumnId: "c1", Desc: true, Order: 1}, {ColumnId: "c2", Desc: true, Order: 2}},
+				Columns: []ddl.IndexKey{{ColId: "c1", Desc: true, Order: 1}, {ColId: "c2", Desc: true, Order: 2}},
 			},
 			statusCode: http.StatusNotFound,
 		},
@@ -306,7 +306,7 @@ func TestPrimarykey(t *testing.T) {
 			name: "Column are empty",
 			input: PrimaryKeyRequest{
 				TableId: "t1",
-				Columns: []Column{}},
+				Columns: []ddl.IndexKey{}},
 			statusCode: http.StatusBadRequest,
 		},
 	}

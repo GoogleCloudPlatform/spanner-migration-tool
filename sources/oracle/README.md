@@ -1,24 +1,24 @@
-# HarbourBridge: Oracle-to-Spanner Evaluation and Migration
+# Spanner migration tool: Oracle-to-Spanner Evaluation and Migration
 
-HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
+Spanner migration tool is a stand-alone open source tool for Cloud Spanner evaluation,
 using data from an existing Oracle database. This README provides
 details of the tool's Oracle capabilities. For general Spanner migration tool information
 see this [README](https://github.com/GoogleCloudPlatform/spanner-migration-tool#spanner-migration-tool-spanner-evaluation-and-migration).
 
-We currently do not support dump file mode for Oracle. The only way to use HarbourBridge with OracleDB is connecting directly.
+We currently do not support dump file mode for Oracle. The only way to use Spanner migration tool with OracleDB is connecting directly.
 
 Note that _'oracle'_ can be used as an identifier with the flag `-source` in the command line.
 
 ## Example Oracle DB Usage
 
-HarbourBridge can be run directly on a Oracle database (via go's database/sql package).
+Spanner migration tool can be run directly on a Oracle database (via go's database/sql package).
 
 The following examples assume a `harbourbridge` alias has been setup as described
 in the [Installing Spanner migration tool](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
 
 ### Directly connecting to an Oracle database
 
-In this case, HarbourBridge connects directly to the Oracle database to
+In this case, Spanner migration tool connects directly to the Oracle database to
 retrieve table schema and data. Set the `-source=oracle` and corresponding
 source profile connection parameters `host`, `port`, `user`, `dbName` and
 `password`.
