@@ -77,7 +77,7 @@
              {
                 "warningType":"Note",
                 "warningList":[
-                   "Some columns have default values which HarbourBridge does not migrate. Please add the default constraints manually after the migration is complete for table 'default_value' e.g. column 'b'"
+                   "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete for table 'default_value' e.g. column 'b'"
                 ]
              }
           ]

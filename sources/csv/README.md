@@ -1,12 +1,12 @@
-# HarbourBridge: CSV-to-Spanner Migration
+# Spanner migration tool: CSV-to-Spanner Migration
 
-HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation 
+Spanner migration tool (formerly known as HarbourBridge) is a stand-alone open source tool for Cloud Spanner evaluation 
 and migration. We now support loading data from CSVs. This assumes a Spanner
-database with schema already exists and HarbourBridge loads the data for you.
+database with schema already exists and Spanner migration tool loads the data for you.
 It first reads the schema in the database specified by your target profile
 to understand how to convert the data to relevant types. If using PG Spanner,
 you should specify the dialect in the target-profile explicitly.
-**For CSVs, you need to run harbourbridge in data mode only**
+**For CSVs, you need to run Spanner migration tool in data mode only**
 
 ## Example CSV Usage
 
@@ -16,7 +16,7 @@ You can load CSVs to Spanner in 2 ways.
  Before running, make sure each table's csv is present in the current working 
 directory named `[table_name].csv` where table_name is the same as the Spanner
 table name. 
-Harbourbridge will migrate `table_name.csv` to a Spanner table named
+Spanner migration tool will migrate `table_name.csv` to a Spanner table named
 `table_name` in the database specified via the target profile.
 
 ```sh
@@ -65,9 +65,9 @@ per table.
 double quotes.
 
 ### CSV File Format
-- Harbourbridge checks the first row and matches it with the spanner columns
+- Spanner migration tool checks the first row and matches it with the spanner columns
 to check if the first row is a permutation of the Spanner table's column names.
-If a match is not found, then Harbourbridge assumes the order of data in csv
+If a match is not found, then Spanner migration tool assumes the order of data in csv
 is same as the corresponding Spanner table's column.
 - You can optionally provide a custom ordering by providing the column names in
 the first row.

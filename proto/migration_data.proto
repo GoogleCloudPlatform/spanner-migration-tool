@@ -5,7 +5,7 @@ option go_package = "/migration";
 message MigrationData {
 
   // A system generated id with prefix ‘HB’ to identify that the request was
-  // made via HarbourBridge.
+  // made via Spanner migration tool.
   optional string migration_request_id = 1;
   
   enum Source {

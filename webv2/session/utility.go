@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package web defines web APIs to be used with harbourbridge frontend.
+// Package web defines web APIs to be used with Spanner migration tool frontend.
 // Apart from schema conversion, this package involves API to update
 // converted schema.
 package session

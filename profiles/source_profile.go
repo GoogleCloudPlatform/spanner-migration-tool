@@ -222,8 +222,8 @@ func NewSourceProfileConnectionSqlServer(params map[string]string) (SourceProfil
 		ss.Port = os.Getenv("MSSQL_TCP_PORT")
 		ss.Pwd = os.Getenv("MSSQL_SA_PASSWORD")
 
-		ss.Db = os.Getenv("MSSQL_DATABASE")  //Non standard env variable. Defined for HarbourBridge.
-		ss.User = os.Getenv("MSSQL_SA_USER") //Non standard env variable. Defined for HarbourBridge.
+		ss.Db = os.Getenv("MSSQL_DATABASE")  //Non standard env variable. Defined for Spanner migration tool.
+		ss.User = os.Getenv("MSSQL_SA_USER") //Non standard env variable. Defined for Spanner migration tool.
 		if ss.User == "" {
 			fmt.Printf("MSSQL_SA_USER environment variable is not set. Default admin user 'SA' will be used for further processing.\n")
 			ss.User = "SA"
