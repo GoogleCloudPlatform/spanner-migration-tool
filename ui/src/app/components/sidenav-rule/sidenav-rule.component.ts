@@ -3,6 +3,7 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { FormControl, FormGroup, Validators } from '@angular/forms'
 import { DataService } from 'src/app/services/data/data.service'
 import IRule from 'src/app/model/rule'
+import IConv from 'src/app/model/conv'
 
 @Component({
   selector: 'app-sidenav-rule',
@@ -22,8 +23,19 @@ export class SidenavRuleComponent implements OnInit {
   ruletype: string = ''
   viewRuleData: any = []
   viewRuleFlag: boolean = false
+  shardedMigration: boolean = false
 
   ngOnInit(): void {
+    this.data.conv.subscribe({
+      next: (res: IConv) => {
+        const keys = Object.keys(res.SpSchema) as Array<string>
+        if (res.IsSharded) {
+          this.shardedMigration = true
+        } else {
+          this.shardedMigration = false
+        }
+      },
+    })
     this.ruleForm.valueChanges.subscribe(() => {
       this.rulename = this.ruleForm.controls['ruleName']?.value
       this.ruletype = this.ruleForm.controls['ruleType']?.value
@@ -74,6 +86,7 @@ export class SidenavRuleComponent implements OnInit {
       case 'add_index': return 'addIndex'
       case 'global_datatype_change': return'globalDataType'
       case 'edit_column_max_length': return 'changeMaxLength'
+      case 'add_shard_id_primary_key': return 'addShardIdPrimaryKey'
     }
     return ''
   }

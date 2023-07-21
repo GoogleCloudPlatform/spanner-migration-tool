@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package web defines web APIs to be used with harbourbridge frontend.
+// Package web defines web APIs to be used with Spanner migration tool frontend.
 // Apart from schema conversion, this package involves API to update
 // converted schema.
 package webv2
@@ -202,6 +202,10 @@ type TableIdAndName struct {
 	Name string `json:"Name"`
 }
 
+type ShardIdPrimaryKey struct {
+	AddedAtTheStart bool `json:"AddedAtTheStart"`
+}
+
 // databaseConnection creates connection with database
 func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -274,6 +278,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 
 	conv.SpDialect = sessionState.Dialect
+	conv.IsSharded = sessionState.IsSharded
 	var err error
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: sessionState.IsSharded,
@@ -299,6 +304,25 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv = conv
 
+	if sessionState.IsSharded {
+		setShardIdColumnAsPrimaryKey(true)
+		ruleId := internal.GenerateRuleId()
+		rule := internal.Rule{
+			Id:                ruleId,
+			Name:              ruleId,
+			Type:              constants.AddShardIdPrimaryKey,
+			AssociatedObjects: "All Tables",
+			Data: ShardIdPrimaryKey{
+				AddedAtTheStart: true,
+			},
+			Enabled: true,
+		}
+
+		sessionState := session.GetSessionState()
+		sessionState.Conv.Rules = append(sessionState.Conv.Rules, rule)
+		session.UpdateSessionFile()
+	}
+
 	primarykey.DetectHotspot()
 	index.IndexSuggestion()
 
@@ -311,9 +335,8 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionMetadata,
-		Conv:            *conv,
+		Conv:            *sessionState.Conv,
 	}
-	sessionState.Conv = conv
 	sessionState.SessionMetadata = sessionMetadata
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -600,7 +623,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-// loadSession load seesion file to Harbourbridge.
+// loadSession load seesion file to Spanner migration tool.
 func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
@@ -911,6 +934,19 @@ func applyRule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		setSpColMaxLength(colMaxLength, rule.AssociatedObjects)
+	} else if rule.Type == constants.AddShardIdPrimaryKey {
+		d, err := json.Marshal(rule.Data)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		var shardIdPrimaryKey ShardIdPrimaryKey
+		err = json.Unmarshal(d, &shardIdPrimaryKey)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		setShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
 	} else {
 		http.Error(w, "Invalid rule type", http.StatusInternalServerError)
 		return
@@ -1000,6 +1036,19 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		revertSpColMaxLength(colMaxLength, rule.AssociatedObjects)
+	} else if rule.Type == constants.AddShardIdPrimaryKey {
+		d, err := json.Marshal(rule.Data)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		var shardIdPrimaryKey ShardIdPrimaryKey
+		err = json.Unmarshal(d, &shardIdPrimaryKey)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		revertShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
 	} else {
 		http.Error(w, "Invalid rule type", http.StatusInternalServerError)
 		return
@@ -1017,6 +1066,51 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 
+}
+
+func setShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
+	sessionState := session.GetSessionState()
+	for _, table := range sessionState.Conv.SpSchema {
+		pkRequest := primarykey.PrimaryKeyRequest{
+			TableId: table.Id,
+			Columns: []ddl.IndexKey{},
+		}
+		increment := 0
+		if isAddedAtFirst {
+			increment = 1
+			pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: table.ShardIdColumn, Order: 1})
+		}
+		for index := range table.PrimaryKeys {
+			pk := table.PrimaryKeys[index]
+			pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order + increment, Desc: pk.Desc})
+		}
+		if !isAddedAtFirst {
+			size := len(table.PrimaryKeys)
+			pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: table.ShardIdColumn, Order: size + 1})
+		}
+		primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+	}
+}
+
+func revertShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
+	sessionState := session.GetSessionState()
+	for _, table := range sessionState.Conv.SpSchema {
+		pkRequest := primarykey.PrimaryKeyRequest{
+			TableId: table.Id,
+			Columns: []ddl.IndexKey{},
+		}
+		for index := range table.PrimaryKeys {
+			pk := table.PrimaryKeys[index]
+			if pk.ColId != table.ShardIdColumn {
+				decrement := 0
+				if isAddedAtFirst {
+					decrement = 1
+				}
+				pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order - decrement, Desc: pk.Desc})
+			}
+		}
+		primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+	}
 }
 
 // setGlobalDataType allows to change Spanner type globally.
@@ -1206,7 +1300,7 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(reportAbsPath))
 }
 
-// generates a downloadable structured report and send it as a JSON response  
+// generates a downloadable structured report and send it as a JSON response
 func getDStructuredReport(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
@@ -1550,6 +1644,7 @@ func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithM
 	}
 	conv.AddPrimaryKeys()
 	if sessionState.IsSharded {
+		conv.IsSharded = true
 		conv.AddShardIdColumn()
 	}
 	sessionState.Conv = conv
@@ -2648,7 +2743,7 @@ func removeInterleaveSuggestions(colIds []string, tableId string) {
 type SessionState struct {
 	sourceDB    *sql.DB        // Connection to source database in case of direct connection
 	dbName      string         // Name of source database
-	driver      string         // Name of HarbourBridge driver in use
+	driver      string         // Name of Spanner migration tool driver in use
 	conv        *internal.Conv // Current conversion state
 	sessionFile string         // Path to session file
 }
@@ -2777,7 +2872,7 @@ func App(logLevel string, open bool, port int) error {
 	}
 	addr := fmt.Sprintf(":%s", strconv.Itoa(port))
 	router := getRoutes()
-	fmt.Println("Starting Harbourbridge UI at:", fmt.Sprintf("http://localhost%s", addr))
+	fmt.Println("Starting Spanner migration tool UI at:", fmt.Sprintf("http://localhost%s", addr))
 	if open {
 		browser.OpenURL(fmt.Sprintf("http://localhost%s", addr))
 	}

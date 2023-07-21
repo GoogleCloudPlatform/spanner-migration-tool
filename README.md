@@ -1,20 +1,20 @@
-# HarbourBridge: Spanner Evaluation and Migration
+# Spanner migration tool: Spanner Evaluation and Migration
 
 [![integration-tests-against-emulator](https://github.com/cloudspannerecosystem/harbourbridge/actions/workflows/integration-tests-against-emulator.yaml/badge.svg)](https://github.com/cloudspannerecosystem/harbourbridge/actions/workflows/integration-tests-against-emulator.yaml) [![code-coverage-check](https://github.com/cloudspannerecosystem/harbourbridge/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/cloudspannerecosystem/harbourbridge/actions/workflows/test-coverage.yaml) 
 
-HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and
+Spanner migration tool is a stand-alone open source tool for Cloud Spanner evaluation and
 migration, using data from an existing PostgreSQL, MySQL, SQL Server, Oracle or DynamoDB database.
 The tool ingests schema and data from either a pg_dump/mysqldump file or directly
 from the source database, and supports both schema and data migration. For schema
-migration, HarbourBridge automatically builds a Spanner schema from the schema
-of the source database. This schema can be customized using the HarbourBridge schema assistant and
+migration, Spanner migration tool automatically builds a Spanner schema from the schema
+of the source database. This schema can be customized using the Spanner migration tool schema assistant and
 a new Spanner database is created using the Spanner schema built.
 
 For more details on schema customization and use of the schema assistant, see
 [web/README](webv2/README.md). The rest of this README describes the command-line
-capabilities of HarbourBridge.
+capabilities of Spanner migration tool.
 
-HarbourBridge is designed to simplify Spanner evaluation and migration.
+Spanner migration tool is designed to simplify Spanner evaluation and migration.
 Certain features of relational databases, especially those that don't
 map directly to Spanner features, are ignored, e.g. stored functions and
 procedures, and sequences. Types such as integers, floats, char/text, bools,
@@ -23,51 +23,51 @@ other types do not and instead are mapped to Spanner's `STRING(MAX)`.
 In the case of DynamoDB, the schema is inferred based on a certain
 amount of sampled data.
 
-View HarbourBridge as a way to get up and running fast, so you can focus on
+View Spanner migration tool as a way to get up and running fast, so you can focus on
 critical things like tuning performance and getting the most out of
-Spanner. Expect that you'll need to tweak and enhance what HarbourBridge
+Spanner. Expect that you'll need to tweak and enhance what Spanner migration tool
 produces.
 
 ## Data Migration
 
-HarbourBridge supports two types of data migrations:
+Spanner migration tool supports two types of data migrations:
 
-* Minimal Downtime migration - A minimal downtime migration consists of two components, migration of existing data from the database and the stream of changes (writes and updates) that are made to the source database during migration, referred to as change database capture (CDC). Using HarbourBridge, the entire process where Datastream reads data from the source database and writes to a GCS bucket and data flow reads data from GCS bucket and writes to spanner database can be orchestrated using a unified interface. Performing schema changes on the source database during the migration is not supported. This is the suggested mode of migration for most databases.
+* Minimal Downtime migration - A minimal downtime migration consists of two components, migration of existing data from the database and the stream of changes (writes and updates) that are made to the source database during migration, referred to as change database capture (CDC). Using Spanner migration tool, the entire process where Datastream reads data from the source database and writes to a GCS bucket and data flow reads data from GCS bucket and writes to spanner database can be orchestrated using a unified interface. Performing schema changes on the source database during the migration is not supported. This is the suggested mode of migration for most databases.
 
   Please note that in order to perform minimal downtime migration for **PostgreSQL** database a user needs to create a publication and replication slot as mentioned [here](https://cloud.google.com/datastream/docs/configure-your-source-postgresql-database#selfhostedpostgresql)
 
-* Bulk Migration -  HarbourBridge reads data from source database and writes it to the database created in Cloud Spanner. Changes which happen to the source database during the bulk migration may or may not be written to Spanner. To achieve consistent version of data, stop writes on the source while migration is in progress, or use a read replica. Performing schema changes on the source database during the migration is not supported. While there is no technical limit on the size of the database, it is recommended for migrating moderate-size datasets to Spanner(up to about 100GB).
+* Bulk Migration -  Spanner migration tool reads data from source database and writes it to the database created in Cloud Spanner. Changes which happen to the source database during the bulk migration may or may not be written to Spanner. To achieve consistent version of data, stop writes on the source while migration is in progress, or use a read replica. Performing schema changes on the source database during the migration is not supported. While there is no technical limit on the size of the database, it is recommended for migrating moderate-size datasets to Spanner(up to about 100GB).
 
-For some quick starter examples on how to run HarbourBridge, take a look at
+For some quick starter examples on how to run Spanner migration tool, take a look at
 [Quickstart Guide](#quickstart-guide).
 
-HarbourBridge automatically determines the cloud project to use, and generates
+Spanner migration tool automatically determines the cloud project to use, and generates
 a new Spanner database name.
 Command-line flags can be used to explicitly set the Spanner instance or
 database name. See [Command line flags](#command-line-flags).
 
 **WARNING: Please check that permissions for the Spanner instance used by
-HarbourBridge are appropriate. Spanner manages access control at the database
-level, and the database created by HarbourBridge will inherit default
-permissions from the instance. All data written by HarbourBridge is visible to
+Spanner migration tool are appropriate. Spanner manages access control at the database
+level, and the database created by Spanner migration tool will inherit default
+permissions from the instance. All data written by Spanner migration tool is visible to
 anyone who can access the created database.**
 
-As it processes the data, HarbourBridge reports on progress, provides
+As it processes the data, Spanner migration tool reports on progress, provides
 stats on the schema and data conversion steps, and an overall assessment of the
 quality of the conversion. It also generates a schema file, report files and
 a session file (and a bad-data file if data was dropped). See
-[Files Generated by HarbourBridge](#files-generated-by-harbourbridge). Details
+[Files Generated by Spanner migration tool](#files-generated-by-spanner-migration-tool). Details
 of how source database's schema is mapped to Spanner can be found in the
 [Schema Conversion](#schema-conversion) section.
 
 This tool is part of the Cloud Spanner Ecosystem, a community contributed and
 supported open source repository. Please [report
 issues](https://github.com/cloudspannerecosystem/harbourbridge/issues) and send
-pull requests. See the [HarbourBridge
+pull requests. See the [Spanner migration tool
 Whitepaper](https://github.com/cloudspannerecosystem/harbourbridge/blob/master/whitepaper.md)
 for a discussion of our plans for the tool.
 
-Note that the HarbourBridge tool is not an officially supported Google product
+Note that the Spanner migration tool tool is not an officially supported Google product
 and is not officially supported as part of the Cloud Spanner product.
 
 ## Quickstart Guide
@@ -95,10 +95,10 @@ export GCLOUD_PROJECT=my-project-id
 ```
 
 If you do not already have a Cloud Spanner instance, or you want to use a
-separate instance specifically for running HarbourBridge, then create a Cloud
+separate instance specifically for running Spanner migration tool, then create a Cloud
 Spanner instance by following the "Create an instance" instructions on the
 [Quickstart using the console](https://cloud.google.com/spanner/docs/quickstart-console)
-guide. HarbourBridge will create a database for you, but it will not create a
+guide. Spanner migration tool will create a database for you, but it will not create a
 Spanner instance.
 
 Install Go ([download](https://golang.org/doc/install)) on your development
@@ -106,15 +106,15 @@ machine if it is not already installed, configure the GOPATH environment
 variable if it is not already configured, and
 [test your installation](https://golang.org/doc/install#testing).
 
-### Installing HarbourBridge
+### Installing Spanner migration tool
 
-#### HarbourBridge on gCloud (Linux Only)
+#### Spanner migration tool on gCloud (Linux Only)
 
 <pre>
-<b>Note: HarbourBridge on gCloud is currently only supported on the Linux platform. MacOS is currently not supported.</b>
+<b>Note: Spanner migration tool on gCloud is currently only supported on the Linux platform. MacOS is currently not supported.</b>
 </pre>
 
-You can directly run HarbourBridge from the gCloud CLI instead of building it from source. In order to start using HarbourBridge via Gcloud, the user can [install the harbourbridge component](https://cloud.google.com/sdk/docs/components#installing_components) of gcloud by executing the below command:
+You can directly run Spanner migration tool from the gCloud CLI instead of building it from source. In order to start using Spanner migration tool via Gcloud, the user can [install the harbourbridge component](https://cloud.google.com/sdk/docs/components#installing_components) of gcloud by executing the below command:
 
 ```sh
 gcloud components install harbourbridge
@@ -126,7 +126,7 @@ Note: If you installed the gcloud CLI through the apt or yum package managers, y
 sudo apt-get install google-cloud-sdk-harbourbridge
 ```
 
-Once installed, the HarbourBridge commands will be available under the `gcloud alpha spanner migration` surface. For example, to start the HarbourBridge UI, run the following command:
+Once installed, the Spanner migration tool commands will be available under the `gcloud alpha spanner migration` surface. For example, to start the Spanner migration tool UI, run the following command:
 
 ```sh
 gcloud alpha spanner migration web
@@ -138,9 +138,9 @@ The complete CLI reference for the `spanner migration` gCloud surface can be fou
 Note: Detailed instructions on how to install a new component in gCloud can be found [here](https://cloud.google.com/sdk/docs/install#installation_instructions). 
 
 
-#### HarbourBridge from Source
+#### Spanner migration tool from Source
 
-You can make a copy of the HarbourBridge codebase from the github repository
+You can make a copy of the Spanner migration tool codebase from the github repository
 and use "go run".
 
 ```sh
@@ -155,9 +155,9 @@ Examples below assume that `harbourbridge` alias is set as following
 alias harbourbridge="go run github.com/cloudspannerecosystem/harbourbridge"
 ```
 
-This workflow also allows you to modify or customize the HarbourBridge codebase.
+This workflow also allows you to modify or customize the Spanner migration tool codebase.
 
-### Running HarbourBridge
+### Running Spanner migration tool
 
 To use the tool on a PostgreSQL database called mydb, run
 
@@ -179,8 +179,8 @@ To use the tool on a DynamoDB database, run
 harbourbridge schema-and-data -source=dynamodb
 ```
 
-Note: HarbourBridge accepts pg_dump/mysqldump's standard plain-text format,
-but not archive or custom formats. More details on HarbourBridge example usage
+Note: Spanner migration tool accepts pg_dump/mysqldump's standard plain-text format,
+but not archive or custom formats. More details on Spanner migration tool example usage
 can be found here:
 
 - [PostgreSQL example usage](sources/postgres/README.md#example-postgresql-usage)
@@ -206,7 +206,7 @@ suffix for uniqueness.
 See the [Troubleshooting Guide](#troubleshooting-guide) for help on debugging
 issues.
 
-HarbourBridge also [generates several files](#files-generated-by-harbourbridge)
+Spanner migration tool also [generates several files](#files-generated-by-spanner-migration-tool)
 when it runs: a schema file, report files (with detailed analysis of the
 conversion), a session file and a bad data file (if any data was dropped).
 
@@ -235,7 +235,7 @@ and one for user carts). The files [singers.pg_dump](examples/singers.pg_dump)
 and [singers.mysqldump](examples/singers.mysqldump) contain pg_dump and
 mysqldump output for a version of the [Cloud Spanner
 singers](https://cloud.google.com/spanner/docs/schema-and-data-model#creating_a_table)
-example. To use HarbourBridge on cart.pg_dump, download the file locally and run
+example. To use Spanner migration tool on cart.pg_dump, download the file locally and run
 
 ```sh
 harbourbridge schema -source=postgresql < cart.pg_dump
@@ -246,8 +246,8 @@ harbourbridge schema -source=postgresql < cart.pg_dump
 Once the tool has completed, you can verify the new database and its content
 using the Google Cloud Console. Go to the [Cloud Spanner Instances
 page](https://console.cloud.google.com/spanner/instances), select your Spanner
-instance, and then find the database created by HarbourBridge and select
-it. This will list the tables created by HarbourBridge. Select a table, and take
+instance, and then find the database created by Spanner migration tool and select
+it. This will list the tables created by Spanner migration tool. Select a table, and take
 a look at its schema and data. Next, go to the query page, and try
 some SQL statements. For example
 
@@ -259,7 +259,7 @@ to check the number of rows in table `mytable`.
 
 ### Next Steps
 
-The tables created by HarbourBridge provide a starting point for evaluation of
+The tables created by Spanner migration tool provide a starting point for evaluation of
 Spanner. While they preserve much of the core structure of your PostgreSQL/MySQL
 schema and data, many key features have been dropped, including functions,
 sequences, procedures,triggers, and views. For DynamoDB, the conversion from
@@ -273,27 +273,27 @@ To improve performance, also consider using [Interleaved
 Tables](https://cloud.google.com/spanner/docs/schema-and-data-model#creating-interleaved-tables)
 to tune performance.
 
-View HarbourBridge as a base set of functionality for Spanner evalution that can
+View Spanner migration tool as a base set of functionality for Spanner evalution that can
 be readily expanded. Consider forking and modifying the codebase to add the
 functionality you need. Please [file
 issues](https://github.com/cloudspannerecosystem/harbourbridge/issues) and send
 PRs for fixes and new functionality. See our backlog of [open
 issues](https://github.com/cloudspannerecosystem/harbourbridge/issues). Our
-plans and aspirations for developing HarbourBridge further are outlined in the
-[HarbourBridge
+plans and aspirations for developing Spanner migration tool further are outlined in the
+[Spanner migration tool
 Whitepaper](https://github.com/cloudspannerecosystem/harbourbridge/blob/master/whitepaper.md).
 
-You can also change the way HarbourBridge behaves by directly editing the
+You can also change the way Spanner migration tool behaves by directly editing the
 pg_dump/mysqldump output. For example, suppose you want to try out different
 primary keys for a table. First run pg_dump/mysqldump and save the output to
 a file. Then modify (or add) the relevant
 `ALTER TABLE ... ADD CONSTRAINT ... PRIMARY KEY ...` statement in the
 pg_dump/mysqldump output file so that the primary keys match what you need.
-Then run HarbourBridge on the modified pg_dump/mysqldump output.
+Then run Spanner migration tool on the modified pg_dump/mysqldump output.
 
-## Files Generated by HarbourBridge
+## Files Generated by Spanner migration tool
 
-HarbourBridge generates several files as it runs:
+Spanner migration tool generates several files as it runs:
 
 - Schema file (ending in `schema.txt`): contains the generated Spanner
   schema, interspersed with comments that cross-reference to the relevant
@@ -304,7 +304,7 @@ HarbourBridge generates several files as it runs:
 
 - Structured Report file (ending in `structured_report.json`): contains a JSON based
 structured analysis of the source to Spanner migration. The structured report can be
-used to in-depth analysis of Harbourbridge findings via BI tools. For a detailed
+used to in-depth analysis of Spanner migration tool findings via BI tools. For a detailed
 description of each element of a report, refer to [Elements of a Report](/internal/reports/REPORT.md).
 
 - Text Report file (ending in `report.txt`): contains a detailed analysis of the
@@ -322,9 +322,9 @@ By default, these files are prefixed by the name of the Spanner database (with a
 dot separator). The file prefix can be overridden using the `-prefix`
 [option](#options).
 
-## HarbourBridge UI
+## Spanner migration tool UI
 
-HarbourBridge UI provides a unified interface for the migration wherein it gives users
+Spanner migration tool UI provides a unified interface for the migration wherein it gives users
 the flexibility to modify the generated spanner schema and run end to end migration from 
 a single interface. It provides the capabilities of editing table details like columns,
 primary key, foreign key, indexes, etc and provides insights on the schema conversion 
@@ -332,9 +332,9 @@ along with highlighting important issues and suggestions.
 
 Detailed guide on how to use Spanner migration tool UI can be found [here](SpannerMigrationToolUIUserGuide.pdf).
 
-## HarbourBridge CLI (command line interface)
+## Spanner migration tool CLI (command line interface)
 
-HarbourBridge CLI follows [subcommands](https://github.com/google/subcommands)
+Spanner migration tool CLI follows [subcommands](https://github.com/google/subcommands)
 structure with the the following general syntax:
 
 ```sh
@@ -362,9 +362,9 @@ This will print the usage pattern, a few examples, and a list of all available s
 
 #### harbourbridge `schema`
 
-This subcommand can be used to perform schema conversion and report on the quality of the conversion. The generated schema mapping file (session.json) can be then further edited using the HarbourBridge web UI to make custom edits to the destination schema. This session file
+This subcommand can be used to perform schema conversion and report on the quality of the conversion. The generated schema mapping file (session.json) can be then further edited using the Spanner migration tool web UI to make custom edits to the destination schema. This session file
 is then passed to the data subcommand to perform data migration while honoring the defined
-schema mapping. HarbourBridge also generates Spanner schema which users can modify manually and use directly as well.
+schema mapping. Spanner migration tool also generates Spanner schema which users can modify manually and use directly as well.
 
 #### harbourbridge `data`
 
@@ -377,7 +377,7 @@ This subcommand will generate a schema as well as perform data migration and rep
 
 #### harbourbridge `web`
 
-This subcommand will run the Harbourbridge UI locally. The UI can be used to perform assisted schema and data migration.
+This subcommand will run the Spanner migration tool UI locally. The UI can be used to perform assisted schema and data migration.
 
 ### Command line flags
 
@@ -394,7 +394,7 @@ are _'postgres'_, _'mysql'_, _'dynamodb'_ and _'csv'_(only in data mode).
 written by the tool. If no file prefix is specified, the name of the Spanner
 database (plus a '.') is used.
 
-`-v` or `-verbose` Specifies verbose mode. This will cause HarbourBridge to
+`-v` or `-verbose` Specifies verbose mode. This will cause Spanner migration tool to
 output detailed messages about the conversion.
 
 `-skip-foreign-keys` Controls whether we add foreign key constraints after
@@ -414,7 +414,7 @@ conversion state endcoded as JSON.
 
 ### Source Profile
 
-HarbourBridge accepts the following params for --source-profile,
+Spanner migration tool accepts the following params for --source-profile,
 specified as "key1=value1,key2=value,..." pairs:
 
 `file` Specifies the full path of the file to use for reading source database
@@ -430,23 +430,23 @@ defaults to `dump`. This may be extended in future to support other formats
 such as `csv`, `avro` etc.
 
 `host` Specifies the host name for the source database.
-If not specified in case of direct connection to the source database, HarbourBridge
+If not specified in case of direct connection to the source database, Spanner migration tool
 fetches it from the environment variables([Example usage](#21-generating-pgdump-file)).
 
 `user` Specifies the user for the source database.
-If not specified in case of direct connection to the source database, HarbourBridge
+If not specified in case of direct connection to the source database, Spanner migration tool
 fetches it from the environment variables([Example usage](#21-generating-pgdump-file)).
 
 `dbName` Specifies the name of the source database.
-If not specified in case of direct connection to the source database, HarbourBridge
+If not specified in case of direct connection to the source database, Spanner migration tool
 fetches it from the environment variables([Example usage](#21-generating-pgdump-file)).
 
 `port` Specifies the port for the source database.
-If not specified in case of direct connection to the source database, HarbourBridge
+If not specified in case of direct connection to the source database, Spanner migration tool
 fetches it from the environment variables([Example usage](#21-generating-pgdump-file)).
 
 `password` Specifies the password for the source database.
-If not specified in case of direct connection to the source database, HarbourBridge
+If not specified in case of direct connection to the source database, Spanner migration tool
 fetches it from the environment variables([Example usage](#21-generating-pgdump-file)).
 
 `streamingCfg` Optional flag. Specifies the file path for streaming config.
@@ -454,11 +454,11 @@ Please note that streaming migration is only supported for MySQL, Oracle and Pos
 
 ### Target Profile
 
-HarbourBridge accepts the following options for --target-profile,
+Spanner migration tool accepts the following options for --target-profile,
 specified as "key1=value1,key2=value,..." pairs:
 
 `dbName` Specifies the name of the Spanner database to create. This must be a
-new database. If dbName is not specified, HarbourBridge creates a new unique
+new database. If dbName is not specified, Spanner migration tool creates a new unique
 dbName.
 
 `instance` Specifies the Spanner instance to use. The new database will be
@@ -472,7 +472,7 @@ for PostgreSQL dialect in Cloud Spanner [here](https://cloud.google.com/spanner/
 
 ## Schema Conversion
 
-Details on HarbourBridge schema conversion can be found here:
+Details on Spanner migration tool schema conversion can be found here:
 
 - [PostgreSQL schema conversion](sources/postgres/README.md#schema-conversion)
 - [MySQL schema conversion](sources/mysql/README.md#schema-conversion)
@@ -484,9 +484,9 @@ Details on HarbourBridge schema conversion can be found here:
 
 ### Data Conversion
 
-HarbourBridge converts data from the source to Spanner data based on
+Spanner migration tool converts data from the source to Spanner data based on
 the Spanner schema it constructs. Conversion for most data types is fairly
-straightforward, but several types deserve discussion. Details on HarbourBridge
+straightforward, but several types deserve discussion. Details on Spanner migration tool
 data conversion can be found here:
 
 - [PostgreSQL data conversion](sources/postgres/README.md#data-conversion)
@@ -502,7 +502,7 @@ data conversion can be found here:
 ## Troubleshooting Guide
 
 The following steps can help diagnose common issues encountered while running
-HarbourBridge.
+Spanner migration tool.
 
 ### 1. Verify source profile configuration
 
@@ -570,21 +570,21 @@ and look at the output file. It should be a plain-text file containing SQL
 commands. If your database is large, consider just dumping the schema via the
 `--schema-only` for pg_dump and `--no-data` for mysqldump command-line option.
 
-pg_dump/mysqldump can export data in a variety of formats, but HarbourBridge
+pg_dump/mysqldump can export data in a variety of formats, but Spanner migration tool
 only accepts `plain` format (aka plain-text). See the
 [pg_dump documentation](https://www.postgresql.org/docs/9.3/app-pgdump.html) and
 [mysqldump documentation](https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html)
 for details about formats.
 
-### 3. Debugging HarbourBridge
+### 3. Debugging Spanner migration tool
 
-The HarbourBridge tool can fail for a number of reasons.
+The Spanner migration tool tool can fail for a number of reasons.
 
 #### 3.1 No space left on device
 
-HarbourBridge needs to read the pg_dump/mysqldump output twice, once to build
+Spanner migration tool needs to read the pg_dump/mysqldump output twice, once to build
 a schema and once for data ingestion. When pg_dump/mysqldump output is directly
-piped to HarbourBridge, `stdin` is not seekable, and so we write the output to
+piped to Spanner migration tool, `stdin` is not seekable, and so we write the output to
 a temporary file. That temporary file is created via Go's ioutil.TempFile.
 On many systems, this creates a file in `/tmp`, which is sometimes configured
 with minimal space. A simple workaround is to separately run pg_dump/mysqldump
@@ -596,13 +596,13 @@ if the current working directory has space, then:
 harbourbridge < tmpfile
 ```
 
-Make sure you cleanup the tmpfile after HarbourBridge has been run. Another
+Make sure you cleanup the tmpfile after Spanner migration tool has been run. Another
 option is to set the location of Go's TempFile e.g. by setting the `TMPDIR`
 environment variable.
 
 #### 3.2 Unparsable dump output
 
-HarbourBridge uses the [pg_query_go](https://github.com/pganalyze/pg_query_go)
+Spanner migration tool uses the [pg_query_go](https://github.com/pganalyze/pg_query_go)
 library for parsing pg_dump and [pingcap parser](https://github.com/pingcap/parser)
 for parsing mysqldump. It is possible that the pg_dump/mysqldump output is
 corrupted or uses features that aren't parseable. Parsing errors should
@@ -610,7 +610,7 @@ generate an error message of the form `Error parsing last 54321 line(s) of input
 
 #### 3.2 Credentials problems
 
-HarbourBridge uses standard Google Cloud credential mechanisms for accessing
+Spanner migration tool uses standard Google Cloud credential mechanisms for accessing
 Cloud Spanner. If this is mis-configured, you may see errors containing
 "unauthenticated", or "cannot fetch token", or "could not find default
 credentials". You might need to run `gcloud auth application-default login`.
@@ -623,14 +623,14 @@ cause. It could be an API permissions issue. For example, the Cloud Spanner API
 may not be appropriately configured. See [Before you begin](#before-you-begin)
 section for details. Alternatively, you have have hit the limit on the number of
 databases per instances (currently 100). This can occur if you re-run the
-HarbourBridge tool many times, since each run creates a new database. In this
+Spanner migration tool tool many times, since each run creates a new database. In this
 case you'll need to [delete some
 databases](https://cloud.google.com/spanner/docs/getting-started/go/#delete_the_database).
 
 ### 4. Database-Specific Issues
 
 The schema, report, and bad-data files [generated by
-HarbourBridge](#files-generated-by-harbourbridge) contain detailed information
+Spanner migration tool](#files-generated-by-spanner-migration-tool) contain detailed information
 about the schema and data conversion process, including issues and problems
 encountered.
 
@@ -670,4 +670,4 @@ the data. This is not verified during updation of the keys
 
 ### Access Control
 
-- HarbourBridge does not support database roles and privileges. If users wish to use Spanner [fine-grained access control](https://cloud.google.com/spanner/docs/configure-fgac) as an IAM principal, then they can manually create database roles, grant the appropriate memberships and privileges to these roles, and grant access to database roles to the IAM principal. Alternatively, users can grant [database-level access](https://cloud.google.com/spanner/docs/grant-permissions#database-level_permissions) to an IAM principal.
+- Spanner migration tool does not support database roles and privileges. If users wish to use Spanner [fine-grained access control](https://cloud.google.com/spanner/docs/configure-fgac) as an IAM principal, then they can manually create database roles, grant the appropriate memberships and privileges to these roles, and grant access to database roles to the IAM principal. Alternatively, users can grant [database-level access](https://cloud.google.com/spanner/docs/grant-permissions#database-level_permissions) to an IAM principal.

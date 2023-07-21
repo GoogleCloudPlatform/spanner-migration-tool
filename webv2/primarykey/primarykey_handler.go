@@ -22,6 +22,7 @@ import (
 	"net/http"
 
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/index"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/table"
@@ -31,23 +32,16 @@ import (
 
 // PrimaryKeyRequest represents  Primary keys API Payload.
 type PrimaryKeyRequest struct {
-	TableId string   `json:"TableId"`
-	Columns []Column `json:"Columns"`
+	TableId string         `json:"TableId"`
+	Columns []ddl.IndexKey `json:"Columns"`
 }
 
 // PrimaryKeyResponse represents  Primary keys API response.
 // Synth is true is for table Primary Key Id is not present and it is generated.
 type PrimaryKeyResponse struct {
-	TableId string   `json:"TableId"`
-	Columns []Column `json:"Columns"`
-	Synth   bool     `json:"Synth"`
-}
-
-// Column represents  SpannerTables Column.
-type Column struct {
-	ColumnId string `json:"ColumnId"`
-	Desc     bool   `json:"Desc"`
-	Order    int    `json:"Order"`
+	TableId string         `json:"TableId"`
+	Columns []ddl.IndexKey `json:"Columns"`
+	Synth   bool           `json:"Synth"`
 }
 
 // primaryKey updates Primary keys in Spanner Table.
@@ -84,8 +78,6 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	tableId := spannerTable.Id
-
 	if len(pkRequest.Columns) == 0 {
 		log.Println("Empty columm error")
 		http.Error(w, fmt.Sprintf("empty columm error"), http.StatusBadRequest)
@@ -106,6 +98,25 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
+
+	UpdatePrimaryKeyAndSessionFile(pkRequest)
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+
+	log.Println("request completed", "traceid", id.String(), "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
+}
+
+func UpdatePrimaryKeyAndSessionFile(pkRequest PrimaryKeyRequest) {
+
+	sessionState := session.GetSessionState()
+	spannerTable, _ := getSpannerTable(sessionState, pkRequest)
+	tableId := spannerTable.Id
 	synthColId := ""
 	if synthCol, found := sessionState.Conv.SyntheticPKeys[tableId]; found {
 		synthColId = synthCol.ColId
@@ -140,13 +151,4 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	RemoveInterleave(sessionState.Conv, spannerTable)
 	session.UpdateSessionFile()
 
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
-
-	log.Println("request completed", "traceid", id.String(), "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
 }
