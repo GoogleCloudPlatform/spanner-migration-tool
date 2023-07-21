@@ -21,7 +21,7 @@ import (
 )
 
 // Test robustness of API calls on startup.
-// See https://github.com/cloudspannerecosystem/harbourbridge/issues/132.
+// See https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues/132.
 // Note that this test has to be in a standalone test file.
 func TestDdlOnStartup(t *testing.T) {
 	req, err := http.NewRequest("GET", "/ddl", nil)

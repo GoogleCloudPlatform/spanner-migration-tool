@@ -25,7 +25,7 @@ import (
 	"time"
 
 	sp "cloud.google.com/go/spanner"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )

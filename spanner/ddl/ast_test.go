@@ -17,7 +17,7 @@ package ddl
 import (
 	"testing"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/stretchr/testify/assert"
 )
 

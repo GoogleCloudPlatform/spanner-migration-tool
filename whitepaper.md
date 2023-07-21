@@ -78,5 +78,5 @@ Our aspiration is to provide an open-source migration toolkit for Spanner that i
   community.
 
 For more details, see [Spanner migration tool open
-issues](https://github.com/cloudspannerecosystem/harbourbridge/issues).
+issues](https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues).
 

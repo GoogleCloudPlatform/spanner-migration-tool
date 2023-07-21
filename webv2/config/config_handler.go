@@ -21,7 +21,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 )
 
 // Config represents Spanner Configuration for Spanner Session Management.

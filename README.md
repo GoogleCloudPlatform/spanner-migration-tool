@@ -1,6 +1,6 @@
 # Spanner migration tool: Spanner Evaluation and Migration
 
-[![integration-tests-against-emulator](https://github.com/cloudspannerecosystem/harbourbridge/actions/workflows/integration-tests-against-emulator.yaml/badge.svg)](https://github.com/cloudspannerecosystem/harbourbridge/actions/workflows/integration-tests-against-emulator.yaml) [![code-coverage-check](https://github.com/cloudspannerecosystem/harbourbridge/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/cloudspannerecosystem/harbourbridge/actions/workflows/test-coverage.yaml) 
+[![integration-tests-against-emulator](https://github.com/GoogleCloudPlatform/spanner-migration-tool/actions/workflows/integration-tests-against-emulator.yaml/badge.svg)](https://github.com/GoogleCloudPlatform/spanner-migration-tool/actions/workflows/integration-tests-against-emulator.yaml) [![code-coverage-check](https://github.com/GoogleCloudPlatform/spanner-migration-tool/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/GoogleCloudPlatform/spanner-migration-tool/actions/workflows/test-coverage.yaml) 
 
 Spanner migration tool is a stand-alone open source tool for Cloud Spanner evaluation and
 migration, using data from an existing PostgreSQL, MySQL, SQL Server, Oracle or DynamoDB database.
@@ -62,9 +62,9 @@ of how source database's schema is mapped to Spanner can be found in the
 
 This tool is part of the Cloud Spanner Ecosystem, a community contributed and
 supported open source repository. Please [report
-issues](https://github.com/cloudspannerecosystem/harbourbridge/issues) and send
+issues](https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues) and send
 pull requests. See the [Spanner migration tool
-Whitepaper](https://github.com/cloudspannerecosystem/harbourbridge/blob/master/whitepaper.md)
+Whitepaper](https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/whitepaper.md)
 for a discussion of our plans for the tool.
 
 Note that the Spanner migration tool tool is not an officially supported Google product
@@ -144,15 +144,15 @@ You can make a copy of the Spanner migration tool codebase from the github repos
 and use "go run".
 
 ```sh
-git clone https://github.com/cloudspannerecosystem/harbourbridge
-cd harbourbridge
-go run github.com/cloudspannerecosystem/harbourbridge help
+git clone https://github.com/GoogleCloudPlatform/spanner-migration-tool
+cd spanner-migration-tool
+go run github.com/GoogleCloudPlatform/spanner-migration-tool help
 ```
 
 Examples below assume that `harbourbridge` alias is set as following
 
 ```sh
-alias harbourbridge="go run github.com/cloudspannerecosystem/harbourbridge"
+alias harbourbridge="go run github.com/GoogleCloudPlatform/spanner-migration-tool"
 ```
 
 This workflow also allows you to modify or customize the Spanner migration tool codebase.
@@ -276,12 +276,12 @@ to tune performance.
 View Spanner migration tool as a base set of functionality for Spanner evalution that can
 be readily expanded. Consider forking and modifying the codebase to add the
 functionality you need. Please [file
-issues](https://github.com/cloudspannerecosystem/harbourbridge/issues) and send
+issues](https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues) and send
 PRs for fixes and new functionality. See our backlog of [open
-issues](https://github.com/cloudspannerecosystem/harbourbridge/issues). Our
+issues](https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues). Our
 plans and aspirations for developing Spanner migration tool further are outlined in the
 [Spanner migration tool
-Whitepaper](https://github.com/cloudspannerecosystem/harbourbridge/blob/master/whitepaper.md).
+Whitepaper](https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/whitepaper.md).
 
 You can also change the way Spanner migration tool behaves by directly editing the
 pg_dump/mysqldump output. For example, suppose you want to try out different
@@ -637,7 +637,7 @@ encountered.
 ### 5. Reporting Issues
 
 ## Known Issues
-Please refer to the [issues section](https://github.com/cloudspannerecosystem/harbourbridge/issues)
+Please refer to the [issues section](https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues)
  on Github for a full list of known issues.
 
 ### Schema Conversion

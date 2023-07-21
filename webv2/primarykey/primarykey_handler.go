@@ -21,12 +21,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/index"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/table"
-
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/index"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/table"
 	"github.com/google/uuid"
 )
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
+	helpers "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 )
 
 type SessionService struct {

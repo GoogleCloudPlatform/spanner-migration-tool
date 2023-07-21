@@ -27,7 +27,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 )
 
 const (

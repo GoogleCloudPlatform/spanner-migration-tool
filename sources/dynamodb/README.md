@@ -3,7 +3,7 @@
 Spanner migration tool (formerly known as HarbourBridge) is a stand-alone open source tool for Cloud Spanner evaluation and migration,
 using data from an existing database. This
 README provides details of the tool's DynamoDB capabilities. For general
-Spanner migration tool information see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-spanner-evaluation-and-migration).
+Spanner migration tool information see this [README](https://github.com/GoogleCloudPlatform/spanner-migration-tool#spanner-migration-tool-spanner-evaluation-and-migration).
 
 ## Example DynamoDB Usage
 
@@ -16,7 +16,7 @@ for dynamodb, you can specify that using the environment variable
 `DYNAMODB_ENDPOINT_OVERRIDE`.
 
 The following examples assume a harbourbridge alias has been setup as described
-in the [Installing Spanner migration tool](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
+in the [Installing Spanner migration tool](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
 
 For example, run
 

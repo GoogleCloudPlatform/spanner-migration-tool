@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"go.uber.org/zap"
 )
 

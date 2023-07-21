@@ -45,24 +45,24 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/csv"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/dynamodb"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
-	"github.com/cloudspannerecosystem/harbourbridge/streaming"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/dynamodb"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/oracle"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/sqlserver"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 	"go.uber.org/zap"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	"google.golang.org/grpc/metadata"
@@ -805,7 +805,7 @@ Warning: Large number of foreign keys detected. Spanner can take a long amount o
 time to create foreign keys (over 5 mins per batch of Foreign Keys even with no data). 
 Spanner migration tool does not have control over a single foreign key creation time. The number 
 of concurrent Foreign Key Creation Requests sent to spanner can be increased by 
-tweaking the MaxWorkers variable (https://github.com/cloudspannerecosystem/harbourbridge/blob/master/conversion/conversion.go#L89).
+tweaking the MaxWorkers variable (https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/conversion/conversion.go#L89).
 However, setting it to a very high value might lead to exceeding the admin quota limit. Spanner migration tool tries to stay under the
 admin quota limit by spreading the FK creation requests over time.`)
 	}

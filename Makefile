@@ -5,7 +5,7 @@ ifndef $(GOPATH)
 endif
 # Build the default binary
 build:
-	go build
+	go build -o harbourbridge
 # Build a static binary
 build-static:
 	go build -a -tags osusergo,netgo -ldflags '-w -extldflags "-static"' -o harbourbridge main.go
