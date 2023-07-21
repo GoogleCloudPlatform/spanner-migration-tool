@@ -592,7 +592,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 	// (such as /tmp) that's configured with a small amount of disk space.
 	// To workaround such limits on Unix, set $TMPDIR to a directory with lots
 	// of disk space.
-	fcopy, err := ioutil.TempFile("", "harbourbridge.data")
+	fcopy, err := ioutil.TempFile("", "spanner-migration-tool.data")
 	if err != nil {
 		return nil, 0, err
 	}

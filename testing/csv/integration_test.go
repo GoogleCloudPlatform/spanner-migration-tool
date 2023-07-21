@@ -74,8 +74,8 @@ func TestMain(m *testing.M) {
 }
 
 func initIntegrationTests() (cleanup func()) {
-	projectID = os.Getenv("HARBOURBRIDGE_TESTS_GCLOUD_PROJECT_ID")
-	instanceID = os.Getenv("HARBOURBRIDGE_TESTS_GCLOUD_INSTANCE_ID")
+	projectID = os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID")
+	instanceID = os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID")
 
 	ctx = context.Background()
 	flag.Parse() // Needed for testing.Short().
@@ -87,12 +87,12 @@ func initIntegrationTests() (cleanup func()) {
 	}
 
 	if projectID == "" {
-		log.Println("Integration tests skipped: HARBOURBRIDGE_TESTS_GCLOUD_PROJECT_ID is missing")
+		log.Println("Integration tests skipped: SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID is missing")
 		return noop
 	}
 
 	if instanceID == "" {
-		log.Println("Integration tests skipped: HARBOURBRIDGE_TESTS_GCLOUD_INSTANCE_ID is missing")
+		log.Println("Integration tests skipped: SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID is missing")
 		return noop
 	}
 

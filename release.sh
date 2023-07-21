@@ -21,7 +21,7 @@ echo "Version is semantically valid, please ensure that it is the next version a
 echo "Verifying that all tests pass..."
 make test
 
-echo "Verifying that harbourbrige binary can be built..."
+echo "Verifying that spanner-migration-tool binary can be built..."
 make build-static
 
 echo "Creating Github tag v${version}"

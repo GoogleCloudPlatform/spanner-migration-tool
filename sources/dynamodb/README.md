@@ -15,14 +15,14 @@ DynamoDB database via the aws go sdk package. If you use a custom endpoint
 for dynamodb, you can specify that using the environment variable
 `DYNAMODB_ENDPOINT_OVERRIDE`.
 
-The following examples assume a harbourbridge alias has been setup as described
-in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
+The following examples assume a spanner-migration-tool alias has been setup as described
+in the [Installing Spanner migration tool](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
 
 For example, run
 
 ```sh
 export DYNAMODB_ENDPOINT_OVERRIDE=http://dynamodb.us-west-2.amazonaws.com
-harbourbridge schema -source=dynamodb 
+spanner-migration-tool schema -source=dynamodb 
 ```
 
 Instead of setting the environment variables, you
@@ -33,7 +33,7 @@ can also pass corresponding source profile connection parameters `aws-access-key
 For example, to perform schema conversion, run
 
 ```sh
-harbourbridge schema -source=dynamodb -source-profile="aws-access-key-id=<>,aws-secret-access-key=<>,aws-region=<>"
+spanner-migration-tool schema -source=dynamodb -source-profile="aws-access-key-id=<>,aws-secret-access-key=<>,aws-region=<>"
 ```
 
 This will generate a session file with `session.json` suffix. This file contains
@@ -44,7 +44,7 @@ during data migration.
 For example, run
 
 ```sh
-harbourbridge data -session=mydb.session.json -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance,,dbName=my-spanner-database-name"
+spanner-migration-tool data -session=mydb.session.json -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance,,dbName=my-spanner-database-name"
 ```
 
 You can also run HarbourBridge in a schema-and-data mode, where it will perform both
@@ -52,7 +52,7 @@ schema and data migration. This is useful for quick evaluation when source
 database size is small.
 
 ```sh
-harbourbridge schema-and-data -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance,..."
+spanner-migration-tool schema-and-data -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance,..."
 ```
 
 HarbourBridge generates a report file, a schema file, and a bad-data file (if
@@ -60,14 +60,14 @@ there are bad-data rows). You can control where these files are written by
 specifying a file prefix. For example,
 
 ```sh
-harbourbridge schema -prefix=mydb. -source=dynamodb -source-profile="aws-access-key-id=<>,..."
+spanner-migration-tool schema -prefix=mydb. -source=dynamodb -source-profile="aws-access-key-id=<>,..."
 ```
 
 will write files `mydb.report.txt`, `mydb.schema.txt`, and
 `mydb.dropped.txt`. The prefix can also be a directory. For example,
 
 ```sh
-harbourbridge schema -prefix=~/spanner-eval-mydb/ -source=dynamodb -source-profile="aws-access-key-id=<>,..."
+spanner-migration-tool schema -prefix=~/spanner-eval-mydb/ -source=dynamodb -source-profile="aws-access-key-id=<>,..."
 ```
 
 would write the files into the directory `~/spanner-eval-mydb/`. Note
@@ -83,7 +83,7 @@ of rows to use for inferring schema. The default value is 100,000.
 Sample usage:
 
 ```sh
-harbourbridge schema -source=dynamodb -source-profile="schema-sample-size=500000,aws-access-key-id=<>,..."
+spanner-migration-tool schema -source=dynamodb -source-profile="schema-sample-size=500000,aws-access-key-id=<>,..."
 ```
 
 ## DynamoDB Streaming Migration Usage
@@ -97,7 +97,7 @@ not be considered for streaming migration.
 
 1. Start the streaming migration. Example usage
 ```sh
-harbourbridge schema-and-data -source=dynamodb -source-profile="aws-access-key-id=<>,...,enableStreaming=<>" -target-profile="instance=my-spanner-instance,..."
+spanner-migration-tool schema-and-data -source=dynamodb -source-profile="aws-access-key-id=<>,...,enableStreaming=<>" -target-profile="instance=my-spanner-instance,..."
 ```
 Valid choices for enableStreaming: `yes`, `no`, `true`, `false`
 

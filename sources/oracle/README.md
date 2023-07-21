@@ -13,8 +13,8 @@ Note that _'oracle'_ can be used as an identifier with the flag `-source` in the
 
 HarbourBridge can be run directly on a Oracle database (via go's database/sql package).
 
-The following examples assume a `harbourbridge` alias has been setup as described
-in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
+The following examples assume a `spanner-migration-tool` alias has been setup as described
+in the [Installing Spanner migration tool](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
 
 ### Directly connecting to an Oracle database
 
@@ -26,7 +26,7 @@ source profile connection parameters `host`, `port`, `user`, `dbName` and
 For example, to perform schema conversion, run
 
 ```sh
-harbourbridge schema -source=oracle -source-profile="host=<>,port=<>,user=<>,dbName=<>,password=<>"
+spanner-migration-tool schema -source=oracle -source-profile="host=<>,port=<>,user=<>,dbName=<>,password=<>"
 ```
 
 In Oracle DB, USER is the account name, SCHEMA is the set of objects owned by that user. Oracle creates the SCHEMA object as part of the CREATE USER statement and the SCHEMA has the same name as the USER. 

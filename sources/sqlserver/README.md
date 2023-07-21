@@ -15,8 +15,8 @@ Note that either _'sqlserver'_ or _'mssql'_ can be used as an identifier with th
 
 HarbourBridge can be run directly on a SQL Server database (via go's database/sql package).
 
-The following examples assume a `harbourbridge` alias has been setup as described
-in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
+The following examples assume a `spanner-migration-tool` alias has been setup as described
+in the [Installing Spanner migration tool](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
 
 ### Directly connecting to a SQL Server database
 
@@ -28,7 +28,7 @@ source profile connection parameters `host`, `port`, `user`, `dbName` and
 For example, to perform schema conversion, run
 
 ```sh
-harbourbridge schema -source=sqlserver -source-profile="host=<>,port=<>,user=<>,dbName=<>"
+spanner-migration-tool schema -source=sqlserver -source-profile="host=<>,port=<>,user=<>,dbName=<>"
 ```
 
 Parameters `port` and `password` are optional. Port (`port`) defaults to `1433`

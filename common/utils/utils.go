@@ -79,7 +79,7 @@ func NewIOStreams(driver string, dumpFile string) IOStreams {
 		if u.Scheme == constants.GCS_SCHEME {
 			bucketName := u.Host
 			filePath := u.Path[1:] // removes "/" from beginning of path
-			f, err = DownloadFromGCS(bucketName, filePath, "harbourbridge.gcs.data")
+			f, err = DownloadFromGCS(bucketName, filePath, "spanner-migration-tool.gcs.data")
 		} else {
 			f, err = os.Open(dumpFile)
 		}
@@ -473,7 +473,7 @@ func PrintSeekError(driver string, err error, out *os.File) {
 	fmt.Fprintf(out, "Likely cause: not enough space in %s.\n", os.TempDir())
 	fmt.Fprintf(out, "Try writing "+driver+" output to a file first i.e.\n")
 	fmt.Fprintf(out, " "+driver+" > tmpfile\n")
-	fmt.Fprintf(out, "  harbourbridge < tmpfile\n")
+	fmt.Fprintf(out, "  spanner-migration-tool < tmpfile\n")
 }
 
 // NewSpannerClient returns a new Spanner client.
