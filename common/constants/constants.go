@@ -54,7 +54,7 @@ const (
 	DIALECT_GOOGLESQL  string = "google_standard_sql"
 
 	// Temp directory name to write data which we cleanup at the end.
-	HB_TMP_DIR string = "harbourbridge_tmp_data"
+	SMT_TMP_DIR string = "spanner_migration_tool_tmp_data"
 
 	// Information on what conversion is happening (schema conv or data conv)
 	SchemaConv string = "schema_conv"

@@ -947,7 +947,7 @@ func WriteSessionFile(conv *internal.Conv, name string, out *os.File) {
 // where it writes the sessionfile, report summary and DDLs then returns the directory where it writes.
 func WriteConvGeneratedFiles(conv *internal.Conv, dbName string, driver string, BytesRead int64, out *os.File) (string, error) {
 	now := time.Now()
-	dirPath := "harbour_bridge_output/" + dbName + "/"
+	dirPath := "spanner_migration_tool_output/" + dbName + "/"
 	err := os.MkdirAll(dirPath, os.ModePerm)
 	if err != nil {
 		fmt.Fprintf(out, "Can't create directory %s: %v\n", dirPath, err)

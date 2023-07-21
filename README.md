@@ -330,7 +330,7 @@ a single interface. It provides the capabilities of editing table details like c
 primary key, foreign key, indexes, etc and provides insights on the schema conversion 
 along with highlighting important issues and suggestions.
 
-Detailed guide on how to use Spanner migration tool UI can be found [here](HarbourBridgeUIUserGuide.pdf).
+Detailed guide on how to use Spanner migration tool UI can be found [here](SpannerMigrationToolUIUserGuide.pdf).
 
 ## Spanner migration tool CLI (command line interface)
 

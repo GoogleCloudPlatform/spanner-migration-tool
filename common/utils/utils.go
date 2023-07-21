@@ -113,7 +113,7 @@ func DownloadFromGCS(bucketName, filePath, tmpFile string) (*os.File, error) {
 	defer rc.Close()
 	r := bufio.NewReader(rc)
 
-	tmpDir := filepath.Join(os.TempDir(), constants.HB_TMP_DIR)
+	tmpDir := filepath.Join(os.TempDir(), constants.SMT_TMP_DIR)
 	os.MkdirAll(tmpDir, os.ModePerm)
 	tmpfile, err := os.Create(tmpDir + "/" + tmpFile)
 	if err != nil {
@@ -160,7 +160,7 @@ func PreloadGCSFiles(tables []ManifestTable) ([]ManifestTable, error) {
 				filePath := u.Path[1:] // removes "/" from beginning of path
 				tmpFile := strings.ReplaceAll(filePath, "/", ".")
 				// Files get downloaded to tmp dir.
-				fileLoc := filepath.Join(os.TempDir(), constants.HB_TMP_DIR, tmpFile)
+				fileLoc := filepath.Join(os.TempDir(), constants.SMT_TMP_DIR, tmpFile)
 				_, err = DownloadFromGCS(bucketName, filePath, tmpFile)
 				if err != nil {
 					return nil, fmt.Errorf("cannot download gcs file: %s for table %s", filePath, table.Table_name)
@@ -316,7 +316,7 @@ func GetPassword() string {
 	calledFromGCloud := os.Getenv("GCLOUD_HB_PLUGIN")
 	if strings.EqualFold(calledFromGCloud, "true") {
 		fmt.Println("\n Please specify password in enviroment variables (recommended) or --source-profile " +
-			"(not recommended) while using HarbourBridge from gCloud CLI.")
+			"(not recommended) while using Spanner migration tool from gCloud CLI.")
 		return ""
 	}
 	fmt.Print("Enter Password: ")
