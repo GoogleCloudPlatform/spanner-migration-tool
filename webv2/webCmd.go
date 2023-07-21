@@ -57,7 +57,7 @@ func (cmd *WebCmd) SetFlags(f *flag.FlagSet) {
 }
 
 func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	os.RemoveAll(filepath.Join(os.TempDir(), constants.HB_TMP_DIR))
+	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))
 	FrontendDir = cmd.DistDir
 	var err error
 	defer func() {
