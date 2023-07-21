@@ -22,9 +22,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 )
 

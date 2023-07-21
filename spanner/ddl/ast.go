@@ -14,7 +14,7 @@
 
 // Package ddl provides a go representation of Spanner DDL
 // as well as helpers for building and manipulating Spanner DDL.
-// We only implement enough DDL types to meet the needs of HarbourBridge.
+// We only implement enough DDL types to meet the needs of Spanner migration tool.
 //
 // Definitions are from
 // https://cloud.google.com/spanner/docs/data-definition-language.
@@ -27,7 +27,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 )
 
 const (

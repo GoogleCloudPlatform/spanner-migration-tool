@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package main implements HarbourBridge, a stand-alone tool for Cloud Spanner
+// Package main implements Spanner migration tool, a stand-alone tool for Cloud Spanner
 // evaluation, using data from an existing PostgreSQL/MySQL database. See README.md
 // for details.
 package main
@@ -29,9 +29,9 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/sijms/go-ora/v2"
 
-	"github.com/cloudspannerecosystem/harbourbridge/cmd"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/cmd"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2"
 	"github.com/google/subcommands"
 )
 

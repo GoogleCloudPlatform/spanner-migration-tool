@@ -4,8 +4,8 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 
 ## Updating the UI
 
-The `dist/ui` directory is mounted inside the harbourbridge binary using the `go embed` library.
-After making any changes to the UI, perform the following steps to update Harbourbridge with the UI changes:
+The `dist/ui` directory is mounted inside the Spanner migration tool binary using the `go embed` library.
+After making any changes to the UI, perform the following steps to update Spanner migration tool with the UI changes:
 
 1. Run `ng build` inside the `ui/` directory. This places the generated angular artifacts in the `ui/dist/ui` directory.
 2. Run `make build` from the root directory to generate the Spanner migration tool binary.

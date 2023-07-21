@@ -19,7 +19,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 func ToSpannerType(columnType string) (ddl.Type, error) {

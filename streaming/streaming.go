@@ -29,10 +29,10 @@ import (
 	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 )
 
 const (
@@ -492,7 +492,7 @@ func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, r
 	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, respDf.Job.Location, respDf.Job.Name, respDf.Job.Id)
 	fmt.Println("\n------------------------------------------\n" +
 		"The Datastream job: " + fullStreamName + "and the Dataflow job: " + dfJobDetails +
-		" will have to be manually cleaned up via the UI. HarbourBridge will not delete them post completion of the migration.")
+		" will have to be manually cleaned up via the UI. Spanner migration tool will not delete them post completion of the migration.")
 }
 
 func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string, workerIpAddressConfig dataflowpb.WorkerIPAddressConfiguration) *dataflowpb.LaunchFlexTemplateParameter {

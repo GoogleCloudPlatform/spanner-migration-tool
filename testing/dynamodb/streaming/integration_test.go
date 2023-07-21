@@ -40,8 +40,8 @@ import (
 	"google.golang.org/api/iterator"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 )
 
 var (
@@ -244,7 +244,7 @@ func RunStreamingMigration(t *testing.T, args string, projectID string, client *
 	// is because file prefixes use `now` from here (the test function) and
 	// the generated time in the files uses a `now` inside the command, which
 	// can be different.
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge %v", args))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/GoogleCloudPlatform/spanner-migration-tool %v", args))
 	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr

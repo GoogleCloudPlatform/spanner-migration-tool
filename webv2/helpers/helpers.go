@@ -21,8 +21,8 @@ import (
 	"strings"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 

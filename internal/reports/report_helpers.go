@@ -19,11 +19,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 //report_helpers.go contains helpers methods to calculate the various elements of a report.
@@ -205,7 +205,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				case internal.DefaultValue:
 					l = append(l, fmt.Sprintf("%s for table '%s' e.g. column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName))
 				case internal.ForeignKey:
-					l = append(l, fmt.Sprintf("Column '%s' in table '%s' uses foreign keys which HarbourBridge does not support yet", conv.SpSchema[tableId].Name, spColName))
+					l = append(l, fmt.Sprintf("Column '%s' in table '%s' uses foreign keys which Spanner migration tool does not support yet", conv.SpSchema[tableId].Name, spColName))
 				case internal.AutoIncrement:
 					l = append(l, fmt.Sprintf("Column '%s' is an autoincrement column in table '%s'. %s", spColName, conv.SpSchema[tableId].Name, IssueDB[i].Brief))
 				case internal.Timestamp:
@@ -384,7 +384,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	severity severity
 	batch    bool // Whether multiple instances of this issue are combined.
 }{
-	internal.DefaultValue:                {Brief: "Some columns have default values which HarbourBridge does not migrate. Please add the default constraints manually after the migration is complete", severity: note, batch: true},
+	internal.DefaultValue:                {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", severity: note, batch: true},
 	internal.ForeignKey:                  {Brief: "Spanner does not support foreign keys", severity: warning},
 	internal.MultiDimensionalArray:       {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
 	internal.NoGoodType:                  {Brief: "No appropriate Spanner type", severity: warning},

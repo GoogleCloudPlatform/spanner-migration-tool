@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package web defines web APIs to be used with harbourbridge frontend.
+// Package web defines web APIs to be used with Spanner migration tool frontend.
 // Apart from schema conversion, this package involves API to update
 // converted schema.
 package webv2
@@ -36,38 +36,38 @@ import (
 	"time"
 
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
-	"github.com/cloudspannerecosystem/harbourbridge/cmd"
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
-	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/table"
-	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/cmd"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/oracle"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/sqlserver"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
+	helpers "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/profile"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/table"
+	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 	"github.com/google/uuid"
 	"github.com/pkg/browser"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 
-	index "github.com/cloudspannerecosystem/harbourbridge/webv2/index"
-	primarykey "github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
+	index "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/index"
+	primarykey "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
 
 	go_ora "github.com/sijms/go-ora/v2"
 )
@@ -623,7 +623,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-// loadSession load seesion file to Harbourbridge.
+// loadSession load seesion file to Spanner migration tool.
 func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
@@ -2743,7 +2743,7 @@ func removeInterleaveSuggestions(colIds []string, tableId string) {
 type SessionState struct {
 	sourceDB    *sql.DB        // Connection to source database in case of direct connection
 	dbName      string         // Name of source database
-	driver      string         // Name of HarbourBridge driver in use
+	driver      string         // Name of Spanner migration tool driver in use
 	conv        *internal.Conv // Current conversion state
 	sessionFile string         // Path to session file
 }
@@ -2872,7 +2872,7 @@ func App(logLevel string, open bool, port int) error {
 	}
 	addr := fmt.Sprintf(":%s", strconv.Itoa(port))
 	router := getRoutes()
-	fmt.Println("Starting Harbourbridge UI at:", fmt.Sprintf("http://localhost%s", addr))
+	fmt.Println("Starting Spanner migration tool UI at:", fmt.Sprintf("http://localhost%s", addr))
 	if open {
 		browser.OpenURL(fmt.Sprintf("http://localhost%s", addr))
 	}

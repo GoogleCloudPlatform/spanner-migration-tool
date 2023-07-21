@@ -27,7 +27,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/testing/common"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 

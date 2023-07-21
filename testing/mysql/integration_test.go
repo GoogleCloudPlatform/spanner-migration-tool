@@ -27,9 +27,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/testing/common"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 

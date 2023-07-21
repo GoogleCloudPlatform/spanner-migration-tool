@@ -15,10 +15,10 @@
 package primarykey
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
+	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 )
 
 // getSpannerTable return spannerTable for given TableId.

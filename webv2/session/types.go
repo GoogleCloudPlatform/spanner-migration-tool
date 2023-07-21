@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 )
 
 type SchemaConversionSession struct {
@@ -46,7 +46,7 @@ type SessionState struct {
 	SourceDB            *sql.DB             // Connection to source database in case of direct connection
 	SourceDBConnDetails SourceDBConnDetails // Connection details for source database
 	DbName              string              // Name of source database
-	Driver              string              // Name of HarbourBridge driver in use
+	Driver              string              // Name of Spanner migration tool driver in use
 	Conv                *internal.Conv      // Current conversion state
 	SessionFile         string              // Path to session file
 	IsOffline           bool                // True if the connection to remote metadata database is invalid

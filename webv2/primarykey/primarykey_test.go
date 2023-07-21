@@ -21,10 +21,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/stretchr/testify/assert"
 )
 

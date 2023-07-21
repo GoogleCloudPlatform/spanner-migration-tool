@@ -15,9 +15,9 @@
 package primarykey
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 )
 
 // DetectHotspot adds hotspot detected suggestion in schema conversion process for database.

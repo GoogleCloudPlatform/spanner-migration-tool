@@ -19,10 +19,10 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 // ToNotNull returns true if a column is not nullable and false if it is.
