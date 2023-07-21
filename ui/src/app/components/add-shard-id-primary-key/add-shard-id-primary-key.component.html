@@ -1,0 +1,25 @@
+<div [formGroup]="addShardIdPrimaryKeyForm">
+    <mat-form-field appearance="outline">
+        <mat-label>Table is</mat-label>
+        <mat-select matSelect class="input-field" formControlName="table" required="true">
+            <mat-option value="allTable">All table</mat-option>
+        </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+        <mat-label>Order in Primary Key</mat-label>
+        <mat-select matSelect class="input-field" formControlName="primaryKeyOrder" required="true">
+          <mat-option *ngFor="let order of primaryKeyOrder" [value]="order.value">{{ order.display }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+    <div *ngIf="!viewRuleFlag">
+        <button mat-raised-button (click)="formSubmit()" color="primary"
+            [disabled]="!(addShardIdPrimaryKeyForm.valid && ruleNameValid)">
+            ADD RULE
+        </button>
+    </div>
+    <div *ngIf="viewRuleFlag">
+        <button mat-raised-button (click)="deleteRule()" color="primary">DELETE RULE</button>
+    </div>
+</div>
