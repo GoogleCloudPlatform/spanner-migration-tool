@@ -861,6 +861,7 @@ export class PrepareMigrationComponent implements OnInit {
     this.dataMigrationProgress = 100
     this.foreignKeyUpdateProgress = 100
     this.foreignKeyProgressMessage = 'Foreign key updated successfully!'
+    this.fetchDataprocJobs()
     this.fetchGeneratedResources()
     this.clearLocalStorage()
     this.refreshPrerequisites()
