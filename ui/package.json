@@ -22,6 +22,7 @@
     "@angular/router": "~13.2.0",
     "adjust-sourcemap-loader": "^5.0.0",
     "babel-loader": "^9.1.0",
+    "jszip": "^3.10.1",
     "loader-utils": "^3.2.1",
     "rxjs": "~7.8.0",
     "terser": "^5.15.0",

@@ -231,6 +231,12 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 			if err != nil {
 				return conv, err
 			}
+		} else if sourceProfile.Config.ConfigType == constants.DATAPROC_MIGRATION {
+			schemaSource := sourceProfile.Config.ShardConfigurationDataproc.SchemaSource
+			infoSchema, err = getInfoSchemaForShard(schemaSource, sourceProfile.Driver, targetProfile)
+			if err != nil {
+				return conv, err
+			}
 		} else if sourceProfile.Config.ConfigType == constants.DMS_MIGRATION {
 			// TODO: Define the schema processing logic for DMS migrations here.
 			return conv, fmt.Errorf("dms based migrations are not implemented yet")
