@@ -399,9 +399,9 @@ func (ci CreateIndex) PrintCreateIndex(ct CreateTable, c Config) string {
 	if ci.StoredColumnIds != nil {
 		storedColumns := []string{}
 		for _, colId := range ci.StoredColumnIds {
-			storedColumns = append(storedColumns, ct.ColDefs[colId].Name)
+			storedColumns = append(storedColumns, c.quote(ct.ColDefs[colId].Name))
 		}
-		storingClause = fmt.Sprintf(" %s (%s)", stored, strings.Join(ci.StoredColumnIds, ", "))
+		storingClause = fmt.Sprintf(" %s (%s)", stored, strings.Join(storedColumns, ", "))
 	}
 	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)%s", unique, c.quote(ci.Name), c.quote(ct.Name), strings.Join(keys, ", "), storingClause)
 }
