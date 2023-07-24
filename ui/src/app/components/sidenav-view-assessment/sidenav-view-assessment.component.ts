@@ -3,6 +3,9 @@ import ConversionRate from 'src/app/model/conversion-rate'
 import IViewAssesmentData from 'src/app/model/view-assesment'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
+import IStructuredReport from '../../model/structured-report'
+import { FetchService } from 'src/app/services/fetch/fetch.service'
+import * as JSZip from 'jszip'
 
 @Component({
   selector: 'app-sidenav-view-assessment',
@@ -10,12 +13,16 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
   styleUrls: ['./sidenav-view-assessment.component.scss'],
 })
 export class SidenavViewAssessmentComponent implements OnInit {
+  structuredReport!: IStructuredReport
   srcDbType: string = ''
   connectionDetail: string = ''
   conversionRateCount: ConversionRate = { good: 0, ok: 0, bad: 0 }
   conversionRatePercentage: ConversionRate = { good: 0, ok: 0, bad: 0 }
-  constructor(private sidenav: SidenavService, private clickEvent: ClickEventService) {}
-
+  constructor(
+    private sidenav: SidenavService, 
+    private clickEvent: ClickEventService,
+    private fetch: FetchService,
+  ) {}
   dbDataSource: { title: string; source: string; destination: string }[] = []
   dbDisplayedColumns: string[] = ['title', 'source', 'destination']
   rateCountDataSource: { total: number; bad: number; ok: number; good: number }[] = []
@@ -43,7 +50,6 @@ export class SidenavViewAssessmentComponent implements OnInit {
       }
     })
   }
-
   closeSidenav() {
     this.sidenav.closeSidenav()
   }
@@ -67,6 +73,65 @@ export class SidenavViewAssessmentComponent implements OnInit {
       bad: this.conversionRateCount.bad,
       ok: this.conversionRateCount.ok,
       good: this.conversionRateCount.good,
+    })
+  }
+
+  // downloads structured report of the migration in JSON format
+  downloadStructuredReport() {
+    var a = document.createElement('a')
+    this.fetch.getDStructuredReport().subscribe({
+      next: (res: IStructuredReport) => {
+        let resJson = JSON.stringify(res).replace(/9223372036854776000/g, '9223372036854775807')
+        a.href = 'data:text;charset=utf-8,' + encodeURIComponent(resJson)
+        let DB: string = res.summary.dbName
+        a.download = `${DB}_migration_structuredReport.json`
+        a.click()
+      }
+    })
+  }
+
+  //downloads text report of the migration in text format in more human readable form
+  downloadTextReport(){
+    var a = document.createElement('a')
+    this.fetch.getDTextReport().subscribe({  
+      next: (res: string) => {
+        // calling this function to fetch 'database name' of the user database
+        this.fetch.getDStructuredReport().subscribe({ 
+          next: (prev: IStructuredReport) => {
+            let DB: string = prev.summary.dbName
+            a.href = 'data:text;charset=utf-8,' + encodeURIComponent(res)
+            a.download = `${DB}_migration_textReport.txt`
+            a.click()
+          }
+        })
+      }
+    })
+  }
+
+  downloadReports() {
+    let zip = new JSZip()
+    this.fetch.getDStructuredReport().subscribe({
+      next: (resStructured: IStructuredReport) => {
+        let fileNameHeader = resStructured.summary.dbName
+        let resJson = JSON.stringify(resStructured).replace(/9223372036854776000/g, '9223372036854775807')
+        let fileName = fileNameHeader + '_migration_structuredReport.json'
+        // add the structured report in zip file
+        zip.file(fileName, resJson)
+        this.fetch.getDTextReport().subscribe({
+          next: (resText: string) => {
+            // add the text report in zip file
+            zip.file(fileNameHeader + '_migration_textReport.txt', resText)
+            // Generate the zip file asynchronously
+            zip.generateAsync({ type: 'blob' })
+              .then((blob: Blob) => {
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `${fileNameHeader}_reports`;
+                a.click();
+              })
+          }
+        })
+      }
     })
   }
 }

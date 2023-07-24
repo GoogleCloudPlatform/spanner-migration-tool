@@ -18,6 +18,8 @@
 package webv2
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -141,6 +143,7 @@ type progressDetails struct {
 type migrationDetails struct {
 	TargetDetails   targetDetails  `json:"TargetDetails"`
 	DataflowConfig  dataflowConfig `json:"DataflowConfig"`
+	DataprocConfig  dataprocConfig `json:"DataprocConfig"`
 	MigrationMode   string         `json:MigrationMode`
 	MigrationType   string         `json:MigrationType`
 	IsSharded       bool           `json:"IsSharded"`
@@ -151,6 +154,12 @@ type dataflowConfig struct {
 	Network       string `json:Network`
 	Subnetwork    string `json:Subnetwork`
 	HostProjectId string `json:HostProjectId`
+}
+
+type dataprocConfig struct {
+	Subnetwork string `json:"Subnetwork"`
+	Hostname   string `json:"Hostname"`
+	Port       string `json:"Port"`
 }
 
 type targetDetails struct {
@@ -172,6 +181,7 @@ type DataflowCfg struct {
 	Subnetwork    string `json:"Subnetwork"`
 	HostProjectId string `json:"HostProjectId"`
 }
+
 type ConnectionConfig struct {
 	Name     string `json:"name"`
 	Location string `json:"location"`
@@ -1173,6 +1183,52 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(reportAbsPath))
 }
 
+// generates a downloadable structured report and send it as a JSON response  
+func getDStructuredReport(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(structuredReport)
+}
+
+// generates a downloadable text report and send it as a JSON response
+func getDTextReport(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
+	// creates a new buffer
+	buffer := bytes.NewBuffer([]byte{})
+	// initializes buffered writer that writes data to buffer
+	wb := bufio.NewWriter(buffer)
+	reports.GenerateTextReport(structuredReport, wb)
+	// flushes buffered data to writer
+	wb.Flush()
+	// introduces a byte slice to represent the content of buffer
+	data := buffer.Bytes()
+	// converts byte slice to corressponding string representation
+	decodedString := string(data)
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "text/plain")
+	json.NewEncoder(w).Encode(decodedString)
+}
+
+// generates a downloadable DDL(spanner) and send it as a JSON response
+func getDSpannerDDL(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	conv := sessionState.Conv
+	now := time.Now()
+	spDDL := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: sessionState.Driver})
+	if len(spDDL) == 0 {
+		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
+	}
+	l := []string{
+		fmt.Sprintf("-- Schema generated %s\n", now.Format("2006-01-02 15:04:05")),
+		strings.Join(spDDL, ";\n\n"),
+		"\n",
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(strings.Join(l, ""))
+}
+
 // TableInterleaveStatus stores data regarding interleave status.
 type TableInterleaveStatus struct {
 	Possible bool
@@ -1983,6 +2039,18 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(generatedResources)
 }
 
+func getDataprocJobs(w http.ResponseWriter, r *http.Request) {
+	var dataprocJobs DataprocJobs
+	sessionState := session.GetSessionState()
+
+	if len(sessionState.Conv.Audit.DataprocMetadata.DataprocJobUrls) > 0 {
+		dataprocJobs.DataprocJobUrls = sessionState.Conv.Audit.DataprocMetadata.DataprocJobUrls
+		dataprocJobs.DataprocJobIds = sessionState.Conv.Audit.DataprocMetadata.DataprocJobIds
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(dataprocJobs)
+}
+
 func getSourceAndTargetProfiles(sessionState *session.SessionState, details migrationDetails) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
 	var (
 		sourceProfileString string
@@ -1997,9 +2065,16 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating config to initiate sharded migration:%v", err)
 		}
 	} else {
-		sourceProfileString = fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,dbName=%v",
-			sourceDBConnectionDetails.Host, sourceDBConnectionDetails.Port, sourceDBConnectionDetails.User,
-			sourceDBConnectionDetails.Password, sessionState.DbName)
+		if details.MigrationType == helpers.DATAPROC_MIGRATION {
+			sourceProfileString, err = getSourceProfileStringForShardedMigrations(sessionState, details)
+			if err != nil {
+				return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating config to initiate sharded migration:%v", err)
+			}
+		} else {
+			sourceProfileString = fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,dbName=%v",
+				sourceDBConnectionDetails.Host, sourceDBConnectionDetails.Port, sourceDBConnectionDetails.User,
+				sourceDBConnectionDetails.Password, sessionState.DbName)
+		}
 	}
 
 	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
@@ -2037,7 +2112,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 
 func getSourceProfileStringForShardedMigrations(sessionState *session.SessionState, details migrationDetails) (string, error) {
 	fileName := "HB-" + uuid.New().String() + "-sharding.cfg"
-	if details.MigrationType != helpers.LOW_DOWNTIME_MIGRATION {
+	if details.MigrationType == helpers.BULK_MIGRATION {
 		err := createConfigFileForShardedBulkMigration(sessionState, details, fileName)
 		if err != nil {
 			return "", err
@@ -2049,10 +2124,47 @@ func getSourceProfileStringForShardedMigrations(sessionState *session.SessionSta
 			return "", err
 		}
 		return fmt.Sprintf("config=%v", fileName), nil
+	} else if details.MigrationType == helpers.DATAPROC_MIGRATION {
+		err := createConfigFileForShardedDataprocMigration(sessionState, details, fileName)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("config=%v", fileName), nil
 	} else {
 		return "", fmt.Errorf("this migration type is not implemented yet")
 	}
 
+}
+
+func createConfigFileForShardedDataprocMigration(sessionState *session.SessionState, details migrationDetails, fileName string) error {
+	sourceProfileConfig := profiles.SourceProfileConfig{
+		ConfigType: constants.DATAPROC_MIGRATION,
+		ShardConfigurationDataproc: profiles.ShardConfigurationDataproc{
+			SchemaSource: profiles.DirectConnectionConfig{
+				Host:     sessionState.SourceDBConnDetails.Host,
+				User:     sessionState.SourceDBConnDetails.User,
+				Password: sessionState.SourceDBConnDetails.Password,
+				Port:     sessionState.SourceDBConnDetails.Port,
+				DbName:   sessionState.DbName,
+			},
+			DataprocConfig: profiles.DataprocConfig{
+				Hostname:   details.DataprocConfig.Hostname,
+				Subnetwork: details.DataprocConfig.Subnetwork,
+				Port:       details.DataprocConfig.Port,
+				TargetDB:   details.TargetDetails.TargetDB,
+			},
+		},
+	}
+	file, err := json.MarshalIndent(sourceProfileConfig, "", " ")
+	if err != nil {
+		return fmt.Errorf("error while marshalling json: %v", err)
+	}
+
+	err = ioutil.WriteFile(fileName, file, 0644)
+	if err != nil {
+		return fmt.Errorf("error while writing json to file: %v", err)
+	}
+	return nil
 }
 
 func createConfigFileForShardedDataflowMigration(sessionState *session.SessionState, details migrationDetails, fileName string) error {
@@ -2598,6 +2710,11 @@ type GeneratedResources struct {
 	//Used for sharded migration flow
 	ShardToDatastreamMap map[string]ResourceDetails `json:"ShardToDatastreamMap"`
 	ShardToDataflowMap   map[string]ResourceDetails `json:"ShardToDataflowMap"`
+}
+
+type DataprocJobs struct {
+	DataprocJobUrls []string
+	DataprocJobIds  []string
 }
 
 func addTypeToList(convertedType string, spType string, issues []internal.SchemaIssue, l []typeIssue) []typeIssue {

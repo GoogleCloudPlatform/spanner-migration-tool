@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -48,6 +49,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/cloudspannerecosystem/harbourbridge/dproc"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
@@ -217,6 +219,12 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 			if err != nil {
 				return conv, err
 			}
+		} else if sourceProfile.Config.ConfigType == constants.DATAPROC_MIGRATION {
+			schemaSource := sourceProfile.Config.ShardConfigurationDataproc.SchemaSource
+			infoSchema, err = getInfoSchemaForShard(schemaSource, sourceProfile.Driver, targetProfile)
+			if err != nil {
+				return conv, err
+			}
 		} else if sourceProfile.Config.ConfigType == constants.DMS_MIGRATION {
 			// TODO: Define the schema processing logic for DMS migrations here.
 			return conv, fmt.Errorf("dms based migrations are not implemented yet")
@@ -247,6 +255,76 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 	return batchWriter
 }
 
+func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, conv *internal.Conv, infoSchema common.InfoSchema) error {
+
+	orderTableNamesByID := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
+	numberOfTables := int64(len(orderTableNamesByID))
+
+	if !conv.Audit.DryRun {
+		conv.Audit.Progress = *internal.NewProgress(numberOfTables, "Writing data to Spanner via Dataproc", internal.Verbose(), false, int(internal.DataWriteInProgress))
+		fmt.Println()
+	}
+
+	// Extract location from subnet
+	subnet := sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Subnetwork
+	region_string := subnet[0:strings.Index(subnet, "/subnetworks")]
+	location := subnet[strings.LastIndex(region_string, "/")+1 : strings.LastIndex(subnet, "/subnetworks")]
+
+	batchClient, err := dproc.CreateDataprocBatchClient(location)
+	if err != nil {
+		log.Fatalf("error creating the batch client: %s\n", err)
+		return err
+	}
+	logger.Log.Debug(fmt.Sprint("Dataproc batch client created"))
+	defer batchClient.Close()
+
+	progressCtr := 0
+	for _, spannerTableID := range orderTableNamesByID {
+
+		srcTable := conv.SrcSchema[spannerTableID].Name
+
+		srcSchema := conv.SrcSchema[spannerTableID]
+
+		primaryKeys, _, _ := infoSchema.GetConstraints(conv, common.SchemaAndName{Name: srcTable, Schema: srcSchema.Schema})
+
+		dataprocRequestParams, err := dproc.GetDataprocRequestParams(sourceProfile, targetProfile, srcSchema.Schema, srcTable, strings.Join(primaryKeys, ","), location, subnet)
+		if err != nil {
+			return err
+		}
+
+		id, err := dproc.TriggerDataprocTemplate(batchClient, srcTable, srcSchema.Schema, strings.Join(primaryKeys, ","), dataprocRequestParams)
+		if err != nil {
+			return err
+		}
+		if conv.DataFlush != nil {
+			conv.DataFlush()
+		}
+
+		if !conv.Audit.DryRun {
+			progressCtr++
+			conv.Audit.Progress.MaybeReport(int64(progressCtr))
+		}
+
+		//TODO: eenclona@ will remove hardcoded us-central1
+		url := fmt.Sprintf("https://console.cloud.google.com/dataproc/batches/us-central1/%s", id)
+		conv.Audit.DataprocMetadata.DataprocJobUrls = append(conv.Audit.DataprocMetadata.DataprocJobUrls, url)
+		conv.Audit.DataprocMetadata.DataprocJobIds = append(conv.Audit.DataprocMetadata.DataprocJobIds, id)
+	}
+
+	return nil
+}
+
+func performDataprocMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
+	common.SetRowStats(conv, infoSchema)
+	batchWriter := populateDataConv(conv, config, client)
+	err := processDataWithDataproc(sourceProfile, targetProfile, conv, infoSchema)
+	if err != nil {
+		return batchWriter, err
+	}
+	batchWriter.Flush()
+	return batchWriter, nil
+}
+
 func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
 	switch sourceProfile.Driver {
 	// Skip snapshot migration via harbourbridge for mysql and oracle since dataflow job will job will handle this from backfilled data.
@@ -273,15 +351,17 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 	case profiles.SourceProfileTypeConfig:
 		////There are three cases to cover here, bulk migrations and sharded migrations (and later DMS)
 		//We provide an if-else based handling for each within the sharded code branch
-		//This will be determined via the configType, which can be "bulk", "dataflow" or "dms"
+		//This will be determined via the configType, which can be "bulk", "dataflow", "dms" or "dataproc"
 		if sourceProfile.Config.ConfigType == constants.BULK_MIGRATION {
 			return dataFromDatabaseForBulkMigration(sourceProfile, targetProfile, config, conv, client)
 		} else if sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
 			return dataFromDatabaseForDataflowMigration(targetProfile, ctx, sourceProfile, conv)
 		} else if sourceProfile.Config.ConfigType == constants.DMS_MIGRATION {
 			return dataFromDatabaseForDMSMigration()
+		} else if sourceProfile.Config.ConfigType == constants.DATAPROC_MIGRATION {
+			return dataFromDatabaseForDataprocMigration(sourceProfile, targetProfile, config, conv, client)
 		} else {
-			return nil, fmt.Errorf("configType should be one of 'bulk', 'dataflow' or 'dms'")
+			return nil, fmt.Errorf("configType should be one of 'bulk', 'dataflow', 'dms' or 'dataproc'")
 		}
 	default:
 		infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
@@ -311,6 +391,17 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 // TODO: Define the data processing logic for DMS migrations here.
 func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 	return nil, fmt.Errorf("dms configType is not implemented yet, please use one of 'bulk' or 'dataflow'")
+}
+
+// TODO: Add sharding support
+// Perform dataproc migration via dataflow
+func dataFromDatabaseForDataprocMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
+	schemaSource := sourceProfile.Config.ShardConfigurationDataproc.SchemaSource
+	infoSchema, err := getInfoSchemaForShard(schemaSource, sourceProfile.Driver, targetProfile)
+	if err != nil {
+		return nil, err
+	}
+	return performDataprocMigration(sourceProfile, targetProfile, config, conv, client, infoSchema)
 }
 
 // 1. Create batch for each physical shard

@@ -176,6 +176,7 @@ type Audit struct {
 	StreamingStats           streamingStats                         `json:"-"` // Stores information related to streaming migration process.
 	Progress                 Progress                               `json:"-"` // Stores information related to progress of the migration progress
 	SkipMetricsPopulation    bool                                   `json:"-"` // Flag to identify if outgoing metrics metadata needs to skipped
+	DataprocMetadata         dataprocMetadata                       `json:"-"` // Stores information related to dataproc migration process
 }
 
 // Stores information related to the streaming migration process.
@@ -190,6 +191,11 @@ type streamingStats struct {
 	DataflowJobId            string
 	ShardToDataStreamNameMap map[string]string
 	ShardToDataflowJobMap    map[string]string
+}
+
+type dataprocMetadata struct {
+	DataprocJobUrls []string
+	DataprocJobIds  []string
 }
 
 // Stores information related to rules during schema conversion

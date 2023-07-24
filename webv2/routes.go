@@ -40,6 +40,9 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/conversion", getConversionRate).Methods("GET")
 	router.HandleFunc("/typemap", getTypeMap).Methods("GET")
 	router.HandleFunc("/report", getReportFile).Methods("GET")
+	router.HandleFunc("/downloadStructuredReport", getDStructuredReport).Methods("GET")
+	router.HandleFunc("/downloadTextReport", getDTextReport).Methods("GET")
+	router.HandleFunc("/downloadDDL", getDSpannerDDL).Methods("GET")
 	router.HandleFunc("/schema", getSchemaFile).Methods("GET")
 	router.HandleFunc("/applyrule", applyRule).Methods("POST")
 	router.HandleFunc("/dropRule", dropRule).Methods("POST")
@@ -89,6 +92,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetProgress", updateProgress).Methods("GET")
 	router.HandleFunc("/GetLatestSessionDetails", fetchLastLoadedSessionDetails).Methods("GET")
 	router.HandleFunc("/GetGeneratedResources", getGeneratedResources).Methods("GET")
+	router.HandleFunc("/GetDataprocJobs", getDataprocJobs).Methods("GET")
 
 	// Connection profiles
 	router.HandleFunc("/GetConnectionProfiles", profile.ListConnectionProfiles).Methods("GET")
