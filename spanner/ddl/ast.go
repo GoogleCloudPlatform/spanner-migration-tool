@@ -444,7 +444,7 @@ func NewSchema() Schema {
 
 // Tables are ordered in alphabetical order with one exception: interleaved
 // tables appear after the definition of their parent table.
-// 
+//
 // TODO: Move this method to mapping.go and preserve the table names in sorted
 // order in conv so that we don't need to order the table names multiple times.
 func GetSortedTableIdsBySpName(s Schema) []string {
@@ -461,11 +461,15 @@ func GetSortedTableIdsBySpName(s Schema) []string {
 		tableName := tableQueue[0]
 		table := s[tableNameIdMap[tableName]]
 		tableQueue = tableQueue[1:]
+		parentTableExists := false
+		if table.ParentId != "" {
+			_, parentTableExists = s[table.ParentId]
+		}
 
 		// Add table t if either:
 		// a) t is not interleaved in another table, or
 		// b) t is interleaved in another table and that table has already been added to the list.
-		if table.ParentId == "" || tableAdded[s[table.ParentId].Name] {
+		if table.ParentId == "" || tableAdded[s[table.ParentId].Name] || !parentTableExists {
 			sortedTableNames = append(sortedTableNames, tableName)
 			tableAdded[tableName] = true
 		} else {

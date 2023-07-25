@@ -39,7 +39,7 @@ Warnings
 3) Table 'bad_schema': Column 'c', type int4[4][2] is mapped to string(max).
    Spanner doesn't support multi-dimensional arrays.
 4) Table 'bad_schema': Column 'd', type circle is mapped to string(max). No
-   appropriate Spanner type.
+   appropriate Spanner type. The column will be made nullable in Spanner.
 
 ----------------------------
 Table default_value

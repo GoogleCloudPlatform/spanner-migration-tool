@@ -384,7 +384,7 @@ func TestSetParentTable(t *testing.T) {
 			},
 			table:            "t1",
 			statusCode:       http.StatusOK,
-			expectedResponse: &TableInterleaveStatus{Possible: true, Parent: "t2", Comment: ""},
+			expectedResponse: &TableInterleaveStatus{Possible: false, Parent: "", Comment: "No valid prefix"},
 			expectedFKs:      []ddl.Foreignkey{{}},
 		},
 		{
