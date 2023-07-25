@@ -118,8 +118,8 @@ func prechecks() error {
 
 func main() {
 	fmt.Println("Setting up reverse replication pipeline...")
-	ORDERING_TEMPLATE := "gs://dataflow-templates-southamerica-west1/2023-07-04-00_RC00/flex/Spanner_Change_Streams_to_Sink"
-	WRITER_TEMPLATE := "gs://dataflow-templates-southamerica-west1/2023-07-04-00_RC00/flex/Ordered_Changestream_Buffer_to_Sourcedb"
+	ORDERING_TEMPLATE := "gs://dataflow-templates/2023-07-18-00_RC00/flex/Spanner_Change_Streams_to_Sink"
+	WRITER_TEMPLATE := "gs://dataflow-templates/2023-07-18-00_RC00/flex/Ordered_Changestream_Buffer_to_Sourcedb"
 
 	setupGlobalFlags()
 	flag.Parse()
