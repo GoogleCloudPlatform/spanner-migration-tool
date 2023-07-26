@@ -22,11 +22,17 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 func TestUpdatePrimaryKey(t *testing.T) {
 
