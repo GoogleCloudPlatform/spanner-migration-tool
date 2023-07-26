@@ -26,8 +26,10 @@ import (
 	"cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 type spannerData struct {
@@ -44,6 +46,10 @@ const (
 	SINGERS_1_CSV string = SINGERS_TABLE + "_1.csv"
 	SINGERS_2_CSV string = SINGERS_TABLE + "_2.csv"
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 func getManifestTables() []utils.ManifestTable {
 	return []utils.ManifestTable{

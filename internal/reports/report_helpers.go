@@ -81,15 +81,18 @@ func buildTableReport(conv *internal.Conv, tableId string, badWrites map[string]
 		issues, cols, warnings := AnalyzeCols(conv, tableId)
 		tr.Cols = cols
 		tr.Warnings = warnings
-		tr.Errors = int64(len(conv.SchemaIssues[tableId].TableLevelIssues))
+		conv.SchemaIssuesLock.RLock()
+		schemaIssues := conv.SchemaIssues[tableId].TableLevelIssues
+		conv.SchemaIssuesLock.RUnlock()
+		tr.Errors = int64(len(schemaIssues))
 		if pk, ok := conv.SyntheticPKeys[tableId]; ok {
 			tr.SyntheticPKey = pk.ColId
 			synthColName := conv.SpSchema[tableId].ColDefs[pk.ColId].Name
-			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, &synthColName, nil, conv.SchemaIssues[tableId].TableLevelIssues)
+			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, &synthColName, nil, schemaIssues)
 		} else if pk, ok := conv.UniquePKey[tableId]; ok {
-			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, pk, conv.SchemaIssues[tableId].TableLevelIssues)
+			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, pk, schemaIssues)
 		} else {
-			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, nil, conv.SchemaIssues[tableId].TableLevelIssues)
+			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, nil, schemaIssues)
 		}
 
 	}
@@ -387,7 +390,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.DefaultValue:                {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", severity: note, batch: true},
 	internal.ForeignKey:                  {Brief: "Spanner does not support foreign keys", severity: warning},
 	internal.MultiDimensionalArray:       {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
-	internal.NoGoodType:                  {Brief: "No appropriate Spanner type", severity: warning},
+	internal.NoGoodType:                  {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", severity: warning},
 	internal.Numeric:                     {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning},
 	internal.NumericThatFits:             {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: suggestion},
 	internal.Decimal:                     {Brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning},
@@ -405,7 +408,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.RedundantIndex:              {Brief: "Redundant Index", severity: warning},
 	internal.AutoIncrementIndex:          {Brief: "Auto increment column in Index can create a Hotspot", severity: warning},
 	internal.InterleaveIndex:             {Brief: "can be converted to an Interleave Index", severity: suggestion},
-	internal.InterleavedNotInOrder:       {Brief: "if primary key order parameter is changed to 1 for the table", severity: suggestion},
+	internal.InterleavedNotInOrder:       {Brief: "if primary key order parameter is changed for the table", severity: suggestion},
 	internal.InterleavedAddColumn:        {Brief: "Candidate for Interleaved Table", severity: suggestion},
 	internal.IllegalName:                 {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning},
 	internal.InterleavedRenameColumn:     {Brief: "Candidate for Interleaved Table", severity: suggestion},
@@ -431,6 +434,8 @@ func AnalyzeCols(conv *internal.Conv, tableId string) (map[string][]internal.Sch
 	m := make(map[string][]internal.SchemaIssue)
 	warnings := int64(0)
 	warningBatcher := make(map[internal.SchemaIssue]bool)
+	conv.SchemaIssuesLock.RLock()
+	defer conv.SchemaIssuesLock.RUnlock()
 	// Note on how we count warnings when there are multiple warnings
 	// per column and/or multiple warnings per table.
 	// non-batched warnings: count at most one warning per column.
