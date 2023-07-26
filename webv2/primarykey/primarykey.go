@@ -84,6 +84,7 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 // addPrimaryKey insert primary key into list of IndexKey.
 func addPrimaryKey(add []string, pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) []ddl.IndexKey {
 
+	sessionState := session.GetSessionState()
 	list := []ddl.IndexKey{}
 
 	for _, val := range add {
@@ -98,9 +99,8 @@ func addPrimaryKey(add []string, pkRequest PrimaryKeyRequest, spannerTable ddl.C
 				pkey.Order = pkRequest.Columns[i].Order
 
 				{
+					sessionState.Conv.SchemaIssuesLock.Lock()
 					schemaissue := []internal.SchemaIssue{}
-
-					sessionState := session.GetSessionState()
 					schemaissue = sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[pkey.ColId]
 
 					if len(schemaissue) > 0 {
@@ -127,6 +127,7 @@ func addPrimaryKey(add []string, pkRequest PrimaryKeyRequest, spannerTable ddl.C
 						}
 
 					}
+					sessionState.Conv.SchemaIssuesLock.Unlock()
 				}
 
 				list = append(list, pkey)
@@ -139,6 +140,7 @@ func addPrimaryKey(add []string, pkRequest PrimaryKeyRequest, spannerTable ddl.C
 // removePrimaryKey removes primary key from list of IndexKey.
 func removePrimaryKey(remove []string, spannerTable ddl.CreateTable) []ddl.IndexKey {
 
+	sessionState := session.GetSessionState()
 	list := spannerTable.PrimaryKeys
 
 	for _, val := range remove {
@@ -148,8 +150,8 @@ func removePrimaryKey(remove []string, spannerTable ddl.CreateTable) []ddl.Index
 			if spannerTable.PrimaryKeys[i].ColId == val {
 
 				{
+					sessionState.Conv.SchemaIssuesLock.Lock()
 					schemaissue := []internal.SchemaIssue{}
-					sessionState := session.GetSessionState()
 					schemaissue = sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[spannerTable.PrimaryKeys[i].ColId]
 
 					if len(schemaissue) > 0 {
@@ -177,7 +179,7 @@ func removePrimaryKey(remove []string, spannerTable ddl.CreateTable) []ddl.Index
 						}
 
 					}
-
+					sessionState.Conv.SchemaIssuesLock.Unlock()
 				}
 
 				list = utilities.RemoveIndex(list, i)

@@ -306,6 +306,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 
 	if sessionState.IsSharded {
 		setShardIdColumnAsPrimaryKey(true)
+		addShardIdColumnToForeignKeys(true)
 		ruleId := internal.GenerateRuleId()
 		rule := internal.Rule{
 			Id:                ruleId,
@@ -861,6 +862,8 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 // and returns a list of tables with errors
 func getTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.SchemaIssuesLock.RLock()
+	defer sessionState.Conv.SchemaIssuesLock.RUnlock()
 	var tableIdName []TableIdAndName
 	for id, issues := range sessionState.Conv.SchemaIssues {
 		if len(issues.TableLevelIssues) != 0 {
@@ -947,6 +950,7 @@ func applyRule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		setShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
+		addShardIdColumnToForeignKeys(shardIdPrimaryKey.AddedAtTheStart)
 	} else {
 		http.Error(w, "Invalid rule type", http.StatusInternalServerError)
 		return
@@ -1049,6 +1053,7 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		revertShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
+		removeShardIdColumnFromForeignKeys(shardIdPrimaryKey.AddedAtTheStart)
 	} else {
 		http.Error(w, "Invalid rule type", http.StatusInternalServerError)
 		return
@@ -1068,27 +1073,70 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func addShardIdToForeignKeyPerTable(isAddedAtFirst bool, table ddl.CreateTable) {
+	sessionState := session.GetSessionState()
+	for i, fk := range table.ForeignKeys {
+		referredTableShardIdColumn := sessionState.Conv.SpSchema[fk.ReferTableId].ShardIdColumn
+		if isAddedAtFirst {
+			fk.ColIds = append([]string{table.ShardIdColumn}, fk.ColIds...)
+			fk.ReferColumnIds = append([]string{referredTableShardIdColumn}, fk.ReferColumnIds...)
+		} else {
+			fk.ColIds = append(fk.ColIds, table.ShardIdColumn)
+			fk.ReferColumnIds = append(fk.ReferColumnIds, referredTableShardIdColumn)
+		}
+		sessionState.Conv.SpSchema[table.Id].ForeignKeys[i] = fk
+	}
+}
+
+func addShardIdColumnToForeignKeys(isAddedAtFirst bool) {
+	sessionState := session.GetSessionState()
+	for _, table := range sessionState.Conv.SpSchema {
+		addShardIdToForeignKeyPerTable(isAddedAtFirst, table)
+	}
+}
+
+func removeShardIdColumnFromForeignKeys(isAddedAtFirst bool) {
+	sessionState := session.GetSessionState()
+	for tableId, table := range sessionState.Conv.SpSchema {
+		for i, fk := range table.ForeignKeys {
+
+			if isAddedAtFirst {
+				fk.ColIds = fk.ColIds[:len(fk.ColIds)-1]
+				fk.ReferColumnIds = fk.ReferColumnIds[:len(fk.ReferColumnIds)-1]
+			} else {
+				fk.ColIds = fk.ColIds[1:]
+				fk.ReferColumnIds = fk.ReferColumnIds[1:]
+			}
+			sessionState.Conv.SpSchema[tableId].ForeignKeys[i] = fk
+		}
+	}
+}
+
+func setShardIdColumnAsPrimaryKeyPerTable(isAddedAtFirst bool, table ddl.CreateTable) {
+	pkRequest := primarykey.PrimaryKeyRequest{
+		TableId: table.Id,
+		Columns: []ddl.IndexKey{},
+	}
+	increment := 0
+	if isAddedAtFirst {
+		increment = 1
+		pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: table.ShardIdColumn, Order: 1})
+	}
+	for index := range table.PrimaryKeys {
+		pk := table.PrimaryKeys[index]
+		pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order + increment, Desc: pk.Desc})
+	}
+	if !isAddedAtFirst {
+		size := len(table.PrimaryKeys)
+		pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: table.ShardIdColumn, Order: size + 1})
+	}
+	primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+}
+
 func setShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
 	sessionState := session.GetSessionState()
 	for _, table := range sessionState.Conv.SpSchema {
-		pkRequest := primarykey.PrimaryKeyRequest{
-			TableId: table.Id,
-			Columns: []ddl.IndexKey{},
-		}
-		increment := 0
-		if isAddedAtFirst {
-			increment = 1
-			pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: table.ShardIdColumn, Order: 1})
-		}
-		for index := range table.PrimaryKeys {
-			pk := table.PrimaryKeys[index]
-			pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order + increment, Desc: pk.Desc})
-		}
-		if !isAddedAtFirst {
-			size := len(table.PrimaryKeys)
-			pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: table.ShardIdColumn, Order: size + 1})
-		}
-		primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+		setShardIdColumnAsPrimaryKeyPerTable(isAddedAtFirst, table)
 	}
 }
 
@@ -1370,11 +1418,12 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	}
 	tableInterleaveStatus := parentTableHelper(tableId, update)
 
+	sessionState.Conv.SchemaIssuesLock.Lock()
+
 	if tableInterleaveStatus.Possible {
 
 		childPks := sessionState.Conv.SpSchema[tableId].PrimaryKeys
 		childindex := utilities.GetPrimaryKeyIndexFromOrder(childPks, 1)
-		sessionState := session.GetSessionState()
 		schemaissue := []internal.SchemaIssue{}
 
 		colId := childPks[childindex].ColId
@@ -1399,6 +1448,8 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 			sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaIssue
 		}
 	}
+
+	sessionState.Conv.SchemaIssuesLock.Unlock()
 
 	index.IndexSuggestion()
 	session.UpdateSessionFile()
@@ -1445,17 +1496,10 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 
 		if checkPrimaryKeyPrefix(tableId, refTableId, fk, tableInterleaveStatus) {
 			sp := sessionState.Conv.SpSchema[tableId]
-			setInterleave := false
 
-			pkFirstOrderColIndex := utilities.GetPrimaryKeyIndexFromOrder(sessionState.Conv.SpSchema[tableId].PrimaryKeys, 1)
-			childFirstOrderPkColId := sessionState.Conv.SpSchema[tableId].PrimaryKeys[pkFirstOrderColIndex].ColId
-			for _, colId := range fk.ColIds {
-				if childFirstOrderPkColId == colId {
-					setInterleave = true
-				}
-			}
+			colIdNotInOrder := checkPrimaryKeyOrder(tableId, refTableId, fk)
 
-			if update && sp.ParentId == "" && setInterleave {
+			if update && sp.ParentId == "" && colIdNotInOrder == "" {
 				usedNames := sessionState.Conv.UsedNames
 				delete(usedNames, strings.ToLower(sp.ForeignKeys[i].Name))
 				sp.ParentId = refTableId
@@ -1465,23 +1509,12 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 
 			parentpks := sessionState.Conv.SpSchema[refTableId].PrimaryKeys
 			if len(parentpks) >= 1 {
+				sessionState.Conv.SchemaIssuesLock.Lock()
+				if colIdNotInOrder == "" {
 
-				parentindex := utilities.GetPrimaryKeyIndexFromOrder(parentpks, 1)
-
-				childindex := utilities.GetPrimaryKeyIndexFromOrder(childPks, 1)
-
-				if parentindex != -1 && childindex != -1 {
-					parentTable := sessionState.Conv.SpSchema[refTableId]
-					childTable := sessionState.Conv.SpSchema[tableId]
-
-					if (parentpks[parentindex].Order == childPks[childindex].Order) && (parentTable.ColDefs[parentpks[parentindex].ColId].Name == childTable.ColDefs[childPks[childindex].ColId].Name) &&
-						(parentTable.ColDefs[parentpks[parentindex].ColId].T.Len == childTable.ColDefs[childPks[childindex].ColId].T.Len) &&
-						(parentTable.ColDefs[parentpks[parentindex].ColId].T.Name == childTable.ColDefs[childPks[childindex].ColId].T.Name) {
-
-						sessionState := session.GetSessionState()
-						schemaissue := []internal.SchemaIssue{}
-
-						colId := childPks[childindex].ColId
+					schemaissue := []internal.SchemaIssue{}
+					for _, column := range childPks {
+						colId := column.ColId
 						schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
 
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
@@ -1491,39 +1524,43 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
 
 						sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaissue
-						tableInterleaveStatus.Possible = true
-						tableInterleaveStatus.Parent = refTableId
-						tableInterleaveStatus.Comment = ""
-
 					}
 
-					// Check if the tables can be interleaved after changing the order of primary key.
-					referColIndex := utilities.GetRefColIndexFromFk(fk, parentpks[parentindex].ColId)
-					if !setInterleave && referColIndex != -1 && fk.ColIds[referColIndex] != childPks[childindex].ColId {
+					tableInterleaveStatus.Possible = true
+					tableInterleaveStatus.Parent = refTableId
+					tableInterleaveStatus.Comment = ""
 
-						sessionState := session.GetSessionState()
+				} else {
 
-						colId := fk.ColIds[referColIndex]
+					schemaissue := []internal.SchemaIssue{}
+					schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIdNotInOrder]
 
-						schemaissue := []internal.SchemaIssue{}
-						schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
 
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
+					schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
 
-						schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
-
-						sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaissue
-
-					}
+					sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIdNotInOrder] = schemaissue
 				}
+				sessionState.Conv.SchemaIssuesLock.Unlock()
 			}
 		}
 	}
 
 	return tableInterleaveStatus
+}
+
+func hasShardIdPrimaryKeyRule() (bool, bool) {
+	sessionState := session.GetSessionState()
+	for _, rule := range sessionState.Conv.Rules {
+		if rule.Type == constants.AddShardIdPrimaryKey {
+			v := rule.Data.(ShardIdPrimaryKey)
+			return true, v.AddedAtTheStart
+		}
+	}
+	return false, false
 }
 
 func removeParentTable(w http.ResponseWriter, r *http.Request) {
@@ -1547,9 +1584,15 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	spTable := conv.SpSchema[tableId]
 
 	var firstOrderPk ddl.IndexKey
+	order := 1
+
+	isPresent, isAddedAtFirst := hasShardIdPrimaryKeyRule()
+	if isAddedAtFirst {
+		order = 2
+	}
 
 	for _, pk := range spTable.PrimaryKeys {
-		if pk.Order == 1 {
+		if pk.Order == order {
 			firstOrderPk = pk
 			break
 		}
@@ -1567,6 +1610,16 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Foreign key conversion fail"), http.StatusBadRequest)
 		return
+	}
+
+	if isPresent {
+		if isAddedAtFirst {
+			spFk.ColIds = append([]string{spTable.ShardIdColumn}, spFk.ColIds...)
+			spFk.ReferColumnIds = append([]string{sessionState.Conv.SpSchema[spTable.ParentId].ShardIdColumn}, spFk.ReferColumnIds...)
+		} else {
+			spFk.ColIds = append(spFk.ColIds, spTable.ShardIdColumn)
+			spFk.ReferColumnIds = append(spFk.ReferColumnIds, sessionState.Conv.SpSchema[spTable.ParentId].ShardIdColumn)
+		}
 	}
 
 	spFks := spTable.ForeignKeys
@@ -1646,6 +1699,13 @@ func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithM
 	if sessionState.IsSharded {
 		conv.IsSharded = true
 		conv.AddShardIdColumn()
+		isPresent, isAddedAtFirst := hasShardIdPrimaryKeyRule()
+		if isPresent {
+			table := sessionState.Conv.SpSchema[tableId]
+			setShardIdColumnAsPrimaryKeyPerTable(isAddedAtFirst, table)
+			addShardIdToForeignKeyPerTable(isAddedAtFirst, table)
+			addShardIdToReferencedTableFks(tableId, isAddedAtFirst)
+		}
 	}
 	sessionState.Conv = conv
 	primarykey.DetectHotspot()
@@ -1655,6 +1715,25 @@ func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithM
 		Conv:            *sessionState.Conv,
 	}
 	return convm
+}
+
+func addShardIdToReferencedTableFks(tableId string, isAddedAtFirst bool) {
+	sessionState := session.GetSessionState()
+	for _, table := range sessionState.Conv.SpSchema {
+		for i, fk := range table.ForeignKeys {
+			if fk.ReferTableId == tableId {
+				referredTableShardIdColumn := sessionState.Conv.SpSchema[fk.ReferTableId].ShardIdColumn
+				if isAddedAtFirst {
+					fk.ColIds = append([]string{table.ShardIdColumn}, fk.ColIds...)
+					fk.ReferColumnIds = append([]string{referredTableShardIdColumn}, fk.ReferColumnIds...)
+				} else {
+					fk.ColIds = append(fk.ColIds, table.ShardIdColumn)
+					fk.ReferColumnIds = append(fk.ReferColumnIds, referredTableShardIdColumn)
+				}
+				sessionState.Conv.SpSchema[table.Id].ForeignKeys[i] = fk
+			}
+		}
+	}
 }
 
 func restoreTable(w http.ResponseWriter, r *http.Request) {
@@ -1686,6 +1765,8 @@ func dropTables(w http.ResponseWriter, r *http.Request) {
 
 func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.SchemaIssuesLock.Lock()
+	defer sessionState.Conv.SchemaIssuesLock.Unlock()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return session.ConvWithMetadata{}
@@ -1730,10 +1811,10 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 	}
 
 	//remove interleave that are interleaved on the drop table as parent
-	for tableId, spTable := range spSchema {
+	for id, spTable := range spSchema {
 		if spTable.ParentId == tableId {
 			spTable.ParentId = ""
-			spSchema[tableId] = spTable
+			spSchema[id] = spTable
 		}
 	}
 
@@ -1904,6 +1985,7 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 			// To remove the interleavable suggestions if they exist on dropping fk
 			colId := sp.ForeignKeys[position].ColIds[0]
 			schemaIssue := []internal.SchemaIssue{}
+			sessionState.Conv.SchemaIssuesLock.Lock()
 			for _, v := range sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] {
 				if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder && v != internal.InterleavedChangeColumnSize {
 					schemaIssue = append(schemaIssue, v)
@@ -1912,6 +1994,7 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 			if _, ok := sessionState.Conv.SchemaIssues[tableId]; ok {
 				sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaIssue
 			}
+			sessionState.Conv.SchemaIssuesLock.Unlock()
 
 			sp.ForeignKeys = utilities.RemoveFk(updatedFKs, dropFkId)
 		}
@@ -2562,6 +2645,37 @@ func rollback(err error) error {
 	return err
 }
 
+func checkPrimaryKeyOrder(tableId string, refTableId string, fk ddl.Foreignkey) string {
+	sessionState := session.GetSessionState()
+	childPks := sessionState.Conv.SpSchema[tableId].PrimaryKeys
+	parentPks := sessionState.Conv.SpSchema[refTableId].PrimaryKeys
+	childTable := sessionState.Conv.SpSchema[tableId]
+	parentTable := sessionState.Conv.SpSchema[refTableId]
+	for i := 0; i < len(parentPks); i++ {
+
+		for j := 0; j < len(childPks); j++ {
+
+			for k := 0; k < len(fk.ReferColumnIds); k++ {
+
+				if childTable.ColDefs[fk.ColIds[k]].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name &&
+					parentTable.ColDefs[parentPks[i].ColId].Name == childTable.ColDefs[childPks[j].ColId].Name &&
+					parentTable.ColDefs[parentPks[i].ColId].T.Name == childTable.ColDefs[childPks[j].ColId].T.Name &&
+					parentTable.ColDefs[parentPks[i].ColId].T.Len == childTable.ColDefs[childPks[j].ColId].T.Len &&
+					parentTable.ColDefs[parentPks[i].ColId].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name &&
+					childTable.ColDefs[childPks[j].ColId].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name {
+					if parentPks[i].Order != childPks[j].Order {
+						return childPks[j].ColId
+					}
+				}
+			}
+
+		}
+
+	}
+	return ""
+
+}
+
 func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey, tableInterleaveStatus *TableInterleaveStatus) bool {
 
 	sessionState := session.GetSessionState()
@@ -2569,18 +2683,24 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 	parentTable := sessionState.Conv.SpSchema[refTableId]
 	childPks := sessionState.Conv.SpSchema[tableId].PrimaryKeys
 	parentPks := sessionState.Conv.SpSchema[refTableId].PrimaryKeys
-
-	parentIndex := utilities.GetPrimaryKeyIndexFromOrder(parentPks, 1)
-	if parentIndex == -1 {
-		return false
-	}
-	parentFirstOrderPkColId := parentPks[parentIndex].ColId
 	possibleInterleave := false
-	for _, colId := range fk.ReferColumnIds {
-		if parentFirstOrderPkColId == colId {
-			possibleInterleave = true
+
+	flag := false
+	for _, key := range parentPks {
+		flag = false
+		for _, colId := range fk.ReferColumnIds {
+			if key.ColId == colId {
+				flag = true
+			}
+		}
+		if !flag {
+			break
 		}
 	}
+	if flag {
+		possibleInterleave = true
+	}
+
 	if !possibleInterleave {
 		removeInterleaveSuggestions(fk.ColIds, tableId)
 		return false
@@ -2614,6 +2734,10 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 
 	}
 
+	if len(interleaved) == len(parentPks) {
+		return true
+	}
+
 	diff := []ddl.IndexKey{}
 
 	if len(interleaved) == 0 {
@@ -2622,8 +2746,7 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 
 			for j := 0; j < len(childPks); j++ {
 
-				if parentTable.ColDefs[parentPks[i].ColId].Name != childTable.ColDefs[childPks[j].ColId].Name {
-
+				if parentTable.ColDefs[parentPks[i].ColId].Name != childTable.ColDefs[childPks[j].ColId].Name || parentTable.ColDefs[parentPks[i].ColId].T.Len != childTable.ColDefs[childPks[j].ColId].T.Len {
 					diff = append(diff, parentPks[i])
 				}
 
@@ -2634,6 +2757,7 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 
 	canInterleavedOnAdd := []string{}
 	canInterleavedOnRename := []string{}
+	canInterLeaveOnChangeInColumnSize := []string{}
 
 	fkReferColNames := []string{}
 	childPkColNames := []string{}
@@ -2654,30 +2778,32 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 		if childColIndex == -1 {
 			canInterleavedOnAdd = append(canInterleavedOnAdd, fk.ColIds[parentColIndex])
 		} else {
-			canInterleavedOnRename = append(canInterleavedOnRename, fk.ColIds[parentColIndex])
+			if parentTable.ColDefs[diff[i].ColId].Name == childTable.ColDefs[fk.ColIds[parentColIndex]].Name {
+				canInterLeaveOnChangeInColumnSize = append(canInterLeaveOnChangeInColumnSize, fk.ColIds[parentColIndex])
+			} else {
+				canInterleavedOnRename = append(canInterleavedOnRename, fk.ColIds[parentColIndex])
+			}
+
 		}
 	}
 
-	if parentTable.ColDefs[parentPks[0].ColId].Name == childTable.ColDefs[childPks[0].ColId].Name &&
-		parentTable.ColDefs[parentPks[0].ColId].T.Len != childTable.ColDefs[childPks[0].ColId].T.Len {
-		updateInterleaveSuggestion([]string{childPks[0].ColId}, tableId, internal.InterleavedChangeColumnSize)
+	if len(canInterLeaveOnChangeInColumnSize) > 0 {
+		updateInterleaveSuggestion(canInterLeaveOnChangeInColumnSize, tableId, internal.InterleavedChangeColumnSize)
 	} else if len(canInterleavedOnRename) > 0 {
 		updateInterleaveSuggestion(canInterleavedOnRename, tableId, internal.InterleavedRenameColumn)
 	} else if len(canInterleavedOnAdd) > 0 {
 		updateInterleaveSuggestion(canInterleavedOnAdd, tableId, internal.InterleavedAddColumn)
 	}
 
-	if len(interleaved) > 0 {
-		return true
-	}
-
 	return false
 }
 
 func updateInterleaveSuggestion(colIds []string, tableId string, issue internal.SchemaIssue) {
-	for i := 0; i < len(colIds); i++ {
+	sessionState := session.GetSessionState()
+	sessionState.Conv.SchemaIssuesLock.Lock()
+	defer sessionState.Conv.SchemaIssuesLock.Unlock()
 
-		sessionState := session.GetSessionState()
+	for i := 0; i < len(colIds); i++ {
 
 		schemaissue := []internal.SchemaIssue{}
 
@@ -2706,9 +2832,11 @@ func updateInterleaveSuggestion(colIds []string, tableId string, issue internal.
 }
 
 func removeInterleaveSuggestions(colIds []string, tableId string) {
-	for i := 0; i < len(colIds); i++ {
+	sessionState := session.GetSessionState()
+	sessionState.Conv.SchemaIssuesLock.Lock()
+	defer sessionState.Conv.SchemaIssuesLock.Unlock()
 
-		sessionState := session.GetSessionState()
+	for i := 0; i < len(colIds); i++ {
 
 		schemaissue := []internal.SchemaIssue{}
 
