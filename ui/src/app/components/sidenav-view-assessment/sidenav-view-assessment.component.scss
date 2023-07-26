@@ -10,17 +10,17 @@ table.mat-table {
   vertical-align: inherit;
 }
 
-.mat-header-cell{
+.mat-header-cell {
   border-style: none;
- 
+
 }
 
-.icons{
-  border-left:1px solid rgb(208, 204, 204);
-  padding-left: 10px ;
-  
+.icons {
+  border-left: 1px solid rgb(208, 204, 204);
+  padding-left: 10px;
 }
-.cells{
+
+.cells {
   text-align: center;
 }
 
@@ -35,30 +35,177 @@ table.mat-table {
     .header-title {
       margin: 0;
     }
+
+    .btn-source-select {
+      margin: 0px 5px 0px 395px;
+
+      .split-button-left {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+      }
+
+      .split-button-right {
+        width: 30px !important;
+        min-width: unset !important;
+        padding: 0 8px 0 2px;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-left: 1px solid #fafafa;
+      }
+
+      .close-button {
+        margin-left: 1.25px;
+      }
+    }
   }
-  .btn-source-select {
-    margin: 0px 5px 0px 395px;
 
-    .split-button-left {
-      border-top-right-radius: 0;
-      border-bottom-right-radius: 0;
-    }
-
-    .split-button-right {
-      width: 30px !important;
-      min-width: unset !important;
-      padding: 0 8px 0 2px;
-      border-top-left-radius: 0;
-      border-bottom-left-radius: 0;
-      border-left: 1px solid #fafafa;
-    }
-
-    .close-button {
-      margin-left: 1.25px;
-    }
-  }
   .content {
     padding-left: 15px;
     padding-top: 10px;
+
+    .sidenav-percentage-indent {
+      padding-top: revert;
+      padding-bottom: 0;
+      box-shadow: none;
+    }
+
+    .databaseName {
+      text-transform: uppercase;
+      font-size: large;
+      font-weight: 500;
+    }
+
+    .summaryHeader {
+      display: flex;
+    }
+
+    .migrationDetails {
+      font-size: 16px;
+      font-weight: 400;
+      justify-content: center;
+      display: flex;
+    }
+
+    .summaryText {
+      font-size: 16px;
+      font-weight: 400;
+    }
+
+    .sidenav-percentage-indent {
+      padding-top: revert;
+      padding-bottom: revert;
+
+      .icon {
+        margin-right: 8px;
+      }
+
+      .danger,
+      .warning,
+      .success {
+        padding-left: 16px;
+      }
+
+      .warning,
+      .success {
+        padding-left: 32px;
+      }
+
+      .success {
+        padding-left: 40px;
+      }
+    }
+
+    .mat-card {
+      transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1);
+      display: block;
+      position: relative;
+      border-radius: 4px;
+      padding-left: revert;
+    }
+
+    .issue-report {
+
+      .warning,
+      .danger,
+      .success {
+        padding-right: 20px;
+      }
+
+      .suggestion {
+        padding-left: 20px;
+      }
+
+
+      table {
+        width: 100%;
+      }
+
+      .example-element-row td {
+        border-bottom-width: 0;
+      }
+
+      tr.example-detail-row {
+        height: 0;
+      }
+
+      tr.example-element-row:not(.example-expanded-row):hover {
+        background: whitesmoke;
+      }
+
+      tr.example-element-row:not(.example-expanded-row):active {
+        background: #efefef;
+      }
+
+      .example-element-description {
+        padding-left: 41px;
+        padding-top: 5px;
+        padding-bottom: 15px;
+      }
+
+      .example-element-description-attribution {
+        opacity: 0.5;
+      }
+
+      .example-element-detail {
+        overflow: hidden;
+        display: flex;
+      }
+
+      .mat-position {
+        width: 9px;
+        padding: 16px;
+      }
+
+      .mat-description {
+        width: 530px;
+        padding: 16px;
+      }
+
+      .mat-tableCount {
+        width: 65px;
+        padding: 16px;
+      }
+
+      .no-issue-container {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+
+        .no-issue-icon-container {
+          padding: 10px;
+          background-color: rgba(51, 103, 214, 0.12);
+          border-radius: 3px;
+          margin: 20px;
+        }
+
+        .no-issue-message {
+          width: 80%;
+          max-width: 500px;
+          text-align: center;
+        }
+      }
+    }
   }
+
 }

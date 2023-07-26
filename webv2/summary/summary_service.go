@@ -8,39 +8,39 @@ import (
 // getSummary returns table wise summary of conversion.
 func getSummary() map[string]ConversionSummary {
 	sessionState := session.GetSessionState()
-	reports := reports.AnalyzeTables(sessionState.Conv, nil)
+	Reports := reports.AnalyzeTables(sessionState.Conv, nil)
 
 	summary := make(map[string]ConversionSummary)
-	for _, t := range reports {
+	for _, t := range Reports {
 		cs := ConversionSummary{
 			SrcTable:    t.SrcTable,
 			SpTable:     t.SpTable,
-			Notes:       []string{},
-			Warnings:    []string{},
-			Errors:      []string{},
-			Suggestions: []string{},
+			Notes:       []reports.IssueClassified{},
+			Warnings:    []reports.IssueClassified{},
+			Errors:      []reports.IssueClassified{},
+			Suggestions: []reports.IssueClassified{},
 		}
 		for _, x := range t.Body {
 			switch x.Heading {
 			case "Note", "Notes":
 				{
-					cs.Notes = x.Lines
-					cs.NotesCount = len(x.Lines)
+					cs.Notes = x.IssueBody
+					cs.NotesCount = len(x.IssueBody)
 				}
 			case "Warning", "Warnings":
 				{
-					cs.Warnings = x.Lines
-					cs.WarningsCount = len(x.Lines)
+					cs.Warnings = x.IssueBody
+					cs.WarningsCount = len(x.IssueBody)
 				}
 			case "Error", "Errors":
 				{
-					cs.Errors = x.Lines
-					cs.ErrorsCount = len(x.Lines)
+					cs.Errors = x.IssueBody
+					cs.ErrorsCount = len(x.IssueBody)
 				}
 			case "Suggestion", "Suggestions":
 				{
-					cs.Suggestions = x.Lines
-					cs.SuggestionsCount = len(x.Lines)
+					cs.Suggestions = x.IssueBody
+					cs.SuggestionsCount = len(x.IssueBody)
 				}
 			}
 			summary[t.SpTable] = cs
