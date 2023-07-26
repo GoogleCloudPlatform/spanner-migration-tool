@@ -111,7 +111,8 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 		if findSchemaIssue(issues, internal.NoGoodType) != -1 {
 			isNotNull = false
 		}
-		// Set the not null constraint to false for array datatype
+		// Set the not null constraint to false for array datatype. This is done because
+		// datastream does not support array datatypes.
 		if ty.IsArray {
 			isNotNull = false
 		}

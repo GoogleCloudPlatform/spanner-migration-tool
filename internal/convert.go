@@ -34,10 +34,10 @@ type Conv struct {
 	SyntheticPKeys   map[string]SyntheticPKey // Maps Spanner table name to synthetic primary key (if needed).
 	SrcSchema        map[string]schema.Table  // Maps source-DB table name to schema information.
 	SchemaIssues     map[string]TableIssues   // Maps source-DB table/col to list of schema conversion issues.
-	SchemaIssuesLock sync.RWMutex
-	ToSpanner        map[string]NameAndCols `json:"-"` // Maps from source-DB table name to Spanner name and column mapping.
-	ToSource         map[string]NameAndCols `json:"-"` // Maps from Spanner table name to source-DB table name and column mapping.
-	UsedNames        map[string]bool        `json:"-"` // Map storing the names that are already assigned to tables, indices or foreign key contraints.
+	SchemaIssuesLock sync.RWMutex             // TODO: Re-evaluate if this will suffice for all concurrent flows or should we add a conv level lock
+	ToSpanner        map[string]NameAndCols   `json:"-"` // Maps from source-DB table name to Spanner name and column mapping.
+	ToSource         map[string]NameAndCols   `json:"-"` // Maps from Spanner table name to source-DB table name and column mapping.
+	UsedNames        map[string]bool          `json:"-"` // Map storing the names that are already assigned to tables, indices or foreign key contraints.
 	dataSink         func(table string, cols []string, values []interface{})
 	DataFlush        func()              `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
 	Location         *time.Location      // Timezone (for timestamp conversion).

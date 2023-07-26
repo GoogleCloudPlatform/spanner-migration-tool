@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 const (
@@ -448,12 +449,14 @@ func NewSchema() Schema {
 // TODO: Move this method to mapping.go and preserve the table names in sorted
 // order in conv so that we don't need to order the table names multiple times.
 func GetSortedTableIdsBySpName(s Schema) []string {
+
 	var tableNames, sortedTableNames, sortedTableIds []string
 	tableNameIdMap := map[string]string{}
 	for _, t := range s {
 		tableNames = append(tableNames, t.Name)
 		tableNameIdMap[t.Name] = t.Id
 	}
+	logger.Log.Debug(fmt.Sprintf("getting sorted table ids by table name: %s", tableNames))
 	sort.Strings(tableNames)
 	tableQueue := tableNames
 	tableAdded := make(map[string]bool)
