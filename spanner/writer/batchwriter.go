@@ -25,7 +25,7 @@ import (
 	"unsafe"
 
 	sp "cloud.google.com/go/spanner"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 // Parameters used to control building batches to write to Spanner.

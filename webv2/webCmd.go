@@ -23,7 +23,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/google/subcommands"
 )
 
@@ -43,7 +43,7 @@ func (cmd *WebCmd) Name() string {
 
 // Synopsis returns summary of operation.
 func (cmd *WebCmd) Synopsis() string {
-	return "run the web UI for HarbourBridge"
+	return "run the web UI for Spanner migration tool"
 }
 
 func (cmd *WebCmd) Usage() string {
@@ -52,12 +52,12 @@ func (cmd *WebCmd) Usage() string {
 
 func (cmd *WebCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
-	f.BoolVar(&cmd.open, "open", false, "Opens the Harbourbridge web interface in the default browser, defaults to false")
-	f.IntVar(&cmd.port, "port", 8080, "The port in which Harbourbridge will run, defaults to 8080")
+	f.BoolVar(&cmd.open, "open", false, "Opens the Spanner migration tool web interface in the default browser, defaults to false")
+	f.IntVar(&cmd.port, "port", 8080, "The port in which Spanner migration tool will run, defaults to 8080")
 }
 
 func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	os.RemoveAll(filepath.Join(os.TempDir(), constants.HB_TMP_DIR))
+	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))
 	FrontendDir = cmd.DistDir
 	var err error
 	defer func() {

@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"golang.org/x/net/context"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
@@ -117,7 +117,7 @@ func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time
 // correspond to regular Cloud Spanner database and PG Cloud Spanner database
 // respectively.
 //
-// If dbName is not specified, then HarbourBridge will autogenerate the same
+// If dbName is not specified, then Spanner migration tool will autogenerate the same
 // and create a database with the same name.
 //
 // Example: -target-profile="instance=my-instance1,dbName=my-new-db1"

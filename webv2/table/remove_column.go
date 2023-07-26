@@ -15,9 +15,9 @@
 package table
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 )
 
 // removeColumn remove given column from schema.
@@ -135,6 +135,8 @@ func removeColumnFromSpannerSecondaryIndex(sp ddl.CreateTable, colId string) ddl
 
 // removeColumnFromSecondaryIndexKey remove given column from Spanner Secondary Schema Issue List.
 func removeSpannerSchemaIssue(tableId string, colId string, conv *internal.Conv) {
+	conv.SchemaIssuesLock.Lock()
+	defer conv.SchemaIssuesLock.Unlock()
 	if conv.SchemaIssues != nil {
 		if conv.SchemaIssues[tableId].ColumnLevelIssues != nil && conv.SchemaIssues[tableId].ColumnLevelIssues[colId] != nil {
 			delete(conv.SchemaIssues[tableId].ColumnLevelIssues, colId)

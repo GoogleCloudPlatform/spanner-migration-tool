@@ -17,15 +17,15 @@ package utilities
 import (
 	"fmt"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/oracle"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/sqlserver"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 )
 
 func GetType(conv *internal.Conv, newType, tableId, colId string) (ddl.CreateTable, ddl.Type, error) {
@@ -64,9 +64,11 @@ func GetType(conv *internal.Conv, newType, tableId, colId string) (ddl.CreateTab
 	if srcCol.Ignored.AutoIncrement {
 		issues = append(issues, internal.AutoIncrement)
 	}
+	conv.SchemaIssuesLock.Lock()
 	if conv.SchemaIssues != nil && len(issues) > 0 {
 		conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = issues
 	}
+	conv.SchemaIssuesLock.Unlock()
 	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
 	return sp, ty, nil
 }

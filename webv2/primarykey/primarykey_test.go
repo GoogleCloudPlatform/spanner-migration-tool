@@ -21,12 +21,18 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 func TestUpdatePrimaryKey(t *testing.T) {
 
@@ -56,7 +62,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 
 	input := PrimaryKeyRequest{
 		TableId: "t1",
-		Columns: []Column{{ColumnId: "c1", Desc: false, Order: 1}},
+		Columns: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -130,7 +136,7 @@ func TestAddPrimaryKey(t *testing.T) {
 
 	input := PrimaryKeyRequest{
 		TableId: "t1",
-		Columns: []Column{{ColumnId: "c1", Desc: true, Order: 1}, {ColumnId: "c2", Desc: false, Order: 2}},
+		Columns: []ddl.IndexKey{{ColId: "c1", Desc: true, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -212,7 +218,7 @@ func TestRemovePrimaryKey(t *testing.T) {
 
 	input := PrimaryKeyRequest{
 		TableId: "t1",
-		Columns: []Column{{ColumnId: "c1", Desc: true, Order: 1}},
+		Columns: []ddl.IndexKey{{ColId: "c1", Desc: true, Order: 1}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -298,7 +304,7 @@ func TestPrimarykey(t *testing.T) {
 			name: "Table Id Not found",
 			input: PrimaryKeyRequest{
 				TableId: "t2",
-				Columns: []Column{{ColumnId: "c1", Desc: true, Order: 1}, {ColumnId: "c2", Desc: true, Order: 2}},
+				Columns: []ddl.IndexKey{{ColId: "c1", Desc: true, Order: 1}, {ColId: "c2", Desc: true, Order: 2}},
 			},
 			statusCode: http.StatusNotFound,
 		},
@@ -306,7 +312,7 @@ func TestPrimarykey(t *testing.T) {
 			name: "Column are empty",
 			input: PrimaryKeyRequest{
 				TableId: "t1",
-				Columns: []Column{}},
+				Columns: []ddl.IndexKey{}},
 			statusCode: http.StatusBadRequest,
 		},
 	}

@@ -29,4 +29,4 @@ git tag "v${version}"
 git push origin "v${version}"
 echo "Github tag v${version} created"
 
-echo "Create a new release by visiting https://github.com/cloudspannerecosystem/harbourbridge/releases/new?tag=v${version}&title=v${version}"
+echo "Create a new release by visiting https://github.com/GoogleCloudPlatform/spanner-migration-tool/releases/new?tag=v${version}&title=v${version}"

@@ -19,7 +19,7 @@ import (
 
 	sp "cloud.google.com/go/spanner"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 )
 
 // StreamingInfo contains information related to processing of DynamoDB Streams.

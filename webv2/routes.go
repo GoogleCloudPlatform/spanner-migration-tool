@@ -18,12 +18,12 @@ import (
 	"io/fs"
 	"net/http"
 
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/summary"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/table"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/profile"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/summary"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/table"
 
 	"github.com/gorilla/mux"
 )
@@ -50,6 +50,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/typemap/reviewTableSchema", table.ReviewTableSchema).Methods("POST")
 	router.HandleFunc("/typemap/GetStandardTypeToPGSQLTypemap", getStandardTypeToPGSQLTypemap).Methods("GET")
 	router.HandleFunc("/typemap/GetPGSQLToStandardTypeTypemap", getPGSQLToStandardTypeTypemap).Methods("GET")
+	router.HandleFunc("/spannerDefaultTypeMap", spannerDefaultTypeMap).Methods("GET")
 
 	router.HandleFunc("/setparent", setParentTable).Methods("GET")
 	router.HandleFunc("/removeParent", removeParentTable).Methods("POST")

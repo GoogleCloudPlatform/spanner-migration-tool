@@ -15,9 +15,9 @@
 package primarykey
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 )
 
 // DetectHotspot adds hotspot detected suggestion in schema conversion process for database.
@@ -42,6 +42,9 @@ func isHotSpot(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 // hotspotTimestamp checks Timestamp hotspot.
 // If present adds HotspotTimestamp as an issue in Issues.
 func hotspotTimestamp(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
+	sessionState := session.GetSessionState()
+	sessionState.Conv.SchemaIssuesLock.Lock()
+	defer sessionState.Conv.SchemaIssuesLock.Unlock()
 
 	for i := 0; i < len(insert); i++ {
 
@@ -52,7 +55,6 @@ func hotspotTimestamp(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 				if c.T.Name == ddl.Timestamp {
 
 					columnId := insert[i].ColId
-					sessionState := session.GetSessionState()
 					schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[columnId]
 
 					schemaissue = append(schemaissue, internal.HotspotTimestamp)
@@ -85,6 +87,8 @@ func hotspotAutoincrement(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 func detecthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId string) {
 
 	sessionState := session.GetSessionState()
+	sessionState.Conv.SchemaIssuesLock.Lock()
+	defer sessionState.Conv.SchemaIssuesLock.Unlock()
 	sourcetable := sessionState.Conv.SrcSchema[spannerTable.Id]
 
 	for _, s := range sourcetable.ColDefs {
@@ -94,7 +98,6 @@ func detecthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId st
 			if s.Ignored.AutoIncrement {
 
 				columnId := s.Id
-				sessionState := session.GetSessionState()
 				schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[columnId]
 
 				schemaissue = append(schemaissue, internal.HotspotAutoIncrement)

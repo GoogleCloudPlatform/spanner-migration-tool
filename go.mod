@@ -1,4 +1,4 @@
-module github.com/cloudspannerecosystem/harbourbridge
+module github.com/GoogleCloudPlatform/spanner-migration-tool
 
 go 1.19
 

@@ -3,16 +3,16 @@
     <button mat-icon-button (click)="closeInstructionSidenav()"><mat-icon>close</mat-icon></button>
   </div>
   <img src="../../../assets/icons/google-spanner-logo.png" class="instructions-icon" />
-  <h1 class="textCenter">HarbourBridge User Manual</h1>
+  <h1 class="textCenter">Spanner migration tool User Manual</h1>
   <br /><br />
   <h3 class="instructions-main-heading">1 &nbsp; &nbsp; &nbsp;Introduction</h3>
   <p>
-    HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation, using data from an
+    Spanner migration tool (formerly known as HarbourBridge) is a stand-alone open source tool for Cloud Spanner evaluation, using data from an
     existing PostgreSQL or MySQL database. The tool ingests schema and data from either a
     pg_dump/mysqldump file or directly from the source database, automatically builds a Spanner
     schema, and creates a new Spanner database populated with data from the source database.
     <br /><br /><br />
-    HarbourBridge is designed to simplify Spanner evaluation, and in particular to bootstrap the
+    Spanner migration tool is designed to simplify Spanner evaluation, and in particular to bootstrap the
     process by getting moderate-size PostgreSQL/MySQL datasets into Spanner (up to a few tens of
     GB). Many features of PostgreSQL/MySQL, especially those that don't map directly to Spanner
     features, are ignored, e.g. (non-primary) indexes, functions, and sequences. Types such as
@@ -20,9 +20,9 @@
     Spanner, but many other types do not and instead are mapped to Spanner's STRING(MAX).
   </p>
   <br />
-  <h4 class="instructions-sub-heading">1.1 &nbsp; &nbsp; &nbsp;HarbourBridge UI</h4>
+  <h4 class="instructions-sub-heading">1.1 &nbsp; &nbsp; &nbsp;Spanner migration tool UI</h4>
   <p>
-    HarbourBridge UI is designed to focus on generating spanner schema from either a
+    Spanner migration tool UI is designed to focus on generating spanner schema from either a
     pg_dump/mysqldump file or directly from the source database and providing edit functionality to
     the spanner schema and thereby creating a new spanner database populated with new data. UI gives
     the provision to edit column name, edit data type, edit constraints, drop foreign key and drop
@@ -51,7 +51,7 @@
   <ul>
     <li>Install go in local</li>
     <li>
-      Clone harbourbridge project and run following command in the terminal: <br />
+      Clone Spanner migration tool project and run following command in the terminal: <br />
       <span class="instructions-command">go run main.go --web</span>
     </li>
     <li>Open <span class="instructions-command">http://localhost:8080</span>in browser</li>
@@ -129,10 +129,10 @@
 
   <h3 class="instructions-main-heading">9 &nbsp; &nbsp; &nbsp;How to use Session File</h3>
   <p>
-    Please refer below link to get more information on how to use session file with harbourbridge
+    Please refer below link to get more information on how to use session file with Spanner migration
     tool
   </p>
-  <a href="https://github.com/cloudspannerecosystem/harbourbridge" class="instructionsLink"
+  <a href="https://github.com/GoogleCloudPlatform/spanner-migration-tool" class="instructionsLink"
     >Refer this to use Session File</a
   >
   <br />
