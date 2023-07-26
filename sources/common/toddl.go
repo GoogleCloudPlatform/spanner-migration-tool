@@ -106,10 +106,20 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 		if len(issues) > 0 {
 			columnLevelIssues[srcColId] = issues
 		}
+		// Set the not null constraint to false for unsupported source datatypes
+		isNotNull := srcCol.NotNull
+		if findSchemaIssue(issues, internal.NoGoodType) != -1 {
+			isNotNull = false
+		}
+		// Set the not null constraint to false for array datatype. This is done because
+		// datastream does not support array datatypes.
+		if ty.IsArray {
+			isNotNull = false
+		}
 		spColDef[srcColId] = ddl.ColumnDef{
 			Name:    colName,
 			T:       ty,
-			NotNull: srcCol.NotNull,
+			NotNull: isNotNull,
 			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			Id:      srcColId,
 		}
@@ -120,10 +130,12 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 	if totalNonKeyColumnSize > ddl.MaxNonKeyColumnLength {
 		tableLevelIssues = append(tableLevelIssues, internal.RowLimitExceeded)
 	}
+	conv.SchemaIssuesLock.Lock()
 	conv.SchemaIssues[srcTable.Id] = internal.TableIssues{
 		TableLevelIssues:  tableLevelIssues,
 		ColumnLevelIssues: columnLevelIssues,
 	}
+	conv.SchemaIssuesLock.Unlock()
 	comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
 	conv.SpSchema[srcTable.Id] = ddl.CreateTable{
 		Name:        spTableName,
@@ -239,6 +251,7 @@ func cvtForeignKeysForAReferenceTable(conv *internal.Conv, tableId string, refer
 			if err != nil {
 				continue
 			}
+
 			spKey.Id = key.Id
 			spKeys = append(spKeys, spKey)
 		}
@@ -255,8 +268,8 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 		for _, v := range spColIds {
 			if v == k.ColId {
 				isPresent = true
-				if (conv.SpDialect == constants.DIALECT_POSTGRESQL) {
-					if(spColDef[v].T.Name == ddl.Numeric) {
+				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+					if spColDef[v].T.Name == ddl.Numeric {
 						//index on NUMERIC is not supported in PGSQL Dialect currently.
 						//Indexes which contains a NUMERIC column in it will need to be skipped.
 						return ddl.CreateIndex{}
