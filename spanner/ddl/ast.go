@@ -399,11 +399,25 @@ func (ci CreateIndex) PrintCreateIndex(ct CreateTable, c Config) string {
 	if ci.StoredColumnIds != nil {
 		storedColumns := []string{}
 		for _, colId := range ci.StoredColumnIds {
-			storedColumns = append(storedColumns, ct.ColDefs[colId].Name)
+			if (!isStoredColumnKeyPartOfPrimaryKey(ct, colId)) {
+				storedColumns = append(storedColumns, c.quote(ct.ColDefs[colId].Name))
+			}
 		}
-		storingClause = fmt.Sprintf(" %s (%s)", stored, strings.Join(ci.StoredColumnIds, ", "))
+		storingClause = fmt.Sprintf(" %s (%s)", stored, strings.Join(storedColumns, ", "))
 	}
 	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)%s", unique, c.quote(ci.Name), c.quote(ct.Name), strings.Join(keys, ", "), storingClause)
+}
+
+// Checks if the colId is part of the primary of a table
+// Used for detecting if a key needs to be skipped while creating the
+// storing clause.
+func isStoredColumnKeyPartOfPrimaryKey(ct CreateTable, colId string) bool {
+	for _, pkey := range ct.PrimaryKeys {
+		if colId == pkey.ColId {
+			return true
+		}
+	}
+	return false
 }
 
 // PrintForeignKeyAlterTable unparses the foreign keys using ALTER TABLE.
