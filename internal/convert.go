@@ -194,8 +194,9 @@ type streamingStats struct {
 }
 
 type dataprocMetadata struct {
-	DataprocJobUrls []string
-	DataprocJobIds  []string
+	DataprocJobUrls   []string
+	DataprocJobIds    []string
+	DataprocJobStatus []string
 }
 
 // Stores information related to rules during schema conversion

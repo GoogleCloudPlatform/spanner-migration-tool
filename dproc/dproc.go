@@ -16,7 +16,6 @@ package dproc
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	dataproc "cloud.google.com/go/dataproc/apiv1"
 	"cloud.google.com/go/dataproc/apiv1/dataprocpb"
@@ -115,16 +114,13 @@ func GetDataprocRequestParams(sourceProfile profiles.SourceProfile, targetProfil
 	return dataprocRequestParams, nil
 }
 
-func CreateDataprocBatchClient(location string) (*dataproc.BatchControllerClient, error) {
-	ctx := context.Background()
+func CreateDataprocBatchClient(ctx context.Context, location string) (*dataproc.BatchControllerClient, error) {
 	batchEndpoint := fmt.Sprintf("%s-dataproc.googleapis.com:443", location)
 	batchClient, err := dataproc.NewBatchControllerClient(ctx, option.WithEndpoint(batchEndpoint))
 	return batchClient, err
 }
 
-func TriggerDataprocTemplate(batchClient *dataproc.BatchControllerClient, srcTable string, srcSchema string, primaryKeys string, dataprocRequestParams DataprocRequestParams) (string, error) {
-	ctx := context.Background()
-
+func TriggerDataprocTemplate(ctx context.Context, batchClient *dataproc.BatchControllerClient, srcTable string, srcSchema string, primaryKeys string, dataprocRequestParams DataprocRequestParams) (*dataproc.CreateBatchOperation, error) {
 	logger.Log.Info(fmt.Sprintf("Triggering Dataproc template for %s.%s\n", srcSchema, srcTable))
 	req := &dataprocpb.CreateBatchRequest{
 		Parent: "projects/" + dataprocRequestParams.Project + "/locations/" + dataprocRequestParams.Location,
@@ -152,22 +148,5 @@ func TriggerDataprocTemplate(batchClient *dataproc.BatchControllerClient, srcTab
 	}
 
 	op, err := batchClient.CreateBatch(ctx, req)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("error creating the batch: %s\n", err.Error()))
-		return "", err
-	}
-
-	resp, err := op.Wait(ctx)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("error completing the batch: %s\n", err.Error()))
-		logger.Log.Error(fmt.Sprintf("Failing data migration from Dataproc template for %s.%s with batch id: %s\n", srcSchema, srcTable, resp.GetName()))
-		return resp.GetName(), err
-	}
-
-	batchName := resp.GetName()
-
-	splittedBatchName := strings.Split(batchName, "/")
-	jobId := splittedBatchName[5]
-
-	return jobId, err
+	return op, err
 }
