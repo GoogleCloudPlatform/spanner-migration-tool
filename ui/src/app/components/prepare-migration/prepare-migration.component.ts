@@ -5,19 +5,20 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary, ISpannerDetails } from 'src/app/model/conv'
-import IMigrationDetails, { IGeneratedResources, IProgress, ISourceAndTargetDetails, ResourceDetails } from 'src/app/model/migrate'
-import { Dataflow, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
+import IMigrationDetails, { IGeneratedResources, IDataprocJobs, IProgress, ISourceAndTargetDetails, ResourceDetails } from 'src/app/model/migrate'
+import { Dataflow, Dataproc, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressRefreshInterval, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
 import { SourceDetailsFormComponent } from '../source-details-form/source-details-form.component'
 import { EndMigrationComponent } from '../end-migration/end-migration.component'
-import { IDataflowConfig, IMigrationProfile, ISetUpConnectionProfile, IShardedDataflowMigration } from 'src/app/model/profile'
+import { IDataflowConfig, IMigrationProfile, IDataprocConfig, ISetUpConnectionProfile, IShardedDataflowMigration} from 'src/app/model/profile'
 import { DataflowFormComponent } from '../dataflow-form/dataflow-form.component'
 import ISpannerConfig from 'src/app/model/spanner-config'
 import { ShardedBulkSourceDetailsFormComponent } from '../sharded-bulk-source-details-form/sharded-bulk-source-details-form.component'
 import { IShardSessionDetails } from 'src/app/model/db-config'
 import { ShardedDataflowMigrationDetailsFormComponent } from '../sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component'
+import { DataprocFormComponent } from '../dataproc-form/dataproc-form.component'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -39,6 +40,7 @@ export class PrepareMigrationComponent implements OnInit {
   isSourceConnectionProfileSet: boolean = false
   isTargetConnectionProfileSet: boolean = false
   isDataflowConfigurationSet: boolean = false
+  isDataprocConfigurationSet: boolean = false
   isSourceDetailsSet: boolean = false
   isTargetDetailSet: boolean = false
   isForeignKeySkipped: boolean = false
@@ -52,6 +54,7 @@ export class PrepareMigrationComponent implements OnInit {
   selectedMigrationType: string = MigrationTypes.lowDowntimeMigration
   isMigrationInProgress: boolean = false
   isLowDtMigrationRunning: boolean = false
+  isDprocMigrationRunning: boolean = false
   isResourceGenerated: boolean = false
   generatingResources: boolean = false
   errorMessage: string = ''
@@ -74,6 +77,11 @@ export class PrepareMigrationComponent implements OnInit {
     DataflowJobUrl: '',
     ShardToDatastreamMap: new Map<string, ResourceDetails>(),
     ShardToDataflowMap: new Map<string, ResourceDetails>(),
+  }
+  isDataprocJobsGenerated: boolean = false
+  dataprocJobsGenerated: IDataprocJobs = {
+    DataprocJobUrls: [],
+    DataprocJobIds: [],
   }
   configuredMigrationProfile!: IMigrationProfile
   region: string = ''
@@ -109,6 +117,12 @@ export class PrepareMigrationComponent implements OnInit {
     { value: true, displayName: 'Yes' },
   ]
 
+  dataprocConfig: IDataprocConfig = {
+    Subnetwork: localStorage.getItem(Dataproc.Subnetwork) as string,
+    Hostname: localStorage.getItem(Dataproc.Hostname) as string,
+    Port: localStorage.getItem(Dataproc.Port) as string
+  }
+  
   migrationModesHelpText = new Map<string, string>([
     ["Schema", "Migrates only the schema of the source database to the configured Spanner instance."],
     ["Data", "Migrates the data from the source database to the configured Spanner database. The configured database should already contain the schema."],
@@ -134,8 +148,18 @@ export class PrepareMigrationComponent implements OnInit {
         {
           name: 'Minimal downtime Migration',
           value: MigrationTypes.lowDowntimeMigration,
-        },
+        }
       ]
+      if (
+        this.sourceDatabaseType == SourceDbNames.MySQL.toLowerCase()
+      ) {
+        this.migrationTypes.push(
+          {
+            name: 'Migration via Dataproc',
+            value: MigrationTypes.dataprocMigration,
+          }
+        )
+      }  
     } else {
       this.selectedMigrationType = MigrationTypes.bulkMigration
       this.migrationTypes = [
@@ -191,8 +215,16 @@ export class PrepareMigrationComponent implements OnInit {
           {
             name: 'Minimal downtime Migration',
             value: MigrationTypes.lowDowntimeMigration,
-          },
+          }
         ]
+        if (
+          res.DatabaseType == SourceDbNames.MySQL.toLowerCase()
+        ) {
+          this.migrationTypes.push({
+            name: 'Migration via Dataproc',
+            value: MigrationTypes.dataprocMigration
+          })
+        }
         if (this.connectionType == InputType.DumpFile) {
           this.selectedMigrationType = MigrationTypes.bulkMigration
           this.migrationTypes = [
@@ -247,6 +279,9 @@ export class PrepareMigrationComponent implements OnInit {
     }
     if (localStorage.getItem(Dataflow.IsDataflowConfigSet) != null) {
       this.isDataflowConfigurationSet = (localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true')
+    }
+    if (localStorage.getItem(Dataproc.IsDataprocConfigSet) != null) {
+      this.isDataprocConfigurationSet = (localStorage.getItem(Dataproc.IsDataprocConfigSet) as string === 'true')
     }
     if (localStorage.getItem(MigrationDetails.IsTargetConnectionProfileSet) != null) {
       this.isTargetConnectionProfileSet =
@@ -325,6 +360,10 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(Dataflow.IsDataflowConfigSet)
     localStorage.removeItem(Dataflow.Network)
     localStorage.removeItem(Dataflow.Subnetwork)
+    localStorage.removeItem(Dataproc.IsDataprocConfigSet)
+    localStorage.removeItem(Dataproc.Subnetwork)
+    localStorage.removeItem(Dataproc.Hostname)
+    localStorage.removeItem(Dataproc.Port)
     localStorage.removeItem(Dataflow.HostProjectId)
     localStorage.removeItem(MigrationDetails.IsMigrationInProgress)
     localStorage.removeItem(MigrationDetails.HasSchemaMigrationStarted)
@@ -444,6 +483,22 @@ export class PrepareMigrationComponent implements OnInit {
     )
   }
 
+  openDataprocForm() {
+    let dialogRef = this.dialog.open(DataprocFormComponent, {
+      width: '30vw',
+      minWidth: '400px',
+      maxWidth: '500px',
+    })
+    dialogRef.afterClosed().subscribe(() => {
+      this.dataprocConfig = {
+        Subnetwork: localStorage.getItem(Dataproc.Subnetwork) as string,
+        Hostname: localStorage.getItem(Dataproc.Hostname) as string,
+        Port: localStorage.getItem(Dataproc.Port) as string
+      }
+      this.isDataprocConfigurationSet = localStorage.getItem(Dataproc.IsDataprocConfigSet) as string === 'true'
+    })
+  }
+
   endMigration() {
     let payload: ISourceAndTargetDetails = {
       SpannerDatabaseName: this.resourcesGenerated.DatabaseName,
@@ -544,12 +599,14 @@ export class PrepareMigrationComponent implements OnInit {
     })
   }
 
+
   migrate() {
     this.resetValues()
     let payload: IMigrationDetails = {
       TargetDetails: this.targetDetails,
       DataflowConfig: this.dataflowConfig,
       IsSharded: this.isSharded,
+      DataprocConfig: this.dataprocConfig,
       MigrationType: this.selectedMigrationType,
       MigrationMode: this.selectedMigrationMode,
       skipForeignKeys: this.isForeignKeySkipped
@@ -593,7 +650,8 @@ export class PrepareMigrationComponent implements OnInit {
 
   subscribeMigrationProgress() {
     var displayStreamingMsg = false
-    this.subscription = interval(5000).subscribe((x) => {
+    var displayDataprocMsg = false
+    this.subscription = interval(ProgressRefreshInterval).subscribe((x => {
       this.fetch.getProgress().subscribe({
         next: (res: IProgress) => {
           if (res.ErrorMessage == '') {
@@ -624,8 +682,9 @@ export class PrepareMigrationComponent implements OnInit {
                   this.hasDataMigrationStarted.toString()
                 )
               }
-            } else if (res.ProgressStatus == ProgressStatus.DataMigrationComplete) {
-              if (this.selectedMigrationType != MigrationTypes.lowDowntimeMigration) {
+            }
+            else if (res.ProgressStatus == ProgressStatus.DataMigrationComplete) {
+              if (this.selectedMigrationType != MigrationTypes.lowDowntimeMigration && this.selectedMigrationType != MigrationTypes.dataprocMigration) {
                 this.hasDataMigrationStarted = true
                 localStorage.setItem(
                   MigrationDetails.HasDataMigrationStarted,
@@ -648,10 +707,18 @@ export class PrepareMigrationComponent implements OnInit {
                 this.hasDataMigrationStarted.toString()
               )
               localStorage.setItem(MigrationDetails.DataMigrationProgress, res.Progress.toString())
-              this.dataMigrationProgress = parseInt(
-                localStorage.getItem(MigrationDetails.DataMigrationProgress) as string
-              )
-            } else if (res.ProgressStatus == ProgressStatus.ForeignKeyUpdateComplete) {
+              this.dataMigrationProgress = parseInt(localStorage.getItem(MigrationDetails.DataMigrationProgress) as string)
+
+              if (this.selectedMigrationType == MigrationTypes.dataprocMigration) {
+                if (!displayDataprocMsg) {
+                  this.snack.openSnackBar('Setting up Dataproc jobs', 'Close')
+                  displayDataprocMsg = true
+                  this.fetchGeneratedResources()
+                }
+                this.fetchDataprocJobs()
+              }
+            }
+            else if (res.ProgressStatus == ProgressStatus.ForeignKeyUpdateComplete) {
               this.markMigrationComplete()
             }
             // Checking for foreign key update in progress
@@ -694,6 +761,7 @@ export class PrepareMigrationComponent implements OnInit {
             this.foreignKeyProgressMessage = 'Foreign key update cancelled!'
             this.generatingResources = false
             this.isLowDtMigrationRunning = false
+            this.isDprocMigrationRunning = false
             this.clearLocalStorage()
           }
         },
@@ -703,7 +771,7 @@ export class PrepareMigrationComponent implements OnInit {
           this.clearLocalStorage()
         },
       })
-    })
+    }));
   }
 
   markForeignKeyUpdateInitiation() {
@@ -764,6 +832,24 @@ export class PrepareMigrationComponent implements OnInit {
     if (this.selectedMigrationType === MigrationTypes.lowDowntimeMigration) {
       this.isLowDtMigrationRunning = true
     }
+    if (this.selectedMigrationType === MigrationTypes.dataprocMigration) {
+      this.isDprocMigrationRunning = true
+    }
+  }
+
+  fetchDataprocJobs() {
+    this.fetch.getDataprocJobs().subscribe({
+      next: (dprocJobs: IDataprocJobs) => {
+        this.isDataprocJobsGenerated = true
+        this.dataprocJobsGenerated = dprocJobs
+      },
+      error: (err: any) => {
+        this.snack.openSnackBar(err.error, 'Close')
+      },
+    })
+
+    this.isDprocMigrationRunning = true
+    
   }
 
   markMigrationComplete() {
@@ -775,6 +861,7 @@ export class PrepareMigrationComponent implements OnInit {
     this.dataMigrationProgress = 100
     this.foreignKeyUpdateProgress = 100
     this.foreignKeyProgressMessage = 'Foreign key updated successfully!'
+    this.fetchDataprocJobs()
     this.fetchGeneratedResources()
     this.clearLocalStorage()
     this.refreshPrerequisites()
@@ -803,6 +890,12 @@ export class PrepareMigrationComponent implements OnInit {
       DataflowJobUrl: '',
       ShardToDatastreamMap: new Map<string, ResourceDetails>(),
       ShardToDataflowMap: new Map<string, ResourceDetails>()
+    }
+    this.isDataprocJobsGenerated = false
+    this.dataprocJobsGenerated = {
+      DataprocJobUrls: [],
+      DataprocJobIds: []
+     
     }
     this.initializeLocalStorage()
   }

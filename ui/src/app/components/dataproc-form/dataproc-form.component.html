@@ -1,0 +1,26 @@
+<div mat-dialog-content>
+    <form [formGroup]="dataprocForm" class="dataproc-form">
+      <h2>Dataproc Details</h2>
+      <mat-form-field hintLabel="projects/&lt;PROJECT_ID&gt;/regions/&lt;REGION&gt;/subnetworks/&lt;SUBNET_NAME&gt;" class="full-width" appearance="outline">
+        <mat-label>VPC Subnetwork URI</mat-label>
+        <input matInput placeholder="VPC Subnetwork URI" type="text" formControlName="subnetwork"/>
+      </mat-form-field>
+      <br><br>
+      <mat-form-field class="full-width" appearance="outline">
+        <mat-label>Hostname</mat-label>
+        <input matInput placeholder="Hostname" type="text" formControlName="hostname"/>
+      </mat-form-field>
+      <br>
+      <mat-form-field class="full-width" appearance="outline">
+        <mat-label>Port</mat-label>
+        <input matInput placeholder="Port" type="text" formControlName="port"/>
+      </mat-form-field>
+    </form>
+    <div mat-dialog-actions class="buttons-container">
+      <button mat-button color="primary" mat-dialog-close>Cancel</button>
+      <button mat-button type="submit" color="primary" [disabled]="!(dataprocForm.valid)"
+        (click)="updateDataprocDetails()">
+        Save
+      </button>
+    </div>
+</div>

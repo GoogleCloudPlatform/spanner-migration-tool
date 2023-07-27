@@ -73,3 +73,9 @@ export interface IMigrationProfile {
     configType: string
     shardConfigurationDataflow: IShardConfigurationDataflow
 }
+
+export interface IDataprocConfig {
+    Subnetwork: string
+    Hostname: string
+    Port: string
+}

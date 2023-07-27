@@ -48,6 +48,7 @@ import { ShardedBulkSourceDetailsFormComponent } from './components/sharded-bulk
 import { ShardedDataflowMigrationDetailsFormComponent } from './components/sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component';
 import { BulkDropRestoreTableDialogComponent } from './components/bulk-drop-restore-table-dialog/bulk-drop-restore-table-dialog.component'
 import { AddNewColumnComponent } from './components/add-new-column/add-new-column.component'
+import { DataprocFormComponent } from './components/dataproc-form/dataproc-form.component'
 
 @NgModule({
   declarations: [
@@ -89,6 +90,7 @@ import { AddNewColumnComponent } from './components/add-new-column/add-new-colum
     ShardedDataflowMigrationDetailsFormComponent,
     BulkDropRestoreTableDialogComponent,
     AddNewColumnComponent,
+    DataprocFormComponent,
   ],
   imports: [
     BrowserModule,
