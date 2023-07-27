@@ -37,8 +37,11 @@ table.mat-table {
     }
   }
   .btn-source-select {
-    margin: 0px 5px 0px 395px;
-
+    margin-left: 27vw;
+    
+    .reportsButtons {
+      white-space: nowrap;
+    }
     .split-button-left {
       border-top-right-radius: 0;
       border-bottom-right-radius: 0;
