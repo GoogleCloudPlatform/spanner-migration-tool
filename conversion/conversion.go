@@ -280,6 +280,10 @@ func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile
 	defer batchClient.Close()
 
 	progressCtr := 0
+	conv.Audit.DataprocMetadata.SrcTable = make(map[string]string)
+	conv.Audit.DataprocMetadata.DataprocJobUrls = make(map[string]string)
+	conv.Audit.DataprocMetadata.DataprocJobIds = make(map[string]string)
+	conv.Audit.DataprocMetadata.DataprocJobStatus = make(map[string]string)
 	for _, spannerTableID := range orderTableNamesByID {
 		srcTable := conv.SrcSchema[spannerTableID].Name
 
@@ -303,19 +307,20 @@ func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile
 		jobId := splittedBatchName[5]
 
 		jobUrl := fmt.Sprintf("https://console.cloud.google.com/dataproc/batches/%s/%s?project=%s", location, jobId, dataprocRequestParams.Project)
-		conv.Audit.DataprocMetadata.DataprocJobUrls = append(conv.Audit.DataprocMetadata.DataprocJobUrls, jobUrl)
-		conv.Audit.DataprocMetadata.DataprocJobIds = append(conv.Audit.DataprocMetadata.DataprocJobIds, jobId)
-		conv.Audit.DataprocMetadata.DataprocJobStatus = append(conv.Audit.DataprocMetadata.DataprocJobStatus, "RUNNING")
+		conv.Audit.DataprocMetadata.SrcTable[spannerTableID] = srcTable
+		conv.Audit.DataprocMetadata.DataprocJobUrls[spannerTableID] = jobUrl
+		conv.Audit.DataprocMetadata.DataprocJobIds[spannerTableID] = jobId
+		conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = "RUNNING"
 		logger.Log.Info(fmt.Sprintf("Dataproc template triggered for %s.%s : %s", srcSchema.Schema, srcTable, jobUrl))
 
 		_, err = op.Wait(ctx)
 		if err != nil {
-			conv.Audit.DataprocMetadata.DataprocJobStatus[progressCtr] = "FAILED"
+			conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = "FAILED"
 			logger.Log.Error(fmt.Sprintf("Error completing the batch [%s]:\n %s\n", jobId, err.Error()))
 			logger.Log.Error(fmt.Sprintf("Failing data migration from Dataproc template for %s.%s, Check: %s for more details\n", srcSchema.Schema, srcTable, jobUrl))
 			return err
 		}
-		conv.Audit.DataprocMetadata.DataprocJobStatus[progressCtr] = "SUCCESS"
+		conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = "SUCCESS"
 
 		if conv.DataFlush != nil {
 			conv.DataFlush()
