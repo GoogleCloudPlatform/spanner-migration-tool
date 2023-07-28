@@ -195,7 +195,7 @@ export class SidenavViewAssessmentComponent implements OnInit {
           for (var issue of allIssues) {
             let defaultIssue: IssueDescription = {
               tableCount: 0,
-              tableNames: new Map<string, boolean>(),
+              tableNames: new Set<string>(),
             }
             switch (issue.issueType) {
               case "Error":
@@ -211,16 +211,16 @@ export class SidenavViewAssessmentComponent implements OnInit {
                   if (isPresent) {
                     let existingDesc = report.errors.get(errorIssue.typeEnum)!;
                     let descNew = {
-                      tableNames: new Map(existingDesc.tableNames),
+                      tableNames: new Set(existingDesc.tableNames),
                       tableCount: existingDesc.tableNames.size
                     }
-                    descNew.tableNames.set(fetchedTableReport.srcTableName, true)
+                    descNew.tableNames.add(fetchedTableReport.srcTableName)
                     descNew.tableCount = descNew.tableNames.size
                     report.errors.set(errorIssue.typeEnum, descNew)
                   } else {
                     // if the error is new we initialise issue description and add the table to it
                     let desc = defaultIssue
-                    desc.tableNames.set(fetchedTableReport.srcTableName, true)
+                    desc.tableNames.add(fetchedTableReport.srcTableName)
                     desc.tableCount = desc.tableNames.size
                     report.errors.set(errorIssue.typeEnum, desc)
                   }
@@ -240,16 +240,16 @@ export class SidenavViewAssessmentComponent implements OnInit {
                   if (isPresent) {
                     let existingDesc = report.warnings.get(warningIssue.typeEnum)!;
                     let descNew = {
-                      tableNames: new Map(existingDesc.tableNames),
+                      tableNames: new Set(existingDesc.tableNames),
                       tableCount: existingDesc.tableNames.size
                     }
-                    descNew.tableNames.set(fetchedTableReport.srcTableName, true)
+                    descNew.tableNames.add(fetchedTableReport.srcTableName)
                     descNew.tableCount = descNew.tableNames.size
                     report.warnings.set(warningIssue.typeEnum, descNew)
                   } else {
                     // if the warning is new we initialise issue description and add the table to it
                     let desc = defaultIssue
-                    desc.tableNames.set(fetchedTableReport.srcTableName, true)
+                    desc.tableNames.add(fetchedTableReport.srcTableName)
                     desc.tableCount = desc.tableNames.size
                     report.warnings.set(warningIssue.typeEnum, desc)
                   }
@@ -269,16 +269,16 @@ export class SidenavViewAssessmentComponent implements OnInit {
                   if (isPresent) {
                     let existingDesc = report.suggestions.get(suggestionIssue.typeEnum)!;
                     let descNew = {
-                      tableNames: new Map(existingDesc.tableNames),
+                      tableNames: new Set(existingDesc.tableNames),
                       tableCount: existingDesc.tableNames.size
                     }
-                    descNew.tableNames.set(fetchedTableReport.srcTableName, true)
+                    descNew.tableNames.add(fetchedTableReport.srcTableName)
                     descNew.tableCount = descNew.tableNames.size
                     report.suggestions.set(suggestionIssue.typeEnum, descNew)
                   } else {
                     // if the suggestion is new we initialise issue description and add the table to it
                     let desc = defaultIssue
-                    desc.tableNames.set(fetchedTableReport.srcTableName, true)
+                    desc.tableNames.add(fetchedTableReport.srcTableName)
                     desc.tableCount = desc.tableNames.size
                     report.suggestions.set(suggestionIssue.typeEnum, desc)
                   }
@@ -298,16 +298,16 @@ export class SidenavViewAssessmentComponent implements OnInit {
                   if (isPresent) {
                     let existingDesc = report.notes.get(noteIssue.typeEnum)!;
                     let descNew = {
-                      tableNames: new Map(existingDesc.tableNames),
+                      tableNames: new Set(existingDesc.tableNames),
                       tableCount: existingDesc.tableNames.size
                     }
-                    descNew.tableNames.set(fetchedTableReport.srcTableName, true)
+                    descNew.tableNames.add(fetchedTableReport.srcTableName)
                     descNew.tableCount = descNew.tableNames.size
                     report.notes.set(noteIssue.typeEnum, descNew)
                   } else {
                     // if the note is new we initialise issue description and add the table to it
                     let desc = defaultIssue
-                    desc.tableNames.set(fetchedTableReport.srcTableName, true)
+                    desc.tableNames.add(fetchedTableReport.srcTableName)
                     desc.tableCount = desc.tableNames.size
                     report.notes.set(noteIssue.typeEnum, desc)
                   }

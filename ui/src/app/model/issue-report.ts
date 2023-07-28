@@ -7,7 +7,7 @@ export default interface IIssueReport {
 
 export interface IssueDescription {
     tableCount: number
-    tableNames: Map<string, boolean>
+    tableNames: Set<string>
 }
 
 export const TypeDescription = {
