@@ -240,7 +240,7 @@ type MigrationData struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// A system generated id with prefix ‘HB’ to identify that the request was
+	// A system generated id with prefix ‘SMT’ to identify that the request was
 	// made via Spanner migration tool.
 	MigrationRequestId *string `protobuf:"bytes,1,opt,name=migration_request_id,json=migrationRequestId,proto3,oneof" json:"migration_request_id,omitempty"`
 	// Source for the migration.

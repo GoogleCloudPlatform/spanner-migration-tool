@@ -315,7 +315,7 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 
 // 1. Create batch for each physical shard
 // 2. Create streaming cfg from the config source type.
-// 3. Verify the CFG and update it with HB defaults
+// 3. Verify the CFG and update it with SMT defaults
 // 4. Launch the stream for the physical shard
 // 5. Perform streaming migration via dataflow
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
