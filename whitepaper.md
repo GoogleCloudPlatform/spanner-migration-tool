@@ -10,7 +10,7 @@ data from an existing PostgreSQL database. Decisions for this initial version
 are driven by a single criterion: make the tool easy to use with the absolute
 minimum of configuration. Put simply, we want
 ```sh
-pg_dump mydb | harbourbridge
+pg_dump mydb | spanner-migration-tool
 ```
 to "just work" for the majority of users.
 

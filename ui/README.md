@@ -9,7 +9,7 @@ After making any changes to the UI, perform the following steps to update Spanne
 
 1. Run `ng build` inside the `ui/` directory. This places the generated angular artifacts in the `ui/dist/ui` directory.
 2. Run `make build` from the root directory to generate the Spanner migration tool binary.
-3. Run `./harbourbridge web` to run the web UI.
+3. Run `./spanner-migration-tool web` to run the web UI.
 4. Navigate to `http://localhost:8080/` to access the UI.
 
 Note: Do not forget to commit the changes to the `dist/` directory once the updates to the UI have been made.

@@ -7,13 +7,13 @@ this [README](https://github.com/GoogleCloudPlatform/spanner-migration-tool).
 
 ### Starting web server for Spanner migration tool
 
-The following examples assume `harbourbridge` alias has been setup as
+The following examples assume `spanner-migration-tool` alias has been setup as
 following.
 
 ```sh
 git clone https://github.com/GoogleCloudPlatform/spanner-migration-tool
 cd spanner-migration-tool
-alias harbourbridge="go run github.com/GoogleCloudPlatform/spanner-migration-tool"
+alias spanner-migration-tool="go run github.com/GoogleCloudPlatform/spanner-migration-tool"
 ```
 
 Spanner migration tool's Web API feature can be used with all the driver modes available,
@@ -28,7 +28,7 @@ make build
 To start Spanner migration tool web server, run:
 
 ```sh
-./harbourbridge web
+./spanner-migration-tool web
 ```
 
 The UI will launched at http://localhost:8080/.
