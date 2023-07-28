@@ -157,6 +157,35 @@ alias spanner-migration-tool="go run github.com/GoogleCloudPlatform/spanner-migr
 
 This workflow also allows you to modify or customize the Spanner migration tool codebase.
 
+### Configuring connectivity to source database
+#### Configuring connectivity for `spanner-migration-tool`
+Ensure that the machine where you run `spanner-migration-tool` is allowlisted to connect to the source database.
+In generic terms (your specific network settings may differ), do the following:
+
+1. Open your source database machine's network firewall rules.
+2. Create an inbound rule.
+3. Set the source ip address as the ip address of the machine where you run the `spanner-migration-tool`.
+4. Set the protocol to TCP.
+5. Set the port associated with the TCP protocol of your database.
+6. Save the firewall rule, and then exit.
+
+#### Configuring connectivity for data stream
+Follow the [Datastream guidelines](https://cloud.google.com/datastream/docs/configure-connecting-ip-allowlists) to allowlist datastream to access the source database.
+
+### API enablement
+Ensure that Datastream and Dataflow apis are enabled on your project.
+
+1. [Make sure that billing is enabled for your Google Cloud project](https://cloud.google.com/billing/docs/how-to/verify-billing-enabled#gcloud).
+2. Follow the [Datastream guidelines](https://cloud.google.com/datastream/docs/use-the-datastream-api#enable_the_api) to enable Datasteream api.
+3. Enable the Dataflow api by using:
+   ```
+   gcloud services enable dataflow.googleapis.com
+   ``` 
+4. Google Cloud Storage apis are generally enabled by [default](https://cloud.google.com/service-usage/docs/enabled-service#default). In they have been disabled, you will need to enable them.
+   ```
+   gcloud services enable storage.googleapis.com
+   ```
+
 ### Running Spanner migration tool
 
 To use the tool on a PostgreSQL database called mydb, run
@@ -634,7 +663,12 @@ Spanner migration tool](#files-generated-by-spanner-migration-tool) contain deta
 about the schema and data conversion process, including issues and problems
 encountered.
 
-### 5. Reporting Issues
+### 5. Quota Issues
+Spanner migration tool provisions `Datastream` and `Dataflow` resources in the cloud project specified by the `GCLOUD_PROJECT`
+environment variable. Depending on the size of the migration work and the constraints on the associated billing account, you may see `quota exceeds` errors.
+If you see such errors, reachout to an appropriate [Spanner support channel](https://cloud.google.com/spanner/docs/getting-support) for asistance.
+
+### 6. Reporting Issues
 
 ## Known Issues
 Please refer to the [issues section](https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues)
