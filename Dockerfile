@@ -45,7 +45,7 @@ WORKDIR /spanner_migration_tool/spanner_migration_tool_output
 RUN mkdir /spanner_migration_tool/bin
 # Create directory to store the dump files. This directory binds with the host directory that contains the dump files of the source database.
 RUN mkdir /spanner_migration_tool/source_dump
-# Copy the spanner-migration-tool binary from the build stage's spanner_migraiton_tool_bin directory to the release stage's spanner_migration_tool/bin directory.
+# Copy the spanner-migration-tool binary from the build stage's spanner_migration_tool_bin directory to the release stage's spanner_migration_tool/bin directory.
 COPY --from=build /spanner_migration_tool_bin/spanner-migration-tool /spanner_migration_tool/bin
 
 # Add Python3 to support GCloud SDK.
