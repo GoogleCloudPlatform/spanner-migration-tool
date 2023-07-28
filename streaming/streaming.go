@@ -498,7 +498,7 @@ func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, r
 func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string, workerIpAddressConfig dataflowpb.WorkerIPAddressConfiguration) *dataflowpb.LaunchFlexTemplateParameter {
 	return &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
-		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-07-04-00_RC00/flex/Cloud_Datastream_to_Spanner"},
+		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates/2023-07-18-00_RC00/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
 			"inputFilePattern":              inputFilePattern,
 			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
