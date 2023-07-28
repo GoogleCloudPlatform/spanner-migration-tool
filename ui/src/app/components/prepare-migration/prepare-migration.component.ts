@@ -151,7 +151,7 @@ export class PrepareMigrationComponent implements OnInit {
         }
       ]
       if (
-        this.sourceDatabaseType == SourceDbNames.MySQL.toLowerCase()
+        this.sourceDatabaseType == SourceDbNames.MySQL.toLowerCase() || this.sourceDatabaseType == SourceDbNames.Postgres.toLowerCase()
       ) {
         this.migrationTypes.push(
           {
@@ -218,7 +218,7 @@ export class PrepareMigrationComponent implements OnInit {
           }
         ]
         if (
-          res.DatabaseType == SourceDbNames.MySQL.toLowerCase()
+          res.DatabaseType == SourceDbNames.MySQL.toLowerCase() || res.DatabaseType == SourceDbNames.Postgres.toLowerCase()
         ) {
           this.migrationTypes.push({
             name: 'Migration via Dataproc',
