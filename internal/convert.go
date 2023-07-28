@@ -116,6 +116,7 @@ const (
 	RowLimitExceeded
 	ShardIdColumnAdded
 	ShardIdColumnPrimaryKey
+	ArrayTypeNotSupported
 )
 
 const (

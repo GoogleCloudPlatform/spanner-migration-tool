@@ -291,6 +291,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					l = append(l, fmt.Sprintf("Table '%s': %s %s", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[conv.SpSchema[tableId].ShardIdColumn].Name, IssueDB[i].Brief))
 				case internal.IllegalName:
 					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s' for table '%s'", IssueDB[i].Brief, srcColName, spColName, conv.SpSchema[tableId].Name))
+				case internal.ArrayTypeNotSupported:
+					l = append(l, fmt.Sprintf("Table '%s': Column %s, %s", conv.SpSchema[tableId].Name, spColName, IssueDB[i].Brief))
 				default:
 					l = append(l, fmt.Sprintf("Table '%s': Column '%s', type %s is mapped to %s. %s", conv.SpSchema[tableId].Name, spColName, srcColType, spColType, IssueDB[i].Brief))
 				}
@@ -416,6 +418,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.RowLimitExceeded:            {Brief: "Non key columns exceed the spanner limit of 1600 MB. Please modify the column sizes", severity: errors},
 	internal.ShardIdColumnAdded:          {Brief: "column was added because this is a sharded migration and this column cannot be dropped", severity: note},
 	internal.ShardIdColumnPrimaryKey:     {Brief: "column is not a part of primary key. You may go to the Primary Key tab and add this column as a part of Primary Key", severity: suggestion},
+	internal.ArrayTypeNotSupported:       {Brief: "Array datatype is not supported in minimal downtime migration", severity: warning},
 }
 
 type severity int

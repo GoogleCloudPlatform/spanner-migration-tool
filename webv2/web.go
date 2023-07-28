@@ -33,6 +33,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
@@ -85,6 +86,7 @@ var mysqlTypeMap = make(map[string][]typeIssue)
 var postgresTypeMap = make(map[string][]typeIssue)
 var sqlserverTypeMap = make(map[string][]typeIssue)
 var oracleTypeMap = make(map[string][]typeIssue)
+var typeMapMutex sync.RWMutex
 
 var mysqlDefaultTypeMap = make(map[string]ddl.Type)
 var postgresDefaultTypeMap = make(map[string]ddl.Type)
@@ -776,6 +778,9 @@ func spannerDefaultTypeMap(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner.", http.StatusNotFound)
 		return
 	}
+	initializeTypeMap()
+	typeMapMutex.RLock()
+	defer typeMapMutex.RUnlock()
 
 	var typeMap map[string]ddl.Type
 	switch sessionState.Driver {
@@ -806,6 +811,9 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	}
 	var typeMap map[string][]typeIssue
 	initializeTypeMap()
+
+	typeMapMutex.RLock()
+	defer typeMapMutex.RUnlock()
 	switch sessionState.Driver {
 	case constants.MYSQL, constants.MYSQLDUMP:
 		typeMap = mysqlTypeMap
@@ -2129,7 +2137,7 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionSummary.ProcessingUnits = int(instanceInfo.ProcessingUnits)
 	sessionSummary.Instance = sessionState.SpannerInstanceID
 	sessionSummary.Dialect = helpers.GetDialectDisplayStringFromDialect(sessionState.Dialect)
-	sessionSummary.IsSharded = sessionState.IsSharded
+	sessionSummary.IsSharded = sessionState.Conv.IsSharded
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sessionSummary)
 }
@@ -2920,7 +2928,8 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 func initializeTypeMap() {
 	sessionState := session.GetSessionState()
 	var toddl common.ToDdl
-
+	typeMapMutex.Lock()
+	defer typeMapMutex.Unlock()
 	// Initialize mysqlTypeMap.
 	toddl = mysql.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
