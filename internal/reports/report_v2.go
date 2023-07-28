@@ -124,21 +124,21 @@ type StructuredReport struct {
 // such as CSV, TXT etc.
 func GenerateStructuredReport(driverName string, dbName string, conv *internal.Conv, badWrites map[string]int64, printTableReports bool, printUnexpecteds bool) StructuredReport {
 	//Create report object
-	var hbReport = StructuredReport{}
+	var smtReport = StructuredReport{}
 	tableReports := AnalyzeTables(conv, badWrites)
 	//1. Generate summary
 	rating, summary := GenerateSummary(conv, tableReports, badWrites)
-	hbReport.Summary = Summary{Text: summary, Rating: rating, DbName: dbName}
+	smtReport.Summary = Summary{Text: summary, Rating: rating, DbName: dbName}
 
 	//2. Ignored Statements
-	hbReport.IgnoredStatements = fetchIgnoredStatements(conv)
+	smtReport.IgnoredStatements = fetchIgnoredStatements(conv)
 
 	//3. Conversion Metadata
-	hbReport.ConversionMetadata = append(hbReport.ConversionMetadata, ConversionMetadata{ConversionType: "Schema", Duration: conv.Audit.SchemaConversionDuration})
-	hbReport.ConversionMetadata = append(hbReport.ConversionMetadata, ConversionMetadata{ConversionType: "Data", Duration: conv.Audit.DataConversionDuration})
+	smtReport.ConversionMetadata = append(smtReport.ConversionMetadata, ConversionMetadata{ConversionType: "Schema", Duration: conv.Audit.SchemaConversionDuration})
+	smtReport.ConversionMetadata = append(smtReport.ConversionMetadata, ConversionMetadata{ConversionType: "Data", Duration: conv.Audit.DataConversionDuration})
 
 	//4. Migration Type
-	hbReport.MigrationType = mapMigrationType(*conv.Audit.MigrationType)
+	smtReport.MigrationType = mapMigrationType(*conv.Audit.MigrationType)
 
 	//5. Statement statistics
 	var isDump bool
@@ -146,24 +146,24 @@ func GenerateStructuredReport(driverName string, dbName string, conv *internal.C
 		isDump = true
 	}
 	if isDump {
-		hbReport.StatementStats.DriverName = driverName
-		hbReport.StatementStats.StatementStats = fetchStatementStats(driverName, conv)
+		smtReport.StatementStats.DriverName = driverName
+		smtReport.StatementStats.StatementStats = fetchStatementStats(driverName, conv)
 	}
 
 	//6. Name changes
-	hbReport.NameChanges = fetchNameChanges(conv)
+	smtReport.NameChanges = fetchNameChanges(conv)
 
 	//7. Table Reports
 	if printTableReports {
-		hbReport.TableReports = fetchTableReports(tableReports, conv)
+		smtReport.TableReports = fetchTableReports(tableReports, conv)
 	}
 
 	//8. Unexpected Conditions
 	if printUnexpecteds {
-		hbReport.UnexpectedConditions = fetchUnexceptedConditions(driverName, conv)
+		smtReport.UnexpectedConditions = fetchUnexceptedConditions(driverName, conv)
 	}
 
-	return hbReport
+	return smtReport
 }
 
 func mapMigrationType(migrationType migration.MigrationData_MigrationType) string {
