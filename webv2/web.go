@@ -1298,9 +1298,9 @@ func addIndex(newIndex ddl.CreateIndex) (ddl.CreateIndex, error) {
 // getConversionRate returns table wise color coded conversion rate.
 func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	hb_reports := reports.AnalyzeTables(sessionState.Conv, nil)
+	smt_reports := reports.AnalyzeTables(sessionState.Conv, nil)
 	rate := make(map[string]string)
-	for _, t := range hb_reports {
+	for _, t := range smt_reports {
 		rate[t.SpTable], _ = reports.RateSchema(t.Cols, t.Warnings, t.Errors, t.SyntheticPKey != "", false)
 	}
 	w.WriteHeader(http.StatusOK)
@@ -2273,7 +2273,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		}
 		sourceProfileString = sourceProfileString + fmt.Sprintf(",streamingCfg=%v", fileName)
 	} else {
-		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+		sessionState.Conv.Audit.MigrationRequestId = "SMT-" + uuid.New().String()
 		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
 		sessionState.RootPath = "/"
 	}
@@ -2293,7 +2293,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 }
 
 func getSourceProfileStringForShardedMigrations(sessionState *session.SessionState, details migrationDetails) (string, error) {
-	fileName := "HB-" + uuid.New().String() + "-sharding.cfg"
+	fileName := "SMT-" + uuid.New().String() + "-sharding.cfg"
 	if details.MigrationType != helpers.LOW_DOWNTIME_MIGRATION {
 		err := createConfigFileForShardedBulkMigration(sessionState, details, fileName)
 		if err != nil {
