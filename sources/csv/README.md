@@ -20,7 +20,7 @@ Spanner migration tool will migrate `table_name.csv` to a Spanner table named
 `table_name` in the database specified via the target profile.
 
 ```sh
-harbourbridge data -source=csv -target-profile="instance=my-instance,dbName=my-db,dialect=postgresql" 
+spanner-migration-tool data -source=csv -target-profile="instance=my-instance,dbName=my-db,dialect=postgresql" 
 ```
 
 - **Providing a manifest input:**
@@ -29,7 +29,7 @@ locations (local system as well as Google Cloud Storage). You can also provide
 multiple csv file paths for a single table using the manifest.
 
 ```sh
-harbourbridge data -source=csv -source-profile="manifest=path/to/manifest/file" -target-profile="instance=my-instance,dbName=my-db" 
+spanner-migration-tool data -source=csv -source-profile="manifest=path/to/manifest/file" -target-profile="instance=my-instance,dbName=my-db" 
 ```
 
 ### Manifest File
@@ -81,7 +81,7 @@ profile.
 For example, if you want to use `|` as the delimiter and `NULL` as the null value, 
 you can use 
 ```sh
-harbourbridge data -source=csv -source-profile="delimiter=|,nullStr=NULL" -target-profile="instance=my-instance,dbName=my-db" 
+spanner-migration-tool data -source=csv -source-profile="delimiter=|,nullStr=NULL" -target-profile="instance=my-instance,dbName=my-db" 
 ```
 
 
