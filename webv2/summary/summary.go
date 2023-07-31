@@ -7,10 +7,10 @@ import (
 type ConversionSummary struct {
 	SrcTable         string
 	SpTable          string
-	Errors           []reports.IssueClassified
-	Warnings         []reports.IssueClassified
-	Suggestions      []reports.IssueClassified
-	Notes            []reports.IssueClassified
+	Errors           []reports.Issue
+	Warnings         []reports.Issue
+	Suggestions      []reports.Issue
+	Notes            []reports.Issue
 	ErrorsCount      int
 	WarningsCount    int
 	SuggestionsCount int

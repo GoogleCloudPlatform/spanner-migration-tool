@@ -123,6 +123,10 @@ export class FetchService {
     return this.http.get<string>(`${this.url}/downloadDDL`)
   }
 
+  getTypeDescription(){
+    return this.http.get<{[key: string]: string}>(`${this.url}/typeDescription`)
+  }
+
   getConversionRate() {
     return this.http.get<Record<string, string>>(`${this.url}/conversion`)
   }

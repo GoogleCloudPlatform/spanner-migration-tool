@@ -52,19 +52,19 @@
                "issueType": "Warnings",
                "issueList": [
                   {
-                     "typeEnum": "MISSING_PRIMARY_KEY",
+                     "category": "MISSING_PRIMARY_KEY",
                      "description": "Column 'synth_id' was added because table 'bad_schema' didn't have a primary key. Spanner requires a primary key for every table"
                   },
                   {
-                     "typeEnum": "STORAGE_WARNING",
+                     "category": "STORAGE_WARNING",
                      "description": "Table bad_schema: Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int4 is mapped to Spanner data type int64"
                   },
                   {
-                     "typeEnum": "MULTI_DIMENSIONAL_ARRAY_USES",
+                     "category": "MULTI_DIMENSIONAL_ARRAY_USES",
                      "description": "Table 'bad_schema': Column 'c', type int4[4][2] is mapped to string(max). Spanner doesn't support multi-dimensional arrays"
                   },
                   {
-                     "typeEnum": "INAPPROPIATE_TYPE",
+                     "category": "INAPPROPIATE_TYPE",
                      "description": "Table 'bad_schema': Column 'd', type circle is mapped to string(max). No appropriate Spanner type. The column will be made nullable in Spanner"
                   }
                ]
@@ -91,7 +91,7 @@
                "issueType": "Note",
                "issueList": [
                   {
-                     "typeEnum": "MISSING_DEFAULT_VALUE_CONSTRAINTS",
+                     "category": "MISSING_DEFAULT_VALUE_CONSTRAINTS",
                      "description": "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete for table 'default_value' e.g. column 'b'"
                   }
                ]
@@ -152,11 +152,11 @@
                "issueType": "Warnings",
                "issueList": [
                   {
-                     "typeEnum": "MISSING_PRIMARY_KEY",
+                     "category": "MISSING_PRIMARY_KEY",
                      "description": "Column 'synth_id' was added because table 'no_pk' didn't have a primary key. Spanner requires a primary key for every table"
                   },
                   {
-                     "typeEnum": "STORAGE_WARNING",
+                     "category": "STORAGE_WARNING",
                      "description": "Table no_pk: Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int4 is mapped to Spanner data type int64"
                   }
                ]

@@ -6,7 +6,7 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import IStructuredReport from '../../model/structured-report'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import * as JSZip from 'jszip'
-import IIssueReport, { TypeDescription, IssueDescription } from 'src/app/model/issue-report'
+import IIssueReport, { IssueDescription } from 'src/app/model/issue-report'
 import { animate, state, style, transition, trigger } from '@angular/animations';
 
 export interface tableContent {
@@ -52,10 +52,11 @@ export class SidenavViewAssessmentComponent implements OnInit {
   srcDbType: string = ''
   connectionDetail: string = ''
   summaryText: string = ''
+  typeDescription: {[key: string]: string} = {}
   conversionRateCount: ConversionRate = { good: 0, ok: 0, bad: 0 }
   conversionRatePercentage: ConversionRate = { good: 0, ok: 0, bad: 0 }
   constructor(
-    private sidenav: SidenavService, 
+    private sidenav: SidenavService,
     private clickEvent: ClickEventService,
     private fetch: FetchService,
   ) { }
@@ -91,7 +92,12 @@ export class SidenavViewAssessmentComponent implements OnInit {
         tableCount: 0,
         tableNamesJoinedByComma: '',
       }
-      this.GenerateIssueReport()
+      this.fetch.getTypeDescription().subscribe({
+        next: (typeDescription) => {
+          this.typeDescription = typeDescription
+          this.GenerateIssueReport()
+        }
+      })
     })
   }
 
@@ -203,26 +209,26 @@ export class SidenavViewAssessmentComponent implements OnInit {
                 // store errors with table count and table names in report.errors 
                 let errorIssues = issue.issueList
                 for (var errorIssue of errorIssues) {
-                  let isPresent: boolean = report.errors.has(errorIssue.typeEnum)
+                  let isPresent: boolean = report.errors.has(errorIssue.category)
 
                   // if the error already exists in the report.errors, we create a new issue description
                   // and duplicate the existing one into it. This duplication is necessary because the value 
                   // is passed by reference. After that, we add the table to that existing error.
                   if (isPresent) {
-                    let existingDesc = report.errors.get(errorIssue.typeEnum)!;
+                    let existingDesc = report.errors.get(errorIssue.category)!;
                     let descNew = {
                       tableNames: new Set(existingDesc.tableNames),
                       tableCount: existingDesc.tableNames.size
                     }
                     descNew.tableNames.add(fetchedTableReport.srcTableName)
                     descNew.tableCount = descNew.tableNames.size
-                    report.errors.set(errorIssue.typeEnum, descNew)
+                    report.errors.set(errorIssue.category, descNew)
                   } else {
                     // if the error is new we initialise issue description and add the table to it
                     let desc = defaultIssue
                     desc.tableNames.add(fetchedTableReport.srcTableName)
                     desc.tableCount = desc.tableNames.size
-                    report.errors.set(errorIssue.typeEnum, desc)
+                    report.errors.set(errorIssue.category, desc)
                   }
                 }
                 break
@@ -232,26 +238,26 @@ export class SidenavViewAssessmentComponent implements OnInit {
                 // store warnings with table count and table names in report.warnings
                 let warningIssues = issue.issueList
                 for (var warningIssue of warningIssues) {
-                  let isPresent: boolean = report.warnings.has(warningIssue.typeEnum)
+                  let isPresent: boolean = report.warnings.has(warningIssue.category)
 
                   // if the warning already exists in the report.warnings, we create a new issue description
                   // and duplicate the existing one into it. This duplication is necessary because the value 
                   // is passed by reference. After that, we add the table to that existing warning.
                   if (isPresent) {
-                    let existingDesc = report.warnings.get(warningIssue.typeEnum)!;
+                    let existingDesc = report.warnings.get(warningIssue.category)!;
                     let descNew = {
                       tableNames: new Set(existingDesc.tableNames),
                       tableCount: existingDesc.tableNames.size
                     }
                     descNew.tableNames.add(fetchedTableReport.srcTableName)
                     descNew.tableCount = descNew.tableNames.size
-                    report.warnings.set(warningIssue.typeEnum, descNew)
+                    report.warnings.set(warningIssue.category, descNew)
                   } else {
                     // if the warning is new we initialise issue description and add the table to it
                     let desc = defaultIssue
                     desc.tableNames.add(fetchedTableReport.srcTableName)
                     desc.tableCount = desc.tableNames.size
-                    report.warnings.set(warningIssue.typeEnum, desc)
+                    report.warnings.set(warningIssue.category, desc)
                   }
                 }
                 break
@@ -261,26 +267,26 @@ export class SidenavViewAssessmentComponent implements OnInit {
                 // store suggestions with table count and table names in report.suggestions
                 let suggestionIssues = issue.issueList
                 for (var suggestionIssue of suggestionIssues) {
-                  let isPresent: boolean = report.suggestions.has(suggestionIssue.typeEnum)
+                  let isPresent: boolean = report.suggestions.has(suggestionIssue.category)
 
                   // if the suggestion already exists in the report.suggestions, we create a new issue description
                   // and duplicate the existing one into it. This duplication is necessary because the value 
                   // is passed by reference. After that, we add the table to that existing suggestion.
                   if (isPresent) {
-                    let existingDesc = report.suggestions.get(suggestionIssue.typeEnum)!;
+                    let existingDesc = report.suggestions.get(suggestionIssue.category)!;
                     let descNew = {
                       tableNames: new Set(existingDesc.tableNames),
                       tableCount: existingDesc.tableNames.size
                     }
                     descNew.tableNames.add(fetchedTableReport.srcTableName)
                     descNew.tableCount = descNew.tableNames.size
-                    report.suggestions.set(suggestionIssue.typeEnum, descNew)
+                    report.suggestions.set(suggestionIssue.category, descNew)
                   } else {
                     // if the suggestion is new we initialise issue description and add the table to it
                     let desc = defaultIssue
                     desc.tableNames.add(fetchedTableReport.srcTableName)
                     desc.tableCount = desc.tableNames.size
-                    report.suggestions.set(suggestionIssue.typeEnum, desc)
+                    report.suggestions.set(suggestionIssue.category, desc)
                   }
                 }
                 break
@@ -290,26 +296,26 @@ export class SidenavViewAssessmentComponent implements OnInit {
                 // store notes with table count and table names in report.notes
                 let noteIssues = issue.issueList
                 for (var noteIssue of noteIssues) {
-                  let isPresent: boolean = report.notes.has(noteIssue.typeEnum)
+                  let isPresent: boolean = report.notes.has(noteIssue.category)
 
                   // if the note already exists in the report.notes, we create a new issue description
                   // and duplicate the existing one into it. This duplication is necessary because the value 
                   // is passed by reference. After that, we add the table to that existing note.
                   if (isPresent) {
-                    let existingDesc = report.notes.get(noteIssue.typeEnum)!;
+                    let existingDesc = report.notes.get(noteIssue.category)!;
                     let descNew = {
                       tableNames: new Set(existingDesc.tableNames),
                       tableCount: existingDesc.tableNames.size
                     }
                     descNew.tableNames.add(fetchedTableReport.srcTableName)
                     descNew.tableCount = descNew.tableNames.size
-                    report.notes.set(noteIssue.typeEnum, descNew)
+                    report.notes.set(noteIssue.category, descNew)
                   } else {
                     // if the note is new we initialise issue description and add the table to it
                     let desc = defaultIssue
                     desc.tableNames.add(fetchedTableReport.srcTableName)
                     desc.tableCount = desc.tableNames.size
-                    report.notes.set(noteIssue.typeEnum, desc)
+                    report.notes.set(noteIssue.category, desc)
                   }
                 }
                 break
@@ -324,9 +330,10 @@ export class SidenavViewAssessmentComponent implements OnInit {
           let i = 1;
           for (let [key, value] of map_report.entries()) {
             let tableNamesList = [...value.tableNames.keys()]
+            let fetchedDescription = this.typeDescription[key]
             this.issueTableData_Warnings.push({
               position: i,
-              description: TypeDescription[key as keyof typeof TypeDescription],
+              description: fetchedDescription,
               tableCount: value.tableCount,
               tableNamesJoinedByComma: tableNamesList.join(', '),
             })
@@ -341,31 +348,36 @@ export class SidenavViewAssessmentComponent implements OnInit {
           let i = 1;
           for (let [key, value] of map_report.entries()) {
             let tableNamesList = [...value.tableNames.keys()]
+            let fetchedDescription = this.typeDescription[key]
             this.issueTableData_Errors.push({
               position: i,
-              description: TypeDescription[key as keyof typeof TypeDescription],
+              description: fetchedDescription,
               tableCount: value.tableCount,
               tableNamesJoinedByComma: tableNamesList.join(', '),
             })
             i += 1;
           }
+
         }
 
         // populate issueTableData_Suggestions with data from report.suggestions
         map_report = report.suggestions
         this.issueTableData_Suggestions = []
         if (map_report.size != 0) {
+          console.log(this.typeDescription)
           let i = 1;
           for (let [key, value] of map_report.entries()) {
             let tableNamesList = [...value.tableNames.keys()]
+            let fetchedDescription = this.typeDescription[key]
             this.issueTableData_Suggestions.push({
               position: i,
-              description: TypeDescription[key as keyof typeof TypeDescription],
+              description: fetchedDescription,
               tableCount: value.tableCount,
               tableNamesJoinedByComma: tableNamesList.join(', '),
             })
             i += 1;
           }
+
         }
 
         // populate issueTableData_Notes with data from report.notes
@@ -375,9 +387,10 @@ export class SidenavViewAssessmentComponent implements OnInit {
           let i = 1;
           for (let [key, value] of map_report.entries()) {
             let tableNamesList = [...value.tableNames.keys()]
+            let fetchedDescription = this.typeDescription[key]
             this.issueTableData_Notes.push({
               position: i,
-              description: TypeDescription[key as keyof typeof TypeDescription],
+              description: fetchedDescription,
               tableCount: value.tableCount,
               tableNamesJoinedByComma: tableNamesList.join(', '),
             })

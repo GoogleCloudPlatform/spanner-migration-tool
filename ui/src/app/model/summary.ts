@@ -1,10 +1,10 @@
 export default interface ISummary {
   SrcTable: string
   SpTable: string
-  Errors: IssueClassified[]
-  Warnings: IssueClassified[]
-  Suggestions: IssueClassified[]
-  Notes: IssueClassified[]
+  Errors: Issue[]
+  Warnings: Issue[]
+  Suggestions: Issue[]
+  Notes: Issue[]
   ErrorsCount: number
   WarningsCount: number
   SuggestionsCount: number
@@ -16,7 +16,7 @@ export interface ISummaryRow {
   isRead: boolean
 }
 
-export interface IssueClassified {
+export interface Issue {
 	issueType: string
 	description: string
 }

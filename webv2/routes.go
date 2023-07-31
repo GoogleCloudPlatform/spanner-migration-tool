@@ -82,6 +82,9 @@ func getRoutes() *mux.Router {
 	// Summary
 	router.HandleFunc("/summary", summary.GetSummary).Methods("GET")
 
+	// Type Description
+	router.HandleFunc("/typeDescription", getTypeDescription).Methods("GET")
+
 	// Application Configuration
 	router.HandleFunc("/GetConfig", config.GetConfig).Methods("GET")
 	router.HandleFunc("/SetSpannerConfig", config.SetSpannerConfig).Methods("POST")

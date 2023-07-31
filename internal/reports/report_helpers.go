@@ -43,7 +43,7 @@ type tableReport struct {
 
 type tableReportBody struct {
 	Heading   string
-	IssueBody []IssueClassified
+	IssueBody []Issue
 }
 
 // AnalyzeTables generates table reports for all processed tables.
@@ -119,12 +119,12 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 			colNames = append(colNames, conv.SpSchema[tableId].ColDefs[colId].Name)
 		}
 		sort.Strings(colNames)
-		l := []IssueClassified{}
+		l := []Issue{}
 		if p.severity == errors && len(tableLevelIssues) != 0 {
 			for _, issue := range tableLevelIssues {
 				if issue == internal.RowLimitExceeded {
-					toAppend := IssueClassified{
-						TypeEnum:    IssueDB[internal.RowLimitExceeded].typeEnum,
+					toAppend := Issue{
+						Category:    IssueDB[internal.RowLimitExceeded].Category,
 						Description: IssueDB[internal.RowLimitExceeded].Brief,
 					}
 					l = append(l, toAppend)
@@ -137,8 +137,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 			// because we have a Spanner column with no matching source DB col.
 			// Much of the generic code for processing issues assumes we have both.
 			if p.severity == warning {
-				toAppend := IssueClassified{
-					TypeEnum:    IssueDB[internal.MissingPrimaryKey].typeEnum,
+				toAppend := Issue{
+					Category:    IssueDB[internal.MissingPrimaryKey].Category,
 					Description: fmt.Sprintf("Column '%s' was added because table '%s' didn't have a primary key. Spanner requires a primary key for every table", *syntheticPK, conv.SpSchema[tableId].Name),
 				}
 				l = append(l, toAppend)
@@ -148,8 +148,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 			// Warning about using a column with unique constraint as primary key
 			// in case primary key is absent.
 			if p.severity == warning {
-				toAppend := IssueClassified{
-					TypeEnum:    IssueDB[internal.MissingPrimaryKey].typeEnum,
+				toAppend := Issue{
+					Category:    IssueDB[internal.MissingPrimaryKey].Category,
 					Description: fmt.Sprintf("UNIQUE constraint on column(s) '%s' replaced with primary key since table '%s' didn't have one. Spanner requires a primary key for every table", strings.Join(uniquePK, ", "), conv.SpSchema[tableId].Name),
 				}
 				l = append(l, toAppend)
@@ -164,8 +164,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				}
 				_, isChanged := internal.FixName(srcFk.Name)
 				if isChanged && srcFk.Name != spFk.Name {
-					toAppend := IssueClassified{
-						TypeEnum:    IssueDB[internal.IllegalName].typeEnum,
+					toAppend := Issue{
+						Category:    IssueDB[internal.IllegalName].Category,
 						Description: fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s' for table '%s'", IssueDB[internal.IllegalName].Brief, srcFk.Name, spFk.Name, conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
@@ -178,8 +178,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				}
 				_, isChanged := internal.FixName(srcIdx.Name)
 				if isChanged && srcIdx.Name != spIdx.Name {
-					toAppend := IssueClassified{
-						TypeEnum:    IssueDB[internal.IllegalName].typeEnum,
+					toAppend := Issue{
+						Category:    IssueDB[internal.IllegalName].Category,
 						Description: fmt.Sprintf("%s, Index '%s' is mapped to '%s' for table '%s'", IssueDB[internal.IllegalName].Brief, srcIdx.Name, spIdx.Name, conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
@@ -188,8 +188,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 
 			_, isChanged := internal.FixName(srcSchema.Name)
 			if isChanged && (spSchema.Name != srcSchema.Name) {
-				toAppend := IssueClassified{
-					TypeEnum:    IssueDB[internal.IllegalName].typeEnum,
+				toAppend := Issue{
+					Category:    IssueDB[internal.IllegalName].Category,
 					Description: fmt.Sprintf("%s, Table '%s' is mapped to '%s'", IssueDB[internal.IllegalName].Brief, srcSchema.Name, spSchema.Name),
 				}
 				l = append(l, toAppend)
@@ -230,39 +230,39 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				spColType = strings.ToLower(spColType)
 				switch i {
 				case internal.DefaultValue:
-					toAppend := IssueClassified{
-						TypeEnum:    IssueDB[i].typeEnum,
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("%s for table '%s' e.g. column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName),
 					}
 					l = append(l, toAppend)
 				case internal.ForeignKey:
-					toAppend := IssueClassified{
-						TypeEnum:    IssueDB[i].typeEnum,
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("Column '%s' in table '%s' uses foreign keys which Spanner migration tool does not support yet", conv.SpSchema[tableId].Name, spColName),
 					}
 					l = append(l, toAppend)
 				case internal.AutoIncrement:
-					toAppend := IssueClassified{
-						TypeEnum:    IssueDB[i].typeEnum,
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("Column '%s' is an autoincrement column in table '%s'. %s", spColName, conv.SpSchema[tableId].Name, IssueDB[i].Brief),
 					}
 					l = append(l, toAppend)
 				case internal.Timestamp:
 					// Avoid the confusing "timestamp is mapped to timestamp" message.
-					toAppend := IssueClassified{
-						TypeEnum:    IssueDB[i].typeEnum,
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner type timestamp in table '%s' e.g. column '%s'. %s", conv.SpSchema[tableId].Name, spColName, IssueDB[i].Brief),
 					}
 					l = append(l, toAppend)
 				case internal.Datetime:
-					toAppend := IssueClassified{
-						TypeEnum:    IssueDB[i].typeEnum,
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp in table '%s' e.g. column '%s'. %s", conv.SpSchema[tableId].Name, spColName, IssueDB[i].Brief),
 					}
 					l = append(l, toAppend)
 				case internal.Widened:
-					toAppend := IssueClassified{
-						TypeEnum:    IssueDB[i].typeEnum,
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("Table %s: %s e.g. for column '%s', source DB type %s is mapped to Spanner data type %s", conv.SpSchema[tableId].Name, IssueDB[i].Brief, spColName, srcColType, spColType),
 					}
 					l = append(l, toAppend)
@@ -270,8 +270,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !Contains(l, str) {
-						toAppend := IssueClassified{
-							TypeEnum:    IssueDB[i].typeEnum,
+						toAppend := Issue{
+							Category:    IssueDB[i].Category,
 							Description: str,
 						}
 						l = append(l, toAppend)
@@ -280,8 +280,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !Contains(l, str) {
-						toAppend := IssueClassified{
-							TypeEnum:    IssueDB[i].typeEnum,
+						toAppend := Issue{
+							Category:    IssueDB[i].Category,
 							Description: str,
 						}
 						l = append(l, toAppend)
@@ -291,8 +291,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					str := fmt.Sprintf(" Table %s can be interleaved with table %s %s  %s and Column %s", spSchema.Name, parent, IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !Contains(l, str) {
-						toAppend := IssueClassified{
-							TypeEnum:    IssueDB[i].typeEnum,
+						toAppend := Issue{
+							Category:    IssueDB[i].Category,
 							Description: str,
 						}
 						l = append(l, toAppend)
@@ -302,8 +302,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					str := fmt.Sprintf("Table %s %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief, parent)
 
 					if !Contains(l, str) {
-						toAppend := IssueClassified{
-							TypeEnum:    IssueDB[i].typeEnum,
+						toAppend := Issue{
+							Category:    IssueDB[i].Category,
 							Description: str,
 						}
 						l = append(l, toAppend)
@@ -313,8 +313,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					str := fmt.Sprintf("Table '%s' is %s %s add %s as a primary key in table %s", conv.SpSchema[tableId].Name, IssueDB[i].Brief, parent, spColName, spSchema.Name)
 
 					if !Contains(l, str) {
-						toAppend := IssueClassified{
-							TypeEnum:    IssueDB[i].typeEnum,
+						toAppend := Issue{
+							Category:    IssueDB[i].Category,
 							Description: str,
 						}
 						l = append(l, toAppend)
@@ -324,8 +324,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					str := fmt.Sprintf(" %s %s rename %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, spColName, spSchema.Name, fkName, referColName)
 
 					if !Contains(l, str) {
-						toAppend := IssueClassified{
-							TypeEnum:    IssueDB[i].typeEnum,
+						toAppend := Issue{
+							Category:    IssueDB[i].Category,
 							Description: str,
 						}
 						l = append(l, toAppend)
@@ -335,8 +335,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					str := fmt.Sprintf(" %s %s change column size of column %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, spColName, spSchema.Name, fkName, referColName)
 
 					if !Contains(l, str) {
-						toAppend := IssueClassified{
-							TypeEnum:    IssueDB[i].typeEnum,
+						toAppend := Issue{
+							Category:    IssueDB[i].Category,
 							Description: str,
 						}
 						l = append(l, toAppend)
@@ -345,8 +345,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !Contains(l, str) {
-						toAppend := IssueClassified{
-							TypeEnum:    IssueDB[i].typeEnum,
+						toAppend := Issue{
+							Category:    IssueDB[i].Category,
 							Description: str,
 						}
 						l = append(l, toAppend)
@@ -356,8 +356,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !Contains(l, str) {
-						toAppend := IssueClassified{
-							TypeEnum:    IssueDB[i].typeEnum,
+						toAppend := Issue{
+							Category:    IssueDB[i].Category,
 							Description: str,
 						}
 						l = append(l, toAppend)
@@ -367,38 +367,38 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					str := fmt.Sprintf("Column %s of Table %s %s", spColName, spSchema.Name, IssueDB[i].Brief)
 
 					if !Contains(l, str) {
-						toAppend := IssueClassified{
-							TypeEnum:    IssueDB[i].typeEnum,
+						toAppend := Issue{
+							Category:    IssueDB[i].Category,
 							Description: str,
 						}
 						l = append(l, toAppend)
 					}
 				case internal.ShardIdColumnAdded:
 					str := fmt.Sprintf("Table '%s': %s %s", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[conv.SpSchema[tableId].ShardIdColumn].Name, IssueDB[i].Brief)
-					toAppend := IssueClassified{
-						TypeEnum:    IssueDB[i].typeEnum,
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
 						Description: str,
 					}
 					l = append(l, toAppend)
 
 				case internal.ShardIdColumnPrimaryKey:
 					str := fmt.Sprintf("Table '%s': %s %s", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[conv.SpSchema[tableId].ShardIdColumn].Name, IssueDB[i].Brief)
-					toAppend := IssueClassified{
-						TypeEnum:    IssueDB[i].typeEnum,
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
 						Description: str,
 					}
 					l = append(l, toAppend)
 
 				case internal.IllegalName:
-					toAppend := IssueClassified{
-						TypeEnum:    IssueDB[i].typeEnum,
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("%s, Column '%s' is mapped to '%s' for table '%s'", IssueDB[i].Brief, srcColName, spColName, conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
 
 				default:
-					toAppend := IssueClassified{
-						TypeEnum:    IssueDB[i].typeEnum,
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("Table '%s': Column '%s', type %s is mapped to %s. %s", conv.SpSchema[tableId].Name, spColName, srcColType, spColType, IssueDB[i].Brief),
 					}
 					l = append(l, toAppend)
@@ -419,7 +419,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 }
 
 // Contains check string present in list.
-func Contains(l []IssueClassified, str string) bool {
+func Contains(l []Issue, str string) bool {
 	for _, s := range l {
 		if s.Description == str {
 			return true
@@ -502,41 +502,51 @@ func fillRowStats(conv *internal.Conv, srcTable string, badWrites map[string]int
 // TODO: add links in these descriptions to further documentation
 // e.g. for timestamp description.
 var IssueDB = map[internal.SchemaIssue]struct {
-	Brief    string // Short description of issue.
-	severity severity
-	batch    bool   // Whether multiple instances of this issue are combined.
-	typeEnum string // Standarized issue type
+	Brief               string // Short description of issue.
+	severity            severity
+	batch               bool   // Whether multiple instances of this issue are combined.
+	Category            string // Standarized issue type
+	CategoryDescription string
 }{
-	internal.DefaultValue:                {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", severity: note, batch: true, typeEnum: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
-	internal.ForeignKey:                  {Brief: "Spanner does not support foreign keys", severity: warning, typeEnum: "FOREIGN_KEY_USES"},
-	internal.MultiDimensionalArray:       {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning, typeEnum: "MULTI_DIMENSIONAL_ARRAY_USES"},
-	internal.NoGoodType:                  {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", severity: warning, typeEnum: "INAPPROPIATE_TYPE"},
-	internal.Numeric:                     {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning, typeEnum: "NUMERIC_USES"},
-	internal.NumericThatFits:             {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: suggestion, typeEnum: "NUMERIC_THAT_FITS"},
-	internal.Decimal:                     {Brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning, typeEnum: "DECIMAL_USES"},
-	internal.DecimalThatFits:             {Brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", severity: suggestion, typeEnum: "DECIMAL_THAT_FITS"},
-	internal.Serial:                      {Brief: "Spanner does not support autoincrementing types", severity: warning, typeEnum: "AUTOINCREMENTING_TYPE_USES"},
-	internal.AutoIncrement:               {Brief: "Spanner does not support auto_increment attribute", severity: warning, typeEnum: "AUTO_INCREMENT_ATTRIBUTE_USES"},
-	internal.Timestamp:                   {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: suggestion, batch: true, typeEnum: "TIMESTAMP_SUGGESTION"},
-	internal.Datetime:                    {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: warning, batch: true, typeEnum: "TIMESTAMP_WARNING"},
-	internal.Time:                        {Brief: "Spanner does not support time/year types", severity: warning, batch: true, typeEnum: "TIME_YEAR_TYPE_USES"},
-	internal.Widened:                     {Brief: "Some columns will consume more storage in Spanner", severity: warning, batch: true, typeEnum: "STORAGE_WARNING"},
-	internal.StringOverflow:              {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning, typeEnum: "STRING_OVERFLOW_WARNING"},
-	internal.HotspotTimestamp:            {Brief: "Timestamp Hotspot Occured", severity: warning, typeEnum: "TIMESTAMP_HOTSPOT"},
-	internal.HotspotAutoIncrement:        {Brief: "Autoincrement Hotspot Occured", severity: warning, typeEnum: "AUTOINCREMENT_HOTSPOT"},
-	internal.InterleavedOrder:            {Brief: "can be converted as Interleaved with Table", severity: suggestion, typeEnum: "INTERLEAVE_TABLE_SUGGESTION"},
-	internal.RedundantIndex:              {Brief: "Redundant Index", severity: warning, typeEnum: "REDUNDANT_INDEX"},
-	internal.AutoIncrementIndex:          {Brief: "Auto increment column in Index can create a Hotspot", severity: warning, typeEnum: "AUTO-INCREMENT_INDEX"},
-	internal.InterleaveIndex:             {Brief: "can be converted to an Interleave Index", severity: suggestion, typeEnum: "INTERLEAVE_INDEX_SUGGESTION"},
-	internal.InterleavedNotInOrder:       {Brief: "if primary key order parameter is changed for the table", severity: suggestion, typeEnum: "INTERLEAVED_NOT_IN_ORDER"},
-	internal.InterleavedAddColumn:        {Brief: "Candidate for Interleaved Table", severity: suggestion, typeEnum: "ADD_INTERLEAVED_COLUMN"},
-	internal.IllegalName:                 {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning, typeEnum: "ILLEAGAL_NAME"},
-	internal.InterleavedRenameColumn:     {Brief: "Candidate for Interleaved Table", severity: suggestion, typeEnum: "RENAME_INTERLEAVED_COLUMN_PRIMARY_KEY"},
-	internal.InterleavedChangeColumnSize: {Brief: "Candidate for Interleaved Table", severity: suggestion, typeEnum: "CHANGE_INTERLEAVED_COLUMN_SIZE"},
-	internal.RowLimitExceeded:            {Brief: "Non key columns exceed the spanner limit of 1600 MB. Please modify the column sizes", severity: errors, typeEnum: "ROW_LIMIT_EXCEEDED"},
-	internal.ShardIdColumnAdded:          {Brief: "column was added because this is a sharded migration and this column cannot be dropped", severity: note, typeEnum: "SHARD_ID_COLUMN_ADDED"},
-	internal.ShardIdColumnPrimaryKey:     {Brief: "column is not a part of primary key. You may go to the Primary Key tab and add this column as a part of Primary Key", severity: suggestion, typeEnum: "SHARD_ID_ADD_COLUMN_PRIMARY_KEY"},
-	internal.MissingPrimaryKey:           {typeEnum: "MISSING_PRIMARY_KEY"},
+	internal.DefaultValue:          {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
+	internal.ForeignKey:            {Brief: "Spanner does not support foreign keys", severity: warning, Category: "FOREIGN_KEY_USES"},
+	internal.MultiDimensionalArray: {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning, Category: "MULTI_DIMENSIONAL_ARRAY_USES"},
+	internal.NoGoodType: {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", severity: warning, Category: "INAPPROPIATE_TYPE",
+		CategoryDescription: "No appropriate Spanner type"},
+	internal.Numeric:              {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning, Category: "NUMERIC_USES"},
+	internal.NumericThatFits:      {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: suggestion, Category: "NUMERIC_THAT_FITS"},
+	internal.Decimal:              {Brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning, Category: "DECIMAL_USES"},
+	internal.DecimalThatFits:      {Brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", severity: suggestion, Category: "DECIMAL_THAT_FITS"},
+	internal.Serial:               {Brief: "Spanner does not support autoincrementing types", severity: warning, Category: "AUTOINCREMENTING_TYPE_USES"},
+	internal.AutoIncrement:        {Brief: "Spanner does not support auto_increment attribute", severity: warning, Category: "AUTO_INCREMENT_ATTRIBUTE_USES"},
+	internal.Timestamp:            {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: suggestion, batch: true, Category: "TIMESTAMP_SUGGESTION"},
+	internal.Datetime:             {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: warning, batch: true, Category: "TIMESTAMP_WARNING"},
+	internal.Time:                 {Brief: "Spanner does not support time/year types", severity: warning, batch: true, Category: "TIME_YEAR_TYPE_USES"},
+	internal.Widened:              {Brief: "Some columns will consume more storage in Spanner", severity: warning, batch: true, Category: "STORAGE_WARNING"},
+	internal.StringOverflow:       {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning, Category: "STRING_OVERFLOW_WARNING"},
+	internal.HotspotTimestamp:     {Brief: "Timestamp Hotspot Occured", severity: warning, Category: "TIMESTAMP_HOTSPOT"},
+	internal.HotspotAutoIncrement: {Brief: "Autoincrement Hotspot Occured", severity: warning, Category: "AUTOINCREMENT_HOTSPOT"},
+	internal.InterleavedOrder:     {Brief: "can be converted as Interleaved with Table", severity: suggestion, Category: "INTERLEAVE_TABLE_SUGGESTION"},
+	internal.RedundantIndex:       {Brief: "Redundant Index", severity: warning, Category: "REDUNDANT_INDEX"},
+	internal.AutoIncrementIndex:   {Brief: "Auto increment column in Index can create a Hotspot", severity: warning, Category: "AUTO-INCREMENT_INDEX"},
+	internal.InterleaveIndex: {Brief: "can be converted to an Interleave Index", severity: suggestion, Category: "INTERLEAVE_INDEX_SUGGESTION",
+		CategoryDescription: "Some columns can be interleaved"},
+	internal.InterleavedNotInOrder: {Brief: "if primary key order parameter is changed for the table", severity: suggestion, Category: "INTERLEAVED_NOT_IN_ORDER",
+		CategoryDescription: "Some tables can be interleaved with parent table if primary key order parameter is changed to 1"},
+	internal.InterleavedAddColumn: {Brief: "Candidate for Interleaved Table", severity: suggestion, Category: "ADD_INTERLEAVED_COLUMN",
+		CategoryDescription: "If there is some primary key added in table, it can be interleaved"},
+	internal.IllegalName: {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning, Category: "ILLEAGAL_NAME"},
+	internal.InterleavedRenameColumn: {Brief: "Candidate for Interleaved Table", severity: suggestion, Category: "RENAME_INTERLEAVED_COLUMN_PRIMARY_KEY",
+		CategoryDescription: "If primary key is renamed in table to match the foreign key, the table can be interleaved"},
+	internal.InterleavedChangeColumnSize: {Brief: "Candidate for Interleaved Table", severity: suggestion, Category: "CHANGE_INTERLEAVED_COLUMN_SIZE",
+		CategoryDescription: "If column size of this table's primary key is changed to match the foreign key, the table can be interleaved"},
+	internal.RowLimitExceeded: {Brief: "Non key columns exceed the spanner limit of 1600 MB. Please modify the column sizes", severity: errors, Category: "ROW_LIMIT_EXCEEDED"},
+	internal.ShardIdColumnAdded: {Brief: "column was added because this is a sharded migration and this column cannot be dropped", severity: note, Category: "SHARD_ID_COLUMN_ADDED",
+		CategoryDescription: "Some Column was added because this is a sharded migration and that column couldn't be dropped"},
+	internal.ShardIdColumnPrimaryKey: {Brief: "column is not a part of primary key. You may go to the Primary Key tab and add this column as a part of Primary Key", severity: suggestion, Category: "SHARD_ID_ADD_COLUMN_PRIMARY_KEY",
+		CategoryDescription: "Some column is not a part of primary key. Check for that column and add it as a part of Primary Key"},
+	internal.MissingPrimaryKey: {Category: "MISSING_PRIMARY_KEY",
+		CategoryDescription: "Primary Key is missing"},
 }
 
 type severity int

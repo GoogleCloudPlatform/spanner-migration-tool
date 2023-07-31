@@ -61,12 +61,12 @@ type NameChange struct {
 }
 
 type Issues struct {
-	IssueType string            `json:"issueType"`
-	IssueList []IssueClassified `json:"issueList"`
+	IssueType string  `json:"issueType"`
+	IssueList []Issue `json:"issueList"`
 }
 
-type IssueClassified struct {
-	TypeEnum    string `json:"typeEnum"`
+type Issue struct {
+	Category    string `json:"category"`
 	Description string `json:"description"`
 }
 
@@ -149,7 +149,7 @@ func GenerateStructuredReport(driverName string, dbName string, conv *internal.C
 
 	//5. Migration Type
 	smtReport.MigrationType = mapMigrationType(*conv.Audit.MigrationType)
-  
+
 	//6. Statement statistics
 	var isDump bool
 	if strings.Contains(driverName, "dump") {
@@ -162,7 +162,7 @@ func GenerateStructuredReport(driverName string, dbName string, conv *internal.C
 
 	//7. Name changes
 	smtReport.NameChanges = fetchNameChanges(conv)
-  
+
 	//8. Table Reports
 	if printTableReports {
 		smtReport.TableReports = fetchTableReports(tableReports, conv)
@@ -273,8 +273,8 @@ func fetchTableReports(inputTableReports []tableReport, conv *internal.Conv) (ta
 		for _, x := range t.Body {
 			var issues = Issues{IssueType: x.Heading}
 			for _, l := range x.IssueBody {
-				ic := IssueClassified{
-					TypeEnum:    l.TypeEnum,
+				ic := Issue{
+					Category:    l.Category,
 					Description: l.Description,
 				}
 				issues.IssueList = append(issues.IssueList, ic)

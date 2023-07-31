@@ -50,11 +50,11 @@ export interface INameChange {
 
 export interface IIssues {
 	issueType: string
-	issueList: IssueClassified[]
+	issueList: IIssue[]
 }
 
-export interface IssueClassified {
-	typeEnum: string
+export interface IIssue {
+	category: string
 	description: string
 }
 

@@ -8,17 +8,17 @@ import (
 // getSummary returns table wise summary of conversion.
 func getSummary() map[string]ConversionSummary {
 	sessionState := session.GetSessionState()
-	Reports := reports.AnalyzeTables(sessionState.Conv, nil)
+	tableReports := reports.AnalyzeTables(sessionState.Conv, nil)
 
 	summary := make(map[string]ConversionSummary)
-	for _, t := range Reports {
+	for _, t := range tableReports {
 		cs := ConversionSummary{
 			SrcTable:    t.SrcTable,
 			SpTable:     t.SpTable,
-			Notes:       []reports.IssueClassified{},
-			Warnings:    []reports.IssueClassified{},
-			Errors:      []reports.IssueClassified{},
-			Suggestions: []reports.IssueClassified{},
+			Notes:       []reports.Issue{},
+			Warnings:    []reports.Issue{},
+			Errors:      []reports.Issue{},
+			Suggestions: []reports.Issue{},
 		}
 		for _, x := range t.Body {
 			switch x.Heading {
