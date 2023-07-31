@@ -668,7 +668,37 @@ Spanner migration tool provisions `Datastream` and `Dataflow` resources in the c
 environment variable. Depending on the size of the migration work and the constraints on the associated billing account, you may see `quota exceeds` errors.
 If you see such errors, reachout to an appropriate [Spanner support channel](https://cloud.google.com/spanner/docs/getting-support) for asistance.
 
-### 6. Reporting Issues
+### 6. Permissions Required
+
+The Spanner migration tool interacts with many GCP services. Please refer to this list for persmissions required to perform migrations
+#### 6.1 Spanner
+The recommended role to perform migrations is [Cloud Spanner Database Admin](https://cloud.google.com/spanner/docs/iam#spanner.databaseAdmin).
+
+The full list of required [Spanner permissions](https://cloud.google.com/spanner/docs/iam) for migration are
+
+```
+spanner.instances.list
+spanner.instances.get
+
+spanner.databases.create
+spanner.databases.list
+spanner.databases.get
+spanner.databases.getDdl
+spanner.databases.updateDdl
+spanner.databases.read
+spanner.databases.write
+spanner.databases.select
+```
+Refer to the [grant permissions page](https://cloud.google.com/spanner/docs/grant-permissions) for custom roles.
+
+#### 6.2 Datastream
+[Datastream Admin](https://cloud.google.com/datastream/docs/use-the-datastream-api#permissions)
+#### 6.3 Dataflow
+[Dataflow Admin](https://cloud.google.com/dataflow/docs/concepts/access-control#dataflow.admin)
+To use custom templates, enable [basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin)
+#### 6.4 GCE
+Enable access to Datastream, Dataflow and Spanner using [service accounts](https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances)
+
 
 ## Known Issues
 Please refer to the [issues section](https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues)
