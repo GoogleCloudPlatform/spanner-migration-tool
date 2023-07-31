@@ -395,7 +395,12 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						Description: fmt.Sprintf("%s, Column '%s' is mapped to '%s' for table '%s'", IssueDB[i].Brief, srcColName, spColName, conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
-
+        case internal.ArrayTypeNotSupported:
+          toAppend := Issue{
+						Category:    IssueDB[i].Category,
+						Description: fmt.Sprintf("Table '%s': Column %s, %s", conv.SpSchema[tableId].Name, spColName, IssueDB[i].Brief),
+					}
+					l = append(l, toAppend)
 				default:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
@@ -547,6 +552,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 		CategoryDescription: "Some column is not a part of primary key. Check for that column and add it as a part of Primary Key"},
 	internal.MissingPrimaryKey: {Category: "MISSING_PRIMARY_KEY",
 		CategoryDescription: "Primary Key is missing"},
+  internal.ArrayTypeNotSupported:  {Brief: "Array datatype is not supported in minimal downtime migration", severity: warning, Category: "ARRAY_TYPE_NOT_SUPPORTED"},
 }
 
 type severity int

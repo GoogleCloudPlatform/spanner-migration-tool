@@ -1,6 +1,6 @@
 {
    "summary": {
-      "text": "Schema conversion: POOR (58% of 19006 columns mapped cleanly) + some missing primary keys.\nData conversion: POOR (66% of 6000 rows written to Spanner).\n",
+      "text": "Schema conversion: POOR (32% of 19006 columns mapped cleanly) + some missing primary keys.\nData conversion: POOR (66% of 6000 rows written to Spanner).\n",
       "rating": "POOR",
       "dbName": "sampleDB"
    },
@@ -138,7 +138,7 @@
          "schemaReport": {
             "rating": "POOR",
             "pkMissing": true,
-            "issues": 1,
+            "issues": 2,
             "totalColumns": 3
          },
          "dataReport": {
@@ -154,6 +154,10 @@
                   {
                      "category": "MISSING_PRIMARY_KEY",
                      "description": "Column 'synth_id' was added because table 'no_pk' didn't have a primary key. Spanner requires a primary key for every table"
+                  },
+                  {
+                     "category": "ARRAY_TYPE_NOT_SUPPORTED",
+                     "description": "Table 'no_pk': Column a, Array datatype is not supported in minimal downtime migration"
                   },
                   {
                      "category": "STORAGE_WARNING",

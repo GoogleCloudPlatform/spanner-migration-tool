@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { MigrationDetails, StorageKeys } from 'src/app/app.constants';
+import { InputType, MigrationDetails, StorageKeys } from 'src/app/app.constants';
 import IDbConfig, { IDbConfigs, IShardSessionDetails } from 'src/app/model/db-config';
 import { DataService } from 'src/app/services/data/data.service';
 import { FetchService } from 'src/app/services/fetch/fetch.service';
@@ -53,7 +53,8 @@ export class ShardedBulkSourceDetailsFormComponent implements OnInit {
       password: '',
       dbName: ''
     }
-    if (localStorage.getItem(StorageKeys.Config) != null) {
+    let inputType = localStorage.getItem(StorageKeys.Type) as string
+    if (inputType == InputType.DirectConnect && localStorage.getItem(StorageKeys.Config) != null) {
       schemaSourceConfig = JSON.parse(localStorage.getItem(StorageKeys.Config) as string)
     }
     this.directConnectForm = new FormGroup({

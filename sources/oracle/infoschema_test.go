@@ -213,7 +213,7 @@ func TestProcessSchemaOracle(t *testing.T) {
 
 	assert.Equal(t, len(conv.SchemaIssues[userTableId].ColumnLevelIssues), 0)
 	assert.Equal(t, len(conv.SchemaIssues[testTableId].ColumnLevelIssues), 0)
-	assert.Equal(t, len(conv.SchemaIssues[test2TableId].ColumnLevelIssues), 0)
+	assert.Equal(t, len(conv.SchemaIssues[test2TableId].ColumnLevelIssues), 5)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
