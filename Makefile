@@ -5,10 +5,10 @@ ifndef $(GOPATH)
 endif
 # Build the default binary
 build:
-	go build -o harbourbridge
+	go build -o spanner-migration-tool
 # Build a static binary
 build-static:
-	go build -a -tags osusergo,netgo -ldflags '-w -extldflags "-static"' -o harbourbridge main.go
+	go build -a -tags osusergo,netgo -ldflags '-w -extldflags "-static"' -o spanner-migration-tool main.go
 # Create a new release for Spanner migration tool.
 release:
 	./release.sh ${VERSION}

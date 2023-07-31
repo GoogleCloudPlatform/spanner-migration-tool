@@ -315,7 +315,7 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 
 // 1. Create batch for each physical shard
 // 2. Create streaming cfg from the config source type.
-// 3. Verify the CFG and update it with HB defaults
+// 3. Verify the CFG and update it with SMT defaults
 // 4. Launch the stream for the physical shard
 // 5. Perform streaming migration via dataflow
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
@@ -592,7 +592,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 	// (such as /tmp) that's configured with a small amount of disk space.
 	// To workaround such limits on Unix, set $TMPDIR to a directory with lots
 	// of disk space.
-	fcopy, err := ioutil.TempFile("", "harbourbridge.data")
+	fcopy, err := ioutil.TempFile("", "spanner-migration-tool.data")
 	if err != nil {
 		return nil, 0, err
 	}

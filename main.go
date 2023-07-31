@@ -46,7 +46,7 @@ func main() {
 		panic(fmt.Errorf("can't set up log file"))
 	}
 	defer utils.Close(lf)
-	// Using HB CLI in subcommand mode.
+	// Using SMT CLI in subcommand mode.
 	subcommands.Register(subcommands.HelpCommand(), "")
 	subcommands.Register(subcommands.CommandsCommand(), "")
 	subcommands.Register(&cmd.SchemaCmd{}, "")

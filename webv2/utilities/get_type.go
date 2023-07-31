@@ -64,9 +64,11 @@ func GetType(conv *internal.Conv, newType, tableId, colId string) (ddl.CreateTab
 	if srcCol.Ignored.AutoIncrement {
 		issues = append(issues, internal.AutoIncrement)
 	}
+	conv.SchemaIssuesLock.Lock()
 	if conv.SchemaIssues != nil && len(issues) > 0 {
 		conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = issues
 	}
+	conv.SchemaIssuesLock.Unlock()
 	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
 	return sp, ty, nil
 }

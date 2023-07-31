@@ -101,7 +101,7 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 	// If either is present, assign it to the other one.
 	if dsCfg.StreamId == "" && dsCfg.StreamDisplayName == "" {
 		// TODO: Update names to have more info like dbname.
-		streamId, err := utils.GenerateName("hb-stream-" + dbName)
+		streamId, err := utils.GenerateName("smt-stream-" + dbName)
 		streamId = strings.Replace(streamId, "_", "-", -1)
 		if err != nil {
 			return fmt.Errorf("error generating stream name: %v", err)
@@ -119,7 +119,7 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 
 	if dfCfg.JobName == "" {
 		// Update names to have more info like dbname.
-		jobName, err := utils.GenerateName("hb-dataflow-" + dbName)
+		jobName, err := utils.GenerateName("smt-dataflow-" + dbName)
 		jobName = strings.Replace(jobName, "_", "-", -1)
 		if err != nil {
 			return fmt.Errorf("error generating stream name: %v", err)
@@ -498,7 +498,7 @@ func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, r
 func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string, workerIpAddressConfig dataflowpb.WorkerIPAddressConfiguration) *dataflowpb.LaunchFlexTemplateParameter {
 	return &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
-		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-07-04-00_RC00/flex/Cloud_Datastream_to_Spanner"},
+		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates/2023-07-18-00_RC00/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
 			"inputFilePattern":              inputFilePattern,
 			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),

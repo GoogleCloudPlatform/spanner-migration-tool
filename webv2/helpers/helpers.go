@@ -37,7 +37,7 @@ const (
 	GOOGLE_SQL_DIALECT     = "Google Standard SQL"
 )
 
-const metadataDbName string = "harbourbridge_metadata"
+const metadataDbName string = "spannermigrationtool_metadata"
 
 func GetMetadataDbName() string {
 	return metadataDbName
@@ -127,6 +127,7 @@ func CheckOrCreateMetadataDb(projectId string, instanceId string) (isExist bool,
 	isExist = true
 	return
 }
+
 func GetSourceDatabaseFromDriver(driver string) (string, error) {
 	switch driver {
 	case constants.MYSQLDUMP, constants.MYSQL:

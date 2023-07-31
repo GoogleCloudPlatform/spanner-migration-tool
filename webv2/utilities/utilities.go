@@ -28,7 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 )
 
-const metadataDbName string = "harbourbridge_metadata"
+const metadataDbName string = "spannermigrationtool_metadata"
 
 func InitObjectId() {
 
