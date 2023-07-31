@@ -55,7 +55,8 @@ func getJdbcSql(conv *internal.Conv, srcDriver string, spTableID string, primary
 	}
 	if srcDriver == constants.MYSQL {
 		if primaryKeys == "" {
-			return fmt.Sprintf("select uuid() as synth_id, %s from %s.%s as %s", strings.Join(selectCols, ", "), srcSchema, srcTable, tableAlias)
+			synthPk := conv.SpSchema[spTableID].ColDefs[conv.SyntheticPKeys[spTableID].ColId].Name
+			return fmt.Sprintf("select uuid() as %s, %s from %s.%s as %s", synthPk, strings.Join(selectCols, ", "), srcSchema, srcTable, tableAlias)
 		}
 	}
 	return fmt.Sprintf("select %s from %s.%s as %s", strings.Join(selectCols, ", "), srcSchema, srcTable, tableAlias)
@@ -79,7 +80,6 @@ func GetDataprocRequestParams(conv *internal.Conv, sourceProfile profiles.Source
 	spTableName := conv.SpSchema[spTableID].Name
 
 	jdbcParams := map[string]string{}
-	// TODO: replace hardcoded `synth_id` with a variable/constant
 	if sourceProfile.Driver == constants.MYSQL {
 		jdbcParams["url"] = fmt.Sprintf("jdbc:mysql://%s:%s/%s?user=%s&password=%s", host, port, srcDb, user, pwd)
 		jdbcParams["driver"] = "com.mysql.jdbc.Driver"
@@ -91,7 +91,7 @@ func GetDataprocRequestParams(conv *internal.Conv, sourceProfile profiles.Source
 
 	outputPrimaryKeys := primaryKeys
 	if primaryKeys == "" {
-		outputPrimaryKeys = "synth_id"
+		outputPrimaryKeys = conv.SpSchema[spTableID].ColDefs[conv.SyntheticPKeys[spTableID].ColId].Name
 	}
 
 	jarFileUris := []string{"file:///usr/lib/spark/external/spark-avro.jar",

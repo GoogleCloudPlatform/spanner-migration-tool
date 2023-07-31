@@ -289,6 +289,7 @@ func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile
 
 		srcSchema := conv.SrcSchema[spannerTableID]
 
+		// TODO: pull from conv struct instead of infoSchema
 		primaryKeys, _, _ := infoSchema.GetConstraints(conv, common.SchemaAndName{Name: srcTable, Schema: srcSchema.Schema})
 
 		dataprocRequestParams, err := dproc.GetDataprocRequestParams(conv, sourceProfile, targetProfile, spannerTableID, strings.Join(primaryKeys, ","), location, subnet)
