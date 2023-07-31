@@ -103,19 +103,21 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 		if srcCol.Ignored.AutoIncrement { //TODO(adibh) - check why this is not there in postgres
 			issues = append(issues, internal.AutoIncrement)
 		}
-		if len(issues) > 0 {
-			columnLevelIssues[srcColId] = issues
-		}
 		// Set the not null constraint to false for unsupported source datatypes
 		isNotNull := srcCol.NotNull
 		if findSchemaIssue(issues, internal.NoGoodType) != -1 {
 			isNotNull = false
 		}
-		// Set the not null constraint to false for array datatype. This is done because
+		// Set the not null constraint to false for array datatype and add a warning because
 		// datastream does not support array datatypes.
 		if ty.IsArray {
+			issues = append(issues, internal.ArrayTypeNotSupported)
 			isNotNull = false
 		}
+		if len(issues) > 0 {
+			columnLevelIssues[srcColId] = issues
+		}
+
 		spColDef[srcColId] = ddl.ColumnDef{
 			Name:    colName,
 			T:       ty,
