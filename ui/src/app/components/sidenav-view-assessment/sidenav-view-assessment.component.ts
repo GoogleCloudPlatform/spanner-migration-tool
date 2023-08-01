@@ -364,7 +364,6 @@ export class SidenavViewAssessmentComponent implements OnInit {
         map_report = report.suggestions
         this.issueTableData_Suggestions = []
         if (map_report.size != 0) {
-          console.log(this.typeDescription)
           let i = 1;
           for (let [key, value] of map_report.entries()) {
             let tableNamesList = [...value.tableNames.keys()]
