@@ -307,13 +307,14 @@ func TestProcessSchema(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, len(conv.SchemaIssues[cartTableId].ColumnLevelIssues), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"aint": []internal.SchemaIssue{internal.Widened},
-		"bs":   []internal.SchemaIssue{internal.DefaultValue},
-		"f4":   []internal.SchemaIssue{internal.Widened},
-		"i4":   []internal.SchemaIssue{internal.Widened},
-		"i2":   []internal.SchemaIssue{internal.Widened},
-		"s":    []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
-		"ts":   []internal.SchemaIssue{internal.Timestamp},
+		"aint":  []internal.SchemaIssue{internal.Widened, internal.ArrayTypeNotSupported},
+		"bs":    []internal.SchemaIssue{internal.DefaultValue},
+		"f4":    []internal.SchemaIssue{internal.Widened},
+		"i4":    []internal.SchemaIssue{internal.Widened},
+		"i2":    []internal.SchemaIssue{internal.Widened},
+		"s":     []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
+		"ts":    []internal.SchemaIssue{internal.Timestamp},
+		"atext": []internal.SchemaIssue{internal.ArrayTypeNotSupported},
 	}
 	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
 	assert.Equal(t, nil, err)

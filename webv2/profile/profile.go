@@ -48,7 +48,7 @@ func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	source := r.FormValue("source") == "true"
 	if !source {
-		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+		sessionState.Conv.Audit.MigrationRequestId = "SMT-" + uuid.New().String()
 		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId) + "/"
 	}
 	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)

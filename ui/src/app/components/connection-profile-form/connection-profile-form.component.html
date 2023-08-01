@@ -22,12 +22,13 @@
             </mat-form-field>
         </div>
         <div *ngIf="(selectedOption === 'new')">
-            <mat-form-field appearance="outline">
+            <mat-form-field appearance="outline" hintLabel="Name can include lower case letters, numbers and hyphens. Must start with a letter.">
                 <mat-label>Connection profile name</mat-label>
                 <input matInput placeholder="Connection profile name" type="text" formControlName="newProfile"
                     required="true" />
             </mat-form-field>
         </div>
+        <br>
         <div *ngIf="isSource && sourceDatabaseType=='postgres'">
             <mat-form-field appearance="outline">
                 <mat-label>Replication slot</mat-label>
@@ -62,16 +63,8 @@
                     </mat-icon>
                 </div>
                 <br>
-                <div *ngIf="testingSourceConnection">
-                    <br>
-                    <span class="spinner">
-                        <mat-spinner [diameter]="20">
-                        </mat-spinner>
-                    </span>
-                    <span class="spinner-small-text">Testing Connection</span><br>
-                </div>
                 <button mat-raised-button type="submit" color="primary" (click)="testConnection()"
-                    [disabled]="!(connectionProfileForm.valid) || testingSourceConnection">Test Connection</button>
+                    [disabled]="!(connectionProfileForm.valid)">Test Connection</button>
                 <mat-icon *ngIf="testSuccess" class="success" matTooltip="Test connection successful"
                     matTooltipPosition="above">
                     check_circle

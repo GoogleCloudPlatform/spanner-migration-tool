@@ -149,13 +149,42 @@ cd spanner-migration-tool
 go run github.com/GoogleCloudPlatform/spanner-migration-tool help
 ```
 
-Examples below assume that `harbourbridge` alias is set as following
+Examples below assume that `spanner-migration-tool` alias is set as following
 
 ```sh
-alias harbourbridge="go run github.com/GoogleCloudPlatform/spanner-migration-tool"
+alias spanner-migration-tool="go run github.com/GoogleCloudPlatform/spanner-migration-tool"
 ```
 
 This workflow also allows you to modify or customize the Spanner migration tool codebase.
+
+### Configuring connectivity to source database
+#### Configuring connectivity for `spanner-migration-tool`
+Ensure that the machine where you run `spanner-migration-tool` is allowlisted to connect to the source database.
+In generic terms (your specific network settings may differ), do the following:
+
+1. Open your source database machine's network firewall rules.
+2. Create an inbound rule.
+3. Set the source ip address as the ip address of the machine where you run the `spanner-migration-tool`.
+4. Set the protocol to TCP.
+5. Set the port associated with the TCP protocol of your database.
+6. Save the firewall rule, and then exit.
+
+#### Configuring connectivity for data stream
+Follow the [Datastream guidelines](https://cloud.google.com/datastream/docs/configure-connecting-ip-allowlists) to allowlist datastream to access the source database.
+
+### API enablement
+Ensure that Datastream and Dataflow apis are enabled on your project.
+
+1. [Make sure that billing is enabled for your Google Cloud project](https://cloud.google.com/billing/docs/how-to/verify-billing-enabled#gcloud).
+2. Follow the [Datastream guidelines](https://cloud.google.com/datastream/docs/use-the-datastream-api#enable_the_api) to enable Datasteream api.
+3. Enable the Dataflow api by using:
+   ```
+   gcloud services enable dataflow.googleapis.com
+   ``` 
+4. Google Cloud Storage apis are generally enabled by [default](https://cloud.google.com/service-usage/docs/enabled-service#default). In they have been disabled, you will need to enable them.
+   ```
+   gcloud services enable storage.googleapis.com
+   ```
 
 ### Running Spanner migration tool
 
@@ -163,20 +192,20 @@ To use the tool on a PostgreSQL database called mydb, run
 
 ```sh
 pg_dump mydb > mydb.pg_dump
-harbourbridge schema-and-data -source=postgresql < mydb.pg_dump
+spanner-migration-tool schema-and-data -source=postgresql < mydb.pg_dump
 ```
 
 To use the tool on a MySQL database called mydb, run
 
 ```sh
 mysqldump mydb > mydb.mysqldump
-harbourbridge schema-and-data -source=mysql < mydb.mysqldump
+spanner-migration-tool schema-and-data -source=mysql < mydb.mysqldump
 ```
 
 To use the tool on a DynamoDB database, run
 
 ```sh
-harbourbridge schema-and-data -source=dynamodb
+spanner-migration-tool schema-and-data -source=dynamodb
 ```
 
 Note: Spanner migration tool accepts pg_dump/mysqldump's standard plain-text format,
@@ -238,7 +267,7 @@ singers](https://cloud.google.com/spanner/docs/schema-and-data-model#creating_a_
 example. To use Spanner migration tool on cart.pg_dump, download the file locally and run
 
 ```sh
-harbourbridge schema -source=postgresql < cart.pg_dump
+spanner-migration-tool schema -source=postgresql < cart.pg_dump
 ```
 
 ### Verifying Results
@@ -338,12 +367,12 @@ Spanner migration tool CLI follows [subcommands](https://github.com/google/subco
 structure with the the following general syntax:
 
 ```sh
-harbourbridge <subcommand> flags
+spanner-migration-tool <subcommand> flags
 ```
 
 ### Getting Help
 
-The command `harbourbridge help` displays the available subcommands.
+The command `spanner-migration-tool help` displays the available subcommands.
 
 ```text
     commands   list all subcommand names
@@ -353,36 +382,36 @@ The command `harbourbridge help` displays the available subcommands.
 To get help on individual subcommands, use
 
 ```sh
-    harbourbridge help <subcommand>
+    spanner-migration-tool help <subcommand>
 ```
 
 This will print the usage pattern, a few examples, and a list of all available subcommand flags.
 
 ### Subcommands
 
-#### harbourbridge `schema`
+#### spanner-migration-tool `schema`
 
 This subcommand can be used to perform schema conversion and report on the quality of the conversion. The generated schema mapping file (session.json) can be then further edited using the Spanner migration tool web UI to make custom edits to the destination schema. This session file
 is then passed to the data subcommand to perform data migration while honoring the defined
 schema mapping. Spanner migration tool also generates Spanner schema which users can modify manually and use directly as well.
 
-#### harbourbridge `data`
+#### spanner-migration-tool `data`
 
 This subcommand will perform data migration and report on the quality of the same. Rows which could not be migrated are reported in
 dropped.txt file. This subcommand requires users to pass the session file (which contains schema mapping) generated by either the `schema` subcommand or web UI.
 
-#### harbourbridge `schema-and-data`
+#### spanner-migration-tool `schema-and-data`
 
 This subcommand will generate a schema as well as perform data migration and report on the quality of both schema migration and data migration. This subcommand can be used to do a quick evaluation for the migration and get started quickly on Spanner.
 
-#### harbourbridge `web`
+#### spanner-migration-tool `web`
 
 This subcommand will run the Spanner migration tool UI locally. The UI can be used to perform assisted schema and data migration.
 
 ### Command line flags
 
 This section describes the flags common across all the subcommands. For flags
-specific to a give subcommand run `harbourbridge help <subcommand>`.
+specific to a give subcommand run `spanner-migration-tool help <subcommand>`.
 
 `-source` Required flag. Specifies the source source. Supported sources 
 are _'postgres'_, _'mysql'_, _'dynamodb'_ and _'csv'_(only in data mode).
@@ -593,7 +622,7 @@ if the current working directory has space, then:
 
 ```sh
 { pg_dump/mysqldump } > tmpfile
-harbourbridge < tmpfile
+spanner-migration-tool < tmpfile
 ```
 
 Make sure you cleanup the tmpfile after Spanner migration tool has been run. Another
@@ -634,7 +663,12 @@ Spanner migration tool](#files-generated-by-spanner-migration-tool) contain deta
 about the schema and data conversion process, including issues and problems
 encountered.
 
-### 5. Reporting Issues
+### 5. Quota Issues
+Spanner migration tool provisions `Datastream` and `Dataflow` resources in the cloud project specified by the `GCLOUD_PROJECT`
+environment variable. Depending on the size of the migration work and the constraints on the associated billing account, you may see `quota exceeds` errors.
+If you see such errors, reachout to an appropriate [Spanner support channel](https://cloud.google.com/spanner/docs/getting-support) for asistance.
+
+### 6. Reporting Issues
 
 ## Known Issues
 Please refer to the [issues section](https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues)
@@ -644,6 +678,7 @@ Please refer to the [issues section](https://github.com/GoogleCloudPlatform/span
 
 - Loading dump files from SQL Server, Oracle and DynamoDB is not supported
 - Schema Only Mode does not create foreign keys
+- Foreign key actions such as [ON DELETE CASCADE](https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language#create_table) are not supported. If you do not specify a foreign key action, Spanner infers NO ACTION as the default action
 - Migration of check constraints, functions and views is not supported
 - Schema recommendations are based on static analysis of the schema only
 - PG Spanner dialect support is limited, and is not currently available on the UI
