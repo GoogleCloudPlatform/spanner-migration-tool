@@ -256,6 +256,7 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 }
 
 func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, conv *internal.Conv, infoSchema common.InfoSchema) error {
+	ctx := context.Background()
 
 	orderTableNamesByID := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
 	numberOfTables := int64(len(orderTableNamesByID))
@@ -270,17 +271,20 @@ func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile
 	region_string := subnet[0:strings.Index(subnet, "/subnetworks")]
 	location := subnet[strings.LastIndex(region_string, "/")+1 : strings.LastIndex(subnet, "/subnetworks")]
 
-	batchClient, err := dproc.CreateDataprocBatchClient(location)
+	batchClient, err := dproc.CreateDataprocBatchClient(ctx, location)
 	if err != nil {
-		log.Fatalf("error creating the batch client: %s\n", err)
+		log.Fatalf("Error creating the batch client: %s\n", err)
 		return err
 	}
 	logger.Log.Debug(fmt.Sprint("Dataproc batch client created"))
 	defer batchClient.Close()
 
 	progressCtr := 0
+	conv.Audit.DataprocMetadata.SrcTable = make(map[string]string)
+	conv.Audit.DataprocMetadata.DataprocJobUrls = make(map[string]string)
+	conv.Audit.DataprocMetadata.DataprocJobIds = make(map[string]string)
+	conv.Audit.DataprocMetadata.DataprocJobStatus = make(map[string]string)
 	for _, spannerTableID := range orderTableNamesByID {
-
 		srcTable := conv.SrcSchema[spannerTableID].Name
 
 		srcSchema := conv.SrcSchema[spannerTableID]
@@ -292,10 +296,32 @@ func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile
 			return err
 		}
 
-		id, err := dproc.TriggerDataprocTemplate(batchClient, srcTable, srcSchema.Schema, strings.Join(primaryKeys, ","), dataprocRequestParams)
+		op, err := dproc.TriggerDataprocTemplate(ctx, batchClient, srcTable, srcSchema.Schema, strings.Join(primaryKeys, ","), dataprocRequestParams)
 		if err != nil {
+			logger.Log.Error(fmt.Sprintf("Failing to trigger Dataproc template for %s.%s", srcSchema.Schema, srcTable))
 			return err
 		}
+		meta, _ := op.Metadata()
+		batchName := meta.Batch
+		splittedBatchName := strings.Split(batchName, "/")
+		jobId := splittedBatchName[5]
+
+		jobUrl := fmt.Sprintf("https://console.cloud.google.com/dataproc/batches/%s/%s?project=%s", location, jobId, dataprocRequestParams.Project)
+		conv.Audit.DataprocMetadata.SrcTable[spannerTableID] = srcTable
+		conv.Audit.DataprocMetadata.DataprocJobUrls[spannerTableID] = jobUrl
+		conv.Audit.DataprocMetadata.DataprocJobIds[spannerTableID] = jobId
+		conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = "RUNNING"
+		logger.Log.Info(fmt.Sprintf("Dataproc template triggered for %s.%s : %s", srcSchema.Schema, srcTable, jobUrl))
+
+		_, err = op.Wait(ctx)
+		if err != nil {
+			conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = "FAILED"
+			logger.Log.Error(fmt.Sprintf("Error completing the batch [%s]:\n %s\n", jobId, err.Error()))
+			logger.Log.Error(fmt.Sprintf("Failing data migration from Dataproc template for %s.%s, Check: %s for more details\n", srcSchema.Schema, srcTable, jobUrl))
+			return err
+		}
+		conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = "SUCCESS"
+
 		if conv.DataFlush != nil {
 			conv.DataFlush()
 		}
@@ -304,11 +330,6 @@ func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile
 			progressCtr++
 			conv.Audit.Progress.MaybeReport(int64(progressCtr))
 		}
-
-		//TODO: eenclona@ will remove hardcoded us-central1
-		url := fmt.Sprintf("https://console.cloud.google.com/dataproc/batches/us-central1/%s", id)
-		conv.Audit.DataprocMetadata.DataprocJobUrls = append(conv.Audit.DataprocMetadata.DataprocJobUrls, url)
-		conv.Audit.DataprocMetadata.DataprocJobIds = append(conv.Audit.DataprocMetadata.DataprocJobIds, id)
 	}
 
 	return nil
