@@ -20,6 +20,7 @@
       <button mat-button (click)="openSaveSessionSidenav()" *ngIf="!isOfflineStatus">
         SAVE SESSION
       </button>
+      <span class="artifactsButtons">
       <button mat-raised-button color="primary" class="split-button-left" (click)="downloadArtifacts()">
         DOWNLOAD ARTIFACTS
       </button>
@@ -32,6 +33,7 @@
         <button mat-menu-item (click)="downloadSession()">Download Session File</button>
         <button mat-menu-item (click)="downloadDDL()">Download Spanner DDL</button>
       </mat-menu>
+      </span>
     </div>
   </div>
   <div class="container">

@@ -31,13 +31,17 @@ table.mat-table {
     flex-direction: row;
     align-items: center;
     border-bottom: 1px solid #d0cccc;
+    justify-content: space-between;
 
     .header-title {
       margin: 0;
     }
 
     .btn-source-select {
-      margin: 0px 5px 0px 395px;
+
+      .reportsButtons {
+        white-space: nowrap;
+      }
 
       .split-button-left {
         border-top-right-radius: 0;
