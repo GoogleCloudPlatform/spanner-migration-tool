@@ -42,6 +42,29 @@ type DataprocRequestParams struct {
 	Location      string
 }
 
+func getSparkType(spColType string) string {
+	switch spColType {
+	case "INT64":
+		return "LONG"
+	case "FLOAT64":
+		return "DOUBLE"
+	case "BYTES":
+		return "BINARY"
+	case "BOOL":
+		return "BOOLEAN"
+	case "STRING":
+		return "STRING"
+	case "TIMESTAMP":
+		return "TIMESTAMP"
+	case "DATE":
+		return "DATE"
+	case "NUMERIC":
+		return "DECIMAL"
+	default:
+		return ""
+	}
+}
+
 func getJdbcSql(conv *internal.Conv, srcDriver string, spTableID string, primaryKeys string) string {
 	srcTable := conv.SrcSchema[spTableID].Name
 	srcSchema := conv.SrcSchema[spTableID].Schema
@@ -60,6 +83,33 @@ func getJdbcSql(conv *internal.Conv, srcDriver string, spTableID string, primary
 		}
 	}
 	return fmt.Sprintf("select %s from %s.%s as %s", strings.Join(selectCols, ", "), srcSchema, srcTable, tableAlias)
+}
+
+func getTempViewArgs(conv *internal.Conv, spTableID string, primaryKeys string) []string {
+	var selectCols []string
+	for _, colId := range conv.SpSchema[spTableID].ColIds {
+		if conv.SrcSchema[spTableID].ColDefs[colId].Name != "" {
+			sparkType := getSparkType(conv.SpSchema[spTableID].ColDefs[colId].T.Name)
+			if conv.SpSchema[spTableID].ColDefs[colId].T.IsArray {
+				sparkType = fmt.Sprintf("ARRAY<%s>", sparkType)
+			}
+			if sparkType == "" {
+				selectCols = append(selectCols, fmt.Sprintf("%s as %s", conv.SrcSchema[spTableID].ColDefs[colId].Name, conv.SpSchema[spTableID].ColDefs[colId].Name))
+			} else {
+				selectCols = append(selectCols, fmt.Sprintf("CAST(%s as %s) as %s", conv.SrcSchema[spTableID].ColDefs[colId].Name, sparkType, conv.SpSchema[spTableID].ColDefs[colId].Name))
+			}
+		}
+	}
+	if primaryKeys == "" {
+		synthPk := conv.SpSchema[spTableID].ColDefs[conv.SyntheticPKeys[spTableID].ColId].Name
+		selectCols = append(selectCols, synthPk)
+	}
+	tempTable := "temp_view"
+	tempQuery := fmt.Sprintf("select %s from global_temp.temp_view", strings.Join(selectCols, ", "))
+	return []string{"--templateProperty",
+		"jdbctospanner.temp.table=" + tempTable,
+		"--templateProperty",
+		"jdbctospanner.temp.query=" + tempQuery}
 }
 
 func GetDataprocRequestParams(conv *internal.Conv, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, spTableID string, primaryKeys string, location string, subnet string) (DataprocRequestParams, error) {
@@ -122,6 +172,8 @@ func GetDataprocRequestParams(conv *internal.Conv, sourceProfile profiles.Source
 		"jdbctospanner.output.batch.size=" + batchSize,
 		"--templateProperty",
 		"jdbctospanner.jdbc.fetchsize=" + fetchSize}
+
+	args = append(args, getTempViewArgs(conv, spTableID, primaryKeys)...)
 
 	dataprocRequestParams := DataprocRequestParams{
 		Project:       spProject,
