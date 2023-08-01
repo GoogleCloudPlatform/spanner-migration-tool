@@ -699,6 +699,21 @@ To use custom templates, enable [basic permissions](https://cloud.google.com/dat
 #### 6.4 GCE
 Enable access to Datastream, Dataflow and Spanner using [service accounts](https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances)
 
+In addition to these, the `DatastreamToSpanner` pipeline created by SMT requires
+the following roles as well -
+
+- Dataflow service account: 
+ - GCS Bucket Lister
+ - Storage Object Creator
+ - GCS Object Lister
+ - Storage Object Viewer
+- Dataflow compute engine service account: 
+ - Datastream Viewer role
+ - Cloud Spanner Database user
+ - Cloud Spanner Restore Admin
+ - Cloud Spanner Viewer
+ - Dataflow Worker
+
 
 ## Known Issues
 Please refer to the [issues section](https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues)
