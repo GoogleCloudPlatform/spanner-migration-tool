@@ -395,8 +395,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						Description: fmt.Sprintf("%s, Column '%s' is mapped to '%s' for table '%s'", IssueDB[i].Brief, srcColName, spColName, conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
-        case internal.ArrayTypeNotSupported:
-          toAppend := Issue{
+				case internal.ArrayTypeNotSupported:
+					toAppend := Issue{
 						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("Table '%s': Column %s, %s", conv.SpSchema[tableId].Name, spColName, IssueDB[i].Brief),
 					}
@@ -531,9 +531,10 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.StringOverflow:       {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning, Category: "STRING_OVERFLOW_WARNING"},
 	internal.HotspotTimestamp:     {Brief: "Timestamp Hotspot Occured", severity: warning, Category: "TIMESTAMP_HOTSPOT"},
 	internal.HotspotAutoIncrement: {Brief: "Autoincrement Hotspot Occured", severity: warning, Category: "AUTOINCREMENT_HOTSPOT"},
-	internal.InterleavedOrder:     {Brief: "can be converted as Interleaved with Table", severity: suggestion, Category: "INTERLEAVE_TABLE_SUGGESTION"},
-	internal.RedundantIndex:       {Brief: "Redundant Index", severity: warning, Category: "REDUNDANT_INDEX"},
-	internal.AutoIncrementIndex:   {Brief: "Auto increment column in Index can create a Hotspot", severity: warning, Category: "AUTO-INCREMENT_INDEX"},
+	internal.InterleavedOrder: {Brief: "can be converted as Interleaved with Table", severity: suggestion, Category: "INTERLEAVE_TABLE_SUGGESTION",
+		CategoryDescription: "Some tables can be interleaved"},
+	internal.RedundantIndex:     {Brief: "Redundant Index", severity: warning, Category: "REDUNDANT_INDEX"},
+	internal.AutoIncrementIndex: {Brief: "Auto increment column in Index can create a Hotspot", severity: warning, Category: "AUTO-INCREMENT_INDEX"},
 	internal.InterleaveIndex: {Brief: "can be converted to an Interleave Index", severity: suggestion, Category: "INTERLEAVE_INDEX_SUGGESTION",
 		CategoryDescription: "Some columns can be interleaved"},
 	internal.InterleavedNotInOrder: {Brief: "if primary key order parameter is changed for the table", severity: suggestion, Category: "INTERLEAVED_NOT_IN_ORDER",
@@ -552,7 +553,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 		CategoryDescription: "Some column is not a part of primary key. Check for that column and add it as a part of Primary Key"},
 	internal.MissingPrimaryKey: {Category: "MISSING_PRIMARY_KEY",
 		CategoryDescription: "Primary Key is missing"},
-  internal.ArrayTypeNotSupported:  {Brief: "Array datatype is not supported in minimal downtime migration", severity: warning, Category: "ARRAY_TYPE_NOT_SUPPORTED"},
+	internal.ArrayTypeNotSupported: {Brief: "Array datatype is not supported in minimal downtime migration", severity: warning, Category: "ARRAY_TYPE_NOT_SUPPORTED"},
 }
 
 type severity int
