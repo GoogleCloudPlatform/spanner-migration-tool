@@ -42,7 +42,7 @@ export class ConnectionProfileFormComponent implements OnInit {
     }
     this.connectionProfileForm = this.formBuilder.group({
       profileOption: ['', Validators.required],
-      newProfile: [],
+      newProfile: ['',[Validators.pattern('^[a-z][a-z0-9-]{0,59}$')]],
       existingProfile: [],
       replicationSlot: [],
       publication: [],
@@ -86,7 +86,7 @@ export class ConnectionProfileFormComponent implements OnInit {
       error: (err: any) => {
         this.testingSourceConnection = false
         this.testSuccess = false
-        this.errorMsg = err
+        this.errorMsg = err.error
       },
     })
   }

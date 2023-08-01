@@ -33,6 +33,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
@@ -85,6 +86,7 @@ var mysqlTypeMap = make(map[string][]typeIssue)
 var postgresTypeMap = make(map[string][]typeIssue)
 var sqlserverTypeMap = make(map[string][]typeIssue)
 var oracleTypeMap = make(map[string][]typeIssue)
+var typeMapMutex sync.RWMutex
 
 var mysqlDefaultTypeMap = make(map[string]ddl.Type)
 var postgresDefaultTypeMap = make(map[string]ddl.Type)
@@ -776,6 +778,9 @@ func spannerDefaultTypeMap(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner.", http.StatusNotFound)
 		return
 	}
+	initializeTypeMap()
+	typeMapMutex.RLock()
+	defer typeMapMutex.RUnlock()
 
 	var typeMap map[string]ddl.Type
 	switch sessionState.Driver {
@@ -806,6 +811,9 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	}
 	var typeMap map[string][]typeIssue
 	initializeTypeMap()
+
+	typeMapMutex.RLock()
+	defer typeMapMutex.RUnlock()
 	switch sessionState.Driver {
 	case constants.MYSQL, constants.MYSQLDUMP:
 		typeMap = mysqlTypeMap
@@ -1298,9 +1306,9 @@ func addIndex(newIndex ddl.CreateIndex) (ddl.CreateIndex, error) {
 // getConversionRate returns table wise color coded conversion rate.
 func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	hb_reports := reports.AnalyzeTables(sessionState.Conv, nil)
+	smt_reports := reports.AnalyzeTables(sessionState.Conv, nil)
 	rate := make(map[string]string)
-	for _, t := range hb_reports {
+	for _, t := range smt_reports {
 		rate[t.SpTable], _ = reports.RateSchema(t.Cols, t.Warnings, t.Errors, t.SyntheticPKey != "", false)
 	}
 	w.WriteHeader(http.StatusOK)
@@ -2129,7 +2137,7 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionSummary.ProcessingUnits = int(instanceInfo.ProcessingUnits)
 	sessionSummary.Instance = sessionState.SpannerInstanceID
 	sessionSummary.Dialect = helpers.GetDialectDisplayStringFromDialect(sessionState.Dialect)
-	sessionSummary.IsSharded = sessionState.IsSharded
+	sessionSummary.IsSharded = sessionState.Conv.IsSharded
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sessionSummary)
 }
@@ -2273,7 +2281,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		}
 		sourceProfileString = sourceProfileString + fmt.Sprintf(",streamingCfg=%v", fileName)
 	} else {
-		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+		sessionState.Conv.Audit.MigrationRequestId = "SMT-" + uuid.New().String()
 		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
 		sessionState.RootPath = "/"
 	}
@@ -2293,7 +2301,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 }
 
 func getSourceProfileStringForShardedMigrations(sessionState *session.SessionState, details migrationDetails) (string, error) {
-	fileName := "HB-" + uuid.New().String() + "-sharding.cfg"
+	fileName := "SMT-" + uuid.New().String() + "-sharding.cfg"
 	if details.MigrationType != helpers.LOW_DOWNTIME_MIGRATION {
 		err := createConfigFileForShardedBulkMigration(sessionState, details, fileName)
 		if err != nil {
@@ -2920,7 +2928,8 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 func initializeTypeMap() {
 	sessionState := session.GetSessionState()
 	var toddl common.ToDdl
-
+	typeMapMutex.Lock()
+	defer typeMapMutex.Unlock()
 	// Initialize mysqlTypeMap.
 	toddl = mysql.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {

@@ -10,7 +10,7 @@ see this [README](https://github.com/GoogleCloudPlatform/spanner-migration-tool#
 Spanner migration tool can either be used with mysqldump or it can be run directly
 on a MySQL database (via go's database/sql package).
 
-The following examples assume a `harbourbridge` alias has been setup as described
+The following examples assume a `spanner-migration-tool` alias has been setup as described
 in the [Installing Spanner migration tool](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
 
 ### Using Spanner migration tool with mysqldump
@@ -18,7 +18,7 @@ in the [Installing Spanner migration tool](https://github.com/GoogleCloudPlatfor
 The tool can be used to migrate schema from an existing mysqldump file:
 
 ```sh
-harbourbridge schema -source=mysql < my_mysqldump_file
+spanner-migration-tool schema -source=mysql < my_mysqldump_file
 ```
 
 This will generate a session file with `session.json` suffix. This file contains
@@ -29,7 +29,7 @@ during data migration.
 For example, run
 
 ```sh
-harbourbridge data -session=mydb.session.json -source=mysql -target-profile="instance=my-spanner-instance,dbName=my-spanner-database-name" < my_mysqldump_file
+spanner-migration-tool data -session=mydb.session.json -source=mysql -target-profile="instance=my-spanner-instance,dbName=my-spanner-database-name" < my_mysqldump_file
 ```
 
 You can also run Spanner migration tool in a schema-and-data mode, where it will perform both
@@ -37,7 +37,7 @@ schema and data migration. This is useful for quick evaluation when source
 database size is small.
 
 ```sh
-harbourbridge schema-and-data -source=mysql -target-profile="instance=my-spanner-instance" < my_mysqldump_file
+spanner-migration-tool schema-and-data -source=mysql -target-profile="instance=my-spanner-instance" < my_mysqldump_file
 ```
 
 Spanner migration tool generates a report file, a schema file, and a bad-data file (if
@@ -45,14 +45,14 @@ there are bad-data rows). You can control where these files are written by
 specifying a file prefix. For example,
 
 ```sh
-harbourbridge schema -prefix=mydb. -source=mysql < my_mysqldump_file
+spanner-migration-tool schema -prefix=mydb. -source=mysql < my_mysqldump_file
 ```
 
 will write files `mydb.report.txt`, `mydb.schema.txt`, and
 `mydb.dropped.txt`. The prefix can also be a directory. For example,
 
 ```sh
-harbourbridge schema -prefix=~/spanner-eval-mydb/ -source=mysql < my_mysqldump_file
+spanner-migration-tool schema -prefix=~/spanner-eval-mydb/ -source=mysql < my_mysqldump_file
 ```
 
 would write the files into the directory `~/spanner-eval-mydb/`. Note
@@ -67,7 +67,7 @@ connection parameters `host`, `port`, `user`, `dbName` and `password`.
 For example, to perform schema conversion, run
 
 ```sh
-harbourbridge schema -source=mysql -source-profile="host=<>,port=<>,user=<>,dbName=<>"
+spanner-migration-tool schema -source=mysql -source-profile="host=<>,port=<>,user=<>,dbName=<>"
 ```
 
 Parameters `port` and `password` are optional. Port (`port`) defaults to `3306`
