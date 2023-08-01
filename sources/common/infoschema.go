@@ -63,10 +63,17 @@ type FkConstraint struct {
 // and we use them to obtain source database's schema information.
 func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes) error {
 
-	GenerateSrcSchema(conv, infoSchema, numWorkers)
+	tableCount, err := GenerateSrcSchema(conv, infoSchema, numWorkers)
+	if err != nil {
+		return err
+	}
 	initPrimaryKeyOrder(conv)
 	initIndexOrder(conv)
 	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
+	if tableCount != len(conv.SpSchema) {
+		fmt.Printf("Failed to load all the source tables, source table count: %v, processed tables:%v\n", tableCount, len(conv.SpSchema))
+		return fmt.Errorf("failed to load all the source tables, source table count: %v, processed tables:%v", tableCount, len(conv.SpSchema))
+	}
 	conv.AddPrimaryKeys()
 	if attributes.IsSharded {
 		conv.AddShardIdColumn()
@@ -75,11 +82,11 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, a
 	return nil
 }
 
-func GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) error {
+func GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) (int, error) {
 	tables, err := infoSchema.GetTables()
 	fmt.Println("fetched tables", tables)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	if numWorkers < 1 {
@@ -98,10 +105,11 @@ func GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers in
 	res, e := RunParallelTasks(tables, numWorkers, asyncProcessTable, true)
 	if e != nil {
 		fmt.Printf("exiting due to error: %s , while processing schema for table %s\n", e, res)
-		return e
+		return 0, e
 	}
+
 	internal.ResolveForeignKeyIds(conv.SrcSchema)
-	return nil
+	return len(tables), nil
 }
 
 // ProcessData performs data conversion for source database

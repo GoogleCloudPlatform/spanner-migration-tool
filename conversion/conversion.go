@@ -41,10 +41,6 @@ import (
 
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -63,6 +59,10 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	"go.uber.org/zap"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	"google.golang.org/grpc/metadata"
@@ -332,6 +332,14 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		for _, l := range p.LogicalShards {
 			dbNameToShardIdMap[l.DbName] = l.LogicalShardId
 		}
+		if p.DataShardId == "" {
+			dataShardId, err := utils.GenerateName("smt-datashard")
+			dataShardId = strings.Replace(dataShardId, "_", "-", -1)
+			if err != nil {
+				return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+			}
+			p.DataShardId = dataShardId
+		}
 		streamingCfg := streaming.CreateStreamingConfig(*p)
 		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname, tableList)
 		if err != nil {
@@ -348,7 +356,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
-	_, err = common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 5, asyncProcessShards, true)
+	_, err = common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 20, asyncProcessShards, true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start minimal downtime migrations: %v", err)
 	}

@@ -1109,11 +1109,11 @@ func removeShardIdColumnFromForeignKeys(isAddedAtFirst bool) {
 		for i, fk := range table.ForeignKeys {
 
 			if isAddedAtFirst {
-				fk.ColIds = fk.ColIds[:len(fk.ColIds)-1]
-				fk.ReferColumnIds = fk.ReferColumnIds[:len(fk.ReferColumnIds)-1]
-			} else {
 				fk.ColIds = fk.ColIds[1:]
 				fk.ReferColumnIds = fk.ReferColumnIds[1:]
+			} else {
+				fk.ColIds = fk.ColIds[:len(fk.ColIds)-1]
+				fk.ReferColumnIds = fk.ReferColumnIds[:len(fk.ReferColumnIds)-1]
 			}
 			sessionState.Conv.SpSchema[tableId].ForeignKeys[i] = fk
 		}

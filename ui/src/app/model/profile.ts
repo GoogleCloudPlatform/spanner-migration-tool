@@ -52,12 +52,10 @@ export interface IDatastreamConnProfile {
 export interface ILogicalShard {
     dbName: string
     databaseId: string
-    refDataShardId: string
 }
 
 
 export interface IDataShard {
-    dataShardId: string
     srcConnectionProfile: IDatastreamConnProfile
     dstConnectionProfile: IDatastreamConnProfile
     streamLocation: string

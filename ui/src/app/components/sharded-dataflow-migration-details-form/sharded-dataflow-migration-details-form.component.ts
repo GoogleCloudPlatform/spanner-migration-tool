@@ -22,7 +22,6 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   definedSrcConnProfileList: IDatastreamConnProfile[] = []
   definedTgtConnProfileList: IDatastreamConnProfile[] = []
   shardIdToDBMappingTable: ILogicalShard[][] = []
-  dataShardIdList: string[] = []
   migrationProfile: IMigrationProfile;
   ipList: string[] = []
   selectedSourceProfileOption = Profile.ExistingConnProfile
@@ -62,7 +61,6 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   ) {
     this.region = data.Region
     this.sourceDatabaseType = data.SourceDatabaseType
-    console.log(localStorage.getItem(StorageKeys.Config))
     let inputType = localStorage.getItem(StorageKeys.Type) as string
     if (inputType == InputType.DirectConnect) {
       this.schemaSourceConfig = JSON.parse(localStorage.getItem(StorageKeys.Config) as string)
@@ -85,7 +83,6 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       user: [this.schemaSourceConfig?.userName],
       port: [this.schemaSourceConfig?.port],
       password: [this.schemaSourceConfig?.password],
-      dataShardId: ['', Validators.required],
       shardMappingTable: this.formBuilder.array([shardTableRowForm])
     })
 
@@ -247,8 +244,8 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
     this.migrationProfileForm = this.formBuilder.group({
       inputType: ['form', Validators.required],
       textInput: [],
-      sourceProfileOption: [Profile.ExistingConnProfile],
-      targetProfileOption: [Profile.ExistingConnProfile],
+      sourceProfileOption: [this.selectedSourceProfileOption],
+      targetProfileOption: [this.selectedTargetProfileOption],
       newSourceProfile: ['',[Validators.pattern('^[a-z][a-z0-9-]{0,59}$')]],
       existingSourceProfile: [],
       newTargetProfile: ['',Validators.pattern('^[a-z][a-z0-9-]{0,59}$')],
@@ -257,11 +254,8 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       user: [],
       port: [],
       password: [],
-      dataShardId: [],
       shardMappingTable: this.formBuilder.array([shardTableRowForm])
     })
-    this.selectedSourceProfileOption = Profile.ExistingConnProfile
-    this.selectedTargetProfileOption = Profile.ExistingConnProfile
     this.testSuccess = false
     this.createSrcConnSuccess = false
     this.createTgtConnSuccess = false
@@ -284,12 +278,10 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       //this can be the length of any of the lists
       const numShards = this.definedSrcConnProfileList.length;
       for (let i = 0; i < numShards; i++) {
-        const dataShardId = this.dataShardIdList[i]
         const srcConnProfile = this.definedSrcConnProfileList[i]
         const tgtConnProfile = this.definedTgtConnProfileList[i]
         const shardIdToDBMapping = this.shardIdToDBMappingTable[i]
         let dataShard: IDataShard = {
-          dataShardId: dataShardId,
           srcConnectionProfile: srcConnProfile,
           dstConnectionProfile: tgtConnProfile,
           streamLocation: this.region,
@@ -331,8 +323,6 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
 
   handleConnConfigsFromForm() {
     let formValue = this.migrationProfileForm.value
-    //save each shard's dataShardId in array
-    this.dataShardIdList.push(formValue.dataShardId)
     //save each shard's source connection profile information in array
     if (this.selectedSourceProfileOption === Profile.NewConnProfile) {
       let srcConnProfile: IDatastreamConnProfile = {
@@ -369,13 +359,12 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
         let logicalShard: ILogicalShard = {
           dbName: shardFromVal.dbName,
           databaseId: shardFromVal.logicalShardId,
-          refDataShardId: formValue.dataShardId
         }
         shardIdToDBMapping.push(logicalShard)
       }
     }
     this.shardIdToDBMappingTable.push(shardIdToDBMapping)
-    this.physicalShards = this.dataShardIdList.length
+    this.physicalShards++
     this.logicalShards = this.logicalShards + shardIdToDBMapping.length
   }
 
