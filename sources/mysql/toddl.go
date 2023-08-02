@@ -142,6 +142,8 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "json":
 		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		case ddl.Bytes:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:
