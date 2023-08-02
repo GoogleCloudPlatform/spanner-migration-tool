@@ -22,6 +22,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   definedSrcConnProfileList: IDatastreamConnProfile[] = []
   definedTgtConnProfileList: IDatastreamConnProfile[] = []
   shardIdToDBMappingTable: ILogicalShard[][] = []
+  dataShardIdList: string[] = []
   migrationProfile: IMigrationProfile;
   ipList: string[] = []
   selectedSourceProfileOption = Profile.ExistingConnProfile
@@ -35,6 +36,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   errorSrcMsg = ''
   errorTgtMsg = ''
   sourceDatabaseType: string = ''
+  inputValue: string = ''
   testSuccess: boolean = false
   createSrcConnSuccess: boolean = false
   createTgtConnSuccess: boolean = false
@@ -44,6 +46,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   testingSourceConnection: boolean = false
   creatingSourceConnection: boolean = false
   creatingTargetConnection: boolean = false
+  prefix: string = 'smt_datashard';
 
   inputOptionsList = [
     { value: 'text', displayName: 'Text' },
@@ -70,6 +73,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       logicalShardId: ['', Validators.required],
       dbName: ['', Validators.required]
     });
+    this.inputValue = this.prefix +"_"+this.randomString(4)+"_"+this.randomString(4);
     this.migrationProfileForm = this.formBuilder.group({
       inputType: ['form', Validators.required],
       textInput: [''],
@@ -83,6 +87,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       user: [this.schemaSourceConfig?.userName],
       port: [this.schemaSourceConfig?.port],
       password: [this.schemaSourceConfig?.password],
+      dataShardId: [this.inputValue,Validators.required],
       shardMappingTable: this.formBuilder.array([shardTableRowForm])
     })
 
@@ -241,6 +246,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       logicalShardId: ['', Validators.required],
       dbName: ['', Validators.required]
     });
+    this.inputValue = this.prefix +"_"+this.randomString(4)+"_"+this.randomString(4);
     this.migrationProfileForm = this.formBuilder.group({
       inputType: ['form', Validators.required],
       textInput: [],
@@ -254,6 +260,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       user: [],
       port: [],
       password: [],
+      dataShardId: [this.inputValue],
       shardMappingTable: this.formBuilder.array([shardTableRowForm])
     })
     this.testSuccess = false
@@ -261,6 +268,15 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
     this.createTgtConnSuccess = false
     this.snack.openSnackBar('Shard configured successfully, please configure the next', 'Close', 5)
   }
+
+  randomString(length: number) {
+    var randomChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    var result = '';
+    for ( var i = 0; i < length; i++ ) {
+        result += randomChars.charAt(Math.floor(Math.random() * randomChars.length));
+    }
+    return result;
+}
 
   finalizeConnDetails() {
     let formValue = this.migrationProfileForm.value
@@ -278,10 +294,12 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       //this can be the length of any of the lists
       const numShards = this.definedSrcConnProfileList.length;
       for (let i = 0; i < numShards; i++) {
+        const dataShardId = this.dataShardIdList[i]
         const srcConnProfile = this.definedSrcConnProfileList[i]
         const tgtConnProfile = this.definedTgtConnProfileList[i]
         const shardIdToDBMapping = this.shardIdToDBMappingTable[i]
         let dataShard: IDataShard = {
+          dataShardId: dataShardId,
           srcConnectionProfile: srcConnProfile,
           dstConnectionProfile: tgtConnProfile,
           streamLocation: this.region,
@@ -323,6 +341,8 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
 
   handleConnConfigsFromForm() {
     let formValue = this.migrationProfileForm.value
+    //save each shard's dataShardId in array
+    this.dataShardIdList.push(formValue.dataShardId)
     //save each shard's source connection profile information in array
     if (this.selectedSourceProfileOption === Profile.NewConnProfile) {
       let srcConnProfile: IDatastreamConnProfile = {
@@ -359,6 +379,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
         let logicalShard: ILogicalShard = {
           dbName: shardFromVal.dbName,
           databaseId: shardFromVal.logicalShardId,
+          refDataShardId: formValue.dataShardId
         }
         shardIdToDBMapping.push(logicalShard)
       }

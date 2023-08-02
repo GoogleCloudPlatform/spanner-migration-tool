@@ -71,8 +71,8 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, a
 	initIndexOrder(conv)
 	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
 	if tableCount != len(conv.SpSchema) {
-		fmt.Printf("Failed to load all the source tables, source table count: %v, processed tables:%v\n", tableCount, len(conv.SpSchema))
-		return fmt.Errorf("failed to load all the source tables, source table count: %v, processed tables:%v", tableCount, len(conv.SpSchema))
+		fmt.Printf("Failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.\n", tableCount, len(conv.SpSchema))
+		return fmt.Errorf("failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.", tableCount, len(conv.SpSchema))
 	}
 	conv.AddPrimaryKeys()
 	if attributes.IsSharded {

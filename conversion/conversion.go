@@ -339,6 +339,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 				return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 			}
 			p.DataShardId = dataShardId
+			fmt.Printf("Data shard id generated: %v\n", p.DataShardId)
 		}
 		streamingCfg := streaming.CreateStreamingConfig(*p)
 		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname, tableList)

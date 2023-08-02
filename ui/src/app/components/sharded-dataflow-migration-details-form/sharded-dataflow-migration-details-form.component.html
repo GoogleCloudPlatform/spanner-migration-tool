@@ -55,6 +55,11 @@
                         </mat-option>
                     </mat-select>
                 </mat-form-field>
+                <mat-form-field appearance="outline">
+                    <mat-label>Data Shard Id</mat-label>
+                    <input matInput [value]="inputValue" type="text" formControlName="dataShardId"
+                        required="true" readonly/>
+                </mat-form-field>
             </div>
             <div *ngIf="(selectedSourceProfileOption === 'new')">
                 <mat-form-field appearance="outline">
@@ -77,6 +82,11 @@
                     <mat-label>Connection profile name</mat-label>
                     <input matInput placeholder="Connection profile name" type="text" formControlName="newSourceProfile"
                         required="true" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                    <mat-label>Data Shard Id</mat-label>
+                    <input matInput [value]="inputValue" type="text" formControlName="dataShardId"
+                        required="true" readonly/>
                 </mat-form-field>
             </div>
             <br>
