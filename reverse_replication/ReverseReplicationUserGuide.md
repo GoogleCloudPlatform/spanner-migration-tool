@@ -159,12 +159,16 @@ gcloud beta dataflow flex-template run writes-tosql  --project=span-cloud-testin
 
 2. Set the chagne stream retention period to maximum value of 7 days to avoid any data loss.
 
-3. Use the launcher script to create teh necessary GCP resources and avoid creating them manually.
+3. Use the launcher script to create the necessary GCP resources and avoid creating them manually.
 
 
 ## Customize
 
-The Dataflow jobs can be customized.
+The Dataflow jobs can be customized. 
+Some use cases could be:
+1. To customize the logic to filter records from reverse replication.
+2. To handle some custom reverse transformation scenarios.
+3. To customize shard level routing.
 
 To customize, checkout the open source template, add the custom logic, build and launch the open source template.
 
