@@ -36,6 +36,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   errorSrcMsg = ''
   errorTgtMsg = ''
   sourceDatabaseType: string = ''
+  inputValue: string = ''
   testSuccess: boolean = false
   createSrcConnSuccess: boolean = false
   createTgtConnSuccess: boolean = false
@@ -45,6 +46,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   testingSourceConnection: boolean = false
   creatingSourceConnection: boolean = false
   creatingTargetConnection: boolean = false
+  prefix: string = 'smt_datashard';
 
   inputOptionsList = [
     { value: 'text', displayName: 'Text' },
@@ -62,7 +64,6 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   ) {
     this.region = data.Region
     this.sourceDatabaseType = data.SourceDatabaseType
-    console.log(localStorage.getItem(StorageKeys.Config))
     let inputType = localStorage.getItem(StorageKeys.Type) as string
     if (inputType == InputType.DirectConnect) {
       this.schemaSourceConfig = JSON.parse(localStorage.getItem(StorageKeys.Config) as string)
@@ -72,6 +73,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       logicalShardId: ['', Validators.required],
       dbName: ['', Validators.required]
     });
+    this.inputValue = this.prefix +"_"+this.randomString(4)+"_"+this.randomString(4);
     this.migrationProfileForm = this.formBuilder.group({
       inputType: ['form', Validators.required],
       textInput: [''],
@@ -85,7 +87,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       user: [this.schemaSourceConfig?.userName],
       port: [this.schemaSourceConfig?.port],
       password: [this.schemaSourceConfig?.password],
-      dataShardId: ['', Validators.required],
+      dataShardId: [this.inputValue,Validators.required],
       shardMappingTable: this.formBuilder.array([shardTableRowForm])
     })
 
@@ -244,11 +246,12 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       logicalShardId: ['', Validators.required],
       dbName: ['', Validators.required]
     });
+    this.inputValue = this.prefix +"_"+this.randomString(4)+"_"+this.randomString(4);
     this.migrationProfileForm = this.formBuilder.group({
       inputType: ['form', Validators.required],
       textInput: [],
-      sourceProfileOption: [Profile.ExistingConnProfile],
-      targetProfileOption: [Profile.ExistingConnProfile],
+      sourceProfileOption: [this.selectedSourceProfileOption],
+      targetProfileOption: [this.selectedTargetProfileOption],
       newSourceProfile: ['',[Validators.pattern('^[a-z][a-z0-9-]{0,59}$')]],
       existingSourceProfile: [],
       newTargetProfile: ['',Validators.pattern('^[a-z][a-z0-9-]{0,59}$')],
@@ -257,16 +260,23 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       user: [],
       port: [],
       password: [],
-      dataShardId: [],
+      dataShardId: [this.inputValue],
       shardMappingTable: this.formBuilder.array([shardTableRowForm])
     })
-    this.selectedSourceProfileOption = Profile.ExistingConnProfile
-    this.selectedTargetProfileOption = Profile.ExistingConnProfile
     this.testSuccess = false
     this.createSrcConnSuccess = false
     this.createTgtConnSuccess = false
     this.snack.openSnackBar('Shard configured successfully, please configure the next', 'Close', 5)
   }
+
+  randomString(length: number) {
+    var randomChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    var result = '';
+    for ( var i = 0; i < length; i++ ) {
+        result += randomChars.charAt(Math.floor(Math.random() * randomChars.length));
+    }
+    return result;
+}
 
   finalizeConnDetails() {
     let formValue = this.migrationProfileForm.value
@@ -375,7 +385,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       }
     }
     this.shardIdToDBMappingTable.push(shardIdToDBMapping)
-    this.physicalShards = this.dataShardIdList.length
+    this.physicalShards++
     this.logicalShards = this.logicalShards + shardIdToDBMapping.length
   }
 

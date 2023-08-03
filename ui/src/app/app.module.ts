@@ -8,6 +8,7 @@ import { AppRoutingModule } from './app-routing.module'
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http'
 import { FormsModule } from '@angular/forms'
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner'
+import { MatChipsModule } from '@angular/material/chips'
 
 import { AppComponent } from './app.component'
 import { HeaderComponent } from './components/header/header.component'
@@ -102,6 +103,7 @@ import { AddShardIdPrimaryKeyComponent } from './components/add-shard-id-primary
     MatRadioModule,
     ClipboardModule,
     MatProgressSpinnerModule,
+    MatChipsModule
   ],
   providers: [
     {

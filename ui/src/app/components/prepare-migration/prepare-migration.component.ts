@@ -121,7 +121,7 @@ export class PrepareMigrationComponent implements OnInit {
   ]);
 
   migrationTypesHelpText = new Map<string, string>([
-    ["bulk", "Uses this machine's resources to copy data from the source database to Spanner. This is only useful for small migrations."],
+    ["bulk", "Use the POC migration option when you want to migrate a sample of your data (<100GB) to do a Proof of Concept. It uses this machine's resources to copy data from the source database to Spanner"],
     ["lowdt", "Uses change data capture via Datastream to setup a continuous data replication pipeline from source to Spanner, using Dataflow jobs to perform the actual data migration."],
   ]);
 
@@ -133,7 +133,7 @@ export class PrepareMigrationComponent implements OnInit {
     ) {
       this.migrationTypes = [
         {
-          name: 'Bulk Migration(Experimental)',
+          name: 'POC Migration',
           value: MigrationTypes.bulkMigration,
         },
         {
@@ -145,7 +145,7 @@ export class PrepareMigrationComponent implements OnInit {
       this.selectedMigrationType = MigrationTypes.bulkMigration
       this.migrationTypes = [
         {
-          name: 'Bulk Migration(Experimental)',
+          name: 'POC Migration',
           value: MigrationTypes.bulkMigration,
         },
       ]
@@ -193,7 +193,7 @@ export class PrepareMigrationComponent implements OnInit {
         this.nodeCount = res.NodeCount
         this.migrationTypes = [
           {
-            name: 'Bulk Migration(Experimental)',
+            name: 'POC Migration',
             value: MigrationTypes.bulkMigration,
           },
           {
@@ -205,7 +205,7 @@ export class PrepareMigrationComponent implements OnInit {
           this.selectedMigrationType = MigrationTypes.bulkMigration
           this.migrationTypes = [
             {
-              name: 'Bulk Migration(Experimental)',
+              name: 'POC Migration',
               value: MigrationTypes.bulkMigration,
             },
           ]

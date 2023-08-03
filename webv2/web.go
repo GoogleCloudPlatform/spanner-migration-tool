@@ -1109,11 +1109,11 @@ func removeShardIdColumnFromForeignKeys(isAddedAtFirst bool) {
 		for i, fk := range table.ForeignKeys {
 
 			if isAddedAtFirst {
-				fk.ColIds = fk.ColIds[:len(fk.ColIds)-1]
-				fk.ReferColumnIds = fk.ReferColumnIds[:len(fk.ReferColumnIds)-1]
-			} else {
 				fk.ColIds = fk.ColIds[1:]
 				fk.ReferColumnIds = fk.ReferColumnIds[1:]
+			} else {
+				fk.ColIds = fk.ColIds[:len(fk.ColIds)-1]
+				fk.ReferColumnIds = fk.ReferColumnIds[:len(fk.ReferColumnIds)-1]
 			}
 			sessionState.Conv.SpSchema[tableId].ForeignKeys[i] = fk
 		}
@@ -2236,26 +2236,26 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	var generatedResources GeneratedResources
 	sessionState := session.GetSessionState()
 	generatedResources.DatabaseName = sessionState.SpannerDatabaseName
-	generatedResources.DatabaseUrl = fmt.Sprintf("https://pantheon.corp.google.com/spanner/instances/%v/databases/%v/details/tables?project=%v", sessionState.SpannerInstanceID, sessionState.SpannerDatabaseName, sessionState.GCPProjectID)
+	generatedResources.DatabaseUrl = fmt.Sprintf("https://console.cloud.google.com/spanner/instances/%v/databases/%v/details/tables?project=%v", sessionState.SpannerInstanceID, sessionState.SpannerDatabaseName, sessionState.GCPProjectID)
 	generatedResources.BucketName = sessionState.Bucket + sessionState.RootPath
-	generatedResources.BucketUrl = fmt.Sprintf("https://pantheon.corp.google.com/storage/browser/%v", sessionState.Bucket+sessionState.RootPath)
+	generatedResources.BucketUrl = fmt.Sprintf("https://console.cloud.google.com/storage/browser/%v", sessionState.Bucket+sessionState.RootPath)
 	generatedResources.ShardToDataflowMap = make(map[string]ResourceDetails)
 	generatedResources.ShardToDatastreamMap = make(map[string]ResourceDetails)
 	if sessionState.Conv.Audit.StreamingStats.DataStreamName != "" {
 		generatedResources.DataStreamJobName = sessionState.Conv.Audit.StreamingStats.DataStreamName
-		generatedResources.DataStreamJobUrl = fmt.Sprintf("https://pantheon.corp.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataStreamName, sessionState.GCPProjectID)
+		generatedResources.DataStreamJobUrl = fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataStreamName, sessionState.GCPProjectID)
 	}
 	if sessionState.Conv.Audit.StreamingStats.DataflowJobId != "" {
 		generatedResources.DataflowJobName = sessionState.Conv.Audit.StreamingStats.DataflowJobId
-		generatedResources.DataflowJobUrl = fmt.Sprintf("https://pantheon.corp.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
+		generatedResources.DataflowJobUrl = fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
 	}
 	for shardId, dsName := range sessionState.Conv.Audit.StreamingStats.ShardToDataStreamNameMap {
-		url := fmt.Sprintf("https://pantheon.corp.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, dsName, sessionState.GCPProjectID)
+		url := fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, dsName, sessionState.GCPProjectID)
 		resourceDetails := ResourceDetails{JobName: dsName, JobUrl: url}
 		generatedResources.ShardToDatastreamMap[shardId] = resourceDetails
 	}
 	for shardId, dfId := range sessionState.Conv.Audit.StreamingStats.ShardToDataflowJobMap {
-		url := fmt.Sprintf("https://pantheon.corp.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, dfId, sessionState.GCPProjectID)
+		url := fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, dfId, sessionState.GCPProjectID)
 		resourceDetails := ResourceDetails{JobName: dfId, JobUrl: url}
 		generatedResources.ShardToDataflowMap[shardId] = resourceDetails
 	}
@@ -3025,6 +3025,7 @@ func App(logLevel string, open bool, port int) error {
 	addr := fmt.Sprintf(":%s", strconv.Itoa(port))
 	router := getRoutes()
 	fmt.Println("Starting Spanner migration tool UI at:", fmt.Sprintf("http://localhost%s", addr))
+	fmt.Println("Reverse Replication feature in preview: Please refer to https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/reverse_replication/README.md for detailed instructions.")
 	if open {
 		browser.OpenURL(fmt.Sprintf("http://localhost%s", addr))
 	}
