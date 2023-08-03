@@ -23,7 +23,7 @@ These steps are acheieved by two Dataflow jobs, alongwith an interim buffer to h
 ![Architecture](./images/ReverseReplicationOverview.png)
 
 
-*Note that the buffer used is the [Cloud Pub/Sub](https://cloud.google.com/pubsub/docs/overview). Kafka is also supported but requires manual setup, which is not discussed in this guide. [Contact us](#contact-us) for using Kafka.*
+*Note that the buffer used is the [Cloud Pub/Sub](https://cloud.google.com/pubsub/docs/overview). Kafka is experimentally supported and requires manual setup, which is not discussed in this guide. [Contact us](#contact-us) for using Kafka.*
 
 ## Before you begin
 
@@ -39,10 +39,10 @@ A few pre-requisites must be considered before starting with reverse replication
     - roles/spanner.databaseUser
     - roles/pubsub.editor
     - roles/dataflow.developer
-5. [golang](https://go.dev/dl/) (version 1.18 and above) is setup on the machine from which reverse replication flow will be launched.
+5. Ensure that [golang](https://go.dev/dl/) (version 1.18 and above) is setup on the machine from which reverse replication flow will be launched.
 6. Ensure that gcloud authentication is done,refer [here](https://github.com/cloudspannerecosystem/harbourbridge/tree/master#before-you-begin).
-7. Target Spanner instance ready
-8. [Session file](https://github.com/cloudspannerecosystem/harbourbridge/tree/master#files-generated-by-harbourbridge) already uploaded to GCS (this requires a schema conversion to be done)
+7. Ensure that the target Spanner instance ready
+8. Ensure that that [session file](https://github.com/cloudspannerecosystem/harbourbridge/tree/master#files-generated-by-harbourbridge) is uploaded to GCS (this requires a schema conversion to be done)
 9. [Source shards file](https://docs.google.com/document/d/1GmUIH0MjaCa1WxNAows_HxRQ1ViLEdqpz9mTPmXlsLI/edit#heading=h.w6ufdjdzqwrp) already uploaded to GCS
 10. Resources needed for reverse replication incur cost. Make sure to read [cost](#cost).
 
@@ -120,7 +120,7 @@ Apart from that,following are some scenarios and how to handle them.
 
 ### Retry
 
-For both the Dataflow jobs, once an error is encountered for a given shard , then procesing is stopped for that shard to preserve ordering.The way to recover is to rerun the job.
+For both the Dataflow jobs, once an error is encountered for a given shard, then procesing is stopped for that shard to preserve ordering.To recover,rerun the job.The jobs are idempotent and it's safe to rerun them.
 
 The command to run the Dataflow jobs should be available when launching the Dataflow jobs via launcher script.
 
@@ -184,4 +184,4 @@ Limiations are covered [here](README.md).
 
 ## Contact us
 
-Have a question? We are [here](https://cloud.google.com/contact).
+Have a question? We are [here](https://cloud.google.com/support).
