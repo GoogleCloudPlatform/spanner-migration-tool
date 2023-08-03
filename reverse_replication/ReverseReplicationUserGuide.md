@@ -48,7 +48,7 @@ A few pre-requisites must be considered before starting with reverse replication
 
 ## Launching reverse replication
 
-Currently, the reverse replication flow is launched manually via a script. The details for the same are documented [here](README.md).
+Currently, the reverse replication flow is launched manually via a script. The details for the same are documented [here](README.md#reverse-replication-setup).
 
 ## Observe, tune and troubleshoot
 
@@ -102,7 +102,7 @@ Apart from that,following are some scenarios and how to handle them.
 
 - ***The watermark of the Spanner to Sink pipeline does not advance***
 
-    This happens when the job is hit with a huge backlog, that leads to infinite loop. The recovery steps are covered [here](README.md).
+    This happens when the job is hit with a huge backlog, that leads to infinite loop. The recovery steps are covered [here](README.md#recovery-steps-for-the-infinte-loop).
 
 - ***PubSub message count is not decreasing and the same data is being written back to source***
 
