@@ -1,6 +1,9 @@
 <div mat-dialog-content>
   <form [formGroup]="targetDetailsForm" class="target-detail-form">
-    <h2>Spanner Database Details</h2>
+    <h2>Spanner Database Details<mat-icon class="configure"
+      matTooltip='Schema & Schema and data migration: Specify new database name or existing database with empty schema. Data migration: Specify existing database with tables already created'>
+    info</mat-icon></h2>
+    
     <mat-form-field class="full-width" appearance="outline">
       <mat-label>Spanner Database</mat-label>
       <input matInput placeholder="Target Database" type="text" formControlName="targetDb"
