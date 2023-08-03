@@ -262,14 +262,23 @@ func fetchTableReports(inputTableReports []tableReport, conv *internal.Conv) (ta
 		//2. Schema Report
 		migrationType := *conv.Audit.MigrationType
 		if migrationType != migration.MigrationData_DATA_ONLY {
-			tableReport.SchemaReport = getSchemaReport(t.Cols, t.Warnings, t.Errors, t.SyntheticPKey != "")
+			columnLevelIssuesMap := conv.SchemaIssues[t.SrcTable].ColumnLevelIssues
+			tableLevelIssuesList := make(map[internal.SchemaIssue] bool)
+			for _, columnLevelIssues := range columnLevelIssuesMap {
+				for _, columnLevelIssue := range columnLevelIssues {
+					tableLevelIssuesList[columnLevelIssue] = true
+				}
+			}
+			totalIssues := int64(len(tableLevelIssuesList))
+			tableReport.SchemaReport = getSchemaReport(t.Cols, totalIssues, t.Warnings, t.Errors, t.SyntheticPKey != "")
 		}
+
 		//3. Data Report
 		schemaOnly := conv.SchemaMode()
 		if !schemaOnly {
 			tableReport.DataReport = getDataReport(t.rows, t.badRows, conv.Audit.DryRun)
 		}
-		//4. Warnings
+		//4. Issues
 		for _, x := range t.Body {
 			var issues = Issues{IssueType: x.Heading}
 			for _, l := range x.IssueBody {
@@ -286,11 +295,11 @@ func fetchTableReports(inputTableReports []tableReport, conv *internal.Conv) (ta
 	return tableReports
 }
 
-func getSchemaReport(cols, issues, errors int64, missingPKey bool) (schemaReport SchemaReport) {
+func getSchemaReport(cols, issues, warnings, errors int64, missingPKey bool) (schemaReport SchemaReport) {
 	schemaReport.TotalColumns = cols
 	schemaReport.Issues = issues
 	schemaReport.PkMissing = missingPKey
-	schemaReport.Rating, _ = RateSchema(cols, issues, errors, missingPKey, false)
+	schemaReport.Rating, _ = RateSchema(cols, warnings, errors, missingPKey, false)
 	return schemaReport
 }
 
