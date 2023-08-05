@@ -38,7 +38,8 @@
          "schemaReport": {
             "rating": "POOR",
             "pkMissing": true,
-            "issues": 1,
+            "issues": 2,
+            "warnings": 2,
             "totalColumns": 2
          },
          "dataReport": {
@@ -69,7 +70,8 @@
          "schemaReport": {
             "rating": "EXCELLENT",
             "pkMissing": false,
-            "issues": 0,
+            "issues": 1,
+            "warnings": 0,
             "totalColumns": 2
          },
          "dataReport": {
@@ -97,6 +99,7 @@
             "rating": "EXCELLENT",
             "pkMissing": false,
             "issues": 0,
+            "warnings": 0,
             "totalColumns": 2
          },
          "dataReport": {
@@ -114,6 +117,7 @@
             "rating": "EXCELLENT",
             "pkMissing": false,
             "issues": 0,
+            "warnings": 0,
             "totalColumns": 2
          },
          "dataReport": {
@@ -130,7 +134,8 @@
          "schemaReport": {
             "rating": "POOR",
             "pkMissing": true,
-            "issues": 1,
+            "issues": 2,
+            "warnings": 2,
             "totalColumns": 3
          },
          "dataReport": {

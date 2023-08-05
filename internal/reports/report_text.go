@@ -113,7 +113,7 @@ func writeTableReports(structuredReport StructuredReport, w *bufio.Writer) {
 		if structuredReport.MigrationType == "SCHEMA" || structuredReport.MigrationType == "SCHEMA_AND_DATA" {
 			schemaRatingText := ""
 			pkMsg := " missing primary key"
-			s := fmt.Sprintf(" (%s%% of %d columns mapped cleanly)", pct(tableReport.SchemaReport.TotalColumns, tableReport.SchemaReport.Issues), tableReport.SchemaReport.TotalColumns)
+			s := fmt.Sprintf(" (%s%% of %d columns mapped cleanly)", pct(tableReport.SchemaReport.TotalColumns, tableReport.SchemaReport.Warnings), tableReport.SchemaReport.TotalColumns)
 			schemaRatingText = schemaRatingText + tableReport.SchemaReport.Rating + s
 			if tableReport.SchemaReport.PkMissing {
 				schemaRatingText = schemaRatingText + fmt.Sprintf(" +%s", pkMsg)

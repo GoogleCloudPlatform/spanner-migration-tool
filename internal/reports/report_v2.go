@@ -74,6 +74,7 @@ type SchemaReport struct {
 	Rating       string `json:"rating"`
 	PkMissing    bool   `json:"pkMissing"`
 	Issues       int64  `json:"issues"`
+	Warnings 	 int64  `json:"warnings"`
 	TotalColumns int64  `json:"totalColumns"`
 }
 
@@ -262,14 +263,10 @@ func fetchTableReports(inputTableReports []tableReport, conv *internal.Conv) (ta
 		//2. Schema Report
 		migrationType := *conv.Audit.MigrationType
 		if migrationType != migration.MigrationData_DATA_ONLY {
-			columnLevelIssuesMap := conv.SchemaIssues[t.SrcTable].ColumnLevelIssues
-			tableLevelIssuesList := make(map[internal.SchemaIssue] bool)
-			for _, columnLevelIssues := range columnLevelIssuesMap {
-				for _, columnLevelIssue := range columnLevelIssues {
-					tableLevelIssuesList[columnLevelIssue] = true
-				}
+			var totalIssues int64 = 0
+			for _, x := range t.Body {
+				totalIssues += int64(len(x.IssueBody))
 			}
-			totalIssues := int64(len(tableLevelIssuesList))
 			tableReport.SchemaReport = getSchemaReport(t.Cols, totalIssues, t.Warnings, t.Errors, t.SyntheticPKey != "")
 		}
 
@@ -298,6 +295,7 @@ func fetchTableReports(inputTableReports []tableReport, conv *internal.Conv) (ta
 func getSchemaReport(cols, issues, warnings, errors int64, missingPKey bool) (schemaReport SchemaReport) {
 	schemaReport.TotalColumns = cols
 	schemaReport.Issues = issues
+	schemaReport.Warnings = warnings
 	schemaReport.PkMissing = missingPKey
 	schemaReport.Rating, _ = RateSchema(cols, warnings, errors, missingPKey, false)
 	return schemaReport
