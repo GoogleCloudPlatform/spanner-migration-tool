@@ -1,9 +1,8 @@
 ---
 layout: default
-title: UI
-nav_order: 2
+title: SMT UI
+nav_order: 5
 has_children: true
-parent: Operation Mode
 permalink: /operation-mode/ui
 ---
 
