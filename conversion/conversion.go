@@ -335,9 +335,7 @@ func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile
 				return err
 			}
 			meta, _ := op.Metadata()
-			batchName := meta.Batch
-			splittedBatchName := strings.Split(batchName, "/")
-			jobId := splittedBatchName[5]
+			jobId := strings.Split(meta.Batch, "/")[5]
 
 			jobUrl := fmt.Sprintf("https://console.cloud.google.com/dataproc/batches/%s/%s?project=%s", location, jobId, dataprocRequestParams.Project)
 			mutex.Lock()
