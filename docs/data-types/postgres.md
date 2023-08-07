@@ -1,7 +1,7 @@
 ---
 layout: default
 title: PostgreSQL
-parent: Schema migration
+parent: Data Type Conversion
 nav_order: 3
 ---
 

@@ -1,7 +1,7 @@
 ---
 layout: default
 title: MySQL
-parent: Schema migration
+parent: Data Type Conversion
 nav_order: 2
 ---
 

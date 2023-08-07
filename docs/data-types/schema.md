@@ -1,9 +1,9 @@
 ---
 layout: default
-title: Schema migration
+title: Data Type Conversion
 nav_order: 6
 has_children: true
-permalink: /schema-migration
+permalink: /data-types-conv
 ---
 
 # Schema migrations via SMT
