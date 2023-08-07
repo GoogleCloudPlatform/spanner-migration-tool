@@ -268,8 +268,7 @@ func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile
 
 	// Extract location from subnet
 	subnet := sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Subnetwork
-	region_string := subnet[0:strings.Index(subnet, "/subnetworks")]
-	location := subnet[strings.LastIndex(region_string, "/")+1 : strings.LastIndex(subnet, "/subnetworks")]
+	location := strings.Split(subnet, "/")[3]
 
 	batchClient, err := dproc.CreateDataprocBatchClient(ctx, location)
 	if err != nil {
