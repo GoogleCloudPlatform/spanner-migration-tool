@@ -1,6 +1,6 @@
 ---
 layout: default
-title: SMT CLI
+title: CLI
 nav_order: 3
 has_children: true
 parent: Operation Mode
@@ -10,7 +10,24 @@ permalink: /operation-mode/cli
 # SMT Operation modes
 {: .no_toc }
 
-SMT supports two modes of operations:
+Spanner migration tool CLI follows [subcommands](https://github.com/google/subcommands)
+structure with the the following general syntax:
 
-- **UI** - SMT ships with the web-based UI which can launched via `web` command. The UI supports schema and data migrations, and is the recommended way to use SMT.
-- **CLI** - SMT ships with three stand-alone CLI commands - `schema`, `data` and `schema-and-data`. These commands can be used with appropriate parameters to perform schema and data migrations.
+```sh
+spanner-migration-tool <subcommand> flags
+```
+
+The command `spanner-migration-tool help` displays the available subcommands.
+
+```text
+    commands   list all subcommand names
+    help   describe subcommands and their syntax
+```
+
+To get help on individual subcommands, use
+
+```sh
+    spanner-migration-tool help <subcommand>
+```
+
+This will print the usage pattern, a few examples, and a list of all available subcommand flags.

@@ -1,6 +1,6 @@
 ---
 layout: default
-title: SMT UI
+title: UI
 nav_order: 2
 has_children: true
 parent: Operation Mode
