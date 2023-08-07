@@ -18,7 +18,7 @@ Spanner migration tool makes some assumptions while performing data type convers
 
 ## Data type mapping
 
-| SQL_Server_Type        | Spanner_Type |
+| SQL Server Type        | Spanner Type |
 | ---------------------- | ------------ |
 | INT                    | INT64        |
 | TINYINT                | INT64        |

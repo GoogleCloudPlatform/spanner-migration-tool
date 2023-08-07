@@ -23,7 +23,7 @@ In Oracle DB, USER is the account name, SCHEMA is the set of objects owned by th
 
 ## Data type mapping
 
-| SQL_Server_Type        | Spanner_Type |
+| Oracle Type        | Spanner Type |
 | ---------------------- | ------------ |
 | NUMBER (* , 0)         | INT64        |
 | FLOAT                  | FLOAT64      |
