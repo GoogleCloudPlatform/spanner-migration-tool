@@ -193,11 +193,38 @@ type streamingStats struct {
 	ShardToDataflowJobMap    map[string]string
 }
 
+type DataprocJobStatus int
+
+const (
+	DataprocQueued DataprocJobStatus = iota
+	DataprocRunning
+	DataprocSuccess
+	DataprocFailed
+	DataprocSkipped
+)
+
+// returns the corresponding string value to the DataprocJobStatus
+func (s DataprocJobStatus) String() string {
+	switch s {
+	case DataprocQueued:
+		return "QUEUED"
+	case DataprocRunning:
+		return "RUNNING"
+	case DataprocSuccess:
+		return "SUCCESS"
+	case DataprocFailed:
+		return "FAILED"
+	case DataprocSkipped:
+		return "SKIPPED"
+	}
+	return "UNKNOWN"
+}
+
 type dataprocMetadata struct {
-	SrcTable          map[string]string // Maps spanner table id to source table name
-	DataprocJobIds    map[string]string // Maps spanner table id to related dataproc job id
-	DataprocJobUrls   map[string]string // Maps spanner table id to related dataproc job url
-	DataprocJobStatus map[string]string // Maps spanner table id to related dataproc job status
+	SrcTable          map[string]string            // Maps spanner table id to source table name
+	DataprocJobIds    map[string]string            // Maps spanner table id to related dataproc job id
+	DataprocJobUrls   map[string]string            // Maps spanner table id to related dataproc job url
+	DataprocJobStatus map[string]DataprocJobStatus // Maps spanner table id to related dataproc job status
 }
 
 // Stores information related to rules during schema conversion

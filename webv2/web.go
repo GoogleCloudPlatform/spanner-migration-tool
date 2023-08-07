@@ -2048,7 +2048,7 @@ func getDataprocJobs(w http.ResponseWriter, r *http.Request) {
 			dataprocJobs.SrcTable = append(dataprocJobs.SrcTable, sessionState.Conv.Audit.DataprocMetadata.SrcTable[tableId])
 			dataprocJobs.DataprocJobIds = append(dataprocJobs.DataprocJobIds, sessionState.Conv.Audit.DataprocMetadata.DataprocJobIds[tableId])
 			dataprocJobs.DataprocJobUrls = append(dataprocJobs.DataprocJobUrls, sessionState.Conv.Audit.DataprocMetadata.DataprocJobUrls[tableId])
-			dataprocJobs.DataprocJobStatus = append(dataprocJobs.DataprocJobStatus, sessionState.Conv.Audit.DataprocMetadata.DataprocJobStatus[tableId])
+			dataprocJobs.DataprocJobStatus = append(dataprocJobs.DataprocJobStatus, sessionState.Conv.Audit.DataprocMetadata.DataprocJobStatus[tableId].String())
 		}
 	}
 	w.WriteHeader(http.StatusOK)
