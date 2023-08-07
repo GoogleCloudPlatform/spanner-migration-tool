@@ -3,6 +3,7 @@ layout: default
 title: SMT CLI
 nav_order: 3
 has_children: true
+parent: Operation Mode
 permalink: /operation-mode/cli
 ---
 
