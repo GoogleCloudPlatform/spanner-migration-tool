@@ -11,11 +11,14 @@ description: "Permissions and connectivity required to run SMT"
 - **Connectivty**: Since both Spanner migration tool and the underlying GCP services talk to the source database for schema and data migration, certain pre-requisite connectivity configurations are required before using the tool.
 - **Permissions**: Spanner migration tool (SMT) runs in the customers GCP account. In order to orchestrate migrations, SMT needs access to certain permissions.
 
-## Table of contents
-{: .no_toc .text-delta }
-
+<details open markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
 1. TOC
 {:toc}
+</details>
 
 ## Connectivity
 
