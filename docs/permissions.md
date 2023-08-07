@@ -8,7 +8,7 @@ description: "Permissions and connectivity required to run SMT"
 # Permissions & Connectivity
 {: .no_toc }
 
-- **Connecitivty**: Since both Spanner migration tool and the underlying GCP services talk to the source database for schema and data migration, certain pre-requisite connectivity configurations are required before using the tool.
+- **Connectivty**: Since both Spanner migration tool and the underlying GCP services talk to the source database for schema and data migration, certain pre-requisite connectivity configurations are required before using the tool.
 - **Permissions**: Spanner migration tool (SMT) runs in the customers GCP account. In order to orchestrate migrations, SMT needs access to certain permissions.
 
 ## Table of contents
@@ -29,7 +29,7 @@ Ensure that Datastream and Dataflow apis are enabled on your project.
 
    ```sh
    gcloud services enable dataflow.googleapis.com
-   ``` 
+   ```
 
 4. Google Cloud Storage apis are generally enabled by [default](https://cloud.google.com/service-usage/docs/enabled-service#default). In they have been disabled, you will need to enable them.
 
@@ -103,18 +103,21 @@ Refer to the [grant permissions page](https://cloud.google.com/spanner/docs/gran
 
 ### Datastream
 
-[Datastream Admin](https://cloud.google.com/datastream/docs/use-the-datastream-api#permissions)
+Follow [this guide](https://cloud.google.com/datastream/docs/use-the-datastream-api#permissions) to enable Datastream permissions.
 
 ### Dataflow
 
-[Dataflow Admin](https://cloud.google.com/dataflow/docs/concepts/access-control#dataflow.admin)
-To use custom templates, enable [basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin)
+1. Enable [Dataflow Admin](https://cloud.google.com/dataflow/docs/concepts/access-control#dataflow.admin).
+2. To use custom templates, enable [basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin).
 
 ### GCE
-Enable access to Datastream, Dataflow and Spanner using [service accounts](https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances)
+
+Enable access to Datastream, Dataflow and Spanner using [service accounts](https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances).
+
+### Other Permissions
 
 In addition to these, the `DatastreamToSpanner` pipeline created by SMT requires
-the following roles as well -
+the following roles as well:
 
 - Dataflow service account:
   - GCS Bucket Lister
