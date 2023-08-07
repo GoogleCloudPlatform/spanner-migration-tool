@@ -8,6 +8,9 @@ nav_order: 5
 # Web subcommand
 {: .no_toc }
 
+{: .note }
+This page just documents how to run the SMT UI. The different elements of the UI are covered in the [SMT UI](/docs/ui/ui.md) section of the documentation.
+
 This subcommand will run the Spanner migration tool UI locally. The UI can be used to perform assisted schema and data migration.
 
 {: .highlight }
