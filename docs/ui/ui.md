@@ -3,7 +3,7 @@ layout: default
 title: SMT UI
 nav_order: 5
 has_children: true
-permalink: /operation-mode/ui
+permalink: /ui
 ---
 
 # SMT Operation modes

@@ -3,10 +3,10 @@ layout: default
 title: SMT CLI
 nav_order: 4
 has_children: true
-permalink: /operation-mode/cli
+permalink: /cli
 ---
 
-# SMT Operation modes
+# CLI
 {: .no_toc }
 
 Spanner migration tool CLI follows [subcommands](https://github.com/google/subcommands)
