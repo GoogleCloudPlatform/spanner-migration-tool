@@ -1,12 +1,12 @@
 ---
 layout: default
-title: POC migration
+title: POC migrations
 nav_order: 8
 has_children: true
 permalink: /poc
 ---
 
-# POC migration
+# POC migrations
 {: .no_toc }
 
 XYZ

@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Minimal downtime migration
+title: Minimal downtime migrations
 nav_order: 7
 has_children: true
 permalink: /minimal
