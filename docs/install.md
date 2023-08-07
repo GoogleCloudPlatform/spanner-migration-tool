@@ -50,7 +50,7 @@ Spanner instance.
 ### Spanner migration tool on gCloud
 
 {: .highlight }
-Note: Spanner migration tool on gCloud is currently only supported on the Linux platform. MacOS and Windows are currently not supported.
+Spanner migration tool on gCloud is currently only supported on the Linux platform. MacOS and Windows are currently not supported.
 
 You can directly run Spanner migration tool from the gCloud CLI instead of building it from source. In order to start using Spanner migration tool via Gcloud, the user can [install the harbourbridge component](https://cloud.google.com/sdk/docs/components#installing_components) of gcloud by executing the below command:
 
@@ -72,12 +72,13 @@ gcloud alpha spanner migration web
 
 The complete CLI reference for the `spanner migration` gCloud surface can be found [here](https://cloud.google.com/sdk/gcloud/reference/alpha/spanner/migration).
 
-Note: Detailed instructions on how to install a new component in gCloud can be found [here](https://cloud.google.com/sdk/docs/install#installation_instructions). 
+{: .note }
+Detailed instructions on how to install a new component in gCloud can be found [here](https://cloud.google.com/sdk/docs/install#installation_instructions).
 
-### Spanner migration tool from Source
+### Spanner migration tool from source
 
 {: .highlight }
-Building from source is only supporte for MacOS and Linux based platforms
+Building from source is only supported for MacOS and Linux based platforms.
 
 1. Install Go ([download](https://golang.org/doc/install)) on your development machine if it is not already installed, configure the GOPATH environment variable if it is not already configured, and [test your installation](https://golang.org/doc/install#testing).
 
