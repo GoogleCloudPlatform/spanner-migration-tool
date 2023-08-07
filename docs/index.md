@@ -47,9 +47,9 @@ Spanner migration tool supports both small-scale on-prem POC migrations as well 
 
 Spanner migration tool is an open-source project and we'd love to accept contributions to it. Details on how to contribute are listed [here](./contributing.md).
 
-## License
+### License
 
-Spanner Migration tool is licensed during the [Apache 2.0 License](https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/LICENSE)
+Spanner Migration tool is licensed during the [Apache 2.0 License](https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/LICENSE).
 
 {: .note }
 Spanner migration tool is an officially supported Google product. Please reach out to [GCP support](https://support.google.com/cloud/answer/6282346?hl=en) to get help.
