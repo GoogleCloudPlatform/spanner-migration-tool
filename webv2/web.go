@@ -33,7 +33,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
@@ -86,7 +85,6 @@ var mysqlTypeMap = make(map[string][]typeIssue)
 var postgresTypeMap = make(map[string][]typeIssue)
 var sqlserverTypeMap = make(map[string][]typeIssue)
 var oracleTypeMap = make(map[string][]typeIssue)
-var typeMapMutex sync.RWMutex
 
 var mysqlDefaultTypeMap = make(map[string]ddl.Type)
 var postgresDefaultTypeMap = make(map[string]ddl.Type)
@@ -303,6 +301,9 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
 	}
+
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 
 	sessionState.Conv = conv
 
@@ -602,6 +603,8 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
@@ -691,6 +694,9 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		sessionMetadata.DatabaseName = strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath))
 	}
 
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
+
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
@@ -732,6 +738,8 @@ func fetchLastLoadedSessionDetails(w http.ResponseWriter, r *http.Request) {
 // build DDL to send to Spanner.
 func getDDL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	c := ddl.Config{Comments: true, ProtectIds: false, SpDialect: sessionState.Conv.SpDialect, Source: sessionState.Driver}
 	var tables []string
 	for t := range sessionState.Conv.SpSchema {
@@ -773,14 +781,14 @@ func getPGSQLToStandardTypeTypemap(w http.ResponseWriter, r *http.Request) {
 
 func spannerDefaultTypeMap(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, "Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner.", http.StatusNotFound)
 		return
 	}
 	initializeTypeMap()
-	typeMapMutex.RLock()
-	defer typeMapMutex.RUnlock()
 
 	var typeMap map[string]ddl.Type
 	switch sessionState.Driver {
@@ -804,6 +812,8 @@ func spannerDefaultTypeMap(w http.ResponseWriter, r *http.Request) {
 // source types used in current conversion.
 func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
@@ -811,9 +821,6 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	}
 	var typeMap map[string][]typeIssue
 	initializeTypeMap()
-
-	typeMapMutex.RLock()
-	defer typeMapMutex.RUnlock()
 	switch sessionState.Driver {
 	case constants.MYSQL, constants.MYSQLDUMP:
 		typeMap = mysqlTypeMap
@@ -870,8 +877,8 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 // and returns a list of tables with errors
 func getTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	sessionState.Conv.SchemaIssuesLock.RLock()
-	defer sessionState.Conv.SchemaIssuesLock.RUnlock()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	var tableIdName []TableIdAndName
 	for id, issues := range sessionState.Conv.SchemaIssues {
 		if len(issues.TableLevelIssues) != 0 {
@@ -901,6 +908,9 @@ func applyRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	if rule.Type == constants.GlobalDataTypeChange {
 		d, err := json.Marshal(rule.Data)
 		if err != nil {
@@ -967,7 +977,6 @@ func applyRule(w http.ResponseWriter, r *http.Request) {
 	ruleId := internal.GenerateRuleId()
 	rule.Id = ruleId
 
-	sessionState := session.GetSessionState()
 	sessionState.Conv.Rules = append(sessionState.Conv.Rules, rule)
 	session.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
@@ -985,6 +994,8 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	conv := sessionState.Conv
 	var rule internal.Rule
 	position := -1
@@ -1306,6 +1317,8 @@ func addIndex(newIndex ddl.CreateIndex) (ddl.CreateIndex, error) {
 // getConversionRate returns table wise color coded conversion rate.
 func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	smt_reports := reports.AnalyzeTables(sessionState.Conv, nil)
 	rate := make(map[string]string)
 	for _, t := range smt_reports {
@@ -1327,6 +1340,8 @@ func getSchemaFile(w http.ResponseWriter, r *http.Request) {
 	schemaFileName := "frontend/" + filePrefix + "schema.txt"
 
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	conversion.WriteSchemaFile(sessionState.Conv, now, schemaFileName, ioHelper.Out, sessionState.Driver)
 	schemaAbsPath, err := filepath.Abs(schemaFileName)
 	if err != nil {
@@ -1347,6 +1362,8 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	}
 	reportFileName := "frontend/" + filePrefix
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	conversion.Report(sessionState.Driver, nil, ioHelper.BytesRead, "", sessionState.Conv, reportFileName, sessionState.DbName, ioHelper.Out)
 	reportAbsPath, err := filepath.Abs(reportFileName)
 	if err != nil {
@@ -1359,6 +1376,8 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 // generates a downloadable structured report and send it as a JSON response
 func getDStructuredReport(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(structuredReport)
@@ -1367,6 +1386,8 @@ func getDStructuredReport(w http.ResponseWriter, r *http.Request) {
 // generates a downloadable text report and send it as a JSON response
 func getDTextReport(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
 	// creates a new buffer
 	buffer := bytes.NewBuffer([]byte{})
@@ -1387,6 +1408,8 @@ func getDTextReport(w http.ResponseWriter, r *http.Request) {
 // generates a downloadable DDL(spanner) and send it as a JSON response
 func getDSpannerDDL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	conv := sessionState.Conv
 	now := time.Now()
 	spDDL := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: sessionState.Driver})
@@ -1416,6 +1439,8 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("table")
 	update := r.FormValue("update") == "true"
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
@@ -1425,8 +1450,6 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
 	}
 	tableInterleaveStatus := parentTableHelper(tableId, update)
-
-	sessionState.Conv.SchemaIssuesLock.Lock()
 
 	if tableInterleaveStatus.Possible {
 
@@ -1456,8 +1479,6 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 			sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaIssue
 		}
 	}
-
-	sessionState.Conv.SchemaIssuesLock.Unlock()
 
 	index.IndexSuggestion()
 	session.UpdateSessionFile()
@@ -1517,7 +1538,6 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 
 			parentpks := sessionState.Conv.SpSchema[refTableId].PrimaryKeys
 			if len(parentpks) >= 1 {
-				sessionState.Conv.SchemaIssuesLock.Lock()
 				if colIdNotInOrder == "" {
 
 					schemaissue := []internal.SchemaIssue{}
@@ -1552,7 +1572,6 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 
 					sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIdNotInOrder] = schemaissue
 				}
-				sessionState.Conv.SchemaIssuesLock.Unlock()
 			}
 		}
 	}
@@ -1574,6 +1593,8 @@ func hasShardIdPrimaryKeyRule() (bool, bool) {
 func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("tableId")
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
@@ -1673,6 +1694,8 @@ func restoreTables(w http.ResponseWriter, r *http.Request) {
 
 func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 	}
@@ -1773,8 +1796,8 @@ func dropTables(w http.ResponseWriter, r *http.Request) {
 
 func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
 	sessionState := session.GetSessionState()
-	sessionState.Conv.SchemaIssuesLock.Lock()
-	defer sessionState.Conv.SchemaIssuesLock.Unlock()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return session.ConvWithMetadata{}
@@ -1865,6 +1888,8 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("tableId")
 	indexId := r.FormValue("indexId")
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
@@ -1925,6 +1950,8 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
@@ -1993,7 +2020,6 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 			// To remove the interleavable suggestions if they exist on dropping fk
 			colId := sp.ForeignKeys[position].ColIds[0]
 			schemaIssue := []internal.SchemaIssue{}
-			sessionState.Conv.SchemaIssuesLock.Lock()
 			for _, v := range sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] {
 				if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder && v != internal.InterleavedChangeColumnSize {
 					schemaIssue = append(schemaIssue, v)
@@ -2002,7 +2028,6 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 			if _, ok := sessionState.Conv.SchemaIssues[tableId]; ok {
 				sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaIssue
 			}
-			sessionState.Conv.SchemaIssuesLock.Unlock()
 
 			sp.ForeignKeys = utilities.RemoveFk(updatedFKs, dropFkId)
 		}
@@ -2087,6 +2112,8 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 // error thrown.
 func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	var sessionSummary sessionSummary
 	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
@@ -2146,6 +2173,8 @@ func updateProgress(w http.ResponseWriter, r *http.Request) {
 
 	var detail progressDetails
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	if sessionState.Error != nil {
 		detail.ErrorMessage = sessionState.Error.Error()
 	} else {
@@ -2220,6 +2249,8 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	var generatedResources GeneratedResources
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	generatedResources.DatabaseName = sessionState.SpannerDatabaseName
 	generatedResources.DatabaseUrl = fmt.Sprintf("https://console.cloud.google.com/spanner/instances/%v/databases/%v/details/tables?project=%v", sessionState.SpannerInstanceID, sessionState.SpannerDatabaseName, sessionState.GCPProjectID)
 	generatedResources.BucketName = sessionState.Bucket + sessionState.RootPath
@@ -2452,6 +2483,8 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	sp := sessionState.Conv.SpSchema[table]
 
 	st := sessionState.Conv.SrcSchema[table]
@@ -2507,6 +2540,8 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 
 func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 
 	table := r.FormValue("table")
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -2808,8 +2843,6 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 
 func updateInterleaveSuggestion(colIds []string, tableId string, issue internal.SchemaIssue) {
 	sessionState := session.GetSessionState()
-	sessionState.Conv.SchemaIssuesLock.Lock()
-	defer sessionState.Conv.SchemaIssuesLock.Unlock()
 
 	for i := 0; i < len(colIds); i++ {
 
@@ -2841,8 +2874,6 @@ func updateInterleaveSuggestion(colIds []string, tableId string, issue internal.
 
 func removeInterleaveSuggestions(colIds []string, tableId string) {
 	sessionState := session.GetSessionState()
-	sessionState.Conv.SchemaIssuesLock.Lock()
-	defer sessionState.Conv.SchemaIssuesLock.Unlock()
 
 	for i := 0; i < len(colIds); i++ {
 
@@ -2928,8 +2959,6 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 func initializeTypeMap() {
 	sessionState := session.GetSessionState()
 	var toddl common.ToDdl
-	typeMapMutex.Lock()
-	defer typeMapMutex.Unlock()
 	// Initialize mysqlTypeMap.
 	toddl = mysql.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
