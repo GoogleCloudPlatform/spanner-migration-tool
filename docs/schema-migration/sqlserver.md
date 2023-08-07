@@ -117,4 +117,4 @@ maps `UNIQUE` constraint into `UNIQUE` secondary index.
 SQL Server has many other features we haven't discussed, including functions,
 sequences, procedures, triggers and views which are currently not supported in Spanner. 
 The tool does not support these and the relevant schema info is ignored during schema
-conversion. 
+conversion.
