@@ -26,20 +26,15 @@ from the source database, and supports both schema and data migration.
 
 ### Schema migrations
 
-Spanner migration tool is designed to simplify Spanner evaluation and migration.
-
-Spanner migration tool automatically builds a Spanner schema from the schema of the source database. This schema can be customized using the Spanner migration tool schema assistant and a new Spanner database is created using the Spanner schema built. View Spanner migration tool as a way to get up and running fast, so you can focus on
-critical things like tuning performance and getting the most out of Spanner. Expect that you'll need to tweak and enhance what Spanner migration tool produces.
+Spanner migration tool is designed to simplify Spanner evaluation and migration. It automatically builds a Spanner schema from the schema of the source database. This schema can be customized using the web based schema assistant UI. Expect that you'll need to tweak and enhance what Spanner migration tool produces.
 
 ### Data migrations
 
-Spanner migration tool supports both small-scale on-prem POC migrations as well as production grade minimal downtime migrations using GCP services (Datastream and Dataflow) -
+Spanner migration tool supports both small-scale on-prem POC migrations as well as production grade minimal downtime migrations using GCP services (**Datastream and Dataflow**) -
 
-- **Minimal Downtime migration** - A minimal downtime migration consists of two components, migration of existing data from the database and the stream of changes (writes and updates) that are made to the source database during migration, referred to as change database capture (CDC). Using Spanner migration tool, the entire process where Datastream reads data from the source database and writes to a GCS bucket and data flow reads data from GCS bucket and writes to spanner database can be orchestrated using a unified interface. Performing schema changes on the source database during the migration is not supported. This is the suggested mode of migration for most databases.
+- **Minimal Downtime migration** - This is the production ready, recommended mode of migration for most databases. It provides a unified interface to configure an end-to-end pipeline to transfer both existing and new data from source database to Spanner. More details about minimal downtime migrations are [here].
 
-- **POC Migration** -  Spanner migration tool reads data from source database and writes it to the database created in Cloud Spanner. Changes which happen to the source database during the POC migration may or may not be written to Spanner. To achieve consistent version of data, stop writes on the source while migration is in progress, or use a read replica. Performing schema changes on the source database during the migration is not supported. While there is no technical limit on the size of the database, it is recommended for migrating moderate-size datasets to Spanner(up to about 100GB).
-
-[SMT repo]: https://github.com/GoogleCloudPlatform/spanner-migration-tool
+- **POC Migration** -  This mode is useful to get up and running quickly to get a feel of what migrating to Spanner would look like. This mode of migration uses the local machine's resources (on which SMT is running) to write data to Spanner. This is an offline migration for migrating moderate-size datasets to Spanner(up to about 100GB). More details about POC migrations are [here].
 
 ## About the project
 
@@ -53,3 +48,5 @@ Spanner Migration tool is licensed during the [Apache 2.0 License](https://githu
 
 {: .note }
 Spanner migration tool is an officially supported Google product. Please reach out to [GCP support](https://support.google.com/cloud/answer/6282346?hl=en) to get help.
+
+[SMT repo]: https://github.com/GoogleCloudPlatform/spanner-migration-tool
