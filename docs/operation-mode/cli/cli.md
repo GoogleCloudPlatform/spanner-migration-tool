@@ -1,7 +1,7 @@
 ---
 layout: default
 title: CLI
-nav_order: 3
+nav_order: 1
 has_children: true
 parent: Operation Mode
 permalink: /operation-mode/cli
