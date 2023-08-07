@@ -36,6 +36,11 @@ Spanner migration tool supports both small-scale on-prem POC migrations as well 
 
 - **POC Migration** -  This mode is useful to get up and running quickly to get a feel of what migrating to Spanner would look like. This mode of migration uses the local machine's resources (on which SMT is running) to write data to Spanner. This is an offline migration for migrating moderate-size datasets to Spanner(up to about 100GB). More details about POC migrations are [here].
 
+## Supported Sources and Targets
+
+- **Schema Migrations**: SMT supports schema migrations for MySQL, PostgreSQL, SQLServer and Oracle.
+- **Data Migrations**: SMT supports minimal downtime migrations for MySQL, PostgreSQL and Oracle, and POC migration for MySQL, PostgreSQL, SQLServer and Oracle.
+
 ## About the project
 
 ### Contributing
