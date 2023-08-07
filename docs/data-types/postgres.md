@@ -11,11 +11,14 @@ nav_order: 3
 Spanner migration tool makes some assumptions while performing data type conversion from PostgreSQL to Spanner.
 There are also nuances to handling certain specific data types. These are captured below.
 
-## Table of contents
-{: .no_toc .text-delta }
-
+<details open markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
 1. TOC
 {:toc}
+</details>
 
 ## Data type mapping
 

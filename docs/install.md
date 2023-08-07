@@ -10,11 +10,14 @@ description: "Installing Spanner migration tool"
 
 You have a couple of options to start using Spanner migration tool, either using a pre-built binary via the gCloud SDK or building from source.
 
-## Table of contents
-{: .no_toc .text-delta }
-
+<details open markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
 1. TOC
 {:toc}
+</details>
 
 ## Before you begin
 

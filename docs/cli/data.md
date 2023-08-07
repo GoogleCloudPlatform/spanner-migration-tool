@@ -14,12 +14,14 @@ This subcommand will perform data migration in either the POC or the minimal dow
 The command below assumes that the open-source version of SMT is being used. For the CLI
 reference of the gCloud version of SMT, please refer [here](https://cloud.google.com/sdk/gcloud/reference/alpha/spanner/migration).
 
-## Table of contents
-{: .no_toc .text-delta }
-
+<details open markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
 1. TOC
 {:toc}
-
+</details>
 ## NAME
 
     ./spanner-migration-tool - migrate data from a source database to
