@@ -1,7 +1,7 @@
 ---
 layout: default
 title: schema command
-parent: CLI
+parent: SMT CLI
 nav_order: 2
 ---
 

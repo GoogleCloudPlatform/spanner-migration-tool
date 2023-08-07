@@ -1,7 +1,7 @@
 ---
 layout: default
 title: data command
-parent: CLI
+parent: SMT CLI
 nav_order: 3
 ---
 
