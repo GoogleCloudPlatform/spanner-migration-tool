@@ -8,7 +8,8 @@ nav_order: 2
 # Schema migration for MySQL
 {: .no_toc }
 
-ABC
+Spanner migration tool makes some assumptions while performing data type conversion from MySQL to Spanner.
+There are also nuances to handling certain specific data types. These are captured below.
 
 ## Table of contents
 {: .no_toc .text-delta }
@@ -51,7 +52,7 @@ character types (marked c), and changes in storage size (marked s). We discuss
 these, as well as other limits and notes on schema conversion, in the following
 sections.
 
-## `DECIMAL` and `NUMERIC`
+## DECIMAL and NUMERIC
 
 [Spanner's NUMERIC
 type](https://cloud.google.com/spanner/docs/data-types#decimal_type) can store
@@ -61,7 +62,7 @@ please verify that Spanner's NUMERIC support meets your application needs.  Note
 that in MySQL, NUMERIC is implemented as DECIMAL, so the remarks about DECIMAL
 apply equally to NUMERIC.
 
-## `TIMESTAMP` and `DATETIME`
+## TIMESTAMP and DATETIME
 
 MySQL has two timestamp types: `TIMESTAMP` and `DATETIME`. Both provide
 microsecond resolution, but neither actually stores a timezone with the data.
@@ -80,7 +81,7 @@ In other words, mapping MySQL `DATETIME` to `TIMESTAMP` is fairly
 straightforward, but care should be taken with MySQL `DATETIME` data
 because Spanner clients will not drop the timezone.
 
-## `CHAR(n)` and `VARCHAR(n)`
+## CHAR(n) and VARCHAR(n)
 
 The semantics of fixed-length character types differ between MySQL and
 Spanner. The `CHAR(n)` type in MySQL is right-padded with spaces. If a string
@@ -95,7 +96,7 @@ differences. For example, even `VARCHAR(n)` has some special treatment of
 spaces: string with trailing spaces in excess of the column length are truncated
 prior to insertion and a warning is generated.
 
-## `SET`
+## SET
 
 MySQL `SET` is a string object that can hold muliple values, each of which must be
 chosen from a list of permitted values specified when the table is created. `SET`
@@ -103,7 +104,7 @@ is being mapped to Spanner type `ARRAY<STRING>`. Validation of `SET` element val
 will be dropped in Spanner. Thus for production use, validation needs to be done
 in the application.
 
-## `Spatial datatype`
+## Spatial datatypes
 
 MySQL spatial datatypes are used to represent geographic feature.
 It includes `GEOMETRY`, `POINT`, `LINESTRING`, `POLYGON`, `MULTIPOINT`, `MULTIPOLYGON`
