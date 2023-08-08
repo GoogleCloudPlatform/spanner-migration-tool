@@ -43,7 +43,7 @@ A few prerequisites must be considered before starting with reverse replication.
 6. Ensure that gcloud authentication is done,refer [here](https://github.com/cloudspannerecosystem/harbourbridge/tree/master#before-you-begin).
 7. Ensure that the target Spanner instance ready.
 8. Ensure that that [session file](https://github.com/cloudspannerecosystem/harbourbridge/tree/master#files-generated-by-harbourbridge) is uploaded to GCS (this requires a schema conversion to be done).
-9. [Source shards file](https://docs.google.com/document/d/1GmUIH0MjaCa1WxNAows_HxRQ1ViLEdqpz9mTPmXlsLI/edit#heading=h.w6ufdjdzqwrp) already uploaded to GCS.
+9. [Source shards file](https://github.com/GoogleCloudPlatform/spanner-migration-tool/tree/master/reverse_replication#sample-sourceshards-file) already uploaded to GCS.
 10. Resources needed for reverse replication incur cost. Make sure to read [cost](#cost).
 
 ## Launching reverse replication
