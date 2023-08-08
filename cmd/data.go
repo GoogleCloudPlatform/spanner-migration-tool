@@ -49,6 +49,7 @@ type DataCmd struct {
 	dryRun          bool
 	logLevel        string
 	SkipForeignKeys bool
+	validate        bool
 }
 
 // Name returns the name of operation.
@@ -84,6 +85,7 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.SkipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
+	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
 }
 
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -95,14 +97,17 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 			logger.Log.Fatal("FATAL error", zap.Error(err))
 		}
 	}()
-	err = logger.InitializeLogger(cmd.logLevel)
-	if err != nil {
-		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
-		return subcommands.ExitFailure
+	if !cmd.validate {
+		err = logger.InitializeLogger(cmd.logLevel)
+		if err != nil {
+			fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
+			return subcommands.ExitFailure
+		}
+		defer logger.Log.Sync()
 	}
-	defer logger.Log.Sync()
 
 	conv := internal.MakeConv()
+	// validate and parse source-profile, target-profile and source
 	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {
 		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
@@ -117,6 +122,13 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 	conv.Audit.SkipMetricsPopulation = os.Getenv("SKIP_METRICS_POPULATION") == "true"
 	dataCoversionStartTime := time.Now()
+
+	if cmd.validate {
+		if cmd.sessionJSON == "" {
+			return subcommands.ExitUsageError
+		}
+		return subcommands.ExitSuccess
+	}
 
 	if !sourceProfile.UseTargetSchema() {
 		err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
