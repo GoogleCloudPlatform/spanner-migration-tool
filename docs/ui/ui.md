@@ -31,7 +31,7 @@ This documentation will describe various elements of the UI and how to use them.
 
 Spanner migration tool UI has the following components:
 
-- **Connect to Spanner** - This contains the ability to configure the GCP projectId and the spanner instanceId that will be used in the migration.
-- **Connect to Source Page** - This page can be used to configure source of data in the Spanner migration tool UI.
+- **[Connect to Spanner](./connect-spanner.md)** - This contains the ability to configure the GCP projectId and the spanner instanceId that will be used in the migration.
+- **[Connect to Source Page](./connect-source.md)** - This page can be used to configure source of data in the Spanner migration tool UI.
 - **Schema Conversion Workspace** - This page can be used to make schema conversion changes from source to Spanner. This page will help you visualise how your schema would look like in Spanner, and also provide issues/warnings/suggestions based on the automated analysis of your schema.
 - **Prepare Migration Page** - This page is used to configure the migration. It asks for details such as the mode (`schema`/`data`/`schema-and-data`) and the type (`poc` or `minimal downtime`) of migration and accordingly requests for configuration input (e.g destionation `databaseName`, Datastream connection profiles etc.)
