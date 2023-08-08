@@ -13,7 +13,8 @@
       </mat-form-field>
 
       <div class="shardingConfig" *ngIf="(connectForm.value.dbEngine === 'mysql')">
-        <mat-form-field appearance="outline">
+        <div class="flex-container">
+        <mat-form-field class="flex-item" appearance="outline">
           <mat-label>Sharded Migration</mat-label>
           <mat-select formControlName="isSharded">
             <mat-option *ngFor="let element of shardedResponseList" [value]="element.value">
@@ -21,7 +22,11 @@
             </mat-option>
           </mat-select>
         </mat-form-field>
-        <mat-icon class="configure" matTooltip="Configure multiple source database instances (shards) and consolidate them by migrating to a single Cloud Spanner instance to take advantage of Spanner's horizontal scalability and consistency semantics.">info</mat-icon>
+        <mat-icon class="flex-item configure" matTooltip="Configure multiple source database instances (shards) and consolidate them by migrating to a single Cloud Spanner instance to take advantage of Spanner's horizontal scalability and consistency semantics.">info</mat-icon>
+        <mat-chip class="flex-item rounded-chip" [removable]="false">
+          Preview
+        </mat-chip>
+      </div>
         <br>
         <b *ngIf="(connectForm.value.isSharded)">Note: For sharded migrations, please enter below the details of the
           shard you want Spanner migration tool to read the schema from. The complete connection configuration of all the shards
