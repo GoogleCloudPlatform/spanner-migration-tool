@@ -781,13 +781,13 @@ func getPGSQLToStandardTypeTypemap(w http.ResponseWriter, r *http.Request) {
 
 func spannerDefaultTypeMap(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.Lock()
-	defer sessionState.Conv.ConvLock.Unlock()
 
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, "Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner.", http.StatusNotFound)
 		return
 	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	initializeTypeMap()
 
 	var typeMap map[string]ddl.Type
@@ -812,13 +812,13 @@ func spannerDefaultTypeMap(w http.ResponseWriter, r *http.Request) {
 // source types used in current conversion.
 func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.Lock()
-	defer sessionState.Conv.ConvLock.Unlock()
 
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	var typeMap map[string][]typeIssue
 	initializeTypeMap()
 	switch sessionState.Driver {
@@ -1439,8 +1439,6 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("table")
 	update := r.FormValue("update") == "true"
 	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.Lock()
-	defer sessionState.Conv.ConvLock.Unlock()
 
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
@@ -1449,6 +1447,9 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	if tableId == "" {
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
 	}
+
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	tableInterleaveStatus := parentTableHelper(tableId, update)
 
 	if tableInterleaveStatus.Possible {
@@ -1593,8 +1594,6 @@ func hasShardIdPrimaryKeyRule() (bool, bool) {
 func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("tableId")
 	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.Lock()
-	defer sessionState.Conv.ConvLock.Unlock()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
@@ -1604,6 +1603,8 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	conv := sessionState.Conv
 
 	if conv.SpSchema[tableId].ParentId == "" {
@@ -1694,8 +1695,6 @@ func restoreTables(w http.ResponseWriter, r *http.Request) {
 
 func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
 	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.Lock()
-	defer sessionState.Conv.ConvLock.Unlock()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 	}
@@ -1703,6 +1702,8 @@ func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithM
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
 	}
 
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	conv := sessionState.Conv
 	var toddl common.ToDdl
 	switch sessionState.Driver {
@@ -1796,8 +1797,6 @@ func dropTables(w http.ResponseWriter, r *http.Request) {
 
 func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
 	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.Lock()
-	defer sessionState.Conv.ConvLock.Unlock()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return session.ConvWithMetadata{}
@@ -1805,6 +1804,8 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 	if tableId == "" {
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
 	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	spSchema := sessionState.Conv.SpSchema
 	issues := sessionState.Conv.SchemaIssues
 	syntheticPkey := sessionState.Conv.SyntheticPKeys
@@ -1888,8 +1889,6 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("tableId")
 	indexId := r.FormValue("indexId")
 	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.Lock()
-	defer sessionState.Conv.ConvLock.Unlock()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
@@ -1903,6 +1902,8 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	var srcIndex schema.Index
 	srcIndexFound := false
 	for _, index := range sessionState.Conv.SrcSchema[tableId].Indexes {
@@ -1950,12 +1951,12 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.Lock()
-	defer sessionState.Conv.ConvLock.Unlock()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 
 	newFKs := []ddl.Foreignkey{}
 	if err = json.Unmarshal(reqBody, &newFKs); err != nil {
