@@ -88,14 +88,12 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 			logger.Log.Fatal("FATAL error", zap.Error(err))
 		}
 	}()
-	if !cmd.validate {
-		err = logger.InitializeLogger(cmd.logLevel)
-		if err != nil {
-			fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
-			return subcommands.ExitFailure
-		}
-		defer logger.Log.Sync()
+	err = logger.InitializeLogger(cmd.logLevel)
+	if err != nil {
+		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
+		return subcommands.ExitFailure
 	}
+	defer logger.Log.Sync()
 	// validate and parse source-profile, target-profile and source
 	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {

@@ -150,6 +150,11 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 		return TargetProfile{}, fmt.Errorf("dialect not supported %v", sp.Dialect)
 	}
 
+	// if target-profile is not empty, it must contain spanner instance
+	if s != "" && sp.Instance == "" {
+		return TargetProfile{}, fmt.Errorf("found empty string for instance. please specify instance (spanner instance) in the target-profile")
+	}
+
 	conn := TargetProfileConnection{Ty: TargetProfileConnectionTypeSpanner, Sp: sp}
 	return TargetProfile{Ty: TargetProfileTypeConnection, Conn: conn}, nil
 }
