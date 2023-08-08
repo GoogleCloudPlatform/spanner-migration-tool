@@ -169,8 +169,11 @@ In generic terms (your specific network settings may differ), do the following:
 5. Set the port associated with the TCP protocol of your database.
 6. Save the firewall rule, and then exit.
 
-#### Configuring connectivity for data stream
+#### Configuring connectivity for Datastream
 Follow the [Datastream guidelines](https://cloud.google.com/datastream/docs/configure-connecting-ip-allowlists) to allowlist datastream to access the source database.
+
+### Configuring connectivity for Dataflow
+Follow the [Internet access for Dataflow guidelines](https://cloud.google.com/dataflow/docs/guides/routes-firewall#internet_access_for) to allow the necessary access from the VPC in which you will run the `Dataflow` jobs.
 
 ### API enablement
 Ensure that Datastream and Dataflow apis are enabled on your project.
