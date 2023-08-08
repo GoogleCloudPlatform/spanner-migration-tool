@@ -30,7 +30,7 @@ These steps are achieved by two Dataflow jobs, along with an interim buffer whic
 A few prerequisites must be considered before starting with reverse replication.
 
 1. Make sure that there is network connectivity between source database and your GCP project on which the Dataflow jobs will run.Ensure the Dataflow worker IPs can access the MySQL IPs.
-2. Ensure that Dataflow permissions are present.[Basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin:~:text=Grant%20roles%20to%20your%20Compute%20Engine%20default%20service%20account.%20Run%20the%20following%20command%20once%20for%20each%20of%20the%20following%20IAM%20roles%3A%20roles/dataflow.admin%2C%20roles/dataflow.worker%2C%20roles/bigquery.dataEditor%2C%20roles/pubsub.editor%2C%20roles/storage.objectAdmin%2C%20and%20roles/artifactregistry.reader) and [Flex template permissions](https://cloud.google.com/dataflow/docs/guides/templates/configuring-flex-templates#permissions)
+2. Ensure that Dataflow permissions are present.[Basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin:~:text=Grant%20roles%20to%20your%20Compute%20Engine%20default%20service%20account.%20Run%20the%20following%20command%20once%20for%20each%20of%20the%20following%20IAM%20roles%3A%20roles/dataflow.admin%2C%20roles/dataflow.worker%2C%20roles/bigquery.dataEditor%2C%20roles/pubsub.editor%2C%20roles/storage.objectAdmin%2C%20and%20roles/artifactregistry.reader) and [Flex template permissions](https://cloud.google.com/dataflow/docs/guides/templates/configuring-flex-templates#permissions).
 3. Ensure the compute engine service account has the following permissions:
     - roles/pubsub.subscriber
     - roles/pubsub.publisher
@@ -41,9 +41,9 @@ A few prerequisites must be considered before starting with reverse replication.
     - roles/dataflow.developer
 5. Ensure that [golang](https://go.dev/dl/) (version 1.18 and above) is setup on the machine from which reverse replication flow will be launched.
 6. Ensure that gcloud authentication is done,refer [here](https://github.com/cloudspannerecosystem/harbourbridge/tree/master#before-you-begin).
-7. Ensure that the target Spanner instance ready
-8. Ensure that that [session file](https://github.com/cloudspannerecosystem/harbourbridge/tree/master#files-generated-by-harbourbridge) is uploaded to GCS (this requires a schema conversion to be done)
-9. [Source shards file](https://docs.google.com/document/d/1GmUIH0MjaCa1WxNAows_HxRQ1ViLEdqpz9mTPmXlsLI/edit#heading=h.w6ufdjdzqwrp) already uploaded to GCS
+7. Ensure that the target Spanner instance ready.
+8. Ensure that that [session file](https://github.com/cloudspannerecosystem/harbourbridge/tree/master#files-generated-by-harbourbridge) is uploaded to GCS (this requires a schema conversion to be done).
+9. [Source shards file](https://docs.google.com/document/d/1GmUIH0MjaCa1WxNAows_HxRQ1ViLEdqpz9mTPmXlsLI/edit#heading=h.w6ufdjdzqwrp) already uploaded to GCS.
 10. Resources needed for reverse replication incur cost. Make sure to read [cost](#cost).
 
 ## Launching reverse replication
