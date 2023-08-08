@@ -6,19 +6,19 @@
 
 Migrating a database is a complex affair, involving changes to the schema, converting the application, tuning for performance, ensuring minimal downtime and completeness during data migration. It is possible that after migration and cutover, issues/inconsistent performance are encountered on the target (Cloud Spanner) requiring a fallback to the original source database with minimal disruption to the service. Reverse replication enables this fallback by replicating data written on Cloud Spanner back to the source database.This allows the application to point to the source and continue serving requests correctly.
 
-Reverse replication could also be used to replicate the Cloud Spanner writes to a different database, other than the source database, for performing reconciliation, validations, reporting.
+Reverse replication could also be used to replicate the Cloud Spanner writes to a different database, other than the source database, for performing reconciliation, validations and reporting.
 
 ### How it works
 
 Reverse replication flow involves below steps:
 
 1. Reading the changes that happened on Cloud Spanner using [Cloud Spanner change streams](https://cloud.google.com/spanner/docs/change-streams)
-2. Removing  forward migrated changes
+2. Removing forward migrated changes
 3. Cloud Spanner being distributed database, the changes captured must be temporally ordered before writing to a single source database
 4. Transforming Cloud Spanner data to source database schema
-5. Writing to source database.
+5. Writing to source database
 
-These steps are acheieved by two Dataflow jobs, alongwith an interim buffer to hold the ordered changes.
+These steps are achieved by two Dataflow jobs, along with an interim buffer which holds the ordered changes.
 
 ![Architecture](./images/ReverseReplicationOverview.png)
 
@@ -27,7 +27,7 @@ These steps are acheieved by two Dataflow jobs, alongwith an interim buffer to h
 
 ## Before you begin
 
-A few pre-requisites must be considered before starting with reverse replication.
+A few prerequisites must be considered before starting with reverse replication.
 
 1. Make sure that there is network connectivity between source database and your GCP project on which the Dataflow jobs will run.Ensure the Dataflow worker IPs can access the MySQL IPs.
 2. Ensure that Dataflow permissions are present.[Basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin:~:text=Grant%20roles%20to%20your%20Compute%20Engine%20default%20service%20account.%20Run%20the%20following%20command%20once%20for%20each%20of%20the%20following%20IAM%20roles%3A%20roles/dataflow.admin%2C%20roles/dataflow.worker%2C%20roles/bigquery.dataEditor%2C%20roles/pubsub.editor%2C%20roles/storage.objectAdmin%2C%20and%20roles/artifactregistry.reader) and [Flex template permissions](https://cloud.google.com/dataflow/docs/guides/templates/configuring-flex-templates#permissions)
@@ -48,7 +48,7 @@ A few pre-requisites must be considered before starting with reverse replication
 
 ## Launching reverse replication
 
-Currently, the reverse replication flow is launched manually via a script. The details for the same are documented [here](README.md#reverse-replication-setup).
+Currently, the reverse replication flow is launched manually via a script. The details for the same are documented [here](https://github.com/GoogleCloudPlatform/spanner-migration-tool/tree/master/reverse_replication#reverse-replication-setup).
 
 ## Observe, tune and troubleshoot
 
@@ -102,7 +102,7 @@ Apart from that,following are some scenarios and how to handle them.
 
 - ***The watermark of the Spanner to Sink pipeline does not advance***
 
-    This happens when the job is hit with a huge backlog, that leads to infinite loop. The recovery steps are covered [here](README.md#recovery-steps-for-the-infinte-loop).
+    This happens when the job is hit with a huge backlog, that leads to infinite loop. The recovery steps are covered [here](https://github.com/GoogleCloudPlatform/spanner-migration-tool/tree/master/reverse_replication#recovery-steps-for-the-infinte-loop).
 
 - ***PubSub message count is not decreasing and the same data is being written back to source***
 
@@ -112,7 +112,7 @@ Apart from that,following are some scenarios and how to handle them.
 
     Records of below nature are dropped from reverse replication. Check the Dataflow logs to see if they are dropped.
     1. Records which are forward migrated. 
-    2. Records for which primary key cannot be determinted on the source database.This can happen when the source database table does not have a primary key, or the primary key value was not present in the change stream data, or the record was deleted on Cloud Spanner and the deleted record was removed from Cloud Spanner due to lapse of retention period by the time the record was to be reverse replicated.
+    2. Records for which primary key cannot be determined on the source database.This can happen when the source database table does not have a primary key, or the primary key value was not present in the change stream data, or the record was deleted on Cloud Spanner and the deleted record was removed from Cloud Spanner due to lapse of retention period by the time the record was to be reverse replicated.
 
 - ***There is higher load than the expected QPS on  spanner instance post cutover***
 
@@ -178,7 +178,7 @@ Refer to [Ordered Changestream Buffer to Sourcedb](https://github.com/GoogleClou
 
 ## Limitations
 
-Limiations are covered [here](README.md).
+Limiations are covered [here](https://github.com/GoogleCloudPlatform/spanner-migration-tool/tree/master/reverse_replication#reverse-replication-limitations).
 
 ## Cost
 
