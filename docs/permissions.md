@@ -78,6 +78,13 @@ before using SMT.
 - [Postgres](https://cloud.google.com/datastream/docs/configure-your-source-postgresql-database)
 - [Oracle](https://cloud.google.com/datastream/docs/configure-your-source-oracle-database)
 
+### Configuring connectivity for Dataflow
+
+{: .highlight }
+This is only required when if you plan to run Dataflow inside a VPC.
+
+Follow the [Internet access for Dataflow guidelines](https://cloud.google.com/dataflow/docs/guides/routes-firewall#internet_access_for) to allow the necessary access from the VPC in which you will run the `Dataflow` jobs.
+
 ## Permissions
 
 The Spanner migration tool interacts with many GCP services. Please refer to this list for persmissions required to perform migrations.
