@@ -27,6 +27,11 @@ This documentation will describe various elements of the UI and how to use them.
 - **Synthetic Primary Key** - It is mandatory for a table in spanner to have a primary key. In cases where the primary key is missing in the source database, HarbourBridge generates a new column **synth_id** and populates it with UUID.
 - **Metadata database** - A spanner database with the name **harbourbridge_metadata** which is responsible for storing saved sessions from HarbourBridge.
 
-## User Journeys
+## UI Components
 
-HarbourBridge provides support for both schema and data migration. For schema migration, HarbourBridge automatically builds a default Spanner schema from the schema of the source database. This schema can be customized using the HarbourBridge schema assistant. After schema customizations the user can then go ahead with the migration wherein they select the mode of migration - schema, data or schema and data and type of migration - poc migration or minimal downtime migration and then execute the migration. After all the details have been specified, a database gets created in Spanner with the customized schema and data is copied from the existing database to Spanner.
+Spanner migration tool UI has the following components:
+
+- **Connect to Spanner top nav bar** - This contains the ability to configure the GCP projectId and the spanner instanceId that will be used in the migration.
+- **Connect to Source Page** - This page can be used to configure source of data in the Spanner migration tool UI.
+- **Schema Conversion Workspace** - This page can be used to make schema conversion changes from source to Spanner. This page will help you visualise how your schema would look like in Spanner, and also provide issues/warnings/suggestions based on the automated analysis of your schema.
+- **Prepare Migration Page** - This page is used to configure the migration. It asks for details such as the mode (`schema`/`data`/`schema-and-data`) and the type (`poc` or `minimal downtime`) of migration and accordingly requests for configuration input (e.g destionation `databaseName`, Datastream connection profiles etc.)
