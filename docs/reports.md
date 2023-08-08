@@ -21,29 +21,30 @@ Spanner migration tool generates several files as it runs. Each of the file have
 
 ## File descriptions
 
-- Schema file (ending in `schema.txt`): contains the generated Spanner
-  schema, interspersed with comments that cross-reference to the relevant
-  source schema definitions.
+### Schema file (ending in `schema.txt`)
 
-- Session file (ending in `session.json`): contains all schema and data
-  conversion state endcoded as JSON. It is basically a snapshot of the session.
+Contains the generated Spanner schema, interspersed with comments that cross-reference to the relevant source schema definitions.
 
-- Structured Report file (ending in `structured_report.json`): contains a JSON based
-structured analysis of the source to Spanner migration. The structured report can be
-used to in-depth analysis of Spanner migration tool findings via BI tools. For a detailed
-description of each element of a report, refer to [Elements of a Report](/internal/reports/REPORT.md).
+### Session file (ending in `session.json`)
 
-- Text Report file (ending in `report.txt`): contains a detailed analysis of the
-  source to Spanner migration, including table-by-table stats and an
-  analysis of Source types that don't cleanly map onto Spanner types.
-  Note that source types that don't have a corresponding Spanner type
-  are mapped to STRING(MAX).
+Contains all schema and data conversion state endcoded as JSON. It is basically a snapshot of the session.
 
-- Bad data file (ending in `dropped.txt`): contains details of data
-  that could not be converted and written to Spanner, including sample
-  bad-data rows. If there is no bad-data, this file is not written (and we
-  delete any existing file with the same name from a previous run).
+### Structured Report file (ending in `structured_report.json`)
 
+Contains a JSON based structured analysis of the source to Spanner migration. The structured report can be used to in-depth analysis of Spanner migration tool findings via BI tools.
+
+### Text Report file (ending in `report.txt`)
+
+Contains a detailed analysis of the source to Spanner migration, including table-by-table stats and an analysis of Source types that don't cleanly map onto Spanner types. Note that source types that don't have a corresponding Spanner type are mapped to STRING(MAX).
+
+### Bad data file (ending in `dropped.txt`)
+
+{: .highlight }
+This is only generated for [POC migrations](./poc/poc.md).
+
+Contains details of data that could not be converted and written to Spanner, including sample bad-data rows. If there is no bad-data, this file is not written (and we delete any existing file with the same name from a previous run).
+
+{: .note }
 By default, these files are prefixed by the name of the Spanner database (with a
 dot separator). The file prefix can be overridden using the `-prefix`
 [option](#options).
