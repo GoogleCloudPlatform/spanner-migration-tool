@@ -125,6 +125,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 
 	if cmd.validate {
 		if cmd.sessionJSON == "" {
+			err = fmt.Errorf("cannot leave -session flag empty, please specify session file path e.g., -session=./session.json etc")
 			return subcommands.ExitUsageError
 		}
 		return subcommands.ExitSuccess
