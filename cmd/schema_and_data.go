@@ -46,6 +46,7 @@ type SchemaAndDataCmd struct {
 	WriteLimit      int64
 	dryRun          bool
 	logLevel        string
+	validate        bool
 }
 
 // Name returns the name of operation.
@@ -80,6 +81,7 @@ func (cmd *SchemaAndDataCmd) SetFlags(f *flag.FlagSet) {
 	f.Int64Var(&cmd.WriteLimit, "write-limit", DefaultWritersLimit, "Write limit for writes to spanner")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
+	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
 }
 
 func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -97,11 +99,14 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		return subcommands.ExitFailure
 	}
 	defer logger.Log.Sync()
-
+	// validate and parse source-profile, target-profile and source
 	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {
 		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return subcommands.ExitUsageError
+	}
+	if cmd.validate {
+		return subcommands.ExitSuccess
 	}
 	schemaConversionStartTime := time.Now()
 
