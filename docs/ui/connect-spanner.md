@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Spanner connection
+title: Connect to Spanner
 parent: SMT UI
 nav_order: 2
 ---
