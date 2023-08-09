@@ -300,8 +300,8 @@ func checkCoreTypes(ctx context.Context, t *testing.T, client *spanner.Client) {
 }
 
 func checkArrays(ctx context.Context, t *testing.T, client *spanner.Client) {
-	var ints []int64
-	var strs []string
+	var ints string
+	var strs string
 	iter := client.Single().Read(ctx, "test3", spanner.Key{1}, []string{"a", "b"})
 	defer iter.Stop()
 	for {
@@ -316,10 +316,10 @@ func checkArrays(ctx context.Context, t *testing.T, client *spanner.Client) {
 			t.Fatal(err)
 		}
 	}
-	if got, want := ints, []int64{1, 2, 3}; !reflect.DeepEqual(got, want) {
+	if got, want := ints, "{1,2,3}"; !reflect.DeepEqual(got, want) {
 		t.Fatalf("integer array is not correct: got %v, want %v", got, want)
 	}
-	if got, want := strs, []string{"1", "nice", "foo"}; !reflect.DeepEqual(got, want) {
+	if got, want := strs, "{1,nice,foo}"; !reflect.DeepEqual(got, want) {
 		t.Fatalf("string array is not correct: got %v, want %v", got, want)
 	}
 }

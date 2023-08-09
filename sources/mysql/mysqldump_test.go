@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -78,7 +77,7 @@ func TestProcessMySQLDump_SingleCol(t *testing.T) {
 		ty       string
 		expected ddl.ColumnDef
 	}{
-		{"set('a','b','c')", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: true}, NotNull: false, Comment: ""}},
+		{"set('a','b','c')", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: ""}},
 		{"text NOT NULL", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
 	}
 
@@ -821,7 +820,7 @@ func TestProcessMySQLDump_DataError(t *testing.T) {
 					table: "test", cols: []string{"a", "b", "c", "d", "e", "f", "synth_id"},
 					vals: []interface{}{int64(7), float64(42.1), true,
 						getDate("2019-10-29"), []byte{0x89, 0x50},
-						[]spanner.NullString{{StringVal: "42", Valid: true}, {StringVal: "6", Valid: true}},
+						"42,6",
 						fmt.Sprintf("%d", bitReverse(0))}},
 				spannerData{table: "test", cols: []string{"a", "synth_id"}, vals: []interface{}{int64(7), fmt.Sprintf("%d", bitReverse(1))}},
 				spannerData{table: "test", cols: []string{"b", "synth_id"}, vals: []interface{}{float64(42.1), fmt.Sprintf("%d", bitReverse(2))}},
@@ -829,7 +828,7 @@ func TestProcessMySQLDump_DataError(t *testing.T) {
 				spannerData{table: "test", cols: []string{"d", "synth_id"}, vals: []interface{}{getDate("2019-10-29"), fmt.Sprintf("%d", bitReverse(4))}},
 				spannerData{table: "test", cols: []string{"e", "synth_id"}, vals: []interface{}{[]byte{0x89, 0x50}, fmt.Sprintf("%d", bitReverse(5))}},
 				spannerData{table: "test", cols: []string{"f", "synth_id"},
-					vals: []interface{}{[]spanner.NullString{{StringVal: "42", Valid: true}, {StringVal: "6", Valid: true}}, fmt.Sprintf("%d", bitReverse(6))}},
+					vals: []interface{}{"42,6", fmt.Sprintf("%d", bitReverse(6))}},
 			},
 		},
 	}
