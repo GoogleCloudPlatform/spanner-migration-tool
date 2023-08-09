@@ -319,7 +319,7 @@ func checkArrays(ctx context.Context, t *testing.T, client *spanner.Client) {
 	if got, want := ints, "{1,2,3}"; !reflect.DeepEqual(got, want) {
 		t.Fatalf("integer array is not correct: got %v, want %v", got, want)
 	}
-	if got, want := strs, "{'1','nice','foo'}"; !reflect.DeepEqual(got, want) {
+	if got, want := strs, "{1,nice,foo}"; !reflect.DeepEqual(got, want) {
 		t.Fatalf("string array is not correct: got %v, want %v", got, want)
 	}
 }

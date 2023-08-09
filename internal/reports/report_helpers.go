@@ -418,7 +418,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.RowLimitExceeded:            {Brief: "Non key columns exceed the spanner limit of 1600 MB. Please modify the column sizes", severity: errors},
 	internal.ShardIdColumnAdded:          {Brief: "column was added because this is a sharded migration and this column cannot be dropped", severity: note},
 	internal.ShardIdColumnPrimaryKey:     {Brief: "column is not a part of primary key. You may go to the Primary Key tab and add this column as a part of Primary Key", severity: suggestion},
-	internal.ArrayTypeNotSupported:       {Brief: "Array datatype is not supported in minimal downtime migration and they will be mapped to STRING", severity: warning},
+	internal.ArrayTypeNotSupported:       {Brief: "Array datatype migration is not fully supported. Please validate data after data migration", severity: warning},
 }
 
 type severity int

@@ -136,7 +136,7 @@
                 "warningType":"Warnings",
                 "warningList":[
                    "Column 'synth_id' was added because table 'no_pk' didn't have a primary key. Spanner requires a primary key for every table",
-                   "Table 'no_pk': Column a, Array datatype is not supported in minimal downtime migration and they will be mapped to STRING",
+                   "Table 'no_pk': Column a, Array datatype migration is not fully supported. Please validate data after data migration",
                    "Table no_pk: Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int4 is mapped to Spanner data type int64"
                 ]
              }
