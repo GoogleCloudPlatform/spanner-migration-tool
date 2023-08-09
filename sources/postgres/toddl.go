@@ -37,6 +37,8 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 		issues = append(issues, internal.MultiDimensionalArray)
 	} else if len(srcType.ArrayBounds) == 1 {
+		// This check has been added because we don't support Array<primitive type> to string conversions
+		// and Array datatype is currently not supported in datastream.
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 		issues = append(issues, internal.ArrayTypeNotSupported)
 	}
