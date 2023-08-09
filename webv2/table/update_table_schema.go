@@ -71,6 +71,8 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 
 	var conv *internal.Conv
 	conv = nil
