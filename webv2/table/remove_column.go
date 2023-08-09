@@ -135,8 +135,6 @@ func removeColumnFromSpannerSecondaryIndex(sp ddl.CreateTable, colId string) ddl
 
 // removeColumnFromSecondaryIndexKey remove given column from Spanner Secondary Schema Issue List.
 func removeSpannerSchemaIssue(tableId string, colId string, conv *internal.Conv) {
-	conv.SchemaIssuesLock.Lock()
-	defer conv.SchemaIssuesLock.Unlock()
 	if conv.SchemaIssues != nil {
 		if conv.SchemaIssues[tableId].ColumnLevelIssues != nil && conv.SchemaIssues[tableId].ColumnLevelIssues[colId] != nil {
 			delete(conv.SchemaIssues[tableId].ColumnLevelIssues, colId)
