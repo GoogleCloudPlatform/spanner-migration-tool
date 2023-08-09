@@ -383,6 +383,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	columnLevelIssues := make(map[string][]internal.SchemaIssue)
 	expectedIssues := internal.TableIssues{
+		TableLevelIssues: []internal.SchemaIssue{2},
 		ColumnLevelIssues: columnLevelIssues,
 	}
 	tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
