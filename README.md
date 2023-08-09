@@ -36,7 +36,7 @@ Spanner migration tool supports two types of data migrations:
 
   Please note that in order to perform minimal downtime migration for **PostgreSQL** database a user needs to create a publication and replication slot as mentioned [here](https://cloud.google.com/datastream/docs/configure-your-source-postgresql-database#selfhostedpostgresql)
 
-* Bulk Migration -  Spanner migration tool reads data from source database and writes it to the database created in Cloud Spanner. Changes which happen to the source database during the bulk migration may or may not be written to Spanner. To achieve consistent version of data, stop writes on the source while migration is in progress, or use a read replica. Performing schema changes on the source database during the migration is not supported. While there is no technical limit on the size of the database, it is recommended for migrating moderate-size datasets to Spanner(up to about 100GB).
+* POC Migration -  Spanner migration tool reads data from source database and writes it to the database created in Cloud Spanner. Changes which happen to the source database during the POC migration may or may not be written to Spanner. To achieve consistent version of data, stop writes on the source while migration is in progress, or use a read replica. Performing schema changes on the source database during the migration is not supported. While there is no technical limit on the size of the database, it is recommended for migrating moderate-size datasets to Spanner(up to about 100GB).
 
 For some quick starter examples on how to run Spanner migration tool, take a look at
 [Quickstart Guide](#quickstart-guide).
@@ -169,8 +169,11 @@ In generic terms (your specific network settings may differ), do the following:
 5. Set the port associated with the TCP protocol of your database.
 6. Save the firewall rule, and then exit.
 
-#### Configuring connectivity for data stream
+#### Configuring connectivity for Datastream
 Follow the [Datastream guidelines](https://cloud.google.com/datastream/docs/configure-connecting-ip-allowlists) to allowlist datastream to access the source database.
+
+### Configuring connectivity for Dataflow
+Follow the [Internet access for Dataflow guidelines](https://cloud.google.com/dataflow/docs/guides/routes-firewall#internet_access_for) to allow the necessary access from the VPC in which you will run the `Dataflow` jobs.
 
 ### API enablement
 Ensure that Datastream and Dataflow apis are enabled on your project.
@@ -668,7 +671,52 @@ Spanner migration tool provisions `Datastream` and `Dataflow` resources in the c
 environment variable. Depending on the size of the migration work and the constraints on the associated billing account, you may see `quota exceeds` errors.
 If you see such errors, reachout to an appropriate [Spanner support channel](https://cloud.google.com/spanner/docs/getting-support) for asistance.
 
-### 6. Reporting Issues
+### 6. Permissions Required
+
+The Spanner migration tool interacts with many GCP services. Please refer to this list for persmissions required to perform migrations
+#### 6.1 Spanner
+The recommended role to perform migrations is [Cloud Spanner Database Admin](https://cloud.google.com/spanner/docs/iam#spanner.databaseAdmin).
+
+The full list of required [Spanner permissions](https://cloud.google.com/spanner/docs/iam) for migration are
+
+```
+spanner.instances.list
+spanner.instances.get
+
+spanner.databases.create
+spanner.databases.list
+spanner.databases.get
+spanner.databases.getDdl
+spanner.databases.updateDdl
+spanner.databases.read
+spanner.databases.write
+spanner.databases.select
+```
+Refer to the [grant permissions page](https://cloud.google.com/spanner/docs/grant-permissions) for custom roles.
+
+#### 6.2 Datastream
+[Datastream Admin](https://cloud.google.com/datastream/docs/use-the-datastream-api#permissions)
+#### 6.3 Dataflow
+[Dataflow Admin](https://cloud.google.com/dataflow/docs/concepts/access-control#dataflow.admin)
+To use custom templates, enable [basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin)
+#### 6.4 GCE
+Enable access to Datastream, Dataflow and Spanner using [service accounts](https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances)
+
+In addition to these, the `DatastreamToSpanner` pipeline created by SMT requires
+the following roles as well -
+
+- Dataflow service account: 
+    - GCS Bucket Lister
+    - Storage Object Creator
+    - GCS Object Lister
+    - Storage Object Viewer
+- Dataflow compute engine service account: 
+    - Datastream Viewer role
+    - Cloud Spanner Database user
+    - Cloud Spanner Restore Admin
+    - Cloud Spanner Viewer
+    - Dataflow Worker
+
 
 ## Known Issues
 Please refer to the [issues section](https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues)
