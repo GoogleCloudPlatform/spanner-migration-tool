@@ -1402,19 +1402,19 @@ func getDSpannerDDL(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(strings.Join(l, ""))
 }
 
-// getTypeDescription maps IssueDB's Category to corresponding CategoryDescription(if present),
+// getIssueDescription maps IssueDB's Category to corresponding CategoryDescription(if present),
 // or to the Brief if not present and pass the map to frontend to be used in assessment report UI
-func getTypeDescription(w http.ResponseWriter, r *http.Request) {
-	var CategoryMap = make(map[string]string)
-	for _, varStruct := range reports.IssueDB {
-		if varStruct.CategoryDescription == "" {
-			CategoryMap[varStruct.Category] = varStruct.Brief
+func getIssueDescription(w http.ResponseWriter, r *http.Request) {
+	var issuesMap = make(map[string]string)
+	for _, issue := range reports.IssueDB {
+		if issue.CategoryDescription == "" {
+			issuesMap[issue.Category] = issue.Brief
 		} else {
-			CategoryMap[varStruct.Category] = varStruct.CategoryDescription
+			issuesMap[issue.Category] = issue.CategoryDescription
 		}
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(CategoryMap)
+	json.NewEncoder(w).Encode(issuesMap)
 }
 
 // TableInterleaveStatus stores data regarding interleave status.

@@ -74,7 +74,7 @@ type SchemaReport struct {
 	Rating       string `json:"rating"`
 	PkMissing    bool   `json:"pkMissing"`
 	Issues       int64  `json:"issues"`
-	Warnings 	 int64  `json:"warnings"`
+	Warnings     int64  `json:"warnings"`
 	TotalColumns int64  `json:"totalColumns"`
 }
 

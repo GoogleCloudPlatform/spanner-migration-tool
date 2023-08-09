@@ -82,8 +82,8 @@ func getRoutes() *mux.Router {
 	// Summary
 	router.HandleFunc("/summary", summary.GetSummary).Methods("GET")
 
-	// Type Description
-	router.HandleFunc("/typeDescription", getTypeDescription).Methods("GET")
+	// Issue Description
+	router.HandleFunc("/issueDescription", getIssueDescription).Methods("GET")
 
 	// Application Configuration
 	router.HandleFunc("/GetConfig", config.GetConfig).Methods("GET")

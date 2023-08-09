@@ -414,6 +414,17 @@ func (conv *Conv) AddPrimaryKeys() {
 				conv.SyntheticPKeys[t] = SyntheticPKey{columnId, 0}
 			}
 			conv.SpSchema[t] = ct
+
+			// Adding 'Missing Primary Key' as a Warning inside TableLevelIssues of conv object
+			conv.SchemaIssuesLock.Lock()
+			tableLevelIssues := conv.SchemaIssues[ct.Id].TableLevelIssues
+			columnLevelIssues := conv.SchemaIssues[ct.Id].ColumnLevelIssues
+			tableLevelIssues = append(tableLevelIssues, MissingPrimaryKey)
+			conv.SchemaIssues[ct.Id] = TableIssues{
+				TableLevelIssues: tableLevelIssues,
+				ColumnLevelIssues: columnLevelIssues,
+			}
+			conv.SchemaIssuesLock.Unlock()
 		}
 	}
 }

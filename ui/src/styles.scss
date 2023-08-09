@@ -512,6 +512,13 @@ body {
       .example-element-detail {
         overflow: hidden;
         display: flex;
+        &.expanded {
+          height: auto;
+        }
+        &.collapsed {
+          height: 0;
+          min-height: 0;
+        }
       }
 
       .mat-position {

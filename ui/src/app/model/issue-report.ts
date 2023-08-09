@@ -1,11 +1,11 @@
 export default interface IIssueReport {
-    errors: Map<string, IssueDescription>
-    warnings: Map<string, IssueDescription>
-    suggestions: Map<string, IssueDescription>
-    notes: Map<string, IssueDescription>
+    errors: Map<string, TablesInformation>
+    warnings: Map<string, TablesInformation>
+    suggestions: Map<string, TablesInformation>
+    notes: Map<string, TablesInformation>
 }
 
-export interface IssueDescription {
+export interface TablesInformation {
     tableCount: number
     tableNames: Set<string>
 }

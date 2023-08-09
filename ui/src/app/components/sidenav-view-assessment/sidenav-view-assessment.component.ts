@@ -3,11 +3,10 @@ import ConversionRate from 'src/app/model/conversion-rate'
 import IViewAssesmentData from 'src/app/model/view-assesment'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
-import IStructuredReport from '../../model/structured-report'
+import IStructuredReport, {IIssue, ITableReport} from '../../model/structured-report'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import * as JSZip from 'jszip'
-import IIssueReport, { IssueDescription } from 'src/app/model/issue-report'
-import { animate, state, style, transition, trigger } from '@angular/animations';
+import IIssueReport, { TablesInformation } from 'src/app/model/issue-report'
 
 export interface tableContent {
   position: number
@@ -20,13 +19,6 @@ export interface tableContent {
   selector: 'app-sidenav-view-assessment',
   templateUrl: './sidenav-view-assessment.component.html',
   styleUrls: ['./sidenav-view-assessment.component.scss'],
-  animations: [
-    trigger('detailExpand', [
-      state('collapsed', style({ height: '0px', minHeight: '0' })),
-      state('expanded', style({ height: '*' })),
-      transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
-    ]),
-  ],
 })
 
 export class SidenavViewAssessmentComponent implements OnInit {
@@ -52,7 +44,7 @@ export class SidenavViewAssessmentComponent implements OnInit {
   srcDbType: string = ''
   connectionDetail: string = ''
   summaryText: string = ''
-  typeDescription: {[key: string]: string} = {}
+  issueDescription: { [key: string]: string } = {}
   conversionRateCount: ConversionRate = { good: 0, ok: 0, bad: 0 }
   conversionRatePercentage: ConversionRate = { good: 0, ok: 0, bad: 0 }
   constructor(
@@ -92,9 +84,9 @@ export class SidenavViewAssessmentComponent implements OnInit {
         tableCount: 0,
         tableNamesJoinedByComma: '',
       }
-      this.fetch.getTypeDescription().subscribe({
-        next: (typeDescription) => {
-          this.typeDescription = typeDescription
+      this.fetch.getIssueDescription().subscribe({
+        next: (issueDescription) => {
+          this.issueDescription = issueDescription
           this.GenerateIssueReport()
         }
       })
@@ -178,10 +170,10 @@ export class SidenavViewAssessmentComponent implements OnInit {
       next: (resStructured: IStructuredReport) => {
         let fetchedTableReports = resStructured.tableReports
         var report: IIssueReport = {
-          errors: new Map<string, IssueDescription>(),
-          warnings: new Map<string, IssueDescription>(),
-          suggestions: new Map<string, IssueDescription>(),
-          notes: new Map<string, IssueDescription>(),
+          errors: new Map<string, TablesInformation>(),
+          warnings: new Map<string, TablesInformation>(),
+          suggestions: new Map<string, TablesInformation>(),
+          notes: new Map<string, TablesInformation>(),
         }
         // iterate each table
         for (var fetchedTableReport of fetchedTableReports) {
@@ -199,7 +191,7 @@ export class SidenavViewAssessmentComponent implements OnInit {
 
           // iterate each issue
           for (var issue of allIssues) {
-            let defaultIssue: IssueDescription = {
+            let defaultIssue: TablesInformation = {
               tableCount: 0,
               tableNames: new Set<string>(),
             }
@@ -208,116 +200,28 @@ export class SidenavViewAssessmentComponent implements OnInit {
               case "Errors":
                 // store errors with table count and table names in report.errors 
                 let errorIssues = issue.issueList
-                for (var errorIssue of errorIssues) {
-                  let isPresent: boolean = report.errors.has(errorIssue.category)
-
-                  // if the error already exists in the report.errors, we create a new issue description
-                  // and duplicate the existing one into it. This duplication is necessary because the value 
-                  // is passed by reference. After that, we add the table to that existing error.
-                  if (isPresent) {
-                    let existingDesc = report.errors.get(errorIssue.category)!;
-                    let descNew = {
-                      tableNames: new Set(existingDesc.tableNames),
-                      tableCount: existingDesc.tableNames.size
-                    }
-                    descNew.tableNames.add(fetchedTableReport.srcTableName)
-                    descNew.tableCount = descNew.tableNames.size
-                    report.errors.set(errorIssue.category, descNew)
-                  } else {
-                    // if the error is new we initialise issue description and add the table to it
-                    let desc = defaultIssue
-                    desc.tableNames.add(fetchedTableReport.srcTableName)
-                    desc.tableCount = desc.tableNames.size
-                    report.errors.set(errorIssue.category, desc)
-                  }
-                }
+                this.AppendIssueWithTableInformation(errorIssues, report.errors, defaultIssue, fetchedTableReport)
                 break
 
               case "Warnings":
               case "Warning":
                 // store warnings with table count and table names in report.warnings
                 let warningIssues = issue.issueList
-                for (var warningIssue of warningIssues) {
-                  let isPresent: boolean = report.warnings.has(warningIssue.category)
-
-                  // if the warning already exists in the report.warnings, we create a new issue description
-                  // and duplicate the existing one into it. This duplication is necessary because the value 
-                  // is passed by reference. After that, we add the table to that existing warning.
-                  if (isPresent) {
-                    let existingDesc = report.warnings.get(warningIssue.category)!;
-                    let descNew = {
-                      tableNames: new Set(existingDesc.tableNames),
-                      tableCount: existingDesc.tableNames.size
-                    }
-                    descNew.tableNames.add(fetchedTableReport.srcTableName)
-                    descNew.tableCount = descNew.tableNames.size
-                    report.warnings.set(warningIssue.category, descNew)
-                  } else {
-                    // if the warning is new we initialise issue description and add the table to it
-                    let desc = defaultIssue
-                    desc.tableNames.add(fetchedTableReport.srcTableName)
-                    desc.tableCount = desc.tableNames.size
-                    report.warnings.set(warningIssue.category, desc)
-                  }
-                }
+                this.AppendIssueWithTableInformation(warningIssues, report.warnings, defaultIssue, fetchedTableReport)
                 break
 
               case "Suggestion":
               case "Suggestions":
                 // store suggestions with table count and table names in report.suggestions
                 let suggestionIssues = issue.issueList
-                for (var suggestionIssue of suggestionIssues) {
-                  let isPresent: boolean = report.suggestions.has(suggestionIssue.category)
-
-                  // if the suggestion already exists in the report.suggestions, we create a new issue description
-                  // and duplicate the existing one into it. This duplication is necessary because the value 
-                  // is passed by reference. After that, we add the table to that existing suggestion.
-                  if (isPresent) {
-                    let existingDesc = report.suggestions.get(suggestionIssue.category)!;
-                    let descNew = {
-                      tableNames: new Set(existingDesc.tableNames),
-                      tableCount: existingDesc.tableNames.size
-                    }
-                    descNew.tableNames.add(fetchedTableReport.srcTableName)
-                    descNew.tableCount = descNew.tableNames.size
-                    report.suggestions.set(suggestionIssue.category, descNew)
-                  } else {
-                    // if the suggestion is new we initialise issue description and add the table to it
-                    let desc = defaultIssue
-                    desc.tableNames.add(fetchedTableReport.srcTableName)
-                    desc.tableCount = desc.tableNames.size
-                    report.suggestions.set(suggestionIssue.category, desc)
-                  }
-                }
+                this.AppendIssueWithTableInformation(suggestionIssues, report.suggestions, defaultIssue, fetchedTableReport)
                 break
 
               case "Note":
               case "Notes":
                 // store notes with table count and table names in report.notes
                 let noteIssues = issue.issueList
-                for (var noteIssue of noteIssues) {
-                  let isPresent: boolean = report.notes.has(noteIssue.category)
-
-                  // if the note already exists in the report.notes, we create a new issue description
-                  // and duplicate the existing one into it. This duplication is necessary because the value 
-                  // is passed by reference. After that, we add the table to that existing note.
-                  if (isPresent) {
-                    let existingDesc = report.notes.get(noteIssue.category)!;
-                    let descNew = {
-                      tableNames: new Set(existingDesc.tableNames),
-                      tableCount: existingDesc.tableNames.size
-                    }
-                    descNew.tableNames.add(fetchedTableReport.srcTableName)
-                    descNew.tableCount = descNew.tableNames.size
-                    report.notes.set(noteIssue.category, descNew)
-                  } else {
-                    // if the note is new we initialise issue description and add the table to it
-                    let desc = defaultIssue
-                    desc.tableNames.add(fetchedTableReport.srcTableName)
-                    desc.tableCount = desc.tableNames.size
-                    report.notes.set(noteIssue.category, desc)
-                  }
-                }
+                this.AppendIssueWithTableInformation(noteIssues, report.notes, defaultIssue, fetchedTableReport)
                 break
             }
           }
@@ -327,36 +231,14 @@ export class SidenavViewAssessmentComponent implements OnInit {
         let map_report = report.warnings
         this.issueTableData_Warnings = []
         if (map_report.size != 0) {
-          let i = 1;
-          for (let [key, value] of map_report.entries()) {
-            let tableNamesList = [...value.tableNames.keys()]
-            let fetchedDescription = this.typeDescription[key]
-            this.issueTableData_Warnings.push({
-              position: i,
-              description: fetchedDescription,
-              tableCount: value.tableCount,
-              tableNamesJoinedByComma: tableNamesList.join(', '),
-            })
-            i += 1;
-          }
+          this.PopulateTableData(map_report, this.issueTableData_Warnings)
         }
 
         // populate issueTableData_Errors with data from report.errors
         map_report = report.errors
         this.issueTableData_Errors = []
         if (map_report.size != 0) {
-          let i = 1;
-          for (let [key, value] of map_report.entries()) {
-            let tableNamesList = [...value.tableNames.keys()]
-            let fetchedDescription = this.typeDescription[key]
-            this.issueTableData_Errors.push({
-              position: i,
-              description: fetchedDescription,
-              tableCount: value.tableCount,
-              tableNamesJoinedByComma: tableNamesList.join(', '),
-            })
-            i += 1;
-          }
+          this.PopulateTableData(map_report, this.issueTableData_Errors)
 
         }
 
@@ -364,39 +246,58 @@ export class SidenavViewAssessmentComponent implements OnInit {
         map_report = report.suggestions
         this.issueTableData_Suggestions = []
         if (map_report.size != 0) {
-          let i = 1;
-          for (let [key, value] of map_report.entries()) {
-            let tableNamesList = [...value.tableNames.keys()]
-            let fetchedDescription = this.typeDescription[key]
-            this.issueTableData_Suggestions.push({
-              position: i,
-              description: fetchedDescription,
-              tableCount: value.tableCount,
-              tableNamesJoinedByComma: tableNamesList.join(', '),
-            })
-            i += 1;
-          }
-
+          this.PopulateTableData(map_report, this.issueTableData_Suggestions)
         }
 
         // populate issueTableData_Notes with data from report.notes
         map_report = report.notes
         this.issueTableData_Notes = []
         if (map_report.size != 0) {
-          let i = 1;
-          for (let [key, value] of map_report.entries()) {
-            let tableNamesList = [...value.tableNames.keys()]
-            let fetchedDescription = this.typeDescription[key]
-            this.issueTableData_Notes.push({
-              position: i,
-              description: fetchedDescription,
-              tableCount: value.tableCount,
-              tableNamesJoinedByComma: tableNamesList.join(', '),
-            })
-            i += 1;
-          }
+          this.PopulateTableData(map_report, this.issueTableData_Notes)
         }
       }
     })
   }
+
+  PopulateTableData(map_report: Map<string, TablesInformation>, issueTableData: tableContent[]) {
+    let i = 1;
+    for (let [key, value] of map_report.entries()) {
+      let tableNamesList = [...value.tableNames.keys()]
+      let fetchedDescription = this.issueDescription[key]
+      issueTableData.push({
+        position: i,
+        description: fetchedDescription,
+        tableCount: value.tableCount,
+        tableNamesJoinedByComma: tableNamesList.join(', '),
+      })
+      i += 1;
+    }
+  }
+
+  AppendIssueWithTableInformation(Issues: IIssue[], report: Map<string, TablesInformation>, defaultIssue: TablesInformation, fetchedTableReport: ITableReport) {
+    for (var noteIssue of Issues) {
+      let isPresent: boolean = report.has(noteIssue.category)
+      
+      // if the issue already exists in the report, we create a new issue description
+      // and duplicate the existing one into it. This duplication is necessary because the value 
+      // is passed by reference. After that, we add the table to that existing issue.
+      if (isPresent) {
+        let existingDesc = report.get(noteIssue.category)!;
+        let descNew = {
+          tableNames: new Set(existingDesc.tableNames),
+          tableCount: existingDesc.tableNames.size
+        }
+        descNew.tableNames.add(fetchedTableReport.srcTableName)
+        descNew.tableCount = descNew.tableNames.size
+        report.set(noteIssue.category, descNew)
+      } else {
+        // if the issue is new we initialise issue description and add the table to it
+        let desc = defaultIssue
+        desc.tableNames.add(fetchedTableReport.srcTableName)
+        desc.tableCount = desc.tableNames.size
+        report.set(noteIssue.category, desc)
+      }
+    }
+  }
+
 }

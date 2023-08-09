@@ -121,7 +121,7 @@
 
           <ng-container matColumnDef="expandedDetail">
             <td mat-cell *matCellDef="let element" [attr.colspan]="columnsToDisplayWithExpand.length">
-              <div class="example-element-detail" [@detailExpand]="isRowExpanded(element) ? 'expanded' : 'collapsed'">
+              <div class="example-element-detail" [ngClass]="isRowExpanded(element) ? 'expanded' : 'collapsed'">
                 <div class="example-element-description"> TABLES: {{element.tableNamesJoinedByComma}}</div>
               </div>
             </td>
@@ -174,7 +174,7 @@
 
           <ng-container matColumnDef="expandedDetail">
             <td mat-cell *matCellDef="let element" [attr.colspan]="columnsToDisplayWithExpand.length">
-              <div class="example-element-detail" [@detailExpand]="isRowExpanded(element) ? 'expanded' : 'collapsed'">
+              <div class="example-element-detail" [ngClass]="isRowExpanded(element) ? 'expanded' : 'collapsed'" >
                 <div class="example-element-description"> TABLES: {{element.tableNamesJoinedByComma}}</div>
               </div>
             </td>
@@ -228,7 +228,7 @@
 
           <ng-container matColumnDef="expandedDetail">
             <td mat-cell *matCellDef="let element" [attr.colspan]="columnsToDisplayWithExpand.length">
-              <div class="example-element-detail" [@detailExpand]="isRowExpanded(element) ? 'expanded' : 'collapsed'">
+              <div class="example-element-detail" [ngClass]="isRowExpanded(element) ? 'expanded' : 'collapsed'">
                 <div class="example-element-description"> TABLES: {{element.tableNamesJoinedByComma}}</div>
               </div>
             </td>
@@ -280,7 +280,7 @@
 
           <ng-container matColumnDef="expandedDetail">
             <td mat-cell *matCellDef="let element" [attr.colspan]="columnsToDisplayWithExpand.length">
-              <div class="example-element-detail" [@detailExpand]="isRowExpanded(element) ? 'expanded' : 'collapsed'">
+              <div class="example-element-detail" [ngClass]="isRowExpanded(element) ? 'expanded' : 'collapsed'">
                 <div class="example-element-description"> TABLES: {{element.tableNamesJoinedByComma}}</div>
               </div>
             </td>

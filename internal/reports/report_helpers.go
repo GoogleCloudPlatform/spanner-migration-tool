@@ -516,7 +516,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.DefaultValue:          {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
 	internal.ForeignKey:            {Brief: "Spanner does not support foreign keys", severity: warning, Category: "FOREIGN_KEY_USES"},
 	internal.MultiDimensionalArray: {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning, Category: "MULTI_DIMENSIONAL_ARRAY_USES"},
-	internal.NoGoodType: {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", severity: warning, Category: "INAPPROPIATE_TYPE",
+	internal.NoGoodType: {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", severity: warning, Category: "INAPPROPRIATE_TYPE",
 		CategoryDescription: "No appropriate Spanner type"},
 	internal.Numeric:              {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning, Category: "NUMERIC_USES"},
 	internal.NumericThatFits:      {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: suggestion, Category: "NUMERIC_THAT_FITS"},
@@ -590,6 +590,11 @@ func AnalyzeCols(conv *internal.Conv, tableId string) (map[string][]internal.Sch
 			}
 		}
 		if colWarning {
+			warnings++
+		}
+	}
+	for _, tableLevelIssue := range conv.SchemaIssues[tableId].TableLevelIssues {
+		if(IssueDB[tableLevelIssue].severity == warning) {
 			warnings++
 		}
 	}
