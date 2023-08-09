@@ -33,7 +33,8 @@ type WebCmd struct {
 	DistDir  embed.FS
 	logLevel string
 	open     bool
-	port	int
+	port     int
+	validate bool
 }
 
 // Name returns the name of operation.
@@ -54,11 +55,15 @@ func (cmd *WebCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.open, "open", false, "Opens the Spanner migration tool web interface in the default browser, defaults to false")
 	f.IntVar(&cmd.port, "port", 8080, "The port in which Spanner migration tool will run, defaults to 8080")
+	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
 }
 
 func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))
 	FrontendDir = cmd.DistDir
+	if cmd.validate {
+		return subcommands.ExitSuccess
+	}
 	var err error
 	defer func() {
 		if err != nil {
