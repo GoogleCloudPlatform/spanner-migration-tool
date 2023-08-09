@@ -36,8 +36,10 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 	if len(srcType.ArrayBounds) > 1 {
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 		issues = append(issues, internal.MultiDimensionalArray)
+	} else if len(srcType.ArrayBounds) == 1 {
+		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+		issues = append(issues, internal.ArrayTypeNotSupported)
 	}
-	ty.IsArray = len(srcType.ArrayBounds) == 1
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 		ty = common.ToPGDialectType(ty)
 	}
