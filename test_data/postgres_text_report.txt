@@ -73,8 +73,8 @@ Data conversion: POOR (60% of 5000 rows written to Spanner).
 Warnings
 1) Column 'synth_id' was added because table 'no_pk' didn't have a primary key.
    Spanner requires a primary key for every table.
-2) Table 'no_pk': Column a, Array datatype is not supported in minimal downtime
-   migration.
+2) Table 'no_pk': Column a, Array datatype migration is not fully supported.
+   Please validate data after data migration.
 3) Table no_pk: Some columns will consume more storage in Spanner e.g. for column
    'b', source DB type int4 is mapped to Spanner data type int64.
 

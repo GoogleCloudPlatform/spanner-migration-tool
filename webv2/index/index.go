@@ -77,11 +77,9 @@ func checkRedundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) 
 			if primaryKeyFirstColumnId == indexFirstColumnId {
 				columnId := indexFirstColumnId
 				sessionState := session.GetSessionState()
-				sessionState.Conv.SchemaIssuesLock.Lock()
 				schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[columnId]
 				schemaissue = append(schemaissue, internal.RedundantIndex)
 				sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[columnId] = schemaissue
-				sessionState.Conv.SchemaIssuesLock.Unlock()
 			}
 		}
 	}
@@ -95,8 +93,6 @@ func checkInterleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable)
 	isInterleavable := spannerTable.ParentId != ""
 
 	sessionState := session.GetSessionState()
-	sessionState.Conv.SchemaIssuesLock.Lock()
-	defer sessionState.Conv.SchemaIssuesLock.Unlock()
 
 	if isInterleavable {
 
@@ -162,8 +158,6 @@ func checkInterleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable)
 func RemoveIndexIssues(tableId string, Index ddl.CreateIndex) {
 
 	sessionState := session.GetSessionState()
-	sessionState.Conv.SchemaIssuesLock.Lock()
-	defer sessionState.Conv.SchemaIssuesLock.Unlock()
 	for i := 0; i < len(Index.Keys); i++ {
 
 		columnId := Index.Keys[i].ColId

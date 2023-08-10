@@ -132,12 +132,10 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 	if totalNonKeyColumnSize > ddl.MaxNonKeyColumnLength {
 		tableLevelIssues = append(tableLevelIssues, internal.RowLimitExceeded)
 	}
-	conv.SchemaIssuesLock.Lock()
 	conv.SchemaIssues[srcTable.Id] = internal.TableIssues{
 		TableLevelIssues:  tableLevelIssues,
 		ColumnLevelIssues: columnLevelIssues,
 	}
-	conv.SchemaIssuesLock.Unlock()
 	comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
 	conv.SpSchema[srcTable.Id] = ddl.CreateTable{
 		Name:        spTableName,
