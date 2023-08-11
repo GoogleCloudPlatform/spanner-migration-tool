@@ -6,7 +6,7 @@ has_children: true
 permalink: /ui
 ---
 
-# SMT UI
+# Spanner migration tool UI
 {: .no_toc }
 
 Spanner migration tool UI provides a unified interface for the migration wherein it gives users

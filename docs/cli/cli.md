@@ -6,7 +6,7 @@ has_children: true
 permalink: /cli
 ---
 
-# CLI
+# Spanner migration tool CLI
 {: .no_toc }
 
 Spanner migration tool CLI follows [subcommands](https://github.com/google/subcommands)
