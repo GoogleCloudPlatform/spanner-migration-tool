@@ -1,7 +1,7 @@
 ---
 layout: default
-title: Monitoring
-parent: End Migration
+title: End Migration
+parent: Prepare Migration Page
 grand_parent: SMT UI
 nav_order: 5
 ---
