@@ -19,19 +19,19 @@ This section gives information about some FAQs regarding Spanner migration tool.
 {:toc}
 </details>
 
-#### How to start the HarbourBridge UI ?
+### How to start the HarbourBridge UI ?
 
 To bring up the HarbourBridge UI, please follow the steps mentioned [here](../install.md/#installation-guide).
 
-#### Can HarbourBridge be used without connecting to the spanner instance?
+### Can HarbourBridge be used without connecting to the spanner instance?
 
 Yes, HarbourBridge can be used for schema assessment and modifications without connecting to the spanner instance
 
-#### When is a table interleavable?
+### When is a table interleavable?
 
 A table is interleavable into a parent table if it has a foreign key referencing the parent table and the primary key is a superset of the primary key of the parent table.
 
-#### What to do in case you are unable to connect to a spanner instance?
+### What to do in case you are unable to connect to a spanner instance?
 
 If you are connecting from a GCE VM please verify the access scope of your GCE VM. It should be set to **Allow full access to all Cloud APIs **to allow connections to Cloud API. In case it is set to **default** access, please modify the access level by following the steps below and try again -
     1. Stop the VM
@@ -40,7 +40,7 @@ If you are connecting from a GCE VM please verify the access scope of your GCE V
 
 Otherwise, execute the following command: **gcloud auth application-default login**
 
-#### What happens behind the scenes in minimal downtime migration?
+### What happens behind the scenes in minimal downtime migration?
 
 HarbourBridge orchestrates the entire process using a unified interface, which comprises the following steps:
 
