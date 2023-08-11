@@ -43,6 +43,10 @@ to allowlist datastream to access the source database.
 
 Follow the guidelines for configuring [Oracle](https://cloud.google.com/datastream/docs/configure-your-source-oracle-database) here.
 
+{: .warning }
+It is often a good idea to create a connection profile and a Datastream stream directly via the GCP console to ensure that permissions and connectivity are correctly configured **before** proceeding with using
+SMT for a minimal downtime migration. This can be done by following the [Datastream documentation](https://cloud.google.com/datastream/docs/create-a-stream).
+
 ## CLI
 
 To run a minimal downtime schema and data migration:
