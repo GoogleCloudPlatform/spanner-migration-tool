@@ -33,12 +33,13 @@ A table is interleavable into a parent table if it has a foreign key referencing
 
 ### What to do in case you are unable to connect to a spanner instance?
 
-If you are connecting from a GCE VM please verify the access scope of your GCE VM. It should be set to **Allow full access to all Cloud APIs **to allow connections to Cloud API. In case it is set to **default** access, please modify the access level by following the steps below and try again -
-    1. Stop the VM
-    2. Edit the VM configuration and change the access scope to **Allow full access to all Cloud APIs.**
-    3. Restart the VM
+If you are connecting from a GCE VM please verify the access scope of your GCE VM. It should be set to **Allow full access to all Cloud APIs** to allow connections to Cloud API. In case it is set to **default** access, please modify the access level by following the steps below and try again -
 
-Otherwise, execute the following command: **gcloud auth application-default login**
+1. Stop the VM
+2. Edit the VM configuration and change the access scope to **Allow full access to all Cloud APIs.**
+3. Restart the VM
+
+Otherwise, execute the following command: `gcloud auth application-default login`
 
 ### What happens behind the scenes in minimal downtime migration?
 
