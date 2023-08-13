@@ -43,8 +43,6 @@ func isHotSpot(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 // If present adds HotspotTimestamp as an issue in Issues.
 func hotspotTimestamp(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 	sessionState := session.GetSessionState()
-	sessionState.Conv.SchemaIssuesLock.Lock()
-	defer sessionState.Conv.SchemaIssuesLock.Unlock()
 
 	for i := 0; i < len(insert); i++ {
 
@@ -87,8 +85,6 @@ func hotspotAutoincrement(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 func detecthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId string) {
 
 	sessionState := session.GetSessionState()
-	sessionState.Conv.SchemaIssuesLock.Lock()
-	defer sessionState.Conv.SchemaIssuesLock.Unlock()
 	sourcetable := sessionState.Conv.SrcSchema[spannerTable.Id]
 
 	for _, s := range sourcetable.ColDefs {

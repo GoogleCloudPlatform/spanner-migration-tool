@@ -81,9 +81,7 @@ func buildTableReport(conv *internal.Conv, tableId string, badWrites map[string]
 		issues, cols, warnings := AnalyzeCols(conv, tableId)
 		tr.Cols = cols
 		tr.Warnings = warnings
-		conv.SchemaIssuesLock.RLock()
 		schemaIssues := conv.SchemaIssues[tableId].TableLevelIssues
-		conv.SchemaIssuesLock.RUnlock()
 		tr.Errors = int64(len(schemaIssues))
 		if pk, ok := conv.SyntheticPKeys[tableId]; ok {
 			tr.SyntheticPKey = pk.ColId
@@ -553,7 +551,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 		CategoryDescription: "Some column is not a part of primary key. Check for that column and add it as a part of Primary Key"},
 	internal.MissingPrimaryKey: {Category: "MISSING_PRIMARY_KEY",
 		CategoryDescription: "Primary Key is missing"},
-	internal.ArrayTypeNotSupported: {Brief: "Array datatype is not supported in minimal downtime migration", severity: warning, Category: "ARRAY_TYPE_NOT_SUPPORTED"},
+	internal.ArrayTypeNotSupported: {Brief: "Array datatype migration is not fully supported. Please validate data after data migration", severity: warning, Category: "ARRAY_TYPE_NOT_SUPPORTED"},
 }
 
 type severity int
@@ -572,8 +570,6 @@ func AnalyzeCols(conv *internal.Conv, tableId string) (map[string][]internal.Sch
 	m := make(map[string][]internal.SchemaIssue)
 	warnings := int64(0)
 	warningBatcher := make(map[internal.SchemaIssue]bool)
-	conv.SchemaIssuesLock.RLock()
-	defer conv.SchemaIssuesLock.RUnlock()
 	// Note on how we count warnings when there are multiple warnings
 	// per column and/or multiple warnings per table.
 	// non-batched warnings: count at most one warning per column.

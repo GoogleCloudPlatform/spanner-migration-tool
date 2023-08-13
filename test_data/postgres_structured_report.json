@@ -162,7 +162,7 @@
                   },
                   {
                      "category": "ARRAY_TYPE_NOT_SUPPORTED",
-                     "description": "Table 'no_pk': Column a, Array datatype is not supported in minimal downtime migration"
+                     "description": "Table 'no_pk': Array datatype migration is not fully supported. Please validate data after data migration"
                   },
                   {
                      "category": "STORAGE_WARNING",

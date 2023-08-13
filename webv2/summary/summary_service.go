@@ -8,6 +8,8 @@ import (
 // getSummary returns table wise summary of conversion.
 func getSummary() map[string]ConversionSummary {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	tableReports := reports.AnalyzeTables(sessionState.Conv, nil)
 
 	summary := make(map[string]ConversionSummary)

@@ -263,8 +263,6 @@ func checkIfColumnIsPartOfSpSchemaPK(id string, primaryKey []ddl.IndexKey) bool 
 
 func ComputeNonKeyColumnSize(conv *internal.Conv, tableId string) {
 	totalNonKeyColumnSize := 0
-	conv.SchemaIssuesLock.Lock()
-	defer conv.SchemaIssuesLock.Unlock()
 	tableLevelIssues := conv.SchemaIssues[tableId].TableLevelIssues
 	tableLevelIssues = removeSchemaIssue(tableLevelIssues, internal.RowLimitExceeded)
 	for _, colDef := range conv.SpSchema[tableId].ColDefs {

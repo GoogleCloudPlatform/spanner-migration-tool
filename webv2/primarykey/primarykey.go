@@ -99,7 +99,6 @@ func addPrimaryKey(add []string, pkRequest PrimaryKeyRequest, spannerTable ddl.C
 				pkey.Order = pkRequest.Columns[i].Order
 
 				{
-					sessionState.Conv.SchemaIssuesLock.Lock()
 					schemaissue := []internal.SchemaIssue{}
 					schemaissue = sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[pkey.ColId]
 
@@ -127,7 +126,6 @@ func addPrimaryKey(add []string, pkRequest PrimaryKeyRequest, spannerTable ddl.C
 						}
 
 					}
-					sessionState.Conv.SchemaIssuesLock.Unlock()
 				}
 
 				list = append(list, pkey)
@@ -150,7 +148,6 @@ func removePrimaryKey(remove []string, spannerTable ddl.CreateTable) []ddl.Index
 			if spannerTable.PrimaryKeys[i].ColId == val {
 
 				{
-					sessionState.Conv.SchemaIssuesLock.Lock()
 					schemaissue := []internal.SchemaIssue{}
 					schemaissue = sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[spannerTable.PrimaryKeys[i].ColId]
 
@@ -179,7 +176,6 @@ func removePrimaryKey(remove []string, spannerTable ddl.CreateTable) []ddl.Index
 						}
 
 					}
-					sessionState.Conv.SchemaIssuesLock.Unlock()
 				}
 
 				list = utilities.RemoveIndex(list, i)

@@ -68,6 +68,8 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	spannerTable, found := getSpannerTable(sessionState, pkRequest)
 
 	if !found {
