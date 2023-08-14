@@ -258,11 +258,11 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, conv *internal.Conv, infoSchema common.InfoSchema) error {
 	ctx := context.Background()
 
-	orderTableNamesByID := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
-	numberOfTables := int64(len(orderTableNamesByID))
+	tableDependencyTree := internal.GetTableDependencyTree(conv.SpSchema)
+	tableCount := len(conv.SpSchema)
 
 	if !conv.Audit.DryRun {
-		conv.Audit.Progress = *internal.NewProgress(numberOfTables, "Writing data to Spanner via Dataproc", internal.Verbose(), false, int(internal.DataWriteInProgress))
+		conv.Audit.Progress = *internal.NewProgress(int64(tableCount), "Writing data to Spanner via Dataproc", internal.Verbose(), false, int(internal.DataWriteInProgress))
 		fmt.Println()
 	}
 
@@ -284,101 +284,86 @@ func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile
 	conv.Audit.DataprocMetadata.DataprocJobIds = make(map[string]string)
 	conv.Audit.DataprocMetadata.DataprocJobStatus = make(map[string]internal.DataprocJobStatus)
 
-	var processTable func(spannerTableID string, mutex *sync.Mutex) error
-
-	processTable = func(spannerTableID string, mutex *sync.Mutex) error {
-		parentTableId := conv.SpSchema[spannerTableID].ParentId
-
-		wait := true
-		if parentTableId == "" {
-			wait = false
-		} else {
-			parentTableStatus := conv.Audit.DataprocMetadata.DataprocJobStatus[parentTableId]
-			if parentTableStatus == internal.DataprocSuccess {
-				wait = false
-			} else if parentTableStatus == internal.DataprocFailed || parentTableStatus == internal.DataprocSkipped {
-				// if parent table migration failed/skipped then skip child table migration
-				mutex.Lock()
-				conv.Audit.DataprocMetadata.SrcTable[spannerTableID] = conv.SrcSchema[spannerTableID].Name
-				conv.Audit.DataprocMetadata.DataprocJobUrls[spannerTableID] = "#"
-				conv.Audit.DataprocMetadata.DataprocJobIds[spannerTableID] = "#"
-				conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = internal.DataprocSkipped
-				mutex.Unlock()
-				return nil
-			}
-		}
-
-		if wait {
-			mutex.Lock()
-			conv.Audit.DataprocMetadata.SrcTable[spannerTableID] = conv.SrcSchema[spannerTableID].Name
-			conv.Audit.DataprocMetadata.DataprocJobUrls[spannerTableID] = "#"
-			conv.Audit.DataprocMetadata.DataprocJobIds[spannerTableID] = "#"
-			conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = internal.DataprocQueued
-			mutex.Unlock()
-			logger.Log.Debug(fmt.Sprintf("Queued: %s | Waiting for parent: %s to finish", spannerTableID, parentTableId))
-			time.Sleep(10 * time.Second)
-			return processTable(spannerTableID, mutex)
-		} else {
-			srcTable := conv.SrcSchema[spannerTableID].Name
-			srcSchema := conv.SrcSchema[spannerTableID]
-			primaryKeys, _, _ := infoSchema.GetConstraints(conv, common.SchemaAndName{Name: srcTable, Schema: srcSchema.Schema})
-
-			dataprocRequestParams, err := dproc.GetDataprocRequestParams(sourceProfile, targetProfile, srcSchema.Schema, srcTable, strings.Join(primaryKeys, ","), location, subnet)
-			if err != nil {
-				return err
-			}
-
-			op, err := dproc.TriggerDataprocTemplate(ctx, batchClient, srcTable, srcSchema.Schema, strings.Join(primaryKeys, ","), dataprocRequestParams)
-			if err != nil {
-				logger.Log.Error(fmt.Sprintf("Failing to trigger Dataproc template for %s.%s", srcSchema.Schema, srcTable))
-				return err
-			}
-			meta, _ := op.Metadata()
-			jobId := strings.Split(meta.Batch, "/")[5]
-
-			jobUrl := fmt.Sprintf("https://console.cloud.google.com/dataproc/batches/%s/%s?project=%s", location, jobId, dataprocRequestParams.Project)
-			mutex.Lock()
-			conv.Audit.DataprocMetadata.SrcTable[spannerTableID] = srcTable
-			conv.Audit.DataprocMetadata.DataprocJobUrls[spannerTableID] = jobUrl
-			conv.Audit.DataprocMetadata.DataprocJobIds[spannerTableID] = jobId
-			conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = internal.DataprocRunning
-			mutex.Unlock()
-			logger.Log.Info(fmt.Sprintf("Dataproc template triggered for %s.%s : %s", srcSchema.Schema, srcTable, jobUrl))
-
-			_, err = op.Wait(ctx)
-			if err != nil {
-				mutex.Lock()
-				conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = internal.DataprocFailed
-				logger.Log.Error(fmt.Sprintf("Error completing the batch [%s]:\n %s\n", jobId, err.Error()))
-				logger.Log.Error(fmt.Sprintf("Failing data migration from Dataproc template for %s.%s, Check: %s for more details\n", srcSchema.Schema, srcTable, jobUrl))
-				mutex.Unlock()
-				return err
-			}
-			mutex.Lock()
-			conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = internal.DataprocSuccess
-			mutex.Unlock()
-
-			if conv.DataFlush != nil {
-				conv.DataFlush()
-			}
-
-			if !conv.Audit.DryRun {
-				progressCtr++
-				conv.Audit.Progress.MaybeReport(int64(progressCtr))
-			}
-			return nil
-		}
+	for _, t := range conv.SpSchema {
+		spannerTableID := t.Id
+		conv.Audit.DataprocMetadata.SrcTable[spannerTableID] = conv.SrcSchema[spannerTableID].Name
+		conv.Audit.DataprocMetadata.DataprocJobUrls[spannerTableID] = "#"
+		conv.Audit.DataprocMetadata.DataprocJobIds[spannerTableID] = "#"
+		conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = internal.DataprocQueued
+		logger.Log.Debug(fmt.Sprintf("Queued: %s :: %s.%s", spannerTableID, conv.SrcSchema[spannerTableID].Schema, conv.SrcSchema[spannerTableID].Name))
 	}
 
-	asyncProcessTable := func(spannerTableID string, mutex *sync.Mutex) common.TaskResult[string] {
+	var processTable func(spannerTableID string, mutex *sync.Mutex) error
+	var asyncProcessTable func(spannerTableID string, mutex *sync.Mutex) common.TaskResult[string]
+
+	processTable = func(spannerTableID string, mutex *sync.Mutex) error {
+		srcTable := conv.SrcSchema[spannerTableID].Name
+		srcSchema := conv.SrcSchema[spannerTableID]
+		primaryKeys, _, _ := infoSchema.GetConstraints(conv, common.SchemaAndName{Name: srcTable, Schema: srcSchema.Schema})
+
+		dataprocRequestParams, err := dproc.GetDataprocRequestParams(sourceProfile, targetProfile, srcSchema.Schema, srcTable, strings.Join(primaryKeys, ","), location, subnet)
+		if err != nil {
+			return err
+		}
+
+		op, err := dproc.TriggerDataprocTemplate(ctx, batchClient, srcTable, srcSchema.Schema, strings.Join(primaryKeys, ","), dataprocRequestParams)
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("Failing to trigger Dataproc template for %s.%s", srcSchema.Schema, srcTable))
+			return err
+		}
+		meta, _ := op.Metadata()
+		jobId := strings.Split(meta.Batch, "/")[5]
+
+		jobUrl := fmt.Sprintf("https://console.cloud.google.com/dataproc/batches/%s/%s?project=%s", location, jobId, dataprocRequestParams.Project)
+		mutex.Lock()
+		conv.Audit.DataprocMetadata.SrcTable[spannerTableID] = srcTable
+		conv.Audit.DataprocMetadata.DataprocJobUrls[spannerTableID] = jobUrl
+		conv.Audit.DataprocMetadata.DataprocJobIds[spannerTableID] = jobId
+		conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = internal.DataprocRunning
+		mutex.Unlock()
+		logger.Log.Info(fmt.Sprintf("Dataproc template triggered for %s.%s : %s", srcSchema.Schema, srcTable, jobUrl))
+
+		_, err = op.Wait(ctx)
+		if err != nil {
+			mutex.Lock()
+			conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = internal.DataprocFailed
+			logger.Log.Error(fmt.Sprintf("Error completing the batch [%s]:\n %s\n", jobId, err.Error()))
+			logger.Log.Error(fmt.Sprintf("Failing data migration from Dataproc template for %s.%s, Check: %s for more details\n", srcSchema.Schema, srcTable, jobUrl))
+			mutex.Unlock()
+			return err
+		}
+		mutex.Lock()
+		conv.Audit.DataprocMetadata.DataprocJobStatus[spannerTableID] = internal.DataprocSuccess
+		mutex.Unlock()
+
+		if conv.DataFlush != nil {
+			conv.DataFlush()
+		}
+
+		if !conv.Audit.DryRun {
+			progressCtr++
+			conv.Audit.Progress.MaybeReport(int64(progressCtr))
+		}
+		return nil
+	}
+
+	asyncProcessTable = func(spannerTableID string, mutex *sync.Mutex) common.TaskResult[string] {
 		err := processTable(spannerTableID, mutex)
 		if err != nil {
 			return common.TaskResult[string]{Result: "", Err: err}
 		}
+		childTableIds := tableDependencyTree.NodeMap[spannerTableID].GetChildTableIds()
+		logger.Log.Debug(fmt.Sprintf("Finished %v, Next in queue: %v", spannerTableID, childTableIds))
+		if len(childTableIds) > 0 {
+			common.RunParallelTasks(childTableIds, len(childTableIds), asyncProcessTable, false)
+		}
 		return common.TaskResult[string]{Result: "", Err: nil}
 	}
 
-	common.RunParallelTasks(orderTableNamesByID, int(numberOfTables), asyncProcessTable, false)
+	logger.Log.Debug(fmt.Sprintf("Excecution Plan:\n %v", tableDependencyTree.GetTreeString()))
+	rootTableIds := tableDependencyTree.GetRootTableIds()
+	common.RunParallelTasks(rootTableIds, len(rootTableIds), asyncProcessTable, false)
+	logger.Log.Debug("Data migration completed")
 
 	return nil
 }
