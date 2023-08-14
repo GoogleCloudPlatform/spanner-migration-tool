@@ -144,3 +144,30 @@ func (p *Progress) UpdateProgress(message string, pct int, progressStatus Progre
 	p.pct = pct
 	p.ProgressStatus = progressStatus
 }
+
+type DataprocJobStatus int
+
+const (
+	DataprocQueued DataprocJobStatus = iota
+	DataprocRunning
+	DataprocSuccess
+	DataprocFailed
+	DataprocSkipped
+)
+
+// returns the corresponding string value to the DataprocJobStatus
+func (s DataprocJobStatus) String() string {
+	switch s {
+	case DataprocQueued:
+		return "QUEUED"
+	case DataprocRunning:
+		return "RUNNING"
+	case DataprocSuccess:
+		return "SUCCESS"
+	case DataprocFailed:
+		return "FAILED"
+	case DataprocSkipped:
+		return "SKIPPED"
+	}
+	return "UNKNOWN"
+}
