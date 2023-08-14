@@ -396,6 +396,18 @@ func (conv *Conv) AddPrimaryKeys() {
 						for _, indexKey := range index.Keys {
 							ct.PrimaryKeys = append(ct.PrimaryKeys, ddl.IndexKey{ColId: indexKey.ColId, Desc: indexKey.Desc, Order: indexKey.Order})
 							conv.UniquePKey[t] = append(conv.UniquePKey[t], indexKey.ColId)
+
+							// Adding 'Missing Primary Key' as a Warning inside ColumnLevelIssues of conv object
+							tableLevelIssues := conv.SchemaIssues[ct.Id].TableLevelIssues
+							columnLevelIssues := conv.SchemaIssues[ct.Id].ColumnLevelIssues
+							issues := columnLevelIssues[indexKey.ColId]
+							issues = append(issues, MissingPrimaryKey)
+							columnLevelIssues[indexKey.ColId] = issues
+							conv.SchemaIssues[ct.Id] = TableIssues{
+								TableLevelIssues:  tableLevelIssues,
+								ColumnLevelIssues: columnLevelIssues,
+							}
+
 						}
 						primaryKeyPopulated = true
 						ct.Indexes = append(ct.Indexes[:i], ct.Indexes[i+1:]...)
@@ -410,19 +422,19 @@ func (conv *Conv) AddPrimaryKeys() {
 				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}}
 				ct.PrimaryKeys = []ddl.IndexKey{{ColId: columnId, Order: 1}}
 				conv.SyntheticPKeys[t] = SyntheticPKey{columnId, 0}
+
+				// Adding 'Missing Primary Key' as a Warning inside ColumnLevelIssues of conv object
+				tableLevelIssues := conv.SchemaIssues[ct.Id].TableLevelIssues
+				columnLevelIssues := conv.SchemaIssues[ct.Id].ColumnLevelIssues
+				issues := columnLevelIssues[columnId]
+				issues = append(issues, MissingPrimaryKey)
+				columnLevelIssues[columnId] = issues
+				conv.SchemaIssues[ct.Id] = TableIssues{
+					TableLevelIssues:  tableLevelIssues,
+					ColumnLevelIssues: columnLevelIssues,
+				}
 			}
 			conv.SpSchema[t] = ct
-
-			// Adding 'Missing Primary Key' as a Warning inside TableLevelIssues of conv object
-			conv.SchemaIssuesLock.Lock()
-			tableLevelIssues := conv.SchemaIssues[ct.Id].TableLevelIssues
-			columnLevelIssues := conv.SchemaIssues[ct.Id].ColumnLevelIssues
-			tableLevelIssues = append(tableLevelIssues, MissingPrimaryKey)
-			conv.SchemaIssues[ct.Id] = TableIssues{
-				TableLevelIssues: tableLevelIssues,
-				ColumnLevelIssues: columnLevelIssues,
-			}
-			conv.SchemaIssuesLock.Unlock()
 		}
 	}
 }

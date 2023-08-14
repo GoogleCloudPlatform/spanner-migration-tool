@@ -399,6 +399,8 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						Description: fmt.Sprintf("Table '%s': Column %s, %s", conv.SpSchema[tableId].Name, spColName, IssueDB[i].Brief),
 					}
 					l = append(l, toAppend)
+				case internal.MissingPrimaryKey:
+					// We don't want default case to handle the missing primary key warning 
 				default:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
@@ -539,7 +541,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 		CategoryDescription: "Some tables can be interleaved with parent table if primary key order parameter is changed to 1"},
 	internal.InterleavedAddColumn: {Brief: "Candidate for Interleaved Table", severity: suggestion, Category: "ADD_INTERLEAVED_COLUMN",
 		CategoryDescription: "If there is some primary key added in table, it can be interleaved"},
-	internal.IllegalName: {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning, Category: "ILLEAGAL_NAME"},
+	internal.IllegalName: {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning, Category: "ILLEGAL_NAME"},
 	internal.InterleavedRenameColumn: {Brief: "Candidate for Interleaved Table", severity: suggestion, Category: "RENAME_INTERLEAVED_COLUMN_PRIMARY_KEY",
 		CategoryDescription: "If primary key is renamed in table to match the foreign key, the table can be interleaved"},
 	internal.InterleavedChangeColumnSize: {Brief: "Candidate for Interleaved Table", severity: suggestion, Category: "CHANGE_INTERLEAVED_COLUMN_SIZE",
@@ -586,11 +588,6 @@ func AnalyzeCols(conv *internal.Conv, tableId string) (map[string][]internal.Sch
 			}
 		}
 		if colWarning {
-			warnings++
-		}
-	}
-	for _, tableLevelIssue := range conv.SchemaIssues[tableId].TableLevelIssues {
-		if(IssueDB[tableLevelIssue].severity == warning) {
 			warnings++
 		}
 	}
