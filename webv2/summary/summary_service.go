@@ -11,7 +11,6 @@ func getSummary() map[string]ConversionSummary {
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
 	tableReports := reports.AnalyzeTables(sessionState.Conv, nil)
-
 	summary := make(map[string]ConversionSummary)
 	for _, t := range tableReports {
 		cs := ConversionSummary{
