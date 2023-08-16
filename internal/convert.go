@@ -399,7 +399,10 @@ func (conv *Conv) AddPrimaryKeys() {
 
 							// Adding 'Missing Primary Key' as a Warning inside ColumnLevelIssues of conv object
 							tableLevelIssues := conv.SchemaIssues[ct.Id].TableLevelIssues
-							columnLevelIssues := conv.SchemaIssues[ct.Id].ColumnLevelIssues
+							columnLevelIssues := make(map[string][]SchemaIssue)
+							if tableIssues, ok := conv.SchemaIssues[ct.Id]; ok {
+								columnLevelIssues = tableIssues.ColumnLevelIssues
+							}
 							issues := columnLevelIssues[indexKey.ColId]
 							issues = append(issues, MissingPrimaryKey)
 							columnLevelIssues[indexKey.ColId] = issues
@@ -425,10 +428,14 @@ func (conv *Conv) AddPrimaryKeys() {
 
 				// Adding 'Missing Primary Key' as a Warning inside ColumnLevelIssues of conv object
 				tableLevelIssues := conv.SchemaIssues[ct.Id].TableLevelIssues
-				columnLevelIssues := conv.SchemaIssues[ct.Id].ColumnLevelIssues
+				columnLevelIssues := make(map[string][]SchemaIssue)
+				if tableIssues, ok := conv.SchemaIssues[ct.Id]; ok {
+					columnLevelIssues = tableIssues.ColumnLevelIssues
+				}
 				issues := columnLevelIssues[columnId]
 				issues = append(issues, MissingPrimaryKey)
 				columnLevelIssues[columnId] = issues
+
 				conv.SchemaIssues[ct.Id] = TableIssues{
 					TableLevelIssues:  tableLevelIssues,
 					ColumnLevelIssues: columnLevelIssues,
