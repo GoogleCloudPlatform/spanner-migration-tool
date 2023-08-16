@@ -17,12 +17,12 @@ package summary
 import (
 	"testing"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -78,7 +78,7 @@ func TestGetSummary(t *testing.T) {
 
 		actualSummary := getSummary()
 
-		assert.Equal(t, []string([]string{"Column 'cn1': type varchar is mapped to string(0). Spanner does not support time/year types"}), actualSummary["t1"].Warnings)
+		assert.Equal(t, []string([]string{"Table 'tn1': Column 'cn1', type varchar is mapped to string(0). Spanner does not support time/year types"}), actualSummary["t1"].Warnings)
 		assert.Equal(t, int(1), actualSummary["t1"].WarningsCount)
 
 	}
