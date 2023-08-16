@@ -47,7 +47,7 @@ such as `csv`, `avro` etc.
 * **`streamingCfg`**: Optional flag. Specifies the file path for streaming config.
 Please note that streaming migration is only supported for MySQL, Oracle and PostgreSQL databases currently.
 
-### Target Profile
+## Target Profile
 
 Spanner migration tool accepts the following options for --target-profile,
 specified as "key1=value1,key2=value,..." pairs:
