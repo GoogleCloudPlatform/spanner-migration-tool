@@ -23,6 +23,34 @@ Following instructions assume you have setup SMT by following the instructions i
 {:toc}
 </details>
 
+## Generating dump files
+
+If you are using pg_dump , check that pg_dump is
+correctly configured to connect to your PostgreSQL
+database. Note that pg_dump uses the same options as psql to connect to your
+database. See the [psql](https://www.postgresql.org/docs/9.3/app-psql.html) and
+[pg_dump](https://www.postgresql.org/docs/9.3/app-pgdump.html) documentation.
+
+Access to a PostgreSQL database is typically configured using the
+_PGHOST_, _PGPORT_, _PGUSER_, _PGDATABASE_ environment variables,
+which are standard across PostgreSQL utilities.
+
+It is also possible to configure access via pg_dump's command-line options
+`--host`, `--port`, and `--username`.
+
+```sh
+{ pg_dump } > file
+```
+
+and look at the output file. It should be a plain-text file containing SQL
+commands. If your database is large, consider just dumping the schema via the
+`--schema-only` for pg_dump and `--no-data` for pg_dump command-line option.
+
+pg_dump can export data in a variety of formats, but Spanner migration tool
+only accepts `plain` format (aka plain-text). See the
+[pg_dump documentation](https://www.postgresql.org/docs/9.3/app-pgdump.html)
+for details about formats.
+
 ## Using Spanner migration tool with pg_dump
 
 The tool can used to migrate schema from an existing pg_dump file:

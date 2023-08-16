@@ -2,7 +2,7 @@
 layout: default
 title: web command
 parent: SMT CLI
-nav_order: 5
+nav_order: 4
 ---
 
 # Web subcommand

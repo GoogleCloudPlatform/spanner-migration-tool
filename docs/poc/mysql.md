@@ -23,6 +23,32 @@ Following instructions assume you have setup SMT by following the instructions i
 {:toc}
 </details>
 
+## Generating dump files
+
+If you are using mysqldump, check that mysqldump is correctly configured to
+connect to your MySQL database via the command-line options `--host`, `--port`,
+and `--user`. Note that mysqldump uses the same options as mysql to connect to
+your database. See the
+[mysql](https://dev.mysql.com/doc/refman/8.0/en/mysql-commands.html) and
+[mysqldump](https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html)
+documentation.
+
+Next, verify that mysqldump is generating plain-text output. If your
+database is small, try running
+
+```sh
+{ mysqldump } > file
+```
+
+and look at the output file. It should be a plain-text file containing SQL
+commands. If your database is large, consider just dumping the schema via the
+`--schema-only` for pg_dump and `--no-data` for mysqldump command-line option.
+
+mysqldump can export data in a variety of formats, but Spanner migration tool
+only accepts `plain` format (aka plain-text). See the
+[mysqldump documentation](https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html)
+for details about formats.
+
 ## Using Spanner migration tool with mysqldump
 
 The tool can be used to migrate schema from an existing mysqldump file:

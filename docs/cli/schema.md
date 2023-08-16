@@ -2,7 +2,7 @@
 layout: default
 title: schema command
 parent: SMT CLI
-nav_order: 2
+nav_order: 1
 ---
 
 # Schema subcommand

@@ -93,3 +93,20 @@ cd spanner-migration-tool
 make build
 ./spanner-migrationt-tool help
 ```
+
+## Setting up the emulator
+
+To run migrations against a local instance without having to connect to Cloud
+spanner each time follow the following steps:
+
+- **Start the emulator:**
+
+    ```sh
+    gcloud emulators spanner start
+    ```
+
+- **Set the SPANNER_EMULATOR_HOST:**
+
+    ```sh
+    export SPANNER_EMULATOR_HOST=localhost:9010
+    ```

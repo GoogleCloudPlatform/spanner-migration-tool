@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Error Handling
+title: Minimal downtime migration
 parent: Troubleshooting
 nav_order: 1
 ---
@@ -8,7 +8,7 @@ nav_order: 1
 # Error handling
 {: .no_toc }
 
-This section gives information about how to track errors that have occurred during migration via metrics and how to retry the errored records.
+This section gives information about how to track errors that have occurred during minimal downtime migration via metrics and how to retry the errored records.
 
 <details open markdown="block">
   <summary>

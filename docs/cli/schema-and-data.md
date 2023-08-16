@@ -2,7 +2,7 @@
 layout: default
 title: schema-and-data command
 parent: SMT CLI
-nav_order: 4
+nav_order: 3
 ---
 
 # Schema-and-data subcommand
