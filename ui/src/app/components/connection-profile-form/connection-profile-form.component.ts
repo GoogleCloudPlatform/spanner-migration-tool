@@ -27,6 +27,7 @@ export class ConnectionProfileFormComponent implements OnInit {
   isSource: boolean = false
   sourceDatabaseType: string = ''
   testSuccess: boolean = false
+  testingSourceConnection: boolean = false
   constructor(
     private fetch: FetchService,
     private snack: SnackbarService,
@@ -41,7 +42,7 @@ export class ConnectionProfileFormComponent implements OnInit {
     }
     this.connectionProfileForm = this.formBuilder.group({
       profileOption: ['', Validators.required],
-      newProfile: [],
+      newProfile: ['',[Validators.pattern('^[a-z][a-z0-9-]{0,59}$')]],
       existingProfile: [],
       replicationSlot: [],
       publication: [],
@@ -70,6 +71,7 @@ export class ConnectionProfileFormComponent implements OnInit {
     }
   }
   testConnection() {
+    this.testingSourceConnection = true
     let formValue = this.connectionProfileForm.value
     let payload: ICreateConnectionProfile = {
       Id: formValue.newProfile,
@@ -78,11 +80,13 @@ export class ConnectionProfileFormComponent implements OnInit {
     }
     this.fetch.createConnectionProfile(payload).subscribe({
       next: () => {
+        this.testingSourceConnection = false
         this.testSuccess = true
       },
       error: (err: any) => {
+        this.testingSourceConnection = false
         this.testSuccess = false
-        this.errorMsg = err
+        this.errorMsg = err.error
       },
     })
   }

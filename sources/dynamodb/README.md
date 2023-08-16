@@ -1,28 +1,28 @@
-# HarbourBridge: DynamoDB-to-Spanner Evaluation and Migration
+# Spanner migration tool: DynamoDB-to-Spanner Evaluation and Migration
 
-HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and migration,
+Spanner migration tool (formerly known as HarbourBridge) is a stand-alone open source tool for Cloud Spanner evaluation and migration,
 using data from an existing database. This
 README provides details of the tool's DynamoDB capabilities. For general
-HarbourBridge information see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-spanner-evaluation-and-migration).
+Spanner migration tool information see this [README](https://github.com/GoogleCloudPlatform/spanner-migration-tool#spanner-migration-tool-spanner-evaluation-and-migration).
 
 ## Example DynamoDB Usage
 
-Before running HarbourBridge, make sure that you have
+Before running Spanner migration tool, make sure that you have
 [set up your AWS credentials/region](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html)
 correctly (set the environment variables `AWS_ACCESS_KEY_ID`,
-`AWS_SECRET_ACCESS_KEY`, `AWS_REGION`). HarbourBridge accesses your
+`AWS_SECRET_ACCESS_KEY`, `AWS_REGION`). Spanner migration tool accesses your
 DynamoDB database via the aws go sdk package. If you use a custom endpoint
 for dynamodb, you can specify that using the environment variable
 `DYNAMODB_ENDPOINT_OVERRIDE`.
 
-The following examples assume a harbourbridge alias has been setup as described
-in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
+The following examples assume a spanner-migration-tool alias has been setup as described
+in the [Installing Spanner migration tool](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
 
 For example, run
 
 ```sh
 export DYNAMODB_ENDPOINT_OVERRIDE=http://dynamodb.us-west-2.amazonaws.com
-harbourbridge schema -source=dynamodb 
+spanner-migration-tool schema -source=dynamodb 
 ```
 
 Instead of setting the environment variables, you
@@ -33,7 +33,7 @@ can also pass corresponding source profile connection parameters `aws-access-key
 For example, to perform schema conversion, run
 
 ```sh
-harbourbridge schema -source=dynamodb -source-profile="aws-access-key-id=<>,aws-secret-access-key=<>,aws-region=<>"
+spanner-migration-tool schema -source=dynamodb -source-profile="aws-access-key-id=<>,aws-secret-access-key=<>,aws-region=<>"
 ```
 
 This will generate a session file with `session.json` suffix. This file contains
@@ -44,36 +44,36 @@ during data migration.
 For example, run
 
 ```sh
-harbourbridge data -session=mydb.session.json -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance,,dbName=my-spanner-database-name"
+spanner-migration-tool data -session=mydb.session.json -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance,,dbName=my-spanner-database-name"
 ```
 
-You can also run HarbourBridge in a schema-and-data mode, where it will perform both
+You can also run Spanner migration tool in a schema-and-data mode, where it will perform both
 schema and data migration. This is useful for quick evaluation when source
 database size is small.
 
 ```sh
-harbourbridge schema-and-data -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance,..."
+spanner-migration-tool schema-and-data -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance,..."
 ```
 
-HarbourBridge generates a report file, a schema file, and a bad-data file (if
+Spanner migration tool generates a report file, a schema file, and a bad-data file (if
 there are bad-data rows). You can control where these files are written by
 specifying a file prefix. For example,
 
 ```sh
-harbourbridge schema -prefix=mydb. -source=dynamodb -source-profile="aws-access-key-id=<>,..."
+spanner-migration-tool schema -prefix=mydb. -source=dynamodb -source-profile="aws-access-key-id=<>,..."
 ```
 
 will write files `mydb.report.txt`, `mydb.schema.txt`, and
 `mydb.dropped.txt`. The prefix can also be a directory. For example,
 
 ```sh
-harbourbridge schema -prefix=~/spanner-eval-mydb/ -source=dynamodb -source-profile="aws-access-key-id=<>,..."
+spanner-migration-tool schema -prefix=~/spanner-eval-mydb/ -source=dynamodb -source-profile="aws-access-key-id=<>,..."
 ```
 
 would write the files into the directory `~/spanner-eval-mydb/`. Note
-that HarbourBridge will not create directories as it writes these files.
+that Spanner migration tool will not create directories as it writes these files.
 
-HarbourBridge accepts an additional param `schema-sample-size` for
+Spanner migration tool accepts an additional param `schema-sample-size` for
 `-source-profile` for DynamoDB. Due to the schemaless nature of DynamoDB, the
 tool infers the schema based on a certain amount of sampled data, by default,
 100000 rows. If a table has more rows than the default value, we only use
@@ -83,7 +83,7 @@ of rows to use for inferring schema. The default value is 100,000.
 Sample usage:
 
 ```sh
-harbourbridge schema -source=dynamodb -source-profile="schema-sample-size=500000,aws-access-key-id=<>,..."
+spanner-migration-tool schema -source=dynamodb -source-profile="schema-sample-size=500000,aws-access-key-id=<>,..."
 ```
 
 ## DynamoDB Streaming Migration Usage
@@ -97,7 +97,7 @@ not be considered for streaming migration.
 
 1. Start the streaming migration. Example usage
 ```sh
-harbourbridge schema-and-data -source=dynamodb -source-profile="aws-access-key-id=<>,...,enableStreaming=<>" -target-profile="instance=my-spanner-instance,..."
+spanner-migration-tool schema-and-data -source=dynamodb -source-profile="aws-access-key-id=<>,...,enableStreaming=<>" -target-profile="instance=my-spanner-instance,..."
 ```
 Valid choices for enableStreaming: `yes`, `no`, `true`, `false`
 
@@ -109,7 +109,7 @@ Valid choices for enableStreaming: `yes`, `no`, `true`, `false`
 
 ## Schema Conversion
 
-The HarbourBridge tool maps DynamoDB types to Spanner types as follows:
+The Spanner migration tool maps DynamoDB types to Spanner types as follows:
 
 | DynamoDB Type      | Spanner Type               | Notes                                     |
 | ------------------ | -------------------------- | ----------------------------------------- |
@@ -134,7 +134,7 @@ secondary index, column names and types are essentially unconstrained
 and can vary from one row to the next.
 
 However, many customers use DynamoDB in a consistent, structured way
-with a fairly well defined set of columns and types. Our HarbourBridge support
+with a fairly well defined set of columns and types. Our Spanner migration tool support
 for DynamoDB focuses on this use-case, and we construct a Spanner schema
 by inspecting table data.
 

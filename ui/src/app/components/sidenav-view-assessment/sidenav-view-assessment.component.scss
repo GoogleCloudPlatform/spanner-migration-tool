@@ -24,20 +24,41 @@ table.mat-table {
   text-align: center;
 }
 
-.sidenav-view-assessment-container{
-  .sidenav-view-assessment-header{
-    padding:5px 20px;
+.sidenav-view-assessment-container {
+  .sidenav-view-assessment-header {
+    padding: 7px 16px;
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid rgb(208, 204, 204);
-    .header-title{
-        margin:0;
+    border-bottom: 1px solid #d0cccc;
+    justify-content: space-between;
+
+    .header-title {
+      margin: 0;
+    }
+  
+    .reportsButtons {
+      white-space: nowrap;
+    }
+    .split-button-left {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .split-button-right {
+      width: 30px !important;
+      min-width: unset !important;
+      padding: 0 8px 0 2px;
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+      border-left: 1px solid #fafafa;
+    }
+
+    .close-button {
+      margin-left: 1.25px;
     }
   }
-
-  .content{
+  .content {
     padding-left: 15px;
     padding-top: 10px;
   }

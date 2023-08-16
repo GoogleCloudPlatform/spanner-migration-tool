@@ -1,8 +1,8 @@
 <div mat-dialog-content class="connect-load-database-container">
     <form [formGroup]="migrationProfileForm" class="conn-profile-form">
-        <span class="mat-h2 header-title">Configure Migration Profile</span>
+        <span class="mat-h2 header-title">Datastream Details</span>
         <br>
-        <b>Note: Please configure the schema source used for schema conversion if you want Harbourbridge to migrate data
+        <b>Note: Please configure the database used for schema conversion, if you want Spanner migration tool to migrate data
             from it as well.</b>
         <div class="top">`
             <div class="top-1">
@@ -57,8 +57,8 @@
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                     <mat-label>Data Shard Id</mat-label>
-                    <input matInput placeholder="Data ShardId" type="text" formControlName="dataShardId"
-                        required="true" />
+                    <input matInput [value]="inputValue" type="text" formControlName="dataShardId"
+                        required="true" readonly/>
                 </mat-form-field>
             </div>
             <div *ngIf="(selectedSourceProfileOption === 'new')">
@@ -78,22 +78,23 @@
                     <mat-label>Password</mat-label>
                     <input matInput placeholder="Password" type="password" formControlName="password" required="true" />
                 </mat-form-field>
-                <mat-form-field appearance="outline">
+                <mat-form-field appearance="outline" hintLabel="Name can include lower case letters, numbers and hyphens. Must start with a letter.">
                     <mat-label>Connection profile name</mat-label>
                     <input matInput placeholder="Connection profile name" type="text" formControlName="newSourceProfile"
                         required="true" />
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                     <mat-label>Data Shard Id</mat-label>
-                    <input matInput placeholder="Data ShardId" type="text" formControlName="dataShardId"
-                        required="true" />
+                    <input matInput [value]="inputValue" type="text" formControlName="dataShardId"
+                        required="true" readonly/>
                 </mat-form-field>
             </div>
+            <br>
             <div *ngIf="(selectedSourceProfileOption === 'new')">
                 <div><b>Copy the public IPs below, and use them to configure the network firewall to accept
                         connections
                         from them.</b><a
-                        href="https://cloud.google.com/datastream/docs/network-connectivity-options#ipallowlists">Learn
+                        href="https://cloud.google.com/datastream/docs/network-connectivity-options#ipallowlists" target="_blank">Learn
                         More</a></div>
                 <br>
                 <li *ngFor="let ip of ipList" class="connection-form-container">
@@ -104,29 +105,46 @@
                 </li>
                 <div *ngIf="!testSuccess && errorSrcMsg != ''" class="failure">
                     <span class="left-text">Test connection failed</span>
-                    <mat-icon class="icon error" matTooltip="Test connection failed" matTooltipPosition="above">
+                    <mat-icon class="icon error" [matTooltip]="errorSrcMsg" matTooltipPosition="above">
                         error
                     </mat-icon>
                 </div>
                 <br>
+                <div *ngIf="testingSourceConnection">
+                    <br>
+                    <span class="spinner">
+                        <mat-spinner [diameter]="20">
+                        </mat-spinner>
+                    </span>
+                    <span class="spinner-small-text">Testing Connection</span><br>
+                </div>
+                <div *ngIf="creatingSourceConnection">
+                    <br>
+                    <span class="spinner">
+                        <mat-spinner [diameter]="20">
+                        </mat-spinner>
+                    </span>
+                    <span class="spinner-small-text">Creating source connection profile</span><br>
+                </div>
                 <mat-icon *ngIf="testSuccess" class="success" matTooltip="Test connection successful"
                     matTooltipPosition="above">
                     check_circle
                 </mat-icon>
                 <button mat-raised-button type="button" color="primary"
-                [disabled]="!determineConnectionProfileInfoValidity()"
+                [disabled]="!determineConnectionProfileInfoValidity() || testingSourceConnection"
                     (click)="createOrTestConnection(true, true)">TEST
                     CONNECTION</button>
                 <mat-icon *ngIf="createSrcConnSuccess" class="success" matTooltip="Profile creation successful"
                     matTooltipPosition="above">
                     check_circle
                 </mat-icon>
-                <button mat-raised-button type="button" color="warn" [disabled]="!testSuccess"
+                <button mat-raised-button type="button" color="warn" [disabled]="!testSuccess || creatingSourceConnection"
                     (click)="createOrTestConnection(true, false)">CREATE
                     PROFILE</button>
             </div>
             <hr>
             <span class="mat-h4 header-title">Configure ShardId and Database Names</span>
+            <mat-icon class="configure" matTooltip="Logical Shard ID value will be used to populate the migration_shard_id column added as part of sharded database migration">info</mat-icon>
             <br><br>
             <span class="border">
                 <ng-container formArrayName="shardMappingTable">
@@ -137,7 +155,7 @@
                                 <input matInput formControlName="logicalShardId" placeholder="Enter Logical ShardID">
                             </mat-form-field>
                             <mat-form-field appearance="outline">
-                                <mat-label>Database Name</mat-label>
+                                <mat-label>Source Database Name</mat-label>
                                 <input matInput formControlName="dbName" placeholder="Enter Database Name">
                             </mat-form-field>
                             <mat-icon class="delete-btn" (click)="deleteRow(i)">
@@ -173,17 +191,25 @@
                 </mat-form-field>
             </div>
             <div *ngIf="(selectedTargetProfileOption === 'new')">
-                <mat-form-field appearance="outline">
+                <mat-form-field appearance="outline" hintLabel="Name can include lower case letters, numbers and hyphens. Must start with a letter.">
                     <mat-label>Connection profile name</mat-label>
                     <input matInput placeholder="Connection profile name" type="text" formControlName="newTargetProfile"
                         required="true" />
                 </mat-form-field>
+                <div *ngIf="creatingTargetConnection">
+                    <br>
+                    <span class="spinner">
+                        <mat-spinner [diameter]="20">
+                        </mat-spinner>
+                    </span>
+                    <span class="spinner-small-text">Creating target connection profile</span><br>
+                </div>
                 <mat-icon *ngIf="createTgtConnSuccess" class="success" matTooltip="Profile creation successful"
                     matTooltipPosition="above">
                     check_circle
                 </mat-icon>
                 <button mat-raised-button type="button" color="warn"
-                    (click)="createOrTestConnection(false, false)">CREATE
+                    (click)="createOrTestConnection(false, false)" [disabled]="creatingTargetConnection">CREATE
                     PROFILE</button>
                 <div *ngIf="errorTgtMsg!=''" class="failure">
                     <span class="left-text">{{ errorTgtMsg }}</span>

@@ -14,9 +14,10 @@ import IConv, {
 import IDumpConfig, { IConvertFromDumpRequest } from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
-import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
+import IMigrationDetails, { IGeneratedResources, IProgress, ITables } from 'src/app/model/migrate'
 import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IMigrationProfile } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
+import IStructuredReport from 'src/app/model/structured-report'
 
 @Injectable({
   providedIn: 'root',
@@ -110,6 +111,18 @@ export class FetchService {
     return this.http.post<IConv>(`${this.url}/convert/session`, payload)
   }
 
+  getDStructuredReport(){
+    return this.http.get<IStructuredReport>(`${this.url}/downloadStructuredReport`)
+  }
+
+  getDTextReport(){
+    return this.http.get<string>(`${this.url}/downloadTextReport`)
+  }
+
+  getDSpannerDDL(){
+    return this.http.get<string>(`${this.url}/downloadDDL`)
+  }
+
   getConversionRate() {
     return this.http.get<Record<string, string>>(`${this.url}/conversion`)
   }
@@ -144,6 +157,10 @@ export class FetchService {
     return this.http.get(`${this.url}/typemap`)
   }
 
+  getSpannerDefaultTypeMap() {
+    return this.http.get(`${this.url}/spannerDefaultTypeMap`)
+  }
+
   reviewTableUpdate(tableName: string, data: IUpdateTable): any {
     return this.http.post<HttpResponse<IReviewUpdateTable>>(
       `${this.url}/typemap/reviewTableSchema?table=${tableName}`,
@@ -159,11 +176,19 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/removeParent?tableId=${tableId}`, {})
   }
 
+  restoreTables(payload: ITables) {
+    return this.http.post(`${this.url}/restore/tables`, payload)
+  }
+
   restoreTable(tableId: string) {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?table=${tableId}`, {})
   }
   dropTable(tableId: string) {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/table?table=${tableId}`, {})
+  }
+  
+  dropTables(payload: ITables) {
+    return this.http.post(`${this.url}/drop/tables`, payload)
   }
 
   updatePk(pkObj: IPrimaryKey) {

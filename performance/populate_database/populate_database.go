@@ -22,7 +22,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/cloudspannerecosystem/harbourbridge/performance"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/performance"
 	"github.com/go-sql-driver/mysql"
 )
 

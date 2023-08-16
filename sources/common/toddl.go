@@ -35,10 +35,10 @@ import (
 	"strconv"
 	"unicode"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 // ToDdl interface is meant to be implemented by all sources. When support for a
@@ -103,13 +103,25 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 		if srcCol.Ignored.AutoIncrement { //TODO(adibh) - check why this is not there in postgres
 			issues = append(issues, internal.AutoIncrement)
 		}
+		// Set the not null constraint to false for unsupported source datatypes
+		isNotNull := srcCol.NotNull
+		if findSchemaIssue(issues, internal.NoGoodType) != -1 {
+			isNotNull = false
+		}
+		// Set the not null constraint to false for array datatype and add a warning because
+		// datastream does not support array datatypes.
+		if ty.IsArray {
+			issues = append(issues, internal.ArrayTypeNotSupported)
+			isNotNull = false
+		}
 		if len(issues) > 0 {
 			columnLevelIssues[srcColId] = issues
 		}
+
 		spColDef[srcColId] = ddl.ColumnDef{
 			Name:    colName,
 			T:       ty,
-			NotNull: srcCol.NotNull,
+			NotNull: isNotNull,
 			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			Id:      srcColId,
 		}
@@ -239,6 +251,7 @@ func cvtForeignKeysForAReferenceTable(conv *internal.Conv, tableId string, refer
 			if err != nil {
 				continue
 			}
+
 			spKey.Id = key.Id
 			spKeys = append(spKeys, spKey)
 		}
@@ -255,8 +268,8 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 		for _, v := range spColIds {
 			if v == k.ColId {
 				isPresent = true
-				if (conv.SpDialect == constants.DIALECT_POSTGRESQL) {
-					if(spColDef[v].T.Name == ddl.Numeric) {
+				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+					if spColDef[v].T.Name == ddl.Numeric {
 						//index on NUMERIC is not supported in PGSQL Dialect currently.
 						//Indexes which contains a NUMERIC column in it will need to be skipped.
 						return ddl.CreateIndex{}

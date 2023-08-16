@@ -25,10 +25,10 @@ import (
 
 	"cloud.google.com/go/spanner"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	pg_query "github.com/pganalyze/pg_query_go/v2"
 	"github.com/stretchr/testify/assert"
 )
@@ -89,9 +89,9 @@ func TestProcessPgDump(t *testing.T) {
 	}{
 		{"text", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
 		{"text NOT NULL", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
-		{"text array[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}}},
-		{"text[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}}},
-		{"text[]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}}},
+		{"text array[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}}},
+		{"text[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}}},
+		{"text[]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}}},
 		{"text[][]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}}, // Unrecognized array type mapped to string.
 	}
 	for _, tc := range singleColTests {
@@ -699,7 +699,7 @@ COPY test (id, a, b, c, d, e, f, g) FROM stdin;
 					table: "test", cols: []string{"int8", "float8", "bool", "timestamp", "date", "bytea", "arr", "synth_id"},
 					vals: []interface{}{int64(7), float64(42.1), true, getTime(t, "2019-10-29T05:30:00Z"),
 						getDate("2019-10-29"), []byte{0x0, 0x1, 0xbe, 0xef},
-						[]spanner.NullInt64{{Int64: 42, Valid: true}, {Int64: 6, Valid: true}},
+						"{42,6}",
 						fmt.Sprintf("%d", bitReverse(0))}},
 				spannerData{table: "test", cols: []string{"int8", "synth_id"}, vals: []interface{}{int64(7), fmt.Sprintf("%d", bitReverse(1))}},
 				spannerData{table: "test", cols: []string{"float8", "synth_id"}, vals: []interface{}{float64(42.1), fmt.Sprintf("%d", bitReverse(2))}},
@@ -708,14 +708,16 @@ COPY test (id, a, b, c, d, e, f, g) FROM stdin;
 				spannerData{table: "test", cols: []string{"date", "synth_id"}, vals: []interface{}{getDate("2019-10-29"), fmt.Sprintf("%d", bitReverse(5))}},
 				spannerData{table: "test", cols: []string{"bytea", "synth_id"}, vals: []interface{}{[]byte{0x0, 0x1, 0xbe, 0xef}, fmt.Sprintf("%d", bitReverse(6))}},
 				spannerData{table: "test", cols: []string{"arr", "synth_id"},
-					vals: []interface{}{[]spanner.NullInt64{{Int64: 42, Valid: true}, {Int64: 6, Valid: true}}, fmt.Sprintf("%d", bitReverse(7))}},
+					vals: []interface{}{"{42,6}", fmt.Sprintf("%d", bitReverse(7))}},
+				spannerData{table: "test", cols: []string{"arr", "synth_id"},
+					vals: []interface{}{"{42, 6}", fmt.Sprintf("%d", bitReverse(8))}},
 			},
 		},
 	}
 	for _, tc := range dataErrorTests {
 		conv, rows := runProcessPgDump(tc.input)
 		assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-		assert.Equal(t, conv.BadRows(), int64(7), tc.name+": Error count did not match")
+		assert.Equal(t, conv.BadRows(), int64(6), tc.name+": Error count did not match")
 	}
 }
 

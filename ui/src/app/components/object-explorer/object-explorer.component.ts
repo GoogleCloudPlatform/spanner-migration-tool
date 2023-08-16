@@ -8,6 +8,12 @@ import { SidenavService } from '../../services/sidenav/sidenav.service'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 import IConv from '../../model/conv'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
+import { SelectionModel } from '@angular/cdk/collections'
+import { DataService } from 'src/app/services/data/data.service'
+import { take } from 'rxjs'
+import { ITableState, ITables } from 'src/app/model/migrate'
+import { MatDialog } from '@angular/material/dialog'
+import { BulkDropRestoreTableDialogComponent } from '../bulk-drop-restore-table-dialog/bulk-drop-restore-table-dialog.component'
 
 @Component({
   selector: 'app-object-explorer',
@@ -28,6 +34,7 @@ export class ObjectExplorerComponent implements OnInit {
   @Output() updateSpannerTable = new EventEmitter<IUpdateTableArgument>()
   @Output() updateSrcTable = new EventEmitter<IUpdateTableArgument>()
   @Output() leftCollaspe: EventEmitter<any> = new EventEmitter()
+  @Output() updateSidebar = new EventEmitter<boolean>()
   @Input() spannerTree: ISchemaObjectNode[] = []
   @Input() srcTree: ISchemaObjectNode[] = []
   @Input() srcDbName: string = ''
@@ -66,14 +73,17 @@ export class ObjectExplorerComponent implements OnInit {
   )
   dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener)
   srcDataSource = new MatTreeFlatDataSource(this.srcTreeControl, this.treeFlattener)
+  checklistSelection = new SelectionModel<FlatNode>(true, []);
 
   displayedColumns: string[] = ['status', 'name']
 
   constructor(
     private conversion: ConversionService,
+    private dialog: MatDialog,
+    private data: DataService,
     private sidenav: SidenavService,
     private clickEvent: ClickEventService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.clickEvent.tabToSpanner.subscribe({
@@ -148,6 +158,13 @@ export class ObjectExplorerComponent implements OnInit {
     return new RegExp('^indexes').test(name)
   }
 
+  isIndexLikeNode(data: FlatNode): boolean {
+    if (data.type == ObjectExplorerNodeType.Index || data.type == ObjectExplorerNodeType.Indexes) {
+      return true
+    }
+    return false
+  }
+
   openAddIndexForm(tableName: string): void {
     this.sidenav.setSidenavAddIndexTable(tableName)
     this.sidenav.setSidenavRuleType('addIndex')
@@ -181,5 +198,138 @@ export class ObjectExplorerComponent implements OnInit {
   }
   setSpannerTab() {
     this.selectedIndex = 1
+  }
+
+  checkDropSelection(): boolean {
+    let countByCategory = this.countSelectionByCategory()
+    if (countByCategory.eligibleForDrop != 0) {
+      return true
+    }
+    return false
+  }
+
+  checkRestoreSelection(): boolean {
+    let countByCategory = this.countSelectionByCategory()
+    if (countByCategory.eligibleForRestore != 0) {
+      return true
+    }
+    return false
+  }
+
+  countSelectionByCategory(): {eligibleForDrop: number, eligibleForRestore: number} {
+    const values = this.checklistSelection.selected
+    let eligibleForDrop = 0
+    let eligibleForRestore = 0
+    values.forEach((flatNode) => {
+      if (!flatNode.isDeleted) {
+        eligibleForDrop += 1
+      } else {
+        eligibleForRestore += 1
+      }
+    })
+    return {eligibleForDrop: eligibleForDrop, eligibleForRestore: eligibleForRestore}
+  }
+
+  dropSelected() {
+    //selected values to be dropped
+    const values = this.checklistSelection.selected
+    var tablesWithState: ITableState[] = []
+    
+    values.forEach((flatNode) => {
+      if (flatNode.id != "" && flatNode.type == ObjectExplorerNodeType.Table) {
+        let table: ITableState = {
+          TableId: flatNode.id,
+          TableName: flatNode.name,
+          isDeleted: flatNode.isDeleted
+        }
+        tablesWithState.push(table)
+      }
+    })
+    //confirm from the user
+    let openDialog = this.dialog.open(BulkDropRestoreTableDialogComponent, {
+      width: '35vw',
+      minWidth: '450px',
+      maxWidth: '600px',
+      maxHeight: '90vh',
+      data: { tables: tablesWithState, operation: 'SKIP' },
+    })
+    //state is ephimeral (UI only), and name is not relevant to the API.
+    var tables: ITables = {
+      TableList: []
+    };
+    tablesWithState.forEach((tableWithState) => {
+      tables.TableList.push(tableWithState.TableId)
+    })
+    //upon confirmation, delete
+    openDialog.afterClosed().subscribe((res: string) => {
+      if (res == 'SKIP') {
+        this.data.dropTables(tables)
+          .pipe(take(1))
+          .subscribe((res: string) => {
+            if (res === '') {
+              this.data.getConversionRate()
+              this.updateSidebar.emit(true)
+            }
+          })
+          //clear selection after a successful operation
+          this.checklistSelection.clear()
+      }
+    })
+  }
+
+  restoreSelected() {
+    //selected values to be restored
+    const values = this.checklistSelection.selected
+    var tablesWithState: ITableState[] = []
+    
+    values.forEach((flatNode) => {
+      if (flatNode.id != "" && flatNode.type == ObjectExplorerNodeType.Table) {
+        let table: ITableState = {
+          TableId: flatNode.id,
+          TableName: flatNode.name,
+          isDeleted: flatNode.isDeleted
+        }
+        tablesWithState.push(table)
+      }
+    })
+    //confirm from the user
+    let openDialog = this.dialog.open(BulkDropRestoreTableDialogComponent, {
+      width: '35vw',
+      minWidth: '450px',
+      maxWidth: '600px',
+      data: { tables: tablesWithState, operation: 'RESTORE' },
+    })
+    //state is ephimeral (UI only), and name is not relevant to the API.
+    var tables: ITables = {
+      TableList: []
+    };
+    tablesWithState.forEach((tableWithState) => {
+      tables.TableList.push(tableWithState.TableId)
+    })
+    //upon confirmation, restore
+    openDialog.afterClosed().subscribe((res: string) => {
+      if (res == 'RESTORE') {
+        this.data
+          .restoreTables(tables)
+          .pipe(take(1))
+          .subscribe((res: string) => {
+            if (res === '') {
+            }
+            this.data.getConversionRate()
+            this.data.getDdl()
+          })
+          //clear selection after a successful operation
+          this.checklistSelection.clear()
+      }
+    })
+  }
+
+  /** Toggle the to-do item selection. Select/deselect all the descendants node */
+  selectionToggle(node: FlatNode): void {
+    this.checklistSelection.toggle(node);
+    const descendants = this.treeControl.getDescendants(node);
+    this.checklistSelection.isSelected(node)
+      ? this.checklistSelection.select(...descendants)
+      : this.checklistSelection.deselect(...descendants);
   }
 }

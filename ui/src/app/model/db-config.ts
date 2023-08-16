@@ -1,4 +1,3 @@
-
 export default interface IDbConfig {
   dbEngine: string
   isSharded: boolean

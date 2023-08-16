@@ -4,7 +4,7 @@
       <a class="breadcrumb_source" mat-button [routerLink]="'/'">Select Source</a>
       <span>></span>
       <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'"
-        ><b>Configure Schema({{dialect}} Dialect)</b></a
+        ><b>Configure Schema ({{dialect}} Dialect)</b></a
       >
     </div>
     <div class="header_action">
@@ -20,7 +20,20 @@
       <button mat-button (click)="openSaveSessionSidenav()" *ngIf="!isOfflineStatus">
         SAVE SESSION
       </button>
-      <button mat-button color="primary" (click)="downloadSession()">DOWNLOAD SESSION</button>
+      <span class="artifactsButtons">
+      <button mat-raised-button color="primary" class="split-button-left" (click)="downloadArtifacts()">
+        DOWNLOAD ARTIFACTS
+      </button>
+      <button mat-raised-button color="primary" class="split-button-right" [matMenuTriggerFor]="menu">
+        <mat-icon aria-hidden="false" aria-label="More options">expand_more</mat-icon>
+      </button>
+      <mat-menu #menu="matMenu" xPosition="before">
+        <button mat-menu-item (click)="downloadTextReport()">Download Text Report</button>
+        <button mat-menu-item (click)="downloadStructuredReport()">Download Structured Report</button>
+        <button mat-menu-item (click)="downloadSession()">Download Session File</button>
+        <button mat-menu-item (click)="downloadDDL()">Download Spanner DDL</button>
+      </mat-menu>
+      </span>
     </div>
   </div>
   <div class="container">
@@ -70,6 +83,7 @@
         [ddlStmts]="ddlStmts"
         [fkData]="fkData"
         [currentDatabase]="currentDatabase"
+        [defaultTypeMap]="defaultTypeMap"
       >
       </app-object-detail>
     </div>

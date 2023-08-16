@@ -16,6 +16,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -65,8 +66,7 @@ func TryInitializeSpannerConfig() Config {
 		spInstanceId := os.Getenv("SpannerInstanceID")
 
 		if projectId == "" || spInstanceId == "" {
-			log.Println("Session Store Warning : Environment variables not found")
-			log.Println("To store the sessions please set the environment variables 'GCPProjectID' and 'SpannerInstanceID' or set these through HarbourBridge web client")
+			fmt.Println("Note: To store the sessions please set the environment variables 'GCPProjectID' and 'SpannerInstanceID'. You would set these as part of the migration workflow if you are using the Spanner migration tool Web UI.")
 		} else {
 			c.GCPProjectID = projectId
 			c.SpannerInstanceID = spInstanceId

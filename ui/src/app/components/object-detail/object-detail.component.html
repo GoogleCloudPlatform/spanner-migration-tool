@@ -50,7 +50,7 @@
             currentObject!.type === 'indexName'
           ">
           <mat-icon>delete</mat-icon>
-          <span>DROP INDEX</span>
+          <span>SKIP INDEX</span>
         </button>
         <button mat-button color="primary" class="icon drop" (click)="restoreIndex()" *ngIf="
             currentObject!.isSpannerNode &&
@@ -66,7 +66,7 @@
             !currentObject!.isDeleted
           ">
           <mat-icon>delete</mat-icon>
-          <span>DROP TABLE</span>
+          <span>SKIP TABLE</span>
         </button>
         <button mat-button color="primary" class="icon drop" (click)="restoreSpannerTable()" *ngIf="
             currentObject!.isSpannerNode &&
@@ -169,7 +169,8 @@
                       EDIT
                     </button>
                   </div>
-                  <div *ngIf="!isEditMode && !currentObject.isDeleted">
+                  <!--[TODO:khajanchi] Remove the predicate && false once transformations is in place-->
+                  <div *ngIf="!isEditMode && !currentObject.isDeleted && false">
                     <button mat-stroked-button color="primary" (click)="addNewColumn()"
                       *ngIf="currentObject!.isSpannerNode">
                       <mat-icon class="edit-icon">edit</mat-icon>

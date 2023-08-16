@@ -21,12 +21,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -1416,6 +1416,119 @@ func TestReviewTableSchema(t *testing.T) {
 					},
 				},
 				SpDialect: constants.DIALECT_GOOGLESQL,
+			},
+		},
+		{
+
+			name:    "Test change type success for related foreign key columns",
+			tableId: "t1",
+			payload: `
+			{
+			  "UpdateCols":{
+				"c1": { "ToType": "STRING" }
+			}
+			}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}}},
+					},
+					"t2": {
+						Name:   "t2",
+						ColIds: []string{"c4"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false}},
+					},
+				},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}, NotNull: true},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1", Desc: false}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}}},
+					},
+					"t2": {
+						Name:   "t2",
+						ColIds: []string{"c4"},
+						ColDefs: map[string]schema.Column{
+							"c4": {Name: "a", Id: "c4", Type: schema.Type{Name: "bigint", Mods: []int64{}}, NotNull: true},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c4", Desc: false}},
+					},
+				},
+				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+					"t2": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}}},
+					},
+					"t2": {
+						Name:   "t2",
+						ColIds: []string{"c4"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false}},
+					},
+				},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}, NotNull: true},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1", Desc: false}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}}},
+					},
+					"t2": {
+						Name:   "t2",
+						ColIds: []string{"c4"},
+						ColDefs: map[string]schema.Column{
+							"c4": {Name: "a", Id: "c4", Type: schema.Type{Name: "bigint", Mods: []int64{}}, NotNull: true},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c4", Desc: false}},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
+					},
+					"t2": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c4": {internal.Widened},
+						},
+					},
+				},
 			},
 		},
 		{

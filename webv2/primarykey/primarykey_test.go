@@ -21,12 +21,18 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 func TestUpdatePrimaryKey(t *testing.T) {
 	tc := []struct {
@@ -40,7 +46,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 			name: "Test PK update",
 			input: PrimaryKeyRequest{
 				TableId: "t1",
-				Columns: []Column{{ColumnId: "c1", Desc: false, Order: 1}},
+				Columns: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
 			},
 			statusCode: http.StatusOK,
 			conv: internal.Conv{
@@ -85,7 +91,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 			name: "Test removed synthpk",
 			input: PrimaryKeyRequest{
 				TableId: "t1",
-				Columns: []Column{{ColumnId: "c1", Desc: true, Order: 1}},
+				Columns: []ddl.IndexKey{{ColId: "c1", Desc: true, Order: 1}},
 			},
 			statusCode: http.StatusOK,
 			conv: internal.Conv{
@@ -192,7 +198,7 @@ func TestAddPrimaryKey(t *testing.T) {
 
 	input := PrimaryKeyRequest{
 		TableId: "t1",
-		Columns: []Column{{ColumnId: "c1", Desc: true, Order: 1}, {ColumnId: "c2", Desc: false, Order: 2}},
+		Columns: []ddl.IndexKey{{ColId: "c1", Desc: true, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -274,7 +280,7 @@ func TestRemovePrimaryKey(t *testing.T) {
 
 	input := PrimaryKeyRequest{
 		TableId: "t1",
-		Columns: []Column{{ColumnId: "c1", Desc: true, Order: 1}},
+		Columns: []ddl.IndexKey{{ColId: "c1", Desc: true, Order: 1}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -360,7 +366,7 @@ func TestPrimarykey(t *testing.T) {
 			name: "Table Id Not found",
 			input: PrimaryKeyRequest{
 				TableId: "t2",
-				Columns: []Column{{ColumnId: "c1", Desc: true, Order: 1}, {ColumnId: "c2", Desc: true, Order: 2}},
+				Columns: []ddl.IndexKey{{ColId: "c1", Desc: true, Order: 1}, {ColId: "c2", Desc: true, Order: 2}},
 			},
 			statusCode: http.StatusNotFound,
 		},
@@ -368,14 +374,14 @@ func TestPrimarykey(t *testing.T) {
 			name: "Column are empty",
 			input: PrimaryKeyRequest{
 				TableId: "t1",
-				Columns: []Column{}},
+				Columns: []ddl.IndexKey{}},
 			statusCode: http.StatusBadRequest,
 		},
 		{
 			name: "unmarshalling error",
 			input: PrimaryKeyRequest{
 				TableId: "t1",
-				Columns: []Column{{Order: 1, Desc: true, ColumnId: "-12"}},
+				Columns: []ddl.IndexKey{{Order: 1, Desc: true, ColId: "-12"}},
 			},
 			statusCode: http.StatusBadRequest,
 		},
@@ -383,7 +389,7 @@ func TestPrimarykey(t *testing.T) {
 			name: "Not valid column order",
 			input: PrimaryKeyRequest{
 				TableId: "t1",
-				Columns: []Column{{ColumnId: "c1", Order: 2, Desc: true}, {ColumnId: "c2", Desc: false, Order: 2}},
+				Columns: []ddl.IndexKey{{ColId: "c1", Order: 2, Desc: true}, {ColId: "c2", Desc: false, Order: 2}},
 			},
 			statusCode: http.StatusBadRequest,
 		},
@@ -391,7 +397,7 @@ func TestPrimarykey(t *testing.T) {
 			name: "invalid columnid error",
 			input: PrimaryKeyRequest{
 				TableId: "t1",
-				Columns: []Column{{ColumnId: "c4", Desc: false, Order: 1}},
+				Columns: []ddl.IndexKey{{ColId: "c4", Desc: false, Order: 1}},
 			},
 			statusCode: http.StatusBadRequest,
 		},

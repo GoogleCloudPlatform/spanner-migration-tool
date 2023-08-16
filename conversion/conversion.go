@@ -41,28 +41,28 @@ import (
 
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/dynamodb"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/oracle"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/sqlserver"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/csv"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/dynamodb"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
-	"github.com/cloudspannerecosystem/harbourbridge/streaming"
 	"go.uber.org/zap"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	"google.golang.org/grpc/metadata"
@@ -104,7 +104,7 @@ func DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetP
 		return dataFromDatabase(ctx, sourceProfile, targetProfile, config, conv, client)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
-			return nil, fmt.Errorf("harbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
+			return nil, fmt.Errorf("spanner migration tool does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
 		}
 		return dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly)
 	case constants.CSV:
@@ -249,7 +249,7 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 
 func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
 	switch sourceProfile.Driver {
-	// Skip snapshot migration via harbourbridge for mysql and oracle since dataflow job will job will handle this from backfilled data.
+	// Skip snapshot migration via Spanner migration tool for mysql and oracle since dataflow job will job will handle this from backfilled data.
 	case constants.MYSQL, constants.ORACLE, constants.POSTGRES:
 		return &writer.BatchWriter{}, nil
 	case constants.DYNAMODB:
@@ -315,27 +315,41 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 
 // 1. Create batch for each physical shard
 // 2. Create streaming cfg from the config source type.
-// 3. Verify the CFG and update it with HB defaults
+// 3. Verify the CFG and update it with SMT defaults
 // 4. Launch the stream for the physical shard
 // 5. Perform streaming migration via dataflow
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
 	updateShardsWithDataflowConfig(sourceProfile.Config.ShardConfigurationDataflow)
 	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
 	conv.Audit.StreamingStats.ShardToDataflowJobMap = make(map[string]string)
+	tableList, err := common.GetIncludedSrcTablesFromConv(conv)
+	if err != nil {
+		fmt.Printf("unable to determine tableList from schema, falling back to full database")
+		tableList = []string{}
+	}
 	asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) common.TaskResult[*profiles.DataShard] {
 		dbNameToShardIdMap := make(map[string]string)
 		for _, l := range p.LogicalShards {
 			dbNameToShardIdMap[l.DbName] = l.LogicalShardId
 		}
+		if p.DataShardId == "" {
+			dataShardId, err := utils.GenerateName("smt-datashard")
+			dataShardId = strings.Replace(dataShardId, "_", "-", -1)
+			if err != nil {
+				return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+			}
+			p.DataShardId = dataShardId
+			fmt.Printf("Data shard id generated: %v\n", p.DataShardId)
+		}
 		streamingCfg := streaming.CreateStreamingConfig(*p)
-		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname)
+		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname, tableList)
 		if err != nil {
 			err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		fmt.Printf("Initiating migration for shard: %v\n", p.DataShardId)
 
-		err = streaming.LaunchStream(ctx, sourceProfile.Driver, p.LogicalShards, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
+		err = streaming.LaunchStream(ctx, sourceProfile, p.LogicalShards, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
@@ -343,7 +357,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
-	_, err := common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 5, asyncProcessShards, true)
+	_, err = common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 20, asyncProcessShards, true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start minimal downtime migrations: %v", err)
 	}
@@ -587,7 +601,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 	// (such as /tmp) that's configured with a small amount of disk space.
 	// To workaround such limits on Unix, set $TMPDIR to a directory with lots
 	// of disk space.
-	fcopy, err := ioutil.TempFile("", "harbourbridge.data")
+	fcopy, err := ioutil.TempFile("", "spanner-migration-tool.data")
 	if err != nil {
 		return nil, 0, err
 	}
@@ -642,25 +656,26 @@ func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminCli
 }
 
 // ValidateTables validates that all the tables in the database are empty.
-func ValidateTables(ctx context.Context, client *sp.Client, spDialect string) error {
+// It returns the name of the first non-empty table if found, and an empty string otherwise.
+func ValidateTables(ctx context.Context, client *sp.Client, spDialect string) (string, error) {
 	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, SpDialect: spDialect}
 	tables, err := infoSchema.GetTables()
 	if err != nil {
-		return err
+		return "", err
 	}
 	for _, table := range tables {
 		count, err := infoSchema.GetRowCount(table)
 		if err != nil {
-			return err
+			return "", err
 		}
 		if count != 0 {
-			return fmt.Errorf("table %v should be empty for data migration to take place", table.Name)
+			return table.Name, nil
 		}
 	}
-	return nil
+	return "", nil
 }
 
-// ValidateDDL verifies if an existing DB's ddl follows what is supported by harbourbridge. Currently,
+// ValidateDDL verifies if an existing DB's ddl follows what is supported by Spanner migration tool. Currently,
 // we only support empty schema when db already exists.
 func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) error {
 	dbDdl, err := adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{Database: dbURI})
@@ -668,7 +683,7 @@ func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient,
 		return fmt.Errorf("can't fetch database ddl: %v", err)
 	}
 	if len(dbDdl.Statements) != 0 {
-		return fmt.Errorf("harbourBridge supports writing to existing databases only if they have an empty schema")
+		return fmt.Errorf("spanner migration tool supports writing to existing databases only if they have an empty schema")
 	}
 	return nil
 }
@@ -688,7 +703,7 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 	}
 	if dbExists {
 		if conv.SpDialect != constants.DIALECT_POSTGRESQL && migrationType == constants.DATAFLOW_MIGRATION {
-			return fmt.Errorf("Harbourbridge does not support minimal downtime schema/schema-and-data migrations to an existing database.")
+			return fmt.Errorf("spanner migration tool does not support minimal downtime schema/schema-and-data migrations to an existing database")
 		}
 		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out, driver)
 		if err != nil {
@@ -797,10 +812,10 @@ func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdm
 		fmt.Println(`
 Warning: Large number of foreign keys detected. Spanner can take a long amount of 
 time to create foreign keys (over 5 mins per batch of Foreign Keys even with no data). 
-Harbourbridge does not have control over a single foreign key creation time. The number 
+Spanner migration tool does not have control over a single foreign key creation time. The number 
 of concurrent Foreign Key Creation Requests sent to spanner can be increased by 
-tweaking the MaxWorkers variable (https://github.com/cloudspannerecosystem/harbourbridge/blob/master/conversion/conversion.go#L89).
-However, setting it to a very high value might lead to exceeding the admin quota limit. Harbourbridge tries to stay under the
+tweaking the MaxWorkers variable (https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/conversion/conversion.go#L89).
+However, setting it to a very high value might lead to exceeding the admin quota limit. Spanner migration tool tries to stay under the
 admin quota limit by spreading the FK creation requests over time.`)
 	}
 	msg := fmt.Sprintf("Updating schema of database %s with foreign key constraints ...", dbURI)
@@ -941,7 +956,7 @@ func WriteSessionFile(conv *internal.Conv, name string, out *os.File) {
 // where it writes the sessionfile, report summary and DDLs then returns the directory where it writes.
 func WriteConvGeneratedFiles(conv *internal.Conv, dbName string, driver string, BytesRead int64, out *os.File) (string, error) {
 	now := time.Now()
-	dirPath := "harbour_bridge_output/" + dbName + "/"
+	dirPath := "spanner_migration_tool_output/" + dbName + "/"
 	err := os.MkdirAll(dirPath, os.ModePerm)
 	if err != nil {
 		fmt.Fprintf(out, "Can't create directory %s: %v\n", dirPath, err)

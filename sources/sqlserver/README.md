@@ -1,11 +1,11 @@
-# HarbourBridge: SQLServer-to-Spanner Evaluation and Migration
+# Spanner migration tool: SQLServer-to-Spanner Evaluation and Migration
 
-HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
+Spanner migration tool is a stand-alone open source tool for Cloud Spanner evaluation,
 using data from an existing SQL Server database. This README provides
-details of the tool's SQL Server capabilities. For general HarbourBridge information
-see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-spanner-evaluation-and-migration).
+details of the tool's SQL Server capabilities. For general Spanner migration tool information
+see this [README](https://github.com/GoogleCloudPlatform/spanner-migration-tool#spanner-migration-tool-spanner-evaluation-and-migration).
 
-We currently do not support dump file mode for SQL Server. The only way to use HarbourBridge with SQL Server is connecting directly.
+We currently do not support dump file mode for SQL Server. The only way to use Spanner migration tool with SQL Server is connecting directly.
 
 We currently do not support clustered columnstore indexes in spanner, therefore such indexes will be skipped during the migration.
 
@@ -13,14 +13,14 @@ Note that either _'sqlserver'_ or _'mssql'_ can be used as an identifier with th
 
 ## Example SQL Server Usage
 
-HarbourBridge can be run directly on a SQL Server database (via go's database/sql package).
+Spanner migration tool can be run directly on a SQL Server database (via go's database/sql package).
 
-The following examples assume a `harbourbridge` alias has been setup as described
-in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
+The following examples assume a `spanner-migration-tool` alias has been setup as described
+in the [Installing Spanner migration tool](https://github.com/GoogleCloudPlatform/spanner-migration-tool#installing-spanner-migration-tool) section of the main README.
 
 ### Directly connecting to a SQL Server database
 
-In this case, HarbourBridge connects directly to the SQL Server database to
+In this case, Spanner migration tool connects directly to the SQL Server database to
 retrieve table schema and data. Set the `-source=sqlserver` and corresponding
 source profile connection parameters `host`, `port`, `user`, `dbName` and
 `password`.
@@ -28,7 +28,7 @@ source profile connection parameters `host`, `port`, `user`, `dbName` and
 For example, to perform schema conversion, run
 
 ```sh
-harbourbridge schema -source=sqlserver -source-profile="host=<>,port=<>,user=<>,dbName=<>"
+spanner-migration-tool schema -source=sqlserver -source-profile="host=<>,port=<>,user=<>,dbName=<>"
 ```
 
 Parameters `port` and `password` are optional. Port (`port`) defaults to `1433`
@@ -95,10 +95,10 @@ an eight-byte integer.
 Spanner requires primary keys for all tables. SQL Server recommends the use of
 primary keys for all tables, but does not enforce this. When converting a table
 without a primary key:
-- HarbourBridge will check for `UNIQUE` constraints on the table. If found, it
+- Spanner migration tool will check for `UNIQUE` constraints on the table. If found, it
 will automatically pick any one of the unique constraints and convert it to a 
 primary key.
-- If no `UNIQUE` constraints are present, HarbourBridge will create a new primary 
+- If no `UNIQUE` constraints are present, Spanner migration tool will create a new primary 
 key column of type INT64. By default, the name of the new column is `synth_id`. 
 - If there is already a column with that name, then a variation is used to avoid collisions.
 
@@ -142,7 +142,7 @@ conversion.
 Spanner requires that `STRING` values be UTF-8 encoded. All Spanner functions
 and operators that act on `STRING` values operate on Unicode characters rather
 than bytes. Since we map many SQL Server types (including `VARCHAR`)
-to Spanner's `STRING` type, HarbourBridge is effectively a UTF-8 based
+to Spanner's `STRING` type, Spanner migration tool is effectively a UTF-8 based
 tool.
 Internally, we use Go's string type, which supports UTF-8.
 

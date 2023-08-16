@@ -22,10 +22,10 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 type mockSpec struct {
@@ -193,11 +193,11 @@ func TestProcessSchemaOracle(t *testing.T) {
 				"ID":           {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
 				"JSON":         {Name: "JSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
 				"REALJSON":     {Name: "REALJSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
-				"ARRAY_NUM":    {Name: "ARRAY_NUM", T: ddl.Type{Name: ddl.Numeric, IsArray: true}, NotNull: true},
-				"ARRAY_FLOAT":  {Name: "ARRAY_FLOAT", T: ddl.Type{Name: ddl.Float64, IsArray: true}, NotNull: true},
-				"ARRAY_STRING": {Name: "ARRAY_STRING", T: ddl.Type{Name: ddl.String, Len: int64(15), IsArray: true}, NotNull: true},
-				"ARRAY_DATE":   {Name: "ARRAY_DATE", T: ddl.Type{Name: ddl.Date, IsArray: true}, NotNull: true},
-				"ARRAY_INT":    {Name: "ARRAY_INT", T: ddl.Type{Name: ddl.Int64, IsArray: true}, NotNull: true},
+				"ARRAY_NUM":    {Name: "ARRAY_NUM", T: ddl.Type{Name: ddl.Numeric, IsArray: true}, NotNull: false},
+				"ARRAY_FLOAT":  {Name: "ARRAY_FLOAT", T: ddl.Type{Name: ddl.Float64, IsArray: true}, NotNull: false},
+				"ARRAY_STRING": {Name: "ARRAY_STRING", T: ddl.Type{Name: ddl.String, Len: int64(15), IsArray: true}, NotNull: false},
+				"ARRAY_DATE":   {Name: "ARRAY_DATE", T: ddl.Type{Name: ddl.Date, IsArray: true}, NotNull: false},
+				"ARRAY_INT":    {Name: "ARRAY_INT", T: ddl.Type{Name: ddl.Int64, IsArray: true}, NotNull: false},
 				"OBJECT":       {Name: "OBJECT", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "ID", Order: 1}},
@@ -213,7 +213,7 @@ func TestProcessSchemaOracle(t *testing.T) {
 
 	assert.Equal(t, len(conv.SchemaIssues[userTableId].ColumnLevelIssues), 0)
 	assert.Equal(t, len(conv.SchemaIssues[testTableId].ColumnLevelIssues), 0)
-	assert.Equal(t, len(conv.SchemaIssues[test2TableId].ColumnLevelIssues), 0)
+	assert.Equal(t, len(conv.SchemaIssues[test2TableId].ColumnLevelIssues), 5)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 

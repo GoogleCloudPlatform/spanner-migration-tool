@@ -9,13 +9,12 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
-import { Subscription, take } from 'rxjs'
+import { flatMap, Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
 import IConv, {
   ICreateIndex,
   IForeignKey,
   IIndexKey,
-  IPkColumnDefs,
   IPrimaryKey,
 } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
@@ -42,6 +41,7 @@ export class ObjectDetailComponent implements OnInit {
 
   @Input() currentObject: FlatNode | null = null
   @Input() typeMap: any = {}
+  @Input() defaultTypeMap: any = {}
   @Input() ddlStmts: any = {}
   @Input() fkData: IFkTabData[] = []
   @Input() tableData: IColumnTabData[] = []
@@ -159,6 +159,7 @@ export class ObjectDetailComponent implements OnInit {
     this.srcRowArray = new FormArray([])
     this.spRowArray = new FormArray([])
     this.droppedColumns = []
+    this.droppedSourceColumns = []
     this.pkColumnNames = []
     this.interleaveParentName = this.getInterleaveParentFromConv()
 
@@ -271,11 +272,11 @@ export class ObjectDetailComponent implements OnInit {
             spOrder: new FormControl(col.srcOrder),
             spColName: new FormControl(col.srcColName),
             spDataType: new FormControl(
-              this.typeMap[col.srcDataType] ? this.typeMap[col.srcDataType][0].T : ''
+              this.defaultTypeMap[col.srcDataType].Name
             ),
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
-            spColMaxLength: new FormControl(col.spColMaxLength),
+            spColMaxLength: new FormControl(col.srcColMaxLength),
           })
         )
       }
@@ -483,7 +484,10 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setShardIdColumn() {
-    this.shardIdCol = this.conv.SpSchema[this.currentObject!.id].ShardIdColumn
+    if (this.conv.SpSchema[this.currentObject!.id] !== undefined) {
+      this.shardIdCol = this.conv.SpSchema[this.currentObject!.id].ShardIdColumn
+    }
+
   }
 
   getAssociatedIndexs(colId: string) {
@@ -741,11 +745,11 @@ export class ObjectDetailComponent implements OnInit {
 
   getPkRequestObj() {
     let tableId: string = this.conv.SpSchema[this.currentObject!.id].Id
-    let Columns: { ColumnId: string; Desc: boolean; Order: number }[] = []
+    let Columns: { ColId: string; Desc: boolean; Order: number }[] = []
     this.pkData.forEach((row: IColumnTabData) => {
       if (row.spIsPk)
         Columns.push({
-          ColumnId: row.spId,
+          ColId: row.spId,
           Desc:
             typeof this.conv.SpSchema[this.currentObject!.id].PrimaryKeys.find(
               ({ ColId }) => ColId === row.spId
@@ -794,7 +798,7 @@ export class ObjectDetailComponent implements OnInit {
       })
     } else {
       let interleaveTableId = this.tableInterleaveWith(this.currentObject?.id!)
-      if (interleaveTableId != '' && this.isPKFirstOrderModified(this.currentObject?.id!)) {
+      if (interleaveTableId != '' && this.isPKPrefixModified(this.currentObject?.id!, interleaveTableId)) {
         const dialogRef = this.dialog.open(InfodialogComponent, {
           data: {
             message:
@@ -1343,17 +1347,25 @@ export class ObjectDetailComponent implements OnInit {
     return interleaveTable
   }
 
-  isPKFirstOrderModified(table: string): boolean {
-    let firstOrderPk = this.conv.SpSchema[table]?.PrimaryKeys?.filter((pk: IIndexKey) => {
-      if (pk.Order == 1) return true
-      return false
-    })[0]
-    if (this.pkObj.Columns.length < 1) return true
-    let updatedFirstOrderPk = this.pkObj.Columns.filter((pk: IPkColumnDefs) => {
-      if (pk.Order == 1) return true
-      return false
-    })[0]
-    if (firstOrderPk && firstOrderPk.ColId != updatedFirstOrderPk.ColumnId) return true
+  isPKPrefixModified(tableId: string, interleaveTableId: string): boolean {
+    let parentPrimaryKey,childPrimaryKey: IIndexKey[]
+    if (this.conv.SpSchema[tableId].ParentId != interleaveTableId) {
+      parentPrimaryKey = this.pkObj.Columns
+      childPrimaryKey = this.conv.SpSchema[interleaveTableId].PrimaryKeys
+    } else {
+      childPrimaryKey = this.pkObj.Columns
+      parentPrimaryKey = this.conv.SpSchema[interleaveTableId].PrimaryKeys
+    }
+
+    for (let i = 0; i < parentPrimaryKey.length; i++) {
+      for (let j = 0; j < childPrimaryKey.length; j++) {
+        if (parentPrimaryKey[i].Order == childPrimaryKey[j].Order) {
+          if (parentPrimaryKey[i].ColId != childPrimaryKey[j].ColId) {
+            return true;
+          }
+        }
+      }
+    }
     return false
   }
 }

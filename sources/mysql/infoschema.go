@@ -25,12 +25,12 @@ import (
 	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
 	_ "github.com/lib/pq"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/streaming"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 )
 
 // InfoSchemaImpl is MySQL specific implementation for InfoSchema.
@@ -259,8 +259,8 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 
 // GetForeignKeys return list all the foreign keys constraints.
 // MySQL supports cross-database foreign key constraints. We ignore
-// them because HarbourBridge works database at a time (a specific run
-// of HarbourBridge focuses on a specific database) and so we can't handle
+// them because the Spanner migration tool works database at a time (a specific run
+// of the Spanner migration tool focuses on a specific database) and so we can't handle
 // them effectively.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
 	q := `SELECT k.REFERENCED_TABLE_NAME,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME,k.CONSTRAINT_NAME
@@ -362,7 +362,12 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 // performing a streaming migration.
 func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
 	mp := make(map[string]interface{})
-	streamingCfg, err := streaming.StartDatastream(ctx, isi.SourceProfile, isi.TargetProfile)
+	var (
+		tableList []string
+		err error
+	)
+	tableList, err = common.GetIncludedSrcTablesFromConv(conv)
+	streamingCfg, err := streaming.StartDatastream(ctx, isi.SourceProfile, isi.TargetProfile, tableList)
 	if err != nil {
 		err = fmt.Errorf("error starting datastream: %v", err)
 		return nil, err

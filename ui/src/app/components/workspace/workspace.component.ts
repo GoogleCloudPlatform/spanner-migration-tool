@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConversionService } from '../../services/conversion/conversion.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
-import IConv, { ITableIdAndName } from '../../model/conv'
+import IConv, { ITableIdAndName, IType } from '../../model/conv'
 import { Subscription } from 'rxjs/internal/Subscription'
 import { MatDialog } from '@angular/material/dialog'
 import IFkTabData from 'src/app/model/fk-tab-data'
@@ -12,12 +12,14 @@ import { InputType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.cons
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 import ConversionRate from 'src/app/model/conversion-rate'
 import { Router } from '@angular/router'
-import { extractSourceDbName } from 'src/app/utils/utils'
+import { downloadSession, extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 import IViewAssesmentData from 'src/app/model/view-assesment'
 import IDbConfig from 'src/app/model/db-config'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
+import IStructuredReport from '../../model/structured-report'
+import * as JSZip from 'jszip'
 
 @Component({
   selector: 'app-workspace',
@@ -31,8 +33,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   tableData: IColumnTabData[] = []
   indexData: IIndexData[] = []
   typeMap: Record<string, Record<string, string>> | boolean = false
+  defaultTypeMap: Record<string, IType> | boolean = false
   conversionRates: Record<string, string> = {}
   typemapObj!: Subscription
+  defaultTypemapObj!: Subscription
   convObj!: Subscription
   converObj!: Subscription
   ddlsumconvObj!: Subscription
@@ -52,6 +56,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   conversionRatePercentages: ConversionRate = { good: 0, ok: 0, bad: 0 }
   currentDatabase: string = 'spanner'
   dialect: string = ''
+  structuredReport!: IStructuredReport
   constructor(
     private data: DataService,
     private conversion: ConversionService,
@@ -70,6 +75,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.ddlsumconvObj = this.data.getRateTypemapAndSummary()
     this.typemapObj = this.data.typeMap.subscribe((types) => {
       this.typeMap = types
+    })
+
+    this.defaultTypemapObj = this.data.defaultTypeMap.subscribe((types) => {
+      this.defaultTypeMap = types
     })
 
     this.ddlObj = this.data.ddl.subscribe((res) => {
@@ -260,14 +269,83 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.sidenav.setSidenavDatabaseName(this.conv.DatabaseName)
   }
   downloadSession() {
+    downloadSession(this.conv)
+  }
+  
+  downloadArtifacts(){
+    let zip = new JSZip()
+    let fileNameHeader = `${this.conv.DatabaseName}`
+    this.fetch.getDStructuredReport().subscribe({ 
+      next: (resStructured: IStructuredReport) => {
+        let resJson = JSON.stringify(resStructured).replace(/9223372036854776000/g, '9223372036854775807')
+        let fileName = fileNameHeader + '_migration_structuredReport.json'
+        // add structured report to zip file
+        zip.file(fileName, resJson)
+        this.fetch.getDTextReport().subscribe({  
+          next: (resText: string) => {
+            // add text report to zip file
+            zip.file(fileNameHeader + '_migration_textReport.txt', resText)
+            this.fetch.getDSpannerDDL().subscribe({  
+              next: (resDDL: string) => {
+                // add spanner DDL to zip file
+                zip.file(fileNameHeader + '_spannerDDL.txt', resDDL)
+                let resJsonSession = JSON.stringify(this.conv).replace(/9223372036854776000/g, '9223372036854775807')
+                let sessionFileName = `${this.conv.SessionName}_${this.conv.DatabaseType}_${fileNameHeader}.json`
+                // add session to zip file
+                zip.file(sessionFileName, resJsonSession)
+                // Generate the zip file asynchronously
+                zip.generateAsync({ type: 'blob' })
+                .then((blob: Blob) => {
+                  var a = document.createElement('a');
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `${fileNameHeader}_artifcats`;
+                  a.click();
+                })
+              }
+            })
+          }
+        })
+      }
+    })
+  }
+
+  // downloads structured report of the migration in JSON format
+  downloadStructuredReport(){
     var a = document.createElement('a')
-    // JS automatically converts the input (64bit INT) to '9223372036854776000' during conversion as this is the max value in JS.
-    // However the max value received from server is '9223372036854775807'
-    // Therefore an explicit replacement is necessary in the JSON content in the file.
-    let resJson = JSON.stringify(this.conv).replace(/9223372036854776000/g, '9223372036854775807')
-    a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
-    a.download = `${this.conv.SessionName}_${this.conv.DatabaseType}_${this.conv.DatabaseName}.json`
-    a.click()
+    this.fetch.getDStructuredReport().subscribe({ 
+      next: (res: IStructuredReport) => {
+        let resJson = JSON.stringify(res).replace(/9223372036854776000/g, '9223372036854775807')
+        a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
+        a.download = `${this.conv.DatabaseName}_migration_structuredReport.json`
+        a.click()
+      }
+    })
+  }
+
+  // downloads text report of the migration in text format in more human readable form
+  downloadTextReport(){
+    var a = document.createElement('a')
+    this.fetch.getDTextReport().subscribe({  
+      next: (res: string) => {
+        a.href = 'data:text;charset=utf-8,' + encodeURIComponent(res)
+        a.download = `${this.conv.DatabaseName}_migration_textReport.txt`
+        a.click()
+      }
+    })
+  }
+
+  // downloads text file of Spanner's DDL of the schema. However this is optimized for reading and includes comments, foreign keys
+  // and doesn't add backticks around table and column names. This is not strictly
+	// legal Cloud Spanner DDL (Cloud Spanner doesn't currently support comments).
+  downloadDDL(){
+    var a = document.createElement('a')
+    this.fetch.getDSpannerDDL().subscribe({  
+      next: (res: string) => {
+        a.href = 'data:text;charset=utf-8,' + encodeURIComponent(res)
+        a.download = `${this.conv.DatabaseName}_spannerDDL.txt`
+        a.click()
+      }
+    })
   }
 
   updateSpannerTable(data: IUpdateTableArgument) {

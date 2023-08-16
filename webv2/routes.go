@@ -18,12 +18,12 @@ import (
 	"io/fs"
 	"net/http"
 
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/summary"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/table"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/profile"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/summary"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/table"
 
 	"github.com/gorilla/mux"
 )
@@ -40,6 +40,9 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/conversion", getConversionRate).Methods("GET")
 	router.HandleFunc("/typemap", getTypeMap).Methods("GET")
 	router.HandleFunc("/report", getReportFile).Methods("GET")
+	router.HandleFunc("/downloadStructuredReport", getDStructuredReport).Methods("GET")
+	router.HandleFunc("/downloadTextReport", getDTextReport).Methods("GET")
+	router.HandleFunc("/downloadDDL", getDSpannerDDL).Methods("GET")
 	router.HandleFunc("/schema", getSchemaFile).Methods("GET")
 	router.HandleFunc("/applyrule", applyRule).Methods("POST")
 	router.HandleFunc("/dropRule", dropRule).Methods("POST")
@@ -47,6 +50,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/typemap/reviewTableSchema", table.ReviewTableSchema).Methods("POST")
 	router.HandleFunc("/typemap/GetStandardTypeToPGSQLTypemap", getStandardTypeToPGSQLTypemap).Methods("GET")
 	router.HandleFunc("/typemap/GetPGSQLToStandardTypeTypemap", getPGSQLToStandardTypeTypemap).Methods("GET")
+	router.HandleFunc("/spannerDefaultTypeMap", spannerDefaultTypeMap).Methods("GET")
 
 	router.HandleFunc("/setparent", setParentTable).Methods("GET")
 	router.HandleFunc("/removeParent", removeParentTable).Methods("POST")
@@ -56,7 +60,9 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/restore/secondaryIndex", restoreSecondaryIndex).Methods("POST")
 
 	router.HandleFunc("/restore/table", restoreTable).Methods("POST")
+	router.HandleFunc("/restore/tables", restoreTables).Methods("POST")
 	router.HandleFunc("/drop/table", dropTable).Methods("POST")
+	router.HandleFunc("/drop/tables", dropTables).Methods("POST")
 
 	router.HandleFunc("/update/fks", updateForeignKeys).Methods("POST")
 	router.HandleFunc("/update/indexes", updateIndexes).Methods("POST")

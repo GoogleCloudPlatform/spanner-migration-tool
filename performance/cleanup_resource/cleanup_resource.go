@@ -21,7 +21,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	"github.com/cloudspannerecosystem/harbourbridge/performance"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/performance"
 )
 
 const (

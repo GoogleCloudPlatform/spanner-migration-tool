@@ -16,12 +16,13 @@ package internal
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"go.uber.org/zap"
 	"google.golang.org/genproto/googleapis/type/datetime"
 )
@@ -42,10 +43,12 @@ type Conv struct {
 	sampleBadRows  rowSamples          // Rows that generated errors during conversion.
 	Stats          stats               `json:"-"`
 	TimezoneOffset string              // Timezone offset for timestamp conversion.
-	SpDialect      string              // The dialect of the spanner database to which HarbourBridge is writing.
+	SpDialect      string              // The dialect of the spanner database to which Spanner migration tool is writing.
 	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
 	Audit          Audit               `json:"-"` // Stores the audit information for the database conversion
 	Rules          []Rule              // Stores applied rules during schema conversion
+	IsSharded      bool                // Flag denoting if the migration is sharded or not
+	ConvLock       sync.RWMutex        `json:"-"` // ConvLock prevents concurrent map read/write operations. This lock will be used in all the APIs that either read or write elements to the conv object.
 }
 
 type TableIssues struct {
@@ -113,9 +116,13 @@ const (
 	RowLimitExceeded
 	ShardIdColumnAdded
 	ShardIdColumnPrimaryKey
+	ArrayTypeNotSupported
 )
 
-const ShardIdColumn = "migration_shard_id"
+const (
+	ShardIdColumn       = "migration_shard_id"
+	SyntheticPrimaryKey = "synth_id"
+)
 
 // NameAndCols contains the name of a table and its columns.
 // Used to map between source DB and Spanner table and column names.
@@ -202,6 +209,10 @@ type Rule struct {
 	Enabled           bool
 	Data              interface{}
 	AddedOn           datetime.DateTime
+}
+
+type Tables struct {
+	TableList []string `json:"TableList"`
 }
 
 // MakeConv returns a default-configured Conv.
@@ -357,15 +368,17 @@ func (conv *Conv) SampleBadRows(n int) []string {
 
 func (conv *Conv) AddShardIdColumn() {
 	for t, ct := range conv.SpSchema {
-		colName := ShardIdColumn
-		columnId := GenerateColumnId()
-		ct.ColIds = append(ct.ColIds, columnId)
-		ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false}
-		ct.ShardIdColumn = columnId
-		conv.SpSchema[t] = ct
-		var issues []SchemaIssue
-		issues = append(issues, ShardIdColumnAdded, ShardIdColumnPrimaryKey)
-		conv.SchemaIssues[ct.Id].ColumnLevelIssues[columnId] = issues
+		if ct.ShardIdColumn == "" {
+			colName := conv.buildColumnNameWithBase(t, ShardIdColumn)
+			columnId := GenerateColumnId()
+			ct.ColIds = append(ct.ColIds, columnId)
+			ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false}
+			ct.ShardIdColumn = columnId
+			conv.SpSchema[t] = ct
+			var issues []SchemaIssue
+			issues = append(issues, ShardIdColumnAdded, ShardIdColumnPrimaryKey)
+			conv.SchemaIssues[ct.Id].ColumnLevelIssues[columnId] = issues
+		}
 	}
 }
 
@@ -391,7 +404,7 @@ func (conv *Conv) AddPrimaryKeys() {
 				}
 			}
 			if !primaryKeyPopulated {
-				k := conv.buildPrimaryKey(t)
+				k := conv.buildColumnNameWithBase(t, SyntheticPrimaryKey)
 				columnId := GenerateColumnId()
 				ct.ColIds = append(ct.ColIds, columnId)
 				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}}
@@ -408,8 +421,7 @@ func (conv *Conv) SetLocation(loc *time.Location) {
 	conv.Location = loc
 }
 
-func (conv *Conv) buildPrimaryKey(tableId string) string {
-	base := "synth_id"
+func (conv *Conv) buildColumnNameWithBase(tableId, base string) string {
 	if _, ok := conv.SpSchema[tableId]; !ok {
 		conv.Unexpected(fmt.Sprintf("Table doesn't exist for tableId %s: ", tableId))
 		return base

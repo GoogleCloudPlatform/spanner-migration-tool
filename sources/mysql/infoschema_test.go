@@ -22,11 +22,11 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 type mockSpec struct {
@@ -210,7 +210,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
-	err := common.GenerateSrcSchema(conv, isi, 1)
+	_, err := common.GenerateSrcSchema(conv, isi, 1)
 	assert.Nil(t, err)
 	expectedSchema := map[string]schema.Table{
 		"cart": schema.Table{Name: "cart", Schema: "test", ColIds: []string{"productid", "userid", "quantity"}, ColDefs: map[string]schema.Column{
@@ -401,6 +401,70 @@ func TestProcessData_MultiCol(t *testing.T) {
 		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), "-9223372036854775808"}}},
 		rows)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
+}
+
+func TestProcessSchema_Sharded(t *testing.T) {
+	// Tests multi-column behavior of ProcessSQLData (including
+	// handling of null columns and synthetic keys). Also tests
+	// the combination of ProcessInfoSchema and ProcessSQLData
+	// i.e. ProcessSQLData uses the schemas built by
+	// ProcessInfoSchema.
+	ms := []mockSpec{
+		{
+			query: "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
+			args:  []driver.Value{"test"},
+			cols:  []string{"table_name"},
+			rows:  [][]driver.Value{{"test"}},
+		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			args:  []driver.Value{"test", "test"},
+			cols:  []string{"column_name", "constraint_type"},
+			rows:  [][]driver.Value{}, // No primary key --> force generation of synthetic key.
+		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			args:  []driver.Value{"test", "test"},
+			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME"},
+		}, {
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"test", "test"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			rows: [][]driver.Value{
+				{"a", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"b", "double", "double", "YES", nil, nil, 53, nil, nil},
+				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, nil}},
+		},
+		{
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
+			args:  []driver.Value{"test", "test"},
+			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
+		},
+		{
+			query: "SELECT (.+) FROM `test`.`test`",
+			cols:  []string{"a", "b", "c"},
+			rows: [][]driver.Value{
+				{"cat", 42.3, nil},
+				{"dog", nil, 22}},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
+	err := common.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{IsSharded: true})
+	assert.Nil(t, err)
+	expectedSchema := map[string]ddl.CreateTable{
+		"test": {
+			Name:   "test",
+			ColIds: []string{"a", "b", "c", "synth_id"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"a":                  {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"b":                  {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+				"c":                  {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+				"synth_id":           {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
+				"migration_shard_id": {Name: "migration_shard_id", T: ddl.Type{Name: ddl.String, Len: 50}},
+			},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "synth_id", Order: 1}}},
+	}
+	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 }
 
 func TestSetRowStats(t *testing.T) {

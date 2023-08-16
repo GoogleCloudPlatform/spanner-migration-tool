@@ -21,7 +21,7 @@ echo "Version is semantically valid, please ensure that it is the next version a
 echo "Verifying that all tests pass..."
 make test
 
-echo "Verifying that harbourbrige binary can be built..."
+echo "Verifying that spanner-migration-tool binary can be built..."
 make build-static
 
 echo "Creating Github tag v${version}"
@@ -29,4 +29,4 @@ git tag "v${version}"
 git push origin "v${version}"
 echo "Github tag v${version} created"
 
-echo "Create a new release by visiting https://github.com/cloudspannerecosystem/harbourbridge/releases/new?tag=v${version}&title=v${version}"
+echo "Create a new release by visiting https://github.com/GoogleCloudPlatform/spanner-migration-tool/releases/new?tag=v${version}&title=v${version}"

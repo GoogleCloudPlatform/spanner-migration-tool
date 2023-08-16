@@ -3,10 +3,10 @@ package metrics
 import (
 	"math"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 )
 
 // GetMigrationData returns migration data comprising source schema details,

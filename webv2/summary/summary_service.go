@@ -1,13 +1,15 @@
 package summary
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 )
 
 // getSummary returns table wise summary of conversion.
 func getSummary() map[string]ConversionSummary {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	reports := reports.AnalyzeTables(sessionState.Conv, nil)
 
 	summary := make(map[string]ConversionSummary)

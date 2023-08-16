@@ -3,3 +3,26 @@
     margin-bottom: 0px;
   }
 }
+
+.configure {
+  color: #1967d2;
+}
+
+.flex-container {
+  display: flex;
+  align-items: center;
+}
+
+.flex-item {
+  margin-right: 8px;
+}
+
+.rounded-chip {
+  background-color: white;
+  color: rgb(15, 51, 171);
+  border-radius: 16px;
+  padding: 6px 12px; 
+  border: 1px solid black;
+  cursor: not-allowed;
+  pointer-events: none;
+}
