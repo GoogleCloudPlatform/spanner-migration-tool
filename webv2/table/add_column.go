@@ -71,6 +71,8 @@ func AddNewColumn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	for _, c := range sessionState.Conv.SpSchema[tableId].ColDefs {
 		if strings.EqualFold(c.Name, details.Name) {
 			http.Error(w, fmt.Sprintf("Multiple columns with similar name cannot exist for column : %v", details.Name), http.StatusBadRequest)

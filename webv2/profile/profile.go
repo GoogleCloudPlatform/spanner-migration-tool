@@ -46,6 +46,8 @@ func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dsClient.Close()
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	source := r.FormValue("source") == "true"
 	if !source {
 		sessionState.Conv.Audit.MigrationRequestId = "SMT-" + uuid.New().String()
@@ -134,6 +136,8 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dsClient.Close()
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error while getting source database: %v", err), http.StatusBadRequest)
@@ -253,6 +257,8 @@ func setConnectionProfileFromSessionState(isSource bool, sessionState session.Se
 func CleanUpStreamingJobs(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	err := streaming.CleanUpStreamingJobs(ctx, sessionState.Conv, sessionState.GCPProjectID, sessionState.Region)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error while cleaning up streaming jobs: %v", err), http.StatusBadRequest)
