@@ -87,7 +87,7 @@ export class SidenavViewAssessmentComponent implements OnInit {
       this.fetch.getIssueDescription().subscribe({
         next: (issueDescription) => {
           this.issueDescription = issueDescription
-          this.GenerateIssueReport()
+          this.generateIssueReport()
         }
       })
     })
@@ -165,7 +165,7 @@ export class SidenavViewAssessmentComponent implements OnInit {
   // tables by issue types and populate issueTableData_Errors, issueTableData_Warnings, 
   // issueTableData_Suggestions and issueTableData_Notes 
   // to work as dataSource required in the summarized table report
-  GenerateIssueReport() {
+  generateIssueReport() {
     this.fetch.getDStructuredReport().subscribe({
       next: (resStructured: IStructuredReport) => {
         let fetchedTableReports = resStructured.tableReports

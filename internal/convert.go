@@ -396,21 +396,7 @@ func (conv *Conv) AddPrimaryKeys() {
 						for _, indexKey := range index.Keys {
 							ct.PrimaryKeys = append(ct.PrimaryKeys, ddl.IndexKey{ColId: indexKey.ColId, Desc: indexKey.Desc, Order: indexKey.Order})
 							conv.UniquePKey[t] = append(conv.UniquePKey[t], indexKey.ColId)
-
-							// Adding 'Missing Primary Key' as a Warning inside ColumnLevelIssues of conv object
-							tableLevelIssues := conv.SchemaIssues[ct.Id].TableLevelIssues
-							columnLevelIssues := make(map[string][]SchemaIssue)
-							if tableIssues, ok := conv.SchemaIssues[ct.Id]; ok {
-								columnLevelIssues = tableIssues.ColumnLevelIssues
-							}
-							issues := columnLevelIssues[indexKey.ColId]
-							issues = append(issues, MissingPrimaryKey)
-							columnLevelIssues[indexKey.ColId] = issues
-							conv.SchemaIssues[ct.Id] = TableIssues{
-								TableLevelIssues:  tableLevelIssues,
-								ColumnLevelIssues: columnLevelIssues,
-							}
-
+							addMissingPrimaryKeyWarning(ct.Id, indexKey.ColId, conv)
 						}
 						primaryKeyPopulated = true
 						ct.Indexes = append(ct.Indexes[:i], ct.Indexes[i+1:]...)
@@ -425,24 +411,28 @@ func (conv *Conv) AddPrimaryKeys() {
 				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}}
 				ct.PrimaryKeys = []ddl.IndexKey{{ColId: columnId, Order: 1}}
 				conv.SyntheticPKeys[t] = SyntheticPKey{columnId, 0}
-
-				// Adding 'Missing Primary Key' as a Warning inside ColumnLevelIssues of conv object
-				tableLevelIssues := conv.SchemaIssues[ct.Id].TableLevelIssues
-				columnLevelIssues := make(map[string][]SchemaIssue)
-				if tableIssues, ok := conv.SchemaIssues[ct.Id]; ok {
-					columnLevelIssues = tableIssues.ColumnLevelIssues
-				}
-				issues := columnLevelIssues[columnId]
-				issues = append(issues, MissingPrimaryKey)
-				columnLevelIssues[columnId] = issues
-
-				conv.SchemaIssues[ct.Id] = TableIssues{
-					TableLevelIssues:  tableLevelIssues,
-					ColumnLevelIssues: columnLevelIssues,
-				}
+				addMissingPrimaryKeyWarning(ct.Id, columnId, conv)
 			}
 			conv.SpSchema[t] = ct
 		}
+	}
+}
+
+// Add 'Missing Primary Key' as a Warning inside ColumnLevelIssues of conv object
+func addMissingPrimaryKeyWarning(tableId string, colId string, conv *Conv) {
+	tableLevelIssues := conv.SchemaIssues[tableId].TableLevelIssues
+	var columnLevelIssues map[string][]SchemaIssue
+	if tableIssues, ok := conv.SchemaIssues[tableId]; ok {
+		columnLevelIssues = tableIssues.ColumnLevelIssues
+	} else {
+		columnLevelIssues = make(map[string][]SchemaIssue)
+	} 
+	issues := columnLevelIssues[colId]
+	issues = append(issues, MissingPrimaryKey)
+	columnLevelIssues[colId] = issues
+	conv.SchemaIssues[tableId] = TableIssues{
+		TableLevelIssues:  tableLevelIssues,
+		ColumnLevelIssues: columnLevelIssues,
 	}
 }
 
