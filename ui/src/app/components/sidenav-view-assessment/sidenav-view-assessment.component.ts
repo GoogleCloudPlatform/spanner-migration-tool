@@ -200,28 +200,28 @@ export class SidenavViewAssessmentComponent implements OnInit {
               case "Errors":
                 // store errors with table count and table names in report.errors 
                 let errorIssues = issue.issueList
-                this.AppendIssueWithTableInformation(errorIssues, report.errors, defaultIssue, fetchedTableReport)
+                this.appendIssueWithTableInformation(errorIssues, report.errors, defaultIssue, fetchedTableReport)
                 break
 
               case "Warnings":
               case "Warning":
                 // store warnings with table count and table names in report.warnings
                 let warningIssues = issue.issueList
-                this.AppendIssueWithTableInformation(warningIssues, report.warnings, defaultIssue, fetchedTableReport)
+                this.appendIssueWithTableInformation(warningIssues, report.warnings, defaultIssue, fetchedTableReport)
                 break
 
               case "Suggestion":
               case "Suggestions":
                 // store suggestions with table count and table names in report.suggestions
                 let suggestionIssues = issue.issueList
-                this.AppendIssueWithTableInformation(suggestionIssues, report.suggestions, defaultIssue, fetchedTableReport)
+                this.appendIssueWithTableInformation(suggestionIssues, report.suggestions, defaultIssue, fetchedTableReport)
                 break
 
               case "Note":
               case "Notes":
                 // store notes with table count and table names in report.notes
                 let noteIssues = issue.issueList
-                this.AppendIssueWithTableInformation(noteIssues, report.notes, defaultIssue, fetchedTableReport)
+                this.appendIssueWithTableInformation(noteIssues, report.notes, defaultIssue, fetchedTableReport)
                 break
             }
           }
@@ -231,14 +231,14 @@ export class SidenavViewAssessmentComponent implements OnInit {
         let map_report = report.warnings
         this.issueTableData_Warnings = []
         if (map_report.size != 0) {
-          this.PopulateTableData(map_report, this.issueTableData_Warnings)
+          this.populateTableData(map_report, this.issueTableData_Warnings)
         }
 
         // populate issueTableData_Errors with data from report.errors
         map_report = report.errors
         this.issueTableData_Errors = []
         if (map_report.size != 0) {
-          this.PopulateTableData(map_report, this.issueTableData_Errors)
+          this.populateTableData(map_report, this.issueTableData_Errors)
 
         }
 
@@ -246,20 +246,20 @@ export class SidenavViewAssessmentComponent implements OnInit {
         map_report = report.suggestions
         this.issueTableData_Suggestions = []
         if (map_report.size != 0) {
-          this.PopulateTableData(map_report, this.issueTableData_Suggestions)
+          this.populateTableData(map_report, this.issueTableData_Suggestions)
         }
 
         // populate issueTableData_Notes with data from report.notes
         map_report = report.notes
         this.issueTableData_Notes = []
         if (map_report.size != 0) {
-          this.PopulateTableData(map_report, this.issueTableData_Notes)
+          this.populateTableData(map_report, this.issueTableData_Notes)
         }
       }
     })
   }
 
-  PopulateTableData(map_report: Map<string, TablesInformation>, issueTableData: tableContent[]) {
+  populateTableData(map_report: Map<string, TablesInformation>, issueTableData: tableContent[]) {
     let i = 1;
     for (let [key, value] of map_report.entries()) {
       let tableNamesList = [...value.tableNames.keys()]
@@ -274,28 +274,28 @@ export class SidenavViewAssessmentComponent implements OnInit {
     }
   }
 
-  AppendIssueWithTableInformation(Issues: IIssue[], report: Map<string, TablesInformation>, defaultIssue: TablesInformation, fetchedTableReport: ITableReport) {
-    for (var noteIssue of Issues) {
-      let isPresent: boolean = report.has(noteIssue.category)
+  appendIssueWithTableInformation(Issues: IIssue[], report: Map<string, TablesInformation>, defaultIssue: TablesInformation, fetchedTableReport: ITableReport) {
+    for (var issue of Issues) {
+      let isPresent: boolean = report.has(issue.category)
       
       // if the issue already exists in the report, we create a new issue description
       // and duplicate the existing one into it. This duplication is necessary because the value 
       // is passed by reference. After that, we add the table to that existing issue.
       if (isPresent) {
-        let existingDesc = report.get(noteIssue.category)!;
+        let existingDesc = report.get(issue.category)!;
         let descNew = {
           tableNames: new Set(existingDesc.tableNames),
           tableCount: existingDesc.tableNames.size
         }
         descNew.tableNames.add(fetchedTableReport.srcTableName)
         descNew.tableCount = descNew.tableNames.size
-        report.set(noteIssue.category, descNew)
+        report.set(issue.category, descNew)
       } else {
         // if the issue is new we initialise issue description and add the table to it
         let desc = defaultIssue
         desc.tableNames.add(fetchedTableReport.srcTableName)
         desc.tableCount = desc.tableNames.size
-        report.set(noteIssue.category, desc)
+        report.set(issue.category, desc)
       }
     }
   }
