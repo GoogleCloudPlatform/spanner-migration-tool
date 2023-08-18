@@ -219,7 +219,7 @@ func TestNewSourceProfileConnectionDynamoDB(t *testing.T) {
 }
 
 func TestNewSourceProfileConnectionSqlServer(t *testing.T) {
-	// Avoid getting/settinng env variables in the unit tests.
+	// Avoid getting/setting env variables in the unit tests.
 	testCases := []struct {
 		name          string
 		params        map[string]string
@@ -290,7 +290,7 @@ func TestNewSourceProfileConnectionSqlServer(t *testing.T) {
 
 // code for testing oracle connection
 func TestNewSourceProfileConnectionOracle(t *testing.T) {
-	// Avoid getting/settinng env variables in the unit tests.
+	// Avoid getting/setting env variables in the unit tests.
 	testCases := []struct {
 		name          string
 		params        map[string]string

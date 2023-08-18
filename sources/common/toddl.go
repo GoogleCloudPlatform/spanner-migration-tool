@@ -141,7 +141,7 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 		Name:        spTableName,
 		ColIds:      spColIds,
 		ColDefs:     spColDef,
-		PrimaryKeys: cvtPrimaryKeys(conv, srcTable.Id, srcTable.PrimaryKeys),
+		PrimaryKeys: cvtPrimaryKeys(srcTable.PrimaryKeys),
 		ForeignKeys: cvtForeignKeys(conv, spTableName, srcTable.Id, srcTable.ForeignKeys, isRestore),
 		Indexes:     cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef),
 		Comment:     comment,
@@ -159,7 +159,7 @@ func quoteIfNeeded(s string) string {
 	return s
 }
 
-func cvtPrimaryKeys(conv *internal.Conv, srcTableId string, srcKeys []schema.Key) []ddl.IndexKey {
+func cvtPrimaryKeys(srcKeys []schema.Key) []ddl.IndexKey {
 	var spKeys []ddl.IndexKey
 	for _, k := range srcKeys {
 		spKeys = append(spKeys, ddl.IndexKey{ColId: k.ColId, Desc: k.Desc, Order: k.Order})

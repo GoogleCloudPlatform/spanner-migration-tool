@@ -147,7 +147,7 @@ func TestPrepareColumns(t *testing.T) {
 		expectedColIds []string
 	}{
 		{
-			name: "when source and spaner tables have same set of columns",
+			name: "when source and spanner tables have same set of columns",
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -221,7 +221,7 @@ func TestPrepareValues(t *testing.T) {
 		expectedValues    []string
 	}{
 		{
-			name: "when source and spaner tables have same set of columns",
+			name: "when source and spanner tables have same set of columns",
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {

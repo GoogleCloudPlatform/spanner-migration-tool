@@ -29,8 +29,6 @@ func Test_quoteIfNeeded(t *testing.T) {
 		s string
 	}
 
-	ExpectedTableName := "tableName"
-
 	tests := []struct {
 		name              string
 		args              arg
@@ -39,9 +37,9 @@ func Test_quoteIfNeeded(t *testing.T) {
 		{
 			name: "quoteIfNeeded",
 			args: arg{
-				s: "tableName",
+				s: "table Name",
 			},
-			expectedTableName: ExpectedTableName,
+			expectedTableName: "\"table Name\"",
 		},
 	}
 
@@ -49,37 +47,13 @@ func Test_quoteIfNeeded(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := quoteIfNeeded(tt.args.s)
 			if !reflect.DeepEqual(result, tt.expectedTableName) {
-				t.Errorf("CvtForeignKeysHelper() = %v and wants %v", result, tt.expectedTableName)
+				t.Errorf("quoteIfNeeded() returned incorrect output, got %v and want %v", result, tt.expectedTableName)
 			}
 		})
 	}
 }
 
 func Test_cvtPrimaryKeys(t *testing.T) {
-	conv := internal.Conv{
-		SrcSchema: map[string]schema.Table{
-			"t1": {
-				Name:   "table1",
-				Id:     "t1",
-				ColIds: []string{"c1", "c2"},
-				ColDefs: map[string]schema.Column{
-					"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: ddl.String, Mods: []int64{255}}},
-					"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: ddl.Numeric, Mods: []int64{6, 4}}},
-				},
-				ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColumnNames: []string{"a"}, ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, ReferTableName: "table2", ReferColumnNames: []string{"c"}}},
-			},
-			"t2": {
-				Name:   "table2",
-				Id:     "t2",
-				ColIds: []string{"c3"},
-				ColDefs: map[string]schema.Column{
-					"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: ddl.String, Mods: []int64{255}}},
-				},
-			},
-		},
-		UsedNames: map[string]bool{},
-	}
-	srcTableId := "t1"
 	srcKeys := []schema.Key{
 		{
 			ColId: "c1",
@@ -95,9 +69,7 @@ func Test_cvtPrimaryKeys(t *testing.T) {
 	}
 
 	type arg struct {
-		conv       *internal.Conv
-		srcTableTd string
-		srcKeys    []schema.Key
+		srcKeys []schema.Key
 	}
 
 	tests := []struct {
@@ -108,18 +80,16 @@ func Test_cvtPrimaryKeys(t *testing.T) {
 		{
 			name: "Creating PrimaryKeys for the tables",
 			args: arg{
-				conv:       &conv,
-				srcTableTd: srcTableId,
-				srcKeys:    srcKeys,
+				srcKeys: srcKeys,
 			},
 			expectedIndexKey: resultIndexKey,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := cvtPrimaryKeys(tt.args.conv, tt.args.srcTableTd, tt.args.srcKeys)
+			result := cvtPrimaryKeys(tt.args.srcKeys)
 			if !reflect.DeepEqual(result, tt.expectedIndexKey) {
-				t.Errorf("CvtForeignKeysHelper() = %v and wants %v", result, tt.expectedIndexKey)
+				t.Errorf("cvtPrimaryKeys() output doesn't match, got %v and want %v", result, tt.expectedIndexKey)
 			}
 		})
 	}
@@ -188,7 +158,7 @@ func Test_cvtForeignKeys(t *testing.T) {
 		Error              error
 	}{
 		{
-			name: "relating ForeignKey relation between tables",
+			name: "creating foreign key in spanner schema",
 			args: arg{
 				conv:        &conv,
 				spTableName: spTableName,
@@ -204,7 +174,7 @@ func Test_cvtForeignKeys(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := cvtForeignKeys(tt.args.conv, tt.args.spTableName, tt.args.srcTableTd, tt.args.srcKey, tt.args.isRestore)
 			if !reflect.DeepEqual(result, tt.expectedForeignKey) {
-				t.Errorf("CvtForeignKeysHelper() = %v and wants %v,%v", result, tt.expectedForeignKey, tt.Error)
+				t.Errorf("cvtForeignKeys() output mismatch, got %v and want %v,%v", result, tt.expectedForeignKey, tt.Error)
 			}
 		})
 	}
@@ -285,7 +255,7 @@ func Test_cvtIndexes(t *testing.T) {
 		ExpectedSpIndexes []ddl.CreateIndex
 	}{
 		{
-			name: "Adding IndexKey to the table",
+			name: "Adding Index to the table",
 			args: arg{
 				conv:       &conv,
 				tableId:    tableId,
@@ -401,7 +371,7 @@ func Test_cvtForeignKeysForAReferenceTable(t *testing.T) {
 		t.Run("testCase for referTable", func(t *testing.T) {
 			result := cvtForeignKeysForAReferenceTable(tt.conv, tt.TableId, tt.ReferTableId, tt.srcKeys, tt.spKeys)
 			if !reflect.DeepEqual(result, tt.expectedForeignKey) {
-				t.Errorf("CvtForeignKeysHelper() = %v and wants %v ", result, tt.expectedForeignKey)
+				t.Errorf("cvtForeignKeysForAReferenceTable() = %v and wants %v ", result, tt.expectedForeignKey)
 			}
 		})
 	}
