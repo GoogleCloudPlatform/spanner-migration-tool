@@ -60,14 +60,20 @@ type NameChange struct {
 	NewName        string `json:"newName"`
 }
 
-type Warnings struct {
-	WarningType string   `json:"warningType"`
-	WarningList []string `json:"warningList"`
+type Issues struct {
+	IssueType string  `json:"issueType"`
+	IssueList []Issue `json:"issueList"`
+}
+
+type Issue struct {
+	Category    string `json:"category"`
+	Description string `json:"description"`
 }
 
 type SchemaReport struct {
 	Rating       string `json:"rating"`
 	PkMissing    bool   `json:"pkMissing"`
+	Issues       int64  `json:"issues"`
 	Warnings     int64  `json:"warnings"`
 	TotalColumns int64  `json:"totalColumns"`
 }
@@ -84,7 +90,7 @@ type TableReport struct {
 	SpTableName  string       `json:"spTableName"`
 	SchemaReport SchemaReport `json:"schemaReport"`
 	DataReport   DataReport   `json:"dataReport"`
-	Warnings     []Warnings   `json:"warnings"`
+	Issues       []Issues     `json:"issues"`
 }
 
 type UnexpectedCondition struct {
@@ -99,6 +105,7 @@ type UnexpectedConditions struct {
 
 type StructuredReport struct {
 	Summary              Summary              `json:"summary"`
+	IsSharded            bool                 `json:"isSharded"`
 	IgnoredStatements    []IgnoredStatement   `json:"ignoredStatements"`
 	ConversionMetadata   []ConversionMetadata `json:"conversionMetadata"`
 	MigrationType        string               `json:"migrationType"`
@@ -111,6 +118,7 @@ type StructuredReport struct {
 
 // A report consists of the following parts:
 // 1. Summary (overall quality of conversion)
+// 2. Sharding information
 // 2. Ignored statements
 // 3. Conversion duration
 // 4. Migration Type
@@ -130,17 +138,20 @@ func GenerateStructuredReport(driverName string, dbName string, conv *internal.C
 	rating, summary := GenerateSummary(conv, tableReports, badWrites)
 	smtReport.Summary = Summary{Text: summary, Rating: rating, DbName: dbName}
 
-	//2. Ignored Statements
+	//2. Sharding information
+	smtReport.IsSharded = conv.IsSharded
+
+	//3. Ignored Statements
 	smtReport.IgnoredStatements = fetchIgnoredStatements(conv)
 
-	//3. Conversion Metadata
+	//4. Conversion Metadata
 	smtReport.ConversionMetadata = append(smtReport.ConversionMetadata, ConversionMetadata{ConversionType: "Schema", Duration: conv.Audit.SchemaConversionDuration})
 	smtReport.ConversionMetadata = append(smtReport.ConversionMetadata, ConversionMetadata{ConversionType: "Data", Duration: conv.Audit.DataConversionDuration})
 
-	//4. Migration Type
+	//5. Migration Type
 	smtReport.MigrationType = mapMigrationType(*conv.Audit.MigrationType)
 
-	//5. Statement statistics
+	//6. Statement statistics
 	var isDump bool
 	if strings.Contains(driverName, "dump") {
 		isDump = true
@@ -150,15 +161,15 @@ func GenerateStructuredReport(driverName string, dbName string, conv *internal.C
 		smtReport.StatementStats.StatementStats = fetchStatementStats(driverName, conv)
 	}
 
-	//6. Name changes
+	//7. Name changes
 	smtReport.NameChanges = fetchNameChanges(conv)
 
-	//7. Table Reports
+	//8. Table Reports
 	if printTableReports {
 		smtReport.TableReports = fetchTableReports(tableReports, conv)
 	}
 
-	//8. Unexpected Conditions
+	//9. Unexpected Conditions
 	if printUnexpecteds {
 		smtReport.UnexpectedConditions = fetchUnexceptedConditions(driverName, conv)
 	}
@@ -252,28 +263,38 @@ func fetchTableReports(inputTableReports []tableReport, conv *internal.Conv) (ta
 		//2. Schema Report
 		migrationType := *conv.Audit.MigrationType
 		if migrationType != migration.MigrationData_DATA_ONLY {
-			tableReport.SchemaReport = getSchemaReport(t.Cols, t.Warnings, t.Errors, t.SyntheticPKey != "")
+			var totalIssues int64 = 0
+			for _, x := range t.Body {
+				totalIssues += int64(len(x.IssueBody))
+			}
+			tableReport.SchemaReport = getSchemaReport(t.Cols, totalIssues, t.Warnings, t.Errors, t.SyntheticPKey != "")
 		}
+
 		//3. Data Report
 		schemaOnly := conv.SchemaMode()
 		if !schemaOnly {
 			tableReport.DataReport = getDataReport(t.rows, t.badRows, conv.Audit.DryRun)
 		}
-		//4. Warnings
+		//4. Issues
 		for _, x := range t.Body {
-			var warnings = Warnings{WarningType: x.Heading}
-			for _, l := range x.Lines {
-				warnings.WarningList = append(warnings.WarningList, l)
+			var issues = Issues{IssueType: x.Heading}
+			for _, l := range x.IssueBody {
+				ic := Issue{
+					Category:    l.Category,
+					Description: l.Description,
+				}
+				issues.IssueList = append(issues.IssueList, ic)
 			}
-			tableReport.Warnings = append(tableReport.Warnings, warnings)
+			tableReport.Issues = append(tableReport.Issues, issues)
 		}
 		tableReports = append(tableReports, tableReport)
 	}
 	return tableReports
 }
 
-func getSchemaReport(cols, warnings, errors int64, missingPKey bool) (schemaReport SchemaReport) {
+func getSchemaReport(cols, issues, warnings, errors int64, missingPKey bool) (schemaReport SchemaReport) {
 	schemaReport.TotalColumns = cols
+	schemaReport.Issues = issues
 	schemaReport.Warnings = warnings
 	schemaReport.PkMissing = missingPKey
 	schemaReport.Rating, _ = RateSchema(cols, warnings, errors, missingPKey, false)

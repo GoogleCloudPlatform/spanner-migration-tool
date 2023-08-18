@@ -29,16 +29,6 @@ type Counter struct {
 
 var Cntr Counter
 
-// Contains check string present in list.
-func Contains(l []string, str string) bool {
-	for _, s := range l {
-		if s == str {
-			return true
-		}
-	}
-	return false
-}
-
 func GenerateIdSuffix() string {
 
 	counter, _ := strconv.Atoi(Cntr.ObjectId)

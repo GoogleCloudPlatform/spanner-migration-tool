@@ -116,28 +116,28 @@ export class SummaryComponent implements OnInit {
     summary.Errors.forEach((v) => {
       this.summaryRows.push({
         type: 'error',
-        content: v,
+        content: v.description,
         isRead: false,
       })
     })
     summary.Warnings.forEach((v) => {
       this.summaryRows.push({
         type: 'warning',
-        content: v,
+        content: v.description,
         isRead: false,
       })
     })
     summary.Suggestions.forEach((v) => {
       this.summaryRows.push({
         type: 'suggestion',
-        content: v,
+        content: v.description,
         isRead: false,
       })
     })
     summary.Notes.forEach((v) => {
       this.summaryRows.push({
         type: 'note',
-        content: v,
+        content: v.description,
         isRead: false,
       })
     })

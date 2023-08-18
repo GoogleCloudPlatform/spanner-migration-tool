@@ -2,60 +2,54 @@
   <div class="sidenav-view-assessment-header">
     <span class="mat-h2 header-title">Assessment report</span>
     <div class="btn-source-select">
-    <span class="reportsButtons">
-    <button  mat-raised-button color="primary" class="split-button-left" (click)="downloadReports()">
-      DOWNLOAD REPORTS
-    </button>
-    <button  mat-raised-button color="primary" class="split-button-right" [matMenuTriggerFor]="menu">
-      <mat-icon aria-hidden="false" aria-label="More options">expand_more</mat-icon>
-    </button>
-    <mat-menu #menu="matMenu" xPosition="before">
-      <button mat-menu-item (click)="downloadTextReport()">
-        Download Text Report
+      <span class="reportsButtons">
+        <button mat-raised-button color="primary" class="split-button-left" (click)="downloadReports()">
+          DOWNLOAD REPORTS
+        </button>
+        <button mat-raised-button color="primary" class="split-button-right" [matMenuTriggerFor]="menu">
+          <mat-icon aria-hidden="false" aria-label="More options">expand_more</mat-icon>
+        </button>
+        <mat-menu #menu="matMenu" xPosition="before">
+          <button mat-menu-item (click)="downloadTextReport()">
+            Download Text Report
+          </button>
+          <button mat-menu-item (click)="downloadStructuredReport()">
+            Download Structured Report
+          </button>
+        </mat-menu>
+      </span>
+      <button class="close-button" mat-icon-button color="primary" (click)="closeSidenav()">
+        <mat-icon class="close-icon">close</mat-icon>
       </button>
-      <button mat-menu-item (click)="downloadStructuredReport()">
-        Download Structured Report
-      </button>
-    </mat-menu>
-    </span>
-    <button class="close-button" mat-icon-button color="primary" (click)="closeSidenav()">
-      <mat-icon class="close-icon">close</mat-icon>
-    </button>
-  </div>
+    </div>
   </div>
   <div class="content">
-    <p>
-      Estimation for {{ srcDbType.toUpperCase() }} to Spanner conversion:
-      {{ conversionRatePercentage.good }}% of tables can be converted automatically,
-      {{ conversionRatePercentage.ok }}% requires minimal conversion changes and
-      {{ conversionRatePercentage.bad }}% requires high complexity conversion changes.
-    </p>
-
-    <p></p>
-    <h3 class="sidenav-title">Source and destination database definitions</h3>
-    <table mat-table [dataSource]="dbDataSource"  class = "sidenav-databaseDefinitions">
-      <ng-container matColumnDef="title">
-        <th mat-header-cell *matHeaderCellDef class="sidenav-header-border">Title</th>
-        <td mat-cell *matCellDef="let element">{{ element.title }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="source">
-        <th mat-header-cell *matHeaderCellDef class="sidenav-header-border">Source</th>
-        <td mat-cell *matCellDef="let element">{{ element.source }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="destination">
-        <th mat-header-cell *matHeaderCellDef class="sidenav-header-border">Destination</th>
-        <td mat-cell *matCellDef="let element">{{ element.destination }}</td>
-      </ng-container>
-
-      <tr mat-header-row *matHeaderRowDef="dbDisplayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: dbDisplayedColumns"></tr>
-    </table>
+    <div class="summaryHeader">
+      <p class="databaseName">{{connectionDetail}}</p>
+      <p class="migrationDetails"> &nbsp; ({{srcDbType}} <mat-icon>arrow_right_alt</mat-icon> Spanner)</p>
+    </div>
+    <p class="summaryText">{{summaryText}}</p>
+    <mat-card>
+      <div class="sidenav-percentage-bar">
+        <div class="danger-background" [ngStyle]="{ 'width.%': this.conversionRatePercentage.bad }"></div>
+        <div class="warning-background" [ngStyle]="{ 'width.%': this.conversionRatePercentage.ok }"></div>
+        <div class="success-background" [ngStyle]="{ 'width.%': this.conversionRatePercentage.good }"></div>
+      </div>
+      <hr />
+      <br />
+      <div class="sidenav-percentage-indent">
+        <span><mat-icon class="icon danger"> circle </mat-icon>
+          <span> Not a great conversion</span></span>
+        <span><mat-icon class="icon warning"> circle </mat-icon>
+          <span> Converted with warnings</span></span>
+        <span><mat-icon class="icon success"> circle </mat-icon>
+          <span> Converted automatically</span></span>
+      </div>
+    </mat-card>
     <br>
     <h3 class="sidenav-title">Conversion status by table</h3>
     <table mat-table [dataSource]="rateCountDataSource" class="sidenav-conversionByTable">
-      <ng-container matColumnDef="total" >
+      <ng-container matColumnDef="total">
         <th mat-header-cell *matHeaderCellDef>Total tables</th>
         <td mat-cell class="cells" *matCellDef="let element">{{ element.total }}</td>
       </ng-container>
@@ -72,13 +66,13 @@
           <mat-icon class="icon warning icon-size icons"> warning</mat-icon>Conversion some warnings &
           suggestions
         </th>
-        <td mat-cell  class="cells" *matCellDef="let element">{{ element.ok }}</td>
+        <td mat-cell class="cells" *matCellDef="let element">{{ element.ok }}</td>
       </ng-container>
       <ng-container matColumnDef="good">
         <th mat-header-cell *matHeaderCellDef>
           <mat-icon class="icon success icon-size icons"> check_circle </mat-icon>100% conversion
         </th>
-        <td mat-cell  class="cells" *matCellDef="let element">{{ element.good }}</td>
+        <td mat-cell class="cells" *matCellDef="let element">{{ element.good }}</td>
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="rateCountDisplayedColumns"></tr>
@@ -86,35 +80,235 @@
     </table>
 
     <br>
-    <mat-card>
-      <div class="sidenav-percentage-bar">
-        <div
-          class="danger-background"
-          [ngStyle]="{ 'width.%': this.conversionRatePercentage.bad }"
-        ></div>
-        <div
-          class="warning-background"
-          [ngStyle]="{ 'width.%': this.conversionRatePercentage.ok }"
-        ></div>
-        <div
-          class="success-background"
-          [ngStyle]="{ 'width.%': this.conversionRatePercentage.good }"
-        ></div>
-      </div>
-      <hr />
-      <br />
-      <div class="sidenav-percentage-indent">
-        <span
-          ><mat-icon class="icon danger"> circle </mat-icon>
-          <span>Not a great conversion</span></span
-        >
-        <span
-          ><mat-icon class="icon warning"> circle </mat-icon>
-          <span>Converted with warnings</span></span
-        >
-        <span><mat-icon class="icon success"> circle </mat-icon> <span>Converted automatically</span></span>
-      </div>
-    </mat-card>
+    <h3>Summarized Table Report</h3>
+    <div class="issue-report">
+      <mat-expansion-panel *ngIf="issueTableData_Errors.length">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon matTooltip="Error: Please resolve them to proceed with the migration" matTooltipPosition="above"
+              class="danger">
+              error
+            </mat-icon>
+            ERRORS
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <table mat-table [dataSource]="issueTableData_Errors" multiTemplateDataRows class="sidenav-databaseDefinitions">
 
+          <ng-container matColumnDef="position">
+            <th mat-header-cell *matHeaderCellDef class="mat-position"> No. </th>
+            <td mat-cell *matCellDef="let element" class="mat-position"> {{element.position}} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef class="mat-description"> Description </th>
+            <td mat-cell *matCellDef="let element" class="mat-description"> {{element.description}} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="tableCount">
+            <th mat-header-cell *matHeaderCellDef class="mat-tableCount"> Table Count </th>
+            <td mat-cell *matCellDef="let element" class="mat-tableCount"> {{element.tableCount}} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="expand">
+            <th mat-header-cell *matHeaderCellDef aria-label="row actions">&nbsp;</th>
+            <td mat-cell *matCellDef="let element">
+              <button mat-icon-button aria-label="expand row" (click)="toggleRow(element); $event.stopPropagation()">
+                <mat-icon *ngIf="!isRowExpanded(element)">keyboard_arrow_down</mat-icon>
+                <mat-icon *ngIf="isRowExpanded(element)">keyboard_arrow_up</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="expandedDetail">
+            <td mat-cell *matCellDef="let element" [attr.colspan]="columnsToDisplayWithExpand.length">
+              <div class="example-element-detail" [ngClass]="isRowExpanded(element) ? 'expanded' : 'collapsed'">
+                <div class="example-element-description"> TABLES: {{element.tableNamesJoinedByComma}}</div>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="columnsToDisplayWithExpand"></tr>
+          <tr mat-row *matRowDef="let element; columns: columnsToDisplayWithExpand;" class="example-element-row"
+            [class.example-expanded-row]="isRowExpanded(element)" (click)="toggleRow(element)"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="example-detail-row"></tr>
+        </table>
+      </mat-expansion-panel>
+      <br *ngIf="issueTableData_Errors.length">
+      <mat-expansion-panel *ngIf="issueTableData_Warnings.length">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon matTooltip="Warning : Changes made because of differences in source and spanner capabilities."
+              matTooltipPosition="above" class="warning">
+              warning
+            </mat-icon>
+            WARNINGS
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <table mat-table [dataSource]="issueTableData_Warnings" multiTemplateDataRows
+          class="sidenav-databaseDefinitions">
+
+          <ng-container matColumnDef="position">
+            <th mat-header-cell *matHeaderCellDef class="mat-position"> No. </th>
+            <td mat-cell *matCellDef="let element" class="mat-position"> {{element.position}} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef class="mat-description"> Description </th>
+            <td mat-cell *matCellDef="let element" class="mat-description"> {{element.description}} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="tableCount">
+            <th mat-header-cell *matHeaderCellDef class="mat-tableCount"> Table Count </th>
+            <td mat-cell *matCellDef="let element" class="mat-tableCount"> {{element.tableCount}} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="expand">
+            <th mat-header-cell *matHeaderCellDef aria-label="row actions">&nbsp;</th>
+            <td mat-cell *matCellDef="let element">
+              <button mat-icon-button aria-label="expand row" (click)="toggleRow(element); $event.stopPropagation()">
+                <mat-icon *ngIf="!isRowExpanded(element)">keyboard_arrow_down</mat-icon>
+                <mat-icon *ngIf="isRowExpanded(element)">keyboard_arrow_up</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="expandedDetail">
+            <td mat-cell *matCellDef="let element" [attr.colspan]="columnsToDisplayWithExpand.length">
+              <div class="example-element-detail" [ngClass]="isRowExpanded(element) ? 'expanded' : 'collapsed'" >
+                <div class="example-element-description"> TABLES: {{element.tableNamesJoinedByComma}}</div>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="columnsToDisplayWithExpand"></tr>
+          <tr mat-row *matRowDef="let element; columns: columnsToDisplayWithExpand;" class="example-element-row"
+            [class.example-expanded-row]="isRowExpanded(element)" (click)="toggleRow(element)"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="example-detail-row"></tr>
+        </table>
+      </mat-expansion-panel>
+      <br *ngIf="issueTableData_Warnings.length">
+      <mat-expansion-panel *ngIf="issueTableData_Suggestions.length">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon
+              matTooltip="Suggestion : We highly recommend you make these changes or else it will impact your DB performance."
+              matTooltipPosition="above" class="suggestion">
+              wb_incandescent
+            </mat-icon>
+            SUGGESTIONS
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <table mat-table [dataSource]="issueTableData_Suggestions" multiTemplateDataRows
+          class="sidenav-databaseDefinitions">
+
+          <ng-container matColumnDef="position">
+            <th mat-header-cell *matHeaderCellDef class="mat-position"> No. </th>
+            <td mat-cell *matCellDef="let element" class="mat-position"> {{element.position}} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef class="mat-description"> Description </th>
+            <td mat-cell *matCellDef="let element" class="mat-description"> {{element.description}} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="tableCount">
+            <th mat-header-cell *matHeaderCellDef class="mat-tableCount"> Table Count </th>
+            <td mat-cell *matCellDef="let element" class="mat-tableCount"> {{element.tableCount}} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="expand">
+            <th mat-header-cell *matHeaderCellDef aria-label="row actions">&nbsp;</th>
+            <td mat-cell *matCellDef="let element">
+              <button mat-icon-button aria-label="expand row" (click)="toggleRow(element); $event.stopPropagation()">
+                <mat-icon *ngIf="!isRowExpanded(element)">keyboard_arrow_down</mat-icon>
+                <mat-icon *ngIf="isRowExpanded(element)">keyboard_arrow_up</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="expandedDetail">
+            <td mat-cell *matCellDef="let element" [attr.colspan]="columnsToDisplayWithExpand.length">
+              <div class="example-element-detail" [ngClass]="isRowExpanded(element) ? 'expanded' : 'collapsed'">
+                <div class="example-element-description"> TABLES: {{element.tableNamesJoinedByComma}}</div>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="columnsToDisplayWithExpand"></tr>
+          <tr mat-row *matRowDef="let element; columns: columnsToDisplayWithExpand;" class="example-element-row"
+            [class.example-expanded-row]="isRowExpanded(element)" (click)="toggleRow(element)"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="example-detail-row"></tr>
+        </table>
+      </mat-expansion-panel>
+      <br *ngIf="issueTableData_Suggestions.length">
+      <mat-expansion-panel *ngIf="issueTableData_Notes.length">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon matTooltip="Note : This is informational and you don't need to do anything."
+              matTooltipPosition="above" class="success">
+              check_circle
+            </mat-icon>
+            NOTES
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <table mat-table [dataSource]="issueTableData_Notes" multiTemplateDataRows class="sidenav-databaseDefinitions">
+
+          <ng-container matColumnDef="position">
+            <th mat-header-cell *matHeaderCellDef class="mat-position"> No. </th>
+            <td mat-cell *matCellDef="let element" class="mat-position"> {{element.position}} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef class="mat-description"> Description </th>
+            <td mat-cell *matCellDef="let element" class="mat-description"> {{element.description}} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="tableCount">
+            <th mat-header-cell *matHeaderCellDef class="mat-tableCount"> Table Count </th>
+            <td mat-cell *matCellDef="let element" class="mat-tableCount"> {{element.tableCount}} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="expand">
+            <th mat-header-cell *matHeaderCellDef aria-label="row actions">&nbsp;</th>
+            <td mat-cell *matCellDef="let element">
+              <button mat-icon-button aria-label="expand row" (click)="toggleRow(element); $event.stopPropagation()">
+                <mat-icon *ngIf="!isRowExpanded(element)">keyboard_arrow_down</mat-icon>
+                <mat-icon *ngIf="isRowExpanded(element)">keyboard_arrow_up</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="expandedDetail">
+            <td mat-cell *matCellDef="let element" [attr.colspan]="columnsToDisplayWithExpand.length">
+              <div class="example-element-detail" [ngClass]="isRowExpanded(element) ? 'expanded' : 'collapsed'">
+                <div class="example-element-description"> TABLES: {{element.tableNamesJoinedByComma}}</div>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="columnsToDisplayWithExpand"></tr>
+          <tr mat-row *matRowDef="let element; columns: columnsToDisplayWithExpand;" class="example-element-row"
+            [class.example-expanded-row]="isRowExpanded(element)" (click)="toggleRow(element)"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="example-detail-row"></tr>
+        </table>
+      </mat-expansion-panel>
+      <br *ngIf="issueTableData_Notes.length">
+      <div class="no-issue-container"
+        *ngIf="!issueTableData_Notes.length && !issueTableData_Suggestions.length && !issueTableData_Warnings.length && !issueTableData_Errors.length">
+        <div class="no-issue-icon-container">
+          <svg width="36" height="36" viewBox="0 0 24 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M16.8332 0.69873C16.0051 7.45842 16.2492 9.44782 10.4672 10.2012C16.1511 11.1242 16.2329 13.2059 16.8332 19.7037C17.6237 13.1681 17.4697 11.2106 23.1986 10.2012C17.4247 9.45963 17.6194 7.4505 16.8332 0.69873ZM4.23739 0.872955C3.79064 4.52078 3.92238 5.59467 0.802246 6.00069C3.86944 6.49885 3.91349 7.62218 4.23739 11.1284C4.66397 7.60153 4.581 6.54497 7.67271 6.00069C4.55696 5.60052 4.66178 4.51623 4.23739 0.872955ZM7.36426 11.1105C7.05096 13.6683 7.14331 14.4212 4.95554 14.7061C7.10612 15.0553 7.13705 15.8431 7.36426 18.3017C7.66333 15.8288 7.60521 15.088 9.77298 14.7061C7.58818 14.4255 7.66177 13.6653 7.36426 11.1105Z"
+              fill="#3367D6" />
+          </svg>
+        </div>
+        <div class="no-issue-message">
+          Woohoo! No issues or suggestions<br />found.
+        </div>
+        <br>
+      </div>
+      <br>
+    </div>
+    <br>
   </div>
 </div>
