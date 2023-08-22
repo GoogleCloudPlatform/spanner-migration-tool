@@ -160,7 +160,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		} else {
 			bucketName = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
 		}
-		err = utils.CreateGCSBucket(bucketName, sessionState.GCPProjectID)
+		err = utils.CreateGCSBucket(bucketName, sessionState.GCPProjectID, sessionState.Region)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error while creating bucket: %v", err), http.StatusBadRequest)
 			return

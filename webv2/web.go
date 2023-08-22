@@ -2416,7 +2416,7 @@ func createConfigFileForShardedBulkMigration(sessionState *session.SessionState,
 
 func writeSessionFile(sessionState *session.SessionState) error {
 
-	err := utils.CreateGCSBucket(sessionState.Bucket, sessionState.GCPProjectID)
+	err := utils.CreateGCSBucket(sessionState.Bucket, sessionState.GCPProjectID, sessionState.Region)
 	if err != nil {
 		return fmt.Errorf("error while creating bucket: %v", err)
 	}
