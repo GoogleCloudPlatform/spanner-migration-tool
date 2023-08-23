@@ -220,10 +220,10 @@
         <div class="last-btns">
             <button mat-button color="primary" mat-dialog-close>CANCEL</button>
             <button *ngIf="(migrationProfileForm.value.inputType === 'form')" mat-raised-button type="submit"
-                [disabled]="migrationProfileForm.invalid" color="accent" (click)="saveDetailsAndReset()">
+                [disabled]="!(determineFormValidity())" color="accent" (click)="saveDetailsAndReset()">
                 ADD MORE SHARDS
             </button>
-            <button mat-raised-button type="submit" [disabled]="!determineFormValidity()" color="primary"
+            <button mat-raised-button type="submit" [disabled]="!determineFinishValidity()" color="primary"
                 (click)="finalizeConnDetails()">
                 FINISH
             </button>

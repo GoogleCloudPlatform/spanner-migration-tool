@@ -346,10 +346,12 @@
             </li>
         </span>
         <br><br>
+        <span *ngIf="(selectedMigrationType ==='lowdt')">
         <b>Note: </b>Spanner migration tool has orchestrated the migration successfully. For minimal downtime
         migrations, it is safe to close Spanner migration tool now without affecting the progress of the migration.
         Please note that Spanner migration tool does not save the IDs of the Dataflow jobs created once closed, so
         please keep copy over the links in the Generated Resources section above before closing Spanner migration tool.
+        </span>
     </div>
     <div class="migrate">
         <span *ngIf="!isLowDtMigrationRunning">

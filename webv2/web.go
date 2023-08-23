@@ -978,6 +978,11 @@ func applyRule(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
 			return
 		}
+		tableName := checkInterleaving()
+		if tableName != "" {
+			http.Error(w, fmt.Sprintf("Rule cannot be added because some tables, eg: %v are interleaved. Please remove interleaving and try again.", tableName), http.StatusBadRequest)
+			return
+		}
 		setShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
 		addShardIdColumnToForeignKeys(shardIdPrimaryKey.AddedAtTheStart)
 	} else {
@@ -1082,6 +1087,11 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
 			return
 		}
+		tableName := checkInterleaving()
+		if tableName != "" {
+			http.Error(w, fmt.Sprintf("Rule cannot be deleted because some tables, eg: %v are interleaved. Please remove interleaving and try again.", tableName), http.StatusBadRequest)
+			return
+		}
 		revertShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
 		removeShardIdColumnFromForeignKeys(shardIdPrimaryKey.AddedAtTheStart)
 	} else {
@@ -1101,6 +1111,16 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 
+}
+
+func checkInterleaving() string {
+	sessionState := session.GetSessionState()
+	for _, spSchema := range sessionState.Conv.SpSchema {
+		if spSchema.ParentId != "" {
+			return spSchema.Name
+		}
+	}
+	return ""
 }
 
 func addShardIdToForeignKeyPerTable(isAddedAtFirst bool, table ddl.CreateTable) {
@@ -1248,7 +1268,7 @@ func setSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string) {
 func revertSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string) {
 	sessionState := session.GetSessionState()
 	spColLen, _ := strconv.ParseInt(spColMaxLength.SpColMaxLength, 10, 64)
-	if associatedObjects == "All table" {
+	if associatedObjects == "All tables" {
 		for tId := range sessionState.Conv.SpSchema {
 			for colId, colDef := range sessionState.Conv.SpSchema[tId].ColDefs {
 				if colDef.T.Name == spColMaxLength.SpDataType {

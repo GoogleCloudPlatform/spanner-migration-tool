@@ -287,7 +287,10 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       //consider it a valid shard only if the full information
       //is provided.
       if (this.migrationProfileForm.valid) {
-        this.handleConnConfigsFromForm()
+        if ((this.selectedSourceProfileOption !== Profile.NewConnProfile || this.createSrcConnSuccess) &&
+        (this.selectedTargetProfileOption !== Profile.NewConnProfile || this.createTgtConnSuccess)) {
+          this.handleConnConfigsFromForm()
+        }
       }
       //create the configuration to be passed to the backend.
       let dataShards: Array<IDataShard> = []
@@ -390,6 +393,14 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   }
 
   determineFormValidity(): boolean {
+    if (this.migrationProfileForm.valid && (this.selectedSourceProfileOption !== Profile.NewConnProfile || this.createSrcConnSuccess) &&
+    (this.selectedTargetProfileOption !== Profile.NewConnProfile || this.createTgtConnSuccess)) {
+      return true
+    }
+    return false
+  }
+
+  determineFinishValidity(): boolean {
     if (this.definedSrcConnProfileList.length > 0) {
       //means atleast one shard is configured. Finish should be enabled in this case.
       //if all the values are filled, the last form values should be converted
@@ -398,14 +409,10 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       //method
       return true
     }
-    else if (this.migrationProfileForm.valid) {
-      //this is the first shard being configured, and user wants to hit Finish
-      //Enable the button so that the shard config can be submitted on button click.
-      return true
-    }
     else {
-      //all other cases
-      return false
+      //this is the first shard being configured, and user wants to hit Finish
+      //Enable the button if the form is valid so that the shard config can be submitted on button click.
+      return this.determineFormValidity()
     }
   }
 
