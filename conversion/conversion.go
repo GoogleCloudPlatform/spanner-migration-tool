@@ -289,7 +289,11 @@ func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile
 
 		srcSchema := conv.SrcSchema[spannerTableID]
 
-		// TODO: pull from conv struct instead of infoSchema
+		// TODO: pull primary from conv struct instead of infoSchema
+
+		// Primary key param is not used in dataproc templates for data migration
+		// (only used for schema migration), as dataproc templates has set
+		// primary key as required param for all modes, some value has to be provided to the param
 		primaryKeys, _, _ := infoSchema.GetConstraints(conv, common.SchemaAndName{Name: srcTable, Schema: srcSchema.Schema})
 
 		dataprocRequestParams, err := dproc.GetDataprocRequestParams(conv, sourceProfile, targetProfile, spannerTableID, strings.Join(primaryKeys, ","), location, subnet)
