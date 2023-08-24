@@ -381,7 +381,11 @@ func TestProcessData_MultiCol(t *testing.T) {
 			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}}},
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	columnLevelIssues := make(map[string][]internal.SchemaIssue)
+	columnLevelIssues := map[string][]internal.SchemaIssue{
+		"c48": []internal.SchemaIssue {
+			2,
+		},
+	}
 	expectedIssues := internal.TableIssues{
 		ColumnLevelIssues: columnLevelIssues,
 	}

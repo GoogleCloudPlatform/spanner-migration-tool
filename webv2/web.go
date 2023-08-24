@@ -1425,6 +1425,21 @@ func getDSpannerDDL(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(strings.Join(l, ""))
 }
 
+// getIssueDescription maps IssueDB's Category to corresponding CategoryDescription(if present),
+// or to the Brief if not present and pass the map to frontend to be used in assessment report UI
+func getIssueDescription(w http.ResponseWriter, r *http.Request) {
+	var issuesMap = make(map[string]string)
+	for _, issue := range reports.IssueDB {
+		if issue.CategoryDescription == "" {
+			issuesMap[issue.Category] = issue.Brief
+		} else {
+			issuesMap[issue.Category] = issue.CategoryDescription
+		}
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(issuesMap)
+}
+
 // TableInterleaveStatus stores data regarding interleave status.
 type TableInterleaveStatus struct {
 	Possible bool
@@ -2401,7 +2416,7 @@ func createConfigFileForShardedBulkMigration(sessionState *session.SessionState,
 
 func writeSessionFile(sessionState *session.SessionState) error {
 
-	err := utils.CreateGCSBucket(sessionState.Bucket, sessionState.GCPProjectID)
+	err := utils.CreateGCSBucket(sessionState.Bucket, sessionState.GCPProjectID, sessionState.Region)
 	if err != nil {
 		return fmt.Errorf("error while creating bucket: %v", err)
 	}

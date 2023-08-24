@@ -219,7 +219,7 @@ func WriteToGCS(filePath, fileName, data string) error {
 	return nil
 }
 
-func CreateGCSBucket(bucketName, projectID string) error {
+func CreateGCSBucket(bucketName, projectID, location string) error {
 	ctx := context.Background()
 
 	client, err := storage.NewClient(ctx)
@@ -228,7 +228,10 @@ func CreateGCSBucket(bucketName, projectID string) error {
 	}
 	defer client.Close()
 	bucket := client.Bucket(bucketName)
-	if err := bucket.Create(ctx, projectID, nil); err != nil {
+	attrs := storage.BucketAttrs{
+		Location: location,
+	}
+	if err := bucket.Create(ctx, projectID, &attrs); err != nil {
 		if e, ok := err.(*googleapi.Error); ok {
 			// Ignoring the bucket already exists error.
 			if e.Code != 409 {
