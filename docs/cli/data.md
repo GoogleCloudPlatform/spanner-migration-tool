@@ -24,12 +24,12 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
 </details>
 ## NAME
 
-    ./spanner-migration-tool - migrate data from a source database to
+    ./spanner-migration-tool data - migrate data from a source database to
         Cloud Spanner given a schema
 
 ## SYNOPSIS
 
-    ./spanner-migration-tool --session=SESSION --source=SOURCE
+    ./spanner-migration-tool data --session=SESSION --source=SOURCE
         [--dry-run] [--log-level=LOG_LEVEL] [--prefix=PREFIX]
         [--skip-foreign-keys] [--source-profile=SOURCE_PROFILE]
         [--target=TARGET] [--target-profile=TARGET_PROFILE]
@@ -44,18 +44,16 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
 
     To copy data to Cloud Spanner given a session file:
 
-        $ ./spanner-migration-tool --session=./session.json \
-            --source=postgresql < ~/cart.pg_dump \
-            --target-profile='instance=spanner-instance'
+        $ ./spanner-migration-tool data --session=./session.json \
+            --source=postgresql --target-profile='instance=spanner-instance' < ~/cart.pg_dump
+            
 
     To run a minimal downtime data migration:
 
-        $ ./spanner-migration-tool --session=./session.json \
+        $ ./spanner-migration-tool data --session=./session.json \
             --source=MySQL \
-            --source-profile='host=host,port=3306,user=user,password=pwd,dbN\
-        ame=db,streamingCfg=streaming.json' \
-            --target-profile='project=spanner-project,instance=spanner-insta\
-        nce'
+            --source-profile='host=host,port=3306,user=user,password=pwd,dbName=db,streamingCfg=streaming.json' \
+            --target-profile='project=spanner-project,instance=spanner-instance'
 
 ## REQUIRED FLAGS
 
@@ -67,6 +65,9 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
         DynamoDB).
 
 ## OPTIONAL FLAGS
+
+{: .highlight }
+Detailed description of optional flags can be found [here](./flags.md).
 
      --dry-run
         Flag for generating DDL and schema conversion report without creating a
@@ -91,7 +92,7 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
 
      --target-profile=TARGET_PROFILE
         Flag for specifying connection profile for target database (e.g.,
-        "dialect=postgresql)".
+        "dialect=postgresql").
 
      --write-limit=WRITE_LIMIT
         Number of parallel writers to Cloud Spanner during bulk data migrations

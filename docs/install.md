@@ -83,7 +83,10 @@ Detailed instructions on how to install a new component in gCloud can be found [
 {: .highlight }
 Building from source is only supported for MacOS and Linux based platforms.
 
-1. Install Go ([download](https://golang.org/doc/install)) on your development machine if it is not already installed, configure the GOPATH environment variable if it is not already configured, and [test your installation](https://golang.org/doc/install#testing).
+1. Install Go ([download](https://golang.org/doc/install)) on your development machine if it is not already installed, configure the [GOPATH](https://pkg.go.dev/cmd/go@master#hdr-GOPATH_environment_variable) environment variable if it is not already configured, and [test your installation](https://golang.org/doc/install#testing).
+
+{: .note }
+Starting Go 1.9, `GOPATH` is already set with a default value. To set a custom GOPATH, follow the instructions [here](https://github.com/golang/go/wiki/SettingGOPATH).
 
 2. Run the following commands to clone the repository and build it from source:
 

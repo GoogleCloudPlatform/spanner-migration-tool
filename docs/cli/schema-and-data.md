@@ -39,8 +39,7 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
 
 ## DESCRIPTION
 
-    Migrate data from a source database to Cloud Spanner given a
-    schema.
+    Migrate schema and data from a source database to Cloud Spanner.
 
 ## EXAMPLES
 
@@ -65,6 +64,9 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
 
 ## OPTIONAL FLAGS
 
+{: .highlight }
+Detailed description of optional flags can be found [here](./flags.md).
+
      --dry-run
         Flag for generating DDL and schema conversion report without creating a
         Cloud Spanner database.
@@ -76,7 +78,7 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
         File prefix for generated files.
 
      --skip-foreign-keys
-        Skip creating foreign keys after data migration is complete.
+        Skip creating foreign keys after data migration is complete. This is flag is only valid for POC migrations.
 
      --source-profile=SOURCE_PROFILE
         Flag for specifying connection profile for source database (e.g.,

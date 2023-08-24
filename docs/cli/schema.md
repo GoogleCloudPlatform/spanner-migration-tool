@@ -64,6 +64,9 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
 
 ## OPTIONAL FLAGS
 
+{: .highlight }
+Detailed description of optional flags can be found [here](./flags.md).
+
      --dry-run
         Flag for generating DDL and schema conversion report without creating a
         Cloud Spanner database.

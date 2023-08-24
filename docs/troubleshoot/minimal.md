@@ -84,7 +84,7 @@ Before running the Dataflow job, check if the main Dataflow job has non-zero ret
 Sample command to run the Dataflow job in retryDLQ mode is
 
 ```sh
-gcloud beta dataflow flex-template run <jobname> --region=<the region where the dataflow job must run> --template-file-gcs-location=<location of the template image specification json> --additional-experiments=use_runner_v2 --parameters inputFilePattern=<GCS location of the input file pattern>,streamName=<Datastream name>,instanceId=<Spanner Instance Id>,databaseId=<Spanner Database Id>,sessionFilePath=<GCS path to session file>,deadLetterQueueDirectory=<GCS path to the DLQ>,runMode=retryDLQ
+gcloud beta dataflow flex-template run <jobname> --region=<the region where the dataflow job must run> --template-file-gcs-location=gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner --additional-experiments=use_runner_v2 --parameters inputFilePattern=<GCS location of the input file pattern>,streamName=<Datastream name>,instanceId=<Spanner Instance Id>,databaseId=<Spanner Database Id>,sessionFilePath=<GCS path to session file>,deadLetterQueueDirectory=<GCS path to the DLQ>,runMode=retryDLQ
 ```
 
 The following parameters can be taken from the regular forward migration Dataflow job:

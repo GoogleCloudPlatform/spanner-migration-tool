@@ -47,12 +47,14 @@ The Spanner migration tool maps PostgreSQL types to Spanner types as follows:
 | `JSON`, `JSONB`    | `JSON`                 |                                           |
 | `ARRAY(`pgtype`)`  | `ARRAY(`spannertype`)` | if scalar type pgtype maps to spannertype |
 
-All other types map to `STRING(MAX)`. Some of the mappings in this table
-represent potential changes of precision (marked p), dropped autoincrement
-functionality (marked a), differences in treatment of timezones (marked t),
-differences in treatment of fixed-length character types (marked c), and changes
-in storage size (marked s). We discuss these, as well as other limits and notes
-on schema conversion, in the following sections.
+All other types map to `STRING(MAX)`. 
+
+| Marking | Description                                              |
+|---------|----------------------------------------------------------|
+| c       | differences in treatment of fixed-length character types |
+| p       | potential changes of precision                           |
+| t       | differences in treatment of timezones                    |
+| s       | changes in storage size                                  |
 
 ## NUMERIC
 
