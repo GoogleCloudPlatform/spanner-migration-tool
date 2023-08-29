@@ -133,10 +133,10 @@ func writeTableReports(structuredReport StructuredReport, w *bufio.Writer) {
 		}
 		w.WriteString(rate)
 		w.WriteString("\n")
-		for _, warning := range tableReport.Warnings {
-			fmt.Fprintf(w, "%s\n", warning.WarningType)
-			for i, l := range warning.WarningList {
-				justifyLines(w, fmt.Sprintf("%d) %s.\n", i+1, l), 80, 3)
+		for _, issue := range tableReport.Issues {
+			fmt.Fprintf(w, "%s\n", issue.IssueType)
+			for i, l := range issue.IssueList {
+				justifyLines(w, fmt.Sprintf("%d) %s.\n", i+1, l.Description), 80, 3)
 			}
 			w.WriteString("\n")
 		}

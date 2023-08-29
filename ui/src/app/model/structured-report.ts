@@ -1,5 +1,6 @@
 export default interface IStructuredReport {
 	summary: ISummary
+	isSharded: boolean
 	ignoredStatements: IIgnoredStatement[]
 	conversionMetadata: IConversionMetadata[]
 	migrationType: string
@@ -47,9 +48,14 @@ export interface INameChange {
 	newName: string
 }
 
-export interface IWarnings {
-	warningType: string
-	warningList: string[]
+export interface IIssues {
+	issueType: string
+	issueList: IIssue[]
+}
+
+export interface IIssue {
+	category: string
+	description: string
 }
 
 export interface ISchemaReport {
@@ -71,7 +77,7 @@ export interface ITableReport {
 	spTableName: string
 	schemaReport: ISchemaReport
 	dataReport: IDataReport
-	warnings: IWarnings[]
+	issues: IIssues[]
 }
 
 export interface IUnexpectedCondition {

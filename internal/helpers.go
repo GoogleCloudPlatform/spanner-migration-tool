@@ -29,16 +29,6 @@ type Counter struct {
 
 var Cntr Counter
 
-// Contains check string present in list.
-func Contains(l []string, str string) bool {
-	for _, s := range l {
-		if s == str {
-			return true
-		}
-	}
-	return false
-}
-
 func GenerateIdSuffix() string {
 
 	counter, _ := strconv.Atoi(Cntr.ObjectId)
@@ -150,38 +140,6 @@ func ComputeUsedNames(conv *Conv) map[string]bool {
 		}
 	}
 	return usedNames
-}
-
-func ComputeToSource(conv *Conv) map[string]NameAndCols {
-	toSource := make(map[string]NameAndCols)
-	for id, spTable := range conv.SpSchema {
-		if srcTable, ok := conv.SrcSchema[id]; ok {
-			colMap := make(map[string]string)
-			for colId, spCol := range spTable.ColDefs {
-				if srcCol, ok := srcTable.ColDefs[colId]; ok {
-					colMap[spCol.Name] = srcCol.Name
-				}
-			}
-			toSource[spTable.Name] = NameAndCols{Name: srcTable.Name, Cols: colMap}
-		}
-	}
-	return toSource
-}
-
-func ComputeToSpanner(conv *Conv) map[string]NameAndCols {
-	toSpanner := make(map[string]NameAndCols)
-	for id, srcTable := range conv.SrcSchema {
-		if spTable, ok := conv.SpSchema[id]; ok {
-			colMap := make(map[string]string)
-			for colId, srcCol := range srcTable.ColDefs {
-				if spCol, ok := spTable.ColDefs[colId]; ok {
-					colMap[srcCol.Name] = spCol.Name
-				}
-			}
-			toSpanner[srcTable.Name] = NameAndCols{Name: spTable.Name, Cols: colMap}
-		}
-	}
-	return toSpanner
 }
 
 func GetSrcTableByName(srcSchema map[string]schema.Table, name string) (*schema.Table, bool) {
