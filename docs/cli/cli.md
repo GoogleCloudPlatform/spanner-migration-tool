@@ -13,7 +13,7 @@ Spanner migration tool CLI follows [subcommands](https://github.com/google/subco
 structure with the the following general syntax:
 
 ```sh
-spanner-migration-tool <subcommand> flags
+    spanner-migration-tool <subcommand> flags
 ```
 
 The command `spanner-migration-tool help` displays the available subcommands.

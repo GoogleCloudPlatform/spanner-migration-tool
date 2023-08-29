@@ -42,7 +42,7 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
 
 ## EXAMPLES
 
-    To copy data to Cloud Spanner given a session file:
+    To copy data to Cloud Spanner given a session file and a PG dump file:
 
         $ ./spanner-migration-tool data --session=./session.json \
             --source=postgresql --target-profile='instance=spanner-instance' < ~/cart.pg_dump

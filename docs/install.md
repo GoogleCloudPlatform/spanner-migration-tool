@@ -94,7 +94,7 @@ Starting Go 1.9, `GOPATH` is already set with a default value. To set a custom G
 git clone https://github.com/GoogleCloudPlatform/spanner-migration-tool
 cd spanner-migration-tool
 make build
-./spanner-migrationt-tool help
+./spanner-migration-tool help
 ```
 
 ## Setting up the emulator
