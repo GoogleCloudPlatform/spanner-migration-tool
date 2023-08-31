@@ -23,4 +23,4 @@ Attempt to perform schema-and-data migrations to a database with a non-empty sch
 {:toc}
 </details>
 
-![](../assets/asset-2wx0163g8zc.png)
+![](https://services.google.com/fh/files/helpcenter/asset-2wx0163g8zc.png)

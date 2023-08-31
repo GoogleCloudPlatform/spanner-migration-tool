@@ -33,6 +33,6 @@ Spanner migration tool scans through the generated spanner schema and notifies t
 - Modifications related to converting a table into an interleaved one
 - Converting an index to interleaved index
 
-![](../assets/asset-spnu1lr86ts.png)
+![](https://services.google.com/fh/files/helpcenter/asset-spnu1lr86ts.png)
 
-![](../assets/asset-3xj2ro46b6a.png)
+![](https://services.google.com/fh/files/helpcenter/asset-3xj2ro46b6a.png)

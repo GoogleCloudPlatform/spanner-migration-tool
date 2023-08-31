@@ -20,4 +20,4 @@ In cases where the user is modifying any column associated with an interleaved t
 {:toc}
 </details>
 
-![](../assets/asset-4wthoqzatt.png)
+![](https://services.google.com/fh/files/helpcenter/asset-4wthoqzatt.png)

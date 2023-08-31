@@ -20,4 +20,4 @@ It provides the summary of schema conversion in terms of assessment report. Asse
 {:toc}
 </details>
 
-![](../assets/asset-3pmavr9dje6.png)
+![](https://services.google.com/fh/files/helpcenter/asset-3pmavr9dje6.png)

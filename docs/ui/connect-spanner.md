@@ -21,8 +21,8 @@ To perform a migration the user needs to connect to a spanner instance where the
 
 ## Top Nav Bar
 
-![](./assets/asset-8i5dlrmfl6a.png)
+![](https://services.google.com/fh/files/helpcenter/asset-8i5dlrmfl6a.png)
 
 ## Spanner instance configuration
 
-![](./assets/asset-ubol5pox6ar.png)
+![](https://services.google.com/fh/files/helpcenter/asset-ubol5pox6ar.png)

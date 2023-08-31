@@ -27,11 +27,11 @@ In case of minimal downtime migration with GoogleSQL dialect, the foreign keys a
 
 ## Progress bars
 
-![](../assets/asset-rekjv7z3yqp.png)
+![](https://services.google.com/fh/files/helpcenter/asset-rekjv7z3yqp.png)
 
 ## Generated resources
 
 For the different types of migration following are the list of resources generated:
 
-- **POC migration** - Link to spanner database created and the GCS bucket which has the [session file](#bookmark=id.4buhr2y7q8jw) written to it.
-- **Minimal downtime migration** - Link to spanner database created, GCS bucket with [session file](#bookmark=id.4buhr2y7q8jw), datastream and dataflow job launched.
+- **POC migration** - Link to spanner database created and the GCS bucket which has the `session file` written to it.
+- **Minimal downtime migration** - Link to spanner database created, GCS bucket with `session file`, datastream and dataflow job launched.

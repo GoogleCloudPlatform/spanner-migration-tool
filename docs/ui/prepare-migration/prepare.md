@@ -28,3 +28,6 @@ Spanner Migration Tool supports two types migration:
 - **Minimal downtime migration** - A minimal downtime migration consists of two components, migration of existing data from the database and the stream of changes (writes and updates) that are made to the source database during migration, referred to as change database capture (CDC). Using Spanner Migration Tool, the entire process where Datastream reads data from the source database and writes to a GCS bucket and data flow reads data from GCS bucket and writes to a spanner database can be orchestrated using a unified interface. It is suggested for databases that require minimal downtime and for larger databases(> 100GB). Currently, Spanner Migration Tool provides minimal downtime migration support for **MySQL, Oracle and PostgreSQL** databases.
 
 The **Prepare Migration** page provides a summary of the source and target databases. It also provides users with the options for selecting migration mode and migration type. Once the users select these values they need to set up source and target database details. Each of these is described in detail in the sub-components listed below.
+
+
+![](https://services.google.com/fh/files/helpcenter/asset-k8hpi107yp.png)

@@ -20,8 +20,8 @@ Spanner migration tool has a default mapping for all the data types of the suppo
 {:toc}
 </details>
 
-![](../assets/asset-fajgvy8szur.png)
+![](https://services.google.com/fh/files/helpcenter/asset-fajgvy8szur.png)
 
-![](../assets/asset-xh794zlmncd.png)
+![](https://services.google.com/fh/files/helpcenter/asset-xh794zlmncd.png)
 
-![](../assets/asset-xghjiq5wbhc.png)
+![](https://services.google.com/fh/files/helpcenter/asset-xghjiq5wbhc.png)

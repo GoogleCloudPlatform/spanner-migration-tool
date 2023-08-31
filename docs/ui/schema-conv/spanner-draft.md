@@ -28,19 +28,19 @@ Users can view detailed information for a table by selecting it from the **Spann
 
 Column tab provides information on the columns that are a part of the selected table. It also provides the option to edit the column wherein a user can modify a column name, delete a column, change the data type of the column or modify the null property of the column. Once the user is done with required modifications, they can click on **SAVE & CONVERT **and the update would reflect in the session file and across all the components in the database.
 
-![](../assets/asset-oo8ugjhmgd.png)
+![](https://services.google.com/fh/files/helpcenter/asset-oo8ugjhmgd.png)
 
 ### Primary Key
 
 Users can view and edit the primary key of a table from the primary key tab. They can remove/add a column from the primary key or change the order of columns in the primary key. Once these changes are made, the session file is updated and they can also be verified from the [SQL tab](#sql).  
 
-![](../assets/asset-syrsuek8k4r.png)
+![](https://services.google.com/fh/files/helpcenter/asset-syrsuek8k4r.png)
 
 ### Foreign Key
 
 Users can view and edit the foreign key of a table from the foreign key tab. They can modify the foreign key constraint name, drop the foreign key or convert the foreign key into interleave, if the table is interleavable. Once these changes are made the [session file](../ui.md/#termsterminology) is updated.
 
-![](../assets/asset-2tfzryfujfp.png)
+![](https://services.google.com/fh/files/helpcenter/asset-2tfzryfujfp.png)
 
 ### Interleave
 
@@ -50,27 +50,27 @@ Spanner Migration Tool provides the option to convert a table into an interleave
 {: .note }
 Interleaving property needs to be set during the migration and a table cannot be interleaved after migration.
 
-![](../assets/asset-jni7ugajpw.png)
+![](https://services.google.com/fh/files/helpcenter/asset-jni7ugajpw.png)
 
 ### SQL
 
 Once the user is done with all the schema modifications they can then visit the SQL tab which shows the Spanner DDL for the modified schema.
 
-![](../assets/asset-tl65unqu1yp.png)
+![](https://services.google.com/fh/files/helpcenter/asset-tl65unqu1yp.png)
 
 ### Drop & Restore Table
 
 Spanner Migration Tool also provides the users with the capability to drop and restore tables from the spanner database. Once the table is dropped, it appears as **deleted** under the Spanner Draft section and can be **restored** from there.
 
-![](../assets/asset-ipyr4k3bttk.png)
+![](https://services.google.com/fh/files/helpcenter/asset-ipyr4k3bttk.png)
 
-![](../assets/asset/../asset-0219n5c1npnz.png)
+![](https://services.google.com/fh/files/helpcenter/asset-0219n5c1npnz.png)
 
 ## Indexes
 
 Spanner Migration Tool provides information on indexes for source and spanner databases. It gives details of columns that are a part of the index along with their sort order. Users can edit the index and modify the order of columns in the index,sort order of the columns, add new columns to the index and remove columns from the index.
 
-![](../assets/asset-tlaxupk31pe.png)
+![](https://services.google.com/fh/files/helpcenter/asset-tlaxupk31pe.png)
 
 ### Drop & Restore Index
 
@@ -80,6 +80,6 @@ Spanner Migration Tool also provides the users with the capability to drop and r
 
 Apart from the existing indexes for the source database, users can also add secondary indexes for any table, if required. In order to add an index for a table, the user needs to select the **Add Index** option and provide some details mandatory to create an index like **index name**, **columns** that are a part of the index and their **sort order**.
 
-![](../assets/asset-6xbpmfyeplw.png)
+![](https://services.google.com/fh/files/helpcenter/asset-6xbpmfyeplw.png)
 
-![](../assets/asset-ck63akvjank.png)
+![](https://services.google.com/fh/files/helpcenter/asset-ck63akvjank.png)

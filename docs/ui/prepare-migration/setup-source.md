@@ -20,4 +20,4 @@ This is required only in case of [session file connection mechanism](../connect-
 {:toc}
 </details>
 
-![](../assets/asset-rws1ry6w0rh.png)
+![](https://services.google.com/fh/files/helpcenter/asset-rws1ry6w0rh.png)

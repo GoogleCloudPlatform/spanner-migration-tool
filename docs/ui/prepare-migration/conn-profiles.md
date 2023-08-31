@@ -24,14 +24,14 @@ In case of minimal downtime migration, Spanner Migration Tool needs information 
 
 **Source connection profile** is used by datastream to connect to the source database and read the data from the source database. Users can either use an existing source connection profile or create a new connection profile from Spanner Migration Tool by specifying a new name for the connection profile and allowlisting the IPs.
 
-![](../assets/asset-79x00z9xt7.png)
+![](https://services.google.com/fh/files/helpcenter/asset-79x00z9xt7.png)
 
-![](../assets/asset-okr3ditazlp.png)
+![](https://services.google.com/fh/files/helpcenter/asset-okr3ditazlp.png)
 
 ## Target connection profile
 
 **Target connection profile** is used to connect to the GCS bucket where the datastream writes data written to. Users can either use an existing target connection profile or create a new one from Spanner Migration Tool by specifying a new name for the connection profile. Please ensure that the GCS bucket is empty in case you choose an existing connection profile to ensure consistency between source and spanner database. In case the user opts for a new target connection profile, Spanner Migration Tool creates a new GCS bucket with bucket name as the Migration Request ID.
 
-![](../assets/asset-lxybfzd2cpm.png)
+![](https://services.google.com/fh/files/helpcenter/asset-lxybfzd2cpm.png)
 
-![](../assets/asset-ja7bcor0lt8.png)
+![](https://services.google.com/fh/files/helpcenter/asset-ja7bcor0lt8.png)

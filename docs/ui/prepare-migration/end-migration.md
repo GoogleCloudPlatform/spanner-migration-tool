@@ -20,4 +20,4 @@ This is applicable only in case of minimal downtime migration. After a successfu
 {:toc}
 </details>
 
-![](../assets/asset-tam9ody86fr.png)
+![](https://services.google.com/fh/files/helpcenter/asset-tam9ody86fr.png)
