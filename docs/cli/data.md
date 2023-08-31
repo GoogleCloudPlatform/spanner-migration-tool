@@ -77,7 +77,7 @@ Detailed description of optional flags can be found [here](./flags.md).
         To configure the log level for the execution (INFO, VERBOSE).
 
      --prefix=PREFIX
-        File prefix for generated files.
+        File prefix for generated files. Details on generated files can be found [here](../reports.md#file-descriptions)
 
      --skip-foreign-keys
         Skip creating foreign keys after data migration is complete.

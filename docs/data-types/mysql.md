@@ -24,38 +24,32 @@ There are also nuances to handling certain specific data types. These are captur
 
 The Spanner migration tool maps MySQL types to Spanner types as follows:
 
-| MySQL Type                                        | Spanner Type    | Notes                           |
-|---------------------------------------------------|-----------------|---------------------------------|
-| `BOOL`, `BOOLEAN`,<br/>`TINYINT(1)`               | `BOOL`          |                                 |
-| `BIGINT`                                          | `INT64`         |                                 |
-| `BINARY`, `VARBINARY`                             | `BYTES(MAX)`    |                                 |
-| `BLOB`, `MEDIUMBLOB`,<br/>`TINYBLOB`, `LONGBLOB`  | `BYTES(MAX)`    |                                 |
-| `BIT`                                             | `BYTES(MAX)`    |                                 |
-| `CHAR`                                            | `STRING(1)`     | CHAR defaults to length 1       |
-| `CHAR(N)`                                         | `STRING(N)`     | c                               |
-| `DATE`                                            | `DATE`          |                                 |
-| `DATETIME`                                        | `TIMESTAMP`     | t                               |
-| `DECIMAL`, `NUMERIC`                              | `NUMERIC`       | p                               |
-| `DOUBLE`                                          | `FLOAT64`       |                                 |
-| `ENUM`                                            | `STRING(MAX)`   |                                 |
-| `FLOAT`                                           | `FLOAT64`       | s                               |
-| `INTEGER`, `MEDIUMINT`,<br/>`TINYINT`, `SMALLINT` | `INT64`         | s                               |
-| `JSON`                                            | `JSON`          |                                 |
-| `SET`                                             | `ARRAY<STRING>` | SET only supports string values |
-| `TEXT`, `MEDIUMTEXT`,<br/>`TINYTEXT`, `LONGTEXT`  | `STRING(MAX)`   |                                 |
-| `TIMESTAMP`                                       | `TIMESTAMP`     |                                 |
-| `VARCHAR`                                         | `STRING(MAX)`   |                                 |
-| `VARCHAR(N)`                                      | `STRING(N)`     | c                               |
+| **MySQL Type**                                    | **Spanner Type** | **Notes**                                                |
+|:-------------------------------------------------:|:----------------:|:--------------------------------------------------------:|
+| `BOOL`, `BOOLEAN`,<br/>`TINYINT(1)`               | `BOOL`           |                                                          |
+| `BIGINT`                                          | `INT64`          |                                                          |
+| `BINARY`, `VARBINARY`                             | `BYTES(MAX)`     |                                                          |
+| `BLOB`, `MEDIUMBLOB`,<br/>`TINYBLOB`, `LONGBLOB`  | `BYTES(MAX)`     |                                                          |
+| `BIT`                                             | `BYTES(MAX)`     |                                                          |
+| `CHAR`                                            | `STRING(1)`      | CHAR defaults to length 1                                |
+| `CHAR(N)`                                         | `STRING(N)`      | differences in treatment of fixed-length character types |
+| `DATE`                                            | `DATE`           |                                                          |
+| `DATETIME`                                        | `TIMESTAMP`      | differences in treatment of timezones                    |
+| `DECIMAL`, `NUMERIC`                              | `NUMERIC`        | potential changes of precision                           |
+| `DOUBLE`                                          | `FLOAT64`        |                                                          |
+| `ENUM`                                            | `STRING(MAX)`    |                                                          |
+| `FLOAT`                                           | `FLOAT64`        | changes in storage size                                  |
+| `INTEGER`, `MEDIUMINT`,<br/>`TINYINT`, `SMALLINT` | `INT64`          | changes in storage size                                  |
+| `JSON`                                            | `JSON`           |                                                          |
+| `SET`                                             | `ARRAY<STRING>`  | SET only supports string values                          |
+| `TEXT`, `MEDIUMTEXT`,<br/>`TINYTEXT`, `LONGTEXT`  | `STRING(MAX)`    |                                                          |
+| `TIMESTAMP`                                       | `TIMESTAMP`      |                                                          |
+| `VARCHAR`                                         | `STRING(MAX)`    |                                                          |
+| `VARCHAR(N)`                                      | `STRING(N)`      | differences in treatment of fixed-length character types |
+
 
 Spanner does not support `spatial` datatypes of MySQL. Along with `spatial`
 datatypes, all other types map to `STRING(MAX)`.
-
-| Marking | Description                                              |
-|---------|----------------------------------------------------------|
-| c       | differences in treatment of fixed-length character types |
-| p       | potential changes of precision                           |
-| t       | differences in treatment of timezones                    |
-| s       | changes in storage size                                  |
 
 ## DECIMAL and NUMERIC
 

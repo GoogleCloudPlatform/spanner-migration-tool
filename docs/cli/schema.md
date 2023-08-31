@@ -43,7 +43,7 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
 
 ## EXAMPLES
 
-    To generate schema file from the source database:
+    To generate schema file for Cloud Spanner GoogleSQL dialect from the source PostgreSQL database using pg_dump:
 
         $ ./spanner-migration-tool schema --source=postgresql < \
             ~/cart.pg_dump
@@ -87,4 +87,4 @@ Detailed description of optional flags can be found [here](./flags.md).
 
      --target-profile=TARGET_PROFILE
         Flag for specifying connection profile for target database (e.g.,
-        "dialect=postgresql)".
+        "dialect=postgresql").

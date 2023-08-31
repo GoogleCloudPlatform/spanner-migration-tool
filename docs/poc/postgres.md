@@ -8,7 +8,7 @@ nav_order: 3
 # POC migrations for PostgreSQL
 {: .no_toc }
 
-Spanner migration tool can either be used with pg_dump or it can be run directly
+Spanner migration tool can either be used with a pg_dump file or it can be run directly
 on a PostgreSQL database (via go's database/sql package).
 
 {: .highlight }

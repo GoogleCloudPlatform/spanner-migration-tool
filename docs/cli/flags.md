@@ -5,7 +5,7 @@ parent: SMT CLI
 nav_order: 5
 ---
 
-# Web subcommand
+# CLI Flags
 {: .no_toc }
 
 Below is the description of the configuration parameters can be passed to the Spanner migration tool CLI flags.
@@ -30,9 +30,9 @@ stdin, if available locally. If the file is located in Google Cloud Storage (GCS
 following format: `file=gs://{bucket_name}/{path/to/file}`. Please ensure you
 have read pemissions to the GCS bucket you would like to use.
 
-* **`format`**: Specifies the format of the file. This param is also optional, and
+* **`format`**: Specifies the format of the file. Supported file formats are `dump` and `csv`. This param is also optional, and
 defaults to `dump`. This may be extended in future to support other formats
-such as `csv`, `avro` etc.
+such as `avro` etc.
 
 * **`host`**: Specifies the host name for the source database.
 
@@ -46,11 +46,14 @@ such as `csv`, `avro` etc.
 
 * **`streamingCfg`**: Optional flag. Specifies the file path for streaming config.
 Please note that streaming migration is only supported for MySQL, Oracle and PostgreSQL databases currently.
+Example of a streamingCfg configuration is [here](./schema-and-data.md#examples).
 
 ## Target Profile
 
 Spanner migration tool accepts the following options for --target-profile,
 specified as "key1=value1,key2=value,..." pairs:
+
+* **`project`**: Specifies the name of the Google Cloud Project in which the Spanner instance is present. If the project is not specified, Spanner migration tool will try to fetch the configured project in the gCloud CLI.
 
 * **`dbName`**: Specifies the name of the Spanner database to create. This must be a
 new database. If dbName is not specified, Spanner migration tool creates a new unique

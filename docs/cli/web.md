@@ -53,7 +53,7 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
 ## FLAGS
 
      --open
-        Open the Spanner migration tool web interface in the default browser.
+        Open the Spanner migration tool web interface in the default browser. Defaults to false.
 
      --port=PORT
         The port in which Spanner migration tool will run, defaults to 8080.

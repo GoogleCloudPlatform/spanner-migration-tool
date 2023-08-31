@@ -45,7 +45,7 @@ Users can view and edit the foreign key of a table from the foreign key tab. The
 ### Interleave
 
 Interleaving physically co-locates child rows with parent rows in storage. Co-location can significantly improve performance.For example, if there is a _Customers_ table and an _Invoices_ table, and the application frequently fetches all the invoices for a customer, users can define Invoices as an interleaved child table of Customers. In doing so, a data locality relationship between two independent tables is declared resulting in significant performance improvement.
-HarbourBridge provides the option to convert a table into an interleaved table if it fulfills all the criteria.The Interleave tab shows up only for tables which are possible candidates for interleaving, based on the existing foreign keys. Once a table is converted into an interleaved table, the UI shows the information of the parent table. Users can also choose to remove this interleaving property and restore the foreign key by clicking on ‘**Convert back to foreign key**'.  
+Spanner Migration Tool provides the option to convert a table into an interleaved table if it fulfills all the criteria.The Interleave tab shows up only for tables which are possible candidates for interleaving, based on the existing foreign keys. Once a table is converted into an interleaved table, the UI shows the information of the parent table. Users can also choose to remove this interleaving property and restore the foreign key by clicking on ‘**Convert back to foreign key**'.  
 
 {: .note }
 Interleaving property needs to be set during the migration and a table cannot be interleaved after migration.
@@ -60,7 +60,7 @@ Once the user is done with all the schema modifications they can then visit the 
 
 ### Drop & Restore Table
 
-HarbourBridge also provides the users with the capability to drop and restore tables from the spanner database. Once the table is dropped, it appears as **deleted** under the Spanner Draft section and can be **restored** from there.
+Spanner Migration Tool also provides the users with the capability to drop and restore tables from the spanner database. Once the table is dropped, it appears as **deleted** under the Spanner Draft section and can be **restored** from there.
 
 ![](../assets/asset-ipyr4k3bttk.png)
 
@@ -68,13 +68,13 @@ HarbourBridge also provides the users with the capability to drop and restore ta
 
 ## Indexes
 
-HarbourBridge provides information on indexes for source and spanner databases. It gives details of columns that are a part of the index along with their sort order. Users can edit the index and modify the order of columns in the index,sort order of the columns, add new columns to the index and remove columns from the index.
+Spanner Migration Tool provides information on indexes for source and spanner databases. It gives details of columns that are a part of the index along with their sort order. Users can edit the index and modify the order of columns in the index,sort order of the columns, add new columns to the index and remove columns from the index.
 
 ![](../assets/asset-tlaxupk31pe.png)
 
 ### Drop & Restore Index
 
-HarbourBridge also provides the users with the capability to drop and restore existing indexes from the spanner database. Once the index is deleted, it appears as **deleted** under the Spanner Draft section and can be **restored** from there.
+Spanner Migration Tool also provides the users with the capability to drop and restore existing indexes from the spanner database. Once the index is deleted, it appears as **deleted** under the Spanner Draft section and can be **restored** from there.
 
 ### Add Secondary Index
 

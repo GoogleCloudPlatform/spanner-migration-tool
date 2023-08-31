@@ -52,7 +52,7 @@ SMT for a minimal downtime migration. This can be done by following the [Datastr
 To run a minimal downtime schema and data migration:
 
         $ ./spanner-migration-tool schema-and-data --source=oracle \
-            --source-profile='host=host,port=3306,user=user,password=pwd,dbN\
+            --source-profile='host=host,port=1521,user=user,password=pwd,dbN\
         ame=db,streamingCfg=streaming.json' \
             --target-profile='project=spanner-project,instance=spanner-insta\
         nce'

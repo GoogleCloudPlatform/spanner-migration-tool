@@ -43,7 +43,7 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
 
 ## EXAMPLES
 
-    To generate schema and copy data to Cloud Spanner from a source database:
+    To generate schema and copy data to Cloud Spanner from a source PostgreSQL database using pg_dump:
 
         $ ./spanner-migration-tool schema-and-data --source=postgresql \
             < ~/cart.pg_dump --target-profile='instance=spanner-instance'
@@ -90,7 +90,7 @@ Detailed description of optional flags can be found [here](./flags.md).
 
      --target-profile=TARGET_PROFILE
         Flag for specifying connection profile for target database (e.g.,
-        "dialect=postgresql)".
+        "dialect=postgresql").
 
      --write-limit=WRITE_LIMIT
         Number of parallel writers to Cloud Spanner during bulk data migrations

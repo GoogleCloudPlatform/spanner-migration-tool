@@ -24,37 +24,30 @@ There are also nuances to handling certain specific data types. These are captur
 
 The Spanner migration tool maps PostgreSQL types to Spanner types as follows:
 
-| PostgreSQL Type    | Spanner Type           | Notes                                     |
-| ------------------ | ---------------------- | ----------------------------------------- |
-| `BOOL`             | `BOOL`                 |                                           |
-| `BIGINT`           | `INT64`                |                                           |
-| `BIGSERIAL`        | `INT64`                | a                                         |
-| `BYTEA`            | `BYTES(MAX)`           |                                           |
-| `CHAR`             | `STRING(1)`            | CHAR defaults to length 1                 |
-| `CHAR(N)`          | `STRING(N)`            | c                                         |
-| `DATE`             | `DATE`                 |                                           |
-| `DOUBLE PRECISION` | `FLOAT64`              |                                           |
-| `INTEGER`          | `INT64`                | s                                         |
-| `NUMERIC`          | `NUMERIC`              | p                                         |
-| `REAL`             | `FLOAT64`              | s                                         |
-| `SERIAL`           | `INT64`                | a, s                                      |
-| `SMALLINT`         | `INT64`                | s                                         |
-| `TEXT`             | `STRING(MAX)`          |                                           |
-| `TIMESTAMP`        | `TIMESTAMP`            | t                                         |
-| `TIMESTAMPTZ`      | `TIMESTAMP`            |                                           |
-| `VARCHAR`          | `STRING(MAX)`          |                                           |
-| `VARCHAR(N)`       | `STRING(N)`            | c                                         |
-| `JSON`, `JSONB`    | `JSON`                 |                                           |
-| `ARRAY(`pgtype`)`  | `ARRAY(`spannertype`)` | if scalar type pgtype maps to spannertype |
+| PostgreSQL Type    | Spanner Type           | Notes                                                         |
+|--------------------|------------------------|---------------------------------------------------------------|
+| `BOOL`             | `BOOL`                 |                                                               |
+| `BIGINT`           | `INT64`                |                                                               |
+| `BIGSERIAL`        | `INT64`                | dropped autoincrement functionality                           |
+| `BYTEA`            | `BYTES(MAX)`           |                                                               |
+| `CHAR`             | `STRING(1)`            | CHAR defaults to length 1                                     |
+| `CHAR(N)`          | `STRING(N)`            | differences in treatment of fixed-length character types      |
+| `DATE`             | `DATE`                 |                                                               |
+| `DOUBLE PRECISION` | `FLOAT64`              |                                                               |
+| `INTEGER`          | `INT64`                | changes in storage size                                       |
+| `NUMERIC`          | `NUMERIC`              | potential changes of precision                                |
+| `REAL`             | `FLOAT64`              | changes in storage size                                       |
+| `SERIAL`           | `INT64`                | dropped autoincrement functionality , changes in storage size |
+| `SMALLINT`         | `INT64`                | changes in storage size                                       |
+| `TEXT`             | `STRING(MAX)`          |                                                               |
+| `TIMESTAMP`        | `TIMESTAMP`            | differences in treatment of timezones                         |
+| `TIMESTAMPTZ`      | `TIMESTAMP`            |                                                               |
+| `VARCHAR`          | `STRING(MAX)`          |                                                               |
+| `VARCHAR(N)`       | `STRING(N)`            | differences in treatment of fixed-length character types      |
+| `JSON`, `JSONB`    | `JSON`                 |                                                               |
+| `ARRAY(`pgtype`)`  | `ARRAY(`spannertype`)` | if scalar type pgtype maps to spannertype                     |
 
-All other types map to `STRING(MAX)`. 
-
-| Marking | Description                                              |
-|---------|----------------------------------------------------------|
-| c       | differences in treatment of fixed-length character types |
-| p       | potential changes of precision                           |
-| t       | differences in treatment of timezones                    |
-| s       | changes in storage size                                  |
+All other types map to `STRING(MAX)`.
 
 ## NUMERIC
 

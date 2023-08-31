@@ -27,7 +27,7 @@ description: "Permissions and connectivity required to run SMT"
 Ensure that Datastream and Dataflow apis are enabled on your project.
 
 1. [Make sure that billing is enabled for your Google Cloud project](https://cloud.google.com/billing/docs/how-to/verify-billing-enabled#gcloud).
-2. Follow the [Datastream guidelines](https://cloud.google.com/datastream/docs/use-the-datastream-api#enable_the_api) to enable Datasteream api.
+2. Follow the [Datastream guidelines](https://cloud.google.com/datastream/docs/use-the-datastream-api#enable_the_api) to enable Datastream api.
 3. Enable the Dataflow api by using:
 
    ```sh
@@ -87,7 +87,7 @@ Follow the [Internet access for Dataflow guidelines](https://cloud.google.com/da
 
 ## Permissions
 
-The Spanner migration tool interacts with many GCP services. Please refer to this list for persmissions required to perform migrations.
+The Spanner migration tool interacts with many GCP services. Please refer to this list for permissions required to perform migrations.
 
 ### Spanner
 

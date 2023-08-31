@@ -14,7 +14,7 @@ Spanner migration tool can two POC migrations in two ways:
 ## Dump Files
 
 {: .highlight }
-Dump files are only supported for MySQL and PostgreSQL.
+Native dump files are only supported for MySQL and PostgreSQL. CSVs are also supported, which are source-agnostic.
 
 Spanner migration tool can accept MySQL and PostgreSQL dump files, parse them, generate a Spanner compatible schema for it and then migrate the `schema`/`data`/`schema-and-data` to the Spanner database.
 

@@ -19,13 +19,13 @@ This section gives information about some FAQs regarding Spanner migration tool.
 {:toc}
 </details>
 
-### How to start the HarbourBridge UI ?
+### How to start the Spanner Migration Tool UI ?
 
-To bring up the HarbourBridge UI, please follow the steps mentioned [here](../install.md/#installation-guide).
+To bring up the Spanner Migration Tool UI, please follow the steps mentioned [here](../install.md/#installation-guide).
 
-### Can HarbourBridge be used without connecting to the spanner instance?
+### Can Spanner Migration Tool be used without connecting to the spanner instance?
 
-Yes, HarbourBridge can be used for schema assessment and modifications without connecting to the spanner instance
+Yes, Spanner Migration Tool can be used for schema assessment and modifications without connecting to the spanner instance
 
 ### When is a table interleavable?
 
@@ -43,10 +43,10 @@ Otherwise, execute the following command: `gcloud auth application-default login
 
 ### What happens behind the scenes in minimal downtime migration?
 
-HarbourBridge orchestrates the entire process using a unified interface, which comprises the following steps:
+Spanner Migration Tool orchestrates the entire process using a unified interface, which comprises the following steps:
 
 1. Setting up a GCS bucket to store incoming change events on the source database while the snapshot migration progresses.
-2. Setting up the bulk load of the snapshot data and stream of incoming change events using Datastream. **Within the HarbourBridge UI, source and target connection profile will need to be setup**
+2. Setting up the bulk load of the snapshot data and stream of incoming change events using Datastream. **Within the Spanner Migration Tool UI, source and target connection profile will need to be setup**
 3. Setting up the Dataflow job to migrate the change events into Spanner, which drains the GCS bucket over time.
 
-Once the GCS bucket is almost empty, users need to stop writing to the source database so that the remaining change events can be applied. This results in a short downtime while Spanner catches up to the source database. Afterwards,the application can be cut over to Spanner. Currently, HarbourBridge provides minimal downtime migration support for **MySQL, Oracle** **and PostgreSQL** databases.
+Once the GCS bucket is almost empty, users need to stop writing to the source database so that the remaining change events can be applied. This results in a short downtime while Spanner catches up to the source database. Afterwards,the application can be cut over to Spanner. Currently, Spanner Migration Tool provides minimal downtime migration support for **MySQL, Oracle** **and PostgreSQL** databases.
