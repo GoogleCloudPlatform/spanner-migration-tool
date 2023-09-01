@@ -35,7 +35,7 @@ It can also be used to do small scale on-prem POC migrations to get a feel of Sp
 
 - **Minimal Downtime migration** - This is the production ready, recommended mode of migration for most databases. It provides a unified interface to configure an end-to-end pipeline to transfer both existing and new data from source database to Spanner. More details about minimal downtime migrations are [here](./minimal/minimal.md).
 
-- **POC Migration** -  This mode is useful to get up and running quickly to get a feel of what migrating to Spanner would look like. This mode of migration uses the local machine's resources (on which SMT is running) to write data to Spanner. This is an offline migration for migrating moderate-size datasets to Spanner(up to about 100GB). More details about POC migrations are [here].
+- **POC Migration** -  This mode is useful to get up and running quickly to get a feel of what migrating to Spanner would look like. This mode of migration uses the local machine's resources (on which SMT is running) to write data to Spanner. This is an offline migration for migrating moderate-size datasets to Spanner(up to about 100GB). More details about POC migrations are [here](./poc/poc.md).
 
 ## Supported Sources and Targets
 
