@@ -16,6 +16,24 @@
         <mat-label>VPC Subnetwork</mat-label>
         <input matInput placeholder="VPC Subnetwork Name" type="text" formControlName="subnetwork"/>
       </mat-form-field>
+      <br>
+      <mat-form-field class="full-width" appearance="outline" matTooltip="Set maximum workers for the dataflow job(s). Default value: 50"
+      [matTooltipPosition]="'right'" matTooltipHideDelay="100000">
+        <mat-label>Max Workers</mat-label>
+        <input matInput placeholder="50" type="text" formControlName="maxWorkers"/>
+      </mat-form-field>
+      <br>
+      <mat-form-field class="full-width" appearance="outline" matTooltip="Set initial number of workers for the dataflow job(s). Default value: 1"
+      [matTooltipPosition]="'right'" matTooltipHideDelay="100000">
+        <mat-label>Number of Workers</mat-label>
+        <input matInput placeholder="1" type="text" formControlName="numWorkers"/>
+      </mat-form-field>
+      <br>
+      <mat-form-field class="full-width" appearance="outline" matTooltip="Set the service account to run the dataflow job(s) as"
+      [matTooltipPosition]="'right'" matTooltipHideDelay="100000">
+        <mat-label>Service Account Email</mat-label>
+        <input matInput placeholder="Service Account Email" type="text" formControlName="serviceAccountEmail"/>
+      </mat-form-field>
     </form>
     <div mat-dialog-actions class="buttons-container">
       <button mat-button color="primary" mat-dialog-close>Cancel</button>

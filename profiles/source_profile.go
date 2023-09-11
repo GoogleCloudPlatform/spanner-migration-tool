@@ -446,10 +446,13 @@ type DatastreamConnProfile struct {
 }
 
 type DataflowConfig struct {
-	Location      string `json:"location"`
-	Network       string `json:"network"`
-	Subnetwork    string `json:"subnetwork"`
-	HostProjectId string `json:"hostProjectId"`
+	Location            string `json:"location"`
+	Network             string `json:"network"`
+	Subnetwork          string `json:"subnetwork"`
+	HostProjectId       string `json:"hostProjectId"`
+	MaxWorkers          string `json:"maxWorkers"`
+	NumWorkers          string `json:"numWorkers"`
+	ServiceAccountEmail string `json:"serviceAccountEmail"`
 }
 
 type DataShard struct {

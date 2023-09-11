@@ -101,7 +101,10 @@ export class PrepareMigrationComponent implements OnInit {
   dataflowConfig: IDataflowConfig = {
     network: localStorage.getItem(Dataflow.Network) as string,
     subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-    hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
+    hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string,
+    maxWorkers: localStorage.getItem(Dataflow.MaxWorkers) as string,
+    numWorkers: localStorage.getItem(Dataflow.NumWorkers) as string,
+    serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string
   }
   spannerConfig: ISpannerConfig = {
     GCPProjectID: '',
@@ -333,6 +336,9 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(Dataflow.IsDataflowConfigSet)
     localStorage.removeItem(Dataflow.Network)
     localStorage.removeItem(Dataflow.Subnetwork)
+    localStorage.removeItem(Dataflow.MaxWorkers)
+    localStorage.removeItem(Dataflow.NumWorkers)
+    localStorage.removeItem(Dataflow.ServiceAccountEmail)
     localStorage.removeItem(Dataflow.HostProjectId)
     localStorage.removeItem(MigrationDetails.IsMigrationInProgress)
     localStorage.removeItem(MigrationDetails.HasSchemaMigrationStarted)
@@ -437,9 +443,14 @@ export class PrepareMigrationComponent implements OnInit {
       this.dataflowConfig = {
         network: localStorage.getItem(Dataflow.Network) as string,
         subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-        hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
+        hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string,
+        maxWorkers: localStorage.getItem(Dataflow.MaxWorkers) as string,
+        numWorkers: localStorage.getItem(Dataflow.NumWorkers) as string,
+        serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string
       }
       this.isDataflowConfigurationSet = localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true'
+      // We only call setDataflowDetailsForShardedMigrations for sharded flows. Non-sharded flows write a streaming config file
+      // to GCS, which is fetched by the backend.
       if (this.isSharded) {
         this.fetch.setDataflowDetailsForShardedMigrations(this.dataflowConfig).subscribe({
           next: () => { },

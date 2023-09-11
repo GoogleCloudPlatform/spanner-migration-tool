@@ -17,8 +17,11 @@ export class DataflowFormComponent implements OnInit {
     private dialofRef: MatDialogRef<DataflowFormComponent>
   ) {
     this.dataflowForm = new FormGroup({
-      network: new FormControl('', Validators.required),
-      subnetwork: new FormControl('', Validators.required),
+      network: new FormControl(''),
+      subnetwork: new FormControl(''),
+      numWorkers: new FormControl('1',[Validators.required, Validators.pattern('^[1-9][0-9]*$')]),
+      maxWorkers: new FormControl('50', [Validators.required, Validators.pattern('^[1-9][0-9]*$')]),
+      serviceAccountEmail: new FormControl(''),
       hostProjectId: new FormControl(data.GCPProjectID, Validators.required),
     })
   }
@@ -31,6 +34,9 @@ export class DataflowFormComponent implements OnInit {
     localStorage.setItem(Dataflow.Network, formValue.network)
     localStorage.setItem(Dataflow.Subnetwork, formValue.subnetwork)
     localStorage.setItem(Dataflow.HostProjectId, formValue.hostProjectId)
+    localStorage.setItem(Dataflow.MaxWorkers, formValue.maxWorkers)
+    localStorage.setItem(Dataflow.NumWorkers, formValue.numWorkers)
+    localStorage.setItem(Dataflow.ServiceAccountEmail, formValue.serviceAccountEmail)
     localStorage.setItem(Dataflow.IsDataflowConfigSet, "true")
     this.dialofRef.close()
   }
