@@ -29,10 +29,10 @@ import (
 	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 )
 
 const (
@@ -101,7 +101,7 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 	// If either is present, assign it to the other one.
 	if dsCfg.StreamId == "" && dsCfg.StreamDisplayName == "" {
 		// TODO: Update names to have more info like dbname.
-		streamId, err := utils.GenerateName("hb-stream-" + dbName)
+		streamId, err := utils.GenerateName("smt-stream-" + dbName)
 		streamId = strings.Replace(streamId, "_", "-", -1)
 		if err != nil {
 			return fmt.Errorf("error generating stream name: %v", err)
@@ -119,7 +119,7 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 
 	if dfCfg.JobName == "" {
 		// Update names to have more info like dbname.
-		jobName, err := utils.GenerateName("hb-dataflow-" + dbName)
+		jobName, err := utils.GenerateName("smt-dataflow-" + dbName)
 		jobName = strings.Replace(jobName, "_", "-", -1)
 		if err != nil {
 			return fmt.Errorf("error generating stream name: %v", err)
@@ -492,13 +492,13 @@ func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, r
 	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, respDf.Job.Location, respDf.Job.Name, respDf.Job.Id)
 	fmt.Println("\n------------------------------------------\n" +
 		"The Datastream job: " + fullStreamName + "and the Dataflow job: " + dfJobDetails +
-		" will have to be manually cleaned up via the UI. HarbourBridge will not delete them post completion of the migration.")
+		" will have to be manually cleaned up via the UI. Spanner migration tool will not delete them post completion of the migration.")
 }
 
 func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string, workerIpAddressConfig dataflowpb.WorkerIPAddressConfiguration) *dataflowpb.LaunchFlexTemplateParameter {
 	return &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
-		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-07-04-00_RC00/flex/Cloud_Datastream_to_Spanner"},
+		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates/2023-07-18-00_RC00/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
 			"inputFilePattern":              inputFilePattern,
 			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),

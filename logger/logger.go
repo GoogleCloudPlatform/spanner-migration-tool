@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-const LOG_FILE_NAME = "harbourbridge.log"
+const LOG_FILE_NAME = "spanner-migration-tool.log"
 
 var Log *zap.Logger
 

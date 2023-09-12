@@ -4,7 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
+	"cloud.google.com/go/spanner"
+	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	helpers "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 )
 
 type SessionService struct {
@@ -61,10 +65,105 @@ func SetSessionStorageConnectionState(projectId string, spInstanceId string) (bo
 		if isExist, isDbCreated := helpers.CheckOrCreateMetadataDb(projectId, spInstanceId); isExist {
 			sessionState.IsOffline = false
 			isConfigValid := isExist || isDbCreated
+			migrateMetadataDb(projectId, spInstanceId)
 			return isDbCreated, isConfigValid
 		} else {
 			sessionState.IsOffline = true
 			return false, false
 		}
 	}
+}
+
+func getOldMetadataDbUri(projectId string, instanceId string) string {
+	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, "harbourbridge_metadata")
+}
+
+func migrateMetadataDb(projectId, instanceId string) {
+	ctx := context.Background()
+	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer adminClient.Close()
+
+	oldMetadataDbUri := getOldMetadataDbUri(projectId, instanceId)
+	oldMetadataDBExists, err := conversion.CheckExistingDb(ctx, adminClient, oldMetadataDbUri)
+	if err != nil {
+		fmt.Printf("could not check if oldMetadataDB exists. error=%v\n", err)
+		return
+	}
+	if !oldMetadataDBExists {
+		fmt.Println("Old metadata DB not found.")
+		// If old metadata DB doesn't exist, NO_OP
+		return
+	}
+
+	fmt.Println("Old metadata DB found. Starting migration")
+
+	oldDbSpannerClient, err := spanner.NewClient(ctx, oldMetadataDbUri)
+	if err != nil {
+		fmt.Printf("could not connect to oldMetadataDB. error=%v\n", err)
+		return
+	}
+	defer oldDbSpannerClient.Close()
+
+	newDbSpannerClient, err := spanner.NewClient(ctx, helpers.GetSpannerUri(projectId, instanceId))
+	if err != nil {
+		fmt.Printf("could not connect to newMetadataDB. error=%v\n", err)
+	}
+	defer newDbSpannerClient.Close()
+
+	query := spanner.Statement{
+		SQL: `SELECT 
+								SessionName,
+								EditorName,
+								DatabaseType,
+								DatabaseName,
+								Dialect,
+								Notes,
+								Tags,
+								VersionId,
+								PreviousVersionId,
+								SchemaChanges,
+								TO_JSON_STRING(SchemaConversionObject) AS SchemaConversionObject,
+								CreateTimestamp
+							FROM SchemaConversionSession `,
+	}
+
+	fmt.Println("Querying old Metadata DB.")
+	rowIter := oldDbSpannerClient.Single().Query(ctx, query)
+
+	_, err = newDbSpannerClient.ReadWriteTransaction(ctx, func(ctx context.Context, tx *spanner.ReadWriteTransaction) error {
+		fmt.Println("Writing to new Metadata DB.")
+		err := rowIter.Do(func(row *spanner.Row) error {
+			var scs SchemaConversionSession
+			err := row.ToStruct(&scs)
+			if err != nil {
+				fmt.Printf("could not read row and parse into struct. error=%v\n", err)
+				return err
+			}
+			mutation, err := spanner.InsertStruct("SchemaConversionSession", scs)
+			if err != nil {
+				fmt.Printf("count not create Insert mutation. error=%v\n", err)
+			}
+			return tx.BufferWrite([]*spanner.Mutation{mutation})
+		})
+		return err
+	})
+	if err != nil {
+		fmt.Printf("could not write to newMetadataDB. error=%v\n", err)
+		return
+	}
+
+	fmt.Println("Successfully wrote data to new metadata DB.")
+
+	err = adminClient.DropDatabase(ctx, &databasepb.DropDatabaseRequest{
+		Database: oldMetadataDbUri,
+	})
+	if err != nil {
+		fmt.Printf("could not drop oldMetadataDB. error=%v\n", err)
+		return
+	}
+	fmt.Println("Successfully dropped old metadata DB")
 }

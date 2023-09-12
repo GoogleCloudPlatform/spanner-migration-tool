@@ -8,6 +8,7 @@ import { AppRoutingModule } from './app-routing.module'
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http'
 import { FormsModule } from '@angular/forms'
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner'
+import { MatChipsModule } from '@angular/material/chips'
 
 import { AppComponent } from './app.component'
 import { HeaderComponent } from './components/header/header.component'
@@ -47,7 +48,8 @@ import { EditColumnMaxLengthComponent } from './components/edit-column-max-lengt
 import { ShardedBulkSourceDetailsFormComponent } from './components/sharded-bulk-source-details-form/sharded-bulk-source-details-form.component';
 import { ShardedDataflowMigrationDetailsFormComponent } from './components/sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component';
 import { BulkDropRestoreTableDialogComponent } from './components/bulk-drop-restore-table-dialog/bulk-drop-restore-table-dialog.component'
-import { AddNewColumnComponent } from './components/add-new-column/add-new-column.component'
+import { AddNewColumnComponent } from './components/add-new-column/add-new-column.component';
+import { AddShardIdPrimaryKeyComponent } from './components/add-shard-id-primary-key/add-shard-id-primary-key.component'
 
 @NgModule({
   declarations: [
@@ -89,6 +91,7 @@ import { AddNewColumnComponent } from './components/add-new-column/add-new-colum
     ShardedDataflowMigrationDetailsFormComponent,
     BulkDropRestoreTableDialogComponent,
     AddNewColumnComponent,
+    AddShardIdPrimaryKeyComponent,
   ],
   imports: [
     BrowserModule,
@@ -100,6 +103,7 @@ import { AddNewColumnComponent } from './components/add-new-column/add-new-colum
     MatRadioModule,
     ClipboardModule,
     MatProgressSpinnerModule,
+    MatChipsModule
   ],
   providers: [
     {

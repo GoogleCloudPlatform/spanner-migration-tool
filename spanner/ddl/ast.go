@@ -14,7 +14,7 @@
 
 // Package ddl provides a go representation of Spanner DDL
 // as well as helpers for building and manipulating Spanner DDL.
-// We only implement enough DDL types to meet the needs of HarbourBridge.
+// We only implement enough DDL types to meet the needs of Spanner migration tool.
 //
 // Definitions are from
 // https://cloud.google.com/spanner/docs/data-definition-language.
@@ -27,7 +27,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 const (
@@ -399,11 +400,25 @@ func (ci CreateIndex) PrintCreateIndex(ct CreateTable, c Config) string {
 	if ci.StoredColumnIds != nil {
 		storedColumns := []string{}
 		for _, colId := range ci.StoredColumnIds {
-			storedColumns = append(storedColumns, ct.ColDefs[colId].Name)
+			if (!isStoredColumnKeyPartOfPrimaryKey(ct, colId)) {
+				storedColumns = append(storedColumns, c.quote(ct.ColDefs[colId].Name))
+			}
 		}
-		storingClause = fmt.Sprintf(" %s (%s)", stored, strings.Join(ci.StoredColumnIds, ", "))
+		storingClause = fmt.Sprintf(" %s (%s)", stored, strings.Join(storedColumns, ", "))
 	}
 	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)%s", unique, c.quote(ci.Name), c.quote(ct.Name), strings.Join(keys, ", "), storingClause)
+}
+
+// Checks if the colId is part of the primary of a table
+// Used for detecting if a key needs to be skipped while creating the
+// storing clause.
+func isStoredColumnKeyPartOfPrimaryKey(ct CreateTable, colId string) bool {
+	for _, pkey := range ct.PrimaryKeys {
+		if colId == pkey.ColId {
+			return true
+		}
+	}
+	return false
 }
 
 // PrintForeignKeyAlterTable unparses the foreign keys using ALTER TABLE.
@@ -430,16 +445,18 @@ func NewSchema() Schema {
 
 // Tables are ordered in alphabetical order with one exception: interleaved
 // tables appear after the definition of their parent table.
-// 
+//
 // TODO: Move this method to mapping.go and preserve the table names in sorted
 // order in conv so that we don't need to order the table names multiple times.
 func GetSortedTableIdsBySpName(s Schema) []string {
+
 	var tableNames, sortedTableNames, sortedTableIds []string
 	tableNameIdMap := map[string]string{}
 	for _, t := range s {
 		tableNames = append(tableNames, t.Name)
 		tableNameIdMap[t.Name] = t.Id
 	}
+	logger.Log.Debug(fmt.Sprintf("getting sorted table ids by table name: %s", tableNames))
 	sort.Strings(tableNames)
 	tableQueue := tableNames
 	tableAdded := make(map[string]bool)
@@ -447,11 +464,15 @@ func GetSortedTableIdsBySpName(s Schema) []string {
 		tableName := tableQueue[0]
 		table := s[tableNameIdMap[tableName]]
 		tableQueue = tableQueue[1:]
+		parentTableExists := false
+		if table.ParentId != "" {
+			_, parentTableExists = s[table.ParentId]
+		}
 
 		// Add table t if either:
 		// a) t is not interleaved in another table, or
 		// b) t is interleaved in another table and that table has already been added to the list.
-		if table.ParentId == "" || tableAdded[s[table.ParentId].Name] {
+		if table.ParentId == "" || tableAdded[s[table.ParentId].Name] || !parentTableExists {
 			sortedTableNames = append(sortedTableNames, tableName)
 			tableAdded[tableName] = true
 		} else {

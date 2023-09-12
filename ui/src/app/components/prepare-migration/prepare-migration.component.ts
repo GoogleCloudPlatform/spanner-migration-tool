@@ -4,7 +4,7 @@ import { TargetDetailsFormComponent } from '../target-details-form/target-detail
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
-import { ISessionSummary, ISpannerDetails } from 'src/app/model/conv'
+import IConv, { ISessionSummary, ISpannerDetails } from 'src/app/model/conv'
 import IMigrationDetails, { IGeneratedResources, IProgress, ISourceAndTargetDetails, ResourceDetails } from 'src/app/model/migrate'
 import { Dataflow, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
@@ -18,12 +18,16 @@ import ISpannerConfig from 'src/app/model/spanner-config'
 import { ShardedBulkSourceDetailsFormComponent } from '../sharded-bulk-source-details-form/sharded-bulk-source-details-form.component'
 import { IShardSessionDetails } from 'src/app/model/db-config'
 import { ShardedDataflowMigrationDetailsFormComponent } from '../sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component'
+import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
+import { downloadSession } from 'src/app/utils/utils'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
   styleUrls: ['./prepare-migration.component.scss'],
 })
 export class PrepareMigrationComponent implements OnInit {
+  conv!: IConv
+  convObj!: Subscription
   displayedColumns = ['Title', 'Source', 'Destination']
   dataSource: any = []
   migrationModes: any = []
@@ -33,7 +37,8 @@ export class PrepareMigrationComponent implements OnInit {
     private dialog: MatDialog,
     private fetch: FetchService,
     private snack: SnackbarService,
-    private data: DataService
+    private data: DataService,
+    private sidenav: SidenavService,
   ) { }
 
   isSourceConnectionProfileSet: boolean = false
@@ -116,7 +121,7 @@ export class PrepareMigrationComponent implements OnInit {
   ]);
 
   migrationTypesHelpText = new Map<string, string>([
-    ["bulk", "Uses this machine's resources to copy data from the source database to Spanner. This is only useful for small migrations."],
+    ["bulk", "Use the POC migration option when you want to migrate a sample of your data (<100GB) to do a Proof of Concept. It uses this machine's resources to copy data from the source database to Spanner"],
     ["lowdt", "Uses change data capture via Datastream to setup a continuous data replication pipeline from source to Spanner, using Dataflow jobs to perform the actual data migration."],
   ]);
 
@@ -128,7 +133,7 @@ export class PrepareMigrationComponent implements OnInit {
     ) {
       this.migrationTypes = [
         {
-          name: 'Bulk Migration',
+          name: 'POC Migration',
           value: MigrationTypes.bulkMigration,
         },
         {
@@ -140,7 +145,7 @@ export class PrepareMigrationComponent implements OnInit {
       this.selectedMigrationType = MigrationTypes.bulkMigration
       this.migrationTypes = [
         {
-          name: 'Bulk Migration',
+          name: 'POC Migration',
           value: MigrationTypes.bulkMigration,
         },
       ]
@@ -158,6 +163,9 @@ export class PrepareMigrationComponent implements OnInit {
     this.initializeFromLocalStorage()
     this.data.config.subscribe((res: ISpannerConfig) => {
       this.spannerConfig = res
+    })
+    this.convObj = this.data.conv.subscribe((data: IConv) => {
+      this.conv = data
     })
     localStorage.setItem(Dataflow.HostProjectId, this.spannerConfig.GCPProjectID)
     this.fetch.getSourceDestinationSummary().subscribe({
@@ -185,7 +193,7 @@ export class PrepareMigrationComponent implements OnInit {
         this.nodeCount = res.NodeCount
         this.migrationTypes = [
           {
-            name: 'Bulk Migration',
+            name: 'POC Migration',
             value: MigrationTypes.bulkMigration,
           },
           {
@@ -197,7 +205,7 @@ export class PrepareMigrationComponent implements OnInit {
           this.selectedMigrationType = MigrationTypes.bulkMigration
           this.migrationTypes = [
             {
-              name: 'Bulk Migration',
+              name: 'POC Migration',
               value: MigrationTypes.bulkMigration,
             },
           ]
@@ -736,19 +744,20 @@ export class PrepareMigrationComponent implements OnInit {
     this.fetch.getSourceProfile().subscribe({
       next: (res: IMigrationProfile) => {
         this.configuredMigrationProfile = res
+        var a = document.createElement('a')
+        // JS automatically converts the input (64bit INT) to '9223372036854776000' during conversion as this is the max value in JS.
+        // However the max value received from server is '9223372036854775807'
+        // Therefore an explicit replacement is necessary in the JSON content in the file.
+        let resJson = JSON.stringify(this.configuredMigrationProfile, null, '\t').replace(/9223372036854776000/g, '9223372036854775807')
+        a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
+        a.download = localStorage.getItem(TargetDetails.TargetDB) as string + "-" + this.configuredMigrationProfile.configType + `-shardConfig.cfg`
+        a.click()
       },
       error: (err: any) => {
         this.snack.openSnackBar(err.error, 'Close')
       },
     })
-    var a = document.createElement('a')
-    // JS automatically converts the input (64bit INT) to '9223372036854776000' during conversion as this is the max value in JS.
-    // However the max value received from server is '9223372036854775807'
-    // Therefore an explicit replacement is necessary in the JSON content in the file.
-    let resJson = JSON.stringify(this.configuredMigrationProfile, null, '\t').replace(/9223372036854776000/g, '9223372036854775807')
-    a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
-    a.download = localStorage.getItem(TargetDetails.TargetDB) as string + "-" + this.configuredMigrationProfile.configType + `-shardConfig.cfg`
-    a.click()
+
   }
 
   fetchGeneratedResources() {
@@ -844,5 +853,15 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.setItem(MigrationDetails.IsTargetDetailSet, this.isTargetDetailSet.toString())
     localStorage.setItem(MigrationDetails.GeneratingResources, this.generatingResources.toString())
   }
+
+  openSaveSessionSidenav() {
+    this.sidenav.openSidenav()
+    this.sidenav.setSidenavComponent('saveSession')
+    this.sidenav.setSidenavDatabaseName(this.conv.DatabaseName)
+  }
+  downloadSession() {
+    downloadSession(this.conv)
+  }
+
   ngOnDestroy() { }
 }

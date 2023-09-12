@@ -2,9 +2,17 @@
     <div class="breadcrumb">
         <a class="breadcrumb_source" mat-button [routerLink]="'/'">Select Source</a>
         <span>></span>
-        <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema ({{dialect}} Dialect)</a>
+        <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema ({{dialect}}
+            Dialect)</a>
         <span>></span>
-        <a class="breadcrumb_prepare_migration" mat-button [routerLink]="'/prepare-migration'"><b>Prepare Migration</b></a>
+        <a class="breadcrumb_prepare_migration" mat-button [routerLink]="'/prepare-migration'"><b>Prepare
+                Migration</b></a>
+    </div>
+    <div class="header_action">
+        <button mat-button (click)="openSaveSessionSidenav()">
+            SAVE SESSION
+        </button>
+        <button mat-button color="primary" (click)="downloadSession()">DOWNLOAD SESSION FILE</button>
     </div>
 </div>
 <br />
@@ -44,16 +52,6 @@
     </mat-form-field>
     <mat-icon class="configure" [matTooltip]="migrationModesHelpText.get(selectedMigrationMode)!">info</mat-icon>
     <br>
-    <div *ngIf="!(selectedMigrationMode === 'Schema')">
-        <mat-form-field appearance="outline">
-          <mat-label>Skip Foreign Key Creation:</mat-label>
-          <mat-select [(ngModel)]="isForeignKeySkipped">
-            <mat-option *ngFor="let element of skipForeignKeyResponseList" [value]="element.value">
-              {{ element.displayName }}
-            </mat-option>
-        </mat-select>
-    </mat-form-field>
-    </div>
     <mat-form-field appearance="outline">
         <mat-label>Migration Type:</mat-label>
         <mat-select [(ngModel)]="selectedMigrationType" (selectionChange)="refreshPrerequisites()">
@@ -62,29 +60,47 @@
             </mat-option>
         </mat-select>
     </mat-form-field>
-<mat-icon class="configure" [matTooltip]="migrationTypesHelpText.get(selectedMigrationType)!">info</mat-icon>
-    <br/>
+    <mat-icon class="configure" [matTooltip]="migrationTypesHelpText.get(selectedMigrationType)!">info</mat-icon>
+    <br />
+    <div *ngIf="!(selectedMigrationMode === 'Schema' || selectedMigrationType === 'lowdt')">
+        <mat-form-field appearance="outline">
+            <mat-label>Skip Foreign Key Creation:</mat-label>
+            <mat-select [(ngModel)]="isForeignKeySkipped">
+                <mat-option *ngFor="let element of skipForeignKeyResponseList" [value]="element.value">
+                    {{ element.displayName }}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+    </div>
     <div class="mat-card-class">
         <mat-card>
             <mat-card-title>Prerequisites</mat-card-title>
             <mat-card-subtitle>Before we begin, please ensure you have done the following:</mat-card-subtitle>
-            <div class="static-prereqs" *ngIf="(selectedMigrationType ==='bulk') && !(selectedMigrationMode ==='Schema')">
+            <div class="static-prereqs"
+                *ngIf="(selectedMigrationType ==='bulk') && !(selectedMigrationMode ==='Schema')">
                 <p class="point">
                     <span class="bullet">1</span>
-                    <span>Please ensure that the application default credentials deployed on this machine have permissions to write to Spanner.</span>
+                    <span>Please ensure that the application default credentials deployed on this machine have
+                        permissions to write to Spanner.</span>
                 </p>
             </div>
-            <div class="static-prereqs" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
+            <div class="static-prereqs"
+                *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
                 <p class="point">
                     <span class="bullet">1</span>
-                    <span>Please ensure that the source is <a href="https://cloud.google.com/datastream/docs/sources" target="_blank">configured</a> for Datastream change data capture.</span>
+                    <span>Please ensure that the source is <a href="https://cloud.google.com/datastream/docs/sources"
+                            target="_blank">configured</a> for Datastream change data capture.</span>
                 </p>
                 <p class="point">
                     <span class="bullet">2</span>
-                    <span>Please ensure that Dataflow <a href="https://cloud.google.com/dataflow/docs/concepts/security-and-permissions" target="_blank">permissions</a> and <a href="https://cloud.google.com/dataflow/docs/guides/routes-firewall" target="_blank">networking</a> are correctly setup.</span>
+                    <span>Please ensure that Dataflow <a
+                            href="https://cloud.google.com/dataflow/docs/concepts/security-and-permissions"
+                            target="_blank">permissions</a> and <a
+                            href="https://cloud.google.com/dataflow/docs/guides/routes-firewall"
+                            target="_blank">networking</a> are correctly setup.</span>
                 </p>
             </div>
-            </mat-card>
+        </mat-card>
     </div>
     <div class="mat-card-class">
         <mat-card>
@@ -108,9 +124,12 @@
                 <p class="point">
                     <span class="bullet">1</span>
                     <span>Setup Source Connection details
-                        <mat-icon class="configure" matTooltip="Configure the connection info of all source shards to connect to and migrate data from.">info</mat-icon></span>
-                        <span><button mat-button class="configure"
-                            (click)="openShardedBulkSourceDetailsForm()" [disabled]="isMigrationInProgress">
+                        <mat-icon class="configure"
+                            matTooltip="Configure the connection info of all source shards to connect to and migrate data from.">
+                            info</mat-icon>
+                    </span>
+                    <span><button mat-button class="configure" (click)="openShardedBulkSourceDetailsForm()"
+                            [disabled]="isMigrationInProgress">
                             Configure
                             <mat-icon>edit</mat-icon>
                             <mat-icon *ngIf="isSourceDetailsSet" class="success" matTooltip="Source details configured"
@@ -125,9 +144,12 @@
                 <p class="point">
                     <span class="bullet">1</span>
                     <span>Configure Spanner Database
-                        <mat-icon class="configure" matTooltip="Configure the database in Spanner you want this migration to write to (up till now only GCP Project ID and Spanner Instance name have been configured.)">info</mat-icon></span>
-                    <span><button mat-button class="configure"
-                            (click)="openTargetDetailsForm()" [disabled]="isMigrationInProgress">
+                        <mat-icon class="configure"
+                            matTooltip="Configure the database in Spanner you want this migration to write to (up till now only GCP Project ID and Spanner Instance name have been configured.)">
+                            info</mat-icon>
+                    </span>
+                    <span><button mat-button class="configure" (click)="openTargetDetailsForm()"
+                            [disabled]="isMigrationInProgress || isLowDtMigrationRunning">
                             Configure
                             <mat-icon>edit</mat-icon>
                             <mat-icon *ngIf="isTargetDetailSet" class="success" matTooltip="Target details configured"
@@ -136,12 +158,15 @@
                             </mat-icon>
                         </button></span>
                 </p>
-                <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && isSharded">
+                <p class="point"
+                    *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && isSharded">
                     <span class="bullet">2</span>
                     <span>Configure Datastream
-                        <mat-icon class="configure" matTooltip="Datastream will be used to capture change events from the source database. Please ensure you have met the pre-requistes required for setting up Datastream in your GCP environment. ">info</mat-icon></span>
-                    <span><button mat-button class="configure"
-                            (click)="openMigrationProfileForm()"
+                        <mat-icon class="configure"
+                            matTooltip="Datastream will be used to capture change events from the source database. Please ensure you have met the pre-requistes required for setting up Datastream in your GCP environment. ">
+                            info</mat-icon>
+                    </span>
+                    <span><button mat-button class="configure" (click)="openMigrationProfileForm()"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet">
                             Configure
                             <mat-icon>edit</mat-icon>
@@ -152,12 +177,15 @@
                         </button>
                     </span>
                 </p>
-                <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && !isSharded">
+                <p class="point"
+                    *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && !isSharded">
                     <span class="bullet">2</span>
                     <span>Setup source connection profile
-                        <mat-icon class="configure" matTooltip="Configure the source connection profile to allow Datastream to read from your source database">info</mat-icon></span>
-                    <span><button mat-button class="configure"
-                            (click)="openConnectionProfileForm(true)"
+                        <mat-icon class="configure"
+                            matTooltip="Configure the source connection profile to allow Datastream to read from your source database">
+                            info</mat-icon>
+                    </span>
+                    <span><button mat-button class="configure" (click)="openConnectionProfileForm(true)"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet">
                             Configure
                             <mat-icon>edit</mat-icon>
@@ -167,12 +195,15 @@
                             </mat-icon>
                         </button></span>
                 </p>
-                <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && !isSharded">
+                <p class="point"
+                    *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && !isSharded">
                     <span class="bullet">3</span>
                     <span>Setup target connection profile
-                    <mat-icon class="configure" matTooltip="Create a connection profile for datastream to write to a GCS bucket. Harbourbridge will automatically create the bucket for you.">info</mat-icon></span>
-                    <span><button mat-button class="configure"
-                            (click)="openConnectionProfileForm(false)"
+                        <mat-icon class="configure"
+                            matTooltip="Create a connection profile for datastream to write to a GCS bucket. Spanner migration tool will automatically create the bucket for you.">
+                            info</mat-icon>
+                    </span>
+                    <span><button mat-button class="configure" (click)="openConnectionProfileForm(false)"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet">
                             Configure
                             <mat-icon>edit</mat-icon>
@@ -186,27 +217,31 @@
                     <span class="bullet" *ngIf="isSharded">3</span>
                     <span class="bullet" *ngIf="!isSharded">4</span>
                     <span>Configure Dataflow (Optional)
-                        <mat-icon class="configure" matTooltip="Dataflow will be used to perform the actual migration of data from source to Spanner. This helps you configure the execution environment for Dataflow jobs e.g VPC.">info</mat-icon></span>
-                    <span><button mat-button class="configure"
-                            (click)="openDataflowForm()"
+                        <mat-icon class="configure"
+                            matTooltip="Dataflow will be used to perform the actual migration of data from source to Spanner. This helps you configure the execution environment for Dataflow jobs e.g VPC.">
+                            info</mat-icon>
+                    </span>
+                    <span><button mat-button class="configure" (click)="openDataflowForm()"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet">
                             Configure
                             <mat-icon>edit</mat-icon>
-                            <mat-icon class="success"
-                                matTooltip="Dataflow Configured" matTooltipPosition="above">
+                            <mat-icon class="success" matTooltip="Dataflow Configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
                         </button></span>
                 </p>
-                <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && isSharded">
+                <p class="point"
+                    *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && isSharded">
                     <span class="bullet" *ngIf="isSharded">4</span>
                     <span>Download configuration as JSON
-                        <mat-icon class="configure" matTooltip="Download the configuration done above as JSON.">info</mat-icon></span>
-                    <span><button mat-button class="configure"
-                            (click)="downloadConfiguration()"
+                        <mat-icon class="configure" matTooltip="Download the configuration done above as JSON.">info
+                        </mat-icon>
+                    </span>
+                    <span><button mat-button class="configure" (click)="downloadConfiguration()"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet || !isTargetConnectionProfileSet">
                             Download
-                            <mat-icon matTooltip="Download configured shards as JSON" matTooltipPosition="above">download</mat-icon>
+                            <mat-icon matTooltip="Download configured shards as JSON" matTooltipPosition="above">
+                                download</mat-icon>
                         </button></span>
                 </p>
             </div>
@@ -215,18 +250,18 @@
     <div class="mat-card-class" *ngIf="!(selectedMigrationMode ==='Schema') && isSharded">
         <mat-card>
             <mat-card-title>Configured Source Details</mat-card-title>
-                <p class="point">
-                    <span class="bullet">1</span>
-                    <span><b>Source Database: </b>{{ sourceDatabaseType }}</span>
-                </p>
-                <p class="point">
-                    <span class="bullet">2</span>
-                    <span><b>Number of physical instances configured: </b> {{ numberOfInstances }}</span>
-                </p>
-                <p class="point">
-                    <span class="bullet">3</span>
-                    <span><b>Number of logical shards configured: </b> {{ numberOfShards }}</span>
-                </p>
+            <p class="point">
+                <span class="bullet">1</span>
+                <span><b>Source Database: </b>{{ sourceDatabaseType }}</span>
+            </p>
+            <p class="point">
+                <span class="bullet">2</span>
+                <span><b>Number of physical instances configured: </b> {{ numberOfInstances }}</span>
+            </p>
+            <p class="point">
+                <span class="bullet">3</span>
+                <span><b>Number of logical shards configured: </b> {{ numberOfShards }}</span>
+            </p>
         </mat-card>
     </div>
     <div class="mat-card-class" *ngIf="isTargetDetailSet">
@@ -273,32 +308,40 @@
             </mat-spinner>
         </span>
         <span class="spinner-text">Generating Resources</span><br>
-        Note: HarbourBridge is creating datastream and dataflow resources. Please look at the terminal logs to check the progress of resource creation. All created resources will be displayed here once they are generated.
+        Note: Spanner migration tool is creating datastream and dataflow resources. Please look at the terminal logs to
+        check the progress of resource creation. All created resources will be displayed here once they are generated.
     </div>
     <div *ngIf="isResourceGenerated">
         <h3> Generated Resources:</h3>
-        <li>Spanner database: <a [href]="resourcesGenerated.DatabaseUrl" target="_blank">{{resourcesGenerated.DatabaseName}}</a></li>
-        <li>GCS bucket: <a [href]="resourcesGenerated.BucketUrl" target="_blank">{{resourcesGenerated.BucketName}}</a></li>
+        <li>Spanner database: <a [href]="resourcesGenerated.DatabaseUrl"
+                target="_blank">{{resourcesGenerated.DatabaseName}}</a></li>
+        <li>GCS bucket: <a [href]="resourcesGenerated.BucketUrl" target="_blank">{{resourcesGenerated.BucketName}}</a>
+        </li>
         <span *ngIf="resourcesGenerated.DataStreamJobName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
-            <li> Datastream job: <a
-                    [href]="resourcesGenerated.DataStreamJobUrl" target="_blank">{{resourcesGenerated.DataStreamJobName}}</a></li>
+            <li> Datastream job: <a [href]="resourcesGenerated.DataStreamJobUrl"
+                    target="_blank">{{resourcesGenerated.DataStreamJobName}}</a></li>
         </span>
         <span *ngIf="resourcesGenerated.DataflowJobName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
-            <li>Dataflow job: <a [href]="resourcesGenerated.DataflowJobUrl" target="_blank">{{resourcesGenerated.DataflowJobName}}</a>
+            <li>Dataflow job: <a [href]="resourcesGenerated.DataflowJobUrl"
+                    target="_blank">{{resourcesGenerated.DataflowJobName}}</a>
             </li>
         </span>
         <span *ngIf="resourcesGenerated.DataStreamJobName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
-            <li *ngFor="let stream of resourcesGenerated.ShardToDatastreamMap | keyvalue"> 
-                Datastream job for shardId: {{ stream.key }} - <a [href]="stream.value.JobUrl" target="_blank">{{stream.value.JobName}}</a></li>
+            <li *ngFor="let stream of resourcesGenerated.ShardToDatastreamMap | keyvalue">
+                Datastream job for shardId: {{ stream.key }} - <a [href]="stream.value.JobUrl"
+                    target="_blank">{{stream.value.JobName}}</a></li>
         </span>
         <span *ngIf="resourcesGenerated.DataflowJobName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
             <li *ngFor="let dfJob of resourcesGenerated.ShardToDataflowMap | keyvalue">
-                Dataflow job for shardId: {{ dfJob.key }} - <a [href]="dfJob.value.JobUrl" target="_blank">{{dfJob.value.JobName}}</a>
+                Dataflow job for shardId: {{ dfJob.key }} - <a [href]="dfJob.value.JobUrl"
+                    target="_blank">{{dfJob.value.JobName}}</a>
             </li>
         </span>
         <br><br>
-        <b>Note: </b>HarbourBridge has orchestrated the migration successfully. For minimal downtime migrations, it is safe to close HarbourBridge now without affecting the progress of the migration.
-        Please note that HarbourBridge does not save the IDs of the Dataflow jobs created once closed, so please keep copy over the links in the Generated Resources section above before closing HarbourBridge.
+        <b>Note: </b>Spanner migration tool has orchestrated the migration successfully. For minimal downtime
+        migrations, it is safe to close Spanner migration tool now without affecting the progress of the migration.
+        Please note that Spanner migration tool does not save the IDs of the Dataflow jobs created once closed, so
+        please keep copy over the links in the Generated Resources section above before closing Spanner migration tool.
     </div>
     <div class="migrate">
         <span *ngIf="!isLowDtMigrationRunning">

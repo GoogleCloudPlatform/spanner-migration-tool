@@ -20,8 +20,8 @@ import (
 	"fmt"
 
 	"cloud.google.com/go/spanner"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"google.golang.org/api/iterator"
 )
 

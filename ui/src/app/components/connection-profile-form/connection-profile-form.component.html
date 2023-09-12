@@ -22,12 +22,13 @@
             </mat-form-field>
         </div>
         <div *ngIf="(selectedOption === 'new')">
-            <mat-form-field appearance="outline">
+            <mat-form-field appearance="outline" hintLabel="Name can include lower case letters, numbers and hyphens. Must start with a letter.">
                 <mat-label>Connection profile name</mat-label>
                 <input matInput placeholder="Connection profile name" type="text" formControlName="newProfile"
                     required="true" />
             </mat-form-field>
         </div>
+        <br>
         <div *ngIf="isSource && sourceDatabaseType=='postgres'">
             <mat-form-field appearance="outline">
                 <mat-label>Replication slot</mat-label>

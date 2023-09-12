@@ -123,6 +123,10 @@ export class FetchService {
     return this.http.get<string>(`${this.url}/downloadDDL`)
   }
 
+  getIssueDescription(){
+    return this.http.get<{[key: string]: string}>(`${this.url}/issueDescription`)
+  }
+
   getConversionRate() {
     return this.http.get<Record<string, string>>(`${this.url}/conversion`)
   }
@@ -155,6 +159,10 @@ export class FetchService {
 
   getTypeMap() {
     return this.http.get(`${this.url}/typemap`)
+  }
+
+  getSpannerDefaultTypeMap() {
+    return this.http.get(`${this.url}/spannerDefaultTypeMap`)
   }
 
   reviewTableUpdate(tableName: string, data: IUpdateTable): any {

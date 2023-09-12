@@ -19,6 +19,10 @@ export class SummaryComponent implements OnInit {
   filteredSummaryRows: ISummaryRow[] = []
   readonly separatorKeysCodes = [] as const
   summaryCount: number = 0
+  totalNoteCount: number = 0
+  totalWarningCount: number = 0
+  totalSuggestionCount: number = 0
+  totalErrorCount: number = 0
 
   filterInput = new FormControl()
   options: string[] = ['read', 'unread', 'warning', 'suggestion', 'note', 'error']
@@ -26,7 +30,7 @@ export class SummaryComponent implements OnInit {
   searchFilters: string[] = ['unread', 'warning', 'note', 'suggestion', 'error']
 
   @Input() currentObject: FlatNode | null = null
-  constructor(private data: DataService, private clickEvent: ClickEventService) {}
+  constructor(private data: DataService, private clickEvent: ClickEventService) { }
 
   ngOnInit(): void {
     this.data.summary.subscribe({
@@ -39,7 +43,9 @@ export class SummaryComponent implements OnInit {
           }
           let s = this.summary.get(objectId)
           if (s) {
+            this.summaryRows = []
             this.initiateSummaryCollection(s)
+            this.applyFilters()
             this.summaryCount = s.NotesCount + s.WarningsCount + s.ErrorsCount + s.SuggestionsCount
             this.changeIssuesLabel.emit(
               s.NotesCount + s.WarningsCount + s.ErrorsCount + s.SuggestionsCount
@@ -49,13 +55,28 @@ export class SummaryComponent implements OnInit {
             this.changeIssuesLabel.emit(0)
           }
         } else {
-          this.summaryCount = 0
-          this.changeIssuesLabel.emit(0)
+          this.initialiseSummaryCollectionForAllTables(this.summary)
+          this.summaryCount = this.totalNoteCount + this.totalErrorCount + this.totalSuggestionCount + this.totalWarningCount
+          this.changeIssuesLabel.emit(
+            this.summaryCount
+          )
         }
       },
     })
 
     this.registerAutoCompleteChange()
+  }
+
+  initialiseSummaryCollectionForAllTables(summaryMap: Map<string, ISummary>) {
+    this.summaryRows = []
+    this.totalErrorCount = 0
+    this.totalNoteCount = 0
+    this.totalSuggestionCount = 0
+    this.totalWarningCount = 0
+    for (const summary of summaryMap.values()) {
+      this.initiateSummaryCollection(summary)
+    }
+    this.applyFilters()
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -68,7 +89,9 @@ export class SummaryComponent implements OnInit {
       }
       let s = this.summary.get(objectId)
       if (s) {
+        this.summaryRows = []
         this.initiateSummaryCollection(s)
+        this.applyFilters()
         this.summaryCount = s.NotesCount + s.WarningsCount + s.ErrorsCount + s.SuggestionsCount
         this.changeIssuesLabel.emit(
           s.NotesCount + s.WarningsCount + s.ErrorsCount + s.SuggestionsCount
@@ -84,36 +107,40 @@ export class SummaryComponent implements OnInit {
   }
 
   initiateSummaryCollection(summary: ISummary) {
-    this.summaryRows = []
+
+    this.totalErrorCount += summary.ErrorsCount
+    this.totalNoteCount += summary.NotesCount
+    this.totalWarningCount += summary.WarningsCount
+    this.totalSuggestionCount += summary.SuggestionsCount
+
     summary.Errors.forEach((v) => {
       this.summaryRows.push({
         type: 'error',
-        content: v,
+        content: v.description,
         isRead: false,
       })
     })
     summary.Warnings.forEach((v) => {
       this.summaryRows.push({
         type: 'warning',
-        content: v,
+        content: v.description,
         isRead: false,
       })
     })
     summary.Suggestions.forEach((v) => {
       this.summaryRows.push({
         type: 'suggestion',
-        content: v,
+        content: v.description,
         isRead: false,
       })
     })
     summary.Notes.forEach((v) => {
       this.summaryRows.push({
         type: 'note',
-        content: v,
+        content: v.description,
         isRead: false,
       })
     })
-    this.applyFilters()
   }
 
   applyFilters() {

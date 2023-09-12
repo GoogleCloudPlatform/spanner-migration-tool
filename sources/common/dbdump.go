@@ -15,7 +15,7 @@
 package common
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 )
 
 // DbDump common interface for database dump functions.

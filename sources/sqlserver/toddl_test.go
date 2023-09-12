@@ -17,13 +17,96 @@ package sqlserver
 import (
 	"testing"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestToSpannerTypeInternal(t *testing.T) {
+	_, errCheck := toSpannerTypeInternal(schema.Type{"bigint", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in bigint of sptype string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bigint", []int64{1, 2, 3}, []int64{1, 2, 3}}, "INT64")
+	if errCheck == nil {
+		t.Errorf("Error in bigint of sptype int64")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"tinyint", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in tinyint of sptype string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"tinyint", []int64{1, 2, 3}, []int64{1, 2, 3}}, "INT64")
+	if errCheck == nil {
+		t.Errorf("Error in tinyint of sptype int64")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"float", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in float of sptype string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"numeric", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in numeric of sptype string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bit", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck != nil {
+		t.Errorf("Error in bit of sptype string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"uniqueidentifier", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in uniqueidentifier of sptype bytes")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"uniqueidentifier", []int64{1}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in uniqueidentifier of sptype bytes")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"uniqueidentifier", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck != nil {
+		t.Errorf("Error in uniqueidentifier of sptype string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"varchar", []int64{1, 2, 3}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in varchar of sptype bytes")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"varchar", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in varchar of sptype bytes")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"varchar", []int64{}, []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in varchar of default sptype")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"ntext", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in ntext of sptype bytes")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"binary", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck != nil {
+		t.Errorf("Error in binary of sptype string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"date", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in date of sptype string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"datetime", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in datetime of sptype string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"timestamp", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in timestamp of sptype string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"time", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in time of sptype string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"DEFAULT", []int64{1, 2, 3}, []int64{1, 2, 3}}, "")
+	if errCheck == nil {
+		t.Errorf("Error in default case")
+	}
+}
 
 // This is just a very basic smoke-test for toSpannerType.
 func TestToSpannerType(t *testing.T) {

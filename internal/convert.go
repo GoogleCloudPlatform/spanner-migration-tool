@@ -16,12 +16,13 @@ package internal
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"go.uber.org/zap"
 	"google.golang.org/genproto/googleapis/type/datetime"
 )
@@ -42,10 +43,12 @@ type Conv struct {
 	sampleBadRows  rowSamples          // Rows that generated errors during conversion.
 	Stats          stats               `json:"-"`
 	TimezoneOffset string              // Timezone offset for timestamp conversion.
-	SpDialect      string              // The dialect of the spanner database to which HarbourBridge is writing.
+	SpDialect      string              // The dialect of the spanner database to which Spanner migration tool is writing.
 	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
 	Audit          Audit               `json:"-"` // Stores the audit information for the database conversion
 	Rules          []Rule              // Stores applied rules during schema conversion
+	IsSharded      bool                // Flag denoting if the migration is sharded or not
+	ConvLock       sync.RWMutex        `json:"-"` // ConvLock prevents concurrent map read/write operations. This lock will be used in all the APIs that either read or write elements to the conv object.
 }
 
 type TableIssues struct {
@@ -113,9 +116,13 @@ const (
 	RowLimitExceeded
 	ShardIdColumnAdded
 	ShardIdColumnPrimaryKey
+	ArrayTypeNotSupported
 )
 
-const ShardIdColumn = "migration_shard_id"
+const (
+	ShardIdColumn       = "migration_shard_id"
+	SyntheticPrimaryKey = "synth_id"
+)
 
 // NameAndCols contains the name of a table and its columns.
 // Used to map between source DB and Spanner table and column names.
@@ -362,7 +369,7 @@ func (conv *Conv) SampleBadRows(n int) []string {
 func (conv *Conv) AddShardIdColumn() {
 	for t, ct := range conv.SpSchema {
 		if ct.ShardIdColumn == "" {
-			colName := ShardIdColumn
+			colName := conv.buildColumnNameWithBase(t, ShardIdColumn)
 			columnId := GenerateColumnId()
 			ct.ColIds = append(ct.ColIds, columnId)
 			ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false}
@@ -389,6 +396,7 @@ func (conv *Conv) AddPrimaryKeys() {
 						for _, indexKey := range index.Keys {
 							ct.PrimaryKeys = append(ct.PrimaryKeys, ddl.IndexKey{ColId: indexKey.ColId, Desc: indexKey.Desc, Order: indexKey.Order})
 							conv.UniquePKey[t] = append(conv.UniquePKey[t], indexKey.ColId)
+							addMissingPrimaryKeyWarning(ct.Id, indexKey.ColId, conv)
 						}
 						primaryKeyPopulated = true
 						ct.Indexes = append(ct.Indexes[:i], ct.Indexes[i+1:]...)
@@ -397,15 +405,34 @@ func (conv *Conv) AddPrimaryKeys() {
 				}
 			}
 			if !primaryKeyPopulated {
-				k := conv.buildPrimaryKey(t)
+				k := conv.buildColumnNameWithBase(t, SyntheticPrimaryKey)
 				columnId := GenerateColumnId()
 				ct.ColIds = append(ct.ColIds, columnId)
 				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}}
 				ct.PrimaryKeys = []ddl.IndexKey{{ColId: columnId, Order: 1}}
 				conv.SyntheticPKeys[t] = SyntheticPKey{columnId, 0}
+				addMissingPrimaryKeyWarning(ct.Id, columnId, conv)
 			}
 			conv.SpSchema[t] = ct
 		}
+	}
+}
+
+// Add 'Missing Primary Key' as a Warning inside ColumnLevelIssues of conv object
+func addMissingPrimaryKeyWarning(tableId string, colId string, conv *Conv) {
+	tableLevelIssues := conv.SchemaIssues[tableId].TableLevelIssues
+	var columnLevelIssues map[string][]SchemaIssue
+	if tableIssues, ok := conv.SchemaIssues[tableId]; ok {
+		columnLevelIssues = tableIssues.ColumnLevelIssues
+	} else {
+		columnLevelIssues = make(map[string][]SchemaIssue)
+	} 
+	issues := columnLevelIssues[colId]
+	issues = append(issues, MissingPrimaryKey)
+	columnLevelIssues[colId] = issues
+	conv.SchemaIssues[tableId] = TableIssues{
+		TableLevelIssues:  tableLevelIssues,
+		ColumnLevelIssues: columnLevelIssues,
 	}
 }
 
@@ -414,8 +441,7 @@ func (conv *Conv) SetLocation(loc *time.Location) {
 	conv.Location = loc
 }
 
-func (conv *Conv) buildPrimaryKey(tableId string) string {
-	base := "synth_id"
+func (conv *Conv) buildColumnNameWithBase(tableId, base string) string {
 	if _, ok := conv.SpSchema[tableId]; !ok {
 		conv.Unexpected(fmt.Sprintf("Table doesn't exist for tableId %s: ", tableId))
 		return base

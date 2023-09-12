@@ -17,13 +17,100 @@ package postgres
 import (
 	"testing"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestToSpannerTypeInternal(t *testing.T) {
+	_, errCheck := toSpannerTypeInternal(schema.Type{"bool", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in bool to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bool", []int64{1, 2, 3}, []int64{1, 2, 3}}, "INT64")
+	if errCheck == nil {
+		t.Errorf("Error in bool to int64 conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bigserial", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in bigserial to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bpchar", []int64{1, 2, 3}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in bpchar to bytes conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bpchar", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in bpchar to bytes conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bpchar", []int64{}, []int64{1, 2, 3}}, "")
+	if errCheck != nil {
+		t.Errorf("Error in bpchar to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bytea", []int64{}, []int64{1, 2, 3}}, "STRING")
+	if errCheck != nil {
+		t.Errorf("Error in bytea to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"date", []int64{}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in date to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"float8", []int64{}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in float8 to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"float4", []int64{}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in float4 to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"int8", []int64{}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in int8 to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"int4", []int64{}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in int4 to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"int2", []int64{}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in int2 to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"numeric", []int64{}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in numeric to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"serial", []int64{}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in serial to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"text", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in text to bytes conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"timestamptz", []int64{}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in timestamptz to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"timestamp", []int64{}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in timestamp to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"json", []int64{}, []int64{1, 2, 3}}, "STRING")
+	if errCheck != nil {
+		t.Errorf("Error in json to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"varchar", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in varchar to bytes conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"varchar", []int64{1, 2, 3}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in varchar to bytes conversion")
+	}
+}
 
 // This is just a very basic smoke-test for toSpannerType.
 // The real testing of toSpannerType happens in process_test.go

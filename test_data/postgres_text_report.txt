@@ -1,13 +1,13 @@
 ----------------------------
 Summary of Conversion
 ----------------------------
-Schema conversion: POOR (58% of 19006 columns mapped cleanly) + some missing primary keys.
+Schema conversion: POOR ( 0% of 19006 columns mapped cleanly) + some missing primary keys.
 Data conversion: POOR (66% of 6000 rows written to Spanner).
 
 The remainder of this report provides stats on the pg_dump statements processed,
 followed by a table-by-table listing of SCHEMA_AND_DATA conversion details. For
 background on the SCHEMA_AND_DATA conversion process used, and explanations of
-the terms and notes used in this report, see HarbourBridge's README.
+the terms and notes used in this report, see Spanner migration tool's README.
 
 ----------------------------
 Statements Processed
@@ -28,28 +28,29 @@ No Name Changes in Migration
 ----------------------------
 Table bad_schema
 ----------------------------
-Schema conversion: POOR (25% of 4 columns mapped cleanly) + missing primary key.
+Schema conversion: POOR ( 0% of 4 columns mapped cleanly) + missing primary key.
 Data conversion: OK (94% of 1000 rows written to Spanner).
 
 Warnings
-1) Column 'synth_id' was added because this table didn't have a primary key.
-   Spanner requires a primary key for every table.
-2) Some columns will consume more storage in Spanner e.g. for column 'b', source
-   DB type int4 is mapped to Spanner data type int64.
-3) Column 'c': type int4[4][2] is mapped to string(max). Spanner doesn't support
-   multi-dimensional arrays.
-4) Column 'd': type circle is mapped to string(max). No appropriate Spanner
-   type.
+1) Column 'synth_id' was added because table 'bad_schema' didn't have a primary
+   key. Spanner requires a primary key for every table.
+2) Table bad_schema: Some columns will consume more storage in Spanner e.g. for
+   column 'b', source DB type int4 is mapped to Spanner data type int64.
+3) Table 'bad_schema': Column 'c', type int4[4][2] is mapped to string(max).
+   Spanner doesn't support multi-dimensional arrays.
+4) Table 'bad_schema': Column 'd', type circle is mapped to string(max). No
+   appropriate Spanner type. The column will be made nullable in Spanner.
 
 ----------------------------
 Table default_value
 ----------------------------
-Schema conversion: POOR (50% of 2 columns mapped cleanly).
+Schema conversion: EXCELLENT (100% of 2 columns mapped cleanly).
 Data conversion: NONE (100% of 0 rows written to Spanner).
 
-Warning
-1) Some columns have default values which Spanner does not support e.g. column
-   'b'.
+Note
+1) Some columns have default values which Spanner migration tool does not
+   migrate. Please add the default constraints manually after the migration is
+   complete for table 'default_value' e.g. column 'b'.
 
 ----------------------------
 Table excellent_schema
@@ -66,14 +67,16 @@ Data conversion: NONE (100% of 0 rows written to Spanner).
 ----------------------------
 Table no_pk
 ----------------------------
-Schema conversion: POOR (67% of 3 columns mapped cleanly) + missing primary key.
+Schema conversion: POOR ( 0% of 3 columns mapped cleanly) + missing primary key.
 Data conversion: POOR (60% of 5000 rows written to Spanner).
 
 Warnings
-1) Column 'synth_id' was added because this table didn't have a primary key.
+1) Column 'synth_id' was added because table 'no_pk' didn't have a primary key.
    Spanner requires a primary key for every table.
-2) Some columns will consume more storage in Spanner e.g. for column 'b', source
-   DB type int4 is mapped to Spanner data type int64.
+2) Table 'no_pk': Column a, Array datatype migration is not fully supported.
+   Please validate data after data migration.
+3) Table no_pk: Some columns will consume more storage in Spanner e.g. for column
+   'b', source DB type int4 is mapped to Spanner data type int64.
 
 ----------------------------
 Unexpected Conditions

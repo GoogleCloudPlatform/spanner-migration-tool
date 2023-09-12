@@ -10,17 +10,17 @@ table.mat-table {
   vertical-align: inherit;
 }
 
-.mat-header-cell{
+.mat-header-cell {
   border-style: none;
- 
+
 }
 
-.icons{
-  border-left:1px solid rgb(208, 204, 204);
-  padding-left: 10px ;
-  
+.icons {
+  border-left: 1px solid rgb(208, 204, 204);
+  padding-left: 10px;
 }
-.cells{
+
+.cells {
   text-align: center;
 }
 
@@ -31,34 +31,35 @@ table.mat-table {
     flex-direction: row;
     align-items: center;
     border-bottom: 1px solid #d0cccc;
+    justify-content: space-between;
 
     .header-title {
       margin: 0;
     }
-  }
-  .btn-source-select {
-    margin: 0px 5px 0px 395px;
 
-    .split-button-left {
-      border-top-right-radius: 0;
-      border-bottom-right-radius: 0;
-    }
+    .btn-source-select {
 
-    .split-button-right {
-      width: 30px !important;
-      min-width: unset !important;
-      padding: 0 8px 0 2px;
-      border-top-left-radius: 0;
-      border-bottom-left-radius: 0;
-      border-left: 1px solid #fafafa;
-    }
+      .reportsButtons {
+        white-space: nowrap;
+      }
 
-    .close-button {
-      margin-left: 1.25px;
+      .split-button-left {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+      }
+
+      .split-button-right {
+        width: 30px !important;
+        min-width: unset !important;
+        padding: 0 8px 0 2px;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-left: 1px solid #fafafa;
+      }
+
+      .close-button {
+        margin-left: 1.25px;
+      }
     }
-  }
-  .content {
-    padding-left: 15px;
-    padding-top: 10px;
   }
 }

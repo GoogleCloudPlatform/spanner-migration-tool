@@ -63,6 +63,9 @@ export class HeaderComponent implements OnInit {
     this.sidenav.openSidenav()
     this.sidenav.setSidenavComponent('instruction')
   }
+  openUserGuide() {
+    window.open('https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/SpannerMigrationToolUIUserGuide.pdf', '_blank');
+  }
   stopLoading() {
     this.loaderService.stopLoader()
     this.clickEvent.cancelDbLoading()

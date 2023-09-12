@@ -1,5 +1,5 @@
 <div class="container">
-  <div *ngIf="currentObject">
+  <div>
     <div class="filter">
       <div class="columns">
         <div class="left">
@@ -55,7 +55,7 @@
         <div class="columns">
           <div class="left">
             <mat-icon
-              matTooltip="Error"
+              matTooltip="Error: Please resolve them to proceed with the migration"
               matTooltipPosition="above"
               *ngIf="item.type == 'error'"
               class="danger"
@@ -118,29 +118,8 @@
         </svg>
       </div>
       <div class="no-issue-message">
-        Woohoo! No issues or suggestions<br />found for {{ currentObject.name }}.
+        Woohoo! No issues or suggestions<br />found.
       </div>
-    </div>
-  </div>
-  <div class="no-object-container" *ngIf="!currentObject">
-    <div class="no-object-icon-container">
-      <svg
-        width="36"
-        height="36"
-        viewBox="0 0 19 18"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          fill-rule="evenodd"
-          clip-rule="evenodd"
-          d="M0.5 8.25V0H8.75V8.25H0.5ZM10.25 0H18.5V8.25H10.25V0ZM13.6636 6.28736L11.4739 4.09761L12.4645 3.10703L13.6636 4.30286L16.1989 1.76758L17.1895 2.7615L13.6636 6.28736ZM0.5 9.75V18H8.75V9.75H0.5ZM10.25 18V9.75H18.5V18H10.25Z"
-          fill="#3367D6"
-        />
-      </svg>
-    </div>
-    <div class="no-object-message">
-      Click on a converted object name on the <a class="spanner-tab-link" (click)="spannerTab()">Spanner tree panel</a> to view its conversion issues.
     </div>
   </div>
 </div>

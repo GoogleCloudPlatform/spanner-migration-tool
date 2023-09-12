@@ -156,5 +156,5 @@ jobs:
       - run: go test -v ./...
         env:
           SPANNER_EMULATOR_HOST: localhost:9010
-          HARBOURBRIDGE_TESTS_GCLOUD_PROJECT_ID: emulator-test-project
-          HARBOURBRIDGE_TESTS_GCLOUD_INSTANCE_ID: test-instance
+          SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID: emulator-test-project
+          SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID: test-instance

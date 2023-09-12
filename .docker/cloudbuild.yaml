@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build the Docker Image of HarbourBridge using its latest source code on Github and push it to GCR.
+## Note - This file is currently not used in build and release process.
+
+# Build the Docker Image of Spanner migration tool using its latest source code on Github and push it to GCR.
 # Add _VERSION_NUMBER and 'latest' as the tags of the image. 
 steps:
 - name : 'gcr.io/cloud-builders/docker'
-  args : ['build', '-t', 'gcr.io/${PROJECT_ID}/harbour-bridge:${_VERSION_NUMBER}', '-t', 'gcr.io/${PROJECT_ID}/harbour-bridge:latest', '.']
-  id : 'build-harbourbridge-image'
+  args : ['build', '-t', 'gcr.io/${PROJECT_ID}/spanner-migration-tool:${_VERSION_NUMBER}', '-t', 'gcr.io/${PROJECT_ID}/spanner-migration-tool:latest', '.']
+  id : 'build-spanner-migration-tool-image'
   waitFor: ['-']
 substitutions:
   _VERSION_NUMBER: 0.0.0 # default value.
 images:
-- 'gcr.io/$PROJECT_ID/harbour-bridge:latest'
-- 'gcr.io/$PROJECT_ID/harbour-bridge:${_VERSION_NUMBER}'
+- 'gcr.io/$PROJECT_ID/spanner-migration-tool:latest'
+- 'gcr.io/$PROJECT_ID/spanner-migration-tool:${_VERSION_NUMBER}'
 options:
   dynamic_substitutions: true

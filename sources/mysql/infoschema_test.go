@@ -22,11 +22,11 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 type mockSpec struct {
@@ -210,7 +210,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
-	err := common.GenerateSrcSchema(conv, isi, 1)
+	_, err := common.GenerateSrcSchema(conv, isi, 1)
 	assert.Nil(t, err)
 	expectedSchema := map[string]schema.Table{
 		"cart": schema.Table{Name: "cart", Schema: "test", ColIds: []string{"productid", "userid", "quantity"}, ColDefs: map[string]schema.Column{
@@ -381,7 +381,11 @@ func TestProcessData_MultiCol(t *testing.T) {
 			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}}},
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	columnLevelIssues := make(map[string][]internal.SchemaIssue)
+	columnLevelIssues := map[string][]internal.SchemaIssue{
+		"c48": []internal.SchemaIssue {
+			2,
+		},
+	}
 	expectedIssues := internal.TableIssues{
 		ColumnLevelIssues: columnLevelIssues,
 	}
