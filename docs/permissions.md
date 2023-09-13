@@ -117,26 +117,12 @@ Follow [this guide](https://cloud.google.com/datastream/docs/use-the-datastream-
 
 ### Dataflow
 
-1. Enable [Dataflow Admin](https://cloud.google.com/dataflow/docs/concepts/access-control#dataflow.admin).
-2. To use custom templates, enable [basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin).
+Follow [this guide](https://cloud.google.com/dataflow/docs/concepts/security-and-permissions) to enable Dataflow permissions.
+
+### GCS
+
+Grant the user **Editor role** to create buckets in the project.
 
 ### GCE
 
 Enable access to Datastream, Dataflow and Spanner using [service accounts](https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances).
-
-### Other Permissions
-
-In addition to these, the `DatastreamToSpanner` pipeline created by SMT requires
-the following roles as well:
-
-- Dataflow service account:
-  - GCS Bucket Lister
-  - Storage Object Creator
-  - GCS Object Lister
-  - Storage Object Viewer
-- Dataflow compute engine service account:
-  - Datastream Viewer role
-  - Cloud Spanner Database user
-  - Cloud Spanner Restore Admin
-  - Cloud Spanner Viewer
-  - Dataflow Worker
