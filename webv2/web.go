@@ -155,9 +155,12 @@ type migrationDetails struct {
 }
 
 type dataflowConfig struct {
-	Network       string `json:Network`
-	Subnetwork    string `json:Subnetwork`
-	HostProjectId string `json:HostProjectId`
+	Network             string `json:Network`
+	Subnetwork          string `json:Subnetwork`
+	MaxWorkers          string `json:MaxWorkers`
+	NumWorkers          string `json:NumWorkers`
+	ServiceAccountEmail string `json:ServiceAccountEmail`
+	HostProjectId       string `json:HostProjectId`
 }
 
 type targetDetails struct {
@@ -173,11 +176,14 @@ type StreamingCfg struct {
 	TmpDir        string        `json:"tmpDir"`
 }
 type DataflowCfg struct {
-	JobName       string `json:"JobName"`
-	Location      string `json:"Location"`
-	Network       string `json:"Network"`
-	Subnetwork    string `json:"Subnetwork"`
-	HostProjectId string `json:"HostProjectId"`
+	JobName             string `json:"JobName"`
+	Location            string `json:"Location"`
+	Network             string `json:"Network"`
+	Subnetwork          string `json:"Subnetwork"`
+	MaxWorkers          string `json:"MaxWorkers"`
+	NumWorkers          string `json:"NumWorkers"`
+	ServiceAccountEmail string `json:"ServiceAccountEmail"`
+	HostProjectId       string `json:"HostProjectId"`
 }
 type ConnectionConfig struct {
 	Name     string `json:"name"`
@@ -420,10 +426,13 @@ func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		Location:      sessionState.Region,
-		Network:       dataflowLocation.DataflowConfig.Network,
-		Subnetwork:    dataflowLocation.DataflowConfig.Subnetwork,
-		HostProjectId: dataflowLocation.DataflowConfig.HostProjectId,
+		Location:            sessionState.Region,
+		Network:             dataflowLocation.DataflowConfig.Network,
+		Subnetwork:          dataflowLocation.DataflowConfig.Subnetwork,
+		HostProjectId:       dataflowLocation.DataflowConfig.HostProjectId,
+		MaxWorkers:          dataflowLocation.DataflowConfig.MaxWorkers,
+		NumWorkers:          dataflowLocation.DataflowConfig.NumWorkers,
+		ServiceAccountEmail: dataflowLocation.DataflowConfig.ServiceAccountEmail,
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -446,10 +455,13 @@ func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request)
 	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
 	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		Location:      sessionState.Region,
-		Network:       "",
-		Subnetwork:    "",
-		HostProjectId: sessionState.GCPProjectID,
+		Location:            sessionState.Region,
+		Network:             "",
+		Subnetwork:          "",
+		MaxWorkers:          "",
+		NumWorkers:          "",
+		ServiceAccountEmail: "",
+		HostProjectId:       sessionState.GCPProjectID,
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -2448,11 +2460,14 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 			},
 		},
 		DataflowCfg: DataflowCfg{
-			JobName:       "",
-			Location:      sessionState.Region,
-			Network:       dataflowConfig.Network,
-			Subnetwork:    dataflowConfig.Subnetwork,
-			HostProjectId: dataflowConfig.HostProjectId,
+			JobName:             "",
+			Location:            sessionState.Region,
+			Network:             dataflowConfig.Network,
+			Subnetwork:          dataflowConfig.Subnetwork,
+			MaxWorkers:          dataflowConfig.MaxWorkers,
+			NumWorkers:          dataflowConfig.NumWorkers,
+			ServiceAccountEmail: dataflowConfig.ServiceAccountEmail,
+			HostProjectId:       dataflowConfig.HostProjectId,
 		},
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}
