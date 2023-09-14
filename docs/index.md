@@ -37,6 +37,10 @@ It can also be used to do small scale on-prem POC migrations to get a feel of Sp
 
 - **POC Migration** -  This mode is useful to get up and running quickly to get a feel of what migrating to Spanner would look like. This mode of migration uses the local machine's resources (on which SMT is running) to write data to Spanner. This is an offline migration for migrating moderate-size datasets to Spanner(up to about 100GB). More details about POC migrations are [here](./poc/poc.md).
 
+### Reverse Replication
+
+Spanner migration tool will soon support reverse replication via the UI. Currently it support it only via CLI. More details about reverse replication are [here](./reverse-replication/ReverseReplication.md).
+
 ## Supported Sources and Targets
 
 - **Schema Migrations**: SMT supports schema migrations for MySQL, PostgreSQL, SQLServer and Oracle.
