@@ -126,3 +126,20 @@ Grant the user **Editor role** to create buckets in the project.
 ### GCE
 
 Enable access to Datastream, Dataflow and Spanner using [service accounts](https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances).
+
+### Other Permissions
+
+In addition to these, the `DatastreamToSpanner` pipeline created by SMT requires
+the following roles as well:
+
+- Dataflow service account:
+  - GCS Bucket Lister
+  - Storage Object Creator
+  - GCS Object Lister
+  - Storage Object Viewer
+- Dataflow compute engine service account:
+  - Datastream Viewer role
+  - Cloud Spanner Database user
+  - Cloud Spanner Restore Admin
+  - Cloud Spanner Viewer
+  - Dataflow Worker
