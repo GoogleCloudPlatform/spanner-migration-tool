@@ -36,7 +36,7 @@ Reverse replication flow involves below steps:
 
 These steps are achieved by two Dataflow jobs, along with an interim buffer which holds the ordered changes.
 
-![Architecture](./images/ReverseReplicationOverview.png)
+![Architecture](https://services.google.com/fh/files/misc/reversereploverview.png)
 
 
 *Note that the buffer used is the [Cloud Pub/Sub](https://cloud.google.com/pubsub/docs/overview). Kafka is experimentally supported and requires manual setup, which is not discussed in this guide. [Contact us](#contact-us) for using Kafka.*
@@ -83,7 +83,7 @@ The progress of the Dataflow jobs can be tracked via the Dataflow UI.
 
 The last step gives an approximation of where the step is currently - the Data Watermark would give indication of Spanner commit timestamp that is guaranteed to be processed. On the Dataflow UI, click on JobGraph and scroll to the last step, as shown below. Click on the last step and the metrics should be visible on the right pane.
 
-![Metrics](./images/SourceToSinkMetrics.png)
+![Metrics](https://services.google.com/fh/files/misc/sourcetosinkmetrics.png)
 
 
 #### Pub/Sub metrics
@@ -96,16 +96,16 @@ Note that subscription [metrics](https://cloud.google.com/pubsub/docs/monitor-su
 
 The Dataflow job that writes to source database exposes per shard metric like so, which should be visible on the right pane titled 'Job Info'.
 
-![Metrics](./images/OrderedBufferToSourceMetrics.png)
+![Metrics](https://services.google.com/fh/files/misc/orderedbuffertosourcemetrics.png)
 
 These can be used to track the pipeline progress.
 However, there is a limit of 100 on the total number of metrics per project. So if this limit is exhausted, the Dataflow job will give a message like so:
 
-![ExhaustedMetrics](./images/MerticExhausted.png)
+![ExhaustedMetrics](https://services.google.com/fh/files/misc/metricexhausted.png)
 
 In such cases, the metrics can be viewed on the [Cloud Monitoring](https://cloud.google.com/monitoring/docs/monitoring-overview) console by writing a query:
 
-![MQL](./images/MonitoringQL.png)
+![MQL](https://services.google.com/fh/files/misc/monitoringql.png)
 
 Sample query
 
@@ -136,7 +136,7 @@ Following are some scenarios and how to handle them.
 2. Check the DataFlow logs since they are an excellent way to understand if something is not working as expected.
 If you observe that the pipeline is not making expected progress, check the Dataflow logs for any errors.For Dataflow related errors, please refer [here](https://cloud.google.com/dataflow/docs/guides/troubleshooting-your-pipeline) for troubleshooting. Note that sometimes logs are not visible in Dataflow, in such cases, follow these suggestions.
 
-![DataflowLog](./images/DataflowLog.png)
+![DataflowLog](https://services.google.com/fh/files/misc/dataflowlog.png)
 
 
 
