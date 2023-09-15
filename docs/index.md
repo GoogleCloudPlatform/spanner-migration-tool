@@ -39,7 +39,7 @@ It can also be used to do small scale on-prem POC migrations to get a feel of Sp
 
 ### Reverse Replication
 
-Spanner migration tool will soon support reverse replication via the UI. Currently it support it only via CLI. More details about reverse replication are [here](./reverse-replication/ReverseReplication.md).
+To launch reverse replication, refer details [here](./reverse-replication/ReverseReplication.md).
 
 ## Supported Sources and Targets
 

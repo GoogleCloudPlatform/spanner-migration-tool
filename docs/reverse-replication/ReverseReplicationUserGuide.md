@@ -167,8 +167,10 @@ In this case, check if you observe the following:
 
 #### There is higher load than the expected QPS on  spanner instance post cutover
 
-1. If the forward migration is still running post cutover, the incoming writes on Spanner that are reverse-replicated to the source get forward migrated again. This can cause the load on Spanner to be almost double the expected QPS, as each write will get reflected twice. Also, it could lead to transient inconsistencies in data under certain cases. To avoid this, stop/delete the forward migration pipeline post cutover. If the forward pipeline is required, add custom filtration rules and build a custom forward migration dataflow template.
-2. Change steams query incurs load on spanner instance, consider scaling up if it becomes bottleneck.
+1. Change steams query incurs load on spanner instance, consider scaling up if it becomes a bottleneck.
+
+
+2. If the forward migration is still running post cutover, the incoming writes on Spanner that are reverse-replicated to the source get forward migrated again. This can cause the load on Spanner to be almost double the expected QPS, as each write will get reflected twice. Also, it could lead to transient inconsistencies in data under certain cases. To avoid this, stop/delete the forward migration pipeline post cutover. If the forward pipeline is required, add custom filtration rules and build a custom forward migration dataflow template.
 
 ### Retry
 
