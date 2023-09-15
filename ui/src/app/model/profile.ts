@@ -34,6 +34,9 @@ export interface IDataflowConfig {
     network: string
     subnetwork: string
     hostProjectId: string
+    maxWorkers: string
+    numWorkers: string
+    serviceAccountEmail: string
 }
 
 export interface IDirectConnectionConfig {

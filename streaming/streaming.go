@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -27,7 +28,7 @@ import (
 	"cloud.google.com/go/storage"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
-	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -35,8 +36,15 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 )
 
-const (
+var (
+	// Default value for maxWorkers.
 	maxWorkers int32 = 50
+	// Default value for NumWorkers.
+	numWorkers int32 = 1
+	// Max allowed value for maxWorkers and numWorkers.
+	MAX_WORKER_LIMIT int32 = 1000
+	// Min allowed value for maxWorkers and numWorkers.
+	MIN_WORKER_LIMIT int32 = 1
 )
 
 type SrcConnCfg struct {
@@ -61,12 +69,15 @@ type DatastreamCfg struct {
 }
 
 type DataflowCfg struct {
-	JobName            string
-	Location           string
-	HostProjectId      string
-	Network            string
-	Subnetwork         string
-	DbNameToShardIdMap map[string]string
+	JobName             string
+	Location            string
+	HostProjectId       string
+	Network             string
+	Subnetwork          string
+	MaxWorkers          string
+	NumWorkers          string
+	ServiceAccountEmail string
+	DbNameToShardIdMap  map[string]string
 }
 
 type StreamingCfg struct {
@@ -460,8 +471,49 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		}
 	}
 
-	launchParameters := createLaunchParameters(dataflowCfg, inputFilePattern, project, datastreamCfg, instance, dbName, streamingCfg, dataflowSubnetwork, workerIpAddressConfig)
-
+	if dataflowCfg.MaxWorkers != "" {
+		intVal, err := strconv.ParseInt(dataflowCfg.MaxWorkers, 10, 64)
+		if err != nil {
+			return fmt.Errorf("could not parse MaxWorkers parameter %s, please provide a positive integer as input", dataflowCfg.MaxWorkers)
+		}
+		maxWorkers = int32(intVal)
+		if maxWorkers < MIN_WORKER_LIMIT || maxWorkers > MAX_WORKER_LIMIT {
+			return fmt.Errorf("maxWorkers should lie in the range [%d, %d]", MIN_WORKER_LIMIT, MAX_WORKER_LIMIT)
+		}
+	}
+	if dataflowCfg.NumWorkers != "" {
+		intVal, err := strconv.ParseInt(dataflowCfg.NumWorkers, 10, 64)
+		if err != nil {
+			return fmt.Errorf("could not parse NumWorkers parameter %s, please provide a positive integer as input", dataflowCfg.NumWorkers)
+		}
+		numWorkers = int32(intVal)
+		if numWorkers < MIN_WORKER_LIMIT || numWorkers > MAX_WORKER_LIMIT {
+			return fmt.Errorf("numWorkers should lie in the range [%d, %d]", MIN_WORKER_LIMIT, MAX_WORKER_LIMIT)
+		}
+	}
+	launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
+		JobName:  dataflowCfg.JobName,
+		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner"},
+		Parameters: map[string]string{
+			"inputFilePattern":              inputFilePattern,
+			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
+			"instanceId":                    instance,
+			"databaseId":                    dbName,
+			"sessionFilePath":               streamingCfg.TmpDir + "session.json",
+			"deadLetterQueueDirectory":      inputFilePattern + "dlq",
+			"transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
+		},
+		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
+			MaxWorkers:            maxWorkers,
+			NumWorkers:            numWorkers,
+			ServiceAccountEmail:   dataflowCfg.ServiceAccountEmail,
+			AutoscalingAlgorithm:  2, // 2 corresponds to AUTOSCALING_ALGORITHM_BASIC
+			EnableStreamingEngine: true,
+			Network:               dataflowCfg.Network,
+			Subnetwork:            dataflowSubnetwork,
+			IpConfiguration:       workerIpAddressConfig,
+		},
+	}
 	req := &dataflowpb.LaunchFlexTemplateRequest{
 		ProjectId:       project,
 		LaunchParameter: launchParameters,
@@ -495,30 +547,6 @@ func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, r
 		" will have to be manually cleaned up via the UI. Spanner migration tool will not delete them post completion of the migration.")
 }
 
-func createLaunchParameters(dataflowCfg DataflowCfg, inputFilePattern string, project string, datastreamCfg DatastreamCfg, instance string, dbName string, streamingCfg StreamingCfg, dataflowSubnetwork string, workerIpAddressConfig dataflowpb.WorkerIPAddressConfiguration) *dataflowpb.LaunchFlexTemplateParameter {
-	return &dataflowpb.LaunchFlexTemplateParameter{
-		JobName:  dataflowCfg.JobName,
-		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner"},
-		Parameters: map[string]string{
-			"inputFilePattern":              inputFilePattern,
-			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
-			"instanceId":                    instance,
-			"databaseId":                    dbName,
-			"sessionFilePath":               streamingCfg.TmpDir + "session.json",
-			"deadLetterQueueDirectory":      inputFilePattern + "dlq",
-			"transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
-		},
-		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
-			MaxWorkers:            maxWorkers,
-			AutoscalingAlgorithm:  2, // 2 corresponds to AUTOSCALING_ALGORITHM_BASIC
-			EnableStreamingEngine: true,
-			Network:               dataflowCfg.Network,
-			Subnetwork:            dataflowSubnetwork,
-			IpConfiguration:       workerIpAddressConfig,
-		},
-	}
-}
-
 func getStreamingConfig(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, tableList []string) (StreamingCfg, error) {
 	switch sourceProfile.Conn.Ty {
 	case profiles.SourceProfileConnectionTypeMySQL:
@@ -536,9 +564,13 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 	//create dataflowcfg from pl receiver object
 	inputDataflowConfig := pl.DataflowConfig
 	dataflowCfg := DataflowCfg{Location: inputDataflowConfig.Location,
-		Network:       inputDataflowConfig.Network,
-		HostProjectId: inputDataflowConfig.HostProjectId,
-		Subnetwork:    inputDataflowConfig.Subnetwork}
+		Network:             inputDataflowConfig.Network,
+		HostProjectId:       inputDataflowConfig.HostProjectId,
+		Subnetwork:          inputDataflowConfig.Subnetwork,
+		MaxWorkers:          inputDataflowConfig.MaxWorkers,
+		NumWorkers:          inputDataflowConfig.NumWorkers,
+		ServiceAccountEmail: inputDataflowConfig.ServiceAccountEmail,
+	}
 	//create src and dst datastream from pl receiver object
 	datastreamCfg := DatastreamCfg{StreamLocation: pl.StreamLocation}
 	//set src connection profile
