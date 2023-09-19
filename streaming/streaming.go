@@ -495,13 +495,14 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
-			"inputFilePattern":              inputFilePattern,
-			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
-			"instanceId":                    instance,
-			"databaseId":                    dbName,
-			"sessionFilePath":               streamingCfg.TmpDir + "session.json",
-			"deadLetterQueueDirectory":      inputFilePattern + "dlq",
-			"transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
+			"inputFilePattern":                inputFilePattern,
+			"streamName":                      fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
+			"instanceId":                      instance,
+			"databaseId":                      dbName,
+			"sessionFilePath":                 streamingCfg.TmpDir + "session.json",
+			"deadLetterQueueDirectory":        inputFilePattern + "dlq",
+			"transformationContextFilePath":   streamingCfg.TmpDir + "transformationContext.json",
+			"directoryWatchDurationInMinutes": "480", // Setting directory watch timeout to 8 hours
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			MaxWorkers:            maxWorkers,
