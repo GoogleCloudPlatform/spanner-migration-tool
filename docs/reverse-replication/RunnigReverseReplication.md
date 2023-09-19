@@ -55,7 +55,7 @@ Before running the command, ensure you have the:
 3) Source shards file (more details below) already uploaded to GCS
 
 ## Sample sourceShards File
-This file contains meta data regarding the source MYSQL shards, which is used to connect to them.
+This file contains meta data regarding the source MYSQL shards, which is used to connect to them. This should be present even if there is a single source database shard.
 The file should be a list of JSONs as:
 ```
 [
