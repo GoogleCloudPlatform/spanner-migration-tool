@@ -78,6 +78,9 @@ The file should be a list of JSONs as:
 ]
 ```
 
+{: .note }
+The logicalShardId is expected to be a string that begins with a letter, is atleast 3 characters long and and contain only the following characters: letters, numbers, dashes (-), periods (.), underscores (_), tildes (~), percents (%) or plus signs (+). Cannot start with goog.
+
 ## Sample Commands
 Checkout out the reverse replication folder from the root:
 ```
