@@ -3,7 +3,7 @@ layout: default
 title: View Assessment
 parent: Schema Conversion Workspace
 grand_parent: SMT UI
-nav_order: 6
+nav_order: 7
 ---
 
 # View Assessment

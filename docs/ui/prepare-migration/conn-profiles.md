@@ -35,3 +35,43 @@ In case of minimal downtime migration, Spanner Migration Tool needs information 
 ![](https://services.google.com/fh/files/helpcenter/asset-lxybfzd2cpm.png)
 
 ![](https://services.google.com/fh/files/helpcenter/asset-ja7bcor0lt8.png)
+
+## Sharded Migrations Configuration
+
+In case of sharded migrations, Spanner migration tool requires connection details of each shard to create a source connection profile and launch a Datastream for it. Alternatively, the user can also provide pre-created source connection profiles for SMT to use.
+
+{: .note }
+For an overview of how sharded migrations work, refer to this [section](../../minimal/minimal.md#sharded-migrations)
+
+* On the prepare migration page, click on `Configure Datastream` to get started with creating/configuring connection profiles for each shard.
+
+![](https://services.google.com/fh/files/helpcenter/asset-79x00z9xt7.png)
+
+### Form based configuration
+
+{: .note }
+Data shardId is a SMT generated identifer to track migration jobs created for a [phyiscal shard](../../minimal/minimal.md#terminology). It typically does not require a user to modify it.
+
+* Spanner migration tool provides multiple ways of configuring a sharded migration - via JSON or form. Configure the [source](#source-connection-profile) and [target](#target-connection-profile) as defined above, the same concepts apply here as well.
+
+* Add the database to shardId configuration mapping. Note that the value of the `shardId` provided here will to be used to populate the `migration_shard_id` column added to each table for the sharded migration. This field will be used to identify the source shard of MySQL while writing the data to Spanner, and has many other applications, such as [reverse replication](../../reverse-replication/ReverseReplication.md).
+
+![](https://services.google.com/fh/files/helpcenter/asset-79x00z9xt7.png)
+
+* Click on `ADD MORE SHARDS` to save the current shard information and configure the next. The shard counter at the top shows the total number of physical instances and logical shards configured. Refer [here](../../minimal/minimal.md#terminology) for details on this terminology.
+
+* Once all shards are configured, click on `FINISH`.
+
+### JSON based configuration
+
+{: .warning }
+For JSON based configuration, creation of new resources is not supported. The connection profiles configured via JSON should already exist in Datastream.
+
+* Select the `Text` input in the Datastream details form.
+* Paste the JSON configuration of the shards.
+* Click on `Finish`.
+* SMT will validate the configuration, and if valid, save it.
+
+SMT provides an example of how a JSON based configuration looks like [here](https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/test_data/mysql_shard_streaming.cfg).
+
+![](https://services.google.com/fh/files/helpcenter/asset-79x00z9xt7.png)
