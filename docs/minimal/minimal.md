@@ -18,6 +18,9 @@ A minimal downtime migration consists of two components, migration of existing d
 
 ## Sharded migrations
 
+{: .note }
+Sharded migrations are currently only supported for MySQL.
+
 Spanner migration tool supports sharded migrations for MySQL. Spanner migration tool does this is my multiplexing a minimal downtime migration across multiple shards. It applies the user configured schema uniformly across each shard, and provides an integrated experience to perform an end-to-end sharded migration. Below is the architecture of how sharded migrations work:
 
 ![](https://services.google.com/fh/files/misc/sharded_arch.png)
