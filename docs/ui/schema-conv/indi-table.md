@@ -32,6 +32,8 @@ Note: For Postgres minimal downtime migrations, Spanner migration tool currently
 
 ## Skipping/restoring individual tables
 
+![](https://services.google.com/fh/files/misc/indi_skip.png)
+
 The schema conversion workspace lists all the tables read by Spanner migration tool from the source database. In order to skip/restore a table individually, do the following:
 
 1. Click on the table to be skipped/restored on the left pane.
@@ -39,11 +41,11 @@ The schema conversion workspace lists all the tables read by Spanner migration t
 3. Enter the name of the table in the confirmation dialog.
 4. Click confirm to skip/restore the table.
 
-![](https://services.google.com/fh/files/helpcenter/asset-fajgvy8szur.png)
-
-![](https://services.google.com/fh/files/helpcenter/asset-xh794zlmncd.png)
+![](https://services.google.com/fh/files/misc/indi_skip_confirm.png)
 
 ## Skipping/restoring tables in bulk
+
+![](https://services.google.com/fh/files/misc/bulk_skip.png)
 
 The schema conversion workspace lists all the tables read by Spanner migration tool from the source database. In order to skip/restore multiple tables at once, do the following:
 
@@ -54,4 +56,4 @@ The schema conversion workspace lists all the tables read by Spanner migration t
 4. Click confirm to skip/restore the selected tables.
 
 
-![](https://services.google.com/fh/files/helpcenter/asset-xghjiq5wbhc.png)
+![](https://services.google.com/fh/files/misc/bulk_skip_confirm.png)

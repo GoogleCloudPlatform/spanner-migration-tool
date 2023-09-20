@@ -30,4 +30,8 @@ SMT adds a new column - `migration_shard_id` to each table of the source databas
 1. Enables [reverse replication](../../reverse-replication/ReverseReplication.md) since each row in Spanner can be mapped back to its own source shard.
 2. Enabling restarts and failure handling. For example, adding a `migration_shard_id` enables usage of [partitioned DML](https://cloud.google.com/spanner/docs/dml-partitioned) to delete all the data migrated for a shard and restart a migration.
 
-![](https://services.google.com/fh/files/helpcenter/asset-qr6lm8m22fo.png)
+{: .important }
+The `migration_shard_id` column is populated via the database to shardId map that is configured during connection profile configuration in the [prepare migration page](../prepare-migration/prepare.md). For details on this configuration, refer [here](../prepare-migration/conn-profiles.md#form-based-configuration).
+
+![](https://services.google.com/fh/files/misc/shard_schema.png)
+

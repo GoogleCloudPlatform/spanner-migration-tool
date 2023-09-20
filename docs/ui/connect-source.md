@@ -39,6 +39,8 @@ Spanner migration tool supports sharded database migrations for MySQL source dat
 4. Click Test connection.
 5. If the connection is successful, click on connect to proceed.
 
+![](https://services.google.com/fh/files/misc/connect_sharded.png)
+
 {: .note }
 Users can connect to local, cloud and on-prem instances.
 

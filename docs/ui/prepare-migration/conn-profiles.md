@@ -45,7 +45,7 @@ For an overview of how sharded migrations work, refer to this [section](../../mi
 
 * On the prepare migration page, click on `Configure Datastream` to get started with creating/configuring connection profiles for each shard.
 
-![](https://services.google.com/fh/files/helpcenter/asset-79x00z9xt7.png)
+![](https://services.google.com/fh/files/misc/sharded_config.png)
 
 ### Form based configuration
 
@@ -56,7 +56,7 @@ Data shardId is a SMT generated identifer to track migration jobs created for a 
 
 * Add the database to shardId configuration mapping. Note that the value of the `shardId` provided here will to be used to populate the `migration_shard_id` column added to each table for the sharded migration. This field will be used to identify the source shard of MySQL while writing the data to Spanner, and has many other applications, such as [reverse replication](../../reverse-replication/ReverseReplication.md).
 
-![](https://services.google.com/fh/files/helpcenter/asset-79x00z9xt7.png)
+![](https://services.google.com/fh/files/misc/form_input_shard.png)
 
 * Click on `ADD MORE SHARDS` to save the current shard information and configure the next. The shard counter at the top shows the total number of physical instances and logical shards configured. Refer [here](../../minimal/minimal.md#terminology) for details on this terminology.
 
@@ -74,4 +74,4 @@ For JSON based configuration, creation of new resources is not supported. The co
 
 SMT provides an example of how a JSON based configuration looks like [here](https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/test_data/mysql_shard_streaming.cfg).
 
-![](https://services.google.com/fh/files/helpcenter/asset-79x00z9xt7.png)
+![](https://services.google.com/fh/files/misc/text_input_shard.png)
