@@ -27,7 +27,7 @@ Sharded migrations are only supported for `MySQL` currently.
 
 SMT adds a new column - `migration_shard_id` to each table of the source database. Each row getting copied to Spanner can be mapped back to its source. This has several advantages:
 
-1. Enables [reverse replication](../../reverse-replication/ReverseReplication.md) since each row in Spanner can be mapped back to its own source shard.
+1. Enables [reverse replication](../../reverse-replication/ReverseReplicationUserGuide.md) since each row in Spanner can be mapped back to its own source shard.
 2. Enabling restarts and failure handling. For example, adding a `migration_shard_id` enables usage of [partitioned DML](https://cloud.google.com/spanner/docs/dml-partitioned) to delete all the data migrated for a shard and restart a migration.
 
 {: .important }
