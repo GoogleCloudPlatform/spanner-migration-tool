@@ -31,7 +31,7 @@ In this connection mechanism the user needs to first select the type of source d
 
 ### Sharded migrations
 
-Spanner migration tool supports sharded database migrations for MySQL source database. The procedure to connect to the source database is identical to a non-shareded migration, with minor differences:
+Spanner migration tool supports sharded database migrations for MySQL source database. The procedure to connect to the source database is identical to a non-sharded migration, with minor differences:
 
 1. Select `MySQL` as the source database.
 2. Select `Yes` in the form field for this migration being a sharded migration.
