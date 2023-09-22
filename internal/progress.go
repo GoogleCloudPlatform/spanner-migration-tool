@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package internal implements database-agnostic functionality for
-// HarbourBridge.
+// Spanner migration tool.
 package internal
 
 import (
@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"go.uber.org/zap"
 )
 

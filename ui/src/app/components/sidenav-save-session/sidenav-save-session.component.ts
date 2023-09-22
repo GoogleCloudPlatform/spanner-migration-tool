@@ -23,12 +23,12 @@ export class SidenavSaveSessionComponent implements OnInit {
   saveSessionForm: FormGroup = new FormGroup({
     SessionName: new FormControl('', [
       Validators.required,
-      Validators.pattern('^[a-zA-Z].{0,59}$'),
+      Validators.pattern('^[a-zA-Z][a-zA-Z0-9_ -]{0,59}$'),
     ]),
-    EditorName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z].{0,59}$')]),
+    EditorName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z][a-zA-Z0-9_ -]{0,59}$')]),
     DatabaseName: new FormControl('', [
       Validators.required,
-      Validators.pattern('^[a-zA-Z].{0,59}$'),
+      Validators.pattern('^[a-zA-Z][a-zA-Z0-9_-]{0,59}$'),
     ]),
     Notes: new FormControl(''),
   })
@@ -39,7 +39,7 @@ export class SidenavSaveSessionComponent implements OnInit {
       SessionName: formValue.SessionName.trim(),
       EditorName: formValue.EditorName.trim(),
       DatabaseName: formValue.DatabaseName.trim(),
-      Notes: formValue.Notes?.trim() === '' ? [''] : formValue.Notes?.split('\n'),
+      Notes: (formValue.Notes?.trim() === '' || formValue.Notes === null) ? [''] : formValue.Notes?.split('\n'),
     }
 
     this.fetch.saveSession(payload).subscribe({

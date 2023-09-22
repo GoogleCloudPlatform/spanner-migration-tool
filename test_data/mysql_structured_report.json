@@ -1,151 +1,172 @@
 {
-   "summary":{
-      "text":"Schema conversion: POOR (65% of 17006 columns mapped cleanly) + some missing primary keys.\nData conversion: POOR (66% of 6000 rows written to Spanner).\n",
-      "rating":"POOR",
+   "summary": {
+      "text": "Schema conversion: POOR (29% of 17006 columns mapped cleanly) + some missing primary keys.\nData conversion: POOR (66% of 6000 rows written to Spanner).\n",
+      "rating": "POOR",
       "dbName": "sampleDB"
    },
-   "ignoredStatements":null,
-   "conversionMetadata":[
+   "isSharded": false,
+   "ignoredStatements": null,
+   "conversionMetadata": [
       {
-         "conversionType":"Schema",
-         "duration":0
+         "conversionType": "Schema",
+         "duration": 0
       },
       {
-         "conversionType":"Data",
-         "duration":0
+         "conversionType": "Data",
+         "duration": 0
       }
    ],
-   "migrationType":"SCHEMA_AND_DATA",
-   "statementStats":{
-      "driverName":"mysqldump",
-      "statementStats":[
+   "migrationType": "SCHEMA_AND_DATA",
+   "statementStats": {
+      "driverName": "mysqldump",
+      "statementStats": [
          {
-            "statement":"CreateTableStmt",
-            "schema":5,
-            "data":0,
-            "skip":0,
-            "error":0,
-            "totalCount":0
+            "statement": "CreateTableStmt",
+            "schema": 5,
+            "data": 0,
+            "skip": 0,
+            "error": 0,
+            "totalCount": 0
          }
       ]
    },
-   "nameChanges":null,
-   "tableReports":[
+   "nameChanges": null,
+   "tableReports": [
       {
-         "srcTableName":"bad_schema",
-         "spTableName":"bad_schema",
-         "schemaReport":{
-            "rating":"POOR",
-            "pkMissing":true,
-            "warnings":1,
-            "totalColumns":2
+         "srcTableName": "bad_schema",
+         "spTableName": "bad_schema",
+         "schemaReport": {
+            "rating": "POOR",
+            "pkMissing": true,
+            "issues": 2,
+            "warnings": 2,
+            "totalColumns": 2
          },
-         "dataReport":{
-            "rating":"OK",
-            "badRows":60,
-            "totalRows":1000,
-            "dryRun":false
+         "dataReport": {
+            "rating": "OK",
+            "badRows": 60,
+            "totalRows": 1000,
+            "dryRun": false
          },
-         "warnings":[
+         "issues": [
             {
-               "warningType":"Warnings",
-               "warningList":[
-                  "Column 'synth_id' was added because table 'bad_schema' didn't have a primary key. Spanner requires a primary key for every table",
-                  "Table bad_schema: Some columns will consume more storage in Spanner e.g. for column 'a', source DB type float is mapped to Spanner data type float64"
+               "issueType": "Warnings",
+               "issueList": [
+                  {
+                     "category": "MISSING_PRIMARY_KEY",
+                     "description": "Column 'synth_id' was added because table 'bad_schema' didn't have a primary key. Spanner requires a primary key for every table"
+                  },
+                  {
+                     "category": "STORAGE_WARNING",
+                     "description": "Table bad_schema: Some columns will consume more storage in Spanner e.g. for column 'a', source DB type float is mapped to Spanner data type float64"
+                  }
                ]
             }
          ]
       },
       {
-         "srcTableName":"default_value",
-         "spTableName":"default_value",
-         "schemaReport":{
-            "rating":"EXCELLENT",
-            "pkMissing":false,
-            "warnings":0,
-            "totalColumns":2
+         "srcTableName": "default_value",
+         "spTableName": "default_value",
+         "schemaReport": {
+            "rating": "EXCELLENT",
+            "pkMissing": false,
+            "issues": 1,
+            "warnings": 0,
+            "totalColumns": 2
          },
-         "dataReport":{
-            "rating":"NONE",
-            "badRows":0,
-            "totalRows":0,
-            "dryRun":false
+         "dataReport": {
+            "rating": "NONE",
+            "badRows": 0,
+            "totalRows": 0,
+            "dryRun": false
          },
-         "warnings":[
+         "issues": [
             {
-               "warningType":"Note",
-               "warningList":[
-                  "Some columns have default values which HarbourBridge does not migrate. Please add the default constraints manually after the migration is complete for table 'default_value' e.g. column 'b'"
+               "issueType": "Note",
+               "issueList": [
+                  {
+                     "category": "MISSING_DEFAULT_VALUE_CONSTRAINTS",
+                     "description": "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete for table 'default_value' e.g. column 'b'"
+                  }
                ]
             }
          ]
       },
       {
-         "srcTableName":"excellent_schema",
-         "spTableName":"excellent_schema",
-         "schemaReport":{
-            "rating":"EXCELLENT",
-            "pkMissing":false,
-            "warnings":0,
-            "totalColumns":2
+         "srcTableName": "excellent_schema",
+         "spTableName": "excellent_schema",
+         "schemaReport": {
+            "rating": "EXCELLENT",
+            "pkMissing": false,
+            "issues": 0,
+            "warnings": 0,
+            "totalColumns": 2
          },
-         "dataReport":{
-            "rating":"NONE",
-            "badRows":0,
-            "totalRows":0,
-            "dryRun":false
+         "dataReport": {
+            "rating": "NONE",
+            "badRows": 0,
+            "totalRows": 0,
+            "dryRun": false
          },
-         "warnings":null
+         "issues": null
       },
       {
-         "srcTableName":"foreign_key",
-         "spTableName":"foreign_key",
-         "schemaReport":{
-            "rating":"EXCELLENT",
-            "pkMissing":false,
-            "warnings":0,
-            "totalColumns":2
+         "srcTableName": "foreign_key",
+         "spTableName": "foreign_key",
+         "schemaReport": {
+            "rating": "EXCELLENT",
+            "pkMissing": false,
+            "issues": 0,
+            "warnings": 0,
+            "totalColumns": 2
          },
-         "dataReport":{
-            "rating":"NONE",
-            "badRows":0,
-            "totalRows":0,
-            "dryRun":false
+         "dataReport": {
+            "rating": "NONE",
+            "badRows": 0,
+            "totalRows": 0,
+            "dryRun": false
          },
-         "warnings":null
+         "issues": null
       },
       {
-         "srcTableName":"no_pk",
-         "spTableName":"no_pk",
-         "schemaReport":{
-            "rating":"POOR",
-            "pkMissing":true,
-            "warnings":1,
-            "totalColumns":3
+         "srcTableName": "no_pk",
+         "spTableName": "no_pk",
+         "schemaReport": {
+            "rating": "POOR",
+            "pkMissing": true,
+            "issues": 2,
+            "warnings": 2,
+            "totalColumns": 3
          },
-         "dataReport":{
-            "rating":"POOR",
-            "badRows":2000,
-            "totalRows":5000,
-            "dryRun":false
+         "dataReport": {
+            "rating": "POOR",
+            "badRows": 2000,
+            "totalRows": 5000,
+            "dryRun": false
          },
-         "warnings":[
+         "issues": [
             {
-               "warningType":"Warnings",
-               "warningList":[
-                  "Column 'synth_id' was added because table 'no_pk' didn't have a primary key. Spanner requires a primary key for every table",
-                  "Table no_pk: Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int(11) is mapped to Spanner data type int64"
+               "issueType": "Warnings",
+               "issueList": [
+                  {
+                     "category": "MISSING_PRIMARY_KEY",
+                     "description": "Column 'synth_id' was added because table 'no_pk' didn't have a primary key. Spanner requires a primary key for every table"
+                  },
+                  {
+                     "category": "STORAGE_WARNING",
+                     "description": "Table no_pk: Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int(11) is mapped to Spanner data type int64"
+                  }
                ]
             }
          ]
       }
    ],
-   "unexpectedConditions":{
-      "Reparsed":0,
-      "unexpectedConditions":[
+   "unexpectedConditions": {
+      "Reparsed": 0,
+      "unexpectedConditions": [
          {
-            "count":5,
-            "condition":"Testing unexpected messages"
+            "count": 5,
+            "condition": "Testing unexpected messages"
          }
       ]
    }

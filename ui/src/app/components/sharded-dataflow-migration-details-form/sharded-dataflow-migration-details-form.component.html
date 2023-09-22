@@ -2,7 +2,7 @@
     <form [formGroup]="migrationProfileForm" class="conn-profile-form">
         <span class="mat-h2 header-title">Datastream Details</span>
         <br>
-        <b>Note: Please configure the schema source used for schema conversion if you want Harbourbridge to migrate data
+        <b>Note: Please configure the database used for schema conversion, if you want Spanner migration tool to migrate data
             from it as well.</b>
         <div class="top">`
             <div class="top-1">
@@ -57,8 +57,8 @@
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                     <mat-label>Data Shard Id</mat-label>
-                    <input matInput placeholder="Data ShardId" type="text" formControlName="dataShardId"
-                        required="true" />
+                    <input matInput [value]="inputValue" type="text" formControlName="dataShardId"
+                        required="true" readonly/>
                 </mat-form-field>
             </div>
             <div *ngIf="(selectedSourceProfileOption === 'new')">
@@ -78,17 +78,18 @@
                     <mat-label>Password</mat-label>
                     <input matInput placeholder="Password" type="password" formControlName="password" required="true" />
                 </mat-form-field>
-                <mat-form-field appearance="outline">
+                <mat-form-field appearance="outline" hintLabel="Name can include lower case letters, numbers and hyphens. Must start with a letter.">
                     <mat-label>Connection profile name</mat-label>
                     <input matInput placeholder="Connection profile name" type="text" formControlName="newSourceProfile"
                         required="true" />
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                     <mat-label>Data Shard Id</mat-label>
-                    <input matInput placeholder="Data ShardId" type="text" formControlName="dataShardId"
-                        required="true" />
+                    <input matInput [value]="inputValue" type="text" formControlName="dataShardId"
+                        required="true" readonly/>
                 </mat-form-field>
             </div>
+            <br>
             <div *ngIf="(selectedSourceProfileOption === 'new')">
                 <div><b>Copy the public IPs below, and use them to configure the network firewall to accept
                         connections
@@ -109,10 +110,6 @@
                     </mat-icon>
                 </div>
                 <br>
-                <mat-icon *ngIf="testSuccess" class="success" matTooltip="Test connection successful"
-                    matTooltipPosition="above">
-                    check_circle
-                </mat-icon>
                 <div *ngIf="testingSourceConnection">
                     <br>
                     <span class="spinner">
@@ -121,6 +118,18 @@
                     </span>
                     <span class="spinner-small-text">Testing Connection</span><br>
                 </div>
+                <div *ngIf="creatingSourceConnection">
+                    <br>
+                    <span class="spinner">
+                        <mat-spinner [diameter]="20">
+                        </mat-spinner>
+                    </span>
+                    <span class="spinner-small-text">Creating source connection profile</span><br>
+                </div>
+                <mat-icon *ngIf="testSuccess" class="success" matTooltip="Test connection successful"
+                    matTooltipPosition="above">
+                    check_circle
+                </mat-icon>
                 <button mat-raised-button type="button" color="primary"
                 [disabled]="!determineConnectionProfileInfoValidity() || testingSourceConnection"
                     (click)="createOrTestConnection(true, true)">TEST
@@ -129,7 +138,7 @@
                     matTooltipPosition="above">
                     check_circle
                 </mat-icon>
-                <button mat-raised-button type="button" color="warn" [disabled]="!testSuccess"
+                <button mat-raised-button type="button" color="warn" [disabled]="!testSuccess || creatingSourceConnection"
                     (click)="createOrTestConnection(true, false)">CREATE
                     PROFILE</button>
             </div>
@@ -146,7 +155,7 @@
                                 <input matInput formControlName="logicalShardId" placeholder="Enter Logical ShardID">
                             </mat-form-field>
                             <mat-form-field appearance="outline">
-                                <mat-label>Database Name</mat-label>
+                                <mat-label>Source Database Name</mat-label>
                                 <input matInput formControlName="dbName" placeholder="Enter Database Name">
                             </mat-form-field>
                             <mat-icon class="delete-btn" (click)="deleteRow(i)">
@@ -182,17 +191,25 @@
                 </mat-form-field>
             </div>
             <div *ngIf="(selectedTargetProfileOption === 'new')">
-                <mat-form-field appearance="outline">
+                <mat-form-field appearance="outline" hintLabel="Name can include lower case letters, numbers and hyphens. Must start with a letter.">
                     <mat-label>Connection profile name</mat-label>
                     <input matInput placeholder="Connection profile name" type="text" formControlName="newTargetProfile"
                         required="true" />
                 </mat-form-field>
+                <div *ngIf="creatingTargetConnection">
+                    <br>
+                    <span class="spinner">
+                        <mat-spinner [diameter]="20">
+                        </mat-spinner>
+                    </span>
+                    <span class="spinner-small-text">Creating target connection profile</span><br>
+                </div>
                 <mat-icon *ngIf="createTgtConnSuccess" class="success" matTooltip="Profile creation successful"
                     matTooltipPosition="above">
                     check_circle
                 </mat-icon>
                 <button mat-raised-button type="button" color="warn"
-                    (click)="createOrTestConnection(false, false)">CREATE
+                    (click)="createOrTestConnection(false, false)" [disabled]="creatingTargetConnection">CREATE
                     PROFILE</button>
                 <div *ngIf="errorTgtMsg!=''" class="failure">
                     <span class="left-text">{{ errorTgtMsg }}</span>

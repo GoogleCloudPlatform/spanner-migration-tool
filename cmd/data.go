@@ -25,13 +25,13 @@ import (
 
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/google/subcommands"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -49,6 +49,7 @@ type DataCmd struct {
 	dryRun          bool
 	logLevel        string
 	SkipForeignKeys bool
+	validate        bool
 }
 
 // Name returns the name of operation.
@@ -84,11 +85,12 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.SkipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
+	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
 }
 
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	// Cleanup hb tmp data directory in case residuals remain from prev runs.
-	os.RemoveAll(filepath.Join(os.TempDir(), constants.HB_TMP_DIR))
+	// Cleanup smt tmp data directory in case residuals remain from prev runs.
+	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))
 	var err error
 	defer func() {
 		if err != nil {
@@ -103,6 +105,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	defer logger.Log.Sync()
 
 	conv := internal.MakeConv()
+	// validate and parse source-profile, target-profile and source
 	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {
 		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
@@ -113,10 +116,18 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		banner string
 	)
 	// Populate migration request id and migration type in conv object.
-	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+	conv.Audit.MigrationRequestId = "SMT-" + uuid.New().String()
 	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 	conv.Audit.SkipMetricsPopulation = os.Getenv("SKIP_METRICS_POPULATION") == "true"
 	dataCoversionStartTime := time.Now()
+
+	if cmd.validate {
+		if cmd.sessionJSON == "" {
+			err = fmt.Errorf("cannot leave --session flag empty, please specify session file path e.g., --session=./session.json etc")
+			return subcommands.ExitUsageError
+		}
+		return subcommands.ExitSuccess
+	}
 
 	if !sourceProfile.UseTargetSchema() {
 		err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
@@ -159,8 +170,8 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix, dbName, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
-	// Cleanup hb tmp data directory.
-	os.RemoveAll(filepath.Join(os.TempDir(), constants.HB_TMP_DIR))
+	// Cleanup smt tmp data directory.
+	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))
 	return subcommands.ExitSuccess
 }
 

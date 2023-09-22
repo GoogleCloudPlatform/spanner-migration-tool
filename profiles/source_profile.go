@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 )
 
 type SourceProfileType int
@@ -222,8 +222,8 @@ func NewSourceProfileConnectionSqlServer(params map[string]string) (SourceProfil
 		ss.Port = os.Getenv("MSSQL_TCP_PORT")
 		ss.Pwd = os.Getenv("MSSQL_SA_PASSWORD")
 
-		ss.Db = os.Getenv("MSSQL_DATABASE")  //Non standard env variable. Defined for HarbourBridge.
-		ss.User = os.Getenv("MSSQL_SA_USER") //Non standard env variable. Defined for HarbourBridge.
+		ss.Db = os.Getenv("MSSQL_DATABASE")  //Non standard env variable. Defined for Spanner migration tool.
+		ss.User = os.Getenv("MSSQL_SA_USER") //Non standard env variable. Defined for Spanner migration tool.
 		if ss.User == "" {
 			fmt.Printf("MSSQL_SA_USER environment variable is not set. Default admin user 'SA' will be used for further processing.\n")
 			ss.User = "SA"
@@ -446,10 +446,13 @@ type DatastreamConnProfile struct {
 }
 
 type DataflowConfig struct {
-	Location      string `json:"location"`
-	Network       string `json:"network"`
-	Subnetwork    string `json:"subnetwork"`
-	HostProjectId string `json:"hostProjectId"`
+	Location            string `json:"location"`
+	Network             string `json:"network"`
+	Subnetwork          string `json:"subnetwork"`
+	HostProjectId       string `json:"hostProjectId"`
+	MaxWorkers          string `json:"maxWorkers"`
+	NumWorkers          string `json:"numWorkers"`
+	ServiceAccountEmail string `json:"serviceAccountEmail"`
 }
 
 type DataShard struct {

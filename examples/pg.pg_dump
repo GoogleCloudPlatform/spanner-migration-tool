@@ -44,7 +44,7 @@ SET default_tablespace = '';
 -- GoogleSQL's NUMERIC type is fixed precision and scale (precision=38, scale=9).
 -- Whereas, PostgreSQL's NUMERIC can be user-defined precision and scale
 -- e.g., Numeric(100, 60) or arbitary precision (precision=147455, scale=16383).
--- For PG, HB converts to PGNumeric type which also has arbitrary precision.
+-- For PG, SMT converts to PGNumeric type which also has arbitrary precision.
 
 CREATE TABLE public.types (
     bigint_col bigint NOT NULL,
@@ -58,7 +58,7 @@ CREATE TABLE public.types (
 ALTER TABLE public.types OWNER TO postgres;
 
 -- TODO: Add support for converting numeric(20,15) to PG.NUMERIC(20,15) type in
--- HB. As of this writing, PG doesn't support precision qualifiers in schema.
+-- SMT. As of this writing, PG doesn't support precision qualifiers in schema.
 CREATE TABLE public.types2 (
     c_int8    int8,
     c_boolean  boolean,

@@ -15,10 +15,10 @@
 package index
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
+	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 )
 
 // IndexSuggestion adds redundant index issue and interleved index suggestion in issues and suggestions tab.
@@ -92,6 +92,8 @@ func checkInterleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable)
 	// Suggestion gets added only if the table can be interleaved.
 	isInterleavable := spannerTable.ParentId != ""
 
+	sessionState := session.GetSessionState()
+
 	if isInterleavable {
 
 		var primaryKeyFirstColumnId string
@@ -107,8 +109,6 @@ func checkInterleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable)
 			}
 			if len(index[i].Keys) > 0 {
 				indexFirstColumnId := index[i].Keys[0].ColId
-
-				sessionState := session.GetSessionState()
 
 				// Ensuring it is not a redundant index.
 				if primaryKeyFirstColumnId != indexFirstColumnId {
@@ -137,7 +137,6 @@ func checkInterleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable)
 							if c.T.Name == ddl.Timestamp {
 
 								columnId := c.Id
-								sessionState := session.GetSessionState()
 								schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id].ColumnLevelIssues[columnId]
 
 								schemaissue = append(schemaissue, internal.AutoIncrementIndex)
@@ -158,13 +157,13 @@ func checkInterleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable)
 // Editing the primary key can affect the issues in an index (eg. Changing pk order affects Redundant index issue).
 func RemoveIndexIssues(tableId string, Index ddl.CreateIndex) {
 
+	sessionState := session.GetSessionState()
 	for i := 0; i < len(Index.Keys); i++ {
 
 		columnId := Index.Keys[i].ColId
 
 		{
 			schemaissue := []internal.SchemaIssue{}
-			sessionState := session.GetSessionState()
 			if sessionState.Conv.SchemaIssues != nil {
 				schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
 			}

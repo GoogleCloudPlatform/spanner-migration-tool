@@ -1,10 +1,12 @@
+import { IIssue } from './structured-report'
+
 export default interface ISummary {
   SrcTable: string
   SpTable: string
-  Errors: string[]
-  Warnings: string[]
-  Suggestions: string[]
-  Notes: string[]
+  Errors: IIssue[]
+  Warnings: IIssue[]
+  Suggestions: IIssue[]
+  Notes: IIssue[]
   ErrorsCount: number
   WarningsCount: number
   SuggestionsCount: number

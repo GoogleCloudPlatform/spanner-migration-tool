@@ -23,12 +23,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/google/subcommands"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -43,6 +43,7 @@ type SchemaCmd struct {
 	filePrefix    string // TODO: move filePrefix to global flags
 	logLevel      string
 	dryRun        bool
+	validate      bool
 }
 
 // Name returns the name of operation.
@@ -75,11 +76,12 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
+	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	// Cleanup hb tmp data directory in case residuals remain from prev runs.
-	os.RemoveAll(filepath.Join(os.TempDir(), constants.HB_TMP_DIR))
+	// Cleanup smt tmp data directory in case residuals remain from prev runs.
+	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))
 	var err error
 	defer func() {
 		if err != nil {
@@ -92,11 +94,15 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		return subcommands.ExitFailure
 	}
 	defer logger.Log.Sync()
-
+	// validate and parse source-profile, target-profile and source
 	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {
 		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return subcommands.ExitUsageError
+	}
+
+	if cmd.validate {
+		return subcommands.ExitSuccess
 	}
 
 	// If filePrefix not explicitly set, use generated dbName.
@@ -115,7 +121,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 
 	// Populate migration request id and migration type in conv object.
-	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+	conv.Audit.MigrationRequestId = "SMT-" + uuid.New().String()
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
 	conv.Audit.SkipMetricsPopulation = os.Getenv("SKIP_METRICS_POPULATION") == "true"
 	if !cmd.dryRun {
@@ -130,7 +136,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
 	banner := utils.GetBanner(schemaConversionStartTime, dbName)
 	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, banner, conv, cmd.filePrefix, dbName, ioHelper.Out)
-	// Cleanup hb tmp data directory.
-	os.RemoveAll(filepath.Join(os.TempDir(), constants.HB_TMP_DIR))
+	// Cleanup smt tmp data directory.
+	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))
 	return subcommands.ExitSuccess
 }

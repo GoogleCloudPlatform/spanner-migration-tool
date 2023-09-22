@@ -298,7 +298,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
                 .then((blob: Blob) => {
                   var a = document.createElement('a');
                   a.href = URL.createObjectURL(blob);
-                  a.download = `${fileNameHeader}_artifcats`;
+                  a.download = `${fileNameHeader}_artifacts`;
                   a.click();
                 })
               }

@@ -23,12 +23,12 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -269,8 +269,8 @@ func TestProcessSchema(t *testing.T) {
 			ColIds: []string{"id", "aint", "atext", "b", "bs", "by", "c", "c_8", "d", "f8", "f4", "i8", "i4", "i2", "num", "s", "ts", "tz", "txt", "vc", "vc6"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"id":    ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-				"aint":  ddl.ColumnDef{Name: "aint", T: ddl.Type{Name: ddl.Int64, IsArray: true}},
-				"atext": ddl.ColumnDef{Name: "atext", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
+				"aint":  ddl.ColumnDef{Name: "aint", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}},
+				"atext": ddl.ColumnDef{Name: "atext", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}},
 				"b":     ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Bool}},
 				"bs":    ddl.ColumnDef{Name: "bs", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 				"by":    ddl.ColumnDef{Name: "by", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
@@ -307,13 +307,14 @@ func TestProcessSchema(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, len(conv.SchemaIssues[cartTableId].ColumnLevelIssues), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"aint": []internal.SchemaIssue{internal.Widened},
-		"bs":   []internal.SchemaIssue{internal.DefaultValue},
-		"f4":   []internal.SchemaIssue{internal.Widened},
-		"i4":   []internal.SchemaIssue{internal.Widened},
-		"i2":   []internal.SchemaIssue{internal.Widened},
-		"s":    []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
-		"ts":   []internal.SchemaIssue{internal.Timestamp},
+		"aint":  []internal.SchemaIssue{internal.Widened, internal.ArrayTypeNotSupported},
+		"bs":    []internal.SchemaIssue{internal.DefaultValue},
+		"f4":    []internal.SchemaIssue{internal.Widened},
+		"i4":    []internal.SchemaIssue{internal.Widened},
+		"i2":    []internal.SchemaIssue{internal.Widened},
+		"s":     []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
+		"ts":    []internal.SchemaIssue{internal.Timestamp},
+		"atext": []internal.SchemaIssue{internal.ArrayTypeNotSupported},
 	}
 	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
 	assert.Equal(t, nil, err)
