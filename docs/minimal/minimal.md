@@ -27,11 +27,11 @@ Spanner migration tool supports sharded migrations for MySQL. Spanner migration 
 
 ### Terminology
 
-Due to the complex nature of sharded migrations, Spanner migration tool uses some certain terminology to refer to different components of a sharded migration. Below is a brief description of each -
+Due to the complex nature of sharded migrations, Spanner migration tool uses certain terminology to refer to different components of a sharded migration. Below is a brief description of each -
 
-* **Physical shard**: A physical shard is an actual physical database instance with its unique IP endpoint. A physical shard can contain one more logical shard in it. It is identified by a combination of four things - IP, User, Password and Port.
+* **Physical shard**: A physical shard is an actual physical database instance with its unique IP endpoint. A physical shard can contain one more logical shard(s) in it. It is identified by a combination of four things - IP, User, Password and Port.
 * **Logical shard**: A logical shard is a logical grouping of schema and data within a physical database instance. A physical database configuration + databaseName combination uniquely identifies a logical shard.
-* **Schema source**: A schema shard is a logical shard from which Harbourbridge would read the schema for conversion. This needs to be explicitly defined by the user. Harbourbridge does not migrate data from this shard (unless this shard is also a data shard -- see below).
-* **Data shard**: A data shard is a logical shard from which Harbourbridge will read data for migration from Spanner. A schema shard can also be a data shard. Harbourbridge expects the schema inside a data shard to be identical to the schema in the schema shard.
+* **Schema source**: A schema shard is a logical shard from which Spanner migration tool would read the schema for conversion. This needs to be explicitly defined by the user. Spanner migration tool does not migrate data from this shard (unless the schema source is also defined as a data shard -- see below).
+* **Data shard**: A data shard is a logical shard from which Spanner migration tool will read data for migration and write to Spanner. A schema source can also be a data shard. Spanner migration tool expects the schema inside a data shard to be identical to the schema in the schema source.
 * **Sharded database** - A multi-endpoint, multi-shard (physical) setup, where each instance contains at-least one or more logical databases. Simply put, a sharded database is a set of physical shards (defined in [1] above). An instance is defined as a physical machine on which the source database is running.
-* **Streaming/Low Downtime/Minimal Downtime migration**: A migration in which data is streamed from the source via Datastream and migrated onto Spanner via Dataflow. Harbourbridge is used to perform schema conversions.
+* **Streaming/Low Downtime/Minimal Downtime migration**: A migration in which data is streamed from the source via Datastream and migrated onto Spanner via Dataflow. Spanner migration tool is used to perform schema conversions and orchestrate the required resources.
