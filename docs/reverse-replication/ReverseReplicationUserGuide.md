@@ -187,7 +187,7 @@ Example command for the Spanner to Sink job
 gcloud dataflow flex-template run ordering-fromspanner \
   --project <project name> \
   --region <region name> \
-  --template-file-gcs-location gs://dataflow/templates/flex/Spanner_Change_Streams_to_Sink \
+  --template-file-gcs-location gs://dataflow-templates/2023-07-18-00_RC00/flex/Spanner_Change_Streams_to_Sink \
 --additional-experiments=use_runner_v2 \
   --parameters "changeStreamName=<stream name>" \
   --parameters "instanceId=<instance name>" \
@@ -206,7 +206,7 @@ gcloud dataflow flex-template run ordering-fromspanner \
 Example command for the writing to source database job
 
 ```code
-gcloud beta dataflow flex-template run writes-tosql  --project=<project name>    --region=<region name>     --template-file-gcs-location=gs://dataflow/templates/flex/Ordered_Changestream_Buffer_to_Sourcedb --num-workers=1  --worker-machine-type=n2-standard-64 --additional-experiments=use_runner_v2 --parameters sourceShardsFilePath=<path to source shards file>,sessionFilePath=<gcs path to session json file>,bufferType=pubsub,pubSubProjectId=<project name>
+gcloud beta dataflow flex-template run writes-tosql  --project=<project name>    --region=<region name>     --template-file-gcs-location=gs://dataflow-templates/2023-07-18-00_RC00/flex/Ordered_Changestream_Buffer_to_Sourcedb --num-workers=1  --worker-machine-type=n2-standard-64 --additional-experiments=use_runner_v2 --parameters sourceShardsFilePath=<path to source shards file>,sessionFilePath=<gcs path to session json file>,bufferType=pubsub,pubSubProjectId=<project name>
 
 ```
 
@@ -233,7 +233,7 @@ Reverse transformation can not be supported for following scenarios out of the b
 2. Adding column in Spanner that does not exist in source - in this case the column cannot be replicated
 3. Deleting column in Spanner that is mandatory in source
 4. Spanner PK is UUID while source PK is auto-increment key 
-5. Spanner table has more columns as part of PK than the source 
+5. Spanner table has more columns as part of PK than the source - in this case the source records having the same values as the partial primary keys are updated 
 6. Spanner columns have greater length of string columns than source 
 7. Spanner columns have different data type than source 
 8. CLOB will not be read from GCS and put in source 
