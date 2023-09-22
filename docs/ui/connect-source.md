@@ -35,7 +35,7 @@ Spanner migration tool supports sharded database migrations for MySQL source dat
 
 1. Select `MySQL` as the source database.
 2. Select `Yes` in the form field for this migration being a sharded migration.
-3. Enter the connection details of the [schema shard](../minimal/minimal.md#terminology) of your sharded MySQL database. Please refer to the linked page to understand Spanner migration tool specific terminology for sharded migrations.
+3. Enter the connection details of the [schema source](../minimal/minimal.md#terminology) of your sharded MySQL database. Please refer to the linked page to understand Spanner migration tool specific terminology for sharded migrations.
 4. Click Test connection.
 5. If the connection is successful, click on connect to proceed.
 

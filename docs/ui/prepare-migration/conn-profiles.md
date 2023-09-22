@@ -50,7 +50,7 @@ For an overview of how sharded migrations work, refer to this [section](../../mi
 ### Form based configuration
 
 {: .note }
-Data shardId is a SMT generated identifer to track migration jobs created for a [phyiscal shard](../../minimal/minimal.md#terminology). It typically does not require a user to modify it.
+Data shardId is a SMT generated identifier to track migration jobs created for a [phyiscal shard](../../minimal/minimal.md#terminology). It typically does not require a user to modify it.
 
 * Spanner migration tool provides multiple ways of configuring a sharded migration - via JSON or form. Configure the [source](#source-connection-profile) and [target](#target-connection-profile) as defined above, the same concepts apply here as well.
 
