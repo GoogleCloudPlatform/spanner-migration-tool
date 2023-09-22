@@ -110,6 +110,9 @@ export const Dataflow = {
   Network: 'network',
   Subnetwork: 'subnetwork',
   HostProjectId: 'hostProjectId',
+  MaxWorkers: 'maxWorkers',
+  NumWorkers: 'numWorkers',
+  ServiceAccountEmail: 'serviceAccountEmail',
   IsDataflowConfigSet: 'isDataflowConfigSet',
 }
 

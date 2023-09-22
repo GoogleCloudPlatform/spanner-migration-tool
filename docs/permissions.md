@@ -117,8 +117,11 @@ Follow [this guide](https://cloud.google.com/datastream/docs/use-the-datastream-
 
 ### Dataflow
 
-1. Enable [Dataflow Admin](https://cloud.google.com/dataflow/docs/concepts/access-control#dataflow.admin).
-2. To use custom templates, enable [basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin).
+Follow [this guide](https://cloud.google.com/dataflow/docs/concepts/security-and-permissions) to enable Dataflow permissions.
+
+### GCS
+
+Grant the user **Editor role** to create buckets in the project.
 
 ### GCE
 
