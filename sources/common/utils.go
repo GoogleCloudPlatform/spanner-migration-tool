@@ -19,10 +19,10 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 // ToNotNull returns true if a column is not nullable and false if it is.
@@ -281,14 +281,19 @@ func ComputeNonKeyColumnSize(conv *internal.Conv, tableId string) {
 
 // removeSchemaIssue removes issue from the given list.
 func removeSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
+	ind := findSchemaIssue(schemaissue, issue)
+	if ind != -1 {
+		return append(schemaissue[:ind], schemaissue[ind+1:]...)
+	}
+	return schemaissue
+}
+
+func findSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) int {
 	ind := -1
 	for i := 0; i < len(schemaissue); i++ {
 		if schemaissue[i] == issue {
 			ind = i
 		}
 	}
-	if ind != -1 {
-		return append(schemaissue[:ind], schemaissue[ind+1:]...)
-	}
-	return schemaissue
+	return ind
 }

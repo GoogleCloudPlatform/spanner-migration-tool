@@ -17,13 +17,109 @@ package mysql
 import (
 	"testing"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestToSpannerTypeInternal(t *testing.T) {
+
+	_, errCheck := toSpannerTypeInternal(schema.Type{"bool", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in boolean to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bool", []int64{1, 2, 3}, []int64{1, 2, 3}}, "INT64")
+	if errCheck == nil {
+		t.Errorf("Error in boolean to int64 conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"tinyint", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in tinyint to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"tinyint", []int64{1, 2, 3}, []int64{1, 2, 3}}, "INT64")
+	if errCheck == nil {
+		t.Errorf("Error in tinyint to int64 conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"double", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in double to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"float", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in float to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"decimal", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in decimal to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bigint", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in bigint to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"int", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in int to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bit", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck != nil {
+		t.Errorf("Error in bit to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"char", []int64{1, 2, 3}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in char to bytes conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"char", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in char to bytes conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"char", []int64{}, []int64{1, 2, 3}}, "DEFAULT")
+	if errCheck != nil {
+		t.Errorf("Error in char to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"text", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in text to bytes conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"json", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in json to bytes conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"binary", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck != nil {
+		t.Errorf("Error in binary to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"binary", []int64{1, 2, 3}, []int64{1, 2, 3}}, "DEFAULT")
+	if errCheck != nil {
+		t.Errorf("Error in binary to default conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"blob", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck != nil {
+		t.Errorf("Error in blob to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"date", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in date to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"datetime", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in datetime to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"timestamp", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in timestamp to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"time", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in time to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"DEFAULT", []int64{1, 2, 3}, []int64{1, 2, 3}}, "")
+	if errCheck == nil {
+		t.Errorf("Error in default conversion for unidentified source datatype")
+	}
+}
 
 // This is just a very basic smoke-test for toSpannerType.
 func TestToSpannerType(t *testing.T) {

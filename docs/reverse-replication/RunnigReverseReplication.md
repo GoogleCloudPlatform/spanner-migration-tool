@@ -1,8 +1,25 @@
-# Reverse Replication Setup
+---
+layout: default
+title: Running Reverse Replication
+parent: Reverse Replication
+nav_order: 2
+---
 
-HarbourBridge currently does not support reverse replication out-of-the-box.
+# Reverse Replication Setup
+{: .no_toc }
+
+Spanner migration tool currently does not support reverse replication out-of-the-box.
 The launcher.go script can be used instead to setup the resources required for a 
 reverse replication pipeline.
+
+<details open markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
+1. TOC
+{:toc}
+</details>
 
 ## Resources
 The pipeline requires a few GCP resources to be setup. The launcher script creates these resources for you, skipping creation if they already exist. The resources are:
@@ -26,7 +43,7 @@ The script takes in multiple arguments to orchestrate the pipeline. They are:
 - `pubSubDataTopicId`: pub/sub data topic id. DO NOT INCLUDE the prefix 'projects/<project_name>/topics/'. Defaults to 'reverse-replication'.
 - `pubSubEndpoint`: Pub/Sub endpoint, defaults to same endpoint as the Dataflow region.
 - `sourceShardsFilePath`: GCS file path for file containing shard info. Details on structure mentioned later.
-- `sessionFilePath`: GCS file path for session file generated via HarbourBridge.
+- `sessionFilePath`: GCS file path for session file generated via Spanner migration tool.
 - `machineType`: dataflow worker machine type, defaults to n2-standard-4.
 - `orderingWorkers`: number of workers for ordering job. Defaults to 5.
 - `writerWorkers`: number of workers for writer job. Defaults to 5.
@@ -38,7 +55,7 @@ Before running the command, ensure you have the:
 3) Source shards file (more details below) already uploaded to GCS
 
 ## Sample sourceShards File
-This file contains meta data regarding the source MYSQL shards, which is used to connect to them.
+This file contains meta data regarding the source MYSQL shards, which is used to connect to them. This should be present even if there is a single source database shard.
 The file should be a list of JSONs as:
 ```
 [
@@ -60,6 +77,9 @@ The file should be a list of JSONs as:
     }
 ]
 ```
+
+{: .note }
+The logicalShardId is expected to be a string that begins with a letter, is atleast 3 characters long and and contain only the following characters: letters, numbers, dashes (-), periods (.), underscores (_), tildes (~), percents (%) or plus signs (+). Cannot start with goog.
 
 ## Sample Commands
 Checkout out the reverse replication folder from the root:

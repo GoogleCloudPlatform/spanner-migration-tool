@@ -101,7 +101,10 @@ export class PrepareMigrationComponent implements OnInit {
   dataflowConfig: IDataflowConfig = {
     network: localStorage.getItem(Dataflow.Network) as string,
     subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-    hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
+    hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string,
+    maxWorkers: localStorage.getItem(Dataflow.MaxWorkers) as string,
+    numWorkers: localStorage.getItem(Dataflow.NumWorkers) as string,
+    serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string
   }
   spannerConfig: ISpannerConfig = {
     GCPProjectID: '',
@@ -121,7 +124,7 @@ export class PrepareMigrationComponent implements OnInit {
   ]);
 
   migrationTypesHelpText = new Map<string, string>([
-    ["bulk", "Uses this machine's resources to copy data from the source database to Spanner. This is only useful for small migrations."],
+    ["bulk", "Use the POC migration option when you want to migrate a sample of your data (<100GB) to do a Proof of Concept. It uses this machine's resources to copy data from the source database to Spanner"],
     ["lowdt", "Uses change data capture via Datastream to setup a continuous data replication pipeline from source to Spanner, using Dataflow jobs to perform the actual data migration."],
   ]);
 
@@ -133,7 +136,7 @@ export class PrepareMigrationComponent implements OnInit {
     ) {
       this.migrationTypes = [
         {
-          name: 'Bulk Migration(Experimental)',
+          name: 'POC Migration',
           value: MigrationTypes.bulkMigration,
         },
         {
@@ -145,7 +148,7 @@ export class PrepareMigrationComponent implements OnInit {
       this.selectedMigrationType = MigrationTypes.bulkMigration
       this.migrationTypes = [
         {
-          name: 'Bulk Migration(Experimental)',
+          name: 'POC Migration',
           value: MigrationTypes.bulkMigration,
         },
       ]
@@ -193,7 +196,7 @@ export class PrepareMigrationComponent implements OnInit {
         this.nodeCount = res.NodeCount
         this.migrationTypes = [
           {
-            name: 'Bulk Migration(Experimental)',
+            name: 'POC Migration',
             value: MigrationTypes.bulkMigration,
           },
           {
@@ -205,7 +208,7 @@ export class PrepareMigrationComponent implements OnInit {
           this.selectedMigrationType = MigrationTypes.bulkMigration
           this.migrationTypes = [
             {
-              name: 'Bulk Migration(Experimental)',
+              name: 'POC Migration',
               value: MigrationTypes.bulkMigration,
             },
           ]
@@ -333,6 +336,9 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(Dataflow.IsDataflowConfigSet)
     localStorage.removeItem(Dataflow.Network)
     localStorage.removeItem(Dataflow.Subnetwork)
+    localStorage.removeItem(Dataflow.MaxWorkers)
+    localStorage.removeItem(Dataflow.NumWorkers)
+    localStorage.removeItem(Dataflow.ServiceAccountEmail)
     localStorage.removeItem(Dataflow.HostProjectId)
     localStorage.removeItem(MigrationDetails.IsMigrationInProgress)
     localStorage.removeItem(MigrationDetails.HasSchemaMigrationStarted)
@@ -437,9 +443,14 @@ export class PrepareMigrationComponent implements OnInit {
       this.dataflowConfig = {
         network: localStorage.getItem(Dataflow.Network) as string,
         subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-        hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string
+        hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string,
+        maxWorkers: localStorage.getItem(Dataflow.MaxWorkers) as string,
+        numWorkers: localStorage.getItem(Dataflow.NumWorkers) as string,
+        serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string
       }
       this.isDataflowConfigurationSet = localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true'
+      // We only call setDataflowDetailsForShardedMigrations for sharded flows. Non-sharded flows write a streaming config file
+      // to GCS, which is fetched by the backend.
       if (this.isSharded) {
         this.fetch.setDataflowDetailsForShardedMigrations(this.dataflowConfig).subscribe({
           next: () => { },

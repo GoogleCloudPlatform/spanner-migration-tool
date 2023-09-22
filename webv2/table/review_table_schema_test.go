@@ -21,12 +21,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -101,6 +101,441 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+		},
+		{
+			name:    "Test change type success with foreign keys 1",
+			tableId: "t1",
+			payload: `
+        {
+          "UpdateCols":{
+            "c1": { "ToType": "STRING" },
+            "c2": { "ToType": "BYTES" }
+        }
+        }`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]schema.Column{
+							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+						},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+					"t2": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+		},
+		{
+			name:    "Test change type success with foreign keys 2",
+			tableId: "t2",
+			payload: `
+        {
+          "UpdateCols":{
+            "c3": { "ToType": "STRING" }
+        }
+        }`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]schema.Column{
+							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+						},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+					"t2": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]schema.Column{
+							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+						},
+					}},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+		},
+		{
+			name:    "Test change type success with interleave 1",
+			tableId: "t2",
+			payload: `
+        {
+          "UpdateCols":{
+            "c3": { "ToType": "STRING" }
+        }
+        }`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						ParentId:    "t2",
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]schema.Column{
+							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+						},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+					"t2": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						ParentId:    "t2",
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]schema.Column{
+							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+						},
+					}},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+		},
+		{
+			name:    "Test change type success with interleave 2",
+			tableId: "t1",
+			payload: `
+        {
+          "UpdateCols":{
+            "c1": { "ToType": "STRING" }
+        }
+        }`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						ParentId:    "t2",
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]schema.Column{
+							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+						},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+					"t2": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						ParentId:    "t2",
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]schema.Column{
+							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+						},
 					}},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
@@ -236,7 +671,543 @@ func TestReviewTableSchema(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:    "Test remove success for interleaved table 1",
+			tableId: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"c1": { "Removed": true }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c3", Desc: false, Order: 2}},
+						ParentId:    "t2",
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c4", "c5"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false, Order: 1}},
+					},
+				},
 
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c3": {internal.Widened},
+						},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+						ParentId:    "",
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c4", "c5"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false, Order: 1}},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+		},
+		{
+			name:    "Test remove success for interleaved table 2",
+			tableId: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"c1": { "Removed": true }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c3", Desc: false, Order: 2}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c4", "c5"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false, Order: 1}},
+						ParentId:    "t1",
+					},
+				},
+
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c3": {internal.Widened},
+						},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+						ParentId:    "",
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c4", "c5"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+		},
+		{
+			name:    "Test remove success for removing foreign key column 1",
+			tableId: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"c1": { "Removed": true }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 2}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c4", "c5"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false, Order: 1}},
+						ForeignKeys: []ddl.Foreignkey{{Id: "f1", Name: "fk1", ColIds: []string{"c4"}, ReferTableId: "t1", ReferColumnIds: []string{"c1"}}},
+					},
+				},
+
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c3": {internal.Widened},
+						},
+					},
+				},
+				UsedNames: map[string]bool{"table1": true, "table2": true, "fk1": true},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c4", "c5"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+		},
+		{
+			name:    "Test remove success for removing foreign key column 2",
+			tableId: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"c1": { "Removed": true }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c4", "c5"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false, Order: 1}},
+						ForeignKeys: []ddl.Foreignkey{{Id: "f1", Name: "fk1", ColIds: []string{"c4"}, ReferTableId: "t1", ReferColumnIds: []string{"c2"}}},
+					},
+				},
+
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c3": {internal.Widened},
+						},
+					},
+				},
+				UsedNames: map[string]bool{"table1": true, "table2": true, "fk1": true},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c4", "c5"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+						ForeignKeys: []ddl.Foreignkey{{Id: "f1", Name: "fk1", ColIds: []string{"c4"}, ReferTableId: "t1", ReferColumnIds: []string{"c2"}}},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+		},
+		{
+			name:    "Test remove success for removing foreign key column 3",
+			tableId: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"c1": { "Removed": true }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+						ForeignKeys: []ddl.Foreignkey{{Id: "f1", Name: "fk1", ColIds: []string{"c1", "c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c4", "c5"}}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c4", "c5"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false, Order: 1}},
+					},
+				},
+
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c3": {internal.Widened},
+						},
+					},
+				},
+				UsedNames: map[string]bool{"table1": true, "table2": true, "fk1": true},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+						ForeignKeys: []ddl.Foreignkey{{Id: "f1", Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c5"}}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c4", "c5"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+		},
+		{
+			name:    "Test remove success for removing foreign key column 4",
+			tableId: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"c1": { "Removed": true }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c4", "c5"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false, Order: 1}},
+						ForeignKeys: []ddl.Foreignkey{{Id: "f1", Name: "fk1", ColIds: []string{"c4", "c5"}, ReferTableId: "t1", ReferColumnIds: []string{"c1", "c2"}}},
+					},
+				},
+
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c3": {internal.Widened},
+						},
+					},
+				},
+				UsedNames: map[string]bool{"table1": true, "table2": true, "fk1": true},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c4", "c5"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+						ForeignKeys: []ddl.Foreignkey{{Id: "f1", Name: "fk1", ColIds: []string{"c5"}, ReferTableId: "t1", ReferColumnIds: []string{"c2"}}},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+		},
+		{
+			name:    "Test remove success for removing column which is a part of index",
+			tableId: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"c1": { "Removed": true }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+						Indexes:     []ddl.CreateIndex{{Id: "i1", Name: "idx1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}}}},
+					},
+				},
+
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c3": {internal.Widened},
+						},
+					},
+				},
+				UsedNames: map[string]bool{"table1": true, "idx1": true},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
+						Indexes:     []ddl.CreateIndex{{Id: "i1", Name: "idx1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Desc: false, Order: 1}}}},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+		},
 		{
 			name:    "Test rename success",
 			tableId: "t1",
@@ -448,6 +1419,7 @@ func TestReviewTableSchema(t *testing.T) {
 			},
 		},
 		{
+
 			name:    "Test change type success for related foreign key columns",
 			tableId: "t1",
 			payload: `
@@ -555,6 +1527,71 @@ func TestReviewTableSchema(t *testing.T) {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
 							"c4": {internal.Widened},
 						},
+					},
+				},
+			},
+		},
+		{
+			name:    "Test rename success for interleaved table 2",
+			tableId: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"c1": { "Rename": "aa" }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c1", "2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
+						ParentId:    "t1",
+					},
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "aa", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "aa", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
+						ParentId:    "t1",
 					},
 				},
 			},

@@ -23,15 +23,15 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	helpers "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
 // session contains the metadata for a session file.
-// A session file is a snapshot of an ongoing HarbourBridge conversion session,
+// A session file is a snapshot of an ongoing Spanner migration tool conversion session,
 // and consists of an internal.Conv struct in JSON format.
 type SessionParams struct {
 	Driver    string `json:"driver"`

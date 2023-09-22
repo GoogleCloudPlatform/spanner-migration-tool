@@ -15,7 +15,6 @@ import IConv, {
   ICreateIndex,
   IForeignKey,
   IIndexKey,
-  IPkColumnDefs,
   IPrimaryKey,
 } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
@@ -262,24 +261,24 @@ export class ObjectDetailComponent implements OnInit {
           })
         )
       } else {
-          this.srcRowArray.push(
-            new FormGroup({
-              srcOrder: new FormControl(col.srcOrder),
-              srcColName: new FormControl(col.srcColName),
-              srcDataType: new FormControl(col.srcDataType),
-              srcIsPk: new FormControl(col.srcIsPk),
-              srcIsNotNull: new FormControl(col.srcIsNotNull),
-              srcColMaxLength: new FormControl(col.srcColMaxLength),
-              spOrder: new FormControl(col.srcOrder),
-              spColName: new FormControl(col.srcColName),
-              spDataType: new FormControl(
-                this.defaultTypeMap[col.srcDataType].Name
-              ),
-              spIsPk: new FormControl(col.srcIsPk),
-              spIsNotNull: new FormControl(col.srcIsNotNull),
-              spColMaxLength: new FormControl(col.srcColMaxLength),
-            })
-          )
+        this.srcRowArray.push(
+          new FormGroup({
+            srcOrder: new FormControl(col.srcOrder),
+            srcColName: new FormControl(col.srcColName),
+            srcDataType: new FormControl(col.srcDataType),
+            srcIsPk: new FormControl(col.srcIsPk),
+            srcIsNotNull: new FormControl(col.srcIsNotNull),
+            srcColMaxLength: new FormControl(col.srcColMaxLength),
+            spOrder: new FormControl(col.srcOrder),
+            spColName: new FormControl(col.srcColName),
+            spDataType: new FormControl(
+              this.defaultTypeMap[col.srcDataType].Name
+            ),
+            spIsPk: new FormControl(col.srcIsPk),
+            spIsNotNull: new FormControl(col.srcIsNotNull),
+            spColMaxLength: new FormControl(col.srcColMaxLength),
+          })
+        )
       }
     })
 
@@ -488,7 +487,7 @@ export class ObjectDetailComponent implements OnInit {
     if (this.conv.SpSchema[this.currentObject!.id] !== undefined) {
       this.shardIdCol = this.conv.SpSchema[this.currentObject!.id].ShardIdColumn
     }
-    
+
   }
 
   getAssociatedIndexs(colId: string) {
@@ -746,11 +745,11 @@ export class ObjectDetailComponent implements OnInit {
 
   getPkRequestObj() {
     let tableId: string = this.conv.SpSchema[this.currentObject!.id].Id
-    let Columns: { ColumnId: string; Desc: boolean; Order: number }[] = []
+    let Columns: { ColId: string; Desc: boolean; Order: number }[] = []
     this.pkData.forEach((row: IColumnTabData) => {
       if (row.spIsPk)
         Columns.push({
-          ColumnId: row.spId,
+          ColId: row.spId,
           Desc:
             typeof this.conv.SpSchema[this.currentObject!.id].PrimaryKeys.find(
               ({ ColId }) => ColId === row.spId
@@ -799,7 +798,7 @@ export class ObjectDetailComponent implements OnInit {
       })
     } else {
       let interleaveTableId = this.tableInterleaveWith(this.currentObject?.id!)
-      if (interleaveTableId != '' && this.isPKFirstOrderModified(this.currentObject?.id!)) {
+      if (interleaveTableId != '' && this.isPKPrefixModified(this.currentObject?.id!, interleaveTableId)) {
         const dialogRef = this.dialog.open(InfodialogComponent, {
           data: {
             message:
@@ -1348,17 +1347,25 @@ export class ObjectDetailComponent implements OnInit {
     return interleaveTable
   }
 
-  isPKFirstOrderModified(table: string): boolean {
-    let firstOrderPk = this.conv.SpSchema[table]?.PrimaryKeys?.filter((pk: IIndexKey) => {
-      if (pk.Order == 1) return true
-      return false
-    })[0]
-    if (this.pkObj.Columns.length < 1) return true
-    let updatedFirstOrderPk = this.pkObj.Columns.filter((pk: IPkColumnDefs) => {
-      if (pk.Order == 1) return true
-      return false
-    })[0]
-    if (firstOrderPk && firstOrderPk.ColId != updatedFirstOrderPk.ColumnId) return true
+  isPKPrefixModified(tableId: string, interleaveTableId: string): boolean {
+    let parentPrimaryKey,childPrimaryKey: IIndexKey[]
+    if (this.conv.SpSchema[tableId].ParentId != interleaveTableId) {
+      parentPrimaryKey = this.pkObj.Columns
+      childPrimaryKey = this.conv.SpSchema[interleaveTableId].PrimaryKeys
+    } else {
+      childPrimaryKey = this.pkObj.Columns
+      parentPrimaryKey = this.conv.SpSchema[interleaveTableId].PrimaryKeys
+    }
+
+    for (let i = 0; i < parentPrimaryKey.length; i++) {
+      for (let j = 0; j < childPrimaryKey.length; j++) {
+        if (parentPrimaryKey[i].Order == childPrimaryKey[j].Order) {
+          if (parentPrimaryKey[i].ColId != childPrimaryKey[j].ColId) {
+            return true;
+          }
+        }
+      }
+    }
     return false
   }
 }

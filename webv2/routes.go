@@ -18,12 +18,12 @@ import (
 	"io/fs"
 	"net/http"
 
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/summary"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/table"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/profile"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/summary"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/table"
 
 	"github.com/gorilla/mux"
 )
@@ -81,6 +81,9 @@ func getRoutes() *mux.Router {
 
 	// Summary
 	router.HandleFunc("/summary", summary.GetSummary).Methods("GET")
+
+	// Issue Description
+	router.HandleFunc("/issueDescription", getIssueDescription).Methods("GET")
 
 	// Application Configuration
 	router.HandleFunc("/GetConfig", config.GetConfig).Methods("GET")

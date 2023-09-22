@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package web defines web APIs to be used with harbourbridge frontend.
+// Package web defines web APIs to be used with Spanner migration tool frontend.
 // Apart from schema conversion, this package involves API to update
 // converted schema.
 package webv2
@@ -36,38 +36,38 @@ import (
 	"time"
 
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
-	"github.com/cloudspannerecosystem/harbourbridge/cmd"
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/internal/reports"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
-	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/table"
-	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/cmd"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/oracle"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/sqlserver"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
+	helpers "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/profile"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/table"
+	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 	"github.com/google/uuid"
 	"github.com/pkg/browser"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 
-	index "github.com/cloudspannerecosystem/harbourbridge/webv2/index"
-	primarykey "github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
+	index "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/index"
+	primarykey "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
 
 	go_ora "github.com/sijms/go-ora/v2"
 )
@@ -155,9 +155,12 @@ type migrationDetails struct {
 }
 
 type dataflowConfig struct {
-	Network       string `json:Network`
-	Subnetwork    string `json:Subnetwork`
-	HostProjectId string `json:HostProjectId`
+	Network             string `json:Network`
+	Subnetwork          string `json:Subnetwork`
+	MaxWorkers          string `json:MaxWorkers`
+	NumWorkers          string `json:NumWorkers`
+	ServiceAccountEmail string `json:ServiceAccountEmail`
+	HostProjectId       string `json:HostProjectId`
 }
 
 type targetDetails struct {
@@ -173,11 +176,14 @@ type StreamingCfg struct {
 	TmpDir        string        `json:"tmpDir"`
 }
 type DataflowCfg struct {
-	JobName       string `json:"JobName"`
-	Location      string `json:"Location"`
-	Network       string `json:"Network"`
-	Subnetwork    string `json:"Subnetwork"`
-	HostProjectId string `json:"HostProjectId"`
+	JobName             string `json:"JobName"`
+	Location            string `json:"Location"`
+	Network             string `json:"Network"`
+	Subnetwork          string `json:"Subnetwork"`
+	MaxWorkers          string `json:"MaxWorkers"`
+	NumWorkers          string `json:"NumWorkers"`
+	ServiceAccountEmail string `json:"ServiceAccountEmail"`
+	HostProjectId       string `json:"HostProjectId"`
 }
 type ConnectionConfig struct {
 	Name     string `json:"name"`
@@ -200,6 +206,10 @@ type ColMaxLength struct {
 type TableIdAndName struct {
 	Id   string `json:"Id"`
 	Name string `json:"Name"`
+}
+
+type ShardIdPrimaryKey struct {
+	AddedAtTheStart bool `json:"AddedAtTheStart"`
 }
 
 // databaseConnection creates connection with database
@@ -274,6 +284,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 
 	conv.SpDialect = sessionState.Dialect
+	conv.IsSharded = sessionState.IsSharded
 	var err error
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: sessionState.IsSharded,
@@ -297,7 +308,30 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
+
 	sessionState.Conv = conv
+
+	if sessionState.IsSharded {
+		setShardIdColumnAsPrimaryKey(true)
+		addShardIdColumnToForeignKeys(true)
+		ruleId := internal.GenerateRuleId()
+		rule := internal.Rule{
+			Id:                ruleId,
+			Name:              ruleId,
+			Type:              constants.AddShardIdPrimaryKey,
+			AssociatedObjects: "All Tables",
+			Data: ShardIdPrimaryKey{
+				AddedAtTheStart: true,
+			},
+			Enabled: true,
+		}
+
+		sessionState := session.GetSessionState()
+		sessionState.Conv.Rules = append(sessionState.Conv.Rules, rule)
+		session.UpdateSessionFile()
+	}
 
 	primarykey.DetectHotspot()
 	index.IndexSuggestion()
@@ -311,9 +345,8 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionMetadata,
-		Conv:            *conv,
+		Conv:            *sessionState.Conv,
 	}
-	sessionState.Conv = conv
 	sessionState.SessionMetadata = sessionMetadata
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -393,10 +426,13 @@ func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		Location:      sessionState.Region,
-		Network:       dataflowLocation.DataflowConfig.Network,
-		Subnetwork:    dataflowLocation.DataflowConfig.Subnetwork,
-		HostProjectId: dataflowLocation.DataflowConfig.HostProjectId,
+		Location:            sessionState.Region,
+		Network:             dataflowLocation.DataflowConfig.Network,
+		Subnetwork:          dataflowLocation.DataflowConfig.Subnetwork,
+		HostProjectId:       dataflowLocation.DataflowConfig.HostProjectId,
+		MaxWorkers:          dataflowLocation.DataflowConfig.MaxWorkers,
+		NumWorkers:          dataflowLocation.DataflowConfig.NumWorkers,
+		ServiceAccountEmail: dataflowLocation.DataflowConfig.ServiceAccountEmail,
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -419,10 +455,13 @@ func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request)
 	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
 	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		Location:      sessionState.Region,
-		Network:       "",
-		Subnetwork:    "",
-		HostProjectId: sessionState.GCPProjectID,
+		Location:            sessionState.Region,
+		Network:             "",
+		Subnetwork:          "",
+		MaxWorkers:          "",
+		NumWorkers:          "",
+		ServiceAccountEmail: "",
+		HostProjectId:       sessionState.GCPProjectID,
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -576,6 +615,8 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
@@ -600,7 +641,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-// loadSession load seesion file to Harbourbridge.
+// loadSession load seesion file to Spanner migration tool.
 func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
@@ -665,6 +706,9 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		sessionMetadata.DatabaseName = strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath))
 	}
 
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
+
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
@@ -706,6 +750,8 @@ func fetchLastLoadedSessionDetails(w http.ResponseWriter, r *http.Request) {
 // build DDL to send to Spanner.
 func getDDL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	c := ddl.Config{Comments: true, ProtectIds: false, SpDialect: sessionState.Conv.SpDialect, Source: sessionState.Driver}
 	var tables []string
 	for t := range sessionState.Conv.SpSchema {
@@ -752,6 +798,9 @@ func spannerDefaultTypeMap(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner.", http.StatusNotFound)
 		return
 	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
+	initializeTypeMap()
 
 	var typeMap map[string]ddl.Type
 	switch sessionState.Driver {
@@ -780,6 +829,8 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	var typeMap map[string][]typeIssue
 	initializeTypeMap()
 	switch sessionState.Driver {
@@ -838,6 +889,8 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 // and returns a list of tables with errors
 func getTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	var tableIdName []TableIdAndName
 	for id, issues := range sessionState.Conv.SchemaIssues {
 		if len(issues.TableLevelIssues) != 0 {
@@ -867,6 +920,9 @@ func applyRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	if rule.Type == constants.GlobalDataTypeChange {
 		d, err := json.Marshal(rule.Data)
 		if err != nil {
@@ -911,6 +967,20 @@ func applyRule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		setSpColMaxLength(colMaxLength, rule.AssociatedObjects)
+	} else if rule.Type == constants.AddShardIdPrimaryKey {
+		d, err := json.Marshal(rule.Data)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		var shardIdPrimaryKey ShardIdPrimaryKey
+		err = json.Unmarshal(d, &shardIdPrimaryKey)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		setShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
+		addShardIdColumnToForeignKeys(shardIdPrimaryKey.AddedAtTheStart)
 	} else {
 		http.Error(w, "Invalid rule type", http.StatusInternalServerError)
 		return
@@ -919,7 +989,6 @@ func applyRule(w http.ResponseWriter, r *http.Request) {
 	ruleId := internal.GenerateRuleId()
 	rule.Id = ruleId
 
-	sessionState := session.GetSessionState()
 	sessionState.Conv.Rules = append(sessionState.Conv.Rules, rule)
 	session.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
@@ -937,6 +1006,8 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	conv := sessionState.Conv
 	var rule internal.Rule
 	position := -1
@@ -1000,6 +1071,20 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		revertSpColMaxLength(colMaxLength, rule.AssociatedObjects)
+	} else if rule.Type == constants.AddShardIdPrimaryKey {
+		d, err := json.Marshal(rule.Data)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		var shardIdPrimaryKey ShardIdPrimaryKey
+		err = json.Unmarshal(d, &shardIdPrimaryKey)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		revertShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
+		removeShardIdColumnFromForeignKeys(shardIdPrimaryKey.AddedAtTheStart)
 	} else {
 		http.Error(w, "Invalid rule type", http.StatusInternalServerError)
 		return
@@ -1017,6 +1102,94 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 
+}
+
+func addShardIdToForeignKeyPerTable(isAddedAtFirst bool, table ddl.CreateTable) {
+	sessionState := session.GetSessionState()
+	for i, fk := range table.ForeignKeys {
+		referredTableShardIdColumn := sessionState.Conv.SpSchema[fk.ReferTableId].ShardIdColumn
+		if isAddedAtFirst {
+			fk.ColIds = append([]string{table.ShardIdColumn}, fk.ColIds...)
+			fk.ReferColumnIds = append([]string{referredTableShardIdColumn}, fk.ReferColumnIds...)
+		} else {
+			fk.ColIds = append(fk.ColIds, table.ShardIdColumn)
+			fk.ReferColumnIds = append(fk.ReferColumnIds, referredTableShardIdColumn)
+		}
+		sessionState.Conv.SpSchema[table.Id].ForeignKeys[i] = fk
+	}
+}
+
+func addShardIdColumnToForeignKeys(isAddedAtFirst bool) {
+	sessionState := session.GetSessionState()
+	for _, table := range sessionState.Conv.SpSchema {
+		addShardIdToForeignKeyPerTable(isAddedAtFirst, table)
+	}
+}
+
+func removeShardIdColumnFromForeignKeys(isAddedAtFirst bool) {
+	sessionState := session.GetSessionState()
+	for tableId, table := range sessionState.Conv.SpSchema {
+		for i, fk := range table.ForeignKeys {
+
+			if isAddedAtFirst {
+				fk.ColIds = fk.ColIds[1:]
+				fk.ReferColumnIds = fk.ReferColumnIds[1:]
+			} else {
+				fk.ColIds = fk.ColIds[:len(fk.ColIds)-1]
+				fk.ReferColumnIds = fk.ReferColumnIds[:len(fk.ReferColumnIds)-1]
+			}
+			sessionState.Conv.SpSchema[tableId].ForeignKeys[i] = fk
+		}
+	}
+}
+
+func setShardIdColumnAsPrimaryKeyPerTable(isAddedAtFirst bool, table ddl.CreateTable) {
+	pkRequest := primarykey.PrimaryKeyRequest{
+		TableId: table.Id,
+		Columns: []ddl.IndexKey{},
+	}
+	increment := 0
+	if isAddedAtFirst {
+		increment = 1
+		pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: table.ShardIdColumn, Order: 1})
+	}
+	for index := range table.PrimaryKeys {
+		pk := table.PrimaryKeys[index]
+		pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order + increment, Desc: pk.Desc})
+	}
+	if !isAddedAtFirst {
+		size := len(table.PrimaryKeys)
+		pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: table.ShardIdColumn, Order: size + 1})
+	}
+	primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+}
+
+func setShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
+	sessionState := session.GetSessionState()
+	for _, table := range sessionState.Conv.SpSchema {
+		setShardIdColumnAsPrimaryKeyPerTable(isAddedAtFirst, table)
+	}
+}
+
+func revertShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
+	sessionState := session.GetSessionState()
+	for _, table := range sessionState.Conv.SpSchema {
+		pkRequest := primarykey.PrimaryKeyRequest{
+			TableId: table.Id,
+			Columns: []ddl.IndexKey{},
+		}
+		for index := range table.PrimaryKeys {
+			pk := table.PrimaryKeys[index]
+			if pk.ColId != table.ShardIdColumn {
+				decrement := 0
+				if isAddedAtFirst {
+					decrement = 1
+				}
+				pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order - decrement, Desc: pk.Desc})
+			}
+		}
+		primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+	}
 }
 
 // setGlobalDataType allows to change Spanner type globally.
@@ -1156,9 +1329,11 @@ func addIndex(newIndex ddl.CreateIndex) (ddl.CreateIndex, error) {
 // getConversionRate returns table wise color coded conversion rate.
 func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	hb_reports := reports.AnalyzeTables(sessionState.Conv, nil)
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
+	smt_reports := reports.AnalyzeTables(sessionState.Conv, nil)
 	rate := make(map[string]string)
-	for _, t := range hb_reports {
+	for _, t := range smt_reports {
 		rate[t.SpTable], _ = reports.RateSchema(t.Cols, t.Warnings, t.Errors, t.SyntheticPKey != "", false)
 	}
 	w.WriteHeader(http.StatusOK)
@@ -1177,6 +1352,8 @@ func getSchemaFile(w http.ResponseWriter, r *http.Request) {
 	schemaFileName := "frontend/" + filePrefix + "schema.txt"
 
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	conversion.WriteSchemaFile(sessionState.Conv, now, schemaFileName, ioHelper.Out, sessionState.Driver)
 	schemaAbsPath, err := filepath.Abs(schemaFileName)
 	if err != nil {
@@ -1197,6 +1374,8 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	}
 	reportFileName := "frontend/" + filePrefix
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	conversion.Report(sessionState.Driver, nil, ioHelper.BytesRead, "", sessionState.Conv, reportFileName, sessionState.DbName, ioHelper.Out)
 	reportAbsPath, err := filepath.Abs(reportFileName)
 	if err != nil {
@@ -1206,9 +1385,11 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(reportAbsPath))
 }
 
-// generates a downloadable structured report and send it as a JSON response  
+// generates a downloadable structured report and send it as a JSON response
 func getDStructuredReport(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(structuredReport)
@@ -1217,6 +1398,8 @@ func getDStructuredReport(w http.ResponseWriter, r *http.Request) {
 // generates a downloadable text report and send it as a JSON response
 func getDTextReport(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
 	// creates a new buffer
 	buffer := bytes.NewBuffer([]byte{})
@@ -1237,6 +1420,8 @@ func getDTextReport(w http.ResponseWriter, r *http.Request) {
 // generates a downloadable DDL(spanner) and send it as a JSON response
 func getDSpannerDDL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	conv := sessionState.Conv
 	now := time.Now()
 	spDDL := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: sessionState.Driver})
@@ -1250,6 +1435,21 @@ func getDSpannerDDL(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(strings.Join(l, ""))
+}
+
+// getIssueDescription maps IssueDB's Category to corresponding CategoryDescription(if present),
+// or to the Brief if not present and pass the map to frontend to be used in assessment report UI
+func getIssueDescription(w http.ResponseWriter, r *http.Request) {
+	var issuesMap = make(map[string]string)
+	for _, issue := range reports.IssueDB {
+		if issue.CategoryDescription == "" {
+			issuesMap[issue.Category] = issue.Brief
+		} else {
+			issuesMap[issue.Category] = issue.CategoryDescription
+		}
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(issuesMap)
 }
 
 // TableInterleaveStatus stores data regarding interleave status.
@@ -1274,13 +1474,15 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	if tableId == "" {
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
 	}
+
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	tableInterleaveStatus := parentTableHelper(tableId, update)
 
 	if tableInterleaveStatus.Possible {
 
 		childPks := sessionState.Conv.SpSchema[tableId].PrimaryKeys
 		childindex := utilities.GetPrimaryKeyIndexFromOrder(childPks, 1)
-		sessionState := session.GetSessionState()
 		schemaissue := []internal.SchemaIssue{}
 
 		colId := childPks[childindex].ColId
@@ -1351,17 +1553,10 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 
 		if checkPrimaryKeyPrefix(tableId, refTableId, fk, tableInterleaveStatus) {
 			sp := sessionState.Conv.SpSchema[tableId]
-			setInterleave := false
 
-			pkFirstOrderColIndex := utilities.GetPrimaryKeyIndexFromOrder(sessionState.Conv.SpSchema[tableId].PrimaryKeys, 1)
-			childFirstOrderPkColId := sessionState.Conv.SpSchema[tableId].PrimaryKeys[pkFirstOrderColIndex].ColId
-			for _, colId := range fk.ColIds {
-				if childFirstOrderPkColId == colId {
-					setInterleave = true
-				}
-			}
+			colIdNotInOrder := checkPrimaryKeyOrder(tableId, refTableId, fk)
 
-			if update && sp.ParentId == "" && setInterleave {
+			if update && sp.ParentId == "" && colIdNotInOrder == "" {
 				usedNames := sessionState.Conv.UsedNames
 				delete(usedNames, strings.ToLower(sp.ForeignKeys[i].Name))
 				sp.ParentId = refTableId
@@ -1371,23 +1566,11 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 
 			parentpks := sessionState.Conv.SpSchema[refTableId].PrimaryKeys
 			if len(parentpks) >= 1 {
+				if colIdNotInOrder == "" {
 
-				parentindex := utilities.GetPrimaryKeyIndexFromOrder(parentpks, 1)
-
-				childindex := utilities.GetPrimaryKeyIndexFromOrder(childPks, 1)
-
-				if parentindex != -1 && childindex != -1 {
-					parentTable := sessionState.Conv.SpSchema[refTableId]
-					childTable := sessionState.Conv.SpSchema[tableId]
-
-					if (parentpks[parentindex].Order == childPks[childindex].Order) && (parentTable.ColDefs[parentpks[parentindex].ColId].Name == childTable.ColDefs[childPks[childindex].ColId].Name) &&
-						(parentTable.ColDefs[parentpks[parentindex].ColId].T.Len == childTable.ColDefs[childPks[childindex].ColId].T.Len) &&
-						(parentTable.ColDefs[parentpks[parentindex].ColId].T.Name == childTable.ColDefs[childPks[childindex].ColId].T.Name) {
-
-						sessionState := session.GetSessionState()
-						schemaissue := []internal.SchemaIssue{}
-
-						colId := childPks[childindex].ColId
+					schemaissue := []internal.SchemaIssue{}
+					for _, column := range childPks {
+						colId := column.ColId
 						schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
 
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
@@ -1397,39 +1580,42 @@ func parentTableHelper(tableId string, update bool) *TableInterleaveStatus {
 						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
 
 						sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaissue
-						tableInterleaveStatus.Possible = true
-						tableInterleaveStatus.Parent = refTableId
-						tableInterleaveStatus.Comment = ""
-
 					}
 
-					// Check if the tables can be interleaved after changing the order of primary key.
-					referColIndex := utilities.GetRefColIndexFromFk(fk, parentpks[parentindex].ColId)
-					if !setInterleave && referColIndex != -1 && fk.ColIds[referColIndex] != childPks[childindex].ColId {
+					tableInterleaveStatus.Possible = true
+					tableInterleaveStatus.Parent = refTableId
+					tableInterleaveStatus.Comment = ""
 
-						sessionState := session.GetSessionState()
+				} else {
 
-						colId := fk.ColIds[referColIndex]
+					schemaissue := []internal.SchemaIssue{}
+					schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIdNotInOrder]
 
-						schemaissue := []internal.SchemaIssue{}
-						schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
 
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
+					schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
 
-						schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
-
-						sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaissue
-
-					}
+					sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIdNotInOrder] = schemaissue
 				}
 			}
 		}
 	}
 
 	return tableInterleaveStatus
+}
+
+func hasShardIdPrimaryKeyRule() (bool, bool) {
+	sessionState := session.GetSessionState()
+	for _, rule := range sessionState.Conv.Rules {
+		if rule.Type == constants.AddShardIdPrimaryKey {
+			v := rule.Data.(ShardIdPrimaryKey)
+			return true, v.AddedAtTheStart
+		}
+	}
+	return false, false
 }
 
 func removeParentTable(w http.ResponseWriter, r *http.Request) {
@@ -1444,6 +1630,8 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	conv := sessionState.Conv
 
 	if conv.SpSchema[tableId].ParentId == "" {
@@ -1453,9 +1641,15 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	spTable := conv.SpSchema[tableId]
 
 	var firstOrderPk ddl.IndexKey
+	order := 1
+
+	isPresent, isAddedAtFirst := hasShardIdPrimaryKeyRule()
+	if isAddedAtFirst {
+		order = 2
+	}
 
 	for _, pk := range spTable.PrimaryKeys {
-		if pk.Order == 1 {
+		if pk.Order == order {
 			firstOrderPk = pk
 			break
 		}
@@ -1473,6 +1667,16 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Foreign key conversion fail"), http.StatusBadRequest)
 		return
+	}
+
+	if isPresent {
+		if isAddedAtFirst {
+			spFk.ColIds = append([]string{spTable.ShardIdColumn}, spFk.ColIds...)
+			spFk.ReferColumnIds = append([]string{sessionState.Conv.SpSchema[spTable.ParentId].ShardIdColumn}, spFk.ReferColumnIds...)
+		} else {
+			spFk.ColIds = append(spFk.ColIds, spTable.ShardIdColumn)
+			spFk.ReferColumnIds = append(spFk.ReferColumnIds, sessionState.Conv.SpSchema[spTable.ParentId].ShardIdColumn)
+		}
 	}
 
 	spFks := spTable.ForeignKeys
@@ -1525,6 +1729,8 @@ func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithM
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
 	}
 
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	conv := sessionState.Conv
 	var toddl common.ToDdl
 	switch sessionState.Driver {
@@ -1550,7 +1756,15 @@ func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithM
 	}
 	conv.AddPrimaryKeys()
 	if sessionState.IsSharded {
+		conv.IsSharded = true
 		conv.AddShardIdColumn()
+		isPresent, isAddedAtFirst := hasShardIdPrimaryKeyRule()
+		if isPresent {
+			table := sessionState.Conv.SpSchema[tableId]
+			setShardIdColumnAsPrimaryKeyPerTable(isAddedAtFirst, table)
+			addShardIdToForeignKeyPerTable(isAddedAtFirst, table)
+			addShardIdToReferencedTableFks(tableId, isAddedAtFirst)
+		}
 	}
 	sessionState.Conv = conv
 	primarykey.DetectHotspot()
@@ -1560,6 +1774,25 @@ func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithM
 		Conv:            *sessionState.Conv,
 	}
 	return convm
+}
+
+func addShardIdToReferencedTableFks(tableId string, isAddedAtFirst bool) {
+	sessionState := session.GetSessionState()
+	for _, table := range sessionState.Conv.SpSchema {
+		for i, fk := range table.ForeignKeys {
+			if fk.ReferTableId == tableId {
+				referredTableShardIdColumn := sessionState.Conv.SpSchema[fk.ReferTableId].ShardIdColumn
+				if isAddedAtFirst {
+					fk.ColIds = append([]string{table.ShardIdColumn}, fk.ColIds...)
+					fk.ReferColumnIds = append([]string{referredTableShardIdColumn}, fk.ReferColumnIds...)
+				} else {
+					fk.ColIds = append(fk.ColIds, table.ShardIdColumn)
+					fk.ReferColumnIds = append(fk.ReferColumnIds, referredTableShardIdColumn)
+				}
+				sessionState.Conv.SpSchema[table.Id].ForeignKeys[i] = fk
+			}
+		}
+	}
 }
 
 func restoreTable(w http.ResponseWriter, r *http.Request) {
@@ -1598,6 +1831,8 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 	if tableId == "" {
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
 	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	spSchema := sessionState.Conv.SpSchema
 	issues := sessionState.Conv.SchemaIssues
 	syntheticPkey := sessionState.Conv.SyntheticPKeys
@@ -1635,10 +1870,10 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 	}
 
 	//remove interleave that are interleaved on the drop table as parent
-	for tableId, spTable := range spSchema {
+	for id, spTable := range spSchema {
 		if spTable.ParentId == tableId {
 			spTable.ParentId = ""
-			spSchema[tableId] = spTable
+			spSchema[id] = spTable
 		}
 	}
 
@@ -1694,6 +1929,8 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	var srcIndex schema.Index
 	srcIndexFound := false
 	for _, index := range sessionState.Conv.SrcSchema[tableId].Indexes {
@@ -1745,6 +1982,8 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 
 	newFKs := []ddl.Foreignkey{}
 	if err = json.Unmarshal(reqBody, &newFKs); err != nil {
@@ -1901,6 +2140,8 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 // error thrown.
 func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	var sessionSummary sessionSummary
 	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
@@ -1951,7 +2192,7 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionSummary.ProcessingUnits = int(instanceInfo.ProcessingUnits)
 	sessionSummary.Instance = sessionState.SpannerInstanceID
 	sessionSummary.Dialect = helpers.GetDialectDisplayStringFromDialect(sessionState.Dialect)
-	sessionSummary.IsSharded = sessionState.IsSharded
+	sessionSummary.IsSharded = sessionState.Conv.IsSharded
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sessionSummary)
 }
@@ -1960,6 +2201,8 @@ func updateProgress(w http.ResponseWriter, r *http.Request) {
 
 	var detail progressDetails
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	if sessionState.Error != nil {
 		detail.ErrorMessage = sessionState.Error.Error()
 	} else {
@@ -2034,27 +2277,29 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	var generatedResources GeneratedResources
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
 	generatedResources.DatabaseName = sessionState.SpannerDatabaseName
-	generatedResources.DatabaseUrl = fmt.Sprintf("https://pantheon.corp.google.com/spanner/instances/%v/databases/%v/details/tables?project=%v", sessionState.SpannerInstanceID, sessionState.SpannerDatabaseName, sessionState.GCPProjectID)
+	generatedResources.DatabaseUrl = fmt.Sprintf("https://console.cloud.google.com/spanner/instances/%v/databases/%v/details/tables?project=%v", sessionState.SpannerInstanceID, sessionState.SpannerDatabaseName, sessionState.GCPProjectID)
 	generatedResources.BucketName = sessionState.Bucket + sessionState.RootPath
-	generatedResources.BucketUrl = fmt.Sprintf("https://pantheon.corp.google.com/storage/browser/%v", sessionState.Bucket+sessionState.RootPath)
+	generatedResources.BucketUrl = fmt.Sprintf("https://console.cloud.google.com/storage/browser/%v", sessionState.Bucket+sessionState.RootPath)
 	generatedResources.ShardToDataflowMap = make(map[string]ResourceDetails)
 	generatedResources.ShardToDatastreamMap = make(map[string]ResourceDetails)
 	if sessionState.Conv.Audit.StreamingStats.DataStreamName != "" {
 		generatedResources.DataStreamJobName = sessionState.Conv.Audit.StreamingStats.DataStreamName
-		generatedResources.DataStreamJobUrl = fmt.Sprintf("https://pantheon.corp.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataStreamName, sessionState.GCPProjectID)
+		generatedResources.DataStreamJobUrl = fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataStreamName, sessionState.GCPProjectID)
 	}
 	if sessionState.Conv.Audit.StreamingStats.DataflowJobId != "" {
 		generatedResources.DataflowJobName = sessionState.Conv.Audit.StreamingStats.DataflowJobId
-		generatedResources.DataflowJobUrl = fmt.Sprintf("https://pantheon.corp.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
+		generatedResources.DataflowJobUrl = fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
 	}
 	for shardId, dsName := range sessionState.Conv.Audit.StreamingStats.ShardToDataStreamNameMap {
-		url := fmt.Sprintf("https://pantheon.corp.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, dsName, sessionState.GCPProjectID)
+		url := fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, dsName, sessionState.GCPProjectID)
 		resourceDetails := ResourceDetails{JobName: dsName, JobUrl: url}
 		generatedResources.ShardToDatastreamMap[shardId] = resourceDetails
 	}
 	for shardId, dfId := range sessionState.Conv.Audit.StreamingStats.ShardToDataflowJobMap {
-		url := fmt.Sprintf("https://pantheon.corp.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, dfId, sessionState.GCPProjectID)
+		url := fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, dfId, sessionState.GCPProjectID)
 		resourceDetails := ResourceDetails{JobName: dfId, JobUrl: url}
 		generatedResources.ShardToDataflowMap[shardId] = resourceDetails
 	}
@@ -2095,7 +2340,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		}
 		sourceProfileString = sourceProfileString + fmt.Sprintf(",streamingCfg=%v", fileName)
 	} else {
-		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+		sessionState.Conv.Audit.MigrationRequestId = "SMT-" + uuid.New().String()
 		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
 		sessionState.RootPath = "/"
 	}
@@ -2115,7 +2360,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 }
 
 func getSourceProfileStringForShardedMigrations(sessionState *session.SessionState, details migrationDetails) (string, error) {
-	fileName := "HB-" + uuid.New().String() + "-sharding.cfg"
+	fileName := "SMT-" + uuid.New().String() + "-sharding.cfg"
 	if details.MigrationType != helpers.LOW_DOWNTIME_MIGRATION {
 		err := createConfigFileForShardedBulkMigration(sessionState, details, fileName)
 		if err != nil {
@@ -2183,7 +2428,7 @@ func createConfigFileForShardedBulkMigration(sessionState *session.SessionState,
 
 func writeSessionFile(sessionState *session.SessionState) error {
 
-	err := utils.CreateGCSBucket(sessionState.Bucket, sessionState.GCPProjectID)
+	err := utils.CreateGCSBucket(sessionState.Bucket, sessionState.GCPProjectID, sessionState.Region)
 	if err != nil {
 		return fmt.Errorf("error while creating bucket: %v", err)
 	}
@@ -2215,11 +2460,14 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 			},
 		},
 		DataflowCfg: DataflowCfg{
-			JobName:       "",
-			Location:      sessionState.Region,
-			Network:       dataflowConfig.Network,
-			Subnetwork:    dataflowConfig.Subnetwork,
-			HostProjectId: dataflowConfig.HostProjectId,
+			JobName:             "",
+			Location:            sessionState.Region,
+			Network:             dataflowConfig.Network,
+			Subnetwork:          dataflowConfig.Subnetwork,
+			MaxWorkers:          dataflowConfig.MaxWorkers,
+			NumWorkers:          dataflowConfig.NumWorkers,
+			ServiceAccountEmail: dataflowConfig.ServiceAccountEmail,
+			HostProjectId:       dataflowConfig.HostProjectId,
 		},
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}
@@ -2266,6 +2514,8 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 	sp := sessionState.Conv.SpSchema[table]
 
 	st := sessionState.Conv.SrcSchema[table]
@@ -2321,6 +2571,8 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 
 func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
 
 	table := r.FormValue("table")
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -2467,6 +2719,37 @@ func rollback(err error) error {
 	return err
 }
 
+func checkPrimaryKeyOrder(tableId string, refTableId string, fk ddl.Foreignkey) string {
+	sessionState := session.GetSessionState()
+	childPks := sessionState.Conv.SpSchema[tableId].PrimaryKeys
+	parentPks := sessionState.Conv.SpSchema[refTableId].PrimaryKeys
+	childTable := sessionState.Conv.SpSchema[tableId]
+	parentTable := sessionState.Conv.SpSchema[refTableId]
+	for i := 0; i < len(parentPks); i++ {
+
+		for j := 0; j < len(childPks); j++ {
+
+			for k := 0; k < len(fk.ReferColumnIds); k++ {
+
+				if childTable.ColDefs[fk.ColIds[k]].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name &&
+					parentTable.ColDefs[parentPks[i].ColId].Name == childTable.ColDefs[childPks[j].ColId].Name &&
+					parentTable.ColDefs[parentPks[i].ColId].T.Name == childTable.ColDefs[childPks[j].ColId].T.Name &&
+					parentTable.ColDefs[parentPks[i].ColId].T.Len == childTable.ColDefs[childPks[j].ColId].T.Len &&
+					parentTable.ColDefs[parentPks[i].ColId].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name &&
+					childTable.ColDefs[childPks[j].ColId].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name {
+					if parentPks[i].Order != childPks[j].Order {
+						return childPks[j].ColId
+					}
+				}
+			}
+
+		}
+
+	}
+	return ""
+
+}
+
 func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey, tableInterleaveStatus *TableInterleaveStatus) bool {
 
 	sessionState := session.GetSessionState()
@@ -2474,18 +2757,24 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 	parentTable := sessionState.Conv.SpSchema[refTableId]
 	childPks := sessionState.Conv.SpSchema[tableId].PrimaryKeys
 	parentPks := sessionState.Conv.SpSchema[refTableId].PrimaryKeys
-
-	parentIndex := utilities.GetPrimaryKeyIndexFromOrder(parentPks, 1)
-	if parentIndex == -1 {
-		return false
-	}
-	parentFirstOrderPkColId := parentPks[parentIndex].ColId
 	possibleInterleave := false
-	for _, colId := range fk.ReferColumnIds {
-		if parentFirstOrderPkColId == colId {
-			possibleInterleave = true
+
+	flag := false
+	for _, key := range parentPks {
+		flag = false
+		for _, colId := range fk.ReferColumnIds {
+			if key.ColId == colId {
+				flag = true
+			}
+		}
+		if !flag {
+			break
 		}
 	}
+	if flag {
+		possibleInterleave = true
+	}
+
 	if !possibleInterleave {
 		removeInterleaveSuggestions(fk.ColIds, tableId)
 		return false
@@ -2519,6 +2808,10 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 
 	}
 
+	if len(interleaved) == len(parentPks) {
+		return true
+	}
+
 	diff := []ddl.IndexKey{}
 
 	if len(interleaved) == 0 {
@@ -2527,8 +2820,7 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 
 			for j := 0; j < len(childPks); j++ {
 
-				if parentTable.ColDefs[parentPks[i].ColId].Name != childTable.ColDefs[childPks[j].ColId].Name {
-
+				if parentTable.ColDefs[parentPks[i].ColId].Name != childTable.ColDefs[childPks[j].ColId].Name || parentTable.ColDefs[parentPks[i].ColId].T.Len != childTable.ColDefs[childPks[j].ColId].T.Len {
 					diff = append(diff, parentPks[i])
 				}
 
@@ -2539,6 +2831,7 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 
 	canInterleavedOnAdd := []string{}
 	canInterleavedOnRename := []string{}
+	canInterLeaveOnChangeInColumnSize := []string{}
 
 	fkReferColNames := []string{}
 	childPkColNames := []string{}
@@ -2559,30 +2852,30 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 		if childColIndex == -1 {
 			canInterleavedOnAdd = append(canInterleavedOnAdd, fk.ColIds[parentColIndex])
 		} else {
-			canInterleavedOnRename = append(canInterleavedOnRename, fk.ColIds[parentColIndex])
+			if parentTable.ColDefs[diff[i].ColId].Name == childTable.ColDefs[fk.ColIds[parentColIndex]].Name {
+				canInterLeaveOnChangeInColumnSize = append(canInterLeaveOnChangeInColumnSize, fk.ColIds[parentColIndex])
+			} else {
+				canInterleavedOnRename = append(canInterleavedOnRename, fk.ColIds[parentColIndex])
+			}
+
 		}
 	}
 
-	if parentTable.ColDefs[parentPks[0].ColId].Name == childTable.ColDefs[childPks[0].ColId].Name &&
-		parentTable.ColDefs[parentPks[0].ColId].T.Len != childTable.ColDefs[childPks[0].ColId].T.Len {
-		updateInterleaveSuggestion([]string{childPks[0].ColId}, tableId, internal.InterleavedChangeColumnSize)
+	if len(canInterLeaveOnChangeInColumnSize) > 0 {
+		updateInterleaveSuggestion(canInterLeaveOnChangeInColumnSize, tableId, internal.InterleavedChangeColumnSize)
 	} else if len(canInterleavedOnRename) > 0 {
 		updateInterleaveSuggestion(canInterleavedOnRename, tableId, internal.InterleavedRenameColumn)
 	} else if len(canInterleavedOnAdd) > 0 {
 		updateInterleaveSuggestion(canInterleavedOnAdd, tableId, internal.InterleavedAddColumn)
 	}
 
-	if len(interleaved) > 0 {
-		return true
-	}
-
 	return false
 }
 
 func updateInterleaveSuggestion(colIds []string, tableId string, issue internal.SchemaIssue) {
-	for i := 0; i < len(colIds); i++ {
+	sessionState := session.GetSessionState()
 
-		sessionState := session.GetSessionState()
+	for i := 0; i < len(colIds); i++ {
 
 		schemaissue := []internal.SchemaIssue{}
 
@@ -2611,9 +2904,9 @@ func updateInterleaveSuggestion(colIds []string, tableId string, issue internal.
 }
 
 func removeInterleaveSuggestions(colIds []string, tableId string) {
-	for i := 0; i < len(colIds); i++ {
+	sessionState := session.GetSessionState()
 
-		sessionState := session.GetSessionState()
+	for i := 0; i < len(colIds); i++ {
 
 		schemaissue := []internal.SchemaIssue{}
 
@@ -2648,7 +2941,7 @@ func removeInterleaveSuggestions(colIds []string, tableId string) {
 type SessionState struct {
 	sourceDB    *sql.DB        // Connection to source database in case of direct connection
 	dbName      string         // Name of source database
-	driver      string         // Name of HarbourBridge driver in use
+	driver      string         // Name of Spanner migration tool driver in use
 	conv        *internal.Conv // Current conversion state
 	sessionFile string         // Path to session file
 }
@@ -2697,7 +2990,6 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 func initializeTypeMap() {
 	sessionState := session.GetSessionState()
 	var toddl common.ToDdl
-
 	// Initialize mysqlTypeMap.
 	toddl = mysql.InfoSchemaImpl{}.GetToDdl()
 	for _, srcTypeName := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
@@ -2777,7 +3069,8 @@ func App(logLevel string, open bool, port int) error {
 	}
 	addr := fmt.Sprintf(":%s", strconv.Itoa(port))
 	router := getRoutes()
-	fmt.Println("Starting Harbourbridge UI at:", fmt.Sprintf("http://localhost%s", addr))
+	fmt.Println("Starting Spanner migration tool UI at:", fmt.Sprintf("http://localhost%s", addr))
+	fmt.Println("Reverse Replication feature in preview: Please refer to https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/reverse_replication/README.md for detailed instructions.")
 	if open {
 		browser.OpenURL(fmt.Sprintf("http://localhost%s", addr))
 	}

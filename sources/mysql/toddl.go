@@ -16,11 +16,11 @@
 package mysql
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 // ToDdlImpl MySQL specific implementation for ToDdl.
@@ -37,8 +37,12 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 	if len(srcType.ArrayBounds) > 1 {
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 		issues = append(issues, internal.MultiDimensionalArray)
+	} else if len(srcType.ArrayBounds) == 1 {
+		// This check has been added because we don't support Array<primitive type> to string conversions
+		// and Array datatype is currently not supported in datastream.
+		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+		issues = append(issues, internal.ArrayTypeNotSupported)
 	}
-	ty.IsArray = len(srcType.ArrayBounds) == 1
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 		ty = common.ToPGDialectType(ty)
 	}
@@ -142,6 +146,8 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "json":
 		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		case ddl.Bytes:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:

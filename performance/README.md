@@ -1,8 +1,8 @@
-# HarbourBridge: Performance benchmarking
+# Spanner migration tool: Performance benchmarking
 
-HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation 
+Spanner migration tool (formerly known as HarbourBridge) is a stand-alone open source tool for Cloud Spanner evaluation 
 and migration. This module can be used to run benchmark tests on single table
-and multiple table database migration using HarbourBridge.
+and multiple table database migration using Spanner migration tool.
 
 For executing the benchmark test run the following command:
 ```sh

@@ -6,10 +6,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 )
 
-//report_text.go contains the logic to convert a structured harbourbridge 
+//report_text.go contains the logic to convert a structured spanner migration tool 
 //report to a human readable text report.
 // The structure of the report created is present in (internal/reports/REPORT.md)
 // A sample report can be found in (test_data/mysql_text_report.txt)
@@ -36,7 +36,7 @@ func GenerateTextReport(structuredReport StructuredReport, w *bufio.Writer) {
 		"a table-by-table listing of "+structuredReport.MigrationType+" conversion details. "+
 		"For background on the "+structuredReport.MigrationType+" conversion process used, "+
 		"and explanations of the terms and notes used in this "+
-		"report, see HarbourBridge's README.", 80, 0)
+		"report, see Spanner migration tool's README.", 80, 0)
 	w.WriteString("\n\n")
 	if isDump {
 		writeStatementStats(structuredReport, w)
@@ -133,10 +133,10 @@ func writeTableReports(structuredReport StructuredReport, w *bufio.Writer) {
 		}
 		w.WriteString(rate)
 		w.WriteString("\n")
-		for _, warning := range tableReport.Warnings {
-			fmt.Fprintf(w, "%s\n", warning.WarningType)
-			for i, l := range warning.WarningList {
-				justifyLines(w, fmt.Sprintf("%d) %s.\n", i+1, l), 80, 3)
+		for _, issue := range tableReport.Issues {
+			fmt.Fprintf(w, "%s\n", issue.IssueType)
+			for i, l := range issue.IssueList {
+				justifyLines(w, fmt.Sprintf("%d) %s.\n", i+1, l.Description), 80, 3)
 			}
 			w.WriteString("\n")
 		}

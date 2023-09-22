@@ -45,6 +45,10 @@ var (
 	sourceShardsFilePath string
 	sessionFilePath      string
 	machineType          string
+	vpcNetwork           string
+	vpcSubnetwork        string
+	vpcHostProjectId     string
+	serviceAccountEmail  string
 	orderingWorkers      int
 	writerWorkers        int
 )
@@ -66,8 +70,12 @@ func setupGlobalFlags() {
 	flag.StringVar(&pubSubDataTopicId, "pubSubDataTopicId", "reverse-replication", "pub/sub data topic id. DO NOT INCLUDE the prefix 'projects/<project_name>/topics/'. Defaults to 'reverse-replication'")
 	flag.StringVar(&pubSubEndpoint, "pubSubEndpoint", "", "pub/sub endpoint, defaults to same endpoint as the dataflow region.")
 	flag.StringVar(&sourceShardsFilePath, "sourceShardsFilePath", "", "gcs file path for file containing shard info")
-	flag.StringVar(&sessionFilePath, "sessionFilePath", "", "gcs file path for session file generated via HarbourBridge")
+	flag.StringVar(&sessionFilePath, "sessionFilePath", "", "gcs file path for session file generated via Spanner migration tool")
 	flag.StringVar(&machineType, "machineType", "n2-standard-4", "dataflow worker machine type, defaults to n2-standard-4")
+	flag.StringVar(&vpcNetwork, "vpcNetwork", "", "Name of the VPC network to be used for the dataflow jobs")
+	flag.StringVar(&vpcSubnetwork, "vpcSubnetwork", "", "Name of the VPC subnetwork to be used for the dataflow jobs. Subnet should exist in the same region as the 'dataflowRegion' parameter")
+	flag.StringVar(&vpcHostProjectId, "vpcHostProjectId", "", "Project ID hosting the subnetwork. If unspecified, the 'projectId' parameter value will be used for subnetwork.")
+	flag.StringVar(&serviceAccountEmail, "serviceAccountEmail", "", "The email address of the service account to run the job as")
 	flag.IntVar(&orderingWorkers, "orderingWorkers", 5, "number of workers for ordering job")
 	flag.IntVar(&writerWorkers, "writerWorkers", 5, "number of workers for writer job")
 }
@@ -120,13 +128,16 @@ func prechecks() error {
 	if pubSubEndpoint == "" {
 		pubSubEndpoint = fmt.Sprintf("%s-pubsub.googleapis.com:443", dataflowRegion)
 	}
+	if vpcHostProjectId == "" {
+		vpcHostProjectId = projectId
+	}
 	return nil
 }
 
 func main() {
 	fmt.Println("Setting up reverse replication pipeline...")
-	ORDERING_TEMPLATE := "gs://dataflow-templates-southamerica-west1/2023-07-04-00_RC00/flex/Spanner_Change_Streams_to_Sink"
-	WRITER_TEMPLATE := "gs://dataflow-templates-southamerica-west1/2023-07-04-00_RC00/flex/Ordered_Changestream_Buffer_to_Sourcedb"
+	ORDERING_TEMPLATE := "gs://dataflow-templates/2023-07-18-00_RC00/flex/Spanner_Change_Streams_to_Sink"
+	WRITER_TEMPLATE := "gs://dataflow-templates/2023-07-18-00_RC00/flex/Ordered_Changestream_Buffer_to_Sourcedb"
 
 	setupGlobalFlags()
 	flag.Parse()
@@ -248,6 +259,16 @@ func main() {
 	}
 	defer c.Close()
 
+	// If custom network is not selected, use public IP. Typical for internal testing flow.
+	workerIpAddressConfig := dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PUBLIC
+	if vpcNetwork != "" || vpcSubnetwork != "" {
+		workerIpAddressConfig = dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PRIVATE
+		// If subnetwork is not provided, assume network has auto subnet configuration.
+		if vpcSubnetwork != "" {
+			vpcSubnetwork = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/%s/subnetworks/%s", vpcHostProjectId, dataflowRegion, vpcSubnetwork)
+		}
+	}
+
 	launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  fmt.Sprintf("%s-ordering", jobNamePrefix),
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: ORDERING_TEMPLATE},
@@ -270,6 +291,10 @@ func main() {
 			NumWorkers:            int32(orderingWorkers),
 			AdditionalExperiments: []string{"use_runner_v2"},
 			MachineType:           machineType,
+			Network:               vpcNetwork,
+			Subnetwork:            vpcSubnetwork,
+			IpConfiguration:       workerIpAddressConfig,
+			ServiceAccountEmail:   serviceAccountEmail,
 		},
 	}
 
@@ -300,6 +325,10 @@ func main() {
 			NumWorkers:            int32(writerWorkers),
 			AdditionalExperiments: []string{"use_runner_v2"},
 			MachineType:           machineType,
+			Network:               vpcNetwork,
+			Subnetwork:            vpcSubnetwork,
+			IpConfiguration:       workerIpAddressConfig,
+			ServiceAccountEmail:   serviceAccountEmail,
 		},
 	}
 	req = &dataflowpb.LaunchFlexTemplateRequest{

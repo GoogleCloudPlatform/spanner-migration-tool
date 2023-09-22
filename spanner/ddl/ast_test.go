@@ -17,9 +17,15 @@ package ddl
 import (
 	"testing"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 func TestPrintScalarType(t *testing.T) {
 	tests := []struct {
@@ -592,4 +598,85 @@ func TestGetPGDDL(t *testing.T) {
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
 	}
 	assert.ElementsMatch(t, e3, tablesAndFks)
+}
+
+func TestGetSortedTableIdsBySpName(t *testing.T) {
+	testCases := []struct {
+		description string
+		schema      Schema
+		expected    []string
+	}{
+		// Test Case 1: Empty schema
+		{
+			description: "Empty schema",
+			schema:      Schema{},
+			expected:    []string{},
+		},
+		// Test Case 2: Schema with one table
+		{
+			description: "Schema with one table",
+			schema: Schema{
+				"table_id_1": CreateTable{
+					Name: "Table1",
+					Id:   "table_id_1",
+				},
+			},
+			expected: []string{"table_id_1"},
+		},
+		// Test Case 3: Schema with interleaved tables
+		{
+			description: "Schema with interleaved tables",
+			schema: Schema{
+				"table_id_1": CreateTable{
+					Name: "Table1",
+					Id:   "table_id_1",
+				},
+				"table_id_2": CreateTable{
+					Name:     "Table2",
+					Id:       "table_id_2",
+					ParentId: "table_id_1",
+				},
+				"table_id_3": CreateTable{
+					Name:     "Table3",
+					Id:       "table_id_3",
+					ParentId: "table_id_2",
+				},
+			},
+			expected: []string{"table_id_1", "table_id_2", "table_id_3"},
+		},
+		// Test Case 4: Schema with tables having no parent
+		{
+			description: "Schema with tables having no parent",
+			schema: Schema{
+				"table_id_1": CreateTable{
+					Name: "Table1",
+					Id:   "table_id_1",
+				},
+				"table_id_2": CreateTable{
+					Name: "Table2",
+					Id:   "table_id_2",
+				},
+			},
+			expected: []string{"table_id_1", "table_id_2"},
+		},
+		// Test Case 5: Schema with a table having a non-existent parent
+		{
+			description: "Schema with a table having a non-existent parent",
+			schema: Schema{
+				"table_id_1": CreateTable{
+					Name:     "Table1",
+					Id:       "table_id_1",
+					ParentId: "table_id_2",
+				},
+			},
+			expected: []string{"table_id_1"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			result := GetSortedTableIdsBySpName(tc.schema)
+			assert.ElementsMatch(t, tc.expected, result)
+		})
+	}
 }

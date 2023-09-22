@@ -21,10 +21,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/opcode"
@@ -330,7 +330,7 @@ func processConstraint(conv *internal.Conv, tableId string, constraint *ast.Cons
 // However, for non-primary keys (aka indexes) this is incorrect: we are dropping
 // the MySQL key order specification, as mysqldump parser is not able to parse the
 // order. Check this for more details:
-// https://github.com/cloudspannerecosystem/harbourbridge/issues/96
+// https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues/96
 // TODO: Resolve ordering issue for non-primary keys.
 func toSchemaKeys(columns []*ast.IndexPartSpecification, colNameToIdMap map[string]string) (keys []schema.Key) {
 	for _, spec := range columns {

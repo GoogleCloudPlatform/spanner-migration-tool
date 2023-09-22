@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package utils contains common helper functions used across multiple other packages.
-// Utils should not import any harbourbridge packages.
+// Utils should not import any Spanner migration tool packages.
 package utils
 
 import (
@@ -38,11 +38,11 @@ import (
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"cloud.google.com/go/storage"
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
@@ -56,7 +56,7 @@ type IOStreams struct {
 	BytesRead           int64
 }
 
-// Harbourbridge accepts a manifest file in the form of a json which unmarshalls into the ManifestTables struct.
+// Spanner migration tool accepts a manifest file in the form of a json which unmarshalls into the ManifestTables struct.
 type ManifestTable struct {
 	Table_name    string   `json:"table_name"`
 	File_patterns []string `json:"file_patterns"`
@@ -79,7 +79,7 @@ func NewIOStreams(driver string, dumpFile string) IOStreams {
 		if u.Scheme == constants.GCS_SCHEME {
 			bucketName := u.Host
 			filePath := u.Path[1:] // removes "/" from beginning of path
-			f, err = DownloadFromGCS(bucketName, filePath, "harbourbridge.gcs.data")
+			f, err = DownloadFromGCS(bucketName, filePath, "spanner-migration-tool.gcs.data")
 		} else {
 			f, err = os.Open(dumpFile)
 		}
@@ -113,7 +113,7 @@ func DownloadFromGCS(bucketName, filePath, tmpFile string) (*os.File, error) {
 	defer rc.Close()
 	r := bufio.NewReader(rc)
 
-	tmpDir := filepath.Join(os.TempDir(), constants.HB_TMP_DIR)
+	tmpDir := filepath.Join(os.TempDir(), constants.SMT_TMP_DIR)
 	os.MkdirAll(tmpDir, os.ModePerm)
 	tmpfile, err := os.Create(tmpDir + "/" + tmpFile)
 	if err != nil {
@@ -160,7 +160,7 @@ func PreloadGCSFiles(tables []ManifestTable) ([]ManifestTable, error) {
 				filePath := u.Path[1:] // removes "/" from beginning of path
 				tmpFile := strings.ReplaceAll(filePath, "/", ".")
 				// Files get downloaded to tmp dir.
-				fileLoc := filepath.Join(os.TempDir(), constants.HB_TMP_DIR, tmpFile)
+				fileLoc := filepath.Join(os.TempDir(), constants.SMT_TMP_DIR, tmpFile)
 				_, err = DownloadFromGCS(bucketName, filePath, tmpFile)
 				if err != nil {
 					return nil, fmt.Errorf("cannot download gcs file: %s for table %s", filePath, table.Table_name)
@@ -219,7 +219,7 @@ func WriteToGCS(filePath, fileName, data string) error {
 	return nil
 }
 
-func CreateGCSBucket(bucketName, projectID string) error {
+func CreateGCSBucket(bucketName, projectID, location string) error {
 	ctx := context.Background()
 
 	client, err := storage.NewClient(ctx)
@@ -228,7 +228,10 @@ func CreateGCSBucket(bucketName, projectID string) error {
 	}
 	defer client.Close()
 	bucket := client.Bucket(bucketName)
-	if err := bucket.Create(ctx, projectID, nil); err != nil {
+	attrs := storage.BucketAttrs{
+		Location: location,
+	}
+	if err := bucket.Create(ctx, projectID, &attrs); err != nil {
 		if e, ok := err.(*googleapi.Error); ok {
 			// Ignoring the bucket already exists error.
 			if e.Code != 409 {
@@ -316,7 +319,7 @@ func GetPassword() string {
 	calledFromGCloud := os.Getenv("GCLOUD_HB_PLUGIN")
 	if strings.EqualFold(calledFromGCloud, "true") {
 		fmt.Println("\n Please specify password in enviroment variables (recommended) or --source-profile " +
-			"(not recommended) while using HarbourBridge from gCloud CLI.")
+			"(not recommended) while using Spanner migration tool from gCloud CLI.")
 		return ""
 	}
 	fmt.Print("Enter Password: ")
@@ -406,7 +409,7 @@ func PrintPermissionsWarning(driver string, out *os.File) {
 		`
 WARNING: Please check that permissions for this Spanner instance are
 appropriate. Spanner manages access control at the database level, and the
-database created by HarbourBridge will inherit default permissions from this
+database created by Spanner migration tool will inherit default permissions from this
 instance. All data written to Spanner will be visible to anyone who can
 access the created database. Note that `+driver+` table-level and row-level
 ACLs are dropped during conversion since they are not supported by Spanner.
@@ -473,7 +476,7 @@ func PrintSeekError(driver string, err error, out *os.File) {
 	fmt.Fprintf(out, "Likely cause: not enough space in %s.\n", os.TempDir())
 	fmt.Fprintf(out, "Try writing "+driver+" output to a file first i.e.\n")
 	fmt.Fprintf(out, " "+driver+" > tmpfile\n")
-	fmt.Fprintf(out, "  harbourbridge < tmpfile\n")
+	fmt.Fprintf(out, "  spanner-migration-tool < tmpfile\n")
 }
 
 // NewSpannerClient returns a new Spanner client.
