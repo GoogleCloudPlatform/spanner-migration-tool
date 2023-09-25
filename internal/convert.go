@@ -185,6 +185,12 @@ type Audit struct {
 	SkipMetricsPopulation    bool                                   `json:"-"` // Flag to identify if outgoing metrics metadata needs to skipped
 }
 
+// Stores information related to resources.
+type ShardedDataflowJobResources struct {
+	JobId     string `json:"JobId"`
+	GcloudCmd string `json:"GcloudCmd"`
+}
+
 // Stores information related to the streaming migration process.
 type streamingStats struct {
 	Streaming                bool                        // Flag for confirmation of streaming migration.
@@ -195,8 +201,9 @@ type streamingStats struct {
 	SampleBadWrites          []string                    // Records that faced errors while writing to Cloud Spanner.
 	DataStreamName           string
 	DataflowJobId            string
+	DataflowGcloudCmd        string
 	ShardToDataStreamNameMap map[string]string
-	ShardToDataflowJobMap    map[string]string
+	ShardToDataflowInfoMap   map[string]ShardedDataflowJobResources
 }
 
 // Stores information related to rules during schema conversion
@@ -426,7 +433,7 @@ func addMissingPrimaryKeyWarning(tableId string, colId string, conv *Conv) {
 		columnLevelIssues = tableIssues.ColumnLevelIssues
 	} else {
 		columnLevelIssues = make(map[string][]SchemaIssue)
-	} 
+	}
 	issues := columnLevelIssues[colId]
 	issues = append(issues, MissingPrimaryKey)
 	columnLevelIssues[colId] = issues

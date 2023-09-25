@@ -49,7 +49,8 @@ import { ShardedBulkSourceDetailsFormComponent } from './components/sharded-bulk
 import { ShardedDataflowMigrationDetailsFormComponent } from './components/sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component';
 import { BulkDropRestoreTableDialogComponent } from './components/bulk-drop-restore-table-dialog/bulk-drop-restore-table-dialog.component'
 import { AddNewColumnComponent } from './components/add-new-column/add-new-column.component';
-import { AddShardIdPrimaryKeyComponent } from './components/add-shard-id-primary-key/add-shard-id-primary-key.component'
+import { AddShardIdPrimaryKeyComponent } from './components/add-shard-id-primary-key/add-shard-id-primary-key.component';
+import { EquivalentGcloudCommandComponent } from './components/equivalent-gcloud-command/equivalent-gcloud-command.component';
 
 @NgModule({
   declarations: [
@@ -92,6 +93,7 @@ import { AddShardIdPrimaryKeyComponent } from './components/add-shard-id-primary
     BulkDropRestoreTableDialogComponent,
     AddNewColumnComponent,
     AddShardIdPrimaryKeyComponent,
+    EquivalentGcloudCommandComponent,
   ],
   imports: [
     BrowserModule,

@@ -2292,15 +2292,17 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	if sessionState.Conv.Audit.StreamingStats.DataflowJobId != "" {
 		generatedResources.DataflowJobName = sessionState.Conv.Audit.StreamingStats.DataflowJobId
 		generatedResources.DataflowJobUrl = fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
+		generatedResources.DataflowGcloudCmd = sessionState.Conv.Audit.StreamingStats.DataflowGcloudCmd
 	}
 	for shardId, dsName := range sessionState.Conv.Audit.StreamingStats.ShardToDataStreamNameMap {
 		url := fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, dsName, sessionState.GCPProjectID)
 		resourceDetails := ResourceDetails{JobName: dsName, JobUrl: url}
 		generatedResources.ShardToDatastreamMap[shardId] = resourceDetails
 	}
-	for shardId, dfId := range sessionState.Conv.Audit.StreamingStats.ShardToDataflowJobMap {
+	for shardId, shardedDataflowJobResources := range sessionState.Conv.Audit.StreamingStats.ShardToDataflowInfoMap {
+		dfId := shardedDataflowJobResources.JobId
 		url := fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, dfId, sessionState.GCPProjectID)
-		resourceDetails := ResourceDetails{JobName: dfId, JobUrl: url}
+		resourceDetails := ResourceDetails{JobName: dfId, JobUrl: url, GcloudCmd: shardedDataflowJobResources.GcloudCmd}
 		generatedResources.ShardToDataflowMap[shardId] = resourceDetails
 	}
 	w.WriteHeader(http.StatusOK)
@@ -2954,8 +2956,9 @@ type typeIssue struct {
 }
 
 type ResourceDetails struct {
-	JobName string `json:"JobName"`
-	JobUrl  string `json:"JobUrl"`
+	JobName   string `json:"JobName"`
+	JobUrl    string `json:"JobUrl"`
+	GcloudCmd string `json:"GcloudCmd"`
 }
 type GeneratedResources struct {
 	DatabaseName string `json:"DatabaseName"`
@@ -2967,6 +2970,7 @@ type GeneratedResources struct {
 	DataStreamJobUrl  string `json:"DataStreamJobUrl"`
 	DataflowJobName   string `json:"DataflowJobName"`
 	DataflowJobUrl    string `json:"DataflowJobUrl"`
+	DataflowGcloudCmd string `json:"DataflowGcloudCmd"`
 	//Used for sharded migration flow
 	ShardToDatastreamMap map[string]ResourceDetails `json:"ShardToDatastreamMap"`
 	ShardToDataflowMap   map[string]ResourceDetails `json:"ShardToDataflowMap"`
