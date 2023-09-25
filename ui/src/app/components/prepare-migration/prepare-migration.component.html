@@ -52,16 +52,18 @@
     </mat-form-field>
     <mat-icon class="configure" [matTooltip]="migrationModesHelpText.get(selectedMigrationMode)!">info</mat-icon>
     <br>
-    <mat-form-field appearance="outline">
-        <mat-label>Migration Type:</mat-label>
-        <mat-select [(ngModel)]="selectedMigrationType" (selectionChange)="refreshPrerequisites()">
-            <mat-option *ngFor="let type of migrationTypes" [value]="type.value">
-                {{type.name}}
-            </mat-option>
-        </mat-select>
-    </mat-form-field>
-    <mat-icon class="configure" [matTooltip]="migrationTypesHelpText.get(selectedMigrationType)!">info</mat-icon>
-    <br />
+    <div *ngIf="(selectedMigrationMode !='Schema')">
+        <mat-form-field appearance="outline">
+            <mat-label>Migration Type:</mat-label>
+            <mat-select [(ngModel)]="selectedMigrationType" (selectionChange)="refreshPrerequisites()">
+                <mat-option *ngFor="let type of migrationTypes" [value]="type.value">
+                    {{type.name}}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+        <mat-icon class="configure" [matTooltip]="migrationTypesHelpText.get(selectedMigrationType)!">info</mat-icon>
+        <br />    
+    </div>
     <div *ngIf="!(selectedMigrationMode === 'Schema' || selectedMigrationType === 'lowdt')">
         <mat-form-field appearance="outline">
             <mat-label>Skip Foreign Key Creation:</mat-label>
