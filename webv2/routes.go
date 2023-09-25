@@ -114,6 +114,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/uploadFile", uploadFile).Methods("POST")
 
 	router.HandleFunc("/GetTableWithErrors", getTableWithErrors).Methods("GET")
+	router.HandleFunc("/health", getBackendHealth).Methods("GET")
 
 	router.PathPrefix("/").Handler(frontendStatic)
 	return router

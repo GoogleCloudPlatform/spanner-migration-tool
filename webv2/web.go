@@ -1445,6 +1445,10 @@ type TableInterleaveStatus struct {
 	Comment  string
 }
 
+func getBackendHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
 // setParentTable checks whether specified table can be interleaved, and updates the schema to convert foreign
 // key to interleaved table if 'update' parameter is set to true. If 'update' parameter is set to false, then return
 // whether the foreign key can be converted to interleave table without updating the schema.
