@@ -19,7 +19,15 @@
         <li>Cleanup the migration jobs by clicking the button below.</li>
     </ol>
 </div>
+<div *ngIf="cleaningUp">
+    <br>
+    <span class="spinner">
+        <mat-spinner [diameter]="20">
+        </mat-spinner>
+    </span>
+    <span class="spinner-small-text">Cleaning up resources</span><br>
+</div>
 <div mat-dialog-actions class="buttons-container">
-    <button mat-button color="primary" mat-dialog-close>Cancel</button>
-    <button mat-raised-button color="primary" (click)="cleanUpJobs()">Clean Up</button>
+    <button mat-button color="primary" [disabled]="cleaningUp" mat-dialog-close>Cancel</button>
+    <button mat-raised-button color="primary" (click)="cleanUpJobs()" [disabled]="cleaningUp">Clean Up</button>
   </div>
