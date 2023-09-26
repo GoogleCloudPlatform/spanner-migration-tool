@@ -9,7 +9,7 @@ import { DataService } from 'src/app/services/data/data.service'
 import { MatSnackBar } from '@angular/material/snack-bar'
 import { Overlay } from '@angular/cdk/overlay'
 
-fdescribe('RuleComponent', () => {
+describe('RuleComponent', () => {
   let component: RuleComponent
   let fixture: ComponentFixture<RuleComponent>
 
@@ -27,11 +27,11 @@ fdescribe('RuleComponent', () => {
     fixture.detectChanges()
     component.dataSource = [
       {
-        name: 'varchar',
-        type: 'global',
-        objectType: 'column',
-        associatedObject: 'all tables',
-        enabled: true,
+        Name: 'varchar',
+        Type: 'global_datatype_change',
+        ObjectType: 'column',
+        AssociatedObjects: 'all tables',
+        Enabled: true,
       },
     ]
   })
@@ -67,11 +67,11 @@ fdescribe('RuleComponent', () => {
     expect(tableRows.length).toBe(2)
 
     let row1 = tableRows[1]
-    expect(row1.cells[0].innerHTML).toBe('1')
-    expect(row1.cells[1].innerHTML).toBe('varchar')
-    expect(row1.cells[2].innerHTML).toBe('global')
-    expect(row1.cells[3].innerHTML).toBe('column')
-    expect(row1.cells[4].innerHTML).toBe('all tables')
-    expect(row1.cells[5].innerHTML).toBe('true')
+    expect(row1.cells[0].innerText).toBe('1')
+    expect(row1.cells[1].innerText).toBe('varchar')
+    expect(row1.cells[2].innerText).toBe('Global Datatype Change')
+    expect(row1.cells[3].innerText).toBe('column')
+    expect(row1.cells[4].innerText).toBe('all tables')
+    expect(row1.cells[5].innerText).toBe('Yes')
   })
 })

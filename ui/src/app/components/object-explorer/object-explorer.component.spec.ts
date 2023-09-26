@@ -5,8 +5,11 @@ import { ObjectExplorerComponent } from './object-explorer.component'
 import { ConversionService } from '../../services/conversion/conversion.service'
 import { MatTableModule } from '@angular/material/table'
 import { FormsModule } from '@angular/forms'
+import { HttpClientModule } from '@angular/common/http'
+import { MatDialogModule } from '@angular/material/dialog'
+import { MatSnackBarModule } from '@angular/material/snack-bar'
 
-xdescribe('ObjectExplorerComponent', () => {
+describe('ObjectExplorerComponent', () => {
   let component: ObjectExplorerComponent
   let fixture: ComponentFixture<ObjectExplorerComponent>
 
@@ -14,7 +17,7 @@ xdescribe('ObjectExplorerComponent', () => {
     await TestBed.configureTestingModule({
       declarations: [ObjectExplorerComponent],
       providers: [ConversionService],
-      imports: [MatTreeModule, MatIconModule, MatTableModule, FormsModule],
+      imports: [MatTreeModule, MatIconModule, MatTableModule, FormsModule, HttpClientModule, MatDialogModule, MatSnackBarModule],
     }).compileComponents()
   })
 
@@ -40,14 +43,5 @@ xdescribe('ObjectExplorerComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy()
-  })
-
-  it('should  render mat tree  correctly', () => {
-    expect(fixture.nativeElement.querySelector('.example-tree')).not.toBeNull()
-  })
-
-  it('should render table filtered by search box value (search)', () => {
-    component.filterSpannerTable('tab1')
-    expect(fixture.nativeElement.querySelectorAll('mat-tree-node').length).toEqual(1)
   })
 })

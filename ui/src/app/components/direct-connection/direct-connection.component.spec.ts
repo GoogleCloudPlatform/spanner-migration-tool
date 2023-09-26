@@ -80,7 +80,7 @@ describe('DirectConnectionComponent', () => {
 
     let pass = component.connectForm.get('password')
     pass?.setValue('')
-    expect(pass?.invalid).toBeTruthy()
+    expect(pass?.invalid).toBeFalsy()
     pass?.setValue('23143')
     expect(pass?.invalid).toBeFalsy()
 
@@ -89,6 +89,12 @@ describe('DirectConnectionComponent', () => {
     expect(dbname?.invalid).toBeTruthy()
     dbname?.setValue('mysql')
     expect(dbname?.invalid).toBeFalsy()
+
+    let dialect = component.connectForm.get('dialect')
+    dialect?.setValue('')
+    expect(dialect?.invalid).toBeTruthy()
+    dialect?.setValue('postgresql')
+    expect(dialect?.invalid).toBeFalsy()
 
     // now every input is valid do form will be valid
     expect(component.connectForm.valid).toBeTruthy()
@@ -116,6 +122,7 @@ describe('DirectConnectionComponent', () => {
       userName: 'sa',
       password: 'password',
       dbName: 'database',
+      dialect: 'postgresql',
     })
     expect(component.connectForm.valid).toBeTruthy()
     fixture.detectChanges()

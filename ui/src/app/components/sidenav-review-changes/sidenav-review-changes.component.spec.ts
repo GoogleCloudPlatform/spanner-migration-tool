@@ -1,4 +1,6 @@
+import { HttpClientModule } from '@angular/common/http'
 import { ComponentFixture, TestBed } from '@angular/core/testing'
+import { MatSnackBarModule } from '@angular/material/snack-bar'
 
 import { SidenavReviewChangesComponent } from './sidenav-review-changes.component'
 
@@ -9,6 +11,7 @@ describe('SidenavReviewChangesComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       declarations: [SidenavReviewChangesComponent],
+      imports: [ HttpClientModule, MatSnackBarModule ]
     }).compileComponents()
   })
 
