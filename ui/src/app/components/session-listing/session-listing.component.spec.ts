@@ -3,6 +3,7 @@ import { RouterModule, Routes } from '@angular/router'
 import { SessionListingComponent } from './session-listing.component'
 import { HttpClientModule } from '@angular/common/http'
 import { WorkspaceComponent } from '../workspace/workspace.component'
+import { MatSnackBarModule } from '@angular/material/snack-bar'
 
 describe('SessionListingComponent', () => {
   let component: SessionListingComponent
@@ -12,7 +13,7 @@ describe('SessionListingComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       declarations: [SessionListingComponent],
-      imports: [HttpClientModule, RouterModule.forRoot(appRoutes)],
+      imports: [HttpClientModule, RouterModule.forRoot(appRoutes), MatSnackBarModule],
     }).compileComponents()
   })
 
