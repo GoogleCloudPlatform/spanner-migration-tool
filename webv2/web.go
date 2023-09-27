@@ -600,8 +600,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	// We don't support Dynamodb in web hence no need to pass schema sample size here.
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver)
 	sourceProfile.Driver = dc.Config.Driver
-	targetProfile, _ := profiles.NewTargetProfile(fmt.Sprintf("dialect=%s", dc.SpannerDetails.Dialect))
-	conv, err := conversion.SchemaConv(sourceProfile, targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
+	conv, err := conversion.SchemaFromDump(sourceProfile.Driver, dc.SpannerDetails.Dialect, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
