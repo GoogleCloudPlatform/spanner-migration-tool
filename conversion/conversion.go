@@ -84,7 +84,7 @@ func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.Tar
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
 		return schemaFromDatabase(sourceProfile, targetProfile)
 	case constants.PGDUMP, constants.MYSQLDUMP:
-		return schemaFromDump(sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper)
+		return SchemaFromDump(sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", sourceProfile.Driver)
 	}
@@ -395,7 +395,7 @@ func getDynamoDBClientConfig() (*aws.Config, error) {
 	return &cfg, nil
 }
 
-func schemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams) (*internal.Conv, error) {
+func SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams) (*internal.Conv, error) {
 	f, n, err := getSeekable(ioHelper.In)
 	if err != nil {
 		utils.PrintSeekError(driver, err, ioHelper.Out)
