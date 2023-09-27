@@ -321,7 +321,7 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
 	updateShardsWithDataflowConfig(sourceProfile.Config.ShardConfigurationDataflow)
 	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
-	conv.Audit.StreamingStats.ShardToDataflowJobMap = make(map[string]string)
+	conv.Audit.StreamingStats.ShardToDataflowInfoMap = make(map[string]internal.ShardedDataflowJobResources)
 	tableList, err := common.GetIncludedSrcTablesFromConv(conv)
 	if err != nil {
 		fmt.Printf("unable to determine tableList from schema, falling back to full database")
