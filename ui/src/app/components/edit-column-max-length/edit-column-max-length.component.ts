@@ -44,7 +44,7 @@ export class EditColumnMaxLengthComponent implements OnInit {
         this.tableNames = Object.keys(res.SpSchema).map(
           (talbeId: string) => res.SpSchema[talbeId].Name
         )
-        this.tableNames.push('All table')
+        this.tableNames.push('All tables')
         if (this.conv.SpDialect === Dialect.PostgreSQLDialect) {
           this.spTypes = [
             {
@@ -102,7 +102,7 @@ export class EditColumnMaxLengthComponent implements OnInit {
     let tableId: string = this.conversion.getTableIdFromSpName(ruleValue.tableName, this.conv)
     let associatedObjects = tableId
     if (associatedObjects === '') {
-      associatedObjects = 'All table'
+      associatedObjects = 'All tables'
     }
     let payload: IRule = {
       Name: this.ruleName,

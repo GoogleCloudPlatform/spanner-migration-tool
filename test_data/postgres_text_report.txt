@@ -32,14 +32,14 @@ Schema conversion: POOR ( 0% of 4 columns mapped cleanly) + missing primary key.
 Data conversion: OK (94% of 1000 rows written to Spanner).
 
 Warnings
-1) Column 'synth_id' was added because table 'bad_schema' didn't have a primary
-   key. Spanner requires a primary key for every table.
-2) Table bad_schema: Some columns will consume more storage in Spanner e.g. for
+1) Table 'bad_schema': Some columns will consume more storage in Spanner e.g. for
    column 'b', source DB type int4 is mapped to Spanner data type int64.
-3) Table 'bad_schema': Column 'c', type int4[4][2] is mapped to string(max).
+2) Table 'bad_schema': Column 'c', type int4[4][2] is mapped to string(max).
    Spanner doesn't support multi-dimensional arrays.
-4) Table 'bad_schema': Column 'd', type circle is mapped to string(max). No
+3) Table 'bad_schema': Column 'd', type circle is mapped to string(max). No
    appropriate Spanner type. The column will be made nullable in Spanner.
+4) Column 'synth_id' was added because table 'bad_schema' didn't have a primary
+   key. Spanner requires a primary key for every table.
 
 ----------------------------
 Table default_value
@@ -71,12 +71,12 @@ Schema conversion: POOR ( 0% of 3 columns mapped cleanly) + missing primary key.
 Data conversion: POOR (60% of 5000 rows written to Spanner).
 
 Warnings
-1) Column 'synth_id' was added because table 'no_pk' didn't have a primary key.
-   Spanner requires a primary key for every table.
-2) Table 'no_pk': Column a, Array datatype migration is not fully supported.
+1) Table 'no_pk': Column 'a', Array datatype migration is not fully supported.
    Please validate data after data migration.
-3) Table no_pk: Some columns will consume more storage in Spanner e.g. for column
-   'b', source DB type int4 is mapped to Spanner data type int64.
+2) Table 'no_pk': Some columns will consume more storage in Spanner e.g. for
+   column 'b', source DB type int4 is mapped to Spanner data type int64.
+3) Column 'synth_id' was added because table 'no_pk' didn't have a primary key.
+   Spanner requires a primary key for every table.
 
 ----------------------------
 Unexpected Conditions

@@ -89,6 +89,7 @@ const (
 	DefaultValue SchemaIssue = iota
 	ForeignKey
 	MissingPrimaryKey
+	UniqueIndexPrimaryKey
 	MultiDimensionalArray
 	NoGoodType
 	Numeric
@@ -403,7 +404,7 @@ func (conv *Conv) AddPrimaryKeys() {
 						for _, indexKey := range index.Keys {
 							ct.PrimaryKeys = append(ct.PrimaryKeys, ddl.IndexKey{ColId: indexKey.ColId, Desc: indexKey.Desc, Order: indexKey.Order})
 							conv.UniquePKey[t] = append(conv.UniquePKey[t], indexKey.ColId)
-							addMissingPrimaryKeyWarning(ct.Id, indexKey.ColId, conv)
+							addMissingPrimaryKeyWarning(ct.Id, indexKey.ColId, conv, UniqueIndexPrimaryKey)
 						}
 						primaryKeyPopulated = true
 						ct.Indexes = append(ct.Indexes[:i], ct.Indexes[i+1:]...)
@@ -418,7 +419,7 @@ func (conv *Conv) AddPrimaryKeys() {
 				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}}
 				ct.PrimaryKeys = []ddl.IndexKey{{ColId: columnId, Order: 1}}
 				conv.SyntheticPKeys[t] = SyntheticPKey{columnId, 0}
-				addMissingPrimaryKeyWarning(ct.Id, columnId, conv)
+				addMissingPrimaryKeyWarning(ct.Id, columnId, conv, MissingPrimaryKey)
 			}
 			conv.SpSchema[t] = ct
 		}
@@ -426,7 +427,7 @@ func (conv *Conv) AddPrimaryKeys() {
 }
 
 // Add 'Missing Primary Key' as a Warning inside ColumnLevelIssues of conv object
-func addMissingPrimaryKeyWarning(tableId string, colId string, conv *Conv) {
+func addMissingPrimaryKeyWarning(tableId string, colId string, conv *Conv, schemaIssue SchemaIssue) {
 	tableLevelIssues := conv.SchemaIssues[tableId].TableLevelIssues
 	var columnLevelIssues map[string][]SchemaIssue
 	if tableIssues, ok := conv.SchemaIssues[tableId]; ok {
@@ -434,9 +435,7 @@ func addMissingPrimaryKeyWarning(tableId string, colId string, conv *Conv) {
 	} else {
 		columnLevelIssues = make(map[string][]SchemaIssue)
 	}
-	issues := columnLevelIssues[colId]
-	issues = append(issues, MissingPrimaryKey)
-	columnLevelIssues[colId] = issues
+	columnLevelIssues[colId] = append(columnLevelIssues[colId], schemaIssue)
 	conv.SchemaIssues[tableId] = TableIssues{
 		TableLevelIssues:  tableLevelIssues,
 		ColumnLevelIssues: columnLevelIssues,
