@@ -172,7 +172,7 @@ func RunParallelTasks[I any, O any](input []I, numWorkers int, f func(i I, mutex
 	}()
 
 	mutex := &sync.Mutex{}
-	logger.Log.Debug(fmt.Sprint("initiating workers = ", numWorkers))
+	logger.Log.Debug(fmt.Sprint("Number of configured workers are ", numWorkers))
 	for w := 0; w < numWorkers; w++ {
 		go processAsync(f, inputChannel, outputChannel, mutex, wg)
 	}
