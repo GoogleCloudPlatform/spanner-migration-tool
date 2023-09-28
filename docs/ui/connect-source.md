@@ -29,6 +29,18 @@ In this connection mechanism the user needs to first select the type of source d
 
 ![](https://services.google.com/fh/files/helpcenter/connect.png)
 
+### Sharded migrations
+
+Spanner migration tool supports sharded database migrations for MySQL source database. The procedure to connect to the source database is identical to a non-sharded migration, with minor differences:
+
+1. Select `MySQL` as the source database.
+2. Select `Yes` in the form field for this migration being a sharded migration.
+3. Enter the connection details of the [schema source](../minimal/minimal.md#terminology) of your sharded MySQL database. Please refer to the linked page to understand Spanner migration tool specific terminology for sharded migrations.
+4. Click Test connection.
+5. If the connection is successful, click on connect to proceed.
+
+![](https://services.google.com/fh/files/misc/connect_sharded.png)
+
 {: .note }
 Users can connect to local, cloud and on-prem instances.
 
