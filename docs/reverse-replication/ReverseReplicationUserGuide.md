@@ -45,7 +45,10 @@ These steps are achieved by two Dataflow jobs, along with an interim buffer whic
 
 A few prerequisites must be considered before starting with reverse replication.
 
-1. Make sure that there is network connectivity between source database and your GCP project on which the Dataflow jobs will run.Ensure the Dataflow worker IPs can access the MySQL IPs, meaning Dataflow IPs are allowlisted on the MySQL instance. The MySQL credentials are correctly specidied in the [source shards file](./RunnigReverseReplication.md#sample-sourceshards-file) and MySQL server  is up. 
+1. Ensure network connectivity between the source database and your GCP project, where your Dataflow jobs will run.
+  - Allowlist Dataflow worker IPs on the MySQL instance so that they can access the MySQL IPs.
+  - Check that the MySQL credentials are correctly specified in the [source shards file](./RunnigReverseReplication.md#sample-sourceshards-file).
+  - Check that the MySQL server is up. 
 2. Ensure that Dataflow permissions are present.[Basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin:~:text=Grant%20roles%20to%20your%20Compute%20Engine%20default%20service%20account.%20Run%20the%20following%20command%20once%20for%20each%20of%20the%20following%20IAM%20roles%3A%20roles/dataflow.admin%2C%20roles/dataflow.worker%2C%20roles/bigquery.dataEditor%2C%20roles/pubsub.editor%2C%20roles/storage.objectAdmin%2C%20and%20roles/artifactregistry.reader) and [Flex template permissions](https://cloud.google.com/dataflow/docs/guides/templates/configuring-flex-templates#permissions).
 3. Ensure the compute engine service account has the following permissions:
     - roles/pubsub.subscriber
