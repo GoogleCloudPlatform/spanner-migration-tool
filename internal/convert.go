@@ -435,9 +435,7 @@ func addMissingPrimaryKeyWarning(tableId string, colId string, conv *Conv, schem
 	} else {
 		columnLevelIssues = make(map[string][]SchemaIssue)
 	}
-	issues := columnLevelIssues[colId]
-	issues = append(issues, schemaIssue)
-	columnLevelIssues[colId] = issues
+	columnLevelIssues[colId] = append(columnLevelIssues[colId], schemaIssue)
 	conv.SchemaIssues[tableId] = TableIssues{
 		TableLevelIssues:  tableLevelIssues,
 		ColumnLevelIssues: columnLevelIssues,
