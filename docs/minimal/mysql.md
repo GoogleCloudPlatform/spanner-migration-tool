@@ -66,8 +66,8 @@ Follow the steps below to configure a minimal downtime migration are MySQL:
 
 1. [Connect to source database](../ui/connect-source.md).
 2. [Connect to spanner instance](../ui/connect-spanner.md).
-3. [Convert MySQL schema to Spanner schema using the schema conversion workspace](../ui/schema-conv/schema-conv.md). 
-4. Follow the documentation in the schema conversion workspace section of the documentation for different schema modifications that are supported by SMT. For guidance on specific data type conversion for MySQL, look at the [data conversion](../data-types/mysql.md) for MySQL documentation. Note that a new column, `migration_shard_id` gets added to each table for a sharded migration. More on that [here](../ui/schema-conv/sharded-migration.md#addition-of-migration_shard_id).
+3. [Convert MySQL schema to Spanner schema using the schema conversion workspace](../ui/schema-conv/schema-conv.md).
+4. Follow the documentation in the schema conversion workspace section of the documentation for different schema modifications that are supported by SMT. For guidance on specific data type conversion for MySQL, look at the [data conversion](../data-types/mysql.md) for MySQL documentation. For guidance on schema changes for sharded MySQL migrations, look [here](../ui/schema-conv/sharded-migration.md#addition-of-migration_shard_id).
 5. [Configure datastream and dataflow details](../ui/prepare-migration/conn-profiles.md). Sharded migration configuration details are also available here.
 6. Wait for the migration to be orchestrated by SMT.
 7. Look at the list of [generated resources](../ui/prepare-migration/monitor.md/#generated-resources) for links to the Datastream stream and the Dataflow job created.
