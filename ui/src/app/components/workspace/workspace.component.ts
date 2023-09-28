@@ -397,6 +397,11 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
             data: { message: "Please configure spanner project id and instance id to proceed", type: 'error', title: 'Configure Spanner' },
             maxWidth: '500px',
           })
+        } else if (Object.keys(this.conv.SpSchema).length == 0) {
+          this.dialog.open(InfodialogComponent, {
+            data: { message: "Please restore some table(s) to proceed with the migration", type: 'error', title: 'All tables skipped' },
+            maxWidth: '500px',
+          })
         } else {
           this.router.navigate(['/prepare-migration'])
         }

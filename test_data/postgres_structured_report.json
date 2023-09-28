@@ -53,12 +53,8 @@
                "issueType": "Warnings",
                "issueList": [
                   {
-                     "category": "MISSING_PRIMARY_KEY",
-                     "description": "Column 'synth_id' was added because table 'bad_schema' didn't have a primary key. Spanner requires a primary key for every table"
-                  },
-                  {
                      "category": "STORAGE_WARNING",
-                     "description": "Table bad_schema: Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int4 is mapped to Spanner data type int64"
+                     "description": "Table 'bad_schema': Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int4 is mapped to Spanner data type int64"
                   },
                   {
                      "category": "MULTI_DIMENSIONAL_ARRAY_USES",
@@ -67,6 +63,10 @@
                   {
                      "category": "INAPPROPRIATE_TYPE",
                      "description": "Table 'bad_schema': Column 'd', type circle is mapped to string(max). No appropriate Spanner type. The column will be made nullable in Spanner"
+                  },
+                  {
+                     "category": "MISSING_PRIMARY_KEY",
+                     "description": "Column 'synth_id' was added because table 'bad_schema' didn't have a primary key. Spanner requires a primary key for every table"
                   }
                ]
             }
@@ -157,16 +157,16 @@
                "issueType": "Warnings",
                "issueList": [
                   {
-                     "category": "MISSING_PRIMARY_KEY",
-                     "description": "Column 'synth_id' was added because table 'no_pk' didn't have a primary key. Spanner requires a primary key for every table"
-                  },
-                  {
                      "category": "ARRAY_TYPE_NOT_SUPPORTED",
-                     "description": "Table 'no_pk': Column a, Array datatype migration is not fully supported. Please validate data after data migration"
+                     "description": "Table 'no_pk': Column 'a', Array datatype migration is not fully supported. Please validate data after data migration"
                   },
                   {
                      "category": "STORAGE_WARNING",
-                     "description": "Table no_pk: Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int4 is mapped to Spanner data type int64"
+                     "description": "Table 'no_pk': Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int4 is mapped to Spanner data type int64"
+                  },
+                  {
+                     "category": "MISSING_PRIMARY_KEY",
+                     "description": "Column 'synth_id' was added because table 'no_pk' didn't have a primary key. Spanner requires a primary key for every table"
                   }
                ]
             }

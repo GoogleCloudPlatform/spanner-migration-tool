@@ -33,10 +33,10 @@ Schema conversion: POOR ( 0% of 2 columns mapped cleanly) + missing primary key.
 Data conversion: OK (94% of 1000 rows written to Spanner).
 
 Warnings
-1) Column 'synth_id' was added because table 'bad_schema' didn't have a primary
-   key. Spanner requires a primary key for every table.
-2) Table bad_schema: Some columns will consume more storage in Spanner e.g. for
+1) Table 'bad_schema': Some columns will consume more storage in Spanner e.g. for
    column 'a', source DB type float is mapped to Spanner data type float64.
+2) Column 'synth_id' was added because table 'bad_schema' didn't have a primary
+   key. Spanner requires a primary key for every table.
 
 ----------------------------
 Table default_value
@@ -68,10 +68,10 @@ Schema conversion: POOR (33% of 3 columns mapped cleanly) + missing primary key.
 Data conversion: POOR (60% of 5000 rows written to Spanner).
 
 Warnings
-1) Column 'synth_id' was added because table 'no_pk' didn't have a primary key.
+1) Table 'no_pk': Some columns will consume more storage in Spanner e.g. for
+   column 'b', source DB type int(11) is mapped to Spanner data type int64.
+2) Column 'synth_id' was added because table 'no_pk' didn't have a primary key.
    Spanner requires a primary key for every table.
-2) Table no_pk: Some columns will consume more storage in Spanner e.g. for column
-   'b', source DB type int(11) is mapped to Spanner data type int64.
 
 ----------------------------
 Unexpected Conditions

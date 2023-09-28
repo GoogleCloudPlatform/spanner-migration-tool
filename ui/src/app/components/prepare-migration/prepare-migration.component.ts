@@ -14,6 +14,7 @@ import { SourceDetailsFormComponent } from '../source-details-form/source-detail
 import { EndMigrationComponent } from '../end-migration/end-migration.component'
 import { IDataflowConfig, IMigrationProfile, ISetUpConnectionProfile, IShardedDataflowMigration } from 'src/app/model/profile'
 import { DataflowFormComponent } from '../dataflow-form/dataflow-form.component'
+import { EquivalentGcloudCommandComponent } from '../equivalent-gcloud-command/equivalent-gcloud-command.component'
 import ISpannerConfig from 'src/app/model/spanner-config'
 import { ShardedBulkSourceDetailsFormComponent } from '../sharded-bulk-source-details-form/sharded-bulk-source-details-form.component'
 import { IShardSessionDetails } from 'src/app/model/db-config'
@@ -77,6 +78,7 @@ export class PrepareMigrationComponent implements OnInit {
     DataStreamJobUrl: '',
     DataflowJobName: '',
     DataflowJobUrl: '',
+    DataflowGcloudCmd: '',
     ShardToDatastreamMap: new Map<string, ResourceDetails>(),
     ShardToDataflowMap: new Map<string, ResourceDetails>(),
   }
@@ -430,7 +432,14 @@ export class PrepareMigrationComponent implements OnInit {
     )
   }
 
-
+  openGcloudPopup(cmd: string){
+    let dialogRef = this.dialog.open(EquivalentGcloudCommandComponent, {
+          width: '30vw',
+          minWidth: '400px',
+          maxWidth: '500px',
+          data: cmd,
+        })
+  }
 
   openDataflowForm() {
     let dialogRef = this.dialog.open(DataflowFormComponent, {
@@ -821,6 +830,7 @@ export class PrepareMigrationComponent implements OnInit {
       DataStreamJobUrl: '',
       DataflowJobName: '',
       DataflowJobUrl: '',
+      DataflowGcloudCmd: '',
       ShardToDatastreamMap: new Map<string, ResourceDetails>(),
       ShardToDataflowMap: new Map<string, ResourceDetails>()
     }
