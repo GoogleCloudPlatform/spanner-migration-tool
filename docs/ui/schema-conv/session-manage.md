@@ -3,7 +3,7 @@ layout: default
 title: Session Management
 parent: Schema Conversion Workspace
 grand_parent: SMT UI
-nav_order: 7
+nav_order: 8
 ---
 
 # Session Management
