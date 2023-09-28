@@ -53,12 +53,12 @@
                "issueType": "Warnings",
                "issueList": [
                   {
-                     "category": "MISSING_PRIMARY_KEY",
-                     "description": "Column 'synth_id' was added because table 'bad_schema' didn't have a primary key. Spanner requires a primary key for every table"
+                     "category": "STORAGE_WARNING",
+                     "description": "Table 'bad_schema': Some columns will consume more storage in Spanner e.g. for column 'a', source DB type float is mapped to Spanner data type float64"
                   },
                   {
-                     "category": "STORAGE_WARNING",
-                     "description": "Table bad_schema: Some columns will consume more storage in Spanner e.g. for column 'a', source DB type float is mapped to Spanner data type float64"
+                     "category": "MISSING_PRIMARY_KEY",
+                     "description": "Column 'synth_id' was added because table 'bad_schema' didn't have a primary key. Spanner requires a primary key for every table"
                   }
                ]
             }
@@ -149,12 +149,12 @@
                "issueType": "Warnings",
                "issueList": [
                   {
-                     "category": "MISSING_PRIMARY_KEY",
-                     "description": "Column 'synth_id' was added because table 'no_pk' didn't have a primary key. Spanner requires a primary key for every table"
+                     "category": "STORAGE_WARNING",
+                     "description": "Table 'no_pk': Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int(11) is mapped to Spanner data type int64"
                   },
                   {
-                     "category": "STORAGE_WARNING",
-                     "description": "Table no_pk: Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int(11) is mapped to Spanner data type int64"
+                     "category": "MISSING_PRIMARY_KEY",
+                     "description": "Column 'synth_id' was added because table 'no_pk' didn't have a primary key. Spanner requires a primary key for every table"
                   }
                ]
             }

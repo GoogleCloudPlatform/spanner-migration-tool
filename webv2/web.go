@@ -600,8 +600,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	// We don't support Dynamodb in web hence no need to pass schema sample size here.
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver)
 	sourceProfile.Driver = dc.Config.Driver
-	targetProfile, _ := profiles.NewTargetProfile(fmt.Sprintf("dialect=%s", dc.SpannerDetails.Dialect))
-	conv, err := conversion.SchemaConv(sourceProfile, targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
+	conv, err := conversion.SchemaFromDump(sourceProfile.Driver, dc.SpannerDetails.Dialect, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
@@ -979,6 +978,11 @@ func applyRule(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
 			return
 		}
+		tableName := checkInterleaving()
+		if tableName != "" {
+			http.Error(w, fmt.Sprintf("Rule cannot be added because some tables, eg: %v are interleaved. Please remove interleaving and try again.", tableName), http.StatusBadRequest)
+			return
+		}
 		setShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
 		addShardIdColumnToForeignKeys(shardIdPrimaryKey.AddedAtTheStart)
 	} else {
@@ -1083,6 +1087,11 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
 			return
 		}
+		tableName := checkInterleaving()
+		if tableName != "" {
+			http.Error(w, fmt.Sprintf("Rule cannot be deleted because some tables, eg: %v are interleaved. Please remove interleaving and try again.", tableName), http.StatusBadRequest)
+			return
+		}
 		revertShardIdColumnAsPrimaryKey(shardIdPrimaryKey.AddedAtTheStart)
 		removeShardIdColumnFromForeignKeys(shardIdPrimaryKey.AddedAtTheStart)
 	} else {
@@ -1102,6 +1111,16 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 
+}
+
+func checkInterleaving() string {
+	sessionState := session.GetSessionState()
+	for _, spSchema := range sessionState.Conv.SpSchema {
+		if spSchema.ParentId != "" {
+			return spSchema.Name
+		}
+	}
+	return ""
 }
 
 func addShardIdToForeignKeyPerTable(isAddedAtFirst bool, table ddl.CreateTable) {
@@ -1249,7 +1268,7 @@ func setSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string) {
 func revertSpColMaxLength(spColMaxLength ColMaxLength, associatedObjects string) {
 	sessionState := session.GetSessionState()
 	spColLen, _ := strconv.ParseInt(spColMaxLength.SpColMaxLength, 10, 64)
-	if associatedObjects == "All table" {
+	if associatedObjects == "All tables" {
 		for tId := range sessionState.Conv.SpSchema {
 			for colId, colDef := range sessionState.Conv.SpSchema[tId].ColDefs {
 				if colDef.T.Name == spColMaxLength.SpDataType {
@@ -2292,15 +2311,17 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	if sessionState.Conv.Audit.StreamingStats.DataflowJobId != "" {
 		generatedResources.DataflowJobName = sessionState.Conv.Audit.StreamingStats.DataflowJobId
 		generatedResources.DataflowJobUrl = fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
+		generatedResources.DataflowGcloudCmd = sessionState.Conv.Audit.StreamingStats.DataflowGcloudCmd
 	}
 	for shardId, dsName := range sessionState.Conv.Audit.StreamingStats.ShardToDataStreamNameMap {
 		url := fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, dsName, sessionState.GCPProjectID)
 		resourceDetails := ResourceDetails{JobName: dsName, JobUrl: url}
 		generatedResources.ShardToDatastreamMap[shardId] = resourceDetails
 	}
-	for shardId, dfId := range sessionState.Conv.Audit.StreamingStats.ShardToDataflowJobMap {
+	for shardId, shardedDataflowJobResources := range sessionState.Conv.Audit.StreamingStats.ShardToDataflowInfoMap {
+		dfId := shardedDataflowJobResources.JobId
 		url := fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, dfId, sessionState.GCPProjectID)
-		resourceDetails := ResourceDetails{JobName: dfId, JobUrl: url}
+		resourceDetails := ResourceDetails{JobName: dfId, JobUrl: url, GcloudCmd: shardedDataflowJobResources.GcloudCmd}
 		generatedResources.ShardToDataflowMap[shardId] = resourceDetails
 	}
 	w.WriteHeader(http.StatusOK)
@@ -2954,8 +2975,9 @@ type typeIssue struct {
 }
 
 type ResourceDetails struct {
-	JobName string `json:"JobName"`
-	JobUrl  string `json:"JobUrl"`
+	JobName   string `json:"JobName"`
+	JobUrl    string `json:"JobUrl"`
+	GcloudCmd string `json:"GcloudCmd"`
 }
 type GeneratedResources struct {
 	DatabaseName string `json:"DatabaseName"`
@@ -2967,6 +2989,7 @@ type GeneratedResources struct {
 	DataStreamJobUrl  string `json:"DataStreamJobUrl"`
 	DataflowJobName   string `json:"DataflowJobName"`
 	DataflowJobUrl    string `json:"DataflowJobUrl"`
+	DataflowGcloudCmd string `json:"DataflowGcloudCmd"`
 	//Used for sharded migration flow
 	ShardToDatastreamMap map[string]ResourceDetails `json:"ShardToDatastreamMap"`
 	ShardToDataflowMap   map[string]ResourceDetails `json:"ShardToDataflowMap"`

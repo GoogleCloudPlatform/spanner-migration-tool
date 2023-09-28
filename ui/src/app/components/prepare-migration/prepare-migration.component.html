@@ -326,6 +326,10 @@
         <span *ngIf="resourcesGenerated.DataflowJobName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
             <li>Dataflow job: <a [href]="resourcesGenerated.DataflowJobUrl"
                     target="_blank">{{resourcesGenerated.DataflowJobName}}</a>
+                    <span><button mat-button class="configure" (click)="openGcloudPopup(resourcesGenerated.DataflowGcloudCmd)">
+                        <mat-icon matTooltip="Equivalent gCloud command" matTooltipPosition="above">
+                            code</mat-icon>
+                    </button></span>
             </li>
         </span>
         <span *ngIf="resourcesGenerated.DataStreamJobName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
@@ -337,13 +341,19 @@
             <li *ngFor="let dfJob of resourcesGenerated.ShardToDataflowMap | keyvalue">
                 Dataflow job for shardId: {{ dfJob.key }} - <a [href]="dfJob.value.JobUrl"
                     target="_blank">{{dfJob.value.JobName}}</a>
+                    <span><button mat-button class="configure" (click)="openGcloudPopup(dfJob.value.GcloudCmd)">
+                        <mat-icon matTooltip="Equivalent gCloud command" matTooltipPosition="above">
+                            code</mat-icon>
+                    </button></span>
             </li>
         </span>
         <br><br>
+        <span *ngIf="(selectedMigrationType ==='lowdt')">
         <b>Note: </b>Spanner migration tool has orchestrated the migration successfully. For minimal downtime
         migrations, it is safe to close Spanner migration tool now without affecting the progress of the migration.
         Please note that Spanner migration tool does not save the IDs of the Dataflow jobs created once closed, so
         please keep copy over the links in the Generated Resources section above before closing Spanner migration tool.
+        </span>
     </div>
     <div class="migrate">
         <span *ngIf="!isLowDtMigrationRunning">

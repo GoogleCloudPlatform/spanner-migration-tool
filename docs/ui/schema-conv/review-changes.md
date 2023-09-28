@@ -3,7 +3,7 @@ layout: default
 title: Review Changes
 parent: Schema Conversion Workspace
 grand_parent: SMT UI
-nav_order: 5
+nav_order: 6
 ---
 
 # Review Changes

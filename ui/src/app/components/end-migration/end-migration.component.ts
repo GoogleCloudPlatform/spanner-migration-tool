@@ -17,6 +17,7 @@ export class EndMigrationComponent implements OnInit {
     SourceDatabaseName: '',
     SourceDatabaseType: ''
   }
+  cleaningUp: boolean = false
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: ISourceAndTargetDetails,
@@ -36,12 +37,15 @@ export class EndMigrationComponent implements OnInit {
   }
 
   cleanUpJobs() {
+    this.cleaningUp = true
     this.fetch.cleanUpStreamingJobs().subscribe({
       next: () => {
+        this.cleaningUp = false
         this.snack.openSnackBar('Dataflow and datastream jobs will be cleaned up', 'Close')
         this.dialogRef.close()
       },
       error: (err: any) => {
+        this.cleaningUp = false
         this.snack.openSnackBar(err.error, 'Close')
       }
     })
