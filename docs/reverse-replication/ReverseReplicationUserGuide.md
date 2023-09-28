@@ -164,6 +164,12 @@ In this case, check if you observe the following:
 
 - ***There is data in Pub/Sub yet not present in source database***
 
+    Check for  logs to ensure that records read being read from PubSub. Logs should have messages like below, which indicate records are read from the buffer.
+    ![DataflowLog](https://services.google.com/fh/files/misc/recordsreadfrompubsub.png)
+
+    Check for logs to see if there are any Connection exception warnings like below. This means that the source database is not reachable and the job keeps retrying to connect, hence nothing gets written to the source database.
+    ![DataflowLog](https://services.google.com/fh/files/misc/connectionretry.png)
+
   Records of below nature are dropped from reverse replication. Check the Dataflow logs to see if they are dropped.
 
      1.Records for which primary key cannot be determined on the source database.This can happen when the source database table does not have a primary key, or the primary key value was not present in the change stream data, or the record was deleted on Cloud Spanner and the deleted record was removed from Cloud Spanner due to lapse of retention period by the time the record was to be reverse replicated.
