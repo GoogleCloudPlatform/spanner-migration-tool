@@ -11,6 +11,7 @@ import { FetchService } from '../fetch/fetch.service';
 export class BackendHealthService {
   private healthCheckSubscription: Subscription = new Subscription;
   private isBackendHealthy: boolean = true;
+  private unHealthyCheckCount: number = 0;
 
   constructor(private fetch: FetchService,
     private dialog: MatDialog) { }
@@ -31,23 +32,29 @@ export class BackendHealthService {
       this.checkHealth().subscribe(
         (isHealthy) => {
           if (!isHealthy) {
-            // Backend is unhealthy, open the dialog and unsubscribe
-            this.openHealthDialog();
-            this.stopHealthCheck();
+            if (this.unHealthyCheckCount ==1) {
+              // Backend is unhealthy, open the dialog and unsubscribe
+              this.openHealthDialog();
+            }
+            this.unHealthyCheckCount=1;
           }
         }
       );
     }
 
   openHealthDialog() {
-    this.dialog.open(InfodialogComponent, {
+    let dialogRef = this.dialog.open(InfodialogComponent, {
       width: '500px',
       data: {
-        message: 'Please check terminal logs for more details. In case of a crash please report to the : xxx team',
+        message: 'Please check terminal logs for more details. In case of a crash please file a github issue with all the details.',
         type: 'error',
         title: 'Backend server unresponsive',
       }
     });
+    this.stopHealthCheck();
+    dialogRef.afterClosed().subscribe(() => {
+      this.startHealthCheck();
+    })
   }
 
   checkHealth(): Observable<boolean> {
