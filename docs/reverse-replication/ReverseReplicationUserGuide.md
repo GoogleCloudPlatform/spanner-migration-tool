@@ -45,7 +45,10 @@ These steps are achieved by two Dataflow jobs, along with an interim buffer whic
 
 A few prerequisites must be considered before starting with reverse replication.
 
-1. Make sure that there is network connectivity between source database and your GCP project on which the Dataflow jobs will run.Ensure the Dataflow worker IPs can access the MySQL IPs.
+1. Ensure network connectivity between the source database and your GCP project, where your Dataflow jobs will run.
+  - Allowlist Dataflow worker IPs on the MySQL instance so that they can access the MySQL IPs.
+  - Check that the MySQL credentials are correctly specified in the [source shards file](./RunnigReverseReplication.md#sample-sourceshards-file).
+  - Check that the MySQL server is up. 
 2. Ensure that Dataflow permissions are present.[Basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin:~:text=Grant%20roles%20to%20your%20Compute%20Engine%20default%20service%20account.%20Run%20the%20following%20command%20once%20for%20each%20of%20the%20following%20IAM%20roles%3A%20roles/dataflow.admin%2C%20roles/dataflow.worker%2C%20roles/bigquery.dataEditor%2C%20roles/pubsub.editor%2C%20roles/storage.objectAdmin%2C%20and%20roles/artifactregistry.reader) and [Flex template permissions](https://cloud.google.com/dataflow/docs/guides/templates/configuring-flex-templates#permissions).
 3. Ensure the compute engine service account has the following permissions:
     - roles/pubsub.subscriber
@@ -164,10 +167,22 @@ In this case, check if you observe the following:
 
 - ***There is data in Pub/Sub yet not present in source database***
 
-  Records of below nature are dropped from reverse replication. Check the Dataflow logs to see if they are dropped.
+   Check worker logs to ensure that records are being read from PubSub. Filter the logs based on logical shard id of the shard you want to check. It should have messages like below, which indicate records are being read from Pub/Sub.
 
-     1.Records for which primary key cannot be determined on the source database.This can happen when the source database table does not have a primary key, or the primary key value was not present in the change stream data, or the record was deleted on Cloud Spanner and the deleted record was removed from Cloud Spanner due to lapse of retention period by the time the record was to be reverse replicated.
 
+    ![DataflowLog](https://services.google.com/fh/files/misc/recordsreadfrompubsub.png)
+
+    Check for logs to see if there are any Connection exception warnings like below. This means that the source database is not reachable and the job keeps retrying to connect, hence nothing gets written to the source database. In such case, please ensure that the [prerequisite](#before-you-begin) of connectivity between source database and Dataflow workers is met.
+    ![DataflowLog](https://services.google.com/fh/files/misc/connectionretry.png)
+
+  
+
+  Check the Dataflow logs to see if records are being dropped. This can happen for records for which primary key cannot be determined on the source database. This can happen when:
+
+  1. The source database table does not have a primary key
+  2. The primary key value was not present in the change stream data
+  3. The record was deleted on Cloud Spanner and the deleted record was removed from Cloud Spanner due to lapse of retention period by the time the record was to be reverse replicated.
+    
 #### There is higher load than the expected QPS on  spanner instance post cutover
 
 1. Change steams query incurs load on spanner instance, consider scaling up if it becomes a bottleneck.
