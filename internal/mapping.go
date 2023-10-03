@@ -23,6 +23,81 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
+type TableDependencyTree struct {
+	roots   []*TableDependencyNode
+	NodeMap map[string]*TableDependencyNode // Maps table id to its node struct
+}
+
+type TableDependencyNode struct {
+	tableId string
+	childs  []*TableDependencyNode
+}
+
+func (node TableDependencyNode) appendChildsString(treeString *string, level int) {
+	for i := 1; i <= level-1; i++ {
+		*treeString += "     "
+	}
+	if level == 1 {
+		*treeString += "    "
+	} else {
+		*treeString += "|--->"
+	}
+	*treeString += node.tableId + "\n"
+	for _, child := range node.childs {
+		child.appendChildsString(treeString, level+1)
+	}
+}
+
+func (tree TableDependencyTree) GetTreeString() string {
+	treeString := ""
+	for _, root := range tree.roots {
+		root.appendChildsString(&treeString, 1)
+	}
+	return treeString
+}
+
+func (tree TableDependencyTree) GetRootTableIds() []string {
+	tableIds := []string{}
+	for _, root := range tree.roots {
+		tableIds = append(tableIds, root.tableId)
+	}
+	return tableIds
+}
+
+func (node TableDependencyNode) GetChildTableIds() []string {
+	tableIds := []string{}
+	for _, child := range node.childs {
+		tableIds = append(tableIds, child.tableId)
+	}
+	return tableIds
+}
+
+func GetTableDependencyTree(s ddl.Schema) TableDependencyTree {
+	tableDependencyTree := TableDependencyTree{NodeMap: make(map[string]*TableDependencyNode)}
+	for _, t := range s {
+		tableId := t.Id
+		parentTableId := s[tableId].ParentId
+
+		// set default for missing key
+		if tableDependencyTree.NodeMap[tableId] == nil {
+			tableDependencyTree.NodeMap[tableId] = &TableDependencyNode{tableId: tableId}
+		}
+		tableNode := tableDependencyTree.NodeMap[tableId]
+
+		if parentTableId == "" {
+			tableDependencyTree.roots = append(tableDependencyTree.roots, tableNode)
+		} else {
+			// set default for missing key
+			if tableDependencyTree.NodeMap[parentTableId] == nil {
+				tableDependencyTree.NodeMap[parentTableId] = &TableDependencyNode{tableId: parentTableId}
+			}
+			parentTableNode := tableDependencyTree.NodeMap[parentTableId]
+			parentTableNode.childs = append(parentTableNode.childs, tableNode)
+		}
+	}
+	return tableDependencyTree
+}
+
 // GetSpannerTable maps a source DB table name into a legal Spanner table
 // name. Note that source DB column names can be essentially any string, but
 // Spanner column names must use a limited character set. This means that
