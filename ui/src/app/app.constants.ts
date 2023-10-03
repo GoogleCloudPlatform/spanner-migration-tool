@@ -44,7 +44,8 @@ export enum ObjectDetailNodeType {
 
 export enum MigrationTypes {
   bulkMigration = 'bulk',
-  lowDowntimeMigration = 'lowdt'
+  lowDowntimeMigration = 'lowdt',
+  dataprocMigration = 'dataproc'
 }
 
 export enum MigrationDetails {
@@ -92,6 +93,8 @@ export const Dialect = {
   GoogleStandardSQLDialect: 'google_standard_sql'
 }
 
+export const ProgressRefreshInterval = 5000
+
 export enum ProgressStatus {
 	SchemaMigrationComplete = 1,
 	SchemaCreationInProgress = 2,
@@ -123,6 +126,13 @@ export const ColLength = {
 export const DataTypes = {
   GoogleStandardSQL : ['BOOL','BYTES','DATE','FLOAT64','INT64','STRING', 'TIMESTAMP', 'NUMERIC', 'JSON'],
   PostgreSQL : ['BOOL','BYTEA','DATE','FLOAT8','INT8','VARCHAR', 'TIMESTAMPTZ', 'NUMERIC', 'JSONB']
+}
+
+export const Dataproc = {
+  Subnetwork: 'subnetwork',
+  Hostname: 'hostname',
+  Port: 'port',
+  IsDataprocConfigSet: 'isDataprocConfigSet',
 }
 
 export enum PersistedFormValues {

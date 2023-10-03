@@ -1,9 +1,10 @@
-import { IDataflowConfig } from "./profile";
+import { IDataflowConfig, IDataprocConfig } from "./profile";
 import ITargetDetails from "./target-details";
 
 export default interface IMigrationDetails {
     TargetDetails: ITargetDetails
     DataflowConfig: IDataflowConfig
+    DataprocConfig: IDataprocConfig
     MigrationType: string
     MigrationMode: string
     IsSharded: boolean
@@ -32,6 +33,13 @@ export interface IGeneratedResources {
 export interface ResourceDetails {
     JobName: string
     JobUrl: string
+}
+
+export interface IDataprocJobs {
+    SrcTable: string[]
+    DataprocJobIds: string[]
+    DataprocJobUrls: string[]
+    DataprocJobStatus: string[]
 }
 
 export interface ISourceAndTargetDetails {
