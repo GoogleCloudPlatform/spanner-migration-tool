@@ -199,7 +199,7 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	FROM sys.tables AS TBL
 	INNER JOIN sys.schemas AS SCH 
 	ON SCH.schema_id = TBL.schema_id
-	WHERE TBL.type = 'U' AND TBL.is_tracked_by_cdc = 0 AND TBL.is_ms_shipped = 0 AND TBL.name <> 'sysdiagrams'
+	WHERE TBL.type = 'U' AND TBL.is_ms_shipped = 0 AND TBL.name <> 'sysdiagrams'
 	`
 	rows, err := isi.Db.Query(q)
 	if err != nil {

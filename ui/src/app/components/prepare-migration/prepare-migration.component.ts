@@ -196,17 +196,26 @@ export class PrepareMigrationComponent implements OnInit {
         this.isSharded = res.IsSharded
         this.processingUnits = res.ProcessingUnits
         this.nodeCount = res.NodeCount
-        this.migrationTypes = [
-          {
-            name: 'POC Migration',
-            value: MigrationTypes.bulkMigration,
-          },
-          {
-            name: 'Minimal downtime Migration',
-            value: MigrationTypes.lowDowntimeMigration,
-          },
-        ]
-        if (this.connectionType == InputType.DumpFile) {
+        if (
+          res.DatabaseType == SourceDbNames.MySQL.toLowerCase() ||
+          res.DatabaseType == SourceDbNames.Oracle.toLowerCase() ||
+          res.DatabaseType == SourceDbNames.Postgres.toLowerCase()
+        ) {
+          this.isStreamingSupported = true
+        }
+        if (this.isStreamingSupported) {
+          this.migrationTypes = [
+            {
+              name: 'POC Migration',
+              value: MigrationTypes.bulkMigration,
+            },
+            {
+              name: 'Minimal downtime Migration',
+              value: MigrationTypes.lowDowntimeMigration,
+            },
+          ]
+        }
+        else {
           this.selectedMigrationType = MigrationTypes.bulkMigration
           this.migrationTypes = [
             {
@@ -221,13 +230,6 @@ export class PrepareMigrationComponent implements OnInit {
           MigrationModes.dataOnly,
           MigrationModes.schemaAndData,
         ]
-        if (
-          res.DatabaseType == SourceDbNames.MySQL.toLowerCase() ||
-          res.DatabaseType == SourceDbNames.Oracle.toLowerCase() ||
-          res.DatabaseType == SourceDbNames.Postgres.toLowerCase()
-        ) {
-          this.isStreamingSupported = true
-        }
       },
       error: (err: any) => {
         this.snack.openSnackBar(err.error, 'Close')
