@@ -368,7 +368,7 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sourceProfileConfig := sessionState.SourceProfileConfig
-	if (sourceProfileConfig.ConfigType == "dataflow") {
+	if sourceProfileConfig.ConfigType == "dataflow" {
 		for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
 			bucket, rootPath, err := profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, dataShard.DstConnectionProfile.Name)
 			if err != nil {
@@ -1183,7 +1183,7 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(reportAbsPath))
 }
 
-// generates a downloadable structured report and send it as a JSON response  
+// generates a downloadable structured report and send it as a JSON response
 func getDStructuredReport(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
@@ -2044,8 +2044,12 @@ func getDataprocJobs(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
 	if len(sessionState.Conv.Audit.DataprocMetadata.DataprocJobUrls) > 0 {
-		dataprocJobs.DataprocJobUrls = sessionState.Conv.Audit.DataprocMetadata.DataprocJobUrls
-		dataprocJobs.DataprocJobIds = sessionState.Conv.Audit.DataprocMetadata.DataprocJobIds
+		for tableId := range sessionState.Conv.Audit.DataprocMetadata.DataprocJobIds {
+			dataprocJobs.SrcTable = append(dataprocJobs.SrcTable, sessionState.Conv.Audit.DataprocMetadata.SrcTable[tableId])
+			dataprocJobs.DataprocJobIds = append(dataprocJobs.DataprocJobIds, sessionState.Conv.Audit.DataprocMetadata.DataprocJobIds[tableId])
+			dataprocJobs.DataprocJobUrls = append(dataprocJobs.DataprocJobUrls, sessionState.Conv.Audit.DataprocMetadata.DataprocJobUrls[tableId])
+			dataprocJobs.DataprocJobStatus = append(dataprocJobs.DataprocJobStatus, sessionState.Conv.Audit.DataprocMetadata.DataprocJobStatus[tableId].String())
+		}
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(dataprocJobs)
@@ -2713,8 +2717,10 @@ type GeneratedResources struct {
 }
 
 type DataprocJobs struct {
-	DataprocJobUrls []string
-	DataprocJobIds  []string
+	SrcTable          []string
+	DataprocJobIds    []string
+	DataprocJobUrls   []string
+	DataprocJobStatus []string
 }
 
 func addTypeToList(convertedType string, spType string, issues []internal.SchemaIssue, l []typeIssue) []typeIssue {

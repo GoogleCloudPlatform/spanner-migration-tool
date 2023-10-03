@@ -194,8 +194,10 @@ type streamingStats struct {
 }
 
 type dataprocMetadata struct {
-	DataprocJobUrls []string
-	DataprocJobIds  []string
+	SrcTable          map[string]string            // Maps spanner table id to source table name
+	DataprocJobIds    map[string]string            // Maps spanner table id to related dataproc job id
+	DataprocJobUrls   map[string]string            // Maps spanner table id to related dataproc job url
+	DataprocJobStatus map[string]DataprocJobStatus // Maps spanner table id to related dataproc job status
 }
 
 // Stores information related to rules during schema conversion

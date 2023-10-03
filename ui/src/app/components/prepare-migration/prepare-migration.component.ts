@@ -80,8 +80,10 @@ export class PrepareMigrationComponent implements OnInit {
   }
   isDataprocJobsGenerated: boolean = false
   dataprocJobsGenerated: IDataprocJobs = {
-    DataprocJobUrls: [],
+    SrcTable: [],
     DataprocJobIds: [],
+    DataprocJobUrls: [],
+    DataprocJobStatus: [],
   }
   configuredMigrationProfile!: IMigrationProfile
   region: string = ''
@@ -893,9 +895,10 @@ export class PrepareMigrationComponent implements OnInit {
     }
     this.isDataprocJobsGenerated = false
     this.dataprocJobsGenerated = {
+      SrcTable: [],
+      DataprocJobIds: [],
       DataprocJobUrls: [],
-      DataprocJobIds: []
-     
+      DataprocJobStatus: [],
     }
     this.initializeLocalStorage()
   }

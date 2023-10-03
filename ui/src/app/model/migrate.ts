@@ -36,8 +36,10 @@ export interface ResourceDetails {
 }
 
 export interface IDataprocJobs {
-    DataprocJobUrls: string[]
+    SrcTable: string[]
     DataprocJobIds: string[]
+    DataprocJobUrls: string[]
+    DataprocJobStatus: string[]
 }
 
 export interface ISourceAndTargetDetails {

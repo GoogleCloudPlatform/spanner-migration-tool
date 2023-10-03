@@ -15,12 +15,95 @@
 package internal
 
 import (
+	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestGetTableDependecnyTree(t *testing.T) {
+	spSchema := map[string]ddl.CreateTable{}
+	numTables := 11
+	// initialize spSchema
+	for i := 1; i <= numTables; i++ {
+		tableId := fmt.Sprintf("t%v", i)
+		tableName := fmt.Sprintf("table%v", i)
+		spSchema[tableId] = ddl.CreateTable{
+			Name: tableName,
+			Id:   tableId,
+		}
+	}
+
+	testCases := []struct {
+		name       string
+		roots      []string
+		dependency map[string][]string // parent to child table ids map
+	}{
+		{
+			name:  "No interleaving",
+			roots: []string{"t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9", "t10", "t11"},
+			dependency: map[string][]string{
+				"t1":  {},
+				"t2":  {},
+				"t3":  {},
+				"t4":  {},
+				"t5":  {},
+				"t6":  {},
+				"t7":  {},
+				"t8":  {},
+				"t9":  {},
+				"t10": {},
+				"t11": {},
+			},
+		},
+		{
+			name:  "With interleaving",
+			roots: []string{"t1", "t4", "t5"},
+			dependency: map[string][]string{
+				"t1":  {"t2", "t3"},
+				"t2":  {},
+				"t3":  {},
+				"t4":  {},
+				"t5":  {"t6"},
+				"t6":  {"t7", "t8", "t9", "t11"},
+				"t7":  {},
+				"t8":  {},
+				"t9":  {"t10"},
+				"t10": {},
+				"t11": {},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		// modify spSchema for the test case
+		for parent, childs := range tc.dependency {
+			for _, child := range childs {
+				s := spSchema[child]
+				s.ParentId = parent
+				spSchema[child] = s
+			}
+		}
+		got := GetTableDependencyTree(spSchema)
+		// assert roots
+		gotRoots := got.GetRootTableIds()
+		wantRoots := tc.roots
+		sort.Strings(gotRoots)
+		sort.Strings(wantRoots)
+		assert.Equal(t, gotRoots, wantRoots)
+		for _, node := range got.NodeMap {
+			// assert childs
+			gotChilds := node.GetChildTableIds()
+			wantChilds := tc.dependency[node.tableId]
+			sort.Strings(gotChilds)
+			sort.Strings(wantChilds)
+			assert.Equal(t, gotChilds, wantChilds)
+		}
+	}
+}
 
 func TestGetSpannerTable(t *testing.T) {
 	conv := MakeConv()
