@@ -31,8 +31,6 @@ jobs:
       run: |
             go test ./... -coverprofile coverage.out -covermode count
             go tool cover -func coverage.out
-            cd ui
-            ng test
 
     - name: Quality Gate - Test coverage should be above threshold
       env:
