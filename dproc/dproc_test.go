@@ -26,8 +26,12 @@ func TestGetDataprocRequestParams(t *testing.T) {
 	sourceProfileMySQL, _ := profiles.NewSourceProfile(fmt.Sprintf("config=%v", filepath.Join("..", "test_data", "mysql_shard_dataproc.cfg")), "mysql")
 	sourceProfileMySQL.Driver, _ = sourceProfileMySQL.ToLegacyDriver("mysql")
 
+	sourceProfilePostgres, _ := profiles.NewSourceProfile(fmt.Sprintf("config=%v", filepath.Join("..", "test_data", "postgres_shard_dataproc.cfg")), "postgres")
+	sourceProfilePostgres.Driver, _ = sourceProfilePostgres.ToLegacyDriver("postgres")
+	fmt.Println(sourceProfilePostgres.Driver)
+
 	sourceProfileOracle, _ := profiles.NewSourceProfile(fmt.Sprintf("config=%v", filepath.Join("..", "test_data", "mysql_shard_dataproc.cfg")), "oracle")
-	sourceProfileOracle.Driver, _ = sourceProfileMySQL.ToLegacyDriver("oracle")
+	sourceProfileOracle.Driver, _ = sourceProfileOracle.ToLegacyDriver("oracle")
 
 	targetProfile, _ := profiles.NewTargetProfile("project=test-project,instance=sp-test-instance,dbName=sp-test-db")
 
@@ -174,6 +178,51 @@ func TestGetDataprocRequestParams(t *testing.T) {
 				JarFileUris: []string{"file:///usr/lib/spark/external/spark-avro.jar",
 					"gs://dataproc-templates-binaries/latest/java/dataproc-templates.jar",
 					"gs://dataproc-templates/jars/mysql-connector-java.jar"},
+				SubnetworkUri: "projects/test-project/regions/us-central1/subnetworks/test-subnet",
+				Location:      "us-central1",
+			},
+			errorExpected: false,
+		},
+		{
+			name: "valid postgres source profile and target profile",
+			params: paramsStruct{
+				sourceProfile: sourceProfilePostgres,
+				targetProfile: targetProfile,
+				srcSchema:     "test_schema",
+				srcTable:      "test_table",
+				primaryKeys:   "pk1,pk2",
+				location:      "us-central1",
+				subnet:        "projects/test-project/regions/us-central1/subnetworks/test-subnet",
+			},
+			want: DataprocRequestParams{
+				Project: "test-project",
+				TemplateArgs: []string{"--template",
+					"JDBCTOSPANNER",
+					"--templateProperty",
+					"project.id=test-project",
+					"--templateProperty",
+					"jdbctospanner.jdbc.url=jdbc:postgresql://0.0.0.0:5432/test?user=test&password=test",
+					"--templateProperty",
+					"jdbctospanner.jdbc.driver.class.name=org.postgresql.Driver",
+					"--templateProperty",
+					"jdbctospanner.sql=select * from test_schema.test_table",
+					"--templateProperty",
+					"jdbctospanner.output.instance=sp-test-instance",
+					"--templateProperty",
+					"jdbctospanner.output.database=sp-test-db",
+					"--templateProperty",
+					"jdbctospanner.output.table=test_table",
+					"--templateProperty",
+					"jdbctospanner.output.primaryKey=pk1,pk2",
+					"--templateProperty",
+					"jdbctospanner.output.saveMode=Append",
+					"--templateProperty",
+					"jdbctospanner.output.batch.size=500",
+					"--templateProperty",
+					"jdbctospanner.jdbc.fetchsize=500"},
+				JarFileUris: []string{"file:///usr/lib/spark/external/spark-avro.jar",
+					"gs://dataproc-templates-binaries/latest/java/dataproc-templates.jar",
+					"gs://dataproc-templates/jars/postgresql-42.2.6.jar"},
 				SubnetworkUri: "projects/test-project/regions/us-central1/subnetworks/test-subnet",
 				Location:      "us-central1",
 			},

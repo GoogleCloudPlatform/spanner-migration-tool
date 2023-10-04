@@ -179,11 +179,23 @@ func getInfoSchemaForShard(shardConnInfo profiles.DirectConnectionConfig, driver
 	//while adding other sources, a switch-case will be added here on the basis of the driver input param passed.
 	//pased on the driver name, profiles.NewSourceProfileConnection<DBName> will need to be called to create
 	//the source profile information.
-	sourceProfileConnectionMySQL, err := profiles.NewSourceProfileConnectionMySQL(params)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse connection configuration for the primary shard")
+	sourceProfileConnection := profiles.SourceProfileConnection{}
+	switch driver {
+	case constants.MYSQL:
+		sourceProfileConnectionMySQL, err := profiles.NewSourceProfileConnectionMySQL(params)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse connection configuration for the primary shard")
+		}
+		sourceProfileConnection = profiles.SourceProfileConnection{Mysql: sourceProfileConnectionMySQL, Ty: profiles.SourceProfileConnectionTypeMySQL}
+	case constants.POSTGRES:
+		sourceProfileConnectionPostgreSQL, err := profiles.NewSourceProfileConnectionPostgreSQL(params)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse connection configuration for the primary shard")
+		}
+		sourceProfileConnection = profiles.SourceProfileConnection{Pg: sourceProfileConnectionPostgreSQL, Ty: profiles.SourceProfileConnectionTypePostgreSQL}
+	default:
+		return nil, fmt.Errorf("sharded sourceProfileConnection for source %s not supported", driver)
 	}
-	sourceProfileConnection := profiles.SourceProfileConnection{Mysql: sourceProfileConnectionMySQL, Ty: profiles.SourceProfileConnectionTypeMySQL}
 	//create a source profile which contains the sourceProfileConnection object for the primary shard
 	//this is done because GetSQLConnectionStr() should not be aware of sharding
 	newSourceProfile := profiles.SourceProfile{Conn: sourceProfileConnection, Ty: profiles.SourceProfileTypeConnection}
