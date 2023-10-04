@@ -326,6 +326,15 @@
                     target="_blank">{{resourcesGenerated.DataflowJobName}}</a>
             </li>
         </span>
+        <span *ngIf="resourcesGenerated.PubsubTopicName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
+            <li> Pubsub topic: <a [href]="resourcesGenerated.PubsubTopicUrl"
+                    target="_blank">{{resourcesGenerated.PubsubTopicName}}</a></li>
+        </span>
+        <span *ngIf="resourcesGenerated.PubsubSubscriptionName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
+            <li> Pubsub subscription: <a [href]="resourcesGenerated.PubsubSubscriptionUrl"
+                    target="_blank">{{resourcesGenerated.PubsubSubscriptionName}}</a>
+            </li>
+        </span>
         <span *ngIf="resourcesGenerated.DataStreamJobName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
             <li *ngFor="let stream of resourcesGenerated.ShardToDatastreamMap | keyvalue">
                 Datastream job for shardId: {{ stream.key }} - <a [href]="stream.value.JobUrl"
@@ -335,6 +344,17 @@
             <li *ngFor="let dfJob of resourcesGenerated.ShardToDataflowMap | keyvalue">
                 Dataflow job for shardId: {{ dfJob.key }} - <a [href]="dfJob.value.JobUrl"
                     target="_blank">{{dfJob.value.JobName}}</a>
+            </li>
+        </span>
+        <span *ngIf="resourcesGenerated.PubsubTopicName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
+            <li *ngFor="let topic of resourcesGenerated.ShardToPubsubTopicMap | keyvalue">
+                Pubsub topic for shardId: {{ topic.key }} - <a [href]="topic.value.JobUrl"
+                    target="_blank">{{topic.value.JobName}}</a></li>
+        </span>
+        <span *ngIf="resourcesGenerated.PubsubSubscriptionName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
+            <li *ngFor="let subscription of resourcesGenerated.ShardToPubsubSubscriptionMap | keyvalue">
+                Pubsub subscription for shardId: {{ subscription.key }} - <a [href]="subscription.value.JobUrl"
+                    target="_blank">{{subscription.value.JobName}}</a>
             </li>
         </span>
         <br><br>

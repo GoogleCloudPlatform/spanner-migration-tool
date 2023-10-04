@@ -195,8 +195,17 @@ type streamingStats struct {
 	SampleBadWrites          []string                    // Records that faced errors while writing to Cloud Spanner.
 	DataStreamName           string
 	DataflowJobId            string
+	PubsubCfg                PubsubCfg
 	ShardToDataStreamNameMap map[string]string
 	ShardToDataflowJobMap    map[string]string
+	ShardToPubsubIdMap       map[string]PubsubCfg
+}
+
+type PubsubCfg struct {
+	TopicId        string
+	SubscriptionId string
+	NotificationId string
+	BucketName     string
 }
 
 // Stores information related to rules during schema conversion
@@ -426,7 +435,7 @@ func addMissingPrimaryKeyWarning(tableId string, colId string, conv *Conv) {
 		columnLevelIssues = tableIssues.ColumnLevelIssues
 	} else {
 		columnLevelIssues = make(map[string][]SchemaIssue)
-	} 
+	}
 	issues := columnLevelIssues[colId]
 	issues = append(issues, MissingPrimaryKey)
 	columnLevelIssues[colId] = issues

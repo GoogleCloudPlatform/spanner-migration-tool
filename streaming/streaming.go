@@ -25,6 +25,7 @@ import (
 
 	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
 	datastream "cloud.google.com/go/datastream/apiv1"
+	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
@@ -84,6 +85,7 @@ type StreamingCfg struct {
 	DatastreamCfg DatastreamCfg
 	DataflowCfg   DataflowCfg
 	TmpDir        string
+	PubsubCfg     internal.PubsubCfg
 	DataShardId   string
 }
 
@@ -136,6 +138,22 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 			return fmt.Errorf("error generating stream name: %v", err)
 		}
 		streamingCfg.DataflowCfg.JobName = jobName
+	}
+
+	if streamingCfg.PubsubCfg.SubscriptionId == "" {
+		subscriptionId, err := utils.GenerateName("smt-sub-" + dbName)
+		if err != nil {
+			return fmt.Errorf("error generating pubsub subscription ID: %v", err)
+		}
+		streamingCfg.PubsubCfg.SubscriptionId = subscriptionId
+	}
+
+	if streamingCfg.PubsubCfg.TopicId == "" {
+		topicId, err := utils.GenerateName("smt-topic-" + dbName)
+		if err != nil {
+			return fmt.Errorf("error generating pubsub topic ID: %v", err)
+		}
+		streamingCfg.PubsubCfg.TopicId = topicId
 	}
 
 	filePath := streamingCfg.TmpDir
@@ -274,6 +292,98 @@ func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile prof
 	}
 }
 
+func CreatePubsubNotificationAndLaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, projectID string, streamingCfg StreamingCfg, conv *internal.Conv) error {
+	err := CreatePubsubNotification(ctx, projectID, streamingCfg, streamingCfg.DatastreamCfg, conv)
+	if err != nil {
+		return err
+	}
+	return LaunchStream(ctx, sourceProfile, dbList, projectID, streamingCfg.DatastreamCfg)
+}
+
+func CreatePubsubNotification(ctx context.Context, projectID string, streamingCfg StreamingCfg, datastreamCfg DatastreamCfg, conv *internal.Conv) error {
+	pubsubClient, err := pubsub.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("pubsub client can not be created: %v", err)
+	}
+	defer pubsubClient.Close()
+	fmt.Println("Created pubsub client...")
+
+	topicObj, err := pubsubClient.CreateTopic(ctx, streamingCfg.PubsubCfg.TopicId)
+	if err != nil {
+		return fmt.Errorf("pubsub topic could not be created: %v", err)
+	}
+
+	_, err = pubsubClient.CreateSubscription(ctx, streamingCfg.PubsubCfg.SubscriptionId, pubsub.SubscriptionConfig{
+		Topic:             topicObj,
+		AckDeadline:       time.Minute * 10,
+		RetentionDuration: time.Hour * 24 * 7,
+	})
+	if err != nil {
+		return fmt.Errorf("pubsub subscription could not be created: %v", err)
+	}
+	fmt.Printf("Successfully created pubsub topic and subscription")
+
+	//Creating datastream client to fetch the gcs bucket using target profile.
+	dsClient, err := datastream.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("datastream client can not be created: %v", err)
+	}
+	defer dsClient.Close()
+
+	// Fetch the GCS path from the destination connection profile.
+	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name)
+	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
+	if err != nil {
+		return fmt.Errorf("could not get connection profiles: %v", err)
+	}
+	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
+	bucketName := gcsProfile.Bucket
+	prefix := gcsProfile.RootPath + datastreamCfg.DestinationConnectionConfig.Prefix
+	if prefix != "" && prefix[len(prefix)-1] != '/' {
+		prefix = prefix + "/"
+	}
+	prefix = prefix + "data/"
+	if prefix[0] == '/' {
+		prefix = prefix[1:]
+	}
+
+	storageClient, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("GCS storage client can not be created: %v", err)
+	}
+	defer storageClient.Close()
+
+	notification := storage.Notification{
+		TopicID:          streamingCfg.PubsubCfg.TopicId,
+		TopicProjectID:   projectID,
+		PayloadFormat:    storage.JSONPayload,
+		ObjectNamePrefix: prefix,
+	}
+
+	createdNotification, err := storageClient.Bucket(bucketName).AddNotification(ctx, &notification)
+	if err != nil {
+		return fmt.Errorf("GCS Notification could not be created: %v", err)
+	}
+	fmt.Printf("Successfully created pubsub topic, subscription and notification for bucket %s.\n", bucketName)
+	streamingCfg.PubsubCfg.NotificationId = createdNotification.ID
+	streamingCfg.PubsubCfg.BucketName = bucketName
+	storeGeneratedPubsubResources(conv, streamingCfg.PubsubCfg, projectID, streamingCfg.DataShardId)
+	return nil
+}
+
+func storeGeneratedPubsubResources(conv *internal.Conv, pubsubCfg internal.PubsubCfg, project string, dataShardId string) {
+	conv.Audit.StreamingStats.PubsubCfg = pubsubCfg
+	if dataShardId != "" {
+		var resourceMutex sync.Mutex
+		resourceMutex.Lock()
+		conv.Audit.StreamingStats.ShardToPubsubIdMap[dataShardId] = pubsubCfg
+		resourceMutex.Unlock()
+	}
+	fmt.Println("\n------------------------------------------\n" +
+		"The Pubsub topic: " + pubsubCfg.TopicId + "and the subscription: " + pubsubCfg.SubscriptionId +
+		" will have to be manually cleaned up via the UI. Spanner migration tool will not delete them post completion of the migration.")
+}
+
 // LaunchStream populates the parameters from the streaming config and triggers a stream on Cloud Datastream.
 func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, projectID string, datastreamCfg DatastreamCfg) error {
 	fmt.Println("Launching stream ", fmt.Sprintf("projects/%s/locations/%s", projectID, datastreamCfg.StreamLocation))
@@ -283,9 +393,14 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	}
 	defer dsClient.Close()
 	fmt.Println("Created client...")
+	prefix := datastreamCfg.DestinationConnectionConfig.Prefix
+	if prefix != "" && prefix[len(prefix)-1] != '/' {
+		prefix = prefix + "/"
+	}
+	prefix = prefix + "data/"
 
 	gcsDstCfg := &datastreampb.GcsDestinationConfig{
-		Path:       datastreamCfg.DestinationConnectionConfig.Prefix,
+		Path:       prefix,
 		FileFormat: &datastreampb.GcsDestinationConfig_AvroFileFormat{},
 	}
 	srcCfg := &datastreampb.SourceConfig{
@@ -360,6 +475,18 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 		return fmt.Errorf("datastream client can not be created: %v", err)
 	}
 	defer dsClient.Close()
+	pubsubClient, err := pubsub.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("pubsub client cannot be created: %v", err)
+	}
+	defer pubsubClient.Close()
+	fmt.Println("Created pubsub client...")
+
+	storageClient, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("storage client cannot be created: %v", err)
+	}
+	defer storageClient.Close()
 
 	//clean up for single instance migrations
 	if conv.Audit.StreamingStats.DataflowJobId != "" {
@@ -367,6 +494,9 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 	}
 	if conv.Audit.StreamingStats.DataStreamName != "" {
 		CleanupDatastream(ctx, dsClient, conv.Audit.StreamingStats.DataStreamName, projectID, region)
+	}
+	if conv.Audit.StreamingStats.PubsubCfg.TopicId != "" && !conv.IsSharded {
+		CleanupPubsubResources(ctx, pubsubClient, storageClient, conv.Audit.StreamingStats.PubsubCfg, projectID)
 	}
 	// clean up jobs for sharded migrations (with error handling)
 	for _, dfId := range conv.Audit.StreamingStats.ShardToDataflowJobMap {
@@ -381,8 +511,39 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 			fmt.Printf("Cleanup of the datastream: %s was unsuccessful, please clean up the stream manually", dsName)
 		}
 	}
+	for _, pubsubCfg := range conv.Audit.StreamingStats.ShardToPubsubIdMap {
+		CleanupPubsubResources(ctx, pubsubClient, storageClient, pubsubCfg, projectID)
+	}
 	fmt.Println("Clean up complete")
 	return nil
+}
+
+func CleanupPubsubResources(ctx context.Context, pubsubClient *pubsub.Client, storageClient *storage.Client, pubsubCfg internal.PubsubCfg, projectID string) {
+	subscription := pubsubClient.Subscription(pubsubCfg.SubscriptionId)
+
+	err := subscription.Delete(ctx)
+	if err != nil {
+		fmt.Printf("Cleanup of the pubsub subscription: %s Failed, please clean up the pubsub subscription manually\n error=%v\n", pubsubCfg.SubscriptionId, err)
+	} else {
+		fmt.Printf("Successfully deleted subscription: %s\n\n", pubsubCfg.SubscriptionId)
+	}
+
+	topic := pubsubClient.Topic(pubsubCfg.TopicId)
+
+	err = topic.Delete(ctx)
+	if err != nil {
+		fmt.Printf("Cleanup of the pubsub topic: %s Failed, please clean up the pubsub topic manually\n error=%v\n", pubsubCfg.TopicId, err)
+	} else {
+		fmt.Printf("Successfully deleted topic: %s\n\n", pubsubCfg.TopicId)
+	}
+
+	bucket := storageClient.Bucket(pubsubCfg.BucketName)
+
+	if err := bucket.DeleteNotification(ctx, pubsubCfg.NotificationId); err != nil {
+		fmt.Printf("Cleanup of GCS pubsub notification: %s failed.\n error=%v\n", pubsubCfg.NotificationId, err)
+	} else {
+		fmt.Printf("Successfully deleted GCS pubsub notification: %s\n\n", pubsubCfg.NotificationId)
+	}
 }
 
 func CleanupDatastream(ctx context.Context, client *datastream.Client, dsName string, projectID, region string) error {
@@ -495,13 +656,14 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
-			"inputFilePattern":              inputFilePattern,
+			"inputFilePattern":              inputFilePattern + "data/",
 			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
 			"instanceId":                    instance,
 			"databaseId":                    dbName,
 			"sessionFilePath":               streamingCfg.TmpDir + "session.json",
 			"deadLetterQueueDirectory":      inputFilePattern + "dlq",
 			"transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
+			"gcsPubSubSubscription":         fmt.Sprintf("projects/%s/subscriptions/%s", project, streamingCfg.PubsubCfg.SubscriptionId),
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			MaxWorkers:            maxWorkers,
@@ -586,7 +748,7 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 	return streamingCfg
 }
 
-func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, tableList []string) (StreamingCfg, error) {
+func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, tableList []string, conv *internal.Conv) (StreamingCfg, error) {
 	streamingCfg, err := getStreamingConfig(sourceProfile, targetProfile, tableList)
 	if err != nil {
 		return streamingCfg, fmt.Errorf("error reading streaming config: %v", err)
@@ -601,7 +763,7 @@ func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, 
 	case constants.POSTGRES:
 		dbList = append(dbList, profiles.LogicalShard{DbName: streamingCfg.DatastreamCfg.Properties})
 	}
-	err = LaunchStream(ctx, sourceProfile, dbList, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
+	err = CreatePubsubNotificationAndLaunchStream(ctx, sourceProfile, dbList, targetProfile.Conn.Sp.Project, streamingCfg, conv)
 	if err != nil {
 		return streamingCfg, fmt.Errorf("error launching stream: %v", err)
 	}
