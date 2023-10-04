@@ -299,14 +299,20 @@ func processDataWithDataproc(sourceProfile profiles.SourceProfile, targetProfile
 	processTable = func(spannerTableID string, mutex *sync.Mutex) error {
 		srcTable := conv.SrcSchema[spannerTableID].Name
 		srcSchema := conv.SrcSchema[spannerTableID]
+
+		// TODO: pull primary key from conv struct instead of infoSchema
+
+		// Primary key param is not used in dataproc templates for data migration
+		// (only used for schema migration), as dataproc templates has set
+		// primary key as required param for all modes, some value has to be provided to the param
 		primaryKeys, _, _ := infoSchema.GetConstraints(conv, common.SchemaAndName{Name: srcTable, Schema: srcSchema.Schema})
 
-		dataprocRequestParams, err := dproc.GetDataprocRequestParams(sourceProfile, targetProfile, srcSchema.Schema, srcTable, strings.Join(primaryKeys, ","), location, subnet)
+		dataprocRequestParams, err := dproc.GetDataprocRequestParams(conv, sourceProfile, targetProfile, spannerTableID, strings.Join(primaryKeys, ","), location, subnet)
 		if err != nil {
 			return err
 		}
-
-		op, err := dproc.TriggerDataprocTemplate(ctx, batchClient, srcTable, srcSchema.Schema, strings.Join(primaryKeys, ","), dataprocRequestParams)
+		logger.Log.Info(fmt.Sprintf("Triggering Dataproc template for %s.%s\n", srcSchema.Schema, srcTable))
+		op, err := dproc.TriggerDataprocTemplate(ctx, batchClient, dataprocRequestParams)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Failing to trigger Dataproc template for %s.%s", srcSchema.Schema, srcTable))
 			return err
