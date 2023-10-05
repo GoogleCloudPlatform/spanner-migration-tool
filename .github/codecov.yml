@@ -41,7 +41,7 @@ component_management:
     - component_id: frontend
       name: frontend # only frontend components
       paths:
-        - ui/**
+        - "ui/**"
       statuses: # the core component has its own statuses
         - type: project
           target: auto
