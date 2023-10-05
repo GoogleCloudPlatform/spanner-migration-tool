@@ -64,9 +64,7 @@ A few prerequisites must be considered before starting with reverse replication.
 8. Ensure that that [session file](./RunnigReverseReplication.md#files-generated-by-spanner-migration-tool) is uploaded to GCS (this requires a schema conversion to be done).
 9. [Source shards file](./RunnigReverseReplication.md#sample-sourceshards-file) already uploaded to GCS.
 10. Resources needed for reverse replication incur cost. Make sure to read [cost](#cost).
-11. Reverse replication uses shard identifier column per table to route the Spanner records to a given source shard.The column identfied as the sharding column needs to be selected via Spanner Migration Tool when performing migration.The value of this column should be the logicalShardId value specified in the [source shard file](./RunnigReverseReplication.md#sample-sourceshards-file). There are two ways to populate a sharding column when writing to Spanner,post cutover:
-    - Use generated columns. This would mean an additional generated column will be required to be created which will perform the sharding logic (typically based on Primary Key) and that column will be used to identify the shard during reverse replication
-    - In case it's not generated column,the user populates it from the application code
+11. Reverse replication uses shard identifier column per table to route the Spanner records to a given source shard.The column identified as the sharding column needs to be selected via Spanner Migration Tool when performing migration.The value of this column should be the logicalShardId value specified in the [source shard file](./RunnigReverseReplication.md#sample-sourceshards-file).In the event that the shard identifier column is not an existing column,the application code needs to be changed to populate this shard identifier column when writing to Spanner.
 
 ## Launching reverse replication
 
@@ -194,7 +192,9 @@ In this case, check if you observe the following:
 
 For both the Dataflow jobs, once an error is encountered for a given shard, then procesing is stopped for that shard to preserve ordering.To recover,rerun the job.The jobs are idempotent and it's safe to rerun them.
 
-The command to run the Dataflow jobs should be available when launching the Dataflow jobs via launcher script.
+The command to run the Dataflow jobs should be available when launching the Dataflow jobs via launcher script. The arguments are similar to what was passed in the launcher [script](./RunnigReverseReplication.md#arguments).
+
+Please refer dataflow [documentation](https://cloud.google.com/dataflow/docs/guides/routes-firewall#internet_access_for) on network options.
 
 Example command for the Spanner to Sink job
 
@@ -203,10 +203,10 @@ gcloud dataflow flex-template run ordering-fromspanner \
   --project <project name> \
   --region <region name> \
   --template-file-gcs-location gs://dataflow-templates/2023-07-18-00_RC00/flex/Spanner_Change_Streams_to_Sink \
---additional-experiments=use_runner_v2 \
-  --parameters "changeStreamName=<stream name>" \
-  --parameters "instanceId=<instance name>" \
-  --parameters "databaseId=<database name>" \
+--additional-experiments=use_runner_v2,use_network_tags=<network tags>,use_network_tags_for_flex_templates=<network tags> \
+  --parameters "changeStreamName=<spanner change stream name>" \
+  --parameters "instanceId=<spanner instance name>" \
+  --parameters "databaseId=<spanner database name>" \
   --parameters "spannerProjectId=<project id>" \
   --parameters "metadataInstance=<metadata instance>" \
   --parameters "metadataDatabase=<metadata database>" \
@@ -214,14 +214,21 @@ gcloud dataflow flex-template run ordering-fromspanner \
   --parameters "pubSubDataTopicId=projects/<project name>/topics/<topic name>" \
   --parameters "pubSubErrorTopicId=projects/<project name>/topics/<topic name>" \
   --parameters "pubSubEndpoint=<end point name>:443" \
---parameters "sessionFilePath=<gcs path to session json file>"
+--parameters "sessionFilePath=<gcs path to session json file created during forward migration>"
 
 ```
 
 Example command for the writing to source database job
 
 ```code
-gcloud beta dataflow flex-template run writes-tosql  --project=<project name>    --region=<region name>     --template-file-gcs-location=gs://dataflow-templates/2023-07-18-00_RC00/flex/Ordered_Changestream_Buffer_to_Sourcedb --num-workers=1  --worker-machine-type=n2-standard-64 --additional-experiments=use_runner_v2 --parameters sourceShardsFilePath=<path to source shards file>,sessionFilePath=<gcs path to session json file>,bufferType=pubsub,pubSubProjectId=<project name>
+gcloud  dataflow flex-template run writes-tosql  \
+--project=<project name>  \
+--region=<region name>  \ 
+--template-file-gcs-location=gs://dataflow-templates/2023-07-18-00_RC00/flex/Ordered_Changestream_Buffer_to_Sourcedb \
+--additional-experiments=use_runner_v2,use_network_tags=<network tags>,use_network_tags_for_flex_templates=<network tags> \
+--parameters "sourceShardsFilePath=<gcs path to source shards file given when launching reverse replication>" \
+--parameters "sessionFilePath=<gcs path to session json file created during forward migration>" \
+--parameters "pubSubProjectId=<project name where pubsub topic resides>"
 
 ```
 

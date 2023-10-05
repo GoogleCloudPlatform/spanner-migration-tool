@@ -47,6 +47,11 @@ The script takes in multiple arguments to orchestrate the pipeline. They are:
 - `machineType`: dataflow worker machine type, defaults to n2-standard-4.
 - `orderingWorkers`: number of workers for ordering job. Defaults to 5.
 - `writerWorkers`: number of workers for writer job. Defaults to 5.
+- `vpcNetwork`: name of the VPC network to be used for the dataflow jobs
+- `vpcSubnetwork`: name of the VPC subnetwork to be used for the dataflow jobs. Subnet should exist in the same region as the 'dataflowRegion' parameter.
+- `vpcHostProjectId`: project ID hosting the subnetwork. If unspecified, the 'projectId' parameter value will be used for subnetwork..
+- `serviceAccountEmail`: the email address of the service account to run the job as.
+- `networkTags`: network tags addded to the Dataflow jobs worker and launcher VMs.
 
 ## Pre-requisites
 Before running the command, ensure you have the:
