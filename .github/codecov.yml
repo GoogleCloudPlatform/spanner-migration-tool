@@ -1,0 +1,47 @@
+comment:
+  layout: "header, diff, components, files" # show component info in the PR comment
+component_management:
+  default_rules: # default rules that will be inherited by all components
+    statuses:
+      - type: project # in this case every component that doens't have a status defined will have a project type
+        target: auto
+        threshold: 5%
+        branches:
+          - master
+  individual_components:
+    - component_id: backend-apis
+      name: backend-apis # only Golang backend APIs
+      paths:
+        - "webv2/**"
+        - "!webv2/webCmd.go"
+      statuses: # each component has its own status and corresponding configuration
+        - type: project
+          target: auto
+    - component_id: backend-library
+      name: backend-library # only library code
+      paths:
+        - "!webv2/**"
+        - "!ui/**"
+        - "!cmd/**"
+      statuses: # each component has its own status and corresponding configuration
+        - type: project
+          target: auto
+    - component_id: cli 
+      name: cli # only the CLI
+      paths:
+        - "cmd/**"
+        - "webv2/webCmd.go"
+      statuses: # each component has its own status and corresponding configuration
+        - type: project
+          target: auto
+    - component_id: frontend
+      name: frontend # only frontend components
+      paths:
+        - ui/**
+      statuses: # the core component has its own statuses
+        - type: project
+          target: auto
+ignore:
+  - ".docker"
+  - ".github"
+  - "docs"
