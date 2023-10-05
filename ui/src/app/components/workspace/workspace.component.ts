@@ -252,9 +252,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       let config: IDbConfig = JSON.parse(localStorage.getItem(StorageKeys.Config)!)
       connectionDetail = config?.hostName + ' : ' + config?.port
     } else {
-      {
         connectionDetail = this.conv.DatabaseName
-      }
     }
     let viewAssesmentData: IViewAssesmentData = {
       srcDbType: this.srcDbName,
@@ -386,7 +384,6 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       next: (res: ITableIdAndName[]) => {
         if (res != null && res.length !=0)
         {
-          console.log(res.map(x => x.Name).join(', '));
           let errMsg = 'Please fix the errors for the following tables to move ahead: '+ res.map(x => x.Name).join(', ')
           this.dialog.open(InfodialogComponent, {
             data: { message: errMsg, type: 'error', title: 'Error in Spanner Draft' },
