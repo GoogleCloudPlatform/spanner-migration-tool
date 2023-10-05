@@ -42,7 +42,7 @@ type mockSpec struct {
 func TestProcessSchema(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: `SELECT (.+) WHERE TBL.type = 'U' AND TBL.is_tracked_by_cdc = 0 AND TBL.is_ms_shipped = 0 AND TBL.name <> 'sysdiagrams'`,
+			query: `SELECT (.+) WHERE TBL.type = 'U' AND TBL.is_ms_shipped = 0 AND TBL.name <> 'sysdiagrams'`,
 			cols:  []string{"table_schema", "table_name"},
 			rows: [][]driver.Value{
 				{"dbo", "user"},
