@@ -6,6 +6,7 @@ component_management:
       - type: project # in this case every component that doens't have a status defined will have a project type
         target: auto
         threshold: 5%
+        informational: true
         branches:
           - master
   individual_components:
@@ -17,6 +18,7 @@ component_management:
       statuses: # each component has its own status and corresponding configuration
         - type: project
           target: auto
+          informational: true
     - component_id: backend-library
       name: backend-library # only library code
       paths:
@@ -26,6 +28,7 @@ component_management:
       statuses: # each component has its own status and corresponding configuration
         - type: project
           target: auto
+          informational: true
     - component_id: cli 
       name: cli # only the CLI
       paths:
@@ -34,6 +37,7 @@ component_management:
       statuses: # each component has its own status and corresponding configuration
         - type: project
           target: auto
+          informational: true
     - component_id: frontend
       name: frontend # only frontend components
       paths:
@@ -41,6 +45,7 @@ component_management:
       statuses: # the core component has its own statuses
         - type: project
           target: auto
+          informational: true
 ignore:
   - ".docker"
   - ".github"
