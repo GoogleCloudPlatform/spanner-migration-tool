@@ -64,7 +64,7 @@ A few prerequisites must be considered before starting with reverse replication.
 8. Ensure that that [session file](./RunnigReverseReplication.md#files-generated-by-spanner-migration-tool) is uploaded to GCS (this requires a schema conversion to be done).
 9. [Source shards file](./RunnigReverseReplication.md#sample-sourceshards-file) already uploaded to GCS.
 10. Resources needed for reverse replication incur cost. Make sure to read [cost](#cost).
-11. Reverse replication uses shard identifier column per table to route the Spanner records to a given source shard.The column identfied as the sharding column needs to be selected via Spanner Migration Tool when performing migration.The value of this column should be the logicalShardId value specified in the [source shard file](./RunnigReverseReplication.md#sample-sourceshards-file). In the event that the shard identifier column is not an existing column, the application code needs to be changed to populate this shard identifier column when writing to Spanner.
+11. Reverse replication uses shard identifier column per table to route the Spanner records to a given source shard.The column identified as the sharding column needs to be selected via Spanner Migration Tool when performing migration.The value of this column should be the logicalShardId value specified in the [source shard file](./RunnigReverseReplication.md#sample-sourceshards-file).In the event that the shard identifier column is not an existing column,the application code needs to be changed to populate this shard identifier column when writing to Spanner.
 
 ## Launching reverse replication
 
