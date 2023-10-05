@@ -240,7 +240,7 @@
                         </mat-icon>
                     </span>
                     <span><button mat-button class="configure" (click)="downloadConfiguration()"
-                            [disabled]="isMigrationInProgress || !isTargetDetailSet || !isTargetConnectionProfileSet">
+                            [disabled]="!isTargetDetailSet || !isTargetConnectionProfileSet">
                             Download
                             <mat-icon matTooltip="Download configured shards as JSON" matTooltipPosition="above">
                                 download</mat-icon>
