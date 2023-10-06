@@ -81,6 +81,11 @@ func getJdbcSql(conv *internal.Conv, srcDriver string, spTableID string, primary
 			synthPk := conv.SpSchema[spTableID].ColDefs[conv.SyntheticPKeys[spTableID].ColId].Name
 			return fmt.Sprintf("select uuid() as %s, %s from %s.%s as %s", synthPk, strings.Join(selectCols, ", "), srcSchema, srcTable, tableAlias)
 		}
+	} else if srcDriver == constants.POSTGRES {
+		if primaryKeys == "" {
+			synthPk := conv.SpSchema[spTableID].ColDefs[conv.SyntheticPKeys[spTableID].ColId].Name
+			return fmt.Sprintf("select gen_random_uuid() as %s, %s from %s.%s as %s", synthPk, strings.Join(selectCols, ", "), srcSchema, srcTable, tableAlias)
+		}
 	}
 	return fmt.Sprintf("select %s from %s.%s as %s", strings.Join(selectCols, ", "), srcSchema, srcTable, tableAlias)
 }
@@ -137,12 +142,6 @@ func GetDataprocRequestParams(conv *internal.Conv, sourceProfile profiles.Source
 	} else if sourceProfile.Driver == constants.POSTGRES {
 		jdbcParams["url"] = fmt.Sprintf("jdbc:postgresql://%s:%s/%s?user=%s&password=%s", host, port, srcDb, user, pwd)
 		jdbcParams["driver"] = "org.postgresql.Driver"
-		if primaryKeys == "" {
-			jdbcParams["sql"] = fmt.Sprintf("select gen_random_uuid() as synth_id, t.* from %s.%s as t", srcSchema, srcTable)
-			primaryKeys = "synth_id"
-		} else {
-			jdbcParams["sql"] = fmt.Sprintf("select * from %s.%s", srcSchema, srcTable)
-		}
 		jdbcParams["jar"] = "gs://dataproc-templates/jars/postgresql-42.2.6.jar"
 	} else {
 		return DataprocRequestParams{}, fmt.Errorf("dataproc migration for source %s not supported", sourceProfile.Driver)
