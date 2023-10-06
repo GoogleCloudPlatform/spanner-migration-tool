@@ -16,11 +16,12 @@ package dproc
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	dataproc "cloud.google.com/go/dataproc/apiv1"
 	"cloud.google.com/go/dataproc/apiv1/dataprocpb"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"google.golang.org/api/option"
 )
@@ -41,8 +42,82 @@ type DataprocRequestParams struct {
 	Location      string
 }
 
-func GetDataprocRequestParams(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, srcSchema string, srcTable string, primaryKeys string, location string, subnet string) (DataprocRequestParams, error) {
+func getSparkType(spColType string) string {
+	switch spColType {
+	case "INT64":
+		return "LONG"
+	case "FLOAT64":
+		return "DOUBLE"
+	case "BYTES":
+		return "BINARY"
+	case "BOOL":
+		return "BOOLEAN"
+	case "STRING":
+		return "STRING"
+	case "TIMESTAMP":
+		return "TIMESTAMP"
+	case "DATE":
+		return "DATE"
+	case "NUMERIC":
+		return "DECIMAL"
+	default:
+		return ""
+	}
+}
 
+func getJdbcSql(conv *internal.Conv, srcDriver string, spTableID string, primaryKeys string) string {
+	srcTable := conv.SrcSchema[spTableID].Name
+	srcSchema := conv.SrcSchema[spTableID].Schema
+	const tableAlias string = "t"
+
+	var selectCols []string
+	for _, colId := range conv.SpSchema[spTableID].ColIds {
+		if conv.SrcSchema[spTableID].ColDefs[colId].Name != "" {
+			selectCols = append(selectCols, fmt.Sprintf("%s.%s", tableAlias, conv.SrcSchema[spTableID].ColDefs[colId].Name))
+		}
+	}
+	if srcDriver == constants.MYSQL {
+		if primaryKeys == "" {
+			synthPk := conv.SpSchema[spTableID].ColDefs[conv.SyntheticPKeys[spTableID].ColId].Name
+			return fmt.Sprintf("select uuid() as %s, %s from %s.%s as %s", synthPk, strings.Join(selectCols, ", "), srcSchema, srcTable, tableAlias)
+		}
+	} else if srcDriver == constants.POSTGRES {
+		if primaryKeys == "" {
+			synthPk := conv.SpSchema[spTableID].ColDefs[conv.SyntheticPKeys[spTableID].ColId].Name
+			return fmt.Sprintf("select gen_random_uuid() as %s, %s from %s.%s as %s", synthPk, strings.Join(selectCols, ", "), srcSchema, srcTable, tableAlias)
+		}
+	}
+	return fmt.Sprintf("select %s from %s.%s as %s", strings.Join(selectCols, ", "), srcSchema, srcTable, tableAlias)
+}
+
+func getTempViewArgs(conv *internal.Conv, spTableID string, primaryKeys string) []string {
+	var selectCols []string
+	for _, colId := range conv.SpSchema[spTableID].ColIds {
+		if conv.SrcSchema[spTableID].ColDefs[colId].Name != "" {
+			sparkType := getSparkType(conv.SpSchema[spTableID].ColDefs[colId].T.Name)
+			if conv.SpSchema[spTableID].ColDefs[colId].T.IsArray {
+				sparkType = fmt.Sprintf("ARRAY<%s>", sparkType)
+			}
+			if sparkType == "" {
+				selectCols = append(selectCols, fmt.Sprintf("%s as %s", conv.SrcSchema[spTableID].ColDefs[colId].Name, conv.SpSchema[spTableID].ColDefs[colId].Name))
+			} else {
+				selectCols = append(selectCols, fmt.Sprintf("CAST(%s as %s) as %s", conv.SrcSchema[spTableID].ColDefs[colId].Name, sparkType, conv.SpSchema[spTableID].ColDefs[colId].Name))
+			}
+		}
+	}
+	if primaryKeys == "" {
+		synthPk := conv.SpSchema[spTableID].ColDefs[conv.SyntheticPKeys[spTableID].ColId].Name
+		selectCols = append(selectCols, synthPk)
+	}
+	tempTable := "temp_view"
+	tempQuery := fmt.Sprintf("select %s from global_temp.temp_view", strings.Join(selectCols, ", "))
+	return []string{"--templateProperty",
+		"jdbctospanner.temp.table=" + tempTable,
+		"--templateProperty",
+		"jdbctospanner.temp.query=" + tempQuery}
+}
+
+func GetDataprocRequestParams(conv *internal.Conv, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, spTableID string, primaryKeys string, location string, subnet string) (DataprocRequestParams, error) {
 	host := sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.Host
 	port := sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.Port
 	user := sourceProfile.Config.ShardConfigurationDataproc.SchemaSource.User
@@ -57,31 +132,25 @@ func GetDataprocRequestParams(sourceProfile profiles.SourceProfile, targetProfil
 	if len(sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Port) > 1 {
 		port = sourceProfile.Config.ShardConfigurationDataproc.DataprocConfig.Port
 	}
+	spTableName := conv.SpSchema[spTableID].Name
 
 	jdbcParams := map[string]string{}
-	// TODO: replace hardcoded `synth_id` with a variable/constant
 	if sourceProfile.Driver == constants.MYSQL {
 		jdbcParams["url"] = fmt.Sprintf("jdbc:mysql://%s:%s/%s?user=%s&password=%s", host, port, srcDb, user, pwd)
 		jdbcParams["driver"] = "com.mysql.jdbc.Driver"
-		if primaryKeys == "" {
-			jdbcParams["sql"] = fmt.Sprintf("select uuid() as synth_id, t.* from %s.%s as t", srcSchema, srcTable)
-			primaryKeys = "synth_id"
-		} else {
-			jdbcParams["sql"] = fmt.Sprintf("select * from %s.%s", srcSchema, srcTable)
-		}
 		jdbcParams["jar"] = "gs://dataproc-templates/jars/mysql-connector-java.jar"
 	} else if sourceProfile.Driver == constants.POSTGRES {
 		jdbcParams["url"] = fmt.Sprintf("jdbc:postgresql://%s:%s/%s?user=%s&password=%s", host, port, srcDb, user, pwd)
 		jdbcParams["driver"] = "org.postgresql.Driver"
-		if primaryKeys == "" {
-			jdbcParams["sql"] = fmt.Sprintf("select gen_random_uuid() as synth_id, t.* from %s.%s as t", srcSchema, srcTable)
-			primaryKeys = "synth_id"
-		} else {
-			jdbcParams["sql"] = fmt.Sprintf("select * from %s.%s", srcSchema, srcTable)
-		}
 		jdbcParams["jar"] = "gs://dataproc-templates/jars/postgresql-42.2.6.jar"
 	} else {
 		return DataprocRequestParams{}, fmt.Errorf("dataproc migration for source %s not supported", sourceProfile.Driver)
+	}
+	jdbcParams["sql"] = getJdbcSql(conv, sourceProfile.Driver, spTableID, primaryKeys)
+
+	outputPrimaryKeys := primaryKeys
+	if primaryKeys == "" {
+		outputPrimaryKeys = conv.SpSchema[spTableID].ColDefs[conv.SyntheticPKeys[spTableID].ColId].Name
 	}
 
 	jarFileUris := []string{"file:///usr/lib/spark/external/spark-avro.jar",
@@ -103,15 +172,17 @@ func GetDataprocRequestParams(sourceProfile profiles.SourceProfile, targetProfil
 		"--templateProperty",
 		"jdbctospanner.output.database=" + spDb,
 		"--templateProperty",
-		"jdbctospanner.output.table=" + srcTable,
+		"jdbctospanner.output.table=" + spTableName,
 		"--templateProperty",
-		"jdbctospanner.output.primaryKey=" + primaryKeys,
+		"jdbctospanner.output.primaryKey=" + outputPrimaryKeys,
 		"--templateProperty",
 		"jdbctospanner.output.saveMode=" + saveMode,
 		"--templateProperty",
 		"jdbctospanner.output.batch.size=" + batchSize,
 		"--templateProperty",
 		"jdbctospanner.jdbc.fetchsize=" + fetchSize}
+
+	args = append(args, getTempViewArgs(conv, spTableID, primaryKeys)...)
 
 	dataprocRequestParams := DataprocRequestParams{
 		Project:       spProject,
@@ -130,8 +201,7 @@ func CreateDataprocBatchClient(ctx context.Context, location string) (*dataproc.
 	return batchClient, err
 }
 
-func TriggerDataprocTemplate(ctx context.Context, batchClient *dataproc.BatchControllerClient, srcTable string, srcSchema string, primaryKeys string, dataprocRequestParams DataprocRequestParams) (*dataproc.CreateBatchOperation, error) {
-	logger.Log.Info(fmt.Sprintf("Triggering Dataproc template for %s.%s\n", srcSchema, srcTable))
+func TriggerDataprocTemplate(ctx context.Context, batchClient *dataproc.BatchControllerClient, dataprocRequestParams DataprocRequestParams) (*dataproc.CreateBatchOperation, error) {
 	req := &dataprocpb.CreateBatchRequest{
 		Parent: "projects/" + dataprocRequestParams.Project + "/locations/" + dataprocRequestParams.Location,
 		Batch: &dataprocpb.Batch{
