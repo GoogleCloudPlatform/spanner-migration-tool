@@ -194,22 +194,15 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.srcTree = this.conversion.createTreeNodeForSource(this.conv, this.conversionRates)
   }
 
-  reRenderSidebar() {
-    this.reRenderObjectExplorerSpanner()
-  }
 
   changeCurrentObject(object: FlatNode) {
-    if (object?.type === ObjectExplorerNodeType.Table) {
+    if (object.type === ObjectExplorerNodeType.Table) {
       this.currentObject = object
-      this.tableData = this.currentObject
-        ? this.conversion.getColumnMapping(this.currentObject.id, this.conv)
-        : []
+      this.tableData = this.conversion.getColumnMapping(this.currentObject.id, this.conv)
 
       this.fkData = []
-      this.fkData = this.currentObject
-        ? this.conversion.getFkMapping(this.currentObject.id, this.conv)
-        : []
-    } else if (object?.type === ObjectExplorerNodeType.Index) {
+      this.fkData =  this.conversion.getFkMapping(this.currentObject.id, this.conv)
+    } else if (object.type === ObjectExplorerNodeType.Index) {
       this.currentObject = object
       this.indexData = this.conversion.getIndexMapping(object.parentId, this.conv, object.id)
     } else {
