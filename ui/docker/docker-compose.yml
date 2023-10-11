@@ -1,0 +1,11 @@
+version: '3'
+services:
+  mysql:
+    image: mysql:latest
+    container_name: my-mysql-container
+    environment:
+      MYSQL_ROOT_PASSWORD: pass123
+    ports:
+      - "3307:3306"
+    volumes:
+      - ../../test_data/mysql_interleave_dump.test.out:/docker-entrypoint-initdb.d/dump.sql
