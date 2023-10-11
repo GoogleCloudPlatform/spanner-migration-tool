@@ -293,15 +293,7 @@ func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile prof
 	}
 }
 
-func CreatePubsubNotificationAndLaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, projectID string, streamingCfg StreamingCfg, conv *internal.Conv) error {
-	err := CreatePubsubNotification(ctx, projectID, streamingCfg, streamingCfg.DatastreamCfg, conv)
-	if err != nil {
-		return err
-	}
-	return LaunchStream(ctx, sourceProfile, dbList, projectID, streamingCfg.DatastreamCfg)
-}
-
-func CreatePubsubNotification(ctx context.Context, projectID string, streamingCfg StreamingCfg, datastreamCfg DatastreamCfg, conv *internal.Conv) error {
+func CreatePubsubResources(ctx context.Context, projectID string, streamingCfg StreamingCfg, datastreamCfg DatastreamCfg, conv *internal.Conv) error {
 	pubsubClient, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
 		return fmt.Errorf("pubsub client can not be created: %v", err)
@@ -309,6 +301,7 @@ func CreatePubsubNotification(ctx context.Context, projectID string, streamingCf
 	defer pubsubClient.Close()
 	fmt.Println("Created pubsub client...")
 
+	// Create pubsub topic and subscription
 	topicObj, err := pubsubClient.CreateTopic(ctx, streamingCfg.PubsubCfg.TopicId)
 	if err != nil {
 		return fmt.Errorf("pubsub topic could not be created: %v", err)
@@ -322,21 +315,22 @@ func CreatePubsubNotification(ctx context.Context, projectID string, streamingCf
 	if err != nil {
 		return fmt.Errorf("pubsub subscription could not be created: %v", err)
 	}
-	fmt.Printf("Successfully created pubsub topic and subscription")
 
-	//Creating datastream client to fetch the gcs bucket using target profile.
+	// Fetch the created target profile and get the target gcs bucket name and path.
+	// Then create notification for the target bucket.
+	// Creating datastream client to fetch target profile.
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
 		return fmt.Errorf("datastream client can not be created: %v", err)
 	}
 	defer dsClient.Close()
 
-	// Fetch the GCS path from the destination connection profile.
 	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name)
 	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
 	if err != nil {
 		return fmt.Errorf("could not get connection profiles: %v", err)
 	}
+	// Fetch the GCS path from the target connection profile.
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
 	bucketName := gcsProfile.Bucket
 	prefix := gcsProfile.RootPath + datastreamCfg.DestinationConnectionConfig.Prefix
@@ -348,9 +342,10 @@ func CreatePubsubNotification(ctx context.Context, projectID string, streamingCf
 		prefix = prefix[1:]
 	}
 
+	// Create pubsub notification on the target gcs path
 	storageClient, err := storage.NewClient(ctx)
 	if err != nil {
-		return fmt.Errorf("GCS storage client can not be created: %v", err)
+		return fmt.Errorf("GCS client can not be created: %v", err)
 	}
 	defer storageClient.Close()
 
@@ -365,7 +360,7 @@ func CreatePubsubNotification(ctx context.Context, projectID string, streamingCf
 	if err != nil {
 		return fmt.Errorf("GCS Notification could not be created: %v", err)
 	}
-	fmt.Printf("Successfully created pubsub topic, subscription and notification for bucket %s.\n", bucketName)
+	logger.Log.Info(fmt.Sprintf("Successfully created pubsub topic id=%s, subscription id=%s, notification for bucket=%s with id=%s.\n", streamingCfg.PubsubCfg.TopicId, streamingCfg.PubsubCfg.SubscriptionId, bucketName, createdNotification.ID))
 	streamingCfg.PubsubCfg.NotificationId = createdNotification.ID
 	streamingCfg.PubsubCfg.BucketName = bucketName
 	storeGeneratedPubsubResources(conv, streamingCfg.PubsubCfg, projectID, streamingCfg.DataShardId)
@@ -768,7 +763,11 @@ func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, 
 	case constants.POSTGRES:
 		dbList = append(dbList, profiles.LogicalShard{DbName: streamingCfg.DatastreamCfg.Properties})
 	}
-	err = CreatePubsubNotificationAndLaunchStream(ctx, sourceProfile, dbList, targetProfile.Conn.Sp.Project, streamingCfg, conv)
+	err = CreatePubsubResources(ctx, targetProfile.Conn.Sp.Project, streamingCfg, streamingCfg.DatastreamCfg, conv)
+	if err != nil {
+		return streamingCfg, fmt.Errorf("Error creating pubsub resources: %v", err)
+	}
+	err = LaunchStream(ctx, sourceProfile, dbList, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
 	if err != nil {
 		return streamingCfg, fmt.Errorf("error launching stream: %v", err)
 	}

@@ -349,8 +349,11 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		fmt.Printf("Initiating migration for shard: %v\n", p.DataShardId)
-
-		err = streaming.CreatePubsubNotificationAndLaunchStream(ctx, sourceProfile, p.LogicalShards, targetProfile.Conn.Sp.Project, streamingCfg, conv)
+		err = streaming.CreatePubsubResources(ctx, targetProfile.Conn.Sp.Project, streamingCfg, streamingCfg.DatastreamCfg, conv)
+		if err != nil {
+			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+		}
+		err = streaming.LaunchStream(ctx, sourceProfile, p.LogicalShards, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
