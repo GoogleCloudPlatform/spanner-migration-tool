@@ -76,6 +76,32 @@ describe('AddIndexFormComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('should render ngOnInit and all dependent services correctly', () => {
+    const addIndexRule: IRule = {
+      Id: "r1",
+      Name: "x1",
+      ObjectType: "Table",
+      Type: "add_index",
+      Enabled: true,
+      Data: {
+        Id: "ind1",
+        Name: "ind1",
+        Table: "t1",
+        Keys: [
+          {
+            ColId: "c1",
+            Order: 1,
+            Desc: false,
+          }
+        ]
+      }
+    }
+    sidenavServiceSpy.ruleData = of(addIndexRule)
+    component.ngOnInit()
+    expect(component.ColsArray.length).toBe(1);
+    expect(component.addIndexForm.status).toEqual("DISABLED");
+  });
+
   it('should add a new column form', () => {
     component.addNewColumnForm();
     expect(component.ColsArray.length).toBe(1);
@@ -83,14 +109,14 @@ describe('AddIndexFormComponent', () => {
 
   it('should remove a column form', () => {
     component.addNewColumnForm();
-    component.removeColumnForm(0);
-    expect(component.ColsArray.length).toBe(0);
+    component.addNewColumnForm();
+    component.removeColumnForm(1);
+    expect(component.ColsArray.length).toBe(1);
   });
 
   it('should reset rule type', () => {
     spyOn(component.resetRuleType, 'emit');
     component.resetRuleType.emit('');
-
     expect(component.resetRuleType.emit).toHaveBeenCalledWith('');
   });
 
@@ -110,6 +136,12 @@ describe('AddIndexFormComponent', () => {
     expect(component.ColsArray.at(0).value.columnName).toEqual('column1');
   });
 
+  it('should clear column arrays for empty data', () => {
+    const tableId = 't1';
+    component.setColArraysForViewRules(tableId, undefined);
+    expect(component.ColsArray.length).toBe(0);
+  });
+
   it('should update common columns', () => {
     component.totalColumns = ['Column1', 'Column2', 'Column3'];
     component.addIndexForm = fb.group({
@@ -118,17 +150,13 @@ describe('AddIndexFormComponent', () => {
         fb.group({ columnName: 'Column3', sort: 'false' }),
       ]),
     });
-
     component.updateCommonColumns();
-
     expect(component.commonColumns).toEqual(['Column2']);
   });
 
   it('should select table change', () => {
     const tableName = 'table1';
-
     component.selectedTableChange(tableName);
-
     expect(component.totalColumns).toEqual(['column1']);
     expect(component.ColsArray.length).toBe(0);
     expect(component.commonColumns).toEqual(['column1']);
@@ -136,13 +164,10 @@ describe('AddIndexFormComponent', () => {
   });
 
   it('should delete a rule', () => {
-
     // Set a mock ruleId
     component.ruleId = 'sampleRuleId';
-
     // Call the deleteRule method
     component.deleteRule();
-
     // Expectations
     expect(dataServiceSpy.dropRule).toHaveBeenCalledWith('sampleRuleId');
     expect(sidenavServiceSpy.setSidenavAddIndexTable).toHaveBeenCalledWith('');
@@ -158,14 +183,9 @@ describe('AddIndexFormComponent', () => {
         fb.group({ columnName: 'column1', sort: 'true' }),
       ]),
     });
-
-    // Call the addIndex method
     component.addIndex();
-
-    // Expectations
     expect(conversionServiceSpy.getTableIdFromSpName).toHaveBeenCalledWith('table1', component.conv);
     expect(conversionServiceSpy.getColIdFromSpannerColName).toHaveBeenCalledWith('column1', 't1', component.conv);
-
     expect(dataServiceSpy.applyRule).toHaveBeenCalled();
     expect(sidenavServiceSpy.setSidenavAddIndexTable).toHaveBeenCalledWith('');
     expect(sidenavServiceSpy.closeSidenav).toHaveBeenCalled();
