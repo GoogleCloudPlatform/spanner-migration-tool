@@ -29,6 +29,7 @@ export interface IGeneratedResources {
     PubsubTopicUrl: string
     PubsubSubscriptionName: string
     PubsubSubscriptionUrl: string
+    DataflowGcloudCmd: string
     ShardToDatastreamMap: Map<string, ResourceDetails>
     ShardToDataflowMap: Map<string, ResourceDetails>
     ShardToPubsubTopicMap: Map<string, ResourceDetails>
@@ -38,6 +39,7 @@ export interface IGeneratedResources {
 export interface ResourceDetails {
     JobName: string
     JobUrl: string
+    GcloudCmd: string
 }
 
 export interface ISourceAndTargetDetails {

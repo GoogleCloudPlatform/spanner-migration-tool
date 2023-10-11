@@ -51,6 +51,7 @@ var (
 	serviceAccountEmail  string
 	orderingWorkers      int
 	writerWorkers        int
+	networkTags          string
 )
 
 const (
@@ -78,6 +79,8 @@ func setupGlobalFlags() {
 	flag.StringVar(&serviceAccountEmail, "serviceAccountEmail", "", "The email address of the service account to run the job as")
 	flag.IntVar(&orderingWorkers, "orderingWorkers", 5, "number of workers for ordering job")
 	flag.IntVar(&writerWorkers, "writerWorkers", 5, "number of workers for writer job")
+	flag.StringVar(&networkTags, "networkTags", "", "Network tags addded to the Dataflow jobs worker and launcher VMs")
+
 }
 
 func prechecks() error {
@@ -269,6 +272,14 @@ func main() {
 		}
 	}
 
+	var additionalExpr []string
+
+	if networkTags == "" {
+		additionalExpr = []string{"use_runner_v2"}
+	} else {
+		additionalExpr = []string{"use_runner_v2", "use_network_tags=" + networkTags, "use_network_tags_for_flex_templates=" + networkTags}
+	}
+
 	launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  fmt.Sprintf("%s-ordering", jobNamePrefix),
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: ORDERING_TEMPLATE},
@@ -289,7 +300,7 @@ func main() {
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			NumWorkers:            int32(orderingWorkers),
-			AdditionalExperiments: []string{"use_runner_v2"},
+			AdditionalExperiments: additionalExpr,
 			MachineType:           machineType,
 			Network:               vpcNetwork,
 			Subnetwork:            vpcSubnetwork,
@@ -323,7 +334,7 @@ func main() {
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			NumWorkers:            int32(writerWorkers),
-			AdditionalExperiments: []string{"use_runner_v2"},
+			AdditionalExperiments: additionalExpr,
 			MachineType:           machineType,
 			Network:               vpcNetwork,
 			Subnetwork:            vpcSubnetwork,
@@ -461,7 +472,7 @@ func getGcloudCommand(req *dataflowpb.LaunchFlexTemplateRequest, templatePath st
 		params = params + k + "=" + v + ","
 	}
 	params = strings.TrimSuffix(params, ",")
-	cmd := fmt.Sprintf("gcloud beta dataflow flex-template run %s --project=%s --region=%s --template-file-gcs-location=%s --parameters %s --num-workers=%d --worker-machine-type=%s",
+	cmd := fmt.Sprintf("gcloud dataflow flex-template run %s --project=%s --region=%s --template-file-gcs-location=%s --parameters %s --num-workers=%d --worker-machine-type=%s",
 		lp.JobName, req.ProjectId, req.Location, templatePath, params, lp.Environment.NumWorkers, lp.Environment.MachineType)
 	if lp.Environment.AdditionalExperiments != nil {
 		exps := lp.Environment.AdditionalExperiments

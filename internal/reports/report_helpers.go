@@ -130,29 +130,6 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 			}
 
 		}
-		if syntheticPK != nil {
-			// Warnings about synthetic primary keys must be handled as a special case
-			// because we have a Spanner column with no matching source DB col.
-			// Much of the generic code for processing issues assumes we have both.
-			if p.severity == warning {
-				toAppend := Issue{
-					Category:    IssueDB[internal.MissingPrimaryKey].Category,
-					Description: fmt.Sprintf("Column '%s' was added because table '%s' didn't have a primary key. Spanner requires a primary key for every table", *syntheticPK, conv.SpSchema[tableId].Name),
-				}
-				l = append(l, toAppend)
-			}
-		}
-		if uniquePK != nil {
-			// Warning about using a column with unique constraint as primary key
-			// in case primary key is absent.
-			if p.severity == warning {
-				toAppend := Issue{
-					Category:    IssueDB[internal.MissingPrimaryKey].Category,
-					Description: fmt.Sprintf("UNIQUE constraint on column(s) '%s' replaced with primary key since table '%s' didn't have one. Spanner requires a primary key for every table", strings.Join(uniquePK, ", "), conv.SpSchema[tableId].Name),
-				}
-				l = append(l, toAppend)
-			}
-		}
 
 		if p.severity == warning {
 			for _, spFk := range conv.SpSchema[tableId].ForeignKeys {
@@ -261,11 +238,11 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				case internal.Widened:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
-						Description: fmt.Sprintf("Table %s: %s e.g. for column '%s', source DB type %s is mapped to Spanner data type %s", conv.SpSchema[tableId].Name, IssueDB[i].Brief, spColName, srcColType, spColType),
+						Description: fmt.Sprintf("Table '%s': %s e.g. for column '%s', source DB type %s is mapped to Spanner data type %s", conv.SpSchema[tableId].Name, IssueDB[i].Brief, spColName, srcColType, spColType),
 					}
 					l = append(l, toAppend)
 				case internal.HotspotTimestamp:
-					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
+					str := fmt.Sprintf(" %s for Table '%s' and Column  '%s'", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !Contains(l, str) {
 						toAppend := Issue{
@@ -275,7 +252,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						l = append(l, toAppend)
 					}
 				case internal.HotspotAutoIncrement:
-					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
+					str := fmt.Sprintf(" %s for Table '%s' and Column '%s'", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !Contains(l, str) {
 						toAppend := Issue{
@@ -286,7 +263,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					}
 				case internal.InterleavedNotInOrder:
 					parent, _, _ := getInterleaveDetail(conv, tableId, colId, i)
-					str := fmt.Sprintf(" Table %s can be interleaved with table %s %s  %s and Column %s", spSchema.Name, parent, IssueDB[i].Brief, spSchema.Name, spColName)
+					str := fmt.Sprintf(" Table '%s' can be interleaved with table '%s' %s '%s' and Column '%s'", spSchema.Name, parent, IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !Contains(l, str) {
 						toAppend := Issue{
@@ -297,7 +274,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					}
 				case internal.InterleavedOrder:
 					parent, _, _ := getInterleaveDetail(conv, tableId, colId, i)
-					str := fmt.Sprintf("Table %s %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief, parent)
+					str := fmt.Sprintf("Table '%s' %s '%s' go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief, parent)
 
 					if !Contains(l, str) {
 						toAppend := Issue{
@@ -308,7 +285,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					}
 				case internal.InterleavedAddColumn:
 					parent, _, _ := getInterleaveDetail(conv, tableId, colId, i)
-					str := fmt.Sprintf("Table '%s' is %s %s add %s as a primary key in table %s", conv.SpSchema[tableId].Name, IssueDB[i].Brief, parent, spColName, spSchema.Name)
+					str := fmt.Sprintf("Table '%s' is %s '%s' add '%s' as a primary key in table '%s'", conv.SpSchema[tableId].Name, IssueDB[i].Brief, parent, spColName, spSchema.Name)
 
 					if !Contains(l, str) {
 						toAppend := Issue{
@@ -319,7 +296,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					}
 				case internal.InterleavedRenameColumn:
 					parent, fkName, referColName := getInterleaveDetail(conv, tableId, colId, i)
-					str := fmt.Sprintf(" %s %s rename %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, spColName, spSchema.Name, fkName, referColName)
+					str := fmt.Sprintf(" %s '%s' rename '%s' primary key in table '%s' to match the foreign key '%s' refer column '%s'", IssueDB[i].Brief, parent, spColName, spSchema.Name, fkName, referColName)
 
 					if !Contains(l, str) {
 						toAppend := Issue{
@@ -330,7 +307,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					}
 				case internal.InterleavedChangeColumnSize:
 					parent, fkName, referColName := getInterleaveDetail(conv, tableId, colId, i)
-					str := fmt.Sprintf(" %s %s change column size of column %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, spColName, spSchema.Name, fkName, referColName)
+					str := fmt.Sprintf(" %s '%s' change column size of column '%s' primary key in table '%s' to match the foreign key '%s' refer column '%s'", IssueDB[i].Brief, parent, spColName, spSchema.Name, fkName, referColName)
 
 					if !Contains(l, str) {
 						toAppend := Issue{
@@ -340,7 +317,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						l = append(l, toAppend)
 					}
 				case internal.RedundantIndex:
-					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
+					str := fmt.Sprintf(" %s for Table '%s' and Column  '%s'", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !Contains(l, str) {
 						toAppend := Issue{
@@ -351,7 +328,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					}
 
 				case internal.AutoIncrementIndex:
-					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
+					str := fmt.Sprintf(" %s for Table '%s' and Column '%s'", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !Contains(l, str) {
 						toAppend := Issue{
@@ -362,7 +339,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					}
 
 				case internal.InterleaveIndex:
-					str := fmt.Sprintf("Column %s of Table %s %s", spColName, spSchema.Name, IssueDB[i].Brief)
+					str := fmt.Sprintf("Column '%s' of Table '%s' %s", spColName, spSchema.Name, IssueDB[i].Brief)
 
 					if !Contains(l, str) {
 						toAppend := Issue{
@@ -372,7 +349,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						l = append(l, toAppend)
 					}
 				case internal.ShardIdColumnAdded:
-					str := fmt.Sprintf("Table '%s': %s %s", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[conv.SpSchema[tableId].ShardIdColumn].Name, IssueDB[i].Brief)
+					str := fmt.Sprintf("Table '%s': '%s' %s", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[conv.SpSchema[tableId].ShardIdColumn].Name, IssueDB[i].Brief)
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
 						Description: str,
@@ -380,7 +357,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					l = append(l, toAppend)
 
 				case internal.ShardIdColumnPrimaryKey:
-					str := fmt.Sprintf("Table '%s': %s %s", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[conv.SpSchema[tableId].ShardIdColumn].Name, IssueDB[i].Brief)
+					str := fmt.Sprintf("Table '%s': '%s' %s", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[conv.SpSchema[tableId].ShardIdColumn].Name, IssueDB[i].Brief)
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
 						Description: str,
@@ -396,11 +373,21 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				case internal.ArrayTypeNotSupported:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
-						Description: fmt.Sprintf("Table '%s': Column %s, %s", conv.SpSchema[tableId].Name, spColName, IssueDB[i].Brief),
+						Description: fmt.Sprintf("Table '%s': Column '%s', %s", conv.SpSchema[tableId].Name, spColName, IssueDB[i].Brief),
 					}
 					l = append(l, toAppend)
 				case internal.MissingPrimaryKey:
-					// We don't want default case to handle the missing primary key warning 
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
+						Description: fmt.Sprintf("Column '%s' was added because table '%s' didn't have a primary key. Spanner requires a primary key for every table", *syntheticPK, conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
+				case internal.UniqueIndexPrimaryKey:
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
+						Description: fmt.Sprintf("UNIQUE constraint on column(s) '%s' replaced with primary key since table '%s' didn't have one. Spanner requires a primary key for every table", strings.Join(uniquePK, ", "), conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
 				default:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
@@ -456,8 +443,7 @@ func getInterleaveDetail(conv *internal.Conv, tableId string, colId string, issu
 				if err1 == nil && colPkOrder != 1 {
 					return conv.SpSchema[fk.ReferTableId].Name, "", ""
 				}
-			case internal.InterleavedRenameColumn:
-			case internal.InterleavedChangeColumnSize:
+			case internal.InterleavedRenameColumn, internal.InterleavedChangeColumnSize:
 				if err1 == nil {
 					parentTable := conv.SpSchema[fk.ReferTableId]
 					return conv.SpSchema[fk.ReferTableId].Name, fk.Name, parentTable.ColDefs[fk.ReferColumnIds[i]].Name
@@ -552,7 +538,9 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.ShardIdColumnPrimaryKey: {Brief: "column is not a part of primary key. You may go to the Primary Key tab and add this column as a part of Primary Key", severity: suggestion, Category: "SHARD_ID_ADD_COLUMN_PRIMARY_KEY",
 		CategoryDescription: "Shard id column is not a part of primary key. Please add it to primary key"},
 	internal.MissingPrimaryKey: {Category: "MISSING_PRIMARY_KEY",
-		CategoryDescription: "Primary Key is missing"},
+		CategoryDescription: "Primary Key is missing, synthetic column created as a primary key"},
+	internal.UniqueIndexPrimaryKey: {Category: "UNIQUE_INDEX_PRIMARY_KEY",
+		CategoryDescription: "Primary Key is missing, unique column(s) used as primary key"},
 	internal.ArrayTypeNotSupported: {Brief: "Array datatype migration is not fully supported. Please validate data after data migration", severity: warning, Category: "ARRAY_TYPE_NOT_SUPPORTED"},
 }
 

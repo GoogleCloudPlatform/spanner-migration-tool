@@ -52,16 +52,18 @@
     </mat-form-field>
     <mat-icon class="configure" [matTooltip]="migrationModesHelpText.get(selectedMigrationMode)!">info</mat-icon>
     <br>
-    <mat-form-field appearance="outline">
-        <mat-label>Migration Type:</mat-label>
-        <mat-select [(ngModel)]="selectedMigrationType" (selectionChange)="refreshPrerequisites()">
-            <mat-option *ngFor="let type of migrationTypes" [value]="type.value">
-                {{type.name}}
-            </mat-option>
-        </mat-select>
-    </mat-form-field>
-    <mat-icon class="configure" [matTooltip]="migrationTypesHelpText.get(selectedMigrationType)!">info</mat-icon>
-    <br />
+    <div *ngIf="(selectedMigrationMode !='Schema')">
+        <mat-form-field appearance="outline">
+            <mat-label>Migration Type:</mat-label>
+            <mat-select [(ngModel)]="selectedMigrationType" (selectionChange)="refreshPrerequisites()">
+                <mat-option *ngFor="let type of migrationTypes" [value]="type.value">
+                    {{type.name}}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+        <mat-icon class="configure" [matTooltip]="migrationTypesHelpText.get(selectedMigrationType)!">info</mat-icon>
+        <br />    
+    </div>
     <div *ngIf="!(selectedMigrationMode === 'Schema' || selectedMigrationType === 'lowdt')">
         <mat-form-field appearance="outline">
             <mat-label>Skip Foreign Key Creation:</mat-label>
@@ -238,7 +240,7 @@
                         </mat-icon>
                     </span>
                     <span><button mat-button class="configure" (click)="downloadConfiguration()"
-                            [disabled]="isMigrationInProgress || !isTargetDetailSet || !isTargetConnectionProfileSet">
+                            [disabled]="!isTargetDetailSet || !isTargetConnectionProfileSet">
                             Download
                             <mat-icon matTooltip="Download configured shards as JSON" matTooltipPosition="above">
                                 download</mat-icon>
@@ -324,6 +326,10 @@
         <span *ngIf="resourcesGenerated.DataflowJobName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
             <li>Dataflow job: <a [href]="resourcesGenerated.DataflowJobUrl"
                     target="_blank">{{resourcesGenerated.DataflowJobName}}</a>
+                    <span><button mat-button class="configure" (click)="openGcloudPopup(resourcesGenerated.DataflowGcloudCmd)">
+                        <mat-icon matTooltip="Equivalent gCloud command" matTooltipPosition="above">
+                            code</mat-icon>
+                    </button></span>
             </li>
         </span>
         <span *ngIf="resourcesGenerated.PubsubTopicName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
@@ -344,6 +350,10 @@
             <li *ngFor="let dfJob of resourcesGenerated.ShardToDataflowMap | keyvalue">
                 Dataflow job for shardId: {{ dfJob.key }} - <a [href]="dfJob.value.JobUrl"
                     target="_blank">{{dfJob.value.JobName}}</a>
+                    <span><button mat-button class="configure" (click)="openGcloudPopup(dfJob.value.GcloudCmd)">
+                        <mat-icon matTooltip="Equivalent gCloud command" matTooltipPosition="above">
+                            code</mat-icon>
+                    </button></span>
             </li>
         </span>
         <span *ngIf="resourcesGenerated.PubsubTopicName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
@@ -358,10 +368,12 @@
             </li>
         </span>
         <br><br>
+        <span *ngIf="(selectedMigrationType ==='lowdt')">
         <b>Note: </b>Spanner migration tool has orchestrated the migration successfully. For minimal downtime
         migrations, it is safe to close Spanner migration tool now without affecting the progress of the migration.
         Please note that Spanner migration tool does not save the IDs of the Dataflow jobs created once closed, so
         please keep copy over the links in the Generated Resources section above before closing Spanner migration tool.
+        </span>
     </div>
     <div class="migrate">
         <span *ngIf="!isLowDtMigrationRunning">

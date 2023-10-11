@@ -34,6 +34,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 )
 
@@ -499,7 +500,8 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 		CleanupPubsubResources(ctx, pubsubClient, storageClient, conv.Audit.StreamingStats.PubsubCfg, projectID)
 	}
 	// clean up jobs for sharded migrations (with error handling)
-	for _, dfId := range conv.Audit.StreamingStats.ShardToDataflowJobMap {
+	for _, resourceDetails := range conv.Audit.StreamingStats.ShardToDataflowInfoMap {
+		dfId := resourceDetails.JobId
 		err := CleanupDataflowJob(ctx, c, dfId, projectID, region)
 		if err != nil {
 			fmt.Printf("Cleanup of the dataflow job: %s was unsuccessful, please clean up the job manually", dfId)
@@ -688,18 +690,21 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		fmt.Printf("flexTemplateRequest: %+v\n", req)
 		return fmt.Errorf("unable to launch template: %v", err)
 	}
-	storeGeneratedResources(conv, datastreamCfg, respDf, project, streamingCfg.DataShardId)
+	gcloudDfCmd := utils.GetGcloudDataflowCommand(req)
+	logger.Log.Debug(fmt.Sprintf("\nEquivalent gCloud command for job %s:\n%s\n\n", req.LaunchParameter.JobName, gcloudDfCmd))
+	storeGeneratedResources(conv, datastreamCfg, respDf, gcloudDfCmd, project, streamingCfg.DataShardId)
 	return nil
 }
 
-func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, respDf *dataflowpb.LaunchFlexTemplateResponse, project string, dataShardId string) {
+func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, respDf *dataflowpb.LaunchFlexTemplateResponse, gcloudDataflowCmd string, project string, dataShardId string) {
 	conv.Audit.StreamingStats.DataStreamName = datastreamCfg.StreamId
 	conv.Audit.StreamingStats.DataflowJobId = respDf.Job.Id
+	conv.Audit.StreamingStats.DataflowGcloudCmd = gcloudDataflowCmd
 	if dataShardId != "" {
 		var resourceMutex sync.Mutex
 		resourceMutex.Lock()
 		conv.Audit.StreamingStats.ShardToDataStreamNameMap[dataShardId] = datastreamCfg.StreamId
-		conv.Audit.StreamingStats.ShardToDataflowJobMap[dataShardId] = respDf.Job.Id
+		conv.Audit.StreamingStats.ShardToDataflowInfoMap[dataShardId] = internal.ShardedDataflowJobResources{JobId: respDf.Job.Id, GcloudCmd: gcloudDataflowCmd}
 		resourceMutex.Unlock()
 	}
 	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId)

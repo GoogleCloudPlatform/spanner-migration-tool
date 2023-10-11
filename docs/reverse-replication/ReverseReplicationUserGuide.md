@@ -45,7 +45,10 @@ These steps are achieved by two Dataflow jobs, along with an interim buffer whic
 
 A few prerequisites must be considered before starting with reverse replication.
 
-1. Make sure that there is network connectivity between source database and your GCP project on which the Dataflow jobs will run.Ensure the Dataflow worker IPs can access the MySQL IPs.
+1. Ensure network connectivity between the source database and your GCP project, where your Dataflow jobs will run.
+  - Allowlist Dataflow worker IPs on the MySQL instance so that they can access the MySQL IPs.
+  - Check that the MySQL credentials are correctly specified in the [source shards file](./RunnigReverseReplication.md#sample-sourceshards-file).
+  - Check that the MySQL server is up. 
 2. Ensure that Dataflow permissions are present.[Basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin:~:text=Grant%20roles%20to%20your%20Compute%20Engine%20default%20service%20account.%20Run%20the%20following%20command%20once%20for%20each%20of%20the%20following%20IAM%20roles%3A%20roles/dataflow.admin%2C%20roles/dataflow.worker%2C%20roles/bigquery.dataEditor%2C%20roles/pubsub.editor%2C%20roles/storage.objectAdmin%2C%20and%20roles/artifactregistry.reader) and [Flex template permissions](https://cloud.google.com/dataflow/docs/guides/templates/configuring-flex-templates#permissions).
 3. Ensure the compute engine service account has the following permissions:
     - roles/pubsub.subscriber
@@ -61,9 +64,7 @@ A few prerequisites must be considered before starting with reverse replication.
 8. Ensure that that [session file](./RunnigReverseReplication.md#files-generated-by-spanner-migration-tool) is uploaded to GCS (this requires a schema conversion to be done).
 9. [Source shards file](./RunnigReverseReplication.md#sample-sourceshards-file) already uploaded to GCS.
 10. Resources needed for reverse replication incur cost. Make sure to read [cost](#cost).
-11. Reverse replication uses shard identifier column per table to route the Spanner records to a given source shard.The column identfied as the sharding column needs to be selected via Spanner Migration Tool when performing migration.The value of this column should be the logicalShardId value specified in the [source shard file](./RunnigReverseReplication.md#sample-sourceshards-file). There are two ways to populate a sharding column when writing to Spanner,post cutover:
-    - Use generated columns. This would mean an additional generated column will be required to be created which will perform the sharding logic (typically based on Primary Key) and that column will be used to identify the shard during reverse replication
-    - In case it's not generated column,the user populates it from the application code
+11. Reverse replication uses shard identifier column per table to route the Spanner records to a given source shard.The column identified as the sharding column needs to be selected via Spanner Migration Tool when performing migration.The value of this column should be the logicalShardId value specified in the [source shard file](./RunnigReverseReplication.md#sample-sourceshards-file).In the event that the shard identifier column is not an existing column,the application code needs to be changed to populate this shard identifier column when writing to Spanner.
 
 ## Launching reverse replication
 
@@ -164,10 +165,22 @@ In this case, check if you observe the following:
 
 - ***There is data in Pub/Sub yet not present in source database***
 
-  Records of below nature are dropped from reverse replication. Check the Dataflow logs to see if they are dropped.
+   Check worker logs to ensure that records are being read from PubSub. Filter the logs based on logical shard id of the shard you want to check. It should have messages like below, which indicate records are being read from Pub/Sub.
 
-     1.Records for which primary key cannot be determined on the source database.This can happen when the source database table does not have a primary key, or the primary key value was not present in the change stream data, or the record was deleted on Cloud Spanner and the deleted record was removed from Cloud Spanner due to lapse of retention period by the time the record was to be reverse replicated.
 
+    ![DataflowLog](https://services.google.com/fh/files/misc/recordsreadfrompubsub.png)
+
+    Check for logs to see if there are any Connection exception warnings like below. This means that the source database is not reachable and the job keeps retrying to connect, hence nothing gets written to the source database. In such case, please ensure that the [prerequisite](#before-you-begin) of connectivity between source database and Dataflow workers is met.
+    ![DataflowLog](https://services.google.com/fh/files/misc/connectionretry.png)
+
+  
+
+  Check the Dataflow logs to see if records are being dropped. This can happen for records for which primary key cannot be determined on the source database. This can happen when:
+
+  1. The source database table does not have a primary key
+  2. The primary key value was not present in the change stream data
+  3. The record was deleted on Cloud Spanner and the deleted record was removed from Cloud Spanner due to lapse of retention period by the time the record was to be reverse replicated.
+    
 #### There is higher load than the expected QPS on  spanner instance post cutover
 
 1. Change steams query incurs load on spanner instance, consider scaling up if it becomes a bottleneck.
@@ -179,7 +192,9 @@ In this case, check if you observe the following:
 
 For both the Dataflow jobs, once an error is encountered for a given shard, then procesing is stopped for that shard to preserve ordering.To recover,rerun the job.The jobs are idempotent and it's safe to rerun them.
 
-The command to run the Dataflow jobs should be available when launching the Dataflow jobs via launcher script.
+The command to run the Dataflow jobs should be available when launching the Dataflow jobs via launcher script. The arguments are similar to what was passed in the launcher [script](./RunnigReverseReplication.md#arguments).
+
+Please refer dataflow [documentation](https://cloud.google.com/dataflow/docs/guides/routes-firewall#internet_access_for) on network options.
 
 Example command for the Spanner to Sink job
 
@@ -187,11 +202,11 @@ Example command for the Spanner to Sink job
 gcloud dataflow flex-template run ordering-fromspanner \
   --project <project name> \
   --region <region name> \
-  --template-file-gcs-location gs://dataflow/templates/flex/Spanner_Change_Streams_to_Sink \
---additional-experiments=use_runner_v2 \
-  --parameters "changeStreamName=<stream name>" \
-  --parameters "instanceId=<instance name>" \
-  --parameters "databaseId=<database name>" \
+  --template-file-gcs-location gs://dataflow-templates/2023-07-18-00_RC00/flex/Spanner_Change_Streams_to_Sink \
+--additional-experiments=use_runner_v2,use_network_tags=<network tags>,use_network_tags_for_flex_templates=<network tags> \
+  --parameters "changeStreamName=<spanner change stream name>" \
+  --parameters "instanceId=<spanner instance name>" \
+  --parameters "databaseId=<spanner database name>" \
   --parameters "spannerProjectId=<project id>" \
   --parameters "metadataInstance=<metadata instance>" \
   --parameters "metadataDatabase=<metadata database>" \
@@ -199,14 +214,21 @@ gcloud dataflow flex-template run ordering-fromspanner \
   --parameters "pubSubDataTopicId=projects/<project name>/topics/<topic name>" \
   --parameters "pubSubErrorTopicId=projects/<project name>/topics/<topic name>" \
   --parameters "pubSubEndpoint=<end point name>:443" \
---parameters "sessionFilePath=<gcs path to session json file>"
+--parameters "sessionFilePath=<gcs path to session json file created during forward migration>"
 
 ```
 
 Example command for the writing to source database job
 
 ```code
-gcloud beta dataflow flex-template run writes-tosql  --project=<project name>    --region=<region name>     --template-file-gcs-location=gs://dataflow/templates/flex/Ordered_Changestream_Buffer_to_Sourcedb --num-workers=1  --worker-machine-type=n2-standard-64 --additional-experiments=use_runner_v2 --parameters sourceShardsFilePath=<path to source shards file>,sessionFilePath=<gcs path to session json file>,bufferType=pubsub,pubSubProjectId=<project name>
+gcloud  dataflow flex-template run writes-tosql  \
+--project=<project name>  \
+--region=<region name>  \ 
+--template-file-gcs-location=gs://dataflow-templates/2023-07-18-00_RC00/flex/Ordered_Changestream_Buffer_to_Sourcedb \
+--additional-experiments=use_runner_v2,use_network_tags=<network tags>,use_network_tags_for_flex_templates=<network tags> \
+--parameters "sourceShardsFilePath=<gcs path to source shards file given when launching reverse replication>" \
+--parameters "sessionFilePath=<gcs path to session json file created during forward migration>" \
+--parameters "pubSubProjectId=<project name where pubsub topic resides>"
 
 ```
 
@@ -233,7 +255,7 @@ Reverse transformation can not be supported for following scenarios out of the b
 2. Adding column in Spanner that does not exist in source - in this case the column cannot be replicated
 3. Deleting column in Spanner that is mandatory in source
 4. Spanner PK is UUID while source PK is auto-increment key 
-5. Spanner table has more columns as part of PK than the source 
+5. Spanner table has more columns as part of PK than the source - in this case the source records having the same values as the partial primary keys are updated 
 6. Spanner columns have greater length of string columns than source 
 7. Spanner columns have different data type than source 
 8. CLOB will not be read from GCS and put in source 

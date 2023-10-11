@@ -14,6 +14,7 @@ import { SourceDetailsFormComponent } from '../source-details-form/source-detail
 import { EndMigrationComponent } from '../end-migration/end-migration.component'
 import { IDataflowConfig, IMigrationProfile, ISetUpConnectionProfile, IShardedDataflowMigration } from 'src/app/model/profile'
 import { DataflowFormComponent } from '../dataflow-form/dataflow-form.component'
+import { EquivalentGcloudCommandComponent } from '../equivalent-gcloud-command/equivalent-gcloud-command.component'
 import ISpannerConfig from 'src/app/model/spanner-config'
 import { ShardedBulkSourceDetailsFormComponent } from '../sharded-bulk-source-details-form/sharded-bulk-source-details-form.component'
 import { IShardSessionDetails } from 'src/app/model/db-config'
@@ -81,6 +82,7 @@ export class PrepareMigrationComponent implements OnInit {
     PubsubTopicUrl: '',
     PubsubSubscriptionName: '',
     PubsubSubscriptionUrl: '',
+    DataflowGcloudCmd: '',
     ShardToDatastreamMap: new Map<string, ResourceDetails>(),
     ShardToDataflowMap: new Map<string, ResourceDetails>(),
     ShardToPubsubTopicMap: new Map<string, ResourceDetails>(),
@@ -200,17 +202,26 @@ export class PrepareMigrationComponent implements OnInit {
         this.isSharded = res.IsSharded
         this.processingUnits = res.ProcessingUnits
         this.nodeCount = res.NodeCount
-        this.migrationTypes = [
-          {
-            name: 'POC Migration',
-            value: MigrationTypes.bulkMigration,
-          },
-          {
-            name: 'Minimal downtime Migration',
-            value: MigrationTypes.lowDowntimeMigration,
-          },
-        ]
-        if (this.connectionType == InputType.DumpFile) {
+        if (
+          res.DatabaseType == SourceDbNames.MySQL.toLowerCase() ||
+          res.DatabaseType == SourceDbNames.Oracle.toLowerCase() ||
+          res.DatabaseType == SourceDbNames.Postgres.toLowerCase()
+        ) {
+          this.isStreamingSupported = true
+        }
+        if (this.isStreamingSupported) {
+          this.migrationTypes = [
+            {
+              name: 'POC Migration',
+              value: MigrationTypes.bulkMigration,
+            },
+            {
+              name: 'Minimal downtime Migration',
+              value: MigrationTypes.lowDowntimeMigration,
+            },
+          ]
+        }
+        else {
           this.selectedMigrationType = MigrationTypes.bulkMigration
           this.migrationTypes = [
             {
@@ -225,13 +236,6 @@ export class PrepareMigrationComponent implements OnInit {
           MigrationModes.dataOnly,
           MigrationModes.schemaAndData,
         ]
-        if (
-          res.DatabaseType == SourceDbNames.MySQL.toLowerCase() ||
-          res.DatabaseType == SourceDbNames.Oracle.toLowerCase() ||
-          res.DatabaseType == SourceDbNames.Postgres.toLowerCase()
-        ) {
-          this.isStreamingSupported = true
-        }
       },
       error: (err: any) => {
         this.snack.openSnackBar(err.error, 'Close')
@@ -436,7 +440,14 @@ export class PrepareMigrationComponent implements OnInit {
     )
   }
 
-
+  openGcloudPopup(cmd: string){
+    let dialogRef = this.dialog.open(EquivalentGcloudCommandComponent, {
+          width: '30vw',
+          minWidth: '400px',
+          maxWidth: '500px',
+          data: cmd,
+        })
+  }
 
   openDataflowForm() {
     let dialogRef = this.dialog.open(DataflowFormComponent, {
@@ -831,6 +842,7 @@ export class PrepareMigrationComponent implements OnInit {
       PubsubTopicUrl: '',
       PubsubSubscriptionName: '',
       PubsubSubscriptionUrl: '',
+      DataflowGcloudCmd: '',
       ShardToDatastreamMap: new Map<string, ResourceDetails>(),
       ShardToDataflowMap: new Map<string, ResourceDetails>(),
       ShardToPubsubTopicMap: new Map<string, ResourceDetails>(),

@@ -128,6 +128,10 @@ func RemoveSchemaIssues(schemaissue []internal.SchemaIssue) []internal.SchemaIss
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.HotspotTimestamp)
 		fallthrough
 
+	case IsSchemaIssuePresent(schemaissue, internal.UniqueIndexPrimaryKey):
+		schemaissue = RemoveSchemaIssue(schemaissue, internal.UniqueIndexPrimaryKey)
+		fallthrough
+
 	case IsSchemaIssuePresent(schemaissue, internal.InterleavedOrder):
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 
