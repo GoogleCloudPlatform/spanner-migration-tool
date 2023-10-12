@@ -402,10 +402,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	defer dsClient.Close()
 	fmt.Println("Created client...")
 	prefix := datastreamCfg.DestinationConnectionConfig.Prefix
-	if prefix != "" && prefix[len(prefix)-1] != '/' {
-		prefix = prefix + "/"
-	}
-	prefix = prefix + "data/"
+	prefix = concatDirectoryPath(prefix, "data")
 
 	gcsDstCfg := &datastreampb.GcsDestinationConfig{
 		Path:       prefix,
@@ -488,7 +485,6 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 		return fmt.Errorf("pubsub client cannot be created: %v", err)
 	}
 	defer pubsubClient.Close()
-	fmt.Println("Created pubsub client...")
 
 	storageClient, err := storage.NewClient(ctx)
 	if err != nil {
@@ -665,7 +661,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
-			"inputFilePattern":              inputFilePattern + "data/",
+			"inputFilePattern":              concatDirectoryPath(inputFilePattern, "data"),
 			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
 			"instanceId":                    instance,
 			"databaseId":                    dbName,
