@@ -298,10 +298,12 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			if err != nil {
 				return nil, err
 			}
-			err = infoSchema.StartStreamingMigration(ctx, client, conv, streamInfo)
+			dfJobId, gcloudCmd, err := infoSchema.StartStreamingMigration(ctx, client, conv, streamInfo)
 			if err != nil {
 				return nil, err
 			}
+			streamingCfg, _ := streamInfo["streamingCfg"].(streaming.StreamingCfg)
+			streaming.StoreGeneratedResources(conv, streamingCfg, dfJobId, gcloudCmd, targetProfile.Conn.Sp.Project, "")
 			return bw, nil
 		}
 		return performSnapshotMigration(config, conv, client, infoSchema, internal.AdditionalDataAttributes{ShardId: ""}), nil
@@ -349,16 +351,21 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		fmt.Printf("Initiating migration for shard: %v\n", p.DataShardId)
-		err = streaming.CreatePubsubResources(ctx, targetProfile.Conn.Sp.Project, streamingCfg, streamingCfg.DatastreamCfg, conv)
+		pubsubCfg, err := streaming.CreatePubsubResources(ctx, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig, targetProfile.Conn.Sp.Dbname)
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
+		streamingCfg.PubsubCfg = *pubsubCfg
 		err = streaming.LaunchStream(ctx, sourceProfile, p.LogicalShards, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		streamingCfg.DataflowCfg.DbNameToShardIdMap = dbNameToShardIdMap
-		err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
+		dfJobId, gcloudCmd, err := streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
+		if err != nil {
+			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+		}
+		streaming.StoreGeneratedResources(conv, streamingCfg, dfJobId, gcloudCmd, targetProfile.Conn.Sp.Project, p.DataShardId)
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
 	_, err = common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 20, asyncProcessShards, true)

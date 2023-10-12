@@ -431,7 +431,16 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 		err error
 	)
 	tableList, err = common.GetIncludedSrcTablesFromConv(conv)
-	streamingCfg, err := streaming.StartDatastream(ctx, isi.SourceProfile, isi.TargetProfile, tableList, conv)
+	streamingCfg, err := streaming.ReadStreamingConfig(isi.SourceProfile.Conn.Oracle.StreamingConfig, isi.TargetProfile.Conn.Sp.Dbname, tableList)
+	if err != nil {
+		return nil, fmt.Errorf("error reading streaming config: %v", err)
+	}
+	pubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.TargetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.SourceProfile.Conn.Oracle.User)
+	if err != nil {
+		return nil, fmt.Errorf("error creating pubsub resources: %v", err)
+	}
+	streamingCfg.PubsubCfg = *pubsubCfg
+	streamingCfg, err = streaming.StartDatastream(ctx, streamingCfg, isi.SourceProfile, isi.TargetProfile, tableList)
 	if err != nil {
 		err = fmt.Errorf("error starting datastream: %v", err)
 		return nil, err
@@ -442,13 +451,13 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 
 // StartStreamingMigration is used for automatic triggering of Dataflow job when
 // performing a streaming migration.
-func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) (string, string, error) {
 	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
-	err := streaming.StartDataflow(ctx, isi.TargetProfile, streamingCfg, conv)
+	jobId, gcloudCmd, err := streaming.StartDataflow(ctx, isi.TargetProfile, streamingCfg, conv)
 	if err != nil {
-		return err
+		return "", "", err
 	}
-	return nil
+	return jobId, gcloudCmd, nil
 }
 
 func toType(dataType string, typecode, elementDataType sql.NullString, charLen sql.NullInt64, numericPrecision, numericScale, elementCharMaxLen, elementNumericPrecision, elementNumericScale sql.NullInt64) schema.Type {
