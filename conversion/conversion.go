@@ -298,10 +298,12 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			if err != nil {
 				return nil, err
 			}
-			dfJobId, gcloudCmd, err := infoSchema.StartStreamingMigration(ctx, client, conv, streamInfo)
+			dfOutput, err := infoSchema.StartStreamingMigration(ctx, client, conv, streamInfo)
 			if err != nil {
 				return nil, err
 			}
+			dfJobId := dfOutput.JobID
+			gcloudCmd := dfOutput.GCloudCmd
 			streamingCfg, _ := streamInfo["streamingCfg"].(streaming.StreamingCfg)
 			streaming.StoreGeneratedResources(conv, streamingCfg, dfJobId, gcloudCmd, targetProfile.Conn.Sp.Project, "")
 			return bw, nil
@@ -361,11 +363,11 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		streamingCfg.DataflowCfg.DbNameToShardIdMap = dbNameToShardIdMap
-		dfJobId, gcloudCmd, err := streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
+		dfOutput, err := streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
-		streaming.StoreGeneratedResources(conv, streamingCfg, dfJobId, gcloudCmd, targetProfile.Conn.Sp.Project, p.DataShardId)
+		streaming.StoreGeneratedResources(conv, streamingCfg, dfOutput.JobID, dfOutput.GCloudCmd, targetProfile.Conn.Sp.Project, p.DataShardId)
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
 	_, err = common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 20, asyncProcessShards, true)

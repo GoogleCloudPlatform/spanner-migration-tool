@@ -584,7 +584,7 @@ func CleanupDataflowJob(ctx context.Context, client *dataflow.JobsV1Beta3Client,
 }
 
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
-func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (string, string, error) {
+func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
 	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
@@ -592,7 +592,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 
 	c, err := dataflow.NewFlexTemplatesClient(ctx)
 	if err != nil {
-		return "", "", fmt.Errorf("could not create flex template client: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("could not create flex template client: %v", err)
 	}
 	defer c.Close()
 	fmt.Println("Created flex template client...")
@@ -600,7 +600,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	//Creating datastream client to fetch the gcs bucket using target profile.
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
-		return "", "", fmt.Errorf("datastream client can not be created: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("datastream client can not be created: %v", err)
 	}
 	defer dsClient.Close()
 
@@ -608,7 +608,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", project, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name)
 	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
 	if err != nil {
-		return "", "", fmt.Errorf("could not get connection profiles: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("could not get connection profiles: %v", err)
 	}
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
 	inputFilePattern := "gs://" + gcsProfile.Bucket + gcsProfile.RootPath + datastreamCfg.DestinationConnectionConfig.Prefix
@@ -631,7 +631,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	if dataflowCfg.Network != "" {
 		workerIpAddressConfig = dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PRIVATE
 		if dataflowCfg.Subnetwork == "" {
-			return "", "", fmt.Errorf("if network is specified, subnetwork cannot be empty")
+			return internal.DataflowOutput{}, fmt.Errorf("if network is specified, subnetwork cannot be empty")
 		} else {
 			dataflowSubnetwork = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/%s/subnetworks/%s", dataflowHostProjectId, dataflowCfg.Location, dataflowCfg.Subnetwork)
 		}
@@ -640,21 +640,21 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	if dataflowCfg.MaxWorkers != "" {
 		intVal, err := strconv.ParseInt(dataflowCfg.MaxWorkers, 10, 64)
 		if err != nil {
-			return "", "", fmt.Errorf("could not parse MaxWorkers parameter %s, please provide a positive integer as input", dataflowCfg.MaxWorkers)
+			return internal.DataflowOutput{}, fmt.Errorf("could not parse MaxWorkers parameter %s, please provide a positive integer as input", dataflowCfg.MaxWorkers)
 		}
 		maxWorkers = int32(intVal)
 		if maxWorkers < MIN_WORKER_LIMIT || maxWorkers > MAX_WORKER_LIMIT {
-			return "", "", fmt.Errorf("maxWorkers should lie in the range [%d, %d]", MIN_WORKER_LIMIT, MAX_WORKER_LIMIT)
+			return internal.DataflowOutput{}, fmt.Errorf("maxWorkers should lie in the range [%d, %d]", MIN_WORKER_LIMIT, MAX_WORKER_LIMIT)
 		}
 	}
 	if dataflowCfg.NumWorkers != "" {
 		intVal, err := strconv.ParseInt(dataflowCfg.NumWorkers, 10, 64)
 		if err != nil {
-			return "", "", fmt.Errorf("could not parse NumWorkers parameter %s, please provide a positive integer as input", dataflowCfg.NumWorkers)
+			return internal.DataflowOutput{}, fmt.Errorf("could not parse NumWorkers parameter %s, please provide a positive integer as input", dataflowCfg.NumWorkers)
 		}
 		numWorkers = int32(intVal)
 		if numWorkers < MIN_WORKER_LIMIT || numWorkers > MAX_WORKER_LIMIT {
-			return "", "", fmt.Errorf("numWorkers should lie in the range [%d, %d]", MIN_WORKER_LIMIT, MAX_WORKER_LIMIT)
+			return internal.DataflowOutput{}, fmt.Errorf("numWorkers should lie in the range [%d, %d]", MIN_WORKER_LIMIT, MAX_WORKER_LIMIT)
 		}
 	}
 	launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
@@ -691,11 +691,11 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	respDf, err := c.LaunchFlexTemplate(ctx, req)
 	if err != nil {
 		fmt.Printf("flexTemplateRequest: %+v\n", req)
-		return "", "", fmt.Errorf("unable to launch template: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("unable to launch template: %v", err)
 	}
 	gcloudDfCmd := utils.GetGcloudDataflowCommand(req)
 	logger.Log.Debug(fmt.Sprintf("\nEquivalent gCloud command for job %s:\n%s\n\n", req.LaunchParameter.JobName, gcloudDfCmd))
-	return respDf.Job.Id, gcloudDfCmd, nil
+	return internal.DataflowOutput{JobID: respDf.Job.Id, GCloudCmd: gcloudDfCmd}, nil
 }
 
 func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJobId, gcloudDataflowCmd, project, dataShardId string) {
@@ -766,30 +766,30 @@ func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfi
 	return streamingCfg, nil
 }
 
-func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (string, string, error) {
+func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
 
 	convJSON, err := json.MarshalIndent(conv, "", " ")
 	if err != nil {
-		return "", "", fmt.Errorf("can't encode session state to JSON: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("can't encode session state to JSON: %v", err)
 	}
 	err = utils.WriteToGCS(streamingCfg.TmpDir, "session.json", string(convJSON))
 	if err != nil {
-		return "", "", fmt.Errorf("error while writing to GCS: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("error while writing to GCS: %v", err)
 	}
 	transformationContextMap := map[string]interface{}{
 		"SchemaToShardId": streamingCfg.DataflowCfg.DbNameToShardIdMap,
 	}
 	transformationContext, err := json.Marshal(transformationContextMap)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to compute transformation context: %s", err.Error())
+		return internal.DataflowOutput{}, fmt.Errorf("failed to compute transformation context: %s", err.Error())
 	}
 	err = utils.WriteToGCS(streamingCfg.TmpDir, "transformationContext.json", string(transformationContext))
 	if err != nil {
-		return "", "", fmt.Errorf("error while writing to GCS: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("error while writing to GCS: %v", err)
 	}
-	dfJobId, gcloudCmd, err := LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv)
+	dfOutput, err := LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv)
 	if err != nil {
-		return "", "", fmt.Errorf("error launching dataflow: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("error launching dataflow: %v", err)
 	}
-	return dfJobId, gcloudCmd, nil
+	return dfOutput, nil
 }

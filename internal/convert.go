@@ -216,6 +216,11 @@ type PubsubCfg struct {
 	BucketName     string
 }
 
+type DataflowOutput struct {
+	JobID     string
+	GCloudCmd string
+}
+
 // Stores information related to rules during schema conversion
 type Rule struct {
 	Id                string
