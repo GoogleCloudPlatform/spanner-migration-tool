@@ -141,8 +141,8 @@ Spanner doesn't support `ON DELETE` and `ON UPDATE` actions, so we drop these.
 
 ## Default Values
 
-Spanner does not currently support default values. We drop these
-PostgreSQL features during conversion.
+While Spanner supports default values, Spanner migration tool currently does not support translating source `DEFAULT` constraints to Spanner `DEFAULT` constraints. We drop the `DEFAULT` MySQL constraint during conversion.
+It can be manually added to the DDL via an `ALTER TABLE` command.
 
 ## Secondary Indexes
 
