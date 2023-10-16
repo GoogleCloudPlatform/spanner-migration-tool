@@ -39,6 +39,11 @@ Ensure that Datastream and Dataflow apis are enabled on your project.
    ```sh
    gcloud services enable storage.googleapis.com
    ```
+5. Enable the Pub/Sub api by using:
+
+   ```sh
+   gcloud services enable pubsub.googleapis.com
+   ```
 
 ### Configuring connectivity for `spanner-migration-tool`
 
@@ -127,6 +132,20 @@ Grant the user **Editor role** to create buckets in the project.
 
 Enable access to Datastream, Dataflow and Spanner using [service accounts](https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances).
 
+### Pub/Sub
+
+Grant the user [**Pub/Sub Editor**](https://cloud.google.com/pubsub/docs/access-control#pubsub.editor) to create Pub/Sub topic and subscription for low downtime migrations.
+
+Additionally, we need to grant Pub/Sub publisher permission to GCS service agent. This will enable GCS to push a notification to a Pub/Sub topic whenever a new file is created. Refer to [this](https://cloud.google.com/storage/docs/reporting-changes#before-you-begin) page for more details.
+1. Get the GCS service agent id using the following command:
+  ```sh
+   gcloud storage service-agent --project=<PROJECT_ID>
+  ```
+2. Grant pubsub publisher role to the service agent using the following command:
+  ```sh
+   gcloud projects add-iam-policy-binding PROJECT_ID --member=serviceAccount:<GCS_SERVICE_ACCOUNT_ID> --role=roles/pubsub.publisher
+  ```
+
 ### Other Permissions
 
 In addition to these, the `DatastreamToSpanner` pipeline created by SMT requires
@@ -143,3 +162,4 @@ the following roles as well:
   - Cloud Spanner Restore Admin
   - Cloud Spanner Viewer
   - Dataflow Worker
+  - Pub/Sub Subscriber
