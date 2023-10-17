@@ -16,6 +16,9 @@ a new Spanner database is created using the Spanner schema built.
 
 Installation instructions for Spanner migration tool are available [here](https://googlecloudplatform.github.io/spanner-migration-tool/install.html#installing-spanner-migration-tool).
 
+> [!IMPORTANT]
+> We have changed architecture of the minimal downtime migration. Please go through [Permissions page](https://googlecloudplatform.github.io/spanner-migration-tool/permissions.html) and [design page](https://googlecloudplatform.github.io/spanner-migration-tool/minimal) of the documentation.
+
 ## Documentation
 
 Detailed documentation on how to use spanner-migration-tool is available at: <https://googlecloudplatform.github.io/spanner-migration-tool>
