@@ -383,12 +383,29 @@ func createNotificationOnBucket(ctx context.Context, storageClient *storage.Clie
 }
 
 func concatDirectoryPath(basePath, subPath string) string {
-	if basePath == "" && subPath == "" {
-		return ""
+	// ensure basPath doesn't start with '/' and ends with '/'
+	if basePath == "" || basePath == "/" {
+		basePath = ""
+	} else {
+		if basePath[0] == '/' {
+			basePath = basePath[1:]
+		}
+		if basePath[len(basePath)-1] != '/' {
+			basePath = basePath + "/"
+		}
 	}
-	path := fmt.Sprintf("%s/%s/", basePath, subPath)
-	path = strings.ReplaceAll(path, "///", "/")
-	path = strings.ReplaceAll(path, "//", "/")
+	// ensure subPath doesn't start with '/' ends with '/'
+	if subPath == "" || subPath == "/" {
+		subPath = ""
+	} else {
+		if subPath[0] == '/' {
+			subPath = subPath[1:]
+		}
+		if subPath[len(subPath)-1] != '/' {
+			subPath = subPath + "/"
+		}
+	}
+	path := fmt.Sprintf("%s%s", basePath, subPath)
 	return path
 }
 
@@ -717,7 +734,7 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, dataflowCfg.Location, dataflowCfg.JobName, dfJobId)
 	logger.Log.Info("\n------------------------------------------\n")
 	logger.Log.Info("The Datastream job: " + fullStreamName + " ,the Dataflow job: " + dfJobDetails +
-		"\nThe Pubsub topic: " + streamingCfg.PubsubCfg.TopicId + " ,the subscription: " + streamingCfg.PubsubCfg.SubscriptionId +
+		" the Pubsub topic: " + streamingCfg.PubsubCfg.TopicId + " ,the subscription: " + streamingCfg.PubsubCfg.SubscriptionId +
 		" and the pubsub Notification id:" + streamingCfg.PubsubCfg.NotificationId + " on bucket: " + streamingCfg.PubsubCfg.BucketName +
 		" will have to be manually cleaned up via the UI. Spanner migration tool will not delete them post completion of the migration.")
 }
