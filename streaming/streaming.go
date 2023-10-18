@@ -287,6 +287,7 @@ func CreatePubsubResources(ctx context.Context, projectID string, datastreamDest
 	// Create pubsub topic and subscription
 	pubsubCfg, err := createPubsubTopicAndSubscription(ctx, pubsubClient, dbName)
 	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Could not create pubsub resources. Some permissions missing. Please check https://googlecloudplatform.github.io/spanner-migration-tool/permissions.html for required pubsub permissions. error=%v", err))
 		return nil, err
 	}
 
@@ -313,6 +314,7 @@ func CreatePubsubResources(ctx context.Context, projectID string, datastreamDest
 
 	notificationID, err := createNotificationOnBucket(ctx, storageClient, projectID, pubsubCfg.TopicId, bucketName, prefix)
 	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Could not create pubsub resources. Some permissions missing. Please check https://googlecloudplatform.github.io/spanner-migration-tool/permissions.html for required pubsub permissions. error=%v", err))
 		return nil, err
 	}
 	pubsubCfg.BucketName = bucketName
