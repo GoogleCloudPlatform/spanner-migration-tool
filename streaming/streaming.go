@@ -547,26 +547,26 @@ func CleanupPubsubResources(ctx context.Context, pubsubClient *pubsub.Client, st
 
 	err := subscription.Delete(ctx)
 	if err != nil {
-		fmt.Printf("Cleanup of the pubsub subscription: %s Failed, please clean up the pubsub subscription manually\n error=%v\n", pubsubCfg.SubscriptionId, err)
+		logger.Log.Error(fmt.Sprintf("Cleanup of the pubsub subscription: %s Failed, please clean up the pubsub subscription manually\n error=%v\n", pubsubCfg.SubscriptionId, err))
 	} else {
-		fmt.Printf("Successfully deleted subscription: %s\n\n", pubsubCfg.SubscriptionId)
+		logger.Log.Info(fmt.Sprintf("Successfully deleted subscription: %s\n\n", pubsubCfg.SubscriptionId))
 	}
 
 	topic := pubsubClient.Topic(pubsubCfg.TopicId)
 
 	err = topic.Delete(ctx)
 	if err != nil {
-		fmt.Printf("Cleanup of the pubsub topic: %s Failed, please clean up the pubsub topic manually\n error=%v\n", pubsubCfg.TopicId, err)
+		logger.Log.Error(fmt.Sprintf("Cleanup of the pubsub topic: %s Failed, please clean up the pubsub topic manually\n error=%v\n", pubsubCfg.TopicId, err))
 	} else {
-		fmt.Printf("Successfully deleted topic: %s\n\n", pubsubCfg.TopicId)
+		logger.Log.Info(fmt.Sprintf("Successfully deleted topic: %s\n\n", pubsubCfg.TopicId))
 	}
 
 	bucket := storageClient.Bucket(pubsubCfg.BucketName)
 
 	if err := bucket.DeleteNotification(ctx, pubsubCfg.NotificationId); err != nil {
-		fmt.Printf("Cleanup of GCS pubsub notification: %s failed.\n error=%v\n", pubsubCfg.NotificationId, err)
+		logger.Log.Error(fmt.Sprintf("Cleanup of GCS pubsub notification: %s failed.\n error=%v\n", pubsubCfg.NotificationId, err))
 	} else {
-		fmt.Printf("Successfully deleted GCS pubsub notification: %s\n\n", pubsubCfg.NotificationId)
+		logger.Log.Info(fmt.Sprintf("Successfully deleted GCS pubsub notification: %s\n\n", pubsubCfg.NotificationId))
 	}
 }
 
