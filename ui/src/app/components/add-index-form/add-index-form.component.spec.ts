@@ -12,7 +12,6 @@ import { ConversionService } from 'src/app/services/conversion/conversion.servic
 import { DataService } from 'src/app/services/data/data.service';
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service';
 import mockIConv from 'src/mocks/conv';
-
 import { AddIndexFormComponent } from './add-index-form.component';
 
 describe('AddIndexFormComponent', () => {
@@ -37,7 +36,6 @@ describe('AddIndexFormComponent', () => {
       'getColIdFromSpannerColName',
     ]);
 
-    
     await TestBed.configureTestingModule({
       declarations: [AddIndexFormComponent],
       imports: [ReactiveFormsModule, HttpClientModule, MatSnackBarModule, MatSelectModule, BrowserAnimationsModule, MatFormFieldModule, MatInputModule],
@@ -86,7 +84,7 @@ describe('AddIndexFormComponent', () => {
       Data: {
         Id: "ind1",
         Name: "ind1",
-        Table: "t1",
+        TableId: "t1",
         Keys: [
           {
             ColId: "c1",
@@ -99,6 +97,9 @@ describe('AddIndexFormComponent', () => {
     sidenavServiceSpy.ruleData = of(addIndexRule)
     component.ngOnInit()
     expect(component.ColsArray.length).toBe(1);
+    expect(component.ColsArray.at(0).value.columnName).toEqual('column1');
+    expect(component.addIndexForm.controls['tableName'].value).toEqual("table1");
+    expect(component.addIndexForm.controls['indexName'].value).toEqual("ind1")
     expect(component.addIndexForm.status).toEqual("DISABLED");
   });
 
@@ -164,11 +165,8 @@ describe('AddIndexFormComponent', () => {
   });
 
   it('should delete a rule', () => {
-    // Set a mock ruleId
     component.ruleId = 'sampleRuleId';
-    // Call the deleteRule method
     component.deleteRule();
-    // Expectations
     expect(dataServiceSpy.dropRule).toHaveBeenCalledWith('sampleRuleId');
     expect(sidenavServiceSpy.setSidenavAddIndexTable).toHaveBeenCalledWith('');
     expect(sidenavServiceSpy.closeSidenav).toHaveBeenCalled();
