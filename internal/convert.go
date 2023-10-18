@@ -205,6 +205,20 @@ type streamingStats struct {
 	DataflowGcloudCmd        string
 	ShardToDataStreamNameMap map[string]string
 	ShardToDataflowInfoMap   map[string]ShardedDataflowJobResources
+	PubsubCfg                PubsubCfg
+	ShardToPubsubIdMap       map[string]PubsubCfg
+}
+
+type PubsubCfg struct {
+	TopicId        string
+	SubscriptionId string
+	NotificationId string
+	BucketName     string
+}
+
+type DataflowOutput struct {
+	JobID     string
+	GCloudCmd string
 }
 
 // Stores information related to rules during schema conversion

@@ -25,6 +25,7 @@ import (
 
 	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
 	datastream "cloud.google.com/go/datastream/apiv1"
+	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
@@ -85,6 +86,7 @@ type StreamingCfg struct {
 	DatastreamCfg DatastreamCfg
 	DataflowCfg   DataflowCfg
 	TmpDir        string
+	PubsubCfg     internal.PubsubCfg
 	DataShardId   string
 }
 
@@ -275,6 +277,140 @@ func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile prof
 	}
 }
 
+func CreatePubsubResources(ctx context.Context, projectID string, datastreamDestinationConnCfg DstConnCfg, dbName string) (*internal.PubsubCfg, error) {
+	pubsubClient, err := pubsub.NewClient(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("pubsub client can not be created: %v", err)
+	}
+	defer pubsubClient.Close()
+
+	// Create pubsub topic and subscription
+	pubsubCfg, err := createPubsubTopicAndSubscription(ctx, pubsubClient, dbName)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Could not create pubsub resources. Some permissions missing. Please check https://googlecloudplatform.github.io/spanner-migration-tool/permissions.html for required pubsub permissions. error=%v", err))
+		return nil, err
+	}
+
+	// Fetch the created target profile and get the target gcs bucket name and path.
+	// Then create notification for the target bucket.
+	// Creating datastream client to fetch target profile.
+	dsClient, err := datastream.NewClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("datastream client can not be created: %v", err)
+	}
+	defer dsClient.Close()
+
+	bucketName, prefix, err := fetchTargetBucketAndPath(ctx, dsClient, projectID, datastreamDestinationConnCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create pubsub notification on the target gcs path
+	storageClient, err := storage.NewClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("GCS client can not be created: %v", err)
+	}
+	defer storageClient.Close()
+
+	notificationID, err := createNotificationOnBucket(ctx, storageClient, projectID, pubsubCfg.TopicId, bucketName, prefix)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Could not create pubsub resources. Some permissions missing. Please check https://googlecloudplatform.github.io/spanner-migration-tool/permissions.html for required pubsub permissions. error=%v", err))
+		return nil, err
+	}
+	pubsubCfg.BucketName = bucketName
+	pubsubCfg.NotificationId = notificationID
+	logger.Log.Info(fmt.Sprintf("Successfully created pubsub topic id=%s, subscription id=%s, notification for bucket=%s with id=%s.\n", pubsubCfg.TopicId, pubsubCfg.SubscriptionId, bucketName, notificationID))
+	return &pubsubCfg, nil
+}
+
+func createPubsubTopicAndSubscription(ctx context.Context, pubsubClient *pubsub.Client, dbName string) (internal.PubsubCfg, error) {
+	pubsubCfg := internal.PubsubCfg{}
+	// Generate ID
+	subscriptionId, err := utils.GenerateName("smt-sub-" + dbName)
+	if err != nil {
+		return pubsubCfg, fmt.Errorf("error generating pubsub subscription ID: %v", err)
+	}
+	pubsubCfg.SubscriptionId = subscriptionId
+
+	topicId, err := utils.GenerateName("smt-topic-" + dbName)
+	if err != nil {
+		return pubsubCfg, fmt.Errorf("error generating pubsub topic ID: %v", err)
+	}
+	pubsubCfg.TopicId = topicId
+
+	// Create Topic and Subscription
+	topicObj, err := pubsubClient.CreateTopic(ctx, pubsubCfg.TopicId)
+	if err != nil {
+		return pubsubCfg, fmt.Errorf("pubsub topic could not be created: %v", err)
+	}
+
+	_, err = pubsubClient.CreateSubscription(ctx, pubsubCfg.SubscriptionId, pubsub.SubscriptionConfig{
+		Topic:             topicObj,
+		AckDeadline:       time.Minute * 10,
+		RetentionDuration: time.Hour * 24 * 7,
+	})
+	if err != nil {
+		return pubsubCfg, fmt.Errorf("pubsub subscription could not be created: %v", err)
+	}
+	return pubsubCfg, nil
+}
+
+func fetchTargetBucketAndPath(ctx context.Context, datastreamClient *datastream.Client, projectID string, datastreamDestinationConnCfg DstConnCfg) (string, string, error) {
+	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamDestinationConnCfg.Location, datastreamDestinationConnCfg.Name)
+	res, err := datastreamClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
+	if err != nil {
+		return "", "", fmt.Errorf("could not get connection profiles: %v", err)
+	}
+	// Fetch the GCS path from the target connection profile.
+	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
+	bucketName := gcsProfile.Bucket
+	prefix := gcsProfile.RootPath + datastreamDestinationConnCfg.Prefix
+	prefix = concatDirectoryPath(prefix, "data/")
+	return bucketName, prefix, nil
+}
+
+func createNotificationOnBucket(ctx context.Context, storageClient *storage.Client, projectID, topicID, bucketName, prefix string) (string, error) {
+	notification := storage.Notification{
+		TopicID:          topicID,
+		TopicProjectID:   projectID,
+		PayloadFormat:    storage.JSONPayload,
+		ObjectNamePrefix: prefix,
+	}
+
+	createdNotification, err := storageClient.Bucket(bucketName).AddNotification(ctx, &notification)
+	if err != nil {
+		return "", fmt.Errorf("GCS Notification could not be created: %v", err)
+	}
+	return createdNotification.ID, nil
+}
+
+func concatDirectoryPath(basePath, subPath string) string {
+	// ensure basPath doesn't start with '/' and ends with '/'
+	if basePath == "" || basePath == "/" {
+		basePath = ""
+	} else {
+		if basePath[0] == '/' {
+			basePath = basePath[1:]
+		}
+		if basePath[len(basePath)-1] != '/' {
+			basePath = basePath + "/"
+		}
+	}
+	// ensure subPath doesn't start with '/' ends with '/'
+	if subPath == "" || subPath == "/" {
+		subPath = ""
+	} else {
+		if subPath[0] == '/' {
+			subPath = subPath[1:]
+		}
+		if subPath[len(subPath)-1] != '/' {
+			subPath = subPath + "/"
+		}
+	}
+	path := fmt.Sprintf("%s%s", basePath, subPath)
+	return path
+}
+
 // LaunchStream populates the parameters from the streaming config and triggers a stream on Cloud Datastream.
 func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, projectID string, datastreamCfg DatastreamCfg) error {
 	fmt.Println("Launching stream ", fmt.Sprintf("projects/%s/locations/%s", projectID, datastreamCfg.StreamLocation))
@@ -284,9 +420,11 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	}
 	defer dsClient.Close()
 	fmt.Println("Created client...")
+	prefix := datastreamCfg.DestinationConnectionConfig.Prefix
+	prefix = concatDirectoryPath(prefix, "data")
 
 	gcsDstCfg := &datastreampb.GcsDestinationConfig{
-		Path:       datastreamCfg.DestinationConnectionConfig.Prefix,
+		Path:       prefix,
 		FileFormat: &datastreampb.GcsDestinationConfig_AvroFileFormat{},
 	}
 	srcCfg := &datastreampb.SourceConfig{
@@ -361,6 +499,17 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 		return fmt.Errorf("datastream client can not be created: %v", err)
 	}
 	defer dsClient.Close()
+	pubsubClient, err := pubsub.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("pubsub client cannot be created: %v", err)
+	}
+	defer pubsubClient.Close()
+
+	storageClient, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("storage client cannot be created: %v", err)
+	}
+	defer storageClient.Close()
 
 	//clean up for single instance migrations
 	if conv.Audit.StreamingStats.DataflowJobId != "" {
@@ -368,6 +517,9 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 	}
 	if conv.Audit.StreamingStats.DataStreamName != "" {
 		CleanupDatastream(ctx, dsClient, conv.Audit.StreamingStats.DataStreamName, projectID, region)
+	}
+	if conv.Audit.StreamingStats.PubsubCfg.TopicId != "" && !conv.IsSharded {
+		CleanupPubsubResources(ctx, pubsubClient, storageClient, conv.Audit.StreamingStats.PubsubCfg, projectID)
 	}
 	// clean up jobs for sharded migrations (with error handling)
 	for _, resourceDetails := range conv.Audit.StreamingStats.ShardToDataflowInfoMap {
@@ -383,8 +535,39 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 			fmt.Printf("Cleanup of the datastream: %s was unsuccessful, please clean up the stream manually", dsName)
 		}
 	}
+	for _, pubsubCfg := range conv.Audit.StreamingStats.ShardToPubsubIdMap {
+		CleanupPubsubResources(ctx, pubsubClient, storageClient, pubsubCfg, projectID)
+	}
 	fmt.Println("Clean up complete")
 	return nil
+}
+
+func CleanupPubsubResources(ctx context.Context, pubsubClient *pubsub.Client, storageClient *storage.Client, pubsubCfg internal.PubsubCfg, projectID string) {
+	subscription := pubsubClient.Subscription(pubsubCfg.SubscriptionId)
+
+	err := subscription.Delete(ctx)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Cleanup of the pubsub subscription: %s Failed, please clean up the pubsub subscription manually\n error=%v\n", pubsubCfg.SubscriptionId, err))
+	} else {
+		logger.Log.Info(fmt.Sprintf("Successfully deleted subscription: %s\n\n", pubsubCfg.SubscriptionId))
+	}
+
+	topic := pubsubClient.Topic(pubsubCfg.TopicId)
+
+	err = topic.Delete(ctx)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Cleanup of the pubsub topic: %s Failed, please clean up the pubsub topic manually\n error=%v\n", pubsubCfg.TopicId, err))
+	} else {
+		logger.Log.Info(fmt.Sprintf("Successfully deleted topic: %s\n\n", pubsubCfg.TopicId))
+	}
+
+	bucket := storageClient.Bucket(pubsubCfg.BucketName)
+
+	if err := bucket.DeleteNotification(ctx, pubsubCfg.NotificationId); err != nil {
+		logger.Log.Error(fmt.Sprintf("Cleanup of GCS pubsub notification: %s failed.\n error=%v\n", pubsubCfg.NotificationId, err))
+	} else {
+		logger.Log.Info(fmt.Sprintf("Successfully deleted GCS pubsub notification: %s\n\n", pubsubCfg.NotificationId))
+	}
 }
 
 func CleanupDatastream(ctx context.Context, client *datastream.Client, dsName string, projectID, region string) error {
@@ -420,7 +603,7 @@ func CleanupDataflowJob(ctx context.Context, client *dataflow.JobsV1Beta3Client,
 }
 
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
-func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) error {
+func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
 	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
@@ -428,7 +611,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 
 	c, err := dataflow.NewFlexTemplatesClient(ctx)
 	if err != nil {
-		return fmt.Errorf("could not create flex template client: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("could not create flex template client: %v", err)
 	}
 	defer c.Close()
 	fmt.Println("Created flex template client...")
@@ -436,7 +619,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	//Creating datastream client to fetch the gcs bucket using target profile.
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
-		return fmt.Errorf("datastream client can not be created: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("datastream client can not be created: %v", err)
 	}
 	defer dsClient.Close()
 
@@ -444,7 +627,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", project, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name)
 	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
 	if err != nil {
-		return fmt.Errorf("could not get connection profiles: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("could not get connection profiles: %v", err)
 	}
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
 	inputFilePattern := "gs://" + gcsProfile.Bucket + gcsProfile.RootPath + datastreamCfg.DestinationConnectionConfig.Prefix
@@ -467,7 +650,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	if dataflowCfg.Network != "" {
 		workerIpAddressConfig = dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PRIVATE
 		if dataflowCfg.Subnetwork == "" {
-			return fmt.Errorf("if network is specified, subnetwork cannot be empty")
+			return internal.DataflowOutput{}, fmt.Errorf("if network is specified, subnetwork cannot be empty")
 		} else {
 			dataflowSubnetwork = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/%s/subnetworks/%s", dataflowHostProjectId, dataflowCfg.Location, dataflowCfg.Subnetwork)
 		}
@@ -476,35 +659,35 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	if dataflowCfg.MaxWorkers != "" {
 		intVal, err := strconv.ParseInt(dataflowCfg.MaxWorkers, 10, 64)
 		if err != nil {
-			return fmt.Errorf("could not parse MaxWorkers parameter %s, please provide a positive integer as input", dataflowCfg.MaxWorkers)
+			return internal.DataflowOutput{}, fmt.Errorf("could not parse MaxWorkers parameter %s, please provide a positive integer as input", dataflowCfg.MaxWorkers)
 		}
 		maxWorkers = int32(intVal)
 		if maxWorkers < MIN_WORKER_LIMIT || maxWorkers > MAX_WORKER_LIMIT {
-			return fmt.Errorf("maxWorkers should lie in the range [%d, %d]", MIN_WORKER_LIMIT, MAX_WORKER_LIMIT)
+			return internal.DataflowOutput{}, fmt.Errorf("maxWorkers should lie in the range [%d, %d]", MIN_WORKER_LIMIT, MAX_WORKER_LIMIT)
 		}
 	}
 	if dataflowCfg.NumWorkers != "" {
 		intVal, err := strconv.ParseInt(dataflowCfg.NumWorkers, 10, 64)
 		if err != nil {
-			return fmt.Errorf("could not parse NumWorkers parameter %s, please provide a positive integer as input", dataflowCfg.NumWorkers)
+			return internal.DataflowOutput{}, fmt.Errorf("could not parse NumWorkers parameter %s, please provide a positive integer as input", dataflowCfg.NumWorkers)
 		}
 		numWorkers = int32(intVal)
 		if numWorkers < MIN_WORKER_LIMIT || numWorkers > MAX_WORKER_LIMIT {
-			return fmt.Errorf("numWorkers should lie in the range [%d, %d]", MIN_WORKER_LIMIT, MAX_WORKER_LIMIT)
+			return internal.DataflowOutput{}, fmt.Errorf("numWorkers should lie in the range [%d, %d]", MIN_WORKER_LIMIT, MAX_WORKER_LIMIT)
 		}
 	}
 	launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
-			"inputFilePattern":                inputFilePattern,
-			"streamName":                      fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
-			"instanceId":                      instance,
-			"databaseId":                      dbName,
-			"sessionFilePath":                 streamingCfg.TmpDir + "session.json",
-			"deadLetterQueueDirectory":        inputFilePattern + "dlq",
-			"transformationContextFilePath":   streamingCfg.TmpDir + "transformationContext.json",
-			"directoryWatchDurationInMinutes": "480", // Setting directory watch timeout to 8 hours
+			"inputFilePattern":              concatDirectoryPath(inputFilePattern, "data"),
+			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
+			"instanceId":                    instance,
+			"databaseId":                    dbName,
+			"sessionFilePath":               streamingCfg.TmpDir + "session.json",
+			"deadLetterQueueDirectory":      inputFilePattern + "dlq",
+			"transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
+			"gcsPubSubSubscription":         fmt.Sprintf("projects/%s/subscriptions/%s", project, streamingCfg.PubsubCfg.SubscriptionId),
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			MaxWorkers:            maxWorkers,
@@ -527,43 +710,35 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	respDf, err := c.LaunchFlexTemplate(ctx, req)
 	if err != nil {
 		fmt.Printf("flexTemplateRequest: %+v\n", req)
-		return fmt.Errorf("unable to launch template: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("unable to launch template: %v", err)
 	}
 	gcloudDfCmd := utils.GetGcloudDataflowCommand(req)
 	logger.Log.Debug(fmt.Sprintf("\nEquivalent gCloud command for job %s:\n%s\n\n", req.LaunchParameter.JobName, gcloudDfCmd))
-	storeGeneratedResources(conv, datastreamCfg, respDf, gcloudDfCmd, project, streamingCfg.DataShardId)
-	return nil
+	return internal.DataflowOutput{JobID: respDf.Job.Id, GCloudCmd: gcloudDfCmd}, nil
 }
 
-func storeGeneratedResources(conv *internal.Conv, datastreamCfg DatastreamCfg, respDf *dataflowpb.LaunchFlexTemplateResponse, gcloudDataflowCmd string, project string, dataShardId string) {
+func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJobId, gcloudDataflowCmd, project, dataShardId string) {
+	datastreamCfg := streamingCfg.DatastreamCfg
+	dataflowCfg := streamingCfg.DataflowCfg
 	conv.Audit.StreamingStats.DataStreamName = datastreamCfg.StreamId
-	conv.Audit.StreamingStats.DataflowJobId = respDf.Job.Id
+	conv.Audit.StreamingStats.DataflowJobId = dfJobId
 	conv.Audit.StreamingStats.DataflowGcloudCmd = gcloudDataflowCmd
+	conv.Audit.StreamingStats.PubsubCfg = streamingCfg.PubsubCfg
 	if dataShardId != "" {
 		var resourceMutex sync.Mutex
 		resourceMutex.Lock()
 		conv.Audit.StreamingStats.ShardToDataStreamNameMap[dataShardId] = datastreamCfg.StreamId
-		conv.Audit.StreamingStats.ShardToDataflowInfoMap[dataShardId] = internal.ShardedDataflowJobResources{JobId: respDf.Job.Id, GcloudCmd: gcloudDataflowCmd}
+		conv.Audit.StreamingStats.ShardToDataflowInfoMap[dataShardId] = internal.ShardedDataflowJobResources{JobId: dfJobId, GcloudCmd: gcloudDataflowCmd}
+		conv.Audit.StreamingStats.ShardToPubsubIdMap[dataShardId] = streamingCfg.PubsubCfg
 		resourceMutex.Unlock()
 	}
 	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
-	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, respDf.Job.Location, respDf.Job.Name, respDf.Job.Id)
-	fmt.Println("\n------------------------------------------\n" +
-		"The Datastream job: " + fullStreamName + "and the Dataflow job: " + dfJobDetails +
+	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, dataflowCfg.Location, dataflowCfg.JobName, dfJobId)
+	logger.Log.Info("\n------------------------------------------\n")
+	logger.Log.Info("The Datastream job: " + fullStreamName + " ,the Dataflow job: " + dfJobDetails +
+		" the Pubsub topic: " + streamingCfg.PubsubCfg.TopicId + " ,the subscription: " + streamingCfg.PubsubCfg.SubscriptionId +
+		" and the pubsub Notification id:" + streamingCfg.PubsubCfg.NotificationId + " on bucket: " + streamingCfg.PubsubCfg.BucketName +
 		" will have to be manually cleaned up via the UI. Spanner migration tool will not delete them post completion of the migration.")
-}
-
-func getStreamingConfig(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, tableList []string) (StreamingCfg, error) {
-	switch sourceProfile.Conn.Ty {
-	case profiles.SourceProfileConnectionTypeMySQL:
-		return ReadStreamingConfig(sourceProfile.Conn.Mysql.StreamingConfig, targetProfile.Conn.Sp.Dbname, tableList)
-	case profiles.SourceProfileConnectionTypeOracle:
-		return ReadStreamingConfig(sourceProfile.Conn.Oracle.StreamingConfig, targetProfile.Conn.Sp.Dbname, tableList)
-	case profiles.SourceProfileConnectionTypePostgreSQL:
-		return ReadStreamingConfig(sourceProfile.Conn.Pg.StreamingConfig, targetProfile.Conn.Sp.Dbname, tableList)
-	default:
-		return StreamingCfg{}, fmt.Errorf("only MySQL, Oracle and PostgreSQL are supported as source streams")
-	}
 }
 
 func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
@@ -592,11 +767,7 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 	return streamingCfg
 }
 
-func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, tableList []string) (StreamingCfg, error) {
-	streamingCfg, err := getStreamingConfig(sourceProfile, targetProfile, tableList)
-	if err != nil {
-		return streamingCfg, fmt.Errorf("error reading streaming config: %v", err)
-	}
+func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, tableList []string) (StreamingCfg, error) {
 	driver := sourceProfile.Driver
 	var dbList []profiles.LogicalShard
 	switch driver {
@@ -607,37 +778,37 @@ func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, 
 	case constants.POSTGRES:
 		dbList = append(dbList, profiles.LogicalShard{DbName: streamingCfg.DatastreamCfg.Properties})
 	}
-	err = LaunchStream(ctx, sourceProfile, dbList, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
+	err := LaunchStream(ctx, sourceProfile, dbList, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
 	if err != nil {
 		return streamingCfg, fmt.Errorf("error launching stream: %v", err)
 	}
 	return streamingCfg, nil
 }
 
-func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) error {
+func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
 
 	convJSON, err := json.MarshalIndent(conv, "", " ")
 	if err != nil {
-		return fmt.Errorf("can't encode session state to JSON: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("can't encode session state to JSON: %v", err)
 	}
 	err = utils.WriteToGCS(streamingCfg.TmpDir, "session.json", string(convJSON))
 	if err != nil {
-		return fmt.Errorf("error while writing to GCS: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("error while writing to GCS: %v", err)
 	}
 	transformationContextMap := map[string]interface{}{
 		"SchemaToShardId": streamingCfg.DataflowCfg.DbNameToShardIdMap,
 	}
 	transformationContext, err := json.Marshal(transformationContextMap)
 	if err != nil {
-		return fmt.Errorf("failed to compute transformation context: %s", err.Error())
+		return internal.DataflowOutput{}, fmt.Errorf("failed to compute transformation context: %s", err.Error())
 	}
 	err = utils.WriteToGCS(streamingCfg.TmpDir, "transformationContext.json", string(transformationContext))
 	if err != nil {
-		return fmt.Errorf("error while writing to GCS: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("error while writing to GCS: %v", err)
 	}
-	err = LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv)
+	dfOutput, err := LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv)
 	if err != nil {
-		return fmt.Errorf("error launching dataflow: %v", err)
+		return internal.DataflowOutput{}, fmt.Errorf("error launching dataflow: %v", err)
 	}
-	return nil
+	return dfOutput, nil
 }

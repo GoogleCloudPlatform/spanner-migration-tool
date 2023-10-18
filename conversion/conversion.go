@@ -298,10 +298,14 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			if err != nil {
 				return nil, err
 			}
-			err = infoSchema.StartStreamingMigration(ctx, client, conv, streamInfo)
+			dfOutput, err := infoSchema.StartStreamingMigration(ctx, client, conv, streamInfo)
 			if err != nil {
 				return nil, err
 			}
+			dfJobId := dfOutput.JobID
+			gcloudCmd := dfOutput.GCloudCmd
+			streamingCfg, _ := streamInfo["streamingCfg"].(streaming.StreamingCfg)
+			streaming.StoreGeneratedResources(conv, streamingCfg, dfJobId, gcloudCmd, targetProfile.Conn.Sp.Project, "")
 			return bw, nil
 		}
 		return performSnapshotMigration(config, conv, client, infoSchema, internal.AdditionalDataAttributes{ShardId: ""}), nil
@@ -321,6 +325,7 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
 	updateShardsWithDataflowConfig(sourceProfile.Config.ShardConfigurationDataflow)
 	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
+	conv.Audit.StreamingStats.ShardToPubsubIdMap = make(map[string]internal.PubsubCfg)
 	conv.Audit.StreamingStats.ShardToDataflowInfoMap = make(map[string]internal.ShardedDataflowJobResources)
 	tableList, err := common.GetIncludedSrcTablesFromConv(conv)
 	if err != nil {
@@ -348,13 +353,21 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		fmt.Printf("Initiating migration for shard: %v\n", p.DataShardId)
-
+		pubsubCfg, err := streaming.CreatePubsubResources(ctx, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig, targetProfile.Conn.Sp.Dbname)
+		if err != nil {
+			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+		}
+		streamingCfg.PubsubCfg = *pubsubCfg
 		err = streaming.LaunchStream(ctx, sourceProfile, p.LogicalShards, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		streamingCfg.DataflowCfg.DbNameToShardIdMap = dbNameToShardIdMap
-		err = streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
+		dfOutput, err := streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
+		if err != nil {
+			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+		}
+		streaming.StoreGeneratedResources(conv, streamingCfg, dfOutput.JobID, dfOutput.GCloudCmd, targetProfile.Conn.Sp.Project, p.DataShardId)
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
 	_, err = common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 20, asyncProcessShards, true)
