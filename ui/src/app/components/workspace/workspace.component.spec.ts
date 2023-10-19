@@ -212,26 +212,21 @@ describe('WorkspaceComponent', () => {
 
   it('should update rules label', fakeAsync(() => {
     const count = 3;
-
     component.updateRulesLabel(count);
     tick();
     fixture.detectChanges();
-
-    const rulesLabelElement = fixture.nativeElement.querySelectorAll('.mat-tab-label-content')[1]; // Replace with your actual CSS class selector
+    const rulesLabelElement = fixture.nativeElement.querySelectorAll('.mat-tab-label-content')[1];
     expect(rulesLabelElement.textContent).toContain(`RULES (${count})`);
   }));
 
   it('should open the assessment sidenav and set view data for direct connection', () => {
-
     localStorage.setItem(StorageKeys.Type, InputType.DirectConnect);
     const config = {
-      hostName: 'example.com',
-      port: '5432'
+      hostName: 'localhost',
+      port: '4600'
     };
     localStorage.setItem(StorageKeys.Config, JSON.stringify(config));
-
     component.openAssessment();
-
     expect(sidenavSpyObj.openSidenav).toHaveBeenCalled();
     expect(sidenavSpyObj.setSidenavComponent).toHaveBeenCalledWith('assessment');
 
@@ -265,9 +260,7 @@ describe('WorkspaceComponent', () => {
   it('should open the assessment sidenav and set view data for dump file', () => {
 
     localStorage.setItem(StorageKeys.Type, InputType.DumpFile);
-
     component.openAssessment();
-
     expect(sidenavSpyObj.openSidenav).toHaveBeenCalled();
     expect(sidenavSpyObj.setSidenavComponent).toHaveBeenCalledWith('assessment');
 
@@ -292,9 +285,7 @@ describe('WorkspaceComponent', () => {
     fetchServiceSpy.getTableWithErrors.and.returnValue(
       of([{ Name: 'TableA', Id: 't1' }, { Name: 'TableB', Id: 't2' }])
     );
-
     component.prepareMigration();
-
     expect(dialogSpyObj.open).toHaveBeenCalledWith(jasmine.any(Function), {
       data: {
         message: 'Please fix the errors for the following tables to move ahead: TableA, TableB',
@@ -303,20 +294,14 @@ describe('WorkspaceComponent', () => {
       },
       maxWidth: '500px',
     });
-
-    // Ensure that the router should not be navigated
     expect(routerSpy.navigate).not.toHaveBeenCalledWith(['/prepare-migration']);
   });
 
   it('should handle offline status', () => {
 
     fetchServiceSpy.getTableWithErrors.and.returnValue(of([]));
-    // Set isOfflineStatus to true
     component.isOfflineStatus = true;
-
     component.prepareMigration();
-
-    // Assert that the dialog should be opened with the error message
     expect(dialogSpyObj.open).toHaveBeenCalledWith(jasmine.any(Function), {
       data: {
         message: 'Please configure spanner project id and instance id to proceed',
@@ -325,23 +310,14 @@ describe('WorkspaceComponent', () => {
       },
       maxWidth: '500px',
     });
-
-    // Ensure that the router should not be navigated
     expect(routerSpy.navigate).not.toHaveBeenCalledWith(['/prepare-migration']);
   });
 
   it('should handle empty SpSchema', () => {
     fetchServiceSpy.getTableWithErrors.and.returnValue(of([]));
-
-    // Set isOfflineStatus to false
     component.isOfflineStatus = false;
-
-    // Set the component's SpSchema to an empty object
     component.conv = { SpSchema: {} } as any;
-
     component.prepareMigration();
-
-    // Assert that the dialog should be opened with the error message
     expect(dialogSpyObj.open).toHaveBeenCalledWith(jasmine.any(Function), {
       data: {
         message: 'Please restore some table(s) to proceed with the migration',
@@ -350,8 +326,6 @@ describe('WorkspaceComponent', () => {
       },
       maxWidth: '500px',
     });
-
-    // Ensure that the router should not be navigated
     expect(routerSpy.navigate).not.toHaveBeenCalledWith(['/prepare-migration']);
   });
 
@@ -385,70 +359,46 @@ describe('WorkspaceComponent', () => {
   });
 
   it('should return false when indexes remain the same', () => {
-
-    // Create a mock data object with the same indexes
     const mockData = mockIConv;
-
-    // Call the method with the mock data
     const result = component.isIndexAddedOrRemoved(mockData);
-
-    // Expect the result to be false, indicating that indexes remain the same
     expect(result).toBeFalsy();
   });
 
   it('should trigger downloadStructuredReport', () => {
     const aClickSpy = jasmine.createSpy('aClickSpy');
-
-    // Set up the fetch service spy to return a mock structured report
     fetchServiceSpy.getDStructuredReport.and.returnValue(of(mockStructuredReport));
-
-    // Create a mock 'a' element
     const aElement = document.createElement('a');
     spyOn(document, 'createElement').and.returnValue(aElement);
-
-    // Spy on 'a.click()' method
     spyOn(aElement, 'click').and.callFake(() => {
       aClickSpy();
     });
-
     component.downloadStructuredReport();
-
     expect(fetchServiceSpy.getDStructuredReport).toHaveBeenCalled();
     expect(aClickSpy).toHaveBeenCalled();
   });
 
   it('should trigger downloadTextReport', () => {
     const aClickSpy = jasmine.createSpy('aClickSpy');
-
     fetchServiceSpy.getDTextReport.and.returnValue(of("text"));
-
     const aElement = document.createElement('a');
     spyOn(document, 'createElement').and.returnValue(aElement);
-
     spyOn(aElement, 'click').and.callFake(() => {
       aClickSpy();
     });
-
     component.downloadTextReport();
-
     expect(fetchServiceSpy.getDTextReport).toHaveBeenCalled();
     expect(aClickSpy).toHaveBeenCalled();
   });
 
   it('should trigger downloadDdl', () => {
     const aClickSpy = jasmine.createSpy('aClickSpy');
-
     fetchServiceSpy.getDSpannerDDL.and.returnValue(of("ddl"));
-
     const aElement = document.createElement('a');
     spyOn(document, 'createElement').and.returnValue(aElement);
-
     spyOn(aElement, 'click').and.callFake(() => {
       aClickSpy();
     });
-
     component.downloadDDL();
-
     expect(fetchServiceSpy.getDSpannerDDL).toHaveBeenCalled();
     expect(aClickSpy).toHaveBeenCalled();
   });
@@ -456,7 +406,6 @@ describe('WorkspaceComponent', () => {
   it('should trigger downloadArtifacts', async () => {
     const aClickSpy = jasmine.createSpy('aClickSpy');
     const generateAsyncSpy = spyOn(JSZip.prototype, 'generateAsync').and.returnValue(Promise.resolve({} as any));
-    const createObjectURLSpy = spyOn(URL, 'createObjectURL');
     const mockTextReport = 'Mock text report';
     const mockSpannerDDL = 'Mock spanner DDL';
     const mockSpannerConfig: ISpannerConfig = {
@@ -464,27 +413,19 @@ describe('WorkspaceComponent', () => {
       SpannerInstanceID: ""
     }
 
-    // Set up the fetch service spies to return mock data
     fetchServiceSpy.getDStructuredReport.and.returnValue(of(mockStructuredReport));
     fetchServiceSpy.getDTextReport.and.returnValue(of(mockTextReport));
     fetchServiceSpy.getDSpannerDDL.and.returnValue(of(mockSpannerDDL));
     fetchServiceSpy.getSpannerConfig.and.returnValue(of(mockSpannerConfig));
 
-    // Create a mock 'a' element
     const aElement = document.createElement('a');
     spyOn(document, 'createElement').and.returnValue(aElement);
-
-    // Spy on 'a.click()' method
     spyOn(aElement, 'click').and.callFake(() => {
       aClickSpy();
     });
-
-    // Call the method to test
     component.downloadArtifacts();
-
     await fixture.whenStable();
 
-    // Expectations
     expect(fetchServiceSpy.getDStructuredReport).toHaveBeenCalled();
     expect(fetchServiceSpy.getDTextReport).toHaveBeenCalled();
     expect(fetchServiceSpy.getDSpannerDDL).toHaveBeenCalled();
@@ -498,7 +439,6 @@ describe('WorkspaceComponent', () => {
   })
 
   it('should set currentObject and tableData when type is Table', () => {
-    // Create a FlatNode with type as Table
     const tableNode: FlatNode = {
       id: 'table1',
       type: ObjectExplorerNodeType.Table,
@@ -515,17 +455,14 @@ describe('WorkspaceComponent', () => {
     conversionServiceSpy.getColumnMapping.and.returnValue([]);
     conversionServiceSpy.getFkMapping.and.returnValue([]);
 
-    // Trigger the method with the tableNode
     component.changeCurrentObject(tableNode);
 
-    // Assert that currentObject and tableData are set correctly
     expect(component.currentObject).toEqual(tableNode);
-    expect(component.tableData).toEqual([]); // Replace with your mock data
-    expect(component.fkData).toEqual([]); // Replace with your mock data
+    expect(component.tableData).toEqual([]);
+    expect(component.fkData).toEqual([]);
   });
 
   it('should set currentObject and indexData when type is Index', () => {
-    // Create a FlatNode with type as Index
     const indexNode: FlatNode = {
       id: 'index1',
       type: ObjectExplorerNodeType.Index,
@@ -540,19 +477,14 @@ describe('WorkspaceComponent', () => {
       parent: ''
     };
     conversionServiceSpy.getIndexMapping.and.returnValue([]);
-
-    // Trigger the method with the indexNode
     component.changeCurrentObject(indexNode);
-
-    // Assert that currentObject and indexData are set correctly
     expect(component.currentObject).toEqual(indexNode);
-    expect(component.indexData).toEqual([]); // Replace with your mock data
+    expect(component.indexData).toEqual([]);
   });
 
   it('should set currentObject to null when type is neither Table nor Index', () => {
-    // Create a FlatNode with an unsupported type
     const unsupportedNode: FlatNode = {
-      id: 'unsupported',
+      id: 'id1',
       type: ObjectExplorerNodeType.Indexes,
       expandable: false,
       name: '',
@@ -564,11 +496,7 @@ describe('WorkspaceComponent', () => {
       parent: '',
       parentId: ''
     };
-
-    // Trigger the method with the unsupportedNode
     component.changeCurrentObject(unsupportedNode);
-
-    // Assert that currentObject is set to null
     expect(component.currentObject).toBeNull();
   });
 })
