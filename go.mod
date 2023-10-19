@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.110.2
 	cloud.google.com/go/dataflow v0.8.0
 	cloud.google.com/go/datastream v1.8.0
+	cloud.google.com/go/monitoring v1.13.0
 	cloud.google.com/go/pubsub v1.31.0
 	cloud.google.com/go/spanner v1.45.0
 	cloud.google.com/go/storage v1.29.0
@@ -27,8 +28,9 @@ require (
 	github.com/sijms/go-ora/v2 v2.2.17
 	github.com/stretchr/testify v1.8.2
 	go.uber.org/zap v1.21.0
-	golang.org/x/crypto v0.7.0
-	golang.org/x/net v0.10.0
+	golang.org/x/crypto v0.13.0
+	golang.org/x/exp v0.0.0-20220426173459-3bcf042a4bf5
+	golang.org/x/net v0.15.0
 	google.golang.org/api v0.124.0
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
 	google.golang.org/grpc v1.55.0
@@ -88,12 +90,12 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	golang.org/x/exp v0.0.0-20220426173459-3bcf042a4bf5 // indirect
 	golang.org/x/oauth2 v0.8.0 // indirect
-	golang.org/x/sync v0.2.0 // indirect
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/term v0.8.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/sync v0.3.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/term v0.12.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/tools v0.13.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect

@@ -102,3 +102,66 @@ func getMigrationDataSourceDetails(driver string, migrationData *migration.Migra
 		return migration.MigrationData_SOURCE_CONNECTION_MECHANISM_UNSPECIFIED.Enum(), migration.MigrationData_SOURCE_UNSPECIFIED.Enum()
 	}
 }
+
+type TileInfo struct {
+	Title           string
+	TimeSeriesQuery string
+	XPos            int32
+	YPos            int32
+}
+
+func GetDataflowCpuUtilMetric(projectId string, XPos int32, YPos int32, dataflowJobId string) TileInfo {
+	return TileInfo{
+		Title: "Dataflow Worker CPU Utilization",
+		TimeSeriesQuery: "fetch gce_instance| metric 'compute.googleapis.com/instance/cpu/utilization'| filter " +
+			"  resource.project_id == '" + projectId +
+			"' && (metadata.user_labels.dataflow_job_id ==   '" + dataflowJobId +
+			"')| group_by 1m, [value_utilization_mean: mean(value.utilization)]|" +
+			" every 1m| group_by [metric.instance_name],  " +
+			"  [value_utilization_mean_mean: mean(value_utilization_mean)]",
+		XPos: XPos,
+		YPos: YPos,
+	}
+}
+
+func GetDatastreamThroughputMetric(projectId string, XPos int32, YPos int32, streamId string) TileInfo {
+	return TileInfo{
+		Title: "Datastream Throughput",
+		TimeSeriesQuery: "fetch datastream.googleapis.com/Stream| metric 'datastream.googleapis.com/stream/event_count'" +
+			"| filter (resource.stream_id == '" + streamId +
+			"')| filter (resource.resource_container == '" + projectId +
+			"')| align rate(1m)| group_by []," +
+			"    [value_event_count_sum:     sum(value.event_count)]| " +
+			"every 1m",
+		XPos: XPos,
+		YPos: YPos,
+	}
+}
+
+func GetObjectCountGcsBucketMetric(projectId string, XPos int32, YPos int32, gcsBucketName string) TileInfo {
+	return TileInfo{
+		Title: "GCS Bucket Object Count",
+		TimeSeriesQuery: "fetch gcs_bucket| metric 'storage.googleapis.com/storage/object_count'" +
+			"| filter    resource.project_id == '" + projectId +
+			"'&&   (resource.bucket_name     == '" + gcsBucketName +
+			"'&& resource.location == 'us-central1')| group_by 1m, [value_object_count_mean:" +
+			" mean(value.object_count)]| every 1m| group_by [], " +
+			"[value_object_count_mean_mean: mean(value_object_count_mean)]",
+		XPos: XPos,
+		YPos: YPos,
+	}
+}
+
+func GetDataflowSuccessfulEventsMetric(projectId string, XPos int32, YPos int32, dataflowJobId string) TileInfo {
+	return TileInfo{
+		Title: "Dataflow Successful Events",
+		TimeSeriesQuery: "fetch dataflow_job | metric 'dataflow.googleapis.com/job/user_counter'" +
+			"| filter resource.project_id == '" + projectId +
+			"'  && (metric.job_id == '" + dataflowJobId +
+			"'  && metric.metric_name == 'Successful events') | " +
+			"group_by 1m, [value_user_counter_mean: mean(value.user_counter)] " +
+			"| every 1m | group_by [], [value_user_counter_mean_mean: mean(value_user_counter_mean)]",
+		XPos: XPos,
+		YPos: YPos,
+	}
+}
