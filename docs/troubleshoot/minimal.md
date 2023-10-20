@@ -76,7 +76,25 @@ Migration progress can be tracked by monitoring the Dataflow job and following c
 
 It can happen that in retryDLQ mode, there are still permanent errors. To identify that all the retryable errors have been processed and only permanent errors remain for reprocessing - one can look at the ‘Successful events' count - it would remain constant after every retry iteration. Each retry iteration, the ‘elementsReconsumedFromDeadLetterQueue' would increment.
 
-### Retry command
+### Retry commands
+
+#### To rerun regular flow
+
+To rerun the regular flow, the same command as original needs to be fired. Note: This will only work when not using the PubSub subscriptions for GCS files.The processing starts all over again, meaning the same Datastream outputs get reprocessed.
+
+```
+gcloud dataflow flex-template run <jobName> \
+ --project=<project-name> --region=<region-name> \
+ --template-file-gcs-location=gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner \
+ --num-workers 1 --max-workers 50 \
+ --enable-streaming-engine \
+ --parameters databaseId=<database id>,deadLetterQueueDirectory=<GCS location of the DLQ directory>,inputFilePattern=<gcs location of the datastream output>,instanceId=<spanner-instance-id>,sessionFilePath=<GCS location of the session json>,streamName=<data stream name>,transformationContextFilePath=<path to transformation context json>
+
+```
+
+These job parameters can be taken from the original job.
+
+#### To reprocess DLQ directory
 
 This will reprocess the records marked as ‘severe' error records from the DLQ.  
 Before running the Dataflow job, check if the main Dataflow job has non-zero retryable error count. In case there are referential error records - check that the dependent table data is populated completely from the source database.
@@ -84,7 +102,13 @@ Before running the Dataflow job, check if the main Dataflow job has non-zero ret
 Sample command to run the Dataflow job in retryDLQ mode is
 
 ```sh
-gcloud beta dataflow flex-template run <jobname> --region=<the region where the dataflow job must run> --template-file-gcs-location=gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner --additional-experiments=use_runner_v2 --parameters inputFilePattern=<GCS location of the input file pattern>,streamName=<Datastream name>,instanceId=<Spanner Instance Id>,databaseId=<Spanner Database Id>,sessionFilePath=<GCS path to session file>,deadLetterQueueDirectory=<GCS path to the DLQ>,runMode=retryDLQ
+gcloud  dataflow flex-template run <jobname> \
+--region=<the region where the dataflow job must run> \
+--template-file-gcs-location=gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner \
+--additional-experiments=use_runner_v2 \
+--parameters inputFilePattern=<GCS location of the input file pattern>,streamName=<Datastream name>, \
+instanceId=<Spanner Instance Id>,databaseId=<Spanner Database Id>,sessionFilePath=<GCS path to session file>, \
+deadLetterQueueDirectory=<GCS path to the DLQ>,runMode=retryDLQ
 ```
 
 The following parameters can be taken from the regular forward migration Dataflow job:
