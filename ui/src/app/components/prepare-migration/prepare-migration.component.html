@@ -218,7 +218,7 @@
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
                     <span class="bullet" *ngIf="isSharded">3</span>
                     <span class="bullet" *ngIf="!isSharded">4</span>
-                    <span>Configure Dataflow (Optional)
+                    <span>Tune Resources (Optional)
                         <mat-icon class="configure"
                             matTooltip="Dataflow will be used to perform the actual migration of data from source to Spanner. This helps you configure the execution environment for Dataflow jobs e.g VPC.">
                             info</mat-icon>

@@ -446,13 +446,19 @@ type DatastreamConnProfile struct {
 }
 
 type DataflowConfig struct {
-	Location            string `json:"location"`
-	Network             string `json:"network"`
-	Subnetwork          string `json:"subnetwork"`
-	HostProjectId       string `json:"hostProjectId"`
-	MaxWorkers          string `json:"maxWorkers"`
-	NumWorkers          string `json:"numWorkers"`
-	ServiceAccountEmail string `json:"serviceAccountEmail"`
+	ProjectId            string `json:"ProjectId"`
+	Location             string `json:"location"`
+	Network              string `json:"network"`
+	Subnetwork           string `json:"subnetwork"`
+	HostProjectId        string `json:"hostProjectId"`
+	MaxWorkers           string `json:"maxWorkers"`
+	NumWorkers           string `json:"numWorkers"`
+	ServiceAccountEmail  string `json:"serviceAccountEmail"`
+	JobName              string `json:"JobName"`
+	MachineType          string `json:"MachineType"`
+	AdditionalUserLabels string `json:"AdditionalUserLabels"`
+	KmsKeyName           string `json:"KmsKeyName"`
+	GcsTemplatePath      string `json:"GcsTemplatePath"`
 }
 
 type DataShard struct {

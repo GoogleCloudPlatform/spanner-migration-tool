@@ -1,6 +1,21 @@
 <div mat-dialog-content>
     <form [formGroup]="dataflowForm" class="dataflow-form">
-      <h2>Dataflow Details</h2>
+      <h1> Tune Resource (Optional)</h1>
+      <h2>Tune Datastream (Optional)</h2>
+      <div>
+          <mat-form-field appearance="outline">
+              <mat-label>Max Concurrent Backfill Tasks</mat-label>
+              <input matInput placeholder="50" type="text" formControlName="maxConcurrentBackfillTasks"
+              matTooltip="Number of backfill workers" [matTooltipPosition]="'right'"/>
+          </mat-form-field>
+          <br>
+          <mat-form-field appearance="outline">
+              <mat-label>Max Concurrent CDC Tasks</mat-label>
+              <input matInput placeholder="16" type="text" formControlName="maxConcurrentBackfillTasks"
+              matTooltip="Number of CDC workers" [matTooltipPosition]="'right'"/>
+          </mat-form-field>
+      </div>
+      <h2>Tune Dataflow (Optional)</h2>
       <mat-form-field class="full-width" appearance="outline" matTooltip="Edit to run Dataflow in a shared VPC"
       [matTooltipPosition]="'right'" matTooltipHideDelay="100000">
         <mat-label>Host ProjectID</mat-label>
