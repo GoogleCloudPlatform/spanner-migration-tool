@@ -52,6 +52,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/sqlserver"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
 	helpers "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/profile"
@@ -146,21 +147,12 @@ type progressDetails struct {
 }
 
 type migrationDetails struct {
-	TargetDetails   targetDetails  `json:"TargetDetails"`
-	DataflowConfig  dataflowConfig `json:"DataflowConfig"`
-	MigrationMode   string         `json:MigrationMode`
-	MigrationType   string         `json:MigrationType`
-	IsSharded       bool           `json:"IsSharded"`
-	SkipForeignKeys bool           `json:"skipForeignKeys"`
-}
-
-type dataflowConfig struct {
-	Network             string `json:Network`
-	Subnetwork          string `json:Subnetwork`
-	MaxWorkers          string `json:MaxWorkers`
-	NumWorkers          string `json:NumWorkers`
-	ServiceAccountEmail string `json:ServiceAccountEmail`
-	HostProjectId       string `json:HostProjectId`
+	TargetDetails   targetDetails           `json:"TargetDetails"`
+	DataflowConfig  profiles.DataflowConfig `json:"DataflowConfig"`
+	MigrationMode   string                  `json:"MigrationMode"`
+	MigrationType   string                  `json:"MigrationType"`
+	IsSharded       bool                    `json:"IsSharded"`
+	SkipForeignKeys bool                    `json:"skipForeignKeys"`
 }
 
 type targetDetails struct {
@@ -169,33 +161,6 @@ type targetDetails struct {
 	TargetConnectionProfileName string `json:"TargetConnProfile"`
 	ReplicationSlot             string `json:"ReplicationSlot"`
 	Publication                 string `json:"Publication"`
-}
-type StreamingCfg struct {
-	DatastreamCfg DatastreamCfg `json:"datastreamCfg"`
-	DataflowCfg   DataflowCfg   `json:"dataflowCfg"`
-	TmpDir        string        `json:"tmpDir"`
-}
-type DataflowCfg struct {
-	JobName             string `json:"JobName"`
-	Location            string `json:"Location"`
-	Network             string `json:"Network"`
-	Subnetwork          string `json:"Subnetwork"`
-	MaxWorkers          string `json:"MaxWorkers"`
-	NumWorkers          string `json:"NumWorkers"`
-	ServiceAccountEmail string `json:"ServiceAccountEmail"`
-	HostProjectId       string `json:"HostProjectId"`
-}
-type ConnectionConfig struct {
-	Name     string `json:"name"`
-	Location string `json:"location"`
-}
-type DatastreamCfg struct {
-	StreamId               string           `json:"streamId"`
-	StreamLocation         string           `json:"streamLocation"`
-	StreamDisplayName      string           `json:"streamDisplayName"`
-	SourceConnectionConfig ConnectionConfig `json:"sourceConnectionConfig"`
-	TargetConnectionConfig ConnectionConfig `json:"destinationConnectionConfig"`
-	Properties             string           `json:properties`
 }
 
 type ColMaxLength struct {
@@ -2483,22 +2448,22 @@ func writeSessionFile(sessionState *session.SessionState) error {
 	return nil
 }
 
-func createStreamingCfgFile(sessionState *session.SessionState, targetDetails targetDetails, dataflowConfig dataflowConfig, fileName string) error {
-	data := StreamingCfg{
-		DatastreamCfg: DatastreamCfg{
+func createStreamingCfgFile(sessionState *session.SessionState, targetDetails targetDetails, dataflowConfig profiles.DataflowConfig, fileName string) error {
+	data := streaming.StreamingCfg{
+		DatastreamCfg: streaming.DatastreamCfg{
 			StreamId:          "",
 			StreamLocation:    sessionState.Region,
 			StreamDisplayName: "",
-			SourceConnectionConfig: ConnectionConfig{
+			SourceConnectionConfig: streaming.SrcConnCfg{
 				Name:     targetDetails.SourceConnectionProfileName,
 				Location: sessionState.Region,
 			},
-			TargetConnectionConfig: ConnectionConfig{
+			DestinationConnectionConfig: streaming.DstConnCfg{
 				Name:     targetDetails.TargetConnectionProfileName,
 				Location: sessionState.Region,
 			},
 		},
-		DataflowCfg: DataflowCfg{
+		DataflowCfg: streaming.DataflowCfg{
 			JobName:             "",
 			Location:            sessionState.Region,
 			Network:             dataflowConfig.Network,
