@@ -36,7 +36,7 @@ The following error scenarios are possible currently when doing low downtime mig
 1. Other SpannerExceptions - which are marked for retry
 1. In addition, there is a possibility of severe errors that would require manual intervention. Examples of severe error could be error during transformation.
 
-Points 1 to 4 above are retryable errors - the Dataflow job automatically retries them at intervals of 10 minutes for 500 times. In most cases, this should be good enough for the retryable records to succeed, however, even if after exhausting all the retries, these are not successful - then these records are marked as ‘severe' error category. Such ‘severe' errors can be retried later with a ‘retryDLQ' mode of the Dataflow job (discussed below in the ‘Retry command' section).  
+Points 1 to 4 above are retryable errors - the Dataflow job automatically retries them at intervals of 10 minutes for 500 times. In most cases, this should be good enough for the retryable records to succeed, however, even if after exhausting all the retries, these are not successful - then these records are marked as ‘severe' error category. Such ‘severe' errors can be retried later with a ‘retryDLQ' mode of the Dataflow job (discussed [below](#to-re-run-for-reprocessing-dlq-directory)).  
 The following scenarios results in skipping of records, they are not really errors:
 
 1. Invalid structure of records read from Datastream output
@@ -76,7 +76,7 @@ Migration progress can be tracked by monitoring the Dataflow job and following c
 
 It can happen that in retryDLQ mode, there are still permanent errors. To identify that all the retryable errors have been processed and only permanent errors remain for reprocessing - one can look at the ‘Successful events' count - it would remain constant after every retry iteration. Each retry iteration, the ‘elementsReconsumedFromDeadLetterQueue' would increment.
 
-### Retry commands
+### Re-run commands
 
 #### To rerun regular flow
 
@@ -94,7 +94,7 @@ gcloud dataflow flex-template run <jobName> \
 
 These job parameters can be taken from the original job.
 
-#### To reprocess DLQ directory
+#### To re-run for reprocessing DLQ directory
 
 This will reprocess the records marked as ‘severe' error records from the DLQ.  
 Before running the Dataflow job, check if the main Dataflow job has non-zero retryable error count. In case there are referential error records - check that the dependent table data is populated completely from the source database.
