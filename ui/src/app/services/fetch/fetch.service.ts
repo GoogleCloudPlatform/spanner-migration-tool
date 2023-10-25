@@ -23,7 +23,7 @@ import IStructuredReport from 'src/app/model/structured-report'
   providedIn: 'root',
 })
 export class FetchService {
-  private url: string = 'http://localhost:8080'//window.location.origin
+  private url: string = window.location.origin
   constructor(private http: HttpClient) {}
 
   connectTodb(payload: IDbConfig, dialect: string) {
@@ -91,7 +91,7 @@ export class FetchService {
     })
   }
 
-  setShardSourceDBDetailsForDataflow(payload: IMigrationProfile) {
+  setShardsSourceDBDetailsForDataflow(payload: IMigrationProfile) {
     return this.http.post(`${this.url}/SetShardsSourceDBDetailsForDataflow`, {
       MigrationProfile: payload
     })

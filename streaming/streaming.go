@@ -78,7 +78,7 @@ type DataflowCfg struct {
 	ProjectId            string            `json:"projectId"`
 	JobName              string            `json:"jobName"`
 	Location             string            `json:"location"`
-	HostProjectId        string            `json:"hostProjectId"`
+	VpcHostProjectId     string            `json:"vpcHostProjectId"`
 	Network              string            `json:"network"`
 	Subnetwork           string            `json:"subnetwork"`
 	MaxWorkers           string            `json:"maxWorkers"`
@@ -684,8 +684,8 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		dataflowProjectId = dataflowCfg.ProjectId
 	}
 	// If VPC Host project override present, use that otherwise default to Spanner project.
-	if dataflowCfg.HostProjectId != "" {
-		dataflowVpcHostProjectId = dataflowCfg.HostProjectId
+	if dataflowCfg.VpcHostProjectId != "" {
+		dataflowVpcHostProjectId = dataflowCfg.VpcHostProjectId
 	}
 	if dataflowCfg.GcsTemplatePath != "" {
 		gcsTemplatePath = dataflowCfg.GcsTemplatePath
@@ -808,7 +808,7 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 		ProjectId:            inputDataflowConfig.ProjectId,
 		Location:             inputDataflowConfig.Location,
 		Network:              inputDataflowConfig.Network,
-		HostProjectId:        inputDataflowConfig.HostProjectId,
+		VpcHostProjectId:     inputDataflowConfig.VpcHostProjectId,
 		Subnetwork:           inputDataflowConfig.Subnetwork,
 		MaxWorkers:           inputDataflowConfig.MaxWorkers,
 		NumWorkers:           inputDataflowConfig.NumWorkers,

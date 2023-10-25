@@ -216,22 +216,6 @@
                 </div>
             </div>
             <hr>
-            <span class="mat-h4 header-title">Tune workers (Optional)</span>
-            <br>
-            <br>
-            <div>
-                <mat-form-field appearance="outline">
-                    <mat-label>Max Concurrent Backfill Tasks</mat-label>
-                    <input matInput placeholder="50" type="text" formControlName="maxConcurrentBackfillTasks"
-                    matTooltip="Number of backfill workers" [matTooltipPosition]="'right'"/>
-                </mat-form-field>
-                <br>
-                <mat-form-field appearance="outline">
-                    <mat-label>Max Concurrent CDC Tasks</mat-label>
-                    <input matInput placeholder="16" type="text" formControlName="maxConcurrentBackfillTasks"
-                    matTooltip="Number of CDC workers" [matTooltipPosition]="'right'"/>
-                </mat-form-field>
-            </div>
         </div>
         <div class="last-btns">
             <button mat-button color="primary" mat-dialog-close>CANCEL</button>

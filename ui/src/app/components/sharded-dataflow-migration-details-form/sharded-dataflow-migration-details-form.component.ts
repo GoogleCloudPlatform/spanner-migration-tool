@@ -320,7 +320,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       }
     }
 
-    this.fetch.setShardSourceDBDetailsForDataflow(this.migrationProfile).subscribe({
+    this.fetch.setShardsSourceDBDetailsForDataflow(this.migrationProfile).subscribe({
       next: () => {
         localStorage.setItem(MigrationDetails.IsSourceConnectionProfileSet, "true")
         localStorage.setItem(MigrationDetails.IsTargetConnectionProfileSet, "true")
