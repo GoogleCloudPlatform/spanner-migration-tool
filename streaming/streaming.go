@@ -61,33 +61,33 @@ type DstConnCfg struct {
 }
 
 type DatastreamCfg struct {
-	StreamId                    string
-	StreamLocation              string
-	StreamDisplayName           string
-	SourceConnectionConfig      SrcConnCfg
-	DestinationConnectionConfig DstConnCfg
-	Properties                  string
-	tableList                   []string
+	StreamId                    string     `json:"streamId"`
+	StreamLocation              string     `json:"streamLocation"`
+	StreamDisplayName           string     `json:"streamDisplayName"`
+	SourceConnectionConfig      SrcConnCfg `json:"sourceConnectionConfig"`
+	DestinationConnectionConfig DstConnCfg `json:"destinationConnectionConfig"`
+	Properties                  string     `json:"properties"`
+	TableList                   []string   `json:"tableList"`
 }
 
 type DataflowCfg struct {
-	JobName             string
-	Location            string
-	HostProjectId       string
-	Network             string
-	Subnetwork          string
-	MaxWorkers          string
-	NumWorkers          string
-	ServiceAccountEmail string
-	DbNameToShardIdMap  map[string]string
+	JobName             string            `json:"jobName"`
+	Location            string            `json:"location"`
+	HostProjectId       string            `json:"hostProjectId"`
+	Network             string            `json:"network"`
+	Subnetwork          string            `json:"subnetwork"`
+	MaxWorkers          string            `json:"maxWorkers"`
+	NumWorkers          string            `json:"numWorkers"`
+	ServiceAccountEmail string            `json:"serviceAccountEmail"`
+	DbNameToShardIdMap  map[string]string `json:"dbNameToShardIdMap"`
 }
 
 type StreamingCfg struct {
-	DatastreamCfg DatastreamCfg
-	DataflowCfg   DataflowCfg
-	TmpDir        string
-	PubsubCfg     internal.PubsubCfg
-	DataShardId   string
+	DatastreamCfg DatastreamCfg      `json:"datastreamCfg"`
+	DataflowCfg   DataflowCfg        `json:"dataflowCfg"`
+	TmpDir        string             `json:"tmpDir"`
+	PubsubCfg     internal.PubsubCfg `json:"pubsubCfg"`
+	DataShardId   string             `json:"dataShardId"`
 }
 
 // VerifyAndUpdateCfg checks the fields and errors out if certain fields are empty.
@@ -129,7 +129,7 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 	}
 
 	// Populate the tables to be streamed in the datastreamCfg from the dervied list from session file
-	streamingCfg.DatastreamCfg.tableList = append(streamingCfg.DatastreamCfg.tableList, tableList...)
+	streamingCfg.DatastreamCfg.TableList = append(streamingCfg.DatastreamCfg.TableList, tableList...)
 
 	if dfCfg.JobName == "" {
 		// Update names to have more info like dbname.
@@ -258,11 +258,11 @@ func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile prof
 	case constants.MYSQL:
 		// For MySQL, it supports sharded migrations and batching databases in a physical machine into a single
 		//Datastream, so dbList is passed.
-		srcCfg.SourceStreamConfig = getMysqlSourceStreamConfig(dbList, datastreamCfg.tableList)
+		srcCfg.SourceStreamConfig = getMysqlSourceStreamConfig(dbList, datastreamCfg.TableList)
 		return nil
 	case constants.ORACLE:
 		// For Oracle, no sharded migrations or db batching support, so the dbList always contains only one element.
-		srcCfg.SourceStreamConfig = getOracleSourceStreamConfig(dbList[0].DbName, datastreamCfg.tableList)
+		srcCfg.SourceStreamConfig = getOracleSourceStreamConfig(dbList[0].DbName, datastreamCfg.TableList)
 		return nil
 	case constants.POSTGRES:
 		// For Postgres, tables need to be configured at the schema level, which will require more information List<Dbs> and Map<Schema, List<Tables>>
