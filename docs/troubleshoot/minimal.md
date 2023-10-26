@@ -76,6 +76,10 @@ Migration progress can be tracked by monitoring the Dataflow job and following c
 
 It can happen that in retryDLQ mode, there are still permanent errors. To identify that all the retryable errors have been processed and only permanent errors remain for reprocessing - one can look at the ‘Successful events' count - it would remain constant after every retry iteration. Each retry iteration, the ‘elementsReconsumedFromDeadLetterQueue' would increment.
 
+{: .note }
+
+Dataflow metrics are approximate.In the event that there is Dataflow worker restart, the same set of events might be reprocessed and the counters may reflect excess/lower values.In such scenarios, it is possible that counters like *Successful events* might have values greater than the number of records written to Spanner.Similarly, it is possible that the *Retryable errors* is negative since the same retry record got successfully processed by different workers.
+
 ### Re-run commands
 
 #### To rerun regular flow

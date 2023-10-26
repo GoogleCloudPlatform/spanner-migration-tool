@@ -196,6 +196,18 @@ The command to run the Dataflow jobs should be available when launching the Data
 
 Please refer dataflow [documentation](https://cloud.google.com/dataflow/docs/guides/routes-firewall#internet_access_for) on network options.
 
+When disabling the public IP for Dataflow,the option below should be added to the command line:
+
+```
+--disable-public-ips 
+```
+
+When providing subnetwork,give the option like so:
+
+```
+--subnetwork=https://www.googleapis.com/compute/v1/projects/<project name>/regions/<region name>/subnetworks/<subnetwork name>
+```
+
 Example command for the Spanner to Sink job
 
 ```code
@@ -261,7 +273,8 @@ Reverse transformation can not be supported for following scenarios out of the b
 8. CLOB will not be read from GCS and put in source 
 9. DELETES on Spanner that have Primary key columns different from the Source database column - such records will be dropped
 10. Primary key of the source table cannot be determined - such records will be dropped
-In the above cases, custom code will need to be written to perform reverse transformation. The source code can be taken from https://github.com/aksharauke/DataflowTemplates/tree/main/v2/ordered-changestream-buffer-to-sourcedb and extended to write these custom transforms.
+
+In the above cases, custom code will need to be written to perform reverse transformation.Refer the [customization](#customize) section for the source code to extended and write these custom transforms.
 
 ## Best practices
 
