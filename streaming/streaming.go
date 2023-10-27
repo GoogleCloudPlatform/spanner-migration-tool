@@ -776,6 +776,7 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 	dataflowCfg := streamingCfg.DataflowCfg
 	conv.Audit.StreamingStats.DataStreamName = datastreamCfg.StreamId
 	conv.Audit.StreamingStats.DataflowJobId = dfJobId
+	conv.Audit.StreamingStats.DataflowLocation = streamingCfg.DataflowCfg.Location
 	conv.Audit.StreamingStats.DataflowGcloudCmd = gcloudDataflowCmd
 	conv.Audit.StreamingStats.PubsubCfg = streamingCfg.PubsubCfg
 	conv.Audit.StreamingStats.MonitoringDashboard = dashboardName

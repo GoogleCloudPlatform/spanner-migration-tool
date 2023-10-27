@@ -2294,7 +2294,7 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	}
 	if sessionState.Conv.Audit.StreamingStats.DataflowJobId != "" {
 		generatedResources.DataflowJobName = sessionState.Conv.Audit.StreamingStats.DataflowJobId
-		generatedResources.DataflowJobUrl = fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
+		generatedResources.DataflowJobUrl = fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Conv.Audit.StreamingStats.DataflowLocation, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
 		generatedResources.DataflowGcloudCmd = sessionState.Conv.Audit.StreamingStats.DataflowGcloudCmd
 	}
 	if sessionState.Conv.Audit.StreamingStats.PubsubCfg.TopicId != "" {
