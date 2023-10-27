@@ -192,17 +192,17 @@ In this case, check if you observe the following:
 
 For both the Dataflow jobs, once an error is encountered for a given shard, then procesing is stopped for that shard to preserve ordering.To recover,rerun the job.The jobs are idempotent and it's safe to rerun them.
 
-The command to run the Dataflow jobs should be available when launching the Dataflow jobs via launcher script. The arguments are similar to what was passed in the launcher [script](./RunnigReverseReplication.md#arguments).
+The command to run the Dataflow jobs should be available when launching the Dataflow jobs via launcher script.The arguments are similar to what was passed in the launcher [script](./RunnigReverseReplication.md#arguments).
 
 Please refer dataflow [documentation](https://cloud.google.com/dataflow/docs/guides/routes-firewall#internet_access_for) on network options.
 
-When disabling the public IP for Dataflow,the option below should be added to the command line:
+When disabling the public IP for Dataflow, the option below should be added to the command line:
 
 ```
 --disable-public-ips 
 ```
 
-When providing subnetwork,give the option like so:
+When providing subnetwork, give the option like so:
 
 ```
 --subnetwork=https://www.googleapis.com/compute/v1/projects/<project name>/regions/<region name>/subnetworks/<subnetwork name>

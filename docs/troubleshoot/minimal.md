@@ -78,7 +78,7 @@ It can happen that in retryDLQ mode, there are still permanent errors. To identi
 
 {: .note }
 
-Dataflow metrics are approximate.In the event that there is Dataflow worker restart, the same set of events might be reprocessed and the counters may reflect excess/lower values.In such scenarios, it is possible that counters like *Successful events* might have values greater than the number of records written to Spanner.Similarly, it is possible that the *Retryable errors* is negative since the same retry record got successfully processed by different workers.
+Dataflow metrics are approximate. In the event that there is Dataflow worker restart, the same set of events might be reprocessed and the counters may reflect excess/lower values. In such scenarios, it is possible that counters like *Successful events* might have values greater than the number of records written to Spanner.Similarly, it is possible that the *Retryable errors* is negative since the same retry record got successfully processed by different workers.
 
 ### Re-run commands
 
