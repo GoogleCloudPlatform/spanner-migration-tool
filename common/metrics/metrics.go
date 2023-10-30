@@ -1,12 +1,48 @@
 package metrics
 
 import (
+	"context"
 	"math"
 
+	dashboard "cloud.google.com/go/monitoring/dashboard/apiv1"
+	"cloud.google.com/go/monitoring/dashboard/apiv1/dashboardpb"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
+	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
+)
+
+const (
+	dataflowCpuUtilQuery = "fetch datastream.googleapis.com/Stream| metric 'datastream.googleapis.com/stream/event_count'" +
+		"| filter (resource.stream_id == '%s')| filter (resource.resource_container == '%s')| align rate(1m)| group_by [], " +
+		"[value_event_count_sum:     sum(value.event_count)]| every 1m"
+	dataflowBacklogTimeQuery = "fetch dataflow_job | metric 'dataflow.googleapis.com/job/estimated_backlog_processing_time' | " +
+		"filter resource.project_id == '%s' && (metric.job_id == '%s') | group_by 1m, " +
+		"[value_estimated_backlog_processing_time_mean: mean(value.estimated_backlog_processing_time)] | every 1m"
+	datastreamTotalLatencyQuery = "fetch datastream.googleapis.com/Stream | metric 'datastream.googleapis.com/stream/total_latencies' " +
+		"| filter resource.resource_container == '%s' | filter (resource.stream_id == '%s') | " +
+		"align delta(1m) | every 1m | group_by [], [value_total_latencies_percentile: percentile(value.total_latencies, %s)]"
+	datastreamUnsupportedEventsQuery = "fetch datastream.googleapis.com/Stream| metric 'datastream.googleapis.com/stream/unsupported_event_count'| " +
+		"filter (resource.resource_container == '%s')| filter (resource.stream_id == '%s')| align delta(10m)| every 10m| group_by [], " +
+		"[value_unsupported_event_count_sum: sum(value.unsupported_event_count)]"
+	datastreamThroughputQuery = "fetch datastream.googleapis.com/Stream| metric 'datastream.googleapis.com/stream/event_count'" +
+		"| filter (resource.resource_container == '%s') | filter (resource.stream_id == '%s')| align rate(1m)| group_by [], " +
+		"[value_event_count_sum: sum(value.event_count)]| every 1m"
+	gcsTotalBytesQuery = "fetch gcs_bucket | metric 'storage.googleapis.com/storage/total_bytes' | filter resource.project_id == '%s' && " +
+		"(resource.bucket_name == '%s') | group_by 1m, [value_total_bytes_mean: mean(value.total_bytes)] | every 1m | " +
+		"group_by [], [value_total_bytes_mean_aggregate: aggregate(value_total_bytes_mean)]"
+	pubsubSubscriptionSentMessageCountQuery = "fetch pubsub_subscription | metric 'pubsub.googleapis.com/subscription/sent_message_count' | " +
+		"filter resource.project_id == '%s' && (resource.subscription_id == '%s') | align rate(1m) | every 1m | group_by [], " +
+		"[value_sent_message_count_aggregate: aggregate(value.sent_message_count)]"
+	pubsubOldestUnackedMessageAgeQuery = "fetch pubsub_subscription | metric 'pubsub.googleapis.com/subscription/oldest_unacked_message_age' | " +
+		"filter resource.project_id == '%s' && (resource.subscription_id == '%s') | group_by 1m, " +
+		"[value_oldest_unacked_message_age_mean: mean(value.oldest_unacked_message_age)] | every 1m | group_by [], " +
+		"[value_oldest_unacked_message_age_mean_max: max(value_oldest_unacked_message_age_mean)]"
+
+	DEFAULT_MONITORING_METRIC_HEIGHT int32 = 16
+	DEFAULT_MONITORING_METRIC_WIDTH  int32 = 24
 )
 
 // GetMigrationData returns migration data comprising source schema details,
@@ -103,11 +139,74 @@ func getMigrationDataSourceDetails(driver string, migrationData *migration.Migra
 	}
 }
 
+func CreateDataflowMonitoringDashboard(ctx context.Context, project string, datastreamCfg streaming.DatastreamCfg, respDf *dataflowpb.LaunchFlexTemplateResponse, streamingCfg streaming.StreamingCfg) (*dashboardpb.Dashboard, error) {
+	mosaicLayoutTiles := []*dashboardpb.MosaicLayout_Tile{
+		createTile(GetDataflowCpuUtilMetric(project, getNthTileXCoordinate(0, 2), getNthTileYCoordinate(0, 2), respDf.Job.Id)),
+		createTile(GetDatastreamThroughputMetric(project, getNthTileXCoordinate(1, 2), getNthTileYCoordinate(1, 2), datastreamCfg.StreamId)),
+		createTile(GetObjectCountGcsBucketMetric(project, getNthTileXCoordinate(2, 2), getNthTileYCoordinate(2, 2), streamingCfg.TmpDir)),
+		createTile(GetDataflowSuccessfulEventsMetric(project, getNthTileXCoordinate(3, 2), getNthTileYCoordinate(3, 2), respDf.Job.Id)),
+	}
+	mosaicLayout := dashboardpb.MosaicLayout{
+		Columns: 48,
+		Tiles:   mosaicLayoutTiles,
+	}
+	layout := dashboardpb.Dashboard_MosaicLayout{
+		MosaicLayout: &mosaicLayout,
+	}
+	db := dashboardpb.Dashboard{
+		DisplayName: "sample migration dashboard",
+		Layout:      &layout,
+	}
+	req := &dashboardpb.CreateDashboardRequest{
+		Parent:    "projects/" + project,
+		Dashboard: &db,
+	}
+	client, _ := dashboard.NewDashboardsClient(ctx)
+	defer client.Close()
+	resp, err := client.CreateDashboard(ctx, req)
+	return resp, err
+}
+
+func createDataflowMetrics(ctx context.Context, projectId string, dataflowJobId string) []*dashboardpb.MosaicLayout_Tile {
+	var dataflowTiles []dashboardpb.MosaicLayout_Tile
+
+}
+func createTile(tileInfo TileInfo) *dashboardpb.MosaicLayout_Tile {
+	tile := dashboardpb.MosaicLayout_Tile{
+		Height: 24,
+		Width:  16,
+		XPos:   tileInfo.Height,
+		YPos:   tileInfo.Width,
+		Widget: &dashboardpb.Widget{
+			Title: tileInfo.Title,
+			Content: &dashboardpb.Widget_XyChart{
+				XyChart: &dashboardpb.XyChart{
+					ChartOptions: &dashboardpb.ChartOptions{
+						Mode: dashboardpb.ChartOptions_COLOR,
+					},
+					DataSets: []*dashboardpb.XyChart_DataSet{
+						{
+							PlotType:   dashboardpb.XyChart_DataSet_LINE,
+							TargetAxis: dashboardpb.XyChart_DataSet_Y1,
+							TimeSeriesQuery: &dashboardpb.TimeSeriesQuery{
+								Source: &dashboardpb.TimeSeriesQuery_TimeSeriesQueryLanguage{
+									TimeSeriesQueryLanguage: tileInfo.TimeSeriesQuery,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	return &tile
+}
+
 type TileInfo struct {
 	Title           string
 	TimeSeriesQuery string
-	XPos            int32
-	YPos            int32
+	Height          int32
+	Width           int32
 }
 
 func GetDataflowCpuUtilMetric(projectId string, XPos int32, YPos int32, dataflowJobId string) TileInfo {
@@ -119,8 +218,8 @@ func GetDataflowCpuUtilMetric(projectId string, XPos int32, YPos int32, dataflow
 			"')| group_by 1m, [value_utilization_mean: mean(value.utilization)]|" +
 			" every 1m| group_by [metric.instance_name],  " +
 			"  [value_utilization_mean_mean: mean(value_utilization_mean)]",
-		XPos: XPos,
-		YPos: YPos,
+		Height: XPos,
+		Width:  YPos,
 	}
 }
 
@@ -133,8 +232,8 @@ func GetDatastreamThroughputMetric(projectId string, XPos int32, YPos int32, str
 			"')| align rate(1m)| group_by []," +
 			"    [value_event_count_sum:     sum(value.event_count)]| " +
 			"every 1m",
-		XPos: XPos,
-		YPos: YPos,
+		Height: XPos,
+		Width:  YPos,
 	}
 }
 
@@ -147,8 +246,8 @@ func GetObjectCountGcsBucketMetric(projectId string, XPos int32, YPos int32, gcs
 			"'&& resource.location == 'us-central1')| group_by 1m, [value_object_count_mean:" +
 			" mean(value.object_count)]| every 1m| group_by [], " +
 			"[value_object_count_mean_mean: mean(value_object_count_mean)]",
-		XPos: XPos,
-		YPos: YPos,
+		Height: XPos,
+		Width:  YPos,
 	}
 }
 
@@ -161,7 +260,15 @@ func GetDataflowSuccessfulEventsMetric(projectId string, XPos int32, YPos int32,
 			"'  && metric.metric_name == 'Successful events') | " +
 			"group_by 1m, [value_user_counter_mean: mean(value.user_counter)] " +
 			"| every 1m | group_by [], [value_user_counter_mean_mean: mean(value_user_counter_mean)]",
-		XPos: XPos,
-		YPos: YPos,
+		Height: XPos,
+		Width:  YPos,
 	}
+}
+
+func getNthTileXCoordinate(n int32, numColumns int32) int32 {
+	return (n % numColumns) * 16
+}
+
+func getNthTileYCoordinate(n int32, numColumns int32) int32 {
+	return (n / numColumns) * 24
 }
