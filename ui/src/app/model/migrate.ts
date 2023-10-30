@@ -25,9 +25,15 @@ export interface IGeneratedResources {
     DataStreamJobUrl: string
     DataflowJobName: string
     DataflowJobUrl: string
+    PubsubTopicName: string
+    PubsubTopicUrl: string
+    PubsubSubscriptionName: string
+    PubsubSubscriptionUrl: string
     DataflowGcloudCmd: string
     ShardToDatastreamMap: Map<string, ResourceDetails>
     ShardToDataflowMap: Map<string, ResourceDetails>
+    ShardToPubsubTopicMap: Map<string, ResourceDetails>
+    ShardToPubsubSubscriptionMap: Map<string, ResourceDetails>
     ShardToMonitoringDashboardMap: Map<string, ResourceDetails>
 }
 

@@ -78,9 +78,15 @@ export class PrepareMigrationComponent implements OnInit {
     DataStreamJobUrl: '',
     DataflowJobName: '',
     DataflowJobUrl: '',
+    PubsubTopicName: '',
+    PubsubTopicUrl: '',
+    PubsubSubscriptionName: '',
+    PubsubSubscriptionUrl: '',
     DataflowGcloudCmd: '',
     ShardToDatastreamMap: new Map<string, ResourceDetails>(),
     ShardToDataflowMap: new Map<string, ResourceDetails>(),
+    ShardToPubsubTopicMap: new Map<string, ResourceDetails>(),
+    ShardToPubsubSubscriptionMap: new Map<string, ResourceDetails>(),
     ShardToMonitoringDashboardMap: new Map<string, ResourceDetails>(),
   }
   configuredMigrationProfile!: IMigrationProfile
@@ -836,10 +842,16 @@ export class PrepareMigrationComponent implements OnInit {
       DataStreamJobUrl: '',
       DataflowJobName: '',
       DataflowJobUrl: '',
+      PubsubTopicName: '',
+      PubsubTopicUrl: '',
+      PubsubSubscriptionName: '',
+      PubsubSubscriptionUrl: '',
       DataflowGcloudCmd: '',
       ShardToDatastreamMap: new Map<string, ResourceDetails>(),
       ShardToDataflowMap: new Map<string, ResourceDetails>(),
-      ShardToMonitoringDashboardMap: new Map<string, ResourceDetails>()
+      ShardToPubsubTopicMap: new Map<string, ResourceDetails>(),
+      ShardToPubsubSubscriptionMap: new Map<string, ResourceDetails>(),
+      ShardToMonitoringDashboardMap: new Map<string, ResourceDetails>(),
     }
     this.initializeLocalStorage()
   }

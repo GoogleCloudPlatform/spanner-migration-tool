@@ -219,7 +219,7 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 // StartStreamingMigration starts the streaming migration process by creating a seperate
 // worker thread/goroutine for each table's DynamoDB Stream. It catches Ctrl+C signal if
 // customer wants to stop the process.
-func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, latestStreamArn map[string]interface{}) error {
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, latestStreamArn map[string]interface{}) (internal.DataflowOutput, error) {
 	fmt.Println("Processing of DynamoDB Streams started...")
 	fmt.Println("Use Ctrl+C to stop the process.")
 
@@ -243,7 +243,7 @@ func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *s
 	fillConvWithStreamingStats(streamInfo, conv)
 
 	fmt.Println("DynamoDB Streams processed successfully.")
-	return nil
+	return internal.DataflowOutput{}, nil
 }
 
 func getSchemaIndexStruct(indexName string, keySchema []*dynamodb.KeySchemaElement, colNameIdMap map[string]string) schema.Index {

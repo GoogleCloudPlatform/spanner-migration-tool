@@ -12,7 +12,7 @@ permalink: /minimal
 {: .note }
 Minimal downtime migrations are only supported for MySQL, Postgres and Oracle source databases.
 
-A minimal downtime migration consists of two components, migration of existing data from the database and the stream of changes (writes and updates) that are made to the source database during migration, referred to as change database capture (CDC). Using Spanner migration tool, the entire process where Datastream reads data from the source database and writes to a GCS bucket and data flow reads data from GCS bucket and writes to spanner database can be orchestrated using a unified interface. Performing schema changes on the source database during the migration is not supported. This is the suggested mode of migration for most databases.
+A minimal downtime migration consists of two components, migration of existing data from the database and the stream of changes (writes and updates) that are made to the source database during migration, referred to as change database capture (CDC). The process of migration involves Datastream reading data from the source database and writing to a GCS bucket, then GCS publishing a notification to Pub/Sub topic on each new file, then a Dataflow job when notified by the Pub/Sub subscription about the new file, reading the data from GCS bucket and writing to spanner database. With Spanner migration tool, this entire process can be orchestrated using a unified interface. Performing schema changes on the source database during the migration is not supported. This is the suggested mode of migration for most databases.
 
 ![](https://services.google.com/fh/files/helpcenter/asset-ripjb7eowf.png)
 
@@ -23,7 +23,7 @@ Sharded migrations are currently only supported for MySQL.
 
 Spanner migration tool supports sharded migrations for MySQL. Spanner migration tool does this is by multiplexing a minimal downtime migration across multiple shards. It uses the user configured schema while transforming the data read from each shard, at the time of writing to Spanner automatically. This provides an integrated experience to perform an end-to-end sharded migration. Below is the architecture of how sharded migrations work:
 
-![](https://services.google.com/fh/files/misc/smt_shard_arch.png)
+![](https://services.google.com/fh/files/misc/hb_sharded_migrations_with_pubsub_1.png)
 
 ### Terminology
 

@@ -63,13 +63,22 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 	mp := make(map[string]interface{})
 	var (
 		tableList []string
-		err error
+		err       error
 	)
 	tableList, err = common.GetIncludedSrcTablesFromConv(conv)
 	if err != nil {
 		err = fmt.Errorf("error fetching the tableList to setup datastream migration, defaulting to all tables: %v", err)
 	}
-	streamingCfg, err := streaming.StartDatastream(ctx, isi.SourceProfile, isi.TargetProfile, tableList)
+	streamingCfg, err := streaming.ReadStreamingConfig(isi.SourceProfile.Conn.Pg.StreamingConfig, isi.TargetProfile.Conn.Sp.Dbname, tableList)
+	if err != nil {
+		return nil, fmt.Errorf("error reading streaming config: %v", err)
+	}
+	pubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.TargetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.TargetProfile.Conn.Sp.Dbname)
+	if err != nil {
+		return nil, fmt.Errorf("error creating pubsub resources: %v", err)
+	}
+	streamingCfg.PubsubCfg = *pubsubCfg
+	streamingCfg, err = streaming.StartDatastream(ctx, streamingCfg, isi.SourceProfile, isi.TargetProfile, tableList)
 	if err != nil {
 		err = fmt.Errorf("error starting datastream: %v", err)
 		return nil, err
@@ -78,19 +87,17 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 	return mp, err
 }
 
-
-
 // StartStreamingMigration is used for automatic triggering of Dataflow job when
 // performing a streaming migration.
-func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) (internal.DataflowOutput, error) {
 	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
 
-	err := streaming.StartDataflow(ctx, isi.TargetProfile, streamingCfg, conv)
+	dfOutput, err := streaming.StartDataflow(ctx, isi.TargetProfile, streamingCfg, conv)
 	if err != nil {
 		err = fmt.Errorf("error starting dataflow: %v", err)
-		return err
+		return internal.DataflowOutput{}, err
 	}
-	return nil
+	return dfOutput, nil
 }
 
 // GetToDdl function below implement the common.InfoSchema interface.

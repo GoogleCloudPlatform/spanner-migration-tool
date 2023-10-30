@@ -10,8 +10,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
-	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
 )
 
 const (
@@ -44,6 +42,16 @@ const (
 	DEFAULT_MONITORING_METRIC_HEIGHT int32 = 16
 	DEFAULT_MONITORING_METRIC_WIDTH  int32 = 24
 )
+
+type MonitoringMetricsResources struct {
+	ProjectId            string
+	DataflowId           string
+	DatastreamId         string
+	GcsBucketId          string
+	PubsubSubscriptionId string
+	SpannerInstanceId    string
+	SpannerDatabaseId    string
+}
 
 // GetMigrationData returns migration data comprising source schema details,
 // request id, target dialect, connection mechanism etc based on
@@ -139,12 +147,12 @@ func getMigrationDataSourceDetails(driver string, migrationData *migration.Migra
 	}
 }
 
-func CreateDataflowMonitoringDashboard(ctx context.Context, project string, datastreamCfg streaming.DatastreamCfg, respDf *dataflowpb.LaunchFlexTemplateResponse, streamingCfg streaming.StreamingCfg) (*dashboardpb.Dashboard, error) {
+func CreateDataflowMonitoringDashboard(ctx context.Context, resourceIds MonitoringMetricsResources) (*dashboardpb.Dashboard, error) {
 	mosaicLayoutTiles := []*dashboardpb.MosaicLayout_Tile{
-		createTile(GetDataflowCpuUtilMetric(project, getNthTileXCoordinate(0, 2), getNthTileYCoordinate(0, 2), respDf.Job.Id)),
-		createTile(GetDatastreamThroughputMetric(project, getNthTileXCoordinate(1, 2), getNthTileYCoordinate(1, 2), datastreamCfg.StreamId)),
-		createTile(GetObjectCountGcsBucketMetric(project, getNthTileXCoordinate(2, 2), getNthTileYCoordinate(2, 2), streamingCfg.TmpDir)),
-		createTile(GetDataflowSuccessfulEventsMetric(project, getNthTileXCoordinate(3, 2), getNthTileYCoordinate(3, 2), respDf.Job.Id)),
+		createTile(GetDataflowCpuUtilMetric(resourceIds.ProjectId, getNthTileXCoordinate(0, 2), getNthTileYCoordinate(0, 2), dataflowJobId)),
+		createTile(GetDatastreamThroughputMetric(resourceIds.ProjectId, getNthTileXCoordinate(1, 2), getNthTileYCoordinate(1, 2), datastreamCfg.StreamId)),
+		createTile(GetObjectCountGcsBucketMetric(resourceIds.ProjectId, getNthTileXCoordinate(2, 2), getNthTileYCoordinate(2, 2), streamingCfg.TmpDir)),
+		createTile(GetDataflowSuccessfulEventsMetric(resourceIds.ProjectId, getNthTileXCoordinate(3, 2), getNthTileYCoordinate(3, 2), dataflowJobId)),
 	}
 	mosaicLayout := dashboardpb.MosaicLayout{
 		Columns: 48,
