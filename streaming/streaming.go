@@ -25,8 +25,6 @@ import (
 
 	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
 	datastream "cloud.google.com/go/datastream/apiv1"
-	dashboard "cloud.google.com/go/monitoring/dashboard/apiv1"
-	dashboardpb "cloud.google.com/go/monitoring/dashboard/apiv1/dashboardpb"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
@@ -534,12 +532,11 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	}
 	gcloudDfCmd := utils.GetGcloudDataflowCommand(req)
 	logger.Log.Debug(fmt.Sprintf("\nEquivalent gCloud command for job %s:\n%s\n\n", req.LaunchParameter.JobName, gcloudDfCmd))
-	respDash, err := CreateDataflowMonitoringDashboard(ctx, project, datastreamCfg, respDf, streamingCfg)
+	respDash, err := metrics.CreateDataflowMonitoringDashboard(ctx, project, datastreamCfg, respDf, streamingCfg)
 	if err != nil {
 		return fmt.Errorf("error during monitoring dashboard creation: %v", err)
 	}
-	fmt.Println("Dashboard for monitoring: %s\n")
-	fmt.Println(respDash)
+	fmt.Printf("Dashboard for monitoring: %+v\n", respDash.Name)
 	storeGeneratedResources(conv, datastreamCfg, respDf, gcloudDfCmd, project, streamingCfg.DataShardId, respDash.Name)
 	return nil
 }
@@ -650,71 +647,4 @@ func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, st
 		return fmt.Errorf("error launching dataflow: %v", err)
 	}
 	return nil
-}
-
-func CreateDataflowMonitoringDashboard(ctx context.Context, project string, datastreamCfg DatastreamCfg, respDf *dataflowpb.LaunchFlexTemplateResponse, streamingCfg StreamingCfg) (*dashboardpb.Dashboard, error) {
-	mosaicLayoutTiles := []*dashboardpb.MosaicLayout_Tile{
-		createTile(metrics.GetDataflowCpuUtilMetric(project, getNthTileXCoordinate(0, 2), getNthTileYCoordinate(0, 2), respDf.Job.Id)),
-		createTile(metrics.GetDatastreamThroughputMetric(project, getNthTileXCoordinate(1, 2), getNthTileYCoordinate(1, 2), datastreamCfg.StreamId)),
-		createTile(metrics.GetObjectCountGcsBucketMetric(project, getNthTileXCoordinate(2, 2), getNthTileYCoordinate(2, 2), streamingCfg.TmpDir)),
-		createTile(metrics.GetDataflowSuccessfulEventsMetric(project, getNthTileXCoordinate(3, 2), getNthTileYCoordinate(3, 2), respDf.Job.Id)),
-	}
-	mosaicLayout := dashboardpb.MosaicLayout{
-		Columns: 48,
-		Tiles:   mosaicLayoutTiles,
-	}
-	layout := dashboardpb.Dashboard_MosaicLayout{
-		MosaicLayout: &mosaicLayout,
-	}
-	db := dashboardpb.Dashboard{
-		DisplayName: "sample migration dashboard",
-		Layout:      &layout,
-	}
-	req := &dashboardpb.CreateDashboardRequest{
-		Parent:    "projects/" + project,
-		Dashboard: &db,
-	}
-	client, _ := dashboard.NewDashboardsClient(ctx)
-	defer client.Close()
-	resp, err := client.CreateDashboard(ctx, req)
-	return resp, err
-}
-
-func createTile(tileInfo metrics.TileInfo) *dashboardpb.MosaicLayout_Tile {
-	tile := dashboardpb.MosaicLayout_Tile{
-		Height: 24,
-		Width:  16,
-		XPos:   tileInfo.XPos,
-		YPos:   tileInfo.YPos,
-		Widget: &dashboardpb.Widget{
-			Title: tileInfo.Title,
-			Content: &dashboardpb.Widget_XyChart{
-				XyChart: &dashboardpb.XyChart{
-					ChartOptions: &dashboardpb.ChartOptions{
-						Mode: dashboardpb.ChartOptions_COLOR,
-					},
-					DataSets: []*dashboardpb.XyChart_DataSet{
-						{
-							PlotType:   dashboardpb.XyChart_DataSet_LINE,
-							TargetAxis: dashboardpb.XyChart_DataSet_Y1,
-							TimeSeriesQuery: &dashboardpb.TimeSeriesQuery{
-								Source: &dashboardpb.TimeSeriesQuery_TimeSeriesQueryLanguage{
-									TimeSeriesQueryLanguage: tileInfo.TimeSeriesQuery,
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	return &tile
-}
-
-func getNthTileXCoordinate(n int32, numColumns int32) int32 {
-	return (n % numColumns) * 16
-}
-
-func getNthTileYCoordinate(n int32, numColumns int32) int32 {
-	return (n / numColumns) * 24
 }

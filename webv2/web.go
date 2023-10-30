@@ -2304,6 +2304,7 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	generatedResources.BucketUrl = fmt.Sprintf("https://console.cloud.google.com/storage/browser/%v", sessionState.Bucket+sessionState.RootPath)
 	generatedResources.ShardToDataflowMap = make(map[string]ResourceDetails)
 	generatedResources.ShardToDatastreamMap = make(map[string]ResourceDetails)
+	generatedResources.ShardToMonitoringDashboardMap = make(map[string]ResourceDetails)
 	if sessionState.Conv.Audit.StreamingStats.DataStreamName != "" {
 		generatedResources.DataStreamJobName = sessionState.Conv.Audit.StreamingStats.DataStreamName
 		generatedResources.DataStreamJobUrl = fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataStreamName, sessionState.GCPProjectID)
@@ -2323,6 +2324,11 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 		url := fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, dfId, sessionState.GCPProjectID)
 		resourceDetails := ResourceDetails{JobName: dfId, JobUrl: url, GcloudCmd: shardedDataflowJobResources.GcloudCmd}
 		generatedResources.ShardToDataflowMap[shardId] = resourceDetails
+	}
+	for shardId, dashboardName := range sessionState.Conv.Audit.StreamingStats.ShardToMonitoringDashboardMap {
+		url := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", strings.Split(dashboardName, "/")[3], sessionState.GCPProjectID)
+		resourceDetails := ResourceDetails{JobName:dashboardName, JobUrl: url}
+		generatedResources.ShardToMonitoringDashboardMap[shardId] = resourceDetails
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(generatedResources)
@@ -2991,8 +2997,9 @@ type GeneratedResources struct {
 	DataflowJobUrl    string `json:"DataflowJobUrl"`
 	DataflowGcloudCmd string `json:"DataflowGcloudCmd"`
 	//Used for sharded migration flow
-	ShardToDatastreamMap map[string]ResourceDetails `json:"ShardToDatastreamMap"`
-	ShardToDataflowMap   map[string]ResourceDetails `json:"ShardToDataflowMap"`
+	ShardToDatastreamMap          map[string]ResourceDetails `json:"ShardToDatastreamMap"`
+	ShardToDataflowMap            map[string]ResourceDetails `json:"ShardToDataflowMap"`
+	ShardToMonitoringDashboardMap map[string]ResourceDetails `json:"ShardToMonitoringDashboardMap"`
 }
 
 func addTypeToList(convertedType string, spType string, issues []internal.SchemaIssue, l []typeIssue) []typeIssue {

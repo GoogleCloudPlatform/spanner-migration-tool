@@ -322,6 +322,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 	updateShardsWithDataflowConfig(sourceProfile.Config.ShardConfigurationDataflow)
 	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
 	conv.Audit.StreamingStats.ShardToDataflowInfoMap = make(map[string]internal.ShardedDataflowJobResources)
+	conv.Audit.StreamingStats.ShardToMonitoringDashboardMap = make(map[string]string)
 	tableList, err := common.GetIncludedSrcTablesFromConv(conv)
 	if err != nil {
 		fmt.Printf("unable to determine tableList from schema, falling back to full database")

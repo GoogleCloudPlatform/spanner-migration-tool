@@ -81,6 +81,7 @@ export class PrepareMigrationComponent implements OnInit {
     DataflowGcloudCmd: '',
     ShardToDatastreamMap: new Map<string, ResourceDetails>(),
     ShardToDataflowMap: new Map<string, ResourceDetails>(),
+    ShardToMonitoringDashboardMap: new Map<string, ResourceDetails>(),
   }
   configuredMigrationProfile!: IMigrationProfile
   region: string = ''
@@ -712,6 +713,7 @@ export class PrepareMigrationComponent implements OnInit {
                 MigrationDetails.GeneratingResources,
                 this.generatingResources.toString()
               )
+              console.log("fetching resources")
               this.fetchGeneratedResources()
             }
           } else {
@@ -783,13 +785,15 @@ export class PrepareMigrationComponent implements OnInit {
   }
 
   fetchGeneratedResources() {
+    console.log("in resource generated")
     this.fetch.getGeneratedResources().subscribe({
       next: (res: IGeneratedResources) => {
+        console.log("set resource generated as true")
         this.isResourceGenerated = true
         this.resourcesGenerated = res
       },
       error: (err: any) => {
-        this.snack.openSnackBar(err.error, 'Close')
+        this.snack.openSnackBar("helloworld", 'Close')
       },
     })
     if (this.selectedMigrationType === MigrationTypes.lowDowntimeMigration) {
@@ -834,7 +838,8 @@ export class PrepareMigrationComponent implements OnInit {
       DataflowJobUrl: '',
       DataflowGcloudCmd: '',
       ShardToDatastreamMap: new Map<string, ResourceDetails>(),
-      ShardToDataflowMap: new Map<string, ResourceDetails>()
+      ShardToDataflowMap: new Map<string, ResourceDetails>(),
+      ShardToMonitoringDashboardMap: new Map<string, ResourceDetails>()
     }
     this.initializeLocalStorage()
   }

@@ -28,6 +28,7 @@ export interface IGeneratedResources {
     DataflowGcloudCmd: string
     ShardToDatastreamMap: Map<string, ResourceDetails>
     ShardToDataflowMap: Map<string, ResourceDetails>
+    ShardToMonitoringDashboardMap: Map<string, ResourceDetails>
 }
 
 export interface ResourceDetails {

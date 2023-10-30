@@ -347,6 +347,11 @@
                     </button></span>
             </li>
         </span>
+        <span *ngIf="(selectedMigrationType ==='lowdt') && isSharded">
+            <li *ngFor="let dashboard of resourcesGenerated.ShardToMonitoringDashboardMap | keyvalue">
+                Dashboard for shardId: {{ dashboard.key }} - <a [href]="dashboard.value.JobUrl"
+                    target="_blank">{{dashboard.value.JobName}}</a></li>
+        </span>
         <br><br>
         <span *ngIf="(selectedMigrationType ==='lowdt')">
         <b>Note: </b>Spanner migration tool has orchestrated the migration successfully. For minimal downtime
