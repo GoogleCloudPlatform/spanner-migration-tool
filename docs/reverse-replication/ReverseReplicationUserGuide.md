@@ -48,7 +48,8 @@ A few prerequisites must be considered before starting with reverse replication.
 1. Ensure network connectivity between the source database and your GCP project, where your Dataflow jobs will run.
   - Allowlist Dataflow worker IPs on the MySQL instance so that they can access the MySQL IPs.
   - Check that the MySQL credentials are correctly specified in the [source shards file](./RunnigReverseReplication.md#sample-sourceshards-file).
-  - Check that the MySQL server is up. 
+  - Check that the MySQL server is up.
+  - The MySQL user configured in the [source shards file](./RunnigReverseReplication.md#sample-sourceshards-file) should have [INSERT](https://dev.mysql.com/doc/refman/8.0/en/privileges-provided.html#priv_insert), [UPDATE](https://dev.mysql.com/doc/refman/8.0/en/privileges-provided.html#priv_update) and [DELETE](https://dev.mysql.com/doc/refman/8.0/en/privileges-provided.html#priv_delete) privileges on the database.
 2. Ensure that Dataflow permissions are present.[Basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin:~:text=Grant%20roles%20to%20your%20Compute%20Engine%20default%20service%20account.%20Run%20the%20following%20command%20once%20for%20each%20of%20the%20following%20IAM%20roles%3A%20roles/dataflow.admin%2C%20roles/dataflow.worker%2C%20roles/bigquery.dataEditor%2C%20roles/pubsub.editor%2C%20roles/storage.objectAdmin%2C%20and%20roles/artifactregistry.reader) and [Flex template permissions](https://cloud.google.com/dataflow/docs/guides/templates/configuring-flex-templates#permissions).
 3. Ensure the compute engine service account has the following permissions:
     - roles/pubsub.subscriber
