@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"math"
 
 	dashboard "cloud.google.com/go/monitoring/dashboard/apiv1"
@@ -13,9 +14,9 @@ import (
 )
 
 const (
-	dataflowCpuUtilQuery = "fetch datastream.googleapis.com/Stream| metric 'datastream.googleapis.com/stream/event_count'" +
-		"| filter (resource.stream_id == '%s')| filter (resource.resource_container == '%s')| align rate(1m)| group_by [], " +
-		"[value_event_count_sum:     sum(value.event_count)]| every 1m"
+	dataflowCpuUtilQuery = "fetch gce_instance | metric 'compute.googleapis.com/instance/cpu/utilization' | filter (metadata.user_labels.dataflow_job_id == '%s') " +
+		"&& resource.project_id == '%s' | group_by 1m, [value_utilization_mean: mean(value.utilization)] " +
+		"| every 1m | group_by [metric.instance_name], [value_utilization_mean_mean: mean(value_utilization_mean)]"
 	dataflowBacklogTimeQuery = "fetch dataflow_job | metric 'dataflow.googleapis.com/job/estimated_backlog_processing_time' | " +
 		"filter resource.project_id == '%s' && (metric.job_id == '%s') | group_by 1m, " +
 		"[value_estimated_backlog_processing_time_mean: mean(value.estimated_backlog_processing_time)] | every 1m"
@@ -38,19 +39,35 @@ const (
 		"filter resource.project_id == '%s' && (resource.subscription_id == '%s') | group_by 1m, " +
 		"[value_oldest_unacked_message_age_mean: mean(value.oldest_unacked_message_age)] | every 1m | group_by [], " +
 		"[value_oldest_unacked_message_age_mean_max: max(value_oldest_unacked_message_age_mean)]"
-
-	DEFAULT_MONITORING_METRIC_HEIGHT int32 = 16
-	DEFAULT_MONITORING_METRIC_WIDTH  int32 = 24
+	spannerCpuUtilDbQuery = "fetch spanner_instance | metric 'spanner.googleapis.com/instance/cpu/utilization' | filter " +
+		"(resource.instance_id == '%s') && (metric.database == '%s') && resource.project_id == '%s' | " +
+		"group_by 1m, [value_utilization_mean: mean(value.utilization)] | every 1m | group_by [], " +
+		"[value_utilization_mean_aggregate: aggregate(value_utilization_mean)]"
+	spannerCpuUtilInstanceQuery = "fetch spanner_instance | metric 'spanner.googleapis.com/instance/cpu/utilization' | " +
+		"filter resource.project_id == '%s' && (resource.instance_id == '%s') | group_by 1m, [value_utilization_mean: mean(value.utilization)] " +
+		"| every 1m | group_by [], [value_utilization_mean_aggregate: aggregate(value_utilization_mean)]"
+	spannerStorageUtilDbQuery = "fetch spanner_instance | metric 'spanner.googleapis.com/instance/storage/used_bytes' | " +
+		"filter (resource.instance_id == '%s') && (metric.database == '%s') && resource.project_id == '%s' | " +
+		"group_by 1m, [value_used_bytes_mean: mean(value.used_bytes)] | every 1m | group_by [], " +
+		"[value_used_bytes_mean_aggregate: aggregate(value_used_bytes_mean)]"
+	spannerStorageUtilInstanceQuery = "fetch spanner_instance | metric 'spanner.googleapis.com/instance/storage/used_bytes' | filter " +
+		"(resource.instance_id == '%s') && resource.project_id == '%s' | group_by 1m, " +
+		"[value_used_bytes_mean: mean(value.used_bytes)] | every 1m | group_by [], " +
+		"[value_used_bytes_mean_aggregate: aggregate(value_used_bytes_mean)]"
+	defaultMonitoringMetricHeight int32 = 16
+	defaultMonitoringMetricWidth  int32 = 16
+	defaultColumns                int32 = 3
 )
 
 type MonitoringMetricsResources struct {
 	ProjectId            string
-	DataflowId           string
+	DataflowJobId        string
 	DatastreamId         string
 	GcsBucketId          string
 	PubsubSubscriptionId string
 	SpannerInstanceId    string
 	SpannerDatabaseId    string
+	ShardId              string
 }
 
 // GetMigrationData returns migration data comprising source schema details,
@@ -148,12 +165,38 @@ func getMigrationDataSourceDetails(driver string, migrationData *migration.Migra
 }
 
 func CreateDataflowMonitoringDashboard(ctx context.Context, resourceIds MonitoringMetricsResources) (*dashboardpb.Dashboard, error) {
-	mosaicLayoutTiles := []*dashboardpb.MosaicLayout_Tile{
-		createTile(GetDataflowCpuUtilMetric(resourceIds.ProjectId, getNthTileXCoordinate(0, 2), getNthTileYCoordinate(0, 2), dataflowJobId)),
-		createTile(GetDatastreamThroughputMetric(resourceIds.ProjectId, getNthTileXCoordinate(1, 2), getNthTileYCoordinate(1, 2), datastreamCfg.StreamId)),
-		createTile(GetObjectCountGcsBucketMetric(resourceIds.ProjectId, getNthTileXCoordinate(2, 2), getNthTileYCoordinate(2, 2), streamingCfg.TmpDir)),
-		createTile(GetDataflowSuccessfulEventsMetric(resourceIds.ProjectId, getNthTileXCoordinate(3, 2), getNthTileYCoordinate(3, 2), dataflowJobId)),
-	}
+	var mosaicLayoutTiles []*dashboardpb.MosaicLayout_Tile
+	var heightOffset int32 = 0
+	// create independent metrics tiles
+	independentMetricsTiles := createIndependentMetrics(resourceIds)
+	heightOffset += setWidgetPositions(independentMetricsTiles, heightOffset)
+	mosaicLayoutTiles = append(mosaicLayoutTiles, independentMetricsTiles...)
+	// create dataflow metrics
+	dataflowMetricsTiles := createDataflowMetrics(resourceIds)
+	dataflowMetricsGroupTile, newOffsetHeight := createCollapsibleGroupTile(TileInfo{Title: fmt.Sprintf("Dataflow Job %s", resourceIds.DataflowJobId)}, dataflowMetricsTiles, heightOffset)
+	heightOffset = newOffsetHeight
+	mosaicLayoutTiles = append(append(mosaicLayoutTiles, dataflowMetricsTiles...), dataflowMetricsGroupTile)
+	// create datastream metrics tiles
+	datastreamMetricsTiles := createDatastreamMetrics(resourceIds)
+	datastreamMetricsGroupTile, newOffsetHeight := createCollapsibleGroupTile(TileInfo{Title: fmt.Sprintf("Datastream %s", resourceIds.DatastreamId)}, datastreamMetricsTiles, heightOffset)
+	heightOffset = newOffsetHeight
+	mosaicLayoutTiles = append(append(mosaicLayoutTiles, datastreamMetricsTiles...), datastreamMetricsGroupTile)
+	// create gcs bucket metrics tiles
+	gcsMetricsTiles := createGcsMetrics(resourceIds)
+	gcsMetricsGroupTile, newOffsetHeight := createCollapsibleGroupTile(TileInfo{Title: fmt.Sprintf("GCS Bucket %s", resourceIds.GcsBucketId)}, gcsMetricsTiles, heightOffset)
+	heightOffset = newOffsetHeight
+	mosaicLayoutTiles = append(append(mosaicLayoutTiles, gcsMetricsTiles...), gcsMetricsGroupTile)
+	// create pubsub metrics tiles
+	pubsubMetricsTiles := createPubsubMetrics(resourceIds)
+	pubsubMetricsGroupTile, newOffsetHeight := createCollapsibleGroupTile(TileInfo{Title: fmt.Sprintf("Pubsub %s", resourceIds.PubsubSubscriptionId)}, pubsubMetricsTiles, heightOffset)
+	heightOffset = newOffsetHeight
+	mosaicLayoutTiles = append(append(mosaicLayoutTiles, pubsubMetricsTiles...), pubsubMetricsGroupTile)
+	// create spanner metrics tiles
+	spannerMetricsTiles := createSpannerMetrics(resourceIds)
+	spannerMetricsGroupTile, newOffsetHeight := createCollapsibleGroupTile(TileInfo{Title: fmt.Sprintf("Spanner instances/%s/databases/%s", resourceIds.SpannerInstanceId, resourceIds.SpannerDatabaseId)}, spannerMetricsTiles, heightOffset)
+	heightOffset = newOffsetHeight
+	mosaicLayoutTiles = append(append(mosaicLayoutTiles, spannerMetricsTiles...), spannerMetricsGroupTile)
+	mosaicLayoutTiles = append(mosaicLayoutTiles)
 	mosaicLayout := dashboardpb.MosaicLayout{
 		Columns: 48,
 		Tiles:   mosaicLayoutTiles,
@@ -162,29 +205,92 @@ func CreateDataflowMonitoringDashboard(ctx context.Context, resourceIds Monitori
 		MosaicLayout: &mosaicLayout,
 	}
 	db := dashboardpb.Dashboard{
-		DisplayName: "sample migration dashboard",
+		DisplayName: fmt.Sprintf("Shard Migration Dashboard %s", resourceIds.ShardId),
 		Layout:      &layout,
 	}
 	req := &dashboardpb.CreateDashboardRequest{
-		Parent:    "projects/" + project,
+		Parent:    fmt.Sprintf("projects/%s", resourceIds.ProjectId),
 		Dashboard: &db,
 	}
-	client, _ := dashboard.NewDashboardsClient(ctx)
+	client, err := dashboard.NewDashboardsClient(ctx)
+	if err != nil {
+		return nil, err
+	}
 	defer client.Close()
 	resp, err := client.CreateDashboard(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 	return resp, err
 }
 
-func createDataflowMetrics(ctx context.Context, projectId string, dataflowJobId string) []*dashboardpb.MosaicLayout_Tile {
-	var dataflowTiles []dashboardpb.MosaicLayout_Tile
-
+func createDataflowMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
+	dataflowTiles := []*dashboardpb.MosaicLayout_Tile{
+		createXYChartTile(TileInfo{"Dataflow Workers CPU Utilization", []string{fmt.Sprintf(dataflowCpuUtilQuery, resourceIds.DataflowJobId, resourceIds.ProjectId)}}),
+		createXYChartTile(TileInfo{"Dataflow Workers Backlog Time Seconds", []string{fmt.Sprintf(dataflowBacklogTimeQuery, resourceIds.DataflowJobId, resourceIds.ProjectId)}}),
+	}
+	return dataflowTiles
 }
-func createTile(tileInfo TileInfo) *dashboardpb.MosaicLayout_Tile {
+func createDatastreamMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
+	datastreamTiles := []*dashboardpb.MosaicLayout_Tile{
+		createXYChartTile(TileInfo{
+			"Datastream Total Latency",
+			[]string{fmt.Sprintf(datastreamTotalLatencyQuery, resourceIds.DatastreamId, resourceIds.ProjectId, "50"), fmt.Sprintf(datastreamTotalLatencyQuery, resourceIds.DatastreamId, resourceIds.ProjectId, "90")}}),
+		createXYChartTile(TileInfo{"Datastream Throughput Query", []string{fmt.Sprintf(datastreamThroughputQuery, resourceIds.DatastreamId, resourceIds.ProjectId)}}),
+		createXYChartTile(TileInfo{"Datastream Unsupported Latency", []string{fmt.Sprintf(datastreamUnsupportedEventsQuery, resourceIds.DatastreamId, resourceIds.ProjectId)}}),
+	}
+	return datastreamTiles
+}
+func createGcsMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
+	gcsBucketTiles := []*dashboardpb.MosaicLayout_Tile{
+		createXYChartTile(TileInfo{"GCS Bucket Total Bytes", []string{fmt.Sprintf(gcsTotalBytesQuery, resourceIds.GcsBucketId, resourceIds.ProjectId)}}),
+	}
+	return gcsBucketTiles
+}
+func createSpannerMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
+	spannerTiles := []*dashboardpb.MosaicLayout_Tile{
+		createXYChartTile(
+			TileInfo{"Spanner CPU Utilisation",
+				[]string{fmt.Sprintf(spannerCpuUtilDbQuery, resourceIds.SpannerInstanceId, resourceIds.SpannerDatabaseId, resourceIds.ProjectId), fmt.Sprintf(spannerCpuUtilInstanceQuery, resourceIds.SpannerInstanceId, resourceIds.ProjectId)}}),
+		createXYChartTile(
+			TileInfo{"Spanner Storage",
+				[]string{fmt.Sprintf(spannerStorageUtilDbQuery, resourceIds.SpannerInstanceId, resourceIds.SpannerDatabaseId, resourceIds.ProjectId), fmt.Sprintf(spannerStorageUtilInstanceQuery, resourceIds.SpannerInstanceId, resourceIds.ProjectId)}}),
+	}
+	return spannerTiles
+}
+func createPubsubMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
+	pubsubTiles := []*dashboardpb.MosaicLayout_Tile{
+		createXYChartTile(TileInfo{"Pubsub Subscription Sent Message Count", []string{fmt.Sprintf(pubsubSubscriptionSentMessageCountQuery, resourceIds.ProjectId, resourceIds.PubsubSubscriptionId)}}),
+		createXYChartTile(TileInfo{"Pubsub Age of Oldest Unacknowledged Message", []string{fmt.Sprintf(pubsubOldestUnackedMessageAgeQuery, resourceIds.ProjectId, resourceIds.PubsubSubscriptionId)}}),
+	}
+	return pubsubTiles
+}
+func createIndependentMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
+	independentMetricsTiles := []*dashboardpb.MosaicLayout_Tile{
+		createXYChartTile(TileInfo{"Dataflow Workers CPU Utilization", []string{fmt.Sprintf(dataflowCpuUtilQuery, resourceIds.DataflowJobId, resourceIds.ProjectId)}}),
+		createXYChartTile(TileInfo{"Datastream Throughput Query", []string{fmt.Sprintf(datastreamThroughputQuery, resourceIds.DatastreamId, resourceIds.ProjectId)}}),
+		createXYChartTile(TileInfo{"Datastream Unsupported Latency", []string{fmt.Sprintf(datastreamUnsupportedEventsQuery, resourceIds.DatastreamId, resourceIds.ProjectId)}}),
+		createXYChartTile(TileInfo{"Pubsub Age of Oldest Unacknowledged Message", []string{fmt.Sprintf(pubsubOldestUnackedMessageAgeQuery, resourceIds.ProjectId, resourceIds.PubsubSubscriptionId)}}),
+		createXYChartTile(
+			TileInfo{"Spanner CPU Utilisation",
+				[]string{fmt.Sprintf(spannerCpuUtilDbQuery, resourceIds.SpannerInstanceId, resourceIds.SpannerDatabaseId, resourceIds.ProjectId), fmt.Sprintf(spannerCpuUtilInstanceQuery, resourceIds.SpannerInstanceId, resourceIds.ProjectId)}}),
+	}
+	return independentMetricsTiles
+}
+func createXYChartTile(tileInfo TileInfo) *dashboardpb.MosaicLayout_Tile {
+	var dataSets []*dashboardpb.XyChart_DataSet
+	for _, query := range tileInfo.TimeSeriesQueries {
+		dataSets = append(dataSets, &dashboardpb.XyChart_DataSet{
+			PlotType:   dashboardpb.XyChart_DataSet_LINE,
+			TargetAxis: dashboardpb.XyChart_DataSet_Y1,
+			TimeSeriesQuery: &dashboardpb.TimeSeriesQuery{
+				Source: &dashboardpb.TimeSeriesQuery_TimeSeriesQueryLanguage{
+					TimeSeriesQueryLanguage: query,
+				},
+			},
+		})
+	}
 	tile := dashboardpb.MosaicLayout_Tile{
-		Height: 24,
-		Width:  16,
-		XPos:   tileInfo.Height,
-		YPos:   tileInfo.Width,
 		Widget: &dashboardpb.Widget{
 			Title: tileInfo.Title,
 			Content: &dashboardpb.Widget_XyChart{
@@ -192,17 +298,7 @@ func createTile(tileInfo TileInfo) *dashboardpb.MosaicLayout_Tile {
 					ChartOptions: &dashboardpb.ChartOptions{
 						Mode: dashboardpb.ChartOptions_COLOR,
 					},
-					DataSets: []*dashboardpb.XyChart_DataSet{
-						{
-							PlotType:   dashboardpb.XyChart_DataSet_LINE,
-							TargetAxis: dashboardpb.XyChart_DataSet_Y1,
-							TimeSeriesQuery: &dashboardpb.TimeSeriesQuery{
-								Source: &dashboardpb.TimeSeriesQuery_TimeSeriesQueryLanguage{
-									TimeSeriesQueryLanguage: tileInfo.TimeSeriesQuery,
-								},
-							},
-						},
-					},
+					DataSets: dataSets,
 				},
 			},
 		},
@@ -210,73 +306,36 @@ func createTile(tileInfo TileInfo) *dashboardpb.MosaicLayout_Tile {
 	return &tile
 }
 
+func createCollapsibleGroupTile(tileInfo TileInfo, tiles []*dashboardpb.MosaicLayout_Tile, heightOffset int32) (*dashboardpb.MosaicLayout_Tile, int32) {
+	groupTileHeight := setWidgetPositions(tiles, heightOffset)
+	groupTile := dashboardpb.MosaicLayout_Tile{
+		XPos:   0,
+		YPos:   heightOffset,
+		Width:  defaultMonitoringMetricWidth * defaultColumns,
+		Height: groupTileHeight,
+		Widget: &dashboardpb.Widget{
+			Title: tileInfo.Title,
+			Content: &dashboardpb.Widget_CollapsibleGroup{
+				CollapsibleGroup: &dashboardpb.CollapsibleGroup{
+					Collapsed: true,
+				},
+			},
+		},
+	}
+	return &groupTile, heightOffset + groupTileHeight
+}
+
+func setWidgetPositions(tiles []*dashboardpb.MosaicLayout_Tile, heightOffset int32) int32 {
+	for tilePosition, tile := range tiles {
+		tile.XPos = (int32(tilePosition) % defaultColumns) * defaultMonitoringMetricWidth
+		tile.YPos = heightOffset + (int32(tilePosition)/defaultColumns)*defaultMonitoringMetricHeight
+		tile.Width = defaultMonitoringMetricWidth
+		tile.Height = defaultMonitoringMetricHeight
+	}
+	return ((int32(len(tiles)-1) / defaultColumns) + 1) * defaultMonitoringMetricHeight
+}
+
 type TileInfo struct {
-	Title           string
-	TimeSeriesQuery string
-	Height          int32
-	Width           int32
-}
-
-func GetDataflowCpuUtilMetric(projectId string, XPos int32, YPos int32, dataflowJobId string) TileInfo {
-	return TileInfo{
-		Title: "Dataflow Worker CPU Utilization",
-		TimeSeriesQuery: "fetch gce_instance| metric 'compute.googleapis.com/instance/cpu/utilization'| filter " +
-			"  resource.project_id == '" + projectId +
-			"' && (metadata.user_labels.dataflow_job_id ==   '" + dataflowJobId +
-			"')| group_by 1m, [value_utilization_mean: mean(value.utilization)]|" +
-			" every 1m| group_by [metric.instance_name],  " +
-			"  [value_utilization_mean_mean: mean(value_utilization_mean)]",
-		Height: XPos,
-		Width:  YPos,
-	}
-}
-
-func GetDatastreamThroughputMetric(projectId string, XPos int32, YPos int32, streamId string) TileInfo {
-	return TileInfo{
-		Title: "Datastream Throughput",
-		TimeSeriesQuery: "fetch datastream.googleapis.com/Stream| metric 'datastream.googleapis.com/stream/event_count'" +
-			"| filter (resource.stream_id == '" + streamId +
-			"')| filter (resource.resource_container == '" + projectId +
-			"')| align rate(1m)| group_by []," +
-			"    [value_event_count_sum:     sum(value.event_count)]| " +
-			"every 1m",
-		Height: XPos,
-		Width:  YPos,
-	}
-}
-
-func GetObjectCountGcsBucketMetric(projectId string, XPos int32, YPos int32, gcsBucketName string) TileInfo {
-	return TileInfo{
-		Title: "GCS Bucket Object Count",
-		TimeSeriesQuery: "fetch gcs_bucket| metric 'storage.googleapis.com/storage/object_count'" +
-			"| filter    resource.project_id == '" + projectId +
-			"'&&   (resource.bucket_name     == '" + gcsBucketName +
-			"'&& resource.location == 'us-central1')| group_by 1m, [value_object_count_mean:" +
-			" mean(value.object_count)]| every 1m| group_by [], " +
-			"[value_object_count_mean_mean: mean(value_object_count_mean)]",
-		Height: XPos,
-		Width:  YPos,
-	}
-}
-
-func GetDataflowSuccessfulEventsMetric(projectId string, XPos int32, YPos int32, dataflowJobId string) TileInfo {
-	return TileInfo{
-		Title: "Dataflow Successful Events",
-		TimeSeriesQuery: "fetch dataflow_job | metric 'dataflow.googleapis.com/job/user_counter'" +
-			"| filter resource.project_id == '" + projectId +
-			"'  && (metric.job_id == '" + dataflowJobId +
-			"'  && metric.metric_name == 'Successful events') | " +
-			"group_by 1m, [value_user_counter_mean: mean(value.user_counter)] " +
-			"| every 1m | group_by [], [value_user_counter_mean_mean: mean(value_user_counter_mean)]",
-		Height: XPos,
-		Width:  YPos,
-	}
-}
-
-func getNthTileXCoordinate(n int32, numColumns int32) int32 {
-	return (n % numColumns) * 16
-}
-
-func getNthTileYCoordinate(n int32, numColumns int32) int32 {
-	return (n / numColumns) * 24
+	Title             string
+	TimeSeriesQueries []string
 }
