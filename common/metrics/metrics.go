@@ -196,7 +196,6 @@ func CreateDataflowMonitoringDashboard(ctx context.Context, resourceIds Monitori
 	spannerMetricsGroupTile, newOffsetHeight := createCollapsibleGroupTile(TileInfo{Title: fmt.Sprintf("Spanner instances/%s/databases/%s", resourceIds.SpannerInstanceId, resourceIds.SpannerDatabaseId)}, spannerMetricsTiles, heightOffset)
 	heightOffset = newOffsetHeight
 	mosaicLayoutTiles = append(append(mosaicLayoutTiles, spannerMetricsTiles...), spannerMetricsGroupTile)
-	mosaicLayoutTiles = append(mosaicLayoutTiles)
 	mosaicLayout := dashboardpb.MosaicLayout{
 		Columns: 48,
 		Tiles:   mosaicLayoutTiles,
