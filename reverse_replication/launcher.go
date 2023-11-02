@@ -52,6 +52,7 @@ var (
 	orderingWorkers      int
 	writerWorkers        int
 	networkTags          string
+	filtrationMode       string
 )
 
 const (
@@ -80,6 +81,7 @@ func setupGlobalFlags() {
 	flag.IntVar(&orderingWorkers, "orderingWorkers", 5, "number of workers for ordering job")
 	flag.IntVar(&writerWorkers, "writerWorkers", 5, "number of workers for writer job")
 	flag.StringVar(&networkTags, "networkTags", "", "Network tags addded to the Dataflow jobs worker and launcher VMs")
+	flag.StringVar(&filtrationMode, "filtrationMode", "forward_migration", "Whether to filter forward migrated data or not. Supported values are forward_migration and none, defaults to 'forward_migration'")
 
 }
 
@@ -139,8 +141,8 @@ func prechecks() error {
 
 func main() {
 	fmt.Println("Setting up reverse replication pipeline...")
-	ORDERING_TEMPLATE := "gs://dataflow-templates/2023-07-18-00_RC00/flex/Spanner_Change_Streams_to_Sink"
-	WRITER_TEMPLATE := "gs://dataflow-templates/2023-07-18-00_RC00/flex/Ordered_Changestream_Buffer_to_Sourcedb"
+	ORDERING_TEMPLATE := "gs://dataflow-templates/2023-10-12-00_RC00/flex/Spanner_Change_Streams_to_Sink"
+	WRITER_TEMPLATE := "gs://dataflow-templates/2023-10-12-00_RC00/flex/Ordered_Changestream_Buffer_to_Sourcedb"
 
 	setupGlobalFlags()
 	flag.Parse()
@@ -297,6 +299,7 @@ func main() {
 			"pubSubErrorTopicId": pubSubDataTopicUri,
 			"pubSubEndpoint":     pubSubEndpoint,
 			"sessionFilePath":    sessionFilePath,
+			"filtrationMode":     filtrationMode,
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			NumWorkers:            int32(orderingWorkers),
