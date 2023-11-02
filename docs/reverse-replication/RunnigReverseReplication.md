@@ -52,6 +52,7 @@ The script takes in multiple arguments to orchestrate the pipeline. They are:
 - `vpcHostProjectId`: project ID hosting the subnetwork. If unspecified, the 'projectId' parameter value will be used for subnetwork..
 - `serviceAccountEmail`: the email address of the service account to run the job as.
 - `networkTags`: network tags addded to the Dataflow jobs worker and launcher VMs.
+- `filtrationMode`: Whether to filter forward migrated data or not. Supported values are forward_migration and none, defaults to 'forward_migration'.
 
 ## Pre-requisites
 Before running the command, ensure you have the:
