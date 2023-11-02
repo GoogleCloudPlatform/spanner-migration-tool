@@ -368,7 +368,16 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
-		monitoringResources := metrics.MonitoringMetricsResources{}
+		monitoringResources := metrics.MonitoringMetricsResources{
+			ProjectId: targetProfile.Conn.Sp.Project,
+			DataflowJobId: dfOutput.JobID,
+			DatastreamId: streamingCfg.DatastreamCfg.StreamId,
+			GcsBucketId: streamingCfg.TmpDir,
+			PubsubSubscriptionId: streamingCfg.PubsubCfg.SubscriptionId,
+			SpannerInstanceId: targetProfile.Conn.Sp.Instance,
+			SpannerDatabaseId: targetProfile.Conn.Sp.Dbname,
+			ShardId: p.DataShardId,
+		}
 		respDash, err := metrics.CreateDataflowMonitoringDashboard(ctx, monitoringResources)
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}

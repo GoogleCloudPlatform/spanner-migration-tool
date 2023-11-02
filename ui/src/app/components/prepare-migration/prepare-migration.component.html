@@ -62,7 +62,7 @@
             </mat-select>
         </mat-form-field>
         <mat-icon class="configure" [matTooltip]="migrationTypesHelpText.get(selectedMigrationType)!">info</mat-icon>
-        <br />    
+        <br />
     </div>
     <div *ngIf="!(selectedMigrationMode === 'Schema' || selectedMigrationType === 'lowdt')">
         <mat-form-field appearance="outline">
@@ -356,10 +356,12 @@
                     </button></span>
             </li>
         </span>
-        <span *ngIf="(selectedMigrationType ==='lowdt') && isSharded">
+        <span *ngIf="(selectedMigrationType ==='lowdt') && (resourcesGenerated.ShardToMonitoringDashboardMap.size>0) && isSharded">
             <li *ngFor="let dashboard of resourcesGenerated.ShardToMonitoringDashboardMap | keyvalue">
+              <ng-container *ngIf="dashboard.value.JobName !== ''">
                 Dashboard for shardId: {{ dashboard.key }} - <a [href]="dashboard.value.JobUrl"
-                    target="_blank">{{dashboard.value.JobName}}</a></li>
+                    target="_blank">{{dashboard.value.JobName}}</a></ng-container></li>
+          </span>
         <span *ngIf="resourcesGenerated.PubsubTopicName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
             <li *ngFor="let topic of resourcesGenerated.ShardToPubsubTopicMap | keyvalue">
                 Pubsub topic for shardId: {{ topic.key }} - <a [href]="topic.value.JobUrl"
