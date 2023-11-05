@@ -18,7 +18,7 @@ require (
 	github.com/google/subcommands v1.2.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.9.0
 	github.com/pganalyze/pg_query_go/v2 v2.2.0
 	github.com/pingcap/tidb v1.1.0-beta.0.20230918090611-71bcc44f77a3
