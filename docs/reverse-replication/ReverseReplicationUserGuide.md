@@ -283,11 +283,13 @@ In the above cases, custom code will need to be written to perform reverse trans
 
 ## Best practices
 
-1. Avoid backlog build up of Spanner writes before starting the reverse replication. Start the reverse replication pipeline just before cutover of the first shard.
+1. Set the change stream retention period to maximum value of 7 days to avoid any data loss.
 
-2. Set the change stream retention period to maximum value of 7 days to avoid any data loss.
+2. When testing out reverse replication, use the metadataTableSuffix to distinguish between runs.
 
-3. Use the launcher script to create the necessary GCP resources and avoid creating them manually.
+3. The Spanner TPS and windowDuration decides how large a batch will be when writing to source. Perfrom benchmarks on expected production workloads and acceptable replication lag to fine tune the windowDuration.
+
+4. The metrics give good indication of the progress of the pipeline,it is good to setup Dashboards to monitor the progress.
 
 
 ## Customize
