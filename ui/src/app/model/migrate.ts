@@ -29,6 +29,8 @@ export interface IGeneratedResources {
     PubsubTopicUrl: string
     PubsubSubscriptionName: string
     PubsubSubscriptionUrl: string
+    MonitoringDashboardName: string
+    MonitoringDashboardUrl: string
     DataflowGcloudCmd: string
     ShardToDatastreamMap: Map<string, ResourceDetails>
     ShardToDataflowMap: Map<string, ResourceDetails>

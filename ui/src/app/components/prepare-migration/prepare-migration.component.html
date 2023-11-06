@@ -341,6 +341,11 @@
                     target="_blank">{{resourcesGenerated.PubsubSubscriptionName}}</a>
             </li>
         </span>
+        <span *ngIf="resourcesGenerated.MonitoringDashboardName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
+            <li> Monitoring Dashboard: <a [href]="resourcesGenerated.MonitoringDashboardUrl"
+                                     target="_blank">{{resourcesGenerated.MonitoringDashboardName}}</a>
+            </li>
+      </span>
         <span *ngIf="resourcesGenerated.DataStreamJobName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
             <li *ngFor="let stream of resourcesGenerated.ShardToDatastreamMap | keyvalue">
                 Datastream job for shardId: {{ stream.key }} - <a [href]="stream.value.JobUrl"

@@ -169,7 +169,7 @@ func getMigrationDataSourceDetails(driver string, migrationData *migration.Migra
 	}
 }
 
-func CreateDataflowMonitoringDashboard(ctx context.Context, resourceIds MonitoringMetricsResources) (*dashboardpb.Dashboard, error) {
+func CreateDataflowShardMonitoringDashboard(ctx context.Context, resourceIds MonitoringMetricsResources) (*dashboardpb.Dashboard, error) {
 	var mosaicLayoutTiles []*dashboardpb.MosaicLayout_Tile
 	var heightOffset int32 = 0
 	// create independent metrics tiles
@@ -209,7 +209,7 @@ func CreateDataflowMonitoringDashboard(ctx context.Context, resourceIds Monitori
 		MosaicLayout: &mosaicLayout,
 	}
 	db := dashboardpb.Dashboard{
-		DisplayName: fmt.Sprintf("Shard Migration Dashboard: %s", resourceIds.ShardId),
+		DisplayName: fmt.Sprintf("Shard Migration Dashboard %s", resourceIds.ShardId),
 		Layout:      &layout,
 	}
 	req := &dashboardpb.CreateDashboardRequest{

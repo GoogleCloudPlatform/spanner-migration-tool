@@ -305,7 +305,26 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			dfJobId := dfOutput.JobID
 			gcloudCmd := dfOutput.GCloudCmd
 			streamingCfg, _ := streamInfo["streamingCfg"].(streaming.StreamingCfg)
-			streaming.StoreGeneratedResources(conv, streamingCfg, dfJobId, gcloudCmd, targetProfile.Conn.Sp.Project, "", "")
+			monitoringResources := metrics.MonitoringMetricsResources{
+				ProjectId:            targetProfile.Conn.Sp.Project,
+				DataflowJobId:        dfOutput.JobID,
+				DatastreamId:         streamingCfg.DatastreamCfg.StreamId,
+				GcsBucketId:          streamingCfg.TmpDir,
+				PubsubSubscriptionId: streamingCfg.PubsubCfg.SubscriptionId,
+				SpannerInstanceId:    targetProfile.Conn.Sp.Instance,
+				SpannerDatabaseId:    targetProfile.Conn.Sp.Dbname,
+				ShardId:              "",
+			}
+			respDash, dashboardErr := metrics.CreateDataflowShardMonitoringDashboard(ctx, monitoringResources)
+			var dashboardName string
+			if dashboardErr != nil {
+				dashboardName = ""
+				logger.Log.Error(fmt.Sprintf("Creation of the monitoring dashboard failed, please create the dashboard manually\n error=%v\n", err))
+			} else {
+				dashboardName = strings.Split(respDash.Name, "/")[3]
+				fmt.Printf("Monitoring Dashboard: %+v\n", dashboardName)
+			}
+			streaming.StoreGeneratedResources(conv, streamingCfg, dfJobId, gcloudCmd, targetProfile.Conn.Sp.Project, "", dashboardName)
 			return bw, nil
 		}
 		return performSnapshotMigration(config, conv, client, infoSchema, internal.AdditionalDataAttributes{ShardId: ""}), nil
@@ -378,13 +397,13 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 			SpannerDatabaseId:    targetProfile.Conn.Sp.Dbname,
 			ShardId:              p.DataShardId,
 		}
-		respDash, dashboardErr := metrics.CreateDataflowMonitoringDashboard(ctx, monitoringResources)
+		respDash, dashboardErr := metrics.CreateDataflowShardMonitoringDashboard(ctx, monitoringResources)
 		var dashboardName string
 		if dashboardErr != nil {
 			dashboardName = ""
-			fmt.Printf("Monitoring Dashboard for shard %v could not be created\n %v", p.DataShardId, err.Error())
+			logger.Log.Error(fmt.Sprintf("Creation of the monitoring dashboard for shard %s failed, please create the dashboard manually\n error=%v\n", p.DataShardId, err))
 		} else {
-			dashboardName = respDash.Name
+			dashboardName = strings.Split(respDash.Name, "/")[3]
 			fmt.Printf("Monitoring Dashboard for shard %v: %+v\n", p.DataShardId, dashboardName)
 		}
 		streaming.StoreGeneratedResources(conv, streamingCfg, dfOutput.JobID, dfOutput.GCloudCmd, targetProfile.Conn.Sp.Project, p.DataShardId, dashboardName)

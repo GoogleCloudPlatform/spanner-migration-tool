@@ -25,6 +25,8 @@ import (
 
 	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
 	datastream "cloud.google.com/go/datastream/apiv1"
+	dashboard "cloud.google.com/go/monitoring/dashboard/apiv1"
+	"cloud.google.com/go/monitoring/dashboard/apiv1/dashboardpb"
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
@@ -521,6 +523,9 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 	if conv.Audit.StreamingStats.PubsubCfg.TopicId != "" && !conv.IsSharded {
 		CleanupPubsubResources(ctx, pubsubClient, storageClient, conv.Audit.StreamingStats.PubsubCfg, projectID)
 	}
+	if conv.Audit.StreamingStats.MonitoringDashboard != "" && !conv.IsSharded {
+		CleanupMonitoringDashboard(ctx, conv.Audit.StreamingStats.MonitoringDashboard, projectID)
+	}
 	// clean up jobs for sharded migrations (with error handling)
 	for _, resourceDetails := range conv.Audit.StreamingStats.ShardToDataflowInfoMap {
 		dfId := resourceDetails.JobId
@@ -537,6 +542,11 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 	}
 	for _, pubsubCfg := range conv.Audit.StreamingStats.ShardToPubsubIdMap {
 		CleanupPubsubResources(ctx, pubsubClient, storageClient, pubsubCfg, projectID)
+	}
+	for _, dashboardName := range conv.Audit.StreamingStats.ShardToMonitoringDashboardMap {
+		if dashboardName != "" {
+			CleanupMonitoringDashboard(ctx, dashboardName, projectID)
+		}
 	}
 	fmt.Println("Clean up complete")
 	return nil
@@ -567,6 +577,23 @@ func CleanupPubsubResources(ctx context.Context, pubsubClient *pubsub.Client, st
 		logger.Log.Error(fmt.Sprintf("Cleanup of GCS pubsub notification: %s failed.\n error=%v\n", pubsubCfg.NotificationId, err))
 	} else {
 		logger.Log.Info(fmt.Sprintf("Successfully deleted GCS pubsub notification: %s\n\n", pubsubCfg.NotificationId))
+	}
+}
+
+func CleanupMonitoringDashboard(ctx context.Context, dashboardName string, projectID string) {
+	client, err := dashboard.NewDashboardsClient(ctx)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Cleanup of the monitoring dashboard: %s Failed, please clean up the dashboard manually\n error=%v\n", dashboardName, err))
+	}
+	defer client.Close()
+	req := &dashboardpb.DeleteDashboardRequest{
+		Name: fmt.Sprintf("projects/%s/dashboards/%s", projectID, dashboardName),
+	}
+	err = client.DeleteDashboard(ctx, req)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Cleanup of the monitoring dashboard: %s Failed, please clean up the dashboard manually\n error=%v\n", dashboardName, err))
+	} else {
+		logger.Log.Info(fmt.Sprintf("Successfully deleted Monitoring Dashboard: %s\n\n", dashboardName))
 	}
 }
 
@@ -724,6 +751,7 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 	conv.Audit.StreamingStats.DataflowJobId = dfJobId
 	conv.Audit.StreamingStats.DataflowGcloudCmd = gcloudDataflowCmd
 	conv.Audit.StreamingStats.PubsubCfg = streamingCfg.PubsubCfg
+	conv.Audit.StreamingStats.MonitoringDashboard = dashboardName
 	if dataShardId != "" {
 		var resourceMutex sync.Mutex
 		resourceMutex.Lock()
