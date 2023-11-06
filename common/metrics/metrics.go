@@ -23,13 +23,13 @@ const (
 		"&& resource.project_id == '%s' && (metric.state == 'used') | align next_older(1m) | every 1m | " +
 		"group_by [metric.instance_name], [value_bytes_used_percentile: percentile(value.bytes_used, 90 )]"
 	dataflowBacklogTimeQuery = "fetch dataflow_job | metric 'dataflow.googleapis.com/job/estimated_backlog_processing_time' | " +
-		"filter resource.project_id == '%s' && (metric.job_id == '%s') | group_by 1m, " +
+		"filter (metric.job_id == '%s') && resource.project_id == '%s' | group_by 1m, " +
 		"[value_estimated_backlog_processing_time_mean: mean(value.estimated_backlog_processing_time)] | every 1m"
 	datastreamTotalLatencyQuery = "fetch datastream.googleapis.com/Stream | metric 'datastream.googleapis.com/stream/total_latencies' " +
-		"| filter resource.resource_container == '%s' | filter (resource.stream_id == '%s') | " +
+		"| filter (resource.stream_id == '%s') | filter resource.resource_container == '%s' | " +
 		"align delta(1m) | every 1m | group_by [], [value_total_latencies_percentile: percentile(value.total_latencies, %s)]"
 	datastreamUnsupportedEventsQuery = "fetch datastream.googleapis.com/Stream| metric 'datastream.googleapis.com/stream/unsupported_event_count'| " +
-		"filter (resource.resource_container == '%s')| filter (resource.stream_id == '%s')| align delta(10m)| every 10m| group_by [], " +
+		"filter (resource.stream_id == '%s') | filter (resource.resource_container == '%s') | align delta(10m)| every 10m| group_by [], " +
 		"[value_unsupported_event_count_sum: sum(value.unsupported_event_count)]"
 	datastreamThroughputQuery = "fetch datastream.googleapis.com/Stream| metric 'datastream.googleapis.com/stream/event_count'" +
 		"| filter (resource.stream_id == '%s') | filter (resource.resource_container == '%s')| align rate(1m)| group_by [], " +
@@ -265,7 +265,7 @@ func createSpannerMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb
 }
 func createPubsubMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	pubsubTiles := []*dashboardpb.MosaicLayout_Tile{
-		createXYChartTile(TileInfo{"Pubsub Subscription Sent Message Count", map[string]string{resourceIds.PubsubSubscriptionId: fmt.Sprintf(pubsubSubscriptionSentMessageCountQuery, resourceIds.ProjectId, resourceIds.PubsubSubscriptionId)}}),
+		createXYChartTile(TileInfo{"Pubsub Subscription Sent Message Count", map[string]string{resourceIds.PubsubSubscriptionId: fmt.Sprintf(pubsubSubscriptionSentMessageCountQuery, resourceIds.PubsubSubscriptionId, resourceIds.ProjectId)}}),
 		createXYChartTile(TileInfo{"Pubsub Age of Oldest Unacknowledged Message", map[string]string{resourceIds.PubsubSubscriptionId: fmt.Sprintf(pubsubOldestUnackedMessageAgeQuery, resourceIds.PubsubSubscriptionId, resourceIds.ProjectId)}}),
 	}
 	return pubsubTiles

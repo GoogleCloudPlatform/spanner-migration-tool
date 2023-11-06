@@ -356,12 +356,6 @@
                     </button></span>
             </li>
         </span>
-        <span *ngIf="(selectedMigrationType ==='lowdt') && isSharded">
-            <li *ngFor="let dashboard of resourcesGenerated.ShardToMonitoringDashboardMap | keyvalue">
-              <ng-container *ngIf="dashboard.value.JobName !== ''">
-                Dashboard for shardId: {{ dashboard.key }} - <a [href]="dashboard.value.JobUrl"
-                    target="_blank">{{dashboard.value.JobName}}</a></ng-container></li>
-          </span>
         <span *ngIf="resourcesGenerated.PubsubTopicName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
             <li *ngFor="let topic of resourcesGenerated.ShardToPubsubTopicMap | keyvalue">
                 Pubsub topic for shardId: {{ topic.key }} - <a [href]="topic.value.JobUrl"
@@ -373,6 +367,12 @@
                     target="_blank">{{subscription.value.JobName}}</a>
             </li>
         </span>
+      <span *ngIf="(selectedMigrationType ==='lowdt') && isSharded">
+        <li *ngFor="let dashboard of resourcesGenerated.ShardToMonitoringDashboardMap | keyvalue">
+          Dashboard for shardId: {{ dashboard.key }} - <a [href]="dashboard.value.JobUrl"
+                                                          target="_blank">{{dashboard.value.JobName}}</a>
+        </li>
+      </span>
         <br><br>
         <span *ngIf="(selectedMigrationType ==='lowdt')">
         <b>Note: </b>Spanner migration tool has orchestrated the migration successfully. For minimal downtime

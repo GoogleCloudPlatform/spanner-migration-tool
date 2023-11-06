@@ -2301,8 +2301,12 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 		generatedResources.ShardToDataflowMap[shardId] = resourceDetails
 	}
 	for shardId, dashboardName := range sessionState.Conv.Audit.StreamingStats.ShardToMonitoringDashboardMap {
-		url := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", strings.Split(dashboardName, "/")[3], sessionState.GCPProjectID)
-		resourceDetails := ResourceDetails{JobName:dashboardName, JobUrl: url}
+		urlParts := strings.Split(dashboardName, "/")
+		url := ""
+		if len(urlParts) == 4 {
+			url = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", urlParts[3], sessionState.GCPProjectID)
+		}
+		resourceDetails := ResourceDetails{JobName: dashboardName, JobUrl: url}
 		generatedResources.ShardToMonitoringDashboardMap[shardId] = resourceDetails
 	}
 	for shardId, pubsubId := range sessionState.Conv.Audit.StreamingStats.ShardToPubsubIdMap {
@@ -2984,10 +2988,10 @@ type GeneratedResources struct {
 	PubsubSubscriptionName string `json:"PubsubSubscriptionName"`
 	PubsubSubscriptionUrl  string `json:"PubsubSubscriptionUrl"`
 	//Used for sharded migration flow
-	ShardToDatastreamMap         map[string]ResourceDetails `json:"ShardToDatastreamMap"`
-	ShardToDataflowMap           map[string]ResourceDetails `json:"ShardToDataflowMap"`
-	ShardToPubsubTopicMap        map[string]ResourceDetails `json:"ShardToPubsubTopicMap"`
-	ShardToPubsubSubscriptionMap map[string]ResourceDetails `json:"ShardToPubsubSubscriptionMap"`
+	ShardToDatastreamMap          map[string]ResourceDetails `json:"ShardToDatastreamMap"`
+	ShardToDataflowMap            map[string]ResourceDetails `json:"ShardToDataflowMap"`
+	ShardToPubsubTopicMap         map[string]ResourceDetails `json:"ShardToPubsubTopicMap"`
+	ShardToPubsubSubscriptionMap  map[string]ResourceDetails `json:"ShardToPubsubSubscriptionMap"`
 	ShardToMonitoringDashboardMap map[string]ResourceDetails `json:"ShardToMonitoringDashboardMap"`
 }
 

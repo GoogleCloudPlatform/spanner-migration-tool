@@ -627,7 +627,7 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 		return SourceProfile{Ty: SourceProfileTypeCsv, Csv: NewSourceProfileCsv(params)}, nil
 	}
 
-	if _, ok := params["file"]; ok {
+	if _, ok := params["file"]; ok || filePipedToStdin() {
 		profile := NewSourceProfileFile(params)
 		return SourceProfile{Ty: SourceProfileTypeFile, File: profile}, nil
 	} else if format, ok := params["format"]; ok {
