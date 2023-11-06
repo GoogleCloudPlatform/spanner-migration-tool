@@ -356,7 +356,7 @@
                     </button></span>
             </li>
         </span>
-        <span *ngIf="(selectedMigrationType ==='lowdt') && (resourcesGenerated.ShardToMonitoringDashboardMap.size>0) && isSharded">
+        <span *ngIf="(selectedMigrationType ==='lowdt') && isSharded">
             <li *ngFor="let dashboard of resourcesGenerated.ShardToMonitoringDashboardMap | keyvalue">
               <ng-container *ngIf="dashboard.value.JobName !== ''">
                 Dashboard for shardId: {{ dashboard.key }} - <a [href]="dashboard.value.JobUrl"

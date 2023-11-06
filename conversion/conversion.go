@@ -369,21 +369,25 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		monitoringResources := metrics.MonitoringMetricsResources{
-			ProjectId: targetProfile.Conn.Sp.Project,
-			DataflowJobId: dfOutput.JobID,
-			DatastreamId: streamingCfg.DatastreamCfg.StreamId,
-			GcsBucketId: streamingCfg.TmpDir,
+			ProjectId:            targetProfile.Conn.Sp.Project,
+			DataflowJobId:        dfOutput.JobID,
+			DatastreamId:         streamingCfg.DatastreamCfg.StreamId,
+			GcsBucketId:          streamingCfg.TmpDir,
 			PubsubSubscriptionId: streamingCfg.PubsubCfg.SubscriptionId,
-			SpannerInstanceId: targetProfile.Conn.Sp.Instance,
-			SpannerDatabaseId: targetProfile.Conn.Sp.Dbname,
-			ShardId: p.DataShardId,
+			SpannerInstanceId:    targetProfile.Conn.Sp.Instance,
+			SpannerDatabaseId:    targetProfile.Conn.Sp.Dbname,
+			ShardId:              p.DataShardId,
 		}
-		respDash, err := metrics.CreateDataflowMonitoringDashboard(ctx, monitoringResources)
-		if err != nil {
-			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+		respDash, dashboardErr := metrics.CreateDataflowMonitoringDashboard(ctx, monitoringResources)
+		var dashboardName string
+		if dashboardErr != nil {
+			dashboardName = ""
+			fmt.Printf("Monitoring Dashboard for shard %v could not be created\n %v", p.DataShardId, err.Error())
+		} else {
+			dashboardName = respDash.Name
+			fmt.Printf("Monitoring Dashboard for shard %v: %+v\n", p.DataShardId, dashboardName)
 		}
-		fmt.Printf("Dashboard for monitoring: %+v\n", respDash.Name)
-		streaming.StoreGeneratedResources(conv, streamingCfg, dfOutput.JobID, dfOutput.GCloudCmd, targetProfile.Conn.Sp.Project, p.DataShardId, respDash.Name)
+		streaming.StoreGeneratedResources(conv, streamingCfg, dfOutput.JobID, dfOutput.GCloudCmd, targetProfile.Conn.Sp.Project, p.DataShardId, dashboardName)
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
 	_, err = common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 20, asyncProcessShards, true)
