@@ -1,4 +1,4 @@
 {
- "GCPProjectID": "span-cloud-ck-testing-external",
- "SpannerInstanceID": "a-testing"
+ "GCPProjectID": "",
+ "SpannerInstanceID": ""
 }
