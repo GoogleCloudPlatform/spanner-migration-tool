@@ -2,8 +2,8 @@ import { ISpannerDetails } from "./target-details"
 
 
 export default interface IDumpConfig {
-  Driver: string
-  Path: string
+  Driver: string| null | undefined
+  Path: string | null | undefined
 }
 
 export interface IConvertFromDumpRequest {

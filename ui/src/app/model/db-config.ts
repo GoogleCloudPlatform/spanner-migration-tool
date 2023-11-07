@@ -1,11 +1,11 @@
 export default interface IDbConfig {
-  dbEngine: string
-  isSharded: boolean
-  hostName: string
-  port: string
-  userName: string
-  password: string
-  dbName: string
+  dbEngine: string| null | undefined
+  isSharded: boolean| null | undefined
+  hostName: string | null | undefined
+  port: string | null | undefined
+  userName: string | null | undefined
+  password: string | null | undefined
+  dbName: string | null | undefined
   shardId?: string
 }
 

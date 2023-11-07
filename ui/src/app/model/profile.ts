@@ -46,11 +46,11 @@ export interface IDataflowConfig {
 }
 
 export interface IDirectConnectionConfig {
-    host: string
-    user: string
-    password: string
-    port: string
-    dbName: string
+    host: string | null | undefined
+    user: string | null | undefined
+    password: string | null | undefined
+    port: string | null | undefined
+    dbName: string | null | undefined
 }
 
 export interface IDatastreamConnProfile {

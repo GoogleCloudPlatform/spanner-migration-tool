@@ -7,5 +7,5 @@ export default interface ITargetDetails {
 }
 
 export interface ISpannerDetails {
-    Dialect: string
+    Dialect: string | null | undefined
 }

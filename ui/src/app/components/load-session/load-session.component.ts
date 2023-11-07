@@ -57,13 +57,15 @@ export class LoadSessionComponent implements OnInit {
       filePath: filePath,
     }
     this.getSchemaRequest = this.data.getSchemaConversionFromSession(payload)
-    this.data.conv.subscribe((res) => {
-      localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
-      localStorage.setItem(StorageKeys.Type, InputType.SessionFile)
-      localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
-      this.clickEvent.closeDatabaseLoader()
-      this.router.navigate(['/workspace'])
-    })
+    if (typeof dbEngine === "string") {
+      this.data.conv.subscribe((res) => {
+        localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
+        localStorage.setItem(StorageKeys.Type, InputType.SessionFile)
+        localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
+        this.clickEvent.closeDatabaseLoader()
+        this.router.navigate(['/workspace'])
+      })
+    }
   }
   handleFileInput(e: Event) {
     let files: FileList | null = (e.target as HTMLInputElement).files

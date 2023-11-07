@@ -1,3 +1,4 @@
+<div class="end-migration-dialog">
 <h2>End Migration</h2>
 <div>
     <b>Source database:</b>  {{sourceAndTargetDetails.SourceDatabaseName}}({{sourceAndTargetDetails.SourceDatabaseType}})
@@ -31,3 +32,4 @@
     <button mat-button color="primary" [disabled]="cleaningUp" mat-dialog-close>Cancel</button>
     <button mat-raised-button color="primary" (click)="cleanUpJobs()" [disabled]="cleaningUp">Clean Up</button>
   </div>
+</div>
