@@ -319,7 +319,7 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			var dashboardName string
 			if dashboardErr != nil {
 				dashboardName = ""
-				logger.Log.Error(fmt.Sprintf("Creation of the monitoring dashboard failed, please create the dashboard manually\n error=%v\n", err))
+				logger.Log.Error(fmt.Sprintf("Creation of the monitoring dashboard failed, please create the dashboard manually\n error=%v\n", dashboardErr))
 			} else {
 				dashboardName = strings.Split(respDash.Name, "/")[3]
 				fmt.Printf("Monitoring Dashboard: %+v\n", dashboardName)
