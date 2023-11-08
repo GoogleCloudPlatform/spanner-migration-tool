@@ -315,7 +315,7 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 				SpannerDatabaseId:    targetProfile.Conn.Sp.Dbname,
 				ShardId:              "",
 			}
-			respDash, dashboardErr := metrics.CreateDataflowShardMonitoringDashboard(ctx, monitoringResources)
+			respDash, dashboardErr := monitoringResources.CreateDataflowShardMonitoringDashboard(ctx)
 			var dashboardName string
 			if dashboardErr != nil {
 				dashboardName = ""
@@ -397,7 +397,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 			SpannerDatabaseId:    targetProfile.Conn.Sp.Dbname,
 			ShardId:              p.DataShardId,
 		}
-		respDash, dashboardErr := metrics.CreateDataflowShardMonitoringDashboard(ctx, monitoringResources)
+		respDash, dashboardErr := monitoringResources.CreateDataflowShardMonitoringDashboard(ctx)
 		var dashboardName string
 		if dashboardErr != nil {
 			dashboardName = ""
