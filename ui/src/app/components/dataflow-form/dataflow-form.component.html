@@ -81,12 +81,12 @@
     <form [formGroup]="presetFlagsForm" class="dataflow-form">
       <h2>
         Preset Flags 
-        <span><button mat-button class="configure" (click)="enablePresetFlags()" [disabled]="!disablePresetFlags">
+        <span><button mat-button class="edit-button" (click)="enablePresetFlags()" [disabled]="!disablePresetFlags">
           <mat-icon>edit</mat-icon>
           EDIT
       </button></span>
       </h2> 
-      <h5>These flags are set by SMT by default and <b>SHOULD NOT BE</b> modified unless running Dataflow in a non-standard configuration.</h5>
+      <h5>These flags are set by SMT by default and <b>SHOULD NOT BE</b> modified unless running Dataflow in a non-standard configuration. To edit these parameters, click the edit button above.</h5>
       <br>
       <mat-form-field class="full-width" appearance="outline" matTooltip="Specify the project to run the dataflow job in."
       [matTooltipPosition]="'right'">
@@ -94,13 +94,13 @@
         <input matInput placeholder="Dataflow Project Id" type="text" formControlName="dataflowProjectId"/>
       </mat-form-field>
       <br>
-      <mat-form-field class="full-width" appearance="outline" matTooltip="Specify the region to run the dataflow job in. It is recommended to keep the region same as Spanner region for performance."
+      <mat-form-field class="full-width" appearance="outline" matTooltip="Specify the region to run the dataflow job in. It is recommended to keep the region same as Spanner region for performance. Example: us-central1"
       [matTooltipPosition]="'right'">
         <mat-label>Dataflow Location</mat-label>
         <input matInput placeholder="Dataflow Location" type="text" formControlName="dataflowLocation"/>
       </mat-form-field>
       <br>
-      <mat-form-field class="full-width" appearance="outline" matTooltip="Cloud Storage path to the template spec. Use this to run launch dataflow with custom templates."
+      <mat-form-field class="full-width" appearance="outline" matTooltip="Cloud Storage path to the template spec. Use this to run launch dataflow with custom templates. Example: gs://my-bucket/path/to/template"
       [matTooltipPosition]="'right'">
         <mat-label>GCS Template Path</mat-label>
         <input matInput placeholder="GCS Template Path" type="text" formControlName="gcsTemplatePath"/>

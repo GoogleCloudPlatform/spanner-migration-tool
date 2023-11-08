@@ -141,6 +141,10 @@ export class FetchService {
     return this.http.get<IGeneratedResources>(`${this.url}/GetGeneratedResources`)
   }
 
+  validateDataflowUserLabels(json: string) {
+    return this.http.get<boolean>(`${this.url}/ValidateDataflowUserLabels?json=${json}`)
+  }
+
   getStaticIps() {
     return this.http.get<string[]>(`${this.url}/GetStaticIps`)
   }

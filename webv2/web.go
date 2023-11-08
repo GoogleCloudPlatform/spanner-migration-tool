@@ -881,6 +881,20 @@ func getTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(tableIdName)
 }
 
+// validateDataflowUserLabels validates the user labels json
+// by unmarshaling it into a map.
+func validateDataflowUserLabels(w http.ResponseWriter, r *http.Request) {
+	labelsJson := r.FormValue("json")
+	dataflowUserLabels := make(map[string]string)
+	err := json.Unmarshal([]byte(labelsJson), &dataflowUserLabels)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Json Read Error for user labels: %v", err), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(true)
+}
+
 // applyRule allows to add rules that changes the schema
 // currently it supports two types of operations viz. SetGlobalDataType and AddIndex
 func applyRule(w http.ResponseWriter, r *http.Request) {

@@ -1,5 +1,6 @@
 import { Component, Inject, OnInit } from '@angular/core';
-import { FormControl, FormGroup, Validators } from '@angular/forms';
+import { FetchService } from 'src/app/services/fetch/fetch.service';
+import { AbstractControl, FormControl, FormGroup, Validators, ValidationErrors } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { Dataflow } from 'src/app/app.constants';
 import ISpannerConfig from 'src/app/model/spanner-config';
@@ -16,7 +17,8 @@ export class DataflowFormComponent implements OnInit {
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: ISpannerConfig,
-    private dialofRef: MatDialogRef<DataflowFormComponent>
+    private dialofRef: MatDialogRef<DataflowFormComponent>,
+    private fetch: FetchService
   ) {
     this.dataflowForm = new FormGroup({
       network: new FormControl(''),
@@ -26,7 +28,7 @@ export class DataflowFormComponent implements OnInit {
       serviceAccountEmail: new FormControl(''),
       vpcHostProjectId: new FormControl(data.GCPProjectID, Validators.required),
       machineType: new FormControl(''),
-      additionalUserLabels: new FormControl(''),
+      additionalUserLabels: new FormControl('', [Validators.pattern('^{("([0-9a-zA-Z_-]+)":"([0-9a-zA-Z_-]+)",?)+}$')]),
       kmsKeyName: new FormControl('', [Validators.pattern('^projects\\/[^\\n\\r]+\\/locations\\/[^\\n\\r]+\\/keyRings\\/[^\\n\\r]+\\/cryptoKeys\\/[^\\n\\r]+$')]),
     })
     this.presetFlagsForm = new FormGroup({
