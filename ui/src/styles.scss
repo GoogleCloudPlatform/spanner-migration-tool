@@ -242,9 +242,12 @@ body {
   .dialog-message {
     padding-top: 1rem;
     padding-bottom: 1rem;
-    display: flex;
+    display: block;
     justify-content: center;
     align-items: center;
+    .a-link {
+      outline: none !important;
+    }
   }
 
   .dialog-action {

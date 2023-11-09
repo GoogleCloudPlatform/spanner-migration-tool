@@ -10,7 +10,6 @@ import { FetchService } from '../fetch/fetch.service';
 })
 export class BackendHealthService {
   private healthCheckSubscription: Subscription = new Subscription;
-  private isBackendHealthy: boolean = true;
   private unHealthyCheckCount: number = 0;
 
   constructor(private fetch: FetchService,
@@ -32,11 +31,13 @@ export class BackendHealthService {
       this.checkHealth().subscribe(
         (isHealthy) => {
           if (!isHealthy) {
-            if (this.unHealthyCheckCount ==1) {
+            if (this.unHealthyCheckCount == 5) {
               // Backend is unhealthy, open the dialog and unsubscribe
               this.openHealthDialog();
             }
-            this.unHealthyCheckCount=1;
+            this.unHealthyCheckCount++;
+          } else {
+            this.unHealthyCheckCount = 0;
           }
         }
       );
@@ -46,7 +47,7 @@ export class BackendHealthService {
     let dialogRef = this.dialog.open(InfodialogComponent, {
       width: '500px',
       data: {
-        message: 'Please check terminal logs for more details. In case of a crash please file a github issue with all the details.',
+        message: "Please check terminal logs for more details. In case of a crash please file a <a href='https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues' target='_blank' class='a-link'>github</a> issue with all the details.",
         type: 'error',
         title: 'Backend server unresponsive',
       }
@@ -64,10 +65,6 @@ export class BackendHealthService {
         return of(false);
       })
     );
-  }
-
-  isHealthy(): boolean {
-    return this.isBackendHealthy;
   }
 
   ngOnDestroy() {
