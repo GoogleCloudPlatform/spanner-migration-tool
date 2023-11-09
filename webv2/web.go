@@ -416,17 +416,19 @@ func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request)
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	sessionState.SourceProfileConfig = srcConfig.MigrationProfile
-	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
-	//create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
-	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		Location:            sessionState.Region,
-		Network:             "",
-		Subnetwork:          "",
-		MaxWorkers:          "",
-		NumWorkers:          "",
-		ServiceAccountEmail: "",
-		HostProjectId:       sessionState.GCPProjectID,
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataShards = srcConfig.MigrationProfile.ShardConfigurationDataflow.DataShards
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.SchemaSource = srcConfig.MigrationProfile.ShardConfigurationDataflow.SchemaSource
+
+	if sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig.Location == "" {
+		sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
+			Location:            sessionState.Region,
+			Network:             "",
+			Subnetwork:          "",
+			MaxWorkers:          "",
+			NumWorkers:          "",
+			ServiceAccountEmail: "",
+			HostProjectId:       sessionState.GCPProjectID,
+		}
 	}
 	w.WriteHeader(http.StatusOK)
 }
