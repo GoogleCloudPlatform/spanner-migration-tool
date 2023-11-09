@@ -11,6 +11,7 @@ import { FetchService } from '../fetch/fetch.service';
 export class BackendHealthService {
   private healthCheckSubscription: Subscription = new Subscription;
   private unHealthyCheckCount: number = 0;
+  private MAX_UNHEALTHY_CHECK_ATTEMPTS: number = 5
 
   constructor(private fetch: FetchService,
     private dialog: MatDialog) { }
@@ -31,7 +32,7 @@ export class BackendHealthService {
       this.checkHealth().subscribe(
         (isHealthy) => {
           if (!isHealthy) {
-            if (this.unHealthyCheckCount == 5) {
+            if (this.unHealthyCheckCount == this.MAX_UNHEALTHY_CHECK_ATTEMPTS) {
               // Backend is unhealthy, open the dialog and unsubscribe
               this.openHealthDialog();
             }
@@ -49,7 +50,7 @@ export class BackendHealthService {
       data: {
         message: "Please check terminal logs for more details. In case of a crash please file a <a href='https://github.com/GoogleCloudPlatform/spanner-migration-tool/issues' target='_blank' class='a-link'>github</a> issue with all the details.",
         type: 'error',
-        title: 'Backend server unresponsive',
+        title: 'Spanner migration tool unresponsive',
       }
     });
     this.stopHealthCheck();

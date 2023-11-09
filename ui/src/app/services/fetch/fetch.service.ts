@@ -304,6 +304,6 @@ export class FetchService {
     return this.http.get<Map<string,string>>(`${this.url}/typemap/GetPGSQLToStandardTypeTypemap`)
   }
   checkBackendHealth() {
-    return this.http.get(`${this.url}/health`)
+    return this.http.get(`${this.url}/ping`)
   }
 }
