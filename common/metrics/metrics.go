@@ -22,7 +22,8 @@ const (
 	// Default width of a tile in the monitoring dashboard
 	defaultMonitoringMetricWidth int32 = 16
 	// Default columns in the monitoring dashboard
-	defaultColumns int32 = 3
+	defaultColumns       int32 = 3
+	defaultMosaicColumns int32 = 48
 )
 
 var once sync.Once
@@ -153,39 +154,44 @@ func getDashboardClient(ctx context.Context) *dashboard.DashboardsClient {
 func (resourceIds MonitoringMetricsResources) CreateDataflowShardMonitoringDashboard(ctx context.Context) (*dashboardpb.Dashboard, error) {
 	var mosaicLayoutTiles []*dashboardpb.MosaicLayout_Tile
 	var heightOffset int32 = 0
+
 	// create independent metrics tiles
 	independentMetricsTiles := createShardIndependentMetrics(resourceIds)
 	heightOffset += setWidgetPositions(independentMetricsTiles, heightOffset)
 	mosaicLayoutTiles = append(mosaicLayoutTiles, independentMetricsTiles...)
-	// create dataflow metrics
-	dataflowMetricsTiles := createShardDataflowMetrics(resourceIds)
-	dataflowMetricsGroupTile, heightOffset := createCollapsibleGroupTile(TileInfo{Title: fmt.Sprintf("Dataflow Job: %s", resourceIds.DataflowJobId)}, dataflowMetricsTiles, heightOffset)
-	mosaicLayoutTiles = append(append(mosaicLayoutTiles, dataflowMetricsTiles...), dataflowMetricsGroupTile)
-	// create datastream metrics tiles
-	datastreamMetricsTiles := createShardDatastreamMetrics(resourceIds)
-	datastreamMetricsGroupTile, heightOffset := createCollapsibleGroupTile(TileInfo{Title: fmt.Sprintf("Datastream: %s", resourceIds.DatastreamId)}, datastreamMetricsTiles, heightOffset)
-	mosaicLayoutTiles = append(append(mosaicLayoutTiles, datastreamMetricsTiles...), datastreamMetricsGroupTile)
-	// create gcs bucket metrics tiles
-	gcsMetricsTiles := createShardGcsMetrics(resourceIds)
-	gcsMetricsGroupTile, heightOffset := createCollapsibleGroupTile(TileInfo{Title: fmt.Sprintf("GCS Bucket: %s", strings.Split(resourceIds.GcsBucketId, "/")[2])}, gcsMetricsTiles, heightOffset)
-	mosaicLayoutTiles = append(append(mosaicLayoutTiles, gcsMetricsTiles...), gcsMetricsGroupTile)
-	// create pubsub metrics tiles
-	pubsubMetricsTiles := createShardPubsubMetrics(resourceIds)
-	pubsubMetricsGroupTile, heightOffset := createCollapsibleGroupTile(TileInfo{Title: fmt.Sprintf("Pubsub: %s", resourceIds.PubsubSubscriptionId)}, pubsubMetricsTiles, heightOffset)
-	mosaicLayoutTiles = append(append(mosaicLayoutTiles, pubsubMetricsTiles...), pubsubMetricsGroupTile)
-	// create spanner metrics tiles
-	spannerMetricsTiles := createShardSpannerMetrics(resourceIds)
-	spannerMetricsGroupTile, heightOffset := createCollapsibleGroupTile(TileInfo{Title: fmt.Sprintf("Spanner: instances/%s/databases/%s", resourceIds.SpannerInstanceId, resourceIds.SpannerDatabaseId)}, spannerMetricsTiles, heightOffset)
-	mosaicLayoutTiles = append(append(mosaicLayoutTiles, spannerMetricsTiles...), spannerMetricsGroupTile)
+
+	var mosaicGroups = []struct {
+		groupTitle              string
+		groupCreateTileFunction func(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile
+	}{
+		{groupTitle: fmt.Sprintf("Dataflow Job: %s", resourceIds.DataflowJobId), groupCreateTileFunction: createShardDataflowMetrics},
+		{groupTitle: fmt.Sprintf("Datastream: %s", resourceIds.DatastreamId), groupCreateTileFunction: createShardDatastreamMetrics},
+		{groupTitle: fmt.Sprintf("GCS Bucket: %s", strings.Split(resourceIds.GcsBucketId, "/")[2]), groupCreateTileFunction: createShardGcsMetrics},
+		{groupTitle: fmt.Sprintf("Pubsub: %s", resourceIds.PubsubSubscriptionId), groupCreateTileFunction: createShardPubsubMetrics},
+		{groupTitle: fmt.Sprintf("Spanner: instances/%s/databases/%s", resourceIds.SpannerInstanceId, resourceIds.SpannerDatabaseId), groupCreateTileFunction: createShardSpannerMetrics},
+	}
+
+	for _, mosaicGroup := range mosaicGroups {
+		metricTiles := mosaicGroup.groupCreateTileFunction(resourceIds)
+		var groupTile *dashboardpb.MosaicLayout_Tile
+		groupTile, heightOffset = createCollapsibleGroupTile(TileInfo{Title: mosaicGroup.groupTitle}, metricTiles, heightOffset)
+		mosaicLayoutTiles = append(append(mosaicLayoutTiles, metricTiles...), groupTile)
+	}
+
 	mosaicLayout := dashboardpb.MosaicLayout{
-		Columns: 48,
+		Columns: defaultMosaicColumns,
 		Tiles:   mosaicLayoutTiles,
 	}
 	layout := dashboardpb.Dashboard_MosaicLayout{
 		MosaicLayout: &mosaicLayout,
 	}
+
+	dashboardDisplayName := "Migration Dashboard"
+	if resourceIds.ShardId != "" {
+		dashboardDisplayName = fmt.Sprintf("Shard Migration Dashboard %s", resourceIds.ShardId)
+	}
 	db := dashboardpb.Dashboard{
-		DisplayName: fmt.Sprintf("Shard Migration Dashboard %s", resourceIds.ShardId),
+		DisplayName: dashboardDisplayName,
 		Layout:      &layout,
 	}
 	req := &dashboardpb.CreateDashboardRequest{
