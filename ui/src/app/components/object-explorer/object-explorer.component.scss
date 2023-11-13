@@ -29,12 +29,7 @@
   }
   .sort-icon {
     font-size: 1.1rem;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-  }
-  .mat-mdc-cell{
-    padding-right: 0px !important;
+    vertical-align: middle;
   }
 }
 
@@ -46,6 +41,10 @@
   height: calc(100vh - 320px);
   width: 100%;
   overflow: auto;
+}
+
+.mdc-data-table__cell, .mdc-data-table__header-cell {
+  padding: 0 0 0 16px;
 }
 
 .mat-mdc-table {
