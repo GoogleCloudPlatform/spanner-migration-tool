@@ -450,7 +450,7 @@ type DataflowConfig struct {
 	Location             string `json:"location"`
 	Network              string `json:"network"`
 	Subnetwork           string `json:"subnetwork"`
-	VpcHostProjectId     string `json:"vpcHostProjectId"`
+	VpcHostProjectId     string `json:"hostProjectId"`
 	MaxWorkers           string `json:"maxWorkers"`
 	NumWorkers           string `json:"numWorkers"`
 	ServiceAccountEmail  string `json:"serviceAccountEmail"`

@@ -11,7 +11,10 @@ import ISpannerConfig from 'src/app/model/spanner-config';
   styleUrls: ['./dataflow-form.component.scss']
 })
 export class DataflowFormComponent implements OnInit {
-  dataflowForm: FormGroup
+  // This group contains the fields which are tunable by default. 
+  tunableFlagsForm: FormGroup
+  // This group contains the fields which are by default not configurable.
+  // We warn against editing these fields.
   presetFlagsForm: FormGroup
   disablePresetFlags: boolean = true
 
@@ -20,7 +23,7 @@ export class DataflowFormComponent implements OnInit {
     private dialofRef: MatDialogRef<DataflowFormComponent>,
     private fetch: FetchService
   ) {
-    this.dataflowForm = new FormGroup({
+    this.tunableFlagsForm = new FormGroup({
       network: new FormControl(''),
       subnetwork: new FormControl(''),
       numWorkers: new FormControl('1',[Validators.required, Validators.pattern('^[1-9][0-9]*$')]),
@@ -43,7 +46,7 @@ export class DataflowFormComponent implements OnInit {
   }
 
   updateDataflowDetails() {
-    let formValue = this.dataflowForm.value
+    let formValue = this.tunableFlagsForm.value
     localStorage.setItem(Dataflow.Network, formValue.network)
     localStorage.setItem(Dataflow.Subnetwork, formValue.subnetwork)
     localStorage.setItem(Dataflow.VpcHostProjectId, formValue.vpcHostProjectId)

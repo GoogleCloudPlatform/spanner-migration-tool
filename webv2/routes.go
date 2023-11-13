@@ -116,8 +116,6 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetTableWithErrors", getTableWithErrors).Methods("GET")
 	router.HandleFunc("/ping", getBackendHealth).Methods("GET")
 
-	router.HandleFunc("/ValidateDataflowUserLabels", validateDataflowUserLabels).Methods("GET")
-
 	router.PathPrefix("/").Handler(frontendStatic)
 	return router
 }
