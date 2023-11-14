@@ -2277,6 +2277,7 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	generatedResources.ShardToDatastreamMap = make(map[string]ResourceDetails)
 	generatedResources.ShardToPubsubTopicMap = make(map[string]ResourceDetails)
 	generatedResources.ShardToPubsubSubscriptionMap = make(map[string]ResourceDetails)
+	generatedResources.ShardToMonitoringDashboardMap = make(map[string]ResourceDetails)
 	if sessionState.Conv.Audit.StreamingStats.DataStreamName != "" {
 		generatedResources.DataStreamJobName = sessionState.Conv.Audit.StreamingStats.DataStreamName
 		generatedResources.DataStreamJobUrl = fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataStreamName, sessionState.GCPProjectID)
@@ -2294,6 +2295,10 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 		generatedResources.PubsubSubscriptionName = sessionState.Conv.Audit.StreamingStats.PubsubCfg.SubscriptionId
 		generatedResources.PubsubSubscriptionUrl = fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/subscription/detail/%v?project=%v", sessionState.Conv.Audit.StreamingStats.PubsubCfg.SubscriptionId, sessionState.GCPProjectID)
 	}
+	if sessionState.Conv.Audit.StreamingStats.MonitoringDashboard != "" {
+		generatedResources.MonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.MonitoringDashboard
+		generatedResources.MonitoringDashboardUrl = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", sessionState.Conv.Audit.StreamingStats.MonitoringDashboard, sessionState.GCPProjectID)
+	}
 	for shardId, dsName := range sessionState.Conv.Audit.StreamingStats.ShardToDataStreamNameMap {
 		url := fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, dsName, sessionState.GCPProjectID)
 		resourceDetails := ResourceDetails{JobName: dsName, JobUrl: url}
@@ -2304,6 +2309,11 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 		url := fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, dfId, sessionState.GCPProjectID)
 		resourceDetails := ResourceDetails{JobName: dfId, JobUrl: url, GcloudCmd: shardedDataflowJobResources.GcloudCmd}
 		generatedResources.ShardToDataflowMap[shardId] = resourceDetails
+	}
+	for shardId, dashboardName := range sessionState.Conv.Audit.StreamingStats.ShardToMonitoringDashboardMap {
+		url := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", dashboardName, sessionState.GCPProjectID)
+		resourceDetails := ResourceDetails{JobName: dashboardName, JobUrl: url}
+		generatedResources.ShardToMonitoringDashboardMap[shardId] = resourceDetails
 	}
 	for shardId, pubsubId := range sessionState.Conv.Audit.StreamingStats.ShardToPubsubIdMap {
 		topicUrl := fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/topic/detail/%v?project=%v", pubsubId.TopicId, sessionState.GCPProjectID)
@@ -2974,20 +2984,23 @@ type GeneratedResources struct {
 	BucketName   string `json:"BucketName"`
 	BucketUrl    string `json:"BucketUrl"`
 	//Used for single instance migration flow
-	DataStreamJobName      string `json:"DataStreamJobName"`
-	DataStreamJobUrl       string `json:"DataStreamJobUrl"`
-	DataflowJobName        string `json:"DataflowJobName"`
-	DataflowJobUrl         string `json:"DataflowJobUrl"`
-	DataflowGcloudCmd      string `json:"DataflowGcloudCmd"`
-	PubsubTopicName        string `json:"PubsubTopicName"`
-	PubsubTopicUrl         string `json:"PubsubTopicUrl"`
-	PubsubSubscriptionName string `json:"PubsubSubscriptionName"`
-	PubsubSubscriptionUrl  string `json:"PubsubSubscriptionUrl"`
+	DataStreamJobName       string `json:"DataStreamJobName"`
+	DataStreamJobUrl        string `json:"DataStreamJobUrl"`
+	DataflowJobName         string `json:"DataflowJobName"`
+	DataflowJobUrl          string `json:"DataflowJobUrl"`
+	DataflowGcloudCmd       string `json:"DataflowGcloudCmd"`
+	PubsubTopicName         string `json:"PubsubTopicName"`
+	PubsubTopicUrl          string `json:"PubsubTopicUrl"`
+	PubsubSubscriptionName  string `json:"PubsubSubscriptionName"`
+	PubsubSubscriptionUrl   string `json:"PubsubSubscriptionUrl"`
+	MonitoringDashboardName string `json:"MonitoringDashboardName"`
+	MonitoringDashboardUrl  string `json:"MonitoringDashboardUrl"`
 	//Used for sharded migration flow
-	ShardToDatastreamMap         map[string]ResourceDetails `json:"ShardToDatastreamMap"`
-	ShardToDataflowMap           map[string]ResourceDetails `json:"ShardToDataflowMap"`
-	ShardToPubsubTopicMap        map[string]ResourceDetails `json:"ShardToPubsubTopicMap"`
-	ShardToPubsubSubscriptionMap map[string]ResourceDetails `json:"ShardToPubsubSubscriptionMap"`
+	ShardToDatastreamMap          map[string]ResourceDetails `json:"ShardToDatastreamMap"`
+	ShardToDataflowMap            map[string]ResourceDetails `json:"ShardToDataflowMap"`
+	ShardToPubsubTopicMap         map[string]ResourceDetails `json:"ShardToPubsubTopicMap"`
+	ShardToPubsubSubscriptionMap  map[string]ResourceDetails `json:"ShardToPubsubSubscriptionMap"`
+	ShardToMonitoringDashboardMap map[string]ResourceDetails `json:"ShardToMonitoringDashboardMap"`
 }
 
 func addTypeToList(convertedType string, spType string, issues []internal.SchemaIssue, l []typeIssue) []typeIssue {

@@ -29,11 +29,14 @@ export interface IGeneratedResources {
     PubsubTopicUrl: string
     PubsubSubscriptionName: string
     PubsubSubscriptionUrl: string
+    MonitoringDashboardName: string
+    MonitoringDashboardUrl: string
     DataflowGcloudCmd: string
     ShardToDatastreamMap: Map<string, ResourceDetails>
     ShardToDataflowMap: Map<string, ResourceDetails>
     ShardToPubsubTopicMap: Map<string, ResourceDetails>
     ShardToPubsubSubscriptionMap: Map<string, ResourceDetails>
+    ShardToMonitoringDashboardMap: Map<string, ResourceDetails>
 }
 
 export interface ResourceDetails {
