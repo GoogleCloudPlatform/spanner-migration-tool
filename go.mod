@@ -25,19 +25,19 @@ require (
 	github.com/pingcap/tidb/parser v0.0.0-20230918090611-71bcc44f77a3
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/sijms/go-ora/v2 v2.2.17
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.8.3
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.14.0
 	golang.org/x/exp v0.0.0-20221023144134-a1e5550cf13e
 	golang.org/x/net v0.17.0
 	google.golang.org/api v0.124.0
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
-	google.golang.org/grpc v1.55.0
+	google.golang.org/grpc v1.56.3
 	google.golang.org/protobuf v1.30.0
 )
 
 require (
-	cloud.google.com/go/compute v1.19.0 // indirect
+	cloud.google.com/go/compute v1.19.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.0.1 // indirect
 	cloud.google.com/go/longrunning v0.4.1 // indirect
@@ -48,7 +48,7 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe // indirect
-	github.com/cncf/xds/go v0.0.0-20230310173818-32f1caf87195 // indirect
+	github.com/cncf/xds/go v0.0.0-20230607035331-e9ce68804cb4 // indirect
 	github.com/cockroachdb/errors v1.8.1 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20190617123548-eb05cc24525f // indirect
 	github.com/cockroachdb/redact v1.0.8 // indirect
@@ -56,8 +56,8 @@ require (
 	github.com/cznic/mathutil v0.0.0-20181122101859-297441e03548 // indirect
 	github.com/danjacques/gofslock v0.0.0-20191023191349-0a45f885bc37 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/envoyproxy/go-control-plane v0.11.0 // indirect
-	github.com/envoyproxy/protoc-gen-validate v0.10.0 // indirect
+	github.com/envoyproxy/go-control-plane v0.11.1-0.20230524094728-9239064ad72f // indirect
+	github.com/envoyproxy/protoc-gen-validate v0.10.1 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
