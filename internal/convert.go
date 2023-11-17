@@ -192,6 +192,10 @@ type ShardedDataflowJobResources struct {
 	GcloudCmd string `json:"GcloudCmd"`
 }
 
+type GcsResources struct {
+	BucketName string `json:"BucketName"`
+}
+
 // Stores information related to the streaming migration process.
 type streamingStats struct {
 	Streaming                     bool                        // Flag for confirmation of streaming migration.
@@ -203,12 +207,15 @@ type streamingStats struct {
 	DataStreamName                string
 	DataflowJobId                 string
 	DataflowGcloudCmd             string
+	GcsResources                  GcsResources
 	ShardToDataStreamNameMap      map[string]string
 	ShardToDataflowInfoMap        map[string]ShardedDataflowJobResources
 	PubsubCfg                     PubsubCfg
 	ShardToPubsubIdMap            map[string]PubsubCfg
+	ShardToGcsResources           map[string]GcsResources
 	MonitoringDashboard           string
 	ShardToMonitoringDashboardMap map[string]string
+	AggMonitoringDashboard        string
 }
 
 type PubsubCfg struct {

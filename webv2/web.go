@@ -2299,6 +2299,10 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 		generatedResources.MonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.MonitoringDashboard
 		generatedResources.MonitoringDashboardUrl = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", sessionState.Conv.Audit.StreamingStats.MonitoringDashboard, sessionState.GCPProjectID)
 	}
+	if sessionState.Conv.Audit.StreamingStats.AggMonitoringDashboard != "" {
+		generatedResources.AggMonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.AggMonitoringDashboard
+		generatedResources.AggMonitoringDashboardUrl = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", sessionState.Conv.Audit.StreamingStats.AggMonitoringDashboard, sessionState.GCPProjectID)
+	}
 	for shardId, dsName := range sessionState.Conv.Audit.StreamingStats.ShardToDataStreamNameMap {
 		url := fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, dsName, sessionState.GCPProjectID)
 		resourceDetails := ResourceDetails{JobName: dsName, JobUrl: url}
@@ -2984,17 +2988,19 @@ type GeneratedResources struct {
 	BucketName   string `json:"BucketName"`
 	BucketUrl    string `json:"BucketUrl"`
 	//Used for single instance migration flow
-	DataStreamJobName       string `json:"DataStreamJobName"`
-	DataStreamJobUrl        string `json:"DataStreamJobUrl"`
-	DataflowJobName         string `json:"DataflowJobName"`
-	DataflowJobUrl          string `json:"DataflowJobUrl"`
-	DataflowGcloudCmd       string `json:"DataflowGcloudCmd"`
-	PubsubTopicName         string `json:"PubsubTopicName"`
-	PubsubTopicUrl          string `json:"PubsubTopicUrl"`
-	PubsubSubscriptionName  string `json:"PubsubSubscriptionName"`
-	PubsubSubscriptionUrl   string `json:"PubsubSubscriptionUrl"`
-	MonitoringDashboardName string `json:"MonitoringDashboardName"`
-	MonitoringDashboardUrl  string `json:"MonitoringDashboardUrl"`
+	DataStreamJobName          string `json:"DataStreamJobName"`
+	DataStreamJobUrl           string `json:"DataStreamJobUrl"`
+	DataflowJobName            string `json:"DataflowJobName"`
+	DataflowJobUrl             string `json:"DataflowJobUrl"`
+	DataflowGcloudCmd          string `json:"DataflowGcloudCmd"`
+	PubsubTopicName            string `json:"PubsubTopicName"`
+	PubsubTopicUrl             string `json:"PubsubTopicUrl"`
+	PubsubSubscriptionName     string `json:"PubsubSubscriptionName"`
+	PubsubSubscriptionUrl      string `json:"PubsubSubscriptionUrl"`
+	MonitoringDashboardName    string `json:"MonitoringDashboardName"`
+	MonitoringDashboardUrl     string `json:"MonitoringDashboardUrl"`
+	AggMonitoringDashboardName string `json:"AggMonitoringDashboardName"`
+	AggMonitoringDashboardUrl  string `json:"AggMonitoringDashboardUrl"`
 	//Used for sharded migration flow
 	ShardToDatastreamMap          map[string]ResourceDetails `json:"ShardToDatastreamMap"`
 	ShardToDataflowMap            map[string]ResourceDetails `json:"ShardToDataflowMap"`
