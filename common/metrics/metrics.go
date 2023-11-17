@@ -248,6 +248,7 @@ func createShardDatastreamMetrics(resourceIds MonitoringMetricsResources) []*das
 }
 
 func createShardGcsMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
+	// If fetching gcs bucket failed, don't return any tiles
 	if resourceIds.GcsBucketId == "" {
 		return []*dashboardpb.MosaicLayout_Tile{}
 	}
@@ -337,14 +338,18 @@ func createAggDatastreamMetrics(resourceIds MonitoringMetricsResources) []*dashb
 }
 
 func createAggGcsMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
-	var gcsBucket []string
+	var gcsBuckets []string
 	for _, value := range resourceIds.ShardToGcsMap {
 		if value.BucketName != "" {
-			gcsBucket = append(gcsBucket, value.BucketName)
+			gcsBuckets = append(gcsBuckets, value.BucketName)
 		}
 	}
+	if len(gcsBuckets) == 0 {
+		return []*dashboardpb.MosaicLayout_Tile{}
+	}
+	// We fetch gcs buckets for dashboard creation it is possible due to an error we are not able to fetch gcs buckets for all the shards
 	gcsBucketTiles := []*dashboardpb.MosaicLayout_Tile{
-		createXYChartTile(TileInfo{"GCS Bucket Total Bytes", map[string]string{resourceIds.GcsBucketId: fmt.Sprintf(gcsAggTotalBytesQuery, createAggFilterCondition("resource.bucket_name", gcsBucket))}}),
+		createXYChartTile(TileInfo{fmt.Sprintf("GCS Bucket Total Bytes for %v shards", len(gcsBuckets)), map[string]string{resourceIds.GcsBucketId: fmt.Sprintf(gcsAggTotalBytesQuery, createAggFilterCondition("resource.bucket_name", gcsBuckets))}}),
 	}
 	return gcsBucketTiles
 }
