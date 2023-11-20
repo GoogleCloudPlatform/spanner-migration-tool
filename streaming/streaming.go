@@ -49,6 +49,8 @@ var (
 	MAX_WORKER_LIMIT int32 = 1000
 	// Min allowed value for maxWorkers and numWorkers.
 	MIN_WORKER_LIMIT int32 = 1
+	// Default gcs path of the Dataflow template.
+	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner"
 )
 
 type SrcConnCfg struct {
@@ -73,15 +75,20 @@ type DatastreamCfg struct {
 }
 
 type DataflowCfg struct {
-	JobName             string            `json:"jobName"`
-	Location            string            `json:"location"`
-	HostProjectId       string            `json:"hostProjectId"`
-	Network             string            `json:"network"`
-	Subnetwork          string            `json:"subnetwork"`
-	MaxWorkers          string            `json:"maxWorkers"`
-	NumWorkers          string            `json:"numWorkers"`
-	ServiceAccountEmail string            `json:"serviceAccountEmail"`
-	DbNameToShardIdMap  map[string]string `json:"dbNameToShardIdMap"`
+	ProjectId            string            `json:"projectId"`
+	JobName              string            `json:"jobName"`
+	Location             string            `json:"location"`
+	VpcHostProjectId     string            `json:"vpcHostProjectId"`
+	Network              string            `json:"network"`
+	Subnetwork           string            `json:"subnetwork"`
+	MaxWorkers           string            `json:"maxWorkers"`
+	NumWorkers           string            `json:"numWorkers"`
+	ServiceAccountEmail  string            `json:"serviceAccountEmail"`
+	MachineType          string            `json:"machineType"`
+	AdditionalUserLabels string            `json:"additionalUserLabels"`
+	KmsKeyName           string            `json:"kmsKeyName"`
+	GcsTemplatePath      string            `json:"gcsTemplatePath"`
+	DbNameToShardIdMap   map[string]string `json:"dbNameToShardIdMap"`
 }
 
 type StreamingCfg struct {
@@ -668,24 +675,40 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		inputFilePattern = inputFilePattern + "/"
 	}
 	fmt.Println("Reading files from datastream destination ", inputFilePattern)
-	var dataflowHostProjectId string
-	if dataflowCfg.HostProjectId == "" {
-		dataflowHostProjectId, _ = utils.GetProject()
-	} else {
-		dataflowHostProjectId = dataflowCfg.HostProjectId
+
+	// Initiate runtime environment flags and overrides.
+	var (
+		dataflowProjectId        = project
+		dataflowVpcHostProjectId = project
+		gcsTemplatePath          = DEFAULT_TEMPLATE_PATH
+		dataflowSubnetwork       = ""
+		workerIpAddressConfig    = dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PUBLIC
+		dataflowUserLabels       = make(map[string]string)
+	)
+	// If project override present, use that otherwise default to Spanner project. Useful when customers want to run Dataflow in separate project.
+	if dataflowCfg.ProjectId != "" {
+		dataflowProjectId = dataflowCfg.ProjectId
+	}
+	// If VPC Host project override present, use that otherwise default to Spanner project.
+	if dataflowCfg.VpcHostProjectId != "" {
+		dataflowVpcHostProjectId = dataflowCfg.VpcHostProjectId
+	}
+	if dataflowCfg.GcsTemplatePath != "" {
+		gcsTemplatePath = dataflowCfg.GcsTemplatePath
 	}
 
-	dataflowSubnetwork := ""
-
-	// If custom network is not selected, use public IP. Typical for internal testing flow.
-	workerIpAddressConfig := dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PUBLIC
-
-	if dataflowCfg.Network != "" {
+	// If either network or subnetwork is specified, set IpConfig to private.
+	if dataflowCfg.Network != "" || dataflowCfg.Subnetwork != "" {
 		workerIpAddressConfig = dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PRIVATE
-		if dataflowCfg.Subnetwork == "" {
-			return internal.DataflowOutput{}, fmt.Errorf("if network is specified, subnetwork cannot be empty")
-		} else {
-			dataflowSubnetwork = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/%s/subnetworks/%s", dataflowHostProjectId, dataflowCfg.Location, dataflowCfg.Subnetwork)
+		if dataflowCfg.Subnetwork != "" {
+			dataflowSubnetwork = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/%s/subnetworks/%s", dataflowVpcHostProjectId, dataflowCfg.Location, dataflowCfg.Subnetwork)
+		}
+	}
+
+	if dataflowCfg.AdditionalUserLabels != "" {
+		err = json.Unmarshal([]byte(dataflowCfg.AdditionalUserLabels), &dataflowUserLabels)
+		if err != nil {
+			return internal.DataflowOutput{}, fmt.Errorf("could not unmarshal AdditionalUserLabels json %s : error = %v", dataflowCfg.AdditionalUserLabels, err)
 		}
 	}
 
@@ -709,9 +732,10 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 			return internal.DataflowOutput{}, fmt.Errorf("numWorkers should lie in the range [%d, %d]", MIN_WORKER_LIMIT, MAX_WORKER_LIMIT)
 		}
 	}
+
 	launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
-		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner"},
+		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: gcsTemplatePath},
 		Parameters: map[string]string{
 			"inputFilePattern":              concatDirectoryPath(inputFilePattern, "data"),
 			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
@@ -731,10 +755,13 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 			Network:               dataflowCfg.Network,
 			Subnetwork:            dataflowSubnetwork,
 			IpConfiguration:       workerIpAddressConfig,
+			MachineType:           dataflowCfg.MachineType,
+			AdditionalUserLabels:  dataflowUserLabels,
+			KmsKeyName:            dataflowCfg.KmsKeyName,
 		},
 	}
 	req := &dataflowpb.LaunchFlexTemplateRequest{
-		ProjectId:       project,
+		ProjectId:       dataflowProjectId,
 		LaunchParameter: launchParameters,
 		Location:        dataflowCfg.Location,
 	}
@@ -755,6 +782,7 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 	dataflowCfg := streamingCfg.DataflowCfg
 	conv.Audit.StreamingStats.DataStreamName = datastreamCfg.StreamId
 	conv.Audit.StreamingStats.DataflowJobId = dfJobId
+	conv.Audit.StreamingStats.DataflowLocation = streamingCfg.DataflowCfg.Location
 	conv.Audit.StreamingStats.DataflowGcloudCmd = gcloudDataflowCmd
 	conv.Audit.StreamingStats.PubsubCfg = streamingCfg.PubsubCfg
 	conv.Audit.StreamingStats.GcsResources = gcsBucket
@@ -785,13 +813,19 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 	//create dataflowcfg from pl receiver object
 	inputDataflowConfig := pl.DataflowConfig
-	dataflowCfg := DataflowCfg{Location: inputDataflowConfig.Location,
-		Network:             inputDataflowConfig.Network,
-		HostProjectId:       inputDataflowConfig.HostProjectId,
-		Subnetwork:          inputDataflowConfig.Subnetwork,
-		MaxWorkers:          inputDataflowConfig.MaxWorkers,
-		NumWorkers:          inputDataflowConfig.NumWorkers,
-		ServiceAccountEmail: inputDataflowConfig.ServiceAccountEmail,
+	dataflowCfg := DataflowCfg{
+		ProjectId:            inputDataflowConfig.ProjectId,
+		Location:             inputDataflowConfig.Location,
+		Network:              inputDataflowConfig.Network,
+		VpcHostProjectId:     inputDataflowConfig.VpcHostProjectId,
+		Subnetwork:           inputDataflowConfig.Subnetwork,
+		MaxWorkers:           inputDataflowConfig.MaxWorkers,
+		NumWorkers:           inputDataflowConfig.NumWorkers,
+		ServiceAccountEmail:  inputDataflowConfig.ServiceAccountEmail,
+		MachineType:          inputDataflowConfig.MachineType,
+		AdditionalUserLabels: inputDataflowConfig.AdditionalUserLabels,
+		KmsKeyName:           inputDataflowConfig.KmsKeyName,
+		GcsTemplatePath:      inputDataflowConfig.GcsTemplatePath,
 	}
 	//create src and dst datastream from pl receiver object
 	datastreamCfg := DatastreamCfg{StreamLocation: pl.StreamLocation}

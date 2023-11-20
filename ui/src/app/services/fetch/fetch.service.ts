@@ -91,7 +91,7 @@ export class FetchService {
     })
   }
 
-  setShardSourceDBDetailsForDataflow(payload: IMigrationProfile) {
+  setShardsSourceDBDetailsForDataflow(payload: IMigrationProfile) {
     return this.http.post(`${this.url}/SetShardsSourceDBDetailsForDataflow`, {
       MigrationProfile: payload
     })
