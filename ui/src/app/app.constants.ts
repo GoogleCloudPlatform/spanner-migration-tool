@@ -109,10 +109,16 @@ export const DialectList = [
 export const Dataflow = {
   Network: 'network',
   Subnetwork: 'subnetwork',
-  HostProjectId: 'hostProjectId',
+  VpcHostProjectId: 'vpcHostProjectId',
   MaxWorkers: 'maxWorkers',
   NumWorkers: 'numWorkers',
   ServiceAccountEmail: 'serviceAccountEmail',
+  MachineType: 'machineType',
+  AdditionalUserLabels: 'additionalUserLabels',
+  KmsKeyName: 'kmsKeyName',
+  ProjectId: 'dataflowProjectId',
+  Location: 'dataflowLocation',
+  GcsTemplatePath: 'gcsTemplatePath',
   IsDataflowConfigSet: 'isDataflowConfigSet',
 }
 
