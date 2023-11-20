@@ -112,10 +112,16 @@ export class PrepareMigrationComponent implements OnInit {
   dataflowConfig: IDataflowConfig = {
     network: localStorage.getItem(Dataflow.Network) as string,
     subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-    hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string,
+    vpcHostProjectId: localStorage.getItem(Dataflow.VpcHostProjectId) as string,
     maxWorkers: localStorage.getItem(Dataflow.MaxWorkers) as string,
     numWorkers: localStorage.getItem(Dataflow.NumWorkers) as string,
-    serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string
+    serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string,
+    machineType: localStorage.getItem(Dataflow.MachineType) as string,
+    additionalUserLabels: localStorage.getItem(Dataflow.AdditionalUserLabels) as string,
+    kmsKeyName: localStorage.getItem(Dataflow.KmsKeyName) as string,
+    projectId: localStorage.getItem(Dataflow.ProjectId) as string,
+    location: localStorage.getItem(Dataflow.Location) as string,
+    gcsTemplatePath: localStorage.getItem(Dataflow.GcsTemplatePath) as string
   }
   spannerConfig: ISpannerConfig = {
     GCPProjectID: '',
@@ -181,7 +187,7 @@ export class PrepareMigrationComponent implements OnInit {
     this.convObj = this.data.conv.subscribe((data: IConv) => {
       this.conv = data
     })
-    localStorage.setItem(Dataflow.HostProjectId, this.spannerConfig.GCPProjectID)
+    localStorage.setItem(Dataflow.VpcHostProjectId, this.spannerConfig.GCPProjectID)
     this.fetch.getSourceDestinationSummary().subscribe({
       next: (res: ISessionSummary) => {
         this.connectionType = res.ConnectionType
@@ -352,7 +358,13 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(Dataflow.MaxWorkers)
     localStorage.removeItem(Dataflow.NumWorkers)
     localStorage.removeItem(Dataflow.ServiceAccountEmail)
-    localStorage.removeItem(Dataflow.HostProjectId)
+    localStorage.removeItem(Dataflow.VpcHostProjectId)
+    localStorage.removeItem(Dataflow.MachineType)
+    localStorage.removeItem(Dataflow.AdditionalUserLabels)
+    localStorage.removeItem(Dataflow.KmsKeyName)
+    localStorage.removeItem(Dataflow.ProjectId)
+    localStorage.removeItem(Dataflow.Location)
+    localStorage.removeItem(Dataflow.GcsTemplatePath)
     localStorage.removeItem(MigrationDetails.IsMigrationInProgress)
     localStorage.removeItem(MigrationDetails.HasSchemaMigrationStarted)
     localStorage.removeItem(MigrationDetails.HasDataMigrationStarted)
@@ -454,7 +466,7 @@ export class PrepareMigrationComponent implements OnInit {
 
   openDataflowForm() {
     let dialogRef = this.dialog.open(DataflowFormComponent, {
-      width: '30vw',
+      width: '4000px',
       minWidth: '400px',
       maxWidth: '500px',
       data: this.spannerConfig,
@@ -463,10 +475,16 @@ export class PrepareMigrationComponent implements OnInit {
       this.dataflowConfig = {
         network: localStorage.getItem(Dataflow.Network) as string,
         subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-        hostProjectId: localStorage.getItem(Dataflow.HostProjectId) as string,
+        vpcHostProjectId: localStorage.getItem(Dataflow.VpcHostProjectId) as string,
         maxWorkers: localStorage.getItem(Dataflow.MaxWorkers) as string,
         numWorkers: localStorage.getItem(Dataflow.NumWorkers) as string,
-        serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string
+        serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string,
+        machineType: localStorage.getItem(Dataflow.MachineType) as string,
+        additionalUserLabels: localStorage.getItem(Dataflow.AdditionalUserLabels) as string,
+        kmsKeyName: localStorage.getItem(Dataflow.KmsKeyName) as string,
+        projectId: localStorage.getItem(Dataflow.ProjectId) as string,
+        location: localStorage.getItem(Dataflow.Location) as string,
+        gcsTemplatePath: localStorage.getItem(Dataflow.GcsTemplatePath) as string
       }
       this.isDataflowConfigurationSet = localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true'
       // We only call setDataflowDetailsForShardedMigrations for sharded flows. Non-sharded flows write a streaming config file

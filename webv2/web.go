@@ -390,14 +390,23 @@ func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Reque
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
+	location := sessionState.Region
+	if dataflowLocation.DataflowConfig.Location != "" {
+		location = dataflowLocation.DataflowConfig.Location
+	}
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		Location:            sessionState.Region,
-		Network:             dataflowLocation.DataflowConfig.Network,
-		Subnetwork:          dataflowLocation.DataflowConfig.Subnetwork,
-		HostProjectId:       dataflowLocation.DataflowConfig.HostProjectId,
-		MaxWorkers:          dataflowLocation.DataflowConfig.MaxWorkers,
-		NumWorkers:          dataflowLocation.DataflowConfig.NumWorkers,
-		ServiceAccountEmail: dataflowLocation.DataflowConfig.ServiceAccountEmail,
+		ProjectId:            dataflowLocation.DataflowConfig.ProjectId,
+		Location:             location,
+		Network:              dataflowLocation.DataflowConfig.Network,
+		Subnetwork:           dataflowLocation.DataflowConfig.Subnetwork,
+		VpcHostProjectId:     dataflowLocation.DataflowConfig.VpcHostProjectId,
+		MaxWorkers:           dataflowLocation.DataflowConfig.MaxWorkers,
+		NumWorkers:           dataflowLocation.DataflowConfig.NumWorkers,
+		ServiceAccountEmail:  dataflowLocation.DataflowConfig.ServiceAccountEmail,
+		MachineType:          dataflowLocation.DataflowConfig.MachineType,
+		AdditionalUserLabels: dataflowLocation.DataflowConfig.AdditionalUserLabels,
+		KmsKeyName:           dataflowLocation.DataflowConfig.KmsKeyName,
+		GcsTemplatePath:      dataflowLocation.DataflowConfig.GcsTemplatePath,
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -420,6 +429,7 @@ func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request)
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.SchemaSource = srcConfig.MigrationProfile.ShardConfigurationDataflow.SchemaSource
 
 	if sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig.Location == "" {
+		// Create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
 		sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
 			Location:            sessionState.Region,
 			Network:             "",
@@ -427,7 +437,7 @@ func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request)
 			MaxWorkers:          "",
 			NumWorkers:          "",
 			ServiceAccountEmail: "",
-			HostProjectId:       sessionState.GCPProjectID,
+			VpcHostProjectId:    sessionState.GCPProjectID,
 		}
 	}
 	w.WriteHeader(http.StatusOK)
@@ -2284,7 +2294,7 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	}
 	if sessionState.Conv.Audit.StreamingStats.DataflowJobId != "" {
 		generatedResources.DataflowJobName = sessionState.Conv.Audit.StreamingStats.DataflowJobId
-		generatedResources.DataflowJobUrl = fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
+		generatedResources.DataflowJobUrl = fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Conv.Audit.StreamingStats.DataflowLocation, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
 		generatedResources.DataflowGcloudCmd = sessionState.Conv.Audit.StreamingStats.DataflowGcloudCmd
 	}
 	if sessionState.Conv.Audit.StreamingStats.PubsubCfg.TopicId != "" {
@@ -2465,6 +2475,10 @@ func writeSessionFile(sessionState *session.SessionState) error {
 }
 
 func createStreamingCfgFile(sessionState *session.SessionState, targetDetails targetDetails, dataflowConfig profiles.DataflowConfig, fileName string) error {
+	dfLocation := sessionState.Region
+	if dataflowConfig.Location != "" {
+		dfLocation = dataflowConfig.Location
+	}
 	data := streaming.StreamingCfg{
 		DatastreamCfg: streaming.DatastreamCfg{
 			StreamId:          "",
@@ -2480,14 +2494,19 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 			},
 		},
 		DataflowCfg: streaming.DataflowCfg{
-			JobName:             "",
-			Location:            sessionState.Region,
-			Network:             dataflowConfig.Network,
-			Subnetwork:          dataflowConfig.Subnetwork,
-			MaxWorkers:          dataflowConfig.MaxWorkers,
-			NumWorkers:          dataflowConfig.NumWorkers,
-			ServiceAccountEmail: dataflowConfig.ServiceAccountEmail,
-			HostProjectId:       dataflowConfig.HostProjectId,
+			ProjectId:            dataflowConfig.ProjectId,
+			JobName:              "",
+			Location:             dfLocation,
+			Network:              dataflowConfig.Network,
+			Subnetwork:           dataflowConfig.Subnetwork,
+			MaxWorkers:           dataflowConfig.MaxWorkers,
+			NumWorkers:           dataflowConfig.NumWorkers,
+			ServiceAccountEmail:  dataflowConfig.ServiceAccountEmail,
+			VpcHostProjectId:     dataflowConfig.VpcHostProjectId,
+			MachineType:          dataflowConfig.MachineType,
+			AdditionalUserLabels: dataflowConfig.AdditionalUserLabels,
+			KmsKeyName:           dataflowConfig.KmsKeyName,
+			GcsTemplatePath:      dataflowConfig.GcsTemplatePath,
 		},
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}

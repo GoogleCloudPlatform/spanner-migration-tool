@@ -33,10 +33,16 @@ export interface IShardedDataflowMigration {
 export interface IDataflowConfig {
     network: string
     subnetwork: string
-    hostProjectId: string
+    vpcHostProjectId: string
     maxWorkers: string
     numWorkers: string
     serviceAccountEmail: string
+    machineType: string
+    additionalUserLabels: string
+    kmsKeyName: string
+    projectId: string
+    location: string
+    gcsTemplatePath: string
 }
 
 export interface IDirectConnectionConfig {
