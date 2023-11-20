@@ -318,11 +318,20 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			dfJobId := dfOutput.JobID
 			gcloudCmd := dfOutput.GCloudCmd
 			streamingCfg, _ := streamInfo["streamingCfg"].(streaming.StreamingCfg)
+
+			// Fetch and store the GCS bucket associated with the datastream
+			dsClient := getDatastreamClient(ctx)
+			gcsBucket, _, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
+			if fetchGcsErr != nil {
+				logger.Log.Info("Could not fetch GCS Bucket, hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n")
+				logger.Log.Debug("Error", zap.Error(fetchGcsErr))
+			}
+
 			monitoringResources := metrics.MonitoringMetricsResources{
 				ProjectId:            targetProfile.Conn.Sp.Project,
 				DataflowJobId:        dfOutput.JobID,
 				DatastreamId:         streamingCfg.DatastreamCfg.StreamId,
-				GcsBucketId:          streamingCfg.TmpDir,
+				GcsBucketId:          gcsBucket,
 				PubsubSubscriptionId: streamingCfg.PubsubCfg.SubscriptionId,
 				SpannerInstanceId:    targetProfile.Conn.Sp.Instance,
 				SpannerDatabaseId:    targetProfile.Conn.Sp.Dbname,
@@ -332,17 +341,11 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			var dashboardName string
 			if dashboardErr != nil {
 				dashboardName = ""
-				logger.Log.Error(fmt.Sprintf("Creation of the monitoring dashboard failed, please create the dashboard manually\n error=%v\n", dashboardErr))
+				logger.Log.Info("Creation of the monitoring dashboard failed, please create the dashboard manually")
+				logger.Log.Debug("Error", zap.Error(dashboardErr))
 			} else {
 				dashboardName = strings.Split(respDash.Name, "/")[3]
 				fmt.Printf("Monitoring Dashboard: %+v\n", dashboardName)
-			}
-
-			// Fetch and store the GCS bucket associated with the datastream
-			dsClient := getDatastreamClient(ctx)
-			gcsBucket, _, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
-			if fetchGcsErr != nil {
-				logger.Log.Error(fmt.Sprintf("Could not fetch GCS Bucket hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n error=%v\n", fetchGcsErr))
 			}
 
 			streaming.StoreGeneratedResources(conv, streamingCfg, dfJobId, gcloudCmd, targetProfile.Conn.Sp.Project, "", internal.GcsResources{BucketName: gcsBucket}, dashboardName)
@@ -414,7 +417,8 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		dsClient := getDatastreamClient(ctx)
 		gcsBucket, _, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
 		if fetchGcsErr != nil {
-			logger.Log.Error(fmt.Sprintf("Could not fetch GCS Bucket for Shard %s hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n error=%v\n", p.DataShardId, fetchGcsErr))
+			logger.Log.Info(fmt.Sprintf("Could not fetch GCS Bucket for Shard %s hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n", p.DataShardId))
+			logger.Log.Debug("Error", zap.Error(fetchGcsErr))
 		}
 
 		// create monitoring dashboard for a single shard
@@ -432,7 +436,8 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		var dashboardName string
 		if dashboardErr != nil {
 			dashboardName = ""
-			logger.Log.Error(fmt.Sprintf("Creation of the monitoring dashboard for shard %s failed, please create the dashboard manually\n error=%v\n", p.DataShardId, dashboardErr))
+			logger.Log.Info(fmt.Sprintf("Creation of the monitoring dashboard for shard %s failed, please create the dashboard manually\n", p.DataShardId))
+			logger.Log.Debug("Error", zap.Error(dashboardErr))
 		} else {
 			dashboardName = strings.Split(respDash.Name, "/")[3]
 			fmt.Printf("Monitoring Dashboard for shard %v: %+v\n", p.DataShardId, dashboardName)
@@ -460,7 +465,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		logger.Log.Error(fmt.Sprintf("Creation of the aggregated monitoring dashboard failed, please create the dashboard manually\n error=%v\n", dashboardErr))
 	} else {
 		fmt.Printf("Aggregated Monitoring Dashboard: %+v\n", strings.Split(aggRespDash.Name, "/")[3])
-		conv.Audit.StreamingStats.AggMonitoringDashboard = strings.Split(aggRespDash.Name, "/")[3]
+		conv.Audit.StreamingStats.AggMonitoringDashboard = internal.AggMonitoringDashboard{DashboardName:strings.Split(aggRespDash.Name, "/")[3]}
 	}
 
 	return &writer.BatchWriter{}, nil

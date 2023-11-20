@@ -2,6 +2,7 @@ package metrics
 
 // Defines queries for Monitoring Dashboard Metrics
 const (
+	// Queries for Monitoring Dashboard of Shards
 	dataflowCpuUtilPercentileQuery = "fetch gce_instance | metric 'compute.googleapis.com/instance/cpu/utilization' | " +
 		"filter (metadata.user_labels.dataflow_job_id == '%s') | " +
 		"group_by 1m, [value_utilization_mean: mean(value.utilization)] | every 1m | group_by [], " +
@@ -55,6 +56,8 @@ const (
 		"(resource.instance_id == '%s') | group_by 1m, " +
 		"[value_used_bytes_mean: mean(value.used_bytes)] | every 1m | group_by [], " +
 		"[value_used_bytes_mean_aggregate: aggregate(value_used_bytes_mean)]"
+
+	// Queries for Aggregated Monitoring Dashboard
 	dataflowAggCpuUtilPercentileQuery = "fetch gce_instance | metric 'compute.googleapis.com/instance/cpu/utilization' | " +
 		"filter (%s) | group_by 1m, [value_utilization_mean: mean(value.utilization)] " +
 		"| every 1m | group_by [], [value_utilization_mean_percentile: percentile(value_utilization_mean, %s)]"

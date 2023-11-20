@@ -196,6 +196,10 @@ type GcsResources struct {
 	BucketName string `json:"BucketName"`
 }
 
+type AggMonitoringDashboard struct {
+	DashboardName string `json:"DashboardName"`
+}
+
 // Stores information related to the streaming migration process.
 type streamingStats struct {
 	Streaming                     bool                        // Flag for confirmation of streaming migration.
@@ -215,7 +219,7 @@ type streamingStats struct {
 	ShardToGcsResources           map[string]GcsResources
 	MonitoringDashboard           string
 	ShardToMonitoringDashboardMap map[string]string
-	AggMonitoringDashboard        string
+	AggMonitoringDashboard        AggMonitoringDashboard
 }
 
 type PubsubCfg struct {
