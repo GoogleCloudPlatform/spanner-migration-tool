@@ -119,7 +119,10 @@ type shardedDataflowConfig struct {
 	MigrationProfile profiles.SourceProfileConfig
 }
 
-type DataflowLocation struct {
+type DatastreamConfigUnmarshaler struct {
+	DatastreamConfig profiles.DatastreamConfig
+}
+type DataflowConfigUnmarshaler struct {
 	DataflowConfig profiles.DataflowConfig
 }
 
@@ -147,12 +150,13 @@ type progressDetails struct {
 }
 
 type migrationDetails struct {
-	TargetDetails   targetDetails           `json:"TargetDetails"`
-	DataflowConfig  profiles.DataflowConfig `json:"DataflowConfig"`
-	MigrationMode   string                  `json:"MigrationMode"`
-	MigrationType   string                  `json:"MigrationType"`
-	IsSharded       bool                    `json:"IsSharded"`
-	SkipForeignKeys bool                    `json:"skipForeignKeys"`
+	TargetDetails    targetDetails             `json:"TargetDetails"`
+	DatastreamConfig profiles.DatastreamConfig `json:"DatastreamConfig"`
+	DataflowConfig   profiles.DataflowConfig   `json:"DataflowConfig"`
+	MigrationMode    string                    `json:"MigrationMode"`
+	MigrationType    string                    `json:"MigrationType"`
+	IsSharded        bool                      `json:"IsSharded"`
+	SkipForeignKeys  bool                      `json:"skipForeignKeys"`
 }
 
 type targetDetails struct {
@@ -377,6 +381,26 @@ func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sourceProfileConfig)
 }
 
+func setDatastreamDetailsForShardedMigrations(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var datastreamConfigUnmarshaler DatastreamConfigUnmarshaler
+	err = json.Unmarshal(reqBody, &datastreamConfigUnmarshaler)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DatastreamConfig = profiles.DatastreamConfig{
+		MaxConcurrentBackfillTasks: datastreamConfigUnmarshaler.DatastreamConfig.MaxConcurrentBackfillTasks,
+		MaxConcurrentCdcTasks:      datastreamConfigUnmarshaler.DatastreamConfig.MaxConcurrentCdcTasks,
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -384,29 +408,29 @@ func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Reque
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
-	var dataflowLocation DataflowLocation
-	err = json.Unmarshal(reqBody, &dataflowLocation)
+	var dataflowConfigUnmarshaler DataflowConfigUnmarshaler
+	err = json.Unmarshal(reqBody, &dataflowConfigUnmarshaler)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
 	location := sessionState.Region
-	if dataflowLocation.DataflowConfig.Location != "" {
-		location = dataflowLocation.DataflowConfig.Location
+	if dataflowConfigUnmarshaler.DataflowConfig.Location != "" {
+		location = dataflowConfigUnmarshaler.DataflowConfig.Location
 	}
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		ProjectId:            dataflowLocation.DataflowConfig.ProjectId,
+		ProjectId:            dataflowConfigUnmarshaler.DataflowConfig.ProjectId,
 		Location:             location,
-		Network:              dataflowLocation.DataflowConfig.Network,
-		Subnetwork:           dataflowLocation.DataflowConfig.Subnetwork,
-		VpcHostProjectId:     dataflowLocation.DataflowConfig.VpcHostProjectId,
-		MaxWorkers:           dataflowLocation.DataflowConfig.MaxWorkers,
-		NumWorkers:           dataflowLocation.DataflowConfig.NumWorkers,
-		ServiceAccountEmail:  dataflowLocation.DataflowConfig.ServiceAccountEmail,
-		MachineType:          dataflowLocation.DataflowConfig.MachineType,
-		AdditionalUserLabels: dataflowLocation.DataflowConfig.AdditionalUserLabels,
-		KmsKeyName:           dataflowLocation.DataflowConfig.KmsKeyName,
-		GcsTemplatePath:      dataflowLocation.DataflowConfig.GcsTemplatePath,
+		Network:              dataflowConfigUnmarshaler.DataflowConfig.Network,
+		Subnetwork:           dataflowConfigUnmarshaler.DataflowConfig.Subnetwork,
+		VpcHostProjectId:     dataflowConfigUnmarshaler.DataflowConfig.VpcHostProjectId,
+		MaxWorkers:           dataflowConfigUnmarshaler.DataflowConfig.MaxWorkers,
+		NumWorkers:           dataflowConfigUnmarshaler.DataflowConfig.NumWorkers,
+		ServiceAccountEmail:  dataflowConfigUnmarshaler.DataflowConfig.ServiceAccountEmail,
+		MachineType:          dataflowConfigUnmarshaler.DataflowConfig.MachineType,
+		AdditionalUserLabels: dataflowConfigUnmarshaler.DataflowConfig.AdditionalUserLabels,
+		KmsKeyName:           dataflowConfigUnmarshaler.DataflowConfig.KmsKeyName,
+		GcsTemplatePath:      dataflowConfigUnmarshaler.DataflowConfig.GcsTemplatePath,
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -2368,7 +2392,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting target bucket: %v", err)
 		}
-		err = createStreamingCfgFile(sessionState, details.TargetDetails, details.DataflowConfig, fileName)
+		err = createStreamingCfgFile(sessionState, details.TargetDetails, details.DatastreamConfig, details.DataflowConfig, fileName)
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating streaming config file: %v", err)
 		}
@@ -2478,7 +2502,7 @@ func writeSessionFile(sessionState *session.SessionState) error {
 	return nil
 }
 
-func createStreamingCfgFile(sessionState *session.SessionState, targetDetails targetDetails, dataflowConfig profiles.DataflowConfig, fileName string) error {
+func createStreamingCfgFile(sessionState *session.SessionState, targetDetails targetDetails, datastreamConfig profiles.DatastreamConfig, dataflowConfig profiles.DataflowConfig, fileName string) error {
 	dfLocation := sessionState.Region
 	if dataflowConfig.Location != "" {
 		dfLocation = dataflowConfig.Location
@@ -2496,6 +2520,8 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 				Name:     targetDetails.TargetConnectionProfileName,
 				Location: sessionState.Region,
 			},
+			MaxConcurrentBackfillTasks: datastreamConfig.MaxConcurrentBackfillTasks,
+			MaxConcurrentCdcTasks:      datastreamConfig.MaxConcurrentCdcTasks,
 		},
 		DataflowCfg: streaming.DataflowCfg{
 			ProjectId:            dataflowConfig.ProjectId,

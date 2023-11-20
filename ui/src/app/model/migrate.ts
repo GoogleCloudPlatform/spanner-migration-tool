@@ -1,8 +1,9 @@
-import { IDataflowConfig } from "./profile";
+import { IDataflowConfig, IDatastreamConfig } from "./profile";
 import ITargetDetails from "./target-details";
 
 export default interface IMigrationDetails {
     TargetDetails: ITargetDetails
+    DatastreamConfig: IDatastreamConfig
     DataflowConfig: IDataflowConfig
     MigrationType: string
     MigrationMode: string

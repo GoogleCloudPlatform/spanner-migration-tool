@@ -445,6 +445,11 @@ type DatastreamConnProfile struct {
 	Location string `json:"location"`
 }
 
+type DatastreamConfig struct {
+	MaxConcurrentBackfillTasks string `json:"maxConcurrentBackfillTasks"`
+	MaxConcurrentCdcTasks      string `json:"maxConcurrentCdcTasks"`
+}
+
 type DataflowConfig struct {
 	ProjectId            string `json:"projectId"`
 	Location             string `json:"location"`
@@ -465,6 +470,7 @@ type DataShard struct {
 	DataShardId          string                `json:"dataShardId"`
 	SrcConnectionProfile DatastreamConnProfile `json:"srcConnectionProfile"`
 	DstConnectionProfile DatastreamConnProfile `json:"dstConnectionProfile"`
+	DatastreamConfig     DatastreamConfig      `json:"datastreamConfig"`
 	DataflowConfig       DataflowConfig        `json:"dataflowConfig"`
 	TmpDir               string                `json:"tmpDir"`
 	StreamLocation       string                `json:"streamLocation"`
@@ -478,9 +484,10 @@ type LogicalShard struct {
 }
 
 type ShardConfigurationDataflow struct {
-	SchemaSource   DirectConnectionConfig `json:"schemaSource"`
-	DataShards     []*DataShard           `json:"dataShards"`
-	DataflowConfig DataflowConfig         `json:"dataflowConfig"`
+	SchemaSource     DirectConnectionConfig `json:"schemaSource"`
+	DataShards       []*DataShard           `json:"dataShards"`
+	DatastreamConfig DatastreamConfig       `json:"datastreamConfig"`
+	DataflowConfig   DataflowConfig         `json:"dataflowConfig"`
 }
 
 type ShardConfigurationBulk struct {
