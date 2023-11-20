@@ -202,6 +202,7 @@ type streamingStats struct {
 	SampleBadWrites               []string                    // Records that faced errors while writing to Cloud Spanner.
 	DataStreamName                string
 	DataflowJobId                 string
+	DataflowLocation              string
 	DataflowGcloudCmd             string
 	ShardToDataStreamNameMap      map[string]string
 	ShardToDataflowInfoMap        map[string]ShardedDataflowJobResources
