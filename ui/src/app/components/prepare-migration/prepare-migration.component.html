@@ -321,6 +321,12 @@
             </li>
       </span>
       <span *ngIf="isSharded">
+        <span *ngIf="resourcesGenerated.AggMonitoringDashboardName !== '' && isSharded">
+          <li>
+            Aggregated Monitoring Dashboard:
+            <a [href]="resourcesGenerated.AggMonitoringDashboardUrl" target="_blank">{{resourcesGenerated.AggMonitoringDashboardName}}</a>
+          </li>
+        </span>
         <li *ngFor="let dashboard of resourcesGenerated.ShardToMonitoringDashboardMap | keyvalue">
           Dashboard for shardId: {{ dashboard.key }} - <a [href]="dashboard.value.JobUrl"
                                                           target="_blank">{{dashboard.value.JobName}}</a>
