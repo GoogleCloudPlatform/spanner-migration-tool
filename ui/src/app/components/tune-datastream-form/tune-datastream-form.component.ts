@@ -3,6 +3,9 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
 import { Datastream } from 'src/app/app.constants';
 
+const MIN_DATASTREAM_TASK_LIMIT = 1 
+const MAX_DATASTREAM_TASK_LIMIT = 50
+
 @Component({
   selector: 'app-tune-datastream-form',
   templateUrl: './tune-datastream-form.component.html',
@@ -13,8 +16,8 @@ export class TuneDatastreamFormComponent implements OnInit {
 
   constructor(private dialofRef: MatDialogRef<TuneDatastreamFormComponent>) {
     this.datastreamForm = new FormGroup({
-      maxConcurrentBackfillTasks: new FormControl('50', [Validators.required, Validators.pattern('^[1-9][0-9]*$')]),
-      maxConcurrentCdcTasks: new FormControl('5', [Validators.required, Validators.pattern('^[1-9][0-9]*$')]),
+      maxConcurrentBackfillTasks: new FormControl('50', [Validators.required, Validators.pattern('^[1-9][0-9]*$'), Validators.min(MIN_DATASTREAM_TASK_LIMIT), Validators.max(MAX_DATASTREAM_TASK_LIMIT)]),
+      maxConcurrentCdcTasks: new FormControl('5', [Validators.required, Validators.pattern('^[1-9][0-9]*$'), Validators.min(MIN_DATASTREAM_TASK_LIMIT), Validators.max(MAX_DATASTREAM_TASK_LIMIT)]),
     })
   }
 

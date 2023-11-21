@@ -224,10 +224,10 @@
                             info</mat-icon>
                     </span>
                     <span><button mat-button class="configure" (click)="openTuneDatastreamForm()"
-                            [disabled]="isMigrationInProgress || !isTargetDetailSet">
+                            [disabled]="isMigrationInProgress || !isTargetDetailSet" color="primary">
                             Configure
-                            <mat-icon>edit</mat-icon>
-                            <mat-icon *ngIf="isDatastreamConfigurationSet" class="success" matTooltip="Datastream Tuned" matTooltipPosition="above">
+                            <mat-icon iconPositionEnd>edit</mat-icon>
+                            <mat-icon iconPositionEnd *ngIf="isDatastreamConfigurationSet" class="success" matTooltip="Datastream Tuned" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
                         </button></span>

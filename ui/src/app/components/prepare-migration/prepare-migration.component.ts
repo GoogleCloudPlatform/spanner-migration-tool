@@ -14,6 +14,7 @@ import { SourceDetailsFormComponent } from '../source-details-form/source-detail
 import { EndMigrationComponent } from '../end-migration/end-migration.component'
 import { IDatastreamConfig, IDataflowConfig, IMigrationProfile, ISetUpConnectionProfile, IShardedDataflowMigration } from 'src/app/model/profile'
 import { DataflowFormComponent } from '../dataflow-form/dataflow-form.component'
+import { TuneDatastreamFormComponent } from '../tune-datastream-form/tune-datastream-form.component'
 import { EquivalentGcloudCommandComponent } from '../equivalent-gcloud-command/equivalent-gcloud-command.component'
 import ISpannerConfig from 'src/app/model/spanner-config'
 import { ShardedBulkSourceDetailsFormComponent } from '../sharded-bulk-source-details-form/sharded-bulk-source-details-form.component'
@@ -21,7 +22,6 @@ import { IShardSessionDetails } from 'src/app/model/db-config'
 import { ShardedDataflowMigrationDetailsFormComponent } from '../sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { downloadSession } from 'src/app/utils/utils'
-import { TuneDatastreamFormComponent } from 'src/app/tune-datastream-form/tune-datastream-form.component'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',

@@ -51,7 +51,7 @@ import { BulkDropRestoreTableDialogComponent } from './components/bulk-drop-rest
 import { AddNewColumnComponent } from './components/add-new-column/add-new-column.component';
 import { AddShardIdPrimaryKeyComponent } from './components/add-shard-id-primary-key/add-shard-id-primary-key.component';
 import { EquivalentGcloudCommandComponent } from './components/equivalent-gcloud-command/equivalent-gcloud-command.component';
-import { TuneDatastreamFormComponent } from './tune-datastream-form/tune-datastream-form.component';
+import { TuneDatastreamFormComponent } from './components/tune-datastream-form/tune-datastream-form.component';
 
 @NgModule({
   declarations: [

@@ -150,6 +150,27 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 	// Populate the tables to be streamed in the datastreamCfg from the dervied list from session file
 	streamingCfg.DatastreamCfg.TableList = append(streamingCfg.DatastreamCfg.TableList, tableList...)
 
+	if dsCfg.MaxConcurrentCdcTasks != "" {
+		intVal, err := strconv.ParseInt(dsCfg.MaxConcurrentCdcTasks, 10, 64)
+		if err != nil {
+			return fmt.Errorf("could not parse maxConcurrentCdcTasks parameter %s, please provide a positive integer as input", dsCfg.MaxConcurrentCdcTasks)
+		}
+		maxCdcTasks = int32(intVal)
+		if maxCdcTasks < MIN_DATASTREAM_TASK_LIMIT || maxCdcTasks > MAX_DATASTREAM_TASK_LIMIT {
+			return fmt.Errorf("maxConcurrentCdcTasks should lie in the range [%d, %d]", MIN_DATASTREAM_TASK_LIMIT, MAX_DATASTREAM_TASK_LIMIT)
+		}
+	}
+	if dsCfg.MaxConcurrentBackfillTasks != "" {
+		intVal, err := strconv.ParseInt(dsCfg.MaxConcurrentBackfillTasks, 10, 64)
+		if err != nil {
+			return fmt.Errorf("could not parse maxConcurrentBackfillTasks parameter %s, please provide a positive integer as input", dsCfg.MaxConcurrentBackfillTasks)
+		}
+		maxBackfillTasks = int32(intVal)
+		if maxBackfillTasks < MIN_DATASTREAM_TASK_LIMIT || maxBackfillTasks > MAX_DATASTREAM_TASK_LIMIT {
+			return fmt.Errorf("maxConcurrentBackfillTasks should lie in the range [%d, %d]", MIN_DATASTREAM_TASK_LIMIT, MAX_DATASTREAM_TASK_LIMIT)
+		}
+	}
+
 	if dfCfg.JobName == "" {
 		// Update names to have more info like dbname.
 		jobName, err := utils.GenerateName("smt-dataflow-" + dbName)
@@ -220,26 +241,6 @@ func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard, datastreamCfg Da
 		}
 		includeDbList = append(includeDbList, includeDb)
 	}
-	if datastreamCfg.MaxConcurrentCdcTasks != "" {
-		intVal, err := strconv.ParseInt(datastreamCfg.MaxConcurrentCdcTasks, 10, 64)
-		if err != nil {
-			return &datastreampb.SourceConfig_MysqlSourceConfig{}, fmt.Errorf("could not parse maxConcurrentCdcTasks parameter %s, please provide a positive integer as input", datastreamCfg.MaxConcurrentCdcTasks)
-		}
-		maxCdcTasks = int32(intVal)
-		if maxBackfillTasks < MIN_DATASTREAM_TASK_LIMIT || maxBackfillTasks > MAX_DATASTREAM_TASK_LIMIT {
-			return &datastreampb.SourceConfig_MysqlSourceConfig{}, fmt.Errorf("maxConcurrentCdcTasks should lie in the range [%d, %d]", MIN_DATASTREAM_TASK_LIMIT, MAX_DATASTREAM_TASK_LIMIT)
-		}
-	}
-	if datastreamCfg.MaxConcurrentBackfillTasks != "" {
-		intVal, err := strconv.ParseInt(datastreamCfg.MaxConcurrentBackfillTasks, 10, 64)
-		if err != nil {
-			return &datastreampb.SourceConfig_MysqlSourceConfig{}, fmt.Errorf("could not parse maxConcurrentBackfillTasks parameter %s, please provide a positive integer as input", datastreamCfg.MaxConcurrentBackfillTasks)
-		}
-		maxBackfillTasks = int32(intVal)
-		if maxBackfillTasks < MIN_DATASTREAM_TASK_LIMIT || maxBackfillTasks > MAX_DATASTREAM_TASK_LIMIT {
-			return &datastreampb.SourceConfig_MysqlSourceConfig{}, fmt.Errorf("maxConcurrentBackfillTasks should lie in the range [%d, %d]", MIN_DATASTREAM_TASK_LIMIT, MAX_DATASTREAM_TASK_LIMIT)
-		}
-	}
 	//TODO: Clean up fmt.Printf logs and replace them with zap logger.
 	fmt.Printf("Include DB List for datastream: %+v\n", includeDbList)
 	mysqlSrcCfg := &datastreampb.MysqlSourceConfig{
@@ -262,26 +263,6 @@ func getOracleSourceStreamConfig(dbName string, datastreamCfg DatastreamCfg) (*d
 	oracledb := &datastreampb.OracleSchema{
 		Schema:       dbName,
 		OracleTables: oracleTables,
-	}
-	if datastreamCfg.MaxConcurrentCdcTasks != "" {
-		intVal, err := strconv.ParseInt(datastreamCfg.MaxConcurrentCdcTasks, 10, 64)
-		if err != nil {
-			return &datastreampb.SourceConfig_OracleSourceConfig{}, fmt.Errorf("could not parse maxConcurrentCdcTasks parameter %s, please provide a positive integer as input", datastreamCfg.MaxConcurrentCdcTasks)
-		}
-		maxCdcTasks = int32(intVal)
-		if maxBackfillTasks < MIN_DATASTREAM_TASK_LIMIT || maxBackfillTasks > MAX_DATASTREAM_TASK_LIMIT {
-			return &datastreampb.SourceConfig_OracleSourceConfig{}, fmt.Errorf("maxConcurrentCdcTasks should lie in the range [%d, %d]", MIN_DATASTREAM_TASK_LIMIT, MAX_DATASTREAM_TASK_LIMIT)
-		}
-	}
-	if datastreamCfg.MaxConcurrentBackfillTasks != "" {
-		intVal, err := strconv.ParseInt(datastreamCfg.MaxConcurrentBackfillTasks, 10, 64)
-		if err != nil {
-			return &datastreampb.SourceConfig_OracleSourceConfig{}, fmt.Errorf("could not parse maxConcurrentBackfillTasks parameter %s, please provide a positive integer as input", datastreamCfg.MaxConcurrentBackfillTasks)
-		}
-		maxBackfillTasks = int32(intVal)
-		if maxBackfillTasks < MIN_DATASTREAM_TASK_LIMIT || maxBackfillTasks > MAX_DATASTREAM_TASK_LIMIT {
-			return &datastreampb.SourceConfig_OracleSourceConfig{}, fmt.Errorf("maxConcurrentBackfillTasks should lie in the range [%d, %d]", MIN_DATASTREAM_TASK_LIMIT, MAX_DATASTREAM_TASK_LIMIT)
-		}
 	}
 	oracleSrcCfg := &datastreampb.OracleSourceConfig{
 		IncludeObjects:             &datastreampb.OracleRdbms{OracleSchemas: []*datastreampb.OracleSchema{oracledb}},
@@ -307,16 +288,6 @@ func getPostgreSQLSourceStreamConfig(datastreamCfg DatastreamCfg) (*datastreampb
 	publication, publicationExists := params["publication"]
 	if !replicationSlotExists || !publicationExists {
 		return nil, fmt.Errorf("replication slot or publication not specified")
-	}
-	if datastreamCfg.MaxConcurrentBackfillTasks != "" {
-		intVal, err := strconv.ParseInt(datastreamCfg.MaxConcurrentBackfillTasks, 10, 64)
-		if err != nil {
-			return &datastreampb.SourceConfig_PostgresqlSourceConfig{}, fmt.Errorf("could not parse maxConcurrentBackfillTasks parameter %s, please provide a positive integer as input", datastreamCfg.MaxConcurrentBackfillTasks)
-		}
-		maxBackfillTasks = int32(intVal)
-		if maxBackfillTasks < MIN_DATASTREAM_TASK_LIMIT || maxBackfillTasks > MAX_DATASTREAM_TASK_LIMIT {
-			return &datastreampb.SourceConfig_PostgresqlSourceConfig{}, fmt.Errorf("maxConcurrentBackfillTasks should lie in the range [%d, %d]", MIN_DATASTREAM_TASK_LIMIT, MAX_DATASTREAM_TASK_LIMIT)
-		}
 	}
 	postgresSrcCfg := &datastreampb.PostgresqlSourceConfig{
 		ExcludeObjects:             &datastreampb.PostgresqlRdbms{PostgresqlSchemas: excludeObjects},
