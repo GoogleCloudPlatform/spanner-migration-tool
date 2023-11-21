@@ -1,6 +1,6 @@
 export default interface ISessionConfig {
-  driver: string | null | undefined
-  filePath: string | null | undefined
+  driver: string
+  filePath: string
   dbName?: string
   createdAt?: string
 }

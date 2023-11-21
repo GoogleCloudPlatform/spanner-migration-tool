@@ -53,11 +53,11 @@ export class LoadDumpComponent implements OnInit {
     localStorage.clear()
     const { dbEngine, filePath, dialect } = this.connectForm.value
     const dumpConfig: IDumpConfig = {
-      Driver: dbEngine,
-      Path: filePath,
+      Driver: dbEngine!,
+      Path: filePath!,
     }
     const spannerDetails: ISpannerDetails = {
-      Dialect: dialect,
+      Dialect: dialect!,
     }
     const payload: IConvertFromDumpRequest = {
       Config: dumpConfig,

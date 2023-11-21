@@ -75,14 +75,19 @@ export class DirectConnectionComponent implements OnInit {
   }
 
   testConn() {
-    if (typeof this.connectForm.value.dbName === "string") {
-      this.clickEvent.openDatabaseLoader('test-connection', this.connectForm.value.dbName)
-    }
+    this.clickEvent.openDatabaseLoader('test-connection', this.connectForm.value.dbName!)
     const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect } = this.connectForm.value
     localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value))
-    const config: IDbConfig = { dbEngine, isSharded, hostName, port, userName, password, dbName }
-    if (typeof dialect === "string") {
-      this.connectRequest =this.fetch.connectTodb(config, dialect).subscribe({
+    let config: IDbConfig = {
+      dbEngine: dbEngine!,
+      isSharded: isSharded!,
+      hostName: hostName!,
+      port: port!,
+      userName: userName!,
+      password: password!,
+      dbName: dbName!,
+    }
+    this.connectRequest =this.fetch.connectTodb(config, dialect!).subscribe({
         next: () => {
           this.snackbarService.openSnackBar('SUCCESS! Spanner migration tool was able to successfully ping source database', 'Close', 3)
           //Datbase loader causes the direct connection form to get refreshed hence this value needs to be persisted to local storage.
@@ -96,21 +101,25 @@ export class DirectConnectionComponent implements OnInit {
           this.clickEvent.closeDatabaseLoader()
         }
       })
-    }
   }
 
   connectToDb() {
-    if (typeof this.connectForm.value.dbName === "string") {
-      this.clickEvent.openDatabaseLoader('direct', this.connectForm.value.dbName)
-    }
+    this.clickEvent.openDatabaseLoader('direct', this.connectForm.value.dbName!)
     window.scroll(0, 0)
     this.data.resetStore()
     localStorage.clear()
     const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect } = this.connectForm.value
     localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value))
-    const config: IDbConfig = { dbEngine, isSharded, hostName, port, userName, password, dbName }
-    if (typeof dialect === "string" && typeof dbEngine === "string") {
-      this.connectRequest =this.fetch.connectTodb(config, dialect).subscribe({
+    let config: IDbConfig = {
+      dbEngine: dbEngine!,
+      isSharded: isSharded!,
+      hostName: hostName!,
+      port: port!,
+      userName: userName!,
+      password: password!,
+      dbName: dbName!,
+    }
+    this.connectRequest =this.fetch.connectTodb(config, dialect!).subscribe({
         next: () => {
           this.getSchemaRequest = this.data.getSchemaConversionFromDb()
           this.data.conv.subscribe((res) => {
@@ -119,7 +128,7 @@ export class DirectConnectionComponent implements OnInit {
               JSON.stringify({ dbEngine, hostName, port, userName, password, dbName })
             )
             localStorage.setItem(StorageKeys.Type, InputType.DirectConnect)
-            localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
+            localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine!))
             this.clickEvent.closeDatabaseLoader()
             //after a successful load, remove the persisted values.
             localStorage.removeItem(PersistedFormValues.DirectConnectForm)
@@ -131,7 +140,6 @@ export class DirectConnectionComponent implements OnInit {
           this.clickEvent.closeDatabaseLoader()
         },
       })
-    }
   }
 
   refreshDbSpecifcConnectionOptions() {

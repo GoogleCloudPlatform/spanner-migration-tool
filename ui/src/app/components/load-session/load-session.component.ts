@@ -53,8 +53,8 @@ export class LoadSessionComponent implements OnInit {
     localStorage.clear()
     const { dbEngine, filePath } = this.connectForm.value
     const payload: ISessionConfig = {
-      driver: dbEngine,
-      filePath: filePath,
+      driver: dbEngine!,
+      filePath: filePath!,
     }
     this.getSchemaRequest = this.data.getSchemaConversionFromSession(payload)
     if (typeof dbEngine === "string") {

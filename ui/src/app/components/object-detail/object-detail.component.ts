@@ -1264,9 +1264,8 @@ export class ObjectDetailComponent implements OnInit {
     this.localIndexData.forEach((idx) => {
       if (idx.spColName) spIndexCount += 1
     })
-    if (typeof this.addIndexKeyForm.value.columnName === "string") {
       this.localIndexData.push({
-        spColName: this.addIndexKeyForm.value.columnName,
+        spColName: this.addIndexKeyForm.value.columnName!,
         spDesc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
         spOrder: spIndexCount + 1,
         srcColName: '',
@@ -1275,14 +1274,12 @@ export class ObjectDetailComponent implements OnInit {
         srcColId: undefined,
         spColId: this.currentObject
           ? this.conversion.getColIdFromSpannerColName(
-            this.addIndexKeyForm.value.columnName,
+            this.addIndexKeyForm.value.columnName!,
             this.currentObject.parentId,
             this.conv
           )
           : '',
       })
-    }
-   
     this.setIndexRows()
   }
 
