@@ -64,15 +64,13 @@ export class LoadDumpComponent implements OnInit {
       SpannerDetails: spannerDetails
     }
     this.getSchemaRequest = this.data.getSchemaConversionFromDump(payload)
-    if (typeof dbEngine === "string") {
       this.data.conv.subscribe((res) => {
         localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
         localStorage.setItem(StorageKeys.Type, InputType.DumpFile)
-        localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
+        localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine!))
         this.clickEvent.closeDatabaseLoader()
         this.router.navigate(['/workspace'])
-      })
-    }
+    })
   }
   handleFileInput(e: Event) {
     let files: FileList | null = (e.target as HTMLInputElement).files
