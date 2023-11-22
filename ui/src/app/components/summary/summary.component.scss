@@ -75,12 +75,11 @@ h3 {
     .right {
       order: 2;
       width: 100%;
-      .mat-form-field {
+      .mat-mdc-form-field {
         width: 100%;
         min-height: 22px;
       }
-      .mat-chip-input {
-        width: 60px;
+      .mat-mdc-chip-input {
         height: 24px;
         flex: 0;
       }
@@ -96,11 +95,11 @@ h3 {
     }
   }
 
-  ::ng-deep .mat-form-field-underline {
+  ::ng-deep .mat-mdc-form-field-underline {
     display: none;
   }
 
-  .mat-chip {
+  .mat-mdc-chip {
     min-height: 24px;
     font-weight: lighter;
   }
@@ -157,3 +156,10 @@ h3 {
   }
 }
 
+.chip-list {
+  width: 100%;
+}
+
+.mat-mdc-standard-chip {
+  --mdc-chip-label-text-color: #fff;
+}

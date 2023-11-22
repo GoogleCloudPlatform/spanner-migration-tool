@@ -9,8 +9,8 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
-import { flatMap, Subscription, take } from 'rxjs'
-import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
+import { Subscription, take } from 'rxjs'
+import { MatTabChangeEvent } from '@angular/material/tabs/'
 import IConv, {
   ICreateIndex,
   IForeignKey,
@@ -37,6 +37,7 @@ export class ObjectDetailComponent implements OnInit {
     private conversion: ConversionService,
     private sidenav: SidenavService,
     private tableUpdatePubSub: TableUpdatePubSubService,
+    private fb: FormBuilder,
   ) { }
 
   @Input() currentObject: FlatNode | null = null
@@ -114,10 +115,10 @@ export class ObjectDetailComponent implements OnInit {
   isFkEditMode: boolean = false
   isIndexEditMode: boolean = false
   isObjectSelected: boolean = false
-  srcRowArray: FormArray = new FormArray([])
-  spRowArray: FormArray = new FormArray([])
-  pkArray: FormArray = new FormArray([])
-  fkArray: FormArray = new FormArray([])
+  srcRowArray: FormArray = this.fb.array([])
+  spRowArray: FormArray = this.fb.array([])
+  pkArray: FormArray = this.fb.array([])
+  fkArray: FormArray = this.fb.array([])
   isSpTableSuggesstionDisplay: boolean[] = []
   spTableSuggestion: string[] = []
   currentTabIndex: number = 0
@@ -156,8 +157,8 @@ export class ObjectDetailComponent implements OnInit {
     this.isFkEditMode = false
     this.isIndexEditMode = false
     this.isPkEditMode = false
-    this.srcRowArray = new FormArray([])
-    this.spRowArray = new FormArray([])
+    this.srcRowArray = this.fb.array([])
+    this.spRowArray = this.fb.array([])
     this.droppedColumns = []
     this.droppedSourceColumns = []
     this.pkColumnNames = []
@@ -191,7 +192,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setSpTableRows() {
-    this.spRowArray = new FormArray([])
+    this.spRowArray = this.fb.array([])
     this.localTableData.forEach((row) => {
       if (row.spOrder) {
         let fb = new FormGroup({
@@ -219,9 +220,9 @@ export class ObjectDetailComponent implements OnInit {
             fb.get('spColMaxLength')?.setValue('MAX')
           }
           else if (row.spColMaxLength !== 'MAX') {
-            if ((row.spDataType === 'STRING' || row.spDataType === 'VARCHAR') && row.spColMaxLength > ColLength.StringMaxLength) {
+            if ((row.spDataType === 'STRING' || row.spDataType === 'VARCHAR') && typeof row.spColMaxLength === "number" && row.spColMaxLength > ColLength.StringMaxLength) {
               fb.get('spColMaxLength')?.setValue('MAX')
-            } else if (row.spDataType === 'BYTES' && row.spColMaxLength > ColLength.ByteMaxLength) {
+            } else if (row.spDataType === 'BYTES' && typeof row.spColMaxLength === "number" && row.spColMaxLength > ColLength.ByteMaxLength) {
               fb.get('spColMaxLength')?.setValue('MAX')
             }
           }
@@ -238,7 +239,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setSrcTableRows() {
-    this.srcRowArray = new FormArray([])
+    this.srcRowArray = this.fb.array([])
 
     this.localTableData.forEach((col: IColumnTabData) => {
       if (col.spColName != '') {
@@ -320,9 +321,9 @@ export class ObjectDetailComponent implements OnInit {
         let oldRow = this.tableData[j]
         let standardDataType = pgSQLToStandardTypeTypemap.get(col.spDataType)
         if (col.spColMaxLength !== undefined && col.spColMaxLength !== 'MAX') {
-          if ((col.spDataType === 'STRING' || col.spDataType === 'VARCHAR') && col.spColMaxLength > ColLength.StringMaxLength) {
+          if ((col.spDataType === 'STRING' || col.spDataType === 'VARCHAR') && typeof col.spColMaxLength === "number" && col.spColMaxLength > ColLength.StringMaxLength) {
             col.spColMaxLength = 'MAX'
-          } else if (col.spDataType === 'BYTES' && col.spColMaxLength > ColLength.ByteMaxLength) {
+          } else if (col.spDataType === 'BYTES' && typeof col.spColMaxLength === "number" && col.spColMaxLength > ColLength.ByteMaxLength) {
             col.spColMaxLength = 'MAX'
           }
         }
@@ -541,7 +542,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setPkRows() {
-    this.pkArray = new FormArray([])
+    this.pkArray = this.fb.array([])
     this.pkOrderValidation()
     var srcArr = new Array()
     var spArr = new Array()
@@ -736,7 +737,7 @@ export class ObjectDetailComponent implements OnInit {
         missingOrder = arr.length
       }
       this.pkData.forEach((pk: IColumnTabData) => {
-        if (pk.spOrder < missingOrder) {
+        if (typeof pk.spOrder === "number" && pk.spOrder < missingOrder) {
           pk.spOrder = Number(pk.spOrder) + 1
         }
       })
@@ -888,7 +889,7 @@ export class ObjectDetailComponent implements OnInit {
     })
 
     this.pkData.forEach((column: IColumnTabData, ind: number) => {
-      if (column.spOrder > removedOrder) {
+      if ( typeof column.spOrder === "number" && column.spOrder > removedOrder) {
         column.spOrder = Number(column.spOrder) - 1
       }
     })
@@ -898,7 +899,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setFkRows() {
-    this.fkArray = new FormArray([])
+    this.fkArray = this.fb.array([])
     var srcArr = new Array()
     var spArr = new Array()
     this.fkData.forEach((fk) => {
@@ -1071,7 +1072,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setIndexRows() {
-    this.spRowArray = new FormArray([])
+    this.spRowArray = this.fb.array([])
     const addedIndexColumns: string[] = this.localIndexData
       .map((data) => (data.spColName ? data.spColName : ''))
       .filter((name) => name != '')
@@ -1263,22 +1264,22 @@ export class ObjectDetailComponent implements OnInit {
     this.localIndexData.forEach((idx) => {
       if (idx.spColName) spIndexCount += 1
     })
-    this.localIndexData.push({
-      spColName: this.addIndexKeyForm.value.columnName,
-      spDesc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
-      spOrder: spIndexCount + 1,
-      srcColName: '',
-      srcDesc: undefined,
-      srcOrder: '',
-      srcColId: undefined,
-      spColId: this.currentObject
-        ? this.conversion.getColIdFromSpannerColName(
-          this.addIndexKeyForm.value.columnName,
-          this.currentObject.parentId,
-          this.conv
-        )
-        : '',
-    })
+      this.localIndexData.push({
+        spColName: this.addIndexKeyForm.value.columnName!,
+        spDesc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
+        spOrder: spIndexCount + 1,
+        srcColName: '',
+        srcDesc: undefined,
+        srcOrder: '',
+        srcColId: undefined,
+        spColId: this.currentObject
+          ? this.conversion.getColIdFromSpannerColName(
+            this.addIndexKeyForm.value.columnName!,
+            this.currentObject.parentId,
+            this.conv
+          )
+          : '',
+      })
     this.setIndexRows()
   }
 

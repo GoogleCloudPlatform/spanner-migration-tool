@@ -7,9 +7,9 @@
           <span class="filter-text">Filter</span>
         </div>
         <div class="right">
-          <mat-form-field>
-            <mat-chip-list #chipList>
-              <mat-chip
+          <mat-form-field class="chip-list">
+            <mat-chip-grid #chipGrid>
+              <mat-chip-row
                 class="primary"
                 *ngFor="let fs of searchFilters"
                 (removed)="removeFilter(fs)"
@@ -18,16 +18,17 @@
                 <button matChipRemove>
                   <mat-icon>cancel</mat-icon>
                 </button>
-              </mat-chip>
+              </mat-chip-row>
+            </mat-chip-grid>
 
               <input
+              placeholder="New Filter..."
                 [formControl]="filterInput"
-                [matChipInputFor]="chipList"
+                [matChipInputFor]="chipGrid"
                 [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
                 [matChipInputAddOnBlur]="false"
                 [matAutocomplete]="auto"
               />
-
               <mat-autocomplete #auto="matAutocomplete">
                 <mat-option
                   (click)="addFilter(option)"
@@ -37,7 +38,6 @@
                   {{ option }}
                 </mat-option>
               </mat-autocomplete>
-            </mat-chip-list>
           </mat-form-field>
         </div>
       </div>

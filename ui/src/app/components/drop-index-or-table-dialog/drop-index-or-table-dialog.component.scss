@@ -4,13 +4,13 @@
     align-items: center;
     margin-bottom: 1rem;
     background-color: rgb(248, 244, 244);
-    mat-icon{
+    mat-mdc-icon{
         color:#F3B300;
         margin-right:20px;
     }
 }
 .form-container{
-    .mat-form-field{
+    .mat-mdc-form-field{
         width: 100%;
     }
 }
