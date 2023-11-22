@@ -1,4 +1,6 @@
+import { HttpClientModule } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
 import { TuneDatastreamFormComponent } from './tune-datastream-form.component';
 
@@ -8,7 +10,21 @@ describe('TuneDatastreamFormComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ TuneDatastreamFormComponent ]
+      declarations: [ TuneDatastreamFormComponent ],
+      imports: [HttpClientModule],
+      providers: [
+        {
+          provide: MatDialogRef,
+          useValue: {
+            close: () => {},
+          },
+        },
+        {
+          provide: MAT_DIALOG_DATA,
+          useValue: {
+          }
+        }
+      ],
     })
     .compileComponents();
   });
