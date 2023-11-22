@@ -2,11 +2,9 @@ import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { ColLength, DataTypes, Dialect } from 'src/app/app.constants';
-import { IColumn, ISpannerDetails } from 'src/app/model/conv';
 import { IAddColumnProps } from 'src/app/model/edit-table';
 import { IAddColumn } from 'src/app/model/update-table';
 import { DataService } from 'src/app/services/data/data.service';
-import { TargetDetailsFormComponent } from '../target-details-form/target-details-form.component';
 @Component({
   selector: 'app-add-new-column',
   templateUrl: './add-new-column.component.html',
@@ -24,13 +22,13 @@ export class AddNewColumnComponent implements OnInit {
   constructor(
     private formBuilder: FormBuilder,
     private dataService: DataService,
-    private dialogRef: MatDialogRef<TargetDetailsFormComponent>,
+    private dialogRef: MatDialogRef<AddNewColumnComponent>,
     @Inject(MAT_DIALOG_DATA) public data: IAddColumnProps) {
     this.dialect = data.dialect
     this.tableId = data.tableId
     this.addNewColumnForm = this.formBuilder.group({
       name: ['', [Validators.required, Validators.minLength(1), Validators.maxLength(128), Validators.pattern('^[a-zA-Z][a-zA-Z0-9_]*$')]],
-      datatype: [],
+      datatype: ['', Validators.required],
       length: ['',Validators.pattern('^[0-9]+$')],
       isNullable: [],
     })

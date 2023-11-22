@@ -7,6 +7,7 @@ import { MatOptionModule } from '@angular/material/core'
 import { MatFormFieldModule } from '@angular/material/form-field'
 import { MatInputModule } from '@angular/material/input'
 import { MatSelectModule } from '@angular/material/select'
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'
 import { By } from '@angular/platform-browser'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { RouterModule, Routes } from '@angular/router'
@@ -32,6 +33,7 @@ describe('LoadSessionComponent', () => {
         MatFormFieldModule,
         MatInputModule,
         BrowserAnimationsModule,
+        MatSnackBarModule
       ],
     }).compileComponents()
   })
@@ -56,6 +58,7 @@ describe('LoadSessionComponent', () => {
 
   it('should enable button when form is valid', () => {
     component.connectForm.setValue({ dbEngine: 'mysqldump', filePath: '/sql.sql' })
+    component.uploadSuccess = true
     fixture.detectChanges()
     expect(component.connectForm.invalid).toEqual(false)
     expect(btn.nativeElement.disabled).toEqual(false)

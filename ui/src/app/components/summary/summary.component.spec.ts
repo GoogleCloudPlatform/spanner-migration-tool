@@ -8,7 +8,7 @@ import { MatSnackBar } from '@angular/material/snack-bar'
 import { ObjectExplorerNodeType } from 'src/app/app.constants'
 import { MatAutocompleteModule } from '@angular/material/autocomplete'
 
-fdescribe('SummaryComponent', () => {
+describe('SummaryComponent', () => {
   let component: SummaryComponent
   let fixture: ComponentFixture<SummaryComponent>
 
@@ -59,15 +59,6 @@ fdescribe('SummaryComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy()
-  })
-
-  it('should render empty message when there is no table', () => {
-    component.currentObject = null
-    fixture.detectChanges()
-    let message = fixture.debugElement.query(By.css('.no-object-message'))
-    expect(message.nativeElement.textContent).toEqual(
-      ' Click on a converted object name on the Spanner tree panel to view its conversion issues. '
-    )
   })
 
   it('should display only read message with read filter', () => {

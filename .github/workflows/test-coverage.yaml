@@ -27,10 +27,22 @@ jobs:
         with:
           go-version: "1.19"
 
-      - name: Unit tests
+      - name: Run backend unit tests
         run: |
           go test ./... -coverprofile coverage.out -covermode count
           go tool cover -func coverage.out
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+      - name: Install frontend test dependencies
+        run: |
+          cd ui
+          npm ci
+      - name: Run UI unit tests
+        run: |
+          cd ui
+          npm test -- --browsers=ChromeHeadless --watch=false
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         with:
