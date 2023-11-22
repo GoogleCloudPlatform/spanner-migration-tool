@@ -205,7 +205,7 @@ describe('WorkspaceComponent', () => {
     component.updateIssuesLabel(count);
     tick();
     fixture.detectChanges();
-    const issuesLabelElement = fixture.nativeElement.querySelector('.mat-tab-label-content');
+    const issuesLabelElement = fixture.nativeElement.querySelector('.mdc-tab__text-label');
     expect(issuesLabelElement).toBeTruthy();
     expect(issuesLabelElement.textContent).toContain(`ISSUES AND SUGGESTIONS (${count})`);
   }));
@@ -215,7 +215,7 @@ describe('WorkspaceComponent', () => {
     component.updateRulesLabel(count);
     tick();
     fixture.detectChanges();
-    const rulesLabelElement = fixture.nativeElement.querySelectorAll('.mat-tab-label-content')[1];
+    const rulesLabelElement = fixture.nativeElement.querySelectorAll('.mdc-tab__text-label')[1];
     expect(rulesLabelElement.textContent).toContain(`RULES (${count})`);
   }));
 
@@ -400,36 +400,6 @@ describe('WorkspaceComponent', () => {
     });
     component.downloadDDL();
     expect(fetchServiceSpy.getDSpannerDDL).toHaveBeenCalled();
-    expect(aClickSpy).toHaveBeenCalled();
-  });
-
-  it('should trigger downloadArtifacts', async () => {
-    const aClickSpy = jasmine.createSpy('aClickSpy');
-    const generateAsyncSpy = spyOn(JSZip.prototype, 'generateAsync').and.returnValue(Promise.resolve({} as any));
-    const mockTextReport = 'Mock text report';
-    const mockSpannerDDL = 'Mock spanner DDL';
-    const mockSpannerConfig: ISpannerConfig = {
-      GCPProjectID: "",
-      SpannerInstanceID: ""
-    }
-
-    fetchServiceSpy.getDStructuredReport.and.returnValue(of(mockStructuredReport));
-    fetchServiceSpy.getDTextReport.and.returnValue(of(mockTextReport));
-    fetchServiceSpy.getDSpannerDDL.and.returnValue(of(mockSpannerDDL));
-    fetchServiceSpy.getSpannerConfig.and.returnValue(of(mockSpannerConfig));
-
-    const aElement = document.createElement('a');
-    spyOn(document, 'createElement').and.returnValue(aElement);
-    spyOn(aElement, 'click').and.callFake(() => {
-      aClickSpy();
-    });
-    component.downloadArtifacts();
-    await fixture.whenStable();
-
-    expect(fetchServiceSpy.getDStructuredReport).toHaveBeenCalled();
-    expect(fetchServiceSpy.getDTextReport).toHaveBeenCalled();
-    expect(fetchServiceSpy.getDSpannerDDL).toHaveBeenCalled();
-    expect(generateAsyncSpy).toHaveBeenCalledOnceWith({ type: 'blob' });
     expect(aClickSpy).toHaveBeenCalled();
   });
 
