@@ -2305,13 +2305,13 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 		generatedResources.PubsubSubscriptionName = sessionState.Conv.Audit.StreamingStats.PubsubCfg.SubscriptionId
 		generatedResources.PubsubSubscriptionUrl = fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/subscription/detail/%v?project=%v", sessionState.Conv.Audit.StreamingStats.PubsubCfg.SubscriptionId, sessionState.GCPProjectID)
 	}
-	if sessionState.Conv.Audit.StreamingStats.MonitoringDashboard != "" {
-		generatedResources.MonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.MonitoringDashboard
-		generatedResources.MonitoringDashboardUrl = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", sessionState.Conv.Audit.StreamingStats.MonitoringDashboard, sessionState.GCPProjectID)
+	if sessionState.Conv.Audit.StreamingStats.MonitoringResources.DashboardName != "" {
+		generatedResources.MonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.MonitoringResources.DashboardName
+		generatedResources.MonitoringDashboardUrl = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", sessionState.Conv.Audit.StreamingStats.MonitoringResources.DashboardName, sessionState.GCPProjectID)
 	}
-	if sessionState.Conv.Audit.StreamingStats.AggMonitoringDashboard.DashboardName != "" {
-		generatedResources.AggMonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.AggMonitoringDashboard.DashboardName
-		generatedResources.AggMonitoringDashboardUrl = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", sessionState.Conv.Audit.StreamingStats.AggMonitoringDashboard.DashboardName, sessionState.GCPProjectID)
+	if sessionState.Conv.Audit.StreamingStats.AggMonitoringResources.DashboardName != "" {
+		generatedResources.AggMonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.AggMonitoringResources.DashboardName
+		generatedResources.AggMonitoringDashboardUrl = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", sessionState.Conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, sessionState.GCPProjectID)
 	}
 	for shardId, dsName := range sessionState.Conv.Audit.StreamingStats.ShardToDataStreamNameMap {
 		url := fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, dsName, sessionState.GCPProjectID)
@@ -2324,9 +2324,9 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 		resourceDetails := ResourceDetails{JobName: dfId, JobUrl: url, GcloudCmd: shardedDataflowJobResources.GcloudCmd}
 		generatedResources.ShardToDataflowMap[shardId] = resourceDetails
 	}
-	for shardId, dashboardName := range sessionState.Conv.Audit.StreamingStats.ShardToMonitoringDashboardMap {
-		url := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", dashboardName, sessionState.GCPProjectID)
-		resourceDetails := ResourceDetails{JobName: dashboardName, JobUrl: url}
+	for shardId, monitoringResource := range sessionState.Conv.Audit.StreamingStats.ShardToMonitoringResourcesMap {
+		url := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", monitoringResource, sessionState.GCPProjectID)
+		resourceDetails := ResourceDetails{JobName: monitoringResource.DashboardName, JobUrl: url}
 		generatedResources.ShardToMonitoringDashboardMap[shardId] = resourceDetails
 	}
 	for shardId, pubsubId := range sessionState.Conv.Audit.StreamingStats.ShardToPubsubIdMap {

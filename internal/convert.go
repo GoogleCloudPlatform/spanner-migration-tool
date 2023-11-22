@@ -196,7 +196,8 @@ type GcsResources struct {
 	BucketName string `json:"BucketName"`
 }
 
-type AggMonitoringDashboard struct {
+// Stores information related to Monitoring resources
+type MonitoringResources struct {
 	DashboardName string `json:"DashboardName"`
 }
 
@@ -218,9 +219,9 @@ type streamingStats struct {
 	PubsubCfg                     PubsubCfg
 	ShardToPubsubIdMap            map[string]PubsubCfg
 	ShardToGcsResources           map[string]GcsResources
-	MonitoringDashboard           string
-	ShardToMonitoringDashboardMap map[string]string
-	AggMonitoringDashboard        AggMonitoringDashboard
+	MonitoringResources           MonitoringResources
+	ShardToMonitoringResourcesMap map[string]MonitoringResources
+	AggMonitoringResources        MonitoringResources
 }
 
 type PubsubCfg struct {
