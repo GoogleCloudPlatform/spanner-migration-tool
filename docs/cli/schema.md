@@ -14,7 +14,7 @@ schema mapping. Spanner migration tool also generates Spanner schema which users
 
 {: .highlight }
 The command below assumes that the open-source version of SMT is being used. For the CLI
-reference of the gCloud version of SMT, please refer [here](https://cloud.google.com/sdk/gcloud/reference/alpha/spanner/migration).
+reference of the gCloud version of SMT, please refer [here](https://cloud.google.com/sdk/gcloud/reference/alpha/spanner/migrate).
 
 <details open markdown="block">
   <summary>

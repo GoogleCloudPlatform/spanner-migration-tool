@@ -5,36 +5,31 @@
     padding: 0 10px;
   }
 
-  .mat-header-cell-name {
+  .mat-mdc-header-cell-name {
     height: 35px;
   }
-  .mat-header-cell-name div {
+  .mat-mdc-header-cell-name div {
     display: flex;
     justify-content: flex-start;
     align-items: center;
   }
-  .mat-header-cell-name .spanner-unsorted-icon {
+  .mat-mdc-header-cell-name .spanner-unsorted-icon {
     visibility: hidden;
   }
-  .mat-header-cell-name:hover .spanner-unsorted-icon {
+  .mat-mdc-header-cell-name:hover .spanner-unsorted-icon {
     visibility: visible;
     opacity: 0.7;
   }
-  .mat-header-cell-name .src-unsorted-icon {
+  .mat-mdc-header-cell-name .src-unsorted-icon {
     visibility: hidden;
   }
-  .mat-header-cell-name:hover .src-unsorted-icon {
+  .mat-mdc-header-cell-name:hover .src-unsorted-icon {
     visibility: visible;
     opacity: 0.7;
   }
   .sort-icon {
     font-size: 1.1rem;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-  }
-  .mat-cell{
-    padding-right: 0px !important;
+    vertical-align: middle;
   }
 }
 
@@ -48,8 +43,13 @@
   overflow: auto;
 }
 
-.mat-table {
+.mdc-data-table__cell, .mdc-data-table__header-cell {
+  padding: 0 0 0 16px;
+}
+
+.mat-mdc-table {
   width: 100%;
+  border: inset;
 
   .sidebar_link {
     cursor: pointer;
@@ -70,12 +70,12 @@
     }
   }
 
-  .mat-row,
-  .mat-header-row {
+  .mat-mdc-row,
+  .mat-mdc-header-row {
     height: 29px;
   }
 
-  .mat-header-cell {
+  .mat-mdc-header-cell {
     font-family: Roboto;
     font-size: 13px;
     font-style: normal;
@@ -130,15 +130,15 @@
   cursor: pointer;
 }
 
-.mat-column-status {
+.mat-mdc-column-status {
   width: 80px;
 }
-::ng-deep .column-left .mat-tab-label-container {
+::ng-deep .column-left .mat-mdc-tab-label-container {
   margin-right: 40px;
 }
-::ng-deep .column-left .mat-tab-header-pagination-controls-enabled .mat-tab-label-container {
+::ng-deep .column-left .mat-mdc-tab-header-pagination-controls-enabled .mat-mdc-tab-label-container {
   margin-right: 0;
 }
-::ng-deep .column-left .mat-tab-header-pagination-after {
+::ng-deep .column-left .mat-mdc-tab-header-pagination-after {
   margin-right: 40px;
 }

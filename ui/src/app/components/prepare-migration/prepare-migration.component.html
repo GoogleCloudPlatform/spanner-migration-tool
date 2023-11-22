@@ -110,11 +110,11 @@
                 <h3>Source database details:</h3>
                 <p class="point">
                     <span class="bullet">1</span>
-                    <span>Setup Source database details</span><span><button mat-button class="configure"
-                            (click)="openSourceDetailsForm()" [disabled]="isMigrationInProgress">
+                    <span>Setup Source database details</span><span><button mat-button
+                            (click)="openSourceDetailsForm()" [disabled]="isMigrationInProgress" color="primary">
                             Configure
-                            <mat-icon>edit</mat-icon>
-                            <mat-icon *ngIf="isSourceDetailsSet" class="success" matTooltip="Source details configured"
+                            <mat-icon iconPositionEnd>edit</mat-icon>
+                            <mat-icon iconPositionEnd *ngIf="isSourceDetailsSet" class="success" matTooltip="Source details configured"
                                 matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
@@ -130,11 +130,11 @@
                             matTooltip="Configure the connection info of all source shards to connect to and migrate data from.">
                             info</mat-icon>
                     </span>
-                    <span><button mat-button class="configure" (click)="openShardedBulkSourceDetailsForm()"
-                            [disabled]="isMigrationInProgress">
+                    <span><button mat-button (click)="openShardedBulkSourceDetailsForm()"
+                            [disabled]="isMigrationInProgress" color="primary">
                             Configure
-                            <mat-icon>edit</mat-icon>
-                            <mat-icon *ngIf="isSourceDetailsSet" class="success" matTooltip="Source details configured"
+                            <mat-icon iconPositionEnd>edit</mat-icon>
+                            <mat-icon iconPositionEnd *ngIf="isSourceDetailsSet" class="success" matTooltip="Source details configured"
                                 matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
@@ -150,11 +150,11 @@
                             matTooltip="Configure the database in Spanner you want this migration to write to (up till now only GCP Project ID and Spanner Instance name have been configured.)">
                             info</mat-icon>
                     </span>
-                    <span><button mat-button class="configure" (click)="openTargetDetailsForm()"
-                            [disabled]="isMigrationInProgress || isLowDtMigrationRunning">
+                    <span><button mat-button (click)="openTargetDetailsForm()"
+                            [disabled]="isMigrationInProgress || isLowDtMigrationRunning" color="primary">
                             Configure
-                            <mat-icon>edit</mat-icon>
-                            <mat-icon *ngIf="isTargetDetailSet" class="success" matTooltip="Target details configured"
+                            <mat-icon iconPositionEnd>edit</mat-icon>
+                            <mat-icon iconPositionEnd *ngIf="isTargetDetailSet" class="success" matTooltip="Target details configured"
                                 matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
@@ -168,11 +168,11 @@
                             matTooltip="Datastream will be used to capture change events from the source database. Please ensure you have met the pre-requistes required for setting up Datastream in your GCP environment. ">
                             info</mat-icon>
                     </span>
-                    <span><button mat-button class="configure" (click)="openMigrationProfileForm()"
-                            [disabled]="isMigrationInProgress || !isTargetDetailSet">
+                    <span><button mat-button (click)="openMigrationProfileForm()"
+                            [disabled]="isMigrationInProgress || !isTargetDetailSet" color="primary">
                             Configure
-                            <mat-icon>edit</mat-icon>
-                            <mat-icon *ngIf="isSourceConnectionProfileSet" class="success"
+                            <mat-icon iconPositionEnd>edit</mat-icon>
+                            <mat-icon iconPositionEnd *ngIf="isSourceConnectionProfileSet" class="success"
                                 matTooltip="Source connection profile configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
@@ -187,11 +187,11 @@
                             matTooltip="Configure the source connection profile to allow Datastream to read from your source database">
                             info</mat-icon>
                     </span>
-                    <span><button mat-button class="configure" (click)="openConnectionProfileForm(true)"
-                            [disabled]="isMigrationInProgress || !isTargetDetailSet">
+                    <span><button mat-button (click)="openConnectionProfileForm(true)"
+                            [disabled]="isMigrationInProgress || !isTargetDetailSet" color="primary">
                             Configure
-                            <mat-icon>edit</mat-icon>
-                            <mat-icon *ngIf="isSourceConnectionProfileSet" class="success"
+                            <mat-icon iconPositionEnd>edit</mat-icon>
+                            <mat-icon iconPositionEnd *ngIf="isSourceConnectionProfileSet" class="success"
                                 matTooltip="Source connection profile configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
@@ -205,11 +205,11 @@
                             matTooltip="Create a connection profile for datastream to write to a GCS bucket. Spanner migration tool will automatically create the bucket for you.">
                             info</mat-icon>
                     </span>
-                    <span><button mat-button class="configure" (click)="openConnectionProfileForm(false)"
-                            [disabled]="isMigrationInProgress || !isTargetDetailSet">
+                    <span><button mat-button (click)="openConnectionProfileForm(false)"
+                            [disabled]="isMigrationInProgress || !isTargetDetailSet" color="primary">
                             Configure
-                            <mat-icon>edit</mat-icon>
-                            <mat-icon *ngIf="isTargetConnectionProfileSet" class="success"
+                            <mat-icon iconPositionEnd>edit</mat-icon>
+                            <mat-icon iconPositionEnd *ngIf="isTargetConnectionProfileSet" class="success"
                                 matTooltip="Target connection profile configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
@@ -223,11 +223,11 @@
                             matTooltip="Dataflow will be used to perform the actual migration of data from source to Spanner. This helps you configure the execution environment for Dataflow jobs e.g VPC.">
                             info</mat-icon>
                     </span>
-                    <span><button mat-button class="configure" (click)="openDataflowForm()"
-                            [disabled]="isMigrationInProgress || !isTargetDetailSet">
+                    <span><button mat-button (click)="openDataflowForm()"
+                            [disabled]="isMigrationInProgress || !isTargetDetailSet" color="primary">
                             Configure
-                            <mat-icon>edit</mat-icon>
-                            <mat-icon *ngIf="isDataflowConfigurationSet" class="success" matTooltip="Dataflow Configured" matTooltipPosition="above">
+                            <mat-icon iconPositionEnd>edit</mat-icon>
+                            <mat-icon iconPositionEnd *ngIf="isDataflowConfigurationSet" class="success" matTooltip="Dataflow Configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
                         </button></span>
@@ -239,10 +239,10 @@
                         <mat-icon class="configure" matTooltip="Download the configuration done above as JSON.">info
                         </mat-icon>
                     </span>
-                    <span><button mat-button class="configure" (click)="downloadConfiguration()"
-                            [disabled]="!isTargetDetailSet || !isTargetConnectionProfileSet">
+                    <span><button mat-button (click)="downloadConfiguration()"
+                            [disabled]="!isTargetDetailSet || !isTargetConnectionProfileSet" color="primary">
                             Download
-                            <mat-icon matTooltip="Download configured shards as JSON" matTooltipPosition="above">
+                            <mat-icon iconPositionEnd matTooltip="Download configured shards as JSON" matTooltipPosition="above">
                                 download</mat-icon>
                         </button></span>
                 </p>

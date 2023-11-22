@@ -92,11 +92,11 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
     })
 
     let schemaSource: IDirectConnectionConfig = {
-      host: this.schemaSourceConfig?.hostName,
-      user: this.schemaSourceConfig?.userName,
-      password: this.schemaSourceConfig?.password,
-      port: this.schemaSourceConfig?.port,
-      dbName: this.schemaSourceConfig?.dbName
+      host: this.schemaSourceConfig?.hostName!,
+      user: this.schemaSourceConfig?.userName!,
+      password: this.schemaSourceConfig?.password!,
+      port: this.schemaSourceConfig?.port!,
+      dbName: this.schemaSourceConfig?.dbName!
     }
     let shardConfigurationDataflow: IShardConfigurationDataflow = {
       schemaSource: schemaSource,

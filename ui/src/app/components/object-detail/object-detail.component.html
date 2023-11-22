@@ -205,7 +205,7 @@
                     class="material-icons summary-type warning sp-datatype-suggestion-icon"
                     [matTooltip]="spTableSuggestion[i]" matTooltipPosition="above">warning</span>
 
-                  <mat-form-field appearance="legacy" class="w-100"
+                  <mat-form-field appearance="outline" class="w-100"
                     *ngIf="isEditMode && element.get('spDataType').value !== '' && element.get('srcId').value !== ''">
                     <mat-select #matSelectspDataType [formControl]="element.get('spDataType')"
                       (selectionChange)="spTableEditSuggestionHandler(i, matSelectspDataType.value)">

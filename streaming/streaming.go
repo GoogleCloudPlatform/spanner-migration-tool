@@ -539,6 +539,9 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 	if conv.Audit.StreamingStats.AggMonitoringResources.DashboardName != "" && conv.IsSharded {
 		CleanupMonitoringDashboard(ctx, conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, projectID)
 	}
+	if conv.Audit.StreamingStats.AggMonitoringDashboard.DashboardName != "" && conv.IsSharded {
+		CleanupMonitoringDashboard(ctx, conv.Audit.StreamingStats.AggMonitoringDashboard.DashboardName, projectID)
+	}
 	// clean up jobs for sharded migrations (with error handling)
 	for _, resourceDetails := range conv.Audit.StreamingStats.ShardToDataflowInfoMap {
 		dfId := resourceDetails.JobId
@@ -785,8 +788,7 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 	conv.Audit.StreamingStats.DataflowLocation = streamingCfg.DataflowCfg.Location
 	conv.Audit.StreamingStats.DataflowGcloudCmd = gcloudDataflowCmd
 	conv.Audit.StreamingStats.PubsubCfg = streamingCfg.PubsubCfg
-	conv.Audit.StreamingStats.GcsResources = gcsBucket
-	conv.Audit.StreamingStats.MonitoringResources = internal.MonitoringResources{DashboardName: dashboardName}
+	conv.Audit.StreamingStats.MonitoringDashboard = dashboardName
 	if dataShardId != "" {
 		var resourceMutex sync.Mutex
 		resourceMutex.Lock()

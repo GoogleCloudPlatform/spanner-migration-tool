@@ -53,23 +53,23 @@ export class LoadDumpComponent implements OnInit {
     localStorage.clear()
     const { dbEngine, filePath, dialect } = this.connectForm.value
     const dumpConfig: IDumpConfig = {
-      Driver: dbEngine,
-      Path: filePath,
+      Driver: dbEngine!,
+      Path: filePath!,
     }
     const spannerDetails: ISpannerDetails = {
-      Dialect: dialect,
+      Dialect: dialect!,
     }
     const payload: IConvertFromDumpRequest = {
       Config: dumpConfig,
       SpannerDetails: spannerDetails
     }
     this.getSchemaRequest = this.data.getSchemaConversionFromDump(payload)
-    this.data.conv.subscribe((res) => {
-      localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
-      localStorage.setItem(StorageKeys.Type, InputType.DumpFile)
-      localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
-      this.clickEvent.closeDatabaseLoader()
-      this.router.navigate(['/workspace'])
+      this.data.conv.subscribe((res) => {
+        localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
+        localStorage.setItem(StorageKeys.Type, InputType.DumpFile)
+        localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine!))
+        this.clickEvent.closeDatabaseLoader()
+        this.router.navigate(['/workspace'])
     })
   }
   handleFileInput(e: Event) {
