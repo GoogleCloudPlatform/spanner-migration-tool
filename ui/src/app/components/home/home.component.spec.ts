@@ -1,3 +1,4 @@
+import { HttpClientModule } from '@angular/common/http'
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 import { MatMenuModule } from '@angular/material/menu'
@@ -13,7 +14,7 @@ describe('HomeComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       declarations: [HomeComponent],
-      imports: [MatMenuModule, MatDialogModule, RouterModule.forRoot(appRoutes),],
+      imports: [MatMenuModule, MatDialogModule, RouterModule.forRoot(appRoutes), HttpClientModule],
       providers: [
         {
           provide: MatDialogRef,
