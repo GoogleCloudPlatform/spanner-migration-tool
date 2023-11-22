@@ -539,9 +539,6 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 	if conv.Audit.StreamingStats.AggMonitoringResources.DashboardName != "" && conv.IsSharded {
 		CleanupMonitoringDashboard(ctx, conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, projectID)
 	}
-	if conv.Audit.StreamingStats.AggMonitoringResources.DashboardName != "" && conv.IsSharded {
-		CleanupMonitoringDashboard(ctx, conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, projectID)
-	}
 	// clean up jobs for sharded migrations (with error handling)
 	for _, resourceDetails := range conv.Audit.StreamingStats.ShardToDataflowInfoMap {
 		dfId := resourceDetails.JobId

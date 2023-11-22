@@ -134,7 +134,7 @@ func (resourceIds MonitoringMetricsResources) CreateDataflowShardMonitoringDashb
 
 	var dashboardDisplayName string
 	if resourceIds.ShardId != "" {
-		dashboardDisplayName = fmt.Sprintf("Migration Shard Dashboard %s", resourceIds.ShardId)
+		dashboardDisplayName = fmt.Sprintf("Migration Shard %s", resourceIds.ShardId)
 	} else {
 		dashboardDisplayName = fmt.Sprintf("Migration Dashboard %s", resourceIds.MigrationRequestId)
 	}
@@ -160,8 +160,7 @@ func (resourceIds MonitoringMetricsResources) CreateDataflowAggMonitoringDashboa
 		{groupTitle: "Summary of Pubsubs", groupCreateTileFunction: createAggPubsubMetrics},
 		{groupTitle: fmt.Sprintf("Spanner: instances/%s/databases/%s", resourceIds.SpannerInstanceId, resourceIds.SpannerDatabaseId), groupCreateTileFunction: createSpannerMetrics},
 	}
-	noOfShard := len(resourceIds.ShardToDataflowInfoMap)
-	createDashboardReq := getCreateMonitoringDashboardRequest(resourceIds, createAggIndependentTopMetrics, mosaicGroups, createAggIndependentBottomMetrics, fmt.Sprintf("Migration Aggregated Dashboard of %v shards for job %s", noOfShard, resourceIds.MigrationRequestId))
+	createDashboardReq := getCreateMonitoringDashboardRequest(resourceIds, createAggIndependentTopMetrics, mosaicGroups, createAggIndependentBottomMetrics, fmt.Sprintf("Migration Aggregated %s", resourceIds.MigrationRequestId))
 	client := getDashboardClient(ctx)
 	if client == nil {
 		return nil, fmt.Errorf("dashboard client could not be created")
