@@ -1,11 +1,11 @@
-<div class="connect-load-database-container">
+<div class="connect-load-database-container" id="direct-connection-component">
   <div class="form-container">
     <form [formGroup]="connectForm">
       <h3 class="primary-header">Connect to Source Database</h3>
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Database Engine</mat-label>
-        <mat-select formControlName="dbEngine" (selectionChange)="refreshDbSpecifcConnectionOptions()">
+        <mat-select formControlName="dbEngine" (selectionChange)="refreshDbSpecifcConnectionOptions()" id="dbengine-input">
           <mat-option *ngFor="let element of dbEngineList" [value]="element.value">
             {{ element.displayName }}
           </mat-option>
@@ -38,34 +38,34 @@
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Hostname</mat-label>
-        <input matInput placeholder="127.0.0.1" name="hostName" type="text" formControlName="hostName" />
+        <input matInput placeholder="127.0.0.1" name="hostName" type="text" formControlName="hostName" id="hostname-input" />
       </mat-form-field>
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Port</mat-label>
-        <input matInput placeholder="3306" name="port" type="text" formControlName="port" />
+        <input matInput placeholder="3306" name="port" type="text" formControlName="port" id="port-input" />
         <mat-error> Only numbers are allowed. </mat-error>
       </mat-form-field>
       <br />
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>User name</mat-label>
-        <input matInput placeholder="root" name="userName" type="text" formControlName="userName" />
+        <input matInput placeholder="root" name="userName" type="text" formControlName="userName" id="username-input" />
       </mat-form-field>
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Password</mat-label>
-        <input matInput name="password" type="password" formControlName="password" />
+        <input matInput name="password" type="password" formControlName="password" id="password-input" />
       </mat-form-field>
       <br />
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Database Name</mat-label>
-        <input matInput name="dbname" type="text" formControlName="dbName" />
+        <input matInput name="dbname" type="text" formControlName="dbName" id="dbname-input" />
       </mat-form-field>
       <br />
       <h3 class="primary-header">Spanner Dialect</h3>
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Select a spanner dialect</mat-label>
-        <mat-select matSelect name="dialect" formControlName="dialect" appearance="outline">
+        <mat-select matSelect name="dialect" formControlName="dialect" appearance="outline" id="spanner-dialect-input">
           <mat-option *ngFor="let element of dialect" [value]="element.value">
             {{ element.displayName }}
           </mat-option>
@@ -76,7 +76,7 @@
         matTooltipPosition="above">
         check_circle
       </mat-icon>
-      <button mat-raised-button type="submit" color="accent" [disabled]="!connectForm.valid" (click)="testConn()">
+      <button mat-raised-button id="test-connect-btn" type="submit" color="accent" [disabled]="!connectForm.valid" (click)="testConn()">
         Test Connection
       </button>
       <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid || !isTestConnectionSuccessful" (click)="connectToDb()">

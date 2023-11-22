@@ -12,6 +12,7 @@ import { MatSelectModule } from '@angular/material/select'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { By } from '@angular/platform-browser'
 import { DebugElement } from '@angular/core'
+import { MatSnackBarModule } from '@angular/material/snack-bar'
 const appRoutes: Routes = [{ path: 'workspace', component: WorkspaceComponent }]
 
 describe('LoadDumpComponent', () => {
@@ -31,6 +32,7 @@ describe('LoadDumpComponent', () => {
         MatFormFieldModule,
         MatInputModule,
         BrowserAnimationsModule,
+        MatSnackBarModule
       ],
     }).compileComponents()
   })
@@ -47,14 +49,15 @@ describe('LoadDumpComponent', () => {
   })
 
   it('should validate all required input and disable submit button is invalid input', () => {
-    component.connectForm.setValue({ dbEngine: '', filePath: '' })
+    component.connectForm.setValue({ dbEngine: '', filePath: '', dialect: '' })
     fixture.detectChanges()
     expect(component.connectForm.invalid).toEqual(true)
     expect(btn.nativeElement.disabled).toEqual(true)
   })
 
   it('should enable button when form is valid', () => {
-    component.connectForm.setValue({ dbEngine: 'mysqldump', filePath: '/sql.sql' })
+    component.connectForm.setValue({ dbEngine: 'mysqldump', filePath: '/sql.sql', dialect: 'postgresql'})
+    component.uploadSuccess = true
     fixture.detectChanges()
     expect(component.connectForm.invalid).toEqual(false)
     expect(btn.nativeElement.disabled).toEqual(false)
