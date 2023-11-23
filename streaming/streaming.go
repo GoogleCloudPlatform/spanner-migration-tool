@@ -533,11 +533,11 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 	if conv.Audit.StreamingStats.PubsubCfg.TopicId != "" && !conv.IsSharded {
 		CleanupPubsubResources(ctx, pubsubClient, storageClient, conv.Audit.StreamingStats.PubsubCfg, projectID)
 	}
-	if conv.Audit.StreamingStats.MonitoringDashboard != "" && !conv.IsSharded {
-		CleanupMonitoringDashboard(ctx, conv.Audit.StreamingStats.MonitoringDashboard, projectID)
+	if conv.Audit.StreamingStats.MonitoringResources.DashboardName != "" && !conv.IsSharded {
+		CleanupMonitoringDashboard(ctx, conv.Audit.StreamingStats.MonitoringResources.DashboardName, projectID)
 	}
-	if conv.Audit.StreamingStats.AggMonitoringDashboard.DashboardName != "" && conv.IsSharded {
-		CleanupMonitoringDashboard(ctx, conv.Audit.StreamingStats.AggMonitoringDashboard.DashboardName, projectID)
+	if conv.Audit.StreamingStats.AggMonitoringResources.DashboardName != "" && conv.IsSharded {
+		CleanupMonitoringDashboard(ctx, conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, projectID)
 	}
 	// clean up jobs for sharded migrations (with error handling)
 	for _, resourceDetails := range conv.Audit.StreamingStats.ShardToDataflowInfoMap {
@@ -556,9 +556,9 @@ func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, r
 	for _, pubsubCfg := range conv.Audit.StreamingStats.ShardToPubsubIdMap {
 		CleanupPubsubResources(ctx, pubsubClient, storageClient, pubsubCfg, projectID)
 	}
-	for _, dashboardName := range conv.Audit.StreamingStats.ShardToMonitoringDashboardMap {
-		if dashboardName != "" {
-			CleanupMonitoringDashboard(ctx, dashboardName, projectID)
+	for _, monitoringResource := range conv.Audit.StreamingStats.ShardToMonitoringResourcesMap {
+		if monitoringResource.DashboardName != "" {
+			CleanupMonitoringDashboard(ctx, monitoringResource.DashboardName, projectID)
 		}
 	}
 	fmt.Println("Clean up complete")
@@ -786,7 +786,7 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 	conv.Audit.StreamingStats.DataflowGcloudCmd = gcloudDataflowCmd
 	conv.Audit.StreamingStats.PubsubCfg = streamingCfg.PubsubCfg
 	conv.Audit.StreamingStats.GcsResources = gcsBucket
-	conv.Audit.StreamingStats.MonitoringDashboard = dashboardName
+	conv.Audit.StreamingStats.MonitoringResources = internal.MonitoringResources{DashboardName: dashboardName}
 	if dataShardId != "" {
 		var resourceMutex sync.Mutex
 		resourceMutex.Lock()
@@ -796,7 +796,7 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 		conv.Audit.StreamingStats.ShardToGcsResources[dataShardId] = gcsBucket
 		if dashboardName != "" {
 			{
-				conv.Audit.StreamingStats.ShardToMonitoringDashboardMap[dataShardId] = dashboardName
+				conv.Audit.StreamingStats.ShardToMonitoringResourcesMap[dataShardId] = internal.MonitoringResources{DashboardName: dashboardName}
 			}
 		}
 		resourceMutex.Unlock()

@@ -336,6 +336,7 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 				SpannerInstanceId:    targetProfile.Conn.Sp.Instance,
 				SpannerDatabaseId:    targetProfile.Conn.Sp.Dbname,
 				ShardId:              "",
+				MigrationRequestId:   conv.Audit.MigrationRequestId,
 			}
 			respDash, dashboardErr := monitoringResources.CreateDataflowShardMonitoringDashboard(ctx)
 			var dashboardName string
@@ -371,7 +372,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 	conv.Audit.StreamingStats.ShardToPubsubIdMap = make(map[string]internal.PubsubCfg)
 	conv.Audit.StreamingStats.ShardToDataflowInfoMap = make(map[string]internal.ShardedDataflowJobResources)
 	conv.Audit.StreamingStats.ShardToGcsResources = make(map[string]internal.GcsResources)
-	conv.Audit.StreamingStats.ShardToMonitoringDashboardMap = make(map[string]string)
+	conv.Audit.StreamingStats.ShardToMonitoringResourcesMap = make(map[string]internal.MonitoringResources)
 	tableList, err := common.GetIncludedSrcTablesFromConv(conv)
 	if err != nil {
 		fmt.Printf("unable to determine tableList from schema, falling back to full database")
@@ -431,6 +432,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 			SpannerInstanceId:    targetProfile.Conn.Sp.Instance,
 			SpannerDatabaseId:    targetProfile.Conn.Sp.Dbname,
 			ShardId:              p.DataShardId,
+			MigrationRequestId:   conv.Audit.MigrationRequestId,
 		}
 		respDash, dashboardErr := monitoringResources.CreateDataflowShardMonitoringDashboard(ctx)
 		var dashboardName string
@@ -452,20 +454,22 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 
 	// create monitoring aggregated dashboard for sharded migration
 	aggMonitoringResources := metrics.MonitoringMetricsResources{
-		ProjectId:                targetProfile.Conn.Sp.Project,
-		SpannerInstanceId:        targetProfile.Conn.Sp.Instance,
-		SpannerDatabaseId:        targetProfile.Conn.Sp.Dbname,
-		ShardToDataStreamNameMap: conv.Audit.StreamingStats.ShardToDataStreamNameMap,
-		ShardToDataflowInfoMap:   conv.Audit.StreamingStats.ShardToDataflowInfoMap,
-		ShardToPubsubIdMap:       conv.Audit.StreamingStats.ShardToPubsubIdMap,
-		ShardToGcsMap:            conv.Audit.StreamingStats.ShardToGcsResources,
+		ProjectId:              		targetProfile.Conn.Sp.Project,
+		SpannerInstanceId:       		targetProfile.Conn.Sp.Instance,
+		SpannerDatabaseId:       		targetProfile.Conn.Sp.Dbname,
+		ShardToDataStreamNameMap:		conv.Audit.StreamingStats.ShardToDataStreamNameMap,
+		ShardToDataflowInfoMap:  		conv.Audit.StreamingStats.ShardToDataflowInfoMap,
+		ShardToPubsubIdMap:       		conv.Audit.StreamingStats.ShardToPubsubIdMap,
+		ShardToGcsMap:            		conv.Audit.StreamingStats.ShardToGcsResources,
+		ShardToMonitoringDashboardMap: 	conv.Audit.StreamingStats.ShardToMonitoringResourcesMap,
+		MigrationRequestId:       		conv.Audit.MigrationRequestId,
 	}
 	aggRespDash, dashboardErr := aggMonitoringResources.CreateDataflowAggMonitoringDashboard(ctx)
 	if dashboardErr != nil {
 		logger.Log.Error(fmt.Sprintf("Creation of the aggregated monitoring dashboard failed, please create the dashboard manually\n error=%v\n", dashboardErr))
 	} else {
 		fmt.Printf("Aggregated Monitoring Dashboard: %+v\n", strings.Split(aggRespDash.Name, "/")[3])
-		conv.Audit.StreamingStats.AggMonitoringDashboard = internal.AggMonitoringDashboard{DashboardName:strings.Split(aggRespDash.Name, "/")[3]}
+		conv.Audit.StreamingStats.AggMonitoringResources = internal.MonitoringResources{DashboardName:strings.Split(aggRespDash.Name, "/")[3]}
 	}
 
 	return &writer.BatchWriter{}, nil

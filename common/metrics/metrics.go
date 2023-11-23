@@ -131,11 +131,15 @@ func (resourceIds MonitoringMetricsResources) CreateDataflowShardMonitoringDashb
 		{groupTitle: fmt.Sprintf("Pubsub: %s", resourceIds.PubsubSubscriptionId), groupCreateTileFunction: createShardPubsubMetrics},
 		{groupTitle: fmt.Sprintf("Spanner: instances/%s/databases/%s", resourceIds.SpannerInstanceId, resourceIds.SpannerDatabaseId), groupCreateTileFunction: createSpannerMetrics},
 	}
-	dashboardDisplayName := "Migration Dashboard"
+
+	var dashboardDisplayName string
 	if resourceIds.ShardId != "" {
-		dashboardDisplayName = fmt.Sprintf("Shard Migration Dashboard %s", resourceIds.ShardId)
+		dashboardDisplayName = fmt.Sprintf("Migration Shard %s", resourceIds.ShardId)
+	} else {
+		dashboardDisplayName = fmt.Sprintf("Migration Dashboard %s", resourceIds.MigrationRequestId)
 	}
-	createDashboardReq := getCreateMonitoringDashboardRequest(resourceIds, createShardIndependentMetrics, mosaicGroups, dashboardDisplayName)
+
+	createDashboardReq := getCreateMonitoringDashboardRequest(resourceIds, createShardIndependentTopMetrics, mosaicGroups, nil, dashboardDisplayName)
 	client := getDashboardClient(ctx)
 	if client == nil {
 		return nil, fmt.Errorf("dashboard client could not be created")
@@ -156,8 +160,7 @@ func (resourceIds MonitoringMetricsResources) CreateDataflowAggMonitoringDashboa
 		{groupTitle: "Summary of Pubsubs", groupCreateTileFunction: createAggPubsubMetrics},
 		{groupTitle: fmt.Sprintf("Spanner: instances/%s/databases/%s", resourceIds.SpannerInstanceId, resourceIds.SpannerDatabaseId), groupCreateTileFunction: createSpannerMetrics},
 	}
-	noOfShard := len(resourceIds.ShardToDataflowInfoMap)
-	createDashboardReq := getCreateMonitoringDashboardRequest(resourceIds, createAggIndependentMetrics, mosaicGroups, fmt.Sprintf("Aggregated Migration Dashboard of %v shards", noOfShard))
+	createDashboardReq := getCreateMonitoringDashboardRequest(resourceIds, createAggIndependentTopMetrics, mosaicGroups, createAggIndependentBottomMetrics, fmt.Sprintf("Migration Aggregated %s", resourceIds.MigrationRequestId))
 	client := getDashboardClient(ctx)
 	if client == nil {
 		return nil, fmt.Errorf("dashboard client could not be created")

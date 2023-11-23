@@ -65,7 +65,7 @@ const (
 		"filter (resource.instance_id == '%s') | group_by 1m, [value_utilization_mean: mean(value.utilization)] " +
 		"| every 1m | group_by [], [value_utilization_mean_aggregate: aggregate(value_utilization_mean)]"
 	spannerStorageUtilDbQuery = "fetch spanner_instance | metric 'spanner.googleapis.com/instance/storage/used_bytes' | " +
-		"filter (resource.instance_id == '%s') && (metric.database == '%s') | " +
+		"filter (metric.database == '%s') && (resource.instance_id == '%s') | " +
 		"group_by 1m, [value_used_bytes_mean: mean(value.used_bytes)] | every 1m | group_by [], " +
 		"[value_used_bytes_mean_aggregate: aggregate(value_used_bytes_mean)]"
 	spannerStorageUtilInstanceQuery = "fetch spanner_instance | metric 'spanner.googleapis.com/instance/storage/used_bytes' | filter " +
@@ -90,6 +90,9 @@ const (
 		"filter && (%s) | group_by 1m, [value_estimated_backlog_processing_time_mean: " +
 		"mean(value.estimated_backlog_processing_time)] | every 1m | group_by [], [value_estimated_backlog_processing_time_mean_mean: " +
 		"mean(value_estimated_backlog_processing_time_mean)]"
+	dataflowAggPerShardCpuUtil = "fetch gce_instance | metric 'compute.googleapis.com/instance/cpu/utilization' | filter (%s) " + 
+		"| group_by 1m, [value_utilization_mean: mean(value.utilization)] | every 1m | group_by [metadata.user_labels.dataflow_job_id]," + 
+		" [value_utilization_mean_percentile: percentile(value_utilization_mean, 50)]"
 	datastreamAggThroughputQuery = "fetch datastream.googleapis.com/Stream | metric 'datastream.googleapis.com/stream/event_count' | " +
 		"filter (%s) | align rate(1m) | every 1m | group_by [], [value_event_count_aggregate: aggregate(value.event_count)]"
 	datastreamAggUnsupportedEventsQuery = "fetch datastream.googleapis.com/Stream | metric 'datastream.googleapis.com/stream/unsupported_event_count' " +

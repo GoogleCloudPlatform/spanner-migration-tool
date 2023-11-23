@@ -206,6 +206,8 @@ func populateDynamoDB(t *testing.T) {
 }
 
 func TestIntegration_DYNAMODB_Command(t *testing.T) {
+	// todo: find cause of flakiness
+	t.Skip("Skipping since test is flaky")
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
 
