@@ -6,14 +6,15 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import IConv, { ISessionSummary, ISpannerDetails } from 'src/app/model/conv'
 import IMigrationDetails, { IGeneratedResources, IProgress, ISourceAndTargetDetails, ResourceDetails } from 'src/app/model/migrate'
-import { Dataflow, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
+import { Datastream, Dataflow, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
 import { SourceDetailsFormComponent } from '../source-details-form/source-details-form.component'
 import { EndMigrationComponent } from '../end-migration/end-migration.component'
-import { IDataflowConfig, IMigrationProfile, ISetUpConnectionProfile, IShardedDataflowMigration } from 'src/app/model/profile'
+import { IDatastreamConfig, IDataflowConfig, IMigrationProfile, ISetUpConnectionProfile, IShardedDataflowMigration } from 'src/app/model/profile'
 import { DataflowFormComponent } from '../dataflow-form/dataflow-form.component'
+import { TuneDatastreamFormComponent } from '../tune-datastream-form/tune-datastream-form.component'
 import { EquivalentGcloudCommandComponent } from '../equivalent-gcloud-command/equivalent-gcloud-command.component'
 import ISpannerConfig from 'src/app/model/spanner-config'
 import { ShardedBulkSourceDetailsFormComponent } from '../sharded-bulk-source-details-form/sharded-bulk-source-details-form.component'
@@ -44,6 +45,7 @@ export class PrepareMigrationComponent implements OnInit {
 
   isSourceConnectionProfileSet: boolean = false
   isTargetConnectionProfileSet: boolean = false
+  isDatastreamConfigurationSet: boolean = false
   isDataflowConfigurationSet: boolean = false
   isSourceDetailsSet: boolean = false
   isTargetDetailSet: boolean = false
@@ -111,6 +113,11 @@ export class PrepareMigrationComponent implements OnInit {
     Publication: localStorage.getItem(TargetDetails.Publication) as string,
   }
 
+  datastreamConfig: IDatastreamConfig = {
+    maxConcurrentBackfillTasks: localStorage.getItem(Datastream.MaxConcurrentBackfillTasks) as string,
+    maxConcurrentCdcTasks: localStorage.getItem(Datastream.MaxConcurrentCdcTasks) as string
+  }
+  
   dataflowConfig: IDataflowConfig = {
     network: localStorage.getItem(Dataflow.Network) as string,
     subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
@@ -276,6 +283,9 @@ export class PrepareMigrationComponent implements OnInit {
     if (localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) != null) {
       this.isSourceConnectionProfileSet =
         (localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string) === 'true'
+    }
+    if (localStorage.getItem(Datastream.IsDatastreamConfigSet) != null) {
+      this.isDatastreamConfigurationSet = (localStorage.getItem(Datastream.IsDatastreamConfigSet) as string === 'true')
     }
     if (localStorage.getItem(Dataflow.IsDataflowConfigSet) != null) {
       this.isDataflowConfigurationSet = (localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true')
@@ -466,6 +476,33 @@ export class PrepareMigrationComponent implements OnInit {
         })
   }
 
+  openTuneDatastreamForm(){
+    let dialogRef = this.dialog.open(TuneDatastreamFormComponent, {
+      width: '4000px',
+      minWidth: '400px',
+      maxWidth: '500px',
+    })
+    dialogRef.afterClosed().subscribe(() => {
+      this.datastreamConfig = {
+        maxConcurrentBackfillTasks: localStorage.getItem(Datastream.MaxConcurrentBackfillTasks) as string,
+        maxConcurrentCdcTasks: localStorage.getItem(Datastream.MaxConcurrentCdcTasks) as string
+      }
+      this.isDatastreamConfigurationSet = localStorage.getItem(Datastream.IsDatastreamConfigSet) as string === 'true'
+      // We only call setDatastreamDetailsForShardedMigrations for sharded flows which is fetched later to create sharding configs for the shards. 
+      // Non-sharded flows write a streaming config file during the migrate() operation using data passed in the payload on the fly.
+      // This should be refactored to keep the flow same for both sharded and non-sharded.
+      if (this.isSharded) {
+        this.fetch.setDatastreamDetailsForShardedMigrations(this.datastreamConfig).subscribe({
+          next: () => { },
+          error: (err: any) => {
+            this.snack.openSnackBar(err.error, 'Close')
+          }
+        })
+      }
+    }
+    )
+  }
+
   openDataflowForm() {
     let dialogRef = this.dialog.open(DataflowFormComponent, {
       width: '4000px',
@@ -607,6 +644,7 @@ export class PrepareMigrationComponent implements OnInit {
     this.resetValues()
     let payload: IMigrationDetails = {
       TargetDetails: this.targetDetails,
+      DatastreamConfig: this.datastreamConfig,
       DataflowConfig: this.dataflowConfig,
       IsSharded: this.isSharded,
       MigrationType: this.selectedMigrationType,

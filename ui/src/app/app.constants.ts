@@ -106,6 +106,12 @@ export const DialectList = [
   { value: 'postgresql', displayName: 'PostgreSQL Dialect' },
 ]
 
+export const Datastream = {
+  MaxConcurrentBackfillTasks: 'maxConcurrentBackfillTasks',
+  MaxConcurrentCdcTasks: 'maxConcurrentCdcTasks',
+  IsDatastreamConfigSet: 'isDatastreamConfigSet',
+}
+
 export const Dataflow = {
   Network: 'network',
   Subnetwork: 'subnetwork',

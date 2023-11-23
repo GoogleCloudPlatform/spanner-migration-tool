@@ -218,6 +218,23 @@
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
                     <span class="bullet" *ngIf="isSharded">3</span>
                     <span class="bullet" *ngIf="!isSharded">4</span>
+                    <span>Tune Datastream (Optional)
+                        <mat-icon class="configure"
+                            matTooltip="Datastream will be used to stream CDC from source to GCS. This helps you configure the runtime environment for the Datastream job(s) e.g Parallel Backfill workers.">
+                            info</mat-icon>
+                    </span>
+                    <span><button mat-button class="configure" (click)="openTuneDatastreamForm()"
+                            [disabled]="isMigrationInProgress || !isTargetDetailSet" color="primary">
+                            Configure
+                            <mat-icon iconPositionEnd>edit</mat-icon>
+                            <mat-icon iconPositionEnd *ngIf="isDatastreamConfigurationSet" class="success" matTooltip="Datastream Tuned" matTooltipPosition="above">
+                                check_circle
+                            </mat-icon>
+                        </button></span>
+                </p>
+                <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
+                    <span class="bullet" *ngIf="isSharded">4</span>
+                    <span class="bullet" *ngIf="!isSharded">5</span>
                     <span>Tune Dataflow (Optional)
                         <mat-icon class="configure"
                             matTooltip="Dataflow will be used to perform the actual migration of data from source to Spanner. This helps you configure the execution environment for Dataflow jobs e.g VPC.">
@@ -234,7 +251,7 @@
                 </p>
                 <p class="point"
                     *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && isSharded">
-                    <span class="bullet" *ngIf="isSharded">4</span>
+                    <span class="bullet" *ngIf="isSharded">5</span>
                     <span>Download configuration as JSON
                         <mat-icon class="configure" matTooltip="Download the configuration done above as JSON.">info
                         </mat-icon>

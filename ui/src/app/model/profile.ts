@@ -30,6 +30,11 @@ export interface IShardedDataflowMigration {
     Region: string
 }
 
+export interface IDatastreamConfig {
+    maxConcurrentBackfillTasks: string
+    maxConcurrentCdcTasks: string
+}
+
 export interface IDataflowConfig {
     network: string
     subnetwork: string

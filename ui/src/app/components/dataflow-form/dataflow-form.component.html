@@ -108,7 +108,7 @@
     </form>
     <div mat-dialog-actions class="buttons-container">
       <button mat-button color="primary" mat-dialog-close>Cancel</button>
-      <button mat-button type="submit" color="primary" [disabled]="!(tunableFlagsForm.valid && presetFlagsForm.valid)"
+      <button mat-button type="submit" color="primary" [disabled]="tunableFlagsForm.invalid || presetFlagsForm.invalid"
         (click)="updateDataflowDetails()">
         Save
       </button>

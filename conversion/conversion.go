@@ -272,6 +272,12 @@ func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config write
 	}
 }
 
+func updateShardsWithDatastreamConfig(shardedDataflowConfig profiles.ShardConfigurationDataflow) {
+	for _, dataShard := range shardedDataflowConfig.DataShards {
+		dataShard.DatastreamConfig = shardedDataflowConfig.DatastreamConfig
+	}
+}
+
 func updateShardsWithDataflowConfig(shardedDataflowConfig profiles.ShardConfigurationDataflow) {
 	for _, dataShard := range shardedDataflowConfig.DataShards {
 		dataShard.DataflowConfig = shardedDataflowConfig.DataflowConfig
@@ -367,6 +373,7 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 // 4. Launch the stream for the physical shard
 // 5. Perform streaming migration via dataflow
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
+	updateShardsWithDatastreamConfig(sourceProfile.Config.ShardConfigurationDataflow)
 	updateShardsWithDataflowConfig(sourceProfile.Config.ShardConfigurationDataflow)
 	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
 	conv.Audit.StreamingStats.ShardToPubsubIdMap = make(map[string]internal.PubsubCfg)
