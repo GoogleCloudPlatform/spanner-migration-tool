@@ -158,3 +158,24 @@ jobs:
           SPANNER_EMULATOR_HOST: localhost:9010
           SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID: emulator-test-project
           SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID: test-instance
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+      - name: Start Local Server
+        run: go run github.com/GoogleCloudPlatform/spanner-migration-tool web &
+        env:
+          SPANNER_EMULATOR_HOST: localhost:9010
+
+      - name: Install Dependencies
+        run: |
+          cd ui
+          npm ci
+      - name: Wait for Local Server to Start
+        run: npx wait-on http://localhost:8080 -t 30000
+
+      - name: Cypress run
+        run: |
+          cd ui
+          npx cypress run

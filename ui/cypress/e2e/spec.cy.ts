@@ -1,6 +1,6 @@
 describe('template spec', () => {
   beforeEach(() => {
-    cy.visit('http://localhost:4200/');
+    cy.visit('http://localhost:8080/');
     cy.fixture('config.json').as('configData');
   });
 
