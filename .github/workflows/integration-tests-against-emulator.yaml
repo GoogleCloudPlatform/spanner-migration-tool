@@ -149,16 +149,6 @@ jobs:
       - run: gcloud spanner instances create test-instance --config=emulator-config --description="Test Instance" --nodes=1
 
       # run tests
-      - uses: actions/setup-go@v2
-        with:
-          go-version: "1.19"
-      - run: go version
-      - run: go test -v ./...
-        env:
-          SPANNER_EMULATOR_HOST: localhost:9010
-          SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID: emulator-test-project
-          SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID: test-instance
-
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
@@ -179,3 +169,13 @@ jobs:
         run: |
           cd ui
           npx cypress run
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "1.19"
+      - run: go version
+      - run: go test -v ./...
+        env:
+          SPANNER_EMULATOR_HOST: localhost:9010
+          SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID: emulator-test-project
+          SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID: test-instance
