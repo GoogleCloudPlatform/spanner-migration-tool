@@ -223,7 +223,7 @@
                             matTooltip="Datastream will be used to stream CDC from source to GCS. This helps you configure the runtime environment for the Datastream job(s) e.g Parallel Backfill workers.">
                             info</mat-icon>
                     </span>
-                    <span><button mat-button class="configure" (click)="openTuneDatastreamForm()"
+                    <span><button mat-button (click)="openTuneDatastreamForm()"
                             [disabled]="isMigrationInProgress || !isTargetDetailSet" color="primary">
                             Configure
                             <mat-icon iconPositionEnd>edit</mat-icon>
@@ -235,6 +235,23 @@
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
                     <span class="bullet" *ngIf="isSharded">4</span>
                     <span class="bullet" *ngIf="!isSharded">5</span>
+                    <span>Tune Cloud Storage (Optional)
+                        <mat-icon class="configure"
+                            matTooltip="Use this to tune the GCS bucket options where Datastream outputs to and Dataflow reads from.">
+                            info</mat-icon>
+                    </span>
+                    <span><button mat-button (click)="openTuneGcsForm()"
+                            [disabled]="isMigrationInProgress || !isTargetDetailSet" color="primary">
+                            Configure
+                            <mat-icon iconPositionEnd>edit</mat-icon>
+                            <mat-icon iconPositionEnd *ngIf="isGcsConfigurationSet" class="success" matTooltip="Cloud Storage bucket Configured" matTooltipPosition="above">
+                                check_circle
+                            </mat-icon>
+                        </button></span>
+                </p>
+                <p class="point" *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema')">
+                    <span class="bullet" *ngIf="isSharded">5</span>
+                    <span class="bullet" *ngIf="!isSharded">6</span>
                     <span>Tune Dataflow (Optional)
                         <mat-icon class="configure"
                             matTooltip="Dataflow will be used to perform the actual migration of data from source to Spanner. This helps you configure the execution environment for Dataflow jobs e.g VPC.">

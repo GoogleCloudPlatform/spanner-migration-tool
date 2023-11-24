@@ -450,6 +450,11 @@ type DatastreamConfig struct {
 	MaxConcurrentCdcTasks      string `json:"maxConcurrentCdcTasks"`
 }
 
+type GcsConfig struct {
+	TtlInDays    int64 `json:"ttlInDays,string"`
+	TtlInDaysSet bool  `json:"ttlInDaysSet"`
+}
+
 type DataflowConfig struct {
 	ProjectId            string `json:"projectId"`
 	Location             string `json:"location"`
@@ -471,6 +476,7 @@ type DataShard struct {
 	SrcConnectionProfile DatastreamConnProfile `json:"srcConnectionProfile"`
 	DstConnectionProfile DatastreamConnProfile `json:"dstConnectionProfile"`
 	DatastreamConfig     DatastreamConfig      `json:"datastreamConfig"`
+	GcsConfig            GcsConfig             `json:"gcsConfig"`
 	DataflowConfig       DataflowConfig        `json:"dataflowConfig"`
 	TmpDir               string                `json:"tmpDir"`
 	StreamLocation       string                `json:"streamLocation"`
@@ -487,6 +493,7 @@ type ShardConfigurationDataflow struct {
 	SchemaSource     DirectConnectionConfig `json:"schemaSource"`
 	DataShards       []*DataShard           `json:"dataShards"`
 	DatastreamConfig DatastreamConfig       `json:"datastreamConfig"`
+	GcsConfig        GcsConfig              `json:"gcsConfig"`
 	DataflowConfig   DataflowConfig         `json:"dataflowConfig"`
 }
 

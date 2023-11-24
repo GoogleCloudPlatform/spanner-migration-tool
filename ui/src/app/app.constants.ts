@@ -112,6 +112,12 @@ export const Datastream = {
   IsDatastreamConfigSet: 'isDatastreamConfigSet',
 }
 
+export const Gcs = {
+  TtlInDays: 'ttlInDays',
+  TtlInDaysSet: 'ttlInDaysSet',
+  IsGcsConfigSet: 'isGcsConfigSet',
+}
+
 export const Dataflow = {
   Network: 'network',
   Subnetwork: 'subnetwork',

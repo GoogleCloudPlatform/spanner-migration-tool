@@ -52,6 +52,7 @@ import { AddNewColumnComponent } from './components/add-new-column/add-new-colum
 import { AddShardIdPrimaryKeyComponent } from './components/add-shard-id-primary-key/add-shard-id-primary-key.component';
 import { EquivalentGcloudCommandComponent } from './components/equivalent-gcloud-command/equivalent-gcloud-command.component';
 import { TuneDatastreamFormComponent } from './components/tune-datastream-form/tune-datastream-form.component';
+import { TuneGcsFormComponent } from './components/tune-gcs-form/tune-gcs-form.component';
 
 @NgModule({
   declarations: [
@@ -96,6 +97,7 @@ import { TuneDatastreamFormComponent } from './components/tune-datastream-form/t
     AddShardIdPrimaryKeyComponent,
     EquivalentGcloudCommandComponent,
     TuneDatastreamFormComponent,
+    TuneGcsFormComponent,
   ],
   imports: [
     BrowserModule,

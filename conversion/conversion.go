@@ -272,15 +272,11 @@ func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config write
 	}
 }
 
-func updateShardsWithDatastreamConfig(shardedDataflowConfig profiles.ShardConfigurationDataflow) {
-	for _, dataShard := range shardedDataflowConfig.DataShards {
-		dataShard.DatastreamConfig = shardedDataflowConfig.DatastreamConfig
-	}
-}
-
-func updateShardsWithDataflowConfig(shardedDataflowConfig profiles.ShardConfigurationDataflow) {
-	for _, dataShard := range shardedDataflowConfig.DataShards {
-		dataShard.DataflowConfig = shardedDataflowConfig.DataflowConfig
+func updateShardsWithTuningConfigs(shardedTuningConfig profiles.ShardConfigurationDataflow) {
+	for _, dataShard := range shardedTuningConfig.DataShards {
+		dataShard.DatastreamConfig = shardedTuningConfig.DatastreamConfig
+		dataShard.GcsConfig = shardedTuningConfig.GcsConfig
+		dataShard.DataflowConfig = shardedTuningConfig.DataflowConfig
 	}
 }
 
@@ -327,10 +323,20 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 
 			// Fetch and store the GCS bucket associated with the datastream
 			dsClient := getDatastreamClient(ctx)
-			gcsBucket, _, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
+			gcsBucket, gcsDestPrefix, fetchGcsErr := utils.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
 			if fetchGcsErr != nil {
 				logger.Log.Info("Could not fetch GCS Bucket, hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n")
 				logger.Log.Debug("Error", zap.Error(fetchGcsErr))
+			}
+
+			// Try to apply lifecycle rule to Datastream destination bucket.
+			gcsConfig := streamingCfg.GcsCfg
+			if gcsConfig.TtlInDaysSet {
+				err = utils.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+				if err != nil {
+					logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
+					logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")
+				}
 			}
 
 			monitoringResources := metrics.MonitoringMetricsResources{
@@ -373,8 +379,7 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 // 4. Launch the stream for the physical shard
 // 5. Perform streaming migration via dataflow
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
-	updateShardsWithDatastreamConfig(sourceProfile.Config.ShardConfigurationDataflow)
-	updateShardsWithDataflowConfig(sourceProfile.Config.ShardConfigurationDataflow)
+	updateShardsWithTuningConfigs(sourceProfile.Config.ShardConfigurationDataflow)
 	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
 	conv.Audit.StreamingStats.ShardToPubsubIdMap = make(map[string]internal.PubsubCfg)
 	conv.Audit.StreamingStats.ShardToDataflowInfoMap = make(map[string]internal.ShardedDataflowJobResources)
@@ -423,10 +428,20 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 
 		// Fetch and store the GCS bucket associated with the datastream
 		dsClient := getDatastreamClient(ctx)
-		gcsBucket, _, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
+		gcsBucket, gcsDestPrefix, fetchGcsErr := utils.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
 		if fetchGcsErr != nil {
 			logger.Log.Info(fmt.Sprintf("Could not fetch GCS Bucket for Shard %s hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n", p.DataShardId))
 			logger.Log.Debug("Error", zap.Error(fetchGcsErr))
+		}
+
+		// Try to apply lifecycle rule to Datastream destination bucket.
+		gcsConfig := streamingCfg.GcsCfg
+		if gcsConfig.TtlInDaysSet {
+			err = utils.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+			if err != nil {
+				logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
+				logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")
+			}
 		}
 
 		// create monitoring dashboard for a single shard
@@ -461,22 +476,22 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 
 	// create monitoring aggregated dashboard for sharded migration
 	aggMonitoringResources := metrics.MonitoringMetricsResources{
-		ProjectId:              		targetProfile.Conn.Sp.Project,
-		SpannerInstanceId:       		targetProfile.Conn.Sp.Instance,
-		SpannerDatabaseId:       		targetProfile.Conn.Sp.Dbname,
-		ShardToDataStreamNameMap:		conv.Audit.StreamingStats.ShardToDataStreamNameMap,
-		ShardToDataflowInfoMap:  		conv.Audit.StreamingStats.ShardToDataflowInfoMap,
-		ShardToPubsubIdMap:       		conv.Audit.StreamingStats.ShardToPubsubIdMap,
-		ShardToGcsMap:            		conv.Audit.StreamingStats.ShardToGcsResources,
-		ShardToMonitoringDashboardMap: 	conv.Audit.StreamingStats.ShardToMonitoringResourcesMap,
-		MigrationRequestId:       		conv.Audit.MigrationRequestId,
+		ProjectId:                     targetProfile.Conn.Sp.Project,
+		SpannerInstanceId:             targetProfile.Conn.Sp.Instance,
+		SpannerDatabaseId:             targetProfile.Conn.Sp.Dbname,
+		ShardToDataStreamNameMap:      conv.Audit.StreamingStats.ShardToDataStreamNameMap,
+		ShardToDataflowInfoMap:        conv.Audit.StreamingStats.ShardToDataflowInfoMap,
+		ShardToPubsubIdMap:            conv.Audit.StreamingStats.ShardToPubsubIdMap,
+		ShardToGcsMap:                 conv.Audit.StreamingStats.ShardToGcsResources,
+		ShardToMonitoringDashboardMap: conv.Audit.StreamingStats.ShardToMonitoringResourcesMap,
+		MigrationRequestId:            conv.Audit.MigrationRequestId,
 	}
 	aggRespDash, dashboardErr := aggMonitoringResources.CreateDataflowAggMonitoringDashboard(ctx)
 	if dashboardErr != nil {
 		logger.Log.Error(fmt.Sprintf("Creation of the aggregated monitoring dashboard failed, please create the dashboard manually\n error=%v\n", dashboardErr))
 	} else {
 		fmt.Printf("Aggregated Monitoring Dashboard: %+v\n", strings.Split(aggRespDash.Name, "/")[3])
-		conv.Audit.StreamingStats.AggMonitoringResources = internal.MonitoringResources{DashboardName:strings.Split(aggRespDash.Name, "/")[3]}
+		conv.Audit.StreamingStats.AggMonitoringResources = internal.MonitoringResources{DashboardName: strings.Split(aggRespDash.Name, "/")[3]}
 	}
 
 	return &writer.BatchWriter{}, nil

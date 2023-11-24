@@ -84,6 +84,11 @@ type DatastreamCfg struct {
 	MaxConcurrentCdcTasks       string     `json:"maxConcurrentCdcTasks"`
 }
 
+type GcsCfg struct {
+	TtlInDays    int64 `json:"ttlInDays"`
+	TtlInDaysSet bool  `json:"ttlInDaysSet"`
+}
+
 type DataflowCfg struct {
 	ProjectId            string            `json:"projectId"`
 	JobName              string            `json:"jobName"`
@@ -103,6 +108,7 @@ type DataflowCfg struct {
 
 type StreamingCfg struct {
 	DatastreamCfg DatastreamCfg      `json:"datastreamCfg"`
+	GcsCfg        GcsCfg             `json:"gcsCfg"`
 	DataflowCfg   DataflowCfg        `json:"dataflowCfg"`
 	TmpDir        string             `json:"tmpDir"`
 	PubsubCfg     internal.PubsubCfg `json:"pubsubCfg"`
@@ -199,6 +205,14 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 	_, err = bucket.Attrs(ctx)
 	if err != nil {
 		return fmt.Errorf("bucket %s does not exist", bucketName)
+	}
+
+	// Verify GCS bucket tuning configs.
+	if streamingCfg.GcsCfg.TtlInDaysSet {
+		ttl := streamingCfg.GcsCfg.TtlInDays
+		if ttl <= 0 {
+			return fmt.Errorf("ttlInDays should be a positive integer")
+		}
 	}
 	return nil
 }
@@ -343,7 +357,7 @@ func CreatePubsubResources(ctx context.Context, projectID string, datastreamDest
 	}
 	defer dsClient.Close()
 
-	bucketName, prefix, err := FetchTargetBucketAndPath(ctx, dsClient, projectID, datastreamDestinationConnCfg)
+	bucketName, prefix, err := utils.FetchTargetBucketAndPath(ctx, dsClient, projectID, datastreamDestinationConnCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -398,23 +412,6 @@ func createPubsubTopicAndSubscription(ctx context.Context, pubsubClient *pubsub.
 	return pubsubCfg, nil
 }
 
-func FetchTargetBucketAndPath(ctx context.Context, datastreamClient *datastream.Client, projectID string, datastreamDestinationConnCfg DstConnCfg) (string, string, error) {
-	if datastreamClient == nil {
-		return "", "", fmt.Errorf("datastream client could not be created")
-	}
-	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamDestinationConnCfg.Location, datastreamDestinationConnCfg.Name)
-	res, err := datastreamClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
-	if err != nil {
-		return "", "", fmt.Errorf("could not get connection profiles: %v", err)
-	}
-	// Fetch the GCS path from the target connection profile.
-	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
-	bucketName := gcsProfile.Bucket
-	prefix := gcsProfile.RootPath + datastreamDestinationConnCfg.Prefix
-	prefix = concatDirectoryPath(prefix, "data/")
-	return bucketName, prefix, nil
-}
-
 func createNotificationOnBucket(ctx context.Context, storageClient *storage.Client, projectID, topicID, bucketName, prefix string) (string, error) {
 	notification := storage.Notification{
 		TopicID:          topicID,
@@ -430,33 +427,6 @@ func createNotificationOnBucket(ctx context.Context, storageClient *storage.Clie
 	return createdNotification.ID, nil
 }
 
-func concatDirectoryPath(basePath, subPath string) string {
-	// ensure basPath doesn't start with '/' and ends with '/'
-	if basePath == "" || basePath == "/" {
-		basePath = ""
-	} else {
-		if basePath[0] == '/' {
-			basePath = basePath[1:]
-		}
-		if basePath[len(basePath)-1] != '/' {
-			basePath = basePath + "/"
-		}
-	}
-	// ensure subPath doesn't start with '/' ends with '/'
-	if subPath == "" || subPath == "/" {
-		subPath = ""
-	} else {
-		if subPath[0] == '/' {
-			subPath = subPath[1:]
-		}
-		if subPath[len(subPath)-1] != '/' {
-			subPath = subPath + "/"
-		}
-	}
-	path := fmt.Sprintf("%s%s", basePath, subPath)
-	return path
-}
-
 // LaunchStream populates the parameters from the streaming config and triggers a stream on Cloud Datastream.
 func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, projectID string, datastreamCfg DatastreamCfg) error {
 	fmt.Println("Launching stream ", fmt.Sprintf("projects/%s/locations/%s", projectID, datastreamCfg.StreamLocation))
@@ -467,7 +437,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	defer dsClient.Close()
 	fmt.Println("Created client...")
 	prefix := datastreamCfg.DestinationConnectionConfig.Prefix
-	prefix = concatDirectoryPath(prefix, "data")
+	prefix = utils.ConcatDirectoryPath(prefix, "data")
 
 	gcsDstCfg := &datastreampb.GcsDestinationConfig{
 		Path:       prefix,
@@ -771,7 +741,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: gcsTemplatePath},
 		Parameters: map[string]string{
-			"inputFilePattern":              concatDirectoryPath(inputFilePattern, "data"),
+			"inputFilePattern":              utils.ConcatDirectoryPath(inputFilePattern, "data"),
 			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
 			"instanceId":                    instance,
 			"databaseId":                    dbName,
@@ -875,8 +845,18 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 	inputDstConnProfile := pl.DstConnectionProfile
 	dstConnCfg := DstConnCfg{Name: inputDstConnProfile.Name, Location: inputDstConnProfile.Location}
 	datastreamCfg.DestinationConnectionConfig = dstConnCfg
+
+	gcsCfg := GcsCfg{
+		TtlInDays:    pl.GcsConfig.TtlInDays,
+		TtlInDaysSet: pl.GcsConfig.TtlInDaysSet,
+	}
 	//create the streamingCfg object
-	streamingCfg := StreamingCfg{DataflowCfg: dataflowCfg, DatastreamCfg: datastreamCfg, TmpDir: pl.TmpDir, DataShardId: pl.DataShardId}
+	streamingCfg := StreamingCfg{
+		DatastreamCfg: datastreamCfg,
+		GcsCfg:        gcsCfg,
+		DataflowCfg:   dataflowCfg,
+		TmpDir:        pl.TmpDir,
+		DataShardId:   pl.DataShardId}
 	return streamingCfg
 }
 
