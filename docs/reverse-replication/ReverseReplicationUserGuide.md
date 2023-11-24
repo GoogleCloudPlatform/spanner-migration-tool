@@ -164,6 +164,8 @@ In this case, check if you observe the following:
     1. Records which are forward migrated. 
     2. Shard Id based routing could not be performed since the shard id value could not be determined.
     3. The record was deleted on Cloud Spanner and the deleted record was removed from Cloud Spanner due to lapse of retention period by the time the record was to be reverse replicated.
+    4. Check the data_seen and shard_file_create_progress tables//TODO elaborate
+    5. Check the dataflow job - if there are worker scaling issues , did worker restart during this time
 
 - ***There is data in GCS yet not present in source database***
 
@@ -182,6 +184,11 @@ In this case, check if you observe the following:
   1. The source database table does not have a primary key
   2. The primary key value was not present in the change stream data
   3. The record was deleted on Cloud Spanner and the deleted record was removed from Cloud Spanner due to lapse of retention period by the time the record was to be reverse replicated.
+  //TODO
+  1. Check the skipped files table
+  2. Check the progress tables
+  3. Check the GCS create time - is file created after the pipeline already started reading file of further windows?
+  4. Check the data_seen table to see if there was data for that window, then check GCS, if file does not exist- raise a bug
     
 #### There is higher load than the expected QPS on  spanner instance post cutover
 
@@ -290,6 +297,12 @@ In the above cases, custom code will need to be written to perform reverse trans
 3. The Spanner TPS and windowDuration decides how large a batch will be when writing to source. Perfrom benchmarks on expected production workloads and acceptable replication lag to fine tune the windowDuration.
 
 4. The metrics give good indication of the progress of the pipeline,it is good to setup Dashboards to monitor the progress.
+
+5. Create GCP bucket with [lifecycle](https://cloud.google.com/storage/docs/lifecycle) to handle auto deletion of the objects.
+
+6. Use a different database for the metadata tables than the Spanner database to avoid load.
+
+7. The default change stream monitors all the tables, if only a subset of tables needs reverse replication, create change stream manually before launching the script.
 
 
 ## Customize

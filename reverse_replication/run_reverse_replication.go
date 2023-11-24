@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/spanner"
 
@@ -48,6 +49,8 @@ var (
 	skipChangeStreamCreation      bool
 	skipMetadataDatabaseCreation  bool
 	networkTags                   string
+	shutdown                      bool
+	runId                         string
 )
 
 const (
@@ -72,7 +75,7 @@ func setupGlobalFlags() {
 	flag.StringVar(&sourceShardsFilePath, "sourceShardsFilePath", "", "Gcs file path for file containing shard info.")
 	flag.StringVar(&sessionFilePath, "sessionFilePath", "", "Gcs file path for session file generated via Spanner migration tool.")
 	flag.StringVar(&sourceDbTimezoneOffset, "sourceDbTimezoneOffset", "+00:00", "The timezone offset with respect to UTC for the source database.Defaults to +00:00.")
-	flag.StringVar(&writerRunMode, "writerRunMode", "", "Whether the writer to source job runs in regular or reprocess mode. Default is regular.")
+	flag.StringVar(&writerRunMode, "writerRunMode", "regular", "Whether the writer to source job runs in regular or reprocess mode. Default is regular.")
 	flag.StringVar(&machineType, "machineType", "n2-standard-4", "Dataflow worker machine type, defaults to n2-standard-4.")
 	flag.StringVar(&vpcNetwork, "vpcNetwork", "", "Name of the VPC network to be used for the dataflow jobs.")
 	flag.StringVar(&vpcSubnetwork, "vpcSubnetwork", "", "Name of the VPC subnetwork to be used for the dataflow jobs. Subnet should exist in the same region as the 'dataflowRegion' parameter.")
@@ -80,12 +83,15 @@ func setupGlobalFlags() {
 	flag.StringVar(&serviceAccountEmail, "serviceAccountEmail", "", "The email address of the service account to run the job as.")
 	flag.IntVar(&readerWorkers, "readerWorkers", 5, "Number of workers for reader job.")
 	flag.IntVar(&writerWorkers, "writerWorkers", 5, "Number of workers for writer job.")
-	flag.StringVar(&spannerReaderTemplateLocation, "spannerReaderTemplateLocation", "gs://dataflow-templates/2023-10-31-00_RC00/flex/Spanner_Change_Streams_to_Sharded_File_Sink", "The dataflow template location for the Spanner reader job.")
-	flag.StringVar(&sourceWriterTemplateLocation, "sourceWriterTemplateLocation", "gs://dataflow-templates/2023-10-31-00_RC00/flex/GCS_to_Sourcedb", "The dataflow template location for the Source writer job.")
+	flag.StringVar(&spannerReaderTemplateLocation, "spannerReaderTemplateLocation", "gs://aks-test-revrep/images/sp-to-sk-image-spec.json", "The dataflow template location for the Spanner reader job.")
+	flag.StringVar(&sourceWriterTemplateLocation, "sourceWriterTemplateLocation", "gs://aks-test-revrep/images/gcs-to-sourcedb-image-spec.json", "The dataflow template location for the Source writer job.")
 	flag.StringVar(&jobsToLaunch, "jobsToLaunch", "both", "Whether to launch the spanner reader job or the source writer job or both. Default is both. Support values are both,reader,writer.")
 	flag.BoolVar(&skipChangeStreamCreation, "skipChangeStreamCreation", false, "Whether to skip the change stream creation. Default is false.")
 	flag.BoolVar(&skipMetadataDatabaseCreation, "skipMetadataDatabaseCreation", false, "Whether to skip Metadata database creation.Default is false.")
 	flag.StringVar(&networkTags, "networkTags", "", "Network tags addded to the Dataflow jobs worker and launcher VMs.")
+	flag.BoolVar(&shutdown, "shutdown", false, "Whether to shutdown the reverse replication flows.")
+	flag.StringVar(&runId, "runId", "", "Reverse replication flow identifier. Auto generated if not supplied.")
+
 }
 
 func prechecks() error {
@@ -142,6 +148,12 @@ func main() {
 	setupGlobalFlags()
 	flag.Parse()
 
+	if shutdown {
+		fmt.Println("Invoking shutdown...")
+		performShutdown()
+		return
+	}
+
 	err := prechecks()
 	if err != nil {
 		fmt.Println("incorrect arguments passed:", err)
@@ -153,6 +165,12 @@ func main() {
 	ctx := context.Background()
 	adminClient, _ := database.NewDatabaseAdminClient(ctx)
 	spClient, err := spanner.NewClient(ctx, dbUri)
+
+	err = createJobTables(ctx, adminClient)
+	if err != nil {
+		fmt.Println("could not create the job table:", err)
+		return
+	}
 
 	if !skipChangeStreamCreation {
 
@@ -191,6 +209,8 @@ func main() {
 		}
 	}
 
+	readerJobId := ""
+	writerJobId := ""
 	c, err := dataflow.NewFlexTemplatesClient(ctx)
 	if err != nil {
 		fmt.Printf("could not create flex template client: %v\n", err)
@@ -208,6 +228,10 @@ func main() {
 		}
 	}
 
+	runId = time.Now().UTC().Format(time.RFC3339)
+	runId = strings.ReplaceAll(runId, ":", "-")
+	runId = strings.ToLower(runId)
+
 	if jobsToLaunch == "both" || jobsToLaunch == "reader" {
 		var additionalExpr []string
 
@@ -218,7 +242,7 @@ func main() {
 		}
 
 		launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
-			JobName:  fmt.Sprintf("%s-reader", jobNamePrefix),
+			JobName:  fmt.Sprintf("%s-reader-%s", jobNamePrefix, runId),
 			Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: spannerReaderTemplateLocation},
 			Parameters: map[string]string{
 				"changeStreamName":     changeStreamName,
@@ -235,6 +259,7 @@ func main() {
 				"sourceShardsFilePath": sourceShardsFilePath,
 				"metadataTableSuffix":  metadataTableSuffix,
 				"skipDirectoryName":    readerSkipDirectoryName,
+				"runIdentifier":        runId,
 			},
 			Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 				NumWorkers:            int32(readerWorkers),
@@ -254,12 +279,14 @@ func main() {
 		}
 		fmt.Printf("\nGCLOUD CMD FOR READER JOB:\n%s\n\n", getGcloudCommand(req, spannerReaderTemplateLocation))
 
-		_, err = c.LaunchFlexTemplate(ctx, req)
+		readerJobResponse, err := c.LaunchFlexTemplate(ctx, req)
 		if err != nil {
 			fmt.Printf("unable to launch reader job: %v \n REQUEST BODY: %+v\n", err, req)
 			return
 		}
-		fmt.Println("Launched reader job: ", fmt.Sprintf("%s-reader", jobNamePrefix))
+		//fmt.Println("Launched reader job: ", fmt.Sprintf("%s-reader-%s", jobNamePrefix, runId))
+		fmt.Println("Launched reader job: ", readerJobResponse.Job)
+		readerJobId = readerJobResponse.Job.Id
 	}
 
 	if jobsToLaunch == "both" || jobsToLaunch == "writer" {
@@ -272,18 +299,19 @@ func main() {
 		}
 
 		launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
-			JobName:  fmt.Sprintf("%s-writer", jobNamePrefix),
+			JobName:  fmt.Sprintf("%s-writer-%s", jobNamePrefix, runId),
 			Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: sourceWriterTemplateLocation},
 			Parameters: map[string]string{
 				"sourceShardsFilePath":   sourceShardsFilePath,
 				"sessionFilePath":        sessionFilePath,
 				"sourceDbTimezoneOffset": sourceDbTimezoneOffset,
 				"metadataTableSuffix":    metadataTableSuffix,
-				"gcsInputDirectory":      gcsPath,
+				"GCSInputDirectoryPath":  gcsPath,
 				"spannerProjectId":       projectId,
 				"metadataInstance":       metadataInstance,
 				"metadataDatabase":       metadataDatabase,
 				"runMode":                writerRunMode,
+				"runIdentifier":          runId,
 			},
 			Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 				NumWorkers:            int32(writerWorkers),
@@ -302,12 +330,23 @@ func main() {
 		}
 		fmt.Printf("\nGCLOUD CMD FOR WRITER JOB:\n%s\n\n", getGcloudCommand(req, sourceWriterTemplateLocation))
 
-		_, err = c.LaunchFlexTemplate(ctx, req)
+		//https://github.com/googleapis/google-cloud-go/blob/main/dataflow/apiv1beta3/dataflowpb/templates.pb.go#L3255
+		// capture the ID here
+
+		writerJobResponse, err := c.LaunchFlexTemplate(ctx, req)
 		if err != nil {
 			fmt.Printf("unable to launch writer job: %v \n REQUEST BODY: %+v\n", err, req)
 			return
 		}
-		fmt.Println("Launched writer job: ", fmt.Sprintf("%s-writer", jobNamePrefix))
+		//fmt.Println("Launched writer job: ", fmt.Sprintf("%s-writer-%s", jobNamePrefix, runId))
+		fmt.Println("Launched reader job: ", writerJobResponse.Job)
+		writerJobId = writerJobResponse.Job.Id
+	}
+
+	err = persistJobDetails(ctx, readerJobId, writerJobId)
+	if err != nil {
+		fmt.Printf("unable to perist job details: %v", err)
+		return
 	}
 }
 
@@ -415,4 +454,135 @@ func getGcloudCommand(req *dataflowpb.LaunchFlexTemplateRequest, templatePath st
 		cmd += " --additional-experiments=" + experiments
 	}
 	return cmd
+}
+
+func performShutdown() error {
+	ctx := context.Background()
+	c, err := dataflow.NewJobsV1Beta3Client(ctx)
+	if err != nil {
+		fmt.Printf("could not create flex template client: %v\n", err)
+		return err
+	}
+	defer c.Close()
+	// TODO get the job metadata from the database
+
+	stmt := spanner.NewStatement("SELECT reader_dataflow_id, writer_dataflow_id,region FROM rev_repl_job WHERE run_id = @runId ")
+	stmt.Params["runId"] = runId
+
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/spannermigrationtool_metadata", projectId, instanceId)
+	spClient, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	iter := spClient.Single().Query(ctx, stmt)
+	var readerJobId string
+	var writerJobId string
+	err = iter.Do(func(r *spanner.Row) error {
+
+		if err := r.Column(0, &readerJobId); err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		if err := r.Column(1, &writerJobId); err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		if err := r.Column(2, &dataflowRegion); err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("error while reading rev repl job: %v", err)
+	}
+
+	cleanupDataflowJob(ctx, c, readerJobId)
+	cleanupDataflowJob(ctx, c, writerJobId)
+
+	//TODO: delete the metadata tables not the database
+
+	return nil
+}
+
+func cleanupDataflowJob(ctx context.Context, client *dataflow.JobsV1Beta3Client, dataflowJobId string) error {
+
+	job := &dataflowpb.Job{
+		Id:             dataflowJobId,
+		ProjectId:      projectId,
+		RequestedState: dataflowpb.JobState_JOB_STATE_CANCELLED,
+	}
+
+	dfReq := &dataflowpb.UpdateJobRequest{
+		ProjectId: projectId,
+		JobId:     dataflowJobId,
+		Location:  dataflowRegion,
+		Job:       job,
+	}
+	_, err := client.UpdateJob(ctx, dfReq)
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("error while cancelling dataflow job: %v", err)
+	}
+	return nil
+}
+
+func createJobTables(ctx context.Context, adminClient *database.DatabaseAdminClient) error {
+
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/spannermigrationtool_metadata", projectId, instanceId)
+
+	ddl := []string{`CREATE TABLE IF NOT EXISTS rev_repl_job (
+		run_id  STRING(MAX) NOT NULL,
+		reader_dataflow_id  STRING(MAX),
+		writer_dataflow_id STRING(MAX),
+		project STRING(MAX) NOT NULL,
+		region STRING(MAX) NOT NULL,
+		instance STRING(MAX) NOT NULL,
+		insert_timestamp  TIMESTAMP NOT NULL,
+		update_timestamp TIMESTAMP DEFAULT (CURRENT_TIMESTAMP),
+		) PRIMARY KEY(run_id)`}
+
+	req := &adminpb.UpdateDatabaseDdlRequest{
+		Database:   dbURI,
+		Statements: ddl,
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	op, err := adminClient.UpdateDatabaseDdl(ctx, req)
+	if err != nil {
+		return fmt.Errorf("can't build UpdateDatabaseDdlRequest: %w", err)
+	}
+	if err := op.Wait(ctx); err != nil {
+		return fmt.Errorf("UpdateDatabaseDdl call failed: %w", err)
+	}
+	fmt.Println("Updated schema successfully.")
+	return nil
+}
+
+func persistJobDetails(ctx context.Context, readerJobId string, writerJobId string) error {
+
+	// Example from https://pkg.go.dev/cloud.google.com/go/spanner#example-Insert
+	spColNames := []string{"run_id", "reader_dataflow_id", "writer_dataflow_id", "project", "region", "insert_timestamp", "instance"}
+	spColValues := []interface{}{runId, readerJobId, writerJobId, projectId, dataflowRegion, time.Now(), instanceId}
+	m := spanner.InsertOrUpdate("rev_repl_job", spColNames, spColValues)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/spannermigrationtool_metadata", projectId, instanceId)
+	spClient, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		// TODO: Handle error.
+		return err
+	}
+	_, err = spClient.Apply(ctx, []*spanner.Mutation{m})
+	if err != nil {
+		// TODO: Handle error.
+		return err
+	}
+	fmt.Println("Persisted job details successfully.")
+	return nil
 }
