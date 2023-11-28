@@ -146,6 +146,10 @@ Additionally, we need to grant Pub/Sub publisher permission to GCS service agent
    gcloud projects add-iam-policy-binding PROJECT_ID --member=serviceAccount:<GCS_SERVICE_ACCOUNT_ID> --role=roles/pubsub.publisher
   ```
 
+### Cloud Monitoring
+
+Follow [this guide](https://cloud.google.com/monitoring/access-control) to enable Cloud Monitoring permissions.
+
 ### Other Permissions
 
 In addition to these, the `DatastreamToSpanner` pipeline created by SMT requires
