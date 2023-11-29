@@ -323,7 +323,7 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 
 			// Fetch and store the GCS bucket associated with the datastream
 			dsClient := getDatastreamClient(ctx)
-			gcsBucket, gcsDestPrefix, fetchGcsErr := utils.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
+			gcsBucket, gcsDestPrefix, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
 			if fetchGcsErr != nil {
 				logger.Log.Info("Could not fetch GCS Bucket, hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n")
 				logger.Log.Debug("Error", zap.Error(fetchGcsErr))
@@ -332,7 +332,7 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			// Try to apply lifecycle rule to Datastream destination bucket.
 			gcsConfig := streamingCfg.GcsCfg
 			if gcsConfig.TtlInDaysSet {
-				err = utils.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+				err = streaming.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
 				if err != nil {
 					logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
 					logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")
@@ -428,7 +428,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 
 		// Fetch and store the GCS bucket associated with the datastream
 		dsClient := getDatastreamClient(ctx)
-		gcsBucket, gcsDestPrefix, fetchGcsErr := utils.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
+		gcsBucket, gcsDestPrefix, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
 		if fetchGcsErr != nil {
 			logger.Log.Info(fmt.Sprintf("Could not fetch GCS Bucket for Shard %s hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n", p.DataShardId))
 			logger.Log.Debug("Error", zap.Error(fetchGcsErr))
@@ -437,7 +437,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		// Try to apply lifecycle rule to Datastream destination bucket.
 		gcsConfig := streamingCfg.GcsCfg
 		if gcsConfig.TtlInDaysSet {
-			err = utils.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+			err = streaming.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
 			if err != nil {
 				logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
 				logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")

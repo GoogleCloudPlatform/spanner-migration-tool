@@ -40,7 +40,6 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -679,46 +678,6 @@ func sortKeysByOrder(pks []ddl.IndexKey) {
 	sort.Slice(pks, func(i int, j int) bool {
 		return pks[i].Order < pks[j].Order
 	})
-}
-
-// Applies the bucket lifecycle with delete rule. Only accepts the Age and
-// prefix rule conditions as it is only used for the Datastream destination
-// bucket currently.
-func EnableBucketLifecycleDeleteRule(ctx context.Context, bucketName string, matchesPrefix []string, ttl int64) error {
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		return fmt.Errorf("could not create client while enabling lifecycle: %w", err)
-	}
-	defer client.Close()
-
-	for i, str := range matchesPrefix {
-		matchesPrefix[i] = strings.TrimPrefix(str, "/")
-	}
-	bucket := client.Bucket(bucketName)
-	bucketAttrsToUpdate := storage.BucketAttrsToUpdate{
-		Lifecycle: &storage.Lifecycle{
-			Rules: []storage.LifecycleRule{
-				{
-					Action: storage.LifecycleAction{Type: "Delete"},
-					Condition: storage.LifecycleCondition{
-						AgeInDays: ttl,
-						// The prefixes should not contain the bucket names and starting slash.
-						// For object gs://my_bucket/pictures/paris_2022.jpg,
-						// you would use a condition such as "matchesPrefix":["pictures/paris_"].
-						MatchesPrefix: matchesPrefix,
-					},
-				},
-			},
-		},
-	}
-
-	attrs, err := bucket.Update(ctx, bucketAttrsToUpdate)
-	if err != nil {
-		return fmt.Errorf("could not bucket with lifecycle: %w", err)
-	}
-	logger.Log.Info(fmt.Sprintf("Added lifecycle rule to bucket %v\n. Rule Action: %v\t Rule Condition: %v\n",
-		bucketName, attrs.Lifecycle.Rules[0].Action, attrs.Lifecycle.Rules[0].Condition))
-	return nil
 }
 
 func ConcatDirectoryPath(basePath, subPath string) string {

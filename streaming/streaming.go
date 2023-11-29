@@ -357,7 +357,7 @@ func CreatePubsubResources(ctx context.Context, projectID string, datastreamDest
 	}
 	defer dsClient.Close()
 
-	bucketName, prefix, err := utils.FetchTargetBucketAndPath(ctx, dsClient, projectID, datastreamDestinationConnCfg)
+	bucketName, prefix, err := FetchTargetBucketAndPath(ctx, dsClient, projectID, datastreamDestinationConnCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -410,6 +410,24 @@ func createPubsubTopicAndSubscription(ctx context.Context, pubsubClient *pubsub.
 		return pubsubCfg, fmt.Errorf("pubsub subscription could not be created: %v", err)
 	}
 	return pubsubCfg, nil
+}
+
+// FetchTargetBucketAndPath fetches the bucket and path name from a Datastream destination config.
+func FetchTargetBucketAndPath(ctx context.Context, datastreamClient *datastream.Client, projectID string, datastreamDestinationConnCfg DstConnCfg) (string, string, error) {
+	if datastreamClient == nil {
+		return "", "", fmt.Errorf("datastream client could not be created")
+	}
+	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamDestinationConnCfg.Location, datastreamDestinationConnCfg.Name)
+	res, err := datastreamClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
+	if err != nil {
+		return "", "", fmt.Errorf("could not get connection profiles: %v", err)
+	}
+	// Fetch the GCS path from the target connection profile.
+	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
+	bucketName := gcsProfile.Bucket
+	prefix := gcsProfile.RootPath + datastreamDestinationConnCfg.Prefix
+	prefix = utils.ConcatDirectoryPath(prefix, "data/")
+	return bucketName, prefix, nil
 }
 
 func createNotificationOnBucket(ctx context.Context, storageClient *storage.Client, projectID, topicID, bucketName, prefix string) (string, error) {
@@ -904,4 +922,44 @@ func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, st
 		return internal.DataflowOutput{}, fmt.Errorf("error launching dataflow: %v", err)
 	}
 	return dfOutput, nil
+}
+
+// Applies the bucket lifecycle with delete rule. Only accepts the Age and
+// prefix rule conditions as it is only used for the Datastream destination
+// bucket currently.
+func EnableBucketLifecycleDeleteRule(ctx context.Context, bucketName string, matchesPrefix []string, ttl int64) error {
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("could not create client while enabling lifecycle: %w", err)
+	}
+	defer client.Close()
+
+	for i, str := range matchesPrefix {
+		matchesPrefix[i] = strings.TrimPrefix(str, "/")
+	}
+	bucket := client.Bucket(bucketName)
+	bucketAttrsToUpdate := storage.BucketAttrsToUpdate{
+		Lifecycle: &storage.Lifecycle{
+			Rules: []storage.LifecycleRule{
+				{
+					Action: storage.LifecycleAction{Type: "Delete"},
+					Condition: storage.LifecycleCondition{
+						AgeInDays: ttl,
+						// The prefixes should not contain the bucket names and starting slash.
+						// For object gs://my_bucket/pictures/paris_2022.jpg,
+						// you would use a condition such as "matchesPrefix":["pictures/paris_"].
+						MatchesPrefix: matchesPrefix,
+					},
+				},
+			},
+		},
+	}
+
+	attrs, err := bucket.Update(ctx, bucketAttrsToUpdate)
+	if err != nil {
+		return fmt.Errorf("could not bucket with lifecycle: %w", err)
+	}
+	logger.Log.Info(fmt.Sprintf("Added lifecycle rule to bucket %v\n. Rule Action: %v\t Rule Condition: %v\n",
+		bucketName, attrs.Lifecycle.Rules[0].Action, attrs.Lifecycle.Rules[0].Condition))
+	return nil
 }
