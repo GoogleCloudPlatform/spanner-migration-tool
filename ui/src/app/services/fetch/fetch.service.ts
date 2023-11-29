@@ -98,9 +98,7 @@ export class FetchService {
   }
 
   setDatastreamDetailsForShardedMigrations(payload: IDatastreamConfig) {
-    return this.http.post(`${this.url}/SetDatastreamDetailsForShardedMigrations`, {
-      DatastreamConfig: payload
-    })
+    return this.http.post(`${this.url}/SetDatastreamDetailsForShardedMigrations`, payload)
   }
 
   setGcsDetailsForShardedMigrations(payload: IGcsConfig) {
@@ -108,9 +106,7 @@ export class FetchService {
   }
 
   setDataflowDetailsForShardedMigrations(payload: IDataflowConfig) {
-    return this.http.post(`${this.url}/SetDataflowDetailsForShardedMigrations`, {
-      DataflowConfig: payload
-    })
+    return this.http.post(`${this.url}/SetDataflowDetailsForShardedMigrations`, payload)
   }
 
   getSourceProfile() {
