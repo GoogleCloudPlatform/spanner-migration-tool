@@ -121,7 +121,7 @@ export class PrepareMigrationComponent implements OnInit {
   dataflowConfig: IDataflowConfig = {
     network: localStorage.getItem(Dataflow.Network) as string,
     subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-    vpcHostProjectId: localStorage.getItem(Dataflow.VpcHostProjectId) as string,
+    hostProjectId: localStorage.getItem(Dataflow.VpcHostProjectId) as string,
     maxWorkers: localStorage.getItem(Dataflow.MaxWorkers) as string,
     numWorkers: localStorage.getItem(Dataflow.NumWorkers) as string,
     serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string,
@@ -514,7 +514,7 @@ export class PrepareMigrationComponent implements OnInit {
       this.dataflowConfig = {
         network: localStorage.getItem(Dataflow.Network) as string,
         subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-        vpcHostProjectId: localStorage.getItem(Dataflow.VpcHostProjectId) as string,
+        hostProjectId: localStorage.getItem(Dataflow.VpcHostProjectId) as string,
         maxWorkers: localStorage.getItem(Dataflow.MaxWorkers) as string,
         numWorkers: localStorage.getItem(Dataflow.NumWorkers) as string,
         serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string,

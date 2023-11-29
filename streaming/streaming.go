@@ -88,7 +88,7 @@ type DataflowCfg struct {
 	ProjectId            string            `json:"projectId"`
 	JobName              string            `json:"jobName"`
 	Location             string            `json:"location"`
-	VpcHostProjectId     string            `json:"vpcHostProjectId"`
+	VpcHostProjectId     string            `json:"hostProjectId"`
 	Network              string            `json:"network"`
 	Subnetwork           string            `json:"subnetwork"`
 	MaxWorkers           string            `json:"maxWorkers"`
