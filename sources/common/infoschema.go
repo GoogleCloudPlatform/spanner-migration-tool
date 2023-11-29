@@ -173,7 +173,7 @@ func ProcessData(conv *internal.Conv, infoSchema InfoSchema, additionalAttribute
 	}
 
 	logger.Log.Debug("initiating parallel processing")
-	res, e := RunParallelTasks(tableIds, 10, asyncProcessData, true)
+	res, e := RunParallelTasks(tableIds, DefaultWorkers, asyncProcessData, true)
 	if e != nil {
 		fmt.Printf("exiting due to error: %s , while processing schema for table %s\n", e, res)
 		return
@@ -187,15 +187,25 @@ func SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
 		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
 		return
 	}
-	for _, t := range tables {
-		logger.Log.Debug("getting table counts for tables")
-		tableName := infoSchema.GetTableName(t.Schema, t.Name)
-		count, err := infoSchema.GetRowCount(t)
+
+	asyncFetchRowCounts := func(table SchemaAndName, mutex *sync.Mutex) TaskResult[int64] {
+		logger.Log.Debug(fmt.Sprintf("getting table counts for table %s", table.Name))
+		tableName := infoSchema.GetTableName(table.Schema, table.Name)
+		count, err := infoSchema.GetRowCount(table)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", tableName))
-			continue
+			return TaskResult[int64]{0, err}
 		}
+		mutex.Lock()
 		conv.Stats.Rows[tableName] += count
+		mutex.Unlock()
+		return TaskResult[int64]{count, nil}
+	}
+
+	res, e := RunParallelTasks(tables, DefaultWorkers, asyncFetchRowCounts, true)
+	if e != nil {
+		fmt.Printf("exiting due to error: %s , while processing schema for table %s\n", e, res)
+		return
 	}
 }
 
