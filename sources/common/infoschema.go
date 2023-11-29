@@ -188,24 +188,15 @@ func SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
 		return
 	}
 
-	asyncFetchRowCounts := func(table SchemaAndName, mutex *sync.Mutex) TaskResult[int64] {
-		logger.Log.Debug(fmt.Sprintf("getting table counts for table %s", table.Name))
-		tableName := infoSchema.GetTableName(table.Schema, table.Name)
-		count, err := infoSchema.GetRowCount(table)
+	for _, t := range tables {
+		logger.Log.Debug(fmt.Sprintf("getting table counts for table %s", t.Name))
+		tableName := infoSchema.GetTableName(t.Schema, t.Name)
+		count, err := infoSchema.GetRowCount(t)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", tableName))
-			return TaskResult[int64]{0, err}
+			continue
 		}
-		mutex.Lock()
 		conv.Stats.Rows[tableName] += count
-		mutex.Unlock()
-		return TaskResult[int64]{count, nil}
-	}
-
-	res, e := RunParallelTasks(tables, DefaultWorkers, asyncFetchRowCounts, true)
-	if e != nil {
-		fmt.Printf("exiting due to error: %s , while processing schema for table %s\n", e, res)
-		return
 	}
 }
 

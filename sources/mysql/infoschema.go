@@ -174,7 +174,7 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 	// but MySQL doesn't support this. So we quote it instead.
 	fmt.Printf("Fetching row counts for table: %s \n", table.Name)
 	//q := fmt.Sprintf("SELECT 100")
-	q := fmt.Sprintf("SELECT COUNT(*) FROM `%s`.`%s`;", table.Schema, table.Name)
+	q := fmt.Sprintf("SELECT table_rows FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='%s' AND TABLE_NAME='%s';", table.Schema, table.Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return 0, err
