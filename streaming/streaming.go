@@ -709,6 +709,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		inputFilePattern = inputFilePattern + "/"
 	}
 	fmt.Println("Reading files from datastream destination ", inputFilePattern)
+	fmt.Println("project: ", project)
 
 	// Initiate runtime environment flags and overrides.
 	var (
@@ -722,10 +723,12 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	// If project override present, use that otherwise default to Spanner project. Useful when customers want to run Dataflow in separate project.
 	if dataflowCfg.ProjectId != "" {
 		dataflowProjectId = dataflowCfg.ProjectId
+		fmt.Println("dataflowProjectId: ", dataflowProjectId)
 	}
 	// If VPC Host project override present, use that otherwise default to Spanner project.
 	if dataflowCfg.VpcHostProjectId != "" {
 		dataflowVpcHostProjectId = dataflowCfg.VpcHostProjectId
+		fmt.Println("dataflowVpcHostProjectId: ", dataflowVpcHostProjectId)
 	}
 	if dataflowCfg.GcsTemplatePath != "" {
 		gcsTemplatePath = dataflowCfg.GcsTemplatePath
@@ -736,6 +739,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		workerIpAddressConfig = dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PRIVATE
 		if dataflowCfg.Subnetwork != "" {
 			dataflowSubnetwork = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/%s/subnetworks/%s", dataflowVpcHostProjectId, dataflowCfg.Location, dataflowCfg.Subnetwork)
+			fmt.Println("dataflowSubnetwork: ", dataflowSubnetwork)
 		}
 	}
 
