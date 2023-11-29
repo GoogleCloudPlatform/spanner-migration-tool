@@ -112,6 +112,7 @@ func DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetP
 		RetryLimit: 1000,
 		Verbose:    internal.Verbose(),
 	}
+	fmt.Printf("driver %s", sourceProfile.Driver)
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
 		return dataFromDatabase(ctx, sourceProfile, targetProfile, config, conv, client)
@@ -249,11 +250,13 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 }
 
 func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema, additionalAttributes internal.AdditionalDataAttributes) *writer.BatchWriter {
+	fmt.Printf("performing snapshot migration")
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
 	if !conv.Audit.DryRun {
 		conv.Audit.Progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false, int(internal.DataWriteInProgress))
 	}
+	fmt.Printf("performing snapshot migration")
 	batchWriter := populateDataConv(conv, config, client)
 	common.ProcessData(conv, infoSchema, additionalAttributes)
 	batchWriter.Flush()
@@ -282,8 +285,10 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 	//handle migrating data for sharded migrations differently
 	//sharded migrations are identified via the config= flag, if that flag is not present
 	//carry on with the existing code path in the else block
+	fmt.Printf("source type config %s\n", sourceProfile)
 	switch sourceProfile.Ty {
 	case profiles.SourceProfileTypeConfig:
+		fmt.Printf("source type config %s\n", sourceProfile.Config.ConfigType)
 		////There are three cases to cover here, bulk migrations and sharded migrations (and later DMS)
 		//We provide an if-else based handling for each within the sharded code branch
 		//This will be determined via the configType, which can be "bulk", "dataflow" or "dms"
@@ -297,7 +302,9 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			return nil, fmt.Errorf("configType should be one of 'bulk', 'dataflow' or 'dms'")
 		}
 	default:
+		fmt.Printf("falling back to default")
 		infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
+		fmt.Printf("fetched schema")
 		if err != nil {
 			return nil, err
 		}
@@ -465,7 +472,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		logger.Log.Error(fmt.Sprintf("Creation of the aggregated monitoring dashboard failed, please create the dashboard manually\n error=%v\n", dashboardErr))
 	} else {
 		fmt.Printf("Aggregated Monitoring Dashboard: %+v\n", strings.Split(aggRespDash.Name, "/")[3])
-		conv.Audit.StreamingStats.AggMonitoringDashboard = internal.AggMonitoringDashboard{DashboardName:strings.Split(aggRespDash.Name, "/")[3]}
+		conv.Audit.StreamingStats.AggMonitoringDashboard = internal.AggMonitoringDashboard{DashboardName: strings.Split(aggRespDash.Name, "/")[3]}
 	}
 
 	return &writer.BatchWriter{}, nil
@@ -477,6 +484,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 // 4. Once all shard migrations are complete, return the batch writer object
 func dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
 	var bw *writer.BatchWriter
+	fmt.Printf("initiating bulk migration")
 	for _, dataShard := range sourceProfile.Config.ShardConfigurationBulk.DataShards {
 
 		fmt.Printf("Initiating migration for shard: %v\n", dataShard.DbName)
@@ -630,12 +638,12 @@ func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, clie
 	batchWriter := writer.NewBatchWriter(config)
 	conv.SetDataMode()
 	if !conv.Audit.DryRun {
-		conv.SetDataSink(
-			func(table string, cols []string, vals []interface{}) {
-				batchWriter.AddRow(table, cols, vals)
-			})
+		//		conv.SetDataSink(
+		//			func(table string, cols []string, vals []interface{}) {
+		//				batchWriter.AddRow(table, cols, vals)
+		//			})
 		conv.DataFlush = func() {
-			batchWriter.Flush()
+			//	batchWriter.Flush()
 		}
 	}
 

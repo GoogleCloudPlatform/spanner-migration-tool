@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	sp "cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -49,6 +50,7 @@ type Conv struct {
 	Rules          []Rule              // Stores applied rules during schema conversion
 	IsSharded      bool                // Flag denoting if the migration is sharded or not
 	ConvLock       sync.RWMutex        `json:"-"` // ConvLock prevents concurrent map read/write operations. This lock will be used in all the APIs that either read or write elements to the conv object.
+	Client         *sp.Client
 }
 
 type TableIssues struct {

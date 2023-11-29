@@ -17,19 +17,26 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"sort"
 	"strings"
+	"sync/atomic"
 
 	sp "cloud.google.com/go/spanner"
 	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
 	_ "github.com/lib/pq"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 )
 
@@ -100,6 +107,10 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTableName, err))
 		return err
 	}
+
+	bw := createBatchWriter(conv)
+	defer bw.Flush()
+
 	rows := rowsInterface.(*sql.Rows)
 	defer rows.Close()
 	srcCols, _ := rows.Columns()
@@ -124,9 +135,36 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 			continue
 		}
 
-		ProcessDataRow(conv, tableId, commonColIds, srcSchema, spSchema, newValues, additionalAttributes)
+		ProcessDataRow(conv, bw, tableId, commonColIds, srcSchema, spSchema, newValues, additionalAttributes)
 	}
 	return nil
+}
+
+func createBatchWriter(conv *internal.Conv) *writer.BatchWriter {
+	config := writer.BatchWriterConfig{
+		BytesLimit: 100 * 1000 * 1000,
+		WriteLimit: 40,
+		RetryLimit: 1000,
+		Verbose:    internal.Verbose(),
+	}
+	rows := int64(0)
+	config.Write = func(m []*sp.Mutation) error {
+		ctx := context.Background()
+		if !conv.Audit.SkipMetricsPopulation {
+			migrationData := metrics.GetMigrationData(conv, "", constants.DataConv)
+			serializedMigrationData, _ := proto.Marshal(migrationData)
+			migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
+			ctx = metadata.AppendToOutgoingContext(context.Background(), constants.MigrationMetadataKey, migrationMetadataValue)
+		}
+		_, err := conv.Client.Apply(ctx, m)
+		if err != nil {
+			return err
+		}
+		atomic.AddInt64(&rows, int64(len(m)))
+		conv.Audit.Progress.MaybeReport(atomic.LoadInt64(&rows))
+		return nil
+	}
+	return writer.NewBatchWriter(config)
 }
 
 // GetRowCount with number of rows in each table.
@@ -134,7 +172,8 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 	// MySQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but MySQL doesn't support this. So we quote it instead.
-	q := fmt.Sprintf("SELECT COUNT(*) FROM `%s`.`%s`;", table.Schema, table.Name)
+	fmt.Printf("Fetching row counts for table: %s \n", table.Name)
+	q := fmt.Sprintf("SELECT 100") //fmt.Sprintf("SELECT COUNT(*) FROM `%s`.`%s`;", table.Schema, table.Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return 0, err
@@ -154,6 +193,7 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 // but unfortunately there is no way to extract it from sql.DB.
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	// In MySQL, schema is the same as database name.
+	fmt.Printf("fetching tables from source")
 	q := "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema=?"
 	rows, err := isi.Db.Query(q, isi.DbName)
 	if err != nil {
@@ -164,8 +204,10 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	var tables []common.SchemaAndName
 	for rows.Next() {
 		rows.Scan(&tableName)
+		fmt.Printf(tableName)
 		tables = append(tables, common.SchemaAndName{Schema: isi.DbName, Name: tableName})
 	}
+	fmt.Printf("retreived tables from source")
 	return tables, nil
 }
 

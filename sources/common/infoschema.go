@@ -22,6 +22,7 @@ import (
 	sp "cloud.google.com/go/spanner"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
@@ -120,27 +121,62 @@ func GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers in
 func ProcessData(conv *internal.Conv, infoSchema InfoSchema, additionalAttributes internal.AdditionalDataAttributes) {
 	// Tables are ordered in alphabetical order with one exception: interleaved
 	// tables appear after the population of their parent table.
+	logger.Log.Info("initiating parallel data processing")
 	tableIds := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
 
-	for _, tableId := range tableIds {
+	// bw := writer.NewBatchWriter(writer.BatchWriterConfig{
+	// 	BytesLimit: 100 * 1000 * 1000,
+	// 	WriteLimit: 40,
+	// 	RetryLimit: 1000,
+	// 	Verbose:    internal.Verbose(),
+	// })
+
+	// for _, tableId := range tableIds {
+	// 	srcSchema := conv.SrcSchema[tableId]
+	// 	spSchema, ok := conv.SpSchema[tableId]
+	// 	if !ok {
+	// 		conv.Stats.BadRows[srcSchema.Name] += conv.Stats.Rows[srcSchema.Name]
+	// 		conv.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s:ok=%t",
+	// 			srcSchema.Name, ok))
+	// 		continue
+	// 	}
+	// 	// Extract common spColds. We get column ids common to both source and
+	// 	// spanner table so that we can read these records from source
+	// 	colIds := GetCommonColumnIds(conv, tableId, spSchema.ColIds)
+	// 	err := infoSchema.ProcessData(conv, tableId, srcSchema, colIds, spSchema, additionalAttributes)
+	// 	if err != nil {
+	// 		return
+	// 	}
+	// 	if conv.DataFlush != nil {
+	// 		conv.DataFlush()
+	// 	}
+	// }
+
+	asyncProcessData := func(tableId string, mutex *sync.Mutex) TaskResult[error] {
+		logger.Log.Debug(fmt.Sprintf("starting to migrate data for table: %s\n", tableId))
 		srcSchema := conv.SrcSchema[tableId]
 		spSchema, ok := conv.SpSchema[tableId]
 		if !ok {
+			mutex.Lock()
 			conv.Stats.BadRows[srcSchema.Name] += conv.Stats.Rows[srcSchema.Name]
 			conv.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s:ok=%t",
 				srcSchema.Name, ok))
-			continue
+			mutex.Unlock()
+			logger.Log.Debug(fmt.Sprintf("error processing data migration for table: %s", tableId))
+			return TaskResult[error]{}
 		}
-		// Extract common spColds. We get column ids common to both source and
-		// spanner table so that we can read these records from source
+
 		colIds := GetCommonColumnIds(conv, tableId, spSchema.ColIds)
 		err := infoSchema.ProcessData(conv, tableId, srcSchema, colIds, spSchema, additionalAttributes)
-		if err != nil {
-			return
-		}
-		if conv.DataFlush != nil {
-			conv.DataFlush()
-		}
+		logger.Log.Debug(fmt.Sprintf("completed migrating data for table: %s %s\n", tableId, srcSchema.Name))
+		return TaskResult[error]{nil, err}
+	}
+
+	logger.Log.Debug("initiating parallel processing")
+	res, e := RunParallelTasks(tableIds, 10, asyncProcessData, true)
+	if e != nil {
+		fmt.Printf("exiting due to error: %s , while processing schema for table %s\n", e, res)
+		return
 	}
 }
 
@@ -152,6 +188,7 @@ func SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
 		return
 	}
 	for _, t := range tables {
+		logger.Log.Debug("getting table counts for tables")
 		tableName := infoSchema.GetTableName(t.Schema, t.Name)
 		count, err := infoSchema.GetRowCount(t)
 		if err != nil {

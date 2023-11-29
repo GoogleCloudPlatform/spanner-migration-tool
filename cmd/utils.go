@@ -115,6 +115,7 @@ func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, 
 		err = fmt.Errorf("can't create database client: %v", err)
 		return nil, err
 	}
+	conv.Client = client
 	defer adminClient.Close()
 	defer client.Close()
 	switch v := cmd.(type) {
@@ -178,7 +179,9 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return nil, err
 	}
+	fmt.Printf("completed schema migration")
 	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
+	fmt.Printf("initiating data migration")
 	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)

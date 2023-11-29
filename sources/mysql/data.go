@@ -28,13 +28,14 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 )
 
 // ProcessDataRow converts a row of data and writes it out to Spanner.
 // srcTable and srcCols are the source table and columns respectively,
 // and vals contains string data to be converted to appropriate types
 // to send to Spanner. ProcessDataRow is only called in DataMode.
-func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string, additionalAttributes internal.AdditionalDataAttributes) {
+func ProcessDataRow(conv *internal.Conv, writer *writer.BatchWriter, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string, additionalAttributes internal.AdditionalDataAttributes) {
 	srcTableName := srcSchema.Name
 	srcCols := []string{}
 	for _, colId := range colIds {
@@ -46,7 +47,11 @@ func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSch
 		conv.StatsAddBadRow(srcTableName, conv.DataMode())
 		conv.CollectBadRow(srcTableName, srcCols, vals)
 	} else {
-		conv.WriteRow(srcTableName, spTableName, cvtCols, cvtVals)
+		if writer != nil {
+			writer.AddRow(spTableName, cvtCols, cvtVals)
+		} else {
+			conv.WriteRow(srcTableName, spTableName, cvtCols, cvtVals)
+		}
 	}
 }
 

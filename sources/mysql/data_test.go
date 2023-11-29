@@ -72,7 +72,7 @@ func TestProcessDataRow(t *testing.T) {
 	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {
 		rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 	})
-	ProcessDataRow(conv, tableId, colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], []string{"4.2", "6", "prisoner zero"}, internal.AdditionalDataAttributes{})
+	ProcessDataRow(conv, nil, tableId, colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], []string{"4.2", "6", "prisoner zero"}, internal.AdditionalDataAttributes{})
 	assert.Equal(t, []spannerData{spannerData{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero"}}}, rows)
 }
 
