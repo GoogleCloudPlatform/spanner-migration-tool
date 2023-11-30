@@ -706,6 +706,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		dataflowSubnetwork       = ""
 		workerIpAddressConfig    = dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PUBLIC
 		dataflowUserLabels       = make(map[string]string)
+		machineType              = "n1-standard-2"
 	)
 	// If project override present, use that otherwise default to Spanner project. Useful when customers want to run Dataflow in separate project.
 	if dataflowCfg.ProjectId != "" {
@@ -755,6 +756,10 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		}
 	}
 
+	if dataflowCfg.MachineType != "" {
+		machineType = dataflowCfg.MachineType
+	}
+
 	launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: gcsTemplatePath},
@@ -777,7 +782,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 			Network:               dataflowCfg.Network,
 			Subnetwork:            dataflowSubnetwork,
 			IpConfiguration:       workerIpAddressConfig,
-			MachineType:           dataflowCfg.MachineType,
+			MachineType:           machineType,
 			AdditionalUserLabels:  dataflowUserLabels,
 			KmsKeyName:            dataflowCfg.KmsKeyName,
 		},
