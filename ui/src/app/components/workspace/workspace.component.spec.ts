@@ -21,6 +21,7 @@ import ISpannerConfig from 'src/app/model/spanner-config'
 import { MatTabsModule } from '@angular/material/tabs'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { FlatNode } from 'src/app/model/schema-object-node'
+import IConv from 'src/app/model/conv'
 const mockStructuredReport: IStructuredReport = {
   summary: {
     text: "",
@@ -115,9 +116,6 @@ describe('WorkspaceComponent', () => {
     fetchServiceSpy.getLastSessionDetails.and.returnValue(of(mockIConv));
     fetchServiceSpy.getSpannerConfig.and.returnValue(of(mockSpannerConfig));
     fetchServiceSpy.getIsOffline.and.returnValue(of(false));
-    fetchServiceSpy.getDStructuredReport.and.returnValue(of({} as any));
-    fetchServiceSpy.getDTextReport.and.returnValue(of('textReport'));
-    fetchServiceSpy.getDSpannerDDL.and.returnValue(of('spannerDDL'));
   })
 
   beforeEach(() => {
@@ -422,8 +420,8 @@ describe('WorkspaceComponent', () => {
       parent: '',
       parentId: ''
     };
-    conversionServiceSpy.getColumnMapping.and.returnValue([]);
-    conversionServiceSpy.getFkMapping.and.returnValue([]);
+    conversionServiceSpy.getColumnMapping.withArgs(jasmine.any(String), jasmine.objectContaining<IConv>({})).and.returnValue([]);
+    conversionServiceSpy.getFkMapping.withArgs(jasmine.any(String), jasmine.objectContaining<IConv>({})).and.returnValue([]);
 
     component.changeCurrentObject(tableNode);
 
@@ -446,7 +444,7 @@ describe('WorkspaceComponent', () => {
       isDeleted: false,
       parent: ''
     };
-    conversionServiceSpy.getIndexMapping.and.returnValue([]);
+    conversionServiceSpy.getIndexMapping.withArgs(jasmine.any(String),jasmine.objectContaining<IConv>({}),jasmine.any(String)).and.returnValue([]);
     component.changeCurrentObject(indexNode);
     expect(component.currentObject).toEqual(indexNode);
     expect(component.indexData).toEqual([]);
