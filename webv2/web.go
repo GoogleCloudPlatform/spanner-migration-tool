@@ -2349,7 +2349,7 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 		generatedResources.ShardToDataflowMap[shardId] = resourceDetails
 	}
 	for shardId, monitoringResource := range sessionState.Conv.Audit.StreamingStats.ShardToMonitoringResourcesMap {
-		url := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", monitoringResource, sessionState.GCPProjectID)
+		url := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", monitoringResource.DashboardName, sessionState.GCPProjectID)
 		resourceDetails := ResourceDetails{JobName: monitoringResource.DashboardName, JobUrl: url}
 		generatedResources.ShardToMonitoringDashboardMap[shardId] = resourceDetails
 	}
