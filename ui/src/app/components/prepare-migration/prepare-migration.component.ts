@@ -491,6 +491,7 @@ export class PrepareMigrationComponent implements OnInit {
       width: '4000px',
       minWidth: '400px',
       maxWidth: '500px',
+      data: { sourceType : this.sourceDatabaseType },
     })
     dialogRef.afterClosed().subscribe(() => {
       this.datastreamConfig = {
