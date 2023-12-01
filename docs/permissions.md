@@ -156,12 +156,9 @@ In addition to these, the `DatastreamToSpanner` pipeline created by SMT requires
 the following roles as well:
 
 - Dataflow service account:
-  - GCS Bucket Lister
   - Storage Object Creator
-  - GCS Object Lister
   - Storage Object Viewer
 - Dataflow compute engine service account:
-  - Datastream Viewer role
   - Cloud Spanner Database user
   - Cloud Spanner Restore Admin
   - Cloud Spanner Viewer
