@@ -35,6 +35,11 @@ export interface IDatastreamConfig {
     maxConcurrentCdcTasks: string
 }
 
+export interface IGcsConfig {
+    ttlInDays: string
+    ttlInDaysSet: boolean
+}
+
 export interface IDataflowConfig {
     network: string
     subnetwork: string

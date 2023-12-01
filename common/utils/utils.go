@@ -679,3 +679,30 @@ func sortKeysByOrder(pks []ddl.IndexKey) {
 		return pks[i].Order < pks[j].Order
 	})
 }
+
+func ConcatDirectoryPath(basePath, subPath string) string {
+	// ensure basePath doesn't start with '/' and ends with '/'
+	if basePath == "" || basePath == "/" {
+		basePath = ""
+	} else {
+		if basePath[0] == '/' {
+			basePath = basePath[1:]
+		}
+		if basePath[len(basePath)-1] != '/' {
+			basePath = basePath + "/"
+		}
+	}
+	// ensure subPath doesn't start with '/' ends with '/'
+	if subPath == "" || subPath == "/" {
+		subPath = ""
+	} else {
+		if subPath[0] == '/' {
+			subPath = subPath[1:]
+		}
+		if subPath[len(subPath)-1] != '/' {
+			subPath = subPath + "/"
+		}
+	}
+	path := fmt.Sprintf("%s%s", basePath, subPath)
+	return path
+}
