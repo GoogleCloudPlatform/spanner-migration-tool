@@ -3,7 +3,7 @@ layout: default
 title: Tune Dataflow (Optional)
 parent: Prepare Migration Page
 grand_parent: SMT UI
-nav_order: 4
+nav_order: 6
 ---
 
 # Tune Dataflow (Optional)
@@ -27,7 +27,7 @@ Some use cases when the user would want to tweak the jobs are:
 
 {: .highlight }
 
-To configure dataflow, first specify the target database in the 'Configure Spanner Database' step. This enables the configure button for the remaining steps.
+To tune dataflow, first specify the target database in the 'Configure Spanner Database' step. This enables the configure button for the remaining steps.
 
 ![](https://services.google.com/fh/gumdrop/preview/misc/dataflow-form.png)
 
