@@ -9,7 +9,7 @@
         <input matInput placeholder="Max Concurrent Backfill Tasks" type="text" formControlName="maxConcurrentBackfillTasks"/>
       </mat-form-field>
       <br>
-      <mat-form-field class="full-width" appearance="outline" matTooltip="Set the max number of concurrent workers for Datastream CDC. Default: 5"
+      <mat-form-field *ngIf="isCdcTuningSupported" class="full-width" appearance="outline" matTooltip="Set the max number of concurrent workers for Datastream CDC. Default: 5"
       [matTooltipPosition]="'right'">
         <mat-label>Max Concurrent CDC Tasks</mat-label>
         <input matInput placeholder="Max Concurrent CDC Tasks" type="text" formControlName="maxConcurrentCdcTasks"/>

@@ -6,15 +6,16 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import IConv, { ISessionSummary, ISpannerDetails } from 'src/app/model/conv'
 import IMigrationDetails, { IGeneratedResources, IProgress, ISourceAndTargetDetails, ResourceDetails } from 'src/app/model/migrate'
-import { Datastream, Dataflow, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
+import { Datastream, Gcs, Dataflow, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
 import { SourceDetailsFormComponent } from '../source-details-form/source-details-form.component'
 import { EndMigrationComponent } from '../end-migration/end-migration.component'
-import { IDatastreamConfig, IDataflowConfig, IMigrationProfile, ISetUpConnectionProfile, IShardedDataflowMigration } from 'src/app/model/profile'
+import { IDatastreamConfig, IGcsConfig, IDataflowConfig, IMigrationProfile, ISetUpConnectionProfile, IShardedDataflowMigration } from 'src/app/model/profile'
 import { DataflowFormComponent } from '../dataflow-form/dataflow-form.component'
 import { TuneDatastreamFormComponent } from '../tune-datastream-form/tune-datastream-form.component'
+import { TuneGcsFormComponent } from '../tune-gcs-form/tune-gcs-form.component'
 import { EquivalentGcloudCommandComponent } from '../equivalent-gcloud-command/equivalent-gcloud-command.component'
 import ISpannerConfig from 'src/app/model/spanner-config'
 import { ShardedBulkSourceDetailsFormComponent } from '../sharded-bulk-source-details-form/sharded-bulk-source-details-form.component'
@@ -46,6 +47,7 @@ export class PrepareMigrationComponent implements OnInit {
   isSourceConnectionProfileSet: boolean = false
   isTargetConnectionProfileSet: boolean = false
   isDatastreamConfigurationSet: boolean = false
+  isGcsConfigurationSet: boolean = false
   isDataflowConfigurationSet: boolean = false
   isSourceDetailsSet: boolean = false
   isTargetDetailSet: boolean = false
@@ -117,11 +119,16 @@ export class PrepareMigrationComponent implements OnInit {
     maxConcurrentBackfillTasks: localStorage.getItem(Datastream.MaxConcurrentBackfillTasks) as string,
     maxConcurrentCdcTasks: localStorage.getItem(Datastream.MaxConcurrentCdcTasks) as string
   }
+
+  gcsConfig: IGcsConfig = {
+    ttlInDays: localStorage.getItem(Gcs.TtlInDays) as string,
+    ttlInDaysSet: (localStorage.getItem(Gcs.TtlInDaysSet) as string === 'true')
+  }
   
   dataflowConfig: IDataflowConfig = {
     network: localStorage.getItem(Dataflow.Network) as string,
     subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-    vpcHostProjectId: localStorage.getItem(Dataflow.VpcHostProjectId) as string,
+    hostProjectId: localStorage.getItem(Dataflow.VpcHostProjectId) as string,
     maxWorkers: localStorage.getItem(Dataflow.MaxWorkers) as string,
     numWorkers: localStorage.getItem(Dataflow.NumWorkers) as string,
     serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string,
@@ -286,6 +293,9 @@ export class PrepareMigrationComponent implements OnInit {
     }
     if (localStorage.getItem(Datastream.IsDatastreamConfigSet) != null) {
       this.isDatastreamConfigurationSet = (localStorage.getItem(Datastream.IsDatastreamConfigSet) as string === 'true')
+    }
+    if (localStorage.getItem(Gcs.IsGcsConfigSet) != null) {
+      this.isGcsConfigurationSet = (localStorage.getItem(Gcs.IsGcsConfigSet) as string === 'true')
     }
     if (localStorage.getItem(Dataflow.IsDataflowConfigSet) != null) {
       this.isDataflowConfigurationSet = (localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true')
@@ -481,6 +491,7 @@ export class PrepareMigrationComponent implements OnInit {
       width: '4000px',
       minWidth: '400px',
       maxWidth: '500px',
+      data: { sourceType : this.sourceDatabaseType },
     })
     dialogRef.afterClosed().subscribe(() => {
       this.datastreamConfig = {
@@ -503,6 +514,33 @@ export class PrepareMigrationComponent implements OnInit {
     )
   }
 
+  openTuneGcsForm(){
+    let dialogRef = this.dialog.open(TuneGcsFormComponent, {
+      width: '4000px',
+      minWidth: '400px',
+      maxWidth: '500px',
+    })
+    dialogRef.afterClosed().subscribe(() => {
+      this.gcsConfig = {
+        ttlInDays: localStorage.getItem(Gcs.TtlInDays) as string,
+        ttlInDaysSet: (localStorage.getItem(Gcs.TtlInDaysSet) as string === 'true')    
+      }
+      this.isGcsConfigurationSet = localStorage.getItem(Gcs.IsGcsConfigSet) as string === 'true'
+      // We only call setGcsDetailsForShardedMigrations for sharded flows which is fetched later to create sharding configs for the shards. 
+      // Non-sharded flows write a streaming config file during the migrate() operation using data passed in the payload on the fly.
+      // This should be refactored to keep the flow same for both sharded and non-sharded.
+      if (this.isSharded) {
+        this.fetch.setGcsDetailsForShardedMigrations(this.gcsConfig).subscribe({
+          next: () => { },
+          error: (err: any) => {
+            this.snack.openSnackBar(err.error, 'Close')
+          }
+        })
+      }
+    }
+    )
+  }
+
   openDataflowForm() {
     let dialogRef = this.dialog.open(DataflowFormComponent, {
       width: '4000px',
@@ -514,7 +552,7 @@ export class PrepareMigrationComponent implements OnInit {
       this.dataflowConfig = {
         network: localStorage.getItem(Dataflow.Network) as string,
         subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
-        vpcHostProjectId: localStorage.getItem(Dataflow.VpcHostProjectId) as string,
+        hostProjectId: localStorage.getItem(Dataflow.VpcHostProjectId) as string,
         maxWorkers: localStorage.getItem(Dataflow.MaxWorkers) as string,
         numWorkers: localStorage.getItem(Dataflow.NumWorkers) as string,
         serviceAccountEmail: localStorage.getItem(Dataflow.ServiceAccountEmail) as string,
@@ -645,6 +683,7 @@ export class PrepareMigrationComponent implements OnInit {
     let payload: IMigrationDetails = {
       TargetDetails: this.targetDetails,
       DatastreamConfig: this.datastreamConfig,
+      GcsConfig: this.gcsConfig,
       DataflowConfig: this.dataflowConfig,
       IsSharded: this.isSharded,
       MigrationType: this.selectedMigrationType,

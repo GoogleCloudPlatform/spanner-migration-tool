@@ -84,11 +84,16 @@ type DatastreamCfg struct {
 	MaxConcurrentCdcTasks       string     `json:"maxConcurrentCdcTasks"`
 }
 
+type GcsCfg struct {
+	TtlInDays    int64 `json:"ttlInDays"`
+	TtlInDaysSet bool  `json:"ttlInDaysSet"`
+}
+
 type DataflowCfg struct {
 	ProjectId            string            `json:"projectId"`
 	JobName              string            `json:"jobName"`
 	Location             string            `json:"location"`
-	VpcHostProjectId     string            `json:"vpcHostProjectId"`
+	VpcHostProjectId     string            `json:"hostProjectId"`
 	Network              string            `json:"network"`
 	Subnetwork           string            `json:"subnetwork"`
 	MaxWorkers           string            `json:"maxWorkers"`
@@ -103,6 +108,7 @@ type DataflowCfg struct {
 
 type StreamingCfg struct {
 	DatastreamCfg DatastreamCfg      `json:"datastreamCfg"`
+	GcsCfg        GcsCfg             `json:"gcsCfg"`
 	DataflowCfg   DataflowCfg        `json:"dataflowCfg"`
 	TmpDir        string             `json:"tmpDir"`
 	PubsubCfg     internal.PubsubCfg `json:"pubsubCfg"`
@@ -199,6 +205,14 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 	_, err = bucket.Attrs(ctx)
 	if err != nil {
 		return fmt.Errorf("bucket %s does not exist", bucketName)
+	}
+
+	// Verify GCS bucket tuning configs.
+	if streamingCfg.GcsCfg.TtlInDaysSet {
+		ttl := streamingCfg.GcsCfg.TtlInDays
+		if ttl <= 0 {
+			return fmt.Errorf("ttlInDays should be a positive integer")
+		}
 	}
 	return nil
 }
@@ -398,6 +412,7 @@ func createPubsubTopicAndSubscription(ctx context.Context, pubsubClient *pubsub.
 	return pubsubCfg, nil
 }
 
+// FetchTargetBucketAndPath fetches the bucket and path name from a Datastream destination config.
 func FetchTargetBucketAndPath(ctx context.Context, datastreamClient *datastream.Client, projectID string, datastreamDestinationConnCfg DstConnCfg) (string, string, error) {
 	if datastreamClient == nil {
 		return "", "", fmt.Errorf("datastream client could not be created")
@@ -411,7 +426,7 @@ func FetchTargetBucketAndPath(ctx context.Context, datastreamClient *datastream.
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
 	bucketName := gcsProfile.Bucket
 	prefix := gcsProfile.RootPath + datastreamDestinationConnCfg.Prefix
-	prefix = concatDirectoryPath(prefix, "data/")
+	prefix = utils.ConcatDirectoryPath(prefix, "data/")
 	return bucketName, prefix, nil
 }
 
@@ -430,33 +445,6 @@ func createNotificationOnBucket(ctx context.Context, storageClient *storage.Clie
 	return createdNotification.ID, nil
 }
 
-func concatDirectoryPath(basePath, subPath string) string {
-	// ensure basPath doesn't start with '/' and ends with '/'
-	if basePath == "" || basePath == "/" {
-		basePath = ""
-	} else {
-		if basePath[0] == '/' {
-			basePath = basePath[1:]
-		}
-		if basePath[len(basePath)-1] != '/' {
-			basePath = basePath + "/"
-		}
-	}
-	// ensure subPath doesn't start with '/' ends with '/'
-	if subPath == "" || subPath == "/" {
-		subPath = ""
-	} else {
-		if subPath[0] == '/' {
-			subPath = subPath[1:]
-		}
-		if subPath[len(subPath)-1] != '/' {
-			subPath = subPath + "/"
-		}
-	}
-	path := fmt.Sprintf("%s%s", basePath, subPath)
-	return path
-}
-
 // LaunchStream populates the parameters from the streaming config and triggers a stream on Cloud Datastream.
 func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, projectID string, datastreamCfg DatastreamCfg) error {
 	fmt.Println("Launching stream ", fmt.Sprintf("projects/%s/locations/%s", projectID, datastreamCfg.StreamLocation))
@@ -467,7 +455,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	defer dsClient.Close()
 	fmt.Println("Created client...")
 	prefix := datastreamCfg.DestinationConnectionConfig.Prefix
-	prefix = concatDirectoryPath(prefix, "data")
+	prefix = utils.ConcatDirectoryPath(prefix, "data")
 
 	gcsDstCfg := &datastreampb.GcsDestinationConfig{
 		Path:       prefix,
@@ -718,6 +706,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		dataflowSubnetwork       = ""
 		workerIpAddressConfig    = dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PUBLIC
 		dataflowUserLabels       = make(map[string]string)
+		machineType              = "n1-standard-2"
 	)
 	// If project override present, use that otherwise default to Spanner project. Useful when customers want to run Dataflow in separate project.
 	if dataflowCfg.ProjectId != "" {
@@ -767,11 +756,15 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		}
 	}
 
+	if dataflowCfg.MachineType != "" {
+		machineType = dataflowCfg.MachineType
+	}
+
 	launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: gcsTemplatePath},
 		Parameters: map[string]string{
-			"inputFilePattern":              concatDirectoryPath(inputFilePattern, "data"),
+			"inputFilePattern":              utils.ConcatDirectoryPath(inputFilePattern, "data"),
 			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
 			"instanceId":                    instance,
 			"databaseId":                    dbName,
@@ -789,7 +782,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 			Network:               dataflowCfg.Network,
 			Subnetwork:            dataflowSubnetwork,
 			IpConfiguration:       workerIpAddressConfig,
-			MachineType:           dataflowCfg.MachineType,
+			MachineType:           machineType,
 			AdditionalUserLabels:  dataflowUserLabels,
 			KmsKeyName:            dataflowCfg.KmsKeyName,
 		},
@@ -875,8 +868,18 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 	inputDstConnProfile := pl.DstConnectionProfile
 	dstConnCfg := DstConnCfg{Name: inputDstConnProfile.Name, Location: inputDstConnProfile.Location}
 	datastreamCfg.DestinationConnectionConfig = dstConnCfg
+
+	gcsCfg := GcsCfg{
+		TtlInDays:    pl.GcsConfig.TtlInDays,
+		TtlInDaysSet: pl.GcsConfig.TtlInDaysSet,
+	}
 	//create the streamingCfg object
-	streamingCfg := StreamingCfg{DataflowCfg: dataflowCfg, DatastreamCfg: datastreamCfg, TmpDir: pl.TmpDir, DataShardId: pl.DataShardId}
+	streamingCfg := StreamingCfg{
+		DatastreamCfg: datastreamCfg,
+		GcsCfg:        gcsCfg,
+		DataflowCfg:   dataflowCfg,
+		TmpDir:        pl.TmpDir,
+		DataShardId:   pl.DataShardId}
 	return streamingCfg
 }
 
@@ -924,4 +927,44 @@ func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, st
 		return internal.DataflowOutput{}, fmt.Errorf("error launching dataflow: %v", err)
 	}
 	return dfOutput, nil
+}
+
+// Applies the bucket lifecycle with delete rule. Only accepts the Age and
+// prefix rule conditions as it is only used for the Datastream destination
+// bucket currently.
+func EnableBucketLifecycleDeleteRule(ctx context.Context, bucketName string, matchesPrefix []string, ttl int64) error {
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("could not create client while enabling lifecycle: %w", err)
+	}
+	defer client.Close()
+
+	for i, str := range matchesPrefix {
+		matchesPrefix[i] = strings.TrimPrefix(str, "/")
+	}
+	bucket := client.Bucket(bucketName)
+	bucketAttrsToUpdate := storage.BucketAttrsToUpdate{
+		Lifecycle: &storage.Lifecycle{
+			Rules: []storage.LifecycleRule{
+				{
+					Action: storage.LifecycleAction{Type: "Delete"},
+					Condition: storage.LifecycleCondition{
+						AgeInDays: ttl,
+						// The prefixes should not contain the bucket names and starting slash.
+						// For object gs://my_bucket/pictures/paris_2022.jpg,
+						// you would use a condition such as "matchesPrefix":["pictures/paris_"].
+						MatchesPrefix: matchesPrefix,
+					},
+				},
+			},
+		},
+	}
+
+	attrs, err := bucket.Update(ctx, bucketAttrsToUpdate)
+	if err != nil {
+		return fmt.Errorf("could not bucket with lifecycle: %w", err)
+	}
+	logger.Log.Info(fmt.Sprintf("Added lifecycle rule to bucket %v\n. Rule Action: %v\t Rule Condition: %v\n",
+		bucketName, attrs.Lifecycle.Rules[0].Action, attrs.Lifecycle.Rules[0].Condition))
+	return nil
 }

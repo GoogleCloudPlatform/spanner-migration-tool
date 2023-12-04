@@ -35,10 +35,16 @@ export interface IDatastreamConfig {
     maxConcurrentCdcTasks: string
 }
 
+export interface IGcsConfig {
+    ttlInDays: string
+    ttlInDaysSet: boolean
+}
+
 export interface IDataflowConfig {
     network: string
     subnetwork: string
-    vpcHostProjectId: string
+    // This specifies the host project id of the vpc network if specified.
+    hostProjectId: string
     maxWorkers: string
     numWorkers: string
     serviceAccountEmail: string

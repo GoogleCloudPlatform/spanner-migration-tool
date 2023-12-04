@@ -20,8 +20,7 @@ export class DataflowFormComponent implements OnInit {
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: ISpannerConfig,
-    private dialofRef: MatDialogRef<DataflowFormComponent>,
-    private fetch: FetchService
+    private dialofRef: MatDialogRef<DataflowFormComponent>
   ) {
     this.tunableFlagsForm = new FormGroup({
       network: new FormControl(''),
