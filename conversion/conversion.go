@@ -385,10 +385,10 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 	conv.Audit.StreamingStats.ShardToDataflowInfoMap = make(map[string]internal.ShardedDataflowJobResources)
 	conv.Audit.StreamingStats.ShardToGcsResources = make(map[string]internal.GcsResources)
 	conv.Audit.StreamingStats.ShardToMonitoringResourcesMap = make(map[string]internal.MonitoringResources)
-	tableList, err := common.GetIncludedSrcTablesFromConv(conv)
+	tableListWithSchema, err := common.GetIncludedSrcTablesFromConv(conv)
 	if err != nil {
 		fmt.Printf("unable to determine tableList from schema, falling back to full database")
-		tableList = []string{}
+		tableListWithSchema = map[string][]string{}
 	}
 	asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) common.TaskResult[*profiles.DataShard] {
 		dbNameToShardIdMap := make(map[string]string)
@@ -405,7 +405,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 			fmt.Printf("Data shard id generated: %v\n", p.DataShardId)
 		}
 		streamingCfg := streaming.CreateStreamingConfig(*p)
-		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname, tableList)
+		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname, tableListWithSchema)
 		if err != nil {
 			err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}

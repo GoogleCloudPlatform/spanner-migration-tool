@@ -363,7 +363,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
 	mp := make(map[string]interface{})
 	var (
-		tableList []string
+		tableList map[string][]string
 		err       error
 	)
 	tableList, err = common.GetIncludedSrcTablesFromConv(conv)

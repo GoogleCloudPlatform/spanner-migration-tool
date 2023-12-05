@@ -427,11 +427,11 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
 	mp := make(map[string]interface{})
 	var (
-		tableList []string
-		err       error
+		tableListWithSchema map[string][]string
+		err                 error
 	)
-	tableList, err = common.GetIncludedSrcTablesFromConv(conv)
-	streamingCfg, err := streaming.ReadStreamingConfig(isi.SourceProfile.Conn.Oracle.StreamingConfig, isi.TargetProfile.Conn.Sp.Dbname, tableList)
+	tableListWithSchema, err = common.GetIncludedSrcTablesFromConv(conv)
+	streamingCfg, err := streaming.ReadStreamingConfig(isi.SourceProfile.Conn.Oracle.StreamingConfig, isi.TargetProfile.Conn.Sp.Dbname, tableListWithSchema)
 	if err != nil {
 		return nil, fmt.Errorf("error reading streaming config: %v", err)
 	}
@@ -440,7 +440,7 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 		return nil, fmt.Errorf("error creating pubsub resources: %v", err)
 	}
 	streamingCfg.PubsubCfg = *pubsubCfg
-	streamingCfg, err = streaming.StartDatastream(ctx, streamingCfg, isi.SourceProfile, isi.TargetProfile, tableList)
+	streamingCfg, err = streaming.StartDatastream(ctx, streamingCfg, isi.SourceProfile, isi.TargetProfile, tableListWithSchema)
 	if err != nil {
 		err = fmt.Errorf("error starting datastream: %v", err)
 		return nil, err
