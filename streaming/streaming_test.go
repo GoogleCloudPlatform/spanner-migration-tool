@@ -16,6 +16,7 @@ package streaming
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/stretchr/testify/assert"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 )
@@ -143,5 +144,122 @@ func TestGetPostgreSQLSourceStreamConfig(t *testing.T) {
 			assert.Equal(t, tc.expectedCfg, result)
 			assert.Equal(t, tc.err, err)
 		})
+	}
+}
+
+func TestGetMySQLSourceStreamConfig(t *testing.T) {
+	testCases := []struct {
+		name        string
+		inputCfg    DatastreamCfg
+		dbList      []profiles.LogicalShard
+		expectedCfg *datastreampb.SourceConfig_MysqlSourceConfig
+		err         error
+	}{
+		{
+			name: "Valid datastream configuration with single database",
+			inputCfg: DatastreamCfg{
+				TableSchemaMap: map[string][]string{
+					"db1": {"table1", "table2"},
+				},
+			},
+			dbList: []profiles.LogicalShard{
+				{
+					DbName:         "db1",
+					LogicalShardId: "l1",
+					RefDataShardId: "x1",
+				},
+			},
+			expectedCfg: &datastreampb.SourceConfig_MysqlSourceConfig{
+				MysqlSourceConfig: &datastreampb.MysqlSourceConfig{
+					IncludeObjects: &datastreampb.MysqlRdbms{MysqlDatabases: []*datastreampb.MysqlDatabase{
+						{
+							Database: "db1",
+							MysqlTables: []*datastreampb.MysqlTable{
+								{
+									Table: "table1",
+								},
+								{
+									Table: "table2",
+								},
+							},
+						},
+					}},
+					MaxConcurrentBackfillTasks: 50,
+					MaxConcurrentCdcTasks:      5,
+				},
+			},
+			err: nil,
+		},
+		{
+			name: "Valid datastream configuration with multiple database",
+			inputCfg: DatastreamCfg{
+				TableSchemaMap: map[string][]string{
+					"db1": {"table1", "table2"},
+				},
+			},
+			dbList: []profiles.LogicalShard{
+				{
+					DbName:         "db1",
+					LogicalShardId: "l1",
+					RefDataShardId: "x1",
+				},
+				{
+					DbName:         "db2",
+					LogicalShardId: "l2",
+					RefDataShardId: "x2",
+				},
+			},
+			expectedCfg: &datastreampb.SourceConfig_MysqlSourceConfig{
+				MysqlSourceConfig: &datastreampb.MysqlSourceConfig{
+					IncludeObjects: &datastreampb.MysqlRdbms{MysqlDatabases: []*datastreampb.MysqlDatabase{
+						{
+							Database: "db1",
+							MysqlTables: []*datastreampb.MysqlTable{
+								{
+									Table: "table1",
+								},
+								{
+									Table: "table2",
+								},
+							},
+						},
+						{
+							Database: "db2",
+							MysqlTables: []*datastreampb.MysqlTable{
+								{
+									Table: "table1",
+								},
+								{
+									Table: "table2",
+								},
+							},
+						},
+					}},
+					MaxConcurrentBackfillTasks: 50,
+					MaxConcurrentCdcTasks:      5,
+				},
+			},
+			err: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := getMysqlSourceStreamConfig(tc.dbList, tc.inputCfg)
+			assertEqualMysqlRdbms(t, tc.expectedCfg, result)
+			assert.Equal(t, tc.err, err)
+		})
+	}
+}
+
+func assertEqualMysqlRdbms(t *testing.T, expected, actual *datastreampb.SourceConfig_MysqlSourceConfig) {
+	assert.Equal(t, expected.MysqlSourceConfig.MaxConcurrentBackfillTasks, actual.MysqlSourceConfig.MaxConcurrentBackfillTasks)
+	assert.Equal(t, expected.MysqlSourceConfig.MaxConcurrentCdcTasks, actual.MysqlSourceConfig.MaxConcurrentCdcTasks)
+
+	for i := range expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases {
+		assert.Equal(t, expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i].Database, actual.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i].Database)
+		for j := range expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i].MysqlTables {
+			assert.Equal(t, expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i].MysqlTables[j].Table, actual.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i].MysqlTables[j].Table)
+		}
 	}
 }
