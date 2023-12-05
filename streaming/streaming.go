@@ -294,12 +294,6 @@ func getPostgreSQLSourceStreamConfig(datastreamCfg DatastreamCfg) (*datastreampb
 	if err != nil {
 		return nil, fmt.Errorf("could not parse properties: %v", err)
 	}
-	var excludeObjects []*datastreampb.PostgresqlSchema
-	for _, s := range []string{"information_schema", "postgres", "pg_catalog", "pg_temp_1", "pg_toast", "pg_toast_temp_1"} {
-		excludeObjects = append(excludeObjects, &datastreampb.PostgresqlSchema{
-			Schema: s,
-		})
-	}
 	postgreSQLSchema := []*datastreampb.PostgresqlSchema{}
 	for schema, tableList := range datastreamCfg.TableSchemaMap {
 		postgreSQLTables := []*datastreampb.PostgresqlTable{}
@@ -333,7 +327,6 @@ func getPostgreSQLSourceStreamConfig(datastreamCfg DatastreamCfg) (*datastreampb
 		Publication:                publication,
 		MaxConcurrentBackfillTasks: maxBackfillTasks,
 	}
-	fmt.Println("Postgresql config", postgresSrcCfg)
 	return &datastreampb.SourceConfig_PostgresqlSourceConfig{PostgresqlSourceConfig: postgresSrcCfg}, nil
 }
 
