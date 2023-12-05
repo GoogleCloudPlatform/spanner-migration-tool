@@ -246,13 +246,13 @@ func TestGetMySQLSourceStreamConfig(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := getMysqlSourceStreamConfig(tc.dbList, tc.inputCfg)
-			assertEqualMysqlRdbms(t, tc.expectedCfg, result)
+			assertEqualMysqlSourceConfig(t, tc.expectedCfg, result)
 			assert.Equal(t, tc.err, err)
 		})
 	}
 }
 
-func assertEqualMysqlRdbms(t *testing.T, expected, actual *datastreampb.SourceConfig_MysqlSourceConfig) {
+func assertEqualMysqlSourceConfig(t *testing.T, expected, actual *datastreampb.SourceConfig_MysqlSourceConfig) {
 	assert.Equal(t, expected.MysqlSourceConfig.MaxConcurrentBackfillTasks, actual.MysqlSourceConfig.MaxConcurrentBackfillTasks)
 	assert.Equal(t, expected.MysqlSourceConfig.MaxConcurrentCdcTasks, actual.MysqlSourceConfig.MaxConcurrentCdcTasks)
 
