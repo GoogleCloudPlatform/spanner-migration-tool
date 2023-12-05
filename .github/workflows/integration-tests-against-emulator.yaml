@@ -148,22 +148,23 @@ jobs:
       - run: gcloud config set api_endpoint_overrides/spanner http://localhost:9020/
       - run: gcloud spanner instances create test-instance --config=emulator-config --description="Test Instance" --nodes=1
 
-      # run tests
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v2
         with:
-          node-version: '14'
-      - name: Start Local Server
-        run: go run github.com/GoogleCloudPlatform/spanner-migration-tool web &
-        env:
-          SPANNER_EMULATOR_HOST: localhost:9010
+          node-version: 16
 
       - name: Install Dependencies
         run: |
           cd ui
           npm ci
+
+      - name: Start Local Server
+        run:  |
+          cd ui
+          npm start &
+
       - name: Wait for Local Server to Start
-        run: npx wait-on http://localhost:8080 -t 30000
+        run: npx wait-on http://localhost:4200 -t 30000
 
       - name: Cypress run
         run: |
