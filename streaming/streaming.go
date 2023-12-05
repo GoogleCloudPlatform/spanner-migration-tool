@@ -311,7 +311,7 @@ func getPostgreSQLSourceStreamConfig(datastreamCfg DatastreamCfg) (*datastreampb
 				}
 			} else {
 				includeTable = &datastreampb.PostgresqlTable{
-					Table: strings.TrimLeft(table, schema+"."),
+					Table: strings.TrimPrefix(table, schema+"."),
 				}
 			}
 			postgreSQLTables = append(postgreSQLTables, includeTable)
