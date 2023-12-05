@@ -8,7 +8,7 @@ nav_order: 6
 # Configuration JSONs
 {: .no_toc }
 
-The SMT CLI expects configuration JSONs when running low downtime migrations in two key modes:
+The SMT CLI expects configuration JSONs when running minimal downtime migrations in two key modes:
 
 - **Non-Sharded Minimal Downtime Migrations:** In this mode, the SMT CLI expects a `streamingCfg` parameter containing the configuration details in JSON format.
 
@@ -90,17 +90,6 @@ The empty fields are optional.
 ```json
 {
     "configType": "dataflow",
-    "shardConfigurationBulk": {
-        "schemaSource": {
-            "dataShardId": "",
-            "host": "",
-            "user": "",
-            "password": "",
-            "port": "",
-            "dbName": ""
-        },
-        "dataShards": null
-    },
     "shardConfigurationDataflow": {
         "schemaSource": {
             "host": "127.0.0.1",
@@ -140,7 +129,7 @@ The empty fields are optional.
             "ttlInDays": "1"
         },
         "dataflowConfig": {
-            "projectId": "span-cloud-testing",
+            "projectId": "my-project",
             "jobName": "",
             "location": "us-central1",
             "hostProjectId": "my-vpc-host-project",
@@ -154,7 +143,6 @@ The empty fields are optional.
             "kmsKeyName": "",
             "gcsTemplatePath": ""
         }
-    },
-    "shardConfigurationDMS": {}
+    }
 }
 ```
