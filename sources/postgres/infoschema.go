@@ -62,14 +62,14 @@ func (isi InfoSchemaImpl) populateSchemaIsUnique(schemaAndNames []common.SchemaA
 func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
 	mp := make(map[string]interface{})
 	var (
-		tableListWithSchema map[string][]string
-		err                 error
+		schemaDetails map[string]internal.SchemaDetails
+		err           error
 	)
-	tableListWithSchema, err = common.GetIncludedSrcTablesFromConv(conv)
+	schemaDetails, err = common.GetIncludedSrcTablesFromConv(conv)
 	if err != nil {
 		err = fmt.Errorf("error fetching the tableList to setup datastream migration, defaulting to all tables: %v", err)
 	}
-	streamingCfg, err := streaming.ReadStreamingConfig(isi.SourceProfile.Conn.Pg.StreamingConfig, isi.TargetProfile.Conn.Sp.Dbname, tableListWithSchema)
+	streamingCfg, err := streaming.ReadStreamingConfig(isi.SourceProfile.Conn.Pg.StreamingConfig, isi.TargetProfile.Conn.Sp.Dbname, schemaDetails)
 	if err != nil {
 		return nil, fmt.Errorf("error reading streaming config: %v", err)
 	}
@@ -78,7 +78,7 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 		return nil, fmt.Errorf("error creating pubsub resources: %v", err)
 	}
 	streamingCfg.PubsubCfg = *pubsubCfg
-	streamingCfg, err = streaming.StartDatastream(ctx, streamingCfg, isi.SourceProfile, isi.TargetProfile, tableListWithSchema)
+	streamingCfg, err = streaming.StartDatastream(ctx, streamingCfg, isi.SourceProfile, isi.TargetProfile, schemaDetails)
 	if err != nil {
 		err = fmt.Errorf("error starting datastream: %v", err)
 		return nil, err
