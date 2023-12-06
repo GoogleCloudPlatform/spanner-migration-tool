@@ -2251,6 +2251,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	sessionState.Error = nil
 	ctx := context.Background()
 	sessionState.Conv.Audit.Progress = internal.Progress{}
+	sessionState.Conv.UI = true
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
 	if err != nil {
 		log.Println("can't get source and target profile")

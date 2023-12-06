@@ -122,15 +122,6 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 	if dsCfg.StreamLocation == "" {
 		return fmt.Errorf("please specify DatastreamCfg.StreamLocation in the streaming config")
 	}
-	srcCfg := dsCfg.SourceConnectionConfig
-	if srcCfg.Name == "" || srcCfg.Location == "" {
-		return fmt.Errorf("please specify Name and Location under DatastreamCfg.SourceConnectionConfig in the streaming config")
-	}
-	dstCfg := dsCfg.DestinationConnectionConfig
-	if dstCfg.Name == "" || dstCfg.Location == "" {
-		return fmt.Errorf("please specify Name and Location under DatastreamCfg.DestinationConnectionConfig in the streaming config")
-	}
-
 	dfCfg := streamingCfg.DataflowCfg
 	if dfCfg.Location == "" {
 		return fmt.Errorf("please specify the Location under DataflowCfg in the streaming config")

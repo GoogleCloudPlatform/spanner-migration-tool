@@ -21,6 +21,7 @@ import (
 
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -156,6 +157,13 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 			return nil, err
 		}
 	}
+	// If migration type is Minimal Downtime, validate if required resources can be generated
+	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
+		err = validateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		if err != nil {
+			return nil, err
+		}
+	}
 	bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
@@ -179,6 +187,14 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		return nil, err
 	}
 	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
+
+	// If migration type is Minimal Downtime, validate if required resources can be generated
+	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
+		err = validateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		if err != nil {
+			return nil, err
+		}
+	}
 	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
@@ -193,4 +209,21 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		}
 	}
 	return bw, nil
+}
+
+// Method to validate if in a minimal downtime migration, required resources can be generated
+func validateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error{
+	spannerRegion, err := conversion.GetSpannerRegion(ctx, projectId, instanceId)
+		if err != nil {
+			err = fmt.Errorf("unable to fetch Spanner Region: %v", err)
+			return err
+		}
+		conv.SpRegion = spannerRegion
+		err = conversion.CreateResourcesForShardedMigration(ctx, projectId, instanceId, true, spannerRegion, sourceProfile)
+		if err != nil {
+			err = fmt.Errorf("unable to create connection profiles: %v", err)
+			return err
+		}
+		conv.ResourceValidation = true
+		return nil
 }

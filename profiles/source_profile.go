@@ -442,7 +442,11 @@ type DirectConnectionConfig struct {
 
 type DatastreamConnProfile struct {
 	Name     string `json:"name"`
-	Location string `json:"location"`
+	Host     string  `json:"host"`
+	User     string  `json:"user"`
+	Port     string  `json:"port"`
+	Password string  `json:"password"`
+	Location string  `json:"location"`
 }
 
 type DatastreamConfig struct {
