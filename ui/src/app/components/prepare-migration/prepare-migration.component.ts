@@ -192,6 +192,9 @@ export class PrepareMigrationComponent implements OnInit {
     this.isSourceConnectionProfileSet = false
     this.isTargetConnectionProfileSet = false
     this.isTargetDetailSet = false
+    this.isDatastreamConfigurationSet = false
+    this.isGcsConfigurationSet = false
+    this.isDataflowConfigurationSet = false
     this.refreshMigrationMode()
   }
 
@@ -374,6 +377,12 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.IsSourceConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsTargetConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsSourceDetailsSet)
+    localStorage.removeItem(Datastream.IsDatastreamConfigSet)
+    localStorage.removeItem(Datastream.MaxConcurrentBackfillTasks)
+    localStorage.removeItem(Datastream.MaxConcurrentCdcTasks)
+    localStorage.removeItem(Gcs.IsGcsConfigSet)
+    localStorage.removeItem(Gcs.TtlInDays)
+    localStorage.removeItem(Gcs.TtlInDaysSet)
     localStorage.removeItem(Dataflow.IsDataflowConfigSet)
     localStorage.removeItem(Dataflow.Network)
     localStorage.removeItem(Dataflow.Subnetwork)
@@ -401,6 +410,7 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.NumberOfShards)
     localStorage.removeItem(MigrationDetails.NumberOfInstances)
   }
+  
   openConnectionProfileForm(isSource: boolean) {
     let payload: ISetUpConnectionProfile = {
       IsSource: isSource,
