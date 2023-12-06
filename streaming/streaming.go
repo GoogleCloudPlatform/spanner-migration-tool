@@ -73,15 +73,15 @@ type DstConnCfg struct {
 }
 
 type DatastreamCfg struct {
-	StreamId                    string     `json:"streamId"`
-	StreamLocation              string     `json:"streamLocation"`
-	StreamDisplayName           string     `json:"streamDisplayName"`
-	SourceConnectionConfig      SrcConnCfg `json:"sourceConnectionConfig"`
-	DestinationConnectionConfig DstConnCfg `json:"destinationConnectionConfig"`
-	Properties                  string     `json:"properties"`
-	TableList                   []string   `json:"tableList"`
-	MaxConcurrentBackfillTasks  string     `json:"maxConcurrentBackfillTasks"`
-	MaxConcurrentCdcTasks       string     `json:"maxConcurrentCdcTasks"`
+	StreamId                    string                            `json:"streamId"`
+	StreamLocation              string                            `json:"streamLocation"`
+	StreamDisplayName           string                            `json:"streamDisplayName"`
+	SourceConnectionConfig      SrcConnCfg                        `json:"sourceConnectionConfig"`
+	DestinationConnectionConfig DstConnCfg                        `json:"destinationConnectionConfig"`
+	Properties                  string                            `json:"properties"`
+	SchemaDetails               map[string]internal.SchemaDetails `json:"-"`
+	MaxConcurrentBackfillTasks  string                            `json:"maxConcurrentBackfillTasks"`
+	MaxConcurrentCdcTasks       string                            `json:"maxConcurrentCdcTasks"`
 }
 
 type GcsCfg struct {
@@ -117,7 +117,7 @@ type StreamingCfg struct {
 
 // VerifyAndUpdateCfg checks the fields and errors out if certain fields are empty.
 // It then auto-populates certain empty fields like StreamId and Dataflow JobName.
-func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []string) error {
+func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, schemaDetails map[string]internal.SchemaDetails) error {
 	dsCfg := streamingCfg.DatastreamCfg
 	if dsCfg.StreamLocation == "" {
 		return fmt.Errorf("please specify DatastreamCfg.StreamLocation in the streaming config")
@@ -153,8 +153,7 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 		streamingCfg.DatastreamCfg.StreamDisplayName = streamingCfg.DatastreamCfg.StreamId
 	}
 
-	// Populate the tables to be streamed in the datastreamCfg from the dervied list from session file
-	streamingCfg.DatastreamCfg.TableList = append(streamingCfg.DatastreamCfg.TableList, tableList...)
+	streamingCfg.DatastreamCfg.SchemaDetails = schemaDetails
 
 	if dsCfg.MaxConcurrentCdcTasks != "" {
 		intVal, err := strconv.ParseInt(dsCfg.MaxConcurrentCdcTasks, 10, 64)
@@ -218,7 +217,7 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 }
 
 // ReadStreamingConfig reads the file and unmarshalls it into the StreamingCfg struct.
-func ReadStreamingConfig(file, dbName string, tableList []string) (StreamingCfg, error) {
+func ReadStreamingConfig(file, dbName string, schemaDetails map[string]internal.SchemaDetails) (StreamingCfg, error) {
 	streamingCfg := StreamingCfg{}
 	cfgFile, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -228,7 +227,7 @@ func ReadStreamingConfig(file, dbName string, tableList []string) (StreamingCfg,
 	if err != nil {
 		return streamingCfg, fmt.Errorf("unable to unmarshall json due to: %v", err)
 	}
-	err = VerifyAndUpdateCfg(&streamingCfg, dbName, tableList)
+	err = VerifyAndUpdateCfg(&streamingCfg, dbName, schemaDetails)
 	if err != nil {
 		return streamingCfg, fmt.Errorf("streaming config is incomplete: %v", err)
 	}
@@ -238,13 +237,15 @@ func ReadStreamingConfig(file, dbName string, tableList []string) (StreamingCfg,
 // dbName is the name of the database to be migrated.
 // tabeList is the common list of tables that need to be migrated from each database
 func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard, datastreamCfg DatastreamCfg) (*datastreampb.SourceConfig_MysqlSourceConfig, error) {
-	tableList := datastreamCfg.TableList
+	schemaDetails := datastreamCfg.SchemaDetails
 	mysqlTables := []*datastreampb.MysqlTable{}
-	for _, table := range tableList {
-		includeTable := &datastreampb.MysqlTable{
-			Table: table,
+	for _, tableList := range schemaDetails {
+		for _, table := range tableList.TableDetails {
+			includeTable := &datastreampb.MysqlTable{
+				Table: table.TableName,
+			}
+			mysqlTables = append(mysqlTables, includeTable)
 		}
-		mysqlTables = append(mysqlTables, includeTable)
 	}
 	includeDbList := []*datastreampb.MysqlDatabase{}
 	for _, db := range dbList {
@@ -266,13 +267,14 @@ func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard, datastreamCfg Da
 }
 
 func getOracleSourceStreamConfig(dbName string, datastreamCfg DatastreamCfg) (*datastreampb.SourceConfig_OracleSourceConfig, error) {
-	tableList := datastreamCfg.TableList
 	oracleTables := []*datastreampb.OracleTable{}
-	for _, table := range tableList {
-		includeTable := &datastreampb.OracleTable{
-			Table: table,
+	for _, tableList := range datastreamCfg.SchemaDetails {
+		for _, table := range tableList.TableDetails {
+			includeTable := &datastreampb.OracleTable{
+				Table: table.TableName,
+			}
+			oracleTables = append(oracleTables, includeTable)
 		}
-		oracleTables = append(oracleTables, includeTable)
 	}
 	oracledb := &datastreampb.OracleSchema{
 		Schema:       dbName,
@@ -292,11 +294,27 @@ func getPostgreSQLSourceStreamConfig(datastreamCfg DatastreamCfg) (*datastreampb
 	if err != nil {
 		return nil, fmt.Errorf("could not parse properties: %v", err)
 	}
-	var excludeObjects []*datastreampb.PostgresqlSchema
-	for _, s := range []string{"information_schema", "postgres", "pg_catalog", "pg_temp_1", "pg_toast", "pg_toast_temp_1"} {
-		excludeObjects = append(excludeObjects, &datastreampb.PostgresqlSchema{
-			Schema: s,
-		})
+	postgreSQLSchema := []*datastreampb.PostgresqlSchema{}
+	for schema, tableList := range datastreamCfg.SchemaDetails {
+		postgreSQLTables := []*datastreampb.PostgresqlTable{}
+		for _, table := range tableList.TableDetails {
+			var includeTable *datastreampb.PostgresqlTable
+			if schema == "public" {
+				includeTable = &datastreampb.PostgresqlTable{
+					Table: table.TableName,
+				}
+			} else {
+				includeTable = &datastreampb.PostgresqlTable{
+					Table: strings.TrimPrefix(table.TableName, schema+"."),
+				}
+			}
+			postgreSQLTables = append(postgreSQLTables, includeTable)
+		}
+		includeSchema := &datastreampb.PostgresqlSchema{
+			Schema:           schema,
+			PostgresqlTables: postgreSQLTables,
+		}
+		postgreSQLSchema = append(postgreSQLSchema, includeSchema)
 	}
 	replicationSlot, replicationSlotExists := params["replicationSlot"]
 	publication, publicationExists := params["publication"]
@@ -304,7 +322,7 @@ func getPostgreSQLSourceStreamConfig(datastreamCfg DatastreamCfg) (*datastreampb
 		return nil, fmt.Errorf("replication slot or publication not specified")
 	}
 	postgresSrcCfg := &datastreampb.PostgresqlSourceConfig{
-		ExcludeObjects:             &datastreampb.PostgresqlRdbms{PostgresqlSchemas: excludeObjects},
+		IncludeObjects:             &datastreampb.PostgresqlRdbms{PostgresqlSchemas: postgreSQLSchema},
 		ReplicationSlot:            replicationSlot,
 		Publication:                publication,
 		MaxConcurrentBackfillTasks: maxBackfillTasks,
@@ -883,7 +901,7 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 	return streamingCfg
 }
 
-func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, tableList []string) (StreamingCfg, error) {
+func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, schemaDetails map[string]internal.SchemaDetails) (StreamingCfg, error) {
 	driver := sourceProfile.Driver
 	var dbList []profiles.LogicalShard
 	switch driver {

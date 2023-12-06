@@ -443,6 +443,7 @@ func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request)
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
+	sessionState.SourceProfileConfig.ConfigType = srcConfig.MigrationProfile.ConfigType
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataShards = srcConfig.MigrationProfile.ShardConfigurationDataflow.DataShards
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.SchemaSource = srcConfig.MigrationProfile.ShardConfigurationDataflow.SchemaSource
 
