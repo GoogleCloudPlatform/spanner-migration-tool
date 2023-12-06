@@ -14,6 +14,7 @@
 package streaming
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -313,16 +314,73 @@ func TestGetMySQLSourceStreamConfig(t *testing.T) {
 	}
 }
 
+func assertEqualMysqlDatabase(t *testing.T, expected, actual *datastreampb.MysqlDatabase) {
+	assert.Equal(t, expected.Database, actual.Database)
+	assert.Equal(t, len(expected.MysqlTables), len(actual.MysqlTables))
+
+	// Sort tables to ensure order-independent comparison
+	expectedTables := make([]string, len(expected.MysqlTables))
+	actualTables := make([]string, len(actual.MysqlTables))
+
+	for i, table := range expected.MysqlTables {
+		expectedTables[i] = table.Table
+	}
+	for i, table := range actual.MysqlTables {
+		actualTables[i] = table.Table
+	}
+
+	sort.Strings(expectedTables)
+	sort.Strings(actualTables)
+
+	assert.Equal(t, expectedTables, actualTables)
+}
+
 func assertEqualMysqlSourceConfig(t *testing.T, expected, actual *datastreampb.SourceConfig_MysqlSourceConfig) {
 	assert.Equal(t, expected.MysqlSourceConfig.MaxConcurrentBackfillTasks, actual.MysqlSourceConfig.MaxConcurrentBackfillTasks)
 	assert.Equal(t, expected.MysqlSourceConfig.MaxConcurrentCdcTasks, actual.MysqlSourceConfig.MaxConcurrentCdcTasks)
 
-	for i := range expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases {
-		assert.Equal(t, expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i].Database, actual.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i].Database)
-		for j := range expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i].MysqlTables {
-			assert.Equal(t, expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i].MysqlTables[j].Table, actual.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i].MysqlTables[j].Table)
-		}
+	assert.Equal(t, len(expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases), len(actual.MysqlSourceConfig.IncludeObjects.MysqlDatabases))
+
+	// Sort databases to ensure order-independent comparison
+	expectedDatabases := make([]string, len(expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases))
+	actualDatabases := make([]string, len(actual.MysqlSourceConfig.IncludeObjects.MysqlDatabases))
+
+	for i, db := range expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases {
+		expectedDatabases[i] = db.Database
 	}
+	for i, db := range actual.MysqlSourceConfig.IncludeObjects.MysqlDatabases {
+		actualDatabases[i] = db.Database
+	}
+
+	sort.Strings(expectedDatabases)
+	sort.Strings(actualDatabases)
+
+	assert.Equal(t, expectedDatabases, actualDatabases)
+
+	for i := range expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases {
+		assertEqualMysqlDatabase(t, expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i], actual.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i])
+	}
+}
+
+func assertEqualPostgresqlSchema(t *testing.T, expected, actual *datastreampb.PostgresqlSchema) {
+	assert.Equal(t, expected.Schema, actual.Schema)
+	assert.Equal(t, len(expected.PostgresqlTables), len(actual.PostgresqlTables))
+
+	// Sort tables to ensure order-independent comparison
+	expectedTables := make([]string, len(expected.PostgresqlTables))
+	actualTables := make([]string, len(actual.PostgresqlTables))
+
+	for i, table := range expected.PostgresqlTables {
+		expectedTables[i] = table.Table
+	}
+	for i, table := range actual.PostgresqlTables {
+		actualTables[i] = table.Table
+	}
+
+	sort.Strings(expectedTables)
+	sort.Strings(actualTables)
+
+	assert.Equal(t, expectedTables, actualTables)
 }
 
 func assertEqualPostgresqlSourceConfig(t *testing.T, expected, actual *datastreampb.SourceConfig_PostgresqlSourceConfig) {
@@ -330,10 +388,25 @@ func assertEqualPostgresqlSourceConfig(t *testing.T, expected, actual *datastrea
 	assert.Equal(t, expected.PostgresqlSourceConfig.ReplicationSlot, actual.PostgresqlSourceConfig.ReplicationSlot)
 	assert.Equal(t, expected.PostgresqlSourceConfig.Publication, actual.PostgresqlSourceConfig.Publication)
 
+	assert.Equal(t, len(expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas), len(actual.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas))
+
+	// Sort schemas to ensure order-independent comparison
+	expectedSchemas := make([]string, len(expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas))
+	actualSchemas := make([]string, len(actual.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas))
+
+	for i, schema := range expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas {
+		expectedSchemas[i] = schema.Schema
+	}
+	for i, schema := range actual.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas {
+		actualSchemas[i] = schema.Schema
+	}
+
+	sort.Strings(expectedSchemas)
+	sort.Strings(actualSchemas)
+
+	assert.Equal(t, expectedSchemas, actualSchemas)
+
 	for i := range expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas {
-		assert.Equal(t, expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[i].Schema, actual.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[i].Schema)
-		for j := range expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[i].PostgresqlTables {
-			assert.Equal(t, expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[i].PostgresqlTables[j].Table, actual.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[i].PostgresqlTables[j].Table)
-		}
+		assertEqualPostgresqlSchema(t, expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[i], actual.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[i])
 	}
 }
