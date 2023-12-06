@@ -206,7 +206,6 @@ func processAsync[I any, O any](f func(i I, mutex *sync.Mutex) TaskResult[O], in
 		logger.Log.Debug(fmt.Sprint("processing task for input", i))
 		out <- f(i, mutex)
 	}
-	logger.Log.Debug(fmt.Sprint("worker complete"))
 	wg.Done()
 }
 

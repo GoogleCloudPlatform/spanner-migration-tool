@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 )
 
 var (
@@ -96,6 +97,8 @@ func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, sou
 		err = fmt.Errorf("can't generate database name for prefix: %v", err)
 		return sourceProfile, targetProfile, ioHelper, "", err
 	}
+	// check or create the internal metadata database for all flows.
+	helpers.CheckOrCreateMetadataDb(targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
 }
 

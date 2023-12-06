@@ -25,8 +25,6 @@ import (
 
 	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
 	datastream "cloud.google.com/go/datastream/apiv1"
-	dashboard "cloud.google.com/go/monitoring/dashboard/apiv1"
-	"cloud.google.com/go/monitoring/dashboard/apiv1/dashboardpb"
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
@@ -107,12 +105,12 @@ type DataflowCfg struct {
 }
 
 type StreamingCfg struct {
-	DatastreamCfg DatastreamCfg      `json:"datastreamCfg"`
+	DatastreamCfg DatastreamCfg            `json:"datastreamCfg"`
 	GcsCfg        GcsCfg             `json:"gcsCfg"`
-	DataflowCfg   DataflowCfg        `json:"dataflowCfg"`
-	TmpDir        string             `json:"tmpDir"`
-	PubsubCfg     internal.PubsubCfg `json:"pubsubCfg"`
-	DataShardId   string             `json:"dataShardId"`
+	DataflowCfg   DataflowCfg              `json:"dataflowCfg"`
+	TmpDir        string                   `json:"tmpDir"`
+	PubsubCfg     internal.PubsubResources `json:"pubsubCfg"`
+	DataShardId   string                   `json:"dataShardId"`
 }
 
 // VerifyAndUpdateCfg checks the fields and errors out if certain fields are empty.
@@ -352,7 +350,7 @@ func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile prof
 	}
 }
 
-func CreatePubsubResources(ctx context.Context, projectID string, datastreamDestinationConnCfg DstConnCfg, dbName string) (*internal.PubsubCfg, error) {
+func CreatePubsubResources(ctx context.Context, projectID string, datastreamDestinationConnCfg DstConnCfg, dbName string) (*internal.PubsubResources, error) {
 	pubsubClient, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("pubsub client can not be created: %v", err)
@@ -398,8 +396,8 @@ func CreatePubsubResources(ctx context.Context, projectID string, datastreamDest
 	return &pubsubCfg, nil
 }
 
-func createPubsubTopicAndSubscription(ctx context.Context, pubsubClient *pubsub.Client, dbName string) (internal.PubsubCfg, error) {
-	pubsubCfg := internal.PubsubCfg{}
+func createPubsubTopicAndSubscription(ctx context.Context, pubsubClient *pubsub.Client, dbName string) (internal.PubsubResources, error) {
+	pubsubCfg := internal.PubsubResources{}
 	// Generate ID
 	subscriptionId, err := utils.GenerateName("smt-sub-" + dbName)
 	if err != nil {
@@ -534,151 +532,6 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 		return fmt.Errorf("update stream operation failed: %v", err)
 	}
 	fmt.Println("Done")
-	return nil
-}
-
-func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, region string) error {
-	//create clients
-	c, err := dataflow.NewJobsV1Beta3Client(ctx)
-	if err != nil {
-		return fmt.Errorf("could not create job client: %v", err)
-	}
-	defer c.Close()
-	fmt.Println("Created dataflow job client...")
-	dsClient, err := datastream.NewClient(ctx)
-	fmt.Println("Created datastream client...")
-	if err != nil {
-		return fmt.Errorf("datastream client can not be created: %v", err)
-	}
-	defer dsClient.Close()
-	pubsubClient, err := pubsub.NewClient(ctx, projectID)
-	if err != nil {
-		return fmt.Errorf("pubsub client cannot be created: %v", err)
-	}
-	defer pubsubClient.Close()
-
-	storageClient, err := storage.NewClient(ctx)
-	if err != nil {
-		return fmt.Errorf("storage client cannot be created: %v", err)
-	}
-	defer storageClient.Close()
-
-	//clean up for single instance migrations
-	if conv.Audit.StreamingStats.DataflowJobId != "" {
-		CleanupDataflowJob(ctx, c, conv.Audit.StreamingStats.DataflowJobId, projectID, region)
-	}
-	if conv.Audit.StreamingStats.DataStreamName != "" {
-		CleanupDatastream(ctx, dsClient, conv.Audit.StreamingStats.DataStreamName, projectID, region)
-	}
-	if conv.Audit.StreamingStats.PubsubCfg.TopicId != "" && !conv.IsSharded {
-		CleanupPubsubResources(ctx, pubsubClient, storageClient, conv.Audit.StreamingStats.PubsubCfg, projectID)
-	}
-	if conv.Audit.StreamingStats.MonitoringResources.DashboardName != "" && !conv.IsSharded {
-		CleanupMonitoringDashboard(ctx, conv.Audit.StreamingStats.MonitoringResources.DashboardName, projectID)
-	}
-	if conv.Audit.StreamingStats.AggMonitoringResources.DashboardName != "" && conv.IsSharded {
-		CleanupMonitoringDashboard(ctx, conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, projectID)
-	}
-	// clean up jobs for sharded migrations (with error handling)
-	for _, resourceDetails := range conv.Audit.StreamingStats.ShardToDataflowInfoMap {
-		dfId := resourceDetails.JobId
-		err := CleanupDataflowJob(ctx, c, dfId, projectID, region)
-		if err != nil {
-			fmt.Printf("Cleanup of the dataflow job: %s was unsuccessful, please clean up the job manually", dfId)
-		}
-	}
-	for _, dsName := range conv.Audit.StreamingStats.ShardToDataStreamNameMap {
-		err := CleanupDatastream(ctx, dsClient, dsName, projectID, region)
-		if err != nil {
-			fmt.Printf("Cleanup of the datastream: %s was unsuccessful, please clean up the stream manually", dsName)
-		}
-	}
-	for _, pubsubCfg := range conv.Audit.StreamingStats.ShardToPubsubIdMap {
-		CleanupPubsubResources(ctx, pubsubClient, storageClient, pubsubCfg, projectID)
-	}
-	for _, monitoringResource := range conv.Audit.StreamingStats.ShardToMonitoringResourcesMap {
-		if monitoringResource.DashboardName != "" {
-			CleanupMonitoringDashboard(ctx, monitoringResource.DashboardName, projectID)
-		}
-	}
-	fmt.Println("Clean up complete")
-	return nil
-}
-
-func CleanupPubsubResources(ctx context.Context, pubsubClient *pubsub.Client, storageClient *storage.Client, pubsubCfg internal.PubsubCfg, projectID string) {
-	subscription := pubsubClient.Subscription(pubsubCfg.SubscriptionId)
-
-	err := subscription.Delete(ctx)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Cleanup of the pubsub subscription: %s Failed, please clean up the pubsub subscription manually\n error=%v\n", pubsubCfg.SubscriptionId, err))
-	} else {
-		logger.Log.Info(fmt.Sprintf("Successfully deleted subscription: %s\n\n", pubsubCfg.SubscriptionId))
-	}
-
-	topic := pubsubClient.Topic(pubsubCfg.TopicId)
-
-	err = topic.Delete(ctx)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Cleanup of the pubsub topic: %s Failed, please clean up the pubsub topic manually\n error=%v\n", pubsubCfg.TopicId, err))
-	} else {
-		logger.Log.Info(fmt.Sprintf("Successfully deleted topic: %s\n\n", pubsubCfg.TopicId))
-	}
-
-	bucket := storageClient.Bucket(pubsubCfg.BucketName)
-
-	if err := bucket.DeleteNotification(ctx, pubsubCfg.NotificationId); err != nil {
-		logger.Log.Error(fmt.Sprintf("Cleanup of GCS pubsub notification: %s failed.\n error=%v\n", pubsubCfg.NotificationId, err))
-	} else {
-		logger.Log.Info(fmt.Sprintf("Successfully deleted GCS pubsub notification: %s\n\n", pubsubCfg.NotificationId))
-	}
-}
-
-func CleanupMonitoringDashboard(ctx context.Context, dashboardName string, projectID string) {
-	client, err := dashboard.NewDashboardsClient(ctx)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Cleanup of the monitoring dashboard: %s Failed, please clean up the dashboard manually\n error=%v\n", dashboardName, err))
-	}
-	defer client.Close()
-	req := &dashboardpb.DeleteDashboardRequest{
-		Name: fmt.Sprintf("projects/%s/dashboards/%s", projectID, dashboardName),
-	}
-	err = client.DeleteDashboard(ctx, req)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Cleanup of the monitoring dashboard: %s Failed, please clean up the dashboard manually\n error=%v\n", dashboardName, err))
-	} else {
-		logger.Log.Info(fmt.Sprintf("Successfully deleted Monitoring Dashboard: %s\n\n", dashboardName))
-	}
-}
-
-func CleanupDatastream(ctx context.Context, client *datastream.Client, dsName string, projectID, region string) error {
-	req := &datastreampb.DeleteStreamRequest{
-		Name: fmt.Sprintf("projects/%s/locations/%s/streams/%s", projectID, region, dsName),
-	}
-	_, err := client.DeleteStream(ctx, req)
-	if err != nil {
-		return fmt.Errorf("error while deleting datastream job: %v", err)
-	}
-	return nil
-}
-
-func CleanupDataflowJob(ctx context.Context, client *dataflow.JobsV1Beta3Client, dataflowJobId string, projectID, region string) error {
-	job := &dataflowpb.Job{
-		Id:             dataflowJobId,
-		ProjectId:      projectID,
-		RequestedState: dataflowpb.JobState_JOB_STATE_CANCELLED,
-	}
-
-	dfReq := &dataflowpb.UpdateJobRequest{
-		ProjectId: projectID,
-		JobId:     dataflowJobId,
-		Location:  region,
-		Job:       job,
-	}
-	_, err := client.UpdateJob(ctx, dfReq)
-	if err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("error while cancelling dataflow job: %v", err)
-	}
 	return nil
 }
 
@@ -825,19 +678,17 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJobId, gcloudDataflowCmd, project, dataShardId string, gcsBucket internal.GcsResources, dashboardName string) {
 	datastreamCfg := streamingCfg.DatastreamCfg
 	dataflowCfg := streamingCfg.DataflowCfg
-	conv.Audit.StreamingStats.DataStreamName = datastreamCfg.StreamId
-	conv.Audit.StreamingStats.DataflowJobId = dfJobId
-	conv.Audit.StreamingStats.DataflowLocation = streamingCfg.DataflowCfg.Location
-	conv.Audit.StreamingStats.DataflowGcloudCmd = gcloudDataflowCmd
-	conv.Audit.StreamingStats.PubsubCfg = streamingCfg.PubsubCfg
+	conv.Audit.StreamingStats.DatastreamResources = internal.DatastreamResources{DatastreamName: datastreamCfg.StreamId, Region: datastreamCfg.StreamLocation}
+	conv.Audit.StreamingStats.DataflowResources = internal.DataflowResources{JobId: dfJobId, GcloudCmd: gcloudDataflowCmd, Region: dataflowCfg.Location}
+	conv.Audit.StreamingStats.PubsubResources = streamingCfg.PubsubCfg
 	conv.Audit.StreamingStats.GcsResources = gcsBucket
 	conv.Audit.StreamingStats.MonitoringResources = internal.MonitoringResources{DashboardName: dashboardName}
 	if dataShardId != "" {
 		var resourceMutex sync.Mutex
 		resourceMutex.Lock()
-		conv.Audit.StreamingStats.ShardToDataStreamNameMap[dataShardId] = datastreamCfg.StreamId
-		conv.Audit.StreamingStats.ShardToDataflowInfoMap[dataShardId] = internal.ShardedDataflowJobResources{JobId: dfJobId, GcloudCmd: gcloudDataflowCmd}
-		conv.Audit.StreamingStats.ShardToPubsubIdMap[dataShardId] = streamingCfg.PubsubCfg
+		conv.Audit.StreamingStats.ShardToDataStreamResourcesMap[dataShardId] = internal.DatastreamResources{DatastreamName: datastreamCfg.StreamId, Region: datastreamCfg.StreamLocation}
+		conv.Audit.StreamingStats.ShardToDataflowResourcesMap[dataShardId] = internal.DataflowResources{JobId: dfJobId, GcloudCmd: gcloudDataflowCmd, Region: dataflowCfg.Location}
+		conv.Audit.StreamingStats.ShardToPubsubResourcesMap[dataShardId] = streamingCfg.PubsubCfg
 		conv.Audit.StreamingStats.ShardToGcsResources[dataShardId] = gcsBucket
 		if dashboardName != "" {
 			{
@@ -849,10 +700,12 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
 	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, dataflowCfg.Location, dataflowCfg.JobName, dfJobId)
 	logger.Log.Info("\n------------------------------------------\n")
-	logger.Log.Info("The Datastream job: " + fullStreamName + " ,the Dataflow job: " + dfJobDetails +
+	logger.Log.Info("The Datastream stream: " + fullStreamName + " ,the Dataflow job: " + dfJobDetails +
 		" the Pubsub topic: " + streamingCfg.PubsubCfg.TopicId + " ,the subscription: " + streamingCfg.PubsubCfg.SubscriptionId +
 		" and the pubsub Notification id:" + streamingCfg.PubsubCfg.NotificationId + " on bucket: " + streamingCfg.PubsubCfg.BucketName +
-		" will have to be manually cleaned up via the UI. Spanner migration tool will not delete them post completion of the migration.")
+		" can be cleaned up by using the UI if you have it open. Otherwise, you can use the cleanup CLI command and supply the migrationjobId" +
+		" generated by Spanner migration tool. You can find the migrationJobId in the logs or in the 'spannermigrationtool_metadata'" +
+		" database in your spanner instance. If migrationJobId is not stored due to an error, you will have to clean up the resources manually.")
 }
 
 func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
