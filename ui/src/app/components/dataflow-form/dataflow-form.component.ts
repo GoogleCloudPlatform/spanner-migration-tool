@@ -23,13 +23,13 @@ export class DataflowFormComponent implements OnInit {
     private dialofRef: MatDialogRef<DataflowFormComponent>
   ) {
     this.tunableFlagsForm = new FormGroup({
+      vpcHostProjectId: new FormControl(data.GCPProjectID, Validators.required),
       network: new FormControl(''),
       subnetwork: new FormControl(''),
-      numWorkers: new FormControl('1',[Validators.required, Validators.pattern('^[1-9][0-9]*$')]),
       maxWorkers: new FormControl('50', [Validators.required, Validators.pattern('^[1-9][0-9]*$')]),
+      numWorkers: new FormControl('1',[Validators.required, Validators.pattern('^[1-9][0-9]*$')]),
+      machineType: new FormControl('n1-standard-2', [Validators.required]),
       serviceAccountEmail: new FormControl(''),
-      vpcHostProjectId: new FormControl(data.GCPProjectID, Validators.required),
-      machineType: new FormControl(''),
       additionalUserLabels: new FormControl('', [Validators.pattern('^{("([0-9a-zA-Z_-]+)":"([0-9a-zA-Z_-]+)",?)+}$')]),
       kmsKeyName: new FormControl('', [Validators.pattern('^projects\\/[^\\n\\r]+\\/locations\\/[^\\n\\r]+\\/keyRings\\/[^\\n\\r]+\\/cryptoKeys\\/[^\\n\\r]+$')]),
     })
