@@ -54,7 +54,9 @@ func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds
 		//cleanup
 		for _, resources := range dataflowResourcesList {
 			var dataflowResources internal.DataflowResources
-			err = json.Unmarshal([]byte(resources.ResourceMetadata), &dataflowResources)
+			var minimalDowntimeResourceData MinimalDowntimeResourceData
+			json.Unmarshal([]byte(resources.ResourceData), &minimalDowntimeResourceData)
+			err = json.Unmarshal([]byte(minimalDowntimeResourceData.ResourcePayload), &dataflowResources)
 			if err != nil {
 				logger.Log.Debug("Unable to read Dataflow metadata for deletion\n")
 			} else {
@@ -71,7 +73,9 @@ func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds
 		//cleanup
 		for _, resources := range datastreamResourcesList {
 			var datastreamResources internal.DatastreamResources
-			err := json.Unmarshal([]byte(resources.ResourceMetadata), &datastreamResources)
+			var minimalDowntimeResourceData MinimalDowntimeResourceData
+			json.Unmarshal([]byte(resources.ResourceData), &minimalDowntimeResourceData)
+			err := json.Unmarshal([]byte(minimalDowntimeResourceData.ResourcePayload), &datastreamResources)
 			if err != nil {
 				logger.Log.Debug("Unable to read Datastream metadata for deletion\n")
 			} else {
@@ -88,7 +92,9 @@ func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds
 		//cleanup
 		for _, resources := range pubsubResourcesList {
 			var pubsubResources internal.PubsubResources
-			err := json.Unmarshal([]byte(resources.ResourceMetadata), &pubsubResources)
+			var minimalDowntimeResourceData MinimalDowntimeResourceData
+			json.Unmarshal([]byte(resources.ResourceData), &minimalDowntimeResourceData)
+			err := json.Unmarshal([]byte(minimalDowntimeResourceData.ResourcePayload), &pubsubResources)
 			if err != nil {
 				logger.Log.Debug("Unable to read Pubsub metadata for deletion\n")
 			} else {
@@ -110,7 +116,9 @@ func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds
 		//cleanup
 		for _, resources := range monitoringResourcesList {
 			var monitoringResources internal.MonitoringResources
-			err := json.Unmarshal([]byte(resources.ResourceMetadata), &monitoringResources)
+			var minimalDowntimeResourceData MinimalDowntimeResourceData
+			json.Unmarshal([]byte(resources.ResourceData), &minimalDowntimeResourceData)
+			err := json.Unmarshal([]byte(minimalDowntimeResourceData.ResourcePayload), &monitoringResources)
 			if err != nil {
 				logger.Log.Debug("Unable to read monitoring metadata for deletion\n")
 			} else {
@@ -120,7 +128,7 @@ func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds
 	}
 }
 
-func FetchResources(ctx context.Context, migrationJobId string, resourceType string, dataShardIds []string, project string, instance string) ([]JobResources, error) {
+func FetchResources(ctx context.Context, migrationJobId string, resourceType string, dataShardIds []string, project string, instance string) ([]SmtResources, error) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.METADATA_DB)
 	client, err := utils.GetClient(ctx, dbURI)
 	if err != nil {
@@ -139,13 +147,12 @@ func FetchResources(ctx context.Context, migrationJobId string, resourceType str
 			SQL: `SELECT 
 					ResourceId,
 					JobId,
-					DataShardId,
-					ExternalResourceId,
+					ExternalId,
 					ResourceName,
 					ResourceType,
-					TO_JSON_STRING(ResourceMetadata) AS ResourceMetadata
-				FROM JobResources 
-				WHERE JobId = @migrationJobId and ResourceType = @resourceType and DataShardId IN UNNEST (@dataShardIds)`,
+					TO_JSON_STRING(ResourceData) AS ResourceData
+				FROM SMT_RESOURCES 
+				WHERE JobId = @migrationJobId and ResourceType = @resourceType and JSON_VALUE(ResourceData, '$.DataShardId') IN UNNEST (@dataShardIds)`,
 			Params: map[string]interface{}{
 				"migrationJobId": migrationJobId,
 				"resourceType":   resourceType,
@@ -158,12 +165,11 @@ func FetchResources(ctx context.Context, migrationJobId string, resourceType str
 			SQL: `SELECT 
 					ResourceId,
 					JobId,
-					DataShardId,
-					ExternalResourceId,
+					ExternalId,
 					ResourceName,
 					ResourceType,
-					TO_JSON_STRING(ResourceMetadata) AS ResourceMetadata
-				FROM JobResources 
+					TO_JSON_STRING(ResourceData) AS ResourceData
+				FROM SMT_RESOURCES
 				WHERE JobId = @migrationJobId and ResourceType = @resourceType`,
 			Params: map[string]interface{}{
 				"migrationJobId": migrationJobId,
@@ -172,7 +178,7 @@ func FetchResources(ctx context.Context, migrationJobId string, resourceType str
 		}
 	}
 	iter := txn.Query(ctx, resourceQuery)
-	jobResourcesList := []JobResources{}
+	jobResourcesList := []SmtResources{}
 	for {
 		row, e := iter.Next()
 		if e == iterator.Done {
@@ -182,7 +188,7 @@ func FetchResources(ctx context.Context, migrationJobId string, resourceType str
 			err = e
 			break
 		}
-		var jobResource JobResources
+		var jobResource SmtResources
 		row.ToStruct(&jobResource)
 		jobResourcesList = append(jobResourcesList, jobResource)
 	}

@@ -108,7 +108,7 @@ func (cmd *CleanupCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interf
 		Pubsub:     cmd.pubsub,
 		Monitoring: cmd.monitoring,
 	}
-	logger.Log.Info(fmt.Sprintf("Initiating job cleanup for jobId: %v, dataShardIds: %v \n", cmd.jobId, dataShardIds))
+	logger.Log.Info(fmt.Sprintf("Initiating job cleanup for jobId: %v \n", cmd.jobId))
 	streaming.InitiateJobCleanup(ctx, cmd.jobId, dataShardIds, jobCleanupOptions, project, instance)
 	return subcommands.ExitSuccess
 }

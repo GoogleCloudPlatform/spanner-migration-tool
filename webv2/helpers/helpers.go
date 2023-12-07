@@ -76,27 +76,31 @@ func createDatabase(ctx context.Context, uri string) error {
 				SchemaConversionObject JSON NOT NULL,
 				CreateTimestamp TIMESTAMP NOT NULL,
 			  ) PRIMARY KEY(VersionId)`,
-			  `CREATE TABLE JobDetails (
+			`CREATE TABLE SMT_JOBS (
 				JobId STRING(100) NOT NULL,
 				JobName STRING(100) NOT NULL,
 				JobType STRING(100) NOT NULL,
-				JobMetadata JSON,
+				JobData JSON,
 				Dialect STRING(50) NOT NULL,
-				Session JSON NOT NULL,
 				SpannerDatabaseName STRING(100) NOT NULL,
 				CreatedAt TIMESTAMP NOT NULL,
-				UpdatedAt TIMESTAMP NOT NULL,
 			  ) PRIMARY KEY(JobId)`,
-			  `CREATE TABLE JobResources (
+			`CREATE TABLE SMT_RESOURCES (
 				ResourceId STRING(100) NOT NULL,
 				JobId STRING(100) NOT NULL,
-				DataShardId STRING(100) NOT NULL,
-				ExternalResourceId STRING(100) NOT NULL,
+				ExternalId STRING(100) NOT NULL,
 				ResourceName STRING(100) NOT NULL,
 				ResourceType STRING(100) NOT NULL,
-				ResourceMetadata JSON,
+				ResourceData JSON,
 				CreatedAt TIMESTAMP NOT NULL,
 			  ) PRIMARY KEY(ResourceId)`,
+			`CREATE TABLE SMT_STATES (
+				StateId STRING(100) NOT NULL,
+				StateVersion INT64 NOT NULL,
+				ResourceId STRING(100) NOT NULL,
+				StateData JSON,
+				CreatedAt TIMESTAMP NOT NULL,
+			  ) PRIMARY KEY(StateId, StateVersion)`,
 		},
 	})
 	if err != nil {

@@ -90,9 +90,12 @@ const (
 	MINIMAL_DOWNTIME_MIGRATION = "minimal_downtime"
 	//Job Resource Types
 	DATAFLOW_RESOURCE string = "dataflow"
-	PUBSUB_RESOURCE      string = "dms"
+	PUBSUB_RESOURCE      string = "pubsub"
 	MONITORING_RESOURCE  string = "monitoring"
 	AGG_MONITORING_RESOURCE  string = "aggregated_monitoring"
 	DATASTREAM_RESOURCE  string = "datastream"
 	GCS_RESOURCE  string = "gcs"
+	// Metadats table names
+	SMT_JOB_TABLE string = "SMT_JOBS"
+	SMT_RESOURCES_TABLE string = "SMT_RESOURCES"
 )

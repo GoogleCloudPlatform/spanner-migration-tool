@@ -30,11 +30,6 @@ import (
 
 // This file contains functions specific to storing state for a minimal downtime migration.
 
-// Struct to store minimal downtime migration specific metadata in the JobMetadata field in the JobDetails table
-type MinimalDowntimeJobMetadata struct {
-	IsSharded bool
-}
-
 // PersistJobDetails stores all the metadata associated with a job orchestration for a minimal downtime migration in the metadata db. An example of this metadata is job level data such as the spanner database name.
 func PersistJobDetails(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, conv *internal.Conv, migrationJobId string, isSharded bool) (err error) {
 	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, nil)
@@ -82,7 +77,7 @@ func PersistAggregateMonitoringResources(ctx context.Context, targetProfile prof
 		return err
 	}
 	_, err = client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
-		mutation, err := createResourceMutation(migrationJobId, constants.DEFAULT_SHARD_ID, conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, constants.AGG_MONITORING_RESOURCE, conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, string(aggMonitoringResourcesBytes))
+		mutation, err := createResourceMutation(migrationJobId, conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, constants.AGG_MONITORING_RESOURCE, conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, MinimalDowntimeResourceData{DataShardId: constants.DEFAULT_SHARD_ID, ResourcePayload: string(aggMonitoringResourcesBytes)})
 		if err != nil {
 			return err
 		}
@@ -127,29 +122,22 @@ func PersistResources(ctx context.Context, targetProfile profiles.TargetProfile,
 }
 
 func writeJobDetails(ctx context.Context, migrationJobId string, isShardedMigration bool, conv *internal.Conv, spannerDatabaseName string, createTimestamp time.Time, client *spanner.Client) error {
-	jobMetadataBytes, err := json.Marshal(MinimalDowntimeJobMetadata{IsSharded: isShardedMigration})
+	jobDataBytes, err := json.Marshal(MinimaldowntimeJobData{IsSharded: isShardedMigration, Session: conv})
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("internal error occurred while persisting metadata for migration job %s: %v\n", migrationJobId, err))
 		return err
 	}
-	sessionBytes, err := json.Marshal(conv)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("internal error occurred while persisting metadata for migration job %s: %v\n", migrationJobId, err))
-		return err
-	}
-	jobDetails := JobDetails{
+	jobDetails := SmtJobs{
 		JobId:               migrationJobId,
 		JobName:             migrationJobId,
 		JobType:             constants.MINIMAL_DOWNTIME_MIGRATION,
 		Dialect:             conv.SpDialect,
-		Session:             string(sessionBytes),
-		JobMetadata:         string(jobMetadataBytes),
+		JobData:             string(jobDataBytes),
 		SpannerDatabaseName: spannerDatabaseName,
 		CreatedAt:           createTimestamp,
-		UpdatedAt:           createTimestamp,
 	}
 	_, err = client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
-		mutation, err := spanner.InsertStruct("JobDetails", jobDetails)
+		mutation, err := spanner.InsertStruct(constants.SMT_JOB_TABLE, jobDetails)
 		if err != nil {
 			return err
 		}
@@ -194,23 +182,23 @@ func writeJobResources(ctx context.Context, migrationJobId string, dataShardId s
 	}
 	logger.Log.Debug(fmt.Sprintf("Storing generated resources for data shard %s...\n", dataShardId))
 	_, err = client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
-		datastreamMutation, err := createResourceMutation(migrationJobId, dataShardId, datastreamResources.DatastreamName, constants.DATASTREAM_RESOURCE, datastreamResources.DatastreamName, string(datastreamResourcesBytes))
+		datastreamMutation, err := createResourceMutation(migrationJobId, datastreamResources.DatastreamName, constants.DATASTREAM_RESOURCE, datastreamResources.DatastreamName, MinimalDowntimeResourceData{DataShardId: dataShardId, ResourcePayload: string(datastreamResourcesBytes)})
 		if err != nil {
 			return err
 		}
-		dataflowMutation, err := createResourceMutation(migrationJobId, dataShardId, dataflowResources.JobId, constants.DATAFLOW_RESOURCE, dataflowResources.JobId, string(dataflowResourcesBytes))
+		dataflowMutation, err := createResourceMutation(migrationJobId, dataflowResources.JobId, constants.DATAFLOW_RESOURCE, dataflowResources.JobId, MinimalDowntimeResourceData{DataShardId: dataShardId, ResourcePayload: string(dataflowResourcesBytes)})
 		if err != nil {
 			return err
 		}
-		gcsMutation, err := createResourceMutation(migrationJobId, dataShardId, gcsResources.BucketName, constants.GCS_RESOURCE, gcsResources.BucketName, string(gcsResourcesBytes))
+		gcsMutation, err := createResourceMutation(migrationJobId, gcsResources.BucketName, constants.GCS_RESOURCE, gcsResources.BucketName, MinimalDowntimeResourceData{DataShardId: dataShardId, ResourcePayload: string(gcsResourcesBytes)})
 		if err != nil {
 			return err
 		}
-		pubsubMutation, errr := createResourceMutation(migrationJobId, dataShardId, pubsubResources.TopicId, constants.PUBSUB_RESOURCE, pubsubResources.TopicId, string(pubsubResourcesBytes))
+		pubsubMutation, errr := createResourceMutation(migrationJobId, pubsubResources.TopicId, constants.PUBSUB_RESOURCE, pubsubResources.TopicId, MinimalDowntimeResourceData{DataShardId: dataShardId, ResourcePayload: string(pubsubResourcesBytes)})
 		if errr != nil {
 			return errr
 		}
-		monitoringMutation, err := createResourceMutation(migrationJobId, dataShardId, monitoringResources.DashboardName, constants.MONITORING_RESOURCE, monitoringResources.DashboardName, string(monitoringResourcesBytes))
+		monitoringMutation, err := createResourceMutation(migrationJobId, monitoringResources.DashboardName, constants.MONITORING_RESOURCE, monitoringResources.DashboardName, MinimalDowntimeResourceData{DataShardId: dataShardId, ResourcePayload: string(monitoringResourcesBytes)})
 		if err != nil {
 			return err
 		}
@@ -227,20 +215,23 @@ func writeJobResources(ctx context.Context, migrationJobId string, dataShardId s
 	return nil
 }
 
-func createResourceMutation(jobId string, dataShardId string, externalResourceId string, resourceType string, resourceName string, ResourceMetadata string) (*spanner.Mutation, error) {
+func createResourceMutation(jobId string, externalResourceId string, resourceType string, resourceName string, MinimalDowntimeResourceData MinimalDowntimeResourceData) (*spanner.Mutation, error) {
 	resourceId, _ := utils.GenerateName("smt-resource")
 	resourceId = strings.Replace(resourceId, "_", "-", -1)
-	jobResource := JobResources{
-		ResourceId:         resourceId,
-		JobId:              jobId,
-		DataShardId:        dataShardId,
-		ExternalResourceId: externalResourceId,
-		ResourceType:       resourceType,
-		ResourceName:       resourceName,
-		ResourceMetadata:   ResourceMetadata,
-		CreatedAt:          time.Now(),
+	minimalDowntimeResourceDataBytes, err := json.Marshal(MinimalDowntimeResourceData)
+	if err != nil {
+		return nil, err
 	}
-	mutation, err := spanner.InsertStruct("JobResources", jobResource)
+	jobResource := SmtResources{
+		ResourceId:   resourceId,
+		JobId:        jobId,
+		ExternalId:   externalResourceId,
+		ResourceType: resourceType,
+		ResourceName: resourceName,
+		ResourceData: string(minimalDowntimeResourceDataBytes),
+		CreatedAt:    time.Now(),
+	}
+	mutation, err := spanner.InsertStruct(constants.SMT_RESOURCES_TABLE, jobResource)
 	if err != nil {
 		return nil, err
 	}

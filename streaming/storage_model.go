@@ -13,30 +13,46 @@
 // limitations under the License.
 package streaming
 
-import "time"
+import (
+	"time"
 
-//This file contains the common structs for mapping to Harbourbridge's underlying metadata tables
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+)
+
+// This file contains the common structs for mapping to Harbourbridge's underlying metadata tables
+
+// Table structs - These structs map to the Spanner metadata tables
+
 // Stores the migration job level data post orchestration of a migration job
-type JobDetails struct {
+type SmtJobs struct {
 	JobId               string
 	JobName             string
 	JobType             string
-	JobMetadata         string
+	JobData             string
 	Dialect             string
-	Session             string
 	SpannerDatabaseName string
 	CreatedAt           time.Time
-	UpdatedAt           time.Time
 }
 
-// Stores the shard level execution data post orchestration of a migration job
-type JobResources struct {
-	ResourceId         string
-	JobId              string
-	DataShardId        string
-	ExternalResourceId string
-	ResourceName       string
-	ResourceType       string
-	ResourceMetadata   string
-	CreatedAt          time.Time
+// Stores the resource level execution data post orchestration of a migration job
+type SmtResources struct {
+	ResourceId   string
+	JobId        string
+	ExternalId   string
+	ResourceName string
+	ResourceType string
+	ResourceData string
+	CreatedAt    time.Time
+}
+
+// Storage structs - these structs map to JSON data stored inside the metadata
+
+type MinimaldowntimeJobData struct {
+	IsSharded bool
+	Session *internal.Conv
+}
+
+type MinimalDowntimeResourceData struct {
+	DataShardId string
+	ResourcePayload string
 }
