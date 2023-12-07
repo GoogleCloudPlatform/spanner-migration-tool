@@ -252,6 +252,14 @@ type Tables struct {
 	TableList []string `json:"TableList"`
 }
 
+type SchemaDetails struct {
+	TableDetails []TableDetails `json:TableDetails`
+}
+
+type TableDetails struct {
+	TableName string `json:TableName`
+}
+
 // MakeConv returns a default-configured Conv.
 func MakeConv() *Conv {
 	return &Conv{
