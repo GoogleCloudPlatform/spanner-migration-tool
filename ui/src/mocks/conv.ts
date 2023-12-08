@@ -163,7 +163,50 @@ export const mockIConv2: IConv = {
         }
     },
     SyntheticPKeys: {},
-    SrcSchema: {},
+    SrcSchema: {
+        "t1": {
+            Name: "table1",
+            Id: "t1",
+            ColIds:["c1"],
+            ColDefs:{
+                "c1": {
+                    Id: "c1",
+                    Name: "column1",
+                    NotNull: false,
+                    Type: {
+                        Name: "STRING",
+                        Mods: [],
+                        ArrayBounds: []
+                    },
+                    Ignored: {
+                        Check: false,
+                        Identity: false,
+                        Default: false,
+                        Exclusion: false,
+                        ForeignKey: false,
+                        AutoIncrement: false
+                    }
+                }
+            },
+            PrimaryKeys: [],
+            ForeignKeys: [],
+            Indexes: [
+                {
+                    Name: "index1",
+                    Id: "ind1",
+                    Unique: false,
+                    Keys: [
+                        {
+                            ColId: "c1",
+                            Desc: false,
+                            Order: 1
+                        },
+                    ]
+                },
+            ],
+            Schema: ""
+        }
+    },
     SchemaIssues: [],
     Rules: [],
     ToSpanner: {},
@@ -179,10 +222,10 @@ export const mockIConv2: IConv = {
     },
     UniquePKey: {},
     SessionName: 'SampleSession',
-    DatabaseType: '',
-    DatabaseName: '',
+    DatabaseName: "testdb",
+    DatabaseType: 'mysql',
     EditorName: 'SampleEditorName',
-    SpDialect: 'SampleSpDialect',
+    SpDialect: 'googlestandardsql',
     IsSharded: false,
 };
 

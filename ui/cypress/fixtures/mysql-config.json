@@ -1,0 +1,8 @@
+{
+    "hostname": "localhost",
+    "username": "root",
+    "password": "root",
+    "port": "3306",
+    "dbName": "test_interleave_table_data",
+    "tableCount": 1
+}
