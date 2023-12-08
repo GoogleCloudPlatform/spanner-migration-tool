@@ -52,7 +52,7 @@ export class SourceDetailsFormComponent implements OnInit {
     const { filePath } = this.dumpFileForm.value
     let payload: IDumpConfig = {
       Driver: this.sourceDatabaseEngine,
-      Path: filePath,
+      Path: filePath!,
     }
     this.fetch.setSourceDBDetailsForDump(payload).subscribe({
       next: () => {
@@ -70,11 +70,11 @@ export class SourceDetailsFormComponent implements OnInit {
     let payload: IDbConfig = {
       dbEngine: this.sourceDatabaseEngine,
       isSharded: false,
-      hostName: hostName,
-      port: port,
-      userName: userName,
-      password: password,
-      dbName: dbName,
+      hostName: hostName!,
+      port: port!,
+      userName: userName!,
+      password: password!,
+      dbName: dbName!,
     }
     this.fetch.setSourceDBDetailsForDirectConnect(payload).subscribe({
       next: () => {

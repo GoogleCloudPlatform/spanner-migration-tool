@@ -119,10 +119,6 @@ type shardedDataflowConfig struct {
 	MigrationProfile profiles.SourceProfileConfig
 }
 
-type DataflowLocation struct {
-	DataflowConfig profiles.DataflowConfig
-}
-
 type sessionSummary struct {
 	DatabaseType       string
 	ConnectionDetail   string
@@ -147,12 +143,14 @@ type progressDetails struct {
 }
 
 type migrationDetails struct {
-	TargetDetails   targetDetails           `json:"TargetDetails"`
-	DataflowConfig  profiles.DataflowConfig `json:"DataflowConfig"`
-	MigrationMode   string                  `json:"MigrationMode"`
-	MigrationType   string                  `json:"MigrationType"`
-	IsSharded       bool                    `json:"IsSharded"`
-	SkipForeignKeys bool                    `json:"skipForeignKeys"`
+	TargetDetails    targetDetails             `json:"TargetDetails"`
+	DatastreamConfig profiles.DatastreamConfig `json:"DatastreamConfig"`
+	GcsConfig        profiles.GcsConfig        `json:"GcsConfig"`
+	DataflowConfig   profiles.DataflowConfig   `json:"DataflowConfig"`
+	MigrationMode    string                    `json:"MigrationMode"`
+	MigrationType    string                    `json:"MigrationType"`
+	IsSharded        bool                      `json:"IsSharded"`
+	SkipForeignKeys  bool                      `json:"skipForeignKeys"`
 }
 
 type targetDetails struct {
@@ -377,6 +375,40 @@ func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sourceProfileConfig)
 }
 
+func setDatastreamDetailsForShardedMigrations(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var datastreamConfig profiles.DatastreamConfig
+	err = json.Unmarshal(reqBody, &datastreamConfig)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DatastreamConfig = datastreamConfig
+	w.WriteHeader(http.StatusOK)
+}
+
+func setGcsDetailsForShardedMigrations(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var gcsConfig profiles.GcsConfig
+	err = json.Unmarshal(reqBody, &gcsConfig)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.GcsConfig = gcsConfig
+	w.WriteHeader(http.StatusOK)
+}
+
 func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -384,21 +416,16 @@ func setDataflowDetailsForShardedMigrations(w http.ResponseWriter, r *http.Reque
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
-	var dataflowLocation DataflowLocation
-	err = json.Unmarshal(reqBody, &dataflowLocation)
+	var dataflowConfig profiles.DataflowConfig
+	err = json.Unmarshal(reqBody, &dataflowConfig)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
-		Location:            sessionState.Region,
-		Network:             dataflowLocation.DataflowConfig.Network,
-		Subnetwork:          dataflowLocation.DataflowConfig.Subnetwork,
-		HostProjectId:       dataflowLocation.DataflowConfig.HostProjectId,
-		MaxWorkers:          dataflowLocation.DataflowConfig.MaxWorkers,
-		NumWorkers:          dataflowLocation.DataflowConfig.NumWorkers,
-		ServiceAccountEmail: dataflowLocation.DataflowConfig.ServiceAccountEmail,
+	if dataflowConfig.Location == "" {
+		dataflowConfig.Location = sessionState.Region
 	}
+	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = dataflowConfig
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -416,10 +443,12 @@ func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request)
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
+	sessionState.SourceProfileConfig.ConfigType = srcConfig.MigrationProfile.ConfigType
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataShards = srcConfig.MigrationProfile.ShardConfigurationDataflow.DataShards
 	sessionState.SourceProfileConfig.ShardConfigurationDataflow.SchemaSource = srcConfig.MigrationProfile.ShardConfigurationDataflow.SchemaSource
 
 	if sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig.Location == "" {
+		// Create dataflow config with defaults, it gets overridden if DataflowConfig is specified using the form.
 		sessionState.SourceProfileConfig.ShardConfigurationDataflow.DataflowConfig = profiles.DataflowConfig{
 			Location:            sessionState.Region,
 			Network:             "",
@@ -427,7 +456,7 @@ func setShardsSourceDBDetailsForDataflow(w http.ResponseWriter, r *http.Request)
 			MaxWorkers:          "",
 			NumWorkers:          "",
 			ServiceAccountEmail: "",
-			HostProjectId:       sessionState.GCPProjectID,
+			VpcHostProjectId:    sessionState.GCPProjectID,
 		}
 	}
 	w.WriteHeader(http.StatusOK)
@@ -2284,7 +2313,7 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	}
 	if sessionState.Conv.Audit.StreamingStats.DataflowJobId != "" {
 		generatedResources.DataflowJobName = sessionState.Conv.Audit.StreamingStats.DataflowJobId
-		generatedResources.DataflowJobUrl = fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
+		generatedResources.DataflowJobUrl = fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Conv.Audit.StreamingStats.DataflowLocation, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
 		generatedResources.DataflowGcloudCmd = sessionState.Conv.Audit.StreamingStats.DataflowGcloudCmd
 	}
 	if sessionState.Conv.Audit.StreamingStats.PubsubCfg.TopicId != "" {
@@ -2295,9 +2324,13 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 		generatedResources.PubsubSubscriptionName = sessionState.Conv.Audit.StreamingStats.PubsubCfg.SubscriptionId
 		generatedResources.PubsubSubscriptionUrl = fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/subscription/detail/%v?project=%v", sessionState.Conv.Audit.StreamingStats.PubsubCfg.SubscriptionId, sessionState.GCPProjectID)
 	}
-	if sessionState.Conv.Audit.StreamingStats.MonitoringDashboard != "" {
-		generatedResources.MonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.MonitoringDashboard
-		generatedResources.MonitoringDashboardUrl = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", sessionState.Conv.Audit.StreamingStats.MonitoringDashboard, sessionState.GCPProjectID)
+	if sessionState.Conv.Audit.StreamingStats.MonitoringResources.DashboardName != "" {
+		generatedResources.MonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.MonitoringResources.DashboardName
+		generatedResources.MonitoringDashboardUrl = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", sessionState.Conv.Audit.StreamingStats.MonitoringResources.DashboardName, sessionState.GCPProjectID)
+	}
+	if sessionState.Conv.Audit.StreamingStats.AggMonitoringResources.DashboardName != "" {
+		generatedResources.AggMonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.AggMonitoringResources.DashboardName
+		generatedResources.AggMonitoringDashboardUrl = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", sessionState.Conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, sessionState.GCPProjectID)
 	}
 	for shardId, dsName := range sessionState.Conv.Audit.StreamingStats.ShardToDataStreamNameMap {
 		url := fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, dsName, sessionState.GCPProjectID)
@@ -2306,13 +2339,13 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	}
 	for shardId, shardedDataflowJobResources := range sessionState.Conv.Audit.StreamingStats.ShardToDataflowInfoMap {
 		dfId := shardedDataflowJobResources.JobId
-		url := fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, dfId, sessionState.GCPProjectID)
+		url := fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Conv.Audit.StreamingStats.DataflowLocation, dfId, sessionState.GCPProjectID)
 		resourceDetails := ResourceDetails{JobName: dfId, JobUrl: url, GcloudCmd: shardedDataflowJobResources.GcloudCmd}
 		generatedResources.ShardToDataflowMap[shardId] = resourceDetails
 	}
-	for shardId, dashboardName := range sessionState.Conv.Audit.StreamingStats.ShardToMonitoringDashboardMap {
-		url := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", dashboardName, sessionState.GCPProjectID)
-		resourceDetails := ResourceDetails{JobName: dashboardName, JobUrl: url}
+	for shardId, monitoringResource := range sessionState.Conv.Audit.StreamingStats.ShardToMonitoringResourcesMap {
+		url := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", monitoringResource.DashboardName, sessionState.GCPProjectID)
+		resourceDetails := ResourceDetails{JobName: monitoringResource.DashboardName, JobUrl: url}
 		generatedResources.ShardToMonitoringDashboardMap[shardId] = resourceDetails
 	}
 	for shardId, pubsubId := range sessionState.Conv.Audit.StreamingStats.ShardToPubsubIdMap {
@@ -2354,7 +2387,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting target bucket: %v", err)
 		}
-		err = createStreamingCfgFile(sessionState, details.TargetDetails, details.DataflowConfig, fileName)
+		err = createStreamingCfgFile(sessionState, details, fileName)
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating streaming config file: %v", err)
 		}
@@ -2464,7 +2497,12 @@ func writeSessionFile(sessionState *session.SessionState) error {
 	return nil
 }
 
-func createStreamingCfgFile(sessionState *session.SessionState, targetDetails targetDetails, dataflowConfig profiles.DataflowConfig, fileName string) error {
+func createStreamingCfgFile(sessionState *session.SessionState, details migrationDetails, fileName string) error {
+	targetDetails, datastreamConfig, dataflowConfig := details.TargetDetails, details.DatastreamConfig, details.DataflowConfig
+	dfLocation := sessionState.Region
+	if dataflowConfig.Location != "" {
+		dfLocation = dataflowConfig.Location
+	}
 	data := streaming.StreamingCfg{
 		DatastreamCfg: streaming.DatastreamCfg{
 			StreamId:          "",
@@ -2478,16 +2516,27 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 				Name:     targetDetails.TargetConnectionProfileName,
 				Location: sessionState.Region,
 			},
+			MaxConcurrentBackfillTasks: datastreamConfig.MaxConcurrentBackfillTasks,
+			MaxConcurrentCdcTasks:      datastreamConfig.MaxConcurrentCdcTasks,
+		},
+		GcsCfg: streaming.GcsCfg{
+			TtlInDays:    details.GcsConfig.TtlInDays,
+			TtlInDaysSet: details.GcsConfig.TtlInDaysSet,
 		},
 		DataflowCfg: streaming.DataflowCfg{
-			JobName:             "",
-			Location:            sessionState.Region,
-			Network:             dataflowConfig.Network,
-			Subnetwork:          dataflowConfig.Subnetwork,
-			MaxWorkers:          dataflowConfig.MaxWorkers,
-			NumWorkers:          dataflowConfig.NumWorkers,
-			ServiceAccountEmail: dataflowConfig.ServiceAccountEmail,
-			HostProjectId:       dataflowConfig.HostProjectId,
+			ProjectId:            dataflowConfig.ProjectId,
+			JobName:              "",
+			Location:             dfLocation,
+			Network:              dataflowConfig.Network,
+			Subnetwork:           dataflowConfig.Subnetwork,
+			MaxWorkers:           dataflowConfig.MaxWorkers,
+			NumWorkers:           dataflowConfig.NumWorkers,
+			ServiceAccountEmail:  dataflowConfig.ServiceAccountEmail,
+			VpcHostProjectId:     dataflowConfig.VpcHostProjectId,
+			MachineType:          dataflowConfig.MachineType,
+			AdditionalUserLabels: dataflowConfig.AdditionalUserLabels,
+			KmsKeyName:           dataflowConfig.KmsKeyName,
+			GcsTemplatePath:      dataflowConfig.GcsTemplatePath,
 		},
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}
@@ -2984,17 +3033,19 @@ type GeneratedResources struct {
 	BucketName   string `json:"BucketName"`
 	BucketUrl    string `json:"BucketUrl"`
 	//Used for single instance migration flow
-	DataStreamJobName       string `json:"DataStreamJobName"`
-	DataStreamJobUrl        string `json:"DataStreamJobUrl"`
-	DataflowJobName         string `json:"DataflowJobName"`
-	DataflowJobUrl          string `json:"DataflowJobUrl"`
-	DataflowGcloudCmd       string `json:"DataflowGcloudCmd"`
-	PubsubTopicName         string `json:"PubsubTopicName"`
-	PubsubTopicUrl          string `json:"PubsubTopicUrl"`
-	PubsubSubscriptionName  string `json:"PubsubSubscriptionName"`
-	PubsubSubscriptionUrl   string `json:"PubsubSubscriptionUrl"`
-	MonitoringDashboardName string `json:"MonitoringDashboardName"`
-	MonitoringDashboardUrl  string `json:"MonitoringDashboardUrl"`
+	DataStreamJobName          string `json:"DataStreamJobName"`
+	DataStreamJobUrl           string `json:"DataStreamJobUrl"`
+	DataflowJobName            string `json:"DataflowJobName"`
+	DataflowJobUrl             string `json:"DataflowJobUrl"`
+	DataflowGcloudCmd          string `json:"DataflowGcloudCmd"`
+	PubsubTopicName            string `json:"PubsubTopicName"`
+	PubsubTopicUrl             string `json:"PubsubTopicUrl"`
+	PubsubSubscriptionName     string `json:"PubsubSubscriptionName"`
+	PubsubSubscriptionUrl      string `json:"PubsubSubscriptionUrl"`
+	MonitoringDashboardName    string `json:"MonitoringDashboardName"`
+	MonitoringDashboardUrl     string `json:"MonitoringDashboardUrl"`
+	AggMonitoringDashboardName string `json:"AggMonitoringDashboardName"`
+	AggMonitoringDashboardUrl  string `json:"AggMonitoringDashboardUrl"`
 	//Used for sharded migration flow
 	ShardToDatastreamMap          map[string]ResourceDetails `json:"ShardToDatastreamMap"`
 	ShardToDataflowMap            map[string]ResourceDetails `json:"ShardToDataflowMap"`

@@ -1,43 +1,114 @@
 <div mat-dialog-content>
-    <form [formGroup]="dataflowForm" class="dataflow-form">
-      <h2>Dataflow Details</h2>
-      <mat-form-field class="full-width" appearance="outline" matTooltip="Edit to run Dataflow in a shared VPC"
-      [matTooltipPosition]="'right'" matTooltipHideDelay="100000">
-        <mat-label>Host ProjectID</mat-label>
-        <input matInput placeholder="Host ProjectID" type="text" formControlName="hostProjectId"/>
-      </mat-form-field>
+    <form [formGroup]="tunableFlagsForm" class="dataflow-form">
+      <h2>Tune Dataflow (Optional)</h2>
+      <h5>This form is optional and should only be edited to tune runtime environment for Dataflow.</h5>
+
+      <mat-expansion-panel>
+        <mat-expansion-panel-header class="mat-row" matTooltip="Edit to run Dataflow in a VPC">
+          <span>Networking</span>
+        </mat-expansion-panel-header>
+        <div>
+          <mat-form-field class="full-width" appearance="outline" matTooltip="Specify the host project Id of the VPC network. For shared VPC, this needs to be edited to the correct host project id."
+          [matTooltipPosition]="'right'">
+            <mat-label>VPC Host ProjectID</mat-label>
+            <input matInput placeholder="VPC Host ProjectID" type="text" formControlName="vpcHostProjectId"/>
+          </mat-form-field>
+          <br>
+          <h5>
+            - Provide <b>ONLY</b> the VPC subnetwork if unsure about what VPC network to use. Dataflow chooses the network for you.
+            <br>
+            - If you are using an <a href="https://cloud.google.com/vpc/docs/create-modify-vpc-networks#create-auto-network" target="_blank">auto mode network</a>, provide ONLY the network name and skip the VPC subnetwork.
+          </h5>
+          <mat-form-field class="full-width" appearance="outline" matTooltip="Specify the network name for the VPC"
+          [matTooltipPosition]="'right'">
+            <mat-label>VPC Network</mat-label>
+            <input matInput placeholder="VPC Network Name" type="text" formControlName="network"/>
+          </mat-form-field>
+          <br>
+          <mat-form-field class="full-width" appearance="outline" matTooltip="Specify the subnetwork name for the VPC. Provide only the subnetwork name and NOT the full URL for subnetwork."
+          [matTooltipPosition]="'right'">
+            <mat-label>VPC Subnetwork</mat-label>
+            <input matInput placeholder="VPC Subnetwork Name" type="text" formControlName="subnetwork"/>
+          </mat-form-field>
+        </div>
+      </mat-expansion-panel>        
       <br>
-      <mat-form-field class="full-width" appearance="outline">
-        <mat-label>VPC Network</mat-label>
-        <input matInput placeholder="VPC Network Name" type="text" formControlName="network"/>
-      </mat-form-field>
-      <br>
-      <mat-form-field class="full-width" appearance="outline">
-        <mat-label>VPC Subnetwork</mat-label>
-        <input matInput placeholder="VPC Subnetwork Name" type="text" formControlName="subnetwork"/>
-      </mat-form-field>
-      <br>
-      <mat-form-field class="full-width" appearance="outline" matTooltip="Set maximum workers for the dataflow job(s). Default value: 50"
-      [matTooltipPosition]="'right'" matTooltipHideDelay="100000">
-        <mat-label>Max Workers</mat-label>
-        <input matInput placeholder="50" type="text" formControlName="maxWorkers"/>
-      </mat-form-field>
-      <br>
-      <mat-form-field class="full-width" appearance="outline" matTooltip="Set initial number of workers for the dataflow job(s). Default value: 1"
-      [matTooltipPosition]="'right'" matTooltipHideDelay="100000">
-        <mat-label>Number of Workers</mat-label>
-        <input matInput placeholder="1" type="text" formControlName="numWorkers"/>
-      </mat-form-field>
+      <mat-expansion-panel>
+        <mat-expansion-panel-header class="mat-row" matTooltip="Set performance parameters of the Dataflow job(s)">
+          <span>Performance</span>
+        </mat-expansion-panel-header>
+        <div>
+          <mat-form-field class="full-width" appearance="outline" matTooltip="Set maximum workers for the dataflow job(s). Default value: 50"
+          [matTooltipPosition]="'right'">
+            <mat-label>Max Workers</mat-label>
+            <input matInput placeholder="50" type="text" formControlName="maxWorkers"/>
+          </mat-form-field>
+          <br>
+          <mat-form-field class="full-width" appearance="outline" matTooltip="Set initial number of workers for the dataflow job(s). Default value: 1"
+          [matTooltipPosition]="'right'">
+            <mat-label>Initial Number of Workers</mat-label>
+            <input matInput placeholder="1" type="text" formControlName="numWorkers"/>
+          </mat-form-field>
+          <br>
+          <mat-form-field class="full-width" appearance="outline" matTooltip="The machine type to use for the job. Default machine type: n1-standard-2."
+          [matTooltipPosition]="'right'">
+            <mat-label>Machine Type</mat-label>
+            <input matInput placeholder="Machine Type" type="text" formControlName="machineType"/>
+          </mat-form-field>
+          <h5>Find the list of all machine types <a href="https://cloud.google.com/compute/docs/machine-resource" target="_blank">here</a>.</h5>
+        </div>
+      </mat-expansion-panel>
       <br>
       <mat-form-field class="full-width" appearance="outline" matTooltip="Set the service account to run the dataflow job(s) as"
-      [matTooltipPosition]="'right'" matTooltipHideDelay="100000">
+      [matTooltipPosition]="'right'">
         <mat-label>Service Account Email</mat-label>
         <input matInput placeholder="Service Account Email" type="text" formControlName="serviceAccountEmail"/>
+      </mat-form-field>
+      <br>
+      <mat-form-field class="full-width" appearance="outline" matTooltip="Additional user labels to be specified for the job. Enter a json of &quot;key&quot;: &quot;value&quot; pairs. Example: {&quot;name&quot;: &quot;wrench&quot;, &quot;mass&quot;: &quot;1kg&quot;, &quot;count&quot;: &quot;3&quot; }."
+      [matTooltipPosition]="'right'">
+        <mat-label>Additional User Labels</mat-label>
+        <input matInput placeholder="Additional User Labels" type="text" formControlName="additionalUserLabels"/>
+      </mat-form-field>
+      <br>
+      <mat-form-field class="full-width" appearance="outline" matTooltip="Name for the Cloud KMS key for the job. Key format is: projects/<project>/locations/<location>/keyRings /<keyring>/cryptoKeys/<key>. Omit this field to use Google Managed Encryption Keys."
+      [matTooltipPosition]="'right'">
+        <mat-label>KMS Key Name</mat-label>
+        <input matInput placeholder="KMS Key Name" type="text" formControlName="kmsKeyName"/>
+      </mat-form-field>
+    </form>
+      <hr>
+    <form [formGroup]="presetFlagsForm" class="dataflow-form">
+      <h2>
+        Preset Flags 
+        <span><button mat-button class="edit-button" (click)="enablePresetFlags()" [disabled]="!disablePresetFlags">
+          <mat-icon>edit</mat-icon>
+          EDIT
+      </button></span>
+      </h2> 
+      <h5>These flags are set by SMT by default and <b>SHOULD NOT BE</b> modified unless running Dataflow in a non-standard configuration. To edit these parameters, click the edit button above.</h5>
+      <br>
+      <mat-form-field class="full-width" appearance="outline" matTooltip="Specify the project to run the dataflow job in."
+      [matTooltipPosition]="'right'">
+        <mat-label>Dataflow Project Id</mat-label>
+        <input matInput placeholder="Dataflow Project Id" type="text" formControlName="dataflowProjectId"/>
+      </mat-form-field>
+      <br>
+      <mat-form-field class="full-width" appearance="outline" matTooltip="Specify the region to run the dataflow job in. It is recommended to keep the region same as Spanner region for performance. Example: us-central1"
+      [matTooltipPosition]="'right'">
+        <mat-label>Dataflow Location</mat-label>
+        <input matInput placeholder="Dataflow Location" type="text" formControlName="dataflowLocation"/>
+      </mat-form-field>
+      <br>
+      <mat-form-field class="full-width" appearance="outline" matTooltip="Cloud Storage path to the template spec. Use this to run launch dataflow with custom templates. Example: gs://my-bucket/path/to/template"
+      [matTooltipPosition]="'right'">
+        <mat-label>GCS Template Path</mat-label>
+        <input matInput placeholder="GCS Template Path" type="text" formControlName="gcsTemplatePath"/>
       </mat-form-field>
     </form>
     <div mat-dialog-actions class="buttons-container">
       <button mat-button color="primary" mat-dialog-close>Cancel</button>
-      <button mat-button type="submit" color="primary" [disabled]="!(dataflowForm.valid)"
+      <button mat-button type="submit" color="primary" [disabled]="tunableFlagsForm.invalid || presetFlagsForm.invalid"
         (click)="updateDataflowDetails()">
         Save
       </button>

@@ -192,6 +192,15 @@ type ShardedDataflowJobResources struct {
 	GcloudCmd string `json:"GcloudCmd"`
 }
 
+type GcsResources struct {
+	BucketName string `json:"BucketName"`
+}
+
+// Stores information related to Monitoring resources
+type MonitoringResources struct {
+	DashboardName string `json:"DashboardName"`
+}
+
 // Stores information related to the streaming migration process.
 type streamingStats struct {
 	Streaming                     bool                        // Flag for confirmation of streaming migration.
@@ -202,13 +211,17 @@ type streamingStats struct {
 	SampleBadWrites               []string                    // Records that faced errors while writing to Cloud Spanner.
 	DataStreamName                string
 	DataflowJobId                 string
+	DataflowLocation              string
 	DataflowGcloudCmd             string
+	GcsResources                  GcsResources
 	ShardToDataStreamNameMap      map[string]string
 	ShardToDataflowInfoMap        map[string]ShardedDataflowJobResources
 	PubsubCfg                     PubsubCfg
 	ShardToPubsubIdMap            map[string]PubsubCfg
-	MonitoringDashboard           string
-	ShardToMonitoringDashboardMap map[string]string
+	ShardToGcsResources           map[string]GcsResources
+	MonitoringResources           MonitoringResources
+	ShardToMonitoringResourcesMap map[string]MonitoringResources
+	AggMonitoringResources        MonitoringResources
 }
 
 type PubsubCfg struct {
@@ -237,6 +250,14 @@ type Rule struct {
 
 type Tables struct {
 	TableList []string `json:"TableList"`
+}
+
+type SchemaDetails struct {
+	TableDetails []TableDetails `json:TableDetails`
+}
+
+type TableDetails struct {
+	TableName string `json:TableName`
 }
 
 // MakeConv returns a default-configured Conv.

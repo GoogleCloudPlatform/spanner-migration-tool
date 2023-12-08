@@ -53,14 +53,14 @@ export class LoadSessionComponent implements OnInit {
     localStorage.clear()
     const { dbEngine, filePath } = this.connectForm.value
     const payload: ISessionConfig = {
-      driver: dbEngine,
-      filePath: filePath,
+      driver: dbEngine!,
+      filePath: filePath!,
     }
     this.getSchemaRequest = this.data.getSchemaConversionFromSession(payload)
     this.data.conv.subscribe((res) => {
       localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
       localStorage.setItem(StorageKeys.Type, InputType.SessionFile)
-      localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
+      localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine!))
       this.clickEvent.closeDatabaseLoader()
       this.router.navigate(['/workspace'])
     })

@@ -8,7 +8,7 @@
   background-color: #cbd0e9;
   height: 2px;
 
-  .mat-progress-bar {
+  .mat-mdc-progress-bar {
     height: 2px;
   }
 }
@@ -17,14 +17,14 @@
   height: 2px;
 }
 
-mat-sidenav {
+mat-mdc-sidenav {
   width: 30%;
   min-width: 350px;
 }
 
 .sidenav-container {
   height: 100vh;
-  mat-sidenav {
+  mat-mdc-sidenav {
     min-width: 350px;
     border-radius: 3px;
   }

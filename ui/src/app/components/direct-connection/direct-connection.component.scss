@@ -15,11 +15,12 @@
 
 .flex-item {
   margin-right: 8px;
+  align-self: baseline;
 }
 
 .rounded-chip {
-  background-color: white;
-  color: rgb(15, 51, 171);
+  background-color: white !important;
+  color: rgb(15, 51, 171) !important;
   border-radius: 16px;
   padding: 6px 12px; 
   border: 1px solid black;

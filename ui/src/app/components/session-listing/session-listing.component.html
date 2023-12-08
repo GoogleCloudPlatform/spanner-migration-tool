@@ -17,7 +17,7 @@
           </div>
           <mat-form-field
             *ngIf="displayFilter.sessionName"
-            appearance="standard"
+            appearance="outline"
             class="full-width"
           >
             <mat-label>Filter</mat-label>
@@ -41,7 +41,7 @@
               <mat-icon *ngIf="!displayFilter['editorName']">filter_list</mat-icon>
             </button>
           </div>
-          <mat-form-field *ngIf="displayFilter.editorName" appearance="standard">
+          <mat-form-field *ngIf="displayFilter.editorName" appearance="outline">
             <mat-label>Filter</mat-label>
             <input
               matInput
@@ -63,7 +63,7 @@
               <mat-icon *ngIf="!displayFilter['databaseType']">filter_list</mat-icon>
             </button>
           </div>
-          <mat-form-field *ngIf="displayFilter.databaseType" appearance="standard">
+          <mat-form-field *ngIf="displayFilter.databaseType" appearance="outline">
             <mat-label>Filter</mat-label>
             <input
               matInput
@@ -85,7 +85,7 @@
               <mat-icon *ngIf="!displayFilter['databaseName']">filter_list</mat-icon>
             </button>
           </div>
-          <mat-form-field *ngIf="displayFilter.databaseName" appearance="standard">
+          <mat-form-field *ngIf="displayFilter.databaseName" appearance="outline">
             <mat-label>Filter</mat-label>
             <input
               matInput
@@ -107,7 +107,7 @@
               <mat-icon *ngIf="!displayFilter['dialect']">filter_list</mat-icon>
             </button>
           </div>
-          <mat-form-field *ngIf="displayFilter.dialect" appearance="standard">
+          <mat-form-field *ngIf="displayFilter.dialect" appearance="outline">
             <mat-label>Filter</mat-label>
             <input
               matInput

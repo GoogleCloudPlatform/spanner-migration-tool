@@ -15,7 +15,7 @@ import IDumpConfig, { IConvertFromDumpRequest } from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IGeneratedResources, IProgress, ITables } from 'src/app/model/migrate'
-import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IMigrationProfile } from 'src/app/model/profile'
+import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IDatastreamConfig, IGcsConfig, IMigrationProfile } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
 import IStructuredReport from 'src/app/model/structured-report'
 
@@ -91,16 +91,22 @@ export class FetchService {
     })
   }
 
-  setShardSourceDBDetailsForDataflow(payload: IMigrationProfile) {
+  setShardsSourceDBDetailsForDataflow(payload: IMigrationProfile) {
     return this.http.post(`${this.url}/SetShardsSourceDBDetailsForDataflow`, {
       MigrationProfile: payload
     })
   }
 
+  setDatastreamDetailsForShardedMigrations(payload: IDatastreamConfig) {
+    return this.http.post(`${this.url}/SetDatastreamDetailsForShardedMigrations`, payload)
+  }
+
+  setGcsDetailsForShardedMigrations(payload: IGcsConfig) {
+    return this.http.post(`${this.url}/SetGcsDetailsForShardedMigrations`, payload)
+  }
+
   setDataflowDetailsForShardedMigrations(payload: IDataflowConfig) {
-    return this.http.post(`${this.url}/SetDataflowDetailsForShardedMigrations`, {
-      DataflowConfig: payload
-    })
+    return this.http.post(`${this.url}/SetDataflowDetailsForShardedMigrations`, payload)
   }
 
   getSourceProfile() {

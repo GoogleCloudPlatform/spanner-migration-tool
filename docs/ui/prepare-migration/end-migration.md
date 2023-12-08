@@ -3,7 +3,7 @@ layout: default
 title: End Migration
 parent: Prepare Migration Page
 grand_parent: SMT UI
-nav_order: 5
+nav_order: 8
 ---
 
 # End migration

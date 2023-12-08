@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-
+import { RouterModule, Routes } from '@angular/router';
+import { WorkspaceComponent } from '../workspace/workspace.component';
 import { DatabaseLoaderComponent } from './database-loader.component';
+const appRoutes: Routes = [{ path: 'workspace', component: WorkspaceComponent }]
 
 describe('DatabaseLoaderComponent', () => {
   let component: DatabaseLoaderComponent;
@@ -8,7 +10,8 @@ describe('DatabaseLoaderComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ DatabaseLoaderComponent ]
+      declarations: [ DatabaseLoaderComponent ],
+      imports: [RouterModule.forRoot(appRoutes),]
     })
     .compileComponents();
   });

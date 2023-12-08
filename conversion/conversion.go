@@ -39,6 +39,7 @@ import (
 	"syscall"
 	"time"
 
+	datastream "cloud.google.com/go/datastream/apiv1"
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -74,8 +75,20 @@ var (
 	// This number should not be too high so as to not hit the AdminQuota limit.
 	// AdminQuota limits are mentioned here: https://cloud.google.com/spanner/quotas#administrative_limits
 	// If facing a quota limit error, consider reducing this value.
-	MaxWorkers = 50
+	MaxWorkers       = 50
+	once             sync.Once
+	datastreamClient *datastream.Client
 )
+
+func getDatastreamClient(ctx context.Context) *datastream.Client {
+	if datastreamClient == nil {
+		once.Do(func() {
+			datastreamClient, _ = datastream.NewClient(ctx)
+		})
+		return datastreamClient
+	}
+	return datastreamClient
+}
 
 // SchemaConv performs the schema conversion
 // The SourceProfile param provides the connection details to use the go SQL library.
@@ -259,9 +272,11 @@ func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config write
 	}
 }
 
-func updateShardsWithDataflowConfig(shardedDataflowConfig profiles.ShardConfigurationDataflow) {
-	for _, dataShard := range shardedDataflowConfig.DataShards {
-		dataShard.DataflowConfig = shardedDataflowConfig.DataflowConfig
+func updateShardsWithTuningConfigs(shardedTuningConfig profiles.ShardConfigurationDataflow) {
+	for _, dataShard := range shardedTuningConfig.DataShards {
+		dataShard.DatastreamConfig = shardedTuningConfig.DatastreamConfig
+		dataShard.GcsConfig = shardedTuningConfig.GcsConfig
+		dataShard.DataflowConfig = shardedTuningConfig.DataflowConfig
 	}
 }
 
@@ -305,26 +320,48 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			dfJobId := dfOutput.JobID
 			gcloudCmd := dfOutput.GCloudCmd
 			streamingCfg, _ := streamInfo["streamingCfg"].(streaming.StreamingCfg)
+
+			// Fetch and store the GCS bucket associated with the datastream
+			dsClient := getDatastreamClient(ctx)
+			gcsBucket, gcsDestPrefix, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
+			if fetchGcsErr != nil {
+				logger.Log.Info("Could not fetch GCS Bucket, hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n")
+				logger.Log.Debug("Error", zap.Error(fetchGcsErr))
+			}
+
+			// Try to apply lifecycle rule to Datastream destination bucket.
+			gcsConfig := streamingCfg.GcsCfg
+			if gcsConfig.TtlInDaysSet {
+				err = streaming.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+				if err != nil {
+					logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
+					logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")
+				}
+			}
+
 			monitoringResources := metrics.MonitoringMetricsResources{
 				ProjectId:            targetProfile.Conn.Sp.Project,
 				DataflowJobId:        dfOutput.JobID,
 				DatastreamId:         streamingCfg.DatastreamCfg.StreamId,
-				GcsBucketId:          streamingCfg.TmpDir,
+				GcsBucketId:          gcsBucket,
 				PubsubSubscriptionId: streamingCfg.PubsubCfg.SubscriptionId,
 				SpannerInstanceId:    targetProfile.Conn.Sp.Instance,
 				SpannerDatabaseId:    targetProfile.Conn.Sp.Dbname,
 				ShardId:              "",
+				MigrationRequestId:   conv.Audit.MigrationRequestId,
 			}
 			respDash, dashboardErr := monitoringResources.CreateDataflowShardMonitoringDashboard(ctx)
 			var dashboardName string
 			if dashboardErr != nil {
 				dashboardName = ""
-				logger.Log.Error(fmt.Sprintf("Creation of the monitoring dashboard failed, please create the dashboard manually\n error=%v\n", dashboardErr))
+				logger.Log.Info("Creation of the monitoring dashboard failed, please create the dashboard manually")
+				logger.Log.Debug("Error", zap.Error(dashboardErr))
 			} else {
 				dashboardName = strings.Split(respDash.Name, "/")[3]
 				fmt.Printf("Monitoring Dashboard: %+v\n", dashboardName)
 			}
-			streaming.StoreGeneratedResources(conv, streamingCfg, dfJobId, gcloudCmd, targetProfile.Conn.Sp.Project, "", dashboardName)
+
+			streaming.StoreGeneratedResources(conv, streamingCfg, dfJobId, gcloudCmd, targetProfile.Conn.Sp.Project, "", internal.GcsResources{BucketName: gcsBucket}, dashboardName)
 			return bw, nil
 		}
 		return performSnapshotMigration(config, conv, client, infoSchema, internal.AdditionalDataAttributes{ShardId: ""}), nil
@@ -342,15 +379,16 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 // 4. Launch the stream for the physical shard
 // 5. Perform streaming migration via dataflow
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
-	updateShardsWithDataflowConfig(sourceProfile.Config.ShardConfigurationDataflow)
+	updateShardsWithTuningConfigs(sourceProfile.Config.ShardConfigurationDataflow)
 	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
 	conv.Audit.StreamingStats.ShardToPubsubIdMap = make(map[string]internal.PubsubCfg)
 	conv.Audit.StreamingStats.ShardToDataflowInfoMap = make(map[string]internal.ShardedDataflowJobResources)
-	conv.Audit.StreamingStats.ShardToMonitoringDashboardMap = make(map[string]string)
-	tableList, err := common.GetIncludedSrcTablesFromConv(conv)
+	conv.Audit.StreamingStats.ShardToGcsResources = make(map[string]internal.GcsResources)
+	conv.Audit.StreamingStats.ShardToMonitoringResourcesMap = make(map[string]internal.MonitoringResources)
+	schemaDetails, err := common.GetIncludedSrcTablesFromConv(conv)
 	if err != nil {
 		fmt.Printf("unable to determine tableList from schema, falling back to full database")
-		tableList = []string{}
+		schemaDetails = map[string]internal.SchemaDetails{}
 	}
 	asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) common.TaskResult[*profiles.DataShard] {
 		dbNameToShardIdMap := make(map[string]string)
@@ -367,7 +405,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 			fmt.Printf("Data shard id generated: %v\n", p.DataShardId)
 		}
 		streamingCfg := streaming.CreateStreamingConfig(*p)
-		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname, tableList)
+		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname, schemaDetails)
 		if err != nil {
 			err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
@@ -387,32 +425,75 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
+
+		// Fetch and store the GCS bucket associated with the datastream
+		dsClient := getDatastreamClient(ctx)
+		gcsBucket, gcsDestPrefix, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
+		if fetchGcsErr != nil {
+			logger.Log.Info(fmt.Sprintf("Could not fetch GCS Bucket for Shard %s hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n", p.DataShardId))
+			logger.Log.Debug("Error", zap.Error(fetchGcsErr))
+		}
+
+		// Try to apply lifecycle rule to Datastream destination bucket.
+		gcsConfig := streamingCfg.GcsCfg
+		if gcsConfig.TtlInDaysSet {
+			err = streaming.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+			if err != nil {
+				logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
+				logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")
+			}
+		}
+
+		// create monitoring dashboard for a single shard
 		monitoringResources := metrics.MonitoringMetricsResources{
 			ProjectId:            targetProfile.Conn.Sp.Project,
 			DataflowJobId:        dfOutput.JobID,
 			DatastreamId:         streamingCfg.DatastreamCfg.StreamId,
-			GcsBucketId:          streamingCfg.TmpDir,
+			GcsBucketId:          gcsBucket,
 			PubsubSubscriptionId: streamingCfg.PubsubCfg.SubscriptionId,
 			SpannerInstanceId:    targetProfile.Conn.Sp.Instance,
 			SpannerDatabaseId:    targetProfile.Conn.Sp.Dbname,
 			ShardId:              p.DataShardId,
+			MigrationRequestId:   conv.Audit.MigrationRequestId,
 		}
 		respDash, dashboardErr := monitoringResources.CreateDataflowShardMonitoringDashboard(ctx)
 		var dashboardName string
 		if dashboardErr != nil {
 			dashboardName = ""
-			logger.Log.Error(fmt.Sprintf("Creation of the monitoring dashboard for shard %s failed, please create the dashboard manually\n error=%v\n", p.DataShardId, err))
+			logger.Log.Info(fmt.Sprintf("Creation of the monitoring dashboard for shard %s failed, please create the dashboard manually\n", p.DataShardId))
+			logger.Log.Debug("Error", zap.Error(dashboardErr))
 		} else {
 			dashboardName = strings.Split(respDash.Name, "/")[3]
 			fmt.Printf("Monitoring Dashboard for shard %v: %+v\n", p.DataShardId, dashboardName)
 		}
-		streaming.StoreGeneratedResources(conv, streamingCfg, dfOutput.JobID, dfOutput.GCloudCmd, targetProfile.Conn.Sp.Project, p.DataShardId, dashboardName)
+		streaming.StoreGeneratedResources(conv, streamingCfg, dfOutput.JobID, dfOutput.GCloudCmd, targetProfile.Conn.Sp.Project, p.DataShardId, internal.GcsResources{BucketName: gcsBucket}, dashboardName)
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
 	_, err = common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 20, asyncProcessShards, true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start minimal downtime migrations: %v", err)
 	}
+
+	// create monitoring aggregated dashboard for sharded migration
+	aggMonitoringResources := metrics.MonitoringMetricsResources{
+		ProjectId:                     targetProfile.Conn.Sp.Project,
+		SpannerInstanceId:             targetProfile.Conn.Sp.Instance,
+		SpannerDatabaseId:             targetProfile.Conn.Sp.Dbname,
+		ShardToDataStreamNameMap:      conv.Audit.StreamingStats.ShardToDataStreamNameMap,
+		ShardToDataflowInfoMap:        conv.Audit.StreamingStats.ShardToDataflowInfoMap,
+		ShardToPubsubIdMap:            conv.Audit.StreamingStats.ShardToPubsubIdMap,
+		ShardToGcsMap:                 conv.Audit.StreamingStats.ShardToGcsResources,
+		ShardToMonitoringDashboardMap: conv.Audit.StreamingStats.ShardToMonitoringResourcesMap,
+		MigrationRequestId:            conv.Audit.MigrationRequestId,
+	}
+	aggRespDash, dashboardErr := aggMonitoringResources.CreateDataflowAggMonitoringDashboard(ctx)
+	if dashboardErr != nil {
+		logger.Log.Error(fmt.Sprintf("Creation of the aggregated monitoring dashboard failed, please create the dashboard manually\n error=%v\n", dashboardErr))
+	} else {
+		fmt.Printf("Aggregated Monitoring Dashboard: %+v\n", strings.Split(aggRespDash.Name, "/")[3])
+		conv.Audit.StreamingStats.AggMonitoringResources = internal.MonitoringResources{DashboardName: strings.Split(aggRespDash.Name, "/")[3]}
+	}
+
 	return &writer.BatchWriter{}, nil
 }
 

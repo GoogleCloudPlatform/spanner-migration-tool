@@ -445,20 +445,38 @@ type DatastreamConnProfile struct {
 	Location string `json:"location"`
 }
 
+type DatastreamConfig struct {
+	MaxConcurrentBackfillTasks string `json:"maxConcurrentBackfillTasks"`
+	MaxConcurrentCdcTasks      string `json:"maxConcurrentCdcTasks"`
+}
+
+type GcsConfig struct {
+	TtlInDays    int64 `json:"ttlInDays,string"`
+	TtlInDaysSet bool  `json:"ttlInDaysSet"`
+}
+
 type DataflowConfig struct {
-	Location            string `json:"location"`
-	Network             string `json:"network"`
-	Subnetwork          string `json:"subnetwork"`
-	HostProjectId       string `json:"hostProjectId"`
-	MaxWorkers          string `json:"maxWorkers"`
-	NumWorkers          string `json:"numWorkers"`
-	ServiceAccountEmail string `json:"serviceAccountEmail"`
+	ProjectId            string `json:"projectId"`
+	Location             string `json:"location"`
+	Network              string `json:"network"`
+	Subnetwork           string `json:"subnetwork"`
+	VpcHostProjectId     string `json:"hostProjectId"`
+	MaxWorkers           string `json:"maxWorkers"`
+	NumWorkers           string `json:"numWorkers"`
+	ServiceAccountEmail  string `json:"serviceAccountEmail"`
+	JobName              string `json:"jobName"`
+	MachineType          string `json:"machineType"`
+	AdditionalUserLabels string `json:"additionalUserLabels"`
+	KmsKeyName           string `json:"kmsKeyName"`
+	GcsTemplatePath      string `json:"gcsTemplatePath"`
 }
 
 type DataShard struct {
 	DataShardId          string                `json:"dataShardId"`
 	SrcConnectionProfile DatastreamConnProfile `json:"srcConnectionProfile"`
 	DstConnectionProfile DatastreamConnProfile `json:"dstConnectionProfile"`
+	DatastreamConfig     DatastreamConfig      `json:"datastreamConfig"`
+	GcsConfig            GcsConfig             `json:"gcsConfig"`
 	DataflowConfig       DataflowConfig        `json:"dataflowConfig"`
 	TmpDir               string                `json:"tmpDir"`
 	StreamLocation       string                `json:"streamLocation"`
@@ -472,9 +490,11 @@ type LogicalShard struct {
 }
 
 type ShardConfigurationDataflow struct {
-	SchemaSource   DirectConnectionConfig `json:"schemaSource"`
-	DataShards     []*DataShard           `json:"dataShards"`
-	DataflowConfig DataflowConfig         `json:"dataflowConfig"`
+	SchemaSource     DirectConnectionConfig `json:"schemaSource"`
+	DataShards       []*DataShard           `json:"dataShards"`
+	DatastreamConfig DatastreamConfig       `json:"datastreamConfig"`
+	GcsConfig        GcsConfig              `json:"gcsConfig"`
+	DataflowConfig   DataflowConfig         `json:"dataflowConfig"`
 }
 
 type ShardConfigurationBulk struct {

@@ -76,7 +76,7 @@
     >
       <app-object-detail
         [currentObject]="currentObject"
-        (updateSidebar)="reRenderSidebar()"
+        (updateSidebar)="reRenderObjectExplorerSpanner()"
         [tableData]="tableData"
         [indexData]="indexData"
         [typeMap]="typeMap"
@@ -99,7 +99,7 @@
         hidden: !isMiddleColumnCollapse
       }"
     >
-      <mat-tab-group mat-dialog-close="">
+      <mat-tab-group>
         <mat-tab
           [ngClass]="{ 'blue-font-color': [updateIssuesLabel] }"
           [label]="issuesAndSuggestionsLabel"

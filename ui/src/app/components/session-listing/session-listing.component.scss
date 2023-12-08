@@ -35,7 +35,7 @@ table {
     }
   }
 }
-.mat-column-Notes {
+.mat-mdc-column-Notes {
   max-width: 200px;
   padding-right: 10px;
 }
@@ -56,22 +56,22 @@ table {
   margin-top: 10px;
 }
 
-.mat-column-SessionName,
-.mat-column-EditorName,
-.mat-column-DatabaseType,
-.mat-column-DatabaseName,
-.mat-column-Dialect {
+.mat-mdc-column-SessionName,
+.mat-mdc-column-EditorName,
+.mat-mdc-column-DatabaseType,
+.mat-mdc-column-DatabaseName,
+.mat-mdc-column-Dialect {
   width: 13vw;
   min-width: 150px;
 }
 
-.mat-column-Action,
-.mat-column-Notes,
-.mat-column-CreateTimestamp {
+.mat-mdc-column-Action,
+.mat-mdc-column-Notes,
+.mat-mdc-column-CreateTimestamp {
   width: 15vw;
   min-width: 150px;
 }
 
-.mat-form-field {
+.mat-mdc-form-field {
   width: 80%;
 }

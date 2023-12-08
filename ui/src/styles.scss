@@ -19,11 +19,11 @@ body {
   cursor: pointer;
 }
 
-.mat-drawer-container {
+.mat-mdc-drawer-container {
   background-color: white;
 }
 
-.mat-button.mat-primary {
+.mat-mdc-button {
   color: #3367d6;
 }
 
@@ -39,11 +39,11 @@ body {
   font-size: 20px !important;
 }
 
-.mat-stroked-button.mat-primary {
+.mat-mdc-stroked-button {
   color: #3367d6;
 }
 
-.mat-raised-button.mat-primary {
+.mat-mdc-raised-button {
   color: white;
   background-color: #3367d6;
 }
@@ -52,7 +52,7 @@ body {
   color: #3367d6;
 }
 
-.mat-tab-label {
+.mat-mdc-tab-label {
   opacity: 1 !important;
 }
 
@@ -151,6 +151,10 @@ body {
   }
 }
 
+html {
+  --mat-sidenav-content-background-color: #fff;
+}
+
 .mat-card-class {
   padding: 10px;
   width: 600px;
@@ -204,9 +208,10 @@ body {
     color: #5c5c5c;
   }
 
-  .mat-form-field {
+  .mat-mdc-form-field {
     width: 400px;
     margin-right: 20px;
+    margin-bottom: 20px;
   }
 
   button {
@@ -225,7 +230,7 @@ body {
   padding-left: 20vw;
 }
 
-.mat-tab-label-active {
+.mat-mdc-tab-label-active {
   color: #3367d6 !important;
 }
 
@@ -288,9 +293,9 @@ body {
       margin-bottom: 0;
     }
 
-    mat-form-field {
+    .mat-mdc-form-field {
       width: 100%;
-      padding-top: 0;
+      padding-top: 10px;
     }
   }
 
@@ -352,7 +357,7 @@ body {
   margin-bottom: 0px;
 }
 
-.radio-button-container mat-radio-button:hover {
+.radio-button-container mat-mdc-radio-button:hover {
   color: #1967d2;
 }
 
@@ -461,7 +466,7 @@ body {
       }
     }
 
-    .mat-card {
+    .mat-mdc-card {
       transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1);
       display: block;
       position: relative;
@@ -524,17 +529,17 @@ body {
         }
       }
 
-      .mat-position {
+      .mat-mdc-position {
         width: 9px;
         padding: 16px;
       }
 
-      .mat-description {
+      .mat-mdc-description {
         width: 530px;
         padding: 16px;
       }
 
-      .mat-tableCount {
+      .mat-mdc-tableCount {
         width: 65px;
         padding: 16px;
       }
@@ -560,4 +565,52 @@ body {
       }
     }
   }
+}
+
+.mat-mdc-table {
+  border: inset;
+}
+
+.mat-mdc-icon-button {
+  --mdc-icon-button-icon-size: 12px !important;
+}
+
+.mat-mdc-card{
+  padding: 10px;
+}
+
+.rounded-chip {
+  color: #0f33ab;
+}
+
+.mat-mdc-dialog-container {
+  --mdc-dialog-supporting-text-color: black;
+}
+
+.new-connection-profile-input{
+  width: 100%;
+}
+
+.end-migration-dialog{
+  padding: 5%;
+}
+
+.mat-mdc-tab-group.mat-mdc-tab-group-stretch-tabs>.mat-mdc-tab-header .mat-mdc-tab {
+   flex-grow: 0 !important; 
+}
+
+.mat-mdc-form-field-infix {
+  min-height: 0;
+  min-width: unset !important;
+}
+
+.w-100 {
+  .mat-mdc-form-field-infix {
+    padding: 0 !important;
+  }
+}
+
+.mat-mdc-raised-button>.mat-icon{
+  margin-left: auto;
+  margin-right: auto;
 }

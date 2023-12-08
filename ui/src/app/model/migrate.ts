@@ -1,8 +1,10 @@
-import { IDataflowConfig } from "./profile";
+import { IDatastreamConfig, IGcsConfig, IDataflowConfig } from "./profile";
 import ITargetDetails from "./target-details";
 
 export default interface IMigrationDetails {
     TargetDetails: ITargetDetails
+    DatastreamConfig: IDatastreamConfig
+    GcsConfig: IGcsConfig
     DataflowConfig: IDataflowConfig
     MigrationType: string
     MigrationMode: string
@@ -31,6 +33,8 @@ export interface IGeneratedResources {
     PubsubSubscriptionUrl: string
     MonitoringDashboardName: string
     MonitoringDashboardUrl: string
+    AggMonitoringDashboardName: string
+    AggMonitoringDashboardUrl: string
     DataflowGcloudCmd: string
     ShardToDatastreamMap: Map<string, ResourceDetails>
     ShardToDataflowMap: Map<string, ResourceDetails>

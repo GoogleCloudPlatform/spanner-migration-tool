@@ -4,8 +4,10 @@ component_management:
   default_rules: # default rules that will be inherited by all components
     statuses:
       - type: project # in this case every component that doens't have a status defined will have a project type
-        target: auto
-        threshold: 5%
+        informational: true
+        branches:
+          - master
+      - type: patch
         informational: true
         branches:
           - master
@@ -17,7 +19,6 @@ component_management:
         - "!webv2/webCmd.go"
       statuses: # each component has its own status and corresponding configuration
         - type: project
-          target: auto
           informational: true
     - component_id: backend-library
       name: backend-library # only library code
@@ -27,7 +28,6 @@ component_management:
         - "!cmd/**"
       statuses: # each component has its own status and corresponding configuration
         - type: project
-          target: auto
           informational: true
     - component_id: cli 
       name: cli # only the CLI
@@ -36,7 +36,6 @@ component_management:
         - "webv2/webCmd.go"
       statuses: # each component has its own status and corresponding configuration
         - type: project
-          target: auto
           informational: true
     - component_id: frontend
       name: frontend # only frontend components
@@ -44,7 +43,6 @@ component_management:
         - "ui/**"
       statuses: # the core component has its own statuses
         - type: project
-          target: auto
           informational: true
 ignore:
   - ".docker"

@@ -106,13 +106,31 @@ export const DialectList = [
   { value: 'postgresql', displayName: 'PostgreSQL Dialect' },
 ]
 
+export const Datastream = {
+  MaxConcurrentBackfillTasks: 'maxConcurrentBackfillTasks',
+  MaxConcurrentCdcTasks: 'maxConcurrentCdcTasks',
+  IsDatastreamConfigSet: 'isDatastreamConfigSet',
+}
+
+export const Gcs = {
+  TtlInDays: 'ttlInDays',
+  TtlInDaysSet: 'ttlInDaysSet',
+  IsGcsConfigSet: 'isGcsConfigSet',
+}
+
 export const Dataflow = {
   Network: 'network',
   Subnetwork: 'subnetwork',
-  HostProjectId: 'hostProjectId',
+  VpcHostProjectId: 'vpcHostProjectId',
   MaxWorkers: 'maxWorkers',
   NumWorkers: 'numWorkers',
   ServiceAccountEmail: 'serviceAccountEmail',
+  MachineType: 'machineType',
+  AdditionalUserLabels: 'additionalUserLabels',
+  KmsKeyName: 'kmsKeyName',
+  ProjectId: 'dataflowProjectId',
+  Location: 'dataflowLocation',
+  GcsTemplatePath: 'gcsTemplatePath',
   IsDataflowConfigSet: 'isDataflowConfigSet',
 }
 

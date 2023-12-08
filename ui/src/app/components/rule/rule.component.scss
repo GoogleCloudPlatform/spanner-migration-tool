@@ -27,6 +27,7 @@
   }
   .table-container {
     table {
+      border-bottom: inset;
       width: 100%;
     }
 
@@ -37,21 +38,21 @@
       line-height: 12px;
       color: black;
     }
-    .mat-header-row {
+    .mat-mdc-header-row {
       height: 35px;
       background-color: #f5f5f5;
     }
 
-    .mat-column-name,
-    .mat-column-type,
-    .mat-column-objectType,
-    .mat-column-enabled {
+    .mat-mdc-column-name,
+    .mat-mdc-column-type,
+    .mat-mdc-column-objectType,
+    .mat-mdc-column-enabled {
       min-width: 80px;
     }
-    .mat-column-associatedObject {
+    .mat-mdc-column-associatedObject {
       min-width: 120px;
     }
-    .mat-column-order {
+    .mat-mdc-column-order {
       padding-left: 10px;
       max-width: 70px;
       min-width: 40px;

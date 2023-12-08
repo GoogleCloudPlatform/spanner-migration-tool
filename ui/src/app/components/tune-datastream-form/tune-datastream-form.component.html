@@ -1,0 +1,26 @@
+<div mat-dialog-content>
+    <form [formGroup]="datastreamForm" class="dataflow-form">
+      <h2>Tune Datastream (Optional)</h2>
+      <h5>This form is optional and should only be edited to tune runtime environment for Datastream.</h5>
+
+      <mat-form-field class="full-width" appearance="outline" matTooltip="Set the max number of concurrent workers for Datastream backfill. Default: 50"
+      [matTooltipPosition]="'right'">
+        <mat-label>Max Concurrent Backfill Tasks</mat-label>
+        <input matInput placeholder="Max Concurrent Backfill Tasks" type="text" formControlName="maxConcurrentBackfillTasks"/>
+      </mat-form-field>
+      <br>
+      <mat-form-field *ngIf="isCdcTuningSupported" class="full-width" appearance="outline" matTooltip="Set the max number of concurrent workers for Datastream CDC. Default: 5"
+      [matTooltipPosition]="'right'">
+        <mat-label>Max Concurrent CDC Tasks</mat-label>
+        <input matInput placeholder="Max Concurrent CDC Tasks" type="text" formControlName="maxConcurrentCdcTasks"/>
+      </mat-form-field>
+
+    </form>
+    <div mat-dialog-actions class="buttons-container">
+      <button mat-button color="primary" mat-dialog-close>Cancel</button>
+      <button mat-button type="submit" color="primary" [disabled]="!(datastreamForm.valid)"
+        (click)="updateDatastreamDetails()">
+        Save
+      </button>
+    </div>
+</div>

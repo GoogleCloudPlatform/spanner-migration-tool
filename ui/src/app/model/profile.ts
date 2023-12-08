@@ -30,13 +30,30 @@ export interface IShardedDataflowMigration {
     Region: string
 }
 
+export interface IDatastreamConfig {
+    maxConcurrentBackfillTasks: string
+    maxConcurrentCdcTasks: string
+}
+
+export interface IGcsConfig {
+    ttlInDays: string
+    ttlInDaysSet: boolean
+}
+
 export interface IDataflowConfig {
     network: string
     subnetwork: string
+    // This specifies the host project id of the vpc network if specified.
     hostProjectId: string
     maxWorkers: string
     numWorkers: string
     serviceAccountEmail: string
+    machineType: string
+    additionalUserLabels: string
+    kmsKeyName: string
+    projectId: string
+    location: string
+    gcsTemplatePath: string
 }
 
 export interface IDirectConnectionConfig {

@@ -58,13 +58,13 @@ Spanner migration tool on gCloud is currently only supported on the Linux platfo
 You can directly run Spanner migration tool from the gCloud CLI instead of building it from source. In order to start using Spanner migration tool via Gcloud, the user can [install the spanner migration tool component](https://cloud.google.com/sdk/docs/components#installing_components) of gcloud by executing the below command:
 
 ```sh
-gcloud components install harbourbridge
+gcloud components install spanner-migration-tool
 ```
 
 If you installed the gcloud CLI through the apt or yum package managers, you can also install additional gcloud CLI components using those same package managers. For example, to install with `apt`, run the following:
 
 ```sh
-sudo apt-get install google-cloud-sdk-harbourbridge
+sudo apt-get install google-cloud-sdk-spanner-migration-tool
 ```
 
 Once installed, the Spanner migration tool commands will be available under the `gcloud alpha spanner migration` surface. For example, to start the Spanner migration tool UI, run the following command:
