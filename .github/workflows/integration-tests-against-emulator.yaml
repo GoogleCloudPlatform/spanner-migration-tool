@@ -51,7 +51,7 @@ jobs:
 
     services:
       spanner_emulator:
-        image: gcr.io/cloud-spanner-emulator/emulator:1.5.11
+        image: gcr.io/cloud-spanner-emulator/emulator:1.5.12
         ports:
           - 9010:9010
           - 9020:9020
@@ -148,7 +148,29 @@ jobs:
       - run: gcloud config set api_endpoint_overrides/spanner http://localhost:9020/
       - run: gcloud spanner instances create test-instance --config=emulator-config --description="Test Instance" --nodes=1
 
-      # run tests
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+
+      - name: Install Dependencies
+        run: |
+          cd ui
+          npm ci
+
+      - name: Start Local Server
+        run:  |
+          cd ui
+          npm start &
+
+      - name: Wait for Local Server to Start
+        run: npx wait-on http://localhost:4200 -t 30000
+
+      - name: Cypress run
+        run: |
+          cd ui
+          npx cypress run
+
       - uses: actions/setup-go@v2
         with:
           go-version: "1.19"

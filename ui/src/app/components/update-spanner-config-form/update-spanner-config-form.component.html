@@ -4,7 +4,7 @@
 
     <mat-form-field class="full-width" appearance="outline">
       <mat-label>Project ID</mat-label>
-      <input matInput placeholder="project id" type="text" formControlName="GCPProjectID" />
+      <input matInput placeholder="project id" type="text" formControlName="GCPProjectID" id="project-id"/>
     </mat-form-field>
     <br />
     <mat-form-field
@@ -22,6 +22,7 @@
         maxlength="64"
         pattern="^[a-z]([-a-z0-9]*[a-z0-9])?"
         formControlName="SpannerInstanceID"
+        id="instance-id"
       />
       <mat-hint align="end"
         >{{ updateConfigForm.value.SpannerInstanceID?.length || 0 }}/64</mat-hint
@@ -33,6 +34,7 @@
 <div mat-dialog-actions class="buttons-container">
   <button mat-button color="primary" mat-dialog-close>CANCEL</button>
   <button
+    id="save-button"
     mat-button
     (click)="updateSpannerConfig()"
     type="submit"
