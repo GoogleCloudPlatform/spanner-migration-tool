@@ -155,6 +155,7 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 			err = fmt.Errorf("error while validating existing database: %v", err)
 			return nil, err
 		}
+		fmt.Printf("Schema validated successfully for data migration for db %s\n", dbURI)
 	}
 	bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit)
 	if err != nil {

@@ -623,9 +623,19 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 			correspondingSpColId, _ := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionColDef.Name)
 			spannerColDef := spannerTable.ColDefs[correspondingSpColId]
 
-			if sessionColDef.Name != spannerColDef.Name || sessionColDef.NotNull != spannerColDef.NotNull ||
-				sessionColDef.T.IsArray != spannerColDef.T.IsArray || sessionColDef.T.Len != spannerColDef.T.Len || sessionColDef.T.Name != spannerColDef.T.Name {
-				return fmt.Errorf("column detail for table %v don't match", sessionTable.Name)
+			// Spanner by default adds is_nullable = false to all the columns that are a part of primary key.
+			// Therefore, we cannot compare NotNull attributes for these columns.
+			if FindInPrimaryKey(sessionColDef.Id, sessionTable.PrimaryKeys) {
+				if sessionColDef.Name != spannerColDef.Name ||
+					sessionColDef.T.IsArray != spannerColDef.T.IsArray || sessionColDef.T.Len != spannerColDef.T.Len || sessionColDef.T.Name != spannerColDef.T.Name {
+					return fmt.Errorf("column detail for table %v don't match", sessionTable.Name)
+				}
+
+			} else {
+				if sessionColDef.Name != spannerColDef.Name ||
+					sessionColDef.T.IsArray != spannerColDef.T.IsArray || sessionColDef.T.Len != spannerColDef.T.Len || sessionColDef.T.Name != spannerColDef.T.Name || sessionColDef.NotNull != spannerColDef.NotNull {
+					return fmt.Errorf("column detail for table %v don't match", sessionTable.Name)
+				}
 			}
 		}
 		for _, sessionTableIndex := range sessionTable.Indexes {
@@ -705,4 +715,14 @@ func ConcatDirectoryPath(basePath, subPath string) string {
 	}
 	path := fmt.Sprintf("%s%s", basePath, subPath)
 	return path
+}
+
+func FindInPrimaryKey(id string, primaryKeys []ddl.IndexKey) bool {
+
+	for _, pk := range primaryKeys {
+		if id == pk.ColId {
+			return true
+		}
+	}
+	return false
 }
