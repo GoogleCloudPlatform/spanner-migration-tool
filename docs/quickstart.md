@@ -87,4 +87,5 @@ This example describes connecting to a CloudSQL source database using IP allowli
 3. Go back to the Spanner Migration Tool web UI launched earlier. Follow steps in the [connect to source](./ui/connect-source.md) page to connect to your source database.
 
 {: .important }
-The same set of steps can be followed for any database which is accessible from Cloud shell. **Please note** yhis can not be used for databases within a VPC.
+The same set of steps can be followed for any database which is accessible from Cloud shell. **Please note** this can not be used for databases within a VPC. If you want to connect to your database from within a VPC, we recommend
+following [this guide](https://cloud.google.com/sql/docs/mysql/configure-private-services-access). Note that this approach will not use Cloud shell to run Harboourbridge. Instead, follow the [installation](https://googlecloudplatform.github.io/spanner-migration-tool/install.html#installing-spanner-migration-tool) to install Spanner migration tool on the compute instance in your VPC.
