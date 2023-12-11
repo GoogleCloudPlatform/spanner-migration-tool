@@ -56,7 +56,9 @@ func toSpannerTypeInternal(conv *internal.Conv, srcType schema.Type) (ddl.Type, 
 		return ddl.Type{Name: ddl.JSON}, nil
 	case "NUMERIC", "numeric":
 		return ddl.Type{Name: ddl.Numeric}, nil
-	case "STRING", "character varying":
+	case "STRING":
+		return ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
+	case "character varying":
 		if len(srcType.Mods) == 0 {
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
