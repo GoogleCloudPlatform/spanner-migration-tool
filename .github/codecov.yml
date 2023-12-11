@@ -5,10 +5,14 @@ component_management:
     statuses:
       - type: project # in this case every component that doens't have a status defined will have a project type
         informational: true
+        target: auto
+        threshold: 5%
         branches:
           - master
       - type: patch
         informational: true
+        target: auto
+        threshold: 5%
         branches:
           - master
   individual_components:
