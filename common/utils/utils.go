@@ -625,7 +625,7 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 
 			// Spanner by default adds is_nullable = false to all the columns that are a part of primary key.
 			// Therefore, we cannot compare NotNull attributes for these columns.
-			if FindInPrimaryKey(sessionColDef.Id, sessionTable.PrimaryKeys) {
+			if conv1.SpDialect == constants.DIALECT_POSTGRESQL && FindInPrimaryKey(sessionColDef.Id, sessionTable.PrimaryKeys) {
 				if sessionColDef.Name != spannerColDef.Name ||
 					sessionColDef.T.IsArray != spannerColDef.T.IsArray || sessionColDef.T.Len != spannerColDef.T.Len || sessionColDef.T.Name != spannerColDef.T.Name {
 					return fmt.Errorf("column detail for table %v don't match", sessionTable.Name)
