@@ -357,6 +357,13 @@ func assertEqualMysqlSourceConfig(t *testing.T, expected, actual *datastreampb.S
 
 	assert.Equal(t, expectedDatabases, actualDatabases)
 
+	sort.Slice(expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases, func(i, j int) bool {
+		return expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i].Database < expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases[j].Database
+	})
+	sort.Slice(actual.MysqlSourceConfig.IncludeObjects.MysqlDatabases, func(i, j int) bool {
+		return actual.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i].Database < actual.MysqlSourceConfig.IncludeObjects.MysqlDatabases[j].Database
+	})
+
 	for i := range expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases {
 		assertEqualMysqlDatabase(t, expected.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i], actual.MysqlSourceConfig.IncludeObjects.MysqlDatabases[i])
 	}
@@ -405,6 +412,12 @@ func assertEqualPostgresqlSourceConfig(t *testing.T, expected, actual *datastrea
 	sort.Strings(actualSchemas)
 
 	assert.Equal(t, expectedSchemas, actualSchemas)
+	sort.Slice(expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas, func(i, j int) bool {
+		return expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[i].Schema < expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[j].Schema
+	})
+	sort.Slice(actual.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas, func(i, j int) bool {
+		return actual.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[i].Schema < actual.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[j].Schema
+	})
 
 	for i := range expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas {
 		assertEqualPostgresqlSchema(t, expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[i], actual.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[i])
