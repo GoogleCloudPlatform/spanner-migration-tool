@@ -623,7 +623,7 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 			correspondingSpColId, _ := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionColDef.Name)
 			spannerColDef := spannerTable.ColDefs[correspondingSpColId]
 
-			// Spanner by default adds is_nullable = false to all the columns that are a part of primary key.
+			// In case of PostgreSQL dialect, Spanner by default adds is_nullable = false to all the columns that are a part of primary key.
 			// Therefore, we cannot compare NotNull attributes for these columns.
 			if conv1.SpDialect == constants.DIALECT_POSTGRESQL && FindInPrimaryKey(sessionColDef.Id, sessionTable.PrimaryKeys) {
 				if sessionColDef.Name != spannerColDef.Name ||
