@@ -42,8 +42,10 @@ func toSpannerTypeInternal(conv *internal.Conv, srcType schema.Type) (ddl.Type, 
 	switch srcType.Name {
 	case "BOOL", "boolean":
 		return ddl.Type{Name: ddl.Bool}, nil
-	case "BYTES", "bytea":
+	case "BYTES":
 		return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
+	case "bytea":
+		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "DATE", "date":
 		return ddl.Type{Name: ddl.Date}, nil
 	case "FLOAT64", "double precision":
