@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -31,7 +32,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/google/subcommands"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -129,7 +129,8 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
 
 	// Populate migration request id and migration type in conv object.
-	conv.Audit.MigrationRequestId = "SMT-" + uuid.New().String()
+	conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
+	conv.Audit.MigrationRequestId = strings.Replace(conv.Audit.MigrationRequestId, "_", "-", -1)
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 
 	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out, sourceProfile.Driver)
