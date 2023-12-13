@@ -5,13 +5,13 @@ component_management:
     statuses:
       - type: project # in this case every component that doens't have a status defined will have a project type
         informational: true
-        target: auto
+        target: 20%
         threshold: 5%
         branches:
           - master
       - type: patch
         informational: true
-        target: auto
+        target: 20%
         threshold: 5%
         branches:
           - master
@@ -32,7 +32,7 @@ component_management:
         - "!cmd/**"
       statuses: # each component has its own status and corresponding configuration
         - type: project
-          informational: true
+          informational: false
     - component_id: cli 
       name: cli # only the CLI
       paths:
