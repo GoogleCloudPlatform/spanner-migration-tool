@@ -152,9 +152,9 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
     this.fetch.getConnectionProfiles(isSource).subscribe({
       next: (res: IConnectionProfile[]) => {
         if (isSource) {
-          this.sourceProfileList = res
+          this.sourceProfileList = res.sort((a,b) => a.DisplayName.localeCompare(b.DisplayName))
         } else {
-          this.targetProfileList = res
+          this.targetProfileList = res.sort((a,b) => a.DisplayName.localeCompare(b.DisplayName))
         }
       },
       error: (err: any) => {

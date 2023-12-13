@@ -22,9 +22,10 @@
 
 .body {
   margin-left: 20px;
+  margin-right: 20px;
 }
 
-table {
+#summary-table {
   min-width: 30%;
   max-width: 50%;
 
@@ -39,4 +40,8 @@ table {
 
 .migrate {
   margin-top: 10px;
+}
+
+#resources-table {
+  width: 100%;
 }

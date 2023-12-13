@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core'
+import { Component, OnInit, ViewChild } from '@angular/core'
 import { MatDialog } from '@angular/material/dialog'
 import { TargetDetailsFormComponent } from '../target-details-form/target-details-form.component'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
@@ -23,6 +23,8 @@ import { IShardSessionDetails } from 'src/app/model/db-config'
 import { ShardedDataflowMigrationDetailsFormComponent } from '../sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { downloadSession } from 'src/app/utils/utils'
+import {MatPaginator} from '@angular/material/paginator';
+import { MatTableDataSource } from '@angular/material/table'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -92,12 +94,15 @@ export class PrepareMigrationComponent implements OnInit {
     AggMonitoringDashboardName:'',
     AggMonitoringDashboardUrl:'',
     DataflowGcloudCmd: '',
-    ShardToDatastreamMap: new Map<string, ResourceDetails>(),
-    ShardToDataflowMap: new Map<string, ResourceDetails>(),
-    ShardToPubsubTopicMap: new Map<string, ResourceDetails>(),
-    ShardToPubsubSubscriptionMap: new Map<string, ResourceDetails>(),
-    ShardToMonitoringDashboardMap: new Map<string, ResourceDetails>(),
+    ShardToShardResourcesMap: new Map<string, ResourceDetails[]>(),
   }
+  generatedResourcesColumns = ['shardId', 'resourceType', 'resourceName', 'resourceUrl']
+  
+  @ViewChild(MatPaginator)
+  paginator!: MatPaginator
+  
+  displayedResources: ResourceDetails[] = []
+  displayedResourcesDataSource: MatTableDataSource<ResourceDetails> = new MatTableDataSource<ResourceDetails>(this.displayedResources)
   configuredMigrationProfile!: IMigrationProfile
   region: string = ''
   instance: string = ''
@@ -160,6 +165,15 @@ export class PrepareMigrationComponent implements OnInit {
   migrationTypesHelpText = new Map<string, string>([
     ["bulk", "Use the POC migration option when you want to migrate a sample of your data (<100GB) to do a Proof of Concept. It uses this machine's resources to copy data from the source database to Spanner"],
     ["lowdt", "Uses change data capture via Datastream to setup a continuous data replication pipeline from source to Spanner, using Dataflow jobs to perform the actual data migration."],
+  ]);
+
+  resourceTypeToDisplayTest = new Map<string, string>([
+    ["gcs", "Cloud Storage Bucket"],
+    ["pubsub_sub", "Pub/Sub subscription"],
+    ["pubsub_topic", "Pub/Sub topic"],
+    ["datastream", "Datastream Stream"],
+    ["dataflow", "Dataflow Job"],
+    ["monitoring", "Monitoring Dashboard"],
   ]);
 
   refreshMigrationMode() {
@@ -904,6 +918,9 @@ export class PrepareMigrationComponent implements OnInit {
       next: (res: IGeneratedResources) => {
         this.isResourceGenerated = true
         this.resourcesGenerated = res
+        //casting to map is required.
+        this.resourcesGenerated.ShardToShardResourcesMap = new Map<string, ResourceDetails[]>(Object.entries(this.resourcesGenerated.ShardToShardResourcesMap))
+        this.prepareGeneratedResourcesTableData(this.resourcesGenerated)
       },
       error: (err: any) => {
         this.snack.openSnackBar(err.error, 'Close')
@@ -959,11 +976,7 @@ export class PrepareMigrationComponent implements OnInit {
       AggMonitoringDashboardName:'',
       AggMonitoringDashboardUrl:'',
       DataflowGcloudCmd: '',
-      ShardToDatastreamMap: new Map<string, ResourceDetails>(),
-      ShardToDataflowMap: new Map<string, ResourceDetails>(),
-      ShardToPubsubTopicMap: new Map<string, ResourceDetails>(),
-      ShardToPubsubSubscriptionMap: new Map<string, ResourceDetails>(),
-      ShardToMonitoringDashboardMap: new Map<string, ResourceDetails>(),
+      ShardToShardResourcesMap: new Map<string, ResourceDetails[]>(),
     }
     this.initializeLocalStorage()
   }
@@ -1013,6 +1026,17 @@ export class PrepareMigrationComponent implements OnInit {
   }
   downloadSession() {
     downloadSession(this.conv)
+  }
+
+  prepareGeneratedResourcesTableData(resourcesGenerated: IGeneratedResources) {
+    for (let [shardId, resourceList] of resourcesGenerated.ShardToShardResourcesMap) {
+     for (let resource of resourceList) {
+       resource.DataShardId = shardId
+     }
+     this.displayedResources.push(...resourceList) 
+    }
+    this.displayedResourcesDataSource = new MatTableDataSource(this.displayedResources)
+    this.displayedResourcesDataSource.paginator = this.paginator
   }
 
   ngOnDestroy() { }
