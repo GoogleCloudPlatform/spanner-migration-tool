@@ -127,7 +127,7 @@ func (resourceIds MonitoringMetricsResources) CreateDataflowShardMonitoringDashb
 	var mosaicGroups = []MosaicGroup{
 		{groupTitle: fmt.Sprintf("Dataflow Job: %s", resourceIds.DataflowJobId), groupCreateTileFunction: createShardDataflowMetrics},
 		{groupTitle: fmt.Sprintf("Datastream: %s", resourceIds.DatastreamId), groupCreateTileFunction: createShardDatastreamMetrics},
-		{groupTitle: fmt.Sprintf("GCS Bucket: %s", resourceIds.GcsBucketId), groupCreateTileFunction: createShardGcsMetrics},
+		{groupTitle: fmt.Sprintf("GCS Bucket: %s", resourceIds.JobMetadataGcsBucket), groupCreateTileFunction: createShardGcsMetrics},
 		{groupTitle: fmt.Sprintf("Pubsub: %s", resourceIds.PubsubSubscriptionId), groupCreateTileFunction: createShardPubsubMetrics},
 		{groupTitle: fmt.Sprintf("Spanner: instances/%s/databases/%s", resourceIds.SpannerInstanceId, resourceIds.SpannerDatabaseId), groupCreateTileFunction: createSpannerMetrics},
 	}

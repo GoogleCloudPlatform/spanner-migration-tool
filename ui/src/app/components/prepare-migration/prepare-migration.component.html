@@ -348,6 +348,8 @@
         check the progress of resource creation. All created resources will be displayed here once they are generated.
     </div>
     <div *ngIf="isResourceGenerated && resourcesGenerated.MonitoringDashboardName!=='' && (selectedMigrationType ==='lowdt')">
+      <h2>Migration resources generated for migration jobId: {{resourcesGenerated.MigrationJobId}}</h2>
+      Note: This resources displayed below can be looked upto at a later point in time in the "spannermigrationtool_metadata" database in your spanner instance using the migration jobId listed above.
       <h3> Monitoring Dashboards:</h3>
       <span *ngIf="!isSharded">
             <li> Monitoring Dashboard: <a [href]="resourcesGenerated.MonitoringDashboardUrl"
@@ -426,8 +428,8 @@
         <span *ngIf="(selectedMigrationType ==='lowdt')">
         <b>Note: </b>Spanner migration tool has orchestrated the migration successfully. For minimal downtime
         migrations, it is safe to close Spanner migration tool now without affecting the progress of the migration.
-        Please note that Spanner migration tool does not save the IDs of the Dataflow jobs created once closed, so
-        please keep copy over the links in the Generated Resources section above before closing Spanner migration tool.
+        The resources listed on this page can be viewed in the "JobResources" table in the 'spannermigrationtool_metadata'
+        database created in your Spanner instance after you close the Spanner migration tool.
         </span>
     </div>
     <div class="migrate">

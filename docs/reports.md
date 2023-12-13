@@ -1,7 +1,7 @@
 ---
 layout: default
 title: SMT Output(s)
-nav_order: 9
+nav_order: 10
 description: "Artifacts generated when you run Spanner migration tool"
 ---
 

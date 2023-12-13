@@ -46,7 +46,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   testingSourceConnection: boolean = false
   creatingSourceConnection: boolean = false
   creatingTargetConnection: boolean = false
-  prefix: string = 'smt_datashard';
+  prefix: string = 'smt-datashard';
 
   inputOptionsList = [
     { value: 'text', displayName: 'Text' },
@@ -73,7 +73,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       logicalShardId: ['', Validators.required],
       dbName: ['', Validators.required]
     });
-    this.inputValue = this.prefix +"_"+this.randomString(4)+"_"+this.randomString(4);
+    this.inputValue = this.prefix +"-"+this.randomString(4)+"-"+this.randomString(4);
     this.migrationProfileForm = this.formBuilder.group({
       inputType: ['form', Validators.required],
       textInput: [''],
@@ -246,7 +246,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       logicalShardId: ['', Validators.required],
       dbName: ['', Validators.required]
     });
-    this.inputValue = this.prefix +"_"+this.randomString(4)+"_"+this.randomString(4);
+    this.inputValue = this.prefix +"-"+this.randomString(4)+"-"+this.randomString(4);
     this.migrationProfileForm = this.formBuilder.group({
       inputType: ['form', Validators.required],
       textInput: [],

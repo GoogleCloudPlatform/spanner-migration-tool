@@ -42,19 +42,19 @@ var dashboardClient *dashboard.DashboardsClient
 
 // MonitoringMetricsResources contains information required to create the monitoring dashboard
 type MonitoringMetricsResources struct {
-	ProjectId                string
-	DataflowJobId            string
-	DatastreamId             string
-	GcsBucketId              string
-	PubsubSubscriptionId     string
-	SpannerInstanceId        string
-	SpannerDatabaseId        string
-	ShardToDataStreamNameMap map[string]string
-	ShardToDataflowInfoMap   map[string]internal.ShardedDataflowJobResources
-	ShardToPubsubIdMap       map[string]internal.PubsubCfg
-	ShardToGcsMap            map[string]internal.GcsResources
+	ProjectId                     string
+	DataflowJobId                 string
+	DatastreamId                  string
+	JobMetadataGcsBucket          string
+	PubsubSubscriptionId          string
+	SpannerInstanceId             string
+	SpannerDatabaseId             string
+	ShardToDataStreamResourcesMap map[string]internal.DatastreamResources
+	ShardToDataflowResourcesMap   map[string]internal.DataflowResources
+	ShardToPubsubResourcesMap     map[string]internal.PubsubResources
+	ShardToGcsMap                 map[string]internal.GcsResources
 	ShardToMonitoringDashboardMap map [string] internal.MonitoringResources
-	ShardId                  string
+	ShardId                       string
 	MigrationRequestId       string
 }
 
@@ -78,7 +78,6 @@ func getDashboardClient(ctx context.Context) *dashboard.DashboardsClient {
 	}
 	return dashboardClient
 }
-
 
 func createSpannerMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	spannerTiles := []*dashboardpb.MosaicLayout_Tile{
@@ -122,11 +121,11 @@ func createShardDatastreamMetrics(resourceIds MonitoringMetricsResources) []*das
 
 func createShardGcsMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	// If fetching gcs bucket failed, don't return any tiles
-	if resourceIds.GcsBucketId == "" {
+	if resourceIds.JobMetadataGcsBucket == "" {
 		return []*dashboardpb.MosaicLayout_Tile{}
 	}
 	gcsBucketTiles := []*dashboardpb.MosaicLayout_Tile{
-		TileInfo{Title: "GCS Bucket Total Bytes", TimeSeriesQueries: map[string]string{resourceIds.GcsBucketId: fmt.Sprintf(gcsTotalBytesQuery, resourceIds.GcsBucketId)}}.createXYChartTile(),
+		TileInfo{Title: "GCS Bucket Total Bytes", TimeSeriesQueries: map[string]string{resourceIds.JobMetadataGcsBucket: fmt.Sprintf(gcsTotalBytesQuery, resourceIds.JobMetadataGcsBucket)}}.createXYChartTile(),
 	}
 	return gcsBucketTiles
 }
@@ -171,7 +170,7 @@ func createAggFilterCondition(resourceName string, resourceValues []string) stri
 
 func createAggDataflowMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	var dataflowJobs []string
-	for _, value := range resourceIds.ShardToDataflowInfoMap {
+	for _, value := range resourceIds.ShardToDataflowResourcesMap {
 		dataflowJobs = append(dataflowJobs, value.JobId)
 	}
 	dataflowTiles := []*dashboardpb.MosaicLayout_Tile{
@@ -197,8 +196,8 @@ func createAggDataflowMetrics(resourceIds MonitoringMetricsResources) []*dashboa
 
 func createAggDatastreamMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	var datastreamJobs []string
-	for _, value := range resourceIds.ShardToDataStreamNameMap {
-		datastreamJobs = append(datastreamJobs, value)
+	for _, value := range resourceIds.ShardToDataStreamResourcesMap {
+		datastreamJobs = append(datastreamJobs, value.DatastreamName)
 	}
 	datastreamTiles := []*dashboardpb.MosaicLayout_Tile{
 		TileInfo{
@@ -222,14 +221,14 @@ func createAggGcsMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.
 	}
 	// We fetch gcs buckets for dashboard creation it is possible due to an error we are not able to fetch gcs buckets for all the shards
 	gcsBucketTiles := []*dashboardpb.MosaicLayout_Tile{
-		TileInfo{Title: fmt.Sprintf("GCS Bucket Total Bytes for %v shards", len(gcsBuckets)), TimeSeriesQueries: map[string]string{resourceIds.GcsBucketId: fmt.Sprintf(gcsAggTotalBytesQuery, createAggFilterCondition("resource.bucket_name", gcsBuckets))}}.createXYChartTile(),
+		TileInfo{Title: fmt.Sprintf("GCS Bucket Total Bytes for %v shards", len(gcsBuckets)), TimeSeriesQueries: map[string]string{resourceIds.JobMetadataGcsBucket: fmt.Sprintf(gcsAggTotalBytesQuery, createAggFilterCondition("resource.bucket_name", gcsBuckets))}}.createXYChartTile(),
 	}
 	return gcsBucketTiles
 }
 
 func createAggPubsubMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	var pubsubSubs []string
-	for _, value := range resourceIds.ShardToPubsubIdMap {
+	for _, value := range resourceIds.ShardToPubsubResourcesMap {
 		pubsubSubs = append(pubsubSubs, value.SubscriptionId)
 	}
 	pubsubTiles := []*dashboardpb.MosaicLayout_Tile{
@@ -241,15 +240,15 @@ func createAggPubsubMetrics(resourceIds MonitoringMetricsResources) []*dashboard
 
 func createAggIndependentTopMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	var dataflowJobs []string
-	for _, value := range resourceIds.ShardToDataflowInfoMap {
+	for _, value := range resourceIds.ShardToDataflowResourcesMap {
 		dataflowJobs = append(dataflowJobs, value.JobId)
 	}
 	var datastreamJobs []string
-	for _, value := range resourceIds.ShardToDataStreamNameMap {
-		datastreamJobs = append(datastreamJobs, value)
+	for _, value := range resourceIds.ShardToDataStreamResourcesMap {
+		datastreamJobs = append(datastreamJobs, value.DatastreamName)
 	}
 	var pubsubSubs []string
-	for _, value := range resourceIds.ShardToPubsubIdMap {
+	for _, value := range resourceIds.ShardToPubsubResourcesMap {
 		pubsubSubs = append(pubsubSubs, value.SubscriptionId)
 	}
 	independentTopMetricsTiles := []*dashboardpb.MosaicLayout_Tile{
