@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"strings"
 	"sync"
@@ -39,6 +40,7 @@ import (
 	"syscall"
 	"time"
 
+	"cloud.google.com/go/cloudsqlconn"
 	datastream "cloud.google.com/go/datastream/apiv1"
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -64,10 +66,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
+	mysqldriver "github.com/go-sql-driver/mysql"
 	"go.uber.org/zap"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
+	"github.com/jackc/pgx/v5"
+    "github.com/jackc/pgx/v5/stdlib"
 )
 
 var (
@@ -236,6 +241,12 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 		} else {
 			return conv, fmt.Errorf("unknown type of migration, please select one of bulk, dataflow or dms")
 		}
+	case profiles.SourceProfileTypeCloudSQL:
+		infoSchema, err = GetInfoSchemaFromCloudSQL(sourceProfile, targetProfile)
+		if err != nil {
+			return conv, err
+		}
+
 	default:
 		infoSchema, err = GetInfoSchema(sourceProfile, targetProfile)
 		if err != nil {
@@ -299,9 +310,18 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			return nil, fmt.Errorf("configType should be one of 'bulk', 'dataflow' or 'dms'")
 		}
 	default:
-		infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
-		if err != nil {
-			return nil, err
+		var infoSchema common.InfoSchema
+		var err error
+		if sourceProfile.Ty == profiles.SourceProfileTypeCloudSQL {
+			infoSchema, err = GetInfoSchemaFromCloudSQL(sourceProfile, targetProfile)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			infoSchema, err = GetInfoSchema(sourceProfile, targetProfile)
+			if err != nil {
+				return nil, err
+			}
 		}
 		var streamInfo map[string]interface{}
 		// minimal downtime migration for a single shard
@@ -1277,6 +1297,67 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 		return common.ProcessDbDump(conv, r, postgres.DbDumpImpl{})
 	default:
 		return fmt.Errorf("process dump for driver %s not supported", driver)
+	}
+}
+
+func GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
+	driver := sourceProfile.Driver
+	switch driver {
+	case constants.MYSQL:
+		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
+        if err != nil {
+                return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
+        }
+        var opts []cloudsqlconn.DialOption
+		instanceName := fmt.Sprintf("%s:%s:%s", sourceProfile.ConnCloudSQL.Mysql.Project, sourceProfile.ConnCloudSQL.Mysql.Region, sourceProfile.ConnCloudSQL.Mysql.InstanceName)
+        mysqldriver.RegisterDialContext("cloudsqlconn",
+                func(ctx context.Context, addr string) (net.Conn, error) {
+                        return d.Dial(ctx, instanceName, opts...)
+                })
+
+        dbURI := fmt.Sprintf("%s:empty@cloudsqlconn(localhost:3306)/%s?parseTime=true",
+                sourceProfile.ConnCloudSQL.Mysql.User, sourceProfile.ConnCloudSQL.Mysql.Db)
+
+        db, err := sql.Open("mysql", dbURI)
+		if err != nil {
+			return nil, fmt.Errorf("sql.Open: %w", err)
+		}
+		return mysql.InfoSchemaImpl{
+			DbName:        sourceProfile.ConnCloudSQL.Mysql.Db,
+			Db:            db,
+			SourceProfile: sourceProfile,
+			TargetProfile: targetProfile,
+		}, nil
+	case constants.POSTGRES:
+		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
+        if err != nil {
+                return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
+        }
+        var opts []cloudsqlconn.DialOption
+
+        dsn := fmt.Sprintf("user=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Db)
+        config, err := pgx.ParseConfig(dsn)
+        if err != nil {
+                return nil, err
+        }
+		instanceName := fmt.Sprintf("%s:%s:%s", sourceProfile.ConnCloudSQL.Pg.Project, sourceProfile.ConnCloudSQL.Pg.Region, sourceProfile.ConnCloudSQL.Pg.InstanceName)
+        config.DialFunc = func(ctx context.Context, network, instance string) (net.Conn, error) {
+                return d.Dial(ctx, instanceName, opts...)
+        }
+        dbURI := stdlib.RegisterConnConfig(config)
+        db, err := sql.Open("pgx", dbURI)
+        if err != nil {
+                return nil, fmt.Errorf("sql.Open: %w", err)
+        }
+		temp := false
+		return postgres.InfoSchemaImpl{
+			Db:             db,
+			SourceProfile:  sourceProfile,
+			TargetProfile:  targetProfile,
+			IsSchemaUnique: &temp, //this is a workaround to set a bool pointer
+		}, nil
+	default:
+		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
 }
 

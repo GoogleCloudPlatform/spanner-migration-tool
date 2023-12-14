@@ -34,6 +34,7 @@ const (
 	SourceProfileTypeConnection
 	SourceProfileTypeConfig
 	SourceProfileTypeCsv
+	SourceProfileTypeCloudSQL
 )
 
 type SourceProfileFile struct {
@@ -66,6 +67,47 @@ const (
 	SourceProfileConnectionTypeSqlServer
 	SourceProfileConnectionTypeOracle
 )
+
+type SourceProfileConnectionTypeCloudSQL int
+
+const (
+	SourceProfileConnectionTypeCloudSQLUnset = iota
+	SourceProfileConnectionTypeCloudSQLMySQL
+	SourceProfileConnectionTypeCloudSQLPostgreSQL
+)
+
+type SourceProfileConnectionCloudSQLMySQL struct {
+	User string
+	Db string
+	InstanceName string
+	Project string
+	Region string
+}
+
+func NewSourceProfileConnectionCloudSQLMySQL(params map[string]string) (SourceProfileConnectionCloudSQLMySQL, error) {
+	mysql := SourceProfileConnectionCloudSQLMySQL{}
+	user, userOk := params["user"]
+	db, dbOk := params["dbName"]
+	instance, instanceOk := params["instance"]
+	project, projectOk := params["project"]
+	var err error
+	if !projectOk {
+		project, err = utils.GetProject()
+		if err != nil {
+			return mysql, fmt.Errorf("project for cloudsql instance not specified in source-profile, and unable to fetch from gcloud. Please specify project in the source-profile or configure in gcloud")
+		}
+	}
+	region, regionOk := params["region"]
+	if !userOk || !dbOk || !instanceOk || !regionOk {
+		return mysql, fmt.Errorf("please specify user, dbName, instance and region in the source-profile")
+	}
+	mysql.User = user
+	mysql.Db = db
+	mysql.InstanceName = instance
+	mysql.Project = project
+	mysql.Region = region
+	return mysql, nil
+}
 
 type SourceProfileConnectionMySQL struct {
 	Host            string // Same as MYSQLHOST environment variable
@@ -133,6 +175,39 @@ func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileCon
 	}
 
 	return mysql, nil
+}
+
+type SourceProfileConnectionCloudSQLPostgreSQL struct {
+	User string
+	Db string
+	InstanceName string
+	Project string
+	Region string
+}
+
+func NewSourceProfileConnectionCloudSQLPostgreSQL(params map[string]string) (SourceProfileConnectionCloudSQLPostgreSQL, error) {
+	postgres := SourceProfileConnectionCloudSQLPostgreSQL{}
+	user, userOk := params["user"]
+	db, dbOk := params["dbName"]
+	instance, instanceOk := params["instance"]
+	project, projectOk := params["project"]
+	var err error
+	if !projectOk {
+		project, err = utils.GetProject()
+		if err != nil {
+			return postgres, fmt.Errorf("project for cloudsql instance not specified in source-profile, and unable to fetch from gcloud. Please specify project in the source-profile or configure in gcloud")
+		}
+	}
+	region, regionOk := params["region"]
+	if !userOk || !dbOk || !instanceOk || !regionOk {
+		return postgres, fmt.Errorf("please specify user, dbName, instance and region in the source-profile")
+	}
+	postgres.User = user
+	postgres.Db = db
+	postgres.InstanceName = instance
+	postgres.Project = project
+	postgres.Region = region
+	return postgres, nil
 }
 
 type SourceProfileConnectionPostgreSQL struct {
@@ -368,6 +443,12 @@ type SourceProfileConnection struct {
 	Oracle    SourceProfileConnectionOracle
 }
 
+type SourceProfileConnectionCloudSQL struct {
+	Ty        SourceProfileConnectionTypeCloudSQL
+	Mysql     SourceProfileConnectionCloudSQLMySQL
+	Pg        SourceProfileConnectionCloudSQLPostgreSQL
+}
+
 func NewSourceProfileConnection(source string, params map[string]string) (SourceProfileConnection, error) {
 	conn := SourceProfileConnection{}
 	var err error
@@ -427,6 +508,30 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 		}
 	default:
 		return conn, fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
+	}
+	return conn, nil
+}
+
+func NewSourceProfileConnectionCloudSQL(source string, params map[string]string) (SourceProfileConnectionCloudSQL, error) {
+	conn := SourceProfileConnectionCloudSQL{}
+	var err error
+	switch strings.ToLower(source) {
+	case "mysql":
+		{
+			conn.Ty = SourceProfileConnectionTypeCloudSQLMySQL
+			conn.Mysql, err = NewSourceProfileConnectionCloudSQLMySQL(params)
+			if err != nil {
+				return conn, err
+			}
+		}
+	case "postgresql", "postgres", "pg":
+		{
+			conn.Ty = SourceProfileConnectionTypeCloudSQLPostgreSQL
+			conn.Pg, err = NewSourceProfileConnectionCloudSQLPostgreSQL(params)
+			if err != nil {
+				return conn, err
+			}
+		}
 	}
 	return conn, nil
 }
@@ -556,6 +661,7 @@ type SourceProfile struct {
 	Ty     SourceProfileType
 	File   SourceProfileFile
 	Conn   SourceProfileConnection
+	ConnCloudSQL SourceProfileConnectionCloudSQL
 	Config SourceProfileConfig
 	Csv    SourceProfileCsv
 }
@@ -599,6 +705,17 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 				return constants.SQLSERVER, nil
 			case "oracle":
 				return constants.ORACLE, nil
+			default:
+				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
+			}
+		}
+	case SourceProfileTypeCloudSQL:
+		{
+			switch strings.ToLower(source) {
+			case "mysql":
+				return constants.MYSQL, nil
+			case "postgresql", "postgres", "pg":
+				return constants.POSTGRES, nil
 			default:
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}
@@ -647,7 +764,7 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 		return SourceProfile{Ty: SourceProfileTypeCsv, Csv: NewSourceProfileCsv(params)}, nil
 	}
 
-	if _, ok := params["file"]; ok || filePipedToStdin() {
+	if _, ok := params["file"]; ok {
 		profile := NewSourceProfileFile(params)
 		return SourceProfile{Ty: SourceProfileTypeFile, File: profile}, nil
 	} else if format, ok := params["format"]; ok {
@@ -656,6 +773,9 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 	} else if file, ok := params["config"]; ok {
 		config, err := NewSourceProfileConfig(strings.ToLower(source), file)
 		return SourceProfile{Ty: SourceProfileTypeConfig, Config: config}, err
+	} else if _, ok := params["instance"]; ok {
+		conn, err := NewSourceProfileConnectionCloudSQL(source, params)
+		return SourceProfile{Ty: SourceProfileTypeCloudSQL, ConnCloudSQL: conn}, err
 	} else {
 		// Assume connection profile type connection by default, since
 		// connection parameters could be specified as part of environment
