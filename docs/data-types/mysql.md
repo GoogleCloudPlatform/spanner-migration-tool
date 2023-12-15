@@ -30,7 +30,7 @@ The Spanner migration tool maps MySQL types to Spanner types as follows:
 | `BIGINT`                                          | `INT64`          |                                                          |
 | `BINARY`, `VARBINARY`                             | `BYTES(MAX)`     |                                                          |
 | `BLOB`, `MEDIUMBLOB`,<br/>`TINYBLOB`, `LONGBLOB`  | `BYTES(MAX)`     |                                                          |
-| `BIT`                                             | `BYTES(MAX)`     |                                                          |
+| `BIT`                                             | `BYTES(MAX)`     | BIT(1) converts to BOOL, other cases map to BYTES        |
 | `CHAR`                                            | `STRING(1)`      | CHAR defaults to length 1                                |
 | `CHAR(N)`                                         | `STRING(N)`      | differences in treatment of fixed-length character types |
 | `DATE`                                            | `DATE`           |                                                          |
