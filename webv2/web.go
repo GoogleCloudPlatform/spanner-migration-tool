@@ -2013,6 +2013,9 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 	newNames := []string{}
 	newNamesMap := map[string]bool{}
 	for _, newFk := range newFKs {
+		if len(newFk.Name) == 0 {
+			continue
+		}
 		for _, oldFk := range sessionState.Conv.SpSchema[tableId].ForeignKeys {
 			if newFk.Id == oldFk.Id && newFk.Name != oldFk.Name && newFk.Name != "" {
 				newNames = append(newNames, strings.ToLower(newFk.Name))
@@ -2021,6 +2024,9 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, newFk := range newFKs {
+		if len(newFk.Name) == 0 {
+			continue
+		}
 		if _, ok := newNamesMap[strings.ToLower(newFk.Name)]; ok {
 			http.Error(w, fmt.Sprintf("Found duplicate names in input : %s", strings.ToLower(newFk.Name)), http.StatusBadRequest)
 			return
@@ -3030,10 +3036,10 @@ type ResourceDetails struct {
 }
 type GeneratedResources struct {
 	MigrationJobId string `json:"MigrationJobId"`
-	DatabaseName string `json:"DatabaseName"`
-	DatabaseUrl  string `json:"DatabaseUrl"`
-	BucketName   string `json:"BucketName"`
-	BucketUrl    string `json:"BucketUrl"`
+	DatabaseName   string `json:"DatabaseName"`
+	DatabaseUrl    string `json:"DatabaseUrl"`
+	BucketName     string `json:"BucketName"`
+	BucketUrl      string `json:"BucketUrl"`
 	//Used for single instance migration flow
 	DataStreamJobName          string `json:"DataStreamJobName"`
 	DataStreamJobUrl           string `json:"DataStreamJobUrl"`
