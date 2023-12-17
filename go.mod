@@ -10,7 +10,7 @@ require (
 	cloud.google.com/go/pubsub v1.33.0
 	cloud.google.com/go/spanner v1.50.0
 	cloud.google.com/go/storage v1.30.1
-	github.com/DATA-DOG/go-sqlmock v1.5.0
+	github.com/DATA-DOG/go-sqlmock v1.5.1
 	github.com/aws/aws-sdk-go v1.44.259
 	github.com/basgys/goxml2json v1.1.0
 	github.com/denisenkom/go-mssqldb v0.11.0
