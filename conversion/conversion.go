@@ -398,11 +398,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 	//Generate a job Id
 	migrationJobId := conv.Audit.MigrationRequestId
 	fmt.Printf("Creating a migration job with id: %v. This jobId can be used in future commmands (such as cleanup) to refer to this job.\n", migrationJobId)
-	conv.Audit.StreamingStats.ShardToDataStreamResourcesMap = make(map[string]internal.DatastreamResources)
-	conv.Audit.StreamingStats.ShardToPubsubResourcesMap = make(map[string]internal.PubsubResources)
-	conv.Audit.StreamingStats.ShardToDataflowResourcesMap = make(map[string]internal.DataflowResources)
-	conv.Audit.StreamingStats.ShardToGcsResources = make(map[string]internal.GcsResources)
-	conv.Audit.StreamingStats.ShardToMonitoringResourcesMap = make(map[string]internal.MonitoringResources)
+	conv.Audit.StreamingStats.ShardToShardResourcesMap = make(map[string]internal.ShardResources)
 	schemaDetails, err := common.GetIncludedSrcTablesFromConv(conv)
 	if err != nil {
 		fmt.Printf("unable to determine tableList from schema, falling back to full database")
@@ -507,11 +503,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		ProjectId:                     targetProfile.Conn.Sp.Project,
 		SpannerInstanceId:             targetProfile.Conn.Sp.Instance,
 		SpannerDatabaseId:             targetProfile.Conn.Sp.Dbname,
-		ShardToDataStreamResourcesMap: conv.Audit.StreamingStats.ShardToDataStreamResourcesMap,
-		ShardToDataflowResourcesMap:   conv.Audit.StreamingStats.ShardToDataflowResourcesMap,
-		ShardToPubsubResourcesMap:     conv.Audit.StreamingStats.ShardToPubsubResourcesMap,
-		ShardToGcsMap:                 conv.Audit.StreamingStats.ShardToGcsResources,
-		ShardToMonitoringDashboardMap: conv.Audit.StreamingStats.ShardToMonitoringResourcesMap,
+		ShardToShardResourcesMap:      conv.Audit.StreamingStats.ShardToShardResourcesMap,
 		MigrationRequestId:            conv.Audit.MigrationRequestId,
 	}
 	aggRespDash, dashboardErr := aggMonitoringResources.CreateDataflowAggMonitoringDashboard(ctx)

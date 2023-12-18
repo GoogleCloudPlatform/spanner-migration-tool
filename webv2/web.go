@@ -2308,11 +2308,7 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	generatedResources.DatabaseUrl = fmt.Sprintf("https://console.cloud.google.com/spanner/instances/%v/databases/%v/details/tables?project=%v", sessionState.SpannerInstanceID, sessionState.SpannerDatabaseName, sessionState.GCPProjectID)
 	generatedResources.BucketName = sessionState.Bucket + sessionState.RootPath
 	generatedResources.BucketUrl = fmt.Sprintf("https://console.cloud.google.com/storage/browser/%v", sessionState.Bucket+sessionState.RootPath)
-	generatedResources.ShardToDataflowMap = make(map[string]ResourceDetails)
-	generatedResources.ShardToDatastreamMap = make(map[string]ResourceDetails)
-	generatedResources.ShardToPubsubTopicMap = make(map[string]ResourceDetails)
-	generatedResources.ShardToPubsubSubscriptionMap = make(map[string]ResourceDetails)
-	generatedResources.ShardToMonitoringDashboardMap = make(map[string]ResourceDetails)
+	generatedResources.ShardToShardResourcesMap = map[string][]ResourceDetails{}
 	if sessionState.Conv.Audit.StreamingStats.DatastreamResources.DatastreamName != "" {
 		generatedResources.DataStreamJobName = sessionState.Conv.Audit.StreamingStats.DatastreamResources.DatastreamName
 		generatedResources.DataStreamJobUrl = fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DatastreamResources.DatastreamName, sessionState.GCPProjectID)
@@ -2338,29 +2334,31 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 		generatedResources.AggMonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.AggMonitoringResources.DashboardName
 		generatedResources.AggMonitoringDashboardUrl = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", sessionState.Conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, sessionState.GCPProjectID)
 	}
-	for shardId, datastreamResources := range sessionState.Conv.Audit.StreamingStats.ShardToDataStreamResourcesMap {
-		url := fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, datastreamResources, sessionState.GCPProjectID)
-		resourceDetails := ResourceDetails{JobName: datastreamResources.DatastreamName, JobUrl: url}
-		generatedResources.ShardToDatastreamMap[shardId] = resourceDetails
-	}
-	for shardId, dataflowResources := range sessionState.Conv.Audit.StreamingStats.ShardToDataflowResourcesMap {
-		dfId := dataflowResources.JobId
-		url := fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Conv.Audit.StreamingStats.DataflowResources.Region, dfId, sessionState.GCPProjectID)
-		resourceDetails := ResourceDetails{JobName: dfId, JobUrl: url, GcloudCmd: dataflowResources.GcloudCmd}
-		generatedResources.ShardToDataflowMap[shardId] = resourceDetails
-	}
-	for shardId, monitoringResources := range sessionState.Conv.Audit.StreamingStats.ShardToMonitoringResourcesMap {
-		url := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", monitoringResources.DashboardName, sessionState.GCPProjectID)
-		resourceDetails := ResourceDetails{JobName: monitoringResources.DashboardName, JobUrl: url}
-		generatedResources.ShardToMonitoringDashboardMap[shardId] = resourceDetails
-	}
-	for shardId, pubsubResources := range sessionState.Conv.Audit.StreamingStats.ShardToPubsubResourcesMap {
-		topicUrl := fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/topic/detail/%v?project=%v", pubsubResources.TopicId, sessionState.GCPProjectID)
-		topicResourceDetails := ResourceDetails{JobName: pubsubResources.TopicId, JobUrl: topicUrl}
-		generatedResources.ShardToPubsubTopicMap[shardId] = topicResourceDetails
-		subscriptionUrl := fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/subscription/detail/%v?project=%v", pubsubResources.SubscriptionId, sessionState.GCPProjectID)
-		subscriptionResourceDetails := ResourceDetails{JobName: pubsubResources.SubscriptionId, JobUrl: subscriptionUrl}
-		generatedResources.ShardToPubsubSubscriptionMap[shardId] = subscriptionResourceDetails
+	for shardId, shardResources := range sessionState.Conv.Audit.StreamingStats.ShardToShardResourcesMap {
+		//Datastream
+		url := fmt.Sprintf("https://console.cloud.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, shardResources.DatastreamResources.DatastreamName, sessionState.GCPProjectID)
+		resourceDetails := ResourceDetails{ResourceType: constants.DATASTREAM_RESOURCE, ResourceName: shardResources.DatastreamResources.DatastreamName, ResourceUrl: url}
+		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], resourceDetails)
+		//Dataflow
+		dfId := shardResources.DataflowResources.JobId
+		url = fmt.Sprintf("https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Conv.Audit.StreamingStats.DataflowResources.Region, dfId, sessionState.GCPProjectID)
+		resourceDetails = ResourceDetails{ResourceType: constants.DATAFLOW_RESOURCE, ResourceName: dfId, ResourceUrl: url, GcloudCmd: shardResources.DataflowResources.GcloudCmd}
+		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], resourceDetails)
+		//monitoring
+		url = fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", shardResources.MonitoringResources.DashboardName, sessionState.GCPProjectID)
+		resourceDetails = ResourceDetails{ResourceType: constants.MONITORING_RESOURCE, ResourceName: shardResources.MonitoringResources.DashboardName, ResourceUrl: url}
+		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], resourceDetails)
+		//gcs
+		url = fmt.Sprintf("https://console.cloud.google.com/storage/browser/%v?project=%v", shardResources.GcsResources.BucketName, sessionState.GCPProjectID)
+		resourceDetails = ResourceDetails{ResourceType: constants.GCS_RESOURCE, ResourceName: shardResources.GcsResources.BucketName, ResourceUrl: url}
+		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], resourceDetails)
+		//pubsub
+		topicUrl := fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/topic/detail/%v?project=%v", shardResources.PubsubResources.TopicId, sessionState.GCPProjectID)
+		topicResourceDetails := ResourceDetails{ResourceType: constants.PUBSUB_TOPIC_RESOURCE, ResourceName: shardResources.PubsubResources.TopicId, ResourceUrl: topicUrl}
+		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], topicResourceDetails)
+		subscriptionUrl := fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/subscription/detail/%v?project=%v", shardResources.PubsubResources.SubscriptionId, sessionState.GCPProjectID)
+		subscriptionResourceDetails := ResourceDetails{ResourceType: constants.PUBSUB_SUB_RESOURCE, ResourceName: shardResources.PubsubResources.SubscriptionId, ResourceUrl: subscriptionUrl}
+		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], subscriptionResourceDetails)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(generatedResources)
@@ -3030,8 +3028,9 @@ type typeIssue struct {
 }
 
 type ResourceDetails struct {
-	JobName   string `json:"JobName"`
-	JobUrl    string `json:"JobUrl"`
+	ResourceType string `json:"ResourceType"`
+	ResourceName string `json:"ResourceName"`
+	ResourceUrl  string `json:"ResourceUrl"`
 	GcloudCmd string `json:"GcloudCmd"`
 }
 type GeneratedResources struct {
@@ -3055,11 +3054,7 @@ type GeneratedResources struct {
 	AggMonitoringDashboardName string `json:"AggMonitoringDashboardName"`
 	AggMonitoringDashboardUrl  string `json:"AggMonitoringDashboardUrl"`
 	//Used for sharded migration flow
-	ShardToDatastreamMap          map[string]ResourceDetails `json:"ShardToDatastreamMap"`
-	ShardToDataflowMap            map[string]ResourceDetails `json:"ShardToDataflowMap"`
-	ShardToPubsubTopicMap         map[string]ResourceDetails `json:"ShardToPubsubTopicMap"`
-	ShardToPubsubSubscriptionMap  map[string]ResourceDetails `json:"ShardToPubsubSubscriptionMap"`
-	ShardToMonitoringDashboardMap map[string]ResourceDetails `json:"ShardToMonitoringDashboardMap"`
+	ShardToShardResourcesMap	  map[string][]ResourceDetails `json:"ShardToShardResourcesMap"`
 }
 
 func addTypeToList(convertedType string, spType string, issues []internal.SchemaIssue, l []typeIssue) []typeIssue {
