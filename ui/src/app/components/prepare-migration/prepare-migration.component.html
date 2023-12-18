@@ -474,14 +474,12 @@
         <mat-paginator [pageSizeOptions]="[5, 10, 20]" showFirstLastButtons aria-label="Select page"></mat-paginator>
     </div>
     <br><br>
-    <div *ngIf="isResourceGenerated">
-        <span *ngIf="(selectedMigrationType ==='lowdt')">
-            <b>Note: </b>Spanner migration tool has orchestrated the migration successfully. For minimal downtime
-            migrations, it is safe to close Spanner migration tool now without affecting the progress of the migration.
-            The resources listed on this page can be viewed in the "SMT_JOBS" table in the
-            'spannermigrationtool_metadata' database created in your Spanner instance after you close the Spanner
-            migration tool.
-        </span>
+    <div *ngIf="isResourceGenerated && (selectedMigrationType ==='lowdt')">
+        <b>Note: </b>Spanner migration tool has orchestrated the migration successfully. For minimal downtime
+        migrations, it is safe to close Spanner migration tool now without affecting the progress of the migration.
+        The resources listed on this page can be viewed in the "SMT_JOBS" table in the
+        'spannermigrationtool_metadata' database created in your Spanner instance after you close the Spanner
+        migration tool.
     </div>
     <div class="migrate">
         <span *ngIf="!isLowDtMigrationRunning">
