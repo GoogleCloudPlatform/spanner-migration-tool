@@ -37,16 +37,14 @@ export interface IGeneratedResources {
     AggMonitoringDashboardName: string
     AggMonitoringDashboardUrl: string
     DataflowGcloudCmd: string
-    ShardToDatastreamMap: Map<string, ResourceDetails>
-    ShardToDataflowMap: Map<string, ResourceDetails>
-    ShardToPubsubTopicMap: Map<string, ResourceDetails>
-    ShardToPubsubSubscriptionMap: Map<string, ResourceDetails>
-    ShardToMonitoringDashboardMap: Map<string, ResourceDetails>
+    ShardToShardResourcesMap: Map<string, ResourceDetails[]>
 }
 
 export interface ResourceDetails {
-    JobName: string
-    JobUrl: string
+    DataShardId: string
+    ResourceType: string
+    ResourceName: string
+    ResourceUrl: string
     GcloudCmd: string
 }
 

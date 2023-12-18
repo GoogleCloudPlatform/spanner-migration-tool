@@ -217,6 +217,15 @@ type MonitoringResources struct {
 	DashboardName string `json:"DashboardName"`
 }
 
+type ShardResources struct {
+	DatastreamResources DatastreamResources
+	PubsubResources     PubsubResources
+	DataflowResources	DataflowResources
+	GcsResources		GcsResources
+	MonitoringResources MonitoringResources
+}
+
+
 // Stores information related to the streaming migration process.
 type streamingStats struct {
 	Streaming                     bool                        // Flag for confirmation of streaming migration.
@@ -230,11 +239,7 @@ type streamingStats struct {
 	PubsubResources               PubsubResources
 	GcsResources                  GcsResources
 	MonitoringResources           MonitoringResources
-	ShardToDataStreamResourcesMap map[string]DatastreamResources
-	ShardToDataflowResourcesMap   map[string]DataflowResources
-	ShardToPubsubResourcesMap     map[string]PubsubResources
-	ShardToGcsResources           map[string]GcsResources
-	ShardToMonitoringResourcesMap map[string]MonitoringResources
+	ShardToShardResourcesMap      map[string]ShardResources
 	AggMonitoringResources        MonitoringResources
 }
 

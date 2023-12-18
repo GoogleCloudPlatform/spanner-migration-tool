@@ -686,15 +686,17 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 	if dataShardId != "" {
 		var resourceMutex sync.Mutex
 		resourceMutex.Lock()
-		conv.Audit.StreamingStats.ShardToDataStreamResourcesMap[dataShardId] = internal.DatastreamResources{DatastreamName: datastreamCfg.StreamId, Region: datastreamCfg.StreamLocation}
-		conv.Audit.StreamingStats.ShardToDataflowResourcesMap[dataShardId] = internal.DataflowResources{JobId: dfJobId, GcloudCmd: gcloudDataflowCmd, Region: dataflowCfg.Location}
-		conv.Audit.StreamingStats.ShardToPubsubResourcesMap[dataShardId] = streamingCfg.PubsubCfg
-		conv.Audit.StreamingStats.ShardToGcsResources[dataShardId] = gcsBucket
+		var shardResources internal.ShardResources
+		shardResources.DatastreamResources = internal.DatastreamResources{DatastreamName: datastreamCfg.StreamId, Region: datastreamCfg.StreamLocation}
+		shardResources.DataflowResources = internal.DataflowResources{JobId: dfJobId, GcloudCmd: gcloudDataflowCmd, Region: dataflowCfg.Location}
+		shardResources.PubsubResources = streamingCfg.PubsubCfg
+		shardResources.GcsResources = gcsBucket
 		if dashboardName != "" {
 			{
-				conv.Audit.StreamingStats.ShardToMonitoringResourcesMap[dataShardId] = internal.MonitoringResources{DashboardName: dashboardName}
+				shardResources.MonitoringResources = internal.MonitoringResources{DashboardName: dashboardName}
 			}
 		}
+		conv.Audit.StreamingStats.ShardToShardResourcesMap[dataShardId] = shardResources
 		resourceMutex.Unlock()
 	}
 	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId)

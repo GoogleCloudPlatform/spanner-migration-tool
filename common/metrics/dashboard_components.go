@@ -49,11 +49,7 @@ type MonitoringMetricsResources struct {
 	PubsubSubscriptionId          string
 	SpannerInstanceId             string
 	SpannerDatabaseId             string
-	ShardToDataStreamResourcesMap map[string]internal.DatastreamResources
-	ShardToDataflowResourcesMap   map[string]internal.DataflowResources
-	ShardToPubsubResourcesMap     map[string]internal.PubsubResources
-	ShardToGcsMap                 map[string]internal.GcsResources
-	ShardToMonitoringDashboardMap map [string] internal.MonitoringResources
+	ShardToShardResourcesMap      map[string]internal.ShardResources
 	ShardId                       string
 	MigrationRequestId       string
 }
@@ -170,8 +166,8 @@ func createAggFilterCondition(resourceName string, resourceValues []string) stri
 
 func createAggDataflowMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	var dataflowJobs []string
-	for _, value := range resourceIds.ShardToDataflowResourcesMap {
-		dataflowJobs = append(dataflowJobs, value.JobId)
+	for _, value := range resourceIds.ShardToShardResourcesMap {
+		dataflowJobs = append(dataflowJobs, value.DataflowResources.JobId)
 	}
 	dataflowTiles := []*dashboardpb.MosaicLayout_Tile{
 		TileInfo{
@@ -196,8 +192,8 @@ func createAggDataflowMetrics(resourceIds MonitoringMetricsResources) []*dashboa
 
 func createAggDatastreamMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	var datastreamJobs []string
-	for _, value := range resourceIds.ShardToDataStreamResourcesMap {
-		datastreamJobs = append(datastreamJobs, value.DatastreamName)
+	for _, value := range resourceIds.ShardToShardResourcesMap {
+		datastreamJobs = append(datastreamJobs, value.DatastreamResources.DatastreamName)
 	}
 	datastreamTiles := []*dashboardpb.MosaicLayout_Tile{
 		TileInfo{
@@ -211,9 +207,9 @@ func createAggDatastreamMetrics(resourceIds MonitoringMetricsResources) []*dashb
 
 func createAggGcsMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	var gcsBuckets []string
-	for _, value := range resourceIds.ShardToGcsMap {
-		if value.BucketName != "" {
-			gcsBuckets = append(gcsBuckets, value.BucketName)
+	for _, value := range resourceIds.ShardToShardResourcesMap {
+		if value.GcsResources.BucketName != "" {
+			gcsBuckets = append(gcsBuckets, value.GcsResources.BucketName)
 		}
 	}
 	if len(gcsBuckets) == 0 {
@@ -228,8 +224,8 @@ func createAggGcsMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.
 
 func createAggPubsubMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	var pubsubSubs []string
-	for _, value := range resourceIds.ShardToPubsubResourcesMap {
-		pubsubSubs = append(pubsubSubs, value.SubscriptionId)
+	for _, value := range resourceIds.ShardToShardResourcesMap {
+		pubsubSubs = append(pubsubSubs, value.PubsubResources.SubscriptionId)
 	}
 	pubsubTiles := []*dashboardpb.MosaicLayout_Tile{
 		TileInfo{Title: "Pubsub Subscription Sent Message Count", TimeSeriesQueries: map[string]string{"Pubsub Subscription Sent Message Count": fmt.Sprintf(pubsubAggSubscriptionSentMessageCountQuery, createAggFilterCondition("resource.subscription_id", pubsubSubs))}}.createXYChartTile(),
@@ -239,17 +235,11 @@ func createAggPubsubMetrics(resourceIds MonitoringMetricsResources) []*dashboard
 }
 
 func createAggIndependentTopMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
-	var dataflowJobs []string
-	for _, value := range resourceIds.ShardToDataflowResourcesMap {
-		dataflowJobs = append(dataflowJobs, value.JobId)
-	}
-	var datastreamJobs []string
-	for _, value := range resourceIds.ShardToDataStreamResourcesMap {
-		datastreamJobs = append(datastreamJobs, value.DatastreamName)
-	}
-	var pubsubSubs []string
-	for _, value := range resourceIds.ShardToPubsubResourcesMap {
-		pubsubSubs = append(pubsubSubs, value.SubscriptionId)
+	var dataflowJobs, datastreamJobs, pubsubSubs []string
+	for _, value := range resourceIds.ShardToShardResourcesMap {
+		dataflowJobs = append(dataflowJobs, value.DataflowResources.JobId)
+		datastreamJobs = append(datastreamJobs, value.DatastreamResources.DatastreamName)
+		pubsubSubs = append(pubsubSubs, value.PubsubResources.SubscriptionId)
 	}
 	independentTopMetricsTiles := []*dashboardpb.MosaicLayout_Tile{
 		TileInfo{
@@ -270,8 +260,8 @@ func createAggIndependentTopMetrics(resourceIds MonitoringMetricsResources) []*d
 
 func createAggIndependentBottomMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	shardToDashboardMappingText := ""
-	for shardId, monitoringResource := range resourceIds.ShardToMonitoringDashboardMap {
-		shardUrl := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", monitoringResource.DashboardName, resourceIds.ProjectId)
+	for shardId, shardResource := range resourceIds.ShardToShardResourcesMap {
+		shardUrl := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", shardResource.MonitoringResources.DashboardName, resourceIds.ProjectId)
 		shardString := fmt.Sprintf("Shard [%s](%s)", shardId, shardUrl)
 		if(shardToDashboardMappingText == ""){
 			shardToDashboardMappingText = shardString
