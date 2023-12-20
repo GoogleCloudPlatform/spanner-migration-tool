@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	cloud.google.com/go v0.110.8
-	cloud.google.com/go/dataflow v0.9.2
+	cloud.google.com/go/dataflow v0.9.4
 	cloud.google.com/go/datastream v1.10.3
 	cloud.google.com/go/monitoring v1.16.3
 	cloud.google.com/go/pubsub v1.33.0
