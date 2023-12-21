@@ -19,7 +19,7 @@ For a Sharded Migration a Monitoring Dashboard will be created for each shard an
 
 ## Where is my Dashboard?
 
-On the UI, the Migration Dashboards can be found under the **Monitoring Dashboards** section on the Prepare Migration page after all the resources have been generated. Along with this a list with shards and their corresponding dahsboards can be found on the Aggregated Monitoring Dashboard itself.
+On the UI, the Migration Dashboards can be found under the **Monitoring Dashboards** section on the Prepare Migration page after all the resources have been generated. Along with this a list with shards and their corresponding dahsboards can be found on the Aggregated Monitoring Dashboard itself as described [here](#shards-to-dashboard).
 
 <img src="https://services.google.com/fh/files/misc/mon-dash-prep-mig-agg.png"  style="width:500px;"/>
 
@@ -52,6 +52,7 @@ The first section of the monitoring dashboard provides key graphs for insights o
 | Worker Max Backlog Seconds | Shows max time required to consume the largest backlog across all stages for shards | Max | Used to identify if the pipelines is over or under scaled| 
 | Per Shard Median CPU Utilization | Shows median CPU Utilization for each shard | Total | Used to identify if any shard is struggling and the pipeline for it is underscaled| 
 
+<img src="https://services.google.com/fh/files/misc/dataflow-agg.png"  style="width:800px;"/>
 
 ### Datastream Metrics
 
@@ -61,6 +62,7 @@ The first section of the monitoring dashboard provides key graphs for insights o
 | Unsupported Events | Total source events unsupported by Datastream | Sum | Used to identify if there is any data that can't be transferred by datastream due to a correctness issue| 
 | Total Latency | Time taken by a event in a shard for being written at source to being written by Datastream to GCS | - 50th Percentile shard<br> - 90th Percentile shaard<br> | Indicator of datastream being overloaded | 
 
+<img src="https://services.google.com/fh/files/misc/datastream-agg.png"  style="width:800px;"/>
 
 ### GCS Bucket Metrics
 
@@ -68,6 +70,7 @@ The first section of the monitoring dashboard provides key graphs for insights o
 |-----------|-----------|-----------|-----------|
 | Total Bytes | Shows the total bytes written to the GCS Buckets of all shards| Sum | Used to check if data is succesfully being written to the GCS Bucket| 
 
+<img src="https://services.google.com/fh/files/misc/gcs-agg.png"  style="width:800px;"/>
 
 ### Pubsub Metrics
 
@@ -76,6 +79,7 @@ The first section of the monitoring dashboard provides key graphs for insights o
 | Published message count | Number of messages published by the GCS bucket to the Pub for all shards | Sum | Indicates total files in staging which need to be processed | 
 | Age of Oldest Unacknowledged Message | Age of the oldest unacknowledged message in the subscription in any shard| Max | Used to determine if starvation of dataflow resources is taking place |
 
+<img src="https://services.google.com/fh/files/misc/pubsub-agg.png"  style="width:800px;"/>
 
 ### Spanner Metrics
 
@@ -84,5 +88,9 @@ The first section of the monitoring dashboard provides key graphs for insights o
 | CPU Utilization | CPU Utilization of spanner database and instance| - Database Total CPU Utilization<br> - Instance Total CPU Utilization<br> | Used to track if spanner is overloaded and requires more or less nodes | 
 | Storage | Storage of spanner database and instance | - Database Total Storage<br> - Instance Total Storage<br> | Used to track how the data is growing as the migration proceeds |
 
+<img src="https://services.google.com/fh/files/misc/spanner-agg.png"  style="width:800px;"/>
+
 ### Shards to Dashboard
 At the end of the Aggregated Monitoring dashboard a list of individual monitoring dashboard for each shard in a sharded migration can be found.
+
+<img src="https://services.google.com/fh/files/misc/shards-agg.png"  style="width:300px;"/>

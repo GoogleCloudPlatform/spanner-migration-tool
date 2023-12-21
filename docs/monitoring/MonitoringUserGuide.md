@@ -34,6 +34,18 @@ The unique name for the dahsboard will be printed on the console. This dashboard
 
 <img src="https://services.google.com/fh/files/misc/custom-dshboards.png"  style="width:500px;"/>
 
+### Console
+To find your monitoring following the below steps:
+1. Open the Cloud Console page for your project and search for **Monitoring Dashboards**
+
+    <img src="https://services.google.com/fh/files/misc/console-search.png"  style="width:400px;"/>
+
+2. Select the Dashboards under Monitoring section
+3. Select Custom Dashboards
+
+    <img src="https://services.google.com/fh/files/misc/custom-dash.png"  style="width:400px;"/>
+
+4. Search for your dashboard based on the Migration ID or Shard ID.
 <br>
 
 For further details on metrics in the Monitoring Dashboard refer to the links below:

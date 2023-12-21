@@ -18,7 +18,15 @@ The Migration Monitoring Dashboard is a custom dashboard created to provide grea
 </details>
 
 ## Components in Monitoring Dashboard
+Montoring dashboard create by the Spanner is multi-component dashboard, divided into various sections to categorize similar metrics together. Following are the 5 sections:
+1. Overview
+2. Dataflow
+3. Datastream
+4. GCS Bucket
+5. Pubsub
+6. Spanner
 
+Below sections describe each component in more detail.
 <img src="https://services.google.com/fh/files/misc/mon-dashboard-main.png"  style="width:800px;"/>
 
 ### Overview
@@ -41,6 +49,7 @@ The first section of the monitoring dashboard provides key graphs for insights o
 | Worker Memory Utilization | Shows the Memory Utilization of a dataflow worker| - 50th percentile worker Memory Utilization<br> - 90th percentile worker Memory Utilization<br> - Max percentile worker Memory Utilization<br> | Used to identify if the health of the pipeline based on the value of Memory Utilization| 
 | Worker Max Backlog Seconds | Shows max time required to consume the largest backlog across all stages for each dataflow worker | Max | Used to identify if the pipelines is over or under scaled| 
 
+<img src="https://services.google.com/fh/files/misc/dataflow-shard.png"  style="width:800px;"/>
 
 ### Datastream Metrics
 
@@ -50,6 +59,7 @@ The first section of the monitoring dashboard provides key graphs for insights o
 | Unsupported Events | Source events unsupported by Datastream | Sum | Used to identify if there is any data that can't be transferred by datastream due to a correctness issue| 
 | Total Latency | Time taken from event being written at source to being written by Datastream to GCS | - 50th Percentile event<br> - 90th Percentile event<br> | Indicator of datastream being overloaded | 
 
+<img src="https://services.google.com/fh/files/misc/datastream-shard.png"  style="width:800px;"/>
 
 ### GCS Bucket Metrics
 
@@ -57,6 +67,7 @@ The first section of the monitoring dashboard provides key graphs for insights o
 |-----------|-----------|-----------|-----------|
 | Total Bytes | Shows the total bytes written to the GCS Bucket | Sum | Used to check if data is succesfully being written to the GCS Bucket| 
 
+<img src="https://services.google.com/fh/files/misc/gcs-shard.png"  style="width:800px;"/>
 
 ### Pubsub Metrics
 
@@ -65,6 +76,7 @@ The first section of the monitoring dashboard provides key graphs for insights o
 | Published message count | Number of messages published by the GCS bucket to the Pub | Sum | Indicates total files in staging which need to be processed | 
 | Age of Oldest Unacknowledged Message | Age of the oldest unacknowledged message in the subscription | Max | Used to determine if starvation of dataflow resources is taking place |
 
+<img src="https://services.google.com/fh/files/misc/pubsub-shard.png"  style="width:800px;"/>
 
 ### Spanner Metrics
 
@@ -72,3 +84,5 @@ The first section of the monitoring dashboard provides key graphs for insights o
 |-----------|-----------|-----------|-----------|
 | CPU Utilization | CPU Utilization of spanner database and instance| - Database Total CPU Utilization<br> - Instance Total CPU Utilization<br> | Used to track if spanner is overloaded and requires more or less nodes | 
 | Storage | Storage of spanner database and instance | - Database Total Storage<br> - Instance Total Storage<br> | Used to track how the data is growing as the migration proceeds |
+
+<img src="https://services.google.com/fh/files/misc/spanner-shard.png"  style="width:800px;"/>
