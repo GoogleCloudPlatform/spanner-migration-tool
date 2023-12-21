@@ -304,7 +304,11 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			return nil, err
 		}
 		var streamInfo map[string]interface{}
+		// minimal downtime migration for a single shard
 		if sourceProfile.Conn.Streaming {
+			//Generate a job Id
+			migrationJobId := conv.Audit.MigrationRequestId
+			logger.Log.Info(fmt.Sprintf("Creating a migration job with id: %v. This jobId can be used in future commmands (such as cleanup) to refer to this job.\n", migrationJobId))
 			streamInfo, err = infoSchema.StartChangeDataCapture(ctx, conv)
 			if err != nil {
 				return nil, err
@@ -320,7 +324,6 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			dfJobId := dfOutput.JobID
 			gcloudCmd := dfOutput.GCloudCmd
 			streamingCfg, _ := streamInfo["streamingCfg"].(streaming.StreamingCfg)
-
 			// Fetch and store the GCS bucket associated with the datastream
 			dsClient := getDatastreamClient(ctx)
 			gcsBucket, gcsDestPrefix, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
@@ -343,7 +346,7 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 				ProjectId:            targetProfile.Conn.Sp.Project,
 				DataflowJobId:        dfOutput.JobID,
 				DatastreamId:         streamingCfg.DatastreamCfg.StreamId,
-				GcsBucketId:          gcsBucket,
+				JobMetadataGcsBucket: gcsBucket,
 				PubsubSubscriptionId: streamingCfg.PubsubCfg.SubscriptionId,
 				SpannerInstanceId:    targetProfile.Conn.Sp.Instance,
 				SpannerDatabaseId:    targetProfile.Conn.Sp.Dbname,
@@ -360,10 +363,22 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 				dashboardName = strings.Split(respDash.Name, "/")[3]
 				fmt.Printf("Monitoring Dashboard: %+v\n", dashboardName)
 			}
-
+			// store the generated resources locally in conv, this is used as source of truth for persistence and the UI (should change to persisted values)
 			streaming.StoreGeneratedResources(conv, streamingCfg, dfJobId, gcloudCmd, targetProfile.Conn.Sp.Project, "", internal.GcsResources{BucketName: gcsBucket}, dashboardName)
+			//persist job and shard level data in the metadata db
+			err = streaming.PersistJobDetails(ctx, targetProfile, sourceProfile, conv, migrationJobId, false)
+			if err != nil {
+				logger.Log.Info(fmt.Sprintf("Error storing job details in SMT metadata store...the migration job will still continue as intended. %v", err))
+			} else {
+				//only attempt persisting shard level data if the job level data is persisted
+				err = streaming.PersistResources(ctx, targetProfile, sourceProfile, conv, migrationJobId, constants.DEFAULT_SHARD_ID)
+				if err != nil {
+					logger.Log.Info(fmt.Sprintf("Error storing details for migration job: %s, data shard: %s in SMT metadata store...the migration job will still continue as intended. err = %v\n", migrationJobId, constants.DEFAULT_SHARD_ID, err))
+				}
+			}
 			return bw, nil
 		}
+		//bulk migration for a single shard
 		return performSnapshotMigration(config, conv, client, infoSchema, internal.AdditionalDataAttributes{ShardId: ""}), nil
 	}
 }
@@ -380,15 +395,18 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 // 5. Perform streaming migration via dataflow
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
 	updateShardsWithTuningConfigs(sourceProfile.Config.ShardConfigurationDataflow)
-	conv.Audit.StreamingStats.ShardToDataStreamNameMap = make(map[string]string)
-	conv.Audit.StreamingStats.ShardToPubsubIdMap = make(map[string]internal.PubsubCfg)
-	conv.Audit.StreamingStats.ShardToDataflowInfoMap = make(map[string]internal.ShardedDataflowJobResources)
-	conv.Audit.StreamingStats.ShardToGcsResources = make(map[string]internal.GcsResources)
-	conv.Audit.StreamingStats.ShardToMonitoringResourcesMap = make(map[string]internal.MonitoringResources)
-	tableList, err := common.GetIncludedSrcTablesFromConv(conv)
+	//Generate a job Id
+	migrationJobId := conv.Audit.MigrationRequestId
+	fmt.Printf("Creating a migration job with id: %v. This jobId can be used in future commmands (such as cleanup) to refer to this job.\n", migrationJobId)
+	conv.Audit.StreamingStats.ShardToShardResourcesMap = make(map[string]internal.ShardResources)
+	schemaDetails, err := common.GetIncludedSrcTablesFromConv(conv)
 	if err != nil {
 		fmt.Printf("unable to determine tableList from schema, falling back to full database")
-		tableList = []string{}
+		schemaDetails = map[string]internal.SchemaDetails{}
+	}
+	err = streaming.PersistJobDetails(ctx, targetProfile, sourceProfile, conv, migrationJobId, true)
+	if err != nil {
+		logger.Log.Info(fmt.Sprintf("Error storing job details in SMT metadata store...the migration job will still continue as intended. %v", err))
 	}
 	asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) common.TaskResult[*profiles.DataShard] {
 		dbNameToShardIdMap := make(map[string]string)
@@ -405,7 +423,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 			fmt.Printf("Data shard id generated: %v\n", p.DataShardId)
 		}
 		streamingCfg := streaming.CreateStreamingConfig(*p)
-		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname, tableList)
+		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname, schemaDetails)
 		if err != nil {
 			err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
@@ -425,6 +443,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
+		// store the generated resources locally in conv, this is used as source of truth for persistence and the UI (should change to persisted values)
 
 		// Fetch and store the GCS bucket associated with the datastream
 		dsClient := getDatastreamClient(ctx)
@@ -449,7 +468,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 			ProjectId:            targetProfile.Conn.Sp.Project,
 			DataflowJobId:        dfOutput.JobID,
 			DatastreamId:         streamingCfg.DatastreamCfg.StreamId,
-			GcsBucketId:          gcsBucket,
+			JobMetadataGcsBucket: gcsBucket,
 			PubsubSubscriptionId: streamingCfg.PubsubCfg.SubscriptionId,
 			SpannerInstanceId:    targetProfile.Conn.Sp.Instance,
 			SpannerDatabaseId:    targetProfile.Conn.Sp.Dbname,
@@ -467,6 +486,11 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 			fmt.Printf("Monitoring Dashboard for shard %v: %+v\n", p.DataShardId, dashboardName)
 		}
 		streaming.StoreGeneratedResources(conv, streamingCfg, dfOutput.JobID, dfOutput.GCloudCmd, targetProfile.Conn.Sp.Project, p.DataShardId, internal.GcsResources{BucketName: gcsBucket}, dashboardName)
+		//persist the generated resources in a metadata db
+		err = streaming.PersistResources(ctx, targetProfile, sourceProfile, conv, migrationJobId, p.DataShardId)
+		if err != nil {
+			fmt.Printf("Error storing generated resources in SMT metadata store for dataShardId: %s...the migration job will still continue as intended, error: %v\n", p.DataShardId, err)
+		}
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
 	_, err = common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 20, asyncProcessShards, true)
@@ -479,11 +503,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		ProjectId:                     targetProfile.Conn.Sp.Project,
 		SpannerInstanceId:             targetProfile.Conn.Sp.Instance,
 		SpannerDatabaseId:             targetProfile.Conn.Sp.Dbname,
-		ShardToDataStreamNameMap:      conv.Audit.StreamingStats.ShardToDataStreamNameMap,
-		ShardToDataflowInfoMap:        conv.Audit.StreamingStats.ShardToDataflowInfoMap,
-		ShardToPubsubIdMap:            conv.Audit.StreamingStats.ShardToPubsubIdMap,
-		ShardToGcsMap:                 conv.Audit.StreamingStats.ShardToGcsResources,
-		ShardToMonitoringDashboardMap: conv.Audit.StreamingStats.ShardToMonitoringResourcesMap,
+		ShardToShardResourcesMap:      conv.Audit.StreamingStats.ShardToShardResourcesMap,
 		MigrationRequestId:            conv.Audit.MigrationRequestId,
 	}
 	aggRespDash, dashboardErr := aggMonitoringResources.CreateDataflowAggMonitoringDashboard(ctx)
@@ -493,7 +513,12 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		fmt.Printf("Aggregated Monitoring Dashboard: %+v\n", strings.Split(aggRespDash.Name, "/")[3])
 		conv.Audit.StreamingStats.AggMonitoringResources = internal.MonitoringResources{DashboardName: strings.Split(aggRespDash.Name, "/")[3]}
 	}
-
+	err = streaming.PersistAggregateMonitoringResources(ctx, targetProfile, sourceProfile, conv, migrationJobId)
+	if err != nil {
+		logger.Log.Info(fmt.Sprintf("Unable to store aggregated monitoring dashboard in metadata database\n error=%v\n", err))
+	} else {
+		logger.Log.Debug("Aggregate monitoring resources stored successfully.\n")
+	}
 	return &writer.BatchWriter{}, nil
 }
 

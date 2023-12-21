@@ -37,16 +37,11 @@ const (
 	GOOGLE_SQL_DIALECT     = "Google Standard SQL"
 )
 
-const metadataDbName string = "spannermigrationtool_metadata"
-
-func GetMetadataDbName() string {
-	return metadataDbName
-}
-
 func GetSpannerUri(projectId string, instanceId string) string {
-	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, GetMetadataDbName())
+	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, constants.METADATA_DB)
 }
 
+// Creates the schema for the internal metadata database
 func createDatabase(ctx context.Context, uri string) error {
 
 	// Spanner uri will be in this format 'projects/project-id/instances/spanner-instance-id/databases/db-name'
@@ -61,6 +56,8 @@ func createDatabase(ctx context.Context, uri string) error {
 	defer adminClient.Close()
 	fmt.Println("Creating database to store session metadata...")
 
+	// JobDetails contains the commit log of the jobs created using Spanner migration tool.
+	// JobResources contains the resources generated as part of a migration job (dataflow, datastream, pubsub etc.)
 	op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
 		Parent:          spInstance,
 		CreateStatement: "CREATE DATABASE `" + dbName + "`",
@@ -79,6 +76,31 @@ func createDatabase(ctx context.Context, uri string) error {
 				SchemaConversionObject JSON NOT NULL,
 				CreateTimestamp TIMESTAMP NOT NULL,
 			  ) PRIMARY KEY(VersionId)`,
+			`CREATE TABLE SMT_JOBS (
+				JobId STRING(100) NOT NULL,
+				JobName STRING(100) NOT NULL,
+				JobType STRING(100) NOT NULL,
+				JobData JSON,
+				Dialect STRING(50) NOT NULL,
+				SpannerDatabaseName STRING(100) NOT NULL,
+				CreatedAt TIMESTAMP NOT NULL,
+			  ) PRIMARY KEY(JobId)`,
+			`CREATE TABLE SMT_RESOURCES (
+				ResourceId STRING(100) NOT NULL,
+				JobId STRING(100) NOT NULL,
+				ExternalId STRING(100) NOT NULL,
+				ResourceName STRING(100) NOT NULL,
+				ResourceType STRING(100) NOT NULL,
+				ResourceData JSON,
+				CreatedAt TIMESTAMP NOT NULL,
+			  ) PRIMARY KEY(ResourceId)`,
+			`CREATE TABLE SMT_STATES (
+				StateId STRING(100) NOT NULL,
+				StateVersion INT64 NOT NULL,
+				ResourceId STRING(100) NOT NULL,
+				StateData JSON,
+				CreatedAt TIMESTAMP NOT NULL,
+			  ) PRIMARY KEY(StateId, StateVersion)`,
 		},
 	})
 	if err != nil {

@@ -61,6 +61,23 @@ func ParseMap(s string) (map[string]string, error) {
 	return params, nil
 }
 
+func ParseList(s string)([]string, error) {
+	if (len(s) == 0) {
+		return nil, nil
+	}
+	r := csv.NewReader(strings.NewReader(s))
+	r.Comma = ','
+	r.TrimLeadingSpace = true
+	records, err := r.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	if len(records) > 1 {
+		return nil, fmt.Errorf("contains invalid newline characters")
+	}
+	return records[0], nil
+}
+
 func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 	sqlConnectionStr := ""
 	if sourceProfile.Ty == SourceProfileTypeConnection {
