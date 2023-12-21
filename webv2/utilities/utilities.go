@@ -21,6 +21,7 @@ import (
 
 	"time"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -28,20 +29,14 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 )
 
-const metadataDbName string = "spannermigrationtool_metadata"
-
 func InitObjectId() {
 
 	sessionState := session.GetSessionState()
 	sessionState.Counter.ObjectId = "0"
 }
 
-func GetMetadataDbName() string {
-	return metadataDbName
-}
-
 func GetSpannerUri(projectId string, instanceId string) string {
-	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, GetMetadataDbName())
+	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, constants.METADATA_DB)
 }
 
 // DuplicateInArray checks if there is any duplicate element present in the list.

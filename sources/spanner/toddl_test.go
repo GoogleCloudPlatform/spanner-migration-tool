@@ -44,8 +44,18 @@ func TestToSpannerType(t *testing.T) {
 		{"string", false, schema.Type{Name: "STRING", Mods: []int64{100}}, ddl.Type{Name: ddl.String, Len: 100}},
 		{"timestamp", false, schema.Type{Name: "TIMESTAMP"}, ddl.Type{Name: ddl.Timestamp}},
 		// PG target.
-		{"pg_numeric", true, schema.Type{Name: "NUMERIC"}, ddl.Type{Name: ddl.Numeric}},
-		{"pg_json", true, schema.Type{Name: "JSONB"}, ddl.Type{Name: ddl.JSON}},
+		{"pg_numeric", true, schema.Type{Name: "numeric"}, ddl.Type{Name: ddl.Numeric}},
+		{"pg_json", true, schema.Type{Name: "jsonb"}, ddl.Type{Name: ddl.JSON}},
+		{"pg_boolean", true, schema.Type{Name: "boolean"}, ddl.Type{Name: ddl.Bool}},
+		{"pg_byte", true, schema.Type{Name: "bytea"}, ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+		{"pg_date", true, schema.Type{Name: "date"}, ddl.Type{Name: ddl.Date}},
+		{"pg_float", true, schema.Type{Name: "double precision"}, ddl.Type{Name: ddl.Float64}},
+		{"pg_date", true, schema.Type{Name: "date"}, ddl.Type{Name: ddl.Date}},
+		{"pg_float", true, schema.Type{Name: "double precision"}, ddl.Type{Name: ddl.Float64}},
+		{"pg_int", true, schema.Type{Name: "bigint"}, ddl.Type{Name: ddl.Int64}},
+		{"pg_string", true, schema.Type{Name: "character varying", Mods: []int64{}}, ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"pg_string_with_szie", true, schema.Type{Name: "character varying", Mods: []int64{100}}, ddl.Type{Name: ddl.String, Len: 100}},
+		{"pg_timestamp", true, schema.Type{Name: "timestamp with time zone"}, ddl.Type{Name: ddl.Timestamp}},
 	}
 	for _, tc := range toDDLTests {
 		conv.SpDialect = constants.DIALECT_GOOGLESQL

@@ -16,7 +16,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
-	"github.com/google/uuid"
 	"google.golang.org/api/iterator"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 )
@@ -50,7 +49,8 @@ func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	defer sessionState.Conv.ConvLock.Unlock()
 	source := r.FormValue("source") == "true"
 	if !source {
-		sessionState.Conv.Audit.MigrationRequestId = "SMT-" + uuid.New().String()
+		sessionState.Conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
+		sessionState.Conv.Audit.MigrationRequestId = strings.Replace(sessionState.Conv.Audit.MigrationRequestId, "_", "-", -1)
 		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId) + "/"
 	}
 	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
@@ -254,15 +254,20 @@ func setConnectionProfileFromSessionState(isSource bool, sessionState session.Se
 
 }
 
+// Cleanup streaming jobs API assumes defaults while performing cleanup.
+// The underlying backend library exposes more hooks which can are not yet implemented on the UI, and are only available via the CLI.
 func CleanUpStreamingJobs(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
-	err := streaming.CleanUpStreamingJobs(ctx, sessionState.Conv, sessionState.GCPProjectID, sessionState.Region)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error while cleaning up streaming jobs: %v", err), http.StatusBadRequest)
+	jobCleanupOptions := streaming.JobCleanupOptions{
+		Datastream: true,
+		Dataflow:   true,
+		Pubsub:     true,
+		Monitoring: true,
 	}
+	streaming.InitiateJobCleanup(ctx, sessionState.Conv.Audit.MigrationRequestId, nil, jobCleanupOptions, sessionState.GCPProjectID, sessionState.SpannerInstanceID)
 }
 
 type connectionProfileReq struct {

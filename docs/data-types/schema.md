@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Data Type Conversion
-nav_order: 6
+nav_order: 7
 has_children: true
 permalink: /data-types-conv
 ---

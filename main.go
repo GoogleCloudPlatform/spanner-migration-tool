@@ -52,6 +52,7 @@ func main() {
 	subcommands.Register(&cmd.SchemaCmd{}, "")
 	subcommands.Register(&cmd.DataCmd{}, "")
 	subcommands.Register(&cmd.SchemaAndDataCmd{}, "")
+	subcommands.Register(&cmd.CleanupCmd{}, "")
 	subcommands.Register(&webv2.WebCmd{DistDir: distDir}, "")
 	flag.Parse()
 	os.Exit(int(subcommands.Execute(ctx)))

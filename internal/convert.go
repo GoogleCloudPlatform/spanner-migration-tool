@@ -186,20 +186,45 @@ type Audit struct {
 	SkipMetricsPopulation    bool                                   `json:"-"` // Flag to identify if outgoing metrics metadata needs to skipped
 }
 
-// Stores information related to resources.
-type ShardedDataflowJobResources struct {
+// Stores information related to generated Dataflow Resources.
+type DataflowResources struct {
 	JobId     string `json:"JobId"`
 	GcloudCmd string `json:"GcloudCmd"`
+	Region    string `json:"Region"`
 }
 
 type GcsResources struct {
 	BucketName string `json:"BucketName"`
 }
 
+// Stores information related to generated Datastream Resources.
+type DatastreamResources struct {
+	DatastreamName string `json:"DatastreamName"`
+	Region         string `json:"Region"`
+}
+
+// Stores information related to generated Pubsub Resources.
+type PubsubResources struct {
+	TopicId        string
+	SubscriptionId string
+	NotificationId string
+	BucketName     string
+	Region         string
+}
+
 // Stores information related to Monitoring resources
 type MonitoringResources struct {
 	DashboardName string `json:"DashboardName"`
 }
+
+type ShardResources struct {
+	DatastreamResources DatastreamResources
+	PubsubResources     PubsubResources
+	DataflowResources	DataflowResources
+	GcsResources		GcsResources
+	MonitoringResources MonitoringResources
+}
+
 
 // Stores information related to the streaming migration process.
 type streamingStats struct {
@@ -209,18 +234,12 @@ type streamingStats struct {
 	DroppedRecords                map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
 	SampleBadRecords              []string                    // Records that generated errors during conversion.
 	SampleBadWrites               []string                    // Records that faced errors while writing to Cloud Spanner.
-	DataStreamName                string
-	DataflowJobId                 string
-	DataflowLocation              string
-	DataflowGcloudCmd             string
+	DatastreamResources           DatastreamResources
+	DataflowResources             DataflowResources
+	PubsubResources               PubsubResources
 	GcsResources                  GcsResources
-	ShardToDataStreamNameMap      map[string]string
-	ShardToDataflowInfoMap        map[string]ShardedDataflowJobResources
-	PubsubCfg                     PubsubCfg
-	ShardToPubsubIdMap            map[string]PubsubCfg
-	ShardToGcsResources           map[string]GcsResources
 	MonitoringResources           MonitoringResources
-	ShardToMonitoringResourcesMap map[string]MonitoringResources
+	ShardToShardResourcesMap      map[string]ShardResources
 	AggMonitoringResources        MonitoringResources
 }
 
@@ -250,6 +269,14 @@ type Rule struct {
 
 type Tables struct {
 	TableList []string `json:"TableList"`
+}
+
+type SchemaDetails struct {
+	TableDetails []TableDetails `json:TableDetails`
+}
+
+type TableDetails struct {
+	TableName string `json:TableName`
 }
 
 // MakeConv returns a default-configured Conv.
