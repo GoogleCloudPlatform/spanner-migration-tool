@@ -148,7 +148,7 @@ Additionally, we need to grant Pub/Sub publisher permission to GCS service agent
 
 ### Cloud Monitoring
 
-To create the monitoring dashboard granting **Editor role** to the service account is enough. To view the dashboard on Cloud Console the user must have **Monitoring Viewer** permission. To edit the Dashboard **Monitoring Editor** permission is required. For further information follow [this guide](https://cloud.google.com/monitoring/access-control).
+To create the monitoring dashboard granting **Monitoring Editor** to the service account is required. To view the dashboard on Cloud Console the user must have **Monitoring Viewer** permission. To edit the Dashboard **Monitoring Editor** permission is required. For further information follow [this guide](https://cloud.google.com/monitoring/access-control).
 
 ### Other Permissions
 
