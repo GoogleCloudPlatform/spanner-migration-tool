@@ -17,7 +17,6 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -80,11 +79,7 @@ func getEnvironmentFlags(environment *dataflowpb.FlexTemplateRuntimeEnvironment)
 		flag += fmt.Sprintf("--subnetwork %s ", environment.Subnetwork)
 	}
 	if environment.AdditionalUserLabels != nil && len(environment.AdditionalUserLabels) > 0 {
-		jsonByteStr, err := json.Marshal(environment.AdditionalUserLabels)
-		// If error is not nil, omit this flag and move on. We don't need error handling here.
-		if err == nil {
-			flag += fmt.Sprintf("--additional-user-labels %s ", string(jsonByteStr))
-		}
+		flag += fmt.Sprintf("--additional-user-labels %s ", formatAdditionalUserLabels(environment.AdditionalUserLabels))
 	}
 	if environment.KmsKeyName != "" {
 		flag += fmt.Sprintf("--dataflow-kms-key %s ", environment.KmsKeyName)
@@ -108,4 +103,12 @@ func getEnvironmentFlags(environment *dataflowpb.FlexTemplateRuntimeEnvironment)
 		flag += fmt.Sprintf("--staging-location %s ", environment.StagingLocation)
 	}
 	return strings.Trim(flag, " ")
+}
+
+func formatAdditionalUserLabels(labels map[string]string) string {
+	res := []string{}
+	for key, value := range labels {
+		res = append(res, fmt.Sprintf("%s=%s", key, value))
+	}
+	return strings.Join(res, ",")
 }
