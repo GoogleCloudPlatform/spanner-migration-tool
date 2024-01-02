@@ -38,7 +38,7 @@ const (
 )
 
 var TABLE_STATEMENTS = []string{
-	`CREATE TABLE IF NOT EXISTS SchemaConversionSession (
+	`CREATE TABLE SchemaConversionSession (
 		VersionId STRING(36) NOT NULL,
 		PreviousVersionId ARRAY<STRING(36)>,
 		SessionName STRING(50) NOT NULL,
@@ -51,32 +51,49 @@ var TABLE_STATEMENTS = []string{
 		SchemaChanges STRING(MAX),
 		SchemaConversionObject JSON NOT NULL,
 		CreateTimestamp TIMESTAMP NOT NULL,
-	) PRIMARY KEY(VersionId)`,
-	`CREATE TABLE IF NOT EXISTS SMT_JOBS (
+	  ) PRIMARY KEY(VersionId)`,
+	`CREATE TABLE SMT_JOB (
 		JobId STRING(100) NOT NULL,
 		JobName STRING(100) NOT NULL,
 		JobType STRING(100) NOT NULL,
+		JobStateData JSON,
 		JobData JSON,
 		Dialect STRING(50) NOT NULL,
 		SpannerDatabaseName STRING(100) NOT NULL,
-		CreatedAt TIMESTAMP NOT NULL,
-	) PRIMARY KEY(JobId)`,
-	`CREATE TABLE IF NOT EXISTS SMT_RESOURCES (
+		UpdatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+	  ) PRIMARY KEY(JobId)`,
+	`CREATE TABLE SMT_JOB_HISTORY (
+		JobId STRING(100) NOT NULL,
+		Version INT64 NOT NULL,
+		JobName STRING(100) NOT NULL,
+		JobType STRING(100) NOT NULL,
+		JobStateData JSON,
+		JobData JSON,
+		Dialect STRING(50) NOT NULL,
+		SpannerDatabaseName STRING(100) NOT NULL,
+		CreatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+	  ) PRIMARY KEY(JobId, Version)`,
+	`CREATE TABLE SMT_RESOURCE (
 		ResourceId STRING(100) NOT NULL,
 		JobId STRING(100) NOT NULL,
-		ExternalId STRING(100) NOT NULL,
+		ExternalId STRING(100),
 		ResourceName STRING(100) NOT NULL,
 		ResourceType STRING(100) NOT NULL,
+		ResourceStateData JSON,
 		ResourceData JSON,
-		CreatedAt TIMESTAMP NOT NULL,
-	) PRIMARY KEY(ResourceId)`,
-	`CREATE TABLE IF NOT EXISTS SMT_STATES (
-		StateId STRING(100) NOT NULL,
-		StateVersion INT64 NOT NULL,
+		UpdatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+	  ) PRIMARY KEY(ResourceId)`,
+	`CREATE TABLE SMT_RESOURCE_HISTORY (
 		ResourceId STRING(100) NOT NULL,
-		StateData JSON,
-		CreatedAt TIMESTAMP NOT NULL,
-	) PRIMARY KEY(StateId, StateVersion)`,
+		Version INT64 NOT NULL,
+		JobId STRING(100) NOT NULL,
+		ExternalId STRING(100),
+		ResourceName STRING(100) NOT NULL,
+		ResourceType STRING(100) NOT NULL,
+		ResourceStateData JSON,
+		ResourceData JSON,
+		CreatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+	) PRIMARY KEY(ResourceId, Version)`,
 }
 
 func GetSpannerUri(projectId string, instanceId string) string {

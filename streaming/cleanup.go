@@ -128,7 +128,7 @@ func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds
 	}
 }
 
-func FetchResources(ctx context.Context, migrationJobId string, resourceType string, dataShardIds []string, project string, instance string) ([]SmtResources, error) {
+func FetchResources(ctx context.Context, migrationJobId string, resourceType string, dataShardIds []string, project string, instance string) ([]SmtResource, error) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.METADATA_DB)
 	client, err := utils.GetClient(ctx, dbURI)
 	if err != nil {
@@ -151,7 +151,7 @@ func FetchResources(ctx context.Context, migrationJobId string, resourceType str
 					ResourceName,
 					ResourceType,
 					TO_JSON_STRING(ResourceData) AS ResourceData
-				FROM SMT_RESOURCES 
+				FROM SMT_RESOURCE 
 				WHERE JobId = @migrationJobId and ResourceType = @resourceType and JSON_VALUE(ResourceData, '$.DataShardId') IN UNNEST (@dataShardIds)`,
 			Params: map[string]interface{}{
 				"migrationJobId": migrationJobId,
@@ -169,7 +169,7 @@ func FetchResources(ctx context.Context, migrationJobId string, resourceType str
 					ResourceName,
 					ResourceType,
 					TO_JSON_STRING(ResourceData) AS ResourceData
-				FROM SMT_RESOURCES
+				FROM SMT_RESOURCE
 				WHERE JobId = @migrationJobId and ResourceType = @resourceType`,
 			Params: map[string]interface{}{
 				"migrationJobId": migrationJobId,
@@ -178,7 +178,7 @@ func FetchResources(ctx context.Context, migrationJobId string, resourceType str
 		}
 	}
 	iter := txn.Query(ctx, resourceQuery)
-	jobResourcesList := []SmtResources{}
+	jobResourcesList := []SmtResource{}
 	for {
 		row, e := iter.Next()
 		if e == iterator.Done {
@@ -188,7 +188,7 @@ func FetchResources(ctx context.Context, migrationJobId string, resourceType str
 			err = e
 			break
 		}
-		var jobResource SmtResources
+		var jobResource SmtResource
 		row.ToStruct(&jobResource)
 		jobResourcesList = append(jobResourcesList, jobResource)
 	}

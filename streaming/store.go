@@ -127,14 +127,15 @@ func writeJobDetails(ctx context.Context, migrationJobId string, isShardedMigrat
 		logger.Log.Error(fmt.Sprintf("internal error occurred while persisting metadata for migration job %s: %v\n", migrationJobId, err))
 		return err
 	}
-	jobDetails := SmtJobs{
+	jobDetails := SmtJob{
 		JobId:               migrationJobId,
 		JobName:             migrationJobId,
 		JobType:             constants.MINIMAL_DOWNTIME_MIGRATION,
 		Dialect:             conv.SpDialect,
+		JobStateData:        "{\"state\": \"RUNNING\"}",
 		JobData:             string(jobDataBytes),
 		SpannerDatabaseName: spannerDatabaseName,
-		CreatedAt:           createTimestamp,
+		UpdatedAt:           createTimestamp,
 	}
 	_, err = client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		mutation, err := spanner.InsertStruct(constants.SMT_JOB_TABLE, jobDetails)
@@ -222,16 +223,17 @@ func createResourceMutation(jobId string, externalResourceId string, resourceTyp
 	if err != nil {
 		return nil, err
 	}
-	jobResource := SmtResources{
-		ResourceId:   resourceId,
-		JobId:        jobId,
-		ExternalId:   externalResourceId,
-		ResourceType: resourceType,
-		ResourceName: resourceName,
-		ResourceData: string(minimalDowntimeResourceDataBytes),
-		CreatedAt:    time.Now(),
+	jobResource := SmtResource{
+		ResourceId:        resourceId,
+		JobId:             jobId,
+		ExternalId:        externalResourceId,
+		ResourceType:      resourceType,
+		ResourceName:      resourceName,
+		ResourceStateData: "\"state\": \"CREATED\"",
+		ResourceData:      string(minimalDowntimeResourceDataBytes),
+		UpdatedAt:         time.Now(),
 	}
-	mutation, err := spanner.InsertStruct(constants.SMT_RESOURCES_TABLE, jobResource)
+	mutation, err := spanner.InsertStruct(constants.SMT_RESOURCE_TABLE, jobResource)
 	if err != nil {
 		return nil, err
 	}
