@@ -611,6 +611,11 @@ func CompareSchema(sessionFileConv, actualSpannerConv *internal.Conv) error {
 			return fmt.Errorf("parent table name don't match: session table %v, parent session table name: %v, spanner table %v, parent spanner table name: %v", sessionTable.Name, sessionTableParentName, spannerTable.Name, spannerTableParentName)
 		}
 
+		//number of columns should match
+		if len(sessionTable.ColDefs) != len(spannerTable.ColDefs) {
+			return fmt.Errorf("number of columns don't match: session table %v, spanner table %v", sessionTable.Name, spannerTable.Name)
+		}
+
 		//primary keys should be of the same length
 		if len(sessionTable.PrimaryKeys) != len(spannerTable.PrimaryKeys) {
 			return fmt.Errorf("primary keys don't match: session table primary key length %v: %v, spanner table primary key length %v: %v", sessionTable.Name, len(sessionTable.PrimaryKeys), spannerTable.Name, len(spannerTable.PrimaryKeys))
