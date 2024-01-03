@@ -126,39 +126,32 @@ func createDatabase(ctx context.Context, uri string, isExist bool) error {
 	return nil
 }
 
-func CheckOrCreateMetadataDb(projectId string, instanceId string) (isExist bool, isDbCreated bool) {
+func CheckOrCreateMetadataDb(projectId string, instanceId string) bool {
 	uri := GetSpannerUri(projectId, instanceId)
 	if uri == "" {
 		fmt.Println("Invalid spanner uri")
-		return
+		return false
 	}
 
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return false
 	}
 	defer adminClient.Close()
 
 	dbExists, err := conversion.CheckExistingDb(ctx, adminClient, uri)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return false
 	}
-	if dbExists {
-		isExist = true
-	}
-
-	err = createDatabase(ctx, uri, isExist)
+	err = createDatabase(ctx, uri, dbExists)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return false
 	}
-	fmt.Println("No existing database found to store session metadata.")
-	isDbCreated = true
-	isExist = true
-	return
+	return true
 }
 
 func GetSourceDatabaseFromDriver(driver string) (string, error) {
