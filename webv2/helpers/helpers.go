@@ -84,7 +84,7 @@ func GetSpannerUri(projectId string, instanceId string) string {
 }
 
 // Creates the schema for the internal metadata database
-func createDatabase(ctx context.Context, uri string, isExist bool) error {
+func createDatabase(ctx context.Context, uri string, dbExists bool) error {
 
 	// Spanner uri will be in this format 'projects/project-id/instances/spanner-instance-id/databases/db-name'
 	matches := regexp.MustCompile("^(.*)/databases/(.*)$").FindStringSubmatch(uri)
@@ -97,7 +97,7 @@ func createDatabase(ctx context.Context, uri string, isExist bool) error {
 	}
 	defer adminClient.Close()
 	fmt.Println("Creating/Updating database to store session metadata...")
-	if isExist {
+	if dbExists {
 		op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 			Database:   uri,
 			Statements: TABLE_STATEMENTS,
