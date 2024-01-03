@@ -590,7 +590,7 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 // CompareSchema compares the spanner schema of two conv objects and returns specific error if they don't match
 func CompareSchema(sessionFileConv, actualSpannerConv *internal.Conv) error {
 	if sessionFileConv.SpDialect != actualSpannerConv.SpDialect {
-		return fmt.Errorf("spanner dialect don't match")
+		return fmt.Errorf("spanner dialect don't match: session dialect %v, spanner dialect %v", sessionFileConv.SpDialect, actualSpannerConv.SpDialect)
 	}
 	for _, sessionTable := range sessionFileConv.SpSchema {
 		spannerTableId, err := internal.GetTableIdFromSpName(actualSpannerConv.SpSchema, sessionTable.Name)
