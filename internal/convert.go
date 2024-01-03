@@ -49,9 +49,9 @@ type Conv struct {
 	Rules          		[]Rule              // Stores applied rules during schema conversion
 	IsSharded      		bool                // Flag denoting if the migration is sharded or not
 	ConvLock       		sync.RWMutex        `json:"-"` // ConvLock prevents concurrent map read/write operations. This lock will be used in all the APIs that either read or write elements to the conv object.
-	SpRegion			string 				// Region for Spanner Instance
+	SpRegion			string				// Region for Spanner Instance
 	ResourceValidation	bool				// Flag denoting if validation for resources to generated is complete
-	UI 					bool 				// Flag if UI interface was used for migration. ToDo: Remove flag after resource generation is introduced to UI
+	UI					bool				// Flag if UI interface was used for migration. ToDo: Remove flag after resource generation is introduced to UI
 }
 
 type TableIssues struct {
