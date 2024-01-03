@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	sp "cloud.google.com/go/spanner"
@@ -34,7 +35,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/google/subcommands"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -117,7 +117,8 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		banner string
 	)
 	// Populate migration request id and migration type in conv object.
-	conv.Audit.MigrationRequestId = "SMT-" + uuid.New().String()
+	conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
+	conv.Audit.MigrationRequestId = strings.Replace(conv.Audit.MigrationRequestId, "_", "-", -1)
 	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 	conv.Audit.SkipMetricsPopulation = os.Getenv("SKIP_METRICS_POPULATION") == "true"
 	dataCoversionStartTime := time.Now()

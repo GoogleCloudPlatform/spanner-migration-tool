@@ -209,7 +209,8 @@ func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchem
 
 // getIncludedSrcTablesFromConv fetches the list of tables
 // from the source database that need to be migrated.
-func GetIncludedSrcTablesFromConv(conv *internal.Conv) (tableList []string, err error) {
+func GetIncludedSrcTablesFromConv(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error) {
+	schemaToTablesMap = make(map[string]internal.SchemaDetails)
 	for spTable := range conv.SpSchema {
 		//lookup the spanner table in the source tables via ID
 		srcTable, ok := conv.SrcSchema[spTable]
@@ -217,7 +218,17 @@ func GetIncludedSrcTablesFromConv(conv *internal.Conv) (tableList []string, err 
 			err := fmt.Errorf("id for spanner and source tables do not match, this is most likely a bug")
 			return nil, err
 		}
-		tableList = append(tableList, srcTable.Name)
+		if _, exists := schemaToTablesMap[srcTable.Schema]; !exists {
+			schemaToTablesMap[srcTable.Schema] = internal.SchemaDetails{
+				TableDetails: []internal.TableDetails{},
+			}
+		}
+		schemaDetails := schemaToTablesMap[srcTable.Schema]
+		schemaDetails.TableDetails = append(
+			schemaDetails.TableDetails,
+			internal.TableDetails{TableName: srcTable.Name},
+		)
+		schemaToTablesMap[srcTable.Schema] = schemaDetails
 	}
-	return tableList, nil
+	return schemaToTablesMap, nil
 }

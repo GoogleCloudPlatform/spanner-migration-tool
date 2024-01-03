@@ -46,11 +46,11 @@
           <br>
           <mat-form-field class="full-width" appearance="outline" matTooltip="Set initial number of workers for the dataflow job(s). Default value: 1"
           [matTooltipPosition]="'right'">
-            <mat-label>Number of Workers</mat-label>
+            <mat-label>Initial Number of Workers</mat-label>
             <input matInput placeholder="1" type="text" formControlName="numWorkers"/>
           </mat-form-field>
           <br>
-          <mat-form-field class="full-width" appearance="outline" matTooltip="The machine type to use for the job, eg: n1-standard-2. Use default machine type if not specified."
+          <mat-form-field class="full-width" appearance="outline" matTooltip="The machine type to use for the job. Default machine type: n1-standard-2."
           [matTooltipPosition]="'right'">
             <mat-label>Machine Type</mat-label>
             <input matInput placeholder="Machine Type" type="text" formControlName="machineType"/>

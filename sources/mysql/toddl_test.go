@@ -203,7 +203,12 @@ func TestToSpannerType(t *testing.T) {
 	}
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 	tableList, _ := common.GetIncludedSrcTablesFromConv(conv)
-	assert.Equal(t, len(conv.SrcSchema), len(tableList))
+	keys := make([]string, 0, len(tableList))
+	for k := range tableList {
+		keys = append(keys, k)
+	}
+
+	assert.Equal(t, len(conv.SrcSchema), len(tableList[keys[0]].TableDetails))
 }
 
 // This is just a very basic smoke-test for toPostgreSQLDialectType.

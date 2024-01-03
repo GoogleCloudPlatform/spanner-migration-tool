@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -30,7 +31,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/google/subcommands"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -121,7 +121,8 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 
 	// Populate migration request id and migration type in conv object.
-	conv.Audit.MigrationRequestId = "SMT-" + uuid.New().String()
+	conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
+	conv.Audit.MigrationRequestId = strings.Replace(conv.Audit.MigrationRequestId, "_", "-", -1)
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
 	conv.Audit.SkipMetricsPopulation = os.Getenv("SKIP_METRICS_POPULATION") == "true"
 	if !cmd.dryRun {

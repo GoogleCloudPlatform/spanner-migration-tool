@@ -337,6 +337,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 	defer iter.Stop()
 	var name, column, ordering string
 	var isUnique bool
+	var isPgUnique string
 	var sequence int64
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
@@ -349,12 +350,23 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		if err != nil {
 			return nil, fmt.Errorf("couldn't read row while fetching interleaved tables: %w", err)
 		}
-		err = row.Columns(&name, &column, &sequence, &ordering, &isUnique)
-		if err != nil {
-			fmt.Println(err)
-			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
-			continue
+		if isi.SpDialect == constants.DIALECT_POSTGRESQL {
+			err = row.Columns(&name, &column, &sequence, &ordering, &isPgUnique)
+			if err != nil {
+				fmt.Println(err)
+				conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+				continue
+			}
+		} else {
+			err = row.Columns(&name, &column, &sequence, &ordering, &isUnique)
+			if err != nil {
+				fmt.Println(err)
+				conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+				continue
+			}
 		}
+
+		isUnique = isPgUnique == "YES"
 		if _, found := indexMap[name]; !found {
 			indexNames = append(indexNames, name)
 			indexMap[name] = schema.Index{
@@ -362,6 +374,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 				Name:   name,
 				Unique: isUnique}
 		}
+
 		index := indexMap[name]
 		index.Keys = append(index.Keys, schema.Key{
 			ColId: colNameIdMap[column],
