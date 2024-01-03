@@ -135,6 +135,7 @@ func writeJobDetails(ctx context.Context, migrationJobId string, isShardedMigrat
 		JobStateData:        "{\"state\": \"RUNNING\"}",
 		JobData:             string(jobDataBytes),
 		SpannerDatabaseName: spannerDatabaseName,
+		CreatedAt:           createTimestamp,
 		UpdatedAt:           createTimestamp,
 	}
 	_, err = client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
@@ -229,8 +230,9 @@ func createResourceMutation(jobId string, externalResourceId string, resourceTyp
 		ExternalId:        externalResourceId,
 		ResourceType:      resourceType,
 		ResourceName:      resourceName,
-		ResourceStateData: "\"state\": \"CREATED\"",
+		ResourceStateData: "{\"state\": \"CREATED\"}",
 		ResourceData:      string(minimalDowntimeResourceDataBytes),
+		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
 	}
 	mutation, err := spanner.InsertStruct(constants.SMT_RESOURCE_TABLE, jobResource)

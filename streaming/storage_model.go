@@ -32,6 +32,7 @@ type SmtJob struct {
 	JobData             string
 	Dialect             string
 	SpannerDatabaseName string
+	CreatedAt           time.Time
 	UpdatedAt           time.Time
 }
 
@@ -44,6 +45,7 @@ type SmtResource struct {
 	ResourceType      string
 	ResourceStateData string
 	ResourceData      string
+	CreatedAt         time.Time
 	UpdatedAt         time.Time
 }
 

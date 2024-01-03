@@ -38,7 +38,7 @@ const (
 )
 
 var TABLE_STATEMENTS = []string{
-	`CREATE TABLE SchemaConversionSession (
+	`CREATE TABLE IF NOT EXISTS SchemaConversionSession (
 		VersionId STRING(36) NOT NULL,
 		PreviousVersionId ARRAY<STRING(36)>,
 		SessionName STRING(50) NOT NULL,
@@ -52,7 +52,7 @@ var TABLE_STATEMENTS = []string{
 		SchemaConversionObject JSON NOT NULL,
 		CreateTimestamp TIMESTAMP NOT NULL,
 	  ) PRIMARY KEY(VersionId)`,
-	`CREATE TABLE SMT_JOB (
+	`CREATE TABLE IF NOT EXISTS SMT_JOB (
 		JobId STRING(100) NOT NULL,
 		JobName STRING(100) NOT NULL,
 		JobType STRING(100) NOT NULL,
@@ -60,9 +60,10 @@ var TABLE_STATEMENTS = []string{
 		JobData JSON,
 		Dialect STRING(50) NOT NULL,
 		SpannerDatabaseName STRING(100) NOT NULL,
+		CreatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
 		UpdatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
 	  ) PRIMARY KEY(JobId)`,
-	`CREATE TABLE SMT_JOB_HISTORY (
+	`CREATE TABLE IF NOT EXISTS SMT_JOB_HISTORY (
 		JobId STRING(100) NOT NULL,
 		Version INT64 NOT NULL,
 		JobName STRING(100) NOT NULL,
@@ -73,7 +74,7 @@ var TABLE_STATEMENTS = []string{
 		SpannerDatabaseName STRING(100) NOT NULL,
 		CreatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
 	  ) PRIMARY KEY(JobId, Version)`,
-	`CREATE TABLE SMT_RESOURCE (
+	`CREATE TABLE IF NOT EXISTS SMT_RESOURCE (
 		ResourceId STRING(100) NOT NULL,
 		JobId STRING(100) NOT NULL,
 		ExternalId STRING(100),
@@ -81,9 +82,10 @@ var TABLE_STATEMENTS = []string{
 		ResourceType STRING(100) NOT NULL,
 		ResourceStateData JSON,
 		ResourceData JSON,
+		CreatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
 		UpdatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
 	  ) PRIMARY KEY(ResourceId)`,
-	`CREATE TABLE SMT_RESOURCE_HISTORY (
+	`CREATE TABLE IF NOT EXISTS SMT_RESOURCE_HISTORY (
 		ResourceId STRING(100) NOT NULL,
 		Version INT64 NOT NULL,
 		JobId STRING(100) NOT NULL,
