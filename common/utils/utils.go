@@ -595,7 +595,7 @@ func CompareSchema(sessionFileConv, actualSpannerConv *internal.Conv) error {
 	for _, sessionTable := range sessionFileConv.SpSchema {
 		spannerTableId, err := internal.GetTableIdFromSpName(actualSpannerConv.SpSchema, sessionTable.Name)
 		if err != nil {
-			return fmt.Errorf("table %v not found in the spanner database schema but found in the session file. If this table does not need to be migrated, please exclude it during the schema conversion process and migration process", sessionTable.Name)
+			return fmt.Errorf("table %v not found in the spanner database schema but found in the session file. If this table does not need to be migrated, please exclude it during the schema conversion and migration process", sessionTable.Name)
 		}
 		spannerTable := actualSpannerConv.SpSchema[spannerTableId]
 		sessionTableParentName := sessionFileConv.SpSchema[sessionTable.ParentId].Name
@@ -651,7 +651,7 @@ func CompareSchema(sessionFileConv, actualSpannerConv *internal.Conv) error {
 			} else {
 				if sessionColDef.Name != spannerColDef.Name ||
 					sessionColDef.T.IsArray != spannerColDef.T.IsArray || sessionColDef.T.Len != spannerColDef.T.Len || sessionColDef.T.Name != spannerColDef.T.Name || sessionColDef.NotNull != spannerColDef.NotNull {
-						return fmt.Errorf("column detail for table %v don't match: session column name: %v, spanner column: %v", sessionTable.Name, sessionColDef, spannerColDef)
+						return fmt.Errorf("column detail for table %v don't match: session column: %v, spanner column: %v", sessionTable.Name, sessionColDef, spannerColDef)
 				}
 			}
 		}
