@@ -31,6 +31,8 @@ import (
 	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
+	resourcemanager "cloud.google.com/go/resourcemanager/apiv3"
+	resourcemanagerpb "cloud.google.com/go/resourcemanager/apiv3/resourcemanagerpb"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -106,7 +108,7 @@ type DataflowCfg struct {
 
 type StreamingCfg struct {
 	DatastreamCfg DatastreamCfg            `json:"datastreamCfg"`
-	GcsCfg        GcsCfg             `json:"gcsCfg"`
+	GcsCfg        GcsCfg                   `json:"gcsCfg"`
 	DataflowCfg   DataflowCfg              `json:"dataflowCfg"`
 	TmpDir        string                   `json:"tmpDir"`
 	PubsubCfg     internal.PubsubResources `json:"pubsubCfg"`
@@ -463,7 +465,8 @@ func createNotificationOnBucket(ctx context.Context, storageClient *storage.Clie
 
 // LaunchStream populates the parameters from the streaming config and triggers a stream on Cloud Datastream.
 func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, projectID string, datastreamCfg DatastreamCfg) error {
-	fmt.Println("Launching stream ", fmt.Sprintf("projects/%s/locations/%s", projectID, datastreamCfg.StreamLocation))
+	projectNumberResource := GetProjectNumberResource(ctx, fmt.Sprintf("projects/%s", projectID))
+	fmt.Println("Launching stream ", fmt.Sprintf("%s/locations/%s", projectNumberResource, datastreamCfg.StreamLocation))
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
 		return fmt.Errorf("datastream client can not be created: %v", err)
@@ -478,7 +481,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 		FileFormat: &datastreampb.GcsDestinationConfig_AvroFileFormat{},
 	}
 	srcCfg := &datastreampb.SourceConfig{
-		SourceConnectionProfile: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.SourceConnectionConfig.Location, datastreamCfg.SourceConnectionConfig.Name),
+		SourceConnectionProfile: fmt.Sprintf("%s/locations/%s/connectionProfiles/%s", projectNumberResource, datastreamCfg.SourceConnectionConfig.Location, datastreamCfg.SourceConnectionConfig.Name),
 	}
 	err = getSourceStreamConfig(srcCfg, sourceProfile, dbList, datastreamCfg)
 	if err != nil {
@@ -486,7 +489,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	}
 
 	dstCfg := &datastreampb.DestinationConfig{
-		DestinationConnectionProfile: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name),
+		DestinationConnectionProfile: fmt.Sprintf("%s/locations/%s/connectionProfiles/%s", projectNumberResource, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name),
 		DestinationStreamConfig:      &datastreampb.DestinationConfig_GcsDestinationConfig{GcsDestinationConfig: gcsDstCfg},
 	}
 	streamInfo := &datastreampb.Stream{
@@ -497,7 +500,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 		BackfillStrategy:  &datastreampb.Stream_BackfillAll{BackfillAll: &datastreampb.Stream_BackfillAllStrategy{}},
 	}
 	createStreamRequest := &datastreampb.CreateStreamRequest{
-		Parent:   fmt.Sprintf("projects/%s/locations/%s", projectID, datastreamCfg.StreamLocation),
+		Parent:   fmt.Sprintf("%s/locations/%s", projectNumberResource, datastreamCfg.StreamLocation),
 		StreamId: datastreamCfg.StreamId,
 		Stream:   streamInfo,
 	}
@@ -518,7 +521,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	fmt.Println("Successfully created stream ", datastreamCfg.StreamId)
 
 	fmt.Print("Setting stream state to RUNNING...")
-	streamInfo.Name = fmt.Sprintf("projects/%s/locations/%s/streams/%s", projectID, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
+	streamInfo.Name = fmt.Sprintf("%s/locations/%s/streams/%s", projectNumberResource, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
 	updateStreamRequest := &datastreampb.UpdateStreamRequest{
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"state"}},
 		Stream:     streamInfo,
@@ -754,6 +757,36 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 		TmpDir:        pl.TmpDir,
 		DataShardId:   pl.DataShardId}
 	return streamingCfg
+}
+
+// Maps Project-Id to ProjectNumber.
+var ProjectNumberResourceCache sync.Map
+
+// Returns a string that encodes the project number like `projects/12345`
+func GetProjectNumberResource(ctx context.Context, projectID string) string {
+	projectNumberResource, found := ProjectNumberResourceCache.Load(projectID)
+	if found {
+		return projectNumberResource.(string)
+	}
+
+	rmClient, err := resourcemanager.NewProjectsClient(ctx)
+	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("Could not create resourcemanager client to query project number. Defaulting to ProjectId=%s. error=%v",
+			projectID, err))
+		return projectID
+	}
+	defer rmClient.Close()
+	req := resourcemanagerpb.GetProjectRequest{Name: projectID}
+	project, err := rmClient.GetProject(ctx, &req)
+	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("Could not query resourcemanager to get project number. Defaulting to ProjectId=%s. error=%v",
+			projectID, err))
+		return projectID
+	}
+	projectNumberResource = project.GetName()
+	ProjectNumberResourceCache.Store(projectID, projectNumberResource)
+	return projectNumberResource.(string)
+
 }
 
 func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, schemaDetails map[string]internal.SchemaDetails) (StreamingCfg, error) {
