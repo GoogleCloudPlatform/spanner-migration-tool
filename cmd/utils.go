@@ -163,7 +163,7 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 	}
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		err = validateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		err = conversion.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}
@@ -194,7 +194,7 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		err = validateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		err = conversion.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}
@@ -213,21 +213,4 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		}
 	}
 	return bw, nil
-}
-
-// Method to validate if in a minimal downtime migration, required resources can be generated
-func validateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error{
-	spannerRegion, err := conversion.GetSpannerRegion(ctx, projectId, instanceId)
-		if err != nil {
-			err = fmt.Errorf("unable to fetch Spanner Region: %v", err)
-			return err
-		}
-		conv.SpRegion = spannerRegion
-		err = conversion.CreateResourcesForShardedMigration(ctx, projectId, instanceId, true, spannerRegion, sourceProfile)
-		if err != nil {
-			err = fmt.Errorf("unable to create connection profiles: %v", err)
-			return err
-		}
-		conv.ResourceValidation = true
-		return nil
 }
