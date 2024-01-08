@@ -20,161 +20,13 @@ import (
 	"slices"
 	"strings"
 
-	"cloud.google.com/go/spanner"
-	dataflowacc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/dataflow"
 	spanneracc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
-	storageacc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/dao"
+	activity "github.com/GoogleCloudPlatform/spanner-migration-tool/reverserepl/activity"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 )
-
-func CreateReverseReplicationJob(ctx context.Context, request JobData) error {
-	fmt.Printf("Received Create Reverse Replication job request: %+v\n", request)
-	uuid := utils.GenerateHashStr()
-
-	err := validateAndUpdateJobData(ctx, &request, uuid)
-	if err != nil {
-		fmt.Println("error in validateCreateRequest: %v\n", err)
-		return fmt.Errorf("error in validateCreateRequest: %v", err)
-	}
-	// Check or create the internal metadata database for all flows.
-	helpers.CheckOrCreateMetadataDb(request.SpannerProjectId, request.InstanceId)
-	smtMetadataDBURI := helpers.GetSpannerUri(request.SpannerProjectId, request.InstanceId)
-	// Init dao client.
-	_, err = dao.GetOrCreateClient(ctx, smtMetadataDBURI)
-	if err != nil {
-		return err
-	}
-
-	smtJobId := fmt.Sprintf("smt-job-%s", uuid)
-
-	err = InsertReverseReplicationJobEntry(ctx, smtJobId, request)
-	if err != nil {
-		return err
-	}
-
-	if request.IsSMTBucketRequired {
-		fmt.Println("Creating bucket")
-		err = createBucketSMTResource(ctx, smtJobId, request.SmtBucketName, request.SpannerProjectId, request.SpannerLocation, nil, 45)
-		if err != nil {
-			return err
-		}
-		if !strings.HasPrefix(request.SessionFilePath, constants.GCS_FILE_PREFIX) {
-			err := storageacc.UploadLocalFileToGCS(ctx, fmt.Sprintf("%s%s/", constants.GCS_FILE_PREFIX, request.SmtBucketName), "session.json", request.SessionFilePath)
-			if err != nil {
-				return fmt.Errorf("could not upload session file to GCS: %v", err)
-			}
-			request.SessionFilePath = fmt.Sprintf("%s%s/session.json", constants.GCS_FILE_PREFIX, request.SmtBucketName)
-		}
-		if !strings.HasPrefix(request.SourceConnectionConfig, constants.GCS_FILE_PREFIX) {
-			err := storageacc.UploadLocalFileToGCS(ctx, fmt.Sprintf("%s%s/", constants.GCS_FILE_PREFIX, request.SmtBucketName), "source-connection-config.json", request.SourceConnectionConfig)
-			if err != nil {
-				return fmt.Errorf("could not upload source connection config file to GCS: %v", err)
-			}
-			request.SourceConnectionConfig = fmt.Sprintf("%s%s/source-connection-config.json", constants.GCS_FILE_PREFIX, request.SmtBucketName)
-		}
-		fmt.Println("Created bucket succesfully")
-	}
-
-	fmt.Println("Creating changestream")
-	targetDbUri := fmt.Sprintf("projects/%s/instances/%s/databases/%s", request.SpannerProjectId, request.InstanceId, request.DatabaseId)
-	err = checkOrCreateChangeStream(ctx, request.ChangeStreamName, targetDbUri, smtJobId)
-	if err != nil {
-		return err
-	}
-	fmt.Println("Created changestream succesfully")
-
-	fmt.Println("Creating metadata db")
-	rrmetadataDbUri := fmt.Sprintf("projects/%s/instances/%s/databases/%s", request.SpannerProjectId, request.MetadataInstance, request.MetadataDatabase)
-	err = checkOrCreateMetadataDb(ctx, smtJobId, request.MetadataDatabase, rrmetadataDbUri)
-	if err != nil {
-		return err
-	}
-	fmt.Println("Created metadata db succesfuly")
-
-	fmt.Println("launching reader job")
-	readerTuningCfg, err := UnmarshalDataflowTuningConfig(ctx, request.ReaderCfg)
-	if err != nil {
-		return err
-	}
-	validateUpdateReaderTuningCfg(&readerTuningCfg, request, uuid, smtJobId)
-	err = createReaderJob(ctx, CreateReaderJobRequest{
-		ChangeStreamName:     request.ChangeStreamName,
-		InstanceId:           request.InstanceId,
-		DatabaseId:           request.DatabaseId,
-		SpannerProjectId:     request.SpannerProjectId,
-		SessionFilePath:      request.SessionFilePath,
-		SourceShardsFilePath: request.SourceConnectionConfig,
-		MetadataInstance:     request.MetadataInstance,
-		MetadataDatabase:     request.MetadataDatabase,
-		GcsOutputDirectory:   request.GcsDataDirectory,
-		StartTimestamp:       request.StartTimestamp,
-		EndTimestamp:         request.EndTimestamp,
-		WindowDuration:       request.WindowDuration,
-		FiltrationMode:       request.FiltrationMode,
-		MetadataTableSuffix:  request.MetadataTableSuffix,
-		SkipDirectoryName:    request.SkipDirectoryName,
-		TuningCfg:            readerTuningCfg,
-	}, smtJobId)
-	if err != nil {
-		return fmt.Errorf("error launching reader job: %v", err)
-	}
-	fmt.Println("launched reader job")
-
-	fmt.Println("launching writer job")
-	writerTuningCfg, err := UnmarshalDataflowTuningConfig(ctx, request.WriterCfg)
-	if err != nil {
-		return err
-	}
-	validateUpdateWriterTuningCfg(&writerTuningCfg, request, uuid, smtJobId)
-	err = createWriterJob(ctx, CreateWriterJobRequest{
-		SourceShardsFilePath:   request.SourceConnectionConfig,
-		SessionFilePath:        request.SessionFilePath,
-		SourceType:             request.SourceType,
-		SourceDbTimezoneOffset: request.SourceDbTimezoneOffset,
-		TimerInterval:          request.TimerInterval,
-		StartTimestamp:         request.StartTimestamp,
-		WindowDuration:         request.WindowDuration,
-		GCSInputDirectoryPath:  request.GcsDataDirectory,
-		SpannerProjectId:       request.SpannerProjectId,
-		MetadataInstance:       request.MetadataInstance,
-		MetadataDatabase:       request.MetadataDatabase,
-		MetadataTableSuffix:    request.MetadataTableSuffix,
-		TuningCfg:              writerTuningCfg,
-	}, smtJobId)
-	if err != nil {
-		return fmt.Errorf("error launching writer job: %v", err)
-	}
-	fmt.Println("launched writer job")
-
-	dao.UpdateSMTJobState(ctx, smtJobId, "RUNNING")
-	fmt.Println("Done creation flow")
-	return nil
-}
-
-func UnmarshalDataflowTuningConfig(ctx context.Context, filePath string) (dataflowacc.DataflowTuningConfig, error) {
-	jsonStr, err := storageacc.ReadAnyFile(ctx, filePath)
-	if err != nil {
-		return dataflowacc.DataflowTuningConfig{}, err
-	}
-	tuningCfg := dataflowacc.DataflowTuningConfig{}
-	err = json.Unmarshal([]byte(jsonStr), &tuningCfg)
-	if err != nil {
-		return dataflowacc.DataflowTuningConfig{}, err
-	}
-	return tuningCfg, nil
-}
-
-func InsertReverseReplicationJobEntry(ctx context.Context, smtJobId string, request JobData) error {
-	dialect, err := spanneracc.GetDatabaseDialect(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", request.SpannerProjectId, request.InstanceId, request.DatabaseId))
-	if err != nil {
-		return fmt.Errorf("could not fetch database dialect: %v", err)
-	}
-	jobData := spanner.NullJSON{Valid: true, Value: request}
-	return dao.InsertSMTJobEntry(ctx, smtJobId, request.JobName, constants.REVERSE_REPLICATION_JOB_TYPE, dialect, request.DatabaseId, jobData)
-}
 
 func validateAndUpdateJobData(ctx context.Context, request *JobData, uuid string) (err error) {
 	request.IsSMTBucketRequired = true
@@ -191,9 +43,17 @@ func validateAndUpdateJobData(ctx context.Context, request *JobData, uuid string
 	}
 	if request.SessionFilePath == "" {
 		return fmt.Errorf("found empty SessionFilePath which is a required parameter")
+	} else if !strings.HasPrefix(request.SessionFilePath, constants.GCS_FILE_PREFIX) {
+		request.SessionFileGcsPath = fmt.Sprintf("%s%s/session.json", constants.GCS_FILE_PREFIX, request.SmtBucketName)
+	} else {
+		request.SessionFileGcsPath = request.SessionFilePath
 	}
 	if request.SourceConnectionConfig == "" {
 		return fmt.Errorf("found empty SourceConnectionConfig which is a required parameter")
+	} else if !strings.HasPrefix(request.SourceConnectionConfig, constants.GCS_FILE_PREFIX) {
+		request.SourceConnectionConfigGcsPath = fmt.Sprintf("%s%s/source-connection-config.json", constants.GCS_FILE_PREFIX, request.SmtBucketName)
+	} else {
+		request.SourceConnectionConfigGcsPath = request.SourceConnectionConfig
 	}
 	if request.SpannerProjectId == "" {
 		return fmt.Errorf("found empty SpannerProjectId which is a required parameter")
@@ -240,58 +100,130 @@ func validateAndUpdateJobData(ctx context.Context, request *JobData, uuid string
 	return err
 }
 
-func validateUpdateReaderTuningCfg(cfg *dataflowacc.DataflowTuningConfig, jobData JobData, uuid, smtJobId string) {
-	if cfg.ProjectId == "" {
-		cfg.ProjectId = jobData.SpannerProjectId
-	}
-	if cfg.JobName == "" {
-		cfg.JobName = fmt.Sprintf("smt-reader-job-%s", utils.GenerateHashStr())
-	}
-	if cfg.Location == "" {
-		cfg.Location = jobData.SpannerLocation
-	}
-	if cfg.MaxWorkers == 0 {
-		cfg.MaxWorkers = 50
-	}
-	if cfg.NumWorkers == 0 {
-		cfg.NumWorkers = 5
-	}
-	if cfg.MachineType == "" {
-		cfg.MachineType = "n1-standard-2"
-	}
-	cfg.AdditionalUserLabels["smt-reader-job"] = smtJobId
-	if cfg.GcsTemplatePath == "" {
-		cfg.GcsTemplatePath = constants.REVERSE_REPLICATION_READER_TEMPLATE_PATH
-	}
-	if cfg.AdditionalExperiments == nil {
-		cfg.AdditionalExperiments = []string{"use_runner_v2"}
-	} else if !slices.Contains(cfg.AdditionalExperiments, "use_runner_v2") {
-		cfg.AdditionalExperiments = append(cfg.AdditionalExperiments, "use_runner_v2")
-	}
-	cfg.EnableStreamingEngine = true
-}
+// CreateWorkflows sets up the data flow job and required resources for a reverse replication pipeline.
+func CreateWorkflow(ctx context.Context, request JobData) error {
+	fmt.Printf("Received Create Reverse Replication job request: %+v\n", request)
+	uuid := utils.GenerateHashStr()
 
-func validateUpdateWriterTuningCfg(cfg *dataflowacc.DataflowTuningConfig, jobData JobData, uuid, smtJobId string) {
-	if cfg.ProjectId == "" {
-		cfg.ProjectId = jobData.SpannerProjectId
+	err := validateAndUpdateJobData(ctx, &request, uuid)
+	if err != nil {
+		fmt.Println("error in validateCreateRequest: %v\n", err)
+		return fmt.Errorf("error in validateCreateRequest: %v", err)
 	}
-	if cfg.JobName == "" {
-		cfg.JobName = fmt.Sprintf("smt-writer-job-%s", utils.GenerateHashStr())
+	// Check or create the internal metadata database for all flows.
+	helpers.CheckOrCreateMetadataDb(request.SpannerProjectId, request.InstanceId)
+	smtMetadataDBURI := helpers.GetSpannerUri(request.SpannerProjectId, request.InstanceId)
+	// Init dao client.
+	_, err = dao.GetOrCreateClient(ctx, smtMetadataDBURI)
+	if err != nil {
+		return err
 	}
-	if cfg.Location == "" {
-		cfg.Location = jobData.SpannerLocation
+
+	smtJobId := fmt.Sprintf("smt-job-%s", uuid)
+	b, err := json.Marshal(request)
+	if err != nil {
+		return err
 	}
-	if cfg.MaxWorkers == 0 {
-		cfg.MaxWorkers = 50
+	jobData := string(b)
+	activities := []activity.Activity{
+		&activity.CreateSmtJobEntry{
+			Input: &activity.CreateSmtJobEntryInput{
+				SmtJobId:         smtJobId,
+				JobName:          request.JobName,
+				SpannerProjectId: request.SpannerProjectId,
+				InstanceId:       request.InstanceId,
+				DatabaseId:       request.DatabaseId,
+				JobData:          jobData,
+			},
+		},
+		&activity.PrepareGcsBucket{
+			Input: &activity.PrepareGcsBucketInput{
+				SmtJobId:               smtJobId,
+				SmtBucketName:          request.SmtBucketName,
+				SpannerProjectId:       request.SpannerProjectId,
+				SpannerLocation:        request.SpannerLocation,
+				SessionFilePath:        request.SessionFilePath,
+				SourceConnectionConfig: request.SourceConnectionConfig,
+				IsSMTBucketRequired:    request.IsSMTBucketRequired,
+			},
+		},
+		&activity.PrepareChangeStream{
+			Input: &activity.PrepareChangeStreamInput{
+				SmtJobId:         smtJobId,
+				ChangeStreamName: request.ChangeStreamName,
+				DbURI:            fmt.Sprintf("projects/%s/instances/%s/databases/%s", request.SpannerProjectId, request.InstanceId, request.DatabaseId),
+			},
+			Output: &activity.PrepareChangeStreamOutput{},
+		},
+		&activity.PrepareMetadataDb{
+			Input: &activity.PrepareMetadataDbInput{
+				SmtJobId: smtJobId,
+				DbURI:    fmt.Sprintf("projects/%s/instances/%s/databases/%s", request.SpannerProjectId, request.MetadataInstance, request.MetadataDatabase),
+			},
+			Output: &activity.PrepareMetadataDbOutput{},
+		},
+		&activity.PrepareDataflowReader{
+			Input: &activity.PrepareDataflowReaderInput{
+				SmtJobId:             smtJobId,
+				ChangeStreamName:     request.ChangeStreamName,
+				InstanceId:           request.InstanceId,
+				DatabaseId:           request.DatabaseId,
+				SpannerProjectId:     request.SpannerProjectId,
+				SessionFilePath:      request.SessionFileGcsPath,
+				SourceShardsFilePath: request.SourceConnectionConfigGcsPath,
+				MetadataInstance:     request.MetadataInstance,
+				MetadataDatabase:     request.MetadataDatabase,
+				GcsOutputDirectory:   request.GcsDataDirectory,
+				StartTimestamp:       request.StartTimestamp,
+				EndTimestamp:         request.EndTimestamp,
+				WindowDuration:       request.WindowDuration,
+				FiltrationMode:       request.FiltrationMode,
+				MetadataTableSuffix:  request.MetadataTableSuffix,
+				SkipDirectoryName:    request.SkipDirectoryName,
+				TuningCfg:            request.ReaderCfg,
+				SpannerLocation:      request.SpannerLocation,
+			},
+			Output: &activity.PrepareDataflowReaderOutput{},
+		},
+		&activity.PrepareDataflowWriter{
+			Input: &activity.PrepareDataflowWriterInput{
+				SmtJobId:               smtJobId,
+				SourceShardsFilePath:   request.SourceConnectionConfigGcsPath,
+				SessionFilePath:        request.SessionFileGcsPath,
+				SourceType:             request.SourceType,
+				SourceDbTimezoneOffset: request.SourceDbTimezoneOffset,
+				TimerInterval:          request.TimerInterval,
+				StartTimestamp:         request.StartTimestamp,
+				WindowDuration:         request.WindowDuration,
+				GCSInputDirectoryPath:  request.GcsDataDirectory,
+				SpannerProjectId:       request.SpannerProjectId,
+				MetadataInstance:       request.MetadataInstance,
+				MetadataDatabase:       request.MetadataDatabase,
+				MetadataTableSuffix:    request.MetadataTableSuffix,
+				TuningCfg:              request.WriterCfg,
+				SpannerLocation:        request.SpannerLocation,
+			},
+			Output: &activity.PrepareDataflowWriterOutput{},
+		},
+		&activity.UpdateSmtJobEntry{
+			Input: &activity.UpdateSmtJobEntryInput{
+				SmtJobId: smtJobId,
+				State:    "RUNNING",
+			},
+		},
 	}
-	if cfg.NumWorkers == 0 {
-		cfg.NumWorkers = 5
+	for _, activity := range activities {
+		if err := activity.Transaction(ctx); err != nil {
+			// If a local transaction fails, execute the compensating actions for all previous steps
+			// for i := len(s.Steps) - 1; i >= 0; i-- {
+			//     if err := s.Steps[i].Compensate(); err != nil {
+			//         return errors.New(fmt.Sprintf("failed to compensate for step %d: %v", i, err))
+			//     }
+			// }
+			fmt.Printf("error executing activity: %v", err)
+			return err
+		}
 	}
-	if cfg.MachineType == "" {
-		cfg.MachineType = "n1-standard-2"
-	}
-	cfg.AdditionalUserLabels["smt-writer-job"] = smtJobId
-	if cfg.GcsTemplatePath == "" {
-		cfg.GcsTemplatePath = constants.REVERSE_REPLICATION_WRITER_TEMPLATE_PATH
-	}
+	fmt.Println("Done creation flow")
+	return nil
 }
