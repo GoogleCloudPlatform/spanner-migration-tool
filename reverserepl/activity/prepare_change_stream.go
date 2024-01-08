@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	spanneracc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	resource "github.com/GoogleCloudPlatform/spanner-migration-tool/reverserepl/resource"
 )
 
@@ -49,16 +50,17 @@ func (p *PrepareChangeStream) Transaction(ctx context.Context) error {
 		err = spanneracc.ValidateChangeStreamOptions(ctx, input.ChangeStreamName, input.DbURI)
 		if err != nil {
 			p.Output.ExistsWithIncorrectOptions = true
-			return err
+			return fmt.Errorf("invalid change stream option found: %v", err)
 		}
+		logger.Log.Info(fmt.Sprintf("change stream %s already exists for %s, skipping creation", input.ChangeStreamName, input.DbURI))
 		p.Output.Exists = true
-		fmt.Println("Provided change stream already exists, skipping change stream creation")
 		return nil
 	}
 	err = resource.CreateChangeStreamSMTResource(ctx, input.SmtJobId, input.ChangeStreamName, input.DbURI)
 	if err != nil {
-		return fmt.Errorf("could not create changestream resource: %v", err)
+		return fmt.Errorf("could not create change stream resource: %v", err)
 	}
+	logger.Log.Info(fmt.Sprintf("Created change stream %s for %s", input.ChangeStreamName, input.DbURI))
 	p.Output.Created = true
 	return nil
 }

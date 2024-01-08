@@ -31,11 +31,11 @@ func CreateChangeStreamSMTResource(ctx context.Context, smtJobId, changeStreamNa
 	resourceData := spanner.NullJSON{Valid: true, Value: ResourceData_ChangeStream{DbURI: dbURI}}
 	err := dao.InsertSMTResourceEntry(ctx, resourceId, smtJobId, changeStreamName, changeStreamName, "change-stream", resourceData)
 	if err != nil {
-		return err
+		return fmt.Errorf("error inserting SMT change stream resource: %v", err)
 	}
 	err = spanneracc.CreateChangeStream(ctx, changeStreamName, dbURI)
 	if err != nil {
-		return err
+		return fmt.Errorf("error in change stream creation: %v", err)
 	}
 	return dao.UpdateSMTResourceState(ctx, resourceId, "CREATED")
 }
@@ -46,11 +46,11 @@ func CreateMetadataDbSMTResource(ctx context.Context, smtJobId, dbURI string) er
 	resourceData := spanner.NullJSON{Valid: true, Value: ResourceData_MetadataDb{DbURI: dbURI}}
 	err := dao.InsertSMTResourceEntry(ctx, resourceId, smtJobId, dbName, dbName, "rr-metadata-db", resourceData)
 	if err != nil {
-		return err
+		return fmt.Errorf("error inserting SMT metadata db resource: %v", err)
 	}
 	err = spanneracc.CreateEmptyDatabase(ctx, dbURI)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating db: %v", err)
 	}
 	return dao.UpdateSMTResourceState(ctx, resourceId, "CREATED")
 }
@@ -66,11 +66,11 @@ func CreateBucketSMTResource(ctx context.Context, smtJobId, bucketName, projectI
 	}}
 	err := dao.InsertSMTResourceEntry(ctx, resourceId, smtJobId, bucketName, bucketName, "gcs-bucket", resourceData)
 	if err != nil {
-		return err
+		return fmt.Errorf("error inserting SMT bucket resource: %v", err)
 	}
 	err = storageacc.CreateGCSBucketWithLifecycle(ctx, bucketName, projectId, location, matchesPrefix, ttl)
 	if err != nil {
-		return err
+		return fmt.Errorf("error in bucket creation: %v", err)
 	}
 	return dao.UpdateSMTResourceState(ctx, resourceId, "CREATED")
 }
@@ -80,11 +80,11 @@ func CreateDataflowSMTResource(ctx context.Context, smtJobId string, launchReque
 	resourceData := spanner.NullJSON{Valid: true, Value: ResourceData_Dataflow{LaunchRequest: launchRequest, EquivalentGcloudCmd: utils.GetGcloudDataflowCommand(launchRequest)}}
 	err := dao.InsertSMTResourceEntry(ctx, resourceId, smtJobId, "", launchRequest.LaunchParameter.JobName, "dataflow", resourceData)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error inserting SMT dataflow resource: %v", err)
 	}
 	response, err := dataflowacc.LaunchDataflowJob(ctx, launchRequest)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error in launching dataflow job: %v", err)
 	}
 	err = dao.UpdateSMTResourceExternalId(ctx, resourceId, response.Job.Id)
 	if err != nil {

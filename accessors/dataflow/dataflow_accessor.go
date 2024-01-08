@@ -21,6 +21,7 @@ import (
 	"cloud.google.com/go/dataflow/apiv1beta3/dataflowpb"
 	dataflowclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/dataflow"
 	storageacc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 type DataflowTuningConfig struct {
@@ -55,7 +56,7 @@ func GetDataflowLaunchRequest(parameters map[string]string, cfg DataflowTuningCo
 			vpcSubnetwork = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/%s/subnetworks/%s", cfg.VpcHostProjectId, cfg.Location, cfg.Subnetwork)
 		}
 	}
-	return &dataflowpb.LaunchFlexTemplateRequest{
+	request := &dataflowpb.LaunchFlexTemplateRequest{
 		ProjectId: cfg.ProjectId,
 		LaunchParameter: &dataflowpb.LaunchFlexTemplateParameter{
 			JobName:    cfg.JobName,
@@ -76,7 +77,9 @@ func GetDataflowLaunchRequest(parameters map[string]string, cfg DataflowTuningCo
 			},
 		},
 		Location: cfg.Location,
-	}, nil
+	}
+	logger.Log.Debug(fmt.Sprintf("Flex Template request generated: %+v", request))
+	return request, nil
 }
 
 func LaunchDataflowJob(ctx context.Context, launchRequest *dataflowpb.LaunchFlexTemplateRequest) (*dataflowpb.LaunchFlexTemplateResponse, error) {

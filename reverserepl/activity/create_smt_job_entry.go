@@ -21,6 +21,7 @@ import (
 	spanneracc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/dao"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 type CreateSmtJobEntryInput struct {
@@ -43,11 +44,13 @@ func (p *CreateSmtJobEntry) Transaction(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("could not fetch database dialect: %v", err)
 	}
+	logger.Log.Debug(fmt.Sprintf("found database dialect: %s", dialect))
 	jobData := spanner.NullJSON{Valid: true, Value: input.JobData}
 	err = dao.InsertSMTJobEntry(ctx, input.SmtJobId, input.JobName, constants.REVERSE_REPLICATION_JOB_TYPE, dialect, input.DatabaseId, jobData)
 	if err != nil {
 		return err
 	}
+	logger.Log.Debug("Created entry SMT Job entry")
 	return nil
 }
 

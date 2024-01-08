@@ -21,6 +21,7 @@ import (
 	dataflowacc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/dataflow"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	resource "github.com/GoogleCloudPlatform/spanner-migration-tool/reverserepl/resource"
 )
 
@@ -56,13 +57,15 @@ type PrepareDataflowReader struct {
 
 // Launches the reader dataflow job.
 func (p *PrepareDataflowReader) Transaction(ctx context.Context) error {
-	fmt.Println("launching reader job")
 	input := p.Input
 	readerTuningCfg, err := dataflowacc.UnmarshalDataflowTuningConfig(ctx, input.TuningCfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading reader tuning config %s: %v", input.TuningCfg, err)
 	}
+	logger.Log.Debug(fmt.Sprintf("readerTuningCfg: %+v", readerTuningCfg))
 	validateUpdateReaderTuningCfg(&readerTuningCfg, input.SpannerProjectId, input.SpannerLocation, input.SmtJobId)
+	logger.Log.Debug(fmt.Sprintf("Updated readerTuningCfg: %+v", readerTuningCfg))
+
 	params := map[string]string{
 		"changeStreamName":     input.ChangeStreamName,
 		"instanceId":           input.InstanceId,
@@ -90,7 +93,7 @@ func (p *PrepareDataflowReader) Transaction(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("launched reader job")
+	logger.Log.Info(fmt.Sprintf("Launched reader job with id: %s", dfJobId))
 	p.Output.JobId = dfJobId
 	return nil
 }

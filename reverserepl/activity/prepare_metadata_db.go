@@ -15,8 +15,10 @@ package activity
 
 import (
 	"context"
+	"fmt"
 
 	spanneracc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	resource "github.com/GoogleCloudPlatform/spanner-migration-tool/reverserepl/resource"
 )
 
@@ -40,13 +42,15 @@ func (p *PrepareMetadataDb) Transaction(ctx context.Context) error {
 	input := p.Input
 	dbExists, err := spanneracc.CheckExistingDb(ctx, input.DbURI)
 	if err != nil {
-		return err
+		return fmt.Errorf("error checking existing db: %v", err)
 	}
 	if dbExists {
+		logger.Log.Info(fmt.Sprintf("reverse replication metadata db %s already exists, skipping creation", input.DbURI))
 		p.Output.Exists = true
 		return nil
 	}
 	resource.CreateMetadataDbSMTResource(ctx, input.SmtJobId, input.DbURI)
+	logger.Log.Info(fmt.Sprintf("Created reverse replication metadata db %s", input.DbURI))
 	p.Output.Created = true
 	return nil
 }

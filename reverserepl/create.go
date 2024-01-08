@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/dao"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	activity "github.com/GoogleCloudPlatform/spanner-migration-tool/reverserepl/activity"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 )
@@ -102,27 +103,32 @@ func validateAndUpdateJobData(ctx context.Context, request *JobData, uuid string
 
 // CreateWorkflows sets up the data flow job and required resources for a reverse replication pipeline.
 func CreateWorkflow(ctx context.Context, request JobData) error {
-	fmt.Printf("Received Create Reverse Replication job request: %+v\n", request)
-	uuid := utils.GenerateHashStr()
+	// Move to initialization to CLI layer.
+	_ = logger.InitializeLogger("DEBUG")
+	defer logger.Log.Sync()
 
+	logger.Log.Info("Creating reverse replication pipeline.")
+	logger.Log.Debug(fmt.Sprintf("Received Create Reverse Replication job request: %+v\n", request))
+	uuid := utils.GenerateHashStr()
 	err := validateAndUpdateJobData(ctx, &request, uuid)
 	if err != nil {
-		fmt.Println("error in validateCreateRequest: %v\n", err)
 		return fmt.Errorf("error in validateCreateRequest: %v", err)
 	}
+	logger.Log.Debug(fmt.Sprintf("Updated job request: %+v\n", request))
+
 	// Check or create the internal metadata database for all flows.
 	helpers.CheckOrCreateMetadataDb(request.SpannerProjectId, request.InstanceId)
 	smtMetadataDBURI := helpers.GetSpannerUri(request.SpannerProjectId, request.InstanceId)
 	// Init dao client.
 	_, err = dao.GetOrCreateClient(ctx, smtMetadataDBURI)
 	if err != nil {
-		return err
+		return fmt.Errorf("error starting dao client: %v", err)
 	}
 
 	smtJobId := fmt.Sprintf("smt-job-%s", uuid)
 	b, err := json.Marshal(request)
 	if err != nil {
-		return err
+		return fmt.Errorf("error converting job data to string: %v", err)
 	}
 	jobData := string(b)
 	activities := []activity.Activity{
@@ -212,7 +218,7 @@ func CreateWorkflow(ctx context.Context, request JobData) error {
 			},
 		},
 	}
-	for _, activity := range activities {
+	for i, activity := range activities {
 		if err := activity.Transaction(ctx); err != nil {
 			// If a local transaction fails, execute the compensating actions for all previous steps
 			// for i := len(s.Steps) - 1; i >= 0; i-- {
@@ -220,10 +226,9 @@ func CreateWorkflow(ctx context.Context, request JobData) error {
 			//         return errors.New(fmt.Sprintf("failed to compensate for step %d: %v", i, err))
 			//     }
 			// }
-			fmt.Printf("error executing activity: %v", err)
-			return err
+			return fmt.Errorf("error executing activity #%d: %v", i, err)
 		}
 	}
-	fmt.Println("Done creation flow")
+	logger.Log.Info("Successfully launched reverse replication pipeline.")
 	return nil
 }

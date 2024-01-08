@@ -20,6 +20,7 @@ import (
 	dataflowacc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/dataflow"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	resource "github.com/GoogleCloudPlatform/spanner-migration-tool/reverserepl/resource"
 )
 
@@ -53,12 +54,13 @@ type PrepareDataflowWriter struct {
 // Launches the writer dataflow job.
 func (p *PrepareDataflowWriter) Transaction(ctx context.Context) error {
 	input := p.Input
-	fmt.Println("launching Writer job")
 	writerTuningCfg, err := dataflowacc.UnmarshalDataflowTuningConfig(ctx, input.TuningCfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading writer tuning config %s: %v", input.TuningCfg, err)
 	}
+	logger.Log.Debug(fmt.Sprintf("writerTuningCfg: %+v", writerTuningCfg))
 	validateUpdateWriterTuningCfg(&writerTuningCfg, input.SpannerProjectId, input.SpannerLocation, input.SmtJobId)
+	logger.Log.Debug(fmt.Sprintf("Updated writerTuningCfg: %+v", writerTuningCfg))
 	params := map[string]string{
 		"sourceShardsFilePath":   input.SourceShardsFilePath,
 		"sessionFilePath":        input.SessionFilePath,
@@ -83,7 +85,7 @@ func (p *PrepareDataflowWriter) Transaction(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("launched writer job")
+	logger.Log.Info(fmt.Sprintf("Launched writer job with id: %s", dfJobId))
 	p.Output.JobId = dfJobId
 	return nil
 }

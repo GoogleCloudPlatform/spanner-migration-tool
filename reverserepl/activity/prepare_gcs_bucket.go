@@ -20,6 +20,7 @@ import (
 
 	storageacc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	resource "github.com/GoogleCloudPlatform/spanner-migration-tool/reverserepl/resource"
 )
 
@@ -46,23 +47,24 @@ type PrepareGcsBucket struct {
 func (p *PrepareGcsBucket) Transaction(ctx context.Context) error {
 	input := p.Input
 	if input.IsSMTBucketRequired {
-		fmt.Println("Creating bucket")
 		err := resource.CreateBucketSMTResource(ctx, input.SmtJobId, input.SmtBucketName, input.SpannerProjectId, input.SpannerLocation, nil, 45)
 		if err != nil {
 			return err
 		}
-		fmt.Println("Created bucket successfully")
+		logger.Log.Info(fmt.Sprintf("Created bucket: %s", input.SmtBucketName))
 		if !strings.HasPrefix(input.SessionFilePath, constants.GCS_FILE_PREFIX) {
 			err := storageacc.UploadLocalFileToGCS(ctx, fmt.Sprintf("%s%s/", constants.GCS_FILE_PREFIX, input.SmtBucketName), "session.json", input.SessionFilePath)
 			if err != nil {
 				return fmt.Errorf("could not upload session file to GCS: %v", err)
 			}
+			logger.Log.Debug(fmt.Sprintf("Uploaded local session file: %s to bucket %s", input.SessionFilePath, input.SmtBucketName))
 		}
 		if !strings.HasPrefix(input.SourceConnectionConfig, constants.GCS_FILE_PREFIX) {
 			err := storageacc.UploadLocalFileToGCS(ctx, fmt.Sprintf("%s%s/", constants.GCS_FILE_PREFIX, input.SmtBucketName), "source-connection-config.json", input.SourceConnectionConfig)
 			if err != nil {
 				return fmt.Errorf("could not upload source connection config file to GCS: %v", err)
 			}
+			logger.Log.Debug(fmt.Sprintf("Uploaded local source connection config : %s to bucket %s", input.SourceConnectionConfig, input.SmtBucketName))
 		}
 	}
 	return nil
