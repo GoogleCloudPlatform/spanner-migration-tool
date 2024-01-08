@@ -10,7 +10,6 @@ import (
 const LOG_FILE_NAME = "spanner-migration-tool.log"
 
 var Log *zap.Logger
-var SugaredLog *zap.SugaredLogger
 
 func InitializeLogger(inputLogLevel string) error {
 	// create zapper encoding config object
@@ -40,8 +39,4 @@ func InitializeLogger(inputLogLevel string) error {
 	)
 	Log = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 	return nil
-}
-
-func Sugar() {
-	SugaredLog = Log.Sugar()
 }

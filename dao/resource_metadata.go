@@ -21,6 +21,7 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+// Insert an entry into the SMT_RESOURCE table.
 func InsertSMTResourceEntry(ctx context.Context, resourceId, jobId, externalId, resourceName, resourceType string, resourceData spanner.NullJSON) error {
 	_, err := GetClient().ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		resourceStmt := spanner.Statement{
@@ -43,6 +44,7 @@ func InsertSMTResourceEntry(ctx context.Context, resourceId, jobId, externalId, 
 		if err != nil {
 			return err
 		}
+		// Update the resoruce history table in the same transaction.
 		_, err = updateResourceHistoryWithinTxn(ctx, txn, resourceId)
 		if err != nil {
 			return err
@@ -61,6 +63,7 @@ func updateResourceHistoryWithinTxn(ctx context.Context, txn *spanner.ReadWriteT
 	if err != nil {
 		return 0, fmt.Errorf("error fetching latest resource version: %v", err)
 	}
+	// Fetch the newly updated row from SMT_RESOURCE table.
 	stmt := spanner.Statement{SQL: `
 		SELECT 
 			JobId, ExternalId, ResourceName, ResourceType, ResourceStateData, ResourceData 
@@ -78,6 +81,7 @@ func updateResourceHistoryWithinTxn(ctx context.Context, txn *spanner.ReadWriteT
 	if err := row.Columns(&jobId, &externalId, &resourceName, &resourceType, &resourceStateData, &resourceData); err != nil {
 		return 0, fmt.Errorf("error reading smt resource row: %v", err)
 	}
+	// Create new entry into the SMT_RESOURCE_HISTORY table.
 	jobStmt := spanner.Statement{
 		SQL: `INSERT INTO SMT_RESOURCE_HISTORY 
 		(ResourceId, Version, JobId, ExternalId, ResourceName, ResourceType, ResourceStateData, ResourceData, CreatedAt)
@@ -119,6 +123,7 @@ func getLatestResourceVersionWithinTxn(ctx context.Context, txn *spanner.ReadWri
 	return 0, nil
 }
 
+// Update the state of the SMT resource.
 func UpdateSMTResourceState(ctx context.Context, resourceId, state string) error {
 	_, err := GetClient().ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		jobStmt := spanner.Statement{
@@ -145,6 +150,7 @@ func UpdateSMTResourceState(ctx context.Context, resourceId, state string) error
 	return nil
 }
 
+// Update the external of the SMT resource.
 func UpdateSMTResourceExternalId(ctx context.Context, resourceId, externalId string) error {
 	_, err := GetClient().ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		jobStmt := spanner.Statement{

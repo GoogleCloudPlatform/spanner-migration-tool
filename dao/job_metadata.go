@@ -25,6 +25,7 @@ type StateData struct {
 	State string `json:"state"`
 }
 
+// Insert a job entry into the SMT_JOB table.
 func InsertSMTJobEntry(ctx context.Context, jobId, jobName, jobType, dialect, dbName string, jobData spanner.NullJSON) error {
 	_, err := GetClient().ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		jobStmt := spanner.Statement{
@@ -47,6 +48,7 @@ func InsertSMTJobEntry(ctx context.Context, jobId, jobName, jobType, dialect, db
 		if err != nil {
 			return err
 		}
+		// Update job history table within the same txn.
 		_, err = updateJobHistoryWithinTxn(ctx, txn, jobId)
 		if err != nil {
 			return err
@@ -65,6 +67,7 @@ func updateJobHistoryWithinTxn(ctx context.Context, txn *spanner.ReadWriteTransa
 	if err != nil {
 		return 0, fmt.Errorf("error fetching latest job version: %v", err)
 	}
+	// Fetch the current row from SMT_JOB table.
 	stmt := spanner.Statement{SQL: `
 		SELECT 
 			JobName, JobType, JobStateData, JobData, Dialect, SpannerDatabaseName 
@@ -83,6 +86,7 @@ func updateJobHistoryWithinTxn(ctx context.Context, txn *spanner.ReadWriteTransa
 		return 0, fmt.Errorf("error reading smt job row: %v", err)
 	}
 
+	// Insert entry to SMT_JOB_HISTORY table.
 	jobStmt := spanner.Statement{
 		SQL: `INSERT INTO SMT_JOB_HISTORY 
 		(JobId, Version, JobName, JobType, JobStateData, JobData, Dialect, SpannerDatabaseName, CreatedAt)
@@ -104,7 +108,7 @@ func updateJobHistoryWithinTxn(ctx context.Context, txn *spanner.ReadWriteTransa
 }
 
 func getLatestJobVersionWithinTxn(ctx context.Context, txn *spanner.ReadWriteTransaction, jobId string) (int64, error) {
-	// Fetch rows for the resource with latest version.
+	// Fetch rows for the job with latest version.
 	stmt := spanner.Statement{SQL: `SELECT MAX(Version) FROM SMT_JOB_HISTORY WHERE JobId = @jobId;`,
 		Params: map[string]interface{}{"jobId": jobId},
 	}
@@ -124,6 +128,7 @@ func getLatestJobVersionWithinTxn(ctx context.Context, txn *spanner.ReadWriteTra
 	return 0, nil
 }
 
+// Update the state of the SMT job.
 func UpdateSMTJobState(ctx context.Context, jobId, state string) error {
 	_, err := GetClient().ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		jobStmt := spanner.Statement{

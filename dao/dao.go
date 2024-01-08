@@ -38,6 +38,7 @@ func GetOrCreateClient(ctx context.Context, dbURI string) (*sp.Client, error) {
 	return spClient, nil
 }
 
+// The DAO client must be initiated via GetOrCreateClient() once before using GetClient().
 func GetClient() *sp.Client {
 	return spClient
 }

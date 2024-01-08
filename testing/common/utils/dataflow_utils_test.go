@@ -54,7 +54,7 @@ func getTemplateDfRequest() *dataflowpb.LaunchFlexTemplateRequest {
 			AdditionalExperiments: []string{"use_runner_V2", "test-experiment"},
 			Network:               "my-network",
 			Subnetwork:            "my-subnetwork",
-			AdditionalUserLabels:  map[string]string{"name": "wrench", "count": "3"},
+			AdditionalUserLabels:  map[string]string{"name": "wrench"},
 			KmsKeyName:            "sample-kms-key",
 			IpConfiguration:       dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PRIVATE,
 			WorkerRegion:          "test-worker-region",
@@ -81,7 +81,7 @@ func TestGcloudCmdWithAllParams(t *testing.T) {
 		"--num-workers 10 --max-workers 50 --service-account-email svc-account@google.com " +
 		"--temp-location gs://temp-location --worker-machine-type n2-standard-16 " +
 		"--additional-experiments use_runner_V2,test-experiment --network my-network " +
-		"--subnetwork my-subnetwork --additional-user-labels {\"count\":\"3\",\"name\":\"wrench\"} " +
+		"--subnetwork my-subnetwork --additional-user-labels name=wrench " +
 		"--dataflow-kms-key sample-kms-key --disable-public-ips --worker-region test-worker-region " +
 		"--worker-zone test-worker-zone --enable-streaming-engine " +
 		"--flexrs-goal  FLEXRS_SPEED_OPTIMIZED --staging-location gs://staging-location " +
