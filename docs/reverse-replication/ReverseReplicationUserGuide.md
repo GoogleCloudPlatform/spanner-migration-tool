@@ -292,13 +292,19 @@ The Dataflow jobs can be customized.
 Some use cases could be:
 1. To customize the logic to filter records from reverse replication.
 2. To handle some custom reverse transformation scenarios.
-3. To customize shard level routing.
 
 To customize, checkout the open source template, add the custom logic, build and launch the open source template.
 
 Refer to [Spanner Change Streams to Sink template](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/spanner-change-streams-to-sink#readme) on how to build and customize this. 
 
 Refer to [Ordered Changestream Buffer to Sourcedb](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/ordered-changestream-buffer-to-sourcedb#readme) on how to build and customize this.
+
+### Customize shard level routing
+
+1. To customize, checkout the [Spanner Change Streams to Sink template](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/spanner-change-streams-to-sink#readme).
+2. Write custom shard id fetcher logic to [CustomShardIdFetcher.java](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomShardIdFetcher.java). Details of the ShardIdRequest class can be found [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-migrations-sdk/src/main/java/com/google/cloud/teleport/v2/spanner/utils/ShardIdRequest.java).
+3. Build the [JAR](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/spanner-custom-shard).
+4. Upload the JAR to GCS.
 
 
 ## Cost

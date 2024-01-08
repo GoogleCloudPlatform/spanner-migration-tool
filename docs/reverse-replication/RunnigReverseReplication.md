@@ -116,3 +116,8 @@ Using the global pubSubEndpoint:
 ```
 go run launcher.go -projectId=my-project -dataflowRegion=us-east1 -instanceId=my-instance -dbName=mydb -sourceShardsFilePath=gs://bucket-name/shards.json  -sessionFilePath=gs://bucket-name/session.json -pubSubEndpoint=pubsub.googleapis.com:443
 ```
+### Custom shard id fetcher
+Run the launcher command via:
+```sh
+go run launcher.go -projectId=my-project -dataflowRegion=us-east1 -instanceId=my-instance -dbName=mydb -sourceShardsFilePath=gs://bucket-name/shards.json  -sessionFilePath=gs://bucket-name/session.json -shardingCustomJarPath= gs://bucket-name/spanner-custom-shard.jar -shardingCustomClassName=com.custom.CustomShardIdFetcher
+``` 
