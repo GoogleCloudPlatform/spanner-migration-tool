@@ -28,6 +28,7 @@ require (
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/sijms/go-ora/v2 v2.2.17
 	github.com/stretchr/testify v1.8.3
+	go.uber.org/ratelimit v0.3.0
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.17.0
 	golang.org/x/exp v0.0.0-20221023144134-a1e5550cf13e
