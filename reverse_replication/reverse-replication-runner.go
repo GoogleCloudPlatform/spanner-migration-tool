@@ -177,7 +177,7 @@ func main() {
 	bucket := client.Bucket(gcsBucketName)
 	_, err = bucket.Attrs(ctx)
 	if err != nil {
-		fmt.Println("GCS Path %s does not exist, please create before running reverse replication", gcsBucketName)
+		fmt.Println("GCS Path does not exist, please create before running reverse replication:", gcsBucketName)
 		return
 	}
 
