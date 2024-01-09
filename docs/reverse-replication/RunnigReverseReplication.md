@@ -56,7 +56,7 @@ The script takes in multiple arguments to orchestrate the pipeline. They are:
 - `spannerReaderTemplateLocation`: the dataflow template location for the Spanner reader job
 - `startTimestamp`: Timestamp from which the changestream should start reading changes in RFC 3339 format, defaults to empty string which is equivalent to the current timestamp.
 - `readerShardingCustomClassName`: the fully qualified custom class name for sharding logic.
-- `readerShardingCustomJarPath` : the GCS path to custom jar for sharding logic.")
+- `readerShardingCustomJarPath` : the GCS path to custom jar for sharding logic.
 - `readerSkipDirectoryName`: Records skipped from reverse replication are written to this directory. Defaults to: skip.
 - `readerRunMode`: whether the reader from Spanner job runs in regular or resume mode. Default is regular.
 - `readerWorkers`: number of workers for ordering job. Defaults to 5.
@@ -141,7 +141,7 @@ Launched writer job:  id:"<>" project_id:"<>" name:"<>" current_state_time:{} cr
 In order to specify custom shard identification function, custom jar and class names need to give. The command to do that is below:
 
 ```
-go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -readerShardingCustomJarPath=gs://bucket-name/custom.jar -readerShardingCustomClassName=customclassname
+go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -readerShardingCustomJarPath=gs://bucket-name/custom.jar -readerShardingCustomClassName=com.custom.classname
 ``` 
 
 The sample reader job gcloud command for the same
