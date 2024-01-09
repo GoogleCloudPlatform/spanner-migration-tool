@@ -36,7 +36,7 @@ import (
 	"time"
 
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
-	storageacc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
+	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/cmd"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -2487,7 +2487,7 @@ func createConfigFileForShardedBulkMigration(sessionState *session.SessionState,
 
 func writeSessionFile(ctx context.Context, sessionState *session.SessionState) error {
 
-	err := storageacc.CreateGCSBucket(ctx, sessionState.Bucket, sessionState.GCPProjectID, sessionState.Region)
+	err := storageaccessor.CreateGCSBucket(ctx, sessionState.Bucket, sessionState.GCPProjectID, sessionState.Region)
 	if err != nil {
 		return fmt.Errorf("error while creating bucket: %v", err)
 	}
@@ -2496,7 +2496,7 @@ func writeSessionFile(ctx context.Context, sessionState *session.SessionState) e
 	if err != nil {
 		return fmt.Errorf("can't encode session state to JSON: %v", err)
 	}
-	err = storageacc.WriteDataToGCS(ctx, "gs://"+sessionState.Bucket+sessionState.RootPath, "session.json", string(convJSON))
+	err = storageaccessor.WriteDataToGCS(ctx, "gs://"+sessionState.Bucket+sessionState.RootPath, "session.json", string(convJSON))
 	if err != nil {
 		return fmt.Errorf("error while writing to GCS: %v", err)
 	}

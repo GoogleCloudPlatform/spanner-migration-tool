@@ -44,8 +44,8 @@ import (
 	datastream "cloud.google.com/go/datastream/apiv1"
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	spanneracc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
-	storageacc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -69,12 +69,12 @@ import (
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	mysqldriver "github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
-	"github.com/jackc/pgx/v5"
-    "github.com/jackc/pgx/v5/stdlib"
 )
 
 var (
@@ -357,7 +357,7 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			// Try to apply lifecycle rule to Datastream destination bucket.
 			gcsConfig := streamingCfg.GcsCfg
 			if gcsConfig.TtlInDaysSet {
-				err = storageacc.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+				err = storageaccessor.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
 				if err != nil {
 					logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
 					logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")
@@ -478,7 +478,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		// Try to apply lifecycle rule to Datastream destination bucket.
 		gcsConfig := streamingCfg.GcsCfg
 		if gcsConfig.TtlInDaysSet {
-			err = storageacc.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+			err = storageaccessor.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
 			if err != nil {
 				logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
 				logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")
@@ -800,7 +800,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 
 // VerifyDb checks whether the db exists and if it does, verifies if the schema is what we currently support.
 func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (dbExists bool, err error) {
-	dbExists, err = spanneracc.CheckExistingDb(ctx, dbURI)
+	dbExists, err = spanneraccessor.CheckExistingDb(ctx, dbURI)
 	if err != nil {
 		return dbExists, err
 	}
@@ -1282,20 +1282,20 @@ func GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourceProfile, targetProfi
 	switch driver {
 	case constants.MYSQL:
 		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
-        if err != nil {
-                return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
-        }
-        var opts []cloudsqlconn.DialOption
+		if err != nil {
+			return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
+		}
+		var opts []cloudsqlconn.DialOption
 		instanceName := fmt.Sprintf("%s:%s:%s", sourceProfile.ConnCloudSQL.Mysql.Project, sourceProfile.ConnCloudSQL.Mysql.Region, sourceProfile.ConnCloudSQL.Mysql.InstanceName)
-        mysqldriver.RegisterDialContext("cloudsqlconn",
-                func(ctx context.Context, addr string) (net.Conn, error) {
-                        return d.Dial(ctx, instanceName, opts...)
-                })
+		mysqldriver.RegisterDialContext("cloudsqlconn",
+			func(ctx context.Context, addr string) (net.Conn, error) {
+				return d.Dial(ctx, instanceName, opts...)
+			})
 
-        dbURI := fmt.Sprintf("%s:empty@cloudsqlconn(localhost:3306)/%s?parseTime=true",
-                sourceProfile.ConnCloudSQL.Mysql.User, sourceProfile.ConnCloudSQL.Mysql.Db)
+		dbURI := fmt.Sprintf("%s:empty@cloudsqlconn(localhost:3306)/%s?parseTime=true",
+			sourceProfile.ConnCloudSQL.Mysql.User, sourceProfile.ConnCloudSQL.Mysql.Db)
 
-        db, err := sql.Open("mysql", dbURI)
+		db, err := sql.Open("mysql", dbURI)
 		if err != nil {
 			return nil, fmt.Errorf("sql.Open: %w", err)
 		}
@@ -1307,25 +1307,25 @@ func GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourceProfile, targetProfi
 		}, nil
 	case constants.POSTGRES:
 		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
-        if err != nil {
-                return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
-        }
-        var opts []cloudsqlconn.DialOption
+		if err != nil {
+			return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
+		}
+		var opts []cloudsqlconn.DialOption
 
-        dsn := fmt.Sprintf("user=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Db)
-        config, err := pgx.ParseConfig(dsn)
-        if err != nil {
-                return nil, err
-        }
+		dsn := fmt.Sprintf("user=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Db)
+		config, err := pgx.ParseConfig(dsn)
+		if err != nil {
+			return nil, err
+		}
 		instanceName := fmt.Sprintf("%s:%s:%s", sourceProfile.ConnCloudSQL.Pg.Project, sourceProfile.ConnCloudSQL.Pg.Region, sourceProfile.ConnCloudSQL.Pg.InstanceName)
-        config.DialFunc = func(ctx context.Context, network, instance string) (net.Conn, error) {
-                return d.Dial(ctx, instanceName, opts...)
-        }
-        dbURI := stdlib.RegisterConnConfig(config)
-        db, err := sql.Open("pgx", dbURI)
-        if err != nil {
-                return nil, fmt.Errorf("sql.Open: %w", err)
-        }
+		config.DialFunc = func(ctx context.Context, network, instance string) (net.Conn, error) {
+			return d.Dial(ctx, instanceName, opts...)
+		}
+		dbURI := stdlib.RegisterConnConfig(config)
+		db, err := sql.Open("pgx", dbURI)
+		if err != nil {
+			return nil, fmt.Errorf("sql.Open: %w", err)
+		}
 		temp := false
 		return postgres.InfoSchemaImpl{
 			Db:             db,

@@ -15,7 +15,7 @@
 // TODO: Refactor this file and other integration tests by moving all common code
 // to remove redundancy.
 
-package utils_test
+package spanneraccessor_test
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
-	spanneracc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -116,7 +116,7 @@ func TestCheckExistingDb(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		dbExists, err := spanneracc.CheckExistingDb(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName))
+		dbExists, err := spanneraccessor.CheckExistingDb(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName))
 		assert.Nil(t, err)
 		assert.Equal(t, tc.dbExists, dbExists)
 	}
