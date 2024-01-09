@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package dataflowaccessor
+package dataflowutils
 
 import (
 	"fmt"
@@ -19,11 +19,12 @@ import (
 	"strings"
 
 	"cloud.google.com/go/dataflow/apiv1beta3/dataflowpb"
+	dataflowaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/dataflow"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"golang.org/x/exp/maps"
 )
 
-func GetDataflowLaunchRequest(parameters map[string]string, cfg DataflowTuningConfig) (*dataflowpb.LaunchFlexTemplateRequest, error) {
+func GetDataflowLaunchRequest(parameters map[string]string, cfg dataflowaccessor.DataflowTuningConfig) (*dataflowpb.LaunchFlexTemplateRequest, error) {
 	// If custom network is not selected, use public IP. Typical for internal testing flow.
 	vpcSubnetwork := ""
 	workerIpAddressConfig := dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PUBLIC

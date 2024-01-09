@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/dataflow/apiv1beta3/dataflowpb"
-	dataflowaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/dataflow"
+	dataflowutils "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/utils/dataflow"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -89,7 +89,7 @@ func TestGcloudCmdWithAllParams(t *testing.T) {
 		"directoryWatchDurationInMinutes=480,inputFilePattern=gs://inputFilePattern," +
 		"instanceId=my-instance,sessionFilePath=gs://session.json,streamName=my-stream," +
 		"transformationContextFilePath=gs://transformationContext.json"
-	assert.Equal(t, expectedCmd, dataflowaccessor.GetGcloudDataflowCommand(req))
+	assert.Equal(t, expectedCmd, dataflowutils.GetGcloudDataflowCommand(req))
 }
 
 func TestGcloudCmdWithPartialParams(t *testing.T) {
@@ -113,5 +113,5 @@ func TestGcloudCmdWithPartialParams(t *testing.T) {
 		"--dataflow-kms-key sample-kms-key " +
 		"--worker-zone test-worker-zone " +
 		"--staging-location gs://staging-location"
-	assert.Equal(t, expectedCmd, dataflowaccessor.GetGcloudDataflowCommand(req))
+	assert.Equal(t, expectedCmd, dataflowutils.GetGcloudDataflowCommand(req))
 }

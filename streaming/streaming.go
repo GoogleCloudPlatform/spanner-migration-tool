@@ -33,7 +33,7 @@ import (
 
 	resourcemanager "cloud.google.com/go/resourcemanager/apiv3"
 	resourcemanagerpb "cloud.google.com/go/resourcemanager/apiv3/resourcemanagerpb"
-	dataflowaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/dataflow"
+	dataflowutils "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/utils/dataflow"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -723,7 +723,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		fmt.Printf("flexTemplateRequest: %+v\n", req)
 		return internal.DataflowOutput{}, fmt.Errorf("unable to launch template: %v", err)
 	}
-	gcloudDfCmd := dataflowaccessor.GetGcloudDataflowCommand(req)
+	gcloudDfCmd := dataflowutils.GetGcloudDataflowCommand(req)
 	logger.Log.Debug(fmt.Sprintf("\nEquivalent gCloud command for job %s:\n%s\n\n", req.LaunchParameter.JobName, gcloudDfCmd))
 	return internal.DataflowOutput{JobID: respDf.Job.Id, GCloudCmd: gcloudDfCmd}, nil
 }
