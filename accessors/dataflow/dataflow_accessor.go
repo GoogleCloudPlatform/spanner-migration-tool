@@ -15,12 +15,14 @@ package dataflowaccessor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
 	"cloud.google.com/go/dataflow/apiv1beta3/dataflowpb"
 	dataflowclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/dataflow"
+	storageacc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"golang.org/x/exp/maps"
 )
@@ -175,4 +177,17 @@ func formatAdditionalUserLabels(labels map[string]string) string {
 		res = append(res, fmt.Sprintf("%s=%s", key, value))
 	}
 	return strings.Join(res, ",")
+}
+
+func UnmarshalDataflowTuningConfig(ctx context.Context, filePath string) (DataflowTuningConfig, error) {
+	jsonStr, err := storageacc.ReadAnyFile(ctx, filePath)
+	if err != nil {
+		return DataflowTuningConfig{}, err
+	}
+	tuningCfg := DataflowTuningConfig{}
+	err = json.Unmarshal([]byte(jsonStr), &tuningCfg)
+	if err != nil {
+		return DataflowTuningConfig{}, err
+	}
+	return tuningCfg, nil
 }
