@@ -169,6 +169,7 @@ In this case, check if you observe the following:
     3. The record was deleted on Cloud Spanner and the deleted record was removed from Cloud Spanner due to lapse of retention period by the time the record was to be reverse replicated.
     4. Check the data_seen and shard_file_create_progress tables created in the metadata database. An entry in the data_seen table means that change record for read for the given interval for the given shard. If no change record was generated for the interval, then no file is generated. The shard_file_create_progress table indicates the maximum interval until which the files have been generated for the shard at that point. If the file creation interval is lesser than the expected interval, then wait for the pipeline to process the change records.
     5. Check the dataflow job - if there are worker scaling issues , did worker restart during this time, if so - wait for the records to get processed by the Dataflow job.
+    6. When working with session file based shard identification logic, if the table of teh change record does not exist in the session file, such records are written to skip directory and not reverse replicated.
 
 - ***There is data in GCS yet not present in source database***
 
