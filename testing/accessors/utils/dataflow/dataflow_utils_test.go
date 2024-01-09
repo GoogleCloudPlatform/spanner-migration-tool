@@ -15,7 +15,7 @@
 // TODO: Refactor this file and other integration tests by moving all common code
 // to remove redundancy.
 
-package utils_test
+package dataflowutils_test
 
 import (
 	"os"
