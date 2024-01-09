@@ -44,6 +44,8 @@ import (
 	datastream "cloud.google.com/go/datastream/apiv1"
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	spanneracc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	storageacc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -355,7 +357,7 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 			// Try to apply lifecycle rule to Datastream destination bucket.
 			gcsConfig := streamingCfg.GcsCfg
 			if gcsConfig.TtlInDaysSet {
-				err = streaming.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+				err = storageacc.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
 				if err != nil {
 					logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
 					logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")
@@ -476,7 +478,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 		// Try to apply lifecycle rule to Datastream destination bucket.
 		gcsConfig := streamingCfg.GcsCfg
 		if gcsConfig.TtlInDaysSet {
-			err = streaming.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+			err = storageacc.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
 			if err != nil {
 				logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
 				logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")
@@ -520,11 +522,11 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 
 	// create monitoring aggregated dashboard for sharded migration
 	aggMonitoringResources := metrics.MonitoringMetricsResources{
-		ProjectId:                     targetProfile.Conn.Sp.Project,
-		SpannerInstanceId:             targetProfile.Conn.Sp.Instance,
-		SpannerDatabaseId:             targetProfile.Conn.Sp.Dbname,
-		ShardToShardResourcesMap:      conv.Audit.StreamingStats.ShardToShardResourcesMap,
-		MigrationRequestId:            conv.Audit.MigrationRequestId,
+		ProjectId:                targetProfile.Conn.Sp.Project,
+		SpannerInstanceId:        targetProfile.Conn.Sp.Instance,
+		SpannerDatabaseId:        targetProfile.Conn.Sp.Dbname,
+		ShardToShardResourcesMap: conv.Audit.StreamingStats.ShardToShardResourcesMap,
+		MigrationRequestId:       conv.Audit.MigrationRequestId,
 	}
 	aggRespDash, dashboardErr := aggMonitoringResources.CreateDataflowAggMonitoringDashboard(ctx)
 	if dashboardErr != nil {
@@ -798,7 +800,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 
 // VerifyDb checks whether the db exists and if it does, verifies if the schema is what we currently support.
 func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (dbExists bool, err error) {
-	dbExists, err = CheckExistingDb(ctx, adminClient, dbURI)
+	dbExists, err = spanneracc.CheckExistingDb(ctx, dbURI)
 	if err != nil {
 		return dbExists, err
 	}
@@ -806,31 +808,6 @@ func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, db
 		err = ValidateDDL(ctx, adminClient, dbURI)
 	}
 	return dbExists, err
-}
-
-// CheckExistingDb checks whether the database with dbURI exists or not.
-// If API call doesn't respond then user is informed after every 5 minutes on command line.
-func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (bool, error) {
-	gotResponse := make(chan bool)
-	var err error
-	go func() {
-		_, err = adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
-		gotResponse <- true
-	}()
-	for {
-		select {
-		case <-time.After(5 * time.Minute):
-			fmt.Println("WARNING! API call not responding: make sure that spanner api endpoint is configured properly")
-		case <-gotResponse:
-			if err != nil {
-				if utils.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
-					return false, nil
-				}
-				return false, fmt.Errorf("can't get database info: %s", err)
-			}
-			return true, nil
-		}
-	}
 }
 
 // ValidateTables validates that all the tables in the database are empty.

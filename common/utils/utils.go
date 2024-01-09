@@ -19,11 +19,11 @@ package utils
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/url"
 	"os"
 	"os/exec"
@@ -37,6 +37,7 @@ import (
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	"cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -44,10 +45,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"golang.org/x/crypto/ssh/terminal"
-	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
-	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 )
 
 // IOStreams is a struct that contains the file descriptor for dumpFile.
@@ -173,82 +172,6 @@ func PreloadGCSFiles(tables []ManifestTable) ([]ManifestTable, error) {
 	return tables, nil
 }
 
-func ParseGCSFilePath(filePath string) (*url.URL, error) {
-	if len(filePath) == 0 {
-		return nil, fmt.Errorf("found empty GCS path")
-	}
-	if filePath[len(filePath)-1] != '/' {
-		filePath = filePath + "/"
-	}
-	u, err := url.Parse(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("parseFilePath: unable to parse file path %s", filePath)
-	}
-	if u.Scheme != constants.GCS_SCHEME {
-		return nil, fmt.Errorf("not a valid GCS path: %s, should start with 'gs'", filePath)
-	}
-	return u, nil
-}
-
-func WriteToGCS(filePath, fileName, data string) error {
-	ctx := context.Background()
-
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		fmt.Printf("Failed to create GCS client")
-		return err
-	}
-	defer client.Close()
-	u, err := ParseGCSFilePath(filePath)
-	if err != nil {
-		return fmt.Errorf("parseFilePath: unable to parse file path: %v", err)
-	}
-	bucketName := u.Host
-	bucket := client.Bucket(bucketName)
-	obj := bucket.Object(u.Path[1:] + fileName)
-
-	w := obj.NewWriter(ctx)
-	if _, err := fmt.Fprint(w, data); err != nil {
-		fmt.Printf("Failed to write to Cloud Storage: %s", filePath)
-		return err
-	}
-	if err := w.Close(); err != nil {
-		fmt.Printf("Failed to close GCS file: %s", filePath)
-		return err
-	}
-	return nil
-}
-
-func CreateGCSBucket(bucketName, projectID, location string) error {
-	ctx := context.Background()
-
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to create GCS client: %v", err)
-	}
-	defer client.Close()
-	bucket := client.Bucket(bucketName)
-	attrs := storage.BucketAttrs{
-		Location: location,
-	}
-	if err := bucket.Create(ctx, projectID, &attrs); err != nil {
-		if e, ok := err.(*googleapi.Error); ok {
-			// Ignoring the bucket already exists error.
-			if e.Code != 409 {
-				return fmt.Errorf("failed to create bucket: %v", err)
-			} else {
-				fmt.Printf("Using the existing bucket: %v \n", bucketName)
-			}
-		} else {
-			return fmt.Errorf("failed to create bucket: %v", err)
-		}
-
-	} else {
-		fmt.Printf("Created new GCS bucket: %v\n", bucketName)
-	}
-	return nil
-}
-
 // GetProject returns the cloud project we should use for accessing Spanner.
 // Use environment variable GCLOUD_PROJECT if it is set.
 // Otherwise, use the default project returned from gcloud.
@@ -345,6 +268,12 @@ func GenerateName(prefix string) (string, error) {
 
 	}
 	return fmt.Sprintf("%s_%x-%x", prefix, b[0:2], b[2:4]), nil
+}
+
+func GenerateHashStr() string {
+	b := make([]byte, 4)
+	rand.Read(b)
+	return fmt.Sprintf("%x-%x", b[0:2], b[2:4])
 }
 
 // parseURI parses an unknown URI string that could be a database, instance or project URI.
