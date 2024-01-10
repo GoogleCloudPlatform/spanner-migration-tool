@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package utils contains common helper functions used across multiple other packages.
-// Utils should not import any Spanner migration tool packages.
+/*
+Package utils contains common helper functions used across multiple other packages.
+Utils should not import any Spanner migration tool packages.
+*/
 package utils
 
 import (

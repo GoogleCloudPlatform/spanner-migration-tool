@@ -45,6 +45,7 @@ var (
 	databaseAdmin *database.DatabaseAdminClient
 )
 
+// This test should move as a mock unit test inside accessors itself.
 func TestMain(m *testing.M) {
 	cleanup := initTests()
 	res := m.Run()
