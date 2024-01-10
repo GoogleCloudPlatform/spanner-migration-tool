@@ -31,11 +31,17 @@ import (
 	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
+	resourcemanager "cloud.google.com/go/resourcemanager/apiv3"
+	resourcemanagerpb "cloud.google.com/go/resourcemanager/apiv3/resourcemanagerpb"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/google/uuid"
+	"github.com/googleapis/gax-go/v2"
+	"go.uber.org/ratelimit"
+	"google.golang.org/grpc/codes"
 )
 
 var (
@@ -57,6 +63,32 @@ var (
 	MIN_WORKER_LIMIT int32 = 1
 	// Default gcs path of the Dataflow template.
 	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner"
+
+	DEFAULT_DATASTREAM_CLIENT_BACKOFF_BASE_DELAY time.Duration = 1.0 * time.Second
+	DEFAULT_DATASTREAM_CLIENT_BACKOFF_MAX_DELAY  time.Duration = 900 * time.Second
+	DEFAULT_DATASTREAM_CLIENT_BACKOFF_MULTIPLIER float64       = 1.6
+	DEFAULT_DATASTREAM_RETRY_CODES               []codes.Code  = []codes.Code{
+		codes.DeadlineExceeded,
+		codes.Unavailable,
+		codes.ResourceExhausted,
+		codes.Unknown,
+	}
+
+	// DataStream by default provides 20 API calls per second.
+	// Each launch operation calls datastream twice, ignoring `op.wait`, hence keeping it at 10 per second.
+	DEFAULT_DATASTREAM_LAUNCH_RATE_PER_SEC int = 10
+	// TODO(vardhanvthigle): Caliberate this.
+	// Keeping it less for now since the dataFlow launch operation makes outbound calls to various clients.
+	// Keeping it at 1 per second will not impact the actual time it takes to provision resources for a large
+	// scale migration, as that depends a lot on actual time a batch of 20 (current parallelization in code) tkaes
+	// to complete it's provisioning which includes waiting for various operations.
+	DEFAULT_DATAFLOW_LAUNCH_RATE_PER_SEC int = 1
+	// Rate Limiters
+	// A coarse delay based rate limiting for launching datastream.
+	DATA_STREAM_RL ratelimit.Limiter = ratelimit.New(DEFAULT_DATASTREAM_LAUNCH_RATE_PER_SEC)
+
+	// A coarse delay based rate limiting for launching DataFlow.
+	DATA_FLOW_RL ratelimit.Limiter = ratelimit.New(DEFAULT_DATAFLOW_LAUNCH_RATE_PER_SEC)
 )
 
 type SrcConnCfg struct {
@@ -106,11 +138,20 @@ type DataflowCfg struct {
 
 type StreamingCfg struct {
 	DatastreamCfg DatastreamCfg            `json:"datastreamCfg"`
-	GcsCfg        GcsCfg             `json:"gcsCfg"`
+	GcsCfg        GcsCfg                   `json:"gcsCfg"`
 	DataflowCfg   DataflowCfg              `json:"dataflowCfg"`
 	TmpDir        string                   `json:"tmpDir"`
 	PubsubCfg     internal.PubsubResources `json:"pubsubCfg"`
 	DataShardId   string                   `json:"dataShardId"`
+}
+
+// Returns the retry error codes and backoff policy to the GCP client retry logic.
+func dataStreamGaxRetrier() gax.Retryer {
+	return gax.OnCodes(DEFAULT_DATASTREAM_RETRY_CODES, gax.Backoff{
+		Initial:    DEFAULT_DATASTREAM_CLIENT_BACKOFF_BASE_DELAY,
+		Max:        DEFAULT_DATASTREAM_CLIENT_BACKOFF_MAX_DELAY,
+		Multiplier: DEFAULT_DATASTREAM_CLIENT_BACKOFF_MULTIPLIER,
+	})
 }
 
 // VerifyAndUpdateCfg checks the fields and errors out if certain fields are empty.
@@ -463,12 +504,15 @@ func createNotificationOnBucket(ctx context.Context, storageClient *storage.Clie
 
 // LaunchStream populates the parameters from the streaming config and triggers a stream on Cloud Datastream.
 func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, projectID string, datastreamCfg DatastreamCfg) error {
-	fmt.Println("Launching stream ", fmt.Sprintf("projects/%s/locations/%s", projectID, datastreamCfg.StreamLocation))
+	projectNumberResource := GetProjectNumberResource(ctx, fmt.Sprintf("projects/%s", projectID))
+	fmt.Println("Launching stream ", fmt.Sprintf("%s/locations/%s", projectNumberResource, datastreamCfg.StreamLocation))
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
 		return fmt.Errorf("datastream client can not be created: %v", err)
 	}
 	defer dsClient.Close()
+	// Rate limit this function to match DataStream API Quota.
+	DATA_STREAM_RL.Take()
 	fmt.Println("Created client...")
 	prefix := datastreamCfg.DestinationConnectionConfig.Prefix
 	prefix = utils.ConcatDirectoryPath(prefix, "data")
@@ -478,7 +522,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 		FileFormat: &datastreampb.GcsDestinationConfig_AvroFileFormat{},
 	}
 	srcCfg := &datastreampb.SourceConfig{
-		SourceConnectionProfile: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.SourceConnectionConfig.Location, datastreamCfg.SourceConnectionConfig.Name),
+		SourceConnectionProfile: fmt.Sprintf("%s/locations/%s/connectionProfiles/%s", projectNumberResource, datastreamCfg.SourceConnectionConfig.Location, datastreamCfg.SourceConnectionConfig.Name),
 	}
 	err = getSourceStreamConfig(srcCfg, sourceProfile, dbList, datastreamCfg)
 	if err != nil {
@@ -486,7 +530,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	}
 
 	dstCfg := &datastreampb.DestinationConfig{
-		DestinationConnectionProfile: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name),
+		DestinationConnectionProfile: fmt.Sprintf("%s/locations/%s/connectionProfiles/%s", projectNumberResource, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name),
 		DestinationStreamConfig:      &datastreampb.DestinationConfig_GcsDestinationConfig{GcsDestinationConfig: gcsDstCfg},
 	}
 	streamInfo := &datastreampb.Stream{
@@ -497,14 +541,16 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 		BackfillStrategy:  &datastreampb.Stream_BackfillAll{BackfillAll: &datastreampb.Stream_BackfillAllStrategy{}},
 	}
 	createStreamRequest := &datastreampb.CreateStreamRequest{
-		Parent:   fmt.Sprintf("projects/%s/locations/%s", projectID, datastreamCfg.StreamLocation),
+		Parent:   fmt.Sprintf("%s/locations/%s", projectNumberResource, datastreamCfg.StreamLocation),
 		StreamId: datastreamCfg.StreamId,
 		Stream:   streamInfo,
+		// Setting a RequestId makes idempotent retries possible.
+		RequestId: uuid.New().String(),
 	}
 
 	fmt.Println("Created stream request..")
 
-	dsOp, err := dsClient.CreateStream(ctx, createStreamRequest)
+	dsOp, err := dsClient.CreateStream(ctx, createStreamRequest, gax.WithRetry(dataStreamGaxRetrier))
 	if err != nil {
 		fmt.Printf("cannot create stream: createStreamRequest: %+v\n", createStreamRequest)
 		return fmt.Errorf("cannot create stream: %v ", err)
@@ -518,12 +564,14 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	fmt.Println("Successfully created stream ", datastreamCfg.StreamId)
 
 	fmt.Print("Setting stream state to RUNNING...")
-	streamInfo.Name = fmt.Sprintf("projects/%s/locations/%s/streams/%s", projectID, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
+	streamInfo.Name = fmt.Sprintf("%s/locations/%s/streams/%s", projectNumberResource, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
 	updateStreamRequest := &datastreampb.UpdateStreamRequest{
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"state"}},
 		Stream:     streamInfo,
+		// Setting a RequestId makes idempotent retries possible.
+		RequestId: uuid.New().String(),
 	}
-	upOp, err := dsClient.UpdateStream(ctx, updateStreamRequest)
+	upOp, err := dsClient.UpdateStream(ctx, updateStreamRequest, gax.WithRetry(dataStreamGaxRetrier))
 	if err != nil {
 		return fmt.Errorf("could not create update request: %v", err)
 	}
@@ -540,6 +588,10 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
+
+	// Rate limit this function to match DataFlow createJob Quota.
+	DATA_FLOW_RL.Take()
+
 	fmt.Println("Launching dataflow job ", dataflowCfg.JobName, " in ", project, "-", dataflowCfg.Location)
 
 	c, err := dataflow.NewFlexTemplatesClient(ctx)
@@ -754,6 +806,36 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 		TmpDir:        pl.TmpDir,
 		DataShardId:   pl.DataShardId}
 	return streamingCfg
+}
+
+// Maps Project-Id to ProjectNumber.
+var ProjectNumberResourceCache sync.Map
+
+// Returns a string that encodes the project number like `projects/12345`
+func GetProjectNumberResource(ctx context.Context, projectID string) string {
+	projectNumberResource, found := ProjectNumberResourceCache.Load(projectID)
+	if found {
+		return projectNumberResource.(string)
+	}
+
+	rmClient, err := resourcemanager.NewProjectsClient(ctx)
+	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("Could not create resourcemanager client to query project number. Defaulting to ProjectId=%s. error=%v",
+			projectID, err))
+		return projectID
+	}
+	defer rmClient.Close()
+	req := resourcemanagerpb.GetProjectRequest{Name: projectID}
+	project, err := rmClient.GetProject(ctx, &req)
+	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("Could not query resourcemanager to get project number. Defaulting to ProjectId=%s. error=%v",
+			projectID, err))
+		return projectID
+	}
+	projectNumberResource = project.GetName()
+	ProjectNumberResourceCache.Store(projectID, projectNumberResource)
+	return projectNumberResource.(string)
+
 }
 
 func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, schemaDetails map[string]internal.SchemaDetails) (StreamingCfg, error) {

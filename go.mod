@@ -8,6 +8,7 @@ require (
 	cloud.google.com/go/datastream v1.10.3
 	cloud.google.com/go/monitoring v1.16.3
 	cloud.google.com/go/pubsub v1.33.0
+	cloud.google.com/go/resourcemanager v1.9.4
 	cloud.google.com/go/spanner v1.53.0
 	cloud.google.com/go/storage v1.30.1
 	github.com/DATA-DOG/go-sqlmock v1.5.1
@@ -27,6 +28,7 @@ require (
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/sijms/go-ora/v2 v2.2.17
 	github.com/stretchr/testify v1.8.3
+	go.uber.org/ratelimit v0.3.0
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.17.0
 	golang.org/x/exp v0.0.0-20221023144134-a1e5550cf13e
