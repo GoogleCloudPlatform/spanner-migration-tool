@@ -38,6 +38,8 @@ func GetDataflowLaunchRequest(parameters map[string]string, cfg dataflowaccessor
 			vpcSubnetwork = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/%s/subnetworks/%s", cfg.VpcHostProjectId, cfg.Location, cfg.Subnetwork)
 		}
 	}
+	// Dataflow does not accept upper case letters in the name.
+	cfg.JobName = strings.ToLower(cfg.JobName)
 	request := &dataflowpb.LaunchFlexTemplateRequest{
 		ProjectId: cfg.ProjectId,
 		LaunchParameter: &dataflowpb.LaunchFlexTemplateParameter{
