@@ -168,7 +168,7 @@ In this case, check if you observe the following:
     2. Shard Id based routing could not be performed since the shard id value could not be determined.
     3. The record was deleted on Cloud Spanner and the deleted record was removed from Cloud Spanner due to lapse of retention period by the time the record was to be reverse replicated.
     4. Check the data_seen and shard_file_create_progress tables created in the metadata database. An entry in the data_seen table means that change record for read for the given interval for the given shard. If no change record was generated for the interval, then no file is generated. The shard_file_create_progress table indicates the maximum interval until which the files have been generated for the shard at that point. If the file creation interval is lesser than the expected interval, then wait for the pipeline to process the change records.
-    5. Check the dataflow job - if there are worker scaling issues , did worker restart during this time, if so - wait for the records to get processed by the Dataflow job.
+    5. Check for issues in the dataflow job. This can include scaling issues, CPU utilization being more than 70% consistently. This can be checked via [CPU utilization](https://cloud.google.com/dataflow/docs/guides/using-monitoring-intf#cpu-use) section on the Dataflow job UI.Check for any errors in the jobor worker logs which could indicate restarts. Sometimes a worker might restart causing a delay in record processing. The CPU utlization would show multiple workers during the restart period. The number of workers could also be viewed via [here](https://cloud.google.com/dataflow/docs/guides/using-monitoring-intf#autoscaling).
     6. When working with session file based shard identification logic, if the table of the change record does not exist in the session file, such records are written to skip directory and not reverse replicated.
 
 - ***There is data in GCS yet not present in source database***
@@ -188,7 +188,7 @@ In this case, check if you observe the following:
   1. The source database table does not have a primary key
   2. The primary key value was not present in the change stream data
   3. Check the shard_skipped_files table created in the metadata database. The contains the intervals for which the file was found in GCS, for the cases when no change record was generated for the interval.If a file is present in the shard_skipped_files table and also exists in GCS - this indicates a data loss scenario - please raise a bug.
-  4. Check the shard_file_process_progress table in the metadata database. If it is lagging, then wait for the pipeline to catch up so such that data gets reverse replciated.
+  4. Check the shard_file_process_progress table in the metadata database. If it is lagging, then wait for the pipeline to catch up so such that data gets reverse replicated.
 
     
 #### There is higher load than the expected QPS on  spanner instance post cutover
@@ -200,7 +200,7 @@ In this case, check if you observe the following:
 
 ### Resuming from failures
 
-The reader Dataflow job stops when any error is encountered. The writer dataflow job halts processing a shard if there is error encountered for the shard, this is to ensure ordered writes.
+The reader Dataflow job stops when any error is encountered. The writer dataflow job halts processing a shard if there is error encountered for the shard, this is to ensure ordering of writes does not break.
 
 The metadata tables keep track of progress made by the Dataflow templates. This helps to start the Dataflow jobs from where they left off. 
 
@@ -228,9 +228,14 @@ In order to resume the writer job for all shards the run mode should be **resume
 
 Example command for resume is [here](RunnigReverseReplication.md#resuming-jobs).
 
-In roder to process only the failed shards in the writer job, the run mode should be **resumeFailed** and the runIdentifier should be same as that of the original job.
+In order to process only the failed shards in the writer job, the run mode should be **resumeFailed** and the runIdentifier should be same as that of the original job.
 
 Example command for the same is [here](RunnigReverseReplication.md#reprocessing-error-shards)
+
+
+In order to process only certain failed shards, update the status as REPROCESS in the shard_file_process_progress table for those shards and launch writer job, the run mode should be **reprocess** and the runIdentifier should be same as that of the original job.
+
+In order to resume processing of only the successful shards in the writer job, the run mode should be **resumeSuccess** and the runIdentifier should be same as that of the original job.
 
 
 Note: Additional optional parameters for the reader job are [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-change-streams-to-sharded-file-sink/README_Spanner_Change_Streams_to_Sharded_File_Sink.md#optional-parameters).
@@ -243,7 +248,7 @@ Note: Additional optional parameters for the writer job are [here](https://githu
   The following sections list the known limitations that exist currently with the Reverse Replication flows:
 
   1. Currently only MySQL source database is supported.
-  2.  Certain transformations are not supported, below section lists those:
+  2. Certain transformations are not supported, below section lists those:
 
 ### Reverse transformations
 Reverse transformation can not be supported for following scenarios out of the box:
@@ -266,15 +271,22 @@ In the above cases, custom code will need to be written to perform reverse trans
 
 2. The change records get written to GCS in plain text, ensure that appropriate [access control](https://cloud.google.com/storage/docs/access-control) exist on GCS to avoid inadvertant data access.
 
-3. The Spanner TPS and windowDuration decides how large a batch will be when writing to source. Perfrom benchmarks on expected production workloads and acceptable replication lag to fine tune the windowDuration.
+3. The Spanner TPS and [windowDuration](RunnigReverseReplication.md#arguments) decides how large a batch will be when writing to source. Perfrom benchmarks on expected production workloads and acceptable replication lag to fine tune the windowDuration.
 
-4. The metrics give good indication of the progress of the pipeline,it is good to setup Dashboards to monitor the progress.
+4. The metrics give good indication of the progress of the pipeline, it is good to setup [dashboards](https://cloud.google.com/monitoring/charts/dashboards) to monitor the progress.
 
 5. Create GCP bucket with [lifecycle](https://cloud.google.com/storage/docs/lifecycle) to handle auto deletion of the objects.
 
 6. Use a different database for the metadata tables than the Spanner database to avoid load.
 
-7. The default change stream monitors all the tables, if only a subset of tables needs reverse replication, create change stream manually before launching the script.
+7. The default change stream monitors all the tables, if only a subset of tables needs reverse replication, create change stream manually before launching the script. When creating a change stream manually, use the NEW_ROW option, sample command below :
+```
+CREATE CHANGE STREAM allstream
+FOR ALL OPTIONS (
+retention_period = '7d',
+value_capture_type = 'NEW_ROW'
+);
+```
 
 
 ## Customize
@@ -293,7 +305,7 @@ Refer to [GCS to Sourcedb](https://github.com/GoogleCloudPlatform/DataflowTempla
 
 ### Shard routing customization
 
-In order to make it easier for users to customize the shard routing logic, the [Spanner Change Streams to Sharded File Sink template](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/spanner-change-streams-to-sharded-file-sink) accepts a GCS path that points to a custom jar and another input parameter that accepts the custom class name, which are used to invoke custom logic to perfrom shard identification.
+In order to make it easier for users to customize the shard routing logic, the [Spanner Change Streams to Sharded File Sink template](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/spanner-change-streams-to-sharded-file-sink) accepts a GCS path that points to a custom jar and another input parameter that accepts the custom class name, which are used to invoke custom logic to perform shard identification.
 
 Steps to perfrom customization:
 1. Write custom shard id fetcher logic [CustomShardIdFetcher.java](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomShardIdFetcher.java). Details of the ShardIdRequest class can be found [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-migrations-sdk/src/main/java/com/google/cloud/teleport/v2/spanner/utils/ShardIdRequest.java).

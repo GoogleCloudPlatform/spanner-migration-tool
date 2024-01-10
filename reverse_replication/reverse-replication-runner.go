@@ -71,7 +71,7 @@ func setupGlobalFlags() {
 	flag.StringVar(&metadataDatabase, "metadataDatabase", "rev_repl_metadata", "spanner database name to store changestream metadata, defaults to change-stream-metadata.")
 	flag.StringVar(&startTimestamp, "startTimestamp", "", "Timestamp from which the changestream should start reading changes in RFC 3339 format, defaults to empty string which is equivalent to the current timestamp.")
 	flag.StringVar(&windowDuration, "windowDuration", "10s", "The window duration/size in which change stream data will be written to Cloud Storage. Defaults to 10 seconds.")
-	flag.StringVar(&gcsPath, "gcsPath", "gs://reverse-replication-buffer/data", "A pre-created GCS directory where the change stream data resides.Default is gs://reverse-replication-buffer/data.")
+	flag.StringVar(&gcsPath, "gcsPath", "", "A pre-created GCS directory where the change stream data resides.")
 	flag.StringVar(&filtrationMode, "filtrationMode", "forward_migration", "The flag to decide whether or not to filter the forward migrated data.Defaults to forward_migration.")
 	flag.StringVar(&metadataTableSuffix, "metadataTableSuffix", "", "The suffix to apply when creating metadata tables.Helpful in case of multiple runs.Default is no suffix.")
 	flag.StringVar(&readerSkipDirectoryName, "readerSkipDirectoryName", "skip", "Records skipped from reverse replication are written to this directory. Defaults to: skip.")
@@ -112,8 +112,15 @@ func prechecks() error {
 		// Capital letters not allowed in Dataflow job names.
 		jobNamePrefix = strings.ToLower(jobNamePrefix)
 	}
+	if gcsPath == "" {
+		return fmt.Errorf("please specify a non-empty gcsPath")
+	} else if !strings.HasPrefix(gcsPath, "gs://") {
+		return fmt.Errorf("please specify a valid GCS path for gcsPath, like gs://<>")
+	}
 	if changeStreamName == "" {
 		return fmt.Errorf("please specify a valid changeStreamName")
+	} else {
+		changeStreamName = strings.ReplaceAll(changeStreamName, "-", "_")
 	}
 	if instanceId == "" {
 		return fmt.Errorf("please specify a valid instanceId")
@@ -126,16 +133,22 @@ func prechecks() error {
 		fmt.Println("metadataInstance not provided, defaulting to target spanner instance id: ", metadataInstance)
 	}
 	if metadataDatabase == "" {
-		metadataDatabase = "change-stream-metadata"
+		metadataDatabase = "rev_repl_metadata"
 		fmt.Println("metadataDatabase not provided, defaulting to: ", metadataDatabase)
 	}
 
 	if sourceShardsFilePath == "" {
 		return fmt.Errorf("please specify a valid sourceShardsFilePath")
+	} else if !strings.HasPrefix(sourceShardsFilePath, "gs://") {
+		return fmt.Errorf("please specify a valid GCS path for sourceShardsFilePath, like gs://<>")
 	}
+
 	if sessionFilePath == "" {
 		return fmt.Errorf("please specify a valid sessionFilePath")
+	} else if !strings.HasPrefix(sessionFilePath, "gs://") {
+		return fmt.Errorf("please specify a valid GCS path for sessionFilePath, like gs://<>")
 	}
+
 	if machineType == "" {
 		machineType = "n2-standard-4"
 		fmt.Println("machineType not provided, defaulting to: ", machineType)
@@ -144,6 +157,19 @@ func prechecks() error {
 	if vpcHostProjectId == "" {
 		vpcHostProjectId = projectId
 	}
+
+	if readerShardingCustomJarPath != "" && readerShardingCustomClassName == "" {
+		return fmt.Errorf("When supplying readerShardingCustomJarPath value, the readerShardingCustomClassName should also be supplied ")
+	}
+
+	if readerShardingCustomClassName != "" && readerShardingCustomJarPath == "" {
+		return fmt.Errorf("When supplying readerShardingCustomClassName value, the readerShardingCustomJarPath should also be supplied ")
+	}
+
+	if readerShardingCustomJarPath != "" && !strings.HasPrefix(readerShardingCustomJarPath, "gs://") {
+		return fmt.Errorf("please specify a valid GCS path for readerShardingCustomJarPath, like gs://<>")
+	}
+
 	return nil
 }
 
@@ -239,7 +265,7 @@ func main() {
 	if runIdentifier != "" {
 		runId = runIdentifier
 	} else {
-		runId := time.Now().UTC().Format(time.RFC3339)
+		runId = time.Now().UTC().Format(time.RFC3339)
 		runId = strings.ReplaceAll(runId, ":", "-")
 		runId = strings.ToLower(runId)
 	}
@@ -272,7 +298,7 @@ func main() {
 			"runMode":              readerRunMode,
 		}
 		if readerShardingCustomJarPath != "" {
-			readerParams["shardingCustomJarPath"] = readerShardingCustomJarPath //ccant send empty since it expects GCS format
+			readerParams["shardingCustomJarPath"] = readerShardingCustomJarPath //cant send empty since it expects GCS format
 			readerParams["shardingCustomClassName"] = readerShardingCustomClassName
 		}
 		launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
@@ -295,7 +321,7 @@ func main() {
 			LaunchParameter: launchParameters,
 			Location:        dataflowRegion,
 		}
-		fmt.Printf("\nGCLOUD CMD FOR READER JOB:\n%s\n\n", getGcloudCommand(req, spannerReaderTemplateLocation))
+		fmt.Printf("\nGCLOUD CMD FOR READER JOB:\n%s\n\n", getGcloudCommand(req))
 
 		readerJobResponse, err := c.LaunchFlexTemplate(ctx, req)
 		if err != nil {
@@ -345,7 +371,7 @@ func main() {
 			LaunchParameter: launchParameters,
 			Location:        dataflowRegion,
 		}
-		fmt.Printf("\nGCLOUD CMD FOR WRITER JOB:\n%s\n\n", getGcloudCommand(req, sourceWriterTemplateLocation))
+		fmt.Printf("\nGCLOUD CMD FOR WRITER JOB:\n%s\n\n", getGcloudCommand(req))
 
 		writerJobResponse, err := c.LaunchFlexTemplate(ctx, req)
 		if err != nil {
@@ -447,7 +473,7 @@ func createChangeStream(ctx context.Context, adminClient *database.DatabaseAdmin
 	return nil
 }
 
-func getGcloudCommand(req *dataflowpb.LaunchFlexTemplateRequest, templatePath string) string {
+func getGcloudCommand(req *dataflowpb.LaunchFlexTemplateRequest) string {
 	lp := req.LaunchParameter
 	params := ""
 	for k, v := range lp.Parameters {
@@ -455,7 +481,7 @@ func getGcloudCommand(req *dataflowpb.LaunchFlexTemplateRequest, templatePath st
 	}
 	params = strings.TrimSuffix(params, ",")
 	cmd := fmt.Sprintf("gcloud dataflow flex-template run %s --project=%s --region=%s --template-file-gcs-location=%s --parameters %s --num-workers=%d --worker-machine-type=%s",
-		lp.JobName, req.ProjectId, req.Location, templatePath, params, lp.Environment.NumWorkers, lp.Environment.MachineType)
+		lp.JobName, req.ProjectId, req.Location, lp.GetContainerSpecGcsPath(), params, lp.Environment.NumWorkers, lp.Environment.MachineType)
 	if lp.Environment.AdditionalExperiments != nil {
 		exps := lp.Environment.AdditionalExperiments
 		experiments := strings.Join(exps[:], ",")

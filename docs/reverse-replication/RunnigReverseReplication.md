@@ -24,7 +24,7 @@ reverse replication pipeline.
 ## Resources
 The pipeline requires a few GCP resources to be setup. The runner script creates these resources for you, skipping creation if they already exist. The resources are:
 - `Change Stream`: The target spanner database should have a changestream setup with value_capture_type = 'NEW_ROW'. This helps stream CDC events from Spanner.
-- `Metadata Database` : This the metadata database that holds the pipeline related metadata.
+- `Metadata Database` : This is the metadata database that holds the pipeline related metadata.
 - `Reader Dataflow Job`: This dataflow job reads from Spanner CDC, and writes them to GCS.
 - `Writer Dataflow Job`: This reads the GCS files, orders the records, translates them to SQL and writes to the source shards.
 
@@ -36,7 +36,7 @@ The script takes in multiple arguments to orchestrate the pipeline. They are:
 - `dataflowRegion`: Region for Dataflow jobs.
 - `dbName`: Spanner database name.
 - `filtrationMode`: The flag to decide whether or not to filter the forward migrated data.Defaults to forward_migration.
-- `gcsPath`: The GCS directory where the change stream data resides.The GCS directory should be pre-created.Default is gs://reverse-replication-buffer/data.
+- `gcsPath`: The GCS directory where the change stream data resides.The GCS directory should be pre-created.
 - `instanceId`: Spanner instance id.
 - `jobNamePrefix`: Job name prefix for the Dataflow jobs, defaults to `smt-reverse-replication`. Automatically converted to lower case due to Dataflow name constraints.
 - `jobsToLaunch`: whether to launch the spanner reader job or the source writer job or both. Default is both. Support values are both,reader,writer.
@@ -108,7 +108,7 @@ cd reverse_replication
 ### Quickstart reverse replication with all defaults
 
 ```
-go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json
+go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -gcsPath=gs://bucket-name/<directory>
 ``` 
 
 The response looks something like this.
@@ -125,12 +125,12 @@ Successfully created changestream <change stream name>
 Created metadata db projects/<project-name>/instances/<instance-name>/databases/<database-name>
 
 GCLOUD CMD FOR READER JOB:
-gcloud dataflow flex-template run smt-reverse-replication-reader-2024-01-05t10-33-56z --project=<project> --region=<region> --template-file-gcs-location=<template location>  --parameters sessionFilePath=<session path>,windowDuration=10s,filtrationMode=forward_migration,skipDirectoryName=skip,instanceId=<spanner instance id>,spannerProjectId=<spanner-project-id>,metadataDatabase=rev_repl_metadata,gcsOutputDirectory=gs://reverse-replication-buffer/data,metadataTableSuffix=,runMode=regular,metadataInstance=<spanner instance>,startTimestamp=,sourceShardsFilePath=<shard file path>,changeStreamName=reverseReplicationStream,databaseId=<spanner database name>,runIdentifier=2024-01-05t10-33-56z --num-workers=5 --worker-machine-type=n2-standard-4 --additional-experiments=use_runner_v2
+gcloud dataflow flex-template run smt-reverse-replication-reader-2024-01-05t10-33-56z --project=<project> --region=<region> --template-file-gcs-location=<template location>  --parameters sessionFilePath=<session path>,windowDuration=10s,filtrationMode=forward_migration,skipDirectoryName=skip,instanceId=<spanner instance id>,spannerProjectId=<spanner-project-id>,metadataDatabase=rev_repl_metadata,gcsOutputDirectory=<gcs path>,metadataTableSuffix=,runMode=regular,metadataInstance=<spanner instance>,startTimestamp=,sourceShardsFilePath=<shard file path>,changeStreamName=reverseReplicationStream,databaseId=<spanner database name>,runIdentifier=2024-01-05t10-33-56z --num-workers=5 --worker-machine-type=n2-standard-4 --additional-experiments=use_runner_v2
 
 Launched reader job:  id:"<>" project_id:"<>" name:"<>" current_state_time:{} create_time:{seconds:<> nanos:<>} location:"<region>" start_time:{seconds:<> nanos:<>}
 
 GCLOUD CMD FOR WRITER JOB:
-gcloud dataflow flex-template run smt-reverse-replication-writer-2024-01-05t10-33-56z --project=<project> --region=<region> --template-file-gcs-location=<template location> --parameters sourceShardsFilePath=<shard file path>,metadataTableSuffix=,GCSInputDirectoryPath=gs://reverse-replication-buffer/data,metadataDatabase=rev_repl_metadata,sessionFilePath=<session file path>,sourceDbTimezoneOffset=+00:00,spannerProjectId=<spanner project id>,metadataInstance=<metadata instance>,runMode=regular,runIdentifier=2024-01-05t10-33-56z --num-workers=5 --worker-machine-type=n2-standard-4
+gcloud dataflow flex-template run smt-reverse-replication-writer-2024-01-05t10-33-56z --project=<project> --region=<region> --template-file-gcs-location=<template location> --parameters sourceShardsFilePath=<shard file path>,metadataTableSuffix=,GCSInputDirectoryPath=<gcs path>,metadataDatabase=rev_repl_metadata,sessionFilePath=<session file path>,sourceDbTimezoneOffset=+00:00,spannerProjectId=<spanner project id>,metadataInstance=<metadata instance>,runMode=regular,runIdentifier=2024-01-05t10-33-56z --num-workers=5 --worker-machine-type=n2-standard-4
 
 Launched writer job:  id:"<>" project_id:"<>" name:"<>" current_state_time:{} create_time:{seconds:<> nanos:<>} location:"<region>" start_time:{seconds:<> nanos:<>}
 
@@ -141,13 +141,13 @@ Launched writer job:  id:"<>" project_id:"<>" name:"<>" current_state_time:{} cr
 In order to specify custom shard identification function, custom jar and class names need to give. The command to do that is below:
 
 ```
-go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -readerShardingCustomJarPath=gs://bucket-name/custom.jar -readerShardingCustomClassName=com.custom.classname
+go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -gcsPath=gs://bucket-name/<directory> -readerShardingCustomJarPath=gs://bucket-name/custom.jar -readerShardingCustomClassName=com.custom.classname
 ``` 
 
 The sample reader job gcloud command for the same
 
 ```
-gcloud dataflow flex-template run smt-reverse-replication-reader-2024-01-05t10-33-56z --project=<project> --region=<region> --template-file-gcs-location=<template location>  --parameters sessionFilePath=<session path>,windowDuration=10s,filtrationMode=forward_migration,skipDirectoryName=skip,instanceId=<spanner instance id>,spannerProjectId=<spanner-project-id>,metadataDatabase=rev_repl_metadata,gcsOutputDirectory=gs://reverse-replication-buffer/data,metadataTableSuffix=,runMode=regular,metadataInstance=<spanner instance>,startTimestamp=,sourceShardsFilePath=<shard file path>,changeStreamName=reverseReplicationStream,databaseId=<spanner database name>,runIdentifier=2024-01-05t10-33-56z,shardingCustomJarPath=<jar path>,shardingCustomClassName=<custom class name> --num-workers=5 --worker-machine-type=n2-standard-4 --additional-experiments=use_runner_v2
+gcloud dataflow flex-template run smt-reverse-replication-reader-2024-01-05t10-33-56z --project=<project> --region=<region> --template-file-gcs-location=<template location>  --parameters sessionFilePath=<session path>,windowDuration=10s,filtrationMode=forward_migration,skipDirectoryName=skip,instanceId=<spanner instance id>,spannerProjectId=<spanner-project-id>,metadataDatabase=rev_repl_metadata,gcsOutputDirectory=<gcs path>,metadataTableSuffix=,runMode=regular,metadataInstance=<spanner instance>,startTimestamp=,sourceShardsFilePath=<shard file path>,changeStreamName=reverseReplicationStream,databaseId=<spanner database name>,runIdentifier=2024-01-05t10-33-56z,shardingCustomJarPath=<jar path>,shardingCustomClassName=<custom class name> --num-workers=5 --worker-machine-type=n2-standard-4 --additional-experiments=use_runner_v2
 ```
 
 
@@ -157,7 +157,7 @@ If the dataflow workers need to be run on a different network and subnetwork wit
 Note that specifying a network or subnetwork results in the Dataflow workers using the private IP addresses.
 
 ```
-go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -networkTags=test -vpcNetwork=<network> vpcSubnetwork=<subnetwork>
+go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -gcsPath=gs://bucket-name/<directory> -networkTags=test -vpcNetwork=<network> vpcSubnetwork=<subnetwork>
 
 ```
 
@@ -166,7 +166,7 @@ The sample reader job gcloud command for the same
 ```
 gcloud dataflow flex-template run smt-reverse-replication-reader-2024-01-05t10-33-56z --project=<project> --region=<region> --template-file-gcs-location=<template location>  --disable-public-ips 
  --subnetwork=https://www.googleapis.com/compute/v1/projects/<project name>/regions/<region name>/subnetworks/<subnetwork name>
---parameters sessionFilePath=<session path>,windowDuration=10s,filtrationMode=forward_migration,skipDirectoryName=skip,instanceId=<spanner instance id>,spannerProjectId=<spanner-project-id>,metadataDatabase=rev_repl_metadata,gcsOutputDirectory=gs://reverse-replication-buffer/data,metadataTableSuffix=,runMode=regular,metadataInstance=<spanner instance>,startTimestamp=,sourceShardsFilePath=<shard file path>,changeStreamName=reverseReplicationStream,databaseId=<spanner database name>,runIdentifier=2024-01-05t10-33-56z --num-workers=5 --worker-machine-type=n2-standard-4 --additional-experiments=use_runner_v2,use_network_tags=test,use_network_tags_for_flex_templates=test
+--parameters sessionFilePath=<session path>,windowDuration=10s,filtrationMode=forward_migration,skipDirectoryName=skip,instanceId=<spanner instance id>,spannerProjectId=<spanner-project-id>,metadataDatabase=rev_repl_metadata,gcsOutputDirectory=<gcs path>,metadataTableSuffix=,runMode=regular,metadataInstance=<spanner instance>,startTimestamp=,sourceShardsFilePath=<shard file path>,changeStreamName=reverseReplicationStream,databaseId=<spanner database name>,runIdentifier=2024-01-05t10-33-56z --num-workers=5 --worker-machine-type=n2-standard-4 --additional-experiments=use_runner_v2,use_network_tags=test,use_network_tags_for_flex_templates=test
 
 ```
 
@@ -174,7 +174,7 @@ The sample writer job gcloud command for the same
 
 ```
 gcloud dataflow flex-template run smt-reverse-replication-writer-2024-01-05t10-33-56z --project=<project> --region=<region> --template-file-gcs-location=<template location> --disable-public-ips 
- --subnetwork=https://www.googleapis.com/compute/v1/projects/<project name>/regions/<region name>/subnetworks/<subnetwork name> --parameters sourceShardsFilePath=<shard file path>,metadataTableSuffix=,GCSInputDirectoryPath=gs://reverse-replication-buffer/data,metadataDatabase=rev_repl_metadata,sessionFilePath=<session file path>,sourceDbTimezoneOffset=+00:00,spannerProjectId=<spanner project id>,metadataInstance=<metadata instance>,runMode=regular,runIdentifier=2024-01-05t10-33-56z --num-workers=5 --worker-machine-type=n2-standard-4 --additional-experiments=use_network_tags=test,use_network_tags_for_flex_templates=test
+ --subnetwork=https://www.googleapis.com/compute/v1/projects/<project name>/regions/<region name>/subnetworks/<subnetwork name> --parameters sourceShardsFilePath=<shard file path>,metadataTableSuffix=,GCSInputDirectoryPath=<gcs path>,metadataDatabase=rev_repl_metadata,sessionFilePath=<session file path>,sourceDbTimezoneOffset=+00:00,spannerProjectId=<spanner project id>,metadataInstance=<metadata instance>,runMode=regular,runIdentifier=2024-01-05t10-33-56z --num-workers=5 --worker-machine-type=n2-standard-4 --additional-experiments=use_network_tags=test,use_network_tags_for_flex_templates=test
 
 ```
 
@@ -183,7 +183,7 @@ gcloud dataflow flex-template run smt-reverse-replication-writer-2024-01-05t10-3
 If a separate prefix is needed for the dataflow job, sample command is below:
 
 ```
-go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -jobNamePrefix=rr
+go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -gcsPath=gs://bucket-name/<directory> -jobNamePrefix=rr
 ``` 
 
 This does not change the gcloud commands, just that the Dataflowjob names have the supplied prefix.
@@ -192,7 +192,7 @@ This does not change the gcloud commands, just that the Dataflowjob names have t
 ### Tune Dataflow Configs
 
 ```
-go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json  -machineType=e2-standard-2 -readerWorkers=10 -writerWorkers=8
+go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json  -gcsPath=gs://bucket-name/<directory> -machineType=e2-standard-2 -readerWorkers=10 -writerWorkers=8
 ``` 
 These impact the below job parameters:
 --num-workers
@@ -205,7 +205,7 @@ When the reverse replication Dataflow jobs are launched, they are assigned a run
 Sample command for the same:
 
 ```
-go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -runIdentifier=<original run identifier> -skipChangeStreamCreation=true -skipMetadataDatabaseCreation=true -readerRunMode=resume  -writerRunMode=resumeAll
+go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -gcsPath=gs://bucket-name/<directory> -runIdentifier=<original run identifier> -skipChangeStreamCreation=true -skipMetadataDatabaseCreation=true -readerRunMode=resume  -writerRunMode=resumeAll
 ```
 These impact the below job parameters:
 runIdentifier
@@ -218,6 +218,6 @@ While the pipeline progresses, if there are errors writing to specific shards, t
 Sample command for the same:
 
 ```
-go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -runIdentifier=<original run identifier> -skipChangeStreamCreation=true -skipMetadataDatabaseCreation=true -jobsToLaunch=writer  -writerRunMode=resumeFailed
+go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -gcsPath=gs://bucket-name/<directory> -runIdentifier=<original run identifier> -skipChangeStreamCreation=true -skipMetadataDatabaseCreation=true -jobsToLaunch=writer  -writerRunMode=resumeFailed
 ```
 
