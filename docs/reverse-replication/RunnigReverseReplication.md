@@ -177,6 +177,15 @@ gcloud dataflow flex-template run smt-reverse-replication-writer-2024-01-05t10-3
  --subnetwork=https://www.googleapis.com/compute/v1/projects/<project name>/regions/<region name>/subnetworks/<subnetwork name> --parameters sourceShardsFilePath=<shard file path>,metadataTableSuffix=,GCSInputDirectoryPath=<gcs path>,metadataDatabase=rev_repl_metadata,sessionFilePath=<session file path>,sourceDbTimezoneOffset=+00:00,spannerProjectId=<spanner project id>,metadataInstance=<metadata instance>,runMode=regular,runIdentifier=2024-01-05t10-33-56z --num-workers=5 --worker-machine-type=n2-standard-4 --additional-experiments=use_network_tags=test,use_network_tags_for_flex_templates=test
 
 ```
+### Custom template paths
+
+If custom template path needs to be given to invoke the reverse replication pipelines, use the below sample command:
+
+```
+go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -gcsPath=gs://bucket-name/<directory> -sourceWriterTemplateLocation=gs://<template path> -spannerReaderTemplateLocation=gs://<template path>
+
+``` 
+
 
 ### Custom Names Prefix
 
