@@ -35,18 +35,20 @@ type CreateSmtJobEntryInput struct {
 
 type CreateSmtJobEntry struct {
 	Input *CreateSmtJobEntryInput
+	DAO   dao.DAO
+	SpA   spanneraccessor.SpannerAccessor
 }
 
-// This creates an entry in the SMT job table.
+// This creates a reverse replication entry in the SMT job table.
 func (p *CreateSmtJobEntry) Transaction(ctx context.Context) error {
 	input := p.Input
-	dialect, err := spanneraccessor.GetDatabaseDialect(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", input.SpannerProjectId, input.InstanceId, input.DatabaseId))
+	dialect, err := p.SpA.GetDatabaseDialect(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", input.SpannerProjectId, input.InstanceId, input.DatabaseId))
 	if err != nil {
 		return fmt.Errorf("could not fetch database dialect: %v", err)
 	}
 	logger.Log.Debug(fmt.Sprintf("found database dialect: %s", dialect))
 	jobData := spanner.NullJSON{Valid: true, Value: input.JobData}
-	err = dao.InsertSMTJobEntry(ctx, input.SmtJobId, input.JobName, constants.REVERSE_REPLICATION_JOB_TYPE, dialect, input.DatabaseId, jobData)
+	err = p.DAO.InsertSMTJobEntry(ctx, input.SmtJobId, input.JobName, constants.REVERSE_REPLICATION_JOB_TYPE, dialect, input.DatabaseId, jobData)
 	if err != nil {
 		return err
 	}
