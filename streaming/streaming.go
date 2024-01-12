@@ -38,6 +38,10 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/google/uuid"
+	"github.com/googleapis/gax-go/v2"
+	"go.uber.org/ratelimit"
+	"google.golang.org/grpc/codes"
 )
 
 var (
@@ -59,6 +63,32 @@ var (
 	MIN_WORKER_LIMIT int32 = 1
 	// Default gcs path of the Dataflow template.
 	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner"
+
+	DEFAULT_DATASTREAM_CLIENT_BACKOFF_BASE_DELAY time.Duration = 1.0 * time.Second
+	DEFAULT_DATASTREAM_CLIENT_BACKOFF_MAX_DELAY  time.Duration = 900 * time.Second
+	DEFAULT_DATASTREAM_CLIENT_BACKOFF_MULTIPLIER float64       = 1.6
+	DEFAULT_DATASTREAM_RETRY_CODES               []codes.Code  = []codes.Code{
+		codes.DeadlineExceeded,
+		codes.Unavailable,
+		codes.ResourceExhausted,
+		codes.Unknown,
+	}
+
+	// DataStream by default provides 20 API calls per second.
+	// Each launch operation calls datastream twice, ignoring `op.wait`, hence keeping it at 10 per second.
+	DEFAULT_DATASTREAM_LAUNCH_RATE_PER_SEC int = 10
+	// TODO(vardhanvthigle): Caliberate this.
+	// Keeping it less for now since the dataFlow launch operation makes outbound calls to various clients.
+	// Keeping it at 1 per second will not impact the actual time it takes to provision resources for a large
+	// scale migration, as that depends a lot on actual time a batch of 20 (current parallelization in code) tkaes
+	// to complete it's provisioning which includes waiting for various operations.
+	DEFAULT_DATAFLOW_LAUNCH_RATE_PER_SEC int = 1
+	// Rate Limiters
+	// A coarse delay based rate limiting for launching datastream.
+	DATA_STREAM_RL ratelimit.Limiter = ratelimit.New(DEFAULT_DATASTREAM_LAUNCH_RATE_PER_SEC)
+
+	// A coarse delay based rate limiting for launching DataFlow.
+	DATA_FLOW_RL ratelimit.Limiter = ratelimit.New(DEFAULT_DATAFLOW_LAUNCH_RATE_PER_SEC)
 )
 
 type SrcConnCfg struct {
@@ -113,6 +143,15 @@ type StreamingCfg struct {
 	TmpDir        string                   `json:"tmpDir"`
 	PubsubCfg     internal.PubsubResources `json:"pubsubCfg"`
 	DataShardId   string                   `json:"dataShardId"`
+}
+
+// Returns the retry error codes and backoff policy to the GCP client retry logic.
+func dataStreamGaxRetrier() gax.Retryer {
+	return gax.OnCodes(DEFAULT_DATASTREAM_RETRY_CODES, gax.Backoff{
+		Initial:    DEFAULT_DATASTREAM_CLIENT_BACKOFF_BASE_DELAY,
+		Max:        DEFAULT_DATASTREAM_CLIENT_BACKOFF_MAX_DELAY,
+		Multiplier: DEFAULT_DATASTREAM_CLIENT_BACKOFF_MULTIPLIER,
+	})
 }
 
 // VerifyAndUpdateCfg checks the fields and errors out if certain fields are empty.
@@ -472,6 +511,8 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 		return fmt.Errorf("datastream client can not be created: %v", err)
 	}
 	defer dsClient.Close()
+	// Rate limit this function to match DataStream API Quota.
+	DATA_STREAM_RL.Take()
 	fmt.Println("Created client...")
 	prefix := datastreamCfg.DestinationConnectionConfig.Prefix
 	prefix = utils.ConcatDirectoryPath(prefix, "data")
@@ -503,11 +544,13 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 		Parent:   fmt.Sprintf("%s/locations/%s", projectNumberResource, datastreamCfg.StreamLocation),
 		StreamId: datastreamCfg.StreamId,
 		Stream:   streamInfo,
+		// Setting a RequestId makes idempotent retries possible.
+		RequestId: uuid.New().String(),
 	}
 
 	fmt.Println("Created stream request..")
 
-	dsOp, err := dsClient.CreateStream(ctx, createStreamRequest)
+	dsOp, err := dsClient.CreateStream(ctx, createStreamRequest, gax.WithRetry(dataStreamGaxRetrier))
 	if err != nil {
 		fmt.Printf("cannot create stream: createStreamRequest: %+v\n", createStreamRequest)
 		return fmt.Errorf("cannot create stream: %v ", err)
@@ -525,8 +568,10 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	updateStreamRequest := &datastreampb.UpdateStreamRequest{
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"state"}},
 		Stream:     streamInfo,
+		// Setting a RequestId makes idempotent retries possible.
+		RequestId: uuid.New().String(),
 	}
-	upOp, err := dsClient.UpdateStream(ctx, updateStreamRequest)
+	upOp, err := dsClient.UpdateStream(ctx, updateStreamRequest, gax.WithRetry(dataStreamGaxRetrier))
 	if err != nil {
 		return fmt.Errorf("could not create update request: %v", err)
 	}
@@ -543,6 +588,10 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
+
+	// Rate limit this function to match DataFlow createJob Quota.
+	DATA_FLOW_RL.Take()
+
 	fmt.Println("Launching dataflow job ", dataflowCfg.JobName, " in ", project, "-", dataflowCfg.Location)
 
 	c, err := dataflow.NewFlexTemplatesClient(ctx)
