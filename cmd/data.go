@@ -31,9 +31,9 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/google/subcommands"
 	"go.uber.org/zap"
 )
@@ -157,7 +157,8 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		conv.Audit.DryRun = true
 		// If migration type is Minimal Downtime, validate if required resources can be generated
 		if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-			err = conversion.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+			resGenerator := conversion.ResourceGenerationStruct{}
+			err = resGenerator.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 			if err != nil {
 				return subcommands.ExitFailure
 			}

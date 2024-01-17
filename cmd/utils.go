@@ -163,7 +163,8 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 	}
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		err = conversion.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		resGenerator := conversion.ResourceGenerationStruct{}
+		err = resGenerator.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}
@@ -194,7 +195,8 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		err = conversion.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		resGenerator := conversion.ResourceGenerationStruct{}
+		err = resGenerator.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}

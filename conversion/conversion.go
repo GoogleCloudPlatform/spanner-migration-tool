@@ -29,7 +29,6 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -81,56 +80,47 @@ var (
 	// This number should not be too high so as to not hit the AdminQuota limit.
 	// AdminQuota limits are mentioned here: https://cloud.google.com/spanner/quotas#administrative_limits
 	// If facing a quota limit error, consider reducing this value.
-	MaxWorkers       		= 50
-	once           		  	sync.Once
-	datastreamClient 		*datastream.Client
-	resourcesForCleanup		[]*ConnectionProfileReq
+	MaxWorkers          = 50
+	once                sync.Once
+	datastreamClient    *datastream.Client
+	resourcesForCleanup []*ConnectionProfileReq
 )
 
 type ConnectionProfile struct {
 	// Project Id of the resource
-	ProjectId		string
+	ProjectId string
 	// Datashard Id for the resource
-	DatashardId 	string
+	DatashardId string
 	// Name of connection profile
-	Id				string
+	Id string
 	// If true, don't create resource, only validate if creation is possible. If false, create resource.
-	ValidateOnly	bool	
+	ValidateOnly bool
 	// If true, create source connection profile, else create target connection profile and gcs bucket.
-	IsSource        bool
+	IsSource bool
 	// For source connection profile host of MySql instance
-	Host            string
+	Host string
 	// For source connection profile port of MySql instance
-	Port            string
+	Port string
 	// For source connection profile password of MySql instance
-	Password        string
+	Password string
 	// For source connection profile user name of MySql instance
-	User            string
+	User string
 	// Region of connection profile to be created
-	Region      	string
+	Region string
 	// For target connection profile name of gcs bucket to be created
-	BucketName  	string
+	BucketName string
 }
 
-type ConnectionProfileReq struct{
-	ConnectionProfile	ConnectionProfile
-	Error				error
-	ctx 				context.Context
+type ConnectionProfileReq struct {
+	ConnectionProfile ConnectionProfile
+	Error             error
+	ctx               context.Context
 }
 
-type CreateMigrationResources interface{
+type CreateMigrationResources interface {
 	multiError(errorMessages []error) error
 	prepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq]
 	getConnProfilesRegion(ctx context.Context, projectId string, region string, dsClient *datastream.Client)
-}
-
-type MigrationResources struct {}
-func multiError(errorMessages []error) error {
-	var errorStrings []string
-	for _, err := range errorMessages {
-		errorStrings = append(errorStrings, err.Error())
-	}
-	return errors.New(strings.Join(errorStrings, "\n "))
 }
 
 func GetDatastreamClient(ctx context.Context) *datastream.Client {
@@ -464,7 +454,7 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
 	// Create Resources required for migration
 	if conv.ResourceValidation {
-		resGenerator:= resourceGeneration{}
+		resGenerator := ResourceGenerationStruct{}
 		dsClient := GetDatastreamClient(ctx)
 		if conv.SpRegion == "" {
 			spannerRegion, err := resGenerator.GetSpannerRegion(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
@@ -584,11 +574,11 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 
 	// create monitoring aggregated dashboard for sharded migration
 	aggMonitoringResources := metrics.MonitoringMetricsResources{
-		ProjectId:                     targetProfile.Conn.Sp.Project,
-		SpannerInstanceId:             targetProfile.Conn.Sp.Instance,
-		SpannerDatabaseId:             targetProfile.Conn.Sp.Dbname,
-		ShardToShardResourcesMap:      conv.Audit.StreamingStats.ShardToShardResourcesMap,
-		MigrationRequestId:            conv.Audit.MigrationRequestId,
+		ProjectId:                targetProfile.Conn.Sp.Project,
+		SpannerInstanceId:        targetProfile.Conn.Sp.Instance,
+		SpannerDatabaseId:        targetProfile.Conn.Sp.Dbname,
+		ShardToShardResourcesMap: conv.Audit.StreamingStats.ShardToShardResourcesMap,
+		MigrationRequestId:       conv.Audit.MigrationRequestId,
 	}
 	aggRespDash, dashboardErr := aggMonitoringResources.CreateDataflowAggMonitoringDashboard(ctx)
 	if dashboardErr != nil {
@@ -1369,20 +1359,20 @@ func GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourceProfile, targetProfi
 	switch driver {
 	case constants.MYSQL:
 		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
-        if err != nil {
-                return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
-        }
-        var opts []cloudsqlconn.DialOption
+		if err != nil {
+			return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
+		}
+		var opts []cloudsqlconn.DialOption
 		instanceName := fmt.Sprintf("%s:%s:%s", sourceProfile.ConnCloudSQL.Mysql.Project, sourceProfile.ConnCloudSQL.Mysql.Region, sourceProfile.ConnCloudSQL.Mysql.InstanceName)
-        mysqldriver.RegisterDialContext("cloudsqlconn",
-                func(ctx context.Context, addr string) (net.Conn, error) {
-                        return d.Dial(ctx, instanceName, opts...)
-                })
+		mysqldriver.RegisterDialContext("cloudsqlconn",
+			func(ctx context.Context, addr string) (net.Conn, error) {
+				return d.Dial(ctx, instanceName, opts...)
+			})
 
-        dbURI := fmt.Sprintf("%s:empty@cloudsqlconn(localhost:3306)/%s?parseTime=true",
-                sourceProfile.ConnCloudSQL.Mysql.User, sourceProfile.ConnCloudSQL.Mysql.Db)
+		dbURI := fmt.Sprintf("%s:empty@cloudsqlconn(localhost:3306)/%s?parseTime=true",
+			sourceProfile.ConnCloudSQL.Mysql.User, sourceProfile.ConnCloudSQL.Mysql.Db)
 
-        db, err := sql.Open("mysql", dbURI)
+		db, err := sql.Open("mysql", dbURI)
 		if err != nil {
 			return nil, fmt.Errorf("sql.Open: %w", err)
 		}
@@ -1394,25 +1384,25 @@ func GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourceProfile, targetProfi
 		}, nil
 	case constants.POSTGRES:
 		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
-        if err != nil {
-                return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
-        }
-        var opts []cloudsqlconn.DialOption
+		if err != nil {
+			return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
+		}
+		var opts []cloudsqlconn.DialOption
 
-        dsn := fmt.Sprintf("user=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Db)
-        config, err := pgx.ParseConfig(dsn)
-        if err != nil {
-                return nil, err
-        }
+		dsn := fmt.Sprintf("user=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Db)
+		config, err := pgx.ParseConfig(dsn)
+		if err != nil {
+			return nil, err
+		}
 		instanceName := fmt.Sprintf("%s:%s:%s", sourceProfile.ConnCloudSQL.Pg.Project, sourceProfile.ConnCloudSQL.Pg.Region, sourceProfile.ConnCloudSQL.Pg.InstanceName)
-        config.DialFunc = func(ctx context.Context, network, instance string) (net.Conn, error) {
-                return d.Dial(ctx, instanceName, opts...)
-        }
-        dbURI := stdlib.RegisterConnConfig(config)
-        db, err := sql.Open("pgx", dbURI)
-        if err != nil {
-                return nil, fmt.Errorf("sql.Open: %w", err)
-        }
+		config.DialFunc = func(ctx context.Context, network, instance string) (net.Conn, error) {
+			return d.Dial(ctx, instanceName, opts...)
+		}
+		dbURI := stdlib.RegisterConnConfig(config)
+		db, err := sql.Open("pgx", dbURI)
+		if err != nil {
+			return nil, fmt.Errorf("sql.Open: %w", err)
+		}
 		temp := false
 		return postgres.InfoSchemaImpl{
 			Db:             db,

@@ -16,6 +16,7 @@ package conversion
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	datastream "cloud.google.com/go/datastream/apiv1"
@@ -23,24 +24,80 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type mockGetConnProfilesRegionStruct struct{mock.Mock}
-func (m *mockGetConnProfilesRegionStruct) getConnProfilesRegion(ctx context.Context, projectId string, region string, dsClient *datastream.Client) ([]string, error) {
+type mockTestConnectionProfileExistsStruct struct{
+	resourceGenerationInterface
+	mock.Mock
+}
+
+func (m *mockTestConnectionProfileExistsStruct) getConnProfilesRegion(ctx context.Context, projectId string, region string, dsClient *datastream.Client) ([]string, error) {
 	args := m.Called(ctx, projectId, region, dsClient)
 	return args.Get(0).([]string), args.Error(1)
 }
 
-type mockConnectionProfileExistsStruct struct {mock.Mock}
-
-type mockGetResourcesForCreationStruct struct {mock.Mock}
-func TestGetResourcesForCreation(t *testing.T) {
-	var m mockGetConnProfilesRegionStruct
+func TestConnectionProfileExistsSuccessTrue(t *testing.T) {
+	var m mockTestConnectionProfileExistsStruct
 	ctx := context.Background()
-	dsClient := GetDatastreamClient(ctx)
+
+	dsClient := &datastream.Client{}
 	getConnProfilesRegionResult := []string{"cnProfile1", "cnProfile2", "cnProfile3"}
 	var connectionProfiles map[string][]string = make(map[string][]string)
 	m.On("getConnProfilesRegion", ctx, "project-id", "region", dsClient).Return(getConnProfilesRegionResult, nil)
-	c := connectionProfileExistsStruct{}
-	result, err := c.connectionProfileExists(ctx, "project-id", "cnProfile1", "region", connectionProfiles, dsClient, &m)
+	r := ResourceGenerationStruct{}
+	result, err := r.connectionProfileExists(ctx, "project-id", "cnProfile1", "region", connectionProfiles, dsClient, &m)
 	assert.Equal(t, result, true)
-	assert.Equal(t, err, nil)
+	assert.Nil(t, err)
+}
+
+func TestConnectionProfileExistsSuccessFalse(t *testing.T) {
+	var m mockTestConnectionProfileExistsStruct
+	ctx := context.Background()
+
+	dsClient := &datastream.Client{}
+	getConnProfilesRegionResult := []string{"cnProfile1", "cnProfile2", "cnProfile3"}
+	var connectionProfiles map[string][]string = make(map[string][]string)
+	m.On("getConnProfilesRegion", ctx, "project-id", "region", dsClient).Return(getConnProfilesRegionResult, nil)
+	r := ResourceGenerationStruct{}
+	result, err := r.connectionProfileExists(ctx, "project-id", "cnProfile4", "region", connectionProfiles, dsClient, &m)
+	assert.Equal(t, result, false)
+	assert.Nil(t, err)
+}
+
+func TestConnectionProfileExistsFailure(t *testing.T) {
+	var m mockTestConnectionProfileExistsStruct
+	ctx := context.Background()
+
+	dsClient := &datastream.Client{}
+	var connectionProfiles map[string][]string = make(map[string][]string)
+
+	error:= errors.New("mock error")
+	m.On("getConnProfilesRegion", ctx, "project-id", "region", dsClient).Return([]string{}, error)
+	r := ResourceGenerationStruct{}
+	result, err := r.connectionProfileExists(ctx, "project-id", "cnProfile1", "region", connectionProfiles, dsClient, &m)
+	assert.Equal(t, err, error)
+	assert.Equal(t, result, false)
+}
+
+type mockTestGetResourcesForCreationStruct struct{
+	resourceGenerationInterface
+	mock.Mock
+}
+
+func (m *mockTestGetResourcesForCreationStruct) connectionProfileExists (ctx context.Context, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string, dsClient *datastream.Client, s resourceGenerationInterface) (bool, error){
+	args := m.Called(ctx, projectId, profileName, profileLocation, connectionProfiles, dsClient, s)
+	return args.Get(0).(bool), args.Error(1)
+}
+
+func TestGetResourcesForCreationSuccess(t *testing.T) {
+	var m mockTestGetResourcesForCreationStruct
+	ctx := context.Background()
+
+	dsClient := &datastream.Client{}
+	var connectionProfiles map[string][]string = make(map[string][]string)
+
+	error:= errors.New("mock error")
+	m.On("connectionProfileExists", ctx, "project-id", "region", dsClient).Return([]string{}, error)
+	r := ResourceGenerationStruct{}
+	result, err := r.connectionProfileExists(ctx, "project-id", "cnProfile1", "region", connectionProfiles, dsClient, &m)
+	assert.Equal(t, err, error)
+	assert.Equal(t, result, false)
 }
