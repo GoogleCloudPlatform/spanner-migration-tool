@@ -14,14 +14,72 @@
 package streaming
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+	"io/ioutil"
+	"path/filepath"
 	"sort"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/googleapis/gax-go/v2"
 	"github.com/stretchr/testify/assert"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
+	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
 )
+
+type DataflowAccessorMock struct {}
+var launchFlexTemplateMock func(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error)
+func (dataflowMock DataflowAccessorMock) LaunchFlexTemplate(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error) {
+	return launchFlexTemplateMock(ctx, req)
+}
+
+type DatastreamAccessorMock struct {}
+var getConnectionProfileMock func(ctx context.Context, req *datastreampb.GetConnectionProfileRequest, opts ...gax.CallOption) (*datastreampb.ConnectionProfile, error)
+func (datastreamMocl DatastreamAccessorMock) GetConnectionProfile(ctx context.Context, req *datastreampb.GetConnectionProfileRequest, opts ...gax.CallOption) (*datastreampb.ConnectionProfile, error) {
+	return getConnectionProfileMock(ctx, req)
+}
+
+func TestLaunchDataflowjobWithError(t *testing.T) {
+	Sp := profiles.TargetProfileConnectionSpanner{
+		Endpoint: "zz",
+		Project:  "aa",
+		Instance: "bb",
+		Dbname:   "cc",
+		Dialect:  "dd",
+	}
+	conn := profiles.TargetProfileConnection{Ty: profiles.TargetProfileConnectionTypeSpanner, Sp: Sp}
+	targetProfile := profiles.TargetProfile{
+		Ty:   profiles.TargetProfileTypeConnection,
+		Conn: conn,
+	}
+	path := filepath.Join("..", "test_data", "streamingcfg.json")
+	cfgFile, _ := ioutil.ReadFile(path)
+	streamingCfg := StreamingCfg{}
+	json.Unmarshal(cfgFile, &streamingCfg)
+	dfMock := DataflowAccessorMock{}
+	dsMock := DatastreamAccessorMock{}
+	launchFlexTemplateMock = func(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error) {
+		return &dataflowpb.LaunchFlexTemplateResponse{
+			Job: nil,
+		}, errors.New("this is a mocked error")
+	}
+	getConnectionProfileMock = func(ctx context.Context, req *datastreampb.GetConnectionProfileRequest, opts ...gax.CallOption) (*datastreampb.ConnectionProfile, error) {
+		gcsProfile := datastreampb.GcsProfile{
+			Bucket: "test",
+			RootPath: "test",
+		}
+		return &datastreampb.ConnectionProfile{
+			Name: "test",
+			Profile: &datastreampb.ConnectionProfile_GcsProfile{GcsProfile: &gcsProfile,
+			},
+		}, nil
+	}
+	_, err := LaunchDataflowJob(context.Background(), targetProfile, streamingCfg, nil, dfMock, dsMock)
+	assert.Equal(t, "unable to launch template: this is a mocked error", err.Error())
+}
 
 func TestGetPostgreSQLSourceStreamConfig(t *testing.T) {
 	testCases := []struct {

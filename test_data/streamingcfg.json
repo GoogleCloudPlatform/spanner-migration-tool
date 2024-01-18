@@ -1,0 +1,48 @@
+{
+    "datastreamCfg": {
+     "streamId": "",
+     "streamLocation": "us-central1",
+     "streamDisplayName": "",
+     "sourceConnectionConfig": {
+      "Name": "stalltestxx",
+      "Location": "us-central1"
+     },
+     "destinationConnectionConfig": {
+      "Name": "stalltestyy3",
+      "Location": "us-central1",
+      "Prefix": ""
+     },
+     "properties": "",
+     "maxConcurrentBackfillTasks": "",
+     "maxConcurrentCdcTasks": ""
+    },
+    "gcsCfg": {
+     "ttlInDays": 0,
+     "ttlInDaysSet": false
+    },
+    "dataflowCfg": {
+     "projectId": "",
+     "jobName": "",
+     "location": "us-central1",
+     "hostProjectId": "",
+     "network": "",
+     "subnetwork": "",
+     "maxWorkers": "",
+     "numWorkers": "",
+     "serviceAccountEmail": "",
+     "machineType": "",
+     "additionalUserLabels": "",
+     "kmsKeyName": "",
+     "gcsTemplatePath": "",
+     "dbNameToShardIdMap": null
+    },
+    "tmpDir": "gs://smt-job-6a99-2bcc/",
+    "pubsubCfg": {
+     "TopicId": "",
+     "SubscriptionId": "",
+     "NotificationId": "",
+     "BucketName": "",
+     "Region": ""
+    },
+    "dataShardId": ""
+   }

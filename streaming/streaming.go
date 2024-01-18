@@ -518,8 +518,9 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	prefix = utils.ConcatDirectoryPath(prefix, "data")
 
 	gcsDstCfg := &datastreampb.GcsDestinationConfig{
-		Path:       prefix,
-		FileFormat: &datastreampb.GcsDestinationConfig_AvroFileFormat{},
+		Path:           prefix,
+		FileFormat:     &datastreampb.GcsDestinationConfig_JsonFileFormat{},
+		FileRotationMb: 5,
 	}
 	srcCfg := &datastreampb.SourceConfig{
 		SourceConnectionProfile: fmt.Sprintf("%s/locations/%s/connectionProfiles/%s", projectNumberResource, datastreamCfg.SourceConnectionConfig.Location, datastreamCfg.SourceConnectionConfig.Name),
@@ -583,8 +584,47 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	return nil
 }
 
+type DataflowAccessor interface {
+	LaunchFlexTemplate(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error)
+}
+
+type DataflowAccessorImpl struct{}
+
+func NewDataflowAccessor() DataflowAccessor {
+	return DataflowAccessorImpl{}
+}
+
+func (dfA DataflowAccessorImpl) LaunchFlexTemplate(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error) {
+	fmt.Println("Created flex template client...")
+	dfClient, err := dataflow.NewFlexTemplatesClient(ctx)
+	defer dfClient.Close()
+	if err != nil {
+		return nil, fmt.Errorf("could not create flex template client: %v", err)
+	}
+	return dfClient.LaunchFlexTemplate(ctx, req)
+}
+
+type DatastreamAccessor interface {
+	GetConnectionProfile(ctx context.Context, req *datastreampb.GetConnectionProfileRequest, opts ...gax.CallOption) (*datastreampb.ConnectionProfile, error)
+}
+
+type DatastreamAccessorImpl struct{}
+
+func NewDatastreamAccessor() DatastreamAccessor {
+	return DatastreamAccessorImpl{}
+}
+
+func (dsA DatastreamAccessorImpl) GetConnectionProfile(ctx context.Context, req *datastreampb.GetConnectionProfileRequest, opts ...gax.CallOption) (*datastreampb.ConnectionProfile, error) {
+	dsClient, err := datastream.NewClient(ctx)
+	defer dsClient.Close()
+	if err != nil {
+		return nil, fmt.Errorf("datastream client can not be created: %v", err)
+	}
+	return dsClient.GetConnectionProfile(ctx, req)
+}
+
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
-func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
+func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv, dataflowAccessor DataflowAccessor, datastreamAccessor DatastreamAccessor) (internal.DataflowOutput, error) {
 	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
@@ -593,24 +633,9 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	DATA_FLOW_RL.Take()
 
 	fmt.Println("Launching dataflow job ", dataflowCfg.JobName, " in ", project, "-", dataflowCfg.Location)
-
-	c, err := dataflow.NewFlexTemplatesClient(ctx)
-	if err != nil {
-		return internal.DataflowOutput{}, fmt.Errorf("could not create flex template client: %v", err)
-	}
-	defer c.Close()
-	fmt.Println("Created flex template client...")
-
-	//Creating datastream client to fetch the gcs bucket using target profile.
-	dsClient, err := datastream.NewClient(ctx)
-	if err != nil {
-		return internal.DataflowOutput{}, fmt.Errorf("datastream client can not be created: %v", err)
-	}
-	defer dsClient.Close()
-
 	// Fetch the GCS path from the destination connection profile.
 	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", project, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name)
-	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
+	res, err := datastreamAccessor.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("could not get connection profiles: %v", err)
 	}
@@ -716,8 +741,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		Location:        dataflowCfg.Location,
 	}
 	fmt.Println("Created flex template request body...")
-
-	respDf, err := c.LaunchFlexTemplate(ctx, req)
+	respDf, err := dataflowAccessor.LaunchFlexTemplate(ctx, req)
 	if err != nil {
 		fmt.Printf("flexTemplateRequest: %+v\n", req)
 		return internal.DataflowOutput{}, fmt.Errorf("unable to launch template: %v", err)
@@ -877,7 +901,7 @@ func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, st
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("error while writing to GCS: %v", err)
 	}
-	dfOutput, err := LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv)
+	dfOutput, err := LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv, NewDataflowAccessor(), NewDatastreamAccessor())
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("error launching dataflow: %v", err)
 	}
