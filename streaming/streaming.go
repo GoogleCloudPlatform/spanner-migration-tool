@@ -518,8 +518,8 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	prefix = utils.ConcatDirectoryPath(prefix, "data")
 
 	gcsDstCfg := &datastreampb.GcsDestinationConfig{
-		Path:           prefix,
-		FileFormat:     &datastreampb.GcsDestinationConfig_JsonFileFormat{},
+		Path:       prefix,
+		FileFormat: &datastreampb.GcsDestinationConfig_AvroFileFormat{},
 	}
 	srcCfg := &datastreampb.SourceConfig{
 		SourceConnectionProfile: fmt.Sprintf("%s/locations/%s/connectionProfiles/%s", projectNumberResource, datastreamCfg.SourceConnectionConfig.Location, datastreamCfg.SourceConnectionConfig.Name),
