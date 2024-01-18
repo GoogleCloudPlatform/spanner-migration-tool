@@ -520,7 +520,6 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	gcsDstCfg := &datastreampb.GcsDestinationConfig{
 		Path:           prefix,
 		FileFormat:     &datastreampb.GcsDestinationConfig_JsonFileFormat{},
-		FileRotationMb: 5,
 	}
 	srcCfg := &datastreampb.SourceConfig{
 		SourceConnectionProfile: fmt.Sprintf("%s/locations/%s/connectionProfiles/%s", projectNumberResource, datastreamCfg.SourceConnectionConfig.Location, datastreamCfg.SourceConnectionConfig.Name),
