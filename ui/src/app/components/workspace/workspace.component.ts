@@ -194,22 +194,15 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.srcTree = this.conversion.createTreeNodeForSource(this.conv, this.conversionRates)
   }
 
-  reRenderSidebar() {
-    this.reRenderObjectExplorerSpanner()
-  }
 
   changeCurrentObject(object: FlatNode) {
-    if (object?.type === ObjectExplorerNodeType.Table) {
+    if (object.type === ObjectExplorerNodeType.Table) {
       this.currentObject = object
-      this.tableData = this.currentObject
-        ? this.conversion.getColumnMapping(this.currentObject.id, this.conv)
-        : []
+      this.tableData = this.conversion.getColumnMapping(this.currentObject.id, this.conv)
 
       this.fkData = []
-      this.fkData = this.currentObject
-        ? this.conversion.getFkMapping(this.currentObject.id, this.conv)
-        : []
-    } else if (object?.type === ObjectExplorerNodeType.Index) {
+      this.fkData =  this.conversion.getFkMapping(this.currentObject.id, this.conv)
+    } else if (object.type === ObjectExplorerNodeType.Index) {
       this.currentObject = object
       this.indexData = this.conversion.getIndexMapping(object.parentId, this.conv, object.id)
     } else {
@@ -252,9 +245,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       let config: IDbConfig = JSON.parse(localStorage.getItem(StorageKeys.Config)!)
       connectionDetail = config?.hostName + ' : ' + config?.port
     } else {
-      {
         connectionDetail = this.conv.DatabaseName
-      }
     }
     let viewAssesmentData: IViewAssesmentData = {
       srcDbType: this.srcDbName,
@@ -386,7 +377,6 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       next: (res: ITableIdAndName[]) => {
         if (res != null && res.length !=0)
         {
-          console.log(res.map(x => x.Name).join(', '));
           let errMsg = 'Please fix the errors for the following tables to move ahead: '+ res.map(x => x.Name).join(', ')
           this.dialog.open(InfodialogComponent, {
             data: { message: errMsg, type: 'error', title: 'Error in Spanner Draft' },

@@ -21,7 +21,7 @@
         <h2 *ngIf="!isSharded">Source and Target Database definitions</h2>
         <h2 *ngIf="isSharded">Source and Target Database definitions (per shard)</h2>
         <div class="summary">
-            <table mat-table [dataSource]="dataSource">
+            <table id='summary-table' mat-table [dataSource]="dataSource">
                 <ng-container matColumnDef="Title">
                     <th mat-header-cell *matHeaderCellDef>Title</th>
                     <td mat-cell *matCellDef="let element">
@@ -110,12 +110,12 @@
                 <h3>Source database details:</h3>
                 <p class="point">
                     <span class="bullet">1</span>
-                    <span>Setup Source database details</span><span><button mat-button
-                            (click)="openSourceDetailsForm()" [disabled]="isMigrationInProgress" color="primary">
+                    <span>Setup Source database details</span><span><button mat-button (click)="openSourceDetailsForm()"
+                            [disabled]="isMigrationInProgress" color="primary">
                             Configure
                             <mat-icon iconPositionEnd>edit</mat-icon>
-                            <mat-icon iconPositionEnd *ngIf="isSourceDetailsSet" class="success" matTooltip="Source details configured"
-                                matTooltipPosition="above">
+                            <mat-icon iconPositionEnd *ngIf="isSourceDetailsSet" class="success"
+                                matTooltip="Source details configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
                         </button></span>
@@ -134,8 +134,8 @@
                             [disabled]="isMigrationInProgress" color="primary">
                             Configure
                             <mat-icon iconPositionEnd>edit</mat-icon>
-                            <mat-icon iconPositionEnd *ngIf="isSourceDetailsSet" class="success" matTooltip="Source details configured"
-                                matTooltipPosition="above">
+                            <mat-icon iconPositionEnd *ngIf="isSourceDetailsSet" class="success"
+                                matTooltip="Source details configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
                         </button></span>
@@ -154,8 +154,8 @@
                             [disabled]="isMigrationInProgress || isLowDtMigrationRunning" color="primary">
                             Configure
                             <mat-icon iconPositionEnd>edit</mat-icon>
-                            <mat-icon iconPositionEnd *ngIf="isTargetDetailSet" class="success" matTooltip="Target details configured"
-                                matTooltipPosition="above">
+                            <mat-icon iconPositionEnd *ngIf="isTargetDetailSet" class="success"
+                                matTooltip="Target details configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
                         </button></span>
@@ -227,7 +227,8 @@
                             [disabled]="isMigrationInProgress || !isTargetDetailSet" color="primary">
                             Configure
                             <mat-icon iconPositionEnd>edit</mat-icon>
-                            <mat-icon iconPositionEnd *ngIf="isDatastreamConfigurationSet" class="success" matTooltip="Datastream Tuned" matTooltipPosition="above">
+                            <mat-icon iconPositionEnd *ngIf="isDatastreamConfigurationSet" class="success"
+                                matTooltip="Datastream Tuned" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
                         </button></span>
@@ -244,7 +245,8 @@
                             [disabled]="isMigrationInProgress || !isTargetDetailSet" color="primary">
                             Configure
                             <mat-icon iconPositionEnd>edit</mat-icon>
-                            <mat-icon iconPositionEnd *ngIf="isGcsConfigurationSet" class="success" matTooltip="Cloud Storage bucket Configured" matTooltipPosition="above">
+                            <mat-icon iconPositionEnd *ngIf="isGcsConfigurationSet" class="success"
+                                matTooltip="Cloud Storage bucket Configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
                         </button></span>
@@ -261,7 +263,8 @@
                             [disabled]="isMigrationInProgress || !isTargetDetailSet" color="primary">
                             Configure
                             <mat-icon iconPositionEnd>edit</mat-icon>
-                            <mat-icon iconPositionEnd *ngIf="isDataflowConfigurationSet" class="success" matTooltip="Dataflow Configured" matTooltipPosition="above">
+                            <mat-icon iconPositionEnd *ngIf="isDataflowConfigurationSet" class="success"
+                                matTooltip="Dataflow Configured" matTooltipPosition="above">
                                 check_circle
                             </mat-icon>
                         </button></span>
@@ -276,7 +279,8 @@
                     <span><button mat-button (click)="downloadConfiguration()"
                             [disabled]="!isTargetDetailSet || !isTargetConnectionProfileSet" color="primary">
                             Download
-                            <mat-icon iconPositionEnd matTooltip="Download configured shards as JSON" matTooltipPosition="above">
+                            <mat-icon iconPositionEnd matTooltip="Download configured shards as JSON"
+                                matTooltipPosition="above">
                                 download</mat-icon>
                         </button></span>
                 </p>
@@ -347,88 +351,135 @@
         Note: Spanner migration tool is creating datastream and dataflow resources. Please look at the terminal logs to
         check the progress of resource creation. All created resources will be displayed here once they are generated.
     </div>
-    <div *ngIf="isResourceGenerated && resourcesGenerated.MonitoringDashboardName!=='' && (selectedMigrationType ==='lowdt')">
-      <h3> Monitoring Dashboards:</h3>
-      <span *ngIf="!isSharded">
-            <li> Monitoring Dashboard: <a [href]="resourcesGenerated.MonitoringDashboardUrl"
-                                          target="_blank">{{resourcesGenerated.MonitoringDashboardName}}</a>
-            </li>
-      </span>
-      <span *ngIf="isSharded">
-        <span *ngIf="resourcesGenerated.AggMonitoringDashboardName !== '' && isSharded">
-          <li>
-            Aggregated Monitoring Dashboard:
-            <a [href]="resourcesGenerated.AggMonitoringDashboardUrl" target="_blank">{{resourcesGenerated.AggMonitoringDashboardName}}</a>
-          </li>
-        </span>
-        <li *ngFor="let dashboard of resourcesGenerated.ShardToMonitoringDashboardMap | keyvalue">
-          Dashboard for shardId: {{ dashboard.key }} - <a [href]="dashboard.value.JobUrl"
-                                                          target="_blank">{{dashboard.value.JobName}}</a>
-        </li>
-      </span>
-      <br>
-    </div>
+    <br><br>
     <div *ngIf="isResourceGenerated">
-        <h3> Generated Resources:</h3>
-        <li>Spanner database: <a [href]="resourcesGenerated.DatabaseUrl"
-                target="_blank">{{resourcesGenerated.DatabaseName}}</a></li>
-        <li>GCS bucket: <a [href]="resourcesGenerated.BucketUrl" target="_blank">{{resourcesGenerated.BucketName}}</a>
-        </li>
-        <span *ngIf="resourcesGenerated.DataStreamJobName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
-            <li> Datastream job: <a [href]="resourcesGenerated.DataStreamJobUrl"
-                    target="_blank">{{resourcesGenerated.DataStreamJobName}}</a></li>
+        <h2>Migration resources generated for migration jobId: {{resourcesGenerated.MigrationJobId}}</h2>
+        Note: This resources displayed below can be looked upto at a later point in time in the
+        "spannermigrationtool_metadata" database in your spanner instance using the migration jobId listed above.
+        <div class="mat-card-class">
+            <mat-card>
+                <mat-card-title>Job Level Resources:</mat-card-title>
+                <p class="point">
+                    <span class="bullet">1</span>
+                    <span><b>Spanner Database: </b><a [href]="resourcesGenerated.DatabaseUrl"
+                            target="_blank">{{resourcesGenerated.DatabaseName}}</a></span>
+                </p>
+                <p class="point">
+                    <span class="bullet">2</span>
+                    <span><b>GCS bucket: </b><a [href]="resourcesGenerated.BucketUrl"
+                            target="_blank">{{resourcesGenerated.BucketName}}</a></span>
+                </p>
+                <span
+                    *ngIf="resourcesGenerated.AggMonitoringDashboardName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
+                    <p class="point">
+                        <span class="bullet">3</span>
+                        <span><b>Aggregated Monitoring Dashboard: </b><a
+                                [href]="resourcesGenerated.AggMonitoringDashboardUrl"
+                                target="_blank">{{resourcesGenerated.AggMonitoringDashboardName}}</a></span>
+                    </p>
+                </span>
+                <span
+                    *ngIf="resourcesGenerated.MonitoringDashboardName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
+                    <p class="point">
+                        <span class="bullet">3</span>
+                        <span><b>Monitoring Dashboard: </b><a [href]="resourcesGenerated.MonitoringDashboardUrl"
+                                target="_blank">{{resourcesGenerated.MonitoringDashboardName}}</a></span>
+                    </p>
+                </span>
+                <span
+                    *ngIf="resourcesGenerated.DataStreamJobName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
+                    <p class="point">
+                        <span class="bullet">4</span>
+                        <span><b>Datastream job: </b><a [href]="resourcesGenerated.DataStreamJobUrl"
+                                target="_blank">{{resourcesGenerated.DataStreamJobName}}</a></span>
+                    </p>
+                </span>
+                <span
+                    *ngIf="resourcesGenerated.DataflowJobName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
+                    <p class="point">
+                        <span class="bullet">5</span>
+                        <span><b>Dataflow job: </b><a [href]="resourcesGenerated.DataflowJobUrl"
+                                target="_blank">{{resourcesGenerated.DataflowJobName}}</a></span>
+                        <span><button mat-button class="configure"
+                                (click)="openGcloudPopup(resourcesGenerated.DataflowGcloudCmd)">
+                                <mat-icon matTooltip="Equivalent gCloud command" matTooltipPosition="above">
+                                    code</mat-icon>
+                            </button></span>
+                    </p>
+                </span>
+                <span
+                    *ngIf="resourcesGenerated.PubsubTopicName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
+                    <p class="point">
+                        <span class="bullet">6</span>
+                        <span><b>Pubsub topic: </b><a [href]="resourcesGenerated.PubsubTopicUrl"
+                                target="_blank">{{resourcesGenerated.PubsubTopicName}}</a></span>
+                    </p>
+                </span>
+                <span
+                    *ngIf="resourcesGenerated.PubsubSubscriptionName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
+                    <p class="point">
+                        <span class="bullet">7</span>
+                        <span><b>Pubsub subscription: </b><a [href]="resourcesGenerated.PubsubSubscriptionUrl"
+                                target="_blank">{{resourcesGenerated.PubsubSubscriptionName}}</a></span>
+                    </p>
+                </span>
+            </mat-card>
+        </div>
+        <span *ngIf="(selectedMigrationType ==='lowdt') && isSharded">
+            <h2>Shard Level Resources: </h2>
+            <div class="mat-elevation-z8">
+                <table id="resources-table" mat-table [dataSource]="displayedResourcesDataSource">
+                    <!--- Note that these columns can be defined in any order.
+                  The actual rendered columns are set as a property on the row definition" -->
+
+                    <!-- ShardId Column -->
+                    <ng-container matColumnDef="shardId">
+                        <th mat-header-cell *matHeaderCellDef> Shard ID </th>
+                        <td mat-cell *matCellDef="let element"> {{element.DataShardId}} </td>
+                    </ng-container>
+
+                    <!-- Resource Type Column -->
+                    <ng-container matColumnDef="resourceType">
+                        <th mat-header-cell *matHeaderCellDef> Resource Type </th>
+                        <td mat-cell *matCellDef="let element"> {{ resourceTypeToDisplayTest.get(element.ResourceType)
+                            }} </td>
+                    </ng-container>
+
+                    <!-- Resource Name Column -->
+                    <ng-container matColumnDef="resourceName">
+                        <th mat-header-cell *matHeaderCellDef> Resource Name </th>
+                        <td mat-cell *matCellDef="let element"> {{element.ResourceName}} </td>
+                    </ng-container>
+
+                    <!-- Resource Link Column -->
+                    <ng-container matColumnDef="resourceUrl">
+                        <th mat-header-cell *matHeaderCellDef> Resource Link </th>
+                        <td mat-cell *matCellDef="let element"> <a [href]="element.ResourceUrl"
+                                target="_blank">{{element.ResourceName}}</a>
+                            <span *ngIf="element.ResourceType =='dataflow'">
+                                <button mat-button class="configure" (click)="openGcloudPopup(element.GcloudCmd)">
+                                    <mat-icon matTooltip="Equivalent gCloud command" matTooltipPosition="above">
+                                        code</mat-icon></button>
+                            </span>
+                        </td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="generatedResourcesColumns"></tr>
+                    <tr mat-row *matRowDef="let row; columns: generatedResourcesColumns;"></tr>
+                </table>
+            </div>
         </span>
-        <span *ngIf="resourcesGenerated.DataflowJobName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
-            <li>Dataflow job: <a [href]="resourcesGenerated.DataflowJobUrl"
-                    target="_blank">{{resourcesGenerated.DataflowJobName}}</a>
-                    <span><button mat-button class="configure" (click)="openGcloudPopup(resourcesGenerated.DataflowGcloudCmd)">
-                        <mat-icon matTooltip="Equivalent gCloud command" matTooltipPosition="above">
-                            code</mat-icon>
-                    </button></span>
-            </li>
-        </span>
-        <span *ngIf="resourcesGenerated.PubsubTopicName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
-            <li> Pubsub topic: <a [href]="resourcesGenerated.PubsubTopicUrl"
-                    target="_blank">{{resourcesGenerated.PubsubTopicName}}</a></li>
-        </span>
-        <span *ngIf="resourcesGenerated.PubsubSubscriptionName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
-            <li> Pubsub subscription: <a [href]="resourcesGenerated.PubsubSubscriptionUrl"
-                    target="_blank">{{resourcesGenerated.PubsubSubscriptionName}}</a>
-            </li>
-        </span>
-        <span *ngIf="resourcesGenerated.DataStreamJobName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
-            <li *ngFor="let stream of resourcesGenerated.ShardToDatastreamMap | keyvalue">
-                Datastream job for shardId: {{ stream.key }} - <a [href]="stream.value.JobUrl"
-                    target="_blank">{{stream.value.JobName}}</a></li>
-        </span>
-        <span *ngIf="resourcesGenerated.DataflowJobName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
-            <li *ngFor="let dfJob of resourcesGenerated.ShardToDataflowMap | keyvalue">
-                Dataflow job for shardId: {{ dfJob.key }} - <a [href]="dfJob.value.JobUrl"
-                    target="_blank">{{dfJob.value.JobName}}</a>
-                    <span><button mat-button class="configure" (click)="openGcloudPopup(dfJob.value.GcloudCmd)">
-                        <mat-icon matTooltip="Equivalent gCloud command" matTooltipPosition="above">
-                            code</mat-icon>
-                    </button></span>
-            </li>
-        </span>
-        <span *ngIf="resourcesGenerated.PubsubTopicName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
-            <li *ngFor="let topic of resourcesGenerated.ShardToPubsubTopicMap | keyvalue">
-                Pubsub topic for shardId: {{ topic.key }} - <a [href]="topic.value.JobUrl"
-                    target="_blank">{{topic.value.JobName}}</a></li>
-        </span>
-        <span *ngIf="resourcesGenerated.PubsubSubscriptionName!=='' && (selectedMigrationType ==='lowdt') && isSharded">
-            <li *ngFor="let subscription of resourcesGenerated.ShardToPubsubSubscriptionMap | keyvalue">
-                Pubsub subscription for shardId: {{ subscription.key }} - <a [href]="subscription.value.JobUrl"
-                    target="_blank">{{subscription.value.JobName}}</a>
-            </li>
-        </span>
-        <br><br>
-        <span *ngIf="(selectedMigrationType ==='lowdt')">
+    </div>
+    <div [hidden]="!(isResourceGenerated && selectedMigrationType ==='lowdt' && isSharded)" class="mat-elevation-z8">
+        <mat-paginator [pageSizeOptions]="[5, 10, 20]" showFirstLastButtons aria-label="Select page"></mat-paginator>
+    </div>
+    <br><br>
+    <div *ngIf="isResourceGenerated && (selectedMigrationType ==='lowdt')">
         <b>Note: </b>Spanner migration tool has orchestrated the migration successfully. For minimal downtime
         migrations, it is safe to close Spanner migration tool now without affecting the progress of the migration.
-        Please note that Spanner migration tool does not save the IDs of the Dataflow jobs created once closed, so
-        please keep copy over the links in the Generated Resources section above before closing Spanner migration tool.
-        </span>
+        The resources listed on this page can be viewed in the "SMT_JOB" table in the
+        'spannermigrationtool_metadata' database created in your Spanner instance after you close the Spanner
+        migration tool.
     </div>
     <div class="migrate">
         <span *ngIf="!isLowDtMigrationRunning">

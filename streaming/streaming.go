@@ -25,19 +25,23 @@ import (
 
 	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
 	datastream "cloud.google.com/go/datastream/apiv1"
-	dashboard "cloud.google.com/go/monitoring/dashboard/apiv1"
-	"cloud.google.com/go/monitoring/dashboard/apiv1/dashboardpb"
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
+	resourcemanager "cloud.google.com/go/resourcemanager/apiv3"
+	resourcemanagerpb "cloud.google.com/go/resourcemanager/apiv3/resourcemanagerpb"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/google/uuid"
+	"github.com/googleapis/gax-go/v2"
+	"go.uber.org/ratelimit"
+	"google.golang.org/grpc/codes"
 )
 
 var (
@@ -59,6 +63,32 @@ var (
 	MIN_WORKER_LIMIT int32 = 1
 	// Default gcs path of the Dataflow template.
 	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner"
+
+	DEFAULT_DATASTREAM_CLIENT_BACKOFF_BASE_DELAY time.Duration = 1.0 * time.Second
+	DEFAULT_DATASTREAM_CLIENT_BACKOFF_MAX_DELAY  time.Duration = 900 * time.Second
+	DEFAULT_DATASTREAM_CLIENT_BACKOFF_MULTIPLIER float64       = 1.6
+	DEFAULT_DATASTREAM_RETRY_CODES               []codes.Code  = []codes.Code{
+		codes.DeadlineExceeded,
+		codes.Unavailable,
+		codes.ResourceExhausted,
+		codes.Unknown,
+	}
+
+	// DataStream by default provides 20 API calls per second.
+	// Each launch operation calls datastream twice, ignoring `op.wait`, hence keeping it at 10 per second.
+	DEFAULT_DATASTREAM_LAUNCH_RATE_PER_SEC int = 10
+	// TODO(vardhanvthigle): Caliberate this.
+	// Keeping it less for now since the dataFlow launch operation makes outbound calls to various clients.
+	// Keeping it at 1 per second will not impact the actual time it takes to provision resources for a large
+	// scale migration, as that depends a lot on actual time a batch of 20 (current parallelization in code) tkaes
+	// to complete it's provisioning which includes waiting for various operations.
+	DEFAULT_DATAFLOW_LAUNCH_RATE_PER_SEC int = 1
+	// Rate Limiters
+	// A coarse delay based rate limiting for launching datastream.
+	DATA_STREAM_RL ratelimit.Limiter = ratelimit.New(DEFAULT_DATASTREAM_LAUNCH_RATE_PER_SEC)
+
+	// A coarse delay based rate limiting for launching DataFlow.
+	DATA_FLOW_RL ratelimit.Limiter = ratelimit.New(DEFAULT_DATAFLOW_LAUNCH_RATE_PER_SEC)
 )
 
 type SrcConnCfg struct {
@@ -73,15 +103,15 @@ type DstConnCfg struct {
 }
 
 type DatastreamCfg struct {
-	StreamId                    string     `json:"streamId"`
-	StreamLocation              string     `json:"streamLocation"`
-	StreamDisplayName           string     `json:"streamDisplayName"`
-	SourceConnectionConfig      SrcConnCfg `json:"sourceConnectionConfig"`
-	DestinationConnectionConfig DstConnCfg `json:"destinationConnectionConfig"`
-	Properties                  string     `json:"properties"`
-	TableList                   []string   `json:"tableList"`
-	MaxConcurrentBackfillTasks  string     `json:"maxConcurrentBackfillTasks"`
-	MaxConcurrentCdcTasks       string     `json:"maxConcurrentCdcTasks"`
+	StreamId                    string                            `json:"streamId"`
+	StreamLocation              string                            `json:"streamLocation"`
+	StreamDisplayName           string                            `json:"streamDisplayName"`
+	SourceConnectionConfig      SrcConnCfg                        `json:"sourceConnectionConfig"`
+	DestinationConnectionConfig DstConnCfg                        `json:"destinationConnectionConfig"`
+	Properties                  string                            `json:"properties"`
+	SchemaDetails               map[string]internal.SchemaDetails `json:"-"`
+	MaxConcurrentBackfillTasks  string                            `json:"maxConcurrentBackfillTasks"`
+	MaxConcurrentCdcTasks       string                            `json:"maxConcurrentCdcTasks"`
 }
 
 type GcsCfg struct {
@@ -107,17 +137,26 @@ type DataflowCfg struct {
 }
 
 type StreamingCfg struct {
-	DatastreamCfg DatastreamCfg      `json:"datastreamCfg"`
-	GcsCfg        GcsCfg             `json:"gcsCfg"`
-	DataflowCfg   DataflowCfg        `json:"dataflowCfg"`
-	TmpDir        string             `json:"tmpDir"`
-	PubsubCfg     internal.PubsubCfg `json:"pubsubCfg"`
-	DataShardId   string             `json:"dataShardId"`
+	DatastreamCfg DatastreamCfg            `json:"datastreamCfg"`
+	GcsCfg        GcsCfg                   `json:"gcsCfg"`
+	DataflowCfg   DataflowCfg              `json:"dataflowCfg"`
+	TmpDir        string                   `json:"tmpDir"`
+	PubsubCfg     internal.PubsubResources `json:"pubsubCfg"`
+	DataShardId   string                   `json:"dataShardId"`
+}
+
+// Returns the retry error codes and backoff policy to the GCP client retry logic.
+func dataStreamGaxRetrier() gax.Retryer {
+	return gax.OnCodes(DEFAULT_DATASTREAM_RETRY_CODES, gax.Backoff{
+		Initial:    DEFAULT_DATASTREAM_CLIENT_BACKOFF_BASE_DELAY,
+		Max:        DEFAULT_DATASTREAM_CLIENT_BACKOFF_MAX_DELAY,
+		Multiplier: DEFAULT_DATASTREAM_CLIENT_BACKOFF_MULTIPLIER,
+	})
 }
 
 // VerifyAndUpdateCfg checks the fields and errors out if certain fields are empty.
 // It then auto-populates certain empty fields like StreamId and Dataflow JobName.
-func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []string) error {
+func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, schemaDetails map[string]internal.SchemaDetails) error {
 	dsCfg := streamingCfg.DatastreamCfg
 	if dsCfg.StreamLocation == "" {
 		return fmt.Errorf("please specify DatastreamCfg.StreamLocation in the streaming config")
@@ -153,8 +192,7 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 		streamingCfg.DatastreamCfg.StreamDisplayName = streamingCfg.DatastreamCfg.StreamId
 	}
 
-	// Populate the tables to be streamed in the datastreamCfg from the dervied list from session file
-	streamingCfg.DatastreamCfg.TableList = append(streamingCfg.DatastreamCfg.TableList, tableList...)
+	streamingCfg.DatastreamCfg.SchemaDetails = schemaDetails
 
 	if dsCfg.MaxConcurrentCdcTasks != "" {
 		intVal, err := strconv.ParseInt(dsCfg.MaxConcurrentCdcTasks, 10, 64)
@@ -218,7 +256,7 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, tableList []s
 }
 
 // ReadStreamingConfig reads the file and unmarshalls it into the StreamingCfg struct.
-func ReadStreamingConfig(file, dbName string, tableList []string) (StreamingCfg, error) {
+func ReadStreamingConfig(file, dbName string, schemaDetails map[string]internal.SchemaDetails) (StreamingCfg, error) {
 	streamingCfg := StreamingCfg{}
 	cfgFile, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -228,7 +266,7 @@ func ReadStreamingConfig(file, dbName string, tableList []string) (StreamingCfg,
 	if err != nil {
 		return streamingCfg, fmt.Errorf("unable to unmarshall json due to: %v", err)
 	}
-	err = VerifyAndUpdateCfg(&streamingCfg, dbName, tableList)
+	err = VerifyAndUpdateCfg(&streamingCfg, dbName, schemaDetails)
 	if err != nil {
 		return streamingCfg, fmt.Errorf("streaming config is incomplete: %v", err)
 	}
@@ -238,13 +276,15 @@ func ReadStreamingConfig(file, dbName string, tableList []string) (StreamingCfg,
 // dbName is the name of the database to be migrated.
 // tabeList is the common list of tables that need to be migrated from each database
 func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard, datastreamCfg DatastreamCfg) (*datastreampb.SourceConfig_MysqlSourceConfig, error) {
-	tableList := datastreamCfg.TableList
+	schemaDetails := datastreamCfg.SchemaDetails
 	mysqlTables := []*datastreampb.MysqlTable{}
-	for _, table := range tableList {
-		includeTable := &datastreampb.MysqlTable{
-			Table: table,
+	for _, tableList := range schemaDetails {
+		for _, table := range tableList.TableDetails {
+			includeTable := &datastreampb.MysqlTable{
+				Table: table.TableName,
+			}
+			mysqlTables = append(mysqlTables, includeTable)
 		}
-		mysqlTables = append(mysqlTables, includeTable)
 	}
 	includeDbList := []*datastreampb.MysqlDatabase{}
 	for _, db := range dbList {
@@ -266,13 +306,14 @@ func getMysqlSourceStreamConfig(dbList []profiles.LogicalShard, datastreamCfg Da
 }
 
 func getOracleSourceStreamConfig(dbName string, datastreamCfg DatastreamCfg) (*datastreampb.SourceConfig_OracleSourceConfig, error) {
-	tableList := datastreamCfg.TableList
 	oracleTables := []*datastreampb.OracleTable{}
-	for _, table := range tableList {
-		includeTable := &datastreampb.OracleTable{
-			Table: table,
+	for _, tableList := range datastreamCfg.SchemaDetails {
+		for _, table := range tableList.TableDetails {
+			includeTable := &datastreampb.OracleTable{
+				Table: table.TableName,
+			}
+			oracleTables = append(oracleTables, includeTable)
 		}
-		oracleTables = append(oracleTables, includeTable)
 	}
 	oracledb := &datastreampb.OracleSchema{
 		Schema:       dbName,
@@ -292,11 +333,27 @@ func getPostgreSQLSourceStreamConfig(datastreamCfg DatastreamCfg) (*datastreampb
 	if err != nil {
 		return nil, fmt.Errorf("could not parse properties: %v", err)
 	}
-	var excludeObjects []*datastreampb.PostgresqlSchema
-	for _, s := range []string{"information_schema", "postgres", "pg_catalog", "pg_temp_1", "pg_toast", "pg_toast_temp_1"} {
-		excludeObjects = append(excludeObjects, &datastreampb.PostgresqlSchema{
-			Schema: s,
-		})
+	postgreSQLSchema := []*datastreampb.PostgresqlSchema{}
+	for schema, tableList := range datastreamCfg.SchemaDetails {
+		postgreSQLTables := []*datastreampb.PostgresqlTable{}
+		for _, table := range tableList.TableDetails {
+			var includeTable *datastreampb.PostgresqlTable
+			if schema == "public" {
+				includeTable = &datastreampb.PostgresqlTable{
+					Table: table.TableName,
+				}
+			} else {
+				includeTable = &datastreampb.PostgresqlTable{
+					Table: strings.TrimPrefix(table.TableName, schema+"."),
+				}
+			}
+			postgreSQLTables = append(postgreSQLTables, includeTable)
+		}
+		includeSchema := &datastreampb.PostgresqlSchema{
+			Schema:           schema,
+			PostgresqlTables: postgreSQLTables,
+		}
+		postgreSQLSchema = append(postgreSQLSchema, includeSchema)
 	}
 	replicationSlot, replicationSlotExists := params["replicationSlot"]
 	publication, publicationExists := params["publication"]
@@ -304,7 +361,7 @@ func getPostgreSQLSourceStreamConfig(datastreamCfg DatastreamCfg) (*datastreampb
 		return nil, fmt.Errorf("replication slot or publication not specified")
 	}
 	postgresSrcCfg := &datastreampb.PostgresqlSourceConfig{
-		ExcludeObjects:             &datastreampb.PostgresqlRdbms{PostgresqlSchemas: excludeObjects},
+		IncludeObjects:             &datastreampb.PostgresqlRdbms{PostgresqlSchemas: postgreSQLSchema},
 		ReplicationSlot:            replicationSlot,
 		Publication:                publication,
 		MaxConcurrentBackfillTasks: maxBackfillTasks,
@@ -334,7 +391,7 @@ func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile prof
 	}
 }
 
-func CreatePubsubResources(ctx context.Context, projectID string, datastreamDestinationConnCfg DstConnCfg, dbName string) (*internal.PubsubCfg, error) {
+func CreatePubsubResources(ctx context.Context, projectID string, datastreamDestinationConnCfg DstConnCfg, dbName string) (*internal.PubsubResources, error) {
 	pubsubClient, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("pubsub client can not be created: %v", err)
@@ -380,8 +437,8 @@ func CreatePubsubResources(ctx context.Context, projectID string, datastreamDest
 	return &pubsubCfg, nil
 }
 
-func createPubsubTopicAndSubscription(ctx context.Context, pubsubClient *pubsub.Client, dbName string) (internal.PubsubCfg, error) {
-	pubsubCfg := internal.PubsubCfg{}
+func createPubsubTopicAndSubscription(ctx context.Context, pubsubClient *pubsub.Client, dbName string) (internal.PubsubResources, error) {
+	pubsubCfg := internal.PubsubResources{}
 	// Generate ID
 	subscriptionId, err := utils.GenerateName("smt-sub-" + dbName)
 	if err != nil {
@@ -447,12 +504,15 @@ func createNotificationOnBucket(ctx context.Context, storageClient *storage.Clie
 
 // LaunchStream populates the parameters from the streaming config and triggers a stream on Cloud Datastream.
 func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, projectID string, datastreamCfg DatastreamCfg) error {
-	fmt.Println("Launching stream ", fmt.Sprintf("projects/%s/locations/%s", projectID, datastreamCfg.StreamLocation))
+	projectNumberResource := GetProjectNumberResource(ctx, fmt.Sprintf("projects/%s", projectID))
+	fmt.Println("Launching stream ", fmt.Sprintf("%s/locations/%s", projectNumberResource, datastreamCfg.StreamLocation))
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
 		return fmt.Errorf("datastream client can not be created: %v", err)
 	}
 	defer dsClient.Close()
+	// Rate limit this function to match DataStream API Quota.
+	DATA_STREAM_RL.Take()
 	fmt.Println("Created client...")
 	prefix := datastreamCfg.DestinationConnectionConfig.Prefix
 	prefix = utils.ConcatDirectoryPath(prefix, "data")
@@ -462,7 +522,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 		FileFormat: &datastreampb.GcsDestinationConfig_AvroFileFormat{},
 	}
 	srcCfg := &datastreampb.SourceConfig{
-		SourceConnectionProfile: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.SourceConnectionConfig.Location, datastreamCfg.SourceConnectionConfig.Name),
+		SourceConnectionProfile: fmt.Sprintf("%s/locations/%s/connectionProfiles/%s", projectNumberResource, datastreamCfg.SourceConnectionConfig.Location, datastreamCfg.SourceConnectionConfig.Name),
 	}
 	err = getSourceStreamConfig(srcCfg, sourceProfile, dbList, datastreamCfg)
 	if err != nil {
@@ -470,7 +530,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	}
 
 	dstCfg := &datastreampb.DestinationConfig{
-		DestinationConnectionProfile: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name),
+		DestinationConnectionProfile: fmt.Sprintf("%s/locations/%s/connectionProfiles/%s", projectNumberResource, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name),
 		DestinationStreamConfig:      &datastreampb.DestinationConfig_GcsDestinationConfig{GcsDestinationConfig: gcsDstCfg},
 	}
 	streamInfo := &datastreampb.Stream{
@@ -481,14 +541,16 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 		BackfillStrategy:  &datastreampb.Stream_BackfillAll{BackfillAll: &datastreampb.Stream_BackfillAllStrategy{}},
 	}
 	createStreamRequest := &datastreampb.CreateStreamRequest{
-		Parent:   fmt.Sprintf("projects/%s/locations/%s", projectID, datastreamCfg.StreamLocation),
+		Parent:   fmt.Sprintf("%s/locations/%s", projectNumberResource, datastreamCfg.StreamLocation),
 		StreamId: datastreamCfg.StreamId,
 		Stream:   streamInfo,
+		// Setting a RequestId makes idempotent retries possible.
+		RequestId: uuid.New().String(),
 	}
 
 	fmt.Println("Created stream request..")
 
-	dsOp, err := dsClient.CreateStream(ctx, createStreamRequest)
+	dsOp, err := dsClient.CreateStream(ctx, createStreamRequest, gax.WithRetry(dataStreamGaxRetrier))
 	if err != nil {
 		fmt.Printf("cannot create stream: createStreamRequest: %+v\n", createStreamRequest)
 		return fmt.Errorf("cannot create stream: %v ", err)
@@ -502,12 +564,14 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	fmt.Println("Successfully created stream ", datastreamCfg.StreamId)
 
 	fmt.Print("Setting stream state to RUNNING...")
-	streamInfo.Name = fmt.Sprintf("projects/%s/locations/%s/streams/%s", projectID, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
+	streamInfo.Name = fmt.Sprintf("%s/locations/%s/streams/%s", projectNumberResource, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
 	updateStreamRequest := &datastreampb.UpdateStreamRequest{
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"state"}},
 		Stream:     streamInfo,
+		// Setting a RequestId makes idempotent retries possible.
+		RequestId: uuid.New().String(),
 	}
-	upOp, err := dsClient.UpdateStream(ctx, updateStreamRequest)
+	upOp, err := dsClient.UpdateStream(ctx, updateStreamRequest, gax.WithRetry(dataStreamGaxRetrier))
 	if err != nil {
 		return fmt.Errorf("could not create update request: %v", err)
 	}
@@ -519,156 +583,15 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	return nil
 }
 
-func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, region string) error {
-	//create clients
-	c, err := dataflow.NewJobsV1Beta3Client(ctx)
-	if err != nil {
-		return fmt.Errorf("could not create job client: %v", err)
-	}
-	defer c.Close()
-	fmt.Println("Created dataflow job client...")
-	dsClient, err := datastream.NewClient(ctx)
-	fmt.Println("Created datastream client...")
-	if err != nil {
-		return fmt.Errorf("datastream client can not be created: %v", err)
-	}
-	defer dsClient.Close()
-	pubsubClient, err := pubsub.NewClient(ctx, projectID)
-	if err != nil {
-		return fmt.Errorf("pubsub client cannot be created: %v", err)
-	}
-	defer pubsubClient.Close()
-
-	storageClient, err := storage.NewClient(ctx)
-	if err != nil {
-		return fmt.Errorf("storage client cannot be created: %v", err)
-	}
-	defer storageClient.Close()
-
-	//clean up for single instance migrations
-	if conv.Audit.StreamingStats.DataflowJobId != "" {
-		CleanupDataflowJob(ctx, c, conv.Audit.StreamingStats.DataflowJobId, projectID, region)
-	}
-	if conv.Audit.StreamingStats.DataStreamName != "" {
-		CleanupDatastream(ctx, dsClient, conv.Audit.StreamingStats.DataStreamName, projectID, region)
-	}
-	if conv.Audit.StreamingStats.PubsubCfg.TopicId != "" && !conv.IsSharded {
-		CleanupPubsubResources(ctx, pubsubClient, storageClient, conv.Audit.StreamingStats.PubsubCfg, projectID)
-	}
-	if conv.Audit.StreamingStats.MonitoringResources.DashboardName != "" && !conv.IsSharded {
-		CleanupMonitoringDashboard(ctx, conv.Audit.StreamingStats.MonitoringResources.DashboardName, projectID)
-	}
-	if conv.Audit.StreamingStats.AggMonitoringResources.DashboardName != "" && conv.IsSharded {
-		CleanupMonitoringDashboard(ctx, conv.Audit.StreamingStats.AggMonitoringResources.DashboardName, projectID)
-	}
-	// clean up jobs for sharded migrations (with error handling)
-	for _, resourceDetails := range conv.Audit.StreamingStats.ShardToDataflowInfoMap {
-		dfId := resourceDetails.JobId
-		err := CleanupDataflowJob(ctx, c, dfId, projectID, region)
-		if err != nil {
-			fmt.Printf("Cleanup of the dataflow job: %s was unsuccessful, please clean up the job manually", dfId)
-		}
-	}
-	for _, dsName := range conv.Audit.StreamingStats.ShardToDataStreamNameMap {
-		err := CleanupDatastream(ctx, dsClient, dsName, projectID, region)
-		if err != nil {
-			fmt.Printf("Cleanup of the datastream: %s was unsuccessful, please clean up the stream manually", dsName)
-		}
-	}
-	for _, pubsubCfg := range conv.Audit.StreamingStats.ShardToPubsubIdMap {
-		CleanupPubsubResources(ctx, pubsubClient, storageClient, pubsubCfg, projectID)
-	}
-	for _, monitoringResource := range conv.Audit.StreamingStats.ShardToMonitoringResourcesMap {
-		if monitoringResource.DashboardName != "" {
-			CleanupMonitoringDashboard(ctx, monitoringResource.DashboardName, projectID)
-		}
-	}
-	fmt.Println("Clean up complete")
-	return nil
-}
-
-func CleanupPubsubResources(ctx context.Context, pubsubClient *pubsub.Client, storageClient *storage.Client, pubsubCfg internal.PubsubCfg, projectID string) {
-	subscription := pubsubClient.Subscription(pubsubCfg.SubscriptionId)
-
-	err := subscription.Delete(ctx)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Cleanup of the pubsub subscription: %s Failed, please clean up the pubsub subscription manually\n error=%v\n", pubsubCfg.SubscriptionId, err))
-	} else {
-		logger.Log.Info(fmt.Sprintf("Successfully deleted subscription: %s\n\n", pubsubCfg.SubscriptionId))
-	}
-
-	topic := pubsubClient.Topic(pubsubCfg.TopicId)
-
-	err = topic.Delete(ctx)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Cleanup of the pubsub topic: %s Failed, please clean up the pubsub topic manually\n error=%v\n", pubsubCfg.TopicId, err))
-	} else {
-		logger.Log.Info(fmt.Sprintf("Successfully deleted topic: %s\n\n", pubsubCfg.TopicId))
-	}
-
-	bucket := storageClient.Bucket(pubsubCfg.BucketName)
-
-	if err := bucket.DeleteNotification(ctx, pubsubCfg.NotificationId); err != nil {
-		logger.Log.Error(fmt.Sprintf("Cleanup of GCS pubsub notification: %s failed.\n error=%v\n", pubsubCfg.NotificationId, err))
-	} else {
-		logger.Log.Info(fmt.Sprintf("Successfully deleted GCS pubsub notification: %s\n\n", pubsubCfg.NotificationId))
-	}
-}
-
-func CleanupMonitoringDashboard(ctx context.Context, dashboardName string, projectID string) {
-	client, err := dashboard.NewDashboardsClient(ctx)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Cleanup of the monitoring dashboard: %s Failed, please clean up the dashboard manually\n error=%v\n", dashboardName, err))
-	}
-	defer client.Close()
-	req := &dashboardpb.DeleteDashboardRequest{
-		Name: fmt.Sprintf("projects/%s/dashboards/%s", projectID, dashboardName),
-	}
-	err = client.DeleteDashboard(ctx, req)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Cleanup of the monitoring dashboard: %s Failed, please clean up the dashboard manually\n error=%v\n", dashboardName, err))
-	} else {
-		logger.Log.Info(fmt.Sprintf("Successfully deleted Monitoring Dashboard: %s\n\n", dashboardName))
-	}
-}
-
-func CleanupDatastream(ctx context.Context, client *datastream.Client, dsName string, projectID, region string) error {
-	req := &datastreampb.DeleteStreamRequest{
-		Name: fmt.Sprintf("projects/%s/locations/%s/streams/%s", projectID, region, dsName),
-	}
-	_, err := client.DeleteStream(ctx, req)
-	if err != nil {
-		return fmt.Errorf("error while deleting datastream job: %v", err)
-	}
-	return nil
-}
-
-func CleanupDataflowJob(ctx context.Context, client *dataflow.JobsV1Beta3Client, dataflowJobId string, projectID, region string) error {
-	job := &dataflowpb.Job{
-		Id:             dataflowJobId,
-		ProjectId:      projectID,
-		RequestedState: dataflowpb.JobState_JOB_STATE_CANCELLED,
-	}
-
-	dfReq := &dataflowpb.UpdateJobRequest{
-		ProjectId: projectID,
-		JobId:     dataflowJobId,
-		Location:  region,
-		Job:       job,
-	}
-	_, err := client.UpdateJob(ctx, dfReq)
-	if err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("error while cancelling dataflow job: %v", err)
-	}
-	return nil
-}
-
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
 func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
 	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
+
+	// Rate limit this function to match DataFlow createJob Quota.
+	DATA_FLOW_RL.Take()
+
 	fmt.Println("Launching dataflow job ", dataflowCfg.JobName, " in ", project, "-", dataflowCfg.Location)
 
 	c, err := dataflow.NewFlexTemplatesClient(ctx)
@@ -807,34 +730,36 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJobId, gcloudDataflowCmd, project, dataShardId string, gcsBucket internal.GcsResources, dashboardName string) {
 	datastreamCfg := streamingCfg.DatastreamCfg
 	dataflowCfg := streamingCfg.DataflowCfg
-	conv.Audit.StreamingStats.DataStreamName = datastreamCfg.StreamId
-	conv.Audit.StreamingStats.DataflowJobId = dfJobId
-	conv.Audit.StreamingStats.DataflowLocation = streamingCfg.DataflowCfg.Location
-	conv.Audit.StreamingStats.DataflowGcloudCmd = gcloudDataflowCmd
-	conv.Audit.StreamingStats.PubsubCfg = streamingCfg.PubsubCfg
+	conv.Audit.StreamingStats.DatastreamResources = internal.DatastreamResources{DatastreamName: datastreamCfg.StreamId, Region: datastreamCfg.StreamLocation}
+	conv.Audit.StreamingStats.DataflowResources = internal.DataflowResources{JobId: dfJobId, GcloudCmd: gcloudDataflowCmd, Region: dataflowCfg.Location}
+	conv.Audit.StreamingStats.PubsubResources = streamingCfg.PubsubCfg
 	conv.Audit.StreamingStats.GcsResources = gcsBucket
 	conv.Audit.StreamingStats.MonitoringResources = internal.MonitoringResources{DashboardName: dashboardName}
 	if dataShardId != "" {
 		var resourceMutex sync.Mutex
 		resourceMutex.Lock()
-		conv.Audit.StreamingStats.ShardToDataStreamNameMap[dataShardId] = datastreamCfg.StreamId
-		conv.Audit.StreamingStats.ShardToDataflowInfoMap[dataShardId] = internal.ShardedDataflowJobResources{JobId: dfJobId, GcloudCmd: gcloudDataflowCmd}
-		conv.Audit.StreamingStats.ShardToPubsubIdMap[dataShardId] = streamingCfg.PubsubCfg
-		conv.Audit.StreamingStats.ShardToGcsResources[dataShardId] = gcsBucket
+		var shardResources internal.ShardResources
+		shardResources.DatastreamResources = internal.DatastreamResources{DatastreamName: datastreamCfg.StreamId, Region: datastreamCfg.StreamLocation}
+		shardResources.DataflowResources = internal.DataflowResources{JobId: dfJobId, GcloudCmd: gcloudDataflowCmd, Region: dataflowCfg.Location}
+		shardResources.PubsubResources = streamingCfg.PubsubCfg
+		shardResources.GcsResources = gcsBucket
 		if dashboardName != "" {
 			{
-				conv.Audit.StreamingStats.ShardToMonitoringResourcesMap[dataShardId] = internal.MonitoringResources{DashboardName: dashboardName}
+				shardResources.MonitoringResources = internal.MonitoringResources{DashboardName: dashboardName}
 			}
 		}
+		conv.Audit.StreamingStats.ShardToShardResourcesMap[dataShardId] = shardResources
 		resourceMutex.Unlock()
 	}
 	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
 	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, dataflowCfg.Location, dataflowCfg.JobName, dfJobId)
 	logger.Log.Info("\n------------------------------------------\n")
-	logger.Log.Info("The Datastream job: " + fullStreamName + " ,the Dataflow job: " + dfJobDetails +
+	logger.Log.Info("The Datastream stream: " + fullStreamName + " ,the Dataflow job: " + dfJobDetails +
 		" the Pubsub topic: " + streamingCfg.PubsubCfg.TopicId + " ,the subscription: " + streamingCfg.PubsubCfg.SubscriptionId +
 		" and the pubsub Notification id:" + streamingCfg.PubsubCfg.NotificationId + " on bucket: " + streamingCfg.PubsubCfg.BucketName +
-		" will have to be manually cleaned up via the UI. Spanner migration tool will not delete them post completion of the migration.")
+		" can be cleaned up by using the UI if you have it open. Otherwise, you can use the cleanup CLI command and supply the migrationjobId" +
+		" generated by Spanner migration tool. You can find the migrationJobId in the logs or in the 'spannermigrationtool_metadata'" +
+		" database in your spanner instance. If migrationJobId is not stored due to an error, you will have to clean up the resources manually.")
 }
 
 func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
@@ -883,7 +808,37 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 	return streamingCfg
 }
 
-func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, tableList []string) (StreamingCfg, error) {
+// Maps Project-Id to ProjectNumber.
+var ProjectNumberResourceCache sync.Map
+
+// Returns a string that encodes the project number like `projects/12345`
+func GetProjectNumberResource(ctx context.Context, projectID string) string {
+	projectNumberResource, found := ProjectNumberResourceCache.Load(projectID)
+	if found {
+		return projectNumberResource.(string)
+	}
+
+	rmClient, err := resourcemanager.NewProjectsClient(ctx)
+	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("Could not create resourcemanager client to query project number. Defaulting to ProjectId=%s. error=%v",
+			projectID, err))
+		return projectID
+	}
+	defer rmClient.Close()
+	req := resourcemanagerpb.GetProjectRequest{Name: projectID}
+	project, err := rmClient.GetProject(ctx, &req)
+	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("Could not query resourcemanager to get project number. Defaulting to ProjectId=%s. error=%v",
+			projectID, err))
+		return projectID
+	}
+	projectNumberResource = project.GetName()
+	ProjectNumberResourceCache.Store(projectID, projectNumberResource)
+	return projectNumberResource.(string)
+
+}
+
+func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, schemaDetails map[string]internal.SchemaDetails) (StreamingCfg, error) {
 	driver := sourceProfile.Driver
 	var dbList []profiles.LogicalShard
 	switch driver {

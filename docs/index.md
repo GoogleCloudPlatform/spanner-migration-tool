@@ -44,6 +44,10 @@ It can also be used to do small scale on-prem POC migrations to get a feel of Sp
 
 To launch reverse replication, refer details [here](./reverse-replication/ReverseReplication.md).
 
+### Monitoring Dashboards
+
+To find out how to monitor your migration, refer [here](./monitoring/MonitoringUserGuide.md).
+
 ## Supported Sources and Targets
 
 - **Schema Migrations**: SMT supports schema migrations for MySQL, PostgreSQL, SQLServer and Oracle.

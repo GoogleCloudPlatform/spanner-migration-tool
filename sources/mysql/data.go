@@ -115,7 +115,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 	// We do not expect mysqldump to generate such output.
 	switch spannerType.Name {
 	case ddl.Bool:
-		return convBool(conv, val)
+		return convBool(conv, spannerType, srcTypeName, val)
 	case ddl.Bytes:
 		return convBytes(val)
 	case ddl.Date:
@@ -137,9 +137,22 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 	}
 }
 
-func convBool(conv *internal.Conv, val string) (bool, error) {
+func convBool(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, val string) (bool, error) {
 	b, err := strconv.ParseBool(val)
 	if err != nil {
+
+		if srcTypeName == "bit" {
+			// To handle scenarios where bit is used to store boolean
+			// zero treated as false
+			// one treated as true
+			switch val {
+			case "\x00":
+				return false, nil
+			case "\x01":
+				return true, nil
+			}
+		}
+
 		// MySQL uses TINYINT(1) to implement BOOL/BOOLEAN, and does not
 		// enforce/validate boolean values i.e. any value that can be stored
 		// in a TINYINT (-128 to 127) can be stored in BOOL/BOOLEAN.

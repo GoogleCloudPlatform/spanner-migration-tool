@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Permissions and Connectivity
-nav_order: 3
+nav_order: 4
 description: "Permissions and connectivity required to run SMT"
 ---
 
@@ -146,18 +146,19 @@ Additionally, we need to grant Pub/Sub publisher permission to GCS service agent
    gcloud projects add-iam-policy-binding PROJECT_ID --member=serviceAccount:<GCS_SERVICE_ACCOUNT_ID> --role=roles/pubsub.publisher
   ```
 
+### Cloud Monitoring
+
+To create the monitoring dashboard granting **Monitoring Editor** to the service account is required. To view the dashboard on Cloud Console the user must have **Monitoring Viewer** permission. To edit the Dashboard **Monitoring Editor** permission is required. For further information follow [this guide](https://cloud.google.com/monitoring/access-control).
+
 ### Other Permissions
 
 In addition to these, the `DatastreamToSpanner` pipeline created by SMT requires
 the following roles as well:
 
 - Dataflow service account:
-  - GCS Bucket Lister
   - Storage Object Creator
-  - GCS Object Lister
   - Storage Object Viewer
 - Dataflow compute engine service account:
-  - Datastream Viewer role
   - Cloud Spanner Database user
   - Cloud Spanner Restore Admin
   - Cloud Spanner Viewer

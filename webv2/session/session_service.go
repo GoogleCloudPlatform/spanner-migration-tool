@@ -62,9 +62,9 @@ func SetSessionStorageConnectionState(projectId string, spInstanceId string) (bo
 		sessionState.IsOffline = true
 		return false, false
 	} else {
-		if isExist, isDbCreated := helpers.CheckOrCreateMetadataDb(projectId, spInstanceId); isExist {
+		if isDbCreated := helpers.CheckOrCreateMetadataDb(projectId, spInstanceId); isDbCreated {
 			sessionState.IsOffline = false
-			isConfigValid := isExist || isDbCreated
+			isConfigValid := isDbCreated
 			migrateMetadataDb(projectId, spInstanceId)
 			return isDbCreated, isConfigValid
 		} else {
