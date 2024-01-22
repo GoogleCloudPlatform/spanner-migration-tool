@@ -24,35 +24,39 @@ import (
 // Table structs - These structs map to the Spanner metadata tables
 
 // Stores the migration job level data post orchestration of a migration job
-type SmtJobs struct {
+type SmtJob struct {
 	JobId               string
 	JobName             string
 	JobType             string
+	JobStateData        string
 	JobData             string
 	Dialect             string
 	SpannerDatabaseName string
 	CreatedAt           time.Time
+	UpdatedAt           time.Time
 }
 
 // Stores the resource level execution data post orchestration of a migration job
-type SmtResources struct {
-	ResourceId   string
-	JobId        string
-	ExternalId   string
-	ResourceName string
-	ResourceType string
-	ResourceData string
-	CreatedAt    time.Time
+type SmtResource struct {
+	ResourceId        string
+	JobId             string
+	ExternalId        string
+	ResourceName      string
+	ResourceType      string
+	ResourceStateData string
+	ResourceData      string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 // Storage structs - these structs map to JSON data stored inside the metadata
 
 type MinimaldowntimeJobData struct {
 	IsSharded bool
-	Session *internal.Conv
+	Session   *internal.Conv
 }
 
 type MinimalDowntimeResourceData struct {
-	DataShardId string
+	DataShardId     string
 	ResourcePayload string
 }
