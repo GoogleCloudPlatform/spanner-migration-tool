@@ -11,4 +11,90 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package dataflowclient_test
+package dataflowclient
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"sync"
+	"testing"
+
+	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"google.golang.org/api/option"
+)
+
+func init() {
+	logger.Log = zap.NewNop()
+}
+
+func TestMain(m *testing.M) {
+	res := m.Run()
+	os.Exit(res)
+}
+
+func resetTest() {
+	dfClient = nil
+	once = sync.Once{}
+}
+
+func TestGetOrCreateClient_Basic(t *testing.T) {
+	resetTest()
+	ctx := context.Background()
+	c, err := GetOrCreateClient(ctx)
+	assert.NotNil(t, c)
+	assert.Nil(t, err)
+}
+
+func TestGetOrCreateClient_OnlyOnceViaSync(t *testing.T) {
+	resetTest()
+	ctx := context.Background()
+	c, err := GetOrCreateClient(ctx)
+	assert.NotNil(t, c)
+	assert.Nil(t, err)
+	dfClient = nil
+
+	oldFunc := newFlexTemplatesClient
+	defer func() { newFlexTemplatesClient = oldFunc }()
+	newFlexTemplatesClient = func(ctx context.Context, opts ...option.ClientOption) (*dataflow.FlexTemplatesClient, error) {
+		return nil, fmt.Errorf("test error")
+	}
+	c, err = GetOrCreateClient(ctx)
+	assert.Nil(t, c)
+	assert.Nil(t, err)
+}
+
+func TestGetOrCreateClient_OnlyOnceViaIf(t *testing.T) {
+	resetTest()
+	ctx := context.Background()
+	oldC, err := GetOrCreateClient(ctx)
+	assert.NotNil(t, oldC)
+	assert.Nil(t, err)
+
+	once = sync.Once{}
+	oldFunc := newFlexTemplatesClient
+	defer func() { newFlexTemplatesClient = oldFunc }()
+	newFlexTemplatesClient = func(ctx context.Context, opts ...option.ClientOption) (*dataflow.FlexTemplatesClient, error) {
+		return nil, fmt.Errorf("test error")
+	}
+	newC, err := GetOrCreateClient(ctx)
+	assert.Equal(t, oldC, newC)
+	assert.Nil(t, err)
+}
+
+func TestGetOrCreateClient_Error(t *testing.T) {
+	resetTest()
+	ctx := context.Background()
+	oldFunc := newFlexTemplatesClient
+	defer func() { newFlexTemplatesClient = oldFunc }()
+
+	newFlexTemplatesClient = func(ctx context.Context, opts ...option.ClientOption) (*dataflow.FlexTemplatesClient, error) {
+		return nil, fmt.Errorf("test error")
+	}
+	c, err := GetOrCreateClient(ctx)
+	assert.Nil(t, c)
+	assert.NotNil(t, err)
+}

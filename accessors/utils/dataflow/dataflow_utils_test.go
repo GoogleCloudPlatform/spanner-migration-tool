@@ -4,18 +4,14 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// TODO: Refactor this file and other integration tests by moving all common code
-// to remove redundancy.
-
-package dataflowutils_test
+package dataflowutils
 
 import (
 	"os"
@@ -23,7 +19,6 @@ import (
 
 	"cloud.google.com/go/dataflow/apiv1beta3/dataflowpb"
 	dataflowaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/dataflow"
-	dataflowutils "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/utils/dataflow"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -100,7 +95,7 @@ func getTemplateDfRequest1() *dataflowpb.LaunchFlexTemplateRequest {
 func TestGetDataflowLaunchRequestBasic(t *testing.T) {
 	params := getParameters()
 	cfg := getTuningConfig()
-	actual, err := dataflowutils.GetDataflowLaunchRequest(params, cfg)
+	actual, err := GetDataflowLaunchRequest(params, cfg)
 	if err != nil {
 		t.Fail()
 	}
@@ -112,7 +107,7 @@ func TestGetDataflowLaunchRequestMissingVpcHost(t *testing.T) {
 	params := getParameters()
 	cfg := getTuningConfig()
 	cfg.VpcHostProjectId = ""
-	_, err := dataflowutils.GetDataflowLaunchRequest(params, cfg)
+	_, err := GetDataflowLaunchRequest(params, cfg)
 	assert.True(t, err != nil)
 }
 
@@ -120,7 +115,7 @@ func TestGetDataflowLaunchRequestNameToLowerCase(t *testing.T) {
 	params := getParameters()
 	cfg := getTuningConfig()
 	cfg.JobName = "CAPITalJobName"
-	actual, err := dataflowutils.GetDataflowLaunchRequest(params, cfg)
+	actual, err := GetDataflowLaunchRequest(params, cfg)
 	if err != nil {
 		t.Fail()
 	}
@@ -178,7 +173,7 @@ func TestGcloudCmdWithAllParams(t *testing.T) {
 		"directoryWatchDurationInMinutes=480,inputFilePattern=gs://inputFilePattern," +
 		"instanceId=my-instance,sessionFilePath=gs://session.json,streamName=my-stream," +
 		"transformationContextFilePath=gs://transformationContext.json"
-	assert.Equal(t, expectedCmd, dataflowutils.GetGcloudDataflowCommand(req))
+	assert.Equal(t, expectedCmd, GetGcloudDataflowCommand(req))
 }
 
 func TestGcloudCmdWithPartialParams(t *testing.T) {
@@ -203,7 +198,7 @@ func TestGcloudCmdWithPartialParams(t *testing.T) {
 		"--dataflow-kms-key sample-kms-key " +
 		"--worker-zone test-worker-zone " +
 		"--staging-location gs://staging-location"
-	assert.Equal(t, expectedCmd, dataflowutils.GetGcloudDataflowCommand(req))
+	assert.Equal(t, expectedCmd, GetGcloudDataflowCommand(req))
 }
 
 func EquateLaunchFlexTemplateRequest(df1 *dataflowpb.LaunchFlexTemplateRequest, df2 *dataflowpb.LaunchFlexTemplateRequest) bool {

@@ -23,12 +23,13 @@ import (
 
 var once sync.Once
 var dfClient *dataflow.FlexTemplatesClient
+var newFlexTemplatesClient = dataflow.NewFlexTemplatesClient
 
 func GetOrCreateClient(ctx context.Context) (*dataflow.FlexTemplatesClient, error) {
 	var err error
 	if dfClient == nil {
 		once.Do(func() {
-			dfClient, err = dataflow.NewFlexTemplatesClient(ctx)
+			dfClient, err = newFlexTemplatesClient(ctx)
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create dataflow client: %v", err)
