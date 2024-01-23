@@ -50,12 +50,8 @@ func GetDatabaseDialect(ctx context.Context, dbURI string) (string, error) {
 func CheckExistingDb(ctx context.Context, dbURI string) (bool, error) {
 	gotResponse := make(chan bool)
 	var err error
-	adminClient, err := spanneradmin.GetOrCreateClient(ctx)
-	if err != nil {
-		return false, err
-	}
 	go func() {
-		_, err = adminClient.GetDatabase(ctx, &databasepb.GetDatabaseRequest{Name: dbURI})
+		_, err = GetDatabase(ctx, dbURI)
 		gotResponse <- true
 	}()
 	for {
@@ -122,12 +118,11 @@ func CheckIfChangeStreamExists(ctx context.Context, changeStreamName, dbURI stri
 		return false, err
 	}
 	stmt := spanner.Statement{
-		SQL: `SELECT * FROM information_schema.change_streams`,
+		SQL: `SELECT CHANGE_STREAM_NAME FROM information_schema.change_streams`,
 	}
 	iter := spClient.Single().Query(ctx, stmt)
 	defer iter.Stop()
-	var cs_catalog, cs_schema, cs_name string
-	var coversAll bool
+	var cs_name string
 	csExists := false
 	for {
 		row, err := iter.Next()
@@ -137,7 +132,7 @@ func CheckIfChangeStreamExists(ctx context.Context, changeStreamName, dbURI stri
 		if err != nil {
 			return false, fmt.Errorf("couldn't read row from change_streams table: %w", err)
 		}
-		err = row.Columns(&cs_catalog, &cs_schema, &cs_name, &coversAll)
+		err = row.Columns(&cs_name)
 		if err != nil {
 			return false, fmt.Errorf("can't scan row from change_streams table: %v", err)
 		}
@@ -189,7 +184,7 @@ func CreateChangeStream(ctx context.Context, changeStreamName, dbURI string) err
 	op, err := spClient.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{
 		Database: dbURI,
 		// TODO: create change stream for only the tables present in Spanner.
-		Statements: []string{fmt.Sprintf("CREATE CHANGE STREAM %s FOR ALL OPTIONS (value_capture_type = 'NEW_ROW')", changeStreamName)},
+		Statements: []string{fmt.Sprintf("CREATE CHANGE STREAM %s FOR ALL OPTIONS (value_capture_type = 'NEW_ROW', retention_period = '7d')", changeStreamName)},
 	})
 	if err != nil {
 		return fmt.Errorf("cannot submit request create change stream request: %v", err)

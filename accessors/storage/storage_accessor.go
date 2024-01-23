@@ -75,7 +75,7 @@ func createGCSBucketUtil(ctx context.Context, bucketName, projectID, location st
 		}
 
 	} else {
-		fmt.Printf("Created new GCS bucket: %v\n", bucketName)
+		logger.Log.Info(fmt.Sprintf("Created new GCS bucket: %v\n", bucketName))
 	}
 	return nil
 }
@@ -143,10 +143,14 @@ func WriteDataToGCS(ctx context.Context, filePath, fileName, data string) error 
 	obj := bucket.Object(u.Path[1:] + fileName)
 
 	w := obj.NewWriter(ctx)
-	if _, err := fmt.Fprint(w, data); err != nil {
+	logger.Log.Info(fmt.Sprintf("Writing data to %s", filePath))
+	n, err := fmt.Fprint(w, data)
+	if err != nil {
 		fmt.Printf("Failed to write to Cloud Storage: %s", filePath)
 		return err
 	}
+	logger.Log.Info(fmt.Sprintf("Wrote %d bytes to GCS", n))
+
 	if err := w.Close(); err != nil {
 		fmt.Printf("Failed to close GCS file: %s", filePath)
 		return err
@@ -174,9 +178,12 @@ func ReadGcsFile(ctx context.Context, filePath string) (string, error) {
 	}
 	defer rc.Close()
 	buf := new(strings.Builder)
-	if _, err := io.Copy(buf, rc); err != nil {
+	logger.Log.Info(fmt.Sprintf("Reading from %s", filePath))
+	n, err := io.Copy(buf, rc)
+	if err != nil {
 		return "", err
 	}
+	logger.Log.Info(fmt.Sprintf("Read %d bytes", n))
 	return buf.String(), nil
 }
 
