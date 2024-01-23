@@ -44,6 +44,11 @@ func resetTest() {
 func TestGetOrCreateClient_Basic(t *testing.T) {
 	resetTest()
 	ctx := context.Background()
+	oldFunc := newFlexTemplatesClient
+	defer func() { newFlexTemplatesClient = oldFunc }()
+	newFlexTemplatesClient = func(ctx context.Context, opts ...option.ClientOption) (*dataflow.FlexTemplatesClient, error) {
+		return &dataflow.FlexTemplatesClient{}, nil
+	}
 	c, err := GetOrCreateClient(ctx)
 	assert.NotNil(t, c)
 	assert.Nil(t, err)
@@ -52,13 +57,17 @@ func TestGetOrCreateClient_Basic(t *testing.T) {
 func TestGetOrCreateClient_OnlyOnceViaSync(t *testing.T) {
 	resetTest()
 	ctx := context.Background()
+	oldFunc := newFlexTemplatesClient
+	defer func() { newFlexTemplatesClient = oldFunc }()
+
+	newFlexTemplatesClient = func(ctx context.Context, opts ...option.ClientOption) (*dataflow.FlexTemplatesClient, error) {
+		return &dataflow.FlexTemplatesClient{}, nil
+	}
 	c, err := GetOrCreateClient(ctx)
 	assert.NotNil(t, c)
 	assert.Nil(t, err)
 	dfClient = nil
 
-	oldFunc := newFlexTemplatesClient
-	defer func() { newFlexTemplatesClient = oldFunc }()
 	newFlexTemplatesClient = func(ctx context.Context, opts ...option.ClientOption) (*dataflow.FlexTemplatesClient, error) {
 		return nil, fmt.Errorf("test error")
 	}
@@ -70,13 +79,17 @@ func TestGetOrCreateClient_OnlyOnceViaSync(t *testing.T) {
 func TestGetOrCreateClient_OnlyOnceViaIf(t *testing.T) {
 	resetTest()
 	ctx := context.Background()
+	oldFunc := newFlexTemplatesClient
+	defer func() { newFlexTemplatesClient = oldFunc }()
+
+	newFlexTemplatesClient = func(ctx context.Context, opts ...option.ClientOption) (*dataflow.FlexTemplatesClient, error) {
+		return &dataflow.FlexTemplatesClient{}, nil
+	}
 	oldC, err := GetOrCreateClient(ctx)
 	assert.NotNil(t, oldC)
 	assert.Nil(t, err)
 
 	once = sync.Once{}
-	oldFunc := newFlexTemplatesClient
-	defer func() { newFlexTemplatesClient = oldFunc }()
 	newFlexTemplatesClient = func(ctx context.Context, opts ...option.ClientOption) (*dataflow.FlexTemplatesClient, error) {
 		return nil, fmt.Errorf("test error")
 	}
