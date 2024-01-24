@@ -23,6 +23,10 @@ import (
 	"github.com/googleapis/gax-go/v2"
 )
 
+type DataflowAccessor interface {
+	LaunchFlexTemplate(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error)
+}
+
 type DataflowAccessorImpl struct{}
 
 func (dfA DataflowAccessorImpl) LaunchFlexTemplate(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error) {
