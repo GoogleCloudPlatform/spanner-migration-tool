@@ -40,15 +40,15 @@ type StorageAccessor interface {
 
 type StorageAccessorImpl struct{}
 
-func (sa StorageAccessorImpl) CreateGCSBucket(ctx context.Context, bucketName, projectID, location string) error {
+func (sa *StorageAccessorImpl) CreateGCSBucket(ctx context.Context, bucketName, projectID, location string) error {
 	return sa.createGCSBucketUtil(ctx, bucketName, projectID, location, nil, 0)
 }
 
-func (sa StorageAccessorImpl) CreateGCSBucketWithLifecycle(ctx context.Context, bucketName, projectID, location string, matchesPrefix []string, ttl int64) error {
+func (sa *StorageAccessorImpl) CreateGCSBucketWithLifecycle(ctx context.Context, bucketName, projectID, location string, matchesPrefix []string, ttl int64) error {
 	return sa.createGCSBucketUtil(ctx, bucketName, projectID, location, matchesPrefix, ttl)
 }
 
-func (sa StorageAccessorImpl) createGCSBucketUtil(ctx context.Context, bucketName, projectID, location string, matchesPrefix []string, ttl int64) error {
+func (sa *StorageAccessorImpl) createGCSBucketUtil(ctx context.Context, bucketName, projectID, location string, matchesPrefix []string, ttl int64) error {
 	client, err := storageclient.GetOrCreateClient(ctx)
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func (sa StorageAccessorImpl) createGCSBucketUtil(ctx context.Context, bucketNam
 // Applies the bucket lifecycle with delete rule. Only accepts the Age and
 // prefix rule conditions as it is only used for the Datastream destination
 // bucket currently.
-func (sa StorageAccessorImpl) EnableBucketLifecycleDeleteRule(ctx context.Context, bucketName string, matchesPrefix []string, ttl int64) error {
+func (sa *StorageAccessorImpl) EnableBucketLifecycleDeleteRule(ctx context.Context, bucketName string, matchesPrefix []string, ttl int64) error {
 	client, err := storageclient.GetOrCreateClient(ctx)
 	if err != nil {
 		return fmt.Errorf("could not create client while enabling lifecycle: %w", err)
@@ -132,7 +132,7 @@ func (sa StorageAccessorImpl) EnableBucketLifecycleDeleteRule(ctx context.Contex
 }
 
 // UploadLocalFileToGCS uploads an object.
-func (sa StorageAccessorImpl) UploadLocalFileToGCS(ctx context.Context, filePath, fileName, localFilePath string) error {
+func (sa *StorageAccessorImpl) UploadLocalFileToGCS(ctx context.Context, filePath, fileName, localFilePath string) error {
 	data, err := os.ReadFile(localFilePath)
 	if err != nil {
 		return fmt.Errorf("could not read file %s: %w", localFilePath, err)
@@ -140,7 +140,7 @@ func (sa StorageAccessorImpl) UploadLocalFileToGCS(ctx context.Context, filePath
 	return sa.WriteDataToGCS(ctx, filePath, fileName, string(data))
 }
 
-func (sa StorageAccessorImpl) WriteDataToGCS(ctx context.Context, filePath, fileName, data string) error {
+func (sa *StorageAccessorImpl) WriteDataToGCS(ctx context.Context, filePath, fileName, data string) error {
 	client, err := storageclient.GetOrCreateClient(ctx)
 	if err != nil {
 		return fmt.Errorf("could not create client while uploading to GCS: %w", err)
@@ -170,7 +170,7 @@ func (sa StorageAccessorImpl) WriteDataToGCS(ctx context.Context, filePath, file
 	return nil
 }
 
-func (sa StorageAccessorImpl) ReadGcsFile(ctx context.Context, filePath string) (string, error) {
+func (sa *StorageAccessorImpl) ReadGcsFile(ctx context.Context, filePath string) (string, error) {
 	client, err := storageclient.GetOrCreateClient(ctx)
 	if err != nil {
 		return "", fmt.Errorf("could not create client: %w", err)
@@ -199,7 +199,7 @@ func (sa StorageAccessorImpl) ReadGcsFile(ctx context.Context, filePath string) 
 	return buf.String(), nil
 }
 
-func (sa StorageAccessorImpl) ReadAnyFile(ctx context.Context, filePath string) (string, error) {
+func (sa *StorageAccessorImpl) ReadAnyFile(ctx context.Context, filePath string) (string, error) {
 	if strings.HasPrefix(filePath, constants.GCS_FILE_PREFIX) {
 		return sa.ReadGcsFile(ctx, filePath)
 	}

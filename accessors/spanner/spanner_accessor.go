@@ -42,7 +42,7 @@ type SpannerAccessor interface {
 
 type SpannerAccessorImpl struct{}
 
-func (sp SpannerAccessorImpl) GetDatabase(ctx context.Context, dbURI string) (*databasepb.Database, error) {
+func (sp *SpannerAccessorImpl) GetDatabase(ctx context.Context, dbURI string) (*databasepb.Database, error) {
 	adminClient, err := spanneradmin.GetOrCreateClient(ctx)
 	if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func (sp SpannerAccessorImpl) GetDatabase(ctx context.Context, dbURI string) (*d
 	return adminClient.GetDatabase(ctx, &databasepb.GetDatabaseRequest{Name: dbURI})
 }
 
-func (sp SpannerAccessorImpl) GetDatabaseDialect(ctx context.Context, dbURI string) (string, error) {
+func (sp *SpannerAccessorImpl) GetDatabaseDialect(ctx context.Context, dbURI string) (string, error) {
 	result, err := sp.GetDatabase(ctx, dbURI)
 	if err != nil {
 		return "", fmt.Errorf("cannot connect to database: %v", err)
@@ -60,7 +60,7 @@ func (sp SpannerAccessorImpl) GetDatabaseDialect(ctx context.Context, dbURI stri
 
 // CheckExistingDb checks whether the database with dbURI exists or not.
 // If API call doesn't respond then user is informed after every 5 minutes on command line.
-func (sp SpannerAccessorImpl) CheckExistingDb(ctx context.Context, dbURI string) (bool, error) {
+func (sp *SpannerAccessorImpl) CheckExistingDb(ctx context.Context, dbURI string) (bool, error) {
 	gotResponse := make(chan bool)
 	var err error
 	go func() {
@@ -83,7 +83,7 @@ func (sp SpannerAccessorImpl) CheckExistingDb(ctx context.Context, dbURI string)
 	}
 }
 
-func (sp SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, dbURI string) error {
+func (sp *SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, dbURI string) error {
 	adminClient, err := spanneradmin.GetOrCreateClient(ctx)
 	if err != nil {
 		return err
@@ -103,7 +103,7 @@ func (sp SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, dbURI str
 	return nil
 }
 
-func (sp SpannerAccessorImpl) GetSpannerLeaderLocation(ctx context.Context, instanceURI string) (string, error) {
+func (sp *SpannerAccessorImpl) GetSpannerLeaderLocation(ctx context.Context, instanceURI string) (string, error) {
 	instanceClient, err := spinstanceadmin.GetOrCreateClient(ctx)
 	if err != nil {
 		return "", err
@@ -125,7 +125,7 @@ func (sp SpannerAccessorImpl) GetSpannerLeaderLocation(ctx context.Context, inst
 	return "", fmt.Errorf("no leader found for spanner instance %s while trying fetch location", instanceURI)
 }
 
-func (sp SpannerAccessorImpl) CheckIfChangeStreamExists(ctx context.Context, changeStreamName, dbURI string) (bool, error) {
+func (sp *SpannerAccessorImpl) CheckIfChangeStreamExists(ctx context.Context, changeStreamName, dbURI string) (bool, error) {
 	spClient, err := spannerclient.GetOrCreateClient(ctx, dbURI)
 	if err != nil {
 		return false, err
@@ -157,7 +157,7 @@ func (sp SpannerAccessorImpl) CheckIfChangeStreamExists(ctx context.Context, cha
 	return csExists, nil
 }
 
-func (sp SpannerAccessorImpl) ValidateChangeStreamOptions(ctx context.Context, changeStreamName, dbURI string) error {
+func (sp *SpannerAccessorImpl) ValidateChangeStreamOptions(ctx context.Context, changeStreamName, dbURI string) error {
 	spClient, err := spannerclient.GetOrCreateClient(ctx, dbURI)
 	if err != nil {
 		return err
@@ -192,7 +192,7 @@ func (sp SpannerAccessorImpl) ValidateChangeStreamOptions(ctx context.Context, c
 	return nil
 }
 
-func (sp SpannerAccessorImpl) CreateChangeStream(ctx context.Context, changeStreamName, dbURI string) error {
+func (sp *SpannerAccessorImpl) CreateChangeStream(ctx context.Context, changeStreamName, dbURI string) error {
 	spClient, _ := spanneradmin.GetOrCreateClient(ctx)
 	op, err := spClient.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{
 		Database: dbURI,

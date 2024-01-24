@@ -11,6 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// This is a package is kept with accessors because some functions import other accessors.
+// The common/utils package should not import any SMT dependency.
 package dataflowutils
 
 import (
@@ -21,8 +24,8 @@ import (
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 )
 
-func UnmarshalDataflowTuningConfig(ctx context.Context, filePath string) (dataflowaccessor.DataflowTuningConfig, error) {
-	jsonStr, err := storageaccessor.ReadAnyFile(ctx, filePath)
+func UnmarshalDataflowTuningConfig(ctx context.Context, sa storageaccessor.StorageAccessor, filePath string) (dataflowaccessor.DataflowTuningConfig, error) {
+	jsonStr, err := sa.ReadAnyFile(ctx, filePath)
 	if err != nil {
 		return dataflowaccessor.DataflowTuningConfig{}, err
 	}
