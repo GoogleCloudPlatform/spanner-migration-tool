@@ -160,7 +160,8 @@ func CheckOrCreateMetadataDb(projectId string, instanceId string) bool {
 	}
 	defer adminClient.Close()
 
-	dbExists, err := spanneraccessor.CheckExistingDb(ctx, uri)
+	spA := spanneraccessor.SpannerAccessorImpl{}
+	dbExists, err := spA.CheckExistingDb(ctx, uri)
 	if err != nil {
 		fmt.Println(err)
 		return false

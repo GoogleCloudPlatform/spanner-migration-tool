@@ -115,9 +115,9 @@ func TestCheckExistingDb(t *testing.T) {
 		{"check-db-exists", true},
 		{"check-db-does-not-exist", false},
 	}
-
+	spA := spanneraccessor.SpannerAccessorImpl{}
 	for _, tc := range testCases {
-		dbExists, err := spanneraccessor.CheckExistingDb(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName))
+		dbExists, err := spA.CheckExistingDb(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName))
 		assert.Nil(t, err)
 		assert.Equal(t, tc.dbExists, dbExists)
 	}

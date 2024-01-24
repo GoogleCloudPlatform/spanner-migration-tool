@@ -802,7 +802,8 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 
 // VerifyDb checks whether the db exists and if it does, verifies if the schema is what we currently support.
 func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (dbExists bool, err error) {
-	dbExists, err = spanneraccessor.CheckExistingDb(ctx, dbURI)
+	spA := spanneraccessor.SpannerAccessorImpl{}
+	dbExists, err = spA.CheckExistingDb(ctx, dbURI)
 	if err != nil {
 		return dbExists, err
 	}

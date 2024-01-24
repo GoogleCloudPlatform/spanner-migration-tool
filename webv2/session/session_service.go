@@ -87,8 +87,9 @@ func migrateMetadataDb(projectId, instanceId string) {
 	}
 	defer adminClient.Close()
 
+	spA := spanneraccessor.SpannerAccessorImpl{}
 	oldMetadataDbUri := getOldMetadataDbUri(projectId, instanceId)
-	oldMetadataDBExists, err := spanneraccessor.CheckExistingDb(ctx, oldMetadataDbUri)
+	oldMetadataDBExists, err := spA.CheckExistingDb(ctx, oldMetadataDbUri)
 	if err != nil {
 		fmt.Printf("could not check if oldMetadataDB exists. error=%v\n", err)
 		return

@@ -179,7 +179,8 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 
 // validateExistingDb validates that the existing spanner schema is in accordance with the one specified in the session file.
 func validateExistingDb(ctx context.Context, spDialect, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, conv *internal.Conv) error {
-	dbExists, err := spanneraccessor.CheckExistingDb(ctx, dbURI)
+	spA := spanneraccessor.SpannerAccessorImpl{}
+	dbExists, err := spA.CheckExistingDb(ctx, dbURI)
 	if err != nil {
 		err = fmt.Errorf("can't verify target database: %v", err)
 		return err
