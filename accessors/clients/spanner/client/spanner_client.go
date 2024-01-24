@@ -24,11 +24,15 @@ import (
 var once sync.Once
 var spannerClient *sp.Client
 
+// This function is declared as a global variable to make it testable. The unit
+// tests edit this function, acting like a double.
+var newClient = sp.NewClient
+
 func GetOrCreateClient(ctx context.Context, dbURI string) (*sp.Client, error) {
 	var err error
-	if spannerClient == nil || spannerClient.DatabaseName() != dbURI {
+	if spannerClient == nil {
 		once.Do(func() {
-			spannerClient, err = sp.NewClient(ctx, dbURI)
+			spannerClient, err = newClient(ctx, dbURI)
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create spanner database client: %v", err)
