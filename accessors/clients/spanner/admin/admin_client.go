@@ -24,11 +24,15 @@ import (
 var once sync.Once
 var spannerAdminClient *database.DatabaseAdminClient
 
+// This function is declared as a global variable to make it testable. The unit
+// tests edit this function, acting like a double.
+var newDatabaseAdminClient = database.NewDatabaseAdminClient
+
 func GetOrCreateClient(ctx context.Context) (*database.DatabaseAdminClient, error) {
 	var err error
 	if spannerAdminClient == nil {
 		once.Do(func() {
-			spannerAdminClient, err = database.NewDatabaseAdminClient(ctx)
+			spannerAdminClient, err = newDatabaseAdminClient(ctx)
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create spanner admin client: %v", err)
