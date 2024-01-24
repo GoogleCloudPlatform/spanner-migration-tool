@@ -861,12 +861,12 @@ func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfi
 }
 
 func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
-
+	sa := storageaccessor.StorageAccessorImpl{}
 	convJSON, err := json.MarshalIndent(conv, "", " ")
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("can't encode session state to JSON: %v", err)
 	}
-	err = storageaccessor.WriteDataToGCS(ctx, streamingCfg.TmpDir, "session.json", string(convJSON))
+	err = sa.WriteDataToGCS(ctx, streamingCfg.TmpDir, "session.json", string(convJSON))
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("error while writing to GCS: %v", err)
 	}
@@ -877,7 +877,7 @@ func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, st
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("failed to compute transformation context: %s", err.Error())
 	}
-	err = storageaccessor.WriteDataToGCS(ctx, streamingCfg.TmpDir, "transformationContext.json", string(transformationContext))
+	err = sa.WriteDataToGCS(ctx, streamingCfg.TmpDir, "transformationContext.json", string(transformationContext))
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("error while writing to GCS: %v", err)
 	}

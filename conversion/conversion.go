@@ -356,8 +356,9 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 
 			// Try to apply lifecycle rule to Datastream destination bucket.
 			gcsConfig := streamingCfg.GcsCfg
+			sa := storageaccessor.StorageAccessorImpl{}
 			if gcsConfig.TtlInDaysSet {
-				err = storageaccessor.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+				err = sa.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
 				if err != nil {
 					logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
 					logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")
@@ -477,8 +478,9 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 
 		// Try to apply lifecycle rule to Datastream destination bucket.
 		gcsConfig := streamingCfg.GcsCfg
+		sa := storageaccessor.StorageAccessorImpl{}
 		if gcsConfig.TtlInDaysSet {
-			err = storageaccessor.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+			err = sa.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
 			if err != nil {
 				logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
 				logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")

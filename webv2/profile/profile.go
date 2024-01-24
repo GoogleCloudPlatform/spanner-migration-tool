@@ -154,6 +154,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		ValidateOnly: details.ValidateOnly,
 	}
 	var bucketName string
+	sa := storageaccessor.StorageAccessorImpl{}
 	if !details.IsSource {
 
 		if sessionState.IsSharded {
@@ -161,7 +162,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		} else {
 			bucketName = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
 		}
-		err = storageaccessor.CreateGCSBucket(ctx, bucketName, sessionState.GCPProjectID, sessionState.Region)
+		err = sa.CreateGCSBucket(ctx, bucketName, sessionState.GCPProjectID, sessionState.Region)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error while creating bucket: %v", err), http.StatusBadRequest)
 			return

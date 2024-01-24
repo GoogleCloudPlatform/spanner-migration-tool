@@ -2486,8 +2486,8 @@ func createConfigFileForShardedBulkMigration(sessionState *session.SessionState,
 }
 
 func writeSessionFile(ctx context.Context, sessionState *session.SessionState) error {
-
-	err := storageaccessor.CreateGCSBucket(ctx, sessionState.Bucket, sessionState.GCPProjectID, sessionState.Region)
+	sa := storageaccessor.StorageAccessorImpl{}
+	err := sa.CreateGCSBucket(ctx, sessionState.Bucket, sessionState.GCPProjectID, sessionState.Region)
 	if err != nil {
 		return fmt.Errorf("error while creating bucket: %v", err)
 	}
@@ -2496,7 +2496,7 @@ func writeSessionFile(ctx context.Context, sessionState *session.SessionState) e
 	if err != nil {
 		return fmt.Errorf("can't encode session state to JSON: %v", err)
 	}
-	err = storageaccessor.WriteDataToGCS(ctx, "gs://"+sessionState.Bucket+sessionState.RootPath, "session.json", string(convJSON))
+	err = sa.WriteDataToGCS(ctx, "gs://"+sessionState.Bucket+sessionState.RootPath, "session.json", string(convJSON))
 	if err != nil {
 		return fmt.Errorf("error while writing to GCS: %v", err)
 	}
