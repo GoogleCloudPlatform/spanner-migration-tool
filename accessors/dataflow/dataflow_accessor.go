@@ -29,7 +29,7 @@ type DataflowAccessor interface {
 
 type DataflowAccessorImpl struct{}
 
-func (dfA DataflowAccessorImpl) LaunchFlexTemplate(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error) {
+func (dfA *DataflowAccessorImpl) LaunchFlexTemplate(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error) {
 	dfClient, err := dataflowclient.GetOrCreateClient(ctx)
 	if err != nil {
 		return nil, err

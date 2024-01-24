@@ -66,8 +66,9 @@ func TestGetOrCreateClient_OnlyOnceViaSync(t *testing.T) {
 	c, err := GetOrCreateClient(ctx)
 	assert.NotNil(t, c)
 	assert.Nil(t, err)
+	// Explicitly set the client to nil. Running GetOrCreateClient should not create a
+	// new client since sync would already be executed.
 	dfClient = nil
-
 	newFlexTemplatesClient = func(ctx context.Context, opts ...option.ClientOption) (*dataflow.FlexTemplatesClient, error) {
 		return nil, fmt.Errorf("test error")
 	}
@@ -89,6 +90,8 @@ func TestGetOrCreateClient_OnlyOnceViaIf(t *testing.T) {
 	assert.NotNil(t, oldC)
 	assert.Nil(t, err)
 
+	// Explicitly reset once. Running GetOrCreateClient should not create a
+	// new client the if condition should prevent it.
 	once = sync.Once{}
 	newFlexTemplatesClient = func(ctx context.Context, opts ...option.ClientOption) (*dataflow.FlexTemplatesClient, error) {
 		return nil, fmt.Errorf("test error")
