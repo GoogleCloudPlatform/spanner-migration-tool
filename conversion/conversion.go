@@ -114,7 +114,7 @@ type ConnectionProfile struct {
 type ConnectionProfileReq struct {
 	ConnectionProfile ConnectionProfile
 	Error             error
-	ctx               context.Context
+	Ctx               context.Context
 }
 
 type CreateMigrationResources interface {

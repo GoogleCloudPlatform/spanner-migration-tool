@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core'
 import IDbConfig, { IDbConfigs } from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
 import IUpdateTable, { IAddColumn, IReviewUpdateTable } from '../../model/update-table'
+import { IResourcesGenerated } from 'src/app/model/verify-json-cfg'
 import IConv, {
   ICreateIndex,
   IForeignKey,
@@ -18,12 +19,13 @@ import IMigrationDetails, { IGeneratedResources, IProgress, ITables } from 'src/
 import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IDatastreamConfig, IGcsConfig, IMigrationProfile } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
 import IStructuredReport from 'src/app/model/structured-report'
+import IVerifyJsonDetails from 'src/app/model/verify-json-cfg'
 
 @Injectable({
   providedIn: 'root',
 })
 export class FetchService {
-  private url: string = window.location.origin
+  private url: string = 'http://localhost:8080' 
   constructor(private http: HttpClient) {}
 
   connectTodb(payload: IDbConfig, dialect: string) {
@@ -153,6 +155,10 @@ export class FetchService {
 
   createConnectionProfile(payload: ICreateConnectionProfileV2) {
     return this.http.post(`${this.url}/CreateConnectionProfile`, payload)
+  }
+
+  verifyJsonConfiguration(data : string):any {
+    return this.http.post<HttpResponse<IResourcesGenerated>>(`${this.url}/VerifyJsonConfiguration`, data)
   }
 
   getSummary() {

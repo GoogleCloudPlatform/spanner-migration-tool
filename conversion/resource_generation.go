@@ -49,7 +49,7 @@ type resourceGenerationInterface interface {
 	getConnProfilesRegion(ctx context.Context, projectId string, region string, dsClient *datastream.Client) ([]string, error)
 	connectionProfileExists(ctx context.Context, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string, dsClient *datastream.Client, s resourceGenerationInterface) (bool, error)
 	getResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool, dsClient *datastream.Client) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error)
-	prepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq]
+	PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq]
 	setConnectionProfileFromRequest(details *ConnectionProfileReq, req *datastreampb.CreateConnectionProfileRequest) error
 	GetSpannerRegion(ctx context.Context, projectId string, instanceName string) (string, error)
 	connectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error
@@ -90,8 +90,8 @@ func (r ResourceGenerationStruct) ValidateResourceGeneration(ctx context.Context
 
 // 1. If destination connection profile needs to be created, creates a gcs bucket
 // 2. Creates the connection profile needed for migration
-func (r ResourceGenerationStruct) prepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq] {
-	dsClient, err := datastream.NewClient(createResourceData.ctx)
+func (r ResourceGenerationStruct) PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq] {
+	dsClient, err := datastream.NewClient(createResourceData.Ctx)
 	if err != nil {
 		createResourceData.Error = err
 		return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: err}
@@ -124,23 +124,23 @@ func (r ResourceGenerationStruct) prepareMinimalDowntimeResources(createResource
 	r.setConnectionProfileFromRequest(createResourceData, req)
 
 	// Create or Validate Resource
-	op, err := dsClient.CreateConnectionProfile(createResourceData.ctx, req)
+	op, err := dsClient.CreateConnectionProfile(createResourceData.Ctx, req)
 	if err != nil {
 		createResourceData.Error = err
 		return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: err}
 	}
-	_, err = op.Wait(createResourceData.ctx)
+	_, err = op.Wait(createResourceData.Ctx)
 	if err != nil {
 		createResourceData.Error = err
 		return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: err}
 	}
 
 	if !createResourceData.ConnectionProfile.ValidateOnly {
-		fmt.Printf("Connection Profile for Datashard id %v has been created: %v\n", createResourceData.ConnectionProfile.DatashardId, createResourceData.ConnectionProfile.Id)
+		fmt.Printf("Connection Profile for Datashard %v has been created: %v\n", createResourceData.ConnectionProfile.DatashardId, createResourceData.ConnectionProfile.Id)
 		// In case of failure, add resources to be cleaned up
 		resourcesForCleanup = append(resourcesForCleanup, createResourceData)
 	} else {
-		fmt.Printf("Connection Profile for Datashard id %v has been validated: %v\n", createResourceData.ConnectionProfile.DatashardId, createResourceData.ConnectionProfile.Id)
+		fmt.Printf("Connection Profile for Datashard %v has been validated: %v\n", createResourceData.ConnectionProfile.DatashardId, createResourceData.ConnectionProfile.Id)
 	}
 
 	return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: nil}
@@ -320,7 +320,7 @@ func (r *ResourceGenerationStruct) getResourcesForCreation(ctx context.Context, 
 					User:         profile.SrcConnectionProfile.User,
 					Region:       profile.SrcConnectionProfile.Location,
 					ValidateOnly: validateOnly},
-				ctx: ctx,
+				Ctx: ctx,
 			})
 		}
 		if !dstProfileExists && !validateOnly {
@@ -339,9 +339,8 @@ func (r *ResourceGenerationStruct) getResourcesForCreation(ctx context.Context, 
 					Id:           id,
 					IsSource:     false,
 					Region:       profile.DstConnectionProfile.Location,
-					BucketName:   "GCS-" + uuid.New().String(),
 					ValidateOnly: false},
-				ctx: ctx,
+				Ctx: ctx,
 			})
 		}
 	}
@@ -371,7 +370,7 @@ func (r ResourceGenerationStruct) CreateResourcesForShardedMigration(ctx context
 	var errorsList []error = []error{}
 
 	// Create or validate source connection profiles in parallel threads
-	resSourceProfiles, resCreationErr := common.RunParallelTasks(sourceProfilesToCreate, 20, r.prepareMinimalDowntimeResources, fastExit)
+	resSourceProfiles, resCreationErr := common.RunParallelTasks(sourceProfilesToCreate, 20, r.PrepareMinimalDowntimeResources, fastExit)
 	// If creation failed, perform cleanup of resources
 	if resCreationErr != nil && !validateOnly {
 		err = r.connectionProfileCleanUp(ctx, resourcesForCleanup)
@@ -392,7 +391,7 @@ func (r ResourceGenerationStruct) CreateResourcesForShardedMigration(ctx context
 
 	// Create destination connection profiles in parallel threads
 	if !validateOnly {
-		_, resCreationErr := common.RunParallelTasks(dstProfilesToCreate, 20, r.prepareMinimalDowntimeResources, fastExit)
+		_, resCreationErr := common.RunParallelTasks(dstProfilesToCreate, 20, r.PrepareMinimalDowntimeResources, fastExit)
 		if resCreationErr != nil {
 			err = r.connectionProfileCleanUp(ctx, resourcesForCleanup)
 			if err != nil {

@@ -551,4 +551,20 @@ export class DataService {
       },
     })
   }
+
+  verifyJsonCfg(configuration : string): Observable<string> {
+    return this.fetch.verifyJsonConfiguration(configuration).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data: any) => {
+        if (data.error) {
+          return data.error
+        } else {
+          return ''
+        }
+      })
+    )
+  }
 }
