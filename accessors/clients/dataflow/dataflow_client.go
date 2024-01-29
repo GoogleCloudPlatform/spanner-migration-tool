@@ -19,7 +19,13 @@ import (
 	"sync"
 
 	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
+	"cloud.google.com/go/dataflow/apiv1beta3/dataflowpb"
+	"github.com/googleapis/gax-go/v2"
 )
+
+type DataflowClient interface {
+	LaunchFlexTemplate(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error)
+}
 
 var once sync.Once
 var dfClient *dataflow.FlexTemplatesClient

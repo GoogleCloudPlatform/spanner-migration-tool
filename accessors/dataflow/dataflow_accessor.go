@@ -28,21 +28,17 @@ import (
 type DataflowAccessor interface {
 	// This function takes the template parameters (@parameters) and runtime environment config (@cfg) as input, and returns
 	// the generated jobId, equivalentGcloudCommand and error if any.
-	LaunchFlexTemplate(ctx context.Context, parameters map[string]string, cfg DataflowTuningConfig) (string, string, error)
+	LaunchFlexTemplate(ctx context.Context, c dataflowclient.DataflowClient, parameters map[string]string, cfg DataflowTuningConfig) (string, string, error)
 }
 
 type DataflowAccessorImpl struct{}
 
-func (dfA *DataflowAccessorImpl) LaunchFlexTemplate(ctx context.Context, parameters map[string]string, cfg DataflowTuningConfig) (string, string, error) {
-	dfClient, err := dataflowclient.GetOrCreateClient(ctx)
-	if err != nil {
-		return "", "", err
-	}
+func (dfA *DataflowAccessorImpl) LaunchDataflowTemplate(ctx context.Context, c dataflowclient.DataflowClient, parameters map[string]string, cfg DataflowTuningConfig) (string, string, error) {
 	req, err := getDataflowLaunchRequest(parameters, cfg)
 	if err != nil {
 		return "", "", err
 	}
-	respDf, err := dfClient.LaunchFlexTemplate(ctx, req)
+	respDf, err := c.LaunchFlexTemplate(ctx, req)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("flexTemplateRequest: %+v\n", req))
 		return "", "", fmt.Errorf("error launching dataflow template: %v", err)
