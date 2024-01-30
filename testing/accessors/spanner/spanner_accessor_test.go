@@ -28,6 +28,7 @@ import (
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
+	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
@@ -115,9 +116,13 @@ func TestCheckExistingDb(t *testing.T) {
 		{"check-db-exists", true},
 		{"check-db-does-not-exist", false},
 	}
+	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	spA := spanneraccessor.SpannerAccessorImpl{}
 	for _, tc := range testCases {
-		dbExists, err := spA.CheckExistingDb(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName))
+		dbExists, err := spA.CheckExistingDb(ctx, adminClientImpl, fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName))
 		assert.Nil(t, err)
 		assert.Equal(t, tc.dbExists, dbExists)
 	}

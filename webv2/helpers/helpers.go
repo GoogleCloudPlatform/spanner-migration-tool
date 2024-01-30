@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
@@ -153,15 +154,14 @@ func CheckOrCreateMetadataDb(projectId string, instanceId string) bool {
 	}
 
 	ctx := context.Background()
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 	if err != nil {
 		fmt.Println(err)
 		return false
 	}
-	defer adminClient.Close()
 
 	spA := spanneraccessor.SpannerAccessorImpl{}
-	dbExists, err := spA.CheckExistingDb(ctx, uri)
+	dbExists, err := spA.CheckExistingDb(ctx, adminClientImpl, uri)
 	if err != nil {
 		fmt.Println(err)
 		return false

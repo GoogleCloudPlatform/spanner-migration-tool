@@ -30,28 +30,19 @@ import (
 )
 
 type SpannerAccessor interface {
-	GetDatabase(ctx context.Context, dbURI string) (*databasepb.Database, error)
-	GetDatabaseDialect(ctx context.Context, dbURI string) (string, error)
-	CheckExistingDb(ctx context.Context, dbURI string) (bool, error)
-	CreateEmptyDatabase(ctx context.Context, dbURI string) error
-	GetSpannerLeaderLocation(ctx context.Context, instanceURI string) (string, error)
+	GetDatabaseDialect(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (string, error)
+	CheckExistingDb(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (bool, error)
+	CreateEmptyDatabase(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) error
+	GetSpannerLeaderLocation(ctx context.Context, instanceClient spinstanceadmin.InstanceAdminClient, instanceURI string) (string, error)
 	CheckIfChangeStreamExists(ctx context.Context, changeStreamName, dbURI string) (bool, error)
 	ValidateChangeStreamOptions(ctx context.Context, changeStreamName, dbURI string) error
-	CreateChangeStream(ctx context.Context, changeStreamName, dbURI string) error
+	CreateChangeStream(ctx context.Context, adminClient spanneradmin.AdminClient, changeStreamName, dbURI string) error
 }
 
 type SpannerAccessorImpl struct{}
 
-func (sp *SpannerAccessorImpl) GetDatabase(ctx context.Context, dbURI string) (*databasepb.Database, error) {
-	adminClient, err := spanneradmin.GetOrCreateClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return adminClient.GetDatabase(ctx, &databasepb.GetDatabaseRequest{Name: dbURI})
-}
-
-func (sp *SpannerAccessorImpl) GetDatabaseDialect(ctx context.Context, dbURI string) (string, error) {
-	result, err := sp.GetDatabase(ctx, dbURI)
+func (sp *SpannerAccessorImpl) GetDatabaseDialect(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (string, error) {
+	result, err := adminClient.GetDatabase(ctx, &databasepb.GetDatabaseRequest{Name: dbURI})
 	if err != nil {
 		return "", fmt.Errorf("cannot connect to database: %v", err)
 	}
@@ -60,11 +51,11 @@ func (sp *SpannerAccessorImpl) GetDatabaseDialect(ctx context.Context, dbURI str
 
 // CheckExistingDb checks whether the database with dbURI exists or not.
 // If API call doesn't respond then user is informed after every 5 minutes on command line.
-func (sp *SpannerAccessorImpl) CheckExistingDb(ctx context.Context, dbURI string) (bool, error) {
+func (sp *SpannerAccessorImpl) CheckExistingDb(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (bool, error) {
 	gotResponse := make(chan bool)
 	var err error
 	go func() {
-		_, err = sp.GetDatabase(ctx, dbURI)
+		_, err = adminClient.GetDatabase(ctx, &databasepb.GetDatabaseRequest{Name: dbURI})
 		gotResponse <- true
 	}()
 	for {
@@ -83,11 +74,7 @@ func (sp *SpannerAccessorImpl) CheckExistingDb(ctx context.Context, dbURI string
 	}
 }
 
-func (sp *SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, dbURI string) error {
-	adminClient, err := spanneradmin.GetOrCreateClient(ctx)
-	if err != nil {
-		return err
-	}
+func (sp *SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) error {
 	project, instance, dbName := utils.ParseDbURI(dbURI)
 	req := &databasepb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
@@ -103,11 +90,7 @@ func (sp *SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, dbURI st
 	return nil
 }
 
-func (sp *SpannerAccessorImpl) GetSpannerLeaderLocation(ctx context.Context, instanceURI string) (string, error) {
-	instanceClient, err := spinstanceadmin.GetOrCreateClient(ctx)
-	if err != nil {
-		return "", err
-	}
+func (sp *SpannerAccessorImpl) GetSpannerLeaderLocation(ctx context.Context, instanceClient spinstanceadmin.InstanceAdminClient, instanceURI string) (string, error) {
 	instanceInfo, err := instanceClient.GetInstance(ctx, &instancepb.GetInstanceRequest{Name: instanceURI})
 	if err != nil {
 		return "", err
@@ -192,9 +175,8 @@ func (sp *SpannerAccessorImpl) ValidateChangeStreamOptions(ctx context.Context, 
 	return nil
 }
 
-func (sp *SpannerAccessorImpl) CreateChangeStream(ctx context.Context, changeStreamName, dbURI string) error {
-	spClient, _ := spanneradmin.GetOrCreateClient(ctx)
-	op, err := spClient.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{
+func (sp *SpannerAccessorImpl) CreateChangeStream(ctx context.Context, adminClient spanneradmin.AdminClient, changeStreamName, dbURI string) error {
+	op, err := adminClient.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{
 		Database: dbURI,
 		// TODO: create change stream for only the tables present in Spanner.
 		Statements: []string{fmt.Sprintf("CREATE CHANGE STREAM %s FOR ALL OPTIONS (value_capture_type = 'NEW_ROW', retention_period = '7d')", changeStreamName)},

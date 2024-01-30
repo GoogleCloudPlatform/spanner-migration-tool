@@ -19,6 +19,8 @@ import (
 	"sync"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
+	"github.com/googleapis/gax-go/v2"
 )
 
 var once sync.Once
@@ -40,4 +42,66 @@ func GetOrCreateClient(ctx context.Context) (*database.DatabaseAdminClient, erro
 		return spannerAdminClient, nil
 	}
 	return spannerAdminClient, nil
+}
+
+type AdminClient interface {
+	GetDatabase(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error)
+	CreateDatabase(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (CreateDatabaseOperation, error)
+	UpdateDatabaseDdl(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (UpdateDatabaseDdlOperation, error)
+}
+
+type CreateDatabaseOperation interface {
+	Wait(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error)
+}
+
+type UpdateDatabaseDdlOperation interface {
+	Wait(ctx context.Context, opts ...gax.CallOption) error
+}
+
+type AdminClientImpl struct {
+	adminClient *database.DatabaseAdminClient
+}
+
+func NewAdminClientImpl(ctx context.Context) (*AdminClientImpl, error) {
+	c, err := GetOrCreateClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &AdminClientImpl{adminClient: c}, nil
+}
+
+func (c *AdminClientImpl) GetDatabase(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
+	return c.adminClient.GetDatabase(ctx, req, opts...)
+}
+
+func (c *AdminClientImpl) CreateDatabase(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (CreateDatabaseOperation, error) {
+	op, err := c.adminClient.CreateDatabase(ctx, req, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &CreateDatabaseOperationImpl{dbo: op}, nil
+}
+
+func (c *AdminClientImpl) UpdateDatabaseDdl(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (UpdateDatabaseDdlOperation, error) {
+	op, err := c.adminClient.UpdateDatabaseDdl(ctx, req, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &UpdateDatabaseDdlImpl{dbo: op}, nil
+}
+
+type CreateDatabaseOperationImpl struct {
+	dbo *database.CreateDatabaseOperation
+}
+
+func (c *CreateDatabaseOperationImpl) Wait(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) {
+	return c.dbo.Wait(ctx, opts...)
+}
+
+type UpdateDatabaseDdlImpl struct {
+	dbo *database.UpdateDatabaseDdlOperation
+}
+
+func (c *UpdateDatabaseDdlImpl) Wait(ctx context.Context, opts ...gax.CallOption) error {
+	return c.dbo.Wait(ctx, opts...)
 }

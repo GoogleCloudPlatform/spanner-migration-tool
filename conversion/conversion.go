@@ -44,6 +44,7 @@ import (
 	datastream "cloud.google.com/go/datastream/apiv1"
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
@@ -811,8 +812,12 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 
 // VerifyDb checks whether the db exists and if it does, verifies if the schema is what we currently support.
 func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (dbExists bool, err error) {
+	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+	if err != nil {
+		return dbExists, err
+	}
 	spA := spanneraccessor.SpannerAccessorImpl{}
-	dbExists, err = spA.CheckExistingDb(ctx, dbURI)
+	dbExists, err = spA.CheckExistingDb(ctx, adminClientImpl, dbURI)
 	if err != nil {
 		return dbExists, err
 	}
