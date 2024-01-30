@@ -4,16 +4,13 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// Package utils contains common helper functions used across multiple other packages.
-// Utils should not import any Spanner migration tool packages.
 package metrics
 
 // Defines queries for Monitoring Dashboard Metrics
@@ -90,8 +87,8 @@ const (
 		"filter && (%s) | group_by 1m, [value_estimated_backlog_processing_time_mean: " +
 		"mean(value.estimated_backlog_processing_time)] | every 1m | group_by [], [value_estimated_backlog_processing_time_mean_mean: " +
 		"mean(value_estimated_backlog_processing_time_mean)]"
-	dataflowAggPerShardCpuUtil = "fetch gce_instance | metric 'compute.googleapis.com/instance/cpu/utilization' | filter (%s) " + 
-		"| group_by 1m, [value_utilization_mean: mean(value.utilization)] | every 1m | group_by [metadata.user_labels.dataflow_job_id]," + 
+	dataflowAggPerShardCpuUtil = "fetch gce_instance | metric 'compute.googleapis.com/instance/cpu/utilization' | filter (%s) " +
+		"| group_by 1m, [value_utilization_mean: mean(value.utilization)] | every 1m | group_by [metadata.user_labels.dataflow_job_id]," +
 		" [value_utilization_mean_percentile: percentile(value_utilization_mean, 50)]"
 	datastreamAggThroughputQuery = "fetch datastream.googleapis.com/Stream | metric 'datastream.googleapis.com/stream/event_count' | " +
 		"filter (%s) | align rate(1m) | every 1m | group_by [], [value_event_count_aggregate: aggregate(value.event_count)]"
