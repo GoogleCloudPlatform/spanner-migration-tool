@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, ViewChild } from '@angular/core';
 import { AbstractControl, FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { InputType, MigrationDetails, Profile, StorageKeys } from 'src/app/app.constants';
@@ -7,6 +7,9 @@ import IConnectionProfile, { ICreateConnectionProfileV2, IDataShard, IDatastream
 import { FetchService } from 'src/app/services/fetch/fetch.service';
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
 import { DataService } from 'src/app/services/data/data.service'
+import { IResourcesGenerated, ResourceGenerated } from 'src/app/model/verify-json-cfg';
+import { MatTableDataSource } from '@angular/material/table';
+import { MatPaginator } from '@angular/material/paginator';
 
 @Component({
   selector: 'app-sharded-dataflow-migration-details-form',
@@ -51,6 +54,10 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   creatingTargetConnection: boolean = false
   verifyingJson: boolean = false
   prefix: string = 'smt-datashard';
+  @ViewChild(MatPaginator)
+  paginator!: MatPaginator
+  generatedResources: ResourceGenerated[] = []
+  displayedGeneratedResources: MatTableDataSource<ResourceGenerated> = new MatTableDataSource<ResourceGenerated>(this.generatedResources)
 
   inputOptionsList = [
     { value: 'text', displayName: 'Text' },
@@ -433,13 +440,51 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
     return formValue.host != null && formValue.port != null && formValue.user != null && formValue.password != null && formValue.newSourceProfile != null
   }
 
-  verifyTextJson() {
-    this.verifyingJson = true
-    let formValue = this.migrationProfileForm.value
-    this.dataService.verifyJsonCfg(formValue.textInput).subscribe()
-    this.verifyJson = true
-    this.verifyingJson = false
+  prepareVerifiedGeneratedResourcesTableData(resourcesGenerated: IResourcesGenerated) {
+    for (let [shardId, resourceList] of resourcesGenerated.ResourcesCreatedMap.entries()) {
+      let resource: ResourceGenerated = {
+        ShardId: shardId,
+        SourceConnectionProfile: resourceList.sourceConnectionProfile,
+        TargetConnectionProfile: resourceList.targetConnectionProfile
+      }
+      this.generatedResources.push(resource) 
+    }
+    this.displayedGeneratedResources = new MatTableDataSource(this.generatedResources)
+    this.displayedGeneratedResources.paginator = this.paginator
   }
+
+  verifyTextJson() {
+    this.verifyingJson = true;
+    let formValue = this.migrationProfileForm.value;
+    this.dataService.verifyJsonCfg(formValue.textInput).subscribe(
+        (data: IResourcesGenerated | string) => { 
+          console.log(data)
+            if (typeof data === 'string') {
+                // Handle error case (data is an error string)
+                console.error("Configuration Error:", data); 
+                this.verifyJson = false
+            } else {
+                // Success! (data is of type IResourcesGenerated)
+                console.log("Configuration Valid:", data);
+                console.log(typeof data)
+                console.log(typeof data.ResourcesCreatedMap)
+                data.ResourcesCreatedMap.forEach((key, val)=>{
+                  console.log(key)
+                })
+                // this.prepareVerifiedGeneratedResourcesTableData(data)
+                this.verifyJson = true;
+            }
+            this.verifyingJson = false;
+        },
+        (error) => {
+            // Handle HTTP request errors
+            console.log("error")
+            console.error("Verification Request Error:", error);
+            this.verifyJson = false; 
+            this.verifyingJson = false;
+        } 
+    );
+}
 
   createOrTestConnection(isSource: boolean, isValidateOnly: boolean) {
     if (isValidateOnly) {

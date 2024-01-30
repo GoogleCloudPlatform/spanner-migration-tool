@@ -3,10 +3,16 @@ export default interface IVerifyJsonDetails {
 }
 
 export interface IResourcesGenerated {
-    ResourcesCreated: Map<string,IShardResourcesGenerated>
+    ResourcesCreatedMap : Map<string,IShardResourcesGenerated>
 }
 
 export interface IShardResourcesGenerated {
     sourceConnectionProfile : boolean
     targetConnectionProfile : boolean
+}
+
+export interface ResourceGenerated {
+    ShardId :                   string
+    SourceConnectionProfile :   boolean
+    TargetConnectionProfile :   boolean
 }

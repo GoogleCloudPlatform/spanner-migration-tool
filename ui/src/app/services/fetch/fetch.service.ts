@@ -158,7 +158,10 @@ export class FetchService {
   }
 
   verifyJsonConfiguration(data : string):any {
-    return this.http.post<HttpResponse<IResourcesGenerated>>(`${this.url}/VerifyJsonConfiguration`, data)
+    let result= this.http.post<HttpResponse<IResourcesGenerated>>(`${this.url}/VerifyJsonConfiguration`, data)
+    console.log("#3")
+    console.log(result)
+    return result
   }
 
   getSummary() {

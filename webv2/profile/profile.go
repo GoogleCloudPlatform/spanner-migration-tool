@@ -227,6 +227,14 @@ func VerifyJsonConfiguration(w http.ResponseWriter, r *http.Request) {
 	fmt.Print(dataString)
 
 	resp := make(map[string]ShardResourcesGenerated)
+	resp["shardId1"] = ShardResourcesGenerated{
+		sourceConnectionProfile: true,
+		targetConnectionProfile: false,
+	}
+	resp["shardId2"] = ShardResourcesGenerated{
+		sourceConnectionProfile: true,
+		targetConnectionProfile: false,
+	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(resp)
 
