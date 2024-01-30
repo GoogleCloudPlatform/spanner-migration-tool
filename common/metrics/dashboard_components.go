@@ -4,16 +4,13 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// Package utils contains common helper functions used across multiple other packages.
-// Utils should not import any Spanner migration tool packages.
 package metrics
 
 import (
@@ -42,22 +39,22 @@ var dashboardClient *dashboard.DashboardsClient
 
 // MonitoringMetricsResources contains information required to create the monitoring dashboard
 type MonitoringMetricsResources struct {
-	ProjectId                     string
-	DataflowJobId                 string
-	DatastreamId                  string
-	JobMetadataGcsBucket          string
-	PubsubSubscriptionId          string
-	SpannerInstanceId             string
-	SpannerDatabaseId             string
-	ShardToShardResourcesMap      map[string]internal.ShardResources
-	ShardId                       string
+	ProjectId                string
+	DataflowJobId            string
+	DatastreamId             string
+	JobMetadataGcsBucket     string
+	PubsubSubscriptionId     string
+	SpannerInstanceId        string
+	SpannerDatabaseId        string
+	ShardToShardResourcesMap map[string]internal.ShardResources
+	ShardId                  string
 	MigrationRequestId       string
 }
 
 type TileInfo struct {
 	Title             string
 	TimeSeriesQueries map[string]string // Map of legend template and their corresponding queries
-	TextContent		  string // string for text input
+	TextContent       string            // string for text input
 }
 
 type MosaicGroup struct {
@@ -95,10 +92,10 @@ func createShardDataflowMetrics(resourceIds MonitoringMetricsResources) []*dashb
 		TileInfo{
 			Title: "Dataflow Workers Memory Utilization",
 			TimeSeriesQueries: map[string]string{
-			"p50 worker": fmt.Sprintf(dataflowMemoryUtilPercentileQuery, resourceIds.DataflowJobId, "50"),
-			"p90 worker": fmt.Sprintf(dataflowMemoryUtilPercentileQuery, resourceIds.DataflowJobId, "90"),
-			"Max worker": fmt.Sprintf(dataflowMemoryUtilMaxQuery, resourceIds.DataflowJobId),
-		}}.createXYChartTile(),
+				"p50 worker": fmt.Sprintf(dataflowMemoryUtilPercentileQuery, resourceIds.DataflowJobId, "50"),
+				"p90 worker": fmt.Sprintf(dataflowMemoryUtilPercentileQuery, resourceIds.DataflowJobId, "90"),
+				"Max worker": fmt.Sprintf(dataflowMemoryUtilMaxQuery, resourceIds.DataflowJobId),
+			}}.createXYChartTile(),
 		TileInfo{Title: "Dataflow Workers Max Backlog Time Seconds", TimeSeriesQueries: map[string]string{"": fmt.Sprintf(dataflowBacklogTimeQuery, resourceIds.DataflowJobId)}}.createXYChartTile(),
 	}
 	return dataflowTiles
@@ -107,7 +104,7 @@ func createShardDataflowMetrics(resourceIds MonitoringMetricsResources) []*dashb
 func createShardDatastreamMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	datastreamTiles := []*dashboardpb.MosaicLayout_Tile{
 		TileInfo{
-			Title: "Datastream Total Latency",
+			Title:             "Datastream Total Latency",
 			TimeSeriesQueries: map[string]string{"p50 " + resourceIds.DatastreamId: fmt.Sprintf(datastreamTotalLatencyQuery, resourceIds.DatastreamId, "50"), "p90 " + resourceIds.DatastreamId: fmt.Sprintf(datastreamTotalLatencyQuery, resourceIds.DatastreamId, "90")}}.createXYChartTile(),
 		TileInfo{Title: "Datastream Throughput", TimeSeriesQueries: map[string]string{resourceIds.DatastreamId: fmt.Sprintf(datastreamThroughputQuery, resourceIds.DatastreamId)}}.createXYChartTile(),
 		TileInfo{Title: "Datastream Unsupported Events", TimeSeriesQueries: map[string]string{resourceIds.DatastreamId: fmt.Sprintf(datastreamUnsupportedEventsQuery, resourceIds.DatastreamId)}}.createXYChartTile(),
@@ -147,8 +144,8 @@ func createShardIndependentTopMetrics(resourceIds MonitoringMetricsResources) []
 		TileInfo{Title: "Datastream Unsupported Events", TimeSeriesQueries: map[string]string{resourceIds.DatastreamId: fmt.Sprintf(datastreamUnsupportedEventsQuery, resourceIds.DatastreamId)}}.createXYChartTile(),
 		TileInfo{Title: "Pubsub Age of Oldest Unacknowledged Message", TimeSeriesQueries: map[string]string{resourceIds.PubsubSubscriptionId: fmt.Sprintf(pubsubOldestUnackedMessageAgeQuery, resourceIds.PubsubSubscriptionId)}}.createXYChartTile(),
 	}
-	spannerMetrics:=createSpannerMetrics(resourceIds)
-	independentTopMetricsTiles=append(independentTopMetricsTiles,spannerMetrics...)
+	spannerMetrics := createSpannerMetrics(resourceIds)
+	independentTopMetricsTiles = append(independentTopMetricsTiles, spannerMetrics...)
 	return independentTopMetricsTiles
 }
 
@@ -178,12 +175,12 @@ func createAggDataflowMetrics(resourceIds MonitoringMetricsResources) []*dashboa
 				"Max shard": fmt.Sprintf(dataflowAggCpuUtilMaxQuery, createAggFilterCondition("metadata.user_labels.dataflow_job_id", dataflowJobs)),
 			}}.createXYChartTile(),
 		TileInfo{
-			Title: "Dataflow Workers Memory Utilization", 
+			Title: "Dataflow Workers Memory Utilization",
 			TimeSeriesQueries: map[string]string{
-			"p50 shard": fmt.Sprintf(dataflowAggMemoryUtilPercentileQuery, createAggFilterCondition("metadata.user_labels.dataflow_job_id", dataflowJobs), "50"),
-			"p90 shard": fmt.Sprintf(dataflowAggMemoryUtilPercentileQuery, createAggFilterCondition("metadata.user_labels.dataflow_job_id", dataflowJobs), "90"),
-			"Max shard": fmt.Sprintf(dataflowAggMemoryUtilMaxQuery, createAggFilterCondition("metadata.user_labels.dataflow_job_id", dataflowJobs)),
-		}}.createXYChartTile(),
+				"p50 shard": fmt.Sprintf(dataflowAggMemoryUtilPercentileQuery, createAggFilterCondition("metadata.user_labels.dataflow_job_id", dataflowJobs), "50"),
+				"p90 shard": fmt.Sprintf(dataflowAggMemoryUtilPercentileQuery, createAggFilterCondition("metadata.user_labels.dataflow_job_id", dataflowJobs), "90"),
+				"Max shard": fmt.Sprintf(dataflowAggMemoryUtilMaxQuery, createAggFilterCondition("metadata.user_labels.dataflow_job_id", dataflowJobs)),
+			}}.createXYChartTile(),
 		TileInfo{Title: "Dataflow Workers Max Backlog Time Seconds", TimeSeriesQueries: map[string]string{"Dataflow Backlog Time Seconds": fmt.Sprintf(dataflowAggBacklogTimeQuery, createAggFilterCondition("metric.job_id", dataflowJobs))}}.createXYChartTile(),
 		TileInfo{Title: "Dataflow Per Shard Median CPU Utilization", TimeSeriesQueries: map[string]string{"": fmt.Sprintf(dataflowAggPerShardCpuUtil, createAggFilterCondition("metadata.user_labels.dataflow_job_id", dataflowJobs))}}.createXYChartTile(),
 	}
@@ -197,7 +194,7 @@ func createAggDatastreamMetrics(resourceIds MonitoringMetricsResources) []*dashb
 	}
 	datastreamTiles := []*dashboardpb.MosaicLayout_Tile{
 		TileInfo{
-			Title: "Datastream Total Latency",
+			Title:             "Datastream Total Latency",
 			TimeSeriesQueries: map[string]string{"p50 Datastream Latency": fmt.Sprintf(datastreamAggTotalLatencyQuery, createAggFilterCondition("resource.stream_id", datastreamJobs), "50", "50"), "p90 Datastream Latency": fmt.Sprintf(datastreamAggTotalLatencyQuery, createAggFilterCondition("resource.stream_id", datastreamJobs), "90", "90")}}.createXYChartTile(),
 		TileInfo{Title: "Total Datastream Throughput", TimeSeriesQueries: map[string]string{"Datastream Total Throughput": fmt.Sprintf(datastreamAggThroughputQuery, createAggFilterCondition("resource.stream_id", datastreamJobs))}}.createXYChartTile(),
 		TileInfo{Title: "Total Datastream Unsupported Events", TimeSeriesQueries: map[string]string{"Datastream Total Unsupported Events": fmt.Sprintf(datastreamAggUnsupportedEventsQuery, createAggFilterCondition("resource.stream_id", datastreamJobs))}}.createXYChartTile(),
@@ -252,9 +249,9 @@ func createAggIndependentTopMetrics(resourceIds MonitoringMetricsResources) []*d
 		TileInfo{Title: "Total Datastream Throughput", TimeSeriesQueries: map[string]string{"Datastream Throughput": fmt.Sprintf(datastreamAggThroughputQuery, createAggFilterCondition("resource.stream_id", datastreamJobs))}}.createXYChartTile(),
 		TileInfo{Title: "Total Datastream Unsupported Events", TimeSeriesQueries: map[string]string{"Datastream Unsupported Events": fmt.Sprintf(datastreamAggUnsupportedEventsQuery, createAggFilterCondition("resource.stream_id", datastreamJobs))}}.createXYChartTile(),
 		TileInfo{Title: "Pubsub Age of Oldest Unacknowledged Message", TimeSeriesQueries: map[string]string{"Pubsub Age of Oldest Unacknowledged Message": fmt.Sprintf(pubsubAggOldestUnackedMessageAgeQuery, createAggFilterCondition("resource.subscription_id", pubsubSubs))}}.createXYChartTile(),
-		}
-	spannerMetrics:=createSpannerMetrics(resourceIds)
-	independentTopMetricsTiles=append(independentTopMetricsTiles,spannerMetrics...)
+	}
+	spannerMetrics := createSpannerMetrics(resourceIds)
+	independentTopMetricsTiles = append(independentTopMetricsTiles, spannerMetrics...)
 	return independentTopMetricsTiles
 }
 
@@ -263,7 +260,7 @@ func createAggIndependentBottomMetrics(resourceIds MonitoringMetricsResources) [
 	for shardId, shardResource := range resourceIds.ShardToShardResourcesMap {
 		shardUrl := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", shardResource.MonitoringResources.DashboardName, resourceIds.ProjectId)
 		shardString := fmt.Sprintf("Shard [%s](%s)", shardId, shardUrl)
-		if(shardToDashboardMappingText == ""){
+		if shardToDashboardMappingText == "" {
 			shardToDashboardMappingText = shardString
 		} else {
 			shardToDashboardMappingText += " \\\n" + shardString
@@ -271,7 +268,7 @@ func createAggIndependentBottomMetrics(resourceIds MonitoringMetricsResources) [
 	}
 	independentBottomMetricsTiles := []*dashboardpb.MosaicLayout_Tile{
 		TileInfo{
-			Title: "Shard Dashboards",
+			Title:       "Shard Dashboards",
 			TextContent: shardToDashboardMappingText,
 		}.createTextTile(),
 	}
@@ -332,14 +329,14 @@ func (tileInfo TileInfo) createCollapsibleGroupTile(tiles []*dashboardpb.MosaicL
 	return &groupTile, heightOffset + groupTileHeight
 }
 
-func (tileInfo TileInfo) createTextTile() (*dashboardpb.MosaicLayout_Tile){
-	textTile :=  dashboardpb.MosaicLayout_Tile{
+func (tileInfo TileInfo) createTextTile() *dashboardpb.MosaicLayout_Tile {
+	textTile := dashboardpb.MosaicLayout_Tile{
 		Widget: &dashboardpb.Widget{
 			Title: tileInfo.Title,
 			Content: &dashboardpb.Widget_Text{
 				Text: &dashboardpb.Text{
 					Content: tileInfo.TextContent,
-					Format: dashboardpb.Text_MARKDOWN,
+					Format:  dashboardpb.Text_MARKDOWN,
 				},
 			},
 		},
@@ -382,7 +379,7 @@ func getCreateMonitoringDashboardRequest(
 	}
 
 	// create bottom independent metrics tiles
-	if createAggIndependentBottomMetrics!= nil{
+	if createAggIndependentBottomMetrics != nil {
 		independentBottomMetricsTiles := createAggIndependentBottomMetrics(resourceIds)
 		heightOffset += setWidgetPositions(independentBottomMetricsTiles, heightOffset)
 		mosaicLayoutTiles = append(mosaicLayoutTiles, independentBottomMetricsTiles...)
