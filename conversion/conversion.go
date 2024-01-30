@@ -44,6 +44,7 @@ import (
 	datastream "cloud.google.com/go/datastream/apiv1"
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -356,9 +357,13 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 
 			// Try to apply lifecycle rule to Datastream destination bucket.
 			gcsConfig := streamingCfg.GcsCfg
+			sc, err := storageclient.NewStorageClientImpl(ctx)
+			if err != nil {
+				return nil, err
+			}
 			sa := storageaccessor.StorageAccessorImpl{}
 			if gcsConfig.TtlInDaysSet {
-				err = sa.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+				err = sa.EnableBucketLifecycleDeleteRule(ctx, sc, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
 				if err != nil {
 					logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
 					logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")
@@ -478,9 +483,13 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 
 		// Try to apply lifecycle rule to Datastream destination bucket.
 		gcsConfig := streamingCfg.GcsCfg
+		sc, err := storageclient.NewStorageClientImpl(ctx)
+		if err != nil {
+			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+		}
 		sa := storageaccessor.StorageAccessorImpl{}
 		if gcsConfig.TtlInDaysSet {
-			err = sa.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+			err = sa.EnableBucketLifecycleDeleteRule(ctx, sc, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
 			if err != nil {
 				logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
 				logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")

@@ -19,6 +19,7 @@ import (
 	"os"
 	"testing"
 
+	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	dataflowaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/dataflow"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -35,26 +36,17 @@ func TestMain(m *testing.M) {
 	os.Exit(res)
 }
 
-type StorageAccessorMock struct {
-	storageaccessor.StorageAccessorImpl
-	ReadAnyFileMock func(ctx context.Context, filePath string) (string, error)
-}
-
-func (sam StorageAccessorMock) ReadAnyFile(ctx context.Context, filePath string) (string, error) {
-	return sam.ReadAnyFileMock(ctx, filePath)
-}
-
 func TestUnmarshalDataflowTuningConfig(t *testing.T) {
 	testCases := []struct {
 		name        string
-		sam         StorageAccessorMock
+		sam         storageaccessor.StorageAccessorMock
 		expectError bool
 		want        dataflowaccessor.DataflowTuningConfig
 	}{
 		{
 			name: "Basic",
-			sam: StorageAccessorMock{
-				ReadAnyFileMock: func(ctx context.Context, filePath string) (string, error) {
+			sam: storageaccessor.StorageAccessorMock{
+				ReadAnyFileMock: func(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error) {
 					return `{
 						"projectId": "test-project",
 						"jobName": "test-job-name",
@@ -95,8 +87,8 @@ func TestUnmarshalDataflowTuningConfig(t *testing.T) {
 		},
 		{
 			name: "Defaults",
-			sam: StorageAccessorMock{
-				ReadAnyFileMock: func(ctx context.Context, filePath string) (string, error) {
+			sam: storageaccessor.StorageAccessorMock{
+				ReadAnyFileMock: func(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error) {
 					return `{}`, nil
 				},
 			},
@@ -121,8 +113,8 @@ func TestUnmarshalDataflowTuningConfig(t *testing.T) {
 		},
 		{
 			name: "ReadAnyFile throws error",
-			sam: StorageAccessorMock{
-				ReadAnyFileMock: func(ctx context.Context, filePath string) (string, error) {
+			sam: storageaccessor.StorageAccessorMock{
+				ReadAnyFileMock: func(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error) {
 					return "", fmt.Errorf("test error")
 				},
 			},
@@ -131,8 +123,8 @@ func TestUnmarshalDataflowTuningConfig(t *testing.T) {
 		},
 		{
 			name: "Json unmarshall throws error",
-			sam: StorageAccessorMock{
-				ReadAnyFileMock: func(ctx context.Context, filePath string) (string, error) {
+			sam: storageaccessor.StorageAccessorMock{
+				ReadAnyFileMock: func(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error) {
 					return "{\"abc\"", nil
 				},
 			},
@@ -142,7 +134,7 @@ func TestUnmarshalDataflowTuningConfig(t *testing.T) {
 	}
 	ctx := context.Background()
 	for _, tc := range testCases {
-		got, err := UnmarshalDataflowTuningConfig(ctx, &tc.sam, "unused/path/due/to/mock")
+		got, err := UnmarshalDataflowTuningConfig(ctx, nil, &tc.sam, "unused/path/due/to/mock")
 		assert.Equal(t, tc.expectError, err != nil)
 		assert.Equal(t, tc.want, got)
 	}

@@ -20,12 +20,13 @@ import (
 	"context"
 	"encoding/json"
 
+	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	dataflowaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/dataflow"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 )
 
-func UnmarshalDataflowTuningConfig(ctx context.Context, sa storageaccessor.StorageAccessor, filePath string) (dataflowaccessor.DataflowTuningConfig, error) {
-	jsonStr, err := sa.ReadAnyFile(ctx, filePath)
+func UnmarshalDataflowTuningConfig(ctx context.Context, sc storageclient.StorageClient, sa storageaccessor.StorageAccessor, filePath string) (dataflowaccessor.DataflowTuningConfig, error) {
+	jsonStr, err := sa.ReadAnyFile(ctx, sc, filePath)
 	if err != nil {
 		return dataflowaccessor.DataflowTuningConfig{}, err
 	}

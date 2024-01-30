@@ -33,6 +33,7 @@ import (
 
 	resourcemanager "cloud.google.com/go/resourcemanager/apiv3"
 	resourcemanagerpb "cloud.google.com/go/resourcemanager/apiv3/resourcemanagerpb"
+	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	dataflowaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/dataflow"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -861,12 +862,16 @@ func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfi
 }
 
 func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
+	sc, err := storageclient.NewStorageClientImpl(ctx)
+	if err != nil {
+		return internal.DataflowOutput{}, err
+	}
 	sa := storageaccessor.StorageAccessorImpl{}
 	convJSON, err := json.MarshalIndent(conv, "", " ")
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("can't encode session state to JSON: %v", err)
 	}
-	err = sa.WriteDataToGCS(ctx, streamingCfg.TmpDir, "session.json", string(convJSON))
+	err = sa.WriteDataToGCS(ctx, sc, streamingCfg.TmpDir, "session.json", string(convJSON))
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("error while writing to GCS: %v", err)
 	}
@@ -877,7 +882,7 @@ func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, st
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("failed to compute transformation context: %s", err.Error())
 	}
-	err = sa.WriteDataToGCS(ctx, streamingCfg.TmpDir, "transformationContext.json", string(transformationContext))
+	err = sa.WriteDataToGCS(ctx, sc, streamingCfg.TmpDir, "transformationContext.json", string(transformationContext))
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("error while writing to GCS: %v", err)
 	}

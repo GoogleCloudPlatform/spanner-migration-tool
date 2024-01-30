@@ -29,26 +29,26 @@ import (
 )
 
 type StorageAccessor interface {
-	CreateGCSBucket(ctx context.Context, bucketName, projectID, location string) error
-	CreateGCSBucketWithLifecycle(ctx context.Context, bucketName, projectID, location string, matchesPrefix []string, ttl int64) error
-	EnableBucketLifecycleDeleteRule(ctx context.Context, bucketName string, matchesPrefix []string, ttl int64) error
-	UploadLocalFileToGCS(ctx context.Context, filePath, fileName, localFilePath string) error
-	WriteDataToGCS(ctx context.Context, filePath, fileName, data string) error
-	ReadGcsFile(ctx context.Context, filePath string) (string, error)
-	ReadAnyFile(ctx context.Context, filePath string) (string, error)
+	CreateGCSBucket(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string) error
+	CreateGCSBucketWithLifecycle(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string, matchesPrefix []string, ttl int64) error
+	EnableBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, bucketName string, matchesPrefix []string, ttl int64) error
+	UploadLocalFileToGCS(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, localFilePath string) error
+	WriteDataToGCS(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, data string) error
+	ReadGcsFile(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error)
+	ReadAnyFile(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error)
 }
 
 type StorageAccessorImpl struct{}
 
-func (sa *StorageAccessorImpl) CreateGCSBucket(ctx context.Context, bucketName, projectID, location string) error {
-	return sa.createGCSBucketUtil(ctx, bucketName, projectID, location, nil, 0)
+func (sa *StorageAccessorImpl) CreateGCSBucket(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string) error {
+	return sa.createGCSBucketUtil(ctx, sc, bucketName, projectID, location, nil, 0)
 }
 
-func (sa *StorageAccessorImpl) CreateGCSBucketWithLifecycle(ctx context.Context, bucketName, projectID, location string, matchesPrefix []string, ttl int64) error {
-	return sa.createGCSBucketUtil(ctx, bucketName, projectID, location, matchesPrefix, ttl)
+func (sa *StorageAccessorImpl) CreateGCSBucketWithLifecycle(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string, matchesPrefix []string, ttl int64) error {
+	return sa.createGCSBucketUtil(ctx, sc, bucketName, projectID, location, matchesPrefix, ttl)
 }
 
-func (sa *StorageAccessorImpl) createGCSBucketUtil(ctx context.Context, bucketName, projectID, location string, matchesPrefix []string, ttl int64) error {
+func (sa *StorageAccessorImpl) createGCSBucketUtil(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string, matchesPrefix []string, ttl int64) error {
 	client, err := storageclient.GetOrCreateClient(ctx)
 	if err != nil {
 		return err
@@ -95,16 +95,11 @@ func (sa *StorageAccessorImpl) createGCSBucketUtil(ctx context.Context, bucketNa
 // Applies the bucket lifecycle with delete rule. Only accepts the Age and
 // prefix rule conditions as it is only used for the Datastream destination
 // bucket currently.
-func (sa *StorageAccessorImpl) EnableBucketLifecycleDeleteRule(ctx context.Context, bucketName string, matchesPrefix []string, ttl int64) error {
-	client, err := storageclient.GetOrCreateClient(ctx)
-	if err != nil {
-		return fmt.Errorf("could not create client while enabling lifecycle: %w", err)
-	}
-
+func (sa *StorageAccessorImpl) EnableBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, bucketName string, matchesPrefix []string, ttl int64) error {
 	for i, str := range matchesPrefix {
 		matchesPrefix[i] = strings.TrimPrefix(str, "/")
 	}
-	bucket := client.Bucket(bucketName)
+	bucket := sc.Bucket(bucketName)
 	bucketAttrsToUpdate := storage.BucketAttrsToUpdate{
 		Lifecycle: &storage.Lifecycle{
 			Rules: []storage.LifecycleRule{
@@ -132,26 +127,21 @@ func (sa *StorageAccessorImpl) EnableBucketLifecycleDeleteRule(ctx context.Conte
 }
 
 // UploadLocalFileToGCS uploads an object.
-func (sa *StorageAccessorImpl) UploadLocalFileToGCS(ctx context.Context, filePath, fileName, localFilePath string) error {
+func (sa *StorageAccessorImpl) UploadLocalFileToGCS(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, localFilePath string) error {
 	data, err := os.ReadFile(localFilePath)
 	if err != nil {
 		return fmt.Errorf("could not read file %s: %w", localFilePath, err)
 	}
-	return sa.WriteDataToGCS(ctx, filePath, fileName, string(data))
+	return sa.WriteDataToGCS(ctx, sc, filePath, fileName, string(data))
 }
 
-func (sa *StorageAccessorImpl) WriteDataToGCS(ctx context.Context, filePath, fileName, data string) error {
-	client, err := storageclient.GetOrCreateClient(ctx)
-	if err != nil {
-		return fmt.Errorf("could not create client while uploading to GCS: %w", err)
-	}
-
+func (sa *StorageAccessorImpl) WriteDataToGCS(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, data string) error {
 	u, err := utils.ParseGCSFilePath(filePath)
 	if err != nil {
 		return fmt.Errorf("parseFilePath: unable to parse file path: %v", err)
 	}
 	bucketName := u.Host
-	bucket := client.Bucket(bucketName)
+	bucket := sc.Bucket(bucketName)
 	obj := bucket.Object(u.Path[1:] + fileName)
 
 	w := obj.NewWriter(ctx)
@@ -170,18 +160,13 @@ func (sa *StorageAccessorImpl) WriteDataToGCS(ctx context.Context, filePath, fil
 	return nil
 }
 
-func (sa *StorageAccessorImpl) ReadGcsFile(ctx context.Context, filePath string) (string, error) {
-	client, err := storageclient.GetOrCreateClient(ctx)
-	if err != nil {
-		return "", fmt.Errorf("could not create client: %w", err)
-	}
-
+func (sa *StorageAccessorImpl) ReadGcsFile(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error) {
 	u, err := utils.ParseGCSFilePath(filePath)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse file path: %v", err)
 	}
 	bucketName := u.Host
-	bucket := client.Bucket(bucketName)
+	bucket := sc.Bucket(bucketName)
 	obj := bucket.Object(u.Path[1:])
 
 	rc, err := obj.NewReader(ctx)
@@ -199,9 +184,9 @@ func (sa *StorageAccessorImpl) ReadGcsFile(ctx context.Context, filePath string)
 	return buf.String(), nil
 }
 
-func (sa *StorageAccessorImpl) ReadAnyFile(ctx context.Context, filePath string) (string, error) {
+func (sa *StorageAccessorImpl) ReadAnyFile(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error) {
 	if strings.HasPrefix(filePath, constants.GCS_FILE_PREFIX) {
-		return sa.ReadGcsFile(ctx, filePath)
+		return sa.ReadGcsFile(ctx, sc, filePath)
 	}
 	buf, err := os.ReadFile(filePath)
 	if err != nil {
