@@ -215,7 +215,8 @@ func TestIntegration_DYNAMODB_Command(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := utils.GetDatabaseName(constants.DYNAMODB, now)
+	g := utils.GetUtilInfo{}
+	dbName, _ := g.GetDatabaseName(constants.DYNAMODB, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName)
 

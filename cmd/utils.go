@@ -92,7 +92,8 @@ func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, sou
 		defer ioHelper.In.Close()
 	}
 
-	dbName, err := utils.GetDatabaseName(sourceProfile.Driver, time.Now())
+	g := utils.GetUtilInfo{}
+	dbName, err := g.GetDatabaseName(sourceProfile.Driver, time.Now())
 	if err != nil {
 		err = fmt.Errorf("can't generate database name for prefix: %v", err)
 		return sourceProfile, targetProfile, ioHelper, "", err

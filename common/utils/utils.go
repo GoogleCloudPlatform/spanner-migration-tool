@@ -62,6 +62,15 @@ type ManifestTable struct {
 	File_patterns []string `json:"file_patterns"`
 }
 
+type GetUtilInfoInterface interface{
+	GetProject() (string, error)
+	GetInstance(ctx context.Context, project string, out *os.File) (string, error)
+	GetPassword() string
+	GetDatabaseName(driver string, now time.Time) (string, error)
+}
+
+type GetUtilInfo struct{}
+
 // NewIOStreams returns a new IOStreams struct such that input stream is set
 // to open file descriptor for dumpFile if driver is PGDUMP or MYSQLDUMP.
 // Input stream defaults to stdin. Output stream is always set to stdout.
@@ -252,7 +261,7 @@ func CreateGCSBucket(bucketName, projectID, location string) error {
 // GetProject returns the cloud project we should use for accessing Spanner.
 // Use environment variable GCLOUD_PROJECT if it is set.
 // Otherwise, use the default project returned from gcloud.
-func GetProject() (string, error) {
+func (gui *GetUtilInfo) GetProject() (string, error) {
 	project := os.Getenv("GCLOUD_PROJECT")
 	if project != "" {
 		return project, nil
@@ -269,7 +278,7 @@ func GetProject() (string, error) {
 // GetInstance returns the Spanner instance we should use for creating DBs.
 // If the user specified instance (via flag 'instance') then use that.
 // Otherwise try to deduce the instance using gcloud.
-func GetInstance(ctx context.Context, project string, out *os.File) (string, error) {
+func (gui *GetUtilInfo) GetInstance(ctx context.Context, project string, out *os.File) (string, error) {
 	l, err := getInstances(ctx, project)
 	if err != nil {
 		return "", err
@@ -315,7 +324,7 @@ func getInstances(ctx context.Context, project string) ([]string, error) {
 	return l, nil
 }
 
-func GetPassword() string {
+func (gui *GetUtilInfo) GetPassword() string {
 	calledFromGCloud := os.Getenv("GCLOUD_HB_PLUGIN")
 	if strings.EqualFold(calledFromGCloud, "true") {
 		fmt.Println("\n Please specify password in enviroment variables (recommended) or --source-profile " +
@@ -333,7 +342,7 @@ func GetPassword() string {
 }
 
 // GetDatabaseName generates database name with driver_date prefix.
-func GetDatabaseName(driver string, now time.Time) (string, error) {
+func (gui *GetUtilInfo) GetDatabaseName(driver string, now time.Time) (string, error) {
 	return GenerateName(fmt.Sprintf("%s_%s", driver, now.Format("2006-01-02")))
 }
 

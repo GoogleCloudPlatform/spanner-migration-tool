@@ -195,7 +195,9 @@ func getInfoSchemaForShard(shardConnInfo profiles.DirectConnectionConfig, driver
 	//while adding other sources, a switch-case will be added here on the basis of the driver input param passed.
 	//pased on the driver name, profiles.NewSourceProfileConnection<DBName> will need to be called to create
 	//the source profile information.
-	sourceProfileConnectionMySQL, err := profiles.NewSourceProfileConnectionMySQL(params)
+	s := &profiles.SourceProfileDialectImpl{}
+	g := utils.GetUtilInfo{}
+	sourceProfileConnectionMySQL, err := s.NewSourceProfileConnectionMySQL(params, &g)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse connection configuration for the primary shard")
 	}

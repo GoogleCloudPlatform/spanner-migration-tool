@@ -77,7 +77,8 @@ func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time
 	var err error
 	project := targetProfile.Conn.Sp.Project
 	if project == "" {
-		project, err = utils.GetProject()
+		g := utils.GetUtilInfo{}
+		project, err = g.GetProject()
 		if err != nil {
 			return "", "", "", fmt.Errorf("can't get project: %v", err)
 		}
@@ -86,7 +87,8 @@ func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time
 
 	instance := targetProfile.Conn.Sp.Instance
 	if instance == "" {
-		instance, err = utils.GetInstance(ctx, project, out)
+		g := utils.GetUtilInfo{}
+		instance, err = g.GetInstance(ctx, project, out)
 		if err != nil {
 			return "", "", "", fmt.Errorf("can't get instance: %v", err)
 		}
@@ -95,7 +97,8 @@ func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time
 
 	dbName := targetProfile.Conn.Sp.Dbname
 	if dbName == "" {
-		dbName, err = utils.GetDatabaseName(driverName, now)
+		g := utils.GetUtilInfo{}
+		dbName, err = g.GetDatabaseName(driverName, now)
 		if err != nil {
 			return "", "", "", fmt.Errorf("can't get database name: %v", err)
 		}
