@@ -29,9 +29,8 @@ import (
 )
 
 type StorageAccessor interface {
-	CreateGCSBucket(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string) error
-	CreateGCSBucketWithLifecycle(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string, matchesPrefix []string, ttl int64) error
-	EnableBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, bucketName string, matchesPrefix []string, ttl int64) error
+	CreateGCSBucket(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string, ttl int64, matchesPrefix []string) error
+	ApplyBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, bucketName string, matchesPrefix []string, ttl int64) error
 	UploadLocalFileToGCS(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, localFilePath string) error
 	WriteDataToGCS(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, data string) error
 	ReadGcsFile(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error)
@@ -40,20 +39,9 @@ type StorageAccessor interface {
 
 type StorageAccessorImpl struct{}
 
-func (sa *StorageAccessorImpl) CreateGCSBucket(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string) error {
-	return sa.createGCSBucketUtil(ctx, sc, bucketName, projectID, location, nil, 0)
-}
-
-func (sa *StorageAccessorImpl) CreateGCSBucketWithLifecycle(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string, matchesPrefix []string, ttl int64) error {
-	return sa.createGCSBucketUtil(ctx, sc, bucketName, projectID, location, matchesPrefix, ttl)
-}
-
-func (sa *StorageAccessorImpl) createGCSBucketUtil(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string, matchesPrefix []string, ttl int64) error {
-	client, err := storageclient.GetOrCreateClient(ctx)
-	if err != nil {
-		return err
-	}
-	bucket := client.Bucket(bucketName)
+// Create a GCS bucket with input parameters. Set @ttl to 0 to skip creating lifecycle rules.
+func (sa *StorageAccessorImpl) CreateGCSBucket(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string, ttl int64, matchesPrefix []string) error {
+	bucket := sc.Bucket(bucketName)
 	attrs := storage.BucketAttrs{
 		Location: location,
 	}
@@ -95,7 +83,7 @@ func (sa *StorageAccessorImpl) createGCSBucketUtil(ctx context.Context, sc stora
 // Applies the bucket lifecycle with delete rule. Only accepts the Age and
 // prefix rule conditions as it is only used for the Datastream destination
 // bucket currently.
-func (sa *StorageAccessorImpl) EnableBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, bucketName string, matchesPrefix []string, ttl int64) error {
+func (sa *StorageAccessorImpl) ApplyBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, bucketName string, matchesPrefix []string, ttl int64) error {
 	for i, str := range matchesPrefix {
 		matchesPrefix[i] = strings.TrimPrefix(str, "/")
 	}
@@ -135,6 +123,7 @@ func (sa *StorageAccessorImpl) UploadLocalFileToGCS(ctx context.Context, sc stor
 	return sa.WriteDataToGCS(ctx, sc, filePath, fileName, string(data))
 }
 
+// Uploads a gcs object to gs://@filePath/@fileName with @data.
 func (sa *StorageAccessorImpl) WriteDataToGCS(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, data string) error {
 	u, err := utils.ParseGCSFilePath(filePath)
 	if err != nil {
@@ -142,7 +131,11 @@ func (sa *StorageAccessorImpl) WriteDataToGCS(ctx context.Context, sc storagecli
 	}
 	bucketName := u.Host
 	bucket := sc.Bucket(bucketName)
-	obj := bucket.Object(u.Path[1:] + fileName)
+	fullFilePath := u.Path + fileName
+	if strings.HasPrefix(fullFilePath, "/") {
+		fullFilePath = u.Path[1:] + fileName
+	}
+	obj := bucket.Object(fullFilePath)
 
 	w := obj.NewWriter(ctx)
 	logger.Log.Info(fmt.Sprintf("Writing data to %s", filePath))
@@ -160,6 +153,7 @@ func (sa *StorageAccessorImpl) WriteDataToGCS(ctx context.Context, sc storagecli
 	return nil
 }
 
+// Read a Gcs file path.
 func (sa *StorageAccessorImpl) ReadGcsFile(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error) {
 	u, err := utils.ParseGCSFilePath(filePath)
 	if err != nil {
@@ -184,6 +178,7 @@ func (sa *StorageAccessorImpl) ReadGcsFile(ctx context.Context, sc storageclient
 	return buf.String(), nil
 }
 
+// Read local or gcs file path. Gcs files must start with a gs://.
 func (sa *StorageAccessorImpl) ReadAnyFile(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error) {
 	if strings.HasPrefix(filePath, constants.GCS_FILE_PREFIX) {
 		return sa.ReadGcsFile(ctx, sc, filePath)

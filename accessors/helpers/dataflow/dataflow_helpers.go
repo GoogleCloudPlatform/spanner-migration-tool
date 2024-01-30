@@ -14,7 +14,7 @@
 
 // This is a package is kept with accessors because some functions import other accessors.
 // The common/utils package should not import any SMT dependency.
-package dataflowutils
+package dataflowhelpers
 
 import (
 	"context"
@@ -25,6 +25,10 @@ import (
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 )
 
+// This package contains common helper methods using the accessor package. This will be used by multiple flows.
+// Do not move to util since util only expects methods that do no import any other internal dependency.
+
+// Reads any local or gcs file and unmarshals the data into a DataflowTuningConfig struct.
 func UnmarshalDataflowTuningConfig(ctx context.Context, sc storageclient.StorageClient, sa storageaccessor.StorageAccessor, filePath string) (dataflowaccessor.DataflowTuningConfig, error) {
 	jsonStr, err := sa.ReadAnyFile(ctx, sc, filePath)
 	if err != nil {

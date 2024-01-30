@@ -60,6 +60,26 @@ func TestParseGCSFilePath(t *testing.T) {
 			},
 		},
 		{
+			name:        "Empty path",
+			filePath:    "gs://test-bucket",
+			expectError: false,
+			want: &url.URL{
+				Scheme: "gs",
+				Host:   "test-bucket",
+				Path:   "/",
+			},
+		},
+		{
+			name:        "Empty path with leading slash",
+			filePath:    "gs://test-bucket/",
+			expectError: false,
+			want: &url.URL{
+				Scheme: "gs",
+				Host:   "test-bucket",
+				Path:   "/",
+			},
+		},
+		{
 			name:        "Empty File path",
 			filePath:    "",
 			expectError: true,
@@ -81,7 +101,7 @@ func TestParseGCSFilePath(t *testing.T) {
 
 	for _, tc := range testCases {
 		got, err := ParseGCSFilePath(tc.filePath)
-		assert.Equal(t, tc.expectError, err != nil)
-		assert.Equal(t, tc.want, got)
+		assert.Equal(t, tc.expectError, err != nil, tc.name)
+		assert.Equal(t, tc.want, got, tc.name)
 	}
 }

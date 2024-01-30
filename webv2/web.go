@@ -2492,7 +2492,7 @@ func writeSessionFile(ctx context.Context, sessionState *session.SessionState) e
 		return err
 	}
 	sa := storageaccessor.StorageAccessorImpl{}
-	err = sa.CreateGCSBucket(ctx, sc, sessionState.Bucket, sessionState.GCPProjectID, sessionState.Region)
+	err = sa.CreateGCSBucket(ctx, sc, sessionState.Bucket, sessionState.GCPProjectID, sessionState.Region, 0, nil)
 	if err != nil {
 		return fmt.Errorf("error while creating bucket: %v", err)
 	}

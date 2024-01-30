@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package dataflowutils
+package dataflowhelpers
 
 import (
 	"context"
@@ -135,7 +135,7 @@ func TestUnmarshalDataflowTuningConfig(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range testCases {
 		got, err := UnmarshalDataflowTuningConfig(ctx, nil, &tc.sam, "unused/path/due/to/mock")
-		assert.Equal(t, tc.expectError, err != nil)
-		assert.Equal(t, tc.want, got)
+		assert.Equal(t, tc.expectError, err != nil, tc.name)
+		assert.Equal(t, tc.want, got, tc.name)
 	}
 }
