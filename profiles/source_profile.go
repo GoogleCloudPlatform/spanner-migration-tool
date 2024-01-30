@@ -49,13 +49,22 @@ type SourceProfileDialectInterface interface {
 	NewSourceProfileConnectionCloudSQLPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLPostgreSQL, error)
 	NewSourceProfileConnectionPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionPostgreSQL, error)
 	NewSourceProfileConnectionSqlServer(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionSqlServer, error)
-	NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfileConnectionDynamoDB, error)
+	NewSourceProfileConnectionDynamoDB(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionDynamoDB, error)
 	NewSourceProfileConnectionOracle(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionOracle, error)
 }
 
 type SourceProfileDialectImpl struct {}
 
-func NewSourceProfileFile(params map[string]string) SourceProfileFile {
+type NewSourceProfileInterface interface {
+	NewSourceProfileFile(params map[string]string) SourceProfileFile
+	NewSourceProfileConfig(source string, path string) (SourceProfileConfig, error)
+	NewSourceProfileConnectionCloudSQL(source string, params map[string]string, s SourceProfileDialectInterface) (SourceProfileConnectionCloudSQL, error)
+	NewSourceProfileConnection(source string, params map[string]string, s SourceProfileDialectInterface) (SourceProfileConnection, error)
+}
+
+type NewSourceProfileImpl struct{}
+
+func (nsp *NewSourceProfileImpl) NewSourceProfileFile(params map[string]string) SourceProfileFile {
 	profile := SourceProfileFile{}
 	if !filePipedToStdin() {
 		profile.Path = params["file"]
@@ -362,7 +371,7 @@ type SourceProfileConnectionDynamoDB struct {
 	enableStreaming    string // Used for confirming streaming migration (valid options: `yes`,`no`,`true`,`false`)
 }
 
-func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfileConnectionDynamoDB, error) {
+func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionDynamoDB(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionDynamoDB, error) {
 	dydb := SourceProfileConnectionDynamoDB{}
 	if schemaSampleSize, ok := params["schema-sample-size"]; ok {
 		schemaSampleSizeInt, err := strconv.Atoi(schemaSampleSize)
@@ -462,7 +471,7 @@ type SourceProfileConnectionCloudSQL struct {
 	Pg        SourceProfileConnectionCloudSQLPostgreSQL
 }
 
-func NewSourceProfileConnection(source string, params map[string]string, s SourceProfileDialectInterface) (SourceProfileConnection, error) {
+func (nsp *NewSourceProfileImpl) NewSourceProfileConnection(source string, params map[string]string, s SourceProfileDialectInterface) (SourceProfileConnection, error) {
 	conn := SourceProfileConnection{}
 	var err error
 	switch strings.ToLower(source) {
@@ -491,7 +500,7 @@ func NewSourceProfileConnection(source string, params map[string]string, s Sourc
 	case "dynamodb":
 		{
 			conn.Ty = SourceProfileConnectionTypeDynamoDB
-			conn.Dydb, err = s.NewSourceProfileConnectionDynamoDB(params)
+			conn.Dydb, err = s.NewSourceProfileConnectionDynamoDB(params, &utils.GetUtilInfo{})
 			if err != nil {
 				return conn, err
 			}
@@ -525,7 +534,7 @@ func NewSourceProfileConnection(source string, params map[string]string, s Sourc
 	return conn, nil
 }
 
-func NewSourceProfileConnectionCloudSQL(source string, params map[string]string, s SourceProfileDialectInterface) (SourceProfileConnectionCloudSQL, error) {
+func (nsp *NewSourceProfileImpl) NewSourceProfileConnectionCloudSQL(source string, params map[string]string, s SourceProfileDialectInterface) (SourceProfileConnectionCloudSQL, error) {
 	conn := SourceProfileConnectionCloudSQL{}
 	var err error
 	switch strings.ToLower(source) {
@@ -631,7 +640,7 @@ type SourceProfileConfig struct {
 	ShardConfigurationDMS      ShardConfigurationDMS      `json:"shardConfigurationDMS"`
 }
 
-func NewSourceProfileConfig(source string, path string) (SourceProfileConfig, error) {
+func (nsp *NewSourceProfileImpl) NewSourceProfileConfig(source string, path string) (SourceProfileConfig, error) {
 	//given the source, the fact that this 'config=', determine the appropiate object to marshal into
 	switch source {
 	case constants.MYSQL:
@@ -765,7 +774,7 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 // from envrironment variables.
 //
 // Format 3. Specify a config file that specifies source connection profile.
-func NewSourceProfile(s string, source string) (SourceProfile, error) {
+func NewSourceProfile(s string, source string, n NewSourceProfileInterface) (SourceProfile, error) {
 	if source == "" {
 		return SourceProfile{}, fmt.Errorf("cannot leave -source flag empty, please specify source databases e.g., -source=postgres etc")
 	}
@@ -778,23 +787,23 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 	}
 
 	if _, ok := params["file"]; ok || filePipedToStdin() {
-		profile := NewSourceProfileFile(params)
+		profile := n.NewSourceProfileFile(params)
 		return SourceProfile{Ty: SourceProfileTypeFile, File: profile}, nil
 	} else if format, ok := params["format"]; ok {
 		// File is not passed in from stdin or specified using "file" flag.
 		return SourceProfile{Ty: SourceProfileTypeFile}, fmt.Errorf("file not specified, but format set to %v", format)
 	} else if file, ok := params["config"]; ok {
-		config, err := NewSourceProfileConfig(strings.ToLower(source), file)
+		config, err := n.NewSourceProfileConfig(strings.ToLower(source), file)
 		return SourceProfile{Ty: SourceProfileTypeConfig, Config: config}, err
 	} else if _, ok := params["instance"]; ok {
-		conn, err := NewSourceProfileConnectionCloudSQL(source, params, &SourceProfileDialectImpl{})
+		conn, err := n.NewSourceProfileConnectionCloudSQL(source, params, &SourceProfileDialectImpl{})
 		return SourceProfile{Ty: SourceProfileTypeCloudSQL, ConnCloudSQL: conn}, err
 	} else {
 		// Assume connection profile type connection by default, since
 		// connection parameters could be specified as part of environment
 		// variables.
 
-		conn, err := NewSourceProfileConnection(source, params, &SourceProfileDialectImpl{})
+		conn, err := n.NewSourceProfileConnection(source, params, &SourceProfileDialectImpl{})
 		return SourceProfile{Ty: SourceProfileTypeConnection, Conn: conn}, err
 	}
 }

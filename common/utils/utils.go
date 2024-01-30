@@ -62,7 +62,7 @@ type ManifestTable struct {
 	File_patterns []string `json:"file_patterns"`
 }
 
-type GetUtilInfoInterface interface{
+type GetUtilInfoInterface interface {
 	GetProject() (string, error)
 	GetInstance(ctx context.Context, project string, out *os.File) (string, error)
 	GetPassword() string

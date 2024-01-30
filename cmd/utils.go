@@ -74,7 +74,8 @@ func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, sou
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", err
 	}
 
-	sourceProfile, err := profiles.NewSourceProfile(sourceProfileString, source)
+	n := profiles.NewSourceProfileImpl{}
+	sourceProfile, err := profiles.NewSourceProfile(sourceProfileString, source, &n)
 	if err != nil {
 		return profiles.SourceProfile{}, targetProfile, utils.IOStreams{}, "", err
 	}
