@@ -114,7 +114,7 @@ func (sa *StorageAccessorImpl) ApplyBucketLifecycleDeleteRule(ctx context.Contex
 	return nil
 }
 
-// UploadLocalFileToGCS uploads an object.
+// UploadLocalFileToGCS uploads a local file at @localFilePath to a gcs file path @filePath with name @fileName.
 func (sa *StorageAccessorImpl) UploadLocalFileToGCS(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, localFilePath string) error {
 	data, err := os.ReadFile(localFilePath)
 	if err != nil {
@@ -141,13 +141,13 @@ func (sa *StorageAccessorImpl) WriteDataToGCS(ctx context.Context, sc storagecli
 	logger.Log.Info(fmt.Sprintf("Writing data to %s", filePath))
 	n, err := fmt.Fprint(w, data)
 	if err != nil {
-		fmt.Printf("Failed to write to Cloud Storage: %s", filePath)
+		fmt.Printf("Failed to write to Cloud Storage: %s\n", filePath)
 		return err
 	}
 	logger.Log.Info(fmt.Sprintf("Wrote %d bytes to GCS", n))
 
 	if err := w.Close(); err != nil {
-		fmt.Printf("Failed to close GCS file: %s", filePath)
+		fmt.Printf("Failed to close GCS file: %s\n", filePath)
 		return err
 	}
 	return nil
@@ -162,7 +162,6 @@ func (sa *StorageAccessorImpl) ReadGcsFile(ctx context.Context, sc storageclient
 	bucketName := u.Host
 	bucket := sc.Bucket(bucketName)
 	obj := bucket.Object(u.Path[1:])
-
 	rc, err := obj.NewReader(ctx)
 	if err != nil {
 		return "", err

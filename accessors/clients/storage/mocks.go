@@ -12,3 +12,75 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 package storageclient
+
+import (
+	"context"
+	"io"
+
+	"cloud.google.com/go/storage"
+)
+
+type StorageClientMock struct {
+	BucketMock func(name string) BucketHandle
+}
+
+func (scm *StorageClientMock) Bucket(name string) BucketHandle {
+	return scm.BucketMock(name)
+}
+
+type BucketHandleMock struct {
+	CreateMock func(ctx context.Context, projectID string, attrs *storage.BucketAttrs) (err error)
+	UpdateMock func(ctx context.Context, uattrs storage.BucketAttrsToUpdate) (attrs *storage.BucketAttrs, err error)
+	ObjectMock func(name string) ObjectHandle
+}
+
+func (b *BucketHandleMock) Create(ctx context.Context, projectID string, attrs *storage.BucketAttrs) (err error) {
+	return b.CreateMock(ctx, projectID, attrs)
+}
+
+func (b *BucketHandleMock) Update(ctx context.Context, uattrs storage.BucketAttrsToUpdate) (attrs *storage.BucketAttrs, err error) {
+	return b.UpdateMock(ctx, uattrs)
+}
+
+func (b *BucketHandleMock) Object(name string) ObjectHandle {
+	return b.ObjectMock(name)
+}
+
+type ObjectHandleMock struct {
+	NewWriterMock func(ctx context.Context) io.WriteCloser
+	NewReaderMock func(ctx context.Context) (io.ReadCloser, error)
+}
+
+func (o *ObjectHandleMock) NewWriter(ctx context.Context) io.WriteCloser {
+	return o.NewWriterMock(ctx)
+}
+
+func (o *ObjectHandleMock) NewReader(ctx context.Context) (io.ReadCloser, error) {
+	return o.NewReaderMock(ctx)
+}
+
+type WriterMock struct {
+	WriteMock func(p []byte) (n int, err error)
+	CloseMock func() error
+}
+
+func (w *WriterMock) Write(p []byte) (n int, err error) {
+	return w.WriteMock(p)
+}
+
+func (w *WriterMock) Close() error {
+	return w.CloseMock()
+}
+
+type ReaderMock struct {
+	ReadMock  func(p []byte) (n int, err error)
+	CloseMock func() error
+}
+
+func (r *ReaderMock) Read(p []byte) (n int, err error) {
+	return r.ReadMock(p)
+}
+
+func (r *ReaderMock) Close() error {
+	return r.CloseMock()
+}
