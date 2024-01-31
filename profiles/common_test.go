@@ -130,7 +130,7 @@ func TestGetSQLConnectionStr(t *testing.T) {
 		},
 		{
 			name:          			"source profile connection type dynamodb",
-			inputSourceProfileConn: SourceProfileConnection{},
+			inputSourceProfileConn: SourceProfileConnection{Ty: SourceProfileConnectionTypeDynamoDB},
 			expectedOutput:			"",
 		},
 		{
