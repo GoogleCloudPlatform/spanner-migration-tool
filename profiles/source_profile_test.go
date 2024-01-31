@@ -97,6 +97,20 @@ func unsetEnvVariables(){
 	os.Setenv("MSSQL_DATABASE", "")
 	os.Setenv("MSSQL_TCP_PORT", "")
 	os.Setenv("MSSQL_SA_PASSWORD", "")
+
+	//PG Variables
+	os.Setenv("PGHOST", "")
+	os.Setenv("PGUSER", "")
+	os.Setenv("PGDATABASE", "")
+	os.Setenv("PGPORT", "")
+	os.Setenv("PGPASSWORD", "")
+
+	// My Sql Server Connection
+	os.Setenv("MSSQL_IP_ADDRESS", "")
+	os.Setenv("MSSQL_SA_USER", "")
+	os.Setenv("MSSQL_DATABASE", "")
+	os.Setenv("MSSQL_TCP_PORT", "")
+	os.Setenv("MSSQL_SA_PASSWORD", "")
 }
 
 type GetUtilInfoMock struct {

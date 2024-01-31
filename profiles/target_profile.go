@@ -65,7 +65,7 @@ func (trg TargetProfile) FetchTargetDialect(ctx context.Context) (string, error)
 	// Ideally we should use the client we create at the beginning, but we can fix that with the refactoring.
 	adminClient, _ := utils.NewDatabaseAdminClient(ctx)
 	// The parameters are irrelevant because the results are already cached when called the first time.
-	project, instance, dbName, _ := trg.GetResourceIds(ctx, time.Now(), "", nil)
+	project, instance, dbName, _ := trg.GetResourceIds(ctx, time.Now(), "", nil, &utils.GetUtilInfo{})
 	result, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)})
 	if err != nil {
 		return "", fmt.Errorf("cannot connect to target: %v", err)
@@ -73,11 +73,10 @@ func (trg TargetProfile) FetchTargetDialect(ctx context.Context) (string, error)
 	return strings.ToLower(result.DatabaseDialect.String()), nil
 }
 
-func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time.Time, driverName string, out *os.File) (string, string, string, error) {
+func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time.Time, driverName string, out *os.File, g utils.GetUtilInfoInterface) (string, string, string, error) {
 	var err error
 	project := targetProfile.Conn.Sp.Project
 	if project == "" {
-		g := utils.GetUtilInfo{}
 		project, err = g.GetProject()
 		if err != nil {
 			return "", "", "", fmt.Errorf("can't get project: %v", err)

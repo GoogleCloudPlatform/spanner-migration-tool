@@ -45,7 +45,7 @@ func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProf
 	if targetProfile.Conn.Sp.Dbname == "" {
 		targetProfile.Conn.Sp.Dbname = dbName
 	}
-	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, time.Now(), driver, ioHelper.Out)
+	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, time.Now(), driver, ioHelper.Out, &utils.GetUtilInfo{})
 	if err != nil {
 		return nil, nil, "", err
 	}
