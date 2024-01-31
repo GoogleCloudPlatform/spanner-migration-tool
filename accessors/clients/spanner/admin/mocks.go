@@ -12,3 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 package spanneradmin
+
+import (
+	"context"
+
+	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
+	"github.com/googleapis/gax-go/v2"
+)
+
+type AdminClientMock struct {
+	GetDatabaseMock       func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error)
+	CreateDatabaseMock    func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (CreateDatabaseOperation, error)
+	UpdateDatabaseDdlMock func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (UpdateDatabaseDdlOperation, error)
+}
+
+func (acm *AdminClientMock) GetDatabase(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
+	return acm.GetDatabaseMock(ctx, req, opts...)
+}
+
+func (acm *AdminClientMock) CreateDatabase(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (CreateDatabaseOperation, error) {
+	return acm.CreateDatabaseMock(ctx, req, opts...)
+}
+
+func (acm *AdminClientMock) UpdateDatabaseDdl(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (UpdateDatabaseDdlOperation, error) {
+	return acm.UpdateDatabaseDdlMock(ctx, req, opts...)
+}
+
+type CreateDatabaseOperationMock struct {
+	WaitMock func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error)
+}
+
+func (dbo *CreateDatabaseOperationMock) Wait(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) {
+	return dbo.WaitMock(ctx, opts...)
+}
+
+type UpdateDatabaseDdlOperationMock struct {
+	WaitMock func(ctx context.Context, opts ...gax.CallOption) error
+}
+
+func (dbo *UpdateDatabaseDdlOperationMock) Wait(ctx context.Context, opts ...gax.CallOption) error {
+	return dbo.WaitMock(ctx, opts...)
+}
