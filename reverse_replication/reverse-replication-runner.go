@@ -19,41 +19,42 @@ import (
 )
 
 var (
-	projectId                     string
-	dataflowRegion                string
-	jobNamePrefix                 string
-	changeStreamName              string
-	instanceId                    string
-	dbName                        string
-	metadataInstance              string
-	metadataDatabase              string
-	startTimestamp                string
-	sourceShardsFilePath          string
-	sessionFilePath               string
-	machineType                   string
-	vpcNetwork                    string
-	vpcSubnetwork                 string
-	vpcHostProjectId              string
-	serviceAccountEmail           string
-	readerWorkers                 int
-	writerWorkers                 int
-	windowDuration                string
-	gcsPath                       string
-	filtrationMode                string
-	metadataTableSuffix           string
-	sourceDbTimezoneOffset        string
-	writerRunMode                 string
-	readerRunMode                 string
-	readerShardingCustomJarPath   string
-	readerShardingCustomClassName string
-	readerSkipDirectoryName       string
-	spannerReaderTemplateLocation string
-	sourceWriterTemplateLocation  string
-	jobsToLaunch                  string
-	skipChangeStreamCreation      bool
-	skipMetadataDatabaseCreation  bool
-	networkTags                   string
-	runIdentifier                 string
+	projectId                      string
+	dataflowRegion                 string
+	jobNamePrefix                  string
+	changeStreamName               string
+	instanceId                     string
+	dbName                         string
+	metadataInstance               string
+	metadataDatabase               string
+	startTimestamp                 string
+	sourceShardsFilePath           string
+	sessionFilePath                string
+	machineType                    string
+	vpcNetwork                     string
+	vpcSubnetwork                  string
+	vpcHostProjectId               string
+	serviceAccountEmail            string
+	readerWorkers                  int
+	writerWorkers                  int
+	windowDuration                 string
+	gcsPath                        string
+	filtrationMode                 string
+	metadataTableSuffix            string
+	sourceDbTimezoneOffset         string
+	writerRunMode                  string
+	readerRunMode                  string
+	readerShardingCustomJarPath    string
+	readerShardingCustomClassName  string
+	readerShardingCustomParameters string
+	readerSkipDirectoryName        string
+	spannerReaderTemplateLocation  string
+	sourceWriterTemplateLocation   string
+	jobsToLaunch                   string
+	skipChangeStreamCreation       bool
+	skipMetadataDatabaseCreation   bool
+	networkTags                    string
+	runIdentifier                  string
 )
 
 const (
@@ -96,6 +97,7 @@ func setupGlobalFlags() {
 	flag.StringVar(&readerShardingCustomClassName, "readerShardingCustomClassName", "", "The fully qualified custom class name for sharding logic.")
 	flag.StringVar(&readerShardingCustomJarPath, "readerShardingCustomJarPath", "", "The GCS path to custom jar for sharding logic.")
 	flag.StringVar(&runIdentifier, "runIdentifier", "", "The run identifier for the Dataflow jobs.")
+	flag.StringVar(&readerShardingCustomParameters, "readerShardingCustomParameters", "", "Any custom parametes to be supplied to custom sharding class.")
 
 }
 
@@ -300,6 +302,7 @@ func main() {
 		if readerShardingCustomJarPath != "" {
 			readerParams["shardingCustomJarPath"] = readerShardingCustomJarPath //cant send empty since it expects GCS format
 			readerParams["shardingCustomClassName"] = readerShardingCustomClassName
+			readerParams["shardingCustomParameters"] = readerShardingCustomParameters
 		}
 		launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
 			JobName:    fmt.Sprintf("%s-reader-%s", jobNamePrefix, runId),
