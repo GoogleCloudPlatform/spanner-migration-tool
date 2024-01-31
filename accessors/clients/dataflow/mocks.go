@@ -11,33 +11,19 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package storageclient
+package dataflowclient
 
 import (
 	"context"
-	"fmt"
-	"sync"
 
-	"cloud.google.com/go/storage"
+	"cloud.google.com/go/dataflow/apiv1beta3/dataflowpb"
+	"github.com/googleapis/gax-go/v2"
 )
 
-var once sync.Once
-var gcsClient *storage.Client
+type DataflowClientMock struct {
+	LaunchFlexTemplateMock func(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error)
+}
 
-// This function is declared as a global variable to make it testable. The unit
-// tests edit this function, acting like a double.
-var newClient = storage.NewClient
-
-func GetOrCreateClient(ctx context.Context) (*storage.Client, error) {
-	var err error
-	if gcsClient == nil {
-		once.Do(func() {
-			gcsClient, err = newClient(ctx)
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create storage client: %v", err)
-		}
-		return gcsClient, nil
-	}
-	return gcsClient, nil
+func (dcm *DataflowClientMock) LaunchFlexTemplate(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error) {
+	return dcm.LaunchFlexTemplateMock(ctx, req, opts...)
 }

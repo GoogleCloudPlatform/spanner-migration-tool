@@ -19,8 +19,6 @@ import (
 	"sync"
 
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
-	"cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
-	"github.com/googleapis/gax-go/v2"
 )
 
 var once sync.Once
@@ -42,29 +40,4 @@ func GetOrCreateClient(ctx context.Context) (*instance.InstanceAdminClient, erro
 		return instanceAdminClient, nil
 	}
 	return instanceAdminClient, nil
-}
-
-type InstanceAdminClient interface {
-	GetInstance(ctx context.Context, req *instancepb.GetInstanceRequest, opts ...gax.CallOption) (*instancepb.Instance, error)
-	GetInstanceConfig(ctx context.Context, req *instancepb.GetInstanceConfigRequest, opts ...gax.CallOption) (*instancepb.InstanceConfig, error)
-}
-
-type InstanceAdminClientImpl struct {
-	client *instance.InstanceAdminClient
-}
-
-func NewInstanceAdminClientImpl(ctx context.Context) (*InstanceAdminClientImpl, error) {
-	c, err := GetOrCreateClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &InstanceAdminClientImpl{client: c}, nil
-}
-
-func (c *InstanceAdminClientImpl) GetInstance(ctx context.Context, req *instancepb.GetInstanceRequest, opts ...gax.CallOption) (*instancepb.Instance, error) {
-	return c.client.GetInstance(ctx, req, opts...)
-}
-
-func (c *InstanceAdminClientImpl) GetInstanceConfig(ctx context.Context, req *instancepb.GetInstanceConfigRequest, opts ...gax.CallOption) (*instancepb.InstanceConfig, error) {
-	return c.client.GetInstanceConfig(ctx, req, opts...)
 }

@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/dataflow/apiv1beta3/dataflowpb"
+	dataflowclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/dataflow"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/google/go-cmp/cmp"
 	"github.com/googleapis/gax-go/v2"
@@ -157,14 +158,6 @@ func getExpectedGcloudCmd2() string {
 		"transformationContextFilePath=gs://transformationContext.json"
 }
 
-type DataflowClientMock struct {
-	LaunchFlexTemplateMock func(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error)
-}
-
-func (dcm *DataflowClientMock) LaunchFlexTemplate(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error) {
-	return dcm.LaunchFlexTemplateMock(ctx, req, opts...)
-}
-
 func TestLaunchDataflowTemplate(t *testing.T) {
 	ctx := context.Background()
 	da := DataflowAccessorImpl{}
@@ -172,7 +165,7 @@ func TestLaunchDataflowTemplate(t *testing.T) {
 		name              string
 		params            map[string]string
 		cfg               DataflowTuningConfig
-		dcm               DataflowClientMock
+		dcm               dataflowclient.DataflowClientMock
 		expectError       bool
 		expectedJobId     string
 		expectedGcloudCmd string
@@ -181,7 +174,7 @@ func TestLaunchDataflowTemplate(t *testing.T) {
 			name:   "Basic Correct",
 			params: getParameters(),
 			cfg:    getTuningConfig(),
-			dcm: DataflowClientMock{
+			dcm: dataflowclient.DataflowClientMock{
 				LaunchFlexTemplateMock: func(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error) {
 					return &dataflowpb.LaunchFlexTemplateResponse{Job: &dataflowpb.Job{Id: "1234"}}, nil
 				},
@@ -194,7 +187,7 @@ func TestLaunchDataflowTemplate(t *testing.T) {
 			name:   "Request builder error",
 			params: getParameters(),
 			cfg:    DataflowTuningConfig{Subnetwork: "test"},
-			dcm: DataflowClientMock{
+			dcm: dataflowclient.DataflowClientMock{
 				LaunchFlexTemplateMock: func(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error) {
 					return &dataflowpb.LaunchFlexTemplateResponse{Job: &dataflowpb.Job{Id: "1234"}}, nil
 				},
@@ -207,7 +200,7 @@ func TestLaunchDataflowTemplate(t *testing.T) {
 			name:   "Launch flex template throws error",
 			params: getParameters(),
 			cfg:    getTuningConfig(),
-			dcm: DataflowClientMock{
+			dcm: dataflowclient.DataflowClientMock{
 				LaunchFlexTemplateMock: func(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error) {
 					return nil, fmt.Errorf("test error")
 				},
