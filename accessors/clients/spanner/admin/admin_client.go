@@ -25,7 +25,7 @@ var once sync.Once
 var spannerAdminClient *database.DatabaseAdminClient
 
 // This function is declared as a global variable to make it testable. The unit
-// tests edit this function, acting like a double.
+// tests update this function, acting like a double.
 var newDatabaseAdminClient = database.NewDatabaseAdminClient
 
 func GetOrCreateClient(ctx context.Context) (*database.DatabaseAdminClient, error) {

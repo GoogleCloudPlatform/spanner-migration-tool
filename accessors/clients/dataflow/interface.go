@@ -21,10 +21,12 @@ import (
 	"github.com/googleapis/gax-go/v2"
 )
 
+// Use this interface instead of dataflow.FlexTemplatesClient to support mocking.
 type DataflowClient interface {
 	LaunchFlexTemplate(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error)
 }
 
+// This implements the DataflowClient interface. This is the primary implementation that should be used in all places other than tests.
 type DataflowClientImpl struct {
 	client *dataflow.FlexTemplatesClient
 }

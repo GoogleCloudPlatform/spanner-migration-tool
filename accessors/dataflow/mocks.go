@@ -19,6 +19,8 @@ import (
 	dataflowclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/dataflow"
 )
 
+// Mock that implements the DataflowAccessor interface.
+// Pass in unit tests where DataflowAccessor is an input parameter.
 type DataflowAccessorMock struct {
 	LaunchFlexTemplateMock func(ctx context.Context, c dataflowclient.DataflowClient, parameters map[string]string, cfg DataflowTuningConfig) (string, string, error)
 }

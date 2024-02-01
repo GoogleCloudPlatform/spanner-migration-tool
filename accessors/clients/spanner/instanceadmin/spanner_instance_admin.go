@@ -25,7 +25,7 @@ var once sync.Once
 var instanceAdminClient *instance.InstanceAdminClient
 
 // This function is declared as a global variable to make it testable. The unit
-// tests edit this function, acting like a double.
+// tests update this function, acting like a double.
 var newInstanceAdminClient = instance.NewInstanceAdminClient
 
 func GetOrCreateClient(ctx context.Context) (*instance.InstanceAdminClient, error) {

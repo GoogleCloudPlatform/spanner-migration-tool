@@ -20,6 +20,8 @@ import (
 	"github.com/googleapis/gax-go/v2"
 )
 
+// Mock that implements the AdminClient interface.
+// Pass in unit tests where AdminClient is an input parameter.
 type AdminClientMock struct {
 	GetDatabaseMock       func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error)
 	CreateDatabaseMock    func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (CreateDatabaseOperation, error)
@@ -38,6 +40,8 @@ func (acm *AdminClientMock) UpdateDatabaseDdl(ctx context.Context, req *database
 	return acm.UpdateDatabaseDdlMock(ctx, req, opts...)
 }
 
+// Mock that implements the CreateDatabaseOperation interface.
+// Pass in unit tests where CreateDatabaseOperation is an input parameter.
 type CreateDatabaseOperationMock struct {
 	WaitMock func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error)
 }
@@ -46,6 +50,8 @@ func (dbo *CreateDatabaseOperationMock) Wait(ctx context.Context, opts ...gax.Ca
 	return dbo.WaitMock(ctx, opts...)
 }
 
+// Mock that implements the UpdateDatabaseDdlOperation interface.
+// Pass in unit tests where UpdateDatabaseDdlOperation is an input parameter.
 type UpdateDatabaseDdlOperationMock struct {
 	WaitMock func(ctx context.Context, opts ...gax.CallOption) error
 }

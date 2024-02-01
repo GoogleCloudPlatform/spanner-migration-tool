@@ -20,6 +20,8 @@ import (
 	"github.com/googleapis/gax-go/v2"
 )
 
+// Mock that implements the DataflowClient interface.
+// Pass in unit tests where DataflowClient is an input parameter.
 type DataflowClientMock struct {
 	LaunchFlexTemplateMock func(ctx context.Context, req *dataflowpb.LaunchFlexTemplateRequest, opts ...gax.CallOption) (*dataflowpb.LaunchFlexTemplateResponse, error)
 }

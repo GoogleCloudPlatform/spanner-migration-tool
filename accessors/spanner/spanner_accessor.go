@@ -29,16 +29,27 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+// The SpannerAccessor provides methods that internally use a spanner client (can be adminClient/databaseclient/instanceclient etc).
+// Methods should only contain generic logic here that can be used by multiple workflows.
 type SpannerAccessor interface {
+	// Fetch the dialect of the spanner database.
 	GetDatabaseDialect(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (string, error)
+	// CheckExistingDb checks whether the database with dbURI exists or not.
+	// If API call doesn't respond then user is informed after every 5 minutes on command line.
 	CheckExistingDb(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (bool, error)
+	// Create a database with no schema.
 	CreateEmptyDatabase(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) error
+	// Fetch the leader of the Spanner instance.
 	GetSpannerLeaderLocation(ctx context.Context, instanceClient spinstanceadmin.InstanceAdminClient, instanceURI string) (string, error)
+	// Check if a change stream already exists.
 	CheckIfChangeStreamExists(ctx context.Context, changeStreamName, dbURI string) (bool, error)
+	// Validate that change stream option 'VALUE_CAPTURE_TYPE' is 'NEW_ROW'.
 	ValidateChangeStreamOptions(ctx context.Context, changeStreamName, dbURI string) error
+	// Create a change stream with default options.
 	CreateChangeStream(ctx context.Context, adminClient spanneradmin.AdminClient, changeStreamName, dbURI string) error
 }
 
+// This implements the SpannerAccessor interface. This is the primary implementation that should be used in all places other than tests.
 type SpannerAccessorImpl struct{}
 
 func (sp *SpannerAccessorImpl) GetDatabaseDialect(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (string, error) {
@@ -49,8 +60,6 @@ func (sp *SpannerAccessorImpl) GetDatabaseDialect(ctx context.Context, adminClie
 	return strings.ToLower(result.DatabaseDialect.String()), nil
 }
 
-// CheckExistingDb checks whether the database with dbURI exists or not.
-// If API call doesn't respond then user is informed after every 5 minutes on command line.
 func (sp *SpannerAccessorImpl) CheckExistingDb(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (bool, error) {
 	gotResponse := make(chan bool)
 	var err error
@@ -108,6 +117,7 @@ func (sp *SpannerAccessorImpl) GetSpannerLeaderLocation(ctx context.Context, ins
 	return "", fmt.Errorf("no leader found for spanner instance %s while trying fetch location", instanceURI)
 }
 
+// Consider using a CreateChangestream operation and check for alreadyExists error. That uses adminClient which can be unit tested.
 func (sp *SpannerAccessorImpl) CheckIfChangeStreamExists(ctx context.Context, changeStreamName, dbURI string) (bool, error) {
 	spClient, err := spannerclient.GetOrCreateClient(ctx, dbURI)
 	if err != nil {

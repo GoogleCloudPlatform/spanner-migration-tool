@@ -19,6 +19,8 @@ import (
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 )
 
+// Mock that implements the StorageAccessor interface.
+// Pass in unit tests where StorageAccessor is an input parameter.
 type StorageAccessorMock struct {
 	CreateGCSBucketMock                func(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string, ttl int64, matchesPrefix []string) error
 	ApplyBucketLifecycleDeleteRuleMock func(ctx context.Context, sc storageclient.StorageClient, bucketName string, matchesPrefix []string, ttl int64) error

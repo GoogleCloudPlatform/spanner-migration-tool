@@ -20,6 +20,8 @@ import (
 	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 )
 
+// Mock that implements the SpannerAccessor interface.
+// Pass in unit tests where SpannerAccessor is an input parameter.
 type SpannerAccessorMock struct {
 	GetDatabaseDialectMock          func(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (string, error)
 	CheckExistingDbMock             func(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (bool, error)

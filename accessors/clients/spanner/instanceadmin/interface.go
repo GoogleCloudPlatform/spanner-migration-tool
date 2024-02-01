@@ -21,11 +21,13 @@ import (
 	"github.com/googleapis/gax-go/v2"
 )
 
+// Use this interface instead of instance.InstanceAdminClient to support mocking.
 type InstanceAdminClient interface {
 	GetInstance(ctx context.Context, req *instancepb.GetInstanceRequest, opts ...gax.CallOption) (*instancepb.Instance, error)
 	GetInstanceConfig(ctx context.Context, req *instancepb.GetInstanceConfigRequest, opts ...gax.CallOption) (*instancepb.InstanceConfig, error)
 }
 
+// This implements the InstanceAdminClient interface. This is the primary implementation that should be used in all places other than tests.
 type InstanceAdminClientImpl struct {
 	client *instance.InstanceAdminClient
 }

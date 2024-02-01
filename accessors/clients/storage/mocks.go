@@ -20,6 +20,8 @@ import (
 	"cloud.google.com/go/storage"
 )
 
+// Mock that implements the StorageClient interface.
+// Pass in unit tests where StorageClient is an input parameter.
 type StorageClientMock struct {
 	BucketMock func(name string) BucketHandle
 }
@@ -28,6 +30,8 @@ func (scm *StorageClientMock) Bucket(name string) BucketHandle {
 	return scm.BucketMock(name)
 }
 
+// Mock that implements the BucketHandle interface.
+// Pass in unit tests where BucketHandle is an input parameter.
 type BucketHandleMock struct {
 	CreateMock func(ctx context.Context, projectID string, attrs *storage.BucketAttrs) (err error)
 	UpdateMock func(ctx context.Context, uattrs storage.BucketAttrsToUpdate) (attrs *storage.BucketAttrs, err error)
@@ -46,6 +50,8 @@ func (b *BucketHandleMock) Object(name string) ObjectHandle {
 	return b.ObjectMock(name)
 }
 
+// Mock that implements the ObjectHandle interface.
+// Pass in unit tests where ObjectHandle is an input parameter.
 type ObjectHandleMock struct {
 	NewWriterMock func(ctx context.Context) io.WriteCloser
 	NewReaderMock func(ctx context.Context) (io.ReadCloser, error)
@@ -59,6 +65,8 @@ func (o *ObjectHandleMock) NewReader(ctx context.Context) (io.ReadCloser, error)
 	return o.NewReaderMock(ctx)
 }
 
+// Mock that implements the io.WriteCloser interface.
+// Pass in unit tests where io.WriteCloser is an input parameter.
 type WriterMock struct {
 	WriteMock func(p []byte) (n int, err error)
 	CloseMock func() error
@@ -72,6 +80,8 @@ func (w *WriterMock) Close() error {
 	return w.CloseMock()
 }
 
+// Mock that implements the io.ReadCloser interface.
+// Pass in unit tests where io.ReadCloser is an input parameter.
 type ReaderMock struct {
 	ReadMock  func(p []byte) (n int, err error)
 	CloseMock func() error

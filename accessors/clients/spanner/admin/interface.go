@@ -21,20 +21,24 @@ import (
 	"github.com/googleapis/gax-go/v2"
 )
 
+// Use this interface instead of database.DatabaseAdminClient to support mocking.
 type AdminClient interface {
 	GetDatabase(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error)
 	CreateDatabase(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (CreateDatabaseOperation, error)
 	UpdateDatabaseDdl(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (UpdateDatabaseDdlOperation, error)
 }
 
+// Use this interface instead of database.CreateDatabaseOperation to support mocking.
 type CreateDatabaseOperation interface {
 	Wait(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error)
 }
 
+// Use this interface instead of database.UpdateDatabaseDdlOperation to support mocking.
 type UpdateDatabaseDdlOperation interface {
 	Wait(ctx context.Context, opts ...gax.CallOption) error
 }
 
+// This implements the AdminClient interface. This is the primary implementation that should be used in all places other than tests.
 type AdminClientImpl struct {
 	adminClient *database.DatabaseAdminClient
 }
@@ -67,6 +71,7 @@ func (c *AdminClientImpl) UpdateDatabaseDdl(ctx context.Context, req *databasepb
 	return &UpdateDatabaseDdlImpl{dbo: op}, nil
 }
 
+// This implements the CreateDatabaseOperation interface. This is the primary implementation that should be used in all places other than tests.
 type CreateDatabaseOperationImpl struct {
 	dbo *database.CreateDatabaseOperation
 }
@@ -75,6 +80,7 @@ func (c *CreateDatabaseOperationImpl) Wait(ctx context.Context, opts ...gax.Call
 	return c.dbo.Wait(ctx, opts...)
 }
 
+// This implements the UpdateDatabaseDdl interface. This is the primary implementation that should be used in all places other than tests.
 type UpdateDatabaseDdlImpl struct {
 	dbo *database.UpdateDatabaseDdlOperation
 }

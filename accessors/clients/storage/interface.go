@@ -20,21 +20,25 @@ import (
 	"cloud.google.com/go/storage"
 )
 
+// Use this interface instead of storage.Client to support mocking.
 type StorageClient interface {
 	Bucket(name string) BucketHandle
 }
 
+// Use this interface instead of storage.BucketHandle to support mocking.
 type BucketHandle interface {
 	Create(ctx context.Context, projectID string, attrs *storage.BucketAttrs) (err error)
 	Update(ctx context.Context, uattrs storage.BucketAttrsToUpdate) (attrs *storage.BucketAttrs, err error)
 	Object(name string) ObjectHandle
 }
 
+// Use this interface instead of storage.ObjectHandle to support mocking.
 type ObjectHandle interface {
 	NewWriter(ctx context.Context) io.WriteCloser
 	NewReader(ctx context.Context) (io.ReadCloser, error)
 }
 
+// This implements the StorageClient interface. This is the primary implementation that should be used in all places other than tests.
 type StorageClientImpl struct {
 	client *storage.Client
 }
@@ -51,6 +55,7 @@ func (c *StorageClientImpl) Bucket(name string) BucketHandle {
 	return &BucketHandleImpl{bucketHandle: c.client.Bucket(name)}
 }
 
+// This implements the BucketHandle interface. This is the primary implementation that should be used in all places other than tests.
 type BucketHandleImpl struct {
 	bucketHandle *storage.BucketHandle
 }
@@ -67,6 +72,7 @@ func (b *BucketHandleImpl) Object(name string) ObjectHandle {
 	return &ObjectHandleImpl{objectHandle: b.bucketHandle.Object(name)}
 }
 
+// This implements the ObjectHandle interface. This is the primary implementation that should be used in all places other than tests.
 type ObjectHandleImpl struct {
 	objectHandle *storage.ObjectHandle
 }

@@ -25,7 +25,7 @@ var once sync.Once
 var gcsClient *storage.Client
 
 // This function is declared as a global variable to make it testable. The unit
-// tests edit this function, acting like a double.
+// tests update this function, acting like a double.
 var newClient = storage.NewClient
 
 func GetOrCreateClient(ctx context.Context) (*storage.Client, error) {

@@ -20,6 +20,8 @@ import (
 	"github.com/googleapis/gax-go/v2"
 )
 
+// Mock that implements the InstanceAdminClient interface.
+// Pass in unit tests where InstanceAdminClient is an input parameter.
 type InstanceAdminClientMock struct {
 	GetInstanceMock       func(ctx context.Context, req *instancepb.GetInstanceRequest, opts ...gax.CallOption) (*instancepb.Instance, error)
 	GetInstanceConfigMock func(ctx context.Context, req *instancepb.GetInstanceConfigRequest, opts ...gax.CallOption) (*instancepb.InstanceConfig, error)
