@@ -11,33 +11,33 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package dataflowclient
+package spannerclient
 
 import (
 	"context"
 	"fmt"
 	"sync"
 
-	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
+	sp "cloud.google.com/go/spanner"
 )
 
 var once sync.Once
-var dfClient *dataflow.FlexTemplatesClient
+var spannerClient *sp.Client
 
 // This function is declared as a global variable to make it testable. The unit
-// tests update this function, acting like a double.
-var newFlexTemplatesClient = dataflow.NewFlexTemplatesClient
+// tests edit this function, acting like a double.
+var newClient = sp.NewClient
 
-func GetOrCreateClient(ctx context.Context) (*dataflow.FlexTemplatesClient, error) {
+func GetOrCreateClient(ctx context.Context, dbURI string) (*sp.Client, error) {
 	var err error
-	if dfClient == nil {
+	if spannerClient == nil {
 		once.Do(func() {
-			dfClient, err = newFlexTemplatesClient(ctx)
+			spannerClient, err = newClient(ctx, dbURI)
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create dataflow client: %v", err)
+			return nil, fmt.Errorf("failed to create spanner database client: %v", err)
 		}
-		return dfClient, nil
+		return spannerClient, nil
 	}
-	return dfClient, nil
+	return spannerClient, nil
 }

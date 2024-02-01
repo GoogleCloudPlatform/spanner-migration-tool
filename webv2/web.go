@@ -36,6 +36,8 @@ import (
 	"time"
 
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
+	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/cmd"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -2263,7 +2265,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Can't get source and target profiles: %v", err), http.StatusBadRequest)
 		return
 	}
-	err = writeSessionFile(sessionState)
+	err = writeSessionFile(ctx, sessionState)
 	if err != nil {
 		log.Println("can't write session file")
 		http.Error(w, fmt.Sprintf("Can't write session file to GCS: %v", err), http.StatusBadRequest)
@@ -2484,9 +2486,19 @@ func createConfigFileForShardedBulkMigration(sessionState *session.SessionState,
 	return nil
 }
 
-func writeSessionFile(sessionState *session.SessionState) error {
-
-	err := utils.CreateGCSBucket(sessionState.Bucket, sessionState.GCPProjectID, sessionState.Region)
+func writeSessionFile(ctx context.Context, sessionState *session.SessionState) error {
+	sc, err := storageclient.NewStorageClientImpl(ctx)
+	if err != nil {
+		return err
+	}
+	sa := storageaccessor.StorageAccessorImpl{}
+	err = sa.CreateGCSBucket(ctx, sc, storageaccessor.StorageBucketMetadata{
+		BucketName:    sessionState.Bucket,
+		ProjectID:     sessionState.GCPProjectID,
+		Location:      sessionState.Region,
+		Ttl:           0,
+		MatchesPrefix: nil,
+	})
 	if err != nil {
 		return fmt.Errorf("error while creating bucket: %v", err)
 	}
@@ -2495,7 +2507,7 @@ func writeSessionFile(sessionState *session.SessionState) error {
 	if err != nil {
 		return fmt.Errorf("can't encode session state to JSON: %v", err)
 	}
-	err = utils.WriteToGCS("gs://"+sessionState.Bucket+sessionState.RootPath, "session.json", string(convJSON))
+	err = sa.WriteDataToGCS(ctx, sc, "gs://"+sessionState.Bucket+sessionState.RootPath, "session.json", string(convJSON))
 	if err != nil {
 		return fmt.Errorf("error while writing to GCS: %v", err)
 	}
@@ -3031,7 +3043,7 @@ type ResourceDetails struct {
 	ResourceType string `json:"ResourceType"`
 	ResourceName string `json:"ResourceName"`
 	ResourceUrl  string `json:"ResourceUrl"`
-	GcloudCmd string `json:"GcloudCmd"`
+	GcloudCmd    string `json:"GcloudCmd"`
 }
 type GeneratedResources struct {
 	MigrationJobId string `json:"MigrationJobId"`
@@ -3054,7 +3066,7 @@ type GeneratedResources struct {
 	AggMonitoringDashboardName string `json:"AggMonitoringDashboardName"`
 	AggMonitoringDashboardUrl  string `json:"AggMonitoringDashboardUrl"`
 	//Used for sharded migration flow
-	ShardToShardResourcesMap	  map[string][]ResourceDetails `json:"ShardToShardResourcesMap"`
+	ShardToShardResourcesMap map[string][]ResourceDetails `json:"ShardToShardResourcesMap"`
 }
 
 func addTypeToList(convertedType string, spType string, issues []internal.SchemaIssue, l []typeIssue) []typeIssue {

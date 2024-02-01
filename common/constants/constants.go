@@ -64,7 +64,8 @@ const (
 	MigrationMetadataKey string = "cloud-spanner-migration-metadata"
 
 	// Scheme used for GCS paths
-	GCS_SCHEME string = "gs"
+	GCS_SCHEME      string = "gs"
+	GCS_FILE_PREFIX string = "gs://"
 
 	// File upload prefix for dump and session load.
 	UPLOAD_FILE_DIR string = "upload-file"

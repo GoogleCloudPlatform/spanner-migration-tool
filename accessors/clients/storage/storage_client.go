@@ -11,33 +11,33 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package dataflowclient
+package storageclient
 
 import (
 	"context"
 	"fmt"
 	"sync"
 
-	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
+	"cloud.google.com/go/storage"
 )
 
 var once sync.Once
-var dfClient *dataflow.FlexTemplatesClient
+var gcsClient *storage.Client
 
 // This function is declared as a global variable to make it testable. The unit
 // tests update this function, acting like a double.
-var newFlexTemplatesClient = dataflow.NewFlexTemplatesClient
+var newClient = storage.NewClient
 
-func GetOrCreateClient(ctx context.Context) (*dataflow.FlexTemplatesClient, error) {
+func GetOrCreateClient(ctx context.Context) (*storage.Client, error) {
 	var err error
-	if dfClient == nil {
+	if gcsClient == nil {
 		once.Do(func() {
-			dfClient, err = newFlexTemplatesClient(ctx)
+			gcsClient, err = newClient(ctx)
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create dataflow client: %v", err)
+			return nil, fmt.Errorf("failed to create storage client: %v", err)
 		}
-		return dfClient, nil
+		return gcsClient, nil
 	}
-	return dfClient, nil
+	return gcsClient, nil
 }
