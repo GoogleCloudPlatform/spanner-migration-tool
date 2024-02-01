@@ -92,7 +92,13 @@ func TestStorageAccessorImpl_CreateGCSBucket(t *testing.T) {
 	ctx := context.Background()
 	sa := StorageAccessorImpl{}
 	for _, tc := range testCases {
-		err := sa.CreateGCSBucket(ctx, &tc.scm, "test-bucket", "test-project", "india2", 1, nil)
+		err := sa.CreateGCSBucket(ctx, &tc.scm, StorageBucketMetadata{
+			BucketName:    "test-bucket",
+			ProjectID:     "test-project",
+			Location:      "india2",
+			Ttl:           1,
+			MatchesPrefix: nil,
+		})
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
@@ -176,7 +182,11 @@ func TestStorageAccessorImpl_ApplyBucketLifecycleDeleteRule(t *testing.T) {
 	ctx := context.Background()
 	sa := StorageAccessorImpl{}
 	for _, tc := range testCases {
-		err := sa.ApplyBucketLifecycleDeleteRule(ctx, &tc.scm, "test-bucket", tc.matchesPrefix, tc.ttl)
+		err := sa.ApplyBucketLifecycleDeleteRule(ctx, &tc.scm, StorageBucketMetadata{
+			BucketName:    "test-bucket",
+			Ttl:           tc.ttl,
+			MatchesPrefix: tc.matchesPrefix,
+		})
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }

@@ -168,7 +168,13 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		} else {
 			bucketName = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
 		}
-		err = sa.CreateGCSBucket(ctx, sc, bucketName, sessionState.GCPProjectID, sessionState.Region, 0, nil)
+		err = sa.CreateGCSBucket(ctx, sc, storageaccessor.StorageBucketMetadata{
+			BucketName:    bucketName,
+			ProjectID:     sessionState.GCPProjectID,
+			Location:      sessionState.Region,
+			Ttl:           0,
+			MatchesPrefix: nil,
+		})
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error while creating bucket: %v", err), http.StatusBadRequest)
 			return

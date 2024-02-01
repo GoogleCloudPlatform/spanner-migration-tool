@@ -33,10 +33,10 @@ import (
 type StorageAccessor interface {
 	// Create a GCS bucket with the given name in the input projectId and location. If ttl is > 0,
 	// also apply a delete lifecycle rule with the input ttl and prefixes. Set @ttl to 0 to skip creating lifecycle rules.
-	CreateGCSBucket(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string, ttl int64, matchesPrefix []string) error
+	CreateGCSBucket(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error
 	// Applies the bucket lifecycle with delete rule. Only accepts the Age and prefix rule conditions as it is only used for the Datastream destination
 	// bucket currently.
-	ApplyBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, bucketName string, matchesPrefix []string, ttl int64) error
+	ApplyBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error
 	// UploadLocalFileToGCS uploads a local file at @localFilePath to a gcs file path @filePath with name @fileName.
 	UploadLocalFileToGCS(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, localFilePath string) error
 	// Uploads a gcs object to gs://@filePath/@fileName with @data as content.
@@ -50,62 +50,62 @@ type StorageAccessor interface {
 // This implements the StorageAccessor interface. This is the primary implementation that should be used in all places other than tests.
 type StorageAccessorImpl struct{}
 
-func (sa *StorageAccessorImpl) CreateGCSBucket(ctx context.Context, sc storageclient.StorageClient, bucketName, projectID, location string, ttl int64, matchesPrefix []string) error {
-	bucket := sc.Bucket(bucketName)
+func (sa *StorageAccessorImpl) CreateGCSBucket(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error {
+	bucket := sc.Bucket(req.BucketName)
 	attrs := storage.BucketAttrs{
-		Location: location,
+		Location: req.Location,
 	}
-	if ttl > 0 {
+	if req.Ttl > 0 {
 		attrs.Lifecycle = storage.Lifecycle{
 			Rules: []storage.LifecycleRule{
 				{
 					Action: storage.LifecycleAction{Type: "Delete"},
 					Condition: storage.LifecycleCondition{
-						AgeInDays: ttl,
+						AgeInDays: req.Ttl,
 						// The prefixes should not contain the bucket names and starting slash.
 						// For object gs://my_bucket/pictures/paris_2022.jpg,
 						// you would use a condition such as "matchesPrefix":["pictures/paris_"].
-						MatchesPrefix: matchesPrefix,
+						MatchesPrefix: req.MatchesPrefix,
 					},
 				},
 			},
 		}
 	}
 
-	if err := bucket.Create(ctx, projectID, &attrs); err != nil {
+	if err := bucket.Create(ctx, req.ProjectID, &attrs); err != nil {
 		if e, ok := err.(*googleapi.Error); ok {
 			// Ignoring the bucket already exists error.
 			if e.Code != 409 {
 				return fmt.Errorf("failed to create bucket: %v", err)
 			} else {
-				fmt.Printf("Using the existing bucket: %v \n", bucketName)
+				fmt.Printf("Using the existing bucket: %v \n", req.BucketName)
 			}
 		} else {
 			return fmt.Errorf("failed to create bucket: %v", err)
 		}
 
 	} else {
-		logger.Log.Info(fmt.Sprintf("Created new GCS bucket: %v\n", bucketName))
+		logger.Log.Info(fmt.Sprintf("Created new GCS bucket: %v\n", req.BucketName))
 	}
 	return nil
 }
 
-func (sa *StorageAccessorImpl) ApplyBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, bucketName string, matchesPrefix []string, ttl int64) error {
-	for i, str := range matchesPrefix {
-		matchesPrefix[i] = strings.TrimPrefix(str, "/")
+func (sa *StorageAccessorImpl) ApplyBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error {
+	for i, str := range req.MatchesPrefix {
+		req.MatchesPrefix[i] = strings.TrimPrefix(str, "/")
 	}
-	bucket := sc.Bucket(bucketName)
+	bucket := sc.Bucket(req.BucketName)
 	bucketAttrsToUpdate := storage.BucketAttrsToUpdate{
 		Lifecycle: &storage.Lifecycle{
 			Rules: []storage.LifecycleRule{
 				{
 					Action: storage.LifecycleAction{Type: "Delete"},
 					Condition: storage.LifecycleCondition{
-						AgeInDays: ttl,
+						AgeInDays: req.Ttl,
 						// The prefixes should not contain the bucket names and starting slash.
 						// For object gs://my_bucket/pictures/paris_2022.jpg,
 						// you would use a condition such as "matchesPrefix":["pictures/paris_"].
-						MatchesPrefix: matchesPrefix,
+						MatchesPrefix: req.MatchesPrefix,
 					},
 				},
 			},
@@ -117,7 +117,7 @@ func (sa *StorageAccessorImpl) ApplyBucketLifecycleDeleteRule(ctx context.Contex
 		return fmt.Errorf("could not bucket with lifecycle: %w", err)
 	}
 	logger.Log.Info(fmt.Sprintf("Added lifecycle rule to bucket %v\n. Rule Action: %v\t Rule Condition: %v\n",
-		bucketName, attrs.Lifecycle.Rules[0].Action, attrs.Lifecycle.Rules[0].Condition))
+		req.BucketName, attrs.Lifecycle.Rules[0].Action, attrs.Lifecycle.Rules[0].Condition))
 	return nil
 }
 
