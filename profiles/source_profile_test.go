@@ -29,45 +29,45 @@ import (
 )
 
 type MockSourceProfileDialect struct {
-    mock.Mock
+	mock.Mock
 }
 
 func (m *MockSourceProfileDialect) NewSourceProfileConnectionCloudSQLMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLMySQL, error) {
-    args := m.Called(params, g)
-    return args.Get(0).(SourceProfileConnectionCloudSQLMySQL), args.Error(1)
+	args := m.Called(params, g)
+	return args.Get(0).(SourceProfileConnectionCloudSQLMySQL), args.Error(1)
 }
 
 func (m *MockSourceProfileDialect) NewSourceProfileConnectionMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionMySQL, error) {
-    args := m.Called(params, g)
-    return args.Get(0).(SourceProfileConnectionMySQL), args.Error(1)
+	args := m.Called(params, g)
+	return args.Get(0).(SourceProfileConnectionMySQL), args.Error(1)
 }
 
 func (m *MockSourceProfileDialect) NewSourceProfileConnectionCloudSQLPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLPostgreSQL, error) {
-    args := m.Called(params, g)
-    return args.Get(0).(SourceProfileConnectionCloudSQLPostgreSQL), args.Error(1)
+	args := m.Called(params, g)
+	return args.Get(0).(SourceProfileConnectionCloudSQLPostgreSQL), args.Error(1)
 }
 
 func (m *MockSourceProfileDialect) NewSourceProfileConnectionPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionPostgreSQL, error) {
-    args := m.Called(params, g)
-    return args.Get(0).(SourceProfileConnectionPostgreSQL), args.Error(1)
+	args := m.Called(params, g)
+	return args.Get(0).(SourceProfileConnectionPostgreSQL), args.Error(1)
 }
 
 func (m *MockSourceProfileDialect) NewSourceProfileConnectionSqlServer(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionSqlServer, error) {
-    args := m.Called(params, g)
-    return args.Get(0).(SourceProfileConnectionSqlServer), args.Error(1)
+	args := m.Called(params, g)
+	return args.Get(0).(SourceProfileConnectionSqlServer), args.Error(1)
 }
 
 func (m *MockSourceProfileDialect) NewSourceProfileConnectionDynamoDB(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionDynamoDB, error) {
-    args := m.Called(params, g)
-    return args.Get(0).(SourceProfileConnectionDynamoDB), args.Error(1)
+	args := m.Called(params, g)
+	return args.Get(0).(SourceProfileConnectionDynamoDB), args.Error(1)
 }
 
 func (m *MockSourceProfileDialect) NewSourceProfileConnectionOracle(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionOracle, error) {
-    args := m.Called(params, g)
-    return args.Get(0).(SourceProfileConnectionOracle), args.Error(1)
+	args := m.Called(params, g)
+	return args.Get(0).(SourceProfileConnectionOracle), args.Error(1)
 }
 
-func setEnvVariables(){
+func setEnvVariables() {
 	// My Sql variables
 	os.Setenv("MYSQLHOST", "0.0.0.0")
 	os.Setenv("MYSQLUSER", "user")
@@ -90,7 +90,7 @@ func setEnvVariables(){
 	os.Setenv("MSSQL_SA_PASSWORD", "password")
 }
 
-func unsetEnvVariables(){
+func unsetEnvVariables() {
 	// My Sql Server Connection
 	os.Setenv("MSSQL_IP_ADDRESS", "")
 	os.Setenv("MSSQL_SA_USER", "")
@@ -138,14 +138,14 @@ func (gui *GetUtilInfoMock) GetDatabaseName(driver string, now time.Time) (strin
 	return args.Get(0).(string), args.Error(1)
 }
 
-func setGetInfoMockValues(g *GetUtilInfoMock){
+func setGetInfoMockValues(g *GetUtilInfoMock) {
 	g.On("GetDatabaseName", mock.AnythingOfType("string"), mock.AnythingOfType("time.Time")).Return("database-id", nil)
 	g.On("GetInstance", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("*os.File")).Return("instance-id", nil)
 	g.On("GetPassword").Return("password")
 }
 
 type MockNewSourceProfile struct {
-    mock.Mock
+	mock.Mock
 }
 
 func (nspm *MockNewSourceProfile) NewSourceProfileFile(params map[string]string) SourceProfileFile {
@@ -344,21 +344,21 @@ func TestNewSourceProfileConnectionSQL(t *testing.T) {
 		},
 	}
 
-	before := func(){
+	before := func() {
 		setEnvVariables()
 	}
 
-	after := func(){
+	after := func() {
 		unsetEnvVariables()
 	}
 
 	for _, tc := range testCases {
 		before()
-		s := SourceProfileDialectImpl{}
-		g:= GetUtilInfoMock{}
+		sourceProfileDialect := SourceProfileDialectImpl{}
+		g := GetUtilInfoMock{}
 		setGetInfoMockValues(&g)
-		_, pgErr := s.NewSourceProfileConnectionPostgreSQL(tc.params, &g)
-		_, mysqlErr := s.NewSourceProfileConnectionMySQL(tc.params, &g)
+		_, pgErr := sourceProfileDialect.NewSourceProfileConnectionPostgreSQL(tc.params, &g)
+		_, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionMySQL(tc.params, &g)
 		assert.Equal(t, tc.errorExpected, pgErr != nil, tc.name)
 		assert.Equal(t, tc.errorExpected, mysqlErr != nil, tc.name)
 		after()
@@ -420,8 +420,8 @@ func TestNewSourceProfileConnectionDynamoDB(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		s := SourceProfileDialectImpl{}
-		_, err := s.NewSourceProfileConnectionDynamoDB(tc.params, &GetUtilInfoMock{})
+		sourceProfileDialect := SourceProfileDialectImpl{}
+		_, err := sourceProfileDialect.NewSourceProfileConnectionDynamoDB(tc.params, &GetUtilInfoMock{})
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 	}
 }
@@ -490,20 +490,20 @@ func TestNewSourceProfileConnectionSqlServer(t *testing.T) {
 		},
 	}
 
-	before := func(){
+	before := func() {
 		setEnvVariables()
 	}
 
-	after := func(){
+	after := func() {
 		unsetEnvVariables()
 	}
 
 	for _, tc := range testCases {
 		before()
-		s := SourceProfileDialectImpl{}
-		g:= GetUtilInfoMock{}
+		sourceProfileDialect := SourceProfileDialectImpl{}
+		g := GetUtilInfoMock{}
 		setGetInfoMockValues(&g)
-		_, sqlServer := s.NewSourceProfileConnectionSqlServer(tc.params, &g)
+		_, sqlServer := sourceProfileDialect.NewSourceProfileConnectionSqlServer(tc.params, &g)
 		assert.Equal(t, tc.errorExpected, sqlServer != nil, tc.name)
 		after()
 	}
@@ -565,14 +565,13 @@ func TestNewSourceProfileConnectionOracle(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		s := SourceProfileDialectImpl{}
-		g:= GetUtilInfoMock{}
+		sourceProfileDialect := SourceProfileDialectImpl{}
+		g := GetUtilInfoMock{}
 		setGetInfoMockValues(&g)
-		_, oracleErr := s.NewSourceProfileConnectionOracle(tc.params, &g)
+		_, oracleErr := sourceProfileDialect.NewSourceProfileConnectionOracle(tc.params, &g)
 		assert.Equal(t, tc.errorExpected, oracleErr != nil, tc.name)
 	}
 }
-
 
 // code for testing cloud sql mysql connection
 func TestNewSourceProfileConnectionCloudSQLMySQL(t *testing.T) {
@@ -604,7 +603,7 @@ func TestNewSourceProfileConnectionCloudSQLMySQL(t *testing.T) {
 		},
 		{
 			name:          "project is blank and util getProject () returns project successfully",
-			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d",},
+			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d"},
 			errorExpected: false,
 		},
 		{
@@ -620,19 +619,18 @@ func TestNewSourceProfileConnectionCloudSQLMySQL(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		s := SourceProfileDialectImpl{}
-		g:= GetUtilInfoMock{}
+		sourceProfileDialect := SourceProfileDialectImpl{}
+		g := GetUtilInfoMock{}
 		setGetInfoMockValues(&g)
 		if tc.name == "project is blank and util getProject () fails" {
 			g.On("GetProject").Return("", fmt.Errorf("error"))
 		} else {
 			g.On("GetProject").Return("project-id", nil)
 		}
-		_, mysqlErr := s.NewSourceProfileConnectionCloudSQLMySQL(tc.params, &g)
+		_, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLMySQL(tc.params, &g)
 		assert.Equal(t, tc.errorExpected, mysqlErr != nil, tc.name)
 	}
 }
-
 
 // code for testing postgres sql source connection profile
 func TestNewSourceProfileConnectionCloudSQLPostgreSQL(t *testing.T) {
@@ -664,7 +662,7 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL(t *testing.T) {
 		},
 		{
 			name:          "project is blank and util getProject () returns project successfully",
-			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d",},
+			params:        map[string]string{"user": "a", "dbName": "b", "instance": "c", "region": "d"},
 			errorExpected: false,
 		},
 		{
@@ -680,15 +678,15 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		s := SourceProfileDialectImpl{}
-		g:= GetUtilInfoMock{}
+		sourceProfileDialect := SourceProfileDialectImpl{}
+		g := GetUtilInfoMock{}
 		setGetInfoMockValues(&g)
 		if tc.name == "project is blank and util getProject () fails" {
 			g.On("GetProject").Return("", fmt.Errorf("error"))
 		} else {
 			g.On("GetProject").Return("project-id", nil)
 		}
-		_, mysqlErr := s.NewSourceProfileConnectionCloudSQLPostgreSQL(tc.params, &g)
+		_, mysqlErr := sourceProfileDialect.NewSourceProfileConnectionCloudSQLPostgreSQL(tc.params, &g)
 		assert.Equal(t, tc.errorExpected, mysqlErr != nil, tc.name)
 	}
 }
@@ -697,60 +695,60 @@ func TestNewSourceProfileConnectionCloudSQLPostgreSQL(t *testing.T) {
 func TestNewSourceProfileConnection(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
 	testCases := []struct {
-		name          string
-		source		  string
-		params        map[string]string
-		function      string
-		returnConnProfile interface{} 
-		errorExpected bool
+		name              string
+		source            string
+		params            map[string]string
+		function          string
+		returnConnProfile interface{}
+		errorExpected     bool
 	}{
 		{
-			name:      		    "source mysql",
-			source: 			"mysql",	
-			params:    	    	map[string]string{},
-			function:		   "NewSourceProfileConnectionMySQL",
-			returnConnProfile:  SourceProfileConnectionMySQL{},
-			errorExpected: 		false,
+			name:              "source mysql",
+			source:            "mysql",
+			params:            map[string]string{},
+			function:          "NewSourceProfileConnectionMySQL",
+			returnConnProfile: SourceProfileConnectionMySQL{},
+			errorExpected:     false,
 		},
 		{
-			name:      		    "source postgresql",
-			source: 			"postgresql",	
-			params:    	    	map[string]string{},
-			function:		   "NewSourceProfileConnectionPostgreSQL",
-			returnConnProfile:  SourceProfileConnectionPostgreSQL{},
-			errorExpected: 		false,
+			name:              "source postgresql",
+			source:            "postgresql",
+			params:            map[string]string{},
+			function:          "NewSourceProfileConnectionPostgreSQL",
+			returnConnProfile: SourceProfileConnectionPostgreSQL{},
+			errorExpected:     false,
 		},
 		{
-			name:      		    "source dynamodb",
-			source: 			"dynamodb",	
-			params:    	    	map[string]string{},
-			function:		   "NewSourceProfileConnectionDynamoDB",
-			returnConnProfile:  SourceProfileConnectionDynamoDB{},
-			errorExpected: 		false,
+			name:              "source dynamodb",
+			source:            "dynamodb",
+			params:            map[string]string{},
+			function:          "NewSourceProfileConnectionDynamoDB",
+			returnConnProfile: SourceProfileConnectionDynamoDB{},
+			errorExpected:     false,
 		},
 		{
-			name:      		    "source sqlserver",
-			source: 			"sqlserver",	
-			params:    	    	map[string]string{},
-			function:		   "NewSourceProfileConnectionSqlServer",
-			returnConnProfile:  SourceProfileConnectionSqlServer{},
-			errorExpected: 		false,
+			name:              "source sqlserver",
+			source:            "sqlserver",
+			params:            map[string]string{},
+			function:          "NewSourceProfileConnectionSqlServer",
+			returnConnProfile: SourceProfileConnectionSqlServer{},
+			errorExpected:     false,
 		},
 		{
-			name:      		    "source oracle",
-			source: 			"oracle",	
-			params:    	    	map[string]string{},
-			function:		   "NewSourceProfileConnectionOracle",
-			returnConnProfile:  SourceProfileConnectionOracle{},
-			errorExpected: 		false,
+			name:              "source oracle",
+			source:            "oracle",
+			params:            map[string]string{},
+			function:          "NewSourceProfileConnectionOracle",
+			returnConnProfile: SourceProfileConnectionOracle{},
+			errorExpected:     false,
 		},
 		{
-			name:      		    "invalid source",
-			source: 			"invalid",	
-			params:    	    	map[string]string{},
-			function:		   "",
-			returnConnProfile:  nil,
-			errorExpected: 		true,
+			name:              "invalid source",
+			source:            "invalid",
+			params:            map[string]string{},
+			function:          "",
+			returnConnProfile: nil,
+			errorExpected:     true,
 		},
 	}
 
@@ -761,7 +759,7 @@ func TestNewSourceProfileConnection(t *testing.T) {
 		_, err := n.NewSourceProfileConnection(tc.source, tc.params, &m)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 		if err == nil {
-			m.AssertExpectations(t) 
+			m.AssertExpectations(t)
 		}
 	}
 }
@@ -770,49 +768,49 @@ func TestNewSourceProfileConnection(t *testing.T) {
 func TestNewSourceProfileConnectionCloudSQL(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
 	testCases := []struct {
-		name          		string
-		source		  		string
-		params       	 	map[string]string
-		function       		string
-		returnConnProfile 	interface{} 
-		returnError			error
-		errorExpected		bool
+		name              string
+		source            string
+		params            map[string]string
+		function          string
+		returnConnProfile interface{}
+		returnError       error
+		errorExpected     bool
 	}{
 		{
-			name:      		    "source mysql",
-			source: 			"mysql",	
-			params:    	    	map[string]string{},
-			function:		   "NewSourceProfileConnectionCloudSQLMySQL",
-			returnConnProfile:  SourceProfileConnectionCloudSQLMySQL{},
-			returnError:		nil,
-			errorExpected: 		false,
+			name:              "source mysql",
+			source:            "mysql",
+			params:            map[string]string{},
+			function:          "NewSourceProfileConnectionCloudSQLMySQL",
+			returnConnProfile: SourceProfileConnectionCloudSQLMySQL{},
+			returnError:       nil,
+			errorExpected:     false,
 		},
 		{
-			name:      		    "source mysql",
-			source: 			"mysql",	
-			params:    	    	map[string]string{},
-			function:		   "NewSourceProfileConnectionCloudSQLMySQL",
-			returnConnProfile:  SourceProfileConnectionCloudSQLMySQL{},
-			returnError:		fmt.Errorf("error"),
-			errorExpected: 		true,
+			name:              "source mysql",
+			source:            "mysql",
+			params:            map[string]string{},
+			function:          "NewSourceProfileConnectionCloudSQLMySQL",
+			returnConnProfile: SourceProfileConnectionCloudSQLMySQL{},
+			returnError:       fmt.Errorf("error"),
+			errorExpected:     true,
 		},
 		{
-			name:      		    "source postgresql error",
-			source: 			"postgresql",	
-			params:    	    	map[string]string{},
-			function:		   "NewSourceProfileConnectionCloudSQLPostgreSQL",
-			returnConnProfile:  SourceProfileConnectionCloudSQLPostgreSQL{},
-			returnError:		nil,
-			errorExpected: 		false,
+			name:              "source postgresql error",
+			source:            "postgresql",
+			params:            map[string]string{},
+			function:          "NewSourceProfileConnectionCloudSQLPostgreSQL",
+			returnConnProfile: SourceProfileConnectionCloudSQLPostgreSQL{},
+			returnError:       nil,
+			errorExpected:     false,
 		},
 		{
-			name:      		    "source postgres error",
-			source: 			"postgresql",	
-			params:    	    	map[string]string{},
-			function:		   "NewSourceProfileConnectionCloudSQLPostgreSQL",
-			returnConnProfile:  SourceProfileConnectionCloudSQLPostgreSQL{},
-			returnError:		fmt.Errorf("error"),
-			errorExpected: 		true,
+			name:              "source postgres error",
+			source:            "postgresql",
+			params:            map[string]string{},
+			function:          "NewSourceProfileConnectionCloudSQLPostgreSQL",
+			returnConnProfile: SourceProfileConnectionCloudSQLPostgreSQL{},
+			returnError:       fmt.Errorf("error"),
+			errorExpected:     true,
 		},
 	}
 
@@ -830,24 +828,24 @@ func TestNewSourceProfileConnectionCloudSQL(t *testing.T) {
 func TestNewSourceProfileCsv(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
 	testCases := []struct {
-		name          		string
-		params       	 	map[string]string
-		returnCsvProfile    SourceProfileCsv
+		name             string
+		params           map[string]string
+		returnCsvProfile SourceProfileCsv
 	}{
 		{
-			name:      		    "default params",
-			params:    	    	map[string]string{"manifest": "manifest.txt"},
-			returnCsvProfile:   SourceProfileCsv{Manifest: "manifest.txt", Delimiter: ",", NullStr: ""},
+			name:             "default params",
+			params:           map[string]string{"manifest": "manifest.txt"},
+			returnCsvProfile: SourceProfileCsv{Manifest: "manifest.txt", Delimiter: ",", NullStr: ""},
 		},
 		{
-			name:      		    "override delimiter",
-			params:    	    	map[string]string{"manifest": "manifest.txt", "delimiter": "/"},
-			returnCsvProfile:   SourceProfileCsv{Manifest: "manifest.txt", Delimiter: "/", NullStr: ""},
+			name:             "override delimiter",
+			params:           map[string]string{"manifest": "manifest.txt", "delimiter": "/"},
+			returnCsvProfile: SourceProfileCsv{Manifest: "manifest.txt", Delimiter: "/", NullStr: ""},
 		},
 		{
-			name:      		    "override nulltr",
-			params:    	    	map[string]string{"manifest": "manifest.txt", "nullStr": "/n"},
-			returnCsvProfile:   SourceProfileCsv{Manifest: "manifest.txt", Delimiter: ",", NullStr: "/n"},
+			name:             "override nulltr",
+			params:           map[string]string{"manifest": "manifest.txt", "nullStr": "/n"},
+			returnCsvProfile: SourceProfileCsv{Manifest: "manifest.txt", Delimiter: ",", NullStr: "/n"},
 		},
 	}
 
@@ -861,19 +859,19 @@ func TestNewSourceProfileCsv(t *testing.T) {
 func TestUseTargetSchema(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
 	testCases := []struct {
-		name          		string
-		srcDriver       	string
-		returnBoolean    	bool
+		name          string
+		srcDriver     string
+		returnBoolean bool
 	}{
 		{
-			name:      		    "csv as source driver",
-			srcDriver: 			"csv",
-			returnBoolean: 		true,		
+			name:          "csv as source driver",
+			srcDriver:     "csv",
+			returnBoolean: true,
 		},
 		{
-			name:      		    "not csv as source driver",
-			srcDriver: 			"cfg",
-			returnBoolean: 		false,		
+			name:          "not csv as source driver",
+			srcDriver:     "cfg",
+			returnBoolean: false,
 		},
 	}
 	for _, tc := range testCases {
@@ -884,7 +882,6 @@ func TestUseTargetSchema(t *testing.T) {
 		assert.Equal(t, res, tc.returnBoolean, tc.name)
 	}
 }
-
 
 // code to test legacy driver
 func TestToLegacyDriver(t *testing.T) {
@@ -899,130 +896,130 @@ func TestToLegacyDriver(t *testing.T) {
 		InvalidType
 	)
 	testCases := []struct {
-		name          		string
-		srcDriver       	SourceProfile
-		source  			string
-		returnConstant    	string
-		errorExpected		bool
+		name           string
+		srcDriver      SourceProfile
+		source         string
+		returnConstant string
+		errorExpected  bool
 	}{
 		{
-			name:      		    "source profile type FILE and source mysql",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeFile},
-			source: 			"mysql",
-			returnConstant: 	constants.MYSQLDUMP,	
-			errorExpected:		false,
+			name:           "source profile type FILE and source mysql",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeFile},
+			source:         "mysql",
+			returnConstant: constants.MYSQLDUMP,
+			errorExpected:  false,
 		},
 		{
-			name:      		    "source profile type FILE and source postgresql",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeFile},
-			source: 			"postgresql",
-			returnConstant: 	constants.PGDUMP,	
-			errorExpected:		false,
+			name:           "source profile type FILE and source postgresql",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeFile},
+			source:         "postgresql",
+			returnConstant: constants.PGDUMP,
+			errorExpected:  false,
 		},
 		{
-			name:      		    "source profile type FILE and source dynamodb",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeFile},
-			source: 			"dynamodb",
-			returnConstant: 	"",	
-			errorExpected:		true,
+			name:           "source profile type FILE and source dynamodb",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeFile},
+			source:         "dynamodb",
+			returnConstant: "",
+			errorExpected:  true,
 		},
 		{
-			name:      		    "source profile type FILE and source invalid",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeFile},
-			source: 			"invalid",
-			returnConstant: 	"",	
-			errorExpected:		true,
+			name:           "source profile type FILE and source invalid",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeFile},
+			source:         "invalid",
+			returnConstant: "",
+			errorExpected:  true,
 		},
 		{
-			name:      		    "source profile type CONNECTION and source mysql",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeConnection},
-			source: 			"mysql",
-			returnConstant: 	constants.MYSQL,	
-			errorExpected:		false,
+			name:           "source profile type CONNECTION and source mysql",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeConnection},
+			source:         "mysql",
+			returnConstant: constants.MYSQL,
+			errorExpected:  false,
 		},
 		{
-			name:      		    "source profile type CONNECTION and source postgresql",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeConnection},
-			source: 			"postgresql",
-			returnConstant: 	constants.POSTGRES,	
-			errorExpected:		false,
+			name:           "source profile type CONNECTION and source postgresql",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeConnection},
+			source:         "postgresql",
+			returnConstant: constants.POSTGRES,
+			errorExpected:  false,
 		},
 		{
-			name:      		    "source profile type CONNECTION and source dynamodb",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeConnection},
-			source: 			"dynamodb",
-			returnConstant: 	constants.DYNAMODB,	
-			errorExpected:		false,
+			name:           "source profile type CONNECTION and source dynamodb",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeConnection},
+			source:         "dynamodb",
+			returnConstant: constants.DYNAMODB,
+			errorExpected:  false,
 		},
 		{
-			name:      		    "source profile type CONNECTION and source mssql",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeConnection},
-			source: 			"mssql",
-			returnConstant: 	constants.SQLSERVER,	
-			errorExpected:		false,
+			name:           "source profile type CONNECTION and source mssql",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeConnection},
+			source:         "mssql",
+			returnConstant: constants.SQLSERVER,
+			errorExpected:  false,
 		},
 		{
-			name:      		    "source profile type CONNECTION and source oracle",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeConnection},
-			source: 			"oracle",
-			returnConstant: 	constants.ORACLE,	
-			errorExpected:		false,
+			name:           "source profile type CONNECTION and source oracle",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeConnection},
+			source:         "oracle",
+			returnConstant: constants.ORACLE,
+			errorExpected:  false,
 		},
 		{
-			name:      		    "source profile type CONNECTION and source invalid",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeConnection},
-			source: 			"invalid",
-			returnConstant: 	"",	
-			errorExpected:		true,
+			name:           "source profile type CONNECTION and source invalid",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeConnection},
+			source:         "invalid",
+			returnConstant: "",
+			errorExpected:  true,
 		},
 		{
-			name:      		    "source profile type CLOUD SQL and source mysql",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeCloudSQL},
-			source: 			"mysql",
-			returnConstant: 	constants.MYSQL,	
-			errorExpected:		false,
+			name:           "source profile type CLOUD SQL and source mysql",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeCloudSQL},
+			source:         "mysql",
+			returnConstant: constants.MYSQL,
+			errorExpected:  false,
 		},
 		{
-			name:      		    "source profile type CLOUD SQL and source postgresql",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeCloudSQL},
-			source: 			"postgresql",
-			returnConstant: 	constants.POSTGRES,	
-			errorExpected:		false,
+			name:           "source profile type CLOUD SQL and source postgresql",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeCloudSQL},
+			source:         "postgresql",
+			returnConstant: constants.POSTGRES,
+			errorExpected:  false,
 		},
 		{
-			name:      		    "source profile type CLOUD SQL and source invalid",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeCloudSQL},
-			source: 			"invalid",
-			returnConstant: 	"",	
-			errorExpected:		true,
+			name:           "source profile type CLOUD SQL and source invalid",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeCloudSQL},
+			source:         "invalid",
+			returnConstant: "",
+			errorExpected:  true,
 		},
 		{
-			name:      		    "source profile type CONFIG and source mysql",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeConfig},
-			source: 			"mysql",
-			returnConstant: 	constants.MYSQL,	
-			errorExpected:		false,
+			name:           "source profile type CONFIG and source mysql",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeConfig},
+			source:         "mysql",
+			returnConstant: constants.MYSQL,
+			errorExpected:  false,
 		},
 		{
-			name:      		    "source profile type CONFIG and source invalid",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeConfig},
-			source: 			"invalid",
-			returnConstant: 	"",	
-			errorExpected:		true,
+			name:           "source profile type CONFIG and source invalid",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeConfig},
+			source:         "invalid",
+			returnConstant: "",
+			errorExpected:  true,
 		},
 		{
-			name:      		    "source profile type CSV and source mysql",
-			srcDriver: 			SourceProfile{Ty: SourceProfileTypeCsv},
-			source: 			"",
-			returnConstant: 	constants.CSV,	
-			errorExpected:		false,
+			name:           "source profile type CSV and source mysql",
+			srcDriver:      SourceProfile{Ty: SourceProfileTypeCsv},
+			source:         "",
+			returnConstant: constants.CSV,
+			errorExpected:  false,
 		},
 		{
-			name:      		    "source profile type CONFIG and source invalid",
-			srcDriver: 			SourceProfile{Ty: InvalidType},
-			source: 			"",
-			returnConstant: 	"",	
-			errorExpected:		true,
+			name:           "source profile type CONFIG and source invalid",
+			srcDriver:      SourceProfile{Ty: InvalidType},
+			source:         "",
+			returnConstant: "",
+			errorExpected:  true,
 		},
 	}
 	for _, tc := range testCases {
@@ -1032,8 +1029,6 @@ func TestToLegacyDriver(t *testing.T) {
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 	}
 }
-
-
 
 // code for testing new source profile
 func TestNewSourceProfile(t *testing.T) {
@@ -1047,75 +1042,75 @@ func TestNewSourceProfile(t *testing.T) {
 		SourceProfileTypeCloudSQL
 	)
 	testCases := []struct {
-		name          		string
-		params		  		string
-		source        		string
-		function 			string
-		mockReturn			interface{}
-		returnTy			int
-		errorExpected 		bool
+		name          string
+		params        string
+		source        string
+		function      string
+		mockReturn    interface{}
+		returnTy      int
+		errorExpected bool
 	}{
 		{
 			name:          "source profile for file",
 			params:        "file='file.txt'",
-			source: 	   "file",
-			function: 	   "NewSourceProfileFile",
+			source:        "file",
+			function:      "NewSourceProfileFile",
 			mockReturn:    SourceProfileFile{},
-			returnTy:	   SourceProfileTypeFile,
+			returnTy:      SourceProfileTypeFile,
 			errorExpected: false,
 		},
 		{
 			name:          "invalid source profile for file",
 			params:        "format='some-format'",
-			source: 	   "file",
-			function: 	   "",
+			source:        "file",
+			function:      "",
 			mockReturn:    SourceProfileFile{},
-			returnTy:	   SourceProfileTypeFile,
+			returnTy:      SourceProfileTypeFile,
 			errorExpected: true,
 		},
 		{
 			name:          "source profile for config",
 			params:        "config='file.cfg'",
-			source: 	   "cfg",
-			function: 	   "NewSourceProfileConfig",
+			source:        "cfg",
+			function:      "NewSourceProfileConfig",
 			mockReturn:    SourceProfileConfig{},
-			returnTy:	   SourceProfileTypeConfig,
+			returnTy:      SourceProfileTypeConfig,
 			errorExpected: false,
 		},
 		{
 			name:          "source profile for cloud sql instance",
 			params:        "instance='instance'",
-			source: 	   "instance",
-			function: 	   "NewSourceProfileConnectionCloudSQL",
+			source:        "instance",
+			function:      "NewSourceProfileConnectionCloudSQL",
 			mockReturn:    SourceProfileConnectionCloudSQL{},
-			returnTy:	   SourceProfileTypeCloudSQL,
+			returnTy:      SourceProfileTypeCloudSQL,
 			errorExpected: false,
 		},
 		{
 			name:          "source profile for csv",
 			params:        "",
-			source: 	   "csv",
-			function: 	   "",
+			source:        "csv",
+			function:      "",
 			mockReturn:    SourceProfile{},
-			returnTy:	   SourceProfileTypeCsv,
+			returnTy:      SourceProfileTypeCsv,
 			errorExpected: false,
 		},
 		{
 			name:          "unset source profile params",
 			params:        "",
-			source: 	   "source",
-			function: 	   "NewSourceProfileConnection",
+			source:        "source",
+			function:      "NewSourceProfileConnection",
 			mockReturn:    SourceProfileConnection{},
-			returnTy:	   SourceProfileTypeConnection,
+			returnTy:      SourceProfileTypeConnection,
 			errorExpected: false,
 		},
 		{
 			name:          "unset source",
 			params:        "",
-			source: 	   "",
-			function: 	   "",
+			source:        "",
+			function:      "",
 			mockReturn:    SourceProfile{},
-			returnTy:	   SourceProfileTypeUnset,
+			returnTy:      SourceProfileTypeUnset,
 			errorExpected: true,
 		},
 	}

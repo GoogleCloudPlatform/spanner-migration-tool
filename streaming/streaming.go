@@ -33,11 +33,14 @@ import (
 
 	resourcemanager "cloud.google.com/go/resourcemanager/apiv3"
 	resourcemanagerpb "cloud.google.com/go/resourcemanager/apiv3/resourcemanagerpb"
+	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	dataflowaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/dataflow"
+	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
@@ -586,7 +589,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
 func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
-	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil, &utils.GetUtilInfo{})
+	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil, &utils.GetUtilInfoImpl{})
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
 
@@ -859,12 +862,16 @@ func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfi
 }
 
 func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
-
+	sc, err := storageclient.NewStorageClientImpl(ctx)
+	if err != nil {
+		return internal.DataflowOutput{}, err
+	}
+	sa := storageaccessor.StorageAccessorImpl{}
 	convJSON, err := json.MarshalIndent(conv, "", " ")
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("can't encode session state to JSON: %v", err)
 	}
-	err = utils.WriteToGCS(streamingCfg.TmpDir, "session.json", string(convJSON))
+	err = sa.WriteDataToGCS(ctx, sc, streamingCfg.TmpDir, "session.json", string(convJSON))
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("error while writing to GCS: %v", err)
 	}
@@ -875,7 +882,7 @@ func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, st
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("failed to compute transformation context: %s", err.Error())
 	}
-	err = utils.WriteToGCS(streamingCfg.TmpDir, "transformationContext.json", string(transformationContext))
+	err = sa.WriteDataToGCS(ctx, sc, streamingCfg.TmpDir, "transformationContext.json", string(transformationContext))
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("error while writing to GCS: %v", err)
 	}
@@ -884,44 +891,4 @@ func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, st
 		return internal.DataflowOutput{}, fmt.Errorf("error launching dataflow: %v", err)
 	}
 	return dfOutput, nil
-}
-
-// Applies the bucket lifecycle with delete rule. Only accepts the Age and
-// prefix rule conditions as it is only used for the Datastream destination
-// bucket currently.
-func EnableBucketLifecycleDeleteRule(ctx context.Context, bucketName string, matchesPrefix []string, ttl int64) error {
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		return fmt.Errorf("could not create client while enabling lifecycle: %w", err)
-	}
-	defer client.Close()
-
-	for i, str := range matchesPrefix {
-		matchesPrefix[i] = strings.TrimPrefix(str, "/")
-	}
-	bucket := client.Bucket(bucketName)
-	bucketAttrsToUpdate := storage.BucketAttrsToUpdate{
-		Lifecycle: &storage.Lifecycle{
-			Rules: []storage.LifecycleRule{
-				{
-					Action: storage.LifecycleAction{Type: "Delete"},
-					Condition: storage.LifecycleCondition{
-						AgeInDays: ttl,
-						// The prefixes should not contain the bucket names and starting slash.
-						// For object gs://my_bucket/pictures/paris_2022.jpg,
-						// you would use a condition such as "matchesPrefix":["pictures/paris_"].
-						MatchesPrefix: matchesPrefix,
-					},
-				},
-			},
-		},
-	}
-
-	attrs, err := bucket.Update(ctx, bucketAttrsToUpdate)
-	if err != nil {
-		return fmt.Errorf("could not bucket with lifecycle: %w", err)
-	}
-	logger.Log.Info(fmt.Sprintf("Added lifecycle rule to bucket %v\n. Rule Action: %v\t Rule Condition: %v\n",
-		bucketName, attrs.Lifecycle.Rules[0].Action, attrs.Lifecycle.Rules[0].Condition))
-	return nil
 }

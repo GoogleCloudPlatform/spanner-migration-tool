@@ -198,7 +198,7 @@ func FetchResources(ctx context.Context, migrationJobId string, resourceType str
 func GetInstanceDetails(ctx context.Context, targetProfile profiles.TargetProfile) (string, string, error) {
 	var err error
 	project := targetProfile.Conn.Sp.Project
-	g := utils.GetUtilInfo{}
+	g := utils.GetUtilInfoImpl{}
 	if project == "" {
 		project, err = g.GetProject()
 		if err != nil {

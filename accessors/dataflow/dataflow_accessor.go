@@ -25,12 +25,14 @@ import (
 	"golang.org/x/exp/maps"
 )
 
+// The DataflowAccessor provides methods that internally use the dataflow client. Methods should only contain generic logic here that can be used by multiple workflows.
 type DataflowAccessor interface {
 	// This function takes the template parameters (@parameters) and runtime environment config (@cfg) as input, and returns
 	// the generated jobId, equivalentGcloudCommand and error if any.
-	LaunchFlexTemplate(ctx context.Context, c dataflowclient.DataflowClient, parameters map[string]string, cfg DataflowTuningConfig) (string, string, error)
+	LaunchDataflowTemplate(ctx context.Context, c dataflowclient.DataflowClient, parameters map[string]string, cfg DataflowTuningConfig) (string, string, error)
 }
 
+// This implements the DataflowAccessor interface. This is the primary implementation that should be used in all places other than tests.
 type DataflowAccessorImpl struct{}
 
 func (dfA *DataflowAccessorImpl) LaunchDataflowTemplate(ctx context.Context, c dataflowclient.DataflowClient, parameters map[string]string, cfg DataflowTuningConfig) (string, string, error) {

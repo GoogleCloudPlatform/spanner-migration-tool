@@ -43,6 +43,7 @@ type SourceProfileFile struct {
 	Format string
 }
 
+// Interface to create source profiles for different database dialects
 type SourceProfileDialectInterface interface {
 	NewSourceProfileConnectionCloudSQLMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLMySQL, error)
 	NewSourceProfileConnectionMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionMySQL, error)
@@ -55,6 +56,7 @@ type SourceProfileDialectInterface interface {
 
 type SourceProfileDialectImpl struct {}
 
+// Interface to create new source profiles for different input types
 type NewSourceProfileInterface interface {
 	NewSourceProfileFile(params map[string]string) SourceProfileFile
 	NewSourceProfileConfig(source string, path string) (SourceProfileConfig, error)
@@ -478,7 +480,7 @@ func (nsp *NewSourceProfileImpl) NewSourceProfileConnection(source string, param
 	case "mysql":
 		{
 			conn.Ty = SourceProfileConnectionTypeMySQL
-			conn.Mysql, err = s.NewSourceProfileConnectionMySQL(params, &utils.GetUtilInfo{})
+			conn.Mysql, err = s.NewSourceProfileConnectionMySQL(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -489,7 +491,7 @@ func (nsp *NewSourceProfileImpl) NewSourceProfileConnection(source string, param
 	case "postgresql", "postgres", "pg":
 		{
 			conn.Ty = SourceProfileConnectionTypePostgreSQL
-			conn.Pg, err = s.NewSourceProfileConnectionPostgreSQL(params, &utils.GetUtilInfo{})
+			conn.Pg, err = s.NewSourceProfileConnectionPostgreSQL(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -500,7 +502,7 @@ func (nsp *NewSourceProfileImpl) NewSourceProfileConnection(source string, param
 	case "dynamodb":
 		{
 			conn.Ty = SourceProfileConnectionTypeDynamoDB
-			conn.Dydb, err = s.NewSourceProfileConnectionDynamoDB(params, &utils.GetUtilInfo{})
+			conn.Dydb, err = s.NewSourceProfileConnectionDynamoDB(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -512,7 +514,7 @@ func (nsp *NewSourceProfileImpl) NewSourceProfileConnection(source string, param
 	case "sqlserver", "mssql":
 		{
 			conn.Ty = SourceProfileConnectionTypeSqlServer
-			conn.SqlServer, err = s.NewSourceProfileConnectionSqlServer(params, &utils.GetUtilInfo{})
+			conn.SqlServer, err = s.NewSourceProfileConnectionSqlServer(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -520,7 +522,7 @@ func (nsp *NewSourceProfileImpl) NewSourceProfileConnection(source string, param
 	case "oracle":
 		{
 			conn.Ty = SourceProfileConnectionTypeOracle
-			conn.Oracle, err = s.NewSourceProfileConnectionOracle(params, &utils.GetUtilInfo{})
+			conn.Oracle, err = s.NewSourceProfileConnectionOracle(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -541,7 +543,7 @@ func (nsp *NewSourceProfileImpl) NewSourceProfileConnectionCloudSQL(source strin
 	case "mysql":
 		{
 			conn.Ty = SourceProfileConnectionTypeCloudSQLMySQL
-			conn.Mysql, err = s.NewSourceProfileConnectionCloudSQLMySQL(params, &utils.GetUtilInfo{})
+			conn.Mysql, err = s.NewSourceProfileConnectionCloudSQLMySQL(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -549,7 +551,7 @@ func (nsp *NewSourceProfileImpl) NewSourceProfileConnectionCloudSQL(source strin
 	case "postgresql", "postgres", "pg":
 		{
 			conn.Ty = SourceProfileConnectionTypeCloudSQLPostgreSQL
-			conn.Pg, err = s.NewSourceProfileConnectionCloudSQLPostgreSQL(params, &utils.GetUtilInfo{})
+			conn.Pg, err = s.NewSourceProfileConnectionCloudSQLPostgreSQL(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}

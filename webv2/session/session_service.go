@@ -7,7 +7,8 @@ import (
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	helpers "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 )
 
@@ -80,15 +81,15 @@ func getOldMetadataDbUri(projectId string, instanceId string) string {
 
 func migrateMetadataDb(projectId, instanceId string) {
 	ctx := context.Background()
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defer adminClient.Close()
 
+	spA := spanneraccessor.SpannerAccessorImpl{}
 	oldMetadataDbUri := getOldMetadataDbUri(projectId, instanceId)
-	oldMetadataDBExists, err := conversion.CheckExistingDb(ctx, adminClient, oldMetadataDbUri)
+	oldMetadataDBExists, err := spA.CheckExistingDb(ctx, adminClientImpl, oldMetadataDbUri)
 	if err != nil {
 		fmt.Printf("could not check if oldMetadataDB exists. error=%v\n", err)
 		return
@@ -157,7 +158,12 @@ func migrateMetadataDb(projectId, instanceId string) {
 	}
 
 	fmt.Println("Successfully wrote data to new metadata DB.")
-
+	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer adminClient.Close()
 	err = adminClient.DropDatabase(ctx, &databasepb.DropDatabaseRequest{
 		Database: oldMetadataDbUri,
 	})

@@ -40,6 +40,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
+	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
+	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"go.uber.org/zap"
 )
 
@@ -273,8 +275,17 @@ func (sads *SchemaAndDataFromSourceImpl) dataFromDatabase(ctx context.Context, s
 
 			// Try to apply lifecycle rule to Datastream destination bucket.
 			gcsConfig := streamingCfg.GcsCfg
+			sc, err := storageclient.NewStorageClientImpl(ctx)
+			if err != nil {
+				return nil, err
+			}
+			sa := storageaccessor.StorageAccessorImpl{}
 			if gcsConfig.TtlInDaysSet {
-				err = streaming.EnableBucketLifecycleDeleteRule(ctx, gcsBucket, []string{gcsDestPrefix}, gcsConfig.TtlInDays)
+				err = sa.ApplyBucketLifecycleDeleteRule(ctx, sc, storageaccessor.StorageBucketMetadata{
+					BucketName:    gcsBucket,
+					Ttl:           gcsConfig.TtlInDays,
+					MatchesPrefix: []string{gcsDestPrefix},
+				})
 				if err != nil {
 					logger.Log.Warn(fmt.Sprintf("\nWARNING: could not update Datastream destination GCS bucket with lifecycle rule, error: %v\n", err))
 					logger.Log.Warn("Please apply the lifecycle rule manually. Continuing...\n")
