@@ -45,7 +45,7 @@ func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProf
 	if targetProfile.Conn.Sp.Dbname == "" {
 		targetProfile.Conn.Sp.Dbname = dbName
 	}
-	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, time.Now(), driver, ioHelper.Out)
+	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, time.Now(), driver, ioHelper.Out, &utils.GetUtilInfoImpl{})
 	if err != nil {
 		return nil, nil, "", err
 	}
@@ -74,7 +74,8 @@ func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, sou
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", err
 	}
 
-	sourceProfile, err := profiles.NewSourceProfile(sourceProfileString, source)
+	n := profiles.NewSourceProfileImpl{}
+	sourceProfile, err := profiles.NewSourceProfile(sourceProfileString, source, &n)
 	if err != nil {
 		return profiles.SourceProfile{}, targetProfile, utils.IOStreams{}, "", err
 	}
@@ -92,7 +93,8 @@ func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, sou
 		defer ioHelper.In.Close()
 	}
 
-	dbName, err := utils.GetDatabaseName(sourceProfile.Driver, time.Now())
+	getInfo := utils.GetUtilInfoImpl{}
+	dbName, err := getInfo.GetDatabaseName(sourceProfile.Driver, time.Now())
 	if err != nil {
 		err = fmt.Errorf("can't generate database name for prefix: %v", err)
 		return sourceProfile, targetProfile, ioHelper, "", err

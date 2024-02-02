@@ -589,7 +589,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
 func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
-	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)
+	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil, &utils.GetUtilInfoImpl{})
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
 

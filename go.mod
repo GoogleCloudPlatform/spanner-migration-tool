@@ -43,6 +43,7 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 )
 
