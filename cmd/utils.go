@@ -162,7 +162,8 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 		}
 		fmt.Printf("Schema validated successfully for data migration for db %s\n", dbURI)
 	}
-	bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit)
+	c := &conversion.ConvImpl{}
+	bw, err = c.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.SchemaAndDataFromSourceImpl{})
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return nil, err
@@ -185,7 +186,8 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		return nil, err
 	}
 	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
-	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit)
+	c := &conversion.ConvImpl{}
+	bw, err := c.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.SchemaAndDataFromSourceImpl{})
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return nil, err
