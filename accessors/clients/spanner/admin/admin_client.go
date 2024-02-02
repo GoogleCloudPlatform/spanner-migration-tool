@@ -11,33 +11,33 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package dataflowclient
+package spanneradmin
 
 import (
 	"context"
 	"fmt"
 	"sync"
 
-	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
+	database "cloud.google.com/go/spanner/admin/database/apiv1"
 )
 
 var once sync.Once
-var dfClient *dataflow.FlexTemplatesClient
+var spannerAdminClient *database.DatabaseAdminClient
 
 // This function is declared as a global variable to make it testable. The unit
 // tests update this function, acting like a double.
-var newFlexTemplatesClient = dataflow.NewFlexTemplatesClient
+var newDatabaseAdminClient = database.NewDatabaseAdminClient
 
-func GetOrCreateClient(ctx context.Context) (*dataflow.FlexTemplatesClient, error) {
+func GetOrCreateClient(ctx context.Context) (*database.DatabaseAdminClient, error) {
 	var err error
-	if dfClient == nil {
+	if spannerAdminClient == nil {
 		once.Do(func() {
-			dfClient, err = newFlexTemplatesClient(ctx)
+			spannerAdminClient, err = newDatabaseAdminClient(ctx)
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create dataflow client: %v", err)
+			return nil, fmt.Errorf("failed to create spanner admin client: %v", err)
 		}
-		return dfClient, nil
+		return spannerAdminClient, nil
 	}
-	return dfClient, nil
+	return spannerAdminClient, nil
 }

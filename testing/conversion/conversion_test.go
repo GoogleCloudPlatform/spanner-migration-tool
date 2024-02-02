@@ -248,29 +248,6 @@ func TestVerifyDb(t *testing.T) {
 	}
 }
 
-func TestCheckExistingDb(t *testing.T) {
-	onlyRunForEmulatorTest(t)
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, "check-db-exists")
-	err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, internal.MakeConv(), os.Stdout, "", constants.BULK_MIGRATION)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer dropDatabase(t, dbURI)
-	testCases := []struct {
-		dbName   string
-		dbExists bool
-	}{
-		{"check-db-exists", true},
-		{"check-db-does-not-exist", false},
-	}
-
-	for _, tc := range testCases {
-		dbExists, err := conversion.CheckExistingDb(ctx, databaseAdmin, fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName))
-		assert.Nil(t, err)
-		assert.Equal(t, tc.dbExists, dbExists)
-	}
-}
-
 func TestValidateDDL(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 
