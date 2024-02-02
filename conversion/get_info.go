@@ -90,7 +90,10 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourcePr
 	driver := sourceProfile.Driver
 	switch driver {
 	case constants.MYSQL:
-		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
+		csc, err := cloudsql.NewCloudSqlConnDialerImpl(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
+		}
         if err != nil {
                 return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
         }
@@ -98,7 +101,8 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourcePr
 		instanceName := fmt.Sprintf("%s:%s:%s", sourceProfile.ConnCloudSQL.Mysql.Project, sourceProfile.ConnCloudSQL.Mysql.Region, sourceProfile.ConnCloudSQL.Mysql.InstanceName)
         mysqldriver.RegisterDialContext("cloudsqlconn",
                 func(ctx context.Context, addr string) (net.Conn, error) {
-                        return d.Dial(ctx, instanceName, opts...)
+					cscA := cloudsqlconnaccessor.CloudSqlConnAccessorImpl{}
+                    return cscA.Dial(context.Background(), csc, instanceName, opts...)
                 })
 
         dbURI := fmt.Sprintf("%s:empty@cloudsqlconn(localhost:3306)/%s?parseTime=true",
