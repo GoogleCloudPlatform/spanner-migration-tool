@@ -31,6 +31,8 @@ import (
 	"strings"
 
 	"cloud.google.com/go/cloudsqlconn"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/cloudsql"
+	cloudsqlconnaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/cloudsqlconn"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -66,8 +68,8 @@ func (gi *GetInfoImpl) getInfoSchemaForShard(shardConnInfo profiles.DirectConnec
 	//while adding other sources, a switch-case will be added here on the basis of the driver input param passed.
 	//pased on the driver name, profiles.NewSourceProfileConnection<DBName> will need to be called to create
 	//the source profile information.
-	gu := utils.GetUtilInfoImpl{}
-	sourceProfileConnectionMySQL, err := s.NewSourceProfileConnectionMySQL(params, &gu)
+	getUtilsInfo := utils.GetUtilInfoImpl{}
+	sourceProfileConnectionMySQL, err := s.NewSourceProfileConnectionMySQL(params, &getUtilsInfo)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse connection configuration for the primary shard")
 	}

@@ -36,26 +36,30 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockSchemaAndDataFromSource struct {
+type MockSchemaFromSource struct {
     mock.Mock
 }
-func (msads *MockSchemaAndDataFromSource) schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, gi GetInfoInterface) (*internal.Conv, error) {
+func (msads *MockSchemaFromSource) schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, gi GetInfoInterface) (*internal.Conv, error) {
 	args := msads.Called(sourceProfile, targetProfile)
 	return args.Get(0).(*internal.Conv), args.Error(1)
 }
-func (msads *MockSchemaAndDataFromSource) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams) (*internal.Conv, error) {
+func (msads *MockSchemaFromSource) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams) (*internal.Conv, error) {
 	args := msads.Called(driver, spDialect, ioHelper)
 	return args.Get(0).(*internal.Conv), args.Error(1)
 }
-func (msads *MockSchemaAndDataFromSource) dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface) (*writer.BatchWriter, error) {
+
+type MockDataFromSource struct {
+    mock.Mock
+}
+func (msads *MockDataFromSource) dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface) (*writer.BatchWriter, error) {
 	args := msads.Called(ctx, sourceProfile, targetProfile, config, conv, client)
 	return args.Get(0).(*writer.BatchWriter), args.Error(1)
 }
-func (msads *MockSchemaAndDataFromSource) dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*writer.BatchWriter, error) {
+func (msads *MockDataFromSource) dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*writer.BatchWriter, error) {
 	args := msads.Called(driver, config, ioHelper, client, conv, dataOnly)
 	return args.Get(0).(*writer.BatchWriter), args.Error(1)
 }
-func (msads *MockSchemaAndDataFromSource) dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
+func (msads *MockDataFromSource) dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
 	args := msads.Called(ctx, sourceProfile, targetProfile, config, conv, client)
 	return args.Get(0).(*writer.BatchWriter), args.Error(1)
 }
@@ -128,7 +132,7 @@ func TestSchemaConv(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		m := MockSchemaAndDataFromSource{}
+		m := MockSchemaFromSource{}
 		m.On(tc.function, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.output, nil)
 		c := ConvImpl{}
 		_, err := c.SchemaConv(profiles.SourceProfile{Driver: tc.sourceProfileDriver}, profiles.TargetProfile{}, &utils.IOStreams{}, &m)
@@ -215,7 +219,7 @@ func TestDataConv(t *testing.T) {
 
 	ctx:= context.Background()
 	for _, tc := range testCases {
-		m := MockSchemaAndDataFromSource{}
+		m := MockDataFromSource{}
 		m.On(tc.function, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.output, nil)
 		c := ConvImpl{}
 		_, err := c.DataConv(ctx, profiles.SourceProfile{Driver: tc.sourceProfileDriver}, profiles.TargetProfile{}, &utils.IOStreams{}, &sp.Client{}, &internal.Conv{}, true, int64(5), &m)

@@ -598,8 +598,8 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	n := profiles.NewSourceProfileImpl{}
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver, &n)
 	sourceProfile.Driver = dc.Config.Driver
-	s := conversion.SchemaAndDataFromSourceImpl{}
-	conv, err := s.SchemaFromDump(sourceProfile.Driver, dc.SpannerDetails.Dialect, &utils.IOStreams{In: f, Out: os.Stdout})
+	schemaFromSource := conversion.SchemaFromSourceImpl{}
+	conv, err := schemaFromSource.SchemaFromDump(sourceProfile.Driver, dc.SpannerDetails.Dialect, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return

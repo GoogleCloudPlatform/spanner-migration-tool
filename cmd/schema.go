@@ -113,7 +113,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	schemaConversionStartTime := time.Now()
 	var conv *internal.Conv
 	c := &conversion.ConvImpl{}
-	conv, err = c.SchemaConv(sourceProfile, targetProfile, &ioHelper, &conversion.SchemaAndDataFromSourceImpl{})
+	conv, err = c.SchemaConv(sourceProfile, targetProfile, &ioHelper, &conversion.SchemaFromSourceImpl{})
 	if err != nil {
 		return subcommands.ExitFailure
 	}

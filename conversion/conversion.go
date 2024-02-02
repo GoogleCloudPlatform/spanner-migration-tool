@@ -73,14 +73,14 @@ func getDatastreamClient(ctx context.Context) *datastream.Client {
 }
 
 type ConvInterface interface {
-	SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, s SchemaAndDataFromSourceInterface) (*internal.Conv, error)
-	DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, writeLimit int64, s SchemaAndDataFromSourceInterface) (*writer.BatchWriter, error) 
+	SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, s SchemaFromSourceInterface) (*internal.Conv, error)
+	DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, writeLimit int64, s SchemaFromSourceInterface) (*writer.BatchWriter, error) 
 }
 type ConvImpl struct {}
 
 // SchemaConv performs the schema conversion
 // The SourceProfile param provides the connection details to use the go SQL library.
-func (ci *ConvImpl) SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, s SchemaAndDataFromSourceInterface) (*internal.Conv, error) {
+func (ci *ConvImpl) SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, s SchemaFromSourceInterface) (*internal.Conv, error) {
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
 		return s.schemaFromDatabase(sourceProfile, targetProfile, &GetInfoImpl{})
@@ -93,7 +93,7 @@ func (ci *ConvImpl) SchemaConv(sourceProfile profiles.SourceProfile, targetProfi
 
 // DataConv performs the data conversion
 // The SourceProfile param provides the connection details to use the go SQL library.
-func (ci *ConvImpl) DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, writeLimit int64, s SchemaAndDataFromSourceInterface) (*writer.BatchWriter, error) {
+func (ci *ConvImpl) DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, writeLimit int64, s DataFromSourceInterface) (*writer.BatchWriter, error) {
 	config := writer.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
 		WriteLimit: writeLimit,
