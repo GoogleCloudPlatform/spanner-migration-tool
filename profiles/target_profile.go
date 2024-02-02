@@ -65,7 +65,7 @@ func (trg TargetProfile) FetchTargetDialect(ctx context.Context) (string, error)
 	// Ideally we should use the client we create at the beginning, but we can fix that with the refactoring.
 	adminClient, _ := utils.NewDatabaseAdminClient(ctx)
 	// The parameters are irrelevant because the results are already cached when called the first time.
-	project, instance, dbName, _ := trg.GetResourceIds(ctx, time.Now(), "", nil, &utils.GetUtilInfo{})
+	project, instance, dbName, _ := trg.GetResourceIds(ctx, time.Now(), "", nil, &utils.GetUtilInfoImpl{})
 	result, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)})
 	if err != nil {
 		return "", fmt.Errorf("cannot connect to target: %v", err)
@@ -86,7 +86,7 @@ func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time
 
 	instance := targetProfile.Conn.Sp.Instance
 	if instance == "" {
-		g := utils.GetUtilInfo{}
+		g := utils.GetUtilInfoImpl{}
 		instance, err = g.GetInstance(ctx, project, out)
 		if err != nil {
 			return "", "", "", fmt.Errorf("can't get instance: %v", err)
@@ -96,7 +96,7 @@ func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time
 
 	dbName := targetProfile.Conn.Sp.Dbname
 	if dbName == "" {
-		g := utils.GetUtilInfo{}
+		g := utils.GetUtilInfoImpl{}
 		dbName, err = g.GetDatabaseName(driverName, now)
 		if err != nil {
 			return "", "", "", fmt.Errorf("can't get database name: %v", err)

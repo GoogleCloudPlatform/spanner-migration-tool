@@ -115,8 +115,8 @@ func GeneratePGSQLConnectionStr() (string, error) {
 	}
 	password := os.Getenv("PGPASSWORD")
 	if password == "" {
-		g := utils.GetUtilInfo{}
-		password = g.GetPassword()
+		getInfo := utils.GetUtilInfoImpl{}
+		password = getInfo.GetPassword()
 	}
 	return getPGSQLConnectionStr(server, port, user, password, dbName), nil
 }
@@ -136,8 +136,8 @@ func GenerateMYSQLConnectionStr() (string, error) {
 	}
 	password := os.Getenv("MYSQLPWD")
 	if password == "" {
-		g := utils.GetUtilInfo{}
-		password = g.GetPassword()
+		getInfo := utils.GetUtilInfoImpl{}
+		password = getInfo.GetPassword()
 	}
 	return getMYSQLConnectionStr(server, port, user, password, dbName), nil
 }
