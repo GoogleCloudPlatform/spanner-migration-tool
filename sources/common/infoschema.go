@@ -58,18 +58,27 @@ type FkConstraint struct {
 	Cols    []string
 }
 
+type InfoSchemaInterface interface {
+	GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) (int, error)
+	ProcessData(conv *internal.Conv, infoSchema InfoSchema, additionalAttributes internal.AdditionalDataAttributes)
+	SetRowStats(conv *internal.Conv, infoSchema InfoSchema)
+	processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error)
+	GetIncludedSrcTablesFromConv(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error) 
+}
+type InfoSchemaImpl struct {}
+
 // ProcessSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes) error {
+func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error {
 
-	tableCount, err := GenerateSrcSchema(conv, infoSchema, numWorkers)
+	tableCount, err := is.GenerateSrcSchema(conv, infoSchema, numWorkers)
 	if err != nil {
 		return err
 	}
-	initPrimaryKeyOrder(conv)
-	initIndexOrder(conv)
-	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
+	uo.initPrimaryKeyOrder(conv)
+	uo.initIndexOrder(conv)
+	s.SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
 	if tableCount != len(conv.SpSchema) {
 		fmt.Printf("Failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.\n", tableCount, len(conv.SpSchema))
 		return fmt.Errorf("failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.", tableCount, len(conv.SpSchema))
@@ -82,7 +91,7 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, a
 	return nil
 }
 
-func GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) (int, error) {
+func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) (int, error) {
 	tables, err := infoSchema.GetTables()
 	fmt.Println("fetched tables", tables)
 	if err != nil {
@@ -94,7 +103,7 @@ func GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers in
 	}
 
 	asyncProcessTable := func(t SchemaAndName, mutex *sync.Mutex) TaskResult[SchemaAndName] {
-		table, e := processTable(conv, t, infoSchema)
+		table, e := is.processTable(conv, t, infoSchema)
 		mutex.Lock()
 		conv.SrcSchema[table.Id] = table
 		mutex.Unlock()
@@ -117,7 +126,7 @@ func GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers in
 // (based on the source and Spanner schemas), and write it to Spanner.
 // If we can't get/process data for a table, we skip that table and process
 // the remaining tables.
-func ProcessData(conv *internal.Conv, infoSchema InfoSchema, additionalAttributes internal.AdditionalDataAttributes) {
+func (is *InfoSchemaImpl) ProcessData(conv *internal.Conv, infoSchema InfoSchema, additionalAttributes internal.AdditionalDataAttributes) {
 	// Tables are ordered in alphabetical order with one exception: interleaved
 	// tables appear after the population of their parent table.
 	tableIds := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
@@ -145,7 +154,7 @@ func ProcessData(conv *internal.Conv, infoSchema InfoSchema, additionalAttribute
 }
 
 // SetRowStats populates conv with the number of rows in each table.
-func SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
+func (is *InfoSchemaImpl) SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
 	tables, err := infoSchema.GetTables()
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
@@ -162,7 +171,7 @@ func SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
 	}
 }
 
-func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error) {
+func (is *InfoSchemaImpl) processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error) {
 	var t schema.Table
 	fmt.Println("processing schema for table", table)
 	tblId := internal.GenerateTableId()
@@ -209,7 +218,7 @@ func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchem
 
 // getIncludedSrcTablesFromConv fetches the list of tables
 // from the source database that need to be migrated.
-func GetIncludedSrcTablesFromConv(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error) {
+func (is *InfoSchemaImpl) GetIncludedSrcTablesFromConv(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error) {
 	schemaToTablesMap = make(map[string]internal.SchemaDetails)
 	for spTable := range conv.SpSchema {
 		//lookup the spanner table in the source tables via ID

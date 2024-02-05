@@ -43,8 +43,18 @@ import (
 	"go.uber.org/zap"
 )
 
+type DataFromDatabaseInterface interface{
+	dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error)
+	dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv, is common.InfoSchemaInterface) (*writer.BatchWriter, error)
+	dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface, sm SnapshotMigrationInterface) (*writer.BatchWriter, error)
+
+}
+
+type DataFromDatabaseImpl struct{}
+
+
 // TODO: Define the data processing logic for DMS migrations here.
-func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
+func (dd *DataFromDatabaseImpl) dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 	return nil, fmt.Errorf("dms configType is not implemented yet, please use one of 'bulk' or 'dataflow'")
 }
 
@@ -53,13 +63,13 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 // 3. Verify the CFG and update it with SMT defaults
 // 4. Launch the stream for the physical shard
 // 5. Perform streaming migration via dataflow
-func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
+func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv, is common.InfoSchemaInterface) (*writer.BatchWriter, error) {
 	updateShardsWithTuningConfigs(sourceProfile.Config.ShardConfigurationDataflow)
 	//Generate a job Id
 	migrationJobId := conv.Audit.MigrationRequestId
 	fmt.Printf("Creating a migration job with id: %v. This jobId can be used in future commmands (such as cleanup) to refer to this job.\n", migrationJobId)
 	conv.Audit.StreamingStats.ShardToShardResourcesMap = make(map[string]internal.ShardResources)
-	schemaDetails, err := common.GetIncludedSrcTablesFromConv(conv)
+	schemaDetails, err := is.GetIncludedSrcTablesFromConv(conv)
 	if err != nil {
 		fmt.Printf("unable to determine tableList from schema, falling back to full database")
 		schemaDetails = map[string]internal.SchemaDetails{}
@@ -195,7 +205,7 @@ func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, 
 // 2. Create a connection profile object for it
 // 3. Perform a snapshot migration for the shard
 // 4. Once all shard migrations are complete, return the batch writer object
-func dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface) (*writer.BatchWriter, error) {
+func (dd *DataFromDatabaseImpl) dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface, sm SnapshotMigrationInterface) (*writer.BatchWriter, error) {
 	var bw *writer.BatchWriter
 	for _, dataShard := range sourceProfile.Config.ShardConfigurationBulk.DataShards {
 
@@ -207,7 +217,7 @@ func dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targ
 		additionalDataAttributes := internal.AdditionalDataAttributes{
 			ShardId: dataShard.DataShardId,
 		}
-		bw = performSnapshotMigration(config, conv, client, infoSchema, additionalDataAttributes)
+		bw = sm.performSnapshotMigration(config, conv, client, infoSchema, additionalDataAttributes, &common.InfoSchemaImpl{}, &PopulateDataConvImpl{})
 	}
 
 	return bw, nil

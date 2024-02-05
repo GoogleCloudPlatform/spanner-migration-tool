@@ -366,7 +366,8 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 		schemaDetails map[string]internal.SchemaDetails
 		err           error
 	)
-	schemaDetails, err = common.GetIncludedSrcTablesFromConv(conv)
+	commonInfoSchema := common.InfoSchemaImpl{}
+	schemaDetails, err = commonInfoSchema.GetIncludedSrcTablesFromConv(conv)
 	streamingCfg, err := streaming.ReadStreamingConfig(isi.SourceProfile.Conn.Mysql.StreamingConfig, isi.TargetProfile.Conn.Sp.Dbname, schemaDetails)
 	if err != nil {
 		return nil, fmt.Errorf("error reading streaming config: %v", err)

@@ -188,7 +188,7 @@ func TestProcessSchema(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{})
+	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -288,7 +288,7 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{})
+	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -371,7 +371,8 @@ func TestProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessData(conv, InfoSchemaImpl{client, nil, 10}, internal.AdditionalDataAttributes{})
+	commonInfoSchema := common.InfoSchemaImpl{}
+	commonInfoSchema.ProcessData(conv, InfoSchemaImpl{client, nil, 10}, internal.AdditionalDataAttributes{})
 	assert.Equal(t,
 		[]spannerData{
 			{
@@ -962,7 +963,8 @@ func TestSetRowStats(t *testing.T) {
 		describeTableOutputs: describeTableOutputs,
 	}
 
-	common.SetRowStats(conv, InfoSchemaImpl{client, nil, 10})
+	commonInfoSchema := common.InfoSchemaImpl{}
+	commonInfoSchema.SetRowStats(conv, InfoSchemaImpl{client, nil, 10})
 
 	assert.Equal(t, tableItemCountA, conv.Stats.Rows[tableNameA])
 	assert.Equal(t, tableItemCountB, conv.Stats.Rows[tableNameB])

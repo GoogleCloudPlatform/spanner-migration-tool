@@ -51,6 +51,17 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type ProcessDumpByDialectInterface interface{
+	ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error
+}
+
+type ProcessDumpByDialectImpl struct{}
+
+type PopulateDataConvInterface interface{
+	populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client) *writer.BatchWriter
+}
+
+type PopulateDataConvImpl struct{}
 // getSeekable returns a seekable file (with same content as f) and the size of the content (in bytes).
 func getSeekable(f *os.File) (*os.File, int64, error) {
 	_, err := f.Seek(0, 0)
@@ -84,7 +95,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 }
 
 // ProcessDump invokes process dump function from a sql package based on driver selected.
-func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
+func (pdd *ProcessDumpByDialectImpl) ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	switch driver {
 	case constants.MYSQLDUMP:
 		return common.ProcessDbDump(conv, r, mysql.DbDumpImpl{})
@@ -96,7 +107,7 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 }
 
 
-func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client) *writer.BatchWriter {
+func (pdc *PopulateDataConvImpl) populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client) *writer.BatchWriter {
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
 		ctx := context.Background()

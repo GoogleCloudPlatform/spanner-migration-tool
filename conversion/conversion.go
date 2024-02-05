@@ -44,6 +44,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"go.uber.org/zap"
@@ -83,9 +85,9 @@ type ConvImpl struct {}
 func (ci *ConvImpl) SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, s SchemaFromSourceInterface) (*internal.Conv, error) {
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
-		return s.schemaFromDatabase(sourceProfile, targetProfile, &GetInfoImpl{})
+		return s.schemaFromDatabase(sourceProfile, targetProfile, &GetInfoImpl{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.PGDUMP, constants.MYSQLDUMP:
-		return s.SchemaFromDump(sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper)
+		return s.SchemaFromDump(sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper, &common.UtilsOrderImpl{}, &common.SchemaToSpannerImpl{}, &ProcessDumpByDialectImpl{})
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", sourceProfile.Driver)
 	}
@@ -102,14 +104,14 @@ func (ci *ConvImpl) DataConv(ctx context.Context, sourceProfile profiles.SourceP
 	}
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
-		return s.dataFromDatabase(ctx, sourceProfile, targetProfile, config, conv, client, &GetInfoImpl{})
+		return s.dataFromDatabase(ctx, sourceProfile, targetProfile, config, conv, client, &GetInfoImpl{}, &DataFromDatabaseImpl{}, &SnapshotMigrationImpl{})
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
 			return nil, fmt.Errorf("spanner migration tool does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
 		}
-		return s.dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly)
+		return s.dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly, &common.UtilsOrderImpl{}, &common.SchemaToSpannerImpl{}, &ProcessDumpByDialectImpl{}, &PopulateDataConvImpl{})
 	case constants.CSV:
-		return s.dataFromCSV(ctx, sourceProfile, targetProfile, config, conv, client)
+		return s.dataFromCSV(ctx, sourceProfile, targetProfile, config, conv, client, &PopulateDataConvImpl{}, &csv.CsvImpl{})
 	default:
 		return nil, fmt.Errorf("data conversion for driver %s not supported", sourceProfile.Driver)
 	}

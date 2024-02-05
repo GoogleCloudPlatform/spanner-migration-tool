@@ -46,21 +46,21 @@ import (
 )
 
 type SchemaFromSourceInterface interface {
-	schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, gi GetInfoInterface) (*internal.Conv, error)
-	SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams) (*internal.Conv, error)
+	schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, gi GetInfoInterface, s common.SchemaToSpannerInterface, uo common.UtilsOrderInterface, is common.InfoSchemaInterface) (*internal.Conv, error)
+	SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, uo common.UtilsOrderInterface, ss common.SchemaToSpannerInterface, pdd ProcessDumpByDialectInterface) (*internal.Conv, error)
 	}
 
 type SchemaFromSourceImpl struct{}
 
 type DataFromSourceInterface interface {
-	dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface) (*writer.BatchWriter, error)
-	dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*writer.BatchWriter, error)
-	dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error)
+	dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface, dd DataFromDatabaseInterface, sm SnapshotMigrationInterface) (*writer.BatchWriter, error)
+	dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, uo common.UtilsOrderInterface, ss common.SchemaToSpannerInterface, pdd ProcessDumpByDialectInterface, pdc PopulateDataConvInterface) (*writer.BatchWriter, error)
+	dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, pdc PopulateDataConvInterface, csv csv.CsvInterface) (*writer.BatchWriter, error)
 }
 
 type DataFromSourceImpl struct{}
 
-func (sads *SchemaFromSourceImpl) schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, gi GetInfoInterface) (*internal.Conv, error) {
+func (sads *SchemaFromSourceImpl) schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, gi GetInfoInterface, s common.SchemaToSpannerInterface, uo common.UtilsOrderInterface, is common.InfoSchemaInterface) (*internal.Conv, error) {
 	conv := internal.MakeConv()
 	conv.SpDialect = targetProfile.Conn.Sp.Dialect
 	//handle fetching schema differently for sharded migrations, we only connect to the primary shard to
@@ -105,10 +105,10 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(sourceProfile profiles.Sour
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: isSharded,
 	}
-	return conv, common.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes)
+	return conv, common.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, s, uo, is)
 }
 
-func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams) (*internal.Conv, error) {
+func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, uo common.UtilsOrderInterface, ss common.SchemaToSpannerInterface, pdd ProcessDumpByDialectInterface) (*internal.Conv, error) {
 	f, n, err := getSeekable(ioHelper.In)
 	if err != nil {
 		utils.PrintSeekError(driver, err, ioHelper.Out)
@@ -122,7 +122,7 @@ func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in dump.
 	conv.SetDataSink(nil)
-	err = ProcessDump(driver, conv, r)
+	err = pdd.ProcessDump(driver, conv, r)
 	if err != nil {
 		fmt.Fprintf(ioHelper.Out, "Failed to parse the data file: %v", err)
 		return nil, fmt.Errorf("failed to parse the data file")
@@ -132,7 +132,7 @@ func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string
 }
 
 
-func (sads *DataFromSourceImpl) dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*writer.BatchWriter, error) {
+func (sads *DataFromSourceImpl) dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, uo common.UtilsOrderInterface, ss common.SchemaToSpannerInterface, pdd ProcessDumpByDialectInterface, pdc PopulateDataConvInterface) (*writer.BatchWriter, error) {
 	// TODO: refactor of the way we handle getSeekable
 	// to avoid the code duplication here
 	if !dataOnly {
@@ -156,15 +156,15 @@ func (sads *DataFromSourceImpl) dataFromDump(driver string, config writer.BatchW
 
 	conv.Audit.Progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false, int(internal.DataWriteInProgress))
 	r := internal.NewReader(bufio.NewReader(ioHelper.SeekableIn), nil)
-	batchWriter := populateDataConv(conv, config, client)
-	ProcessDump(driver, conv, r)
+	batchWriter := pdc.populateDataConv(conv, config, client)
+	pdd.ProcessDump(driver, conv, r)
 	batchWriter.Flush()
 	conv.Audit.Progress.Done()
 
 	return batchWriter, nil
 }
 
-func (sads *DataFromSourceImpl) dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
+func (sads *DataFromSourceImpl) dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, pdc PopulateDataConvInterface, csv csv.CsvInterface) (*writer.BatchWriter, error) {
 	if targetProfile.Conn.Sp.Dbname == "" {
 		return nil, fmt.Errorf("dbName is mandatory in target-profile for csv source")
 	}
@@ -206,7 +206,7 @@ func (sads *DataFromSourceImpl) dataFromCSV(ctx context.Context, sourceProfile p
 
 	totalRows := conv.Rows()
 	conv.Audit.Progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false, int(internal.DataWriteInProgress))
-	batchWriter := populateDataConv(conv, config, client)
+	batchWriter := pdc.populateDataConv(conv, config, client)
 	err = csv.ProcessCSV(conv, tables, sourceProfile.Csv.NullStr, delimiter)
 	if err != nil {
 		return nil, fmt.Errorf("can't process csv: %v", err)
@@ -217,7 +217,7 @@ func (sads *DataFromSourceImpl) dataFromCSV(ctx context.Context, sourceProfile p
 }
 
 
-func (sads *DataFromSourceImpl) dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface) (*writer.BatchWriter, error) {
+func (sads *DataFromSourceImpl) dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface, dd DataFromDatabaseInterface, sm SnapshotMigrationInterface) (*writer.BatchWriter, error) {
 	//handle migrating data for sharded migrations differently
 	//sharded migrations are identified via the config= flag, if that flag is not present
 	//carry on with the existing code path in the else block
@@ -227,11 +227,11 @@ func (sads *DataFromSourceImpl) dataFromDatabase(ctx context.Context, sourceProf
 		//We provide an if-else based handling for each within the sharded code branch
 		//This will be determined via the configType, which can be "bulk", "dataflow" or "dms"
 		if sourceProfile.Config.ConfigType == constants.BULK_MIGRATION {
-			return dataFromDatabaseForBulkMigration(sourceProfile, targetProfile, config, conv, client, gi)
+			return dd.dataFromDatabaseForBulkMigration(sourceProfile, targetProfile, config, conv, client, gi, sm)
 		} else if sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-			return dataFromDatabaseForDataflowMigration(targetProfile, ctx, sourceProfile, conv)
+			return dd.dataFromDatabaseForDataflowMigration(targetProfile, ctx, sourceProfile, conv, &common.InfoSchemaImpl{})
 		} else if sourceProfile.Config.ConfigType == constants.DMS_MIGRATION {
-			return dataFromDatabaseForDMSMigration()
+			return dd.dataFromDatabaseForDMSMigration()
 		} else {
 			return nil, fmt.Errorf("configType should be one of 'bulk', 'dataflow' or 'dms'")
 		}
@@ -259,7 +259,7 @@ func (sads *DataFromSourceImpl) dataFromDatabase(ctx context.Context, sourceProf
 			if err != nil {
 				return nil, err
 			}
-			bw, err := snapshotMigrationHandler(sourceProfile, config, conv, client, infoSchema)
+			bw, err := sm.snapshotMigrationHandler(sourceProfile, config, conv, client, infoSchema)
 			if err != nil {
 				return nil, err
 			}
@@ -334,6 +334,6 @@ func (sads *DataFromSourceImpl) dataFromDatabase(ctx context.Context, sourceProf
 			return bw, nil
 		}
 		//bulk migration for a single shard
-		return performSnapshotMigration(config, conv, client, infoSchema, internal.AdditionalDataAttributes{ShardId: ""}), nil
+		return sm.performSnapshotMigration(config, conv, client, infoSchema, internal.AdditionalDataAttributes{ShardId: ""}, &common.InfoSchemaImpl{}, &PopulateDataConvImpl{}), nil
 	}
 }

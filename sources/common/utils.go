@@ -25,6 +25,12 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
+type UtilsOrderInterface interface {
+	initPrimaryKeyOrder(conv *internal.Conv)
+	initIndexOrder(conv *internal.Conv)
+}
+type UtilsOrderImpl struct {}
+
 // ToNotNull returns true if a column is not nullable and false if it is.
 func ToNotNull(conv *internal.Conv, isNullable string) bool {
 	switch isNullable {
@@ -68,7 +74,7 @@ func GetSortedTableIdsBySrcName(srcSchema map[string]schema.Table) []string {
 	return sortedTableIds
 }
 
-func initPrimaryKeyOrder(conv *internal.Conv) {
+func (uo *UtilsOrderImpl) initPrimaryKeyOrder(conv *internal.Conv) {
 	for k, table := range conv.SrcSchema {
 		for i := range table.PrimaryKeys {
 			conv.SrcSchema[k].PrimaryKeys[i].Order = i + 1
@@ -76,7 +82,7 @@ func initPrimaryKeyOrder(conv *internal.Conv) {
 	}
 }
 
-func initIndexOrder(conv *internal.Conv) {
+func (uo *UtilsOrderImpl) initIndexOrder(conv *internal.Conv) {
 	for k, table := range conv.SrcSchema {
 		for i, index := range table.Indexes {
 			for j := range index.Keys {
