@@ -48,6 +48,17 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+// Uber Note on API retries:
+// This file makes a lot of API calls.
+// Many of the Google Cloud API calls have out of box retries for a vetted list of errorcodes (typically `UNAVAILABLE`)
+// If that's the case for the given call, please add a comment. In case we face an issue in integration test and it is needed
+// to add additional retry error codes for that call, please use the gax retry options for the call.
+// There are cases where the retry is not out of box. For such calls:
+// 1. Read documentation for how to make the call idempotent, for example in some cases, special fields (like RequestId) need to be set.
+// 2. Add retry for `UNAVIALBE` followed by any other retriable error you might have seen in testing only if you are sure your call is idempotent.
+// It might be good to run the PR at some scale (depnds on each case) to avoid surprises.
+// If any Rretry related exploration is not immediately feasible, please do add a TODO comment in the code.
+
 var (
 	// Default value for max concurrent backfill tasks in Datastream. Datastream resorts to its default value for 0.
 	maxCdcTasks int32 = 5
@@ -243,6 +254,8 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string, schemaDetails
 		return fmt.Errorf("failed to create GCS client")
 	}
 	defer client.Close()
+	// The Get calls for Google Cloud Storage API have out of box retries.
+	// Reference - https://cloud.google.com/storage/docs/retry-strategy#idempotency-operations
 	bucket := client.Bucket(bucketName)
 	_, err = bucket.Attrs(ctx)
 	if err != nil {
@@ -457,11 +470,15 @@ func createPubsubTopicAndSubscription(ctx context.Context, pubsubClient *pubsub.
 	pubsubCfg.TopicId = topicId
 
 	// Create Topic and Subscription
+	// CreateTopic has out of box retires
+	// Ref - https://github.com/googleapis/googleapis/blob/master/google/pubsub/v1/pubsub_grpc_service_config.json
 	topicObj, err := pubsubClient.CreateTopic(ctx, pubsubCfg.TopicId)
 	if err != nil {
 		return pubsubCfg, fmt.Errorf("pubsub topic could not be created: %v", err)
 	}
 
+	// CreateSubscription has out of box retires
+	// Ref - https://github.com/googleapis/googleapis/blob/master/google/pubsub/v1/pubsub_grpc_service_config.json
 	_, err = pubsubClient.CreateSubscription(ctx, pubsubCfg.SubscriptionId, pubsub.SubscriptionConfig{
 		Topic:             topicObj,
 		AckDeadline:       time.Minute * 10,
@@ -479,11 +496,14 @@ func FetchTargetBucketAndPath(ctx context.Context, datastreamClient *datastream.
 		return "", "", fmt.Errorf("datastream client could not be created")
 	}
 	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamDestinationConnCfg.Location, datastreamDestinationConnCfg.Name)
+	// `GetConnectionProfile` has out of box retries. Ref - https://github.com/googleapis/googleapis/blob/master/google/cloud/datastream/v1/datastream_grpc_service_config.json
 	res, err := datastreamClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
 	if err != nil {
 		return "", "", fmt.Errorf("could not get connection profiles: %v", err)
 	}
 	// Fetch the GCS path from the target connection profile.
+	// The Get calls for Google Cloud Storage API have out of box retries.
+	// Reference - https://cloud.google.com/storage/docs/retry-strategy#idempotency-operations
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
 	bucketName := gcsProfile.Bucket
 	prefix := gcsProfile.RootPath + datastreamDestinationConnCfg.Prefix
@@ -499,6 +519,9 @@ func createNotificationOnBucket(ctx context.Context, storageClient *storage.Clie
 		ObjectNamePrefix: prefix,
 	}
 
+	// TODO: Explore if there's a way to make this idempotent or retriable.
+	// The classification for this call is never idempotent
+	// Ref - https://cloud.google.com/storage/docs/retry-strategy
 	createdNotification, err := storageClient.Bucket(bucketName).AddNotification(ctx, &notification)
 	if err != nil {
 		return "", fmt.Errorf("GCS Notification could not be created: %v", err)
@@ -721,6 +744,10 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	}
 	fmt.Println("Created flex template request body...")
 
+	// LaunchFlexTemplate does not have out of box retries or any direct documentation on how
+	// to make the call idempotent.
+	// Ref - https://github.com/googleapis/googleapis/blob/master/google/dataflow/v1beta3/dataflow_grpc_service_config.json
+	// TODO explore retries.
 	respDf, err := c.LaunchFlexTemplate(ctx, req)
 	if err != nil {
 		fmt.Printf("flexTemplateRequest: %+v\n", req)
@@ -830,6 +857,8 @@ func GetProjectNumberResource(ctx context.Context, projectID string) string {
 		return projectID
 	}
 	defer rmClient.Close()
+	// `GetProjectRequest` has out of box retries.
+	// Ref - https://github.com/googleapis/googleapis/blob/master/google/cloud/resourcemanager/v3/cloudresourcemanager_v3_grpc_service_config.json
 	req := resourcemanagerpb.GetProjectRequest{Name: projectID}
 	project, err := rmClient.GetProject(ctx, &req)
 	if err != nil {
