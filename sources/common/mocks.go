@@ -34,7 +34,7 @@ func (mis *MockInfoSchema) processTable(conv *internal.Conv, table SchemaAndName
 	args := mis.Called(conv, table, infoSchema)
 	return args.Get(0).(schema.Table), args.Error(1)
 }
-func (mis *MockInfoSchema) GetIncludedSrcTablesFromConv(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error)  {
+func (mis *MockInfoSchema) GetIncludedSrcTablesFromConv(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error)   {
 	args := mis.Called(conv)
 	return args.Get(0).(map[string]internal.SchemaDetails), args.Error(1)
 }
@@ -58,5 +58,14 @@ func (mss *MockSchemaToSpanner) SchemaToSpannerDDL(conv *internal.Conv, toddl To
 
 func (mss *MockSchemaToSpanner) SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error {
 	args := mss.Called(conv, toddl, srcTable, isRestore)
+	return args.Error(0)
+}
+
+type MockProcessSchema struct {
+    mock.Mock
+}
+
+func (mps *MockProcessSchema) ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error {
+	args := mps.Called(conv, infoSchema, numWorkers, attributes, s, uo, is)
 	return args.Error(0)
 }

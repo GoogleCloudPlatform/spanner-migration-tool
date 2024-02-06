@@ -31,8 +31,6 @@ import (
 	"strings"
 
 	"cloud.google.com/go/cloudsqlconn"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/cloudsql"
-	cloudsqlconnaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/cloudsqlconn"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -52,13 +50,13 @@ import (
 )
 
 type GetInfoInterface interface{
-	getInfoSchemaForShard(shardConnInfo profiles.DirectConnectionConfig, driver string, targetProfile profiles.TargetProfile, s profiles.SourceProfileDialectInterface, g GetInfoInterface) (common.InfoSchema, error)
+	getInfoSchemaForShard(shardConnInfo profiles.DirectConnectionConfig, driver string, targetProfile profiles.TargetProfile, sourceProfileDialect profiles.SourceProfileDialectInterface, getInfo GetInfoInterface) (common.InfoSchema, error)
 	GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error)
 	GetInfoSchema(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error)	
 }
 type GetInfoImpl struct{}
 
-func (gi *GetInfoImpl) getInfoSchemaForShard(shardConnInfo profiles.DirectConnectionConfig, driver string, targetProfile profiles.TargetProfile, s profiles.SourceProfileDialectInterface, g GetInfoInterface) (common.InfoSchema, error) {
+func (gi *GetInfoImpl) getInfoSchemaForShard(shardConnInfo profiles.DirectConnectionConfig, driver string, targetProfile profiles.TargetProfile, sourceProfileDialect profiles.SourceProfileDialectInterface, getInfo GetInfoInterface) (common.InfoSchema, error) {
 	params := make(map[string]string)
 	params["host"] = shardConnInfo.Host
 	params["user"] = shardConnInfo.User
@@ -69,7 +67,7 @@ func (gi *GetInfoImpl) getInfoSchemaForShard(shardConnInfo profiles.DirectConnec
 	//pased on the driver name, profiles.NewSourceProfileConnection<DBName> will need to be called to create
 	//the source profile information.
 	getUtilsInfo := utils.GetUtilInfoImpl{}
-	sourceProfileConnectionMySQL, err := s.NewSourceProfileConnectionMySQL(params, &getUtilsInfo)
+	sourceProfileConnectionMySQL, err := sourceProfileDialect.NewSourceProfileConnectionMySQL(params, &getUtilsInfo)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse connection configuration for the primary shard")
 	}
@@ -78,7 +76,7 @@ func (gi *GetInfoImpl) getInfoSchemaForShard(shardConnInfo profiles.DirectConnec
 	//this is done because GetSQLConnectionStr() should not be aware of sharding
 	newSourceProfile := profiles.SourceProfile{Conn: sourceProfileConnection, Ty: profiles.SourceProfileTypeConnection}
 	newSourceProfile.Driver = driver
-	infoSchema, err := g.GetInfoSchema(newSourceProfile, targetProfile)
+	infoSchema, err := getInfo.GetInfoSchema(newSourceProfile, targetProfile)
 	if err != nil {
 		return nil, err
 	}
@@ -90,25 +88,21 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourcePr
 	driver := sourceProfile.Driver
 	switch driver {
 	case constants.MYSQL:
-		csc, err := cloudsql.NewCloudSqlConnDialerImpl(context.Background())
+		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
 		if err != nil {
 			return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
 		}
-        if err != nil {
-                return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
-        }
-        var opts []cloudsqlconn.DialOption
+		var opts []cloudsqlconn.DialOption
 		instanceName := fmt.Sprintf("%s:%s:%s", sourceProfile.ConnCloudSQL.Mysql.Project, sourceProfile.ConnCloudSQL.Mysql.Region, sourceProfile.ConnCloudSQL.Mysql.InstanceName)
-        mysqldriver.RegisterDialContext("cloudsqlconn",
-                func(ctx context.Context, addr string) (net.Conn, error) {
-					cscA := cloudsqlconnaccessor.CloudSqlConnAccessorImpl{}
-                    return cscA.Dial(context.Background(), csc, instanceName, opts...)
-                })
+		mysqldriver.RegisterDialContext("cloudsqlconn",
+			func(ctx context.Context, addr string) (net.Conn, error) {
+				return d.Dial(ctx, instanceName, opts...)
+			})
 
-        dbURI := fmt.Sprintf("%s:empty@cloudsqlconn(localhost:3306)/%s?parseTime=true",
-                sourceProfile.ConnCloudSQL.Mysql.User, sourceProfile.ConnCloudSQL.Mysql.Db)
+		dbURI := fmt.Sprintf("%s:empty@cloudsqlconn(localhost:3306)/%s?parseTime=true",
+			sourceProfile.ConnCloudSQL.Mysql.User, sourceProfile.ConnCloudSQL.Mysql.Db)
 
-        db, err := sql.Open("mysql", dbURI)
+		db, err := sql.Open("mysql", dbURI)
 		if err != nil {
 			return nil, fmt.Errorf("sql.Open: %w", err)
 		}

@@ -57,24 +57,24 @@ func (mgi *MockGetInfo) GetInfoSchema(sourceProfile profiles.SourceProfile, targ
 type MockSchemaFromSource struct {
     mock.Mock
 }
-func (msads *MockSchemaFromSource) schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, gi GetInfoInterface, s common.SchemaToSpannerInterface, uo common.UtilsOrderInterface, is common.InfoSchemaInterface) (*internal.Conv, error) {
-	args := msads.Called(sourceProfile, targetProfile, gi, s, uo, is)
+func (msads *MockSchemaFromSource) schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, getInfo GetInfoInterface, processSchema common.ProcessSchemaInterface) (*internal.Conv, error) {
+	args := msads.Called(sourceProfile, targetProfile, getInfo, processSchema)
 	return args.Get(0).(*internal.Conv), args.Error(1)
 }
-func (msads *MockSchemaFromSource) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, uo common.UtilsOrderInterface, ss common.SchemaToSpannerInterface, pdd ProcessDumpByDialectInterface) (*internal.Conv, error) {
-	args := msads.Called(driver, spDialect, ioHelper, uo, ss, pdd)
+func (msads *MockSchemaFromSource) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
+	args := msads.Called(driver, spDialect, ioHelper, processDump)
 	return args.Get(0).(*internal.Conv), args.Error(1)
 }
 
 type MockDataFromSource struct {
     mock.Mock
 }
-func (msads *MockDataFromSource) dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface, dd DataFromDatabaseInterface, sm SnapshotMigrationInterface) (*writer.BatchWriter, error) {
-	args := msads.Called(ctx, sourceProfile, targetProfile, config, conv, client, gi, dd, sm)
+func (msads *MockDataFromSource) dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, getInfo GetInfoInterface, dataFromDb DataFromDatabaseInterface, snapshotMigration SnapshotMigrationInterface) (*writer.BatchWriter, error) {
+	args := msads.Called(ctx, sourceProfile, targetProfile, config, conv, client, getInfo, dataFromDb, snapshotMigration)
 	return args.Get(0).(*writer.BatchWriter), args.Error(1)
 }
-func (msads *MockDataFromSource) dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, uo common.UtilsOrderInterface, ss common.SchemaToSpannerInterface, pdd ProcessDumpByDialectInterface, pdc PopulateDataConvInterface) (*writer.BatchWriter, error) {
-	args := msads.Called(driver, config, ioHelper, client, conv, dataOnly, uo, ss, pdd, pdc)
+func (msads *MockDataFromSource) dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, processDump ProcessDumpByDialectInterface, populateDataConv PopulateDataConvInterface) (*writer.BatchWriter, error) {
+	args := msads.Called(driver, config, ioHelper, client, conv, dataOnly, processDump, populateDataConv)
 	return args.Get(0).(*writer.BatchWriter), args.Error(1)
 }
 func (msads *MockDataFromSource) dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, pdc PopulateDataConvInterface, csv csv.CsvInterface) (*writer.BatchWriter, error) {

@@ -186,8 +186,8 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		return nil, err
 	}
 	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
-	c := &conversion.ConvImpl{}
-	bw, err := c.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
+	convImpl := &conversion.ConvImpl{}
+	bw, err := convImpl.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return nil, err

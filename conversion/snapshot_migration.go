@@ -36,19 +36,19 @@ import (
 )
 
 type SnapshotMigrationInterface interface {
-	performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema, additionalAttributes internal.AdditionalDataAttributes, is common.InfoSchemaInterface, pdc PopulateDataConvInterface) *writer.BatchWriter
+	performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema, additionalAttributes internal.AdditionalDataAttributes, infoSchemaI common.InfoSchemaInterface, populateDataConv PopulateDataConvInterface) *writer.BatchWriter
 	snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error)
 }
 type SnapshotMigrationImpl struct {}
 
-func (sm *SnapshotMigrationImpl) performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema, additionalAttributes internal.AdditionalDataAttributes, is common.InfoSchemaInterface, pdc PopulateDataConvInterface) *writer.BatchWriter {
-	is.SetRowStats(conv, infoSchema)
+func (sm *SnapshotMigrationImpl) performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema, additionalAttributes internal.AdditionalDataAttributes, infoSchemaI common.InfoSchemaInterface, populateDataConv PopulateDataConvInterface) *writer.BatchWriter {
+	infoSchemaI.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
 	if !conv.Audit.DryRun {
 		conv.Audit.Progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false, int(internal.DataWriteInProgress))
 	}
-	batchWriter := pdc.populateDataConv(conv, config, client)
-	is.ProcessData(conv, infoSchema, additionalAttributes)
+	batchWriter := populateDataConv.populateDataConv(conv, config, client)
+	infoSchemaI.ProcessData(conv, infoSchema, additionalAttributes)
 	batchWriter.Flush()
 	return batchWriter
 }

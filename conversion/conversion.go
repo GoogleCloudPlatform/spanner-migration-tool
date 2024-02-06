@@ -75,19 +75,19 @@ func getDatastreamClient(ctx context.Context) *datastream.Client {
 }
 
 type ConvInterface interface {
-	SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, s SchemaFromSourceInterface) (*internal.Conv, error)
-	DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, writeLimit int64, s SchemaFromSourceInterface) (*writer.BatchWriter, error) 
+	SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, schemaFromSource SchemaFromSourceInterface) (*internal.Conv, error)
+	DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, writeLimit int64, dataFromSource DataFromSourceInterface) (*writer.BatchWriter, error) 
 }
 type ConvImpl struct {}
 
 // SchemaConv performs the schema conversion
 // The SourceProfile param provides the connection details to use the go SQL library.
-func (ci *ConvImpl) SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, s SchemaFromSourceInterface) (*internal.Conv, error) {
+func (ci *ConvImpl) SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, schemaFromSource SchemaFromSourceInterface) (*internal.Conv, error) {
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
-		return s.schemaFromDatabase(sourceProfile, targetProfile, &GetInfoImpl{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		return schemaFromSource.schemaFromDatabase(sourceProfile, targetProfile, &GetInfoImpl{}, &common.ProcessSchemaImpl{})
 	case constants.PGDUMP, constants.MYSQLDUMP:
-		return s.SchemaFromDump(sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper, &common.UtilsOrderImpl{}, &common.SchemaToSpannerImpl{}, &ProcessDumpByDialectImpl{})
+		return schemaFromSource.SchemaFromDump(sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper, &ProcessDumpByDialectImpl{})
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", sourceProfile.Driver)
 	}
@@ -95,7 +95,7 @@ func (ci *ConvImpl) SchemaConv(sourceProfile profiles.SourceProfile, targetProfi
 
 // DataConv performs the data conversion
 // The SourceProfile param provides the connection details to use the go SQL library.
-func (ci *ConvImpl) DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, writeLimit int64, s DataFromSourceInterface) (*writer.BatchWriter, error) {
+func (ci *ConvImpl) DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, writeLimit int64, dataFromSource DataFromSourceInterface) (*writer.BatchWriter, error) {
 	config := writer.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
 		WriteLimit: writeLimit,
@@ -104,14 +104,14 @@ func (ci *ConvImpl) DataConv(ctx context.Context, sourceProfile profiles.SourceP
 	}
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
-		return s.dataFromDatabase(ctx, sourceProfile, targetProfile, config, conv, client, &GetInfoImpl{}, &DataFromDatabaseImpl{}, &SnapshotMigrationImpl{})
+		return dataFromSource.dataFromDatabase(ctx, sourceProfile, targetProfile, config, conv, client, &GetInfoImpl{}, &DataFromDatabaseImpl{}, &SnapshotMigrationImpl{})
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
 			return nil, fmt.Errorf("spanner migration tool does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
 		}
-		return s.dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly, &common.UtilsOrderImpl{}, &common.SchemaToSpannerImpl{}, &ProcessDumpByDialectImpl{}, &PopulateDataConvImpl{})
+		return dataFromSource.dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly, &ProcessDumpByDialectImpl{}, &PopulateDataConvImpl{})
 	case constants.CSV:
-		return s.dataFromCSV(ctx, sourceProfile, targetProfile, config, conv, client, &PopulateDataConvImpl{}, &csv.CsvImpl{})
+		return dataFromSource.dataFromCSV(ctx, sourceProfile, targetProfile, config, conv, client, &PopulateDataConvImpl{}, &csv.CsvImpl{})
 	default:
 		return nil, fmt.Errorf("data conversion for driver %s not supported", sourceProfile.Driver)
 	}
