@@ -188,8 +188,8 @@ func TestProcessSchema(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	ps := common.ProcessSchemaImpl{}
-	err := ps.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	processSchema := common.ProcessSchemaImpl{}
+	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -289,8 +289,8 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	ps := common.ProcessSchemaImpl{}
-	err := ps.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	processSchema := common.ProcessSchemaImpl{}
+	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{

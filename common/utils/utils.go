@@ -504,8 +504,8 @@ func GetLegacyModeSupportedDrivers() []string {
 // ReadSpannerSchema fills conv by querying Spanner infoschema treating Spanner as both the source and dest.
 func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Client) error {
 	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, SpDialect: conv.SpDialect}
-	ps := common.ProcessSchemaImpl{}
-	err := ps.ProcessSchema(conv, infoSchema, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	processSchema := common.ProcessSchemaImpl{}
+	err := processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	if err != nil {
 		return fmt.Errorf("error trying to read and convert spanner schema: %v", err)
 	}
@@ -591,7 +591,7 @@ func CompareSchema(sessionFileConv, actualSpannerConv *internal.Conv) error {
 			} else {
 				if sessionColDef.Name != spannerColDef.Name ||
 					sessionColDef.T.IsArray != spannerColDef.T.IsArray || sessionColDef.T.Len != spannerColDef.T.Len || sessionColDef.T.Name != spannerColDef.T.Name || sessionColDef.NotNull != spannerColDef.NotNull {
-						return fmt.Errorf("column detail for table %v don't match: session column: %v, spanner column: %v", sessionTable.Name, sessionColDef, spannerColDef)
+					return fmt.Errorf("column detail for table %v don't match: session column: %v, spanner column: %v", sessionTable.Name, sessionColDef, spannerColDef)
 				}
 			}
 		}
