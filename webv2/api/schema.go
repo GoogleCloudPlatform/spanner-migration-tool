@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/sqlserver"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/index"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
@@ -41,14 +40,6 @@ var mysqlTypeMap = make(map[string][]types.TypeIssue)
 var postgresTypeMap = make(map[string][]types.TypeIssue)
 var sqlserverTypeMap = make(map[string][]types.TypeIssue)
 var oracleTypeMap = make(map[string][]types.TypeIssue)
-
-func init() {
-	sessionState := session.GetSessionState()
-	utilities.InitObjectId()
-	sessionState.Conv = internal.MakeConv()
-	config := config.TryInitializeSpannerConfig()
-	session.SetSessionStorageConnectionState(config.GCPProjectID, config.SpannerInstanceID)
-}
 
 // ConvertSchemaSQL converts source database to Spanner when using
 // with postgres and mysql driver.
