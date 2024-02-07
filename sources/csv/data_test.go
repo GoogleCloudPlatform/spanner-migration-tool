@@ -109,10 +109,11 @@ func cleanupCSVs() {
 }
 
 func TestSetRowStats(t *testing.T) {
+	csv := CsvImpl{}
 	conv := buildConv(getCreateTable())
 	writeCSVs(t)
 	defer cleanupCSVs()
-	SetRowStats(conv, getManifestTables(), ',')
+	csv.SetRowStats(conv, getManifestTables(), ',')
 	assert.Equal(t, map[string]int64{ALL_TYPES_TABLE: 1, SINGERS_TABLE: 2}, conv.Stats.Rows)
 }
 
@@ -128,7 +129,8 @@ func TestProcessCSV(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	err := ProcessCSV(conv, tables, "", ',')
+	csv := CsvImpl{}
+	err := csv.ProcessCSV(conv, tables, "", ',')
 	assert.Nil(t, err)
 	assert.Equal(t, []spannerData{
 		{
