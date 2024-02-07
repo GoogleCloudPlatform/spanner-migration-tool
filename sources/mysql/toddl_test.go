@@ -172,7 +172,8 @@ func TestToSpannerType(t *testing.T) {
 		PrimaryKeys: []schema.Key{{ColId: "c14"}},
 	}
 	conv.UsedNames = map[string]bool{"ref_table": true, "ref_table2": true}
-	assert.Nil(t, common.SchemaToSpannerDDL(conv, ToDdlImpl{}))
+	schemaToSpanner := common.SchemaToSpannerImpl{}
+	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
 	actual := conv.SpSchema[tableId]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
@@ -202,7 +203,8 @@ func TestToSpannerType(t *testing.T) {
 		"c2": []internal.SchemaIssue{internal.Widened},
 	}
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
-	tableList, _ := common.GetIncludedSrcTablesFromConv(conv)
+	commonInfoSchema := common.InfoSchemaImpl{}
+	tableList, _ := commonInfoSchema.GetIncludedSrcTablesFromConv(conv)
 	keys := make([]string, 0, len(tableList))
 	for k := range tableList {
 		keys = append(keys, k)
@@ -263,7 +265,8 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		PrimaryKeys: []schema.Key{{ColId: "c14"}},
 	}
 	conv.UsedNames = map[string]bool{"ref_table": true, "ref_table2": true}
-	assert.Nil(t, common.SchemaToSpannerDDL(conv, ToDdlImpl{}))
+	schemaToSpanner := common.SchemaToSpannerImpl{}
+	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
 	actual := conv.SpSchema[tableId]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
