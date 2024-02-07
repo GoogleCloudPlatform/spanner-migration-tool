@@ -15,7 +15,9 @@ package spanneraccessor
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -25,8 +27,15 @@ import (
 	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"google.golang.org/api/iterator"
+	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 // The SpannerAccessor provides methods that internally use a spanner client (can be adminClient/databaseclient/instanceclient etc).
@@ -47,6 +56,10 @@ type SpannerAccessor interface {
 	ValidateChangeStreamOptions(ctx context.Context, changeStreamName, dbURI string) error
 	// Create a change stream with default options.
 	CreateChangeStream(ctx context.Context, adminClient spanneradmin.AdminClient, changeStreamName, dbURI string) error
+	// Create new Database using conv
+	CreateDatabase(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string, migrationType string) error 
+	// Update Database using conv
+	UpdateDatabase(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string) error
 }
 
 // This implements the SpannerAccessor interface. This is the primary implementation that should be used in all places other than tests.
@@ -198,6 +211,135 @@ func (sp *SpannerAccessorImpl) CreateChangeStream(ctx context.Context, adminClie
 		return fmt.Errorf("could not update database ddl: %v", err)
 	} else {
 		fmt.Println("Successfully created changestream", changeStreamName)
+	}
+	return nil
+}
+
+// CreateDatabase returns a newly create Spanner DB.
+// It automatically determines an appropriate project, selects a
+// Spanner instance to use, generates a new Spanner DB name,
+// and call into the Spanner admin interface to create the new DB.
+func (sp *SpannerAccessorImpl) CreateDatabase(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string, migrationType string) error {
+	project, instance, dbName := utils.ParseDbURI(dbURI)
+	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... \n", dbName, instance)
+	// The schema we send to Spanner excludes comments (since Cloud
+	// Spanner DDL doesn't accept them), and protects table and col names
+	// using backticks (to avoid any issues with Spanner reserved words).
+	// Foreign Keys are set to false since we create them post data migration.
+	req := &adminpb.CreateDatabaseRequest{
+		Parent: fmt.Sprintf("projects/%s/instances/%s", project, instance),
+	}
+	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+		// PostgreSQL dialect doesn't support:
+		// a) backticks around the database name, and
+		// b) DDL statements as part of a CreateDatabase operation (so schema
+		// must be set using a separate UpdateDatabase operation).
+		req.CreateStatement = "CREATE DATABASE \"" + dbName + "\""
+		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
+	} else {
+		req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
+		if migrationType == constants.DATAFLOW_MIGRATION {
+			req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver})
+		} else {
+			req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver})
+		}
+
+	}
+
+	op, err := adminClient.CreateDatabase(ctx, req)
+	if err != nil {
+		return fmt.Errorf("can't build CreateDatabaseRequest: %w", utils.AnalyzeError(err, dbURI))
+	}
+	if _, err := op.Wait(ctx); err != nil {
+		return fmt.Errorf("createDatabase call failed: %w", utils.AnalyzeError(err, dbURI))
+	}
+	fmt.Fprintf(out, "Created database successfully.\n")
+
+	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+		// Update schema separately for PG databases.
+		return sp.UpdateDatabase(ctx, adminClient, dbURI, conv, out, driver)
+	}
+	return nil
+}
+
+// UpdateDatabase updates an existing spanner database.
+func (sp *SpannerAccessorImpl) UpdateDatabase(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string, conv *internal.Conv, out *os.File, driver string) error {
+	fmt.Fprintf(out, "Updating schema for %s with default permissions ... \n", dbURI)
+	// The schema we send to Spanner excludes comments (since Cloud
+	// Spanner DDL doesn't accept them), and protects table and col names
+	// using backticks (to avoid any issues with Spanner reserved words).
+	// Foreign Keys are set to false since we create them post data migration.
+	schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver})
+	req := &adminpb.UpdateDatabaseDdlRequest{
+		Database:   dbURI,
+		Statements: schema,
+	}
+	// Update queries for postgres as target db return response after more
+	// than 1 min for large schemas, therefore, timeout is specified as 5 minutes
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	op, err := adminClient.UpdateDatabaseDdl(ctx, req)
+	if err != nil {
+		return fmt.Errorf("can't build UpdateDatabaseDdlRequest: %w", utils.AnalyzeError(err, dbURI))
+	}
+	if err := op.Wait(ctx); err != nil {
+		return fmt.Errorf("UpdateDatabaseDdl call failed: %w", utils.AnalyzeError(err, dbURI))
+	}
+	fmt.Fprintf(out, "Updated schema successfully.\n")
+	return nil
+}
+
+// CreatesOrUpdatesDatabase updates an existing Spanner database or creates a new one if one does not exist.
+func (sp *SpannerAccessorImpl) CreateOrUpdateDatabase(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI, driver string, conv *internal.Conv, out *os.File, migrationType string) error {
+	dbExists, err := sp.VerifyDb(ctx, adminClient, dbURI)
+	if err != nil {
+		return err
+	}
+	if !conv.Audit.SkipMetricsPopulation {
+		// Adding migration metadata to the outgoing context.
+		migrationData := metrics.GetMigrationData(conv, driver, constants.SchemaConv)
+		serializedMigrationData, _ := proto.Marshal(migrationData)
+		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
+		ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
+	}
+	if dbExists {
+		if conv.SpDialect != constants.DIALECT_POSTGRESQL && migrationType == constants.DATAFLOW_MIGRATION {
+			return fmt.Errorf("spanner migration tool does not support minimal downtime schema/schema-and-data migrations to an existing database")
+		}
+		err := sp.UpdateDatabase(ctx, adminClient, dbURI, conv, out, driver)
+		if err != nil {
+			return fmt.Errorf("can't update database schema: %v", err)
+		}
+	} else {
+		err := sp.CreateDatabase(ctx, adminClient, dbURI, conv, out, driver, migrationType)
+		if err != nil {
+			return fmt.Errorf("can't create database: %v", err)
+		}
+	}
+	return nil
+}
+
+// VerifyDb checks whether the db exists and if it does, verifies if the schema is what we currently support.
+func (sp *SpannerAccessorImpl) VerifyDb(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (dbExists bool, err error) {
+	dbExists, err = sp.CheckExistingDb(ctx, adminClient, dbURI)
+	if err != nil {
+		return dbExists, err
+	}
+	if dbExists {
+		err = sp.ValidateDDL(ctx, adminClient, dbURI)
+	}
+	return dbExists, err
+}
+
+// ValidateDDL verifies if an existing DB's ddl follows what is supported by Spanner migration tool. Currently,
+// we only support empty schema when db already exists.
+func(sp *SpannerAccessorImpl)  ValidateDDL(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) error {
+	dbDdl, err := adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{Database: dbURI})
+	if err != nil {
+		return fmt.Errorf("can't fetch database ddl: %v", err)
+	}
+	if len(dbDdl.Statements) != 0 {
+		return fmt.Errorf("spanner migration tool supports writing to existing databases only if they have an empty schema")
 	}
 	return nil
 }

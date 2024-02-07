@@ -26,6 +26,7 @@ type AdminClient interface {
 	GetDatabase(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error)
 	CreateDatabase(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (CreateDatabaseOperation, error)
 	UpdateDatabaseDdl(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (UpdateDatabaseDdlOperation, error)
+	GetDatabaseDdl(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error)
 }
 
 // Use this interface instead of database.CreateDatabaseOperation to support mocking.
@@ -87,4 +88,8 @@ type UpdateDatabaseDdlImpl struct {
 
 func (c *UpdateDatabaseDdlImpl) Wait(ctx context.Context, opts ...gax.CallOption) error {
 	return c.dbo.Wait(ctx, opts...)
+}
+
+func (c *AdminClientImpl) GetDatabaseDdl(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error) {
+	return c.adminClient.GetDatabaseDdl(ctx, req, opts...)
 }
