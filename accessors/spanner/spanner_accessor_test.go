@@ -25,6 +25,7 @@ import (
 	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -549,7 +550,6 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 	}
 }
 
-
 func TestSpannerAccessorImpl_UpdateDatabase(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -598,3 +598,87 @@ func TestSpannerAccessorImpl_UpdateDatabase(t *testing.T) {
 	}
 }
 
+
+func TestSpannerAccessorImpl_UpdateDDLForeignKey(t *testing.T) {
+	testCases := []struct {
+		name        	string
+		acm         	spanneradmin.AdminClientMock
+		dialect     	string
+		migrationType	string
+	}{
+		{
+			name: "Update DDL ForeignKey successful pg dataflow",
+			acm: spanneradmin.AdminClientMock{
+				UpdateDatabaseDdlMock: func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (spanneradmin.UpdateDatabaseDdlOperation, error) {
+					return &spanneradmin.UpdateDatabaseDdlOperationMock{
+						WaitMock: func(ctx context.Context, opts ...gax.CallOption) error { return nil },
+					}, nil
+				},
+			},
+			dialect: "postgresql",
+			migrationType: "dataflow",
+		},
+		{
+			name: "Update DDL ForeignKey successful google_standard_sql",
+			acm: spanneradmin.AdminClientMock{
+				UpdateDatabaseDdlMock: func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (spanneradmin.UpdateDatabaseDdlOperation, error) {
+					return &spanneradmin.UpdateDatabaseDdlOperationMock{
+						WaitMock: func(ctx context.Context, opts ...gax.CallOption) error { return nil },
+					}, nil
+				},
+			},
+			dialect: "google_standard_sql",
+			migrationType: "dataflow",
+		},
+		{
+			name: "Update DDL ForeignKey update database error",
+			acm: spanneradmin.AdminClientMock{
+				UpdateDatabaseDdlMock: func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (spanneradmin.UpdateDatabaseDdlOperation, error) {
+					return nil, fmt.Errorf("error")
+				},
+			},
+			dialect: "postgresql",
+			migrationType: "dataflow",
+		},
+		{
+			name: "Update DDL ForeignKey operation error",
+			acm: spanneradmin.AdminClientMock{
+				UpdateDatabaseDdlMock: func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (spanneradmin.UpdateDatabaseDdlOperation, error) {
+					return &spanneradmin.UpdateDatabaseDdlOperationMock{
+						WaitMock: func(ctx context.Context, opts ...gax.CallOption) error { return fmt.Errorf("error") },
+					}, nil
+				},
+			},
+			dialect: "postgresql",
+			migrationType: "dataflow",
+		},
+	}
+	ctx := context.Background()
+	spA := SpannerAccessorImpl{}
+	for _, tc := range testCases {
+		dbURI := "projects/project-id/instances/instance-id/databases/database-id"
+		conv := internal.MakeConv()
+		conv.SpDialect = tc.dialect
+		conv.SpSchema = map[string]ddl.CreateTable{
+			"table_id" : {
+				Name: "table1",
+				Id: "table_id",
+			},
+			"table_id2" : {
+				Name: "table2",
+				Id: "table_id2",
+				ParentId: "table1",
+				ForeignKeys: []ddl.Foreignkey{
+					{
+						Name: "fk",
+						ColIds: []string{"columns"},
+						ReferTableId:"table1",
+						ReferColumnIds:[]string{"column"},
+						Id:"table_id",
+					},
+				},
+			},
+		}
+		spA.UpdateDDLForeignKeys(ctx, &tc.acm, dbURI, conv, "", tc.migrationType)
+	}
+}

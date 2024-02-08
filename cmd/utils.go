@@ -21,6 +21,8 @@ import (
 
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -139,13 +141,18 @@ func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, 
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient) error {
-	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, conv, ioHelper.Out, sourceProfile.Config.ConfigType)
-	if err != nil {
-		err = fmt.Errorf("can't create/update database: %v", err)
-		return err
-	}
-	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
-	return nil
+		spA := spanneraccessor.SpannerAccessorImpl{}
+		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+		if err != nil {
+			return err
+		}
+		err = spA.CreateOrUpdateDatabase(ctx, adminClientImpl, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
+		if err != nil {
+			err = fmt.Errorf("can't create/update database: %v", err)
+			return err
+		}
+		conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
+		return nil
 }
 
 func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
@@ -170,17 +177,24 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 	}
 	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	if !cmd.SkipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, sourceProfile.Driver, sourceProfile.Config.ConfigType); err != nil {
-			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
+		spA := spanneraccessor.SpannerAccessorImpl{}
+		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+		if err != nil {
 			return bw, err
 		}
+		spA.UpdateDDLForeignKeys(ctx, adminClientImpl, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
 	}
 	return bw, nil
 }
 
 func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *SchemaAndDataCmd) (*writer.BatchWriter, error) {
-	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, conv, ioHelper.Out, sourceProfile.Config.ConfigType)
+	spA := spanneraccessor.SpannerAccessorImpl{}
+	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+	if err != nil {
+		return nil, err
+	}
+	err = spA.CreateOrUpdateDatabase(ctx, adminClientImpl, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
 	if err != nil {
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return nil, err
@@ -195,10 +209,7 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 
 	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	if !cmd.SkipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, sourceProfile.Driver, sourceProfile.Config.ConfigType); err != nil {
-			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
-			return bw, err
-		}
+		spA.UpdateDDLForeignKeys(ctx, adminClientImpl, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
 	}
 	return bw, nil
 }

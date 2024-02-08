@@ -37,18 +37,6 @@ import (
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
-// VerifyDb checks whether the db exists and if it does, verifies if the schema is what we currently support.
-func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (dbExists bool, err error) {
-	dbExists, err = CheckExistingDb(ctx, adminClient, dbURI)
-	if err != nil {
-		return dbExists, err
-	}
-	if dbExists {
-		err = ValidateDDL(ctx, adminClient, dbURI)
-	}
-	return dbExists, err
-}
-
 // CheckExistingDb checks whether the database with dbURI exists or not.
 // If API call doesn't respond then user is informed after every 5 minutes on command line.
 func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (bool, error) {
@@ -92,17 +80,4 @@ func ValidateTables(ctx context.Context, client *sp.Client, spDialect string) (s
 		}
 	}
 	return "", nil
-}
-
-// ValidateDDL verifies if an existing DB's ddl follows what is supported by Spanner migration tool. Currently,
-// we only support empty schema when db already exists.
-func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) error {
-	dbDdl, err := adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{Database: dbURI})
-	if err != nil {
-		return fmt.Errorf("can't fetch database ddl: %v", err)
-	}
-	if len(dbDdl.Statements) != 0 {
-		return fmt.Errorf("spanner migration tool supports writing to existing databases only if they have an empty schema")
-	}
-	return nil
 }

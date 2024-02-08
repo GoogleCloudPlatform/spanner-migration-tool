@@ -18,6 +18,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/spanner"
@@ -30,12 +31,23 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"go.uber.org/zap"
 	"google.golang.org/api/iterator"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )
+
+var (
+	// Set the maximum number of concurrent workers during foreign key creation.
+	// This number should not be too high so as to not hit the AdminQuota limit.
+	// AdminQuota limits are mentioned here: https://cloud.google.com/spanner/quotas#administrative_limits
+	// If facing a quota limit error, consider reducing this value.
+	MaxWorkers       = 50
+)
+
 
 // The SpannerAccessor provides methods that internally use a spanner client (can be adminClient/databaseclient/instanceclient etc).
 // Methods should only contain generic logic here that can be used by multiple workflows.
@@ -65,6 +77,8 @@ type SpannerAccessor interface {
 	VerifyDb(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (dbExists bool, err error)
 	// Verify if an existing DB's ddl follows what is supported by Spanner migration tool. Currently, we only support empty schema when db already exists.
 	ValidateDDL(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) error
+	// UpdateDDLForeignKeys updates the Spanner database with foreign key constraints using ALTER TABLE statements.
+	UpdateDDLForeignKeys(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string, conv *internal.Conv, driver string, migrationType string)
 }
 
 // This implements the SpannerAccessor interface. This is the primary implementation that should be used in all places other than tests.
@@ -334,7 +348,7 @@ func (sp *SpannerAccessorImpl) VerifyDb(ctx context.Context, adminClient spanner
 
 // ValidateDDL verifies if an existing DB's ddl follows what is supported by Spanner migration tool. Currently,
 // we only support empty schema when db already exists.
-func(sp *SpannerAccessorImpl)  ValidateDDL(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) error {
+func (sp *SpannerAccessorImpl) ValidateDDL(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) error {
 	dbDdl, err := adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{Database: dbURI})
 	if err != nil {
 		return fmt.Errorf("can't fetch database ddl: %v", err)
@@ -343,4 +357,87 @@ func(sp *SpannerAccessorImpl)  ValidateDDL(ctx context.Context, adminClient span
 		return fmt.Errorf("spanner migration tool supports writing to existing databases only if they have an empty schema")
 	}
 	return nil
+}
+
+
+// UpdateDDLForeignKeys updates the Spanner database with foreign key
+// constraints using ALTER TABLE statements.
+func (sp *SpannerAccessorImpl) UpdateDDLForeignKeys(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string, conv *internal.Conv, driver string, migrationType string) {
+
+	if conv.SpDialect != constants.DIALECT_POSTGRESQL && migrationType == constants.DATAFLOW_MIGRATION {
+		//foreign keys were applied as part of CreateDatabase
+		return
+	}
+
+	// The schema we send to Spanner excludes comments (since Cloud
+	// Spanner DDL doesn't accept them), and protects table and col names
+	// using backticks (to avoid any issues with Spanner reserved words).
+	fkStmts := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver})
+	if len(fkStmts) == 0 {
+		return
+	}
+	if len(fkStmts) > 50 {
+		fmt.Println(`
+			Warning: Large number of foreign keys detected. Spanner can take a long amount of 
+			time to create foreign keys (over 5 mins per batch of Foreign Keys even with no data). 
+			Spanner migration tool does not have control over a single foreign key creation time. The number 
+			of concurrent Foreign Key Creation Requests sent to spanner can be increased by 
+			tweaking the MaxWorkers variable (https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/conversion/conversion.go#L89).
+			However, setting it to a very high value might lead to exceeding the admin quota limit. Spanner migration tool tries to stay under the
+			admin quota limit by spreading the FK creation requests over time.`)
+	}
+	msg := fmt.Sprintf("Updating schema of database %s with foreign key constraints ...", dbURI)
+	conv.Audit.Progress = *internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose(), true, int(internal.ForeignKeyUpdateInProgress))
+
+	workers := make(chan int, MaxWorkers)
+	for i := 1; i <= MaxWorkers; i++ {
+		workers <- i
+	}
+	var progressMutex sync.Mutex
+	progress := int64(0)
+
+	// We dispatch parallel foreign key create requests to ensure the backfill runs in parallel to reduce overall time.
+	// This cuts down the time taken to a third (approx) compared to Serial and Batched creation. We also do not want to create
+	// too many requests and get throttled due to network or hitting catalog memory limits.
+	// Ensure atmost `MaxWorkers` go routines run in parallel that each update the ddl with one foreign key statement.
+	for _, fkStmt := range fkStmts {
+		workerID := <-workers
+		go func(fkStmt string, workerID int) {
+			defer func() {
+				// Locking the progress reporting otherwise progress results displayed could be in random order.
+				progressMutex.Lock()
+				progress++
+				conv.Audit.Progress.MaybeReport(progress)
+				progressMutex.Unlock()
+				workers <- workerID
+			}()
+			internal.VerbosePrintf("Submitting new FK create request: %s\n", fkStmt)
+			logger.Log.Debug("Submitting new FK create request", zap.String("fkStmt", fkStmt))
+
+			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
+				Database:   dbURI,
+				Statements: []string{fkStmt},
+			})
+			if err != nil {
+				fmt.Printf("Cannot submit request for create foreign key with statement: %s\n due to error: %s. Skipping this foreign key...\n", fkStmt, err)
+				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
+				return
+			}
+			if err := op.Wait(ctx); err != nil {
+				fmt.Printf("Can't add foreign key with statement: %s\n due to error: %s. Skipping this foreign key...\n", fkStmt, err)
+				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
+				return
+			}
+			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
+			logger.Log.Debug("Updated schema with statement", zap.String("fkStmt", fkStmt))
+		}(fkStmt, workerID)
+		// Send out an FK creation request every second, with total of maxWorkers request being present in a batch.
+		time.Sleep(time.Second)
+	}
+	// Wait for all the goroutines to finish.
+	for i := 1; i <= MaxWorkers; i++ {
+		<-workers
+	}
+	conv.Audit.Progress.UpdateProgress("Foreign key update complete.", 100, internal.ForeignKeyUpdateComplete)
+	conv.Audit.Progress.Done()
 }
