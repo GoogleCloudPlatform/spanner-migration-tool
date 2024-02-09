@@ -25,6 +25,7 @@ package conversion
 
 import (
 	"context"
+	"os"
 
 	sp "cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -61,7 +62,7 @@ func (msads *MockSchemaFromSource) schemaFromDatabase(sourceProfile profiles.Sou
 	args := msads.Called(sourceProfile, targetProfile, getInfo, processSchema)
 	return args.Get(0).(*internal.Conv), args.Error(1)
 }
-func (msads *MockSchemaFromSource) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
+func (msads *MockSchemaFromSource) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface, seekable SeekableInterface) (*internal.Conv, error) {
 	args := msads.Called(driver, spDialect, ioHelper, processDump)
 	return args.Get(0).(*internal.Conv), args.Error(1)
 }
@@ -73,11 +74,27 @@ func (msads *MockDataFromSource) dataFromDatabase(ctx context.Context, sourcePro
 	args := msads.Called(ctx, sourceProfile, targetProfile, config, conv, client, getInfo, dataFromDb, snapshotMigration)
 	return args.Get(0).(*writer.BatchWriter), args.Error(1)
 }
-func (msads *MockDataFromSource) dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, processDump ProcessDumpByDialectInterface, populateDataConv PopulateDataConvInterface) (*writer.BatchWriter, error) {
+func (msads *MockDataFromSource) dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, processDump ProcessDumpByDialectInterface, populateDataConv PopulateDataConvInterface, seekable SeekableInterface) (*writer.BatchWriter, error) {
 	args := msads.Called(driver, config, ioHelper, client, conv, dataOnly, processDump, populateDataConv)
 	return args.Get(0).(*writer.BatchWriter), args.Error(1)
 }
 func (msads *MockDataFromSource) dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, pdc PopulateDataConvInterface, csv csv.CsvInterface) (*writer.BatchWriter, error) {
 	args := msads.Called(ctx, sourceProfile, targetProfile, config, conv, client, pdc, csv)
 	return args.Get(0).(*writer.BatchWriter), args.Error(1)
+}
+
+type MockProcessDumpByDialect struct {
+	mock.Mock
+}
+func (mpdd *MockProcessDumpByDialect) ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
+	args:= mpdd.Called(driver, conv, r)
+	return args.Error(0)
+}
+
+type MockSeekable struct {
+	mock.Mock
+}
+func (ms *MockSeekable) getSeekable(f *os.File) (*os.File, int64, error) {
+	args:= ms.Called(f)
+	return args.Get(0).(*os.File), args.Get(1).(int64), args.Error(2)
 }

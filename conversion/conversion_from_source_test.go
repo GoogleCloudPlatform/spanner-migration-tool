@@ -25,8 +25,11 @@ package conversion
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
@@ -170,6 +173,36 @@ func TestSchemaFromDatabase(t *testing.T) {
 
 		s := SchemaFromSourceImpl{}
 		_, err := s.schemaFromDatabase(tc.sourceProfile, targetProfile, &gim, &ps)
+		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
+	}
+}
+
+
+func TestSchemaFromDump(t *testing.T) {
+	ioStream := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
+	// Avoid getting/setting env variables in the unit tests.
+	testCases := []struct {
+		name          				string
+		processDumpError			error
+		getSeekableError 			error
+		errorExpected 				bool
+	}{
+		{
+			name: "successful schema from dump",
+			processDumpError: nil,
+			errorExpected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		pd := MockProcessDumpByDialect{}
+		se := MockSeekable{}
+		logger.InitializeLogger()
+
+		pd.On("ProcessDump", mock.Anything, mock.Anything, mock.Anything).Return(tc.processDumpError)
+		se.On("getSeekable", mock.Anything). Return(&os.File{}, int64(0), tc.getSeekableError)
+		s := SchemaFromSourceImpl{}
+		_, err := s.SchemaFromDump("", "google_standard_sql", ioStream, &pd, &se)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 	}
 }

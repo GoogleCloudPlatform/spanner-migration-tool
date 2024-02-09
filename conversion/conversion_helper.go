@@ -62,8 +62,15 @@ type PopulateDataConvInterface interface{
 }
 
 type PopulateDataConvImpl struct{}
+
+type SeekableInterface interface {
+	getSeekable(f *os.File) (*os.File, int64, error)
+}
+
+type SeekableImpl struct{}
+
 // getSeekable returns a seekable file (with same content as f) and the size of the content (in bytes).
-func getSeekable(f *os.File) (*os.File, int64, error) {
+func (si *SeekableImpl) getSeekable(f *os.File) (*os.File, int64, error) {
 	_, err := f.Seek(0, 0)
 	if err == nil { // Stdin is seekable, let's just use that. This happens when you run 'cmd < file'.
 		n, err := utils.GetFileSize(f)

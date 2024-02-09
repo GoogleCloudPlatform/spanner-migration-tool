@@ -47,14 +47,14 @@ import (
 
 type SchemaFromSourceInterface interface {
 	schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, getInfo GetInfoInterface, processSchema common.ProcessSchemaInterface) (*internal.Conv, error)
-	SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error)
+	SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface, seekable SeekableInterface) (*internal.Conv, error)
 	}
 
 type SchemaFromSourceImpl struct{}
 
 type DataFromSourceInterface interface {
 	dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, getInfo GetInfoInterface, dataFromDb DataFromDatabaseInterface, snapshotMigration SnapshotMigrationInterface) (*writer.BatchWriter, error)
-	dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, processDump ProcessDumpByDialectInterface, populateDataConv PopulateDataConvInterface) (*writer.BatchWriter, error)
+	dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, processDump ProcessDumpByDialectInterface, populateDataConv PopulateDataConvInterface, seekable SeekableInterface) (*writer.BatchWriter, error)
 	dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, populateDataConv PopulateDataConvInterface, csv csv.CsvInterface) (*writer.BatchWriter, error)
 }
 
@@ -108,8 +108,8 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(sourceProfile profiles.Sour
 	return conv, processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 }
 
-func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
-	f, n, err := getSeekable(ioHelper.In)
+func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface, seekable SeekableInterface) (*internal.Conv, error) {
+	f, n, err := seekable.getSeekable(ioHelper.In)
 	if err != nil {
 		utils.PrintSeekError(driver, err, ioHelper.Out)
 		return nil, fmt.Errorf("can't get seekable input file")
@@ -132,7 +132,7 @@ func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string
 }
 
 
-func (sads *DataFromSourceImpl) dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, processDump ProcessDumpByDialectInterface, populateDataConv PopulateDataConvInterface) (*writer.BatchWriter, error) {
+func (sads *DataFromSourceImpl) dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, processDump ProcessDumpByDialectInterface, populateDataConv PopulateDataConvInterface, seekable SeekableInterface) (*writer.BatchWriter, error) {
 	// TODO: refactor of the way we handle getSeekable
 	// to avoid the code duplication here
 	if !dataOnly {
@@ -144,7 +144,7 @@ func (sads *DataFromSourceImpl) dataFromDump(driver string, config writer.BatchW
 	} else {
 		// Note: input file is kept seekable to plan for future
 		// changes in showing progress for data migration.
-		f, n, err := getSeekable(ioHelper.In)
+		f, n, err := seekable.getSeekable(ioHelper.In)
 		if err != nil {
 			utils.PrintSeekError(driver, err, ioHelper.Out)
 			return nil, fmt.Errorf("can't get seekable input file")

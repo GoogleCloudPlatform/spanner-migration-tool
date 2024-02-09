@@ -87,7 +87,7 @@ func (ci *ConvImpl) SchemaConv(sourceProfile profiles.SourceProfile, targetProfi
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
 		return schemaFromSource.schemaFromDatabase(sourceProfile, targetProfile, &GetInfoImpl{}, &common.ProcessSchemaImpl{})
 	case constants.PGDUMP, constants.MYSQLDUMP:
-		return schemaFromSource.SchemaFromDump(sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper, &ProcessDumpByDialectImpl{})
+		return schemaFromSource.SchemaFromDump(sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper, &ProcessDumpByDialectImpl{}, &SeekableImpl{})
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", sourceProfile.Driver)
 	}
@@ -109,7 +109,7 @@ func (ci *ConvImpl) DataConv(ctx context.Context, sourceProfile profiles.SourceP
 		if conv.SpSchema.CheckInterleaved() {
 			return nil, fmt.Errorf("spanner migration tool does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
 		}
-		return dataFromSource.dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly, &ProcessDumpByDialectImpl{}, &PopulateDataConvImpl{})
+		return dataFromSource.dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly, &ProcessDumpByDialectImpl{}, &PopulateDataConvImpl{}, &SeekableImpl{})
 	case constants.CSV:
 		return dataFromSource.dataFromCSV(ctx, sourceProfile, targetProfile, config, conv, client, &PopulateDataConvImpl{}, &csv.CsvImpl{})
 	default:
