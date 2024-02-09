@@ -366,7 +366,7 @@ func (sp *SpannerAccessorImpl) UpdateDDLForeignKeys(ctx context.Context, adminCl
 		return
 	}
 	if len(fkStmts) > 50 {
-		logger.Log.Debug(`
+		logger.Log.Warn(`
 			Warning: Large number of foreign keys detected. Spanner can take a long amount of 
 			time to create foreign keys (over 5 mins per batch of Foreign Keys even with no data). 
 			Spanner migration tool does not have control over a single foreign key creation time. The number 
