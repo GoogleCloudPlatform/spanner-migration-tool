@@ -26,6 +26,7 @@ type AdminClientMock struct {
 	GetDatabaseMock       func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error)
 	CreateDatabaseMock    func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (CreateDatabaseOperation, error)
 	UpdateDatabaseDdlMock func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (UpdateDatabaseDdlOperation, error)
+	GetDatabaseDdlMock    func(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error)
 }
 
 func (acm *AdminClientMock) GetDatabase(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
@@ -38,6 +39,10 @@ func (acm *AdminClientMock) CreateDatabase(ctx context.Context, req *databasepb.
 
 func (acm *AdminClientMock) UpdateDatabaseDdl(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (UpdateDatabaseDdlOperation, error) {
 	return acm.UpdateDatabaseDdlMock(ctx, req, opts...)
+}
+
+func (acm *AdminClientMock) GetDatabaseDdl(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error) {
+	return acm.GetDatabaseDdlMock(ctx, req, opts...)
 }
 
 // Mock that implements the CreateDatabaseOperation interface.
