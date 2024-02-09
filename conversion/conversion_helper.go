@@ -65,9 +65,19 @@ type PopulateDataConvImpl struct{}
 
 type SeekableInterface interface {
 	getSeekable(f *os.File) (*os.File, int64, error)
+	seek(ioHelper *utils.IOStreams, offset int64, whence int) (int64, error)
 }
 
 type SeekableImpl struct{}
+
+func (si *SeekableImpl) seek(ioHelper *utils.IOStreams, offset int64, whence int) (int64, error) {
+	val, err := ioHelper.SeekableIn.Seek(offset, whence)
+	if err != nil {
+		fmt.Printf("\nCan't seek to start of file (preparation for second pass): %v\n", err)
+		return val, fmt.Errorf("can't seek to start of file")
+	}
+	return val, err
+}
 
 // getSeekable returns a seekable file (with same content as f) and the size of the content (in bytes).
 func (si *SeekableImpl) getSeekable(f *os.File) (*os.File, int64, error) {

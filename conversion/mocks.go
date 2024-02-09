@@ -98,3 +98,15 @@ func (ms *MockSeekable) getSeekable(f *os.File) (*os.File, int64, error) {
 	args:= ms.Called(f)
 	return args.Get(0).(*os.File), args.Get(1).(int64), args.Error(2)
 }
+func (ms *MockSeekable) seek(ioHelper *utils.IOStreams, offset int64, whence int) (int64, error) {
+	args:= ms.Called(ioHelper, offset, whence)
+	return args.Get(0).(int64), args.Error(1)
+}
+
+type MockPopulateDataConv struct {
+	mock.Mock
+}
+func (mpdc *MockPopulateDataConv) populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client) *writer.BatchWriter {
+	args:= mpdc.Called(conv, config, client)
+	return args.Get(0).(*writer.BatchWriter)
+}

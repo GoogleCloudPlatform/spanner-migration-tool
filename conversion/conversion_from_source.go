@@ -136,9 +136,8 @@ func (sads *DataFromSourceImpl) dataFromDump(driver string, config writer.BatchW
 	// TODO: refactor of the way we handle getSeekable
 	// to avoid the code duplication here
 	if !dataOnly {
-		_, err := ioHelper.SeekableIn.Seek(0, 0)
+		_, err := seekable.seek(ioHelper, 0, 0)
 		if err != nil {
-			fmt.Printf("\nCan't seek to start of file (preparation for second pass): %v\n", err)
 			return nil, fmt.Errorf("can't seek to start of file")
 		}
 	} else {

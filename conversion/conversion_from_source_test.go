@@ -28,11 +28,14 @@ import (
 	"os"
 	"testing"
 
+	sp "cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -190,19 +193,93 @@ func TestSchemaFromDump(t *testing.T) {
 		{
 			name: "successful schema from dump",
 			processDumpError: nil,
+			getSeekableError: nil,
 			errorExpected: false,
+		},
+		{
+			name: "schema from dump getSeekable error",
+			processDumpError: nil,
+			getSeekableError: fmt.Errorf("error"),
+			errorExpected: true,
+		},
+		{
+			name: "schema from dump process dump error",
+			processDumpError: fmt.Errorf("error"),
+			getSeekableError: nil,
+			errorExpected: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		pd := MockProcessDumpByDialect{}
 		se := MockSeekable{}
-		logger.InitializeLogger()
+		logger.InitializeLogger("DEBUG")
 
 		pd.On("ProcessDump", mock.Anything, mock.Anything, mock.Anything).Return(tc.processDumpError)
 		se.On("getSeekable", mock.Anything). Return(&os.File{}, int64(0), tc.getSeekableError)
 		s := SchemaFromSourceImpl{}
 		_, err := s.SchemaFromDump("", "google_standard_sql", ioStream, &pd, &se)
+		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
+	}
+}
+
+
+func TestDataFromDump(t *testing.T) {
+	ioStream := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
+	// Avoid getting/setting env variables in the unit tests.
+	testCases := []struct {
+		name          				string
+		dataOnly					bool
+		ioHelper 					*utils.IOStreams
+		processDumpError			error
+		getSeekableError 			error
+		seekError 					error
+		errorExpected 				bool
+	}{
+		{
+			name: "successful data from dump data only true",
+			dataOnly: true,
+			processDumpError: nil,
+			getSeekableError: nil,
+			errorExpected: false,
+		},
+		{
+			name: "data from dump get seekable error",
+			dataOnly: true,
+			processDumpError: nil,
+			getSeekableError: fmt.Errorf("error"),
+			errorExpected: true,
+		},
+		{
+			name: "successful data from dump data only false",
+			dataOnly: false,
+			processDumpError: nil,
+			getSeekableError: nil,
+			seekError: nil,	
+			errorExpected: false,
+		},
+		{
+			name: "successful data from dump data only false seek error",
+			dataOnly: false,
+			processDumpError: nil,
+			getSeekableError: nil,
+			seekError: fmt.Errorf("error"),	
+			errorExpected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		pdc := MockPopulateDataConv{}
+		pd := MockProcessDumpByDialect{}
+		se := MockSeekable{}
+		logger.InitializeLogger("DEBUG")
+
+		pd.On("ProcessDump", mock.Anything, mock.Anything, mock.Anything).Return(tc.processDumpError)
+		se.On("getSeekable", mock.Anything).Return(&os.File{}, int64(0), tc.getSeekableError)
+		se.On("seek", mock.Anything, mock.Anything, mock.Anything). Return(int64(0), tc.seekError)
+		pdc.On("populateDataConv", mock.Anything, mock.Anything, mock.Anything).Return(writer.NewBatchWriter(writer.BatchWriterConfig{}))
+		d := DataFromSourceImpl{}
+		_, err := d.dataFromDump("",writer.BatchWriterConfig{}, ioStream, &sp.Client{}, internal.MakeConv(), tc.dataOnly, &pd, &pdc, &se)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 	}
 }
