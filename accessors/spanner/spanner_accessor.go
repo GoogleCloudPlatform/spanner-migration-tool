@@ -15,7 +15,6 @@ package spanneraccessor
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"strings"
 	"sync"
@@ -28,7 +27,6 @@ import (
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -36,8 +34,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/api/iterator"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -102,7 +98,7 @@ func (sp *SpannerAccessorImpl) CheckExistingDb(ctx context.Context, adminClient 
 	for {
 		select {
 		case <-time.After(5 * time.Minute):
-			fmt.Println("WARNING! API call not responding: make sure that spanner api endpoint is configured properly")
+			logger.Log.Debug("WARNING! API call not responding: make sure that spanner api endpoint is configured properly")
 		case <-gotResponse:
 			if err != nil {
 				if utils.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
@@ -229,7 +225,7 @@ func (sp *SpannerAccessorImpl) CreateChangeStream(ctx context.Context, adminClie
 	if err := op.Wait(ctx); err != nil {
 		return fmt.Errorf("could not update database ddl: %v", err)
 	} else {
-		fmt.Println("Successfully created changestream", changeStreamName)
+		logger.Log.Debug("Successfully created changestream", zap.String("changeStreamName", changeStreamName))
 	}
 	return nil
 }
@@ -310,13 +306,6 @@ func (sp *SpannerAccessorImpl) CreateOrUpdateDatabase(ctx context.Context, admin
 	if err != nil {
 		return err
 	}
-	if !conv.Audit.SkipMetricsPopulation {
-		// Adding migration metadata to the outgoing context.
-		migrationData := metrics.GetMigrationData(conv, driver, constants.SchemaConv)
-		serializedMigrationData, _ := proto.Marshal(migrationData)
-		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
-		ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
-	}
 	if dbExists {
 		if conv.SpDialect != constants.DIALECT_POSTGRESQL && migrationType == constants.DATAFLOW_MIGRATION {
 			return fmt.Errorf("spanner migration tool does not support minimal downtime schema/schema-and-data migrations to an existing database")
@@ -377,7 +366,7 @@ func (sp *SpannerAccessorImpl) UpdateDDLForeignKeys(ctx context.Context, adminCl
 		return
 	}
 	if len(fkStmts) > 50 {
-		fmt.Println(`
+		logger.Log.Debug(`
 			Warning: Large number of foreign keys detected. Spanner can take a long amount of 
 			time to create foreign keys (over 5 mins per batch of Foreign Keys even with no data). 
 			Spanner migration tool does not have control over a single foreign key creation time. The number 
@@ -419,12 +408,12 @@ func (sp *SpannerAccessorImpl) UpdateDDLForeignKeys(ctx context.Context, adminCl
 				Statements: []string{fkStmt},
 			})
 			if err != nil {
-				fmt.Printf("Cannot submit request for create foreign key with statement: %s\n due to error: %s. Skipping this foreign key...\n", fkStmt, err)
+				logger.Log.Debug("Can't add foreign key with statement:"+fkStmt+"\n due to error:"+err.Error()+" Skipping this foreign key...\n")
 				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
 				return
 			}
 			if err := op.Wait(ctx); err != nil {
-				fmt.Printf("Can't add foreign key with statement: %s\n due to error: %s. Skipping this foreign key...\n", fkStmt, err)
+				logger.Log.Debug("Can't add foreign key with statement:"+fkStmt+"\n due to error:"+err.Error()+" Skipping this foreign key...\n")
 				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
 				return
 			}

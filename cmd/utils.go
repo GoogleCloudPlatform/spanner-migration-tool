@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -23,12 +24,16 @@ import (
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -41,6 +46,16 @@ const (
 	DefaultWritersLimit  = 40
 	completionPercentage = 100
 )
+
+func metricsPopulation(ctx context.Context, driver string, conv *internal.Conv) {
+	if !conv.Audit.SkipMetricsPopulation {
+		// Adding migration metadata to the outgoing context.
+		migrationData := metrics.GetMigrationData(conv, driver, constants.SchemaConv)
+		serializedMigrationData, _ := proto.Marshal(migrationData)
+		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
+		ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
+	}
+}
 
 // CreateDatabaseClient creates new database client and admin client.
 func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProfile, driver, dbName string, ioHelper utils.IOStreams) (*database.DatabaseAdminClient, *sp.Client, string, error) {
@@ -151,6 +166,7 @@ func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, so
 			err = fmt.Errorf("can't create/update database: %v", err)
 			return err
 		}
+		metricsPopulation(ctx, sourceProfile.Driver, conv)
 		conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
 		return nil
 }
@@ -199,6 +215,7 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return nil, err
 	}
+	metricsPopulation(ctx, sourceProfile.Driver, conv)
 	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
 	convImpl := &conversion.ConvImpl{}
 	bw, err := convImpl.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
