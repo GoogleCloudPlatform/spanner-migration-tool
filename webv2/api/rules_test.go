@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestApplyRule(t *testing.T) {
 	tcAddIndex := []struct {
 		name         string

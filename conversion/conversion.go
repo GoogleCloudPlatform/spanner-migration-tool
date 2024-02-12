@@ -102,13 +102,19 @@ func (ci *ConvImpl) DataConv(ctx context.Context, sourceProfile profiles.SourceP
 	}
 }
 
+type ReportInterface interface {
+	GenerateReport(driver string, badWrites map[string]int64, BytesRead int64, banner string, conv *internal.Conv, reportFileName string, dbName string, out *os.File)
+}
+
+type ReportImpl struct {}
 
 // Report generates a report of schema and data conversion.
-func Report(driver string, badWrites map[string]int64, BytesRead int64, banner string, conv *internal.Conv, reportFileName string, dbName string, out *os.File) {
+func (r *ReportImpl) GenerateReport(driver string, badWrites map[string]int64, BytesRead int64, banner string, conv *internal.Conv, reportFileName string, dbName string, out *os.File) {
 
 	//Write the structured report file
 	structuredReportFileName := fmt.Sprintf("%s.%s", reportFileName, "structured_report.json")
-	structuredReport := reports.GenerateStructuredReport(driver, dbName, conv, badWrites, true, true)
+	reportGenerator := reports.ReportImpl{}
+	structuredReport := reportGenerator.GenerateStructuredReport(driver, dbName, conv, badWrites, true, true)
 	fBytes, _ := json.MarshalIndent(structuredReport, "", " ")
 	f, err := os.Create(structuredReportFileName)
 	if err != nil {
@@ -132,7 +138,7 @@ func Report(driver string, badWrites map[string]int64, BytesRead int64, banner s
 	}
 	w := bufio.NewWriter(f)
 	w.WriteString(banner)
-	reports.GenerateTextReport(structuredReport, w)
+	reportGenerator.GenerateTextReport(structuredReport, w)
 	w.Flush()
 
 	var isDump bool

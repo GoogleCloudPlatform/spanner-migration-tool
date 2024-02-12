@@ -137,7 +137,8 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	schemaCoversionEndTime := time.Now()
 	conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
 	banner := utils.GetBanner(schemaConversionStartTime, dbName)
-	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, banner, conv, cmd.filePrefix, dbName, ioHelper.Out)
+	reportImpl := conversion.ReportImpl{}
+	reportImpl.GenerateReport(sourceProfile.Driver, nil, ioHelper.BytesRead, banner, conv, cmd.filePrefix, dbName, ioHelper.Out)
 	// Cleanup smt tmp data directory.
 	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))
 	return subcommands.ExitSuccess
