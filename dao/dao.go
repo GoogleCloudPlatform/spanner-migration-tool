@@ -26,17 +26,17 @@ type StateData struct {
 }
 
 type DAO interface {
-	InsertSMTJobEntry(ctx context.Context, jobId, jobName, jobType, dialect, dbName string, jobData spanner.NullJSON) error
-	UpdateSMTJobState(ctx context.Context, jobId, state string) error
-	InsertSMTResourceEntry(ctx context.Context, resourceId, jobId, externalId, resourceName, resourceType string, resourceData spanner.NullJSON) error
-	UpdateSMTResourceState(ctx context.Context, resourceId, state string) error
-	UpdateSMTResourceExternalId(ctx context.Context, resourceId, externalId string) error
+	InsertJobEntry(ctx context.Context, jobId, jobName, jobType, dialect, dbName string, jobData spanner.NullJSON) error
+	UpdateJobState(ctx context.Context, jobId, state string) error
+	InsertResourceEntry(ctx context.Context, resourceId, jobId, externalId, resourceName, resourceType string, resourceData spanner.NullJSON) error
+	UpdateResourceState(ctx context.Context, resourceId, state string) error
+	UpdateResourceExternalId(ctx context.Context, resourceId, externalId string) error
 }
 
 type DAOImpl struct{}
 
 // Insert a job entry into the SMT_JOB table.
-func (dao *DAOImpl) InsertSMTJobEntry(ctx context.Context, jobId, jobName, jobType, dialect, dbName string, jobData spanner.NullJSON) error {
+func (dao *DAOImpl) InsertJobEntry(ctx context.Context, jobId, jobName, jobType, dialect, dbName string, jobData spanner.NullJSON) error {
 	_, err := GetClient().ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		jobStmt := spanner.Statement{
 			SQL: `INSERT INTO SMT_JOB 
@@ -72,7 +72,7 @@ func (dao *DAOImpl) InsertSMTJobEntry(ctx context.Context, jobId, jobName, jobTy
 }
 
 // Update the state of the SMT job.
-func (dao *DAOImpl) UpdateSMTJobState(ctx context.Context, jobId, state string) error {
+func (dao *DAOImpl) UpdateJobState(ctx context.Context, jobId, state string) error {
 	_, err := GetClient().ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		jobStmt := spanner.Statement{
 			SQL: `UPDATE SMT_JOB SET JobStateData = @jobStateData, UpdatedAt = PENDING_COMMIT_TIMESTAMP()
@@ -99,7 +99,7 @@ func (dao *DAOImpl) UpdateSMTJobState(ctx context.Context, jobId, state string) 
 }
 
 // Insert an entry into the SMT_RESOURCE table.
-func (dao *DAOImpl) InsertSMTResourceEntry(ctx context.Context, resourceId, jobId, externalId, resourceName, resourceType string, resourceData spanner.NullJSON) error {
+func (dao *DAOImpl) InsertResourceEntry(ctx context.Context, resourceId, jobId, externalId, resourceName, resourceType string, resourceData spanner.NullJSON) error {
 	_, err := GetClient().ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		resourceStmt := spanner.Statement{
 			SQL: `INSERT INTO SMT_RESOURCE
@@ -135,7 +135,7 @@ func (dao *DAOImpl) InsertSMTResourceEntry(ctx context.Context, resourceId, jobI
 }
 
 // Update the state of the SMT resource.
-func (dao *DAOImpl) UpdateSMTResourceState(ctx context.Context, resourceId, state string) error {
+func (dao *DAOImpl) UpdateResourceState(ctx context.Context, resourceId, state string) error {
 	_, err := GetClient().ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		jobStmt := spanner.Statement{
 			SQL: `UPDATE SMT_RESOURCE SET ResourceStateData = @resourceStateData, UpdatedAt = PENDING_COMMIT_TIMESTAMP()
@@ -162,7 +162,7 @@ func (dao *DAOImpl) UpdateSMTResourceState(ctx context.Context, resourceId, stat
 }
 
 // Update the external of the SMT resource.
-func (dao *DAOImpl) UpdateSMTResourceExternalId(ctx context.Context, resourceId, externalId string) error {
+func (dao *DAOImpl) UpdateResourceExternalId(ctx context.Context, resourceId, externalId string) error {
 	_, err := GetClient().ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		jobStmt := spanner.Statement{
 			SQL: `UPDATE SMT_RESOURCE SET ExternalId = @externalId, UpdatedAt = PENDING_COMMIT_TIMESTAMP()
@@ -189,10 +189,6 @@ func (dao *DAOImpl) UpdateSMTResourceExternalId(ctx context.Context, resourceId,
 }
 
 func updateJobHistoryWithinTxn(ctx context.Context, txn *spanner.ReadWriteTransaction, jobId string) (int64, error) {
-	version, err := getLatestJobVersionWithinTxn(ctx, txn, jobId)
-	if err != nil {
-		return 0, fmt.Errorf("error fetching latest job version: %v", err)
-	}
 	// Fetch the newly updated row from SMT_JOB table.
 	stmt := spanner.Statement{SQL: `
 		SELECT 
@@ -215,13 +211,12 @@ func updateJobHistoryWithinTxn(ctx context.Context, txn *spanner.ReadWriteTransa
 	// Insert entry to SMT_JOB_HISTORY table.
 	jobStmt := spanner.Statement{
 		SQL: `INSERT INTO SMT_JOB_HISTORY 
-		(JobId, Version, JobName, JobType, JobStateData, JobData, Dialect, SpannerDatabaseName, CreatedAt)
+		(JobId, JobName, JobType, JobStateData, JobData, Dialect, SpannerDatabaseName, CreatedAt)
 		VALUES(
-		 @jobId, @version, @jobName, @jobType, @jobStateData, @jobData, @dialect, @spannerDatabaseName, PENDING_COMMIT_TIMESTAMP()
+		 @jobId, @jobName, @jobType, @jobStateData, @jobData, @dialect, @spannerDatabaseName, PENDING_COMMIT_TIMESTAMP()
 		);`,
 		Params: map[string]interface{}{
 			"jobId":               jobId,
-			"version":             version + 1,
 			"jobName":             jobName,
 			"jobType":             jobType,
 			"jobStateData":        jobStateData,
@@ -233,32 +228,7 @@ func updateJobHistoryWithinTxn(ctx context.Context, txn *spanner.ReadWriteTransa
 	return txn.Update(ctx, jobStmt)
 }
 
-func getLatestJobVersionWithinTxn(ctx context.Context, txn *spanner.ReadWriteTransaction, jobId string) (int64, error) {
-	// Fetch latest version for the job from history table.
-	stmt := spanner.Statement{SQL: `SELECT MAX(Version) FROM SMT_JOB_HISTORY WHERE JobId = @jobId;`,
-		Params: map[string]interface{}{"jobId": jobId},
-	}
-	iter := txn.Query(ctx, stmt)
-	defer iter.Stop()
-	version := spanner.NullInt64{}
-	row, err := iter.Next()
-	if err == iterator.Done || err != nil {
-		return 0, err
-	}
-	if err := row.Columns(&version); err != nil {
-		return 0, err
-	}
-	if version.Valid {
-		return version.Int64, nil
-	}
-	return 0, nil
-}
-
 func updateResourceHistoryWithinTxn(ctx context.Context, txn *spanner.ReadWriteTransaction, resourceId string) (int64, error) {
-	version, err := getLatestResourceVersionWithinTxn(ctx, txn, resourceId)
-	if err != nil {
-		return 0, fmt.Errorf("error fetching latest resource version: %v", err)
-	}
 	// Fetch the newly updated row from SMT_RESOURCE table.
 	stmt := spanner.Statement{SQL: `
 		SELECT 
@@ -280,13 +250,12 @@ func updateResourceHistoryWithinTxn(ctx context.Context, txn *spanner.ReadWriteT
 	// Create new entry into the SMT_RESOURCE_HISTORY table.
 	jobStmt := spanner.Statement{
 		SQL: `INSERT INTO SMT_RESOURCE_HISTORY 
-		(ResourceId, Version, JobId, ExternalId, ResourceName, ResourceType, ResourceStateData, ResourceData, CreatedAt)
+		(ResourceId, JobId, ExternalId, ResourceName, ResourceType, ResourceStateData, ResourceData, CreatedAt)
 		VALUES(
-		 @resourceId, @version, @jobId, @externalId, @resourceName, @resourceType, @resourceStateData, @resourceData, PENDING_COMMIT_TIMESTAMP()
+		 @resourceId, @jobId, @externalId, @resourceName, @resourceType, @resourceStateData, @resourceData, PENDING_COMMIT_TIMESTAMP()
 		);`,
 		Params: map[string]interface{}{
 			"resourceId":        resourceId,
-			"version":           version + 1,
 			"jobId":             jobId,
 			"externalId":        externalId,
 			"resourceName":      resourceName,
@@ -296,25 +265,4 @@ func updateResourceHistoryWithinTxn(ctx context.Context, txn *spanner.ReadWriteT
 		},
 	}
 	return txn.Update(ctx, jobStmt)
-}
-
-func getLatestResourceVersionWithinTxn(ctx context.Context, txn *spanner.ReadWriteTransaction, resourceId string) (int64, error) {
-	// Fetch latest version for the resource from history table.
-	stmt := spanner.Statement{SQL: `SELECT MAX(Version) FROM SMT_RESOURCE_HISTORY WHERE ResourceId = @resourceId;`,
-		Params: map[string]interface{}{"resourceId": resourceId},
-	}
-	iter := txn.Query(ctx, stmt)
-	defer iter.Stop()
-	version := spanner.NullInt64{}
-	row, err := iter.Next()
-	if err == iterator.Done || err != nil {
-		return 0, err
-	}
-	if err := row.Columns(&version); err != nil {
-		return 0, err
-	}
-	if version.Valid {
-		return version.Int64, nil
-	}
-	return 0, nil
 }
