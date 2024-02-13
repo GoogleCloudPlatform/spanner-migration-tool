@@ -19,7 +19,6 @@ import IMigrationDetails, { IGeneratedResources, IProgress, ITables } from 'src/
 import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IDatastreamConfig, IGcsConfig, IMigrationProfile } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
 import IStructuredReport from 'src/app/model/structured-report'
-import IVerifyJsonDetails from 'src/app/model/verify-json-cfg'
 
 @Injectable({
   providedIn: 'root',
@@ -157,11 +156,10 @@ export class FetchService {
     return this.http.post(`${this.url}/CreateConnectionProfile`, payload)
   }
 
-  verifyJsonConfiguration(data : string):any {
-    let result= this.http.post<HttpResponse<IResourcesGenerated>>(`${this.url}/VerifyJsonConfiguration`, data)
-    console.log("#3")
-    console.log(result)
-    return result
+  verifyJsonConfiguration(payload : IMigrationProfile):any {
+    return this.http.post(`${this.url}/VerifyJsonConfiguration`, {
+      MigrationProfile: payload
+    })
   }
 
   getSummary() {

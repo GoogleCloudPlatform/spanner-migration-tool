@@ -552,24 +552,4 @@ export class DataService {
       },
     })
   }
-
-  verifyJsonCfg(configuration: string): Observable<IResourcesGenerated | string> {
-    return this.fetch.verifyJsonConfiguration(configuration).pipe(
-        catchError((e: any) => {
-          console.log("#2")
-          console.log("error")
-            return of({ error: e.error }); 
-        }),
-        // No need for tap(console.log) here unless you want debugging output
-        map((data: any) => { 
-          console.log("#2")
-          console.log(data)
-            if (data.error) {
-                return data.error;
-            } else {
-                return data; // Return the IResourcesGenerated data
-            }
-        })
-    );
-}
 }

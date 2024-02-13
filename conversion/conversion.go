@@ -452,21 +452,31 @@ func dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
 // 4. Launch the stream for the physical shard
 // 5. Perform streaming migration via dataflow
 func dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv) (*writer.BatchWriter, error) {
+	if conv.SpRegion == "" {
+		spannerRegion, err := GetSpannerRegion(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
+		if err != nil {
+			return nil, fmt.Errorf("unable to fetch Spanner Region for resource creation: %v", err)
+		}
+		conv.SpRegion = spannerRegion
+	}
 	// Create Resources required for migration
 	if conv.ResourceValidation {
 		resGenerator := ResourceGenerationStruct{}
 		dsClient := GetDatastreamClient(ctx)
-		if conv.SpRegion == "" {
-			spannerRegion, err := resGenerator.GetSpannerRegion(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
-			if err != nil {
-				return nil, fmt.Errorf("unable to fetch Spanner Region for resource creation: %v", err)
-			}
-			conv.SpRegion = spannerRegion
-		}
 		err := resGenerator.CreateResourcesForShardedMigration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, false, conv.SpRegion, sourceProfile, dsClient)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create connection profiles: %v", err)
 		}
+	}
+	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
+	for _, dataShard := range sourceProfile.Config.ShardConfigurationDataflow.DataShards {
+		if dataShard.TmpDir == "" {
+		bucket, rootPath, err := GetBucket(targetProfile.Conn.Sp.Project, conv.SpRegion, dataShard.DstConnectionProfile.Name)
+		if err != nil {
+			return nil, fmt.Errorf("error while getting target bucket: %v", err)
+		}
+		dataShard.TmpDir = "gs://" + bucket + rootPath
+	}
 	}
 	updateShardsWithTuningConfigs(sourceProfile.Config.ShardConfigurationDataflow)
 	//Generate a job Id

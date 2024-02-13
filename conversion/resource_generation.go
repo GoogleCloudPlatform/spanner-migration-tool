@@ -51,14 +51,13 @@ type resourceGenerationInterface interface {
 	getResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool, dsClient *datastream.Client) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error)
 	PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq]
 	setConnectionProfileFromRequest(details *ConnectionProfileReq, req *datastreampb.CreateConnectionProfileRequest) error
-	GetSpannerRegion(ctx context.Context, projectId string, instanceName string) (string, error)
 	connectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error
 	ValidateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error
 }
 
 type ResourceGenerationStruct struct {
 }
-
+ 
 type MigrationResources struct{}
 
 func (r ResourceGenerationStruct) multiError(errorMessages []error) error {
@@ -72,7 +71,7 @@ func (r ResourceGenerationStruct) multiError(errorMessages []error) error {
 // Method to validate if in a minimal downtime migration, required resources can be generated
 func (r ResourceGenerationStruct) ValidateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
 	resGenerator := ResourceGenerationStruct{}
-	spannerRegion, err := resGenerator.GetSpannerRegion(ctx, projectId, instanceId)
+	spannerRegion, err := GetSpannerRegion(ctx, projectId, instanceId)
 	dsClient := GetDatastreamClient(ctx)
 	if err != nil {
 		err = fmt.Errorf("unable to fetch Spanner Region: %v", err)
@@ -173,7 +172,7 @@ func (r ResourceGenerationStruct) setConnectionProfileFromRequest(details *Conne
 	return nil
 }
 
-func (r ResourceGenerationStruct) GetSpannerRegion(ctx context.Context, projectId string, instanceName string) (string, error) {
+func GetSpannerRegion(ctx context.Context, projectId string, instanceName string) (string, error) {
 	instanceAdmin, _ := instance.NewInstanceAdminClient(ctx)
 	defer instanceAdmin.Close()
 	region := ""
@@ -409,4 +408,21 @@ func (r ResourceGenerationStruct) CreateResourcesForShardedMigration(ctx context
 	// cleanup resources for cleanup if migration is successful
 	resourcesForCleanup = nil
 	return nil
+}
+
+func GetBucket(project, location, profileName string) (string, string, error) {
+	ctx := context.Background()
+	dsClient, err := datastream.NewClient(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("datastream client can not be created: %v", err)
+	}
+	defer dsClient.Close()
+	// Fetch the GCS path from the destination connection profile.
+	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", project, location, profileName)
+	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
+	if err != nil {
+		return "", "", fmt.Errorf("could not get connection profile: %v", err)
+	}
+	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
+	return gcsProfile.GetBucket(), gcsProfile.GetRootPath(), nil
 }

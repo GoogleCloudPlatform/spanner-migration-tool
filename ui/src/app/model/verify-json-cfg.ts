@@ -1,6 +1,4 @@
-export default interface IVerifyJsonDetails {
-    json: string
-}
+
 
 export interface IResourcesGenerated {
     ResourcesCreatedMap : Map<string,IShardResourcesGenerated>

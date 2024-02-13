@@ -15,6 +15,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
@@ -22,30 +23,8 @@ import (
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 )
 
-type ResourcesGenerated struct {
-    ResourcesCreated map[string]ShardResourcesGenerated
-}
-
-type ShardResourcesGenerated struct{
-    sourceConnectionProfile  bool
-    targetConnectionProfile  bool
-}
-
-func GetBucket(project, location, profileName string) (string, string, error) {
-	ctx := context.Background()
-	dsClient, err := datastream.NewClient(ctx)
-	if err != nil {
-		return "", "", fmt.Errorf("datastream client can not be created: %v", err)
-	}
-	defer dsClient.Close()
-	// Fetch the GCS path from the destination connection profile.
-	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", project, location, profileName)
-	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
-	if err != nil {
-		return "", "", fmt.Errorf("could not get connection profile: %v", err)
-	}
-	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
-	return gcsProfile.GetBucket(), gcsProfile.GetRootPath(), nil
+type shardedDataflowConfig struct {
+	MigrationProfile profiles.SourceProfileConfig
 }
 
 func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
@@ -223,21 +202,24 @@ func VerifyJsonConfiguration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dataString := string(reqBody)
-	fmt.Print(dataString)
-
-	resp := make(map[string]ShardResourcesGenerated)
-	resp["shardId1"] = ShardResourcesGenerated{
-		sourceConnectionProfile: true,
-		targetConnectionProfile: false,
+	var srcConfig shardedDataflowConfig
+	err = json.Unmarshal(reqBody, &srcConfig)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
 	}
-	resp["shardId2"] = ShardResourcesGenerated{
-		sourceConnectionProfile: true,
-		targetConnectionProfile: false,
+
+	resGenerator := conversion.ResourceGenerationStruct{}
+	ctx := context.Background()
+	sessionState := session.GetSessionState()
+	sourceProfileConfig := srcConfig.MigrationProfile
+	sourceProfile := profiles.SourceProfile{Ty: profiles.SourceProfileTypeConfig, Config: sourceProfileConfig}
+	err = resGenerator.ValidateResourceGeneration(ctx, sessionState.GCPProjectID, sessionState.SpannerInstanceID, sourceProfile, sessionState.Conv)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(resp)
-
 }
 func setConnectionProfileFromSessionState(isSource bool, sessionState session.SessionState, req *datastreampb.CreateConnectionProfileRequest, databaseType string) {
 	if isSource {
