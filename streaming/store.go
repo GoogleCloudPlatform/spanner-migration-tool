@@ -32,7 +32,7 @@ import (
 
 // PersistJobDetails stores all the metadata associated with a job orchestration for a minimal downtime migration in the metadata db. An example of this metadata is job level data such as the spanner database name.
 func PersistJobDetails(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, conv *internal.Conv, migrationJobId string, isSharded bool) (err error) {
-	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, nil)
+	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, nil, &utils.GetUtilInfoImpl{})
 	if err != nil {
 		err = fmt.Errorf("can't get resource ids: %v", err)
 		return err
@@ -59,7 +59,7 @@ func PersistJobDetails(ctx context.Context, targetProfile profiles.TargetProfile
 
 func PersistAggregateMonitoringResources(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, conv *internal.Conv, migrationJobId string) error {
 	logger.Log.Debug(fmt.Sprintf("Storing aggregate monitoring dashboard for migration jobId: %s\n", migrationJobId))
-	project, instance, _, err := targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, nil)
+	project, instance, _, err := targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, nil, &utils.GetUtilInfoImpl{})
 	if err != nil {
 		err = fmt.Errorf("can't get resource ids: %v", err)
 		return err
@@ -96,7 +96,7 @@ func PersistAggregateMonitoringResources(ctx context.Context, targetProfile prof
 
 // PersistResources stores all the metadata associated with a shard orchestration for a minimal downtime migration in the metadata db. An example of this metadata is generated resources.
 func PersistResources(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, conv *internal.Conv, migrationJobId string, dataShardId string) (err error) {
-	project, instance, _, err := targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, nil)
+	project, instance, _, err := targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, nil, &utils.GetUtilInfoImpl{})
 	if err != nil {
 		err = fmt.Errorf("can't get resource ids: %v", err)
 		return err
@@ -127,14 +127,16 @@ func writeJobDetails(ctx context.Context, migrationJobId string, isShardedMigrat
 		logger.Log.Error(fmt.Sprintf("internal error occurred while persisting metadata for migration job %s: %v\n", migrationJobId, err))
 		return err
 	}
-	jobDetails := SmtJobs{
+	jobDetails := SmtJob{
 		JobId:               migrationJobId,
 		JobName:             migrationJobId,
 		JobType:             constants.MINIMAL_DOWNTIME_MIGRATION,
 		Dialect:             conv.SpDialect,
+		JobStateData:        "{\"state\": \"RUNNING\"}",
 		JobData:             string(jobDataBytes),
 		SpannerDatabaseName: spannerDatabaseName,
 		CreatedAt:           createTimestamp,
+		UpdatedAt:           createTimestamp,
 	}
 	_, err = client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		mutation, err := spanner.InsertStruct(constants.SMT_JOB_TABLE, jobDetails)
@@ -222,16 +224,18 @@ func createResourceMutation(jobId string, externalResourceId string, resourceTyp
 	if err != nil {
 		return nil, err
 	}
-	jobResource := SmtResources{
-		ResourceId:   resourceId,
-		JobId:        jobId,
-		ExternalId:   externalResourceId,
-		ResourceType: resourceType,
-		ResourceName: resourceName,
-		ResourceData: string(minimalDowntimeResourceDataBytes),
-		CreatedAt:    time.Now(),
+	jobResource := SmtResource{
+		ResourceId:        resourceId,
+		JobId:             jobId,
+		ExternalId:        externalResourceId,
+		ResourceType:      resourceType,
+		ResourceName:      resourceName,
+		ResourceStateData: "{\"state\": \"CREATED\"}",
+		ResourceData:      string(minimalDowntimeResourceDataBytes),
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	}
-	mutation, err := spanner.InsertStruct(constants.SMT_RESOURCES_TABLE, jobResource)
+	mutation, err := spanner.InsertStruct(constants.SMT_RESOURCE_TABLE, jobResource)
 	if err != nil {
 		return nil, err
 	}

@@ -21,8 +21,9 @@ import (
 	"strings"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
@@ -51,32 +52,51 @@ var TABLE_STATEMENTS = []string{
 		SchemaChanges STRING(MAX),
 		SchemaConversionObject JSON NOT NULL,
 		CreateTimestamp TIMESTAMP NOT NULL,
-	) PRIMARY KEY(VersionId)`,
-	`CREATE TABLE IF NOT EXISTS SMT_JOBS (
+	  ) PRIMARY KEY(VersionId)`,
+	`CREATE TABLE IF NOT EXISTS SMT_JOB (
 		JobId STRING(100) NOT NULL,
 		JobName STRING(100) NOT NULL,
 		JobType STRING(100) NOT NULL,
+		JobStateData JSON,
 		JobData JSON,
 		Dialect STRING(50) NOT NULL,
 		SpannerDatabaseName STRING(100) NOT NULL,
-		CreatedAt TIMESTAMP NOT NULL,
-	) PRIMARY KEY(JobId)`,
-	`CREATE TABLE IF NOT EXISTS SMT_RESOURCES (
+		CreatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+		UpdatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+	  ) PRIMARY KEY(JobId)`,
+	`CREATE TABLE IF NOT EXISTS SMT_JOB_HISTORY (
+		JobId STRING(100) NOT NULL,
+		Version INT64 NOT NULL,
+		JobName STRING(100) NOT NULL,
+		JobType STRING(100) NOT NULL,
+		JobStateData JSON,
+		JobData JSON,
+		Dialect STRING(50) NOT NULL,
+		SpannerDatabaseName STRING(100) NOT NULL,
+		CreatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+	  ) PRIMARY KEY(JobId, Version)`,
+	`CREATE TABLE IF NOT EXISTS SMT_RESOURCE (
 		ResourceId STRING(100) NOT NULL,
 		JobId STRING(100) NOT NULL,
-		ExternalId STRING(100) NOT NULL,
+		ExternalId STRING(100),
 		ResourceName STRING(100) NOT NULL,
 		ResourceType STRING(100) NOT NULL,
+		ResourceStateData JSON,
 		ResourceData JSON,
-		CreatedAt TIMESTAMP NOT NULL,
-	) PRIMARY KEY(ResourceId)`,
-	`CREATE TABLE IF NOT EXISTS SMT_STATES (
-		StateId STRING(100) NOT NULL,
-		StateVersion INT64 NOT NULL,
+		CreatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+		UpdatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+	  ) PRIMARY KEY(ResourceId)`,
+	`CREATE TABLE IF NOT EXISTS SMT_RESOURCE_HISTORY (
 		ResourceId STRING(100) NOT NULL,
-		StateData JSON,
-		CreatedAt TIMESTAMP NOT NULL,
-	) PRIMARY KEY(StateId, StateVersion)`,
+		Version INT64 NOT NULL,
+		JobId STRING(100) NOT NULL,
+		ExternalId STRING(100),
+		ResourceName STRING(100) NOT NULL,
+		ResourceType STRING(100) NOT NULL,
+		ResourceStateData JSON,
+		ResourceData JSON,
+		CreatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+	) PRIMARY KEY(ResourceId, Version)`,
 }
 
 func GetSpannerUri(projectId string, instanceId string) string {
@@ -134,14 +154,14 @@ func CheckOrCreateMetadataDb(projectId string, instanceId string) bool {
 	}
 
 	ctx := context.Background()
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 	if err != nil {
 		fmt.Println(err)
 		return false
 	}
-	defer adminClient.Close()
 
-	dbExists, err := conversion.CheckExistingDb(ctx, adminClient, uri)
+	spA := spanneraccessor.SpannerAccessorImpl{}
+	dbExists, err := spA.CheckExistingDb(ctx, adminClientImpl, uri)
 	if err != nil {
 		fmt.Println(err)
 		return false

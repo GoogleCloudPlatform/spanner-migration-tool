@@ -36,12 +36,17 @@ import (
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
 	"cloud.google.com/go/storage"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
+	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/google/uuid"
 	"google.golang.org/api/iterator"
+)
+
+var (
+	resourcesForCleanup []*ConnectionProfileReq
 )
 
 type resourceGenerationInterface interface {
@@ -111,7 +116,19 @@ func (r ResourceGenerationStruct) PrepareMinimalDowntimeResources(createResource
 	var bucketName string
 	if !createResourceData.ConnectionProfile.IsSource {
 		bucketName = strings.ToLower("GCS-" + createResourceData.ConnectionProfile.Id)
-		err = utils.CreateGCSBucket(bucketName, createResourceData.ConnectionProfile.ProjectId, createResourceData.ConnectionProfile.Region)
+		sc, err := storageclient.NewStorageClientImpl(createResourceData.Ctx)
+		if err != nil {
+			if err != nil {
+				createResourceData.Error = err
+				return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: err}
+			}
+		}
+		sa := storageaccessor.StorageAccessorImpl{}
+		sa.CreateGCSBucket(createResourceData.Ctx, sc, storageaccessor.StorageBucketMetadata{
+			BucketName:    bucketName,
+			ProjectID:     createResourceData.ConnectionProfile.ProjectId,
+			Location:      createResourceData.ConnectionProfile.Region,
+		})
 		if err != nil {
 			createResourceData.Error = err
 			return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: err}

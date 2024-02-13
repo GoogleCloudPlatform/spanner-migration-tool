@@ -8,9 +8,10 @@ require (
 	cloud.google.com/go/datastream v1.10.3
 	cloud.google.com/go/monitoring v1.16.3
 	cloud.google.com/go/pubsub v1.33.0
+	cloud.google.com/go/resourcemanager v1.9.4
 	cloud.google.com/go/spanner v1.53.0
 	cloud.google.com/go/storage v1.30.1
-	github.com/DATA-DOG/go-sqlmock v1.5.1
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/aws/aws-sdk-go v1.44.259
 	github.com/basgys/goxml2json v1.1.0
 	github.com/denisenkom/go-mssqldb v0.11.0
@@ -27,6 +28,7 @@ require (
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/sijms/go-ora/v2 v2.2.17
 	github.com/stretchr/testify v1.8.4
+	go.uber.org/ratelimit v0.3.0
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.17.0
 	golang.org/x/exp v0.0.0-20221023144134-a1e5550cf13e
@@ -79,7 +81,7 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
-	github.com/googleapis/gax-go/v2 v2.12.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.12.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
 	github.com/influxdata/tdigest v0.0.1 // indirect
 	github.com/jackc/pgx/v5 v5.5.1

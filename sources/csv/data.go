@@ -35,8 +35,16 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
+type CsvInterface interface {
+	GetCSVFiles(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tables []utils.ManifestTable, err error)
+	SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter rune) error
+	ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr string, delimiter rune) error
+}
+
+type CsvImpl struct {}
+
 // GetCSVFiles finds the appropriate files paths and downloads gcs files in any.
-func GetCSVFiles(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tables []utils.ManifestTable, err error) {
+func (c *CsvImpl) GetCSVFiles(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tables []utils.ManifestTable, err error) {
 	// If manifest file not provided, we assume the csvs exist in the same directory
 	// in table_name.csv format.
 	if sourceProfile.Csv.Manifest == "" {
@@ -120,7 +128,7 @@ func VerifyManifest(conv *internal.Conv, tables []utils.ManifestTable) error {
 }
 
 // SetRowStats calculates the number of rows per table.
-func SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter rune) error {
+func (c *CsvImpl) SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter rune) error {
 	for _, table := range tables {
 		for _, filePath := range table.File_patterns {
 			csvFile, err := os.Open(filePath)
@@ -184,7 +192,7 @@ func getCSVDataRowCount(r *csvReader.Reader, colNames []string) (int64, error) {
 
 // ProcessCSV writes data across the tables provided in the manifest file. Each table's data can be provided
 // across multiple CSV files hence, the manifest accepts a list of file paths in the input.
-func ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr string, delimiter rune) error {
+func (c *CsvImpl) ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr string, delimiter rune) error {
 	tableIds := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
 	nameToFiles := map[string][]string{}
 	for _, table := range tables {
