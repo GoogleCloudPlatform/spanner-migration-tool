@@ -57,6 +57,7 @@ The script takes in multiple arguments to orchestrate the pipeline. They are:
 - `startTimestamp`: Timestamp from which the changestream should start reading changes in RFC 3339 format, defaults to empty string which is equivalent to the current timestamp.
 - `readerShardingCustomClassName`: the fully qualified custom class name for sharding logic.
 - `readerShardingCustomJarPath` : the GCS path to custom jar for sharding logic.
+- `readerShardingCustomParameters`: the custom parameters to be passed to the custom sharding logic implementation.
 - `readerSkipDirectoryName`: Records skipped from reverse replication are written to this directory. Defaults to: skip.
 - `readerRunMode`: whether the reader from Spanner job runs in regular or resume mode. Default is regular.
 - `readerWorkers`: number of workers for ordering job. Defaults to 5.
@@ -141,13 +142,13 @@ Launched writer job:  id:"<>" project_id:"<>" name:"<>" current_state_time:{} cr
 In order to specify custom shard identification function, custom jar and class names need to give. The command to do that is below:
 
 ```
-go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -gcsPath=gs://bucket-name/<directory> -readerShardingCustomJarPath=gs://bucket-name/custom.jar -readerShardingCustomClassName=com.custom.classname
+go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -gcsPath=gs://bucket-name/<directory> -readerShardingCustomJarPath=gs://bucket-name/custom.jar -readerShardingCustomClassName=com.custom.classname -readerShardingCustomParameters='a=b,c=d'
 ``` 
 
 The sample reader job gcloud command for the same
 
 ```
-gcloud dataflow flex-template run smt-reverse-replication-reader-2024-01-05t10-33-56z --project=<project> --region=<region> --template-file-gcs-location=<template location>  --parameters sessionFilePath=<session path>,windowDuration=10s,filtrationMode=forward_migration,skipDirectoryName=skip,instanceId=<spanner instance id>,spannerProjectId=<spanner-project-id>,metadataDatabase=rev_repl_metadata,gcsOutputDirectory=<gcs path>,metadataTableSuffix=,runMode=regular,metadataInstance=<spanner instance>,startTimestamp=,sourceShardsFilePath=<shard file path>,changeStreamName=reverseReplicationStream,databaseId=<spanner database name>,runIdentifier=2024-01-05t10-33-56z,shardingCustomJarPath=<jar path>,shardingCustomClassName=<custom class name> --num-workers=5 --worker-machine-type=n2-standard-4 --additional-experiments=use_runner_v2
+gcloud dataflow flex-template run smt-reverse-replication-reader-2024-01-05t10-33-56z --project=<project> --region=<region> --template-file-gcs-location=<template location>  --parameters sessionFilePath=<session path>,windowDuration=10s,filtrationMode=forward_migration,skipDirectoryName=skip,instanceId=<spanner instance id>,spannerProjectId=<spanner-project-id>,metadataDatabase=rev_repl_metadata,gcsOutputDirectory=<gcs path>,metadataTableSuffix=,runMode=regular,metadataInstance=<spanner instance>,startTimestamp=,sourceShardsFilePath=<shard file path>,changeStreamName=reverseReplicationStream,databaseId=<spanner database name>,runIdentifier=2024-01-05t10-33-56z,shardingCustomJarPath=<jar path>,shardingCustomClassName=<custom class name>,shardingCustomParameters=a=b,c=d --num-workers=5 --worker-machine-type=n2-standard-4 --additional-experiments=use_runner_v2
 ```
 
 
