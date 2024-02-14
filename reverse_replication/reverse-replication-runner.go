@@ -97,7 +97,7 @@ func setupGlobalFlags() {
 	flag.StringVar(&readerShardingCustomClassName, "readerShardingCustomClassName", "", "The fully qualified custom class name for sharding logic.")
 	flag.StringVar(&readerShardingCustomJarPath, "readerShardingCustomJarPath", "", "The GCS path to custom jar for sharding logic.")
 	flag.StringVar(&runIdentifier, "runIdentifier", "", "The run identifier for the Dataflow jobs.")
-	flag.StringVar(&readerShardingCustomParameters, "readerShardingCustomParameters", "", "Any custom parametes to be supplied to custom sharding class.")
+	flag.StringVar(&readerShardingCustomParameters, "readerShardingCustomParameters", "", "Any custom parameters to be supplied to custom sharding class.")
 
 }
 
