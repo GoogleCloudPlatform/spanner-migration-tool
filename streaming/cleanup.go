@@ -198,8 +198,9 @@ func FetchResources(ctx context.Context, migrationJobId string, resourceType str
 func GetInstanceDetails(ctx context.Context, targetProfile profiles.TargetProfile) (string, string, error) {
 	var err error
 	project := targetProfile.Conn.Sp.Project
+	g := utils.GetUtilInfoImpl{}
 	if project == "" {
-		project, err = utils.GetProject()
+		project, err = g.GetProject()
 		if err != nil {
 			return "", "", fmt.Errorf("can't get project: %v", err)
 		}
@@ -207,7 +208,7 @@ func GetInstanceDetails(ctx context.Context, targetProfile profiles.TargetProfil
 
 	instance := targetProfile.Conn.Sp.Instance
 	if instance == "" {
-		instance, err = utils.GetInstance(ctx, project, os.Stdout)
+		instance, err = g.GetInstance(ctx, project, os.Stdout)
 		if err != nil {
 			return "", "", fmt.Errorf("can't get instance: %v", err)
 		}

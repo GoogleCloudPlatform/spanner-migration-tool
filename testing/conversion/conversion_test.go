@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -38,6 +37,8 @@ import (
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
 )
 
 var (
@@ -194,16 +195,19 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
-		conv := BuildConv(t, tc.numCols, tc.numFks, false)
-		err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, conv, os.Stdout, "", constants.BULK_MIGRATION)
+		spA := spanneraccessor.SpannerAccessorImpl{}
+		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
-		conversion.MaxWorkers = tc.numWorkers
-		if err = conversion.UpdateDDLForeignKeys(ctx, databaseAdmin, dbURI, conv, os.Stdout, "", constants.BULK_MIGRATION); err != nil {
-			t.Fatalf("\nCan't perform update operation on db %s with foreign keys: %v\n", tc.dbName, err)
+		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
+		conv := BuildConv(t, tc.numCols, tc.numFks, false)
+		err = spA.CreateDatabase(ctx, adminClientImpl, dbURI, conv, "", constants.BULK_MIGRATION)
+		if err != nil {
+			t.Fatal(err)
 		}
+		spanneraccessor.MaxWorkers = tc.numWorkers
+		spA.UpdateDDLForeignKeys(ctx, adminClientImpl, dbURI, conv, "", constants.BULK_MIGRATION)
 
 		checkResults(t, dbURI, tc.numFks)
 		// Drop the database later.
@@ -226,13 +230,18 @@ func TestVerifyDb(t *testing.T) {
 
 	for _, tc := range testCases {
 		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
+		spA := spanneraccessor.SpannerAccessorImpl{}
+		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 		if tc.dbExists {
-			err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, BuildConv(t, 2, 0, tc.emptySchema), os.Stdout, "", constants.BULK_MIGRATION)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = spA.CreateDatabase(ctx, adminClientImpl, dbURI, BuildConv(t, 2, 0, tc.emptySchema), "", constants.BULK_MIGRATION)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer dropDatabase(t, dbURI)
-			dbExists, err := conversion.VerifyDb(ctx, databaseAdmin, dbURI)
+			dbExists, err := spA.VerifyDb(ctx, adminClientImpl, dbURI)
 			assert.True(t, dbExists)
 			if tc.emptySchema {
 				assert.Nil(t, err)
@@ -240,34 +249,11 @@ func TestVerifyDb(t *testing.T) {
 				assert.NotNil(t, err)
 			}
 		} else {
-			dbExists, err := conversion.VerifyDb(ctx, databaseAdmin, dbURI)
+			dbExists, err := spA.VerifyDb(ctx, adminClientImpl, dbURI)
 			assert.Nil(t, err)
 			assert.False(t, dbExists)
 		}
 
-	}
-}
-
-func TestCheckExistingDb(t *testing.T) {
-	onlyRunForEmulatorTest(t)
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, "check-db-exists")
-	err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, internal.MakeConv(), os.Stdout, "", constants.BULK_MIGRATION)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer dropDatabase(t, dbURI)
-	testCases := []struct {
-		dbName   string
-		dbExists bool
-	}{
-		{"check-db-exists", true},
-		{"check-db-does-not-exist", false},
-	}
-
-	for _, tc := range testCases {
-		dbExists, err := conversion.CheckExistingDb(ctx, databaseAdmin, fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName))
-		assert.Nil(t, err)
-		assert.Equal(t, tc.dbExists, dbExists)
 	}
 }
 
@@ -284,12 +270,17 @@ func TestValidateDDL(t *testing.T) {
 
 	for _, tc := range testCases {
 		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
-		err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, BuildConv(t, 2, 0, tc.emptySchema), os.Stdout, "", constants.BULK_MIGRATION)
+		spA := spanneraccessor.SpannerAccessorImpl{}
+		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = spA.CreateDatabase(ctx, adminClientImpl, dbURI, BuildConv(t, 2, 0, tc.emptySchema), "", constants.BULK_MIGRATION)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer dropDatabase(t, dbURI)
-		err = conversion.ValidateDDL(ctx, databaseAdmin, dbURI)
+		err = spA.ValidateDDL(ctx, adminClientImpl, dbURI)
 		if tc.emptySchema {
 			assert.Nil(t, err)
 		} else {

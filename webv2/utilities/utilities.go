@@ -308,7 +308,8 @@ func GetFilePrefix(now time.Time) (string, error) {
 	dbName := sessionState.DbName
 	var err error
 	if dbName == "" {
-		dbName, err = utils.GetDatabaseName(sessionState.Driver, now)
+		g := utils.GetUtilInfoImpl{}
+		dbName, err = g.GetDatabaseName(sessionState.Driver, now)
 		if err != nil {
 			return "", fmt.Errorf("Can not create database name : %v", err)
 		}

@@ -28,6 +28,7 @@ import (
 
 type SourceProfileType int
 
+
 const (
 	SourceProfileTypeUnset = iota
 	SourceProfileTypeFile
@@ -42,7 +43,30 @@ type SourceProfileFile struct {
 	Format string
 }
 
-func NewSourceProfileFile(params map[string]string) SourceProfileFile {
+// Interface to create source profiles for different database dialects
+type SourceProfileDialectInterface interface {
+	NewSourceProfileConnectionCloudSQLMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLMySQL, error)
+	NewSourceProfileConnectionMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionMySQL, error)
+	NewSourceProfileConnectionCloudSQLPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLPostgreSQL, error)
+	NewSourceProfileConnectionPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionPostgreSQL, error)
+	NewSourceProfileConnectionSqlServer(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionSqlServer, error)
+	NewSourceProfileConnectionDynamoDB(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionDynamoDB, error)
+	NewSourceProfileConnectionOracle(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionOracle, error)
+}
+
+type SourceProfileDialectImpl struct {}
+
+// Interface to create new source profiles for different input types
+type NewSourceProfileInterface interface {
+	NewSourceProfileFile(params map[string]string) SourceProfileFile
+	NewSourceProfileConfig(source string, path string) (SourceProfileConfig, error)
+	NewSourceProfileConnectionCloudSQL(source string, params map[string]string, s SourceProfileDialectInterface) (SourceProfileConnectionCloudSQL, error)
+	NewSourceProfileConnection(source string, params map[string]string, s SourceProfileDialectInterface) (SourceProfileConnection, error)
+}
+
+type NewSourceProfileImpl struct{}
+
+func (nsp *NewSourceProfileImpl) NewSourceProfileFile(params map[string]string) SourceProfileFile {
 	profile := SourceProfileFile{}
 	if !filePipedToStdin() {
 		profile.Path = params["file"]
@@ -84,7 +108,7 @@ type SourceProfileConnectionCloudSQLMySQL struct {
 	Region string
 }
 
-func NewSourceProfileConnectionCloudSQLMySQL(params map[string]string) (SourceProfileConnectionCloudSQLMySQL, error) {
+func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLMySQL, error) {
 	mysql := SourceProfileConnectionCloudSQLMySQL{}
 	user, userOk := params["user"]
 	db, dbOk := params["dbName"]
@@ -92,7 +116,7 @@ func NewSourceProfileConnectionCloudSQLMySQL(params map[string]string) (SourcePr
 	project, projectOk := params["project"]
 	var err error
 	if !projectOk {
-		project, err = utils.GetProject()
+		project, err = g.GetProject()
 		if err != nil {
 			return mysql, fmt.Errorf("project for cloudsql instance not specified in source-profile, and unable to fetch from gcloud. Please specify project in the source-profile or configure in gcloud")
 		}
@@ -118,7 +142,7 @@ type SourceProfileConnectionMySQL struct {
 	StreamingConfig string
 }
 
-func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileConnectionMySQL, error) {
+func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionMySQL, error) {
 	mysql := SourceProfileConnectionMySQL{}
 
 	host, hostOk := params["host"]
@@ -171,7 +195,7 @@ func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileCon
 		mysql.Port = "3306"
 	}
 	if mysql.Pwd == "" {
-		mysql.Pwd = utils.GetPassword()
+		mysql.Pwd = g.GetPassword()
 	}
 
 	return mysql, nil
@@ -185,7 +209,7 @@ type SourceProfileConnectionCloudSQLPostgreSQL struct {
 	Region string
 }
 
-func NewSourceProfileConnectionCloudSQLPostgreSQL(params map[string]string) (SourceProfileConnectionCloudSQLPostgreSQL, error) {
+func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLPostgreSQL, error) {
 	postgres := SourceProfileConnectionCloudSQLPostgreSQL{}
 	user, userOk := params["user"]
 	db, dbOk := params["dbName"]
@@ -193,7 +217,7 @@ func NewSourceProfileConnectionCloudSQLPostgreSQL(params map[string]string) (Sou
 	project, projectOk := params["project"]
 	var err error
 	if !projectOk {
-		project, err = utils.GetProject()
+		project, err = g.GetProject()
 		if err != nil {
 			return postgres, fmt.Errorf("project for cloudsql instance not specified in source-profile, and unable to fetch from gcloud. Please specify project in the source-profile or configure in gcloud")
 		}
@@ -219,7 +243,7 @@ type SourceProfileConnectionPostgreSQL struct {
 	StreamingConfig string
 }
 
-func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfileConnectionPostgreSQL, error) {
+func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionPostgreSQL, error) {
 	pg := SourceProfileConnectionPostgreSQL{}
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
@@ -265,7 +289,7 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfi
 		pg.Port = "5432"
 	}
 	if pg.Pwd == "" {
-		pg.Pwd = utils.GetPassword()
+		pg.Pwd = g.GetPassword()
 	}
 
 	return pg, nil
@@ -279,7 +303,7 @@ type SourceProfileConnectionSqlServer struct {
 	Pwd  string
 }
 
-func NewSourceProfileConnectionSqlServer(params map[string]string) (SourceProfileConnectionSqlServer, error) {
+func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionSqlServer(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionSqlServer, error) {
 	ss := SourceProfileConnectionSqlServer{}
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
@@ -331,7 +355,7 @@ func NewSourceProfileConnectionSqlServer(params map[string]string) (SourceProfil
 
 	// If source profile and env do not have password then get password via prompt.
 	if ss.Pwd == "" {
-		ss.Pwd = utils.GetPassword()
+		ss.Pwd = g.GetPassword()
 	}
 
 	return ss, nil
@@ -349,7 +373,7 @@ type SourceProfileConnectionDynamoDB struct {
 	enableStreaming    string // Used for confirming streaming migration (valid options: `yes`,`no`,`true`,`false`)
 }
 
-func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfileConnectionDynamoDB, error) {
+func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionDynamoDB(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionDynamoDB, error) {
 	dydb := SourceProfileConnectionDynamoDB{}
 	if schemaSampleSize, ok := params["schema-sample-size"]; ok {
 		schemaSampleSizeInt, err := strconv.Atoi(schemaSampleSize)
@@ -396,7 +420,7 @@ type SourceProfileConnectionOracle struct {
 	StreamingConfig string
 }
 
-func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileConnectionOracle, error) {
+func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionOracle(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionOracle, error) {
 	ss := SourceProfileConnectionOracle{}
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
@@ -427,7 +451,7 @@ func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileCo
 		ss.Port = "1521"
 	}
 	if ss.Pwd == "" {
-		ss.Pwd = utils.GetPassword()
+		ss.Pwd = g.GetPassword()
 	}
 
 	return ss, nil
@@ -449,14 +473,14 @@ type SourceProfileConnectionCloudSQL struct {
 	Pg        SourceProfileConnectionCloudSQLPostgreSQL
 }
 
-func NewSourceProfileConnection(source string, params map[string]string) (SourceProfileConnection, error) {
+func (nsp *NewSourceProfileImpl) NewSourceProfileConnection(source string, params map[string]string, s SourceProfileDialectInterface) (SourceProfileConnection, error) {
 	conn := SourceProfileConnection{}
 	var err error
 	switch strings.ToLower(source) {
 	case "mysql":
 		{
 			conn.Ty = SourceProfileConnectionTypeMySQL
-			conn.Mysql, err = NewSourceProfileConnectionMySQL(params)
+			conn.Mysql, err = s.NewSourceProfileConnectionMySQL(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -467,7 +491,7 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 	case "postgresql", "postgres", "pg":
 		{
 			conn.Ty = SourceProfileConnectionTypePostgreSQL
-			conn.Pg, err = NewSourceProfileConnectionPostgreSQL(params)
+			conn.Pg, err = s.NewSourceProfileConnectionPostgreSQL(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -478,7 +502,7 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 	case "dynamodb":
 		{
 			conn.Ty = SourceProfileConnectionTypeDynamoDB
-			conn.Dydb, err = NewSourceProfileConnectionDynamoDB(params)
+			conn.Dydb, err = s.NewSourceProfileConnectionDynamoDB(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -490,7 +514,7 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 	case "sqlserver", "mssql":
 		{
 			conn.Ty = SourceProfileConnectionTypeSqlServer
-			conn.SqlServer, err = NewSourceProfileConnectionSqlServer(params)
+			conn.SqlServer, err = s.NewSourceProfileConnectionSqlServer(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -498,7 +522,7 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 	case "oracle":
 		{
 			conn.Ty = SourceProfileConnectionTypeOracle
-			conn.Oracle, err = NewSourceProfileConnectionOracle(params)
+			conn.Oracle, err = s.NewSourceProfileConnectionOracle(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -512,14 +536,14 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 	return conn, nil
 }
 
-func NewSourceProfileConnectionCloudSQL(source string, params map[string]string) (SourceProfileConnectionCloudSQL, error) {
+func (nsp *NewSourceProfileImpl) NewSourceProfileConnectionCloudSQL(source string, params map[string]string, s SourceProfileDialectInterface) (SourceProfileConnectionCloudSQL, error) {
 	conn := SourceProfileConnectionCloudSQL{}
 	var err error
 	switch strings.ToLower(source) {
 	case "mysql":
 		{
 			conn.Ty = SourceProfileConnectionTypeCloudSQLMySQL
-			conn.Mysql, err = NewSourceProfileConnectionCloudSQLMySQL(params)
+			conn.Mysql, err = s.NewSourceProfileConnectionCloudSQLMySQL(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -527,7 +551,7 @@ func NewSourceProfileConnectionCloudSQL(source string, params map[string]string)
 	case "postgresql", "postgres", "pg":
 		{
 			conn.Ty = SourceProfileConnectionTypeCloudSQLPostgreSQL
-			conn.Pg, err = NewSourceProfileConnectionCloudSQLPostgreSQL(params)
+			conn.Pg, err = s.NewSourceProfileConnectionCloudSQLPostgreSQL(params, &utils.GetUtilInfoImpl{})
 			if err != nil {
 				return conn, err
 			}
@@ -618,7 +642,7 @@ type SourceProfileConfig struct {
 	ShardConfigurationDMS      ShardConfigurationDMS      `json:"shardConfigurationDMS"`
 }
 
-func NewSourceProfileConfig(source string, path string) (SourceProfileConfig, error) {
+func (nsp *NewSourceProfileImpl) NewSourceProfileConfig(source string, path string) (SourceProfileConfig, error) {
 	//given the source, the fact that this 'config=', determine the appropiate object to marshal into
 	switch source {
 	case constants.MYSQL:
@@ -752,7 +776,7 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 // from envrironment variables.
 //
 // Format 3. Specify a config file that specifies source connection profile.
-func NewSourceProfile(s string, source string) (SourceProfile, error) {
+func NewSourceProfile(s string, source string, n NewSourceProfileInterface) (SourceProfile, error) {
 	if source == "" {
 		return SourceProfile{}, fmt.Errorf("cannot leave -source flag empty, please specify source databases e.g., -source=postgres etc")
 	}
@@ -765,22 +789,23 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 	}
 
 	if _, ok := params["file"]; ok || filePipedToStdin() {
-		profile := NewSourceProfileFile(params)
+		profile := n.NewSourceProfileFile(params)
 		return SourceProfile{Ty: SourceProfileTypeFile, File: profile}, nil
 	} else if format, ok := params["format"]; ok {
 		// File is not passed in from stdin or specified using "file" flag.
 		return SourceProfile{Ty: SourceProfileTypeFile}, fmt.Errorf("file not specified, but format set to %v", format)
 	} else if file, ok := params["config"]; ok {
-		config, err := NewSourceProfileConfig(strings.ToLower(source), file)
+		config, err := n.NewSourceProfileConfig(strings.ToLower(source), file)
 		return SourceProfile{Ty: SourceProfileTypeConfig, Config: config}, err
 	} else if _, ok := params["instance"]; ok {
-		conn, err := NewSourceProfileConnectionCloudSQL(source, params)
+		conn, err := n.NewSourceProfileConnectionCloudSQL(source, params, &SourceProfileDialectImpl{})
 		return SourceProfile{Ty: SourceProfileTypeCloudSQL, ConnCloudSQL: conn}, err
 	} else {
 		// Assume connection profile type connection by default, since
 		// connection parameters could be specified as part of environment
 		// variables.
-		conn, err := NewSourceProfileConnection(source, params)
+
+		conn, err := n.NewSourceProfileConnection(source, params, &SourceProfileDialectImpl{})
 		return SourceProfile{Ty: SourceProfileTypeConnection, Conn: conn}, err
 	}
 }

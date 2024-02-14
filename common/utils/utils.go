@@ -19,11 +19,11 @@ package utils
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/url"
 	"os"
 	"os/exec"
@@ -37,6 +37,7 @@ import (
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	"cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -44,10 +45,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"golang.org/x/crypto/ssh/terminal"
-	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
-	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 )
 
 // IOStreams is a struct that contains the file descriptor for dumpFile.
@@ -61,6 +60,16 @@ type ManifestTable struct {
 	Table_name    string   `json:"table_name"`
 	File_patterns []string `json:"file_patterns"`
 }
+
+// Interface to fetch spanner details
+type GetUtilInfoInterface interface {
+	GetProject() (string, error)
+	GetInstance(ctx context.Context, project string, out *os.File) (string, error)
+	GetPassword() string
+	GetDatabaseName(driver string, now time.Time) (string, error)
+}
+
+type GetUtilInfoImpl struct{}
 
 // NewIOStreams returns a new IOStreams struct such that input stream is set
 // to open file descriptor for dumpFile if driver is PGDUMP or MYSQLDUMP.
@@ -173,86 +182,10 @@ func PreloadGCSFiles(tables []ManifestTable) ([]ManifestTable, error) {
 	return tables, nil
 }
 
-func ParseGCSFilePath(filePath string) (*url.URL, error) {
-	if len(filePath) == 0 {
-		return nil, fmt.Errorf("found empty GCS path")
-	}
-	if filePath[len(filePath)-1] != '/' {
-		filePath = filePath + "/"
-	}
-	u, err := url.Parse(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("parseFilePath: unable to parse file path %s", filePath)
-	}
-	if u.Scheme != constants.GCS_SCHEME {
-		return nil, fmt.Errorf("not a valid GCS path: %s, should start with 'gs'", filePath)
-	}
-	return u, nil
-}
-
-func WriteToGCS(filePath, fileName, data string) error {
-	ctx := context.Background()
-
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		fmt.Printf("Failed to create GCS client")
-		return err
-	}
-	defer client.Close()
-	u, err := ParseGCSFilePath(filePath)
-	if err != nil {
-		return fmt.Errorf("parseFilePath: unable to parse file path: %v", err)
-	}
-	bucketName := u.Host
-	bucket := client.Bucket(bucketName)
-	obj := bucket.Object(u.Path[1:] + fileName)
-
-	w := obj.NewWriter(ctx)
-	if _, err := fmt.Fprint(w, data); err != nil {
-		fmt.Printf("Failed to write to Cloud Storage: %s", filePath)
-		return err
-	}
-	if err := w.Close(); err != nil {
-		fmt.Printf("Failed to close GCS file: %s", filePath)
-		return err
-	}
-	return nil
-}
-
-func CreateGCSBucket(bucketName, projectID, location string) error {
-	ctx := context.Background()
-
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to create GCS client: %v", err)
-	}
-	defer client.Close()
-	bucket := client.Bucket(bucketName)
-	attrs := storage.BucketAttrs{
-		Location: location,
-	}
-	if err := bucket.Create(ctx, projectID, &attrs); err != nil {
-		if e, ok := err.(*googleapi.Error); ok {
-			// Ignoring the bucket already exists error.
-			if e.Code != 409 {
-				return fmt.Errorf("failed to create bucket: %v", err)
-			} else {
-				fmt.Printf("Using the existing bucket: %v \n", bucketName)
-			}
-		} else {
-			return fmt.Errorf("failed to create bucket: %v", err)
-		}
-
-	} else {
-		fmt.Printf("Created new GCS bucket: %v\n", bucketName)
-	}
-	return nil
-}
-
 // GetProject returns the cloud project we should use for accessing Spanner.
 // Use environment variable GCLOUD_PROJECT if it is set.
 // Otherwise, use the default project returned from gcloud.
-func GetProject() (string, error) {
+func (gui *GetUtilInfoImpl) GetProject() (string, error) {
 	project := os.Getenv("GCLOUD_PROJECT")
 	if project != "" {
 		return project, nil
@@ -269,7 +202,7 @@ func GetProject() (string, error) {
 // GetInstance returns the Spanner instance we should use for creating DBs.
 // If the user specified instance (via flag 'instance') then use that.
 // Otherwise try to deduce the instance using gcloud.
-func GetInstance(ctx context.Context, project string, out *os.File) (string, error) {
+func (gui *GetUtilInfoImpl) GetInstance(ctx context.Context, project string, out *os.File) (string, error) {
 	l, err := getInstances(ctx, project)
 	if err != nil {
 		return "", err
@@ -315,7 +248,7 @@ func getInstances(ctx context.Context, project string) ([]string, error) {
 	return l, nil
 }
 
-func GetPassword() string {
+func (gui *GetUtilInfoImpl) GetPassword() string {
 	calledFromGCloud := os.Getenv("GCLOUD_HB_PLUGIN")
 	if strings.EqualFold(calledFromGCloud, "true") {
 		fmt.Println("\n Please specify password in enviroment variables (recommended) or --source-profile " +
@@ -333,7 +266,7 @@ func GetPassword() string {
 }
 
 // GetDatabaseName generates database name with driver_date prefix.
-func GetDatabaseName(driver string, now time.Time) (string, error) {
+func (gui *GetUtilInfoImpl) GetDatabaseName(driver string, now time.Time) (string, error) {
 	return GenerateName(fmt.Sprintf("%s_%s", driver, now.Format("2006-01-02")))
 }
 
@@ -345,6 +278,12 @@ func GenerateName(prefix string) (string, error) {
 
 	}
 	return fmt.Sprintf("%s_%x-%x", prefix, b[0:2], b[2:4]), nil
+}
+
+func GenerateHashStr() string {
+	b := make([]byte, 4)
+	rand.Read(b)
+	return fmt.Sprintf("%x-%x", b[0:2], b[2:4])
 }
 
 // parseURI parses an unknown URI string that could be a database, instance or project URI.
@@ -565,7 +504,8 @@ func GetLegacyModeSupportedDrivers() []string {
 // ReadSpannerSchema fills conv by querying Spanner infoschema treating Spanner as both the source and dest.
 func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Client) error {
 	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, SpDialect: conv.SpDialect}
-	err := common.ProcessSchema(conv, infoSchema, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false})
+	processSchema := common.ProcessSchemaImpl{}
+	err := processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	if err != nil {
 		return fmt.Errorf("error trying to read and convert spanner schema: %v", err)
 	}
@@ -651,7 +591,7 @@ func CompareSchema(sessionFileConv, actualSpannerConv *internal.Conv) error {
 			} else {
 				if sessionColDef.Name != spannerColDef.Name ||
 					sessionColDef.T.IsArray != spannerColDef.T.IsArray || sessionColDef.T.Len != spannerColDef.T.Len || sessionColDef.T.Name != spannerColDef.T.Name || sessionColDef.NotNull != spannerColDef.NotNull {
-						return fmt.Errorf("column detail for table %v don't match: session column: %v, spanner column: %v", sessionTable.Name, sessionColDef, spannerColDef)
+					return fmt.Errorf("column detail for table %v don't match: session column: %v, spanner column: %v", sessionTable.Name, sessionColDef, spannerColDef)
 				}
 			}
 		}

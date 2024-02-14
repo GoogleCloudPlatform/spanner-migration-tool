@@ -32,7 +32,7 @@ import (
 
 // PersistJobDetails stores all the metadata associated with a job orchestration for a minimal downtime migration in the metadata db. An example of this metadata is job level data such as the spanner database name.
 func PersistJobDetails(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, conv *internal.Conv, migrationJobId string, isSharded bool) (err error) {
-	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, nil)
+	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, nil, &utils.GetUtilInfoImpl{})
 	if err != nil {
 		err = fmt.Errorf("can't get resource ids: %v", err)
 		return err
@@ -59,7 +59,7 @@ func PersistJobDetails(ctx context.Context, targetProfile profiles.TargetProfile
 
 func PersistAggregateMonitoringResources(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, conv *internal.Conv, migrationJobId string) error {
 	logger.Log.Debug(fmt.Sprintf("Storing aggregate monitoring dashboard for migration jobId: %s\n", migrationJobId))
-	project, instance, _, err := targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, nil)
+	project, instance, _, err := targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, nil, &utils.GetUtilInfoImpl{})
 	if err != nil {
 		err = fmt.Errorf("can't get resource ids: %v", err)
 		return err
@@ -96,7 +96,7 @@ func PersistAggregateMonitoringResources(ctx context.Context, targetProfile prof
 
 // PersistResources stores all the metadata associated with a shard orchestration for a minimal downtime migration in the metadata db. An example of this metadata is generated resources.
 func PersistResources(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, conv *internal.Conv, migrationJobId string, dataShardId string) (err error) {
-	project, instance, _, err := targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, nil)
+	project, instance, _, err := targetProfile.GetResourceIds(ctx, time.Now(), sourceProfile.Driver, nil, &utils.GetUtilInfoImpl{})
 	if err != nil {
 		err = fmt.Errorf("can't get resource ids: %v", err)
 		return err

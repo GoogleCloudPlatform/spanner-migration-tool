@@ -113,7 +113,8 @@ func TestIntegration_PGDUMP_SchemaAndDataSubcommand(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := utils.GetDatabaseName(constants.PGDUMP, now)
+	g := utils.GetUtilInfoImpl{}
+	dbName, _ := g.GetDatabaseName(constants.PGDUMP, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
 	dataFilepath := "../../test_data/pg_dump.test.out"
@@ -137,7 +138,8 @@ func TestIntegration_PGDUMP_SchemaSubcommand(t *testing.T) {
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 	now := time.Now()
-	dbName, _ := utils.GetDatabaseName(constants.PGDUMP, now)
+	g := utils.GetUtilInfoImpl{}
+	dbName, _ := g.GetDatabaseName(constants.PGDUMP, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
 	dataFilepath := "../../test_data/pg_dump.test.out"
@@ -159,7 +161,8 @@ func TestIntegration_POSTGRES_SchemaAndDataSubcommand(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := utils.GetDatabaseName(constants.POSTGRES, now)
+	g := utils.GetUtilInfoImpl{}
+	dbName, _ := g.GetDatabaseName(constants.POSTGRES, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName)
 
@@ -182,7 +185,8 @@ func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := utils.GetDatabaseName(constants.POSTGRES, now)
+	g := utils.GetUtilInfoImpl{}
+	dbName, _ := g.GetDatabaseName(constants.POSTGRES, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName)
 

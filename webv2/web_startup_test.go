@@ -18,6 +18,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/api"
 )
 
 // Test robustness of API calls on startup.
@@ -29,7 +31,7 @@ func TestDdlOnStartup(t *testing.T) {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(getDDL)
+	handler := http.HandlerFunc(api.GetDDL)
 	handler.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",

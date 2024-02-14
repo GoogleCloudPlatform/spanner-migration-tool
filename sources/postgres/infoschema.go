@@ -65,7 +65,8 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 		schemaDetails map[string]internal.SchemaDetails
 		err           error
 	)
-	schemaDetails, err = common.GetIncludedSrcTablesFromConv(conv)
+	commonInfoSchema := common.InfoSchemaImpl{}
+	schemaDetails, err = commonInfoSchema.GetIncludedSrcTablesFromConv(conv)
 	if err != nil {
 		err = fmt.Errorf("error fetching the tableList to setup datastream migration, defaulting to all tables: %v", err)
 	}
