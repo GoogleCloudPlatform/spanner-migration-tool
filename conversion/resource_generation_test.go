@@ -336,7 +336,7 @@ func TestPrepareMinimalDowntimeResources(t *testing.T) {
 			validateOnly: false,
 			isSource: true,
 			connectionProfileRequest: validConnectionProfileReq,
-			expectError: false,
+			expectError: true,
 		},
 	}
 	for _, tc := range testCases {
