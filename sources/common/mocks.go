@@ -15,6 +15,8 @@
 package common
 
 import (
+	"sync"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/stretchr/testify/mock"
@@ -68,4 +70,14 @@ type MockProcessSchema struct {
 func (mps *MockProcessSchema) ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error {
 	args := mps.Called(conv, infoSchema, numWorkers, attributes, s, uo, is)
 	return args.Error(0)
+}
+
+type MockRunParallelTasks[I any, O any] struct {
+	mock.Mock
+}
+
+func (mrpt *MockRunParallelTasks[I, O]) RunParallelTasks(input []I, numWorkers int, f func(i I, mutex *sync.Mutex) TaskResult[O],
+fastExit bool) ([]TaskResult[O], error) {
+	args := mrpt.Called(input, numWorkers, f, fastExit)
+	return args.Get(0).([]TaskResult[O]), args.Error(1)
 }

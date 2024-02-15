@@ -87,7 +87,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 	}
 	// Create Resources required for migration
 	if conv.ResourceValidation {
-		dsClient, err := datastream.NewDatastreamClientImpl(ctx)
+		dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -215,7 +215,8 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 		}
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
-	_, err = common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 20, asyncProcessShards, true)
+	r := common.RunParallelTasksImpl[*profiles.DataShard, *profiles.DataShard]{}
+	_, err = r.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 20, asyncProcessShards, true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start minimal downtime migrations: %v", err)
 	}
@@ -268,7 +269,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForBulkMigration(sourceProfile p
 
 func GetBucket(project, location, profileName string) (string, string, error) {
 	ctx := context.Background()
-	dsClient, err := datastream.NewDatastreamClientImpl(ctx)
+	dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
 	if err != nil {
 		return "", "", fmt.Errorf("datastream client can not be created: %v", err)
 	}

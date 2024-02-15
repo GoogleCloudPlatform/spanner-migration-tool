@@ -25,6 +25,7 @@ package conversion
 
 import (
 	"context"
+	"sync"
 
 	sp "cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -80,4 +81,30 @@ func (msads *MockDataFromSource) dataFromDump(driver string, config writer.Batch
 func (msads *MockDataFromSource) dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, pdc PopulateDataConvInterface, csv csv.CsvInterface) (*writer.BatchWriter, error) {
 	args := msads.Called(ctx, sourceProfile, targetProfile, config, conv, client, pdc, csv)
 	return args.Get(0).(*writer.BatchWriter), args.Error(1)
+}
+
+type MockCreateResources struct{
+	mock.Mock
+}
+
+func (mcr *MockCreateResources) CreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error {
+	args:= mcr.Called(ctx, projectId, instanceName, validateOnly, region, sourceProfile)
+	return args.Error(0)
+}
+
+type MockResourceGeneration struct {
+	mock.Mock
+}
+
+func (mrg *MockResourceGeneration) connectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error {
+	args := mrg.Called(ctx, profiles)
+	return args.Error(0)
+}
+func (mrg *MockResourceGeneration) getResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error) {
+	args := mrg.Called(ctx, projectId, sourceProfile, region, validateOnly)
+	return args.Get(0).([]*ConnectionProfileReq), args.Get(1).([]*ConnectionProfileReq), args.Error(2)
+}
+func (mrg *MockResourceGeneration) PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq] {
+	args := mrg.Called(createResourceData, mutex)
+	return args.Get(0).(common.TaskResult[*ConnectionProfileReq])
 }

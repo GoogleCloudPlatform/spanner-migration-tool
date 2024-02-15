@@ -134,7 +134,8 @@ func TestWorkerPool(t *testing.T) {
 		return res
 	}
 
-	out, _ := RunParallelTasks(input, 5, f, false)
+	r := RunParallelTasksImpl[int, int]{}
+	out, _ := r.RunParallelTasks(input, 5, f, false)
 	assert.Equal(t, len(input), len(out), fmt.Sprintln("jobs not processed"))
 }
 

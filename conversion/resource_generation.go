@@ -67,6 +67,7 @@ type CreateResourcesInterface interface {
 
 type CreateResourcesImpl struct{
 	ResourceGenerator ResourceGenerationInterface
+	RunParallel       common.RunParallelTasksInterface[*ConnectionProfileReq, *ConnectionProfileReq]
 }
 
 type ValidateResourcesInterface interface {
@@ -90,6 +91,7 @@ func NewValidateResourcesImpl(spAcc spanneraccessor.SpannerAccessor, spInstanceA
 func NewCreateResourcesImpl(dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *CreateResourcesImpl{
 	return &CreateResourcesImpl{
 		ResourceGenerator: NewResourceGenerationImpl(dsAcc, dsClient, storageAcc, storageClient),
+		RunParallel: &common.RunParallelTasksImpl[*ConnectionProfileReq, *ConnectionProfileReq]{},
 	}
 }
 
@@ -321,7 +323,7 @@ func (c *CreateResourcesImpl) CreateResourcesForShardedMigration(ctx context.Con
 	var errorsList []error = []error{}
 
 	// Create or validate source connection profiles in parallel threads
-	resSourceProfiles, resCreationErr := common.RunParallelTasks(sourceProfilesToCreate, 20, c.ResourceGenerator.PrepareMinimalDowntimeResources, fastExit)
+	resSourceProfiles, resCreationErr := c.RunParallel.RunParallelTasks(sourceProfilesToCreate, 20, c.ResourceGenerator.PrepareMinimalDowntimeResources, fastExit)
 	// If creation failed, perform cleanup of resources
 	if resCreationErr != nil && !validateOnly {
 		err = c.ResourceGenerator.connectionProfileCleanUp(ctx, resourcesForCleanup)
@@ -342,7 +344,7 @@ func (c *CreateResourcesImpl) CreateResourcesForShardedMigration(ctx context.Con
 
 	// Create destination connection profiles in parallel threads
 	if !validateOnly {
-		_, resCreationErr := common.RunParallelTasks(dstProfilesToCreate, 20, c.ResourceGenerator.PrepareMinimalDowntimeResources, fastExit)
+		_, resCreationErr := c.RunParallel.RunParallelTasks(dstProfilesToCreate, 20, c.ResourceGenerator.PrepareMinimalDowntimeResources, fastExit)
 		if resCreationErr != nil {
 			err = c.ResourceGenerator.connectionProfileCleanUp(ctx, resourcesForCleanup)
 			if err != nil {

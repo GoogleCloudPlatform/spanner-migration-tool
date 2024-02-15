@@ -197,7 +197,7 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 		if err != nil {
 			return nil, err
 		}
-		dsClient, err := datastream.NewDatastreamClientImpl(ctx)
+		dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -253,7 +253,7 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		if err != nil {
 			return nil, err
 		}
-		dsClient, err := datastream.NewDatastreamClientImpl(ctx)
+		dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
 		if err != nil {
 			return nil, err
 		}

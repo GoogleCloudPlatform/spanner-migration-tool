@@ -166,7 +166,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 			if err != nil {
 				return subcommands.ExitFailure
 			}
-			dsClient, err := datastream.NewDatastreamClientImpl(ctx)
+			dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
 			if err != nil {
 				return subcommands.ExitFailure
 			}
