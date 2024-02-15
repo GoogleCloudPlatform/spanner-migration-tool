@@ -12,7 +12,11 @@ import (
 	"sync"
 
 	datastream "cloud.google.com/go/datastream/apiv1"
+	ds "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
+	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
+	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -141,7 +145,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("this database type is not currently implemented for sharded migrations: %v", err), http.StatusBadRequest)
 			return
 		}
-		resGenerator := conversion.ResourceGenerationStruct{}
+		resGenerator := conversion.NewResourceGenerationImpl(&datastream_accessor.DatastreamAccessorImpl{}, &ds.DatastreamClientImpl{}, &storageaccessor.StorageAccessorImpl{}, &storageclient.StorageClientImpl{})
 		req := conversion.ConnectionProfileReq{
 			ConnectionProfile: conversion.ConnectionProfile{
 				ProjectId: sessionState.GCPProjectID,
@@ -228,12 +232,30 @@ func VerifyJsonConfiguration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resGenerator := conversion.ResourceGenerationStruct{}
 	ctx := context.Background()
 	sessionState := session.GetSessionState()
 	sourceProfileConfig := srcConfig.MigrationProfile
 	sourceProfile := profiles.SourceProfile{Ty: profiles.SourceProfileTypeConfig, Config: sourceProfileConfig}
-	err = resGenerator.ValidateResourceGeneration(ctx, sessionState.GCPProjectID, sessionState.SpannerInstanceID, sourceProfile, sessionState.Conv)
+
+	spClient, err:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	dsClient, err := ds.NewDatastreamClientImpl(ctx)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	storageclient, err := storageclient.NewStorageClientImpl(ctx)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
+		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
+
+	err = validateResource.ValidateResourceGeneration(ctx, sessionState.GCPProjectID, sessionState.SpannerInstanceID, sourceProfile, sessionState.Conv)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return

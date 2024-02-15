@@ -31,41 +31,79 @@ import (
 	"strings"
 	"sync"
 
-	datastream "cloud.google.com/go/datastream/apiv1"
 	"cloud.google.com/go/datastream/apiv1/datastreampb"
-	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
-	"cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
-	"cloud.google.com/go/storage"
+	ds "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
+	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
+	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/google/uuid"
-	"google.golang.org/api/iterator"
 )
 
 var (
 	resourcesForCleanup []*ConnectionProfileReq
 )
 
-type resourceGenerationInterface interface {
-	multiError(errorMessages []error) error
-	getConnProfilesRegion(ctx context.Context, projectId string, region string, dsClient *datastream.Client) ([]string, error)
-	connectionProfileExists(ctx context.Context, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string, dsClient *datastream.Client, s resourceGenerationInterface) (bool, error)
-	getResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool, dsClient *datastream.Client) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error)
-	PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq]
-	setConnectionProfileFromRequest(details *ConnectionProfileReq, req *datastreampb.CreateConnectionProfileRequest) error
+type ResourceGenerationInterface interface {
 	connectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error
+	getResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error)
+	PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq]
+}
+
+type ResourceGenerationImpl struct {
+	DsAcc             datastream_accessor.DatastreamAccessor
+	DsClient  		  ds.DatastreamClient
+	StorageAcc        storageaccessor.StorageAccessor
+	StorageClient     storageclient.StorageClient
+}
+
+type CreateResourcesInterface interface {
+	CreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error
+}
+
+type CreateResourcesImpl struct{
+	ResourceGenerator ResourceGenerationInterface
+}
+
+type ValidateResourcesInterface interface {
 	ValidateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error
 }
 
-type ResourceGenerationStruct struct {
+type ValidateResourcesImpl struct{
+	SpAcc                spanneraccessor.SpannerAccessor
+	SpInstanceAdmin      spinstanceadmin.InstanceAdminClient
+	CreateResources      CreateResourcesInterface
 }
- 
-type MigrationResources struct{}
 
-func (r ResourceGenerationStruct) multiError(errorMessages []error) error {
+func NewValidateResourcesImpl(spAcc spanneraccessor.SpannerAccessor, spInstanceAdmin spinstanceadmin.InstanceAdminClient, dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ValidateResourcesImpl {
+    return &ValidateResourcesImpl{
+		SpAcc: spAcc,
+		SpInstanceAdmin: spInstanceAdmin,
+		CreateResources: NewCreateResourcesImpl(dsAcc, dsClient, storageAcc, storageClient),
+	}
+}
+
+func NewCreateResourcesImpl(dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *CreateResourcesImpl{
+	return &CreateResourcesImpl{
+		ResourceGenerator: NewResourceGenerationImpl(dsAcc, dsClient, storageAcc, storageClient),
+	}
+}
+
+func NewResourceGenerationImpl(dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ResourceGenerationImpl{
+	return &ResourceGenerationImpl{
+			DsAcc: dsAcc,
+			DsClient: dsClient,
+			StorageAcc: storageAcc,
+			StorageClient: storageClient,
+		}
+}
+
+
+func multiError(errorMessages []error) error {
 	var errorStrings []string
 	for _, err := range errorMessages {
 		errorStrings = append(errorStrings, err.Error())
@@ -74,16 +112,14 @@ func (r ResourceGenerationStruct) multiError(errorMessages []error) error {
 }
 
 // Method to validate if in a minimal downtime migration, required resources can be generated
-func (r ResourceGenerationStruct) ValidateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
-	resGenerator := ResourceGenerationStruct{}
-	spannerRegion, err := GetSpannerRegion(ctx, projectId, instanceId)
-	dsClient := GetDatastreamClient(ctx)
+func (v *ValidateResourcesImpl) ValidateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
+	spannerRegion, err := v.SpAcc.GetSpannerLeaderLocation(ctx, v.SpInstanceAdmin, "projects/" + projectId + "/instances/" + instanceId)
 	if err != nil {
 		err = fmt.Errorf("unable to fetch Spanner Region: %v", err)
 		return err
 	}
 	conv.SpRegion = spannerRegion
-	err = resGenerator.CreateResourcesForShardedMigration(ctx, projectId, instanceId, true, spannerRegion, sourceProfile, dsClient)
+	err = v.CreateResources.CreateResourcesForShardedMigration(ctx, projectId, instanceId, true, spannerRegion, sourceProfile)
 	if err != nil {
 		err = fmt.Errorf("unable to create connection profiles: %v", err)
 		return err
@@ -94,14 +130,7 @@ func (r ResourceGenerationStruct) ValidateResourceGeneration(ctx context.Context
 
 // 1. If destination connection profile needs to be created, creates a gcs bucket
 // 2. Creates the connection profile needed for migration
-func (r ResourceGenerationStruct) PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq] {
-	dsClient, err := datastream.NewClient(createResourceData.Ctx)
-	if err != nil {
-		createResourceData.Error = err
-		return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: err}
-	}
-	defer dsClient.Close()
-
+func (r ResourceGenerationImpl) PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq] {
 	req := &datastreampb.CreateConnectionProfileRequest{
 		Parent:              fmt.Sprintf("projects/%s/locations/%s", createResourceData.ConnectionProfile.ProjectId, createResourceData.ConnectionProfile.Region),
 		ConnectionProfileId: createResourceData.ConnectionProfile.Id,
@@ -116,15 +145,7 @@ func (r ResourceGenerationStruct) PrepareMinimalDowntimeResources(createResource
 	var bucketName string
 	if !createResourceData.ConnectionProfile.IsSource {
 		bucketName = strings.ToLower("GCS-" + createResourceData.ConnectionProfile.Id)
-		sc, err := storageclient.NewStorageClientImpl(createResourceData.Ctx)
-		if err != nil {
-			if err != nil {
-				createResourceData.Error = err
-				return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: err}
-			}
-		}
-		sa := storageaccessor.StorageAccessorImpl{}
-		sa.CreateGCSBucket(createResourceData.Ctx, sc, storageaccessor.StorageBucketMetadata{
+		err := r.StorageAcc.CreateGCSBucket(createResourceData.Ctx, r.StorageClient, storageaccessor.StorageBucketMetadata{
 			BucketName:    bucketName,
 			ProjectID:     createResourceData.ConnectionProfile.ProjectId,
 			Location:      createResourceData.ConnectionProfile.Region,
@@ -137,15 +158,10 @@ func (r ResourceGenerationStruct) PrepareMinimalDowntimeResources(createResource
 	createResourceData.ConnectionProfile.BucketName = bucketName
 
 	// Set Profile for resource creation
-	r.setConnectionProfileFromRequest(createResourceData, req)
+	setConnectionProfileFromRequest(createResourceData, req)
 
 	// Create or Validate Resource
-	op, err := dsClient.CreateConnectionProfile(createResourceData.Ctx, req)
-	if err != nil {
-		createResourceData.Error = err
-		return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: err}
-	}
-	_, err = op.Wait(createResourceData.Ctx)
+	_, err := r.DsAcc.CreateConnectionProfile(createResourceData.Ctx, r.DsClient, req)
 	if err != nil {
 		createResourceData.Error = err
 		return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: err}
@@ -163,7 +179,7 @@ func (r ResourceGenerationStruct) PrepareMinimalDowntimeResources(createResource
 }
 
 // Sets Profile for resource creation
-func (r ResourceGenerationStruct) setConnectionProfileFromRequest(details *ConnectionProfileReq, req *datastreampb.CreateConnectionProfileRequest) error {
+func setConnectionProfileFromRequest(details *ConnectionProfileReq, req *datastreampb.CreateConnectionProfileRequest) error {
 	if details.ConnectionProfile.IsSource {
 		port, err := strconv.ParseInt((details.ConnectionProfile.Port), 10, 32)
 		if err != nil {
@@ -188,102 +204,23 @@ func (r ResourceGenerationStruct) setConnectionProfileFromRequest(details *Conne
 	}
 	return nil
 }
-
-func GetSpannerRegion(ctx context.Context, projectId string, instanceName string) (string, error) {
-	instanceAdmin, _ := instance.NewInstanceAdminClient(ctx)
-	defer instanceAdmin.Close()
-	region := ""
-	spannerInstance, err := instanceAdmin.GetInstance(ctx, &instancepb.GetInstanceRequest{Name: "projects/" + projectId + "/instances/" + instanceName})
-	if err != nil {
-		return region, err
-	}
-	instanceConfig, err := instanceAdmin.GetInstanceConfig(ctx, &instancepb.GetInstanceConfigRequest{Name: spannerInstance.Config})
-	if err != nil {
-		return region, err
-	}
-	for _, replica := range instanceConfig.Replicas {
-		if replica.DefaultLeaderLocation {
-			region = replica.Location
-		}
-	}
-	return region, nil
-}
-
-// Returns connection profiles for a given region
-func (r *ResourceGenerationStruct) getConnProfilesRegion(ctx context.Context, projectId string, region string, dsClient *datastream.Client) ([]string, error) {
-	profilesIt := dsClient.ListConnectionProfiles(ctx, &datastreampb.ListConnectionProfilesRequest{Parent: "projects/" + projectId + "/locations/" + region})
-	var profiles []string = []string{}
-	for {
-		resp, err := profilesIt.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return profiles, err
-		} else {
-			profiles = append(profiles, strings.Split(resp.Name, "/")[5])
-		}
-	}
-	return profiles, nil
-}
-
-// returns true if connection profile exists else false
-func (r *ResourceGenerationStruct) connectionProfileExists(ctx context.Context, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string, dsClient *datastream.Client, s resourceGenerationInterface) (bool, error) {
-	// Check if connection profiles for the given region are fetched. if not, fetch them
-	profiles, ok := connectionProfiles[profileLocation]
-	var err error = nil
-	if !ok {
-		profiles, err = s.getConnProfilesRegion(ctx, projectId, profileLocation, dsClient)
-		if err != nil {
-			return false, err
-		}
-		connectionProfiles[profileLocation] = profiles
-	}
-
-	// Check if connection profile exists in the provided region
-	for _, element := range profiles {
-		if element == profileName {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
 // If any of the resource creation fails, deletes all resources that were created
-func (r ResourceGenerationStruct) connectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error {
-	dsClient := GetDatastreamClient(ctx)
+func (r ResourceGenerationImpl) connectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error {
 	for _, profile := range profiles {
-		op, err := dsClient.DeleteConnectionProfile(ctx, &datastreampb.DeleteConnectionProfileRequest{
-			Name: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", profile.ConnectionProfile.ProjectId, profile.ConnectionProfile.Region, profile.ConnectionProfile.Id),
-		})
-
-		if err != nil {
-			return err
-		}
-
-		err = op.Wait(ctx)
+		err := r.DsAcc.DeleteConnectionProfile(ctx, r.DsClient, profile.ConnectionProfile.ProjectId, profile.ConnectionProfile.Region, profile.ConnectionProfile.Id)
 		if err != nil {
 			return err
 		}
 
 		if profile.ConnectionProfile.BucketName != "" {
-			gcsClient, err := storage.NewClient(ctx)
-
-			if err != nil {
-				return err
-			}
-
-			if err := gcsClient.Bucket(profile.ConnectionProfile.BucketName).Delete(ctx); err != nil {
-				return err
-			}
+			r.StorageAcc.DeleteGCSBucket(ctx, r.StorageClient, storageaccessor.StorageBucketMetadata{BucketName:profile.ConnectionProfile.BucketName})
 		}
 	}
 	return nil
 }
 
 // Returns source and destination connection profiles to be created
-func (r *ResourceGenerationStruct) getResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool, dsClient *datastream.Client) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error) {
+func (r ResourceGenerationImpl) getResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error) {
 	var sourceProfilesToCreate []*ConnectionProfileReq
 	var dstProfilesToCreate []*ConnectionProfileReq
 
@@ -291,7 +228,6 @@ func (r *ResourceGenerationStruct) getResourcesForCreation(ctx context.Context, 
 	var connectionProfiles map[string][]string = make(map[string][]string)
 	var err error = nil
 
-	s := ResourceGenerationStruct{}
 	for _, profile := range sourceProfile.Config.ShardConfigurationDataflow.DataShards {
 		sourceProfileExists := false
 		dstProfileExists := false
@@ -301,7 +237,7 @@ func (r *ResourceGenerationStruct) getResourcesForCreation(ctx context.Context, 
 				profile.SrcConnectionProfile.Location = region
 			}
 			// Check if source connection profile exists
-			sourceProfileExists, err = s.connectionProfileExists(ctx, projectId, profile.SrcConnectionProfile.Name, profile.SrcConnectionProfile.Location, connectionProfiles, dsClient, &s)
+			sourceProfileExists, err = r.DsAcc.ConnectionProfileExists(ctx, r.DsClient, projectId, profile.SrcConnectionProfile.Name, profile.SrcConnectionProfile.Location, connectionProfiles)
 			if err != nil {
 				return sourceProfilesToCreate, dstProfilesToCreate, err
 			}
@@ -310,7 +246,7 @@ func (r *ResourceGenerationStruct) getResourcesForCreation(ctx context.Context, 
 		// Destination connection profiles do not need to be validated as for their creation gcs bucket will also be created
 		if profile.DstConnectionProfile.Name != "" && !validateOnly {
 			// Check if destination connection profile exists
-			dstProfileExists, err = s.connectionProfileExists(ctx, projectId, profile.DstConnectionProfile.Name, profile.DstConnectionProfile.Location, connectionProfiles, dsClient, &s)
+			dstProfileExists, err = r.DsAcc.ConnectionProfileExists(ctx, r.DsClient, projectId, profile.DstConnectionProfile.Name, profile.DstConnectionProfile.Location, connectionProfiles)
 			if err != nil {
 				return sourceProfilesToCreate, dstProfilesToCreate, err
 			}
@@ -366,13 +302,12 @@ func (r *ResourceGenerationStruct) getResourcesForCreation(ctx context.Context, 
 // 1. For each datashard, check if source and destination connection profile exists or not
 // 2. If source connection profile doesn't exists create it or validate if creation is possible.
 // 3. If validation is false and destination connection profile doesn't exists create a corresponding gcs bucket and then a destination connection profile
-func (r ResourceGenerationStruct) CreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile, dsClient *datastream.Client) error {
+func (c *CreateResourcesImpl) CreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error {
 	var sourceProfilesToCreate []*ConnectionProfileReq
 	var dstProfilesToCreate []*ConnectionProfileReq
 
 	// Fetches list with resources which do not exist and need to be created
-	s := ResourceGenerationStruct{}
-	sourceProfilesToCreate, dstProfilesToCreate, err := s.getResourcesForCreation(ctx, projectId, sourceProfile, region, validateOnly, dsClient)
+	sourceProfilesToCreate, dstProfilesToCreate, err := c.ResourceGenerator.getResourcesForCreation(ctx, projectId, sourceProfile, region, validateOnly)
 	if err != nil {
 		return fmt.Errorf("resource generation failed %s", err)
 	}
@@ -386,10 +321,10 @@ func (r ResourceGenerationStruct) CreateResourcesForShardedMigration(ctx context
 	var errorsList []error = []error{}
 
 	// Create or validate source connection profiles in parallel threads
-	resSourceProfiles, resCreationErr := common.RunParallelTasks(sourceProfilesToCreate, 20, r.PrepareMinimalDowntimeResources, fastExit)
+	resSourceProfiles, resCreationErr := common.RunParallelTasks(sourceProfilesToCreate, 20, c.ResourceGenerator.PrepareMinimalDowntimeResources, fastExit)
 	// If creation failed, perform cleanup of resources
 	if resCreationErr != nil && !validateOnly {
-		err = r.connectionProfileCleanUp(ctx, resourcesForCleanup)
+		err = c.ResourceGenerator.connectionProfileCleanUp(ctx, resourcesForCleanup)
 		if err != nil {
 			return fmt.Errorf("resource generation failed due to %s, resources created could not be cleaned up, please cleanup manually: %s", resCreationErr.Error(), err.Error())
 		} else {
@@ -407,9 +342,9 @@ func (r ResourceGenerationStruct) CreateResourcesForShardedMigration(ctx context
 
 	// Create destination connection profiles in parallel threads
 	if !validateOnly {
-		_, resCreationErr := common.RunParallelTasks(dstProfilesToCreate, 20, r.PrepareMinimalDowntimeResources, fastExit)
+		_, resCreationErr := common.RunParallelTasks(dstProfilesToCreate, 20, c.ResourceGenerator.PrepareMinimalDowntimeResources, fastExit)
 		if resCreationErr != nil {
-			err = r.connectionProfileCleanUp(ctx, resourcesForCleanup)
+			err = c.ResourceGenerator.connectionProfileCleanUp(ctx, resourcesForCleanup)
 			if err != nil {
 				return fmt.Errorf("resource generation failed due to %s, resources created could not be cleaned up, please cleanup manually: %s", resCreationErr.Error(), err.Error())
 			} else {
@@ -420,26 +355,9 @@ func (r ResourceGenerationStruct) CreateResourcesForShardedMigration(ctx context
 
 	// If the errors occurred during validation of resource creation, return all errors
 	if len(errorsList) != 0 {
-		return r.multiError(errorsList)
+		return multiError(errorsList)
 	}
 	// cleanup resources for cleanup if migration is successful
 	resourcesForCleanup = nil
 	return nil
-}
-
-func GetBucket(project, location, profileName string) (string, string, error) {
-	ctx := context.Background()
-	dsClient, err := datastream.NewClient(ctx)
-	if err != nil {
-		return "", "", fmt.Errorf("datastream client can not be created: %v", err)
-	}
-	defer dsClient.Close()
-	// Fetch the GCS path from the destination connection profile.
-	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", project, location, profileName)
-	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
-	if err != nil {
-		return "", "", fmt.Errorf("could not get connection profile: %v", err)
-	}
-	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
-	return gcsProfile.GetBucket(), gcsProfile.GetRootPath(), nil
 }

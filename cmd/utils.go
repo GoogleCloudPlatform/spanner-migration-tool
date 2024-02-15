@@ -22,8 +22,13 @@ import (
 
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
 	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
+	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
+	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
+	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -188,8 +193,21 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		resGenerator := conversion.ResourceGenerationStruct{}
-		err = resGenerator.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		spClient, err:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+		if err != nil {
+			return nil, err
+		}
+		dsClient, err := datastream.NewDatastreamClientImpl(ctx)
+		if err != nil {
+			return nil, err
+		}
+		storageclient, err := storageclient.NewStorageClientImpl(ctx)
+		if err != nil {
+			return nil, err
+		}
+		validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
+			dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
+		err = validateResource.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}
@@ -231,8 +249,21 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		resGenerator := conversion.ResourceGenerationStruct{}
-		err = resGenerator.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		spClient, err:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+		if err != nil {
+			return nil, err
+		}
+		dsClient, err := datastream.NewDatastreamClientImpl(ctx)
+		if err != nil {
+			return nil, err
+		}
+		storageclient, err := storageclient.NewStorageClientImpl(ctx)
+		if err != nil {
+			return nil, err
+		}
+		validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
+			dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
+		err = validateResource.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}
