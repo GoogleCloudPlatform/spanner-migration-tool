@@ -14,6 +14,7 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/aws/aws-sdk-go v1.44.259
 	github.com/basgys/goxml2json v1.1.0
+	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/denisenkom/go-mssqldb v0.11.0
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/go-cmp v0.6.0
