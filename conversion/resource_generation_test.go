@@ -17,18 +17,21 @@ package conversion
 import (
 	"context"
 	"fmt"
-
-	// "errors"
+	"sync"
 	"testing"
 
+	"cloud.google.com/go/datastream/apiv1/datastreampb"
+	datastreamclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
 	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
+	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
+	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	// "github.com/stretchr/testify/mock"
 )
 
 func TestValidateResourceGeneration(t *testing.T) {
@@ -207,62 +210,140 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 	}
 }
 
-// func TestConnectionProfileExistsSuccessFalse(t *testing.T) {
-// 	var m mockTestConnectionProfileExistsStruct
-// 	ctx := context.Background()
 
-// 	dsClient := &datastream.Client{}
-// 	getConnProfilesRegionResult := []string{"cnProfile1", "cnProfile2", "cnProfile3"}
-// 	var connectionProfiles map[string][]string = make(map[string][]string)
-// 	m.On("getConnProfilesRegion", ctx, "project-id", "region", dsClient).Return(getConnProfilesRegionResult, nil)
-// 	r := ResourceGenerationStruct{
-// 		resourceGenerator: &m,
-// 	}
-// 	result, err := r.connectionProfileExists(ctx, "project-id", "cnProfile4", "region", connectionProfiles, dsClient)
-// 	assert.Equal(t, result, false)
-// 	assert.Nil(t, err)
-// }
-
-// func TestConnectionProfileExistsFailure(t *testing.T) {
-// 	var m mockTestConnectionProfileExistsStruct
-// 	ctx := context.Background()
-
-// 	dsClient := &datastream.Client{}
-// 	var connectionProfiles map[string][]string = make(map[string][]string)
-
-// 	error:= errors.New("mock error")
-// 	m.On("getConnProfilesRegion", ctx, "project-id", "region", dsClient).Return([]string{}, error)
-// 	r := ResourceGenerationStruct{
-// 		resourceGenerator: &m,
-// 	}
-// 	result, err := r.connectionProfileExists(ctx, "project-id", "cnProfile1", "region", connectionProfiles, dsClient)
-// 	assert.Equal(t, err, error)
-// 	assert.Equal(t, result, false)
-// }
-
-// type mockTestGetResourcesForCreationStruct struct{
-// 	resourceGenerationInterface
-// 	mock.Mock
-// }
-
-// func (m *mockTestGetResourcesForCreationStruct) connectionProfileExists(ctx context.Context, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string, dsClient *datastream.Client) (bool, error){
-// 	args := m.Called(ctx, projectId, profileName, profileLocation, connectionProfiles, dsClient)
-// 	return args.Get(0).(bool), args.Error(1)
-// }
-
-// func TestGetResourcesForCreationSuccess(t *testing.T) {
-// 	var m mockTestGetResourcesForCreationStruct
-// 	ctx := context.Background()
-
-// 	dsClient := &datastream.Client{}
-// 	var connectionProfiles map[string][]string = make(map[string][]string)
-
-// 	error:= errors.New("mock error")
-// 	m.On("connectionProfileExists", ctx, "project-id", "region", dsClient).Return([]string{}, error)
-// 	r := ResourceGenerationStruct{
-// 		resourceGenerator: &m,
-// 	}
-// 	result, err := r.connectionProfileExists(ctx, "project-id", "cnProfile1", "region", connectionProfiles, dsClient)
-// 	assert.Equal(t, err, error)
-// 	assert.Equal(t, result, false)
-// }
+func TestPrepareMinimalDowntimeResources(t *testing.T) {
+	rg := ResourceGenerationImpl{
+		DsClient: &datastreamclient.DatastreamClientMock{},
+		StorageClient: &storageclient.StorageClientMock{},
+	}
+	ctx := context.Background()
+	mutex := sync.Mutex{}
+	validConnectionProfileReq := ConnectionProfileReq{
+		ConnectionProfile: ConnectionProfile{
+			DatashardId: "datashard-id",
+			ProjectId: "project-id",
+			Region: "region",
+			Id: "id",
+			ValidateOnly: true,
+			Port: "3306",
+			Host: "0.0.0.0",
+			User: "root",
+			Password: "password",
+		},
+		Ctx: ctx,
+	}
+	testCases := []struct{
+		name              	  		string
+		sam					  		storageaccessor.StorageAccessorMock
+		dsAcc  				  		datastream_accessor.DatastreamAccessorMock
+		validateOnly 				bool
+		isSource   			  		bool
+		connectionProfileRequest    ConnectionProfileReq
+		expectError 		  		bool
+	}{
+		{
+			name : "Basic source false validate only true",
+			sam: storageaccessor.StorageAccessorMock{
+				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+					return nil
+				},
+			},
+			dsAcc: datastream_accessor.DatastreamAccessorMock{
+				CreateConnectionProfileMock: func (ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error){
+					return &datastreampb.ConnectionProfile{}, nil
+				},
+			},
+			validateOnly: true,
+			isSource: false,
+			connectionProfileRequest: validConnectionProfileReq,
+			expectError: false,
+		},
+		{
+			name : "Basic source false validate only false",
+			sam: storageaccessor.StorageAccessorMock{
+				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+					return nil
+				},
+			},
+			dsAcc: datastream_accessor.DatastreamAccessorMock{
+				CreateConnectionProfileMock: func (ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error){
+					return &datastreampb.ConnectionProfile{}, nil
+				},
+			},
+			validateOnly: false,
+			isSource: false,
+			connectionProfileRequest: validConnectionProfileReq,
+			expectError: false,
+		},
+		{
+			name : "Basic source true validate only true",
+			sam: storageaccessor.StorageAccessorMock{
+				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+					return nil
+				},
+			},
+			dsAcc: datastream_accessor.DatastreamAccessorMock{
+				CreateConnectionProfileMock: func (ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error){
+					return &datastreampb.ConnectionProfile{}, nil
+				},
+			},
+			validateOnly: true,
+			isSource: true,
+			connectionProfileRequest: validConnectionProfileReq,
+			expectError: false,
+		},
+		{
+			name : "Basic source true validate only false",
+			sam: storageaccessor.StorageAccessorMock{
+				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+					return nil
+				},
+			},
+			dsAcc: datastream_accessor.DatastreamAccessorMock{
+				CreateConnectionProfileMock: func (ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error){
+					return &datastreampb.ConnectionProfile{}, nil
+				},
+			},
+			validateOnly: false,
+			isSource: true,
+			connectionProfileRequest: validConnectionProfileReq,
+			expectError: false,
+		},
+		{
+			name : "create gcs error",
+			sam: storageaccessor.StorageAccessorMock{
+				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+					return fmt.Errorf("error")
+				},
+			},
+			validateOnly: false,
+			isSource: false,
+			connectionProfileRequest: validConnectionProfileReq,
+			expectError: true,
+		},
+		{
+			name : "create connection profile error",
+			sam: storageaccessor.StorageAccessorMock{
+				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+					return nil
+				},
+			},
+			dsAcc: datastream_accessor.DatastreamAccessorMock{
+				CreateConnectionProfileMock: func (ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error){
+					return nil, fmt.Errorf("error")
+				},
+			},
+			validateOnly: false,
+			isSource: true,
+			connectionProfileRequest: validConnectionProfileReq,
+			expectError: false,
+		},
+	}
+	for _, tc := range testCases {
+		tc.connectionProfileRequest.ConnectionProfile.ValidateOnly = tc.validateOnly
+		rg.DsAcc = &tc.dsAcc
+		rg.StorageAcc = &tc.sam
+		res := rg.PrepareMinimalDowntimeResources(&tc.connectionProfileRequest, &mutex)
+		assert.Equal(t, tc.expectError, res.Err != nil)
+	}
+}

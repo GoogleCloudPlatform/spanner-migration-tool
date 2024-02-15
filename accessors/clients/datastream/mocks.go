@@ -16,6 +16,7 @@ package datastreamclient
 import (
 	"context"
 
+	datastream "cloud.google.com/go/datastream/apiv1"
 	datastreampb "cloud.google.com/go/datastream/apiv1/datastreampb"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/operation"
 	"github.com/googleapis/gax-go/v2"
@@ -43,4 +44,24 @@ func (m *DatastreamClientMock) UpdateStream(ctx context.Context, req *datastream
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*operation.OperationWrapper[datastreampb.Stream]), args.Error(1)
+}
+
+func (m *DatastreamClientMock) GetConnectionProfile(ctx context.Context, connectionName string) (*datastreampb.ConnectionProfile, error) {
+	args := m.Called(ctx, connectionName)
+	return args.Get(0).(*datastreampb.ConnectionProfile), args.Error(1)
+}
+
+func (m *DatastreamClientMock) ListConnectionProfiles(ctx context.Context, listRequest *datastreampb.ListConnectionProfilesRequest, opts ...gax.CallOption) *datastream.ConnectionProfileIterator{
+	args := m.Called(ctx, listRequest, opts)
+	return args.Get(0).(*datastream.ConnectionProfileIterator)
+}
+
+func (m *DatastreamClientMock) DeleteConnectionProfile(ctx context.Context, deleteRequest *datastreampb.DeleteConnectionProfileRequest) (*operation.NilOperationWrapper, error){
+	args := m.Called(ctx, deleteRequest)
+	return args.Get(0).(*operation.NilOperationWrapper), args.Error(1)
+}
+
+func (m *DatastreamClientMock) CreateConnectionProfile(ctx context.Context, createRequest *datastreampb.CreateConnectionProfileRequest) (*operation.OperationWrapper[datastreampb.ConnectionProfile], error){
+	args := m.Called(ctx, createRequest)
+	return args.Get(0).(*operation.OperationWrapper[datastreampb.ConnectionProfile]), args.Error(1)
 }
