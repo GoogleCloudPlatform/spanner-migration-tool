@@ -26,25 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
-//report_helpers.go contains helpers methods to calculate the various elements of a report.
-//Calculation of new elements should go here.
 
-type tableReport struct {
-	SrcTable      string
-	SpTable       string
-	rows          int64
-	badRows       int64
-	Cols          int64
-	Warnings      int64
-	Errors        int64
-	SyntheticPKey string // Empty string means no synthetic primary key was needed.
-	Body          []tableReportBody
-}
-
-type tableReportBody struct {
-	Heading   string
-	IssueBody []Issue
-}
 
 // AnalyzeTables generates table reports for all processed tables.
 func AnalyzeTables(conv *internal.Conv, badWrites map[string]int64) (r []tableReport) {

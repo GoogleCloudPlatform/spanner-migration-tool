@@ -18,8 +18,6 @@
 package webv2
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -46,7 +44,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
 	helpers "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
@@ -135,22 +132,6 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		ConnectionType: helpers.DIRECT_CONNECT_MODE,
 	}
 	w.WriteHeader(http.StatusOK)
-}
-
-// dumpConfig contains the parameters needed to run the tool using dump approach. It is
-// used to communicate via HTTP with the frontend.
-type dumpConfig struct {
-	Driver   string `json:"Driver"`
-	FilePath string `json:"Path"`
-}
-
-type spannerDetails struct {
-	Dialect string `json:"Dialect"`
-}
-
-type convertFromDumpRequest struct {
-	Config         dumpConfig     `json:"Config"`
-	SpannerDetails spannerDetails `json:"SpannerDetails"`
 }
 
 func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
@@ -519,80 +500,6 @@ func getSchemaFile(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(schemaAbsPath))
-}
-
-// getReportFile generates report file and returns file path.
-func getReportFile(w http.ResponseWriter, r *http.Request) {
-	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
-	var err error
-	now := time.Now()
-	filePrefix, err := utilities.GetFilePrefix(now)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
-	}
-	reportFileName := "frontend/" + filePrefix
-	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.Lock()
-	defer sessionState.Conv.ConvLock.Unlock()
-	conversion.Report(sessionState.Driver, nil, ioHelper.BytesRead, "", sessionState.Conv, reportFileName, sessionState.DbName, ioHelper.Out)
-	reportAbsPath, err := filepath.Abs(reportFileName)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), http.StatusInternalServerError)
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(reportAbsPath))
-}
-
-// generates a downloadable structured report and send it as a JSON response
-func getDStructuredReport(w http.ResponseWriter, r *http.Request) {
-	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.Lock()
-	defer sessionState.Conv.ConvLock.Unlock()
-	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(structuredReport)
-}
-
-// generates a downloadable text report and send it as a JSON response
-func getDTextReport(w http.ResponseWriter, r *http.Request) {
-	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.Lock()
-	defer sessionState.Conv.ConvLock.Unlock()
-	structuredReport := reports.GenerateStructuredReport(sessionState.Driver, sessionState.DbName, sessionState.Conv, nil, true, true)
-	// creates a new buffer
-	buffer := bytes.NewBuffer([]byte{})
-	// initializes buffered writer that writes data to buffer
-	wb := bufio.NewWriter(buffer)
-	reports.GenerateTextReport(structuredReport, wb)
-	// flushes buffered data to writer
-	wb.Flush()
-	// introduces a byte slice to represent the content of buffer
-	data := buffer.Bytes()
-	// converts byte slice to corressponding string representation
-	decodedString := string(data)
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "text/plain")
-	json.NewEncoder(w).Encode(decodedString)
-}
-
-// generates a downloadable DDL(spanner) and send it as a JSON response
-func getDSpannerDDL(w http.ResponseWriter, r *http.Request) {
-	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.RLock()
-	defer sessionState.Conv.ConvLock.RUnlock()
-	conv := sessionState.Conv
-	now := time.Now()
-	spDDL := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: sessionState.Driver})
-	if len(spDDL) == 0 {
-		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
-	}
-	l := []string{
-		fmt.Sprintf("-- Schema generated %s\n", now.Format("2006-01-02 15:04:05")),
-		strings.Join(spDDL, ";\n\n"),
-		"\n",
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(strings.Join(l, ""))
 }
 
 // getIssueDescription maps IssueDB's Category to corresponding CategoryDescription(if present),

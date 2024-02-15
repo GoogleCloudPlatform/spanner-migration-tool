@@ -11,8 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-package datastream
+package datastreamclient
 
 import (
 	"context"
@@ -27,7 +26,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/api/option"
 )
-
 
 func init() {
 	logger.Log = zap.NewNop()
@@ -46,20 +44,32 @@ func resetTest() {
 func TestGetOrCreateClient_Basic(t *testing.T) {
 	resetTest()
 	ctx := context.Background()
-	oldFunc := newDsClient
-	defer func() { newDsClient = oldFunc }()
-
-	newDsClient = func(ctx context.Context, opts ...option.ClientOption) (*datastream.Client, error) {
+	oldFunc := newClient
+	defer func() { newClient = oldFunc }()
+	newClient = func(ctx context.Context, opts ...option.ClientOption) (*datastream.Client, error) {
 		return &datastream.Client{}, nil
 	}
+	c, err := GetOrCreateClient(ctx)
+	assert.NotNil(t, c)
+	assert.Nil(t, err)
+}
 
+func TestGetOrCreateClient_OnlyOnceViaSync(t *testing.T) {
+	resetTest()
+	ctx := context.Background()
+	oldFunc := newClient
+	defer func() { newClient = oldFunc }()
+
+	newClient = func(ctx context.Context, opts ...option.ClientOption) (*datastream.Client, error) {
+		return &datastream.Client{}, nil
+	}
 	c, err := GetOrCreateClient(ctx)
 	assert.NotNil(t, c)
 	assert.Nil(t, err)
 	// Explicitly set the client to nil. Running GetOrCreateClient should not create a
 	// new client since sync would already be executed.
 	dsClient = nil
-	newDsClient = func(ctx context.Context, opts ...option.ClientOption) (*datastream.Client, error) {
+	newClient = func(ctx context.Context, opts ...option.ClientOption) (*datastream.Client, error) {
 		return nil, fmt.Errorf("test error")
 	}
 	c, err = GetOrCreateClient(ctx)
@@ -67,14 +77,13 @@ func TestGetOrCreateClient_Basic(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-
 func TestGetOrCreateClient_OnlyOnceViaIf(t *testing.T) {
 	resetTest()
 	ctx := context.Background()
-	oldFunc := newDsClient
-	defer func() { newDsClient = oldFunc }()
+	oldFunc := newClient
+	defer func() { newClient = oldFunc }()
 
-	newDsClient = func(ctx context.Context, opts ...option.ClientOption) (*datastream.Client, error) {
+	newClient = func(ctx context.Context, opts ...option.ClientOption) (*datastream.Client, error) {
 		return &datastream.Client{}, nil
 	}
 	oldC, err := GetOrCreateClient(ctx)
@@ -84,7 +93,7 @@ func TestGetOrCreateClient_OnlyOnceViaIf(t *testing.T) {
 	// Explicitly reset once. Running GetOrCreateClient should not create a
 	// new client the if condition should prevent it.
 	once = sync.Once{}
-	newDsClient = func(ctx context.Context, opts ...option.ClientOption) (*datastream.Client, error) {
+	newClient = func(ctx context.Context, opts ...option.ClientOption) (*datastream.Client, error) {
 		return nil, fmt.Errorf("test error")
 	}
 	newC, err := GetOrCreateClient(ctx)
@@ -95,10 +104,10 @@ func TestGetOrCreateClient_OnlyOnceViaIf(t *testing.T) {
 func TestGetOrCreateClient_Error(t *testing.T) {
 	resetTest()
 	ctx := context.Background()
-	oldFunc := newDsClient
-	defer func() { newDsClient = oldFunc }()
+	oldFunc := newClient
+	defer func() { newClient = oldFunc }()
 
-	newDsClient = func(ctx context.Context, opts ...option.ClientOption) (*datastream.Client, error) {
+	newClient = func(ctx context.Context, opts ...option.ClientOption) (*datastream.Client, error) {
 		return nil, fmt.Errorf("test error")
 	}
 	c, err := GetOrCreateClient(ctx)

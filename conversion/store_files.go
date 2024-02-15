@@ -127,7 +127,8 @@ func WriteConvGeneratedFiles(conv *internal.Conv, dbName string, driver string, 
 	schemaFileName := dirPath + dbName + "_schema.txt"
 	WriteSchemaFile(conv, now, schemaFileName, out, driver)
 	reportFileName := dirPath + dbName
-	Report(driver, nil, BytesRead, "", conv, reportFileName, dbName, out)
+	reportImpl := ReportImpl{}
+	reportImpl.GenerateReport(driver, nil, BytesRead, "", conv, reportFileName, dbName, out)
 	sessionFileName := dirPath + dbName + ".session.json"
 	WriteSessionFile(conv, sessionFileName, out)
 	return dirPath, nil

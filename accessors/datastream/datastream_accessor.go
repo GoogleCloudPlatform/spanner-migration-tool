@@ -28,17 +28,17 @@ import (
 
 // The DatastreamAccessor provides methods that internally use the datstreamclient. Methods should only contain generic logic here that can be used by multiple workflows.
 type DatastreamAccessor interface {
-	FetchTargetBucketAndPath(ctx context.Context, datastreamClient datastream.DatastreamClient, projectID string, datastreamDestinationConnCfg streaming.DstConnCfg) (string, string, error)
-	DeleteConnectionProfile(ctx context.Context, datastreamClient datastream.DatastreamClient, id string, projectId string, region string) error
-	GetConnProfilesRegion(ctx context.Context, datastreamClient datastream.DatastreamClient, projectId string, region string) ([]string, error)
-	CreateConnectionProfile(ctx context.Context, datastreamClient datastream.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error)
-	ConnectionProfileExists(ctx context.Context, datastreamClient datastream.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error)
+	FetchTargetBucketAndPath(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectID string, datastreamDestinationConnCfg streaming.DstConnCfg) (string, string, error)
+	DeleteConnectionProfile(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error
+	GetConnProfilesRegion(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, region string) ([]string, error)
+	CreateConnectionProfile(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error)
+	ConnectionProfileExists(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error)
 }
 type DatastreamAccessorImpl struct {}
 
 
 // FetchTargetBucketAndPath fetches the bucket and path name from a Datastream destination config.
-func (da *DatastreamAccessorImpl) FetchTargetBucketAndPath(ctx context.Context, datastreamClient datastream.DatastreamClient, projectID string, datastreamDestinationConnCfg streaming.DstConnCfg) (string, string, error) {
+func (da *DatastreamAccessorImpl) FetchTargetBucketAndPath(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectID string, datastreamDestinationConnCfg streaming.DstConnCfg) (string, string, error) {
 	if datastreamClient == nil {
 		return "", "", fmt.Errorf("datastream client could not be created")
 	}
@@ -58,7 +58,7 @@ func (da *DatastreamAccessorImpl) FetchTargetBucketAndPath(ctx context.Context, 
 	return bucketName, prefix, nil
 }
 
-func (da *DatastreamAccessorImpl) DeleteConnectionProfile(ctx context.Context, datastreamClient datastream.DatastreamClient, id string, projectId string, region string) error {
+func (da *DatastreamAccessorImpl) DeleteConnectionProfile(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error {
 	op, err :=datastreamClient.DeleteConnectionProfile(ctx,  &datastreampb.DeleteConnectionProfileRequest{
 		Name: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectId, region, id),
 	})
@@ -73,7 +73,7 @@ func (da *DatastreamAccessorImpl) DeleteConnectionProfile(ctx context.Context, d
 	return nil
 }
 
-func (da *DatastreamAccessorImpl) CreateConnectionProfile(ctx context.Context, datastreamClient datastream.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error) {
+func (da *DatastreamAccessorImpl) CreateConnectionProfile(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error) {
 	op, err :=datastreamClient.CreateConnectionProfile(ctx, req)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (da *DatastreamAccessorImpl) CreateConnectionProfile(ctx context.Context, d
 	return op.Wait(ctx)
 }
 
-func (da *DatastreamAccessorImpl) GetConnProfilesRegion(ctx context.Context, datastreamClient datastream.DatastreamClient, projectId string, region string) ([]string, error) {
+func (da *DatastreamAccessorImpl) GetConnProfilesRegion(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, region string) ([]string, error) {
 	profilesIt := datastreamClient.ListConnectionProfiles(ctx, &datastreampb.ListConnectionProfilesRequest{Parent: "projects/" + projectId + "/locations/" + region})
 	var profiles []string = []string{}
 	for {
@@ -99,7 +99,7 @@ func (da *DatastreamAccessorImpl) GetConnProfilesRegion(ctx context.Context, dat
 }
 
 // returns true if connection profile exists else false
-func (da *DatastreamAccessorImpl) ConnectionProfileExists(ctx context.Context, datastreamClient datastream.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error) {
+func (da *DatastreamAccessorImpl) ConnectionProfileExists(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error) {
 	// Check if connection profiles for the given region are fetched. if not, fetch them
 	profiles, ok := connectionProfiles[profileLocation]
 	var err error = nil

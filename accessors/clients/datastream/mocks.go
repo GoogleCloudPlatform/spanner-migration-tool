@@ -11,55 +11,36 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package datastream
+package datastreamclient
 
 import (
 	"context"
 
-	datastream "cloud.google.com/go/datastream/apiv1"
-	"cloud.google.com/go/datastream/apiv1/datastreampb"
+	datastreampb "cloud.google.com/go/datastream/apiv1/datastreampb"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/operation"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/stretchr/testify/mock"
 )
 
-// Mock that implements the DataflowClient interface.
-// Pass in unit tests where DataflowClient is an input parameter.
+// Mock that implements the DatastreamClient interface.
+// Pass in unit tests where DatastreamClient is an input parameter.
 type DatastreamClientMock struct {
-	GetConnectionProfileMock func (ctx context.Context, connectionName string)  (*datastreampb.ConnectionProfile, error)
-	ListConnectionProfilesMock func (ctx context.Context, listRequest *datastreampb.ListConnectionProfilesRequest, opts ...gax.CallOption) *datastream.ConnectionProfileIterator
-	DeleteConnectionProfileMock func (ctx context.Context, deleteRequest *datastreampb.DeleteConnectionProfileRequest) (DeleteConnectionProfileOperation, error)
-	CreateConnectionProfileMock func(ctx context.Context, createRequest *datastreampb.CreateConnectionProfileRequest) (CreateConnectionProfileOperation, error)
+	mock.Mock
 }
 
-func (dsm *DatastreamClientMock) GetConnectionProfile(ctx context.Context, connectionName string)  (*datastreampb.ConnectionProfile, error) {
-	return dsm.GetConnectionProfileMock(ctx, connectionName)
+func (m *DatastreamClientMock) CreateStream(ctx context.Context, req *datastreampb.CreateStreamRequest, opts ...gax.CallOption) (*operation.OperationWrapper[datastreampb.Stream], error) {
+	args := m.Called(ctx, req, opts)
+	// Avoid panic for typeassertion due to null pointer.
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*operation.OperationWrapper[datastreampb.Stream]), args.Error(1)
 }
-
-func (dsm *DatastreamClientMock) ListConnectionProfiles(ctx context.Context, listRequest *datastreampb.ListConnectionProfilesRequest, opts ...gax.CallOption) *datastream.ConnectionProfileIterator {
-	return dsm.ListConnectionProfilesMock(ctx, listRequest, opts...)
+func (m *DatastreamClientMock) UpdateStream(ctx context.Context, req *datastreampb.UpdateStreamRequest, opts ...gax.CallOption) (*operation.OperationWrapper[datastreampb.Stream], error) {
+	args := m.Called(ctx, req, opts)
+	// Avoid panic for typeassertion due to null pointer.
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*operation.OperationWrapper[datastreampb.Stream]), args.Error(1)
 }
-
-func (dsm *DatastreamClientMock) DeleteConnectionProfile(ctx context.Context, deleteRequest *datastreampb.DeleteConnectionProfileRequest) (DeleteConnectionProfileOperation, error) {
-	return dsm.DeleteConnectionProfileMock(ctx, deleteRequest)
-}
-
-type DeleteConnectionProfileOperationMock struct{
-	WaitMock func(ctx context.Context) error
-}
-
-func (dso *DeleteConnectionProfileOperationMock) Wait(ctx context.Context) error {
-	return dso.WaitMock(ctx)
-}
-
-func (dsm *DatastreamClientMock) CreateConnectionProfile(ctx context.Context, createRequest *datastreampb.CreateConnectionProfileRequest) (CreateConnectionProfileOperation, error) {
-	return dsm.CreateConnectionProfileMock(ctx, createRequest)
-}
-
-type CreateConnectionProfileOperationMock struct{
-	WaitMock func(ctx context.Context) (*datastreampb.ConnectionProfile, error)
-}
-
-func (dso *CreateConnectionProfileOperationMock) Wait(ctx context.Context) (*datastreampb.ConnectionProfile, error) {
-	return dso.WaitMock(ctx)
-}
-
-

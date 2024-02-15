@@ -11,8 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-package datastream
+package datastreamclient
 
 import (
 	"context"
@@ -27,16 +26,16 @@ var dsClient *datastream.Client
 
 // This function is declared as a global variable to make it testable. The unit
 // tests update this function, acting like a double.
-var newDsClient = datastream.NewClient
+var newClient = datastream.NewClient
 
 func GetOrCreateClient(ctx context.Context) (*datastream.Client, error) {
 	var err error
 	if dsClient == nil {
 		once.Do(func() {
-			dsClient, err = newDsClient(ctx)
+			dsClient, err = newClient(ctx)
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create dataflow client: %v", err)
+			return nil, fmt.Errorf("failed to create datastream client: %v", err)
 		}
 		return dsClient, nil
 	}
