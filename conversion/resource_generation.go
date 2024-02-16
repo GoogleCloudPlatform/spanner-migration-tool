@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,8 +49,8 @@ var (
 )
 
 type ResourceGenerationInterface interface {
-	connectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error
-	getResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error)
+	ConnectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error
+	GetResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error)
 	PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq]
 }
 
@@ -61,11 +61,11 @@ type ResourceGenerationImpl struct {
 	StorageClient     storageclient.StorageClient
 }
 
-type CreateResourcesInterface interface {
-	CreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error
+type ValidateOrCreateResourcesInterface interface {
+	ValidateOrCreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error
 }
 
-type CreateResourcesImpl struct{
+type ValidateOrCreateResourcesImpl struct{
 	ResourceGenerator ResourceGenerationInterface
 	RunParallel       common.RunParallelTasksInterface[*ConnectionProfileReq, *ConnectionProfileReq]
 }
@@ -77,19 +77,19 @@ type ValidateResourcesInterface interface {
 type ValidateResourcesImpl struct{
 	SpAcc                spanneraccessor.SpannerAccessor
 	SpInstanceAdmin      spinstanceadmin.InstanceAdminClient
-	CreateResources      CreateResourcesInterface
+	ValidateOrCreateResources      ValidateOrCreateResourcesInterface
 }
 
 func NewValidateResourcesImpl(spAcc spanneraccessor.SpannerAccessor, spInstanceAdmin spinstanceadmin.InstanceAdminClient, dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ValidateResourcesImpl {
     return &ValidateResourcesImpl{
 		SpAcc: spAcc,
 		SpInstanceAdmin: spInstanceAdmin,
-		CreateResources: NewCreateResourcesImpl(dsAcc, dsClient, storageAcc, storageClient),
+		ValidateOrCreateResources: NewValidateOrCreateResourcesImpl(dsAcc, dsClient, storageAcc, storageClient),
 	}
 }
 
-func NewCreateResourcesImpl(dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *CreateResourcesImpl{
-	return &CreateResourcesImpl{
+func NewValidateOrCreateResourcesImpl(dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ValidateOrCreateResourcesImpl{
+	return &ValidateOrCreateResourcesImpl{
 		ResourceGenerator: NewResourceGenerationImpl(dsAcc, dsClient, storageAcc, storageClient),
 		RunParallel: &common.RunParallelTasksImpl[*ConnectionProfileReq, *ConnectionProfileReq]{},
 	}
@@ -104,15 +104,6 @@ func NewResourceGenerationImpl(dsAcc datastream_accessor.DatastreamAccessor, dsC
 		}
 }
 
-
-func multiError(errorMessages []error) error {
-	var errorStrings []string
-	for _, err := range errorMessages {
-		errorStrings = append(errorStrings, err.Error())
-	}
-	return errors.New(strings.Join(errorStrings, "\n "))
-}
-
 // Method to validate if in a minimal downtime migration, required resources can be generated
 func (v *ValidateResourcesImpl) ValidateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
 	spannerRegion, err := v.SpAcc.GetSpannerLeaderLocation(ctx, v.SpInstanceAdmin, "projects/" + projectId + "/instances/" + instanceId)
@@ -121,7 +112,7 @@ func (v *ValidateResourcesImpl) ValidateResourceGeneration(ctx context.Context, 
 		return err
 	}
 	conv.SpRegion = spannerRegion
-	err = v.CreateResources.CreateResourcesForShardedMigration(ctx, projectId, instanceId, true, spannerRegion, sourceProfile)
+	err = v.ValidateOrCreateResources.ValidateOrCreateResourcesForShardedMigration(ctx, projectId, instanceId, true, spannerRegion, sourceProfile)
 	if err != nil {
 		err = fmt.Errorf("unable to create connection profiles: %v", err)
 		return err
@@ -180,6 +171,199 @@ func (r ResourceGenerationImpl) PrepareMinimalDowntimeResources(createResourceDa
 	return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: nil}
 }
 
+// If any of the resource creation fails, deletes all resources that were created
+func (r ResourceGenerationImpl) ConnectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error {
+	for _, profile := range profiles {
+		err := r.DsAcc.DeleteConnectionProfile(ctx, r.DsClient, profile.ConnectionProfile.ProjectId, profile.ConnectionProfile.Region, profile.ConnectionProfile.Id)
+		if err != nil {
+			return err
+		}
+
+		if profile.ConnectionProfile.BucketName != "" {
+			err := r.StorageAcc.DeleteGCSBucket(ctx, r.StorageClient, storageaccessor.StorageBucketMetadata{BucketName:profile.ConnectionProfile.BucketName})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// Returns source and destination connection profiles to be created
+func (r ResourceGenerationImpl) GetResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error) {
+	var sourceProfilesToCreate []*ConnectionProfileReq
+	var dstProfilesToCreate []*ConnectionProfileReq
+
+	// Map for each region with list of all connection profiles
+	var connectionProfiles map[string][]string = make(map[string][]string)
+	var err error = nil
+
+	for _, profile := range sourceProfile.Config.ShardConfigurationDataflow.DataShards {
+		// Check if source profile needs to be created
+		sourceProfile, err := getSourceConnectionProfileForCreation(ctx, projectId, profile, region, validateOnly, connectionProfiles, r.DsAcc, r.DsClient)
+		if err != nil {
+			return sourceProfilesToCreate, dstProfilesToCreate, err
+		}
+		if sourceProfile!= nil {
+			sourceProfilesToCreate = append(sourceProfilesToCreate, sourceProfile)
+		}
+
+		// Check if destination profile needs to be created
+		dstProfile, err := getDstConnectionProfileForCreation(ctx, projectId, profile, region, validateOnly, connectionProfiles, r.DsAcc, r.DsClient)
+		if err != nil {
+			return sourceProfilesToCreate, dstProfilesToCreate, err
+		}
+		if dstProfile!= nil {
+			dstProfilesToCreate = append(dstProfilesToCreate, dstProfile)
+		}
+	}
+	return sourceProfilesToCreate, dstProfilesToCreate, err
+}
+
+// 1. For each datashard, check if source and destination connection profile exists or not
+// 2. If source connection profile doesn't exists create it or validate if creation is possible.
+// 3. If validation is false and destination connection profile doesn't exists create a corresponding gcs bucket and then a destination connection profile
+func (c *ValidateOrCreateResourcesImpl) ValidateOrCreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error {
+	var sourceProfilesToCreate []*ConnectionProfileReq
+	var dstProfilesToCreate []*ConnectionProfileReq
+
+	// Fetches list with resources which do not exist and need to be created
+	sourceProfilesToCreate, dstProfilesToCreate, err := c.ResourceGenerator.GetResourcesForCreation(ctx, projectId, sourceProfile, region, validateOnly)
+	if err != nil {
+		return fmt.Errorf("resource generation failed %s", err)
+	}
+
+	// If validating resource creation, validate for all connection profiles. If creating, return error for the first resource creation that fails.
+	fastExit := false
+	if !validateOnly {
+		fastExit = true
+	}
+
+	var errorsList []error = []error{}
+
+	// Create or validate source connection profiles in parallel threads
+	resSourceProfiles, resCreationErr := c.RunParallel.RunParallelTasks(sourceProfilesToCreate, 20, c.ResourceGenerator.PrepareMinimalDowntimeResources, fastExit)
+	// If creation failed, perform cleanup of resources
+	if resCreationErr != nil && !validateOnly {
+		err = c.ResourceGenerator.ConnectionProfileCleanUp(ctx, resourcesForCleanup)
+		if err != nil {
+			return fmt.Errorf("resource generation failed due to %s, resources created could not be cleaned up, please cleanup manually: %s", resCreationErr.Error(), err.Error())
+		} else {
+			return resCreationErr
+		}
+	} else if resCreationErr != nil {
+		return resCreationErr
+	}
+	for _, resource := range resSourceProfiles {
+		if resource.Result.Error != nil && validateOnly {
+			// If validation failed, append to list of errors
+			errorsList = append(errorsList, resource.Result.Error)
+		}
+	}
+
+	// Create destination connection profiles in parallel threads
+	if !validateOnly {
+		_, resCreationErr := c.RunParallel.RunParallelTasks(dstProfilesToCreate, 20, c.ResourceGenerator.PrepareMinimalDowntimeResources, fastExit)
+		if resCreationErr != nil {
+			err = c.ResourceGenerator.ConnectionProfileCleanUp(ctx, resourcesForCleanup)
+			if err != nil {
+				return fmt.Errorf("resource generation failed due to %s, resources created could not be cleaned up, please cleanup manually: %s", resCreationErr.Error(), err.Error())
+			} else {
+				return resCreationErr
+			}
+		}
+	}
+
+	// If the errors occurred during validation of resource creation, return all errors
+	if len(errorsList) != 0 {
+		return multiError(errorsList)
+	}
+	// cleanup resources for cleanup if migration is successful
+	resourcesForCleanup = nil
+	return nil
+}
+
+// checks if source connection profile exists, if not, returns a request reuired to create it
+func getSourceConnectionProfileForCreation(ctx context.Context, projectId string, profile *profiles.DataShard, region string, validateOnly bool, connectionProfiles map[string][]string, dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient) (*ConnectionProfileReq, error) {
+	sourceProfileExists := false
+	if profile.SrcConnectionProfile.Name != "" {
+		// If location is not provided set it to spanner region
+		if profile.SrcConnectionProfile.Location == "" {
+			profile.SrcConnectionProfile.Location = region
+		}
+		var err error
+		// Check if source connection profile exists
+		sourceProfileExists, err = dsAcc.ConnectionProfileExists(ctx, dsClient, projectId, profile.SrcConnectionProfile.Name, profile.SrcConnectionProfile.Location, connectionProfiles)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if !sourceProfileExists {
+		id := profile.SrcConnectionProfile.Name
+		if id == "" {
+			id = "hb-cnp-" + uuid.New().String()
+			profile.SrcConnectionProfile.Name = id
+		}
+		if profile.SrcConnectionProfile.Location == "" {
+			profile.SrcConnectionProfile.Location = region
+		}
+		req:= &ConnectionProfileReq{
+			ConnectionProfile: ConnectionProfile{
+				ProjectId:    projectId,
+				DatashardId:  profile.DataShardId,
+				Id:           profile.SrcConnectionProfile.Name,
+				IsSource:     true,
+				Host:         profile.SrcConnectionProfile.Host,
+				Port:         profile.SrcConnectionProfile.Port,
+				Password:     profile.SrcConnectionProfile.Password,
+				User:         profile.SrcConnectionProfile.User,
+				Region:       profile.SrcConnectionProfile.Location,
+				ValidateOnly: validateOnly},
+			Ctx: ctx,
+		}
+		return req, nil
+	}
+	return nil, nil
+}
+
+// checks if target connection profile exists, if not, returns a request reuired to create it
+func getDstConnectionProfileForCreation(ctx context.Context, projectId string, profile *profiles.DataShard, region string, validateOnly bool, connectionProfiles map[string][]string, dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient) (*ConnectionProfileReq, error) {
+	dstProfileExists := false
+	var err error
+	// Destination connection profiles do not need to be validated as for their creation gcs bucket will also be created
+	if profile.DstConnectionProfile.Name != "" && !validateOnly {
+		// Check if destination connection profile exists
+		dstProfileExists, err = dsAcc.ConnectionProfileExists(ctx, dsClient, projectId, profile.DstConnectionProfile.Name, profile.DstConnectionProfile.Location, connectionProfiles)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if !dstProfileExists && !validateOnly {
+		id := profile.DstConnectionProfile.Name
+		if id == "" {
+			id = "hb-cnp-" + uuid.New().String()
+			profile.DstConnectionProfile.Name = id
+		}
+		if profile.DstConnectionProfile.Location == "" {
+			profile.DstConnectionProfile.Location = region
+		}
+		req := &ConnectionProfileReq{
+			ConnectionProfile: ConnectionProfile{
+				ProjectId:    projectId,
+				DatashardId:  profile.DataShardId,
+				Id:           id,
+				IsSource:     false,
+				Region:       profile.DstConnectionProfile.Location,
+				ValidateOnly: false},
+			Ctx: ctx,
+		}
+		return req, nil
+	}
+	return nil, nil
+}
+
 // Sets Profile for resource creation
 func setConnectionProfileFromRequest(details *ConnectionProfileReq, req *datastreampb.CreateConnectionProfileRequest) error {
 	if details.ConnectionProfile.IsSource {
@@ -206,160 +390,12 @@ func setConnectionProfileFromRequest(details *ConnectionProfileReq, req *datastr
 	}
 	return nil
 }
-// If any of the resource creation fails, deletes all resources that were created
-func (r ResourceGenerationImpl) connectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error {
-	for _, profile := range profiles {
-		err := r.DsAcc.DeleteConnectionProfile(ctx, r.DsClient, profile.ConnectionProfile.ProjectId, profile.ConnectionProfile.Region, profile.ConnectionProfile.Id)
-		if err != nil {
-			return err
-		}
 
-		if profile.ConnectionProfile.BucketName != "" {
-			r.StorageAcc.DeleteGCSBucket(ctx, r.StorageClient, storageaccessor.StorageBucketMetadata{BucketName:profile.ConnectionProfile.BucketName})
-		}
+// Clubs multiple errors into one error
+func multiError(errorMessages []error) error {
+	var errorStrings []string
+	for _, err := range errorMessages {
+		errorStrings = append(errorStrings, err.Error())
 	}
-	return nil
-}
-
-// Returns source and destination connection profiles to be created
-func (r ResourceGenerationImpl) getResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error) {
-	var sourceProfilesToCreate []*ConnectionProfileReq
-	var dstProfilesToCreate []*ConnectionProfileReq
-
-	// Map for each region with list of all connection profiles
-	var connectionProfiles map[string][]string = make(map[string][]string)
-	var err error = nil
-
-	for _, profile := range sourceProfile.Config.ShardConfigurationDataflow.DataShards {
-		sourceProfileExists := false
-		dstProfileExists := false
-		if profile.SrcConnectionProfile.Name != "" {
-			// If location is not provided set it to spanner region
-			if profile.SrcConnectionProfile.Location == "" {
-				profile.SrcConnectionProfile.Location = region
-			}
-			// Check if source connection profile exists
-			sourceProfileExists, err = r.DsAcc.ConnectionProfileExists(ctx, r.DsClient, projectId, profile.SrcConnectionProfile.Name, profile.SrcConnectionProfile.Location, connectionProfiles)
-			if err != nil {
-				return sourceProfilesToCreate, dstProfilesToCreate, err
-			}
-		}
-
-		// Destination connection profiles do not need to be validated as for their creation gcs bucket will also be created
-		if profile.DstConnectionProfile.Name != "" && !validateOnly {
-			// Check if destination connection profile exists
-			dstProfileExists, err = r.DsAcc.ConnectionProfileExists(ctx, r.DsClient, projectId, profile.DstConnectionProfile.Name, profile.DstConnectionProfile.Location, connectionProfiles)
-			if err != nil {
-				return sourceProfilesToCreate, dstProfilesToCreate, err
-			}
-		}
-		if !sourceProfileExists {
-			id := profile.SrcConnectionProfile.Name
-			if id == "" {
-				id = "CN-" + uuid.New().String()
-				profile.SrcConnectionProfile.Name = id
-			}
-			if profile.SrcConnectionProfile.Location == "" {
-				profile.SrcConnectionProfile.Location = region
-			}
-			sourceProfilesToCreate = append(sourceProfilesToCreate, &ConnectionProfileReq{
-				ConnectionProfile: ConnectionProfile{
-					ProjectId:    projectId,
-					DatashardId:  profile.DataShardId,
-					Id:           profile.SrcConnectionProfile.Name,
-					IsSource:     true,
-					Host:         profile.SrcConnectionProfile.Host,
-					Port:         profile.SrcConnectionProfile.Port,
-					Password:     profile.SrcConnectionProfile.Password,
-					User:         profile.SrcConnectionProfile.User,
-					Region:       profile.SrcConnectionProfile.Location,
-					ValidateOnly: validateOnly},
-				Ctx: ctx,
-			})
-		}
-		if !dstProfileExists && !validateOnly {
-			id := profile.DstConnectionProfile.Name
-			if id == "" {
-				id = "CN-" + uuid.New().String()
-				profile.DstConnectionProfile.Name = id
-			}
-			if profile.DstConnectionProfile.Location == "" {
-				profile.DstConnectionProfile.Location = region
-			}
-			dstProfilesToCreate = append(dstProfilesToCreate, &ConnectionProfileReq{
-				ConnectionProfile: ConnectionProfile{
-					ProjectId:    projectId,
-					DatashardId:  profile.DataShardId,
-					Id:           id,
-					IsSource:     false,
-					Region:       profile.DstConnectionProfile.Location,
-					ValidateOnly: false},
-				Ctx: ctx,
-			})
-		}
-	}
-	return sourceProfilesToCreate, dstProfilesToCreate, err
-}
-
-// 1. For each datashard, check if source and destination connection profile exists or not
-// 2. If source connection profile doesn't exists create it or validate if creation is possible.
-// 3. If validation is false and destination connection profile doesn't exists create a corresponding gcs bucket and then a destination connection profile
-func (c *CreateResourcesImpl) CreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error {
-	var sourceProfilesToCreate []*ConnectionProfileReq
-	var dstProfilesToCreate []*ConnectionProfileReq
-
-	// Fetches list with resources which do not exist and need to be created
-	sourceProfilesToCreate, dstProfilesToCreate, err := c.ResourceGenerator.getResourcesForCreation(ctx, projectId, sourceProfile, region, validateOnly)
-	if err != nil {
-		return fmt.Errorf("resource generation failed %s", err)
-	}
-
-	// If validating resource creation, validate for all connection profiles. If creating, return error for the first resource creation that fails.
-	fastExit := false
-	if !validateOnly {
-		fastExit = true
-	}
-
-	var errorsList []error = []error{}
-
-	// Create or validate source connection profiles in parallel threads
-	resSourceProfiles, resCreationErr := c.RunParallel.RunParallelTasks(sourceProfilesToCreate, 20, c.ResourceGenerator.PrepareMinimalDowntimeResources, fastExit)
-	// If creation failed, perform cleanup of resources
-	if resCreationErr != nil && !validateOnly {
-		err = c.ResourceGenerator.connectionProfileCleanUp(ctx, resourcesForCleanup)
-		if err != nil {
-			return fmt.Errorf("resource generation failed due to %s, resources created could not be cleaned up, please cleanup manually: %s", resCreationErr.Error(), err.Error())
-		} else {
-			return resCreationErr
-		}
-	} else if resCreationErr != nil {
-		return resCreationErr
-	}
-	for _, resource := range resSourceProfiles {
-		if resource.Result.Error != nil && validateOnly {
-			// If validation failed, append to list of errors
-			errorsList = append(errorsList, resource.Result.Error)
-		}
-	}
-
-	// Create destination connection profiles in parallel threads
-	if !validateOnly {
-		_, resCreationErr := c.RunParallel.RunParallelTasks(dstProfilesToCreate, 20, c.ResourceGenerator.PrepareMinimalDowntimeResources, fastExit)
-		if resCreationErr != nil {
-			err = c.ResourceGenerator.connectionProfileCleanUp(ctx, resourcesForCleanup)
-			if err != nil {
-				return fmt.Errorf("resource generation failed due to %s, resources created could not be cleaned up, please cleanup manually: %s", resCreationErr.Error(), err.Error())
-			} else {
-				return resCreationErr
-			}
-		}
-	}
-
-	// If the errors occurred during validation of resource creation, return all errors
-	if len(errorsList) != 0 {
-		return multiError(errorsList)
-	}
-	// cleanup resources for cleanup if migration is successful
-	resourcesForCleanup = nil
-	return nil
+	return errors.New(strings.Join(errorStrings, "\n "))
 }

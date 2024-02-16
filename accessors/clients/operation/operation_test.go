@@ -41,3 +41,20 @@ func TestWait(t *testing.T) {
 	assert.Equal(t, *v, testVal, "operationWrapper.Wait must return correct value")
 	assert.Equal(t, e, testError, "operationWrapper.Wait must return correct error")
 }
+
+type NilOperationValue struct {
+	e   error
+}
+
+func (i NilOperationValue) Wait(ctx context.Context, opts ...gax.CallOption) (error) {
+	return i.e
+}
+
+func TestWaitNilOp(t *testing.T) {
+	ctx := context.Background()
+	testError := errors.New("testError")
+	i := NilOperationValue{testError}
+	o := NewNilOperationWrapper(i)
+	e := o.Wait(ctx)
+	assert.Equal(t, e, testError, "operationWrapper.Wait must return correct error")
+}

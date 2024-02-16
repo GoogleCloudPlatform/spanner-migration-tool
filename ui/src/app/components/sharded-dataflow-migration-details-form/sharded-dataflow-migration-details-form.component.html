@@ -39,7 +39,20 @@
                 error
             </mat-icon>
         </div>
-        <br>
+        <div class="textInput" *ngIf="(migrationProfileForm.value.inputType === 'text')">
+            <div><b>Copy the public IPs below, and use them to configure the network firewall to accept
+                connections
+                from them.</b><a
+                href="https://cloud.google.com/datastream/docs/network-connectivity-options#ipallowlists" target="_blank">Learn
+                More</a></div>
+            <br>
+            <li *ngFor="let ip of ipList" class="connection-form-container">
+                <span class="left-text">{{ip}}</span>
+                <span>
+                    <mat-icon class="icon copy" [cdkCopyToClipboard]="ip" matTooltip="Copy">file_copy</mat-icon>
+                </span>
+            </li>
+        </div>  
         <div *ngIf="verifyingJson">
             <br>
             <span class="spinner">

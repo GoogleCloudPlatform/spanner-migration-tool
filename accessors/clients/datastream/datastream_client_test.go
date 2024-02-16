@@ -13,6 +13,9 @@
 // limitations under the License.
 package datastreamclient
 
+// TODO: Currently this test is intrusive and not using any accessors to mutate the code under test.
+//       Freeze on the right pattern and fork this into the test package.
+
 import (
 	"context"
 	"fmt"

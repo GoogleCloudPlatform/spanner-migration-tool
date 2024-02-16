@@ -83,11 +83,11 @@ func (msads *MockDataFromSource) dataFromCSV(ctx context.Context, sourceProfile 
 	return args.Get(0).(*writer.BatchWriter), args.Error(1)
 }
 
-type MockCreateResources struct{
+type MockValidateOrCreateResources struct{
 	mock.Mock
 }
 
-func (mcr *MockCreateResources) CreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error {
+func (mcr *MockValidateOrCreateResources) ValidateOrCreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error {
 	args:= mcr.Called(ctx, projectId, instanceName, validateOnly, region, sourceProfile)
 	return args.Error(0)
 }
@@ -96,11 +96,11 @@ type MockResourceGeneration struct {
 	mock.Mock
 }
 
-func (mrg *MockResourceGeneration) connectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error {
+func (mrg *MockResourceGeneration) ConnectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error {
 	args := mrg.Called(ctx, profiles)
 	return args.Error(0)
 }
-func (mrg *MockResourceGeneration) getResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error) {
+func (mrg *MockResourceGeneration) GetResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error) {
 	args := mrg.Called(ctx, projectId, sourceProfile, region, validateOnly)
 	return args.Get(0).([]*ConnectionProfileReq), args.Get(1).([]*ConnectionProfileReq), args.Error(2)
 }

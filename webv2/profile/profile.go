@@ -145,7 +145,17 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("this database type is not currently implemented for sharded migrations: %v", err), http.StatusBadRequest)
 			return
 		}
-		resGenerator := conversion.NewResourceGenerationImpl(&datastream_accessor.DatastreamAccessorImpl{}, &ds.DatastreamClientImpl{}, &storageaccessor.StorageAccessorImpl{}, &storageclient.StorageClientImpl{})
+		dsClient, err := ds.NewDatastreamClientImpl(ctx)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+			return
+		}
+		storageclient, err := storageclient.NewStorageClientImpl(ctx)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+			return
+		}
+		resGenerator := conversion.NewResourceGenerationImpl(&datastream_accessor.DatastreamAccessorImpl{}, dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
 		req := conversion.ConnectionProfileReq{
 			ConnectionProfile: conversion.ConnectionProfile{
 				ProjectId: sessionState.GCPProjectID,
@@ -260,7 +270,6 @@ func VerifyJsonConfiguration(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 func setConnectionProfileFromSessionState(isSource bool, sessionState session.SessionState, req *datastreampb.CreateConnectionProfileRequest, databaseType string) {
 	if isSource {

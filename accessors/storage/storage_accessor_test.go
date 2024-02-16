@@ -393,3 +393,46 @@ func TestStorageAccessorImpl_ReadGcsFile(t *testing.T) {
 		assert.Equal(t, tc.want, got, tc.name)
 	}
 }
+
+func TestStorageAccessorImpl_DeleteGCSBucket(t *testing.T) {
+	testCases := []struct {
+		name        string
+		scm         storageclient.StorageClientMock
+		expectError bool
+	}{
+		{
+			name: "Basic",
+			scm: storageclient.StorageClientMock{
+				BucketMock: func(name string) storageclient.BucketHandle {
+					return &storageclient.BucketHandleMock{
+						DeleteMock: func(ctx context.Context) error {
+							return nil
+						},
+					}
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Error",
+			scm: storageclient.StorageClientMock{
+				BucketMock: func(name string) storageclient.BucketHandle {
+					return &storageclient.BucketHandleMock{
+						DeleteMock: func(ctx context.Context) error {
+							return fmt.Errorf("error")
+						},
+					}
+				},
+			},
+			expectError: true,
+		},
+	}
+	ctx := context.Background()
+	sa := StorageAccessorImpl{}
+	for _, tc := range testCases {
+		err := sa.DeleteGCSBucket(ctx, &tc.scm, StorageBucketMetadata{
+			BucketName:    "test-bucket",
+		})
+		assert.Equal(t, tc.expectError, err != nil, tc.name)
+	}
+}

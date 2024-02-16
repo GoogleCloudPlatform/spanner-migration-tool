@@ -58,6 +58,7 @@ func (da *DatastreamAccessorImpl) FetchTargetBucketAndPath(ctx context.Context, 
 	return bucketName, prefix, nil
 }
 
+// Deletes a connection Profile
 func (da *DatastreamAccessorImpl) DeleteConnectionProfile(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error {
 	op, err :=datastreamClient.DeleteConnectionProfile(ctx,  &datastreampb.DeleteConnectionProfileRequest{
 		Name: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectId, region, id),
@@ -73,6 +74,7 @@ func (da *DatastreamAccessorImpl) DeleteConnectionProfile(ctx context.Context, d
 	return nil
 }
 
+// Creates new connection Profile
 func (da *DatastreamAccessorImpl) CreateConnectionProfile(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error) {
 	op, err :=datastreamClient.CreateConnectionProfile(ctx, req)
 	if err != nil {
@@ -80,7 +82,7 @@ func (da *DatastreamAccessorImpl) CreateConnectionProfile(ctx context.Context, d
 	}
 	return op.Wait(ctx)
 }
-
+// Gets all connection profiles in a region
 func (da *DatastreamAccessorImpl) GetConnProfilesRegion(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, region string) ([]string, error) {
 	profilesIt := datastreamClient.ListConnectionProfiles(ctx, &datastreampb.ListConnectionProfilesRequest{Parent: "projects/" + projectId + "/locations/" + region})
 	var profiles []string = []string{}
@@ -98,7 +100,7 @@ func (da *DatastreamAccessorImpl) GetConnProfilesRegion(ctx context.Context, dat
 	return profiles, nil
 }
 
-// returns true if connection profile exists else false
+// returns true if connection profile exists in a provided region else false
 func (da *DatastreamAccessorImpl) ConnectionProfileExists(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error) {
 	// Check if connection profiles for the given region are fetched. if not, fetch them
 	profiles, ok := connectionProfiles[profileLocation]

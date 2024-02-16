@@ -440,8 +440,22 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   verifyTextJson() {
     this.verifyingJson = true;
     let formValue = this.migrationProfileForm.value;
-    let payload: IMigrationProfile = JSON.parse(formValue.textInput)
-    console.log(payload)
+    let payload: IMigrationProfile
+    try {
+      payload = JSON.parse(formValue.textInput);
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        this.errorVerMsg = error.message
+        this.verifyJson = false
+        this.verifyingJson = false;
+        return
+      } else {
+        this.errorVerMsg = `Unexpected error parsing json ${error}`
+        this.verifyJson = false
+        this.verifyingJson = false;
+        return
+      }
+  }
     this.fetch.verifyJsonConfiguration(payload).subscribe({
       next: () => {
         this.verifyJson = true

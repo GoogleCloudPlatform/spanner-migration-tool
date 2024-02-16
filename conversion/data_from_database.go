@@ -69,6 +69,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDMSMigration() (*writer.Batch
 // 4. Launch the stream for the physical shard
 // 5. Perform streaming migration via dataflow
 func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv, is common.InfoSchemaInterface) (*writer.BatchWriter, error) {
+	// Fetch Spanner Region
 	if conv.SpRegion == "" {
 		spInstanceAdmin, err := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
 		if err != nil {
@@ -81,22 +82,25 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 		}
 		conv.SpRegion = spannerRegion
 	}
+
 	storageClient, err := storageclient.NewStorageClientImpl(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	// Create Resources required for migration
 	if conv.ResourceValidation {
 		dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
 		if err != nil {
 			return nil, err
 		}
-		createResources := NewCreateResourcesImpl(&datastream_accessor.DatastreamAccessorImpl{}, dsClient, &storageaccessor.StorageAccessorImpl{}, storageClient)
-		err = createResources.CreateResourcesForShardedMigration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, false, conv.SpRegion, sourceProfile)
+		createResources := NewValidateOrCreateResourcesImpl(&datastream_accessor.DatastreamAccessorImpl{}, dsClient, &storageaccessor.StorageAccessorImpl{}, storageClient)
+		err = createResources.ValidateOrCreateResourcesForShardedMigration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, false, conv.SpRegion, sourceProfile)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create connection profiles: %v", err)
 		}
 	}
+
 	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
 	for _, dataShard := range sourceProfile.Config.ShardConfigurationDataflow.DataShards {
 		if dataShard.TmpDir == "" {
@@ -107,6 +111,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 		dataShard.TmpDir = "gs://" + bucket + rootPath
 	}
 	}
+
 	updateShardsWithTuningConfigs(sourceProfile.Config.ShardConfigurationDataflow)
 	//Generate a job Id
 	migrationJobId := conv.Audit.MigrationRequestId
