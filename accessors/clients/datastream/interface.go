@@ -26,6 +26,10 @@ import (
 type DatastreamClient interface {
 	CreateStream(ctx context.Context, req *datastreampb.CreateStreamRequest, opts ...gax.CallOption) (*operation.OperationWrapper[datastreampb.Stream], error)
 	UpdateStream(ctx context.Context, req *datastreampb.UpdateStreamRequest, opts ...gax.CallOption) (*operation.OperationWrapper[datastreampb.Stream], error)
+	GetConnectionProfile(ctx context.Context, connectionName string)  (*datastreampb.ConnectionProfile, error)
+	ListConnectionProfiles(ctx context.Context, listRequest *datastreampb.ListConnectionProfilesRequest, opts ...gax.CallOption) *datastream.ConnectionProfileIterator
+	DeleteConnectionProfile(ctx context.Context, deleteRequest *datastreampb.DeleteConnectionProfileRequest) (*operation.NilOperationWrapper, error)
+	CreateConnectionProfile(ctx context.Context, createRequest *datastreampb.CreateConnectionProfileRequest) (*operation.OperationWrapper[datastreampb.ConnectionProfile], error)
 }
 
 // This implements the DatastreamClient interface. This is the primary implementation that should be used in all places other than tests.
@@ -59,4 +63,30 @@ func (c *DatastreamClientImpl) UpdateStream(ctx context.Context, req *datastream
 		return &ret, nil
 	}
 
+}
+
+func (c *DatastreamClientImpl) CreateConnectionProfile(ctx context.Context, createRequest *datastreampb.CreateConnectionProfileRequest) (*operation.OperationWrapper[datastreampb.ConnectionProfile], error) {
+	op, err := c.client.CreateConnectionProfile(ctx, createRequest)
+	if err != nil {
+		return nil, err
+	}
+	ret := operation.NewOperationWrapper[datastreampb.ConnectionProfile](op)
+	return &ret, nil
+}
+
+func (c *DatastreamClientImpl) DeleteConnectionProfile(ctx context.Context, deleteRequest *datastreampb.DeleteConnectionProfileRequest) (*operation.NilOperationWrapper, error) {
+	op, err := c.client.DeleteConnectionProfile(ctx, deleteRequest)
+	if err != nil {
+		return nil, err
+	}
+	ret := operation.NewNilOperationWrapper(op)
+	return &ret, nil
+}
+
+func (c *DatastreamClientImpl) GetConnectionProfile(ctx context.Context, connectionName string)  (*datastreampb.ConnectionProfile, error) {
+	return c.client.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: connectionName})
+}
+
+func (c *DatastreamClientImpl) ListConnectionProfiles(ctx context.Context, listRequest *datastreampb.ListConnectionProfilesRequest, opts ...gax.CallOption) *datastream.ConnectionProfileIterator {
+	return c.client.ListConnectionProfiles(ctx, listRequest, opts...)
 }

@@ -36,6 +36,7 @@ type BucketHandleMock struct {
 	CreateMock func(ctx context.Context, projectID string, attrs *storage.BucketAttrs) (err error)
 	UpdateMock func(ctx context.Context, uattrs storage.BucketAttrsToUpdate) (attrs *storage.BucketAttrs, err error)
 	ObjectMock func(name string) ObjectHandle
+	DeleteMock func(ctx context.Context) error
 }
 
 func (b *BucketHandleMock) Create(ctx context.Context, projectID string, attrs *storage.BucketAttrs) (err error) {
@@ -48,6 +49,9 @@ func (b *BucketHandleMock) Update(ctx context.Context, uattrs storage.BucketAttr
 
 func (b *BucketHandleMock) Object(name string) ObjectHandle {
 	return b.ObjectMock(name)
+}
+func (b *BucketHandleMock) Delete(ctx context.Context) error {
+	return b.DeleteMock(ctx)
 }
 
 // Mock that implements the ObjectHandle interface.
