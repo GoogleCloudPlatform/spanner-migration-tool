@@ -422,71 +422,136 @@ func TestConnectionProfileCleanUp(t *testing.T) {
 
 
 func TestGetResourcesForCreation(t *testing.T) {
-	connProfile := conversion.ConnectionProfileReq{
-		ConnectionProfile: conversion.ConnectionProfile{
-			ProjectId: "project-id",
-			Region: "region",
-			Id: "id",
-			BucketName: "bucket-name",
-		}}
 	rg := conversion.ResourceGenerationImpl{
 		DsClient: &datastreamclient.DatastreamClientMock{},
-		StorageClient: &storageclient.StorageClientMock{},
 	}
 	ctx := context.Background()
 	testCases := []struct{
 		name              	  string
-		sam					  storageaccessor.StorageAccessorMock
 		dsAcc  				  datastream_accessor.DatastreamAccessorMock
+		srcProfile    		  profiles.DatastreamConnProfile
+		dstProfile    		  profiles.DatastreamConnProfile
+		validateOnly 		  bool
 		expectError 		  bool
 	}{
 		{
-			name : "Basic",
-			sam : storageaccessor.StorageAccessorMock{
-				DeleteGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
-					return nil
-				},
-			},
+			name : "Basic both profiles exist validate only false",
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				DeleteConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error{
-					return nil
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+					return true, nil
 				},
 			},
+			srcProfile: profiles.DatastreamConnProfile{
+				Name: "src-profile",
+				Location: "region",
+			},
+			dstProfile: profiles.DatastreamConnProfile{
+				Name: "dst-profile",
+				Location: "region",
+			},
+			validateOnly: false,
 			expectError: false,
 		},
 		{
-			name : "delete connection profile error",
-			sam : storageaccessor.StorageAccessorMock{
-				DeleteGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
-					return fmt.Errorf("error")
-				},
-			},
+			name : "Basic both profiles exist validate only true",
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				DeleteConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error{
-					return nil
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+					return true, nil
 				},
 			},
-			expectError: true,
+			srcProfile: profiles.DatastreamConnProfile{
+				Name: "src-profile",
+				Location: "region",
+			},
+			dstProfile: profiles.DatastreamConnProfile{
+				Name: "dst-profile",
+				Location: "region",
+			},
+			validateOnly: true,
+			expectError: false,
 		},
 		{
-			name : "delete gcs bucket error",
-			sam : storageaccessor.StorageAccessorMock{
-				DeleteGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
-					return nil
-				},
-			},
+			name : "Basic both profiles do not exist validate only false",
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				DeleteConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error{
-					return fmt.Errorf("error")
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+					return false, nil
 				},
 			},
+			srcProfile: profiles.DatastreamConnProfile{
+				Name: "src-profile",
+				Location: "region",
+			},
+			dstProfile: profiles.DatastreamConnProfile{
+				Name: "dst-profile",
+				Location: "region",
+			},
+			validateOnly: false,
+			expectError: false,
+		},
+		{
+			name : "Basic both profiles do not exist validate only true",
+			dsAcc: datastream_accessor.DatastreamAccessorMock{
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+					return false, nil
+				},
+			},
+			srcProfile: profiles.DatastreamConnProfile{
+				Name: "src-profile",
+				Location: "region",
+			},
+			dstProfile: profiles.DatastreamConnProfile{
+				Name: "dst-profile",
+				Location: "region",
+			},
+			validateOnly: true,
+			expectError: false,
+		},
+		{
+			name : "Both profiles do not exist validate only true location and name missing",
+			dsAcc: datastream_accessor.DatastreamAccessorMock{
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+					return false, nil
+				},
+			},
+			srcProfile: profiles.DatastreamConnProfile{},
+			dstProfile: profiles.DatastreamConnProfile{},
+			validateOnly: true,
+			expectError: false,
+		},
+		{
+			name : "connection profile exists error",
+			dsAcc: datastream_accessor.DatastreamAccessorMock{
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+					return false, fmt.Errorf("error")
+				},
+			},
+			srcProfile: profiles.DatastreamConnProfile{
+				Name: "src-profile",
+				Location: "region",
+			},
+			dstProfile: profiles.DatastreamConnProfile{
+				Name: "dst-profile",
+				Location: "region",
+			},
+			validateOnly: false,
 			expectError: true,
 		},
 	}
 	for _, tc := range testCases {
+		sourceProfile := profiles.SourceProfile{
+			Config: profiles.SourceProfileConfig{
+				ShardConfigurationDataflow: profiles.ShardConfigurationDataflow{
+					DataShards: []*profiles.DataShard{
+						{
+							SrcConnectionProfile: tc.srcProfile,
+							DstConnectionProfile: tc.dstProfile,
+						},
+					},					
+				},
+			},
+		}
 		rg.DsAcc = &tc.dsAcc
-		rg.StorageAcc = &tc.sam
-		err := rg.ConnectionProfileCleanUp(ctx, []*conversion.ConnectionProfileReq{&connProfile})
+		_, _, err := rg.GetResourcesForCreation(ctx, "project-id", sourceProfile, "region", tc.validateOnly)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
