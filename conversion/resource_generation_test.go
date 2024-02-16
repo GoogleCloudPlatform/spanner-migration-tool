@@ -519,6 +519,22 @@ func TestGetResourcesForCreation(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name : "Both profiles do not exist validate only true location missing",
+			dsAcc: datastream_accessor.DatastreamAccessorMock{
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+					return false, nil
+				},
+			},
+			srcProfile: profiles.DatastreamConnProfile{
+				Name: "src-profile",
+			},
+			dstProfile: profiles.DatastreamConnProfile{
+				Name: "dst-profile",
+			},
+			validateOnly: false,
+			expectError: false,
+		},
+		{
 			name : "connection profile exists error",
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
 				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
