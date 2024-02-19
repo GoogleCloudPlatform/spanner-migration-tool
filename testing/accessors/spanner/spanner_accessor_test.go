@@ -31,7 +31,6 @@ import (
 	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/stretchr/testify/assert"
@@ -103,8 +102,13 @@ func dropDatabase(t *testing.T, dbPath string) {
 
 func TestCheckExistingDb(t *testing.T) {
 	onlyRunForEmulatorTest(t)
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, "check-db-exists")
-	err := conversion.CreateDatabase(ctx, databaseAdmin, dbURI, internal.MakeConv(), os.Stdout, "", constants.BULK_MIGRATION)
+	spA := spanneraccessor.SpannerAccessorImpl{}
+	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, "check-db-exists") 
+	err = spA.CreateDatabase(ctx, adminClientImpl, dbURI, internal.MakeConv(), "", constants.BULK_MIGRATION)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,11 +120,9 @@ func TestCheckExistingDb(t *testing.T) {
 		{"check-db-exists", true},
 		{"check-db-does-not-exist", false},
 	}
-	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	spA := spanneraccessor.SpannerAccessorImpl{}
 	for _, tc := range testCases {
 		dbExists, err := spA.CheckExistingDb(ctx, adminClientImpl, fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName))
 		assert.Nil(t, err)

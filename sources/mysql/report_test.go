@@ -75,12 +75,13 @@ func TestReport(t *testing.T) {
 	}
 	buf := new(bytes.Buffer)
 	w := bufio.NewWriter(buf)
-	actualStructuredReport := reports.GenerateStructuredReport(constants.MYSQLDUMP, "sampleDB", conv, badWrites, true, true)
+	reportGenerator := reports.ReportImpl{}
+	actualStructuredReport := reportGenerator.GenerateStructuredReport(constants.MYSQLDUMP, "sampleDB", conv, badWrites, true, true)
 	var expectedStructuredReport reports.StructuredReport
 	expectedBytes, _ := ioutil.ReadFile(filepath.Join("..", "..", "test_data", "mysql_structured_report.json"))
 	_ = json.Unmarshal(expectedBytes, &expectedStructuredReport)
 	assert.Equal(t, expectedStructuredReport, actualStructuredReport)
-	reports.GenerateTextReport(actualStructuredReport, w)
+	reportGenerator.GenerateTextReport(actualStructuredReport, w)
 	w.Flush()
 	expectedBytes, _ = ioutil.ReadFile(filepath.Join("..", "..", "test_data", "mysql_text_report.txt"))
 	expected := string(expectedBytes)

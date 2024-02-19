@@ -156,7 +156,8 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		banner = utils.GetBanner(now, dbURI)
 	} else {
 		conv.Audit.DryRun = true
-		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.WriteLimit)
+		convImpl := &conversion.ConvImpl{}
+		bw, err = convImpl.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
 		if err != nil {
 			err = fmt.Errorf("can't finish data conversion for db %s: %v", dbName, err)
 			return subcommands.ExitFailure
@@ -171,7 +172,8 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	if cmd.filePrefix == "" {
 		cmd.filePrefix = targetProfile.Conn.Sp.Dbname
 	}
-	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix, dbName, ioHelper.Out)
+	reportImpl := conversion.ReportImpl{}
+	reportImpl.GenerateReport(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix, dbName, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
 	// Cleanup smt tmp data directory.
 	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))

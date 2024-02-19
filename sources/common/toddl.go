@@ -49,20 +49,27 @@ type ToDdl interface {
 	ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue)
 }
 
+type SchemaToSpannerInterface interface {
+	SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error
+	SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error
+}
+
+type SchemaToSpannerImpl struct {}
+
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
-func SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
+func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
 	tableIds := GetSortedTableIdsBySrcName(conv.SrcSchema)
 	for _, tableId := range tableIds {
 		srcTable := conv.SrcSchema[tableId]
-		SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
+		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
 	internal.ResolveRefs(conv)
 	return nil
 }
 
-func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error {
+func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error {
 	spTableName, err := internal.GetSpannerTable(conv, srcTable.Id)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
@@ -226,7 +233,8 @@ func cvtIndexes(conv *internal.Conv, tableId string, srcIndexes []schema.Index, 
 }
 
 func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table) error {
-	err := SchemaToSpannerDDLHelper(conv, toddl, srcTable, true)
+	schemaToSpanner := SchemaToSpannerImpl{}
+	err := schemaToSpanner.SchemaToSpannerDDLHelper(conv, toddl, srcTable, true)
 	if err != nil {
 		return err
 	}
