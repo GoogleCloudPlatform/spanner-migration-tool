@@ -22,8 +22,8 @@ import (
 	"cloud.google.com/go/datastream/apiv1/datastreampb"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/operation"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -31,35 +31,43 @@ import (
 func TestFetchTargetBucketAndPath(t *testing.T) {
 	dstConfig := streaming.DstConnCfg{
 		Location: "region-X",
-		Name: "profile-name",
-		Prefix: "/",
+		Name:     "profile-name",
+		Prefix:   "/",
 	}
 	ctx := context.Background()
 	da := datastream_accessor.DatastreamAccessorImpl{}
-	testCases := []struct{
-		name              	string
-		dsm					datastreamclient.DatastreamClientMock
-		connectionProfile   *datastreampb.ConnectionProfile
-		getProfileErr       error
-		expectedBucketName  string
-		expectedPrefix		string	
-		expectError 		bool
+	testCases := []struct {
+		name               string
+		dsm                datastreamclient.DatastreamClientMock
+		connectionProfile  *datastreampb.ConnectionProfile
+		getProfileErr      error
+		expectedBucketName string
+		expectedPrefix     string
+		expectError        bool
 	}{
 		{
-			name: "basic correct",
-			connectionProfile: &datastreampb.ConnectionProfile{Profile: &datastreampb.ConnectionProfile_GcsProfile{GcsProfile: &datastreampb.GcsProfile{Bucket: "bucket", RootPath: "/"}}},
-			getProfileErr: nil,
+			name:               "basic correct",
+			connectionProfile:  &datastreampb.ConnectionProfile{Profile: &datastreampb.ConnectionProfile_GcsProfile{GcsProfile: &datastreampb.GcsProfile{Bucket: "bucket", RootPath: "/"}}},
+			getProfileErr:      nil,
 			expectedBucketName: "bucket",
-			expectedPrefix: "/data/",
-			expectError: false,
+			expectedPrefix:     "/data/",
+			expectError:        false,
 		},
 		{
-			name: "get connection profile error",
-			connectionProfile: nil,
-			getProfileErr: fmt.Errorf("error"),
+			name:               "get connection profile error",
+			connectionProfile:  nil,
+			getProfileErr:      fmt.Errorf("error"),
 			expectedBucketName: "",
-			expectedPrefix: "",
-			expectError: true,
+			expectedPrefix:     "",
+			expectError:        true,
+		},
+		{
+			name:               "empty string",
+			connectionProfile:  &datastreampb.ConnectionProfile{Profile: &datastreampb.ConnectionProfile_GcsProfile{GcsProfile: &datastreampb.GcsProfile{Bucket: "", RootPath: ""}}},
+			getProfileErr:      nil,
+			expectedBucketName: "",
+			expectedPrefix:     "data/",
+			expectError:        false,
 		},
 	}
 	for _, tc := range testCases {
@@ -75,11 +83,11 @@ func TestFetchTargetBucketAndPath(t *testing.T) {
 func TestDeleteConnectionProfile(t *testing.T) {
 	ctx := context.Background()
 	da := datastream_accessor.DatastreamAccessorImpl{}
-	testCases := []struct{
-		name              		string
-		op   					*operation.MockNilOperation
-		deleteConnProfileErr  	error
-		expectError 			bool
+	testCases := []struct {
+		name                 string
+		op                   *operation.MockNilOperation
+		deleteConnProfileErr error
+		expectError          bool
 	}{
 		{
 			name: "basic correct",
@@ -89,10 +97,10 @@ func TestDeleteConnectionProfile(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "delete connection profile error",
-			op: nil,
+			name:                 "delete connection profile error",
+			op:                   nil,
 			deleteConnProfileErr: fmt.Errorf("error"),
-			expectError: true,
+			expectError:          true,
 		},
 		{
 			name: "operation wait error",
@@ -114,11 +122,11 @@ func TestDeleteConnectionProfile(t *testing.T) {
 func TestCreateConnectionProfile(t *testing.T) {
 	ctx := context.Background()
 	da := datastream_accessor.DatastreamAccessorImpl{}
-	testCases := []struct{
-		name              	string
-		op   				operation.MockOperation[datastreampb.ConnectionProfile]
-		createProfileError  error
-		expectError 		bool
+	testCases := []struct {
+		name               string
+		op                 operation.MockOperation[datastreampb.ConnectionProfile]
+		createProfileError error
+		expectError        bool
 	}{
 		{
 			name: "basic correct",
@@ -126,7 +134,7 @@ func TestCreateConnectionProfile(t *testing.T) {
 				RetVal: &datastreampb.ConnectionProfile{},
 			},
 			createProfileError: nil,
-			expectError: false,
+			expectError:        false,
 		},
 		{
 			name: "create connection profile error",
@@ -134,7 +142,7 @@ func TestCreateConnectionProfile(t *testing.T) {
 				RetVal: &datastreampb.ConnectionProfile{},
 			},
 			createProfileError: fmt.Errorf("error"),
-			expectError: true,
+			expectError:        true,
 		},
 		{
 			name: "operation wait error",
@@ -143,7 +151,7 @@ func TestCreateConnectionProfile(t *testing.T) {
 				RetErr: fmt.Errorf("error"),
 			},
 			createProfileError: nil,
-			expectError: true,
+			expectError:        true,
 		},
 	}
 	for _, tc := range testCases {
