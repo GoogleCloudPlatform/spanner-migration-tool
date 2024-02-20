@@ -39,7 +39,7 @@ func NewOperationWrapper[T any](elem Operation[T]) OperationWrapper[T] {
 
 // Generic interface for mocking long running operations like DeleteConnectionProfileOperation etc.
 type NilOperation interface {
-	Wait(ctx context.Context, opts ...gax.CallOption) (error)
+	Wait(ctx context.Context, opts ...gax.CallOption) error
 }
 
 // Wrapping the operation interace in a struct helps us stick to the golang idiom of not returning an interface.
@@ -47,7 +47,7 @@ type NilOperationWrapper struct {
 	elem NilOperation
 }
 
-func (o *NilOperationWrapper) Wait(ctx context.Context, opts ...gax.CallOption) (error) {
+func (o *NilOperationWrapper) Wait(ctx context.Context, opts ...gax.CallOption) error {
 	return o.elem.Wait(ctx, opts...)
 }
 

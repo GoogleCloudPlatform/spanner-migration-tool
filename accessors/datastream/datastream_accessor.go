@@ -34,8 +34,7 @@ type DatastreamAccessor interface {
 	CreateConnectionProfile(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error)
 	ConnectionProfileExists(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error)
 }
-type DatastreamAccessorImpl struct {}
-
+type DatastreamAccessorImpl struct{}
 
 // FetchTargetBucketAndPath fetches the bucket and path name from a Datastream destination config.
 func (da *DatastreamAccessorImpl) FetchTargetBucketAndPath(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectID string, datastreamDestinationConnCfg streaming.DstConnCfg) (string, string, error) {
@@ -60,13 +59,13 @@ func (da *DatastreamAccessorImpl) FetchTargetBucketAndPath(ctx context.Context, 
 
 // Deletes a connection Profile
 func (da *DatastreamAccessorImpl) DeleteConnectionProfile(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error {
-	op, err :=datastreamClient.DeleteConnectionProfile(ctx,  &datastreampb.DeleteConnectionProfileRequest{
+	op, err := datastreamClient.DeleteConnectionProfile(ctx, &datastreampb.DeleteConnectionProfileRequest{
 		Name: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectId, region, id),
 	})
 	if err != nil {
 		return err
 	}
-	
+
 	err = op.Wait(ctx)
 	if err != nil {
 		return err
@@ -76,12 +75,14 @@ func (da *DatastreamAccessorImpl) DeleteConnectionProfile(ctx context.Context, d
 
 // Creates new connection Profile
 func (da *DatastreamAccessorImpl) CreateConnectionProfile(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error) {
-	op, err :=datastreamClient.CreateConnectionProfile(ctx, req)
+	op, err := datastreamClient.CreateConnectionProfile(ctx, req)
 	if err != nil {
 		return nil, err
 	}
+
 	return op.Wait(ctx)
 }
+
 // Gets all connection profiles in a region
 func (da *DatastreamAccessorImpl) GetConnProfilesRegion(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, region string) ([]string, error) {
 	profilesIt := datastreamClient.ListConnectionProfiles(ctx, &datastreampb.ListConnectionProfilesRequest{Parent: "projects/" + projectId + "/locations/" + region})
@@ -92,7 +93,7 @@ func (da *DatastreamAccessorImpl) GetConnProfilesRegion(ctx context.Context, dat
 			break
 		}
 		if err != nil {
-			return profiles, err
+			return nil, err
 		} else {
 			profiles = append(profiles, strings.Split(resp.Name, "/")[5])
 		}

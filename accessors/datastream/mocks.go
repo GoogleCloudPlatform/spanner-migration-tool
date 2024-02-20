@@ -24,10 +24,10 @@ import (
 
 type DatastreamAccessorMock struct {
 	FetchTargetBucketAndPathMock func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectID string, datastreamDestinationConnCfg streaming.DstConnCfg) (string, string, error)
-	DeleteConnectionProfileMock func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error
-	GetConnProfilesRegionMock func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, region string) ([]string, error)
-	CreateConnectionProfileMock func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error)
-	ConnectionProfileExistsMock func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error)
+	DeleteConnectionProfileMock  func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error
+	GetConnProfilesRegionMock    func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, region string) ([]string, error)
+	CreateConnectionProfileMock  func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error)
+	ConnectionProfileExistsMock  func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error)
 }
 
 func (dam *DatastreamAccessorMock) FetchTargetBucketAndPath(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectID string, datastreamDestinationConnCfg streaming.DstConnCfg) (string, string, error) {
