@@ -271,7 +271,7 @@ func (sads *DataFromSourceImpl) dataFromDatabase(ctx context.Context, sourceProf
 			gcloudCmd := dfOutput.GCloudCmd
 			streamingCfg, _ := streamInfo["streamingCfg"].(streaming.StreamingCfg)
 			// Fetch and store the GCS bucket associated with the datastream
-			dsClient := getDatastreamClient(ctx)
+			dsClient := GetDatastreamClient(ctx)
 			gcsBucket, gcsDestPrefix, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
 			if fetchGcsErr != nil {
 				logger.Log.Info("Could not fetch GCS Bucket, hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n")

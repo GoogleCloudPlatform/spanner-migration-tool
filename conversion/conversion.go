@@ -49,7 +49,44 @@ var (
 	datastreamClient *datastream.Client
 )
 
-func getDatastreamClient(ctx context.Context) *datastream.Client {
+type ConnectionProfile struct {
+	// Project Id of the resource
+	ProjectId string
+	// Datashard Id for the resource
+	DatashardId string
+	// Name of connection profile
+	Id string
+	// If true, don't create resource, only validate if creation is possible. If false, create resource.
+	ValidateOnly bool
+	// If true, create source connection profile, else create target connection profile and gcs bucket.
+	IsSource bool
+	// For source connection profile host of MySql instance
+	Host string
+	// For source connection profile port of MySql instance
+	Port string
+	// For source connection profile password of MySql instance
+	Password string
+	// For source connection profile user name of MySql instance
+	User string
+	// Region of connection profile to be created
+	Region string
+	// For target connection profile name of gcs bucket to be created
+	BucketName string
+}
+
+type ConnectionProfileReq struct {
+	ConnectionProfile ConnectionProfile
+	Error             error
+	Ctx               context.Context
+}
+
+type CreateMigrationResources interface {
+	multiError(errorMessages []error) error
+	prepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq]
+	getConnProfilesRegion(ctx context.Context, projectId string, region string, dsClient *datastream.Client)
+}
+
+func GetDatastreamClient(ctx context.Context) *datastream.Client {
 	if datastreamClient == nil {
 		once.Do(func() {
 			datastreamClient, _ = datastream.NewClient(ctx)

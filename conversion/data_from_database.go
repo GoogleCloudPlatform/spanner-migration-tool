@@ -29,7 +29,14 @@ import (
 	"strings"
 	"sync"
 
+	"cloud.google.com/go/datastream/apiv1/datastreampb"
 	sp "cloud.google.com/go/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
+	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
+	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
+	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -38,8 +45,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
-	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
-	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	"go.uber.org/zap"
 )
 
@@ -64,6 +69,49 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDMSMigration() (*writer.Batch
 // 4. Launch the stream for the physical shard
 // 5. Perform streaming migration via dataflow
 func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv, is common.InfoSchemaInterface) (*writer.BatchWriter, error) {
+	// Fetch Spanner Region
+	if conv.SpRegion == "" {
+		spInstanceAdmin, err := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("unable to fetch Spanner Region for resource creation: %v", err)
+		}
+		spAcc := spanneraccessor.SpannerAccessorImpl{}
+		spannerRegion, err := spAcc.GetSpannerLeaderLocation(ctx, spInstanceAdmin, "projects/" + targetProfile.Conn.Sp.Project+ "/instances/" + targetProfile.Conn.Sp.Instance)
+		if err != nil {
+			return nil, fmt.Errorf("unable to fetch Spanner Region for resource creation: %v", err)
+		}
+		conv.SpRegion = spannerRegion
+	}
+
+	storageClient, err := storageclient.NewStorageClientImpl(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create Resources required for migration
+	if conv.ResourceValidation {
+		dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
+		if err != nil {
+			return nil, err
+		}
+		createResources := NewValidateOrCreateResourcesImpl(&datastream_accessor.DatastreamAccessorImpl{}, dsClient, &storageaccessor.StorageAccessorImpl{}, storageClient)
+		err = createResources.ValidateOrCreateResourcesForShardedMigration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, false, conv.SpRegion, sourceProfile)
+		if err != nil {
+			return nil, fmt.Errorf("unable to create connection profiles: %v", err)
+		}
+	}
+
+	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
+	for _, dataShard := range sourceProfile.Config.ShardConfigurationDataflow.DataShards {
+		if dataShard.TmpDir == "" {
+		bucket, rootPath, err := GetBucket(targetProfile.Conn.Sp.Project, conv.SpRegion, dataShard.DstConnectionProfile.Name)
+		if err != nil {
+			return nil, fmt.Errorf("error while getting target bucket: %v", err)
+		}
+		dataShard.TmpDir = "gs://" + bucket + rootPath
+	}
+	}
+
 	updateShardsWithTuningConfigs(sourceProfile.Config.ShardConfigurationDataflow)
 	//Generate a job Id
 	migrationJobId := conv.Audit.MigrationRequestId
@@ -116,7 +164,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 		// store the generated resources locally in conv, this is used as source of truth for persistence and the UI (should change to persisted values)
 
 		// Fetch and store the GCS bucket associated with the datastream
-		dsClient := getDatastreamClient(ctx)
+		dsClient := GetDatastreamClient(ctx)
 		gcsBucket, gcsDestPrefix, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
 		if fetchGcsErr != nil {
 			logger.Log.Info(fmt.Sprintf("Could not fetch GCS Bucket for Shard %s hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n", p.DataShardId))
@@ -172,7 +220,8 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 		}
 		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
-	_, err = common.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 20, asyncProcessShards, true)
+	r := common.RunParallelTasksImpl[*profiles.DataShard, *profiles.DataShard]{}
+	_, err = r.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 20, asyncProcessShards, true)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start minimal downtime migrations: %v", err)
 	}
@@ -221,4 +270,20 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForBulkMigration(sourceProfile p
 	}
 
 	return bw, nil
+}
+
+func GetBucket(project, location, profileName string) (string, string, error) {
+	ctx := context.Background()
+	dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("datastream client can not be created: %v", err)
+	}
+	// Fetch the GCS path from the destination connection profile.
+	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", project, location, profileName)
+	res, err := dsClient.GetConnectionProfile(ctx, dstProf)
+	if err != nil {
+		return "", "", fmt.Errorf("could not get connection profile: %v", err)
+	}
+	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
+	return gcsProfile.GetBucket(), gcsProfile.GetRootPath(), nil
 }
