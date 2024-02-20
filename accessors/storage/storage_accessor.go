@@ -45,6 +45,8 @@ type StorageAccessor interface {
 	ReadGcsFile(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error)
 	// Read a local or gcs file path. Files starting with a 'gs://' are treated as GCS files.
 	ReadAnyFile(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error)
+	// Delete a given gcs bucket
+	DeleteGCSBucket(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error
 }
 
 // This implements the StorageAccessor interface. This is the primary implementation that should be used in all places other than tests.
@@ -88,6 +90,12 @@ func (sa *StorageAccessorImpl) CreateGCSBucket(ctx context.Context, sc storagecl
 		logger.Log.Info(fmt.Sprintf("Created new GCS bucket: %v\n", req.BucketName))
 	}
 	return nil
+}
+
+
+func (sa *StorageAccessorImpl) DeleteGCSBucket(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error {
+	bucket := sc.Bucket(req.BucketName)
+	return bucket.Delete(ctx)
 }
 
 func (sa *StorageAccessorImpl) ApplyBucketLifecycleDeleteRule(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error {

@@ -22,12 +22,13 @@ import (
 // Mock that implements the StorageAccessor interface.
 // Pass in unit tests where StorageAccessor is an input parameter.
 type StorageAccessorMock struct {
-	CreateGCSBucketMock                func(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error
-	ApplyBucketLifecycleDeleteRuleMock func(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error
-	UploadLocalFileToGCSMock           func(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, localFilePath string) error
-	WriteDataToGCSMock                 func(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, data string) error
-	ReadGcsFileMock                    func(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error)
-	ReadAnyFileMock                    func(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error)
+	CreateGCSBucketMock                	func(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error
+	ApplyBucketLifecycleDeleteRuleMock 	func(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error
+	UploadLocalFileToGCSMock           	func(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, localFilePath string) error
+	WriteDataToGCSMock                 	func(ctx context.Context, sc storageclient.StorageClient, filePath, fileName, data string) error
+	ReadGcsFileMock                    	func(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error)
+	ReadAnyFileMock                    	func(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error)
+	DeleteGCSBucketMock					func(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error
 }
 
 func (sam *StorageAccessorMock) CreateGCSBucket(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error {
@@ -52,4 +53,8 @@ func (sam *StorageAccessorMock) ReadGcsFile(ctx context.Context, sc storageclien
 
 func (sam *StorageAccessorMock) ReadAnyFile(ctx context.Context, sc storageclient.StorageClient, filePath string) (string, error) {
 	return sam.ReadAnyFileMock(ctx, sc, filePath)
+}
+
+func (sam *StorageAccessorMock) DeleteGCSBucket(ctx context.Context, sc storageclient.StorageClient, req StorageBucketMetadata) error {
+	return sam.DeleteGCSBucketMock(ctx, sc, req)
 }
