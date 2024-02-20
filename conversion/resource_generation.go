@@ -55,17 +55,17 @@ type ResourceGenerationInterface interface {
 }
 
 type ResourceGenerationImpl struct {
-	DsAcc             datastream_accessor.DatastreamAccessor
-	DsClient  		  ds.DatastreamClient
-	StorageAcc        storageaccessor.StorageAccessor
-	StorageClient     storageclient.StorageClient
+	DsAcc         datastream_accessor.DatastreamAccessor
+	DsClient      ds.DatastreamClient
+	StorageAcc    storageaccessor.StorageAccessor
+	StorageClient storageclient.StorageClient
 }
 
 type ValidateOrCreateResourcesInterface interface {
 	ValidateOrCreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error
 }
 
-type ValidateOrCreateResourcesImpl struct{
+type ValidateOrCreateResourcesImpl struct {
 	ResourceGenerator ResourceGenerationInterface
 	RunParallel       common.RunParallelTasksInterface[*ConnectionProfileReq, *ConnectionProfileReq]
 }
@@ -74,39 +74,39 @@ type ValidateResourcesInterface interface {
 	ValidateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error
 }
 
-type ValidateResourcesImpl struct{
-	SpAcc                spanneraccessor.SpannerAccessor
-	SpInstanceAdmin      spinstanceadmin.InstanceAdminClient
-	ValidateOrCreateResources      ValidateOrCreateResourcesInterface
+type ValidateResourcesImpl struct {
+	SpAcc                     spanneraccessor.SpannerAccessor
+	SpInstanceAdmin           spinstanceadmin.InstanceAdminClient
+	ValidateOrCreateResources ValidateOrCreateResourcesInterface
 }
 
 func NewValidateResourcesImpl(spAcc spanneraccessor.SpannerAccessor, spInstanceAdmin spinstanceadmin.InstanceAdminClient, dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ValidateResourcesImpl {
-    return &ValidateResourcesImpl{
-		SpAcc: spAcc,
-		SpInstanceAdmin: spInstanceAdmin,
+	return &ValidateResourcesImpl{
+		SpAcc:                     spAcc,
+		SpInstanceAdmin:           spInstanceAdmin,
 		ValidateOrCreateResources: NewValidateOrCreateResourcesImpl(dsAcc, dsClient, storageAcc, storageClient),
 	}
 }
 
-func NewValidateOrCreateResourcesImpl(dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ValidateOrCreateResourcesImpl{
+func NewValidateOrCreateResourcesImpl(dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ValidateOrCreateResourcesImpl {
 	return &ValidateOrCreateResourcesImpl{
 		ResourceGenerator: NewResourceGenerationImpl(dsAcc, dsClient, storageAcc, storageClient),
-		RunParallel: &common.RunParallelTasksImpl[*ConnectionProfileReq, *ConnectionProfileReq]{},
+		RunParallel:       &common.RunParallelTasksImpl[*ConnectionProfileReq, *ConnectionProfileReq]{},
 	}
 }
 
-func NewResourceGenerationImpl(dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ResourceGenerationImpl{
+func NewResourceGenerationImpl(dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ResourceGenerationImpl {
 	return &ResourceGenerationImpl{
-			DsAcc: dsAcc,
-			DsClient: dsClient,
-			StorageAcc: storageAcc,
-			StorageClient: storageClient,
-		}
+		DsAcc:         dsAcc,
+		DsClient:      dsClient,
+		StorageAcc:    storageAcc,
+		StorageClient: storageClient,
+	}
 }
 
 // Method to validate if in a minimal downtime migration, required resources can be generated
 func (v *ValidateResourcesImpl) ValidateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
-	spannerRegion, err := v.SpAcc.GetSpannerLeaderLocation(ctx, v.SpInstanceAdmin, "projects/" + projectId + "/instances/" + instanceId)
+	spannerRegion, err := v.SpAcc.GetSpannerLeaderLocation(ctx, v.SpInstanceAdmin, "projects/"+projectId+"/instances/"+instanceId)
 	if err != nil {
 		err = fmt.Errorf("unable to fetch Spanner Region: %v", err)
 		return err
@@ -139,9 +139,9 @@ func (r ResourceGenerationImpl) PrepareMinimalDowntimeResources(createResourceDa
 	if !createResourceData.ConnectionProfile.IsSource {
 		bucketName = strings.ToLower("GCS-" + createResourceData.ConnectionProfile.Id)
 		err := r.StorageAcc.CreateGCSBucket(createResourceData.Ctx, r.StorageClient, storageaccessor.StorageBucketMetadata{
-			BucketName:    bucketName,
-			ProjectID:     createResourceData.ConnectionProfile.ProjectId,
-			Location:      createResourceData.ConnectionProfile.Region,
+			BucketName: bucketName,
+			ProjectID:  createResourceData.ConnectionProfile.ProjectId,
+			Location:   createResourceData.ConnectionProfile.Region,
 		})
 		if err != nil {
 			createResourceData.Error = err
@@ -180,7 +180,7 @@ func (r ResourceGenerationImpl) ConnectionProfileCleanUp(ctx context.Context, pr
 		}
 
 		if profile.ConnectionProfile.BucketName != "" {
-			err := r.StorageAcc.DeleteGCSBucket(ctx, r.StorageClient, storageaccessor.StorageBucketMetadata{BucketName:profile.ConnectionProfile.BucketName})
+			err := r.StorageAcc.DeleteGCSBucket(ctx, r.StorageClient, storageaccessor.StorageBucketMetadata{BucketName: profile.ConnectionProfile.BucketName})
 			if err != nil {
 				return err
 			}
@@ -204,7 +204,7 @@ func (r ResourceGenerationImpl) GetResourcesForCreation(ctx context.Context, pro
 		if err != nil {
 			return sourceProfilesToCreate, dstProfilesToCreate, err
 		}
-		if sourceProfile!= nil {
+		if sourceProfile != nil {
 			sourceProfilesToCreate = append(sourceProfilesToCreate, sourceProfile)
 		}
 
@@ -213,7 +213,7 @@ func (r ResourceGenerationImpl) GetResourcesForCreation(ctx context.Context, pro
 		if err != nil {
 			return sourceProfilesToCreate, dstProfilesToCreate, err
 		}
-		if dstProfile!= nil {
+		if dstProfile != nil {
 			dstProfilesToCreate = append(dstProfilesToCreate, dstProfile)
 		}
 	}
@@ -308,7 +308,7 @@ func getSourceConnectionProfileForCreation(ctx context.Context, projectId string
 		if profile.SrcConnectionProfile.Location == "" {
 			profile.SrcConnectionProfile.Location = region
 		}
-		req:= &ConnectionProfileReq{
+		req := &ConnectionProfileReq{
 			ConnectionProfile: ConnectionProfile{
 				ProjectId:    projectId,
 				DatashardId:  profile.DataShardId,

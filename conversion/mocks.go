@@ -83,12 +83,12 @@ func (msads *MockDataFromSource) dataFromCSV(ctx context.Context, sourceProfile 
 	return args.Get(0).(*writer.BatchWriter), args.Error(1)
 }
 
-type MockValidateOrCreateResources struct{
+type MockValidateOrCreateResources struct {
 	mock.Mock
 }
 
 func (mcr *MockValidateOrCreateResources) ValidateOrCreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error {
-	args:= mcr.Called(ctx, projectId, instanceName, validateOnly, region, sourceProfile)
+	args := mcr.Called(ctx, projectId, instanceName, validateOnly, region, sourceProfile)
 	return args.Error(0)
 }
 

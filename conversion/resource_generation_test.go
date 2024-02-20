@@ -42,41 +42,41 @@ func TestValidateResourceGeneration(t *testing.T) {
 	ctx := context.Background()
 	sourceProfile := profiles.SourceProfile{}
 	conv := internal.MakeConv()
-	testCases := []struct{
-		name              	  string
-		sam					  spanneraccessor.SpannerAccessorMock
-		createResourcesError  error
-		expectError 		  bool
+	testCases := []struct {
+		name                 string
+		sam                  spanneraccessor.SpannerAccessorMock
+		createResourcesError error
+		expectError          bool
 	}{
 		{
-			name : "Basic",
-			sam : spanneraccessor.SpannerAccessorMock{
-				GetSpannerLeaderLocationMock: func(ctx context.Context, instanceClient spinstanceadmin.InstanceAdminClient, instanceURI string) (string, error){
+			name: "Basic",
+			sam: spanneraccessor.SpannerAccessorMock{
+				GetSpannerLeaderLocationMock: func(ctx context.Context, instanceClient spinstanceadmin.InstanceAdminClient, instanceURI string) (string, error) {
 					return "region", nil
 				},
 			},
 			createResourcesError: nil,
-			expectError: false,
+			expectError:          false,
 		},
 		{
-			name : "Spanner Region error",
-			sam : spanneraccessor.SpannerAccessorMock{
-				GetSpannerLeaderLocationMock: func(ctx context.Context, instanceClient spinstanceadmin.InstanceAdminClient, instanceURI string) (string, error){
+			name: "Spanner Region error",
+			sam: spanneraccessor.SpannerAccessorMock{
+				GetSpannerLeaderLocationMock: func(ctx context.Context, instanceClient spinstanceadmin.InstanceAdminClient, instanceURI string) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 			},
 			createResourcesError: nil,
-			expectError: true,
+			expectError:          true,
 		},
 		{
-			name : "create resources error",
-			sam : spanneraccessor.SpannerAccessorMock{
-				GetSpannerLeaderLocationMock: func(ctx context.Context, instanceClient spinstanceadmin.InstanceAdminClient, instanceURI string) (string, error){
+			name: "create resources error",
+			sam: spanneraccessor.SpannerAccessorMock{
+				GetSpannerLeaderLocationMock: func(ctx context.Context, instanceClient spinstanceadmin.InstanceAdminClient, instanceURI string) (string, error) {
 					return "region", nil
 				},
 			},
 			createResourcesError: fmt.Errorf("error"),
-			expectError: true,
+			expectError:          true,
 		},
 	}
 	for _, tc := range testCases {
@@ -96,103 +96,103 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 	validConnectionProfileReq := &conversion.ConnectionProfileReq{ConnectionProfile: conversion.ConnectionProfile{}, Error: nil, Ctx: ctx}
 	errorConnectionProfileReq := &conversion.ConnectionProfileReq{ConnectionProfile: conversion.ConnectionProfile{}, Error: fmt.Errorf("error"), Ctx: ctx}
 	sourceProfile := profiles.SourceProfile{}
-	testCases := []struct{
-		name              	   			string
-		validateOnly		   			bool
-		resourcesForGeneration 			[]*conversion.ConnectionProfileReq
-		resourcesForGenerationError 	error 
-		prepareResourcesResult			common.TaskResult[*conversion.ConnectionProfileReq]
-		runParallelTasksForSourceError	error
-		runParallelTasksForTargetError	error
-		connectionProfileCleanUpError   error
-		expectError 		   			bool
+	testCases := []struct {
+		name                           string
+		validateOnly                   bool
+		resourcesForGeneration         []*conversion.ConnectionProfileReq
+		resourcesForGenerationError    error
+		prepareResourcesResult         common.TaskResult[*conversion.ConnectionProfileReq]
+		runParallelTasksForSourceError error
+		runParallelTasksForTargetError error
+		connectionProfileCleanUpError  error
+		expectError                    bool
 	}{
 		{
-			name : "Basic ValidateOnly true",
-			validateOnly: true,
-			resourcesForGeneration: validGetResourcesForGeneration,
-			resourcesForGenerationError: nil,
-			prepareResourcesResult: common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			name:                          "Basic ValidateOnly true",
+			validateOnly:                  true,
+			resourcesForGeneration:        validGetResourcesForGeneration,
+			resourcesForGenerationError:   nil,
+			prepareResourcesResult:        common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
 			connectionProfileCleanUpError: nil,
-			expectError: false,
+			expectError:                   false,
 		},
 		{
-			name : "Basic ValidateOnly false",
-			validateOnly: true,
-			resourcesForGeneration: validGetResourcesForGeneration,
-			resourcesForGenerationError: nil,
-			prepareResourcesResult: common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			name:                          "Basic ValidateOnly false",
+			validateOnly:                  true,
+			resourcesForGeneration:        validGetResourcesForGeneration,
+			resourcesForGenerationError:   nil,
+			prepareResourcesResult:        common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
 			connectionProfileCleanUpError: nil,
-			expectError: false,
+			expectError:                   false,
 		},
 		{
-			name : "getResourcesForCreation error",
-			validateOnly: true,
-			resourcesForGeneration: []*conversion.ConnectionProfileReq{},
-			resourcesForGenerationError: fmt.Errorf("error"),
-			prepareResourcesResult: common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			name:                          "getResourcesForCreation error",
+			validateOnly:                  true,
+			resourcesForGeneration:        []*conversion.ConnectionProfileReq{},
+			resourcesForGenerationError:   fmt.Errorf("error"),
+			prepareResourcesResult:        common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
 			connectionProfileCleanUpError: nil,
-			expectError: true,
+			expectError:                   true,
 		},
 		{
-			name : "Run Parallel Tasks error Source",
-			validateOnly: true,
-			resourcesForGeneration: validGetResourcesForGeneration,
-			resourcesForGenerationError: nil,
-			prepareResourcesResult: common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError: nil,
+			name:                           "Run Parallel Tasks error Source",
+			validateOnly:                   true,
+			resourcesForGeneration:         validGetResourcesForGeneration,
+			resourcesForGenerationError:    nil,
+			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			connectionProfileCleanUpError:  nil,
 			runParallelTasksForSourceError: fmt.Errorf("error"),
-			expectError: true,
+			expectError:                    true,
 		},
 		{
-			name : "Run Parallel Tasks error Source",
-			validateOnly: false,
-			resourcesForGeneration: validGetResourcesForGeneration,
-			resourcesForGenerationError: nil,
-			prepareResourcesResult: common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError: nil,
+			name:                           "Run Parallel Tasks error Source",
+			validateOnly:                   false,
+			resourcesForGeneration:         validGetResourcesForGeneration,
+			resourcesForGenerationError:    nil,
+			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			connectionProfileCleanUpError:  nil,
 			runParallelTasksForSourceError: fmt.Errorf("error"),
-			expectError: true,
+			expectError:                    true,
 		},
 		{
-			name : "Run Parallel Tasks error Source Connection Profile Cleanup error",
-			validateOnly: false,
-			resourcesForGeneration: validGetResourcesForGeneration,
-			resourcesForGenerationError: nil,
-			prepareResourcesResult: common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError: fmt.Errorf("error"),
+			name:                           "Run Parallel Tasks error Source Connection Profile Cleanup error",
+			validateOnly:                   false,
+			resourcesForGeneration:         validGetResourcesForGeneration,
+			resourcesForGenerationError:    nil,
+			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			connectionProfileCleanUpError:  fmt.Errorf("error"),
 			runParallelTasksForSourceError: fmt.Errorf("error"),
-			expectError: true,
+			expectError:                    true,
 		},
 		{
-			name : "Run Parallel Tasks error Target",
-			validateOnly: false,
-			resourcesForGeneration: validGetResourcesForGeneration,
-			resourcesForGenerationError: nil,
-			prepareResourcesResult: common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError: nil,
+			name:                           "Run Parallel Tasks error Target",
+			validateOnly:                   false,
+			resourcesForGeneration:         validGetResourcesForGeneration,
+			resourcesForGenerationError:    nil,
+			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			connectionProfileCleanUpError:  nil,
 			runParallelTasksForTargetError: fmt.Errorf("error"),
-			expectError: true,
+			expectError:                    true,
 		},
 
 		{
-			name : "Run Parallel Tasks error Target Connection Profile Cleanup error",
-			validateOnly: false,
-			resourcesForGeneration: validGetResourcesForGeneration,
-			resourcesForGenerationError: nil,
-			prepareResourcesResult: common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError: fmt.Errorf("error"),
+			name:                           "Run Parallel Tasks error Target Connection Profile Cleanup error",
+			validateOnly:                   false,
+			resourcesForGeneration:         validGetResourcesForGeneration,
+			resourcesForGenerationError:    nil,
+			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			connectionProfileCleanUpError:  fmt.Errorf("error"),
 			runParallelTasksForTargetError: fmt.Errorf("error"),
-			expectError: true,
+			expectError:                    true,
 		},
 		{
-			name : "Validate Only true, multiple errors",
-			validateOnly: true,
-			resourcesForGeneration: validGetResourcesForGeneration,
-			resourcesForGenerationError: nil,
-			prepareResourcesResult: common.TaskResult[*conversion.ConnectionProfileReq]{Result: errorConnectionProfileReq, Err: nil},
+			name:                          "Validate Only true, multiple errors",
+			validateOnly:                  true,
+			resourcesForGeneration:        validGetResourcesForGeneration,
+			resourcesForGenerationError:   nil,
+			prepareResourcesResult:        common.TaskResult[*conversion.ConnectionProfileReq]{Result: errorConnectionProfileReq, Err: nil},
 			connectionProfileCleanUpError: nil,
-			expectError: true,
+			expectError:                   true,
 		},
 	}
 	for _, tc := range testCases {
@@ -201,7 +201,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 		mrg.On("PrepareMinimalDowntimeResources", mock.Anything, mock.Anything).Return(tc.prepareResourcesResult)
 		mrg.On("ConnectionProfileCleanUp", mock.Anything, mock.Anything).Return(tc.connectionProfileCleanUpError)
 
-		mrpt :=common.MockRunParallelTasks[*conversion.ConnectionProfileReq, *conversion.ConnectionProfileReq]{}
+		mrpt := common.MockRunParallelTasks[*conversion.ConnectionProfileReq, *conversion.ConnectionProfileReq]{}
 		mrpt.On("RunParallelTasks", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]common.TaskResult[*conversion.ConnectionProfileReq]{tc.prepareResourcesResult, tc.prepareResourcesResult}, tc.runParallelTasksForSourceError).Once()
 		mrpt.On("RunParallelTasks", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]common.TaskResult[*conversion.ConnectionProfileReq]{tc.prepareResourcesResult}, tc.runParallelTasksForTargetError).Once()
 		cr.ResourceGenerator = &mrg
@@ -211,133 +211,132 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 	}
 }
 
-
 func TestPrepareMinimalDowntimeResources(t *testing.T) {
 	rg := conversion.ResourceGenerationImpl{
-		DsClient: &datastreamclient.DatastreamClientMock{},
+		DsClient:      &datastreamclient.DatastreamClientMock{},
 		StorageClient: &storageclient.StorageClientMock{},
 	}
 	ctx := context.Background()
 	mutex := sync.Mutex{}
 	validConnectionProfileReq := conversion.ConnectionProfileReq{
 		ConnectionProfile: conversion.ConnectionProfile{
-			DatashardId: "datashard-id",
-			ProjectId: "project-id",
-			Region: "region",
-			Id: "id",
+			DatashardId:  "datashard-id",
+			ProjectId:    "project-id",
+			Region:       "region",
+			Id:           "id",
 			ValidateOnly: true,
-			Port: "3306",
-			Host: "0.0.0.0",
-			User: "root",
-			Password: "password",
+			Port:         "3306",
+			Host:         "0.0.0.0",
+			User:         "root",
+			Password:     "password",
 		},
 		Ctx: ctx,
 	}
-	testCases := []struct{
-		name              	  		string
-		sam					  		storageaccessor.StorageAccessorMock
-		dsAcc  				  		datastream_accessor.DatastreamAccessorMock
-		validateOnly 				bool
-		isSource   			  		bool
-		connectionProfileRequest    conversion.ConnectionProfileReq
-		expectError 		  		bool
+	testCases := []struct {
+		name                     string
+		sam                      storageaccessor.StorageAccessorMock
+		dsAcc                    datastream_accessor.DatastreamAccessorMock
+		validateOnly             bool
+		isSource                 bool
+		connectionProfileRequest conversion.ConnectionProfileReq
+		expectError              bool
 	}{
 		{
-			name : "Basic source false validate only true",
+			name: "Basic source false validate only true",
 			sam: storageaccessor.StorageAccessorMock{
-				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error {
 					return nil
 				},
 			},
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				CreateConnectionProfileMock: func (ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error){
+				CreateConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error) {
 					return &datastreampb.ConnectionProfile{}, nil
 				},
 			},
-			validateOnly: true,
-			isSource: false,
+			validateOnly:             true,
+			isSource:                 false,
 			connectionProfileRequest: validConnectionProfileReq,
-			expectError: false,
+			expectError:              false,
 		},
 		{
-			name : "Basic source false validate only false",
+			name: "Basic source false validate only false",
 			sam: storageaccessor.StorageAccessorMock{
-				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error {
 					return nil
 				},
 			},
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				CreateConnectionProfileMock: func (ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error){
+				CreateConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error) {
 					return &datastreampb.ConnectionProfile{}, nil
 				},
 			},
-			validateOnly: false,
-			isSource: false,
+			validateOnly:             false,
+			isSource:                 false,
 			connectionProfileRequest: validConnectionProfileReq,
-			expectError: false,
+			expectError:              false,
 		},
 		{
-			name : "Basic source true validate only true",
+			name: "Basic source true validate only true",
 			sam: storageaccessor.StorageAccessorMock{
-				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error {
 					return nil
 				},
 			},
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				CreateConnectionProfileMock: func (ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error){
+				CreateConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error) {
 					return &datastreampb.ConnectionProfile{}, nil
 				},
 			},
-			validateOnly: true,
-			isSource: true,
+			validateOnly:             true,
+			isSource:                 true,
 			connectionProfileRequest: validConnectionProfileReq,
-			expectError: false,
+			expectError:              false,
 		},
 		{
-			name : "Basic source true validate only false",
+			name: "Basic source true validate only false",
 			sam: storageaccessor.StorageAccessorMock{
-				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error {
 					return nil
 				},
 			},
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				CreateConnectionProfileMock: func (ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error){
+				CreateConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error) {
 					return &datastreampb.ConnectionProfile{}, nil
 				},
 			},
-			validateOnly: false,
-			isSource: true,
+			validateOnly:             false,
+			isSource:                 true,
 			connectionProfileRequest: validConnectionProfileReq,
-			expectError: false,
+			expectError:              false,
 		},
 		{
-			name : "create gcs error",
+			name: "create gcs error",
 			sam: storageaccessor.StorageAccessorMock{
-				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error {
 					return fmt.Errorf("error")
 				},
 			},
-			validateOnly: false,
-			isSource: false,
+			validateOnly:             false,
+			isSource:                 false,
 			connectionProfileRequest: validConnectionProfileReq,
-			expectError: true,
+			expectError:              true,
 		},
 		{
-			name : "create connection profile error",
+			name: "create connection profile error",
 			sam: storageaccessor.StorageAccessorMock{
-				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+				CreateGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error {
 					return nil
 				},
 			},
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				CreateConnectionProfileMock: func (ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error){
+				CreateConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, req *datastreampb.CreateConnectionProfileRequest) (*datastreampb.ConnectionProfile, error) {
 					return nil, fmt.Errorf("error")
 				},
 			},
-			validateOnly: false,
-			isSource: true,
+			validateOnly:             false,
+			isSource:                 true,
 			connectionProfileRequest: validConnectionProfileReq,
-			expectError: true,
+			expectError:              true,
 		},
 	}
 	for _, tc := range testCases {
@@ -353,59 +352,59 @@ func TestPrepareMinimalDowntimeResources(t *testing.T) {
 func TestConnectionProfileCleanUp(t *testing.T) {
 	connProfile := conversion.ConnectionProfileReq{
 		ConnectionProfile: conversion.ConnectionProfile{
-			ProjectId: "project-id",
-			Region: "region",
-			Id: "id",
+			ProjectId:  "project-id",
+			Region:     "region",
+			Id:         "id",
 			BucketName: "bucket-name",
 		}}
 	rg := conversion.ResourceGenerationImpl{
-		DsClient: &datastreamclient.DatastreamClientMock{},
+		DsClient:      &datastreamclient.DatastreamClientMock{},
 		StorageClient: &storageclient.StorageClientMock{},
 	}
 	ctx := context.Background()
-	testCases := []struct{
-		name              	  string
-		sam					  storageaccessor.StorageAccessorMock
-		dsAcc  				  datastream_accessor.DatastreamAccessorMock
-		expectError 		  bool
+	testCases := []struct {
+		name        string
+		sam         storageaccessor.StorageAccessorMock
+		dsAcc       datastream_accessor.DatastreamAccessorMock
+		expectError bool
 	}{
 		{
-			name : "Basic",
-			sam : storageaccessor.StorageAccessorMock{
-				DeleteGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+			name: "Basic",
+			sam: storageaccessor.StorageAccessorMock{
+				DeleteGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error {
 					return nil
 				},
 			},
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				DeleteConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error{
+				DeleteConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error {
 					return nil
 				},
 			},
 			expectError: false,
 		},
 		{
-			name : "delete connection profile error",
-			sam : storageaccessor.StorageAccessorMock{
-				DeleteGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+			name: "delete connection profile error",
+			sam: storageaccessor.StorageAccessorMock{
+				DeleteGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error {
 					return fmt.Errorf("error")
 				},
 			},
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				DeleteConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error{
+				DeleteConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error {
 					return nil
 				},
 			},
 			expectError: true,
 		},
 		{
-			name : "delete gcs bucket error",
-			sam : storageaccessor.StorageAccessorMock{
-				DeleteGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error{
+			name: "delete gcs bucket error",
+			sam: storageaccessor.StorageAccessorMock{
+				DeleteGCSBucketMock: func(ctx context.Context, sc storageclient.StorageClient, req storageaccessor.StorageBucketMetadata) error {
 					return nil
 				},
 			},
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				DeleteConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error{
+				DeleteConnectionProfileMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, id string, projectId string, region string) error {
 					return fmt.Errorf("error")
 				},
 			},
@@ -420,108 +419,107 @@ func TestConnectionProfileCleanUp(t *testing.T) {
 	}
 }
 
-
 func TestGetResourcesForCreation(t *testing.T) {
 	rg := conversion.ResourceGenerationImpl{
 		DsClient: &datastreamclient.DatastreamClientMock{},
 	}
 	ctx := context.Background()
-	testCases := []struct{
-		name              	  string
-		dsAcc  				  datastream_accessor.DatastreamAccessorMock
-		srcProfile    		  profiles.DatastreamConnProfile
-		dstProfile    		  profiles.DatastreamConnProfile
-		validateOnly 		  bool
-		expectError 		  bool
+	testCases := []struct {
+		name         string
+		dsAcc        datastream_accessor.DatastreamAccessorMock
+		srcProfile   profiles.DatastreamConnProfile
+		dstProfile   profiles.DatastreamConnProfile
+		validateOnly bool
+		expectError  bool
 	}{
 		{
-			name : "Basic both profiles exist validate only false",
+			name: "Basic both profiles exist validate only false",
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error) {
 					return true, nil
 				},
 			},
 			srcProfile: profiles.DatastreamConnProfile{
-				Name: "src-profile",
+				Name:     "src-profile",
 				Location: "region",
 			},
 			dstProfile: profiles.DatastreamConnProfile{
-				Name: "dst-profile",
+				Name:     "dst-profile",
 				Location: "region",
 			},
 			validateOnly: false,
-			expectError: false,
+			expectError:  false,
 		},
 		{
-			name : "Basic both profiles exist validate only true",
+			name: "Basic both profiles exist validate only true",
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error) {
 					return true, nil
 				},
 			},
 			srcProfile: profiles.DatastreamConnProfile{
-				Name: "src-profile",
+				Name:     "src-profile",
 				Location: "region",
 			},
 			dstProfile: profiles.DatastreamConnProfile{
-				Name: "dst-profile",
+				Name:     "dst-profile",
 				Location: "region",
 			},
 			validateOnly: true,
-			expectError: false,
+			expectError:  false,
 		},
 		{
-			name : "Basic both profiles do not exist validate only false",
+			name: "Basic both profiles do not exist validate only false",
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error) {
 					return false, nil
 				},
 			},
 			srcProfile: profiles.DatastreamConnProfile{
-				Name: "src-profile",
+				Name:     "src-profile",
 				Location: "region",
 			},
 			dstProfile: profiles.DatastreamConnProfile{
-				Name: "dst-profile",
+				Name:     "dst-profile",
 				Location: "region",
 			},
 			validateOnly: false,
-			expectError: false,
+			expectError:  false,
 		},
 		{
-			name : "Basic both profiles do not exist validate only true",
+			name: "Basic both profiles do not exist validate only true",
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error) {
 					return false, nil
 				},
 			},
 			srcProfile: profiles.DatastreamConnProfile{
-				Name: "src-profile",
+				Name:     "src-profile",
 				Location: "region",
 			},
 			dstProfile: profiles.DatastreamConnProfile{
-				Name: "dst-profile",
+				Name:     "dst-profile",
 				Location: "region",
 			},
 			validateOnly: true,
-			expectError: false,
+			expectError:  false,
 		},
 		{
-			name : "Both profiles do not exist validate only true location and name missing",
+			name: "Both profiles do not exist validate only true location and name missing",
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error) {
 					return false, nil
 				},
 			},
-			srcProfile: profiles.DatastreamConnProfile{},
-			dstProfile: profiles.DatastreamConnProfile{},
+			srcProfile:   profiles.DatastreamConnProfile{},
+			dstProfile:   profiles.DatastreamConnProfile{},
 			validateOnly: true,
-			expectError: false,
+			expectError:  false,
 		},
 		{
-			name : "Both profiles do not exist validate only true location missing",
+			name: "Both profiles do not exist validate only true location missing",
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error) {
 					return false, nil
 				},
 			},
@@ -532,25 +530,25 @@ func TestGetResourcesForCreation(t *testing.T) {
 				Name: "dst-profile",
 			},
 			validateOnly: false,
-			expectError: false,
+			expectError:  false,
 		},
 		{
-			name : "connection profile exists error",
+			name: "connection profile exists error",
 			dsAcc: datastream_accessor.DatastreamAccessorMock{
-				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error){
+				ConnectionProfileExistsMock: func(ctx context.Context, datastreamClient datastreamclient.DatastreamClient, projectId string, profileName string, profileLocation string, connectionProfiles map[string][]string) (bool, error) {
 					return false, fmt.Errorf("error")
 				},
 			},
 			srcProfile: profiles.DatastreamConnProfile{
-				Name: "src-profile",
+				Name:     "src-profile",
 				Location: "region",
 			},
 			dstProfile: profiles.DatastreamConnProfile{
-				Name: "dst-profile",
+				Name:     "dst-profile",
 				Location: "region",
 			},
 			validateOnly: false,
-			expectError: true,
+			expectError:  true,
 		},
 	}
 	for _, tc := range testCases {
@@ -562,7 +560,7 @@ func TestGetResourcesForCreation(t *testing.T) {
 							SrcConnectionProfile: tc.srcProfile,
 							DstConnectionProfile: tc.dstProfile,
 						},
-					},					
+					},
 				},
 			},
 		}
