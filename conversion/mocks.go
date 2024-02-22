@@ -37,9 +37,8 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-
 type MockGetInfo struct {
-    mock.Mock
+	mock.Mock
 }
 
 func (mgi *MockGetInfo) getInfoSchemaForShard(shardConnInfo profiles.DirectConnectionConfig, driver string, targetProfile profiles.TargetProfile, s profiles.SourceProfileDialectInterface, g GetInfoInterface) (common.InfoSchema, error) {
@@ -56,8 +55,9 @@ func (mgi *MockGetInfo) GetInfoSchema(sourceProfile profiles.SourceProfile, targ
 }
 
 type MockSchemaFromSource struct {
-    mock.Mock
+	mock.Mock
 }
+
 func (msads *MockSchemaFromSource) schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, getInfo GetInfoInterface, processSchema common.ProcessSchemaInterface) (*internal.Conv, error) {
 	args := msads.Called(sourceProfile, targetProfile, getInfo, processSchema)
 	return args.Get(0).(*internal.Conv), args.Error(1)
@@ -68,8 +68,9 @@ func (msads *MockSchemaFromSource) SchemaFromDump(driver string, spDialect strin
 }
 
 type MockDataFromSource struct {
-    mock.Mock
+	mock.Mock
 }
+
 func (msads *MockDataFromSource) dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, getInfo GetInfoInterface, dataFromDb DataFromDatabaseInterface, snapshotMigration SnapshotMigrationInterface) (*writer.BatchWriter, error) {
 	args := msads.Called(ctx, sourceProfile, targetProfile, config, conv, client, getInfo, dataFromDb, snapshotMigration)
 	return args.Get(0).(*writer.BatchWriter), args.Error(1)
@@ -96,11 +97,11 @@ type MockResourceGeneration struct {
 	mock.Mock
 }
 
-func (mrg *MockResourceGeneration) ConnectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error {
+func (mrg *MockResourceGeneration) RollbackResourceCreation(ctx context.Context, profiles []*ConnectionProfileReq) error {
 	args := mrg.Called(ctx, profiles)
 	return args.Error(0)
 }
-func (mrg *MockResourceGeneration) GetResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error) {
+func (mrg *MockResourceGeneration) GetConnectionProfilesForResources(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error) {
 	args := mrg.Called(ctx, projectId, sourceProfile, region, validateOnly)
 	return args.Get(0).([]*ConnectionProfileReq), args.Get(1).([]*ConnectionProfileReq), args.Error(2)
 }

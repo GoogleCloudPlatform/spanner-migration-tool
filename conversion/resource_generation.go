@@ -49,8 +49,8 @@ var (
 )
 
 type ResourceGenerationInterface interface {
-	ConnectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error
-	GetResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error)
+	RollbackResourceCreation(ctx context.Context, profiles []*ConnectionProfileReq) error
+	GetConnectionProfilesForResources(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error)
 	PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq]
 }
 
@@ -172,7 +172,7 @@ func (r ResourceGenerationImpl) PrepareMinimalDowntimeResources(createResourceDa
 }
 
 // If any of the resource creation fails, deletes all resources that were created
-func (r ResourceGenerationImpl) ConnectionProfileCleanUp(ctx context.Context, profiles []*ConnectionProfileReq) error {
+func (r ResourceGenerationImpl) RollbackResourceCreation(ctx context.Context, profiles []*ConnectionProfileReq) error {
 	for _, profile := range profiles {
 		err := r.DsAcc.DeleteConnectionProfile(ctx, r.DsClient, profile.ConnectionProfile.ProjectId, profile.ConnectionProfile.Region, profile.ConnectionProfile.Id)
 		if err != nil {
@@ -190,7 +190,7 @@ func (r ResourceGenerationImpl) ConnectionProfileCleanUp(ctx context.Context, pr
 }
 
 // Returns source and destination connection profiles to be created
-func (r ResourceGenerationImpl) GetResourcesForCreation(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error) {
+func (r ResourceGenerationImpl) GetConnectionProfilesForResources(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error) {
 	var sourceProfilesToCreate []*ConnectionProfileReq
 	var dstProfilesToCreate []*ConnectionProfileReq
 
@@ -228,7 +228,7 @@ func (c *ValidateOrCreateResourcesImpl) ValidateOrCreateResourcesForShardedMigra
 	var dstProfilesToCreate []*ConnectionProfileReq
 
 	// Fetches list with resources which do not exist and need to be created
-	sourceProfilesToCreate, dstProfilesToCreate, err := c.ResourceGenerator.GetResourcesForCreation(ctx, projectId, sourceProfile, region, validateOnly)
+	sourceProfilesToCreate, dstProfilesToCreate, err := c.ResourceGenerator.GetConnectionProfilesForResources(ctx, projectId, sourceProfile, region, validateOnly)
 	if err != nil {
 		return fmt.Errorf("resource generation failed %s", err)
 	}
@@ -245,7 +245,7 @@ func (c *ValidateOrCreateResourcesImpl) ValidateOrCreateResourcesForShardedMigra
 	resSourceProfiles, resCreationErr := c.RunParallel.RunParallelTasks(sourceProfilesToCreate, 20, c.ResourceGenerator.PrepareMinimalDowntimeResources, fastExit)
 	// If creation failed, perform cleanup of resources
 	if resCreationErr != nil && !validateOnly {
-		err = c.ResourceGenerator.ConnectionProfileCleanUp(ctx, resourcesForCleanup)
+		err = c.ResourceGenerator.RollbackResourceCreation(ctx, resourcesForCleanup)
 		if err != nil {
 			return fmt.Errorf("resource generation failed due to %s, resources created could not be cleaned up, please cleanup manually: %s", resCreationErr.Error(), err.Error())
 		} else {
@@ -265,7 +265,7 @@ func (c *ValidateOrCreateResourcesImpl) ValidateOrCreateResourcesForShardedMigra
 	if !validateOnly {
 		_, resCreationErr := c.RunParallel.RunParallelTasks(dstProfilesToCreate, 20, c.ResourceGenerator.PrepareMinimalDowntimeResources, fastExit)
 		if resCreationErr != nil {
-			err = c.ResourceGenerator.ConnectionProfileCleanUp(ctx, resourcesForCleanup)
+			err = c.ResourceGenerator.RollbackResourceCreation(ctx, resourcesForCleanup)
 			if err != nil {
 				return fmt.Errorf("resource generation failed due to %s, resources created could not be cleaned up, please cleanup manually: %s", resCreationErr.Error(), err.Error())
 			} else {
