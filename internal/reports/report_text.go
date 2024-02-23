@@ -13,7 +13,7 @@ import (
 //report to a human readable text report.
 // The structure of the report created is present in (internal/reports/REPORT.md)
 // A sample report can be found in (test_data/mysql_text_report.txt)
-func GenerateTextReport(structuredReport StructuredReport, w *bufio.Writer) {
+func (r *ReportImpl) GenerateTextReport(structuredReport StructuredReport, w *bufio.Writer) {
 	writeHeading(w, "Summary of Conversion")
 	w.WriteString(structuredReport.Summary.Text)
 	w.WriteString("\n")

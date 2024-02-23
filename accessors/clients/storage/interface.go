@@ -30,6 +30,7 @@ type BucketHandle interface {
 	Create(ctx context.Context, projectID string, attrs *storage.BucketAttrs) (err error)
 	Update(ctx context.Context, uattrs storage.BucketAttrsToUpdate) (attrs *storage.BucketAttrs, err error)
 	Object(name string) ObjectHandle
+	Delete(ctx context.Context) error
 }
 
 // Use this interface instead of storage.ObjectHandle to support mocking.
@@ -70,6 +71,10 @@ func (b *BucketHandleImpl) Update(ctx context.Context, uattrs storage.BucketAttr
 
 func (b *BucketHandleImpl) Object(name string) ObjectHandle {
 	return &ObjectHandleImpl{objectHandle: b.bucketHandle.Object(name)}
+}
+
+func (b *BucketHandleImpl) Delete(ctx context.Context) error {
+	return b.bucketHandle.Delete(ctx)
 }
 
 // This implements the ObjectHandle interface. This is the primary implementation that should be used in all places other than tests.

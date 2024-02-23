@@ -18,13 +18,14 @@ import (
 	"io/fs"
 	"net/http"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/profile"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/summary"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/table"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/api"
 	"github.com/gorilla/mux"
 )
 
@@ -32,6 +33,9 @@ func getRoutes() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	frontendRoot, _ := fs.Sub(FrontendDir, "ui/dist/ui")
 	frontendStatic := http.FileServer(http.FS(frontendRoot))
+	reportAPIHandler := api.ReportAPIHandler{
+		Report: &conversion.ReportImpl{},
+	}
 	router.HandleFunc("/connect", databaseConnection).Methods("POST")
 	router.HandleFunc("/convert/infoschema", api.ConvertSchemaSQL).Methods("GET")
 	router.HandleFunc("/convert/dump", api.ConvertSchemaDump).Methods("POST")
@@ -39,10 +43,10 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/ddl", api.GetDDL).Methods("GET")
 	router.HandleFunc("/conversion", api.GetConversionRate).Methods("GET")
 	router.HandleFunc("/typemap", api.GetTypeMap).Methods("GET")
-	router.HandleFunc("/report", getReportFile).Methods("GET")
-	router.HandleFunc("/downloadStructuredReport", getDStructuredReport).Methods("GET")
-	router.HandleFunc("/downloadTextReport", getDTextReport).Methods("GET")
-	router.HandleFunc("/downloadDDL", getDSpannerDDL).Methods("GET")
+	router.HandleFunc("/report", reportAPIHandler.GetReportFile).Methods("GET")
+	router.HandleFunc("/downloadStructuredReport", reportAPIHandler.GetDStructuredReport).Methods("GET")
+	router.HandleFunc("/downloadTextReport", reportAPIHandler.GetDTextReport).Methods("GET")
+	router.HandleFunc("/downloadDDL", api.GetDSpannerDDL).Methods("GET")
 	router.HandleFunc("/schema", getSchemaFile).Methods("GET")
 	router.HandleFunc("/applyrule", api.ApplyRule).Methods("POST")
 	router.HandleFunc("/dropRule", api.DropRule).Methods("POST")
