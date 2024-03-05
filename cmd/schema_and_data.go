@@ -164,14 +164,17 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
 			spClient, err:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
 			if err != nil {
+				logger.Log.Error(err.Error())
 				return subcommands.ExitFailure
 			}
 			dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
 			if err != nil {
+				logger.Log.Error(err.Error())
 				return subcommands.ExitFailure
 			}
 			storageclient, err := storageclient.NewStorageClientImpl(ctx)
 			if err != nil {
+				logger.Log.Error(err.Error())
 				return subcommands.ExitFailure
 			}
 			validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
