@@ -49,7 +49,13 @@ var (
 	datastreamClient *datastream.Client
 )
 
-func getDatastreamClient(ctx context.Context) *datastream.Client {
+type CreateMigrationResources interface {
+	multiError(errorMessages []error) error
+	prepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq]
+	getConnProfilesRegion(ctx context.Context, projectId string, region string, dsClient *datastream.Client)
+}
+
+func GetDatastreamClient(ctx context.Context) *datastream.Client {
 	if datastreamClient == nil {
 		once.Do(func() {
 			datastreamClient, _ = datastream.NewClient(ctx)
