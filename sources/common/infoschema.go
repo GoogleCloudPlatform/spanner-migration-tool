@@ -117,7 +117,8 @@ func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema Info
 		return res
 	}
 
-	res, e := RunParallelTasks(tables, numWorkers, asyncProcessTable, true)
+	r := RunParallelTasksImpl[SchemaAndName, SchemaAndName]{}
+	res, e := r.RunParallelTasks(tables, numWorkers, asyncProcessTable, true)
 	if e != nil {
 		fmt.Printf("exiting due to error: %s , while processing schema for table %s\n", e, res)
 		return 0, e

@@ -31,6 +31,12 @@ type UtilsOrderInterface interface {
 }
 type UtilsOrderImpl struct {}
 
+type RunParallelTasksInterface[I any, O any] interface {
+	RunParallelTasks(input []I, numWorkers int, f func(i I, mutex *sync.Mutex) TaskResult[O], fastExit bool) ([]TaskResult[O], error)
+}
+
+type RunParallelTasksImpl[I any, O any] struct {}
+
 // ToNotNull returns true if a column is not nullable and false if it is.
 func ToNotNull(conv *internal.Conv, isNullable string) bool {
 	switch isNullable {
@@ -164,7 +170,7 @@ type TaskResult[O any] struct {
 // f:			Function to execute the task
 // fastExit: 	If an error is encountered, gracefully exit all running or queued tasks
 // Returns an array of TaskResults and last error
-func RunParallelTasks[I any, O any](input []I, numWorkers int, f func(i I, mutex *sync.Mutex) TaskResult[O],
+func (rpt *RunParallelTasksImpl[I, O]) RunParallelTasks(input []I, numWorkers int, f func(i I, mutex *sync.Mutex) TaskResult[O],
 	fastExit bool) ([]TaskResult[O], error) {
 	inputChannel := make(chan I, len(input))
 	outputChannel := make(chan TaskResult[O], len(input))

@@ -569,9 +569,18 @@ type DirectConnectionConfig struct {
 	DbName      string `json:"dbName"`
 }
 
-type DatastreamConnProfile struct {
+type DatastreamConnProfileSource struct {
 	Name     string `json:"name"`
-	Location string `json:"location"`
+	Host     string  `json:"host"`
+	User     string  `json:"user"`
+	Port     string  `json:"port"`
+	Password string  `json:"password"`
+	Location string  `json:"location"`
+}
+
+type DatastreamConnProfileTarget struct {
+	Name     string `json:"name"`
+	Location string  `json:"location"`
 }
 
 type DatastreamConfig struct {
@@ -601,15 +610,15 @@ type DataflowConfig struct {
 }
 
 type DataShard struct {
-	DataShardId          string                `json:"dataShardId"`
-	SrcConnectionProfile DatastreamConnProfile `json:"srcConnectionProfile"`
-	DstConnectionProfile DatastreamConnProfile `json:"dstConnectionProfile"`
-	DatastreamConfig     DatastreamConfig      `json:"datastreamConfig"`
-	GcsConfig            GcsConfig             `json:"gcsConfig"`
-	DataflowConfig       DataflowConfig        `json:"dataflowConfig"`
-	TmpDir               string                `json:"tmpDir"`
-	StreamLocation       string                `json:"streamLocation"`
-	LogicalShards        []LogicalShard        `json:"databases"`
+	DataShardId          string                		 `json:"dataShardId"`
+	SrcConnectionProfile DatastreamConnProfileSource `json:"srcConnectionProfile"`
+	DstConnectionProfile DatastreamConnProfileTarget `json:"dstConnectionProfile"`
+	DatastreamConfig     DatastreamConfig      		 `json:"datastreamConfig"`
+	GcsConfig            GcsConfig             		 `json:"gcsConfig"`
+	DataflowConfig       DataflowConfig        		 `json:"dataflowConfig"`
+	TmpDir               string                		 `json:"tmpDir"`
+	StreamLocation       string               		 `json:"streamLocation"`
+	LogicalShards        []LogicalShard      		 `json:"databases"`
 }
 
 type LogicalShard struct {
