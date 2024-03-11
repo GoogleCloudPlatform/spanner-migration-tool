@@ -22,8 +22,13 @@ import (
 
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
 	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
+	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
+	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
+	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -185,8 +190,18 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 		}
 		fmt.Printf("Schema validated successfully for data migration for db %s\n", dbURI)
 	}
+
+	// If migration type is Minimal Downtime, validate if required resources can be generated
+	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
+		err := ValidateResourceGenerationHelper(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	c := &conversion.ConvImpl{}
 	bw, err = c.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
+
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return nil, err
@@ -217,8 +232,18 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 	}
 	metricsPopulation(ctx, sourceProfile.Driver, conv)
 	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
+
+	// If migration type is Minimal Downtime, validate if required resources can be generated
+	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
+		err := ValidateResourceGenerationHelper(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	convImpl := &conversion.ConvImpl{}
 	bw, err := convImpl.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
+
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return nil, err
@@ -229,4 +254,26 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		spA.UpdateDDLForeignKeys(ctx, adminClientImpl, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
 	}
 	return bw, nil
+}
+
+func ValidateResourceGenerationHelper(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
+	spClient, err:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	if err != nil {
+		return err
+	}
+	dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
+	if err != nil {
+		return err
+	}
+	storageclient, err := storageclient.NewStorageClientImpl(ctx)
+	if err != nil {
+		return err
+	}
+	validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
+		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
+	err = validateResource.ValidateResourceGeneration(ctx, projectId, instanceId, sourceProfile, conv)
+	if err != nil {
+		return err
+	}
+	return nil
 }

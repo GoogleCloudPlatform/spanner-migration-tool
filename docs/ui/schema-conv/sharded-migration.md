@@ -35,3 +35,15 @@ The `migration_shard_id` column is populated via the database to shardId map tha
 
 ![](https://services.google.com/fh/files/misc/shard_schema.png)
 
+## `migration_shard_id` as Primary Key
+It is a common practice to use auto-incremented primary keys in many source databases. However during a sharded migration, where
+multiple source shards are merged into a single Spanner Database, this may lead to conflicts during the data migration. To avoid
+these conflicts, the `migration_shard_id` is added to the primary key of each table by default. 
+
+![](https://services.google.com/fh/gumdrop/preview/misc/hb_shard_id_rule_view.png)
+
+To disable this behaviour, please click on "View Rule" and delete the shard_id rule as shown below.
+
+![](https://services.google.com/fh/gumdrop/preview/misc/hb_delete_shard_id_rule.png)
+
+

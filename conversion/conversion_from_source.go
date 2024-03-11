@@ -12,15 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package conversion handles initial setup for the command line tool
-// and web APIs.
-
-// TODO:(searce) Organize code in go style format to make this file more readable.
-//
-//	public constants first
-//	key public type definitions next (although often it makes sense to put them next to public functions that use them)
-//	then public functions (and relevant type definitions)
-//	and helper functions and other non-public definitions last (generally in order of importance)
 package conversion
 
 import (
@@ -271,7 +262,7 @@ func (sads *DataFromSourceImpl) dataFromDatabase(ctx context.Context, sourceProf
 			gcloudCmd := dfOutput.GCloudCmd
 			streamingCfg, _ := streamInfo["streamingCfg"].(streaming.StreamingCfg)
 			// Fetch and store the GCS bucket associated with the datastream
-			dsClient := getDatastreamClient(ctx)
+			dsClient := GetDatastreamClient(ctx)
 			gcsBucket, gcsDestPrefix, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
 			if fetchGcsErr != nil {
 				logger.Log.Info("Could not fetch GCS Bucket, hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n")

@@ -66,7 +66,6 @@ var TABLE_STATEMENTS = []string{
 	  ) PRIMARY KEY(JobId)`,
 	`CREATE TABLE IF NOT EXISTS SMT_JOB_HISTORY (
 		JobId STRING(100) NOT NULL,
-		Version INT64 NOT NULL,
 		JobName STRING(100) NOT NULL,
 		JobType STRING(100) NOT NULL,
 		JobStateData JSON,
@@ -74,7 +73,7 @@ var TABLE_STATEMENTS = []string{
 		Dialect STRING(50) NOT NULL,
 		SpannerDatabaseName STRING(100) NOT NULL,
 		CreatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
-	  ) PRIMARY KEY(JobId, Version)`,
+	  ) PRIMARY KEY(JobId, CreatedAt)`,
 	`CREATE TABLE IF NOT EXISTS SMT_RESOURCE (
 		ResourceId STRING(100) NOT NULL,
 		JobId STRING(100) NOT NULL,
@@ -88,7 +87,6 @@ var TABLE_STATEMENTS = []string{
 	  ) PRIMARY KEY(ResourceId)`,
 	`CREATE TABLE IF NOT EXISTS SMT_RESOURCE_HISTORY (
 		ResourceId STRING(100) NOT NULL,
-		Version INT64 NOT NULL,
 		JobId STRING(100) NOT NULL,
 		ExternalId STRING(100),
 		ResourceName STRING(100) NOT NULL,
@@ -96,7 +94,7 @@ var TABLE_STATEMENTS = []string{
 		ResourceStateData JSON,
 		ResourceData JSON,
 		CreatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
-	) PRIMARY KEY(ResourceId, Version)`,
+	) PRIMARY KEY(ResourceId, CreatedAt)`,
 }
 
 func GetSpannerUri(projectId string, instanceId string) string {
