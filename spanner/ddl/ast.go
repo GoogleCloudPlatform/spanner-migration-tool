@@ -39,6 +39,8 @@ const (
 	Bytes string = "BYTES"
 	// Date represent DATE type.
 	Date string = "DATE"
+	// Float32 represent FLOAT32 type.
+	Float32 string = "FLOAT32"
 	// Float64 represent FLOAT64 type.
 	Float64 string = "FLOAT64"
 	// Int64 represent INT64 type.
@@ -400,7 +402,7 @@ func (ci CreateIndex) PrintCreateIndex(ct CreateTable, c Config) string {
 	if ci.StoredColumnIds != nil {
 		storedColumns := []string{}
 		for _, colId := range ci.StoredColumnIds {
-			if (!isStoredColumnKeyPartOfPrimaryKey(ct, colId)) {
+			if !isStoredColumnKeyPartOfPrimaryKey(ct, colId) {
 				storedColumns = append(storedColumns, c.quote(ct.ColDefs[colId].Name))
 			}
 		}

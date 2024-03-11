@@ -105,6 +105,8 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, t
 		return convBytes(val)
 	case ddl.Date:
 		return convDate(val)
+	case ddl.Float32:
+		return convFloat32(val)
 	case ddl.Float64:
 		return convFloat64(val)
 	case ddl.Int64:

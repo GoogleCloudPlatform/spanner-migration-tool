@@ -575,6 +575,17 @@ func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, 
 		case string: // Parse as int64.
 			return convInt64(v)
 		}
+	case ddl.Float32:
+		switch v := val.(type) {
+		case []byte: // Note: PostgreSQL uses []byte for numeric.
+			return convFloat32(string(v))
+		case int64:
+			return float32(v), nil
+		case float32:
+			return v, nil
+		case string:
+			return convFloat32(v)
+		}
 	case ddl.Float64:
 		switch v := val.(type) {
 		case []byte: // Note: PostgreSQL uses []byte for numeric.
