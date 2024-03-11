@@ -24,12 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
-	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
-	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
-	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
-	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
-	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
@@ -162,25 +156,9 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
 		// If migration type is Minimal Downtime, validate if required resources can be generated
 		if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-			spClient, err:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+			err := ValidateResourceGenerationHelper(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 			if err != nil {
 				logger.Log.Error(err.Error())
-				return subcommands.ExitFailure
-			}
-			dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
-			if err != nil {
-				logger.Log.Error(err.Error())
-				return subcommands.ExitFailure
-			}
-			storageclient, err := storageclient.NewStorageClientImpl(ctx)
-			if err != nil {
-				logger.Log.Error(err.Error())
-				return subcommands.ExitFailure
-			}
-			validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
-				dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
-			err = validateResource.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
-			if err != nil {
 				return subcommands.ExitFailure
 			}
 		}

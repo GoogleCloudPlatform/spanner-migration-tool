@@ -193,21 +193,7 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		spClient, err:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
-		if err != nil {
-			return nil, err
-		}
-		dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
-		if err != nil {
-			return nil, err
-		}
-		storageclient, err := storageclient.NewStorageClientImpl(ctx)
-		if err != nil {
-			return nil, err
-		}
-		validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
-			dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
-		err = validateResource.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		err := ValidateResourceGenerationHelper(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}
@@ -249,21 +235,7 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		spClient, err:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
-		if err != nil {
-			return nil, err
-		}
-		dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
-		if err != nil {
-			return nil, err
-		}
-		storageclient, err := storageclient.NewStorageClientImpl(ctx)
-		if err != nil {
-			return nil, err
-		}
-		validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
-			dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
-		err = validateResource.ValidateResourceGeneration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		err := ValidateResourceGenerationHelper(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}
@@ -282,4 +254,26 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		spA.UpdateDDLForeignKeys(ctx, adminClientImpl, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
 	}
 	return bw, nil
+}
+
+func ValidateResourceGenerationHelper(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
+	spClient, err:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	if err != nil {
+		return err
+	}
+	dsClient, err := datastreamclient.NewDatastreamClientImpl(ctx)
+	if err != nil {
+		return err
+	}
+	storageclient, err := storageclient.NewStorageClientImpl(ctx)
+	if err != nil {
+		return err
+	}
+	validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
+		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
+	err = validateResource.ValidateResourceGeneration(ctx, projectId, instanceId, sourceProfile, conv)
+	if err != nil {
+		return err
+	}
+	return nil
 }
