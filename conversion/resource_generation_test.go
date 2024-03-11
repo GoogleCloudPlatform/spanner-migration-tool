@@ -427,8 +427,8 @@ func TestGetConnectionProfilesForResources(t *testing.T) {
 	testCases := []struct {
 		name         string
 		dsAcc        datastream_accessor.DatastreamAccessorMock
-		srcProfile   profiles.DatastreamConnProfile
-		dstProfile   profiles.DatastreamConnProfile
+		srcProfile   profiles.DatastreamConnProfileSource
+		dstProfile   profiles.DatastreamConnProfileTarget
 		validateOnly bool
 		expectError  bool
 	}{
@@ -439,11 +439,11 @@ func TestGetConnectionProfilesForResources(t *testing.T) {
 					return true, nil
 				},
 			},
-			srcProfile: profiles.DatastreamConnProfile{
+			srcProfile: profiles.DatastreamConnProfileSource{
 				Name:     "src-profile",
 				Location: "region",
 			},
-			dstProfile: profiles.DatastreamConnProfile{
+			dstProfile: profiles.DatastreamConnProfileTarget{
 				Name:     "dst-profile",
 				Location: "region",
 			},
@@ -457,11 +457,11 @@ func TestGetConnectionProfilesForResources(t *testing.T) {
 					return true, nil
 				},
 			},
-			srcProfile: profiles.DatastreamConnProfile{
+			srcProfile: profiles.DatastreamConnProfileSource{
 				Name:     "src-profile",
 				Location: "region",
 			},
-			dstProfile: profiles.DatastreamConnProfile{
+			dstProfile: profiles.DatastreamConnProfileTarget{
 				Name:     "dst-profile",
 				Location: "region",
 			},
@@ -475,11 +475,11 @@ func TestGetConnectionProfilesForResources(t *testing.T) {
 					return false, nil
 				},
 			},
-			srcProfile: profiles.DatastreamConnProfile{
+			srcProfile: profiles.DatastreamConnProfileSource{
 				Name:     "src-profile",
 				Location: "region",
 			},
-			dstProfile: profiles.DatastreamConnProfile{
+			dstProfile: profiles.DatastreamConnProfileTarget{
 				Name:     "dst-profile",
 				Location: "region",
 			},
@@ -493,11 +493,11 @@ func TestGetConnectionProfilesForResources(t *testing.T) {
 					return false, nil
 				},
 			},
-			srcProfile: profiles.DatastreamConnProfile{
+			srcProfile: profiles.DatastreamConnProfileSource{
 				Name:     "src-profile",
 				Location: "region",
 			},
-			dstProfile: profiles.DatastreamConnProfile{
+			dstProfile: profiles.DatastreamConnProfileTarget{
 				Name:     "dst-profile",
 				Location: "region",
 			},
@@ -511,8 +511,8 @@ func TestGetConnectionProfilesForResources(t *testing.T) {
 					return false, nil
 				},
 			},
-			srcProfile:   profiles.DatastreamConnProfile{},
-			dstProfile:   profiles.DatastreamConnProfile{},
+			srcProfile:   profiles.DatastreamConnProfileSource{},
+			dstProfile:   profiles.DatastreamConnProfileTarget{},
 			validateOnly: true,
 			expectError:  false,
 		},
@@ -523,10 +523,10 @@ func TestGetConnectionProfilesForResources(t *testing.T) {
 					return false, nil
 				},
 			},
-			srcProfile: profiles.DatastreamConnProfile{
+			srcProfile: profiles.DatastreamConnProfileSource{
 				Name: "src-profile",
 			},
-			dstProfile: profiles.DatastreamConnProfile{
+			dstProfile: profiles.DatastreamConnProfileTarget{
 				Name: "dst-profile",
 			},
 			validateOnly: false,
@@ -539,11 +539,11 @@ func TestGetConnectionProfilesForResources(t *testing.T) {
 					return false, fmt.Errorf("error")
 				},
 			},
-			srcProfile: profiles.DatastreamConnProfile{
+			srcProfile: profiles.DatastreamConnProfileSource{
 				Name:     "src-profile",
 				Location: "region",
 			},
-			dstProfile: profiles.DatastreamConnProfile{
+			dstProfile: profiles.DatastreamConnProfileTarget{
 				Name:     "dst-profile",
 				Location: "region",
 			},
