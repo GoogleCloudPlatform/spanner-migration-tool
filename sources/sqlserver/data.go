@@ -145,6 +145,14 @@ func convDate(val string) (civil.Date, error) {
 	return d, err
 }
 
+func convFloat32(val string) (float32, error) {
+	f, err := strconv.ParseFloat(val, 32)
+	if err != nil {
+		return float32(f), fmt.Errorf("can't convert to float32: %w", err)
+	}
+	return float32(f), err
+}
+
 func convFloat64(val string) (float64, error) {
 	float, err := strconv.ParseFloat(val, 64)
 	if err != nil {

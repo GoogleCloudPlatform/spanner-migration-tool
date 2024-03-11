@@ -281,21 +281,21 @@ func convArray(spannerType ddl.Type, srcTypeName string, v string) (interface{},
 		return r, nil
 	case ddl.Float32:
 		var a []interface{}
-		var r []spanner.NullFloat32
+		var r []spanner.NullFloat64
 		err := json.Unmarshal([]byte(v), &a)
 		if err != nil {
-			return []spanner.NullFloat32{}, err
+			return []spanner.NullFloat64{}, err
 		}
 		for _, s := range a {
 			if s == "NULL" {
-				r = append(r, spanner.NullFloat32{Valid: false})
+				r = append(r, spanner.NullFloat64{Valid: false})
 				continue
 			}
 			val, err := convFloat32(fmt.Sprint(s))
 			if err != nil {
-				return []spanner.NullFloat32{}, err
+				return []spanner.NullFloat64{}, err
 			}
-			r = append(r, spanner.NullFloat32{Float32: val, Valid: true})
+			r = append(r, spanner.NullFloat64{Float64: float64(val), Valid: true})
 		}
 		return r, nil
 	case ddl.Float64:
