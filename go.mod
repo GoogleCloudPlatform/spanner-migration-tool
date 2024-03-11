@@ -28,7 +28,7 @@ require (
 	github.com/pingcap/tidb/parser v0.0.0-20230918090611-71bcc44f77a3
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/sijms/go-ora/v2 v2.2.17
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.8.4
 	go.uber.org/ratelimit v0.3.0
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.17.0
@@ -41,11 +41,14 @@ require (
 )
 
 require (
+	github.com/golang/mock v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
+	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
+	golang.org/x/tools v0.10.0 // indirect
 )
 
 require (
