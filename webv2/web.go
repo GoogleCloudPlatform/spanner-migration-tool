@@ -803,14 +803,6 @@ func getSourceProfileStringForShardedMigrations(sessionState *session.SessionSta
 
 func createConfigFileForShardedDataflowMigration(sessionState *session.SessionState, details types.MigrationDetails, fileName string) error {
 	sourceProfileConfig := sessionState.SourceProfileConfig
-	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
-	for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
-		bucket, rootPath, err := conversion.GetBucketFromDatastreamProfile(sessionState.GCPProjectID, sessionState.Region, dataShard.DstConnectionProfile.Name)
-		if err != nil {
-			return fmt.Errorf("error while getting target bucket: %v", err)
-		}
-		dataShard.TmpDir = "gs://" + bucket + rootPath
-	}
 	file, err := json.MarshalIndent(sourceProfileConfig, "", " ")
 	if err != nil {
 		return fmt.Errorf("error while marshalling json: %v", err)
