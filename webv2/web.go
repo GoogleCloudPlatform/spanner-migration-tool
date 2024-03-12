@@ -166,7 +166,7 @@ func getSourceProfileConfig(w http.ResponseWriter, r *http.Request) {
 	sourceProfileConfig := sessionState.SourceProfileConfig
 	if sourceProfileConfig.ConfigType == "dataflow" {
 		for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
-			bucket, rootPath, err := conversion.GetBucket(sessionState.GCPProjectID, sessionState.Region, dataShard.DstConnectionProfile.Name)
+			bucket, rootPath, err := conversion.GetBucketFromDatastreamProfile(sessionState.GCPProjectID, sessionState.Region, dataShard.DstConnectionProfile.Name)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("error while getting target bucket: %v", err), http.StatusInternalServerError)
 				return
@@ -517,8 +517,6 @@ func getIssueDescription(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(issuesMap)
 }
 
-
-
 func getBackendHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
@@ -753,7 +751,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details type
 	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v,dialect=%v", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB, sessionState.Dialect)
 	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION && !details.IsSharded {
 		fileName := sessionState.Conv.Audit.MigrationRequestId + "-streaming.json"
-		sessionState.Bucket, sessionState.RootPath, err = conversion.GetBucket(sessionState.GCPProjectID, sessionState.Region, details.TargetDetails.TargetConnectionProfileName)
+		sessionState.Bucket, sessionState.RootPath, err = conversion.GetBucketFromDatastreamProfile(sessionState.GCPProjectID, sessionState.Region, details.TargetDetails.TargetConnectionProfileName)
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting target bucket: %v", err)
 		}
@@ -805,6 +803,14 @@ func getSourceProfileStringForShardedMigrations(sessionState *session.SessionSta
 
 func createConfigFileForShardedDataflowMigration(sessionState *session.SessionState, details types.MigrationDetails, fileName string) error {
 	sourceProfileConfig := sessionState.SourceProfileConfig
+	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
+	for _, dataShard := range sourceProfileConfig.ShardConfigurationDataflow.DataShards {
+		bucket, rootPath, err := conversion.GetBucketFromDatastreamProfile(sessionState.GCPProjectID, sessionState.Region, dataShard.DstConnectionProfile.Name)
+		if err != nil {
+			return fmt.Errorf("error while getting target bucket: %v", err)
+		}
+		dataShard.TmpDir = "gs://" + bucket + rootPath
+	}
 	file, err := json.MarshalIndent(sourceProfileConfig, "", " ")
 	if err != nil {
 		return fmt.Errorf("error while marshalling json: %v", err)

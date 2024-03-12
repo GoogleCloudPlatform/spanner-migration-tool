@@ -104,7 +104,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 		prepareResourcesResult         common.TaskResult[*conversion.ConnectionProfileReq]
 		runParallelTasksForSourceError error
 		runParallelTasksForTargetError error
-		connectionProfileCleanUpError  error
+		RollbackResourceCreationError  error
 		expectError                    bool
 	}{
 		{
@@ -113,7 +113,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			resourcesForGeneration:        validGetResourcesForGeneration,
 			resourcesForGenerationError:   nil,
 			prepareResourcesResult:        common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError: nil,
+			RollbackResourceCreationError: nil,
 			expectError:                   false,
 		},
 		{
@@ -122,16 +122,16 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			resourcesForGeneration:        validGetResourcesForGeneration,
 			resourcesForGenerationError:   nil,
 			prepareResourcesResult:        common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError: nil,
+			RollbackResourceCreationError: nil,
 			expectError:                   false,
 		},
 		{
-			name:                          "getResourcesForCreation error",
+			name:                          "GetConnectionProfilesForResources error",
 			validateOnly:                  true,
 			resourcesForGeneration:        []*conversion.ConnectionProfileReq{},
 			resourcesForGenerationError:   fmt.Errorf("error"),
 			prepareResourcesResult:        common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError: nil,
+			RollbackResourceCreationError: nil,
 			expectError:                   true,
 		},
 		{
@@ -140,7 +140,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			resourcesForGeneration:         validGetResourcesForGeneration,
 			resourcesForGenerationError:    nil,
 			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError:  nil,
+			RollbackResourceCreationError:  nil,
 			runParallelTasksForSourceError: fmt.Errorf("error"),
 			expectError:                    true,
 		},
@@ -150,7 +150,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			resourcesForGeneration:         validGetResourcesForGeneration,
 			resourcesForGenerationError:    nil,
 			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError:  nil,
+			RollbackResourceCreationError:  nil,
 			runParallelTasksForSourceError: fmt.Errorf("error"),
 			expectError:                    true,
 		},
@@ -160,7 +160,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			resourcesForGeneration:         validGetResourcesForGeneration,
 			resourcesForGenerationError:    nil,
 			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError:  fmt.Errorf("error"),
+			RollbackResourceCreationError:  fmt.Errorf("error"),
 			runParallelTasksForSourceError: fmt.Errorf("error"),
 			expectError:                    true,
 		},
@@ -170,7 +170,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			resourcesForGeneration:         validGetResourcesForGeneration,
 			resourcesForGenerationError:    nil,
 			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError:  nil,
+			RollbackResourceCreationError:  nil,
 			runParallelTasksForTargetError: fmt.Errorf("error"),
 			expectError:                    true,
 		},
@@ -181,7 +181,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			resourcesForGeneration:         validGetResourcesForGeneration,
 			resourcesForGenerationError:    nil,
 			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError:  fmt.Errorf("error"),
+			RollbackResourceCreationError:  fmt.Errorf("error"),
 			runParallelTasksForTargetError: fmt.Errorf("error"),
 			expectError:                    true,
 		},
@@ -191,15 +191,15 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			resourcesForGeneration:        validGetResourcesForGeneration,
 			resourcesForGenerationError:   nil,
 			prepareResourcesResult:        common.TaskResult[*conversion.ConnectionProfileReq]{Result: errorConnectionProfileReq, Err: nil},
-			connectionProfileCleanUpError: nil,
+			RollbackResourceCreationError: nil,
 			expectError:                   true,
 		},
 	}
 	for _, tc := range testCases {
 		mrg := conversion.MockResourceGeneration{}
-		mrg.On("GetResourcesForCreation", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.resourcesForGeneration, tc.resourcesForGeneration, tc.resourcesForGenerationError)
+		mrg.On("GetConnectionProfilesForResources", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.resourcesForGeneration, tc.resourcesForGeneration, tc.resourcesForGenerationError)
 		mrg.On("PrepareMinimalDowntimeResources", mock.Anything, mock.Anything).Return(tc.prepareResourcesResult)
-		mrg.On("ConnectionProfileCleanUp", mock.Anything, mock.Anything).Return(tc.connectionProfileCleanUpError)
+		mrg.On("RollbackResourceCreation", mock.Anything, mock.Anything).Return(tc.RollbackResourceCreationError)
 
 		mrpt := common.MockRunParallelTasks[*conversion.ConnectionProfileReq, *conversion.ConnectionProfileReq]{}
 		mrpt.On("RunParallelTasks", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]common.TaskResult[*conversion.ConnectionProfileReq]{tc.prepareResourcesResult, tc.prepareResourcesResult}, tc.runParallelTasksForSourceError).Once()
@@ -349,7 +349,7 @@ func TestPrepareMinimalDowntimeResources(t *testing.T) {
 	}
 }
 
-func TestConnectionProfileCleanUp(t *testing.T) {
+func TestRollbackResourceCreation(t *testing.T) {
 	connProfile := conversion.ConnectionProfileReq{
 		ConnectionProfile: conversion.ConnectionProfile{
 			ProjectId:  "project-id",
@@ -414,12 +414,12 @@ func TestConnectionProfileCleanUp(t *testing.T) {
 	for _, tc := range testCases {
 		rg.DsAcc = &tc.dsAcc
 		rg.StorageAcc = &tc.sam
-		err := rg.ConnectionProfileCleanUp(ctx, []*conversion.ConnectionProfileReq{&connProfile})
+		err := rg.RollbackResourceCreation(ctx, []*conversion.ConnectionProfileReq{&connProfile})
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
 
-func TestGetResourcesForCreation(t *testing.T) {
+func TestGetConnectionProfilesForResources(t *testing.T) {
 	rg := conversion.ResourceGenerationImpl{
 		DsClient: &datastreamclient.DatastreamClientMock{},
 	}
@@ -427,8 +427,8 @@ func TestGetResourcesForCreation(t *testing.T) {
 	testCases := []struct {
 		name         string
 		dsAcc        datastream_accessor.DatastreamAccessorMock
-		srcProfile   profiles.DatastreamConnProfile
-		dstProfile   profiles.DatastreamConnProfile
+		srcProfile   profiles.DatastreamConnProfileSource
+		dstProfile   profiles.DatastreamConnProfileTarget
 		validateOnly bool
 		expectError  bool
 	}{
@@ -439,11 +439,11 @@ func TestGetResourcesForCreation(t *testing.T) {
 					return true, nil
 				},
 			},
-			srcProfile: profiles.DatastreamConnProfile{
+			srcProfile: profiles.DatastreamConnProfileSource{
 				Name:     "src-profile",
 				Location: "region",
 			},
-			dstProfile: profiles.DatastreamConnProfile{
+			dstProfile: profiles.DatastreamConnProfileTarget{
 				Name:     "dst-profile",
 				Location: "region",
 			},
@@ -457,11 +457,11 @@ func TestGetResourcesForCreation(t *testing.T) {
 					return true, nil
 				},
 			},
-			srcProfile: profiles.DatastreamConnProfile{
+			srcProfile: profiles.DatastreamConnProfileSource{
 				Name:     "src-profile",
 				Location: "region",
 			},
-			dstProfile: profiles.DatastreamConnProfile{
+			dstProfile: profiles.DatastreamConnProfileTarget{
 				Name:     "dst-profile",
 				Location: "region",
 			},
@@ -475,11 +475,11 @@ func TestGetResourcesForCreation(t *testing.T) {
 					return false, nil
 				},
 			},
-			srcProfile: profiles.DatastreamConnProfile{
+			srcProfile: profiles.DatastreamConnProfileSource{
 				Name:     "src-profile",
 				Location: "region",
 			},
-			dstProfile: profiles.DatastreamConnProfile{
+			dstProfile: profiles.DatastreamConnProfileTarget{
 				Name:     "dst-profile",
 				Location: "region",
 			},
@@ -493,11 +493,11 @@ func TestGetResourcesForCreation(t *testing.T) {
 					return false, nil
 				},
 			},
-			srcProfile: profiles.DatastreamConnProfile{
+			srcProfile: profiles.DatastreamConnProfileSource{
 				Name:     "src-profile",
 				Location: "region",
 			},
-			dstProfile: profiles.DatastreamConnProfile{
+			dstProfile: profiles.DatastreamConnProfileTarget{
 				Name:     "dst-profile",
 				Location: "region",
 			},
@@ -511,8 +511,8 @@ func TestGetResourcesForCreation(t *testing.T) {
 					return false, nil
 				},
 			},
-			srcProfile:   profiles.DatastreamConnProfile{},
-			dstProfile:   profiles.DatastreamConnProfile{},
+			srcProfile:   profiles.DatastreamConnProfileSource{},
+			dstProfile:   profiles.DatastreamConnProfileTarget{},
 			validateOnly: true,
 			expectError:  false,
 		},
@@ -523,10 +523,10 @@ func TestGetResourcesForCreation(t *testing.T) {
 					return false, nil
 				},
 			},
-			srcProfile: profiles.DatastreamConnProfile{
+			srcProfile: profiles.DatastreamConnProfileSource{
 				Name: "src-profile",
 			},
-			dstProfile: profiles.DatastreamConnProfile{
+			dstProfile: profiles.DatastreamConnProfileTarget{
 				Name: "dst-profile",
 			},
 			validateOnly: false,
@@ -539,11 +539,11 @@ func TestGetResourcesForCreation(t *testing.T) {
 					return false, fmt.Errorf("error")
 				},
 			},
-			srcProfile: profiles.DatastreamConnProfile{
+			srcProfile: profiles.DatastreamConnProfileSource{
 				Name:     "src-profile",
 				Location: "region",
 			},
-			dstProfile: profiles.DatastreamConnProfile{
+			dstProfile: profiles.DatastreamConnProfileTarget{
 				Name:     "dst-profile",
 				Location: "region",
 			},
@@ -565,7 +565,7 @@ func TestGetResourcesForCreation(t *testing.T) {
 			},
 		}
 		rg.DsAcc = &tc.dsAcc
-		_, _, err := rg.GetResourcesForCreation(ctx, "project-id", sourceProfile, "region", tc.validateOnly)
+		_, _, err := rg.GetConnectionProfilesForResources(ctx, "project-id", sourceProfile, "region", tc.validateOnly)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
