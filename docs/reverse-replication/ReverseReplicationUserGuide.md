@@ -142,6 +142,15 @@ The progress of files created per shard is also captured in the shard_file_proce
 
 To confirm that the records have indeed been written to the source database, best approach is to check the record count on the source database, if that matches the expected value. Note that verifying data takes more than just record count matching. The suggested tool for the same is [here](https://github.com/GoogleCloudPlatform/professional-services-data-validator).
 
+#### Tracking which shards are lagging
+
+The following sample SQL gives the shards which are yet to catchup in the writer job. The SQL needs to be fired on the metatdata database. Replace the run_id with the relevant run identifier and the window interval with appropriate value.
+
+```
+select w.shard,r.shard,r.created_upto , w.file_start_interval from shard_file_create_progress r , shard_file_process_progress w where  r.run_id = w.run_id and r.shard = w.shard and
+TIMESTAMP_DIFF(r.created_upto , w.file_start_interval, SECOND)  > 10
+and r.run_id="2024-03-02t05-26-43z"
+```
 ### Troubleshooting
 
 Following are some scenarios and how to handle them.
@@ -187,7 +196,7 @@ In this case, check if you observe the following:
 
   1. The source database table does not have a primary key
   2. The primary key value was not present in the change stream data
-  3. Check the shard_skipped_files table created in the metadata database. The contains the intervals for which the file was found in GCS, for the cases when no change record was generated for the interval.If a file is present in the shard_skipped_files table and also exists in GCS - this indicates a data loss scenario - please raise a bug.
+  3. When there is no data written to Spanner for a given interval for a given shard, no file is created in GCS. In such a case, the interval is skipped by the writer Dataflow job. This can be verified in the logs by searching for the text *skipping the file*. If a file is marked as skipped in the logs but it exists in GCS - this indicates a data loss scenario - please raise a bug.
   4. Check the shard_file_process_progress table in the metadata database. If it is lagging, then wait for the pipeline to catch up so such that data gets reverse replicated.
 
     
@@ -243,12 +252,67 @@ Note: Additional optional parameters for the reader job are [here](https://githu
 
 Note: Additional optional parameters for the writer job are [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/gcs-to-sourcedb/README_GCS_to_Sourcedb.md#optional-parameters).
 
+### Ignorable errors
+
+Dataflow retries most of the errors. Following errors if shown up in the Dataflow UI can be ignored.
+
+#### Reader job
+
+1. File not found exception like below. These are thrown at the time Dataflow workers auto-scale and the work gets reassigned among the workers.
+
+```
+java.io.FileNotFoundException: Rewrite from <GCS bucket name>/.temp-beam/<file name> to <GCS file path> has failed
+```
+
+2. Spanner DEADLINE_EXCEEDED exception.
+
+3. GC thrashing exception like below
+
+```
+Shutting down JVM after 8 consecutive periods of measured GC thrashing.
+```
+
+4. GCS throttling can slow down writes for a while. Below exception results during that period and can be ignored.
+
+```
+Operation ongoing in bundle process_bundle-<bundle number> for PTransform{id=Write To GCS/Write rows to output writeDynamic/WriteFiles/WriteShardedBundlesToTempFiles/WriteShardsIntoTempFiles-ptransform-46, name=Write To GCS/Write rows to output writeDynamic/WriteFiles/WriteShardedBundlesToTempFiles/WriteShardsIntoTempFiles-ptransform-46, state=process} for at least 05m20s without outputting or completing
+```
+
+```
+java.io.IOException: Error executing batch GCS request
+```
+
+#### Writer job
+
+1. To preserve ordering, the writer job processes files in incrementing window intervals. If the reader job is lagging in creating files, the writer job waits for the expected file for a given window to be written to GCS. In such cases, below messages and logged and can be ignored.
+
+```
+Operation ongoing in step Write to source for at least 05m00s without outputting or completing in state process-timers in thread DataflowWorkUnits-11418 with id 1891593
+  at java.base@11.0.20/java.lang.Thread.sleep(Native Method)
+  at app//com.google.cloud.teleport.v2.templates.utils.GCSReader.checkAndReturnIfFileExists
+```
+
+2. Large amount of logging can result in below. This does not halt the Dataflow job from processing.
+
+```
+Throttling logger worker. It used up its 30s quota for logs in only 17.465s
+```
+
+#### Common to both jobs
+
+1. Ephemeral network glitches results in below ignorable error.
+
+```
+StatusRuntimeException: UNAVAILABLE: ping timeout
+```
+
 ## Reverse Replication Limitations
 
   The following sections list the known limitations that exist currently with the Reverse Replication flows:
 
   1. Currently only MySQL source database is supported.
-  2. Certain transformations are not supported, below section lists those:
+  2. If forward migration and reverse replication are running in parallel, there is no mechanism to prevent the forward migration of data that was written to source via the reverse replicaiton flow. The impact of this is unnecessary processing of redundant data.
+  3. Certain transformations are not supported, below section lists those:
 
 ### Reverse transformations
 Reverse transformation can not be supported for following scenarios out of the box:
