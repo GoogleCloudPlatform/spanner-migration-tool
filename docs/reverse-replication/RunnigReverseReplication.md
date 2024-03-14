@@ -55,7 +55,7 @@ The script takes in multiple arguments to orchestrate the pipeline. They are:
 - `sourceWriterTemplateLocation` : the dataflow template location for the Source writer job.
 - `spannerReaderTemplateLocation`: the dataflow template location for the Spanner reader job
 - `startTimestamp`: Timestamp from which the changestream should start reading changes in RFC 3339 format, defaults to empty string which is equivalent to the current timestamp.
-- `readerMaxWorkers`: Number of maximum workers for ther eader job.
+- `readerMaxWorkers`: Number of maximum workers for the reader job.
 - `readerShardingCustomClassName`: the fully qualified custom class name for sharding logic.
 - `readerShardingCustomJarPath` : the GCS path to custom jar for sharding logic.
 - `readerShardingCustomParameters`: the custom parameters to be passed to the custom sharding logic implementation.

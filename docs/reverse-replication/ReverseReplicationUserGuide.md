@@ -312,7 +312,7 @@ StatusRuntimeException: UNAVAILABLE: ping timeout
   The following sections list the known limitations that exist currently with the Reverse Replication flows:
 
   1. Currently only MySQL source database is supported.
-  2. If forward migration and reverse replication are running in parallel, there is no mechanism to prevent the forward migration of data that was written to source via the reverse replication flow. The impact of this is unnecessary processing of redundant data.
+  2. If forward migration and reverse replication are running in parallel, there is no mechanism to prevent the forward migration of data that was written to source via the reverse replication flow. The impact of this is unnecessary processing of redundant data. The best practice is to start reverse replication post cutover when forward migration has ended.
   3. Certain transformations are not supported, below section lists those:
 
 ### Reverse transformations
@@ -352,7 +352,7 @@ retention_period = '7d',
 value_capture_type = 'NEW_ROW'
 );
 ```
-
+8. Reverse replication should start once the forward migration has ended and not in parallel to forward migration. This is to avoid reverse replicated writes to source flowing back to forward migration jobs.
 
 ## Customize
 
