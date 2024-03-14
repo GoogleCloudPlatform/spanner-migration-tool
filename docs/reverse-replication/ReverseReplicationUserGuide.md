@@ -144,12 +144,13 @@ To confirm that the records have indeed been written to the source database, bes
 
 #### Tracking which shards are lagging
 
-The following sample SQL gives the shards which are yet to catchup in the writer job. The SQL needs to be fired on the metatdata database. Replace the run_id with the relevant run identifier and the window interval with appropriate value.
+The following sample SQL gives the shards which are yet to catchup in the writer job. The SQL needs to be fired on the [metadata database](./RunnigReverseReplication.md#arguments) that is specified when launching the reverse replication flow. Replace the run_id with the relevant run identifier and the window interval with appropriate value.
 
 ```
-select w.shard,r.shard,r.created_upto , w.file_start_interval from shard_file_create_progress r , shard_file_process_progress w where  r.run_id = w.run_id and r.shard = w.shard and
-TIMESTAMP_DIFF(r.created_upto , w.file_start_interval, SECOND)  > 10
-and r.run_id="2024-03-02t05-26-43z"
+select w.shard,r.shard,r.created_upto , w.file_start_interval, TIMESTAMP_DIFF(r.created_upto , w.file_start_interval, SECOND) as shard_lag from shard_file_create_progress r , shard_file_process_progress w where  r.run_id = w.run_id and r.shard = w.shard and
+TIMESTAMP_DIFF(r.created_upto , w.file_start_interval, SECOND)  > --give the window interval here , example 10 --
+and r.run_id= -- give the run identifer here--
+order by shard_lag DESC
 ```
 ### Troubleshooting
 
@@ -196,7 +197,7 @@ In this case, check if you observe the following:
 
   1. The source database table does not have a primary key
   2. The primary key value was not present in the change stream data
-  3. When there is no data written to Spanner for a given interval for a given shard, no file is created in GCS. In such a case, the interval is skipped by the writer Dataflow job. This can be verified in the logs by searching for the text *skipping the file*. If a file is marked as skipped in the logs but it exists in GCS - this indicates a data loss scenario - please raise a bug.
+  3. When there is no data written to Spanner for a given interval for a given shard, no file is created in GCS. In such a case, the interval is skipped by the writer Dataflow job. This can be verified in the logs by searching for the text ```skipping the file```. If a file is marked as skipped in the logs but it exists in GCS - this indicates a data loss scenario - please raise a bug.
   4. Check the shard_file_process_progress table in the metadata database. If it is lagging, then wait for the pipeline to catch up so such that data gets reverse replicated.
 
     
@@ -311,7 +312,7 @@ StatusRuntimeException: UNAVAILABLE: ping timeout
   The following sections list the known limitations that exist currently with the Reverse Replication flows:
 
   1. Currently only MySQL source database is supported.
-  2. If forward migration and reverse replication are running in parallel, there is no mechanism to prevent the forward migration of data that was written to source via the reverse replicaiton flow. The impact of this is unnecessary processing of redundant data.
+  2. If forward migration and reverse replication are running in parallel, there is no mechanism to prevent the forward migration of data that was written to source via the reverse replication flow. The impact of this is unnecessary processing of redundant data.
   3. Certain transformations are not supported, below section lists those:
 
 ### Reverse transformations
