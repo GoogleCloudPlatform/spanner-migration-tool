@@ -45,7 +45,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		{"date", ddl.Type{Name: ddl.Date}},
 		{"decimal(4,10)", ddl.Type{Name: ddl.Numeric}},
 		{"double(4,10)", ddl.Type{Name: ddl.Float64}},
-		{"float(4,10)", ddl.Type{Name: ddl.Float64}},
+		{"float(4,10)", ddl.Type{Name: ddl.Float32}},
 		{"integer", ddl.Type{Name: ddl.Int64}},
 		{"mediumint", ddl.Type{Name: ddl.Int64}},
 		{"int", ddl.Type{Name: ddl.Int64}},
@@ -735,7 +735,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 		INSERT INTO test (id, a, b, c) VALUES (1,'2019-10-29',4.444,5.44444);
 		`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), big.NewRat(136111, 25000)}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float32(4.444), big.NewRat(136111, 25000)}}},
 		},
 		{
 			name: "Data conversion: smallint, mediumint, bigint, double",
@@ -819,12 +819,12 @@ func TestProcessMySQLDump_DataError(t *testing.T) {
 			expectedData: []spannerData{
 				spannerData{
 					table: "test", cols: []string{"a", "b", "c", "d", "e", "f", "g", "synth_id"},
-					vals: []interface{}{int64(7), float64(42.1), true,
+					vals: []interface{}{int64(7), float32(42.1), true,
 						getDate("2019-10-29"), []byte{0x89, 0x50},
 						"42,6", false,
 						fmt.Sprintf("%d", bitReverse(0))}},
 				spannerData{table: "test", cols: []string{"a", "synth_id"}, vals: []interface{}{int64(7), fmt.Sprintf("%d", bitReverse(1))}},
-				spannerData{table: "test", cols: []string{"b", "synth_id"}, vals: []interface{}{float64(42.1), fmt.Sprintf("%d", bitReverse(2))}},
+				spannerData{table: "test", cols: []string{"b", "synth_id"}, vals: []interface{}{float32(42.1), fmt.Sprintf("%d", bitReverse(2))}},
 				spannerData{table: "test", cols: []string{"c", "synth_id"}, vals: []interface{}{true, fmt.Sprintf("%d", bitReverse(3))}},
 				spannerData{table: "test", cols: []string{"d", "synth_id"}, vals: []interface{}{getDate("2019-10-29"), fmt.Sprintf("%d", bitReverse(4))}},
 				spannerData{table: "test", cols: []string{"e", "synth_id"}, vals: []interface{}{[]byte{0x89, 0x50}, fmt.Sprintf("%d", bitReverse(5))}},

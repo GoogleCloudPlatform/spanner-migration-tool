@@ -54,12 +54,12 @@ func TestProcessPgDump(t *testing.T) {
 		{"decimal", ddl.Type{Name: ddl.Numeric}}, // pg parser maps this to numeric.
 		{"double precision", ddl.Type{Name: ddl.Float64}},
 		{"float8", ddl.Type{Name: ddl.Float64}},
-		{"float4", ddl.Type{Name: ddl.Float64}},
+		{"float4", ddl.Type{Name: ddl.Float32}},
 		{"integer", ddl.Type{Name: ddl.Int64}},
 		{"numeric", ddl.Type{Name: ddl.Numeric}},
 		{"numeric(4)", ddl.Type{Name: ddl.Numeric}},
 		{"numeric(6, 4)", ddl.Type{Name: ddl.Numeric}},
-		{"real", ddl.Type{Name: ddl.Float64}},
+		{"real", ddl.Type{Name: ddl.Float32}},
 		{"smallint", ddl.Type{Name: ddl.Int64}},
 		{"text", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}},
@@ -622,7 +622,7 @@ COPY test (id, a, b, c) FROM stdin;
 \.
 `,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), float64(5.44444)}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), float32(5.44444)}}},
 		},
 		{
 			name: "Data conversion: int8, int4, int2, numeric",
@@ -736,12 +736,12 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 		{"decimal", ddl.Type{Name: ddl.Numeric}}, // pg parser maps this to numeric.
 		{"double precision", ddl.Type{Name: ddl.Float64}},
 		{"float8", ddl.Type{Name: ddl.Float64}},
-		{"float4", ddl.Type{Name: ddl.Float64}},
+		{"float4", ddl.Type{Name: ddl.Float32}},
 		{"integer", ddl.Type{Name: ddl.Int64}},
 		{"numeric", ddl.Type{Name: ddl.Numeric}},
 		{"numeric(4)", ddl.Type{Name: ddl.Numeric}},
 		{"numeric(6, 4)", ddl.Type{Name: ddl.Numeric}},
-		{"real", ddl.Type{Name: ddl.Float64}},
+		{"real", ddl.Type{Name: ddl.Float32}},
 		{"smallint", ddl.Type{Name: ddl.Int64}},
 		{"text", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}},
@@ -1298,7 +1298,7 @@ COPY test (id, a, b, c) FROM stdin;
 \.
 `,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), float64(5.44444)}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), float32(5.44444)}}},
 		},
 		{
 			name: "Data conversion: int8, int4, int2, numeric",

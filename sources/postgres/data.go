@@ -325,21 +325,21 @@ func convArray(spannerType ddl.Type, srcTypeName string, location *time.Location
 		}
 		return r, nil
 	case ddl.Float32:
-		var r []spanner.NullFloat64
+		var r []spanner.NullFloat32
 		for _, s := range a {
 			if s == "NULL" {
-				r = append(r, spanner.NullFloat64{Valid: false})
+				r = append(r, spanner.NullFloat32{Valid: false})
 				continue
 			}
 			s, err := processQuote(s)
 			if err != nil {
-				return []spanner.NullFloat64{}, err
+				return []spanner.NullFloat32{}, err
 			}
 			f, err := convFloat32(s)
 			if err != nil {
-				return []spanner.NullFloat64{}, err
+				return []spanner.NullFloat32{}, err
 			}
-			r = append(r, spanner.NullFloat64{Float64: float64(f), Valid: true})
+			r = append(r, spanner.NullFloat32{Float32: f, Valid: true})
 		}
 		return r, nil
 	case ddl.Float64:

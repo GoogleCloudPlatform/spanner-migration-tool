@@ -87,7 +87,7 @@ func TestGetTypeMapPostgres(t *testing.T) {
 			{T: ddl.Float64, DisplayT: ddl.Float64},
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"float4": {
-			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
+			{T: ddl.Float32, Brief: "", DisplayT: ddl.Float32},
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"int8": {
 			{T: ddl.Int64, DisplayT: ddl.Int64},
@@ -194,7 +194,7 @@ func TestGetTypeMapMySQL(t *testing.T) {
 			{T: ddl.Float64, DisplayT: ddl.Float64},
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"float": {
-			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
+			{T: ddl.Float32, Brief: "", DisplayT: ddl.Float32},
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"numeric": {
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},

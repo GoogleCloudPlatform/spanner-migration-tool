@@ -279,7 +279,7 @@ func TestProcessSchema(t *testing.T) {
 				"c_8":   ddl.ColumnDef{Name: "c_8", T: ddl.Type{Name: ddl.String, Len: int64(8)}},
 				"d":     ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Date}},
 				"f8":    ddl.ColumnDef{Name: "f8", T: ddl.Type{Name: ddl.Float64}},
-				"f4":    ddl.ColumnDef{Name: "f4", T: ddl.Type{Name: ddl.Float64}},
+				"f4":    ddl.ColumnDef{Name: "f4", T: ddl.Type{Name: ddl.Float32}},
 				"i8":    ddl.ColumnDef{Name: "i8", T: ddl.Type{Name: ddl.Int64}},
 				"i4":    ddl.ColumnDef{Name: "i4", T: ddl.Type{Name: ddl.Int64}},
 				"i2":    ddl.ColumnDef{Name: "i2", T: ddl.Type{Name: ddl.Int64}},
@@ -310,7 +310,6 @@ func TestProcessSchema(t *testing.T) {
 	expectedIssues := map[string][]internal.SchemaIssue{
 		"aint":  []internal.SchemaIssue{internal.Widened, internal.ArrayTypeNotSupported},
 		"bs":    []internal.SchemaIssue{internal.DefaultValue},
-		"f4":    []internal.SchemaIssue{internal.Widened},
 		"i4":    []internal.SchemaIssue{internal.Widened},
 		"i2":    []internal.SchemaIssue{internal.Widened},
 		"s":     []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
