@@ -9,7 +9,7 @@ require (
 	cloud.google.com/go/monitoring v1.18.0
 	cloud.google.com/go/pubsub v1.36.1
 	cloud.google.com/go/resourcemanager v1.9.5
-	cloud.google.com/go/spanner v1.58.0
+	cloud.google.com/go/spanner v1.59.0
 	cloud.google.com/go/storage v1.38.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/aws/aws-sdk-go v1.44.259
@@ -33,7 +33,7 @@ require (
 	golang.org/x/crypto v0.21.0
 	golang.org/x/exp v0.0.0-20221023144134-a1e5550cf13e
 	golang.org/x/net v0.22.0
-	google.golang.org/api v0.169.0
+	google.golang.org/api v0.170.0
 	google.golang.org/genproto v0.0.0-20240213162025-012b6fc9bca9
 	google.golang.org/grpc v1.62.1
 	google.golang.org/protobuf v1.33.0
@@ -59,7 +59,7 @@ require (
 
 require (
 	cloud.google.com/go/cloudsqlconn v1.5.2
-	cloud.google.com/go/compute v1.25.0 // indirect
+	cloud.google.com/go/compute v1.25.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.1.6 // indirect
 	cloud.google.com/go/longrunning v0.5.5 // indirect
@@ -70,7 +70,7 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe // indirect
-	github.com/cncf/xds/go v0.0.0-20231128003011-0fa0005c9caa // indirect
+	github.com/cncf/xds/go v0.0.0-20240312170511-ee0267137e25 // indirect
 	github.com/cockroachdb/errors v1.8.1 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20190617123548-eb05cc24525f // indirect
 	github.com/cockroachdb/redact v1.0.8 // indirect
@@ -88,7 +88,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
-	github.com/googleapis/gax-go/v2 v2.12.2
+	github.com/googleapis/gax-go/v2 v2.12.3
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
 	github.com/influxdata/tdigest v0.0.1 // indirect
 	github.com/jackc/pgx/v5 v5.5.1
@@ -130,8 +130,8 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240308144416-29370a3891b7 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240308144416-29370a3891b7 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240314234333-6e1732d8331c // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240314234333-6e1732d8331c // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
