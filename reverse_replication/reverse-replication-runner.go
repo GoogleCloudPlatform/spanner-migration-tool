@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 
 	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
 	"cloud.google.com/go/storage"
@@ -55,6 +56,7 @@ var (
 	skipMetadataDatabaseCreation   bool
 	networkTags                    string
 	runIdentifier                  string
+	readerMaxWorkers               int
 )
 
 const (
@@ -88,8 +90,8 @@ func setupGlobalFlags() {
 	flag.StringVar(&serviceAccountEmail, "serviceAccountEmail", "", "The email address of the service account to run the job as.")
 	flag.IntVar(&readerWorkers, "readerWorkers", 5, "Number of workers for reader job.")
 	flag.IntVar(&writerWorkers, "writerWorkers", 5, "Number of workers for writer job.")
-	flag.StringVar(&spannerReaderTemplateLocation, "spannerReaderTemplateLocation", "gs://dataflow-templates-us-east7/2024-02-09-00_RC00/flex/Spanner_Change_Streams_to_Sharded_File_Sink", "The dataflow template location for the Spanner reader job.")
-	flag.StringVar(&sourceWriterTemplateLocation, "sourceWriterTemplateLocation", "gs://dataflow-templates-us-central2/2024-01-09-00_RC01/flex/GCS_to_Sourcedb", "The dataflow template location for the Source writer job.")
+	flag.StringVar(&spannerReaderTemplateLocation, "spannerReaderTemplateLocation", "gs://dataflow-templates-us-east7/2024-03-06-00_RC00/flex/Spanner_Change_Streams_to_Sharded_File_Sink", "The dataflow template location for the Spanner reader job.")
+	flag.StringVar(&sourceWriterTemplateLocation, "sourceWriterTemplateLocation", "gs://dataflow-templates-us-east7/2024-03-06-00_RC00/flex/GCS_to_Sourcedb", "The dataflow template location for the Source writer job.")
 	flag.StringVar(&jobsToLaunch, "jobsToLaunch", "both", "Whether to launch the spanner reader job or the source writer job or both. Default is both. Support values are both,reader,writer.")
 	flag.BoolVar(&skipChangeStreamCreation, "skipChangeStreamCreation", false, "Whether to skip the change stream creation. Default is false.")
 	flag.BoolVar(&skipMetadataDatabaseCreation, "skipMetadataDatabaseCreation", false, "Whether to skip Metadata database creation.Default is false.")
@@ -98,6 +100,7 @@ func setupGlobalFlags() {
 	flag.StringVar(&readerShardingCustomJarPath, "readerShardingCustomJarPath", "", "The GCS path to custom jar for sharding logic.")
 	flag.StringVar(&runIdentifier, "runIdentifier", "", "The run identifier for the Dataflow jobs.")
 	flag.StringVar(&readerShardingCustomParameters, "readerShardingCustomParameters", "", "Any custom parameters to be supplied to custom sharding class.")
+	flag.IntVar(&readerMaxWorkers, "readerMaxWorkers", 20, "Number of max workers for reader job.")
 
 }
 
@@ -305,7 +308,7 @@ func main() {
 			readerParams["shardingCustomParameters"] = readerShardingCustomParameters
 		}
 		launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
-			JobName:    fmt.Sprintf("%s-reader-%s", jobNamePrefix, runId),
+			JobName:    fmt.Sprintf("%s-reader-%s-%s", jobNamePrefix, runId, utils.GenerateHashStr()),
 			Template:   &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: spannerReaderTemplateLocation},
 			Parameters: readerParams,
 			Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
@@ -316,6 +319,7 @@ func main() {
 				Subnetwork:            vpcSubnetwork,
 				IpConfiguration:       workerIpAddressConfig,
 				ServiceAccountEmail:   serviceAccountEmail,
+				MaxWorkers:            int32(readerMaxWorkers),
 			},
 		}
 
@@ -331,7 +335,6 @@ func main() {
 			fmt.Printf("unable to launch reader job: %v \n REQUEST BODY: %+v\n", err, req)
 			return
 		}
-		//fmt.Println("Launched reader job: ", fmt.Sprintf("%s-reader-%s", jobNamePrefix, runId))
 		fmt.Println("Launched reader job: ", readerJobResponse.Job)
 	}
 
@@ -345,7 +348,7 @@ func main() {
 		}
 
 		launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
-			JobName:  fmt.Sprintf("%s-writer-%s", jobNamePrefix, runId),
+			JobName:  fmt.Sprintf("%s-writer-%s-%s", jobNamePrefix, runId, utils.GenerateHashStr()),
 			Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: sourceWriterTemplateLocation},
 			Parameters: map[string]string{
 				"sourceShardsFilePath":   sourceShardsFilePath,
