@@ -803,9 +803,9 @@ func TestProcessMySQLDump_DataError(t *testing.T) {
 		{
 			// Test bad data for each scalar type (except text, which accepts all values) and an array type.
 			name: "Data conversion errors",
-			input: "CREATE TABLE test (a int, b float, c bool, d date, e blob, f set('42','6'), g bit);\n" +
-				`INSERT INTO test (a, b, c, d, e, f, g) VALUES (7,42.1,1,'2019-10-29',_binary '` + string([]byte{137, 80}) + `','42,6', 0);` + // Baseline (good)
-				"INSERT INTO test (a, b, c, d, e, f, g) VALUES (7,NULL,NULL,NULL,NULL,NULL, NULL);\n" + // Good
+			input: "CREATE TABLE test (a int, b float, c bool, d date, e blob, f set('42','6'), g bit, h double);\n" +
+				`INSERT INTO test (a, b, c, d, e, f, g, h) VALUES (7,42.1,1,'2019-10-29',_binary '` + string([]byte{137, 80}) + `','42,6', 0, -0.92);` + // Baseline (good)
+				"INSERT INTO test (a, b, c, d, e, f, g, h) VALUES (7,NULL,NULL,NULL,NULL,NULL, NULL, NULL);\n" + // Good
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (7.1,NULL,NULL,NULL,NULL,NULL);\n" + // Error
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,42.1,NULL,NULL,NULL,NULL);\n" + // Good
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,'42-1',NULL,NULL,NULL,NULL);\n" + // Error
@@ -818,11 +818,8 @@ func TestProcessMySQLDump_DataError(t *testing.T) {
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,NULL,NULL,NULL,42,6);\n", // Error
 			expectedData: []spannerData{
 				spannerData{
-					table: "test", cols: []string{"a", "b", "c", "d", "e", "f", "g", "synth_id"},
-					vals: []interface{}{int64(7), float32(42.1), true,
-						getDate("2019-10-29"), []byte{0x89, 0x50},
-						"42,6", false,
-						fmt.Sprintf("%d", bitReverse(0))}},
+					table: "test", cols: []string{"a", "b", "c", "d", "e", "f", "g", "h", "synth_id"},
+					vals: []interface{}{int64(7), float32(42.1), true, getDate("2019-10-29"), []byte{0x89, 0x50}, "42,6", false, float64(-0.92), fmt.Sprintf("%d", bitReverse(0))}},
 				spannerData{table: "test", cols: []string{"a", "synth_id"}, vals: []interface{}{int64(7), fmt.Sprintf("%d", bitReverse(1))}},
 				spannerData{table: "test", cols: []string{"b", "synth_id"}, vals: []interface{}{float32(42.1), fmt.Sprintf("%d", bitReverse(2))}},
 				spannerData{table: "test", cols: []string{"c", "synth_id"}, vals: []interface{}{true, fmt.Sprintf("%d", bitReverse(3))}},
