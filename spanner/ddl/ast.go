@@ -67,6 +67,8 @@ const (
 	PGBytea string = "BYTEA"
 	// PGFloat8 represent FLOAT8 type, which is double type in PG.
 	PGFloat8 string = "FLOAT8"
+	// PGFloat4 represent FLOAT4 type, which is float type in PG.
+	PGFloat4 string = "FLOAT4"
 	// PGInt8 respresent INT8, which is INT type in PG.
 	PGInt8 string = "INT8"
 	// PGVarchar represent VARCHAR, which is STRING type in PG.
@@ -82,6 +84,7 @@ const (
 var STANDARD_TYPE_TO_PGSQL_TYPEMAP = map[string]string{
 	Bytes:     PGBytea,
 	Float64:   PGFloat8,
+	Float32:   PGFloat4,
 	Int64:     PGInt8,
 	String:    PGVarchar,
 	Timestamp: PGTimestamptz,
@@ -91,6 +94,7 @@ var STANDARD_TYPE_TO_PGSQL_TYPEMAP = map[string]string{
 var PGSQL_TO_STANDARD_TYPE_TYPEMAP = map[string]string{
 	PGBytea:       Bytes,
 	PGFloat8:      Float64,
+	PGFloat4:      Float32,
 	PGInt8:        Int64,
 	PGVarchar:     String,
 	PGTimestamptz: Timestamp,
@@ -111,7 +115,7 @@ var PGSQL_RESERVED_KEYWORD_LIST = []string{"ALL", "ANALYSE", "ANALYZE", "AND", "
 // Type represents the type of a column.
 //
 //	type:
-//	   { BOOL | INT64 | FLOAT64 | STRING( length ) | BYTES( length ) | DATE | TIMESTAMP | NUMERIC }
+//	   { BOOL | INT64 | FLOAT32 | FLOAT64 | STRING( length ) | BYTES( length ) | DATE | TIMESTAMP | NUMERIC }
 type Type struct {
 	Name string
 	// Len encodes the following Spanner DDL definition:
