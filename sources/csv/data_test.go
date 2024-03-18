@@ -155,6 +155,7 @@ func TestConvertData(t *testing.T) {
 		{"bytes", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, string([]byte{137, 80}), []byte{0x89, 0x50}},
 		{"date", ddl.Type{Name: ddl.Date}, "2019-10-29", getDate("2019-10-29")},
 		{"float64", ddl.Type{Name: ddl.Float64}, "42.6", float64(42.6)},
+		{"float32", ddl.Type{Name: ddl.Float32}, "-1.92", float32(-1.92)},
 		{"int64", ddl.Type{Name: ddl.Int64}, "42", int64(42)},
 		{"numeric", ddl.Type{Name: ddl.Numeric}, "42.6", *big.NewRat(426, 10)},
 		{"string", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, "eh", "eh"},
@@ -162,7 +163,8 @@ func TestConvertData(t *testing.T) {
 		{"json", ddl.Type{Name: ddl.JSON}, "{\"key1\": \"value1\"}", "{\"key1\": \"value1\"}"},
 		{"int_array", ddl.Type{Name: ddl.Int64, IsArray: true}, "{1,2,NULL}", []spanner.NullInt64{{Int64: int64(1), Valid: true}, {Int64: int64(2), Valid: true}, {Valid: false}}},
 		{"string_array", ddl.Type{Name: ddl.String, IsArray: true}, "[ab,cd]", []spanner.NullString{{StringVal: "ab", Valid: true}, {StringVal: "cd", Valid: true}}},
-		{"float_array", ddl.Type{Name: ddl.Float64, IsArray: true}, "{1.3,2.5}", []spanner.NullFloat64{{Float64: float64(1.3), Valid: true}, {Float64: float64(2.5), Valid: true}}},
+		{"float64_array", ddl.Type{Name: ddl.Float64, IsArray: true}, "{1.3,2.5}", []spanner.NullFloat64{{Float64: float64(1.3), Valid: true}, {Float64: float64(2.5), Valid: true}}},
+		{"float32_array", ddl.Type{Name: ddl.Float32, IsArray: true}, "{1.3,2.5}", []spanner.NullFloat32{{Float32: float32(1.3), Valid: true}, {Float32: float32(2.5), Valid: true}}},
 		{"numeric_array", ddl.Type{Name: ddl.Numeric, IsArray: true}, "[1.7]", []spanner.NullNumeric{{Numeric: *big.NewRat(17, 10), Valid: true}}},
 	}
 	tableName := "testtable"
