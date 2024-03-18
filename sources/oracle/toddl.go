@@ -119,7 +119,14 @@ func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType schema.Ty
 		default:
 			return ddl.Type{Name: ddl.Date}, nil
 		}
-	case "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT":
+	case "BINARY_FLOAT":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.Float32}, nil
+		}
+	case "BINARY_DOUBLE", "FLOAT":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil

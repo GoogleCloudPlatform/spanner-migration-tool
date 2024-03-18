@@ -34,6 +34,7 @@ func TestPrintScalarType(t *testing.T) {
 	}{
 		{Type{Name: Bool}, "BOOL"},
 		{Type{Name: Int64}, "INT64"},
+		{Type{Name: Float32}, "FLOAT32"},
 		{Type{Name: Float64}, "FLOAT64"},
 		{Type{Name: String, Len: MaxLength}, "STRING(MAX)"},
 		{Type{Name: String, Len: int64(42)}, "STRING(42)"},
@@ -54,6 +55,7 @@ func TestPrintScalarTypePG(t *testing.T) {
 	}{
 		{Type{Name: Bool}, "BOOL"},
 		{Type{Name: Int64}, "INT8"},
+		{Type{Name: Float32}, "FLOAT4"},
 		{Type{Name: Float64}, "FLOAT8"},
 		{Type{Name: String, Len: MaxLength}, "VARCHAR(2621440)"},
 		{Type{Name: String, Len: int64(42)}, "VARCHAR(42)"},

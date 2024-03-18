@@ -54,7 +54,7 @@
                "issueList": [
                   {
                      "category": "STORAGE_WARNING",
-                     "description": "Table 'bad_schema': Some columns will consume more storage in Spanner e.g. for column 'a', source DB type float is mapped to Spanner data type float64"
+                     "description": "Table 'bad_schema': Some columns will consume more storage in Spanner e.g. for column 'b', source DB type int(11) is mapped to Spanner data type int64"
                   },
                   {
                      "category": "MISSING_PRIMARY_KEY",

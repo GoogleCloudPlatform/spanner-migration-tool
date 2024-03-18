@@ -41,7 +41,7 @@ type CsvInterface interface {
 	ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr string, delimiter rune) error
 }
 
-type CsvImpl struct {}
+type CsvImpl struct{}
 
 // GetCSVFiles finds the appropriate files paths and downloads gcs files in any.
 func (c *CsvImpl) GetCSVFiles(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tables []utils.ManifestTable, err error) {
@@ -379,6 +379,24 @@ func convArray(spannerType ddl.Type, val string) (interface{}, error) {
 			r = append(r, spanner.NullDate{Date: date, Valid: true})
 		}
 		return r, nil
+	case ddl.Float32:
+		var r []spanner.NullFloat32
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullFloat32{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullFloat32{}, err
+			}
+			f, err := convFloat32(s)
+			if err != nil {
+				return []spanner.NullFloat32{}, err
+			}
+			r = append(r, spanner.NullFloat32{Float32: f, Valid: true})
+		}
+		return r, nil
 	case ddl.Float64:
 		var r []spanner.NullFloat64
 		for _, s := range a {
@@ -477,6 +495,8 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, val string) (interfac
 		return convBytes(val)
 	case ddl.Date:
 		return convDate(val)
+	case ddl.Float32:
+		return convFloat32(val)
 	case ddl.Float64:
 		return convFloat64(val)
 	case ddl.Int64:
@@ -517,6 +537,14 @@ func convDate(val string) (civil.Date, error) {
 		return d, fmt.Errorf("can't convert to date: %w", err)
 	}
 	return d, err
+}
+
+func convFloat32(val string) (float32, error) {
+	f, err := strconv.ParseFloat(val, 32)
+	if err != nil {
+		return float32(f), fmt.Errorf("can't convert to float32: %w", err)
+	}
+	return float32(f), err
 }
 
 func convFloat64(val string) (float64, error) {

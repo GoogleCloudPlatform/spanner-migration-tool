@@ -232,6 +232,7 @@ func ToPGDialectType(standardType ddl.Type) ddl.Type {
 var DATATYPE_TO_STORAGE_SIZE = map[string]int{
 	ddl.Bool:      1,
 	ddl.Date:      4,
+	ddl.Float32:   4,
 	ddl.Float64:   8,
 	ddl.Int64:     8,
 	ddl.JSON:      ddl.StringMaxLength,
