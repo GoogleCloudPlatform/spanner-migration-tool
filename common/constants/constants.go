@@ -101,4 +101,7 @@ const (
 	// Metadata table names
 	SMT_JOB_TABLE      string = "SMT_JOB"
 	SMT_RESOURCE_TABLE string = "SMT_RESOURCE"
+
+	// Reverse Replication
+	REVERSE_REPLICATION_JOB_TYPE string = "reverse-replication"
 )
