@@ -50,6 +50,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/types"
 	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 	"github.com/pkg/browser"
+	"go.uber.org/zap"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
@@ -622,6 +623,12 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv.Audit.Progress = internal.Progress{}
 	sessionState.Conv.UI = true
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
+	// TODO: Revisit the logic
+	getInfo := &utils.GetUtilInfoImpl{}
+	migrationProjectId, err := getInfo.GetProject()
+	if err != nil {
+		logger.Log.Error("Could not set default project id from gcloud environment", zap.Error(err))
+	}
 	if err != nil {
 		log.Println("can't get source and target profile")
 		http.Error(w, fmt.Sprintf("Can't get source and target profiles: %v", err), http.StatusBadRequest)
@@ -640,7 +647,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	if details.MigrationMode == helpers.SCHEMA_ONLY {
 		log.Println("Starting schema only migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
-		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
+		go cmd.MigrateDatabase(ctx, migrationProjectId, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
 	} else if details.MigrationMode == helpers.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
 			SkipForeignKeys: details.SkipForeignKeys,
@@ -648,7 +655,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Println("Starting data only migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
-		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error)
+		go cmd.MigrateDatabase(ctx, migrationProjectId, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error)
 	} else {
 		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
 			SkipForeignKeys: details.SkipForeignKeys,
@@ -656,7 +663,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Println("Starting schema and data migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
-		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, schemaAndDataCmd, sessionState.Conv, &sessionState.Error)
+		go cmd.MigrateDatabase(ctx, migrationProjectId, targetProfile, sourceProfile, dbName, &ioHelper, schemaAndDataCmd, sessionState.Conv, &sessionState.Error)
 	}
 	w.WriteHeader(http.StatusOK)
 	log.Println("migration completed", "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
