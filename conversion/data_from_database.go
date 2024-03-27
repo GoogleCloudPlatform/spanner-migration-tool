@@ -39,15 +39,13 @@ import (
 	"go.uber.org/zap"
 )
 
-type DataFromDatabaseInterface interface{
+type DataFromDatabaseInterface interface {
 	dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error)
-	dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv, is common.InfoSchemaInterface) (*writer.BatchWriter, error)
-	dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface, sm SnapshotMigrationInterface) (*writer.BatchWriter, error)
-
+	dataFromDatabaseForDataflowMigration(migrationProjectId string, targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv, is common.InfoSchemaInterface) (*writer.BatchWriter, error)
+	dataFromDatabaseForBulkMigration(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface, sm SnapshotMigrationInterface) (*writer.BatchWriter, error)
 }
 
 type DataFromDatabaseImpl struct{}
-
 
 // TODO: Define the data processing logic for DMS migrations here.
 func (dd *DataFromDatabaseImpl) dataFromDatabaseForDMSMigration() (*writer.BatchWriter, error) {
@@ -59,7 +57,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDMSMigration() (*writer.Batch
 // 3. Verify the CFG and update it with SMT defaults
 // 4. Launch the stream for the physical shard
 // 5. Perform streaming migration via dataflow
-func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv, is common.InfoSchemaInterface) (*writer.BatchWriter, error) {
+func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationProjectId string, targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv, is common.InfoSchemaInterface) (*writer.BatchWriter, error) {
 	// Fetch Spanner Region
 	if conv.SpRegion == "" {
 		spInstanceAdmin, err := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
@@ -67,7 +65,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 			return nil, fmt.Errorf("unable to fetch Spanner Region for resource creation: %v", err)
 		}
 		spAcc := spanneraccessor.SpannerAccessorImpl{}
-		spannerRegion, err := spAcc.GetSpannerLeaderLocation(ctx, spInstanceAdmin, "projects/" + targetProfile.Conn.Sp.Project+ "/instances/" + targetProfile.Conn.Sp.Instance)
+		spannerRegion, err := spAcc.GetSpannerLeaderLocation(ctx, spInstanceAdmin, "projects/"+targetProfile.Conn.Sp.Project+"/instances/"+targetProfile.Conn.Sp.Instance)
 		if err != nil {
 			return nil, fmt.Errorf("unable to fetch Spanner Region for resource creation: %v", err)
 		}
@@ -86,7 +84,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 			return nil, err
 		}
 		createResources := NewValidateOrCreateResourcesImpl(&datastream_accessor.DatastreamAccessorImpl{}, dsClient, &storageaccessor.StorageAccessorImpl{}, storageClient)
-		err = createResources.ValidateOrCreateResourcesForShardedMigration(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, false, conv.SpRegion, sourceProfile)
+		err = createResources.ValidateOrCreateResourcesForShardedMigration(ctx, migrationProjectId, targetProfile.Conn.Sp.Instance, false, conv.SpRegion, sourceProfile)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create connection profiles: %v", err)
 		}
@@ -95,12 +93,12 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 	//Set the TmpDir from the sessionState bucket which is derived from the target connection profile
 	for _, dataShard := range sourceProfile.Config.ShardConfigurationDataflow.DataShards {
 		if dataShard.TmpDir == "" {
-		bucket, rootPath, err := GetBucketFromDatastreamProfile(targetProfile.Conn.Sp.Project, conv.SpRegion, dataShard.DstConnectionProfile.Name)
-		if err != nil {
-			return nil, fmt.Errorf("error while getting target bucket: %v", err)
+			bucket, rootPath, err := GetBucketFromDatastreamProfile(migrationProjectId, conv.SpRegion, dataShard.DstConnectionProfile.Name)
+			if err != nil {
+				return nil, fmt.Errorf("error while getting target bucket: %v", err)
+			}
+			dataShard.TmpDir = "gs://" + bucket + rootPath
 		}
-		dataShard.TmpDir = "gs://" + bucket + rootPath
-	}
 	}
 
 	updateShardsWithTuningConfigs(sourceProfile.Config.ShardConfigurationDataflow)
@@ -138,12 +136,12 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		fmt.Printf("Initiating migration for shard: %v\n", p.DataShardId)
-		pubsubCfg, err := streaming.CreatePubsubResources(ctx, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig, targetProfile.Conn.Sp.Dbname)
+		pubsubCfg, err := streaming.CreatePubsubResources(ctx, migrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, targetProfile.Conn.Sp.Dbname)
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		streamingCfg.PubsubCfg = *pubsubCfg
-		err = streaming.LaunchStream(ctx, sourceProfile, p.LogicalShards, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
+		err = streaming.LaunchStream(ctx, sourceProfile, p.LogicalShards, migrationProjectId, streamingCfg.DatastreamCfg)
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
@@ -156,7 +154,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 
 		// Fetch and store the GCS bucket associated with the datastream
 		dsClient := GetDatastreamClient(ctx)
-		gcsBucket, gcsDestPrefix, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
+		gcsBucket, gcsDestPrefix, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, migrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
 		if fetchGcsErr != nil {
 			logger.Log.Info(fmt.Sprintf("Could not fetch GCS Bucket for Shard %s hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n", p.DataShardId))
 			logger.Log.Debug("Error", zap.Error(fetchGcsErr))
@@ -183,11 +181,12 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 
 		// create monitoring dashboard for a single shard
 		monitoringResources := metrics.MonitoringMetricsResources{
-			ProjectId:            targetProfile.Conn.Sp.Project,
+			MigrationProjectId:   migrationProjectId,
 			DataflowJobId:        dfOutput.JobID,
 			DatastreamId:         streamingCfg.DatastreamCfg.StreamId,
 			JobMetadataGcsBucket: gcsBucket,
 			PubsubSubscriptionId: streamingCfg.PubsubCfg.SubscriptionId,
+			SpannerProjectId:     targetProfile.Conn.Sp.Project,
 			SpannerInstanceId:    targetProfile.Conn.Sp.Instance,
 			SpannerDatabaseId:    targetProfile.Conn.Sp.Dbname,
 			ShardId:              p.DataShardId,
@@ -203,7 +202,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 			dashboardName = strings.Split(respDash.Name, "/")[3]
 			fmt.Printf("Monitoring Dashboard for shard %v: %+v\n", p.DataShardId, dashboardName)
 		}
-		streaming.StoreGeneratedResources(conv, streamingCfg, dfOutput.JobID, dfOutput.GCloudCmd, targetProfile.Conn.Sp.Project, p.DataShardId, internal.GcsResources{BucketName: gcsBucket}, dashboardName)
+		streaming.StoreGeneratedResources(conv, streamingCfg, dfOutput.JobID, dfOutput.GCloudCmd, migrationProjectId, p.DataShardId, internal.GcsResources{BucketName: gcsBucket}, dashboardName)
 		//persist the generated resources in a metadata db
 		err = streaming.PersistResources(ctx, targetProfile, sourceProfile, conv, migrationJobId, p.DataShardId)
 		if err != nil {
@@ -219,11 +218,11 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 
 	// create monitoring aggregated dashboard for sharded migration
 	aggMonitoringResources := metrics.MonitoringMetricsResources{
-		ProjectId:                     targetProfile.Conn.Sp.Project,
-		SpannerInstanceId:             targetProfile.Conn.Sp.Instance,
-		SpannerDatabaseId:             targetProfile.Conn.Sp.Dbname,
-		ShardToShardResourcesMap:      conv.Audit.StreamingStats.ShardToShardResourcesMap,
-		MigrationRequestId:            conv.Audit.MigrationRequestId,
+		SpannerProjectId:         targetProfile.Conn.Sp.Project,
+		SpannerInstanceId:        targetProfile.Conn.Sp.Instance,
+		SpannerDatabaseId:        targetProfile.Conn.Sp.Dbname,
+		ShardToShardResourcesMap: conv.Audit.StreamingStats.ShardToShardResourcesMap,
+		MigrationRequestId:       conv.Audit.MigrationRequestId,
 	}
 	aggRespDash, dashboardErr := aggMonitoringResources.CreateDataflowAggMonitoringDashboard(ctx)
 	if dashboardErr != nil {
@@ -245,12 +244,12 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(targetProfi
 // 2. Create a connection profile object for it
 // 3. Perform a snapshot migration for the shard
 // 4. Once all shard migrations are complete, return the batch writer object
-func (dd *DataFromDatabaseImpl) dataFromDatabaseForBulkMigration(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface, sm SnapshotMigrationInterface) (*writer.BatchWriter, error) {
+func (dd *DataFromDatabaseImpl) dataFromDatabaseForBulkMigration(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, gi GetInfoInterface, sm SnapshotMigrationInterface) (*writer.BatchWriter, error) {
 	var bw *writer.BatchWriter
 	for _, dataShard := range sourceProfile.Config.ShardConfigurationBulk.DataShards {
 
 		fmt.Printf("Initiating migration for shard: %v\n", dataShard.DbName)
-		infoSchema, err := gi.getInfoSchemaForShard(dataShard, sourceProfile.Driver, targetProfile, &profiles.SourceProfileDialectImpl{}, &GetInfoImpl{})
+		infoSchema, err := gi.getInfoSchemaForShard(migrationProjectId, dataShard, sourceProfile.Driver, targetProfile, &profiles.SourceProfileDialectImpl{}, &GetInfoImpl{})
 		if err != nil {
 			return nil, err
 		}

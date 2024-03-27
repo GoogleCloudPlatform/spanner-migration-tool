@@ -39,10 +39,11 @@ import (
 
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
-	Db             *sql.DB
-	SourceProfile  profiles.SourceProfile
-	TargetProfile  profiles.TargetProfile
-	IsSchemaUnique *bool
+	Db                 *sql.DB
+	MigrationProjectId string
+	SourceProfile      profiles.SourceProfile
+	TargetProfile      profiles.TargetProfile
+	IsSchemaUnique     *bool
 }
 
 func (isi InfoSchemaImpl) populateSchemaIsUnique(schemaAndNames []common.SchemaAndName) {
@@ -74,12 +75,12 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 	if err != nil {
 		return nil, fmt.Errorf("error reading streaming config: %v", err)
 	}
-	pubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.TargetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.TargetProfile.Conn.Sp.Dbname)
+	pubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.MigrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.TargetProfile.Conn.Sp.Dbname)
 	if err != nil {
 		return nil, fmt.Errorf("error creating pubsub resources: %v", err)
 	}
 	streamingCfg.PubsubCfg = *pubsubCfg
-	streamingCfg, err = streaming.StartDatastream(ctx, streamingCfg, isi.SourceProfile, isi.TargetProfile, schemaDetails)
+	streamingCfg, err = streaming.StartDatastream(ctx, isi.MigrationProjectId, streamingCfg, isi.SourceProfile, isi.TargetProfile, schemaDetails)
 	if err != nil {
 		err = fmt.Errorf("error starting datastream: %v", err)
 		return nil, err

@@ -521,8 +521,8 @@ func createNotificationOnBucket(ctx context.Context, storageClient *storage.Clie
 }
 
 // LaunchStream populates the parameters from the streaming config and triggers a stream on Cloud Datastream.
-func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, projectID string, datastreamCfg DatastreamCfg) error {
-	projectNumberResource := GetProjectNumberResource(ctx, fmt.Sprintf("projects/%s", projectID))
+func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, migrationProjectId string, datastreamCfg DatastreamCfg) error {
+	projectNumberResource := GetProjectNumberResource(ctx, fmt.Sprintf("projects/%s", migrationProjectId))
 	fmt.Println("Launching stream ", fmt.Sprintf("%s/locations/%s", projectNumberResource, datastreamCfg.StreamLocation))
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
@@ -750,7 +750,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	return internal.DataflowOutput{JobID: respDf.Job.Id, GCloudCmd: gcloudDfCmd}, nil
 }
 
-func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJobId, gcloudDataflowCmd, project, dataShardId string, gcsBucket internal.GcsResources, dashboardName string) {
+func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJobId, gcloudDataflowCmd, migrationProjectId, dataShardId string, gcsBucket internal.GcsResources, dashboardName string) {
 	datastreamCfg := streamingCfg.DatastreamCfg
 	dataflowCfg := streamingCfg.DataflowCfg
 	conv.Audit.StreamingStats.DatastreamResources = internal.DatastreamResources{DatastreamName: datastreamCfg.StreamId, Region: datastreamCfg.StreamLocation}
@@ -774,8 +774,8 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 		conv.Audit.StreamingStats.ShardToShardResourcesMap[dataShardId] = shardResources
 		resourceMutex.Unlock()
 	}
-	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
-	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, dataflowCfg.Location, dataflowCfg.JobName, dfJobId)
+	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", migrationProjectId, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
+	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", migrationProjectId, dataflowCfg.Location, dataflowCfg.JobName, dfJobId)
 	logger.Log.Info("\n------------------------------------------\n")
 	logger.Log.Info("The Datastream stream: " + fullStreamName + " ,the Dataflow job: " + dfJobDetails +
 		" the Pubsub topic: " + streamingCfg.PubsubCfg.TopicId + " ,the subscription: " + streamingCfg.PubsubCfg.SubscriptionId +
@@ -863,7 +863,7 @@ func GetProjectNumberResource(ctx context.Context, projectID string) string {
 
 }
 
-func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, schemaDetails map[string]internal.SchemaDetails) (StreamingCfg, error) {
+func StartDatastream(ctx context.Context, migrationProjectId string, streamingCfg StreamingCfg, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, schemaDetails map[string]internal.SchemaDetails) (StreamingCfg, error) {
 	driver := sourceProfile.Driver
 	var dbList []profiles.LogicalShard
 	switch driver {
@@ -874,7 +874,7 @@ func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfi
 	case constants.POSTGRES:
 		dbList = append(dbList, profiles.LogicalShard{DbName: streamingCfg.DatastreamCfg.Properties})
 	}
-	err := LaunchStream(ctx, sourceProfile, dbList, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
+	err := LaunchStream(ctx, sourceProfile, dbList, migrationProjectId, streamingCfg.DatastreamCfg)
 	if err != nil {
 		return streamingCfg, fmt.Errorf("error launching stream: %v", err)
 	}
