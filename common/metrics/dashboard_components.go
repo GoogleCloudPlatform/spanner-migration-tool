@@ -39,11 +39,12 @@ var dashboardClient *dashboard.DashboardsClient
 
 // MonitoringMetricsResources contains information required to create the monitoring dashboard
 type MonitoringMetricsResources struct {
-	ProjectId                string
+	MigrationProjectId       string
 	DataflowJobId            string
 	DatastreamId             string
 	JobMetadataGcsBucket     string
 	PubsubSubscriptionId     string
+	SpannerProjectId         string
 	SpannerInstanceId        string
 	SpannerDatabaseId        string
 	ShardToShardResourcesMap map[string]internal.ShardResources
@@ -258,7 +259,7 @@ func createAggIndependentTopMetrics(resourceIds MonitoringMetricsResources) []*d
 func createAggIndependentBottomMetrics(resourceIds MonitoringMetricsResources) []*dashboardpb.MosaicLayout_Tile {
 	shardToDashboardMappingText := ""
 	for shardId, shardResource := range resourceIds.ShardToShardResourcesMap {
-		shardUrl := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", shardResource.MonitoringResources.DashboardName, resourceIds.ProjectId)
+		shardUrl := fmt.Sprintf("https://console.cloud.google.com/monitoring/dashboards/builder/%v?project=%v", shardResource.MonitoringResources.DashboardName, resourceIds.MigrationProjectId)
 		shardString := fmt.Sprintf("Shard [%s](%s)", shardId, shardUrl)
 		if shardToDashboardMappingText == "" {
 			shardToDashboardMappingText = shardString
@@ -399,7 +400,7 @@ func getCreateMonitoringDashboardRequest(
 		Layout:      &layout,
 	}
 	req := &dashboardpb.CreateDashboardRequest{
-		Parent:    "projects/" + resourceIds.ProjectId,
+		Parent:    "projects/" + resourceIds.MigrationProjectId,
 		Dashboard: &db,
 	}
 	return req
