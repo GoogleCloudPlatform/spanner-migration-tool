@@ -9,18 +9,29 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	datastream "cloud.google.com/go/datastream/apiv1"
+	ds "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
+	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
+	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"google.golang.org/api/iterator"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 )
+
+type shardedDataflowConfig struct {
+	MigrationProfile profiles.SourceProfileConfig
+}
 
 func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
@@ -128,6 +139,46 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error while getting source database: %v", err), http.StatusBadRequest)
 		return
 	}
+
+	if sessionState.IsSharded {
+		if databaseType != constants.MYSQL {
+			http.Error(w, fmt.Sprintf("this database type is not currently implemented for sharded migrations: %v", err), http.StatusBadRequest)
+			return
+		}
+		dsClient, err := ds.NewDatastreamClientImpl(ctx)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+			return
+		}
+		storageclient, err := storageclient.NewStorageClientImpl(ctx)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+			return
+		}
+		resGenerator := conversion.NewResourceGenerationImpl(&datastream_accessor.DatastreamAccessorImpl{}, dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
+		req := conversion.ConnectionProfileReq{
+			ConnectionProfile: conversion.ConnectionProfile{
+				ProjectId: sessionState.GCPProjectID,
+				Id: details.Id,
+				ValidateOnly: details.ValidateOnly,
+				IsSource: details.IsSource,
+				Host: details.Host,
+				Port: details.Port,
+				Password: details.Password,
+				User: details.User,
+				Region: sessionState.Region,
+			},
+			Ctx: ctx,
+		}
+		mutex := &sync.Mutex{}
+		result := resGenerator.PrepareMinimalDowntimeResources(&req, mutex)
+		if result.Err != nil {
+			http.Error(w, fmt.Sprintf("Resource generation failed: %v", err), http.StatusBadRequest)
+			return
+		}
+		return
+	}
+
 	req := &datastreampb.CreateConnectionProfileRequest{
 		Parent:              fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, sessionState.Region),
 		ConnectionProfileId: details.Id,
@@ -163,11 +214,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if sessionState.IsSharded {
-		setConnectionProfileFromRequest(details, bucketName, req, databaseType)
-	} else {
-		setConnectionProfileFromSessionState(details.IsSource, *sessionState, req, databaseType)
-	}
+	setConnectionProfileFromSessionState(details.IsSource, *sessionState, req, databaseType)
 
 	op, err := dsClient.CreateConnectionProfile(ctx, req)
 	if err != nil {
@@ -181,30 +228,47 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func setConnectionProfileFromRequest(details connectionProfileReqV2, bucketName string, req *datastreampb.CreateConnectionProfileRequest, databaseType string) error {
-	if details.IsSource {
-		port, _ := strconv.ParseInt((details.Port), 10, 32)
-		if databaseType == constants.MYSQL {
-			req.ConnectionProfile.Profile = &datastreampb.ConnectionProfile_MysqlProfile{
-				MysqlProfile: &datastreampb.MysqlProfile{
-					Hostname: details.Host,
-					Port:     int32(port),
-					Username: details.User,
-					Password: details.Password,
-				},
-			}
-			return nil
-		} else {
-			return fmt.Errorf("this database type is not currently implemented for sharded migrations")
-		}
-	} else {
-		req.ConnectionProfile.Profile = &datastreampb.ConnectionProfile_GcsProfile{
-			GcsProfile: &datastreampb.GcsProfile{
-				Bucket:   bucketName,
-				RootPath: "/",
-			},
-		}
-		return nil
+func VerifyJsonConfiguration(w http.ResponseWriter, r *http.Request) {
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	var srcConfig shardedDataflowConfig
+	err = json.Unmarshal(reqBody, &srcConfig)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	ctx := context.Background()
+	sessionState := session.GetSessionState()
+	sourceProfileConfig := srcConfig.MigrationProfile
+	sourceProfile := profiles.SourceProfile{Ty: profiles.SourceProfileTypeConfig, Config: sourceProfileConfig}
+
+	spClient, err:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	dsClient, err := ds.NewDatastreamClientImpl(ctx)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	storageclient, err := storageclient.NewStorageClientImpl(ctx)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
+		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
+
+	err = validateResource.ValidateResourceGeneration(ctx, sessionState.GCPProjectID, sessionState.SpannerInstanceID, sourceProfile, sessionState.Conv)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
 	}
 }
 func setConnectionProfileFromSessionState(isSource bool, sessionState session.SessionState, req *datastreampb.CreateConnectionProfileRequest, databaseType string) {

@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core'
 import IDbConfig, { IDbConfigs } from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
 import IUpdateTable, { IAddColumn, IReviewUpdateTable } from '../../model/update-table'
+import { IResourcesGenerated } from 'src/app/model/verify-json-cfg'
 import IConv, {
   ICreateIndex,
   IForeignKey,
@@ -153,6 +154,12 @@ export class FetchService {
 
   createConnectionProfile(payload: ICreateConnectionProfileV2) {
     return this.http.post(`${this.url}/CreateConnectionProfile`, payload)
+  }
+
+  verifyJsonConfiguration(payload : IMigrationProfile):any {
+    return this.http.post(`${this.url}/VerifyJsonConfiguration`, {
+      MigrationProfile: payload
+    })
   }
 
   getSummary() {

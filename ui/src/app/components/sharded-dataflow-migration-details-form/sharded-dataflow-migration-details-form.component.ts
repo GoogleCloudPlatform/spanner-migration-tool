@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, ViewChild } from '@angular/core';
 import { AbstractControl, FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { InputType, MigrationDetails, Profile, StorageKeys } from 'src/app/app.constants';
@@ -6,6 +6,9 @@ import IDbConfig from 'src/app/model/db-config';
 import IConnectionProfile, { ICreateConnectionProfileV2, IDataShard, IDatastreamConnProfile, IDirectConnectionConfig, ILogicalShard, IMigrationProfile, IShardConfigurationDataflow, IShardedDataflowMigration } from 'src/app/model/profile';
 import { FetchService } from 'src/app/services/fetch/fetch.service';
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
+import { DataService } from 'src/app/services/data/data.service'
+import { MatTableDataSource } from '@angular/material/table';
+import { MatPaginator } from '@angular/material/paginator';
 
 @Component({
   selector: 'app-sharded-dataflow-migration-details-form',
@@ -35,9 +38,11 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   errorMsg = ''
   errorSrcMsg = ''
   errorTgtMsg = ''
+  errorVerMsg = ''
   sourceDatabaseType: string = ''
   inputValue: string = ''
   testSuccess: boolean = false
+  verifyJson: boolean =  false
   createSrcConnSuccess: boolean = false
   createTgtConnSuccess: boolean = false
   region: string
@@ -46,7 +51,10 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   testingSourceConnection: boolean = false
   creatingSourceConnection: boolean = false
   creatingTargetConnection: boolean = false
+  verifyingJson: boolean = false
   prefix: string = 'smt-datashard';
+  @ViewChild(MatPaginator)
+  paginator!: MatPaginator
 
   inputOptionsList = [
     { value: 'text', displayName: 'Text' },
@@ -58,6 +66,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
   constructor(
     private fetch: FetchService,
     private snack: SnackbarService,
+    private dataService :DataService,
     private formBuilder: FormBuilder,
     private dialogRef: MatDialogRef<ShardedDataflowMigrationDetailsFormComponent>,
     @Inject(MAT_DIALOG_DATA) public data: IShardedDataflowMigration
@@ -67,7 +76,9 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
     let inputType = localStorage.getItem(StorageKeys.Type) as string
     if (inputType == InputType.DirectConnect) {
       this.schemaSourceConfig = JSON.parse(localStorage.getItem(StorageKeys.Config) as string)
+      console.log(this.schemaSourceConfig)
     }
+
     
     let shardTableRowForm: FormGroup = this.formBuilder.group({
       logicalShardId: ['', Validators.required],
@@ -264,6 +275,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
       shardMappingTable: this.formBuilder.array([shardTableRowForm])
     })
     this.testSuccess = false
+    this.verifyJson = false
     this.createSrcConnSuccess = false
     this.createTgtConnSuccess = false
     this.snack.openSnackBar('Shard configured successfully, please configure the next', 'Close', 5)
@@ -394,7 +406,7 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
 
   determineFormValidity(): boolean {
     if (this.migrationProfileForm.valid && (this.selectedSourceProfileOption !== Profile.NewConnProfile || this.createSrcConnSuccess) &&
-    (this.selectedTargetProfileOption !== Profile.NewConnProfile || this.createTgtConnSuccess)) {
+    (this.selectedTargetProfileOption !== Profile.NewConnProfile || this.createTgtConnSuccess) && (this.migrationProfileForm.value.inputType === "text" === this.verifyJson)) {
       return true
     }
     return false
@@ -416,10 +428,47 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
     }
   }
 
+  determineTextJsonValidity(): boolean {
+    return this.migrationProfileForm.valid
+  }
+ 
   determineConnectionProfileInfoValidity(): boolean {
     let formValue = this.migrationProfileForm.value
     return formValue.host != null && formValue.port != null && formValue.user != null && formValue.password != null && formValue.newSourceProfile != null
   }
+
+  verifyTextJson() {
+    this.verifyingJson = true;
+    let formValue = this.migrationProfileForm.value;
+    let payload: IMigrationProfile
+    try {
+      payload = JSON.parse(formValue.textInput);
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        this.errorVerMsg = error.message
+        this.verifyJson = false
+        this.verifyingJson = false;
+        return
+      } else {
+        this.errorVerMsg = `Unexpected error parsing json ${error}`
+        this.verifyJson = false
+        this.verifyingJson = false;
+        return
+      }
+  }
+    this.fetch.verifyJsonConfiguration(payload).subscribe({
+      next: () => {
+        this.verifyJson = true
+        this.verifyingJson = false;
+      },
+      error: (err: any) => {
+        this.verifyJson = false
+        this.verifyingJson = false;
+        this.errorVerMsg = err.error
+      },
+    }
+    );
+}
 
   createOrTestConnection(isSource: boolean, isValidateOnly: boolean) {
     if (isValidateOnly) {
