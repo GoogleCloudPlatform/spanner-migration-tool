@@ -76,7 +76,6 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
     let inputType = localStorage.getItem(StorageKeys.Type) as string
     if (inputType == InputType.DirectConnect) {
       this.schemaSourceConfig = JSON.parse(localStorage.getItem(StorageKeys.Config) as string)
-      console.log(this.schemaSourceConfig)
     }
 
     
@@ -428,9 +427,6 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
     }
   }
 
-  determineTextJsonValidity(): boolean {
-    return this.migrationProfileForm.valid
-  }
  
   determineConnectionProfileInfoValidity(): boolean {
     let formValue = this.migrationProfileForm.value
@@ -461,10 +457,10 @@ export class ShardedDataflowMigrationDetailsFormComponent implements OnInit {
         this.verifyJson = true
         this.verifyingJson = false;
       },
-      error: (err: any) => {
+      error: (err: Error) => {
         this.verifyJson = false
         this.verifyingJson = false;
-        this.errorVerMsg = err.error
+        this.errorVerMsg = err.message
       },
     }
     );

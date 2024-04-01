@@ -16,7 +16,6 @@ import { TableUpdatePubSubService } from '../table-update-pub-sub/table-update-p
 import { ConversionService } from '../conversion/conversion.service'
 import { ColLength, Dialect } from 'src/app/app.constants'
 import { ITables } from 'src/app/model/migrate'
-import { IResourcesGenerated } from 'src/app/model/verify-json-cfg'
 
 @Injectable({
   providedIn: 'root',

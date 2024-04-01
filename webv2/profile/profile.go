@@ -13,10 +13,8 @@ import (
 
 	datastream "cloud.google.com/go/datastream/apiv1"
 	ds "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
-	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
-	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -31,6 +29,10 @@ import (
 
 type shardedDataflowConfig struct {
 	MigrationProfile profiles.SourceProfileConfig
+}
+
+type ProfileAPIHandler struct {
+	ValidateResources conversion.ValidateResourcesInterface
 }
 
 func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
@@ -228,7 +230,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func VerifyJsonConfiguration(w http.ResponseWriter, r *http.Request) {
+func (profileHandler *ProfileAPIHandler) VerifyJsonConfiguration(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -247,30 +249,13 @@ func VerifyJsonConfiguration(w http.ResponseWriter, r *http.Request) {
 	sourceProfileConfig := srcConfig.MigrationProfile
 	sourceProfile := profiles.SourceProfile{Ty: profiles.SourceProfileTypeConfig, Config: sourceProfileConfig}
 
-	spClient, err:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	dsClient, err := ds.NewDatastreamClientImpl(ctx)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	storageclient, err := storageclient.NewStorageClientImpl(ctx)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
-		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
-
-	err = validateResource.ValidateResourceGeneration(ctx, sessionState.GCPProjectID, sessionState.SpannerInstanceID, sourceProfile, sessionState.Conv)
+	err = profileHandler.ValidateResources.ValidateResourceGeneration(ctx, sessionState.GCPProjectID, sessionState.SpannerInstanceID, sourceProfile, sessionState.Conv)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
 }
+
 func setConnectionProfileFromSessionState(isSource bool, sessionState session.SessionState, req *datastreampb.CreateConnectionProfileRequest, databaseType string) {
 	if isSource {
 		port, _ := strconv.ParseInt((sessionState.SourceDBConnDetails.Port), 10, 32)
