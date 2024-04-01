@@ -120,7 +120,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		getInfo := &utils.GetUtilInfoImpl{}
 		cmd.project, err = getInfo.GetProject()
 		if err != nil {
-			logger.Log.Error("Could not get project id from gcloud environment. Either pass the projectId in the --project flag or configure in gcloud CLI using gcloud config set", zap.Error(err))
+			logger.Log.Error("Could not get project id from gcloud environment or --project flag. Inferring the migration project id from target profile.", zap.Error(err))
 			cmd.project = targetProfile.Conn.Sp.Project
 		}
 	}

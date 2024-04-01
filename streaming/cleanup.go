@@ -43,11 +43,11 @@ type JobCleanupOptions struct {
 	Monitoring bool
 }
 
-func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds []string, jobCleanupOptions JobCleanupOptions, project string, instance string) {
+func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds []string, jobCleanupOptions JobCleanupOptions, migrationProjectId string, spannerProjectId string, instance string) {
 	//initiate resource cleanup
 	if jobCleanupOptions.Dataflow {
 		//fetch dataflow resources
-		dataflowResourcesList, err := FetchResources(ctx, migrationJobId, constants.DATAFLOW_RESOURCE, dataShardIds, project, instance)
+		dataflowResourcesList, err := FetchResources(ctx, migrationJobId, constants.DATAFLOW_RESOURCE, dataShardIds, spannerProjectId, instance)
 		if err != nil {
 			logger.Log.Debug(fmt.Sprintf("Unable to fetch dataflow resources for jobId: %s: %v\n", migrationJobId, err))
 		}
@@ -60,13 +60,13 @@ func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds
 			if err != nil {
 				logger.Log.Debug("Unable to read Dataflow metadata for deletion\n")
 			} else {
-				cleanupDataflowJob(ctx, dataflowResources, project)
+				cleanupDataflowJob(ctx, dataflowResources, migrationProjectId)
 			}
 		}
 	}
 	if jobCleanupOptions.Datastream {
 		//fetch dataflow resources
-		datastreamResourcesList, err := FetchResources(ctx, migrationJobId, constants.DATASTREAM_RESOURCE, dataShardIds, project, instance)
+		datastreamResourcesList, err := FetchResources(ctx, migrationJobId, constants.DATASTREAM_RESOURCE, dataShardIds, spannerProjectId, instance)
 		if err != nil {
 			logger.Log.Debug(fmt.Sprintf("Unable to fetch datastream resources for jobId: %s: %v\n", migrationJobId, err))
 		}
@@ -79,13 +79,13 @@ func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds
 			if err != nil {
 				logger.Log.Debug("Unable to read Datastream metadata for deletion\n")
 			} else {
-				cleanupDatastream(ctx, datastreamResources, project)
+				cleanupDatastream(ctx, datastreamResources, migrationJobId)
 			}
 		}
 	}
 	if jobCleanupOptions.Pubsub {
 		//fetch pubsub resources
-		pubsubResourcesList, err := FetchResources(ctx, migrationJobId, constants.PUBSUB_RESOURCE, dataShardIds, project, instance)
+		pubsubResourcesList, err := FetchResources(ctx, migrationJobId, constants.PUBSUB_RESOURCE, dataShardIds, spannerProjectId, instance)
 		if err != nil {
 			logger.Log.Debug(fmt.Sprintf("Unable to fetch pubsub resources for jobId: %s: %v\n", migrationJobId, err))
 		}
@@ -98,17 +98,17 @@ func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds
 			if err != nil {
 				logger.Log.Debug("Unable to read Pubsub metadata for deletion\n")
 			} else {
-				cleanupPubsubResources(ctx, pubsubResources, project)
+				cleanupPubsubResources(ctx, pubsubResources, migrationProjectId)
 			}
 		}
 	}
 	if jobCleanupOptions.Monitoring {
 		//fetch monitoring resources
-		shardMonitoringResourcesList, err := FetchResources(ctx, migrationJobId, constants.MONITORING_RESOURCE, dataShardIds, project, instance)
+		shardMonitoringResourcesList, err := FetchResources(ctx, migrationJobId, constants.MONITORING_RESOURCE, dataShardIds, spannerProjectId, instance)
 		if err != nil {
 			logger.Log.Debug(fmt.Sprintf("Unable to fetch shard monitoring resources for jobId: %s: %v\n", migrationJobId, err))
 		}
-		jobMonitoringResourcesList, err := FetchResources(ctx, migrationJobId, constants.AGG_MONITORING_RESOURCE, dataShardIds, project, instance)
+		jobMonitoringResourcesList, err := FetchResources(ctx, migrationJobId, constants.AGG_MONITORING_RESOURCE, dataShardIds, spannerProjectId, instance)
 		if err != nil {
 			logger.Log.Debug(fmt.Sprintf("Unable to fetch aggregate monitoring resources for jobId: %s: %v\n", migrationJobId, err))
 		}
@@ -122,14 +122,14 @@ func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds
 			if err != nil {
 				logger.Log.Debug("Unable to read monitoring metadata for deletion\n")
 			} else {
-				cleanupMonitoringDashboard(ctx, monitoringResources, project)
+				cleanupMonitoringDashboard(ctx, monitoringResources, migrationProjectId)
 			}
 		}
 	}
 }
 
-func FetchResources(ctx context.Context, migrationJobId string, resourceType string, dataShardIds []string, project string, instance string) ([]SmtResource, error) {
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.METADATA_DB)
+func FetchResources(ctx context.Context, migrationJobId string, resourceType string, dataShardIds []string, spannerProjectId string, instance string) ([]SmtResource, error) {
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", spannerProjectId, instance, constants.METADATA_DB)
 	client, err := utils.GetClient(ctx, dbURI)
 	if err != nil {
 		err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
