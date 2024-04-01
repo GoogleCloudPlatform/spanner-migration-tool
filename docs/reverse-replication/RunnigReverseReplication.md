@@ -45,7 +45,7 @@ The script takes in multiple arguments to orchestrate the pipeline. They are:
 - `metadataInstance`: Spanner instance name to store changestream metadata. Defaults to target spanner instance id.
 - `metadataTableSuffix`: The suffix to apply when creating metadata tables.Helpful in case of multiple runs.Default is no suffix.
 - `networkTags`: network tags addded to the Dataflow jobs worker and launcher VMs.
-- `projectId`: Project id of the Spanner instance.
+- `projectId`: projectId for Dataflow jobs. If spannerProjectId is not specified, this value is used for Cloud Spanner project id as well.
 - `sessionFilePath`: GCS file path for session file generated via Spanner migration tool.
 - `serviceAccountEmail`: the email address of the service account to run the job as.
 - `skipChangeStreamCreation`: whether to skip the change stream creation. Default is false.
@@ -53,6 +53,7 @@ The script takes in multiple arguments to orchestrate the pipeline. They are:
 - `sourceDbTimezoneOffset`: the timezone offset with respect to UTC for the source database.Defaults to +00:00.
 - `sourceShardsFilePath`: GCS file path for file containing shard info. Details on structure mentioned later.
 - `sourceWriterTemplateLocation` : the dataflow template location for the Source writer job.
+- `spannerProjectId`: the project id where Cloud Spanner resides, for use case when Cloud Spanner is in a different project than where Dataflow would run.
 - `spannerReaderTemplateLocation`: the dataflow template location for the Spanner reader job
 - `startTimestamp`: Timestamp from which the changestream should start reading changes in RFC 3339 format, defaults to empty string which is equivalent to the current timestamp.
 - `readerMaxWorkers`: Number of maximum workers for the reader job.
