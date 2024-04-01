@@ -53,6 +53,7 @@ The script takes in multiple arguments to orchestrate the pipeline. They are:
 - `sourceDbTimezoneOffset`: the timezone offset with respect to UTC for the source database.Defaults to +00:00.
 - `sourceShardsFilePath`: GCS file path for file containing shard info. Details on structure mentioned later.
 - `sourceWriterTemplateLocation` : the dataflow template location for the Source writer job.
+- `spannerProjectId`: the project id where Cloud Spanner resides, for use case when Cloud Spanner is in a different project than where Dataflow would run.
 - `spannerReaderTemplateLocation`: the dataflow template location for the Spanner reader job
 - `startTimestamp`: Timestamp from which the changestream should start reading changes in RFC 3339 format, defaults to empty string which is equivalent to the current timestamp.
 - `readerMaxWorkers`: Number of maximum workers for the reader job.
