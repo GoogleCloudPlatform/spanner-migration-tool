@@ -45,7 +45,7 @@ The script takes in multiple arguments to orchestrate the pipeline. They are:
 - `metadataInstance`: Spanner instance name to store changestream metadata. Defaults to target spanner instance id.
 - `metadataTableSuffix`: The suffix to apply when creating metadata tables.Helpful in case of multiple runs.Default is no suffix.
 - `networkTags`: network tags addded to the Dataflow jobs worker and launcher VMs.
-- `projectId`: Project id of the Spanner instance.
+- `projectId`: projectId for Dataflow jobs. If spannerProjectId is not specified, this value is used for Cloud Spanner project id as well.
 - `sessionFilePath`: GCS file path for session file generated via Spanner migration tool.
 - `serviceAccountEmail`: the email address of the service account to run the job as.
 - `skipChangeStreamCreation`: whether to skip the change stream creation. Default is false.

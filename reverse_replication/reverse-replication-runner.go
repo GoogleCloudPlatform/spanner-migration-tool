@@ -65,7 +65,7 @@ const (
 )
 
 func setupGlobalFlags() {
-	flag.StringVar(&projectId, "projectId", "", "ProjectId.")
+	flag.StringVar(&projectId, "projectId", "", "ProjectId for Dataflow jobs. If spannerProjectId is not specified, this value is used for Cloud Spanner project id as well.")
 	flag.StringVar(&dataflowRegion, "dataflowRegion", "", "Region for dataflow jobs.")
 	flag.StringVar(&jobNamePrefix, "jobNamePrefix", "smt-reverse-replication", "Job name prefix for the dataflow jobs, defaults to reverse-rep. Automatically converted to lower case due to Dataflow name constraints.")
 	flag.StringVar(&changeStreamName, "changeStreamName", "reverseReplicationStream", "Change stream name, defaults to reverseReplicationStream.")
