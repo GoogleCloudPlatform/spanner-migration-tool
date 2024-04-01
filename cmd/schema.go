@@ -96,18 +96,19 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		return subcommands.ExitFailure
 	}
 	defer logger.Log.Sync()
-	if cmd.project == "" {
-		getInfo := &utils.GetUtilInfoImpl{}
-		cmd.project, err = getInfo.GetProject()
-		if err != nil {
-			logger.Log.Error("Could not set default project id from gcloud environment", zap.Error(err))
-		}
-	}
 	// validate and parse source-profile, target-profile and source
 	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {
 		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return subcommands.ExitUsageError
+	}
+	if cmd.project == "" {
+		getInfo := &utils.GetUtilInfoImpl{}
+		cmd.project, err = getInfo.GetProject()
+		if err != nil {
+			logger.Log.Error("Could not get project id from gcloud environment. Either pass the projectId in the --project flag or configure in gcloud CLI using gcloud config set", zap.Error(err))
+			cmd.project = targetProfile.Conn.Sp.Project
+		}
 	}
 
 	if cmd.validate {

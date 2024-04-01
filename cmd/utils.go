@@ -161,19 +161,19 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient) error {
-	spA := spanneraccessor.SpannerAccessorImpl{}
-	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
-	if err != nil {
-		return err
-	}
-	err = spA.CreateOrUpdateDatabase(ctx, adminClientImpl, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
-	if err != nil {
-		err = fmt.Errorf("can't create/update database: %v", err)
-		return err
-	}
-	metricsPopulation(ctx, sourceProfile.Driver, conv)
-	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
-	return nil
+		spA := spanneraccessor.SpannerAccessorImpl{}
+		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+		if err != nil {
+			return err
+		}
+		err = spA.CreateOrUpdateDatabase(ctx, adminClientImpl, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
+		if err != nil {
+			err = fmt.Errorf("can't create/update database: %v", err)
+			return err
+		}
+		metricsPopulation(ctx, sourceProfile.Driver, conv)
+		conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
+		return nil
 }
 
 func migrateData(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
