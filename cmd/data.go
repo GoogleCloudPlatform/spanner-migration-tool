@@ -42,17 +42,18 @@ import (
 
 // DataCmd struct with flags.
 type DataCmd struct {
-	source          string
-	sourceProfile   string
-	target          string
-	targetProfile   string
-	sessionJSON     string
-	filePrefix      string // TODO: move filePrefix to global flags
-	WriteLimit      int64
-	dryRun          bool
-	logLevel        string
-	SkipForeignKeys bool
-	validate        bool
+	source           string
+	sourceProfile    string
+	target           string
+	targetProfile    string
+	sessionJSON      string
+	filePrefix       string // TODO: move filePrefix to global flags
+	WriteLimit       int64
+	dryRun           bool
+	logLevel         string
+	SkipForeignKeys  bool
+	validate         bool
+	dataflowTemplate string
 }
 
 // Name returns the name of operation.
@@ -89,6 +90,7 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.SkipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
+	f.StringVar(&cmd.dataflowTemplate, "dataflow-template", constants.DEFAULT_TEMPLATE_PATH, "GCS path of the Dataflow template")
 }
 
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -108,6 +110,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	defer logger.Log.Sync()
 
 	conv := internal.MakeConv()
+	utils.SetDataflowTemplatePath(cmd.dataflowTemplate)
 	// validate and parse source-profile, target-profile and source
 	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {

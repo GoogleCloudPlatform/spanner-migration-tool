@@ -38,16 +38,17 @@ import (
 
 // SchemaAndDataCmd struct with flags.
 type SchemaAndDataCmd struct {
-	source          string
-	sourceProfile   string
-	target          string
-	targetProfile   string
-	SkipForeignKeys bool
-	filePrefix      string // TODO: move filePrefix to global flags
-	WriteLimit      int64
-	dryRun          bool
-	logLevel        string
-	validate        bool
+	source           string
+	sourceProfile    string
+	target           string
+	targetProfile    string
+	SkipForeignKeys  bool
+	filePrefix       string // TODO: move filePrefix to global flags
+	WriteLimit       int64
+	dryRun           bool
+	logLevel         string
+	validate         bool
+	dataflowTemplate string
 }
 
 // Name returns the name of operation.
@@ -83,6 +84,7 @@ func (cmd *SchemaAndDataCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
+	f.StringVar(&cmd.dataflowTemplate, "dataflow-template", constants.DEFAULT_TEMPLATE_PATH, "GCS path of the Dataflow template")
 }
 
 func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -100,6 +102,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		return subcommands.ExitFailure
 	}
 	defer logger.Log.Sync()
+	utils.SetDataflowTemplatePath(cmd.dataflowTemplate)
 	// validate and parse source-profile, target-profile and source
 	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {
