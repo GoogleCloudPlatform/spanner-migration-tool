@@ -252,7 +252,7 @@ func (sads *DataFromSourceImpl) dataFromDatabase(ctx context.Context, migrationP
 			if err != nil {
 				return nil, err
 			}
-			dfOutput, err := infoSchema.StartStreamingMigration(ctx, client, conv, streamInfo)
+			dfOutput, err := infoSchema.StartStreamingMigration(ctx, migrationProjectId, client, conv, streamInfo)
 			if err != nil {
 				return nil, err
 			}

@@ -79,7 +79,7 @@ func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds
 			if err != nil {
 				logger.Log.Debug("Unable to read Datastream metadata for deletion\n")
 			} else {
-				cleanupDatastream(ctx, datastreamResources, migrationJobId)
+				cleanupDatastream(ctx, datastreamResources, migrationProjectId)
 			}
 		}
 	}

@@ -602,15 +602,15 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 }
 
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
-func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
-	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil, &utils.GetUtilInfoImpl{})
+func LaunchDataflowJob(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
+	spannerProjectId, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil, &utils.GetUtilInfoImpl{})
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
 
 	// Rate limit this function to match DataFlow createJob Quota.
 	DATA_FLOW_RL.Take()
 
-	fmt.Println("Launching dataflow job ", dataflowCfg.JobName, " in ", project, "-", dataflowCfg.Location)
+	fmt.Println("Launching dataflow job ", dataflowCfg.JobName, " in ", migrationProjectId, "-", dataflowCfg.Location)
 
 	c, err := dataflow.NewFlexTemplatesClient(ctx)
 	if err != nil {
@@ -627,7 +627,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	defer dsClient.Close()
 
 	// Fetch the GCS path from the destination connection profile.
-	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", project, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name)
+	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", migrationProjectId, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name)
 	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("could not get connection profiles: %v", err)
@@ -641,19 +641,19 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 
 	// Initiate runtime environment flags and overrides.
 	var (
-		dataflowProjectId        = project
-		dataflowVpcHostProjectId = project
+		dataflowProjectId        = migrationProjectId
+		dataflowVpcHostProjectId = migrationProjectId
 		gcsTemplatePath          = DEFAULT_TEMPLATE_PATH
 		dataflowSubnetwork       = ""
 		workerIpAddressConfig    = dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PUBLIC
 		dataflowUserLabels       = make(map[string]string)
 		machineType              = "n1-standard-2"
 	)
-	// If project override present, use that otherwise default to Spanner project. Useful when customers want to run Dataflow in separate project.
+	// If project override present, use that otherwise default to Migration project. Useful when customers want to run Dataflow in separate project.
 	if dataflowCfg.ProjectId != "" {
 		dataflowProjectId = dataflowCfg.ProjectId
 	}
-	// If VPC Host project override present, use that otherwise default to Spanner project.
+	// If VPC Host project override present, use that otherwise default to Migration project.
 	if dataflowCfg.VpcHostProjectId != "" {
 		dataflowVpcHostProjectId = dataflowCfg.VpcHostProjectId
 	}
@@ -706,13 +706,14 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: gcsTemplatePath},
 		Parameters: map[string]string{
 			"inputFilePattern":              utils.ConcatDirectoryPath(inputFilePattern, "data"),
-			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
+			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", migrationProjectId, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
+			"projectId":                     spannerProjectId,
 			"instanceId":                    instance,
 			"databaseId":                    dbName,
 			"sessionFilePath":               streamingCfg.TmpDir + "session.json",
 			"deadLetterQueueDirectory":      inputFilePattern + "dlq",
 			"transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
-			"gcsPubSubSubscription":         fmt.Sprintf("projects/%s/subscriptions/%s", project, streamingCfg.PubsubCfg.SubscriptionId),
+			"gcsPubSubSubscription":         fmt.Sprintf("projects/%s/subscriptions/%s", migrationProjectId, streamingCfg.PubsubCfg.SubscriptionId),
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			MaxWorkers:            maxWorkers,
@@ -881,7 +882,7 @@ func StartDatastream(ctx context.Context, migrationProjectId string, streamingCf
 	return streamingCfg, nil
 }
 
-func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
+func StartDataflow(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
 	sc, err := storageclient.NewStorageClientImpl(ctx)
 	if err != nil {
 		return internal.DataflowOutput{}, err
@@ -906,7 +907,7 @@ func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, st
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("error while writing to GCS: %v", err)
 	}
-	dfOutput, err := LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv)
+	dfOutput, err := LaunchDataflowJob(ctx, migrationProjectId, targetProfile, streamingCfg, conv)
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("error launching dataflow: %v", err)
 	}

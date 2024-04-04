@@ -146,7 +146,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationPr
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		streamingCfg.DataflowCfg.DbNameToShardIdMap = dbNameToShardIdMap
-		dfOutput, err := streaming.StartDataflow(ctx, targetProfile, streamingCfg, conv)
+		dfOutput, err := streaming.StartDataflow(ctx, migrationProjectId, targetProfile, streamingCfg, conv)
 		if err != nil {
 			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
@@ -218,6 +218,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationPr
 
 	// create monitoring aggregated dashboard for sharded migration
 	aggMonitoringResources := metrics.MonitoringMetricsResources{
+		MigrationProjectId:       migrationProjectId,
 		SpannerProjectId:         targetProfile.Conn.Sp.Project,
 		SpannerInstanceId:        targetProfile.Conn.Sp.Instance,
 		SpannerDatabaseId:        targetProfile.Conn.Sp.Dbname,
