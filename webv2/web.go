@@ -529,6 +529,11 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.RLock()
 	defer sessionState.Conv.ConvLock.RUnlock()
+	// GetSourceDestinationSummary is called when the user enters prepare migration page
+	// Getting and populating SpannerProjectId if it doesn't exist.
+	if sessionState.SpannerProjectId == "" {
+		sessionState.SpannerProjectId = sessionState.GCPProjectID
+	}
 	var sessionSummary types.SessionSummary
 	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
@@ -557,7 +562,7 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error while creating instance admin client : %v", err), http.StatusBadRequest)
 		return
 	}
-	instanceInfo, err := instanceClient.GetInstance(ctx, &instancepb.GetInstanceRequest{Name: fmt.Sprintf("projects/%s/instances/%s", sessionState.GCPProjectID, sessionState.SpannerInstanceID)})
+	instanceInfo, err := instanceClient.GetInstance(ctx, &instancepb.GetInstanceRequest{Name: fmt.Sprintf("projects/%s/instances/%s", sessionState.SpannerProjectId, sessionState.SpannerInstanceID)})
 	if err != nil {
 		log.Println("get instance error")
 		http.Error(w, fmt.Sprintf("Error while getting instance information : %v", err), http.StatusBadRequest)
@@ -622,6 +627,11 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv.Audit.Progress = internal.Progress{}
 	sessionState.Conv.UI = true
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
+	// TODO: Fix UX flow of migration project id
+	migrationProjectId := sessionState.GCPProjectID
+	if sessionState.SpannerProjectId == "" {
+		sessionState.SpannerProjectId = sessionState.GCPProjectID
+	}
 	if err != nil {
 		log.Println("can't get source and target profile")
 		http.Error(w, fmt.Sprintf("Can't get source and target profiles: %v", err), http.StatusBadRequest)
@@ -640,7 +650,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	if details.MigrationMode == helpers.SCHEMA_ONLY {
 		log.Println("Starting schema only migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
-		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
+		go cmd.MigrateDatabase(ctx, migrationProjectId, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
 	} else if details.MigrationMode == helpers.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
 			SkipForeignKeys: details.SkipForeignKeys,
@@ -648,7 +658,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Println("Starting data only migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
-		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error)
+		go cmd.MigrateDatabase(ctx, migrationProjectId, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error)
 	} else {
 		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
 			SkipForeignKeys: details.SkipForeignKeys,
@@ -656,7 +666,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Println("Starting schema and data migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
-		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, schemaAndDataCmd, sessionState.Conv, &sessionState.Error)
+		go cmd.MigrateDatabase(ctx, migrationProjectId, targetProfile, sourceProfile, dbName, &ioHelper, schemaAndDataCmd, sessionState.Conv, &sessionState.Error)
 	}
 	w.WriteHeader(http.StatusOK)
 	log.Println("migration completed", "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
@@ -669,7 +679,7 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	defer sessionState.Conv.ConvLock.RUnlock()
 	generatedResources.MigrationJobId = sessionState.Conv.Audit.MigrationRequestId
 	generatedResources.DatabaseName = sessionState.SpannerDatabaseName
-	generatedResources.DatabaseUrl = fmt.Sprintf("https://console.cloud.google.com/spanner/instances/%v/databases/%v/details/tables?project=%v", sessionState.SpannerInstanceID, sessionState.SpannerDatabaseName, sessionState.GCPProjectID)
+	generatedResources.DatabaseUrl = fmt.Sprintf("https://console.cloud.google.com/spanner/instances/%v/databases/%v/details/tables?project=%v", sessionState.SpannerInstanceID, sessionState.SpannerDatabaseName, sessionState.SpannerProjectId)
 	generatedResources.BucketName = sessionState.Bucket + sessionState.RootPath
 	generatedResources.BucketUrl = fmt.Sprintf("https://console.cloud.google.com/storage/browser/%v", sessionState.Bucket+sessionState.RootPath)
 	generatedResources.ShardToShardResourcesMap = map[string][]types.ResourceDetails{}
@@ -748,7 +758,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details type
 	}
 
 	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
-	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v,dialect=%v", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB, sessionState.Dialect)
+	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v,dialect=%v", sessionState.SpannerProjectId, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB, sessionState.Dialect)
 	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION && !details.IsSharded {
 		fileName := sessionState.Conv.Audit.MigrationRequestId + "-streaming.json"
 		sessionState.Bucket, sessionState.RootPath, err = conversion.GetBucketFromDatastreamProfile(sessionState.GCPProjectID, sessionState.Region, details.TargetDetails.TargetConnectionProfileName)
@@ -996,7 +1006,7 @@ func init() {
 	utilities.InitObjectId()
 	sessionState.Conv = internal.MakeConv()
 	config := config.TryInitializeSpannerConfig()
-	session.SetSessionStorageConnectionState(config.GCPProjectID, config.SpannerInstanceID)
+	session.SetSessionStorageConnectionState(config.GCPProjectID, config.SpannerProjectID, config.SpannerInstanceID)
 }
 
 // App connects to the web app v2.

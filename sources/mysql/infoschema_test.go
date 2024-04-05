@@ -209,7 +209,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
+	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
 	commonInfoSchema := common.InfoSchemaImpl{}
 	_, err := commonInfoSchema.GenerateSrcSchema(conv, isi, 1)
 	assert.Nil(t, err)
@@ -308,7 +308,7 @@ func TestProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
+	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
 	commonInfoSchema := common.InfoSchemaImpl{}
 	commonInfoSchema.ProcessData(conv, isi, internal.AdditionalDataAttributes{})
 	assert.Equal(t,
@@ -367,7 +367,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
+	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
 	processSchema := common.ProcessSchemaImpl{}
 	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
@@ -456,7 +456,7 @@ func TestProcessSchema_Sharded(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
+	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
 	processSchema := common.ProcessSchemaImpl{}
 	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{IsSharded: true}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
@@ -496,7 +496,7 @@ func TestSetRowStats(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	conv.SetDataMode()
-	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
+	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
 	commonInfoSchema := common.InfoSchemaImpl{}
 	commonInfoSchema.SetRowStats(conv, isi)
 	assert.Equal(t, int64(5), conv.Stats.Rows["test1"])

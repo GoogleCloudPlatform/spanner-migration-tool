@@ -313,7 +313,7 @@ func CleanUpStreamingJobs(w http.ResponseWriter, r *http.Request) {
 		Pubsub:     true,
 		Monitoring: true,
 	}
-	streaming.InitiateJobCleanup(ctx, sessionState.Conv.Audit.MigrationRequestId, nil, jobCleanupOptions, sessionState.GCPProjectID, sessionState.SpannerInstanceID)
+	streaming.InitiateJobCleanup(ctx, sessionState.Conv.Audit.MigrationRequestId, nil, jobCleanupOptions, sessionState.GCPProjectID, sessionState.SpannerProjectId, sessionState.SpannerInstanceID)
 }
 
 type connectionProfileReq struct {
