@@ -35,7 +35,7 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
         [--log-level=LOG_LEVEL] [--prefix=PREFIX] [--skip-foreign-keys]
         [--source-profile=SOURCE_PROFILE] [--target=TARGET]
         [--target-profile=TARGET_PROFILE] [--write-limit=WRITE_LIMIT]
-        [GCLOUD_WIDE_FLAG ...]
+        [--project=PROJECT] [GCLOUD_WIDE_FLAG ...]
 
 ## DESCRIPTION
 
@@ -54,7 +54,7 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
             --source-profile='host=host,port=3306,user=user,password=pwd,dbN\
         ame=db,streamingCfg=streaming.json' \
             --target-profile='project=spanner-project,instance=spanner-insta\
-        nce'
+        nce' --project='migration-project'
 
 ## REQUIRED FLAGS
 
@@ -95,3 +95,8 @@ Detailed description of optional flags can be found [here](./flags.md).
      --write-limit=WRITE_LIMIT
         Number of parallel writers to Cloud Spanner during bulk data migrations
         (default 40).
+
+     --project=PROJECT
+        Flag for specifying the name of the Google Cloud Project in which the Spanner migration tool
+        can create resources required for migration. If the project is not specified, Spanner migration 
+        tool will try to fetch the configured project in the gCloud CLI.

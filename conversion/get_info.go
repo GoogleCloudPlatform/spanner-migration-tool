@@ -40,14 +40,14 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 )
 
-type GetInfoInterface interface{
-	getInfoSchemaForShard(shardConnInfo profiles.DirectConnectionConfig, driver string, targetProfile profiles.TargetProfile, sourceProfileDialect profiles.SourceProfileDialectInterface, getInfo GetInfoInterface) (common.InfoSchema, error)
-	GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error)
-	GetInfoSchema(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error)	
+type GetInfoInterface interface {
+	getInfoSchemaForShard(migrationProjectId string, shardConnInfo profiles.DirectConnectionConfig, driver string, targetProfile profiles.TargetProfile, sourceProfileDialect profiles.SourceProfileDialectInterface, getInfo GetInfoInterface) (common.InfoSchema, error)
+	GetInfoSchemaFromCloudSQL(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error)
+	GetInfoSchema(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error)
 }
 type GetInfoImpl struct{}
 
-func (gi *GetInfoImpl) getInfoSchemaForShard(shardConnInfo profiles.DirectConnectionConfig, driver string, targetProfile profiles.TargetProfile, sourceProfileDialect profiles.SourceProfileDialectInterface, getInfo GetInfoInterface) (common.InfoSchema, error) {
+func (gi *GetInfoImpl) getInfoSchemaForShard(migrationProjectId string, shardConnInfo profiles.DirectConnectionConfig, driver string, targetProfile profiles.TargetProfile, sourceProfileDialect profiles.SourceProfileDialectInterface, getInfo GetInfoInterface) (common.InfoSchema, error) {
 	params := make(map[string]string)
 	params["host"] = shardConnInfo.Host
 	params["user"] = shardConnInfo.User
@@ -67,15 +67,14 @@ func (gi *GetInfoImpl) getInfoSchemaForShard(shardConnInfo profiles.DirectConnec
 	//this is done because GetSQLConnectionStr() should not be aware of sharding
 	newSourceProfile := profiles.SourceProfile{Conn: sourceProfileConnection, Ty: profiles.SourceProfileTypeConnection}
 	newSourceProfile.Driver = driver
-	infoSchema, err := getInfo.GetInfoSchema(newSourceProfile, targetProfile)
+	infoSchema, err := getInfo.GetInfoSchema(migrationProjectId, newSourceProfile, targetProfile)
 	if err != nil {
 		return nil, err
 	}
 	return infoSchema, nil
 }
 
-
-func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
+func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
 	driver := sourceProfile.Driver
 	switch driver {
 	case constants.MYSQL:
@@ -98,10 +97,11 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourcePr
 			return nil, fmt.Errorf("sql.Open: %w", err)
 		}
 		return mysql.InfoSchemaImpl{
-			DbName:        sourceProfile.ConnCloudSQL.Mysql.Db,
-			Db:            db,
-			SourceProfile: sourceProfile,
-			TargetProfile: targetProfile,
+			DbName:             sourceProfile.ConnCloudSQL.Mysql.Db,
+			Db:                 db,
+			MigrationProjectId: migrationProjectId,
+			SourceProfile:      sourceProfile,
+			TargetProfile:      targetProfile,
 		}, nil
 	case constants.POSTGRES:
 		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
@@ -126,18 +126,18 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourcePr
         }
 		temp := false
 		return postgres.InfoSchemaImpl{
-			Db:             db,
-			SourceProfile:  sourceProfile,
-			TargetProfile:  targetProfile,
-			IsSchemaUnique: &temp, //this is a workaround to set a bool pointer
+			Db:                 db,
+			MigrationProjectId: migrationProjectId,
+			SourceProfile:      sourceProfile,
+			TargetProfile:      targetProfile,
+			IsSchemaUnique:     &temp, //this is a workaround to set a bool pointer
 		}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
 }
 
-
-func (gi *GetInfoImpl) GetInfoSchema(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
+func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
 	connectionConfig, err := connectionConfig(sourceProfile)
 	if err != nil {
 		return nil, err
@@ -151,10 +151,11 @@ func (gi *GetInfoImpl) GetInfoSchema(sourceProfile profiles.SourceProfile, targe
 			return nil, err
 		}
 		return mysql.InfoSchemaImpl{
-			DbName:        dbName,
-			Db:            db,
-			SourceProfile: sourceProfile,
-			TargetProfile: targetProfile,
+			DbName:             dbName,
+			Db:                 db,
+			MigrationProjectId: migrationProjectId,
+			SourceProfile:      sourceProfile,
+			TargetProfile:      targetProfile,
 		}, nil
 	case constants.POSTGRES:
 		db, err := sql.Open(driver, connectionConfig.(string))
@@ -163,10 +164,11 @@ func (gi *GetInfoImpl) GetInfoSchema(sourceProfile profiles.SourceProfile, targe
 		}
 		temp := false
 		return postgres.InfoSchemaImpl{
-			Db:             db,
-			SourceProfile:  sourceProfile,
-			TargetProfile:  targetProfile,
-			IsSchemaUnique: &temp, //this is a workaround to set a bool pointer
+			Db:                 db,
+			MigrationProjectId: migrationProjectId,
+			SourceProfile:      sourceProfile,
+			TargetProfile:      targetProfile,
+			IsSchemaUnique:     &temp, //this is a workaround to set a bool pointer
 		}, nil
 	case constants.DYNAMODB:
 		mySession := session.Must(session.NewSession())
@@ -194,7 +196,7 @@ func (gi *GetInfoImpl) GetInfoSchema(sourceProfile profiles.SourceProfile, targe
 		if err != nil {
 			return nil, err
 		}
-		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db, SourceProfile: sourceProfile, TargetProfile: targetProfile}, nil
+		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db, MigrationProjectId: migrationProjectId, SourceProfile: sourceProfile, TargetProfile: targetProfile}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
