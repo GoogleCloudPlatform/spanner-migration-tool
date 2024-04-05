@@ -84,7 +84,7 @@ func TestValidateResourceGeneration(t *testing.T) {
 		var m = conversion.MockValidateOrCreateResources{}
 		m.On("ValidateOrCreateResourcesForShardedMigration", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.createResourcesError)
 		vrg.ValidateOrCreateResources = &m
-		err := vrg.ValidateResourceGeneration(ctx, "migration-project-id", "spanner-project-id", "instance-id", sourceProfile, conv)
+		err := vrg.ValidateResourceGeneration(ctx, "migration-project-id", "instance-id", sourceProfile, conv)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
