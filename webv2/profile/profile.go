@@ -144,7 +144,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 
 	if sessionState.IsSharded {
 		if databaseType != constants.MYSQL {
-			http.Error(w, fmt.Sprintf("this database type is not currently implemented for sharded migrations: %v", err), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("%v database type is not currently implemented for sharded migrations: %v", databaseType, err), http.StatusBadRequest)
 			return
 		}
 		dsClient, err := ds.NewDatastreamClientImpl(ctx)

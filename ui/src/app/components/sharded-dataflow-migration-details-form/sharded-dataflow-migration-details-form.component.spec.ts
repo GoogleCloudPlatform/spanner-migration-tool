@@ -10,7 +10,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
-import { ShardedDataflowMigrationDetailsFormComponent } from './sharded-dataflow-migration-details-form.component';import { FetchService } from 'src/app/services/fetch/fetch.service';
+import { ShardedDataflowMigrationDetailsFormComponent } from './sharded-dataflow-migration-details-form.component';
+import { FetchService } from 'src/app/services/fetch/fetch.service';
 import { of, throwError } from 'rxjs';
 import IConnectionProfile, { IMigrationProfile} from 'src/app/model/profile'
 import IConv from 'src/app/model/conv';
