@@ -43,6 +43,7 @@ export class ObjectDetailComponent implements OnInit {
   @Input() currentObject: FlatNode | null = null
   @Input() typeMap: any = {}
   @Input() defaultTypeMap: any = {}
+  @Input() autoGenMap: any = {}
   @Input() ddlStmts: any = {}
   @Input() fkData: IFkTabData[] = []
   @Input() tableData: IColumnTabData[] = []
@@ -70,7 +71,7 @@ export class ObjectDetailComponent implements OnInit {
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
 
-  spDisplayedColumns = ['spColName', 'spDataType', 'spColMaxLength', 'spIsPk', 'spIsNotNull', 'dropButton']
+  spDisplayedColumns = ['spColName', 'spDataType', 'spAutoGen', 'spColMaxLength', 'spIsPk', 'spIsNotNull', 'dropButton']
   displayedFkColumns = [
     'srcName',
     'srcColumns',
@@ -213,6 +214,8 @@ export class ObjectDetailComponent implements OnInit {
           srcId: new FormControl(row.srcId),
           spColMaxLength: new FormControl(row.spColMaxLength, [
             Validators.required]),
+          spAutoGenType: new FormControl(row.spAutoGenType),
+          spAutoGenName: new FormControl(row.spAutoGenName),
         })
         if (this.dataTypesWithColLen.indexOf(row.spDataType.toString()) > -1) {
           fb.get('spColMaxLength')?.setValidators([Validators.required, Validators.pattern('([1-9][0-9]*|MAX)')])
@@ -340,7 +343,9 @@ export class ObjectDetailComponent implements OnInit {
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
-            MaxColLength: col.spColMaxLength
+            MaxColLength: col.spColMaxLength,
+            AutoGenType: col.spAutoGenType,
+            AutoGenName: col.spAutoGenName
           }
           break
         }
@@ -351,7 +356,9 @@ export class ObjectDetailComponent implements OnInit {
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
-            MaxColLength: col.spColMaxLength
+            MaxColLength: col.spColMaxLength,
+            AutoGenType: col.spAutoGenType,
+            AutoGenName: col.spAutoGenName
           }
         }
       }
@@ -365,6 +372,8 @@ export class ObjectDetailComponent implements OnInit {
         Removed: true,
         ToType: '',
         MaxColLength: '',
+        AutoGenName: '',
+        AutoGenType: '',
       }
     })
 
@@ -418,6 +427,8 @@ export class ObjectDetailComponent implements OnInit {
     this.localTableData[index].spIsPk = this.droppedColumns[addedRowIndex].spIsPk
     this.localTableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
     this.localTableData[index].spColMaxLength = this.droppedColumns[addedRowIndex].spColMaxLength
+    this.localTableData[index].spAutoGenName = this.droppedColumns[addedRowIndex].spAutoGenName
+    this.localTableData[index].spAutoGenType = this.droppedColumns[addedRowIndex].spAutoGenType
     let ind = this.droppedColumns
       .map((col: IColumnTabData) => col.spColName)
       .indexOf(this.addedColumnName)
@@ -512,6 +523,8 @@ export class ObjectDetailComponent implements OnInit {
         col.spIsPk = false
         col.spOrder = ''
         col.spColMaxLength = ''
+        col.spAutoGenName = ''
+        col.spAutoGenType = ''
       }
     })
     this.setSpTableRows()
@@ -539,6 +552,14 @@ export class ObjectDetailComponent implements OnInit {
     })
     this.isSpTableSuggesstionDisplay[index] = brief !== ''
     this.spTableSuggestion[index] = brief
+  }
+
+  spTableEditAutoGen(spDataType: string, spAutoGenName: string, element: any) {
+    this.autoGenMap[spDataType].forEach((autoGen: any) => {
+      if (spAutoGenName == autoGen.Name) {
+        element.get('spAutoGenType').patchValue(autoGen.Type)
+      }
+    })
   }
 
   setPkRows() {

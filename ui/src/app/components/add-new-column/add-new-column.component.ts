@@ -1,10 +1,11 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, Input } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { ColLength, DataTypes, Dialect } from 'src/app/app.constants';
 import { IAddColumnProps } from 'src/app/model/edit-table';
 import { IAddColumn } from 'src/app/model/update-table';
 import { DataService } from 'src/app/services/data/data.service';
+import { FetchService } from 'src/app/services/fetch/fetch.service'
 @Component({
   selector: 'app-add-new-column',
   templateUrl: './add-new-column.component.html',
@@ -19,9 +20,11 @@ export class AddNewColumnComponent implements OnInit {
   tableId: string = ""
   selectedNull: boolean = true
   dataTypesWithColLen: string[] = ColLength.DataTypes
+  autoGenMap : any = {}
   constructor(
     private formBuilder: FormBuilder,
     private dataService: DataService,
+    private fetchSerice: FetchService,
     private dialogRef: MatDialogRef<AddNewColumnComponent>,
     @Inject(MAT_DIALOG_DATA) public data: IAddColumnProps) {
     this.dialect = data.dialect
@@ -32,6 +35,12 @@ export class AddNewColumnComponent implements OnInit {
       length: ['',Validators.pattern('^[0-9]+$')],
       isNullable: [],
     })
+    this.fetchSerice.getAutoGenMap().subscribe(
+      (autoGen: any) => {
+        this.autoGenMap = autoGen;
+        console.log('AutoGenMap data:', this.autoGenMap);
+      }
+    );
   }
 
 
@@ -46,6 +55,7 @@ export class AddNewColumnComponent implements OnInit {
     } else {
       this.datatypes = DataTypes.PostgreSQL
     }
+    console.log(this.autoGenMap)
   }
 
 

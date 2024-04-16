@@ -179,6 +179,7 @@ type ColumnDef struct {
 	NotNull bool
 	Comment string
 	Id      string
+	AutoGen AutoGenCol
 }
 
 // Config controls how AST nodes are printed (aka unparsed).
@@ -231,8 +232,10 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 	var s string
 	if c.SpDialect == constants.DIALECT_POSTGRESQL {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PGPrintColumnDefType())
+		s += cd.AutoGen.PGPrintAutoGenCol()
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
+		s += cd.AutoGen.PrintAutoGenCol()
 	}
 	if cd.NotNull {
 		s += " NOT NULL"
@@ -373,6 +376,29 @@ type CreateIndex struct {
 	StoredColumnIds []string
 	// We have no requirements for null-filtered option and
 	// interleaving clauses yet, so we omit them for now.
+}
+
+type AutoGenCol struct {
+	Name		string
+	Type		string
+}
+
+func (agc AutoGenCol) PrintAutoGenCol () string{
+	switch agc.Type{
+	case constants.UUID:
+		return "DEFAULT (GENERATE_UUID())"
+	default:
+		return ""
+	}
+}
+
+func (agc AutoGenCol) PGPrintAutoGenCol () string{
+	switch agc.Type{
+	case constants.UUID:
+		return "DEFAULT (spanner.generate_uuid())"
+	default:
+		return ""
+	}
 }
 
 // PrintCreateIndex unparses a CREATE INDEX statement.

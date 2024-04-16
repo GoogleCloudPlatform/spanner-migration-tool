@@ -5,6 +5,8 @@ export default interface IColumnTabData {
   srcDataType: string
   spColName: string
   spDataType: string | String
+  spAutoGenType: string | String
+  spAutoGenName: string | String
   spIsPk: boolean
   srcIsPk: boolean
   spIsNotNull: boolean

@@ -122,6 +122,11 @@ type TypeIssue struct {
 	DisplayT string
 }
 
+type AutoGen struct {
+	Name     string
+	Type     string
+}
+
 type ResourceDetails struct {
 	ResourceType string `json:"ResourceType"`
 	ResourceName string `json:"ResourceName"`

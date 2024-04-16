@@ -47,11 +47,11 @@ type Table struct {
 // Column represents a database column.
 // TODO: add support for foreign keys.
 type Column struct {
-	Name    string
-	Type    Type
-	NotNull bool
-	Ignored Ignored
-	Id      string
+	Name    	string
+	Type    	Type
+	NotNull 	bool
+	Ignored 	Ignored
+	Id      	string
 }
 
 // ForeignKey represents a foreign key.
@@ -117,6 +117,11 @@ type Ignored struct {
 	Exclusion     bool
 	ForeignKey    bool
 	AutoIncrement bool
+}
+
+type AutoGenCol struct {
+	Name		string
+	Type		string
 }
 
 // Print converts ty to a string suitable for printing.

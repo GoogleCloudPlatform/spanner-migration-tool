@@ -23,7 +23,7 @@ import IStructuredReport from 'src/app/model/structured-report'
   providedIn: 'root',
 })
 export class FetchService {
-  private url: string = window.location.origin
+  private url: string = 'http://localhost:8080'
   constructor(private http: HttpClient) {}
 
   connectTodb(payload: IDbConfig, dialect: string) {
@@ -165,6 +165,10 @@ export class FetchService {
 
   getTypeMap() {
     return this.http.get(`${this.url}/typemap`)
+  }
+
+  getAutoGenMap() {
+    return this.http.get(`${this.url}/autoGenMap`)
   }
 
   getSpannerDefaultTypeMap() {

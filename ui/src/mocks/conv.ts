@@ -16,6 +16,10 @@ const mockIConv: IConv = {
                         Name: "STRING",
                         Len: 50,
                         IsArray: false
+                    },
+                    AutoGen: {
+                        Name: "None",
+                        Type: "None"
                     }
                 }
             },
@@ -64,7 +68,7 @@ const mockIConv: IConv = {
                         Exclusion: false,
                         ForeignKey: false,
                         AutoIncrement: false
-                    }
+                    },
                 }
             },
             PrimaryKeys: [],

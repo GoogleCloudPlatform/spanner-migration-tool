@@ -39,7 +39,9 @@ type updateCol struct {
 	Rename       string `json:"Rename"`
 	NotNull      string `json:"NotNull"`
 	ToType       string `json:"ToType"`
-	MaxColLength string `json:MaxColLength`
+	MaxColLength string `json:"MaxColLength"`
+	AutoGenName	 string `json:"AutoGenName"`
+	AutoGenType	 string `json:"AutoGenType"`
 }
 
 type updateTable struct {
@@ -119,6 +121,9 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		if v.MaxColLength != "" {
 			UpdateColumnSize(v.MaxColLength, tableId, colId, conv)
+		}
+		if v.AutoGenType != "" {
+			UpdateAutoGenCol(v.AutoGenName, v.AutoGenType, tableId, colId, conv)
 		}
 	}
 

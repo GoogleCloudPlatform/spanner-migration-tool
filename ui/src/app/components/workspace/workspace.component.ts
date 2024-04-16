@@ -35,8 +35,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   typeMap: Record<string, Record<string, string>> | boolean = false
   defaultTypeMap: Record<string, IType> | boolean = false
   conversionRates: Record<string, string> = {}
+  autoGenMap: Record<string, Record<string, string>> | boolean = false
   typemapObj!: Subscription
   defaultTypemapObj!: Subscription
+  autoGenMapObj!: Subscription
   convObj!: Subscription
   converObj!: Subscription
   ddlsumconvObj!: Subscription
@@ -87,6 +89,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
     this.sidenav.setMiddleColumnComponent.subscribe((flag: boolean) => {
       this.isMiddleColumnCollapse = !flag
+    })
+
+    this.autoGenMapObj = this.data.autoGenMap.subscribe((autoGenMap) => {
+      this.autoGenMap = autoGenMap
     })
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
@@ -162,6 +168,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.convObj.unsubscribe()
     this.ddlObj.unsubscribe()
     this.ddlsumconvObj.unsubscribe()
+    this.autoGenMapObj.unsubscribe()
   }
 
   updateConversionRatePercentages() {

@@ -5,6 +5,8 @@ interface IUpdateCol {
   NotNull: string
   ToType: string | String
   MaxColLength: string | undefined | Number
+  AutoGenName: string| String
+  AutoGenType: string| String
 }
 export interface ITableColumnChanges {
   ColumnId: string

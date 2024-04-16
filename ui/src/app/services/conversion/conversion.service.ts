@@ -277,7 +277,9 @@ export class ConversionService {
         srcId: colId,
         spId: spannerColDef ? colId : '',
         spColMaxLength: spannerColDef?.T.Len != 0 ? (spannerColDef?.T.Len != spColMax ? spannerColDef?.T.Len: 'MAX') : '',
-        srcColMaxLength: data.SrcSchema[tableId].ColDefs[colId].Type.Mods != null ? data.SrcSchema[tableId].ColDefs[colId].Type.Mods[0] : ''
+        srcColMaxLength: data.SrcSchema[tableId].ColDefs[colId].Type.Mods != null ? data.SrcSchema[tableId].ColDefs[colId].Type.Mods[0] : '',
+        spAutoGenType: spannerColDef?.AutoGen != null ? spannerColDef?.AutoGen.Type : 'None',
+        spAutoGenName: spannerColDef?.AutoGen != null ? spannerColDef?.AutoGen.Name : 'None',
       }
     })
     if (spColIds) {
@@ -300,7 +302,9 @@ export class ConversionService {
             srcId: '',
             spId: colId,
             srcColMaxLength: '',
-            spColMaxLength: spannerColDef?.T.Len
+            spColMaxLength: spannerColDef?.T.Len,
+            spAutoGenType: 'None',
+            spAutoGenName: 'None',
           })
         }
       })
