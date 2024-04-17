@@ -91,9 +91,11 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       this.isMiddleColumnCollapse = !flag
     })
 
-    this.autoGenMapObj = this.data.autoGenMap.subscribe((autoGenMap) => {
-      this.autoGenMap = autoGenMap
-    })
+    if (this.data.autoGenMap){
+      this.autoGenMapObj = this.data.autoGenMap.subscribe((autoGenMap) => {
+        this.autoGenMap = autoGenMap
+      })
+    }
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
       if (Object.keys(data.SrcSchema).length <= 0) {
