@@ -386,7 +386,7 @@ type AutoGenCol struct {
 func (agc AutoGenCol) PrintAutoGenCol() string {
 	switch agc.Type {
 	case constants.UUID:
-		return "DEFAULT (GENERATE_UUID())"
+		return " DEFAULT (GENERATE_UUID())"
 	default:
 		return ""
 	}
@@ -395,7 +395,7 @@ func (agc AutoGenCol) PrintAutoGenCol() string {
 func (agc AutoGenCol) PGPrintAutoGenCol() string {
 	switch agc.Type {
 	case constants.UUID:
-		return "DEFAULT (spanner.generate_uuid())"
+		return " DEFAULT (spanner.generate_uuid())"
 	default:
 		return ""
 	}

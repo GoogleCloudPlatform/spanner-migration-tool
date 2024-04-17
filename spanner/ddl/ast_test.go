@@ -413,7 +413,7 @@ func TestPrintAutoGenCol(t *testing.T) {
 		agc      AutoGenCol
 		expected string
 	}{
-		{AutoGenCol{Type: constants.UUID}, "DEFAULT (GENERATE_UUID())"},
+		{AutoGenCol{Type: constants.UUID}, " DEFAULT (GENERATE_UUID())"},
 		{AutoGenCol{Type: "None"}, ""},
 	}
 	for _, tc := range tests {
@@ -426,7 +426,7 @@ func TestPGPrintAutoGenCol(t *testing.T) {
 		agc      AutoGenCol
 		expected string
 	}{
-		{AutoGenCol{Type: constants.UUID}, "DEFAULT (spanner.generate_uuid())"},
+		{AutoGenCol{Type: constants.UUID}, " DEFAULT (spanner.generate_uuid())"},
 		{AutoGenCol{Type: "None"}, ""},
 	}
 	for _, tc := range tests {

@@ -170,7 +170,7 @@ export class ObjectDetailComponent implements OnInit {
     this.localIndexData = JSON.parse(JSON.stringify(this.indexData))
 
     if(this.srcDbName == SourceDbNames.MySQL && this.spColspan<7) {
-      this.spDisplayedColumns.push("spAutoGen")
+      this.spDisplayedColumns.splice(2, 0, "spAutoGen")
       this.spColspan++
     }
 

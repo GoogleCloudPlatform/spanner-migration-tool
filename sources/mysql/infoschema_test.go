@@ -376,10 +376,10 @@ func TestProcessData_MultiCol(t *testing.T) {
 			Name:   "test",
 			ColIds: []string{"a", "b", "c", "synth_id"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-				"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
-				"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
+				"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
+				"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}, AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
+				"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}, AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
+				"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}, AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
 			},
 			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}}},
 	}
@@ -465,11 +465,11 @@ func TestProcessSchema_Sharded(t *testing.T) {
 			Name:   "test",
 			ColIds: []string{"a", "b", "c", "synth_id"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a":                  {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"b":                  {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-				"c":                  {Name: "c", T: ddl.Type{Name: ddl.Int64}},
-				"synth_id":           {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
-				"migration_shard_id": {Name: "migration_shard_id", T: ddl.Type{Name: ddl.String, Len: 50}},
+				"a":                  {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
+				"b":                  {Name: "b", T: ddl.Type{Name: ddl.Float64}, AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
+				"c":                  {Name: "c", T: ddl.Type{Name: ddl.Int64}, AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
+				"synth_id":           {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}, AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
+				"migration_shard_id": {Name: "migration_shard_id", T: ddl.Type{Name: ddl.String, Len: 50}, AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "synth_id", Order: 1}}},
 	}

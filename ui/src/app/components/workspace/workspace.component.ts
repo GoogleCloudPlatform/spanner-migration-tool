@@ -168,7 +168,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.convObj.unsubscribe()
     this.ddlObj.unsubscribe()
     this.ddlsumconvObj.unsubscribe()
-    this.autoGenMapObj.unsubscribe()
+    if (this.autoGenMapObj){
+      this.autoGenMapObj.unsubscribe()
+    }
   }
 
   updateConversionRatePercentages() {
