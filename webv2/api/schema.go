@@ -47,7 +47,7 @@ func init() {
 	utilities.InitObjectId()
 	sessionState.Conv = internal.MakeConv()
 	config := config.TryInitializeSpannerConfig()
-	session.SetSessionStorageConnectionState(config.GCPProjectID, config.SpannerInstanceID)
+	session.SetSessionStorageConnectionState(config.GCPProjectID, config.SpannerProjectID, config.SpannerInstanceID)
 }
 
 // ConvertSchemaSQL converts source database to Spanner when using

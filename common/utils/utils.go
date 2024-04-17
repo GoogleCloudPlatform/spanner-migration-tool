@@ -182,7 +182,7 @@ func PreloadGCSFiles(tables []ManifestTable) ([]ManifestTable, error) {
 	return tables, nil
 }
 
-// GetProject returns the cloud project we should use for accessing Spanner.
+// GetProject returns the cloud project we should use by default to create resources.
 // Use environment variable GCLOUD_PROJECT if it is set.
 // Otherwise, use the default project returned from gcloud.
 func (gui *GetUtilInfoImpl) GetProject() (string, error) {

@@ -27,6 +27,7 @@ import (
 // Config represents Spanner Configuration for Spanner Session Management.
 type Config struct {
 	GCPProjectID      string `json:"GCPProjectID"`
+	SpannerProjectID  string `json:"SpannerProjectID"`
 	SpannerInstanceID string `json:"SpannerInstanceID"`
 }
 
@@ -63,11 +64,14 @@ func SetSpannerConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
+	if c.SpannerProjectID == "" {
+		c.SpannerProjectID = c.GCPProjectID
+	}
 	SaveSpannerConfig(c)
-	isDbCreated, isConfigValid := session.SetSessionStorageConnectionState(c.GCPProjectID, c.SpannerInstanceID)
+	isDbCreated, isConfigValid := session.SetSessionStorageConnectionState(c.GCPProjectID, c.SpannerProjectID, c.SpannerInstanceID)
 
 	configWithMetadata := ConfigWithMetadata{
-		Config:              Config{c.GCPProjectID, c.SpannerInstanceID},
+		Config:              Config{c.GCPProjectID, c.SpannerProjectID, c.SpannerInstanceID},
 		IsMetadataDbCreated: isDbCreated,
 		IsConfigValid:       isConfigValid,
 	}

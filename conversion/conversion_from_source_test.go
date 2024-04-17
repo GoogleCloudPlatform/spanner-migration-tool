@@ -154,13 +154,13 @@ func TestSchemaFromDatabase(t *testing.T) {
 		gim := MockGetInfo{}
 		ps := common.MockProcessSchema{}
 
-		gim.On("getInfoSchemaForShard", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mysql.InfoSchemaImpl{}, tc.getInfoError)
-		gim.On("GetInfoSchemaFromCloudSQL", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mysql.InfoSchemaImpl{}, tc.getInfoError)
-		gim.On("GetInfoSchema", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mysql.InfoSchemaImpl{}, tc.getInfoError)
+		gim.On("getInfoSchemaForShard", "migration-project-id", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mysql.InfoSchemaImpl{}, tc.getInfoError)
+		gim.On("GetInfoSchemaFromCloudSQL", "migration-project-id", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mysql.InfoSchemaImpl{}, tc.getInfoError)
+		gim.On("GetInfoSchema", "migration-project-id", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mysql.InfoSchemaImpl{}, tc.getInfoError)
 		ps.On("ProcessSchema", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.processSchemaError)
 
 		s := SchemaFromSourceImpl{}
-		_, err := s.schemaFromDatabase(tc.sourceProfile, targetProfile, &gim, &ps)
+		_, err := s.schemaFromDatabase("migration-project-id", tc.sourceProfile, targetProfile, &gim, &ps)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 	}
 }
