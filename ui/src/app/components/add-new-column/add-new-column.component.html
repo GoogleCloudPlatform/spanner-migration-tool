@@ -21,12 +21,12 @@
             </mat-form-field>
             <br>
         </div>
-        <div *ngIf="selectedDatatype != '' && autoGenMap[selectedDatatype].length>1">
+        <div *ngIf="selectedDatatype != '' && autoGenMap[selectedDatatype].length>1 && srcDbName == 'MySQL'">
             <mat-form-field class="full-width" appearance="outline">
                 <mat-label>Auto Generated</mat-label>
                 <mat-select [(ngModel)]="selectedAutoGenName" class="input-field" formControlName="autoGenName">
                     <mat-option *ngFor="let autoGen of autoGenMap[selectedDatatype]" [value]="autoGen.Name">
-                        {{ autoGen.Name }}
+                        {{ autoGen.Name }}{{ autoGen.Type !== 'None' ? '(' + autoGen.Type + ')' : '' }} 
                     </mat-option>
                 </mat-select>
             </mat-form-field>

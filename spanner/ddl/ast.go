@@ -379,12 +379,12 @@ type CreateIndex struct {
 }
 
 type AutoGenCol struct {
-	Name		string
-	Type		string
+	Name string
+	Type string
 }
 
-func (agc AutoGenCol) PrintAutoGenCol () string{
-	switch agc.Type{
+func (agc AutoGenCol) PrintAutoGenCol() string {
+	switch agc.Type {
 	case constants.UUID:
 		return "DEFAULT (GENERATE_UUID())"
 	default:
@@ -392,8 +392,8 @@ func (agc AutoGenCol) PrintAutoGenCol () string{
 	}
 }
 
-func (agc AutoGenCol) PGPrintAutoGenCol () string{
-	switch agc.Type{
+func (agc AutoGenCol) PGPrintAutoGenCol() string {
+	switch agc.Type {
 	case constants.UUID:
 		return "DEFAULT (spanner.generate_uuid())"
 	default:

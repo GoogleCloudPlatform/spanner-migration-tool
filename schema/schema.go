@@ -120,8 +120,8 @@ type Ignored struct {
 }
 
 type AutoGenCol struct {
-	Name		string
-	Type		string
+	Name string
+	Type string
 }
 
 // Print converts ty to a string suitable for printing.

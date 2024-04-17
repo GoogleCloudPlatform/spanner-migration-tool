@@ -123,8 +123,8 @@ type TypeIssue struct {
 }
 
 type AutoGen struct {
-	Name     string
-	Type     string
+	Name string
+	Type string
 }
 
 type ResourceDetails struct {

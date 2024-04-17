@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit, Input } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { ColLength, DataTypes, Dialect } from 'src/app/app.constants';
+import { ColLength, DataTypes, Dialect, StorageKeys } from 'src/app/app.constants';
 import { IAddColumnProps } from 'src/app/model/edit-table';
 import { IAddColumn } from 'src/app/model/update-table';
 import { DataService } from 'src/app/services/data/data.service';
@@ -22,6 +22,7 @@ export class AddNewColumnComponent implements OnInit {
   dataTypesWithColLen: string[] = ColLength.DataTypes
   autoGenMap : any = {}
   selectedAutoGenName: string = "None"
+  srcDbName: String = localStorage.getItem(StorageKeys.SourceDbName) as string
   constructor(
     private formBuilder: FormBuilder,
     private dataService: DataService,

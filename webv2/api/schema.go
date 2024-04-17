@@ -349,9 +349,6 @@ func GetAutoGenMap(w http.ResponseWriter, r *http.Request) {
 	switch sessionState.Driver {
 	case constants.MYSQL:
 		initializeAutoGenMap()
-	default:
-		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
-		return
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(autoGenMap)
@@ -1557,7 +1554,7 @@ func addShardIdToForeignKeyPerTable(isAddedAtFirst bool, table ddl.CreateTable) 
 	}
 }
 
-func initializeAutoGenMap () {
+func initializeAutoGenMap() {
 	sessionState := session.GetSessionState()
 	switch sessionState.Conv.SpDialect {
 	case constants.DIALECT_POSTGRESQL:
@@ -1573,7 +1570,7 @@ func initializeAutoGenMap () {
 }
 
 func makePostgresDialectAutoGenMap() {
-	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar}{
+	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
 				Name: "None",
@@ -1581,7 +1578,7 @@ func makePostgresDialectAutoGenMap() {
 			},
 		}
 	}
-	autoGenMap[ddl.String] = append(autoGenMap[ddl.String], 
+	autoGenMap[ddl.String] = append(autoGenMap[ddl.String],
 		types.AutoGen{
 			Name: "UUID",
 			Type: "UUID",
@@ -1589,7 +1586,7 @@ func makePostgresDialectAutoGenMap() {
 }
 
 func makeGoogleSqlDialectAutoGenMap() {
-	for _, srcTypeName := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON}{
+	for _, srcTypeName := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
 				Name: "None",
@@ -1597,7 +1594,7 @@ func makeGoogleSqlDialectAutoGenMap() {
 			},
 		}
 	}
-	autoGenMap[ddl.String] = append(autoGenMap[ddl.String], 
+	autoGenMap[ddl.String] = append(autoGenMap[ddl.String],
 		types.AutoGen{
 			Name: "UUID",
 			Type: "UUID",

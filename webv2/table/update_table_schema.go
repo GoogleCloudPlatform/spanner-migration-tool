@@ -40,8 +40,8 @@ type updateCol struct {
 	NotNull      string `json:"NotNull"`
 	ToType       string `json:"ToType"`
 	MaxColLength string `json:"MaxColLength"`
-	AutoGenName	 string `json:"AutoGenName"`
-	AutoGenType	 string `json:"AutoGenType"`
+	AutoGenName  string `json:"AutoGenName"`
+	AutoGenType  string `json:"AutoGenType"`
 }
 
 type updateTable struct {

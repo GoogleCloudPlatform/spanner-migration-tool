@@ -228,7 +228,6 @@ type ShardResources struct {
 	MonitoringResources MonitoringResources
 }
 
-
 // Stores information related to the streaming migration process.
 type streamingStats struct {
 	Streaming                     bool                        // Flag for confirmation of streaming migration.

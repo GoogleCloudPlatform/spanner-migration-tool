@@ -27,10 +27,10 @@ import (
 )
 
 type columnDetails struct {
-	Name       	string `json:"Name"`
-	Datatype   	string `json:"Datatype"`
-	Length     	int    `json:"Length"`
-	IsNullable 	bool   `json:"IsNullable"`
+	Name        string `json:"Name"`
+	Datatype    string `json:"Datatype"`
+	Length      int    `json:"Length"`
+	IsNullable  bool   `json:"IsNullable"`
 	AutoGenName string `json:"AutoGenName"`
 	AutoGenType string `json:"AutoGenType"`
 }
@@ -91,9 +91,9 @@ func AddNewColumn(w http.ResponseWriter, r *http.Request) {
 	columnId := internal.GenerateColumnId()
 	ct.ColIds = append(ct.ColIds, columnId)
 	ct.ColDefs[columnId] = ddl.ColumnDef{
-		Name: details.Name, Id: columnId, T: ddl.Type{Name: details.Datatype, 
-		Len: int64(details.Length)}, 
-		NotNull: !details.IsNullable, 
+		Name: details.Name, Id: columnId, T: ddl.Type{Name: details.Datatype,
+			Len: int64(details.Length)},
+		NotNull: !details.IsNullable,
 		AutoGen: ddl.AutoGenCol{Name: details.AutoGenName, Type: details.AutoGenType},
 	}
 	sessionState.Conv.SpSchema[tableId] = ct
