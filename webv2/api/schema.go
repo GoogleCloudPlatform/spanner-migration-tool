@@ -1556,6 +1556,7 @@ func addShardIdToForeignKeyPerTable(isAddedAtFirst bool, table ddl.CreateTable) 
 
 func initializeAutoGenMap() {
 	sessionState := session.GetSessionState()
+	autoGenMap =  make(map[string][]types.AutoGen)
 	switch sessionState.Conv.SpDialect {
 	case constants.DIALECT_POSTGRESQL:
 		makePostgresDialectAutoGenMap()
@@ -1570,7 +1571,7 @@ func initializeAutoGenMap() {
 }
 
 func makePostgresDialectAutoGenMap() {
-	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar} {
+	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar, ddl.Numeric, ddl.String} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
 				Name: "None",
@@ -1579,6 +1580,11 @@ func makePostgresDialectAutoGenMap() {
 		}
 	}
 	autoGenMap[ddl.String] = append(autoGenMap[ddl.String],
+		types.AutoGen{
+			Name: "UUID",
+			Type: "UUID",
+		})
+	autoGenMap[ddl.PGVarchar] = append(autoGenMap[ddl.PGVarchar],
 		types.AutoGen{
 			Name: "UUID",
 			Type: "UUID",

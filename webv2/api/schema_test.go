@@ -2318,3 +2318,65 @@ func buildConvPostgres(conv *internal.Conv) {
 	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"c20", 0}
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 }
+
+func TestGetAutoGenMapMySQL(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.MYSQL
+	sessionState.Conv = internal.MakeConv()
+	buildConvMySQL(sessionState.Conv)
+	expectedAutoGenMapPostgres := map[string][]types.AutoGen{
+		"BOOL":        {types.AutoGen{Name: "None", Type: "None"}},
+		"BYTEA":       {types.AutoGen{Name: "None", Type: "None"}},
+		"DATE":        {types.AutoGen{Name: "None", Type: "None"}},
+		"FLOAT64":     {types.AutoGen{Name: "None", Type: "None"}},
+		"FLOAT8":      {types.AutoGen{Name: "None", Type: "None"}},
+		"INT64":       {types.AutoGen{Name: "None", Type: "None"}},
+		"INT8":        {types.AutoGen{Name: "None", Type: "None"}},
+		"JSONB":       {types.AutoGen{Name: "None", Type: "None"}},
+		"NUMERIC":     {types.AutoGen{Name: "None", Type: "None"}},
+		"STRING":      {types.AutoGen{Name: "None", Type: "None"}, types.AutoGen{Name: "UUID", Type: "UUID"}},
+		"TIMESTAMPTZ": {types.AutoGen{Name: "None", Type: "None"}},
+		"VARCHAR":     {types.AutoGen{Name: "None", Type: "None"}, types.AutoGen{Name: "UUID", Type: "UUID"}}}
+
+	expectedAutoGenMapMySql := map[string][]types.AutoGen{
+		"BOOL":      {types.AutoGen{Name: "None", Type: "None"}},
+		"BYTES":     {types.AutoGen{Name: "None", Type: "None"}},
+		"DATE":      {types.AutoGen{Name: "None", Type: "None"}},
+		"FLOAT64":   {types.AutoGen{Name: "None", Type: "None"}},
+		"INT64":     {types.AutoGen{Name: "None", Type: "None"}},
+		"JSON":      {types.AutoGen{Name: "None", Type: "None"}},
+		"NUMERIC":   {types.AutoGen{Name: "None", Type: "None"}},
+		"STRING":    {types.AutoGen{Name: "None", Type: "None"}, types.AutoGen{Name: "UUID", Type: "UUID"}},
+		"TIMESTAMP": {types.AutoGen{Name: "None", Type: "None"}}}
+	tests := []struct {
+		dialect            string
+		expectedAutoGenMap map[string][]types.AutoGen
+	}{
+		{
+			dialect:            constants.DIALECT_POSTGRESQL,
+			expectedAutoGenMap: expectedAutoGenMapPostgres,
+		},
+		{
+			dialect:            constants.DIALECT_GOOGLESQL,
+			expectedAutoGenMap: expectedAutoGenMapMySql,
+		},
+	}
+	for _, tc := range tests {
+		var autoGenMap map[string][]types.AutoGen
+		sessionState.Conv.SpDialect = tc.dialect
+		req, err := http.NewRequest("GET", "/autoGenMap", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(api.GetAutoGenMap)
+		handler.ServeHTTP(rr, req)
+		json.Unmarshal(rr.Body.Bytes(), &autoGenMap)
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("handler returned wrong status code: got %v want %v",
+				status, http.StatusOK)
+		}
+		assert.Equal(t, tc.expectedAutoGenMap, autoGenMap, tc.dialect)
+	}
+
+}
