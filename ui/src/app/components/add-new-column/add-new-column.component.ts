@@ -21,6 +21,7 @@ export class AddNewColumnComponent implements OnInit {
   selectedNull: boolean = true
   dataTypesWithColLen: string[] = ColLength.DataTypes
   autoGenMap : any = {}
+  selectedAutoGenName: string = "None"
   constructor(
     private formBuilder: FormBuilder,
     private dataService: DataService,
@@ -34,11 +35,11 @@ export class AddNewColumnComponent implements OnInit {
       datatype: ['', Validators.required],
       length: ['',Validators.pattern('^[0-9]+$')],
       isNullable: [],
+      autoGenName: ['None'],
     })
     this.fetchSerice.getAutoGenMap().subscribe(
       (autoGen: any) => {
         this.autoGenMap = autoGen;
-        console.log('AutoGenMap data:', this.autoGenMap);
       }
     );
   }
@@ -55,7 +56,6 @@ export class AddNewColumnComponent implements OnInit {
     } else {
       this.datatypes = DataTypes.PostgreSQL
     }
-    console.log(this.autoGenMap)
   }
 
 
@@ -71,11 +71,19 @@ export class AddNewColumnComponent implements OnInit {
 
   addNewColumn() {
     let formValue = this.addNewColumnForm.value
+    let selectedAutoGenType : string = "None"
+    this.autoGenMap[this.selectedDatatype].forEach((autoGen: any) => {
+      if (this.selectedAutoGenName == autoGen.Name) {
+        selectedAutoGenType = autoGen.Type
+      }
+    })
     let payload: IAddColumn = {
       Name: formValue.name,
       Datatype: this.selectedDatatype,
       Length: parseInt(formValue.length),
-      IsNullable: this.selectedNull
+      IsNullable: this.selectedNull,
+      AutoGenName: this.selectedAutoGenName,
+      AutoGenType: selectedAutoGenType
     }
     this.dataService.addColumn(this.tableId, payload)
     this.dialogRef.close()

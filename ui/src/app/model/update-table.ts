@@ -40,4 +40,6 @@ export interface IAddColumn {
   Datatype: string
   Length: number
   IsNullable: boolean
+  AutoGenName: string
+  AutoGenType: string
 }

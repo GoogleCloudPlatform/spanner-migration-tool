@@ -4,7 +4,7 @@
         <mat-form-field class="full-width" appearance="outline">
             <mat-label>Name</mat-label>
             <input matInput placeholder="Column Name" type="text" formControlName="name" />
-        </mat-form-field>
+        </mat-form-field> 
         <br>
         <mat-form-field appearance="outline">
             <mat-label>Datatype</mat-label>
@@ -18,6 +18,17 @@
             <mat-form-field class="full-width" appearance="outline">
                 <mat-label>Length</mat-label>
                 <input matInput placeholder="Length" type="text" formControlName="length" />
+            </mat-form-field>
+            <br>
+        </div>
+        <div *ngIf="selectedDatatype != '' && autoGenMap[selectedDatatype].length>1">
+            <mat-form-field class="full-width" appearance="outline">
+                <mat-label>Auto Generated</mat-label>
+                <mat-select [(ngModel)]="selectedAutoGenName" class="input-field" formControlName="autoGenName">
+                    <mat-option *ngFor="let autoGen of autoGenMap[selectedDatatype]" [value]="autoGen.Name">
+                        {{ autoGen.Name }}
+                    </mat-option>
+                </mat-select>
             </mat-form-field>
             <br>
         </div>

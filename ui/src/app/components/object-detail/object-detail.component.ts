@@ -262,6 +262,8 @@ export class ObjectDetailComponent implements OnInit {
             spId: new FormControl(col.spId),
             srcId: new FormControl(col.srcId),
             spColMaxLength: new FormControl(col.spColMaxLength),
+            spAutoGenType: new FormControl(col.spAutoGenType),
+            spAutoGenName: new FormControl(col.spAutoGenName),
           })
         )
       } else {
@@ -281,6 +283,8 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
             spColMaxLength: new FormControl(col.srcColMaxLength),
+            spAutoGenType: new FormControl(col.spAutoGenType),
+            spAutoGenName: new FormControl(col.spAutoGenName),
           })
         )
       }
@@ -586,6 +590,8 @@ export class ObjectDetailComponent implements OnInit {
           spIsPk: row.spIsPk,
           spOrder: row.spOrder,
           spId: row.spId,
+          spAutoGenName: row.spAutoGenName,
+          spAutoGenType: row.spAutoGenType,
         })
       }
     })
@@ -611,6 +617,8 @@ export class ObjectDetailComponent implements OnInit {
           spIsPk: new FormControl(spArr[i].spIsPk),
           spIsNotNull: new FormControl(spArr[i].spIsNotNull),
           spId: new FormControl(spArr[i].spId),
+          spAutoGenType: new FormControl(spArr[i].spAutoGenType),
+          spAutoGenName: new FormControl(spArr[i].spAutoGenName),
         })
       )
     }
@@ -630,6 +638,8 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(false),
             spIsNotNull: new FormControl(false),
             spId: new FormControl(''),
+            spAutoGenType: new FormControl(spArr[i].spAutoGenType),
+            spAutoGenName: new FormControl(spArr[i].spAutoGenName),
           })
         )
       }
@@ -649,6 +659,8 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(spArr[i].spIsPk),
             spIsNotNull: new FormControl(spArr[i].spIsNotNull),
             spId: new FormControl(spArr[i].spId),
+            spAutoGenType: new FormControl(spArr[i].spAutoGenType),
+            spAutoGenName: new FormControl(spArr[i].spAutoGenName),
           })
         )
       }

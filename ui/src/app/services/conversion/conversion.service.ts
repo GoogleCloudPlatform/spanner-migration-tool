@@ -303,13 +303,14 @@ export class ConversionService {
             spId: colId,
             srcColMaxLength: '',
             spColMaxLength: spannerColDef?.T.Len,
-            spAutoGenType: 'None',
-            spAutoGenName: 'None',
+            spAutoGenType: spColumn.AutoGen.Type,
+            spAutoGenName: spColumn.AutoGen.Name,
           })
         }
       })
     }
 
+    console.log(res)
     return res
   }
 
