@@ -127,7 +127,7 @@ func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, sou
 }
 
 // MigrateData creates database and populates data in it.
-func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, dbName string, ioHelper *utils.IOStreams, cmd interface{}, conv *internal.Conv, migrationError *error) (*writer.BatchWriter, error) {
+func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, dbName string, ioHelper *utils.IOStreams, cmd interface{}, conv *internal.Conv, migrationError *error) (*writer.BatchWriter, error) {
 	var (
 		bw  *writer.BatchWriter
 		err error
@@ -148,9 +148,9 @@ func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, 
 	case *SchemaCmd:
 		err = migrateSchema(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient)
 	case *DataCmd:
-		bw, err = migrateData(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
+		bw, err = migrateData(ctx, migrationProjectId, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
 	case *SchemaAndDataCmd:
-		bw, err = migrateSchemaAndData(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
+		bw, err = migrateSchemaAndData(ctx, migrationProjectId, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
 	}
 	if err != nil {
 		err = fmt.Errorf("can't migrate database: %v", err)
@@ -176,7 +176,7 @@ func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, so
 		return nil
 }
 
-func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
+func migrateData(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *DataCmd) (*writer.BatchWriter, error) {
 	var (
 		bw  *writer.BatchWriter
@@ -193,14 +193,14 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		err := ValidateResourceGenerationHelper(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		err := ValidateResourceGenerationHelper(ctx, migrationProjectId, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	c := &conversion.ConvImpl{}
-	bw, err = c.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
+	bw, err = c.DataConv(ctx, migrationProjectId, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
 
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
@@ -218,7 +218,7 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 	return bw, nil
 }
 
-func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
+func migrateSchemaAndData(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *SchemaAndDataCmd) (*writer.BatchWriter, error) {
 	spA := spanneraccessor.SpannerAccessorImpl{}
 	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
@@ -235,14 +235,14 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		err := ValidateResourceGenerationHelper(ctx, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		err := ValidateResourceGenerationHelper(ctx, migrationProjectId, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	convImpl := &conversion.ConvImpl{}
-	bw, err := convImpl.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
+	bw, err := convImpl.DataConv(ctx, migrationProjectId, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
 
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
@@ -256,8 +256,8 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 	return bw, nil
 }
 
-func ValidateResourceGenerationHelper(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
-	spClient, err:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+func ValidateResourceGenerationHelper(ctx context.Context, migrationProjectId string, spannerProjectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
+	spClient, err := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
 	if err != nil {
 		return err
 	}
@@ -271,7 +271,7 @@ func ValidateResourceGenerationHelper(ctx context.Context, projectId string, ins
 	}
 	validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
 		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
-	err = validateResource.ValidateResourceGeneration(ctx, projectId, instanceId, sourceProfile, conv)
+	err = validateResource.ValidateResourceGeneration(ctx, migrationProjectId, spannerProjectId, instanceId, sourceProfile, conv)
 	if err != nil {
 		return err
 	}

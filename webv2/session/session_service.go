@@ -55,18 +55,19 @@ func (ss *SessionService) GetConvWithMetadata(versionId string) (ConvWithMetadat
 	return ss.store.GetConvWithMetadata(ss.context, versionId)
 }
 
-func SetSessionStorageConnectionState(projectId string, spInstanceId string) (bool, bool) {
+func SetSessionStorageConnectionState(migrationProjectId string, spProjectId string, spInstanceId string) (bool, bool) {
 	sessionState := GetSessionState()
-	sessionState.GCPProjectID = projectId
+	sessionState.GCPProjectID = migrationProjectId
+	sessionState.SpannerProjectId = spProjectId
 	sessionState.SpannerInstanceID = spInstanceId
-	if projectId == "" || spInstanceId == "" {
+	if spProjectId == "" || spInstanceId == "" {
 		sessionState.IsOffline = true
 		return false, false
 	} else {
-		if isDbCreated := helpers.CheckOrCreateMetadataDb(projectId, spInstanceId); isDbCreated {
+		if isDbCreated := helpers.CheckOrCreateMetadataDb(spProjectId, spInstanceId); isDbCreated {
 			sessionState.IsOffline = false
 			isConfigValid := isDbCreated
-			migrateMetadataDb(projectId, spInstanceId)
+			migrateMetadataDb(spProjectId, spInstanceId)
 			return isDbCreated, isConfigValid
 		} else {
 			sessionState.IsOffline = true
