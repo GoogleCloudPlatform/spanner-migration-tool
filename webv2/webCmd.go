@@ -31,12 +31,12 @@ import (
 var FrontendDir embed.FS
 
 type WebCmd struct {
-	DistDir  			embed.FS
-	logLevel 			string
-	open     			bool
-	port     			int
-	validate 			bool
-	dataflowTemplate 	string
+	DistDir          embed.FS
+	logLevel         string
+	open             bool
+	port             int
+	validate         bool
+	dataflowTemplate string
 }
 
 // Name returns the name of operation.
