@@ -22,9 +22,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDataSetFlags(t *testing.T) {
+func TestSchemaAndDataSetFlags(t *testing.T) {
 	testName := "Default Values"
-	expectedValues := DataCmd{
+	expectedValues := SchemaAndDataCmd{
 		source:           "",
 		sourceProfile:    "",
 		target:           "Spanner",
@@ -38,8 +38,8 @@ func TestDataSetFlags(t *testing.T) {
 		dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
 	}
 
-	dataCmd := DataCmd{}
+	schemaAndDataCmd := SchemaAndDataCmd{}
 	fs := flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
-	dataCmd.SetFlags(fs)
-	assert.Equal(t, expectedValues, dataCmd, testName)
+	schemaAndDataCmd.SetFlags(fs)
+	assert.Equal(t, expectedValues, schemaAndDataCmd, testName)
 }

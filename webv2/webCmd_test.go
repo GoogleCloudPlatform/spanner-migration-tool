@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package webv2
 
 import (
 	"flag"
@@ -22,24 +22,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDataSetFlags(t *testing.T) {
+func TestWebCmdSetFlags(t *testing.T) {
 	testName := "Default Values"
-	expectedValues := DataCmd{
-		source:           "",
-		sourceProfile:    "",
-		target:           "Spanner",
-		targetProfile:    "",
-		filePrefix:       "",
-		WriteLimit:       DefaultWritersLimit,
-		dryRun:           false,
+	expectedValues := WebCmd{
 		logLevel:         "DEBUG",
-		SkipForeignKeys:  false,
+		open:             false,
+		port:             8080,
 		validate:         false,
 		dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
 	}
 
-	dataCmd := DataCmd{}
+	webCmd := WebCmd{}
 	fs := flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
-	dataCmd.SetFlags(fs)
-	assert.Equal(t, expectedValues, dataCmd, testName)
+	webCmd.SetFlags(fs)
+	assert.Equal(t, expectedValues, webCmd, testName)
 }
