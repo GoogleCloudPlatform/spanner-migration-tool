@@ -102,5 +102,5 @@ const (
 	SMT_JOB_TABLE      string = "SMT_JOB"
 	SMT_RESOURCE_TABLE string = "SMT_RESOURCE"
 	// Default gcs path of the Dataflow template.
-	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates-southamerica-west1/2024-03-22-02_RC00/flex/Cloud_Datastream_to_Spanner"
+	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner"
 )
