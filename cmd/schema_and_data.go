@@ -38,17 +38,17 @@ import (
 
 // SchemaAndDataCmd struct with flags.
 type SchemaAndDataCmd struct {
-	source          string
-	sourceProfile   string
-	target          string
-	targetProfile   string
-	SkipForeignKeys bool
-	filePrefix      string // TODO: move filePrefix to global flags
-	project         string
-	WriteLimit      int64
-	dryRun          bool
-	logLevel        string
-	validate        bool
+	source           string
+	sourceProfile    string
+	target           string
+	targetProfile    string
+	SkipForeignKeys  bool
+	filePrefix       string // TODO: move filePrefix to global flags
+	project          string
+	WriteLimit       int64
+	dryRun           bool
+	logLevel         string
+	validate         bool
 	dataflowTemplate string
 }
 

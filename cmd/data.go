@@ -42,19 +42,18 @@ import (
 
 // DataCmd struct with flags.
 type DataCmd struct {
-
-	source          string
-	sourceProfile   string
-	target          string
-	targetProfile   string
-	sessionJSON     string
-	filePrefix      string // TODO: move filePrefix to global flags
-	project         string
-	WriteLimit      int64
-	dryRun          bool
-	logLevel        string
-	SkipForeignKeys bool
-	validate        bool
+	source           string
+	sourceProfile    string
+	target           string
+	targetProfile    string
+	sessionJSON      string
+	filePrefix       string // TODO: move filePrefix to global flags
+	project          string
+	WriteLimit       int64
+	dryRun           bool
+	logLevel         string
+	SkipForeignKeys  bool
+	validate         bool
 	dataflowTemplate string
 }
 
