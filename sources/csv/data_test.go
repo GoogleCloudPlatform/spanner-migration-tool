@@ -27,6 +27,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -45,6 +47,7 @@ const (
 	ALL_TYPES_CSV string = ALL_TYPES_TABLE + ".csv"
 	SINGERS_1_CSV string = SINGERS_TABLE + "_1.csv"
 	SINGERS_2_CSV string = SINGERS_TABLE + "_2.csv"
+	MANIFEST      string = "manifest.json"
 )
 
 func init() {
@@ -108,6 +111,21 @@ func cleanupCSVs() {
 	}
 }
 
+func writeManifest(t *testing.T) {
+	data := "[{\"table_name\":\"singers\",\"file_patterns\": [\"singers_1.csv\"]}]"
+	f, err := os.Create(MANIFEST)
+	if err != nil {
+		t.Fatalf("Could not create %s: %v", MANIFEST, err)
+	}
+	if _, err := f.WriteString(data); err != nil {
+		t.Fatalf("Could not write to %s: %v", MANIFEST, err)
+	}
+}
+
+func cleanupManifest() {
+	os.Remove(MANIFEST)
+}
+
 func TestSetRowStats(t *testing.T) {
 	csv := CsvImpl{}
 	conv := buildConv(getCreateTable())
@@ -141,6 +159,35 @@ func TestProcessCSV(t *testing.T) {
 		{table: SINGERS_TABLE, cols: []string{"SingerId", "FirstName", "LastName"}, vals: []interface{}{int64(1), "fn1", "ln1"}},
 		{table: SINGERS_TABLE, cols: []string{"SingerId", "FirstName", "LastName"}, vals: []interface{}{int64(2), "fn2", "ln2"}},
 	}, rows)
+}
+
+func TestGetCSVFilesWithoutManifest(t *testing.T) {
+	writeCSVs(t)
+	defer cleanupCSVs()
+
+	conv := buildConv(getCreateSingersTable())
+	csv := CsvImpl{}
+	tables, err := csv.GetCSVFiles(conv, profiles.SourceProfile{File: profiles.SourceProfileFile{Path: "singers.csv"}})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(tables))
+	assert.Equal(t, "singers", tables[0].Table_name)
+	assert.Equal(t, []string{fmt.Sprintf("%s.csv", "singers")}, tables[0].File_patterns)
+}
+
+func TestGetCSVFilesWithManifest(t *testing.T) {
+	writeCSVs(t)
+	defer cleanupCSVs()
+	writeManifest(t)
+	defer cleanupManifest()
+
+	conv := buildConv(getCreateSingersTable())
+	addSrcTableToConv(conv)
+	csv := CsvImpl{}
+	tables, err := csv.GetCSVFiles(conv, profiles.SourceProfile{Csv: profiles.SourceProfileCsv{Manifest: MANIFEST}})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(tables))
+	assert.Equal(t, "singers", tables[0].Table_name)
+	assert.Equal(t, []string{fmt.Sprintf("%s.csv", "singers_1")}, tables[0].File_patterns)
 }
 
 func TestConvertData(t *testing.T) {
@@ -217,6 +264,21 @@ func TestConvertData(t *testing.T) {
 	}
 }
 
+func getCreateSingersTable() []ddl.CreateTable {
+	return []ddl.CreateTable{
+		{
+			Name:   SINGERS_TABLE,
+			Id:     "t2",
+			ColIds: []string{"c10", "c11", "c12"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"c10": {Name: "SingerId", Id: "c10", T: ddl.Type{Name: ddl.Int64}},
+				"c11": {Name: "FirstName", Id: "c11", T: ddl.Type{Name: ddl.String}},
+				"c12": {Name: "LastName", Id: "c12", T: ddl.Type{Name: ddl.String}},
+			},
+		},
+	}
+}
+
 func getCreateTable() []ddl.CreateTable {
 	return []ddl.CreateTable{
 		{
@@ -246,6 +308,23 @@ func getCreateTable() []ddl.CreateTable {
 			},
 		},
 	}
+}
+
+func addSrcTableToConv(conv *internal.Conv) *internal.Conv {
+	srcSchema := map[string]schema.Table{
+		"singers": {
+			Name:   SINGERS_TABLE,
+			Id:     "t2",
+			ColIds: []string{"c10", "c11", "c12"},
+			ColDefs: map[string]schema.Column{
+				"c10": {Name: "SingerId", Id: "c10", Type: schema.Type{Name: ddl.Int64}},
+				"c11": {Name: "FirstName", Id: "c11", Type: schema.Type{Name: ddl.String}},
+				"c12": {Name: "LastName", Id: "c12", Type: schema.Type{Name: ddl.String}},
+			},
+		},
+	}
+	conv.SrcSchema = srcSchema
+	return conv
 }
 
 func buildConv(spTables []ddl.CreateTable) *internal.Conv {
