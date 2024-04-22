@@ -413,8 +413,8 @@ func TestPrintAutoGenCol(t *testing.T) {
 		agc      AutoGenCol
 		expected string
 	}{
-		{AutoGenCol{Type: constants.UUID}, " DEFAULT (GENERATE_UUID())"},
-		{AutoGenCol{Type: "None"}, ""},
+		{AutoGenCol{Name: constants.UUID, Type: "Pre-defined"}, " DEFAULT (GENERATE_UUID())"},
+		{AutoGenCol{Type: "None", Name: "None"}, ""},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.agc.PrintAutoGenCol())
@@ -426,8 +426,8 @@ func TestPGPrintAutoGenCol(t *testing.T) {
 		agc      AutoGenCol
 		expected string
 	}{
-		{AutoGenCol{Type: constants.UUID}, " DEFAULT (spanner.generate_uuid())"},
-		{AutoGenCol{Type: "None"}, ""},
+		{AutoGenCol{Name: constants.UUID, Type: "Pre-defined"}, " DEFAULT (spanner.generate_uuid())"},
+		{AutoGenCol{Type: "None", Name: "None"}, ""},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.agc.PGPrintAutoGenCol())

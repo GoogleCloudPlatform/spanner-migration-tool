@@ -384,21 +384,17 @@ type AutoGenCol struct {
 }
 
 func (agc AutoGenCol) PrintAutoGenCol() string {
-	switch agc.Type {
-	case constants.UUID:
+	if (agc.Name == constants.UUID && agc.Type == "Pre-defined") {
 		return " DEFAULT (GENERATE_UUID())"
-	default:
-		return ""
 	}
+	return ""
 }
 
 func (agc AutoGenCol) PGPrintAutoGenCol() string {
-	switch agc.Type {
-	case constants.UUID:
+	if (agc.Name == constants.UUID && agc.Type == "Pre-defined") {
 		return " DEFAULT (spanner.generate_uuid())"
-	default:
-		return ""
 	}
+	return ""
 }
 
 // PrintCreateIndex unparses a CREATE INDEX statement.
