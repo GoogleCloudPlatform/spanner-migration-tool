@@ -35,13 +35,13 @@ import (
 // (4) NotNull: "ADDED", "REMOVED" or "".
 // (5) ToType: New type or empty string.
 type updateCol struct {
-	Add          bool   `json:"Add"`
-	Removed      bool   `json:"Removed"`
-	Rename       string `json:"Rename"`
-	NotNull      string `json:"NotNull"`
-	ToType       string `json:"ToType"`
-	MaxColLength string `json:"MaxColLength"`
-	AutoGen  ddl.AutoGenCol`json:"AutoGen"`
+	Add          bool           `json:"Add"`
+	Removed      bool           `json:"Removed"`
+	Rename       string         `json:"Rename"`
+	NotNull      string         `json:"NotNull"`
+	ToType       string         `json:"ToType"`
+	MaxColLength string         `json:"MaxColLength"`
+	AutoGen      ddl.AutoGenCol `json:"AutoGen"`
 }
 
 type updateTable struct {

@@ -27,11 +27,11 @@ import (
 )
 
 type columnDetails struct {
-	Name        string `json:"Name"`
-	Datatype    string `json:"Datatype"`
-	Length      int    `json:"Length"`
-	IsNullable  bool   `json:"IsNullable"`
-	AutoGen ddl.AutoGenCol `json:"AutoGen"`
+	Name       string         `json:"Name"`
+	Datatype   string         `json:"Datatype"`
+	Length     int            `json:"Length"`
+	IsNullable bool           `json:"IsNullable"`
+	AutoGen    ddl.AutoGenCol `json:"AutoGen"`
 }
 
 // addColumn add given column into spannerTable.
