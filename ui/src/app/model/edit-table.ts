@@ -5,7 +5,6 @@ export default interface IColumnTabData {
   srcDataType: string
   spColName: string
   spDataType: string | String
-  spAutoGen: AutoGen
   spIsPk: boolean
   srcIsPk: boolean
   spIsNotNull: boolean
@@ -14,11 +13,6 @@ export default interface IColumnTabData {
   spId: string
   srcColMaxLength: Number | string | undefined
   spColMaxLength: Number | string | undefined
-}
-
-export interface AutoGen {
-  Name: string;
-  Type: string;
 }
 
 export interface IIndexData {

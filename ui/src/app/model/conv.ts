@@ -139,7 +139,6 @@ export interface IColumnDef {
   T: IType
   NotNull: boolean
   Comment: string
-  AutoGen: IAutoGen
 }
 
 export interface IType {
@@ -165,11 +164,6 @@ export interface IInterleaveStatus {
 export interface IPrimaryKey {
   TableId: string
   Columns: IIndexKey[]
-}
-
-export interface IAutoGen {
-  Name: string
-  Type: string
 }
 
 export interface ISessionSummary {

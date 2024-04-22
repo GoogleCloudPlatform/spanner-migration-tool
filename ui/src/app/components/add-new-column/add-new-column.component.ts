@@ -1,12 +1,10 @@
-import { Component, Inject, OnInit, Input } from '@angular/core';
+import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { ColLength, DataTypes, Dialect, StorageKeys } from 'src/app/app.constants';
-import { AutoGen, IAddColumnProps } from 'src/app/model/edit-table';
+import { ColLength, DataTypes, Dialect } from 'src/app/app.constants';
+import { IAddColumnProps } from 'src/app/model/edit-table';
 import { IAddColumn } from 'src/app/model/update-table';
 import { DataService } from 'src/app/services/data/data.service';
-import { FetchService } from 'src/app/services/fetch/fetch.service'
-import { GroupedAutoGens, processAutoGens } from 'src/app/utils/utils';
 @Component({
   selector: 'app-add-new-column',
   templateUrl: './add-new-column.component.html',
@@ -21,17 +19,9 @@ export class AddNewColumnComponent implements OnInit {
   tableId: string = ""
   selectedNull: boolean = true
   dataTypesWithColLen: string[] = ColLength.DataTypes
-  autoGenMap : any = {}
-  selectedAutoGen: AutoGen = {
-    Name: 'None',
-    Type: 'None'
-  }
-  processedAutoGenMap: GroupedAutoGens = {};
-  srcDbName: String = localStorage.getItem(StorageKeys.SourceDbName) as string
   constructor(
     private formBuilder: FormBuilder,
     private dataService: DataService,
-    private fetchSerice: FetchService,
     private dialogRef: MatDialogRef<AddNewColumnComponent>,
     @Inject(MAT_DIALOG_DATA) public data: IAddColumnProps) {
     this.dialect = data.dialect
@@ -41,17 +31,7 @@ export class AddNewColumnComponent implements OnInit {
       datatype: ['', Validators.required],
       length: ['',Validators.pattern('^[0-9]+$')],
       isNullable: [],
-      autoGen: [{
-        Name: "None",
-        Type: "None"
-      }],
     })
-    this.fetchSerice.getAutoGenMap().subscribe(
-      (autoGen: any) => {
-        this.autoGenMap = autoGen;
-        this.processedAutoGenMap = processAutoGens(this.autoGenMap)
-      }
-    );
   }
 
 
@@ -85,8 +65,7 @@ export class AddNewColumnComponent implements OnInit {
       Name: formValue.name,
       Datatype: this.selectedDatatype,
       Length: parseInt(formValue.length),
-      IsNullable: this.selectedNull,
-      AutoGen: this.selectedAutoGen
+      IsNullable: this.selectedNull
     }
     this.dataService.addColumn(this.tableId, payload)
     this.dialogRef.close()
