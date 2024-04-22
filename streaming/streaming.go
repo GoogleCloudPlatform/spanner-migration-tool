@@ -76,8 +76,6 @@ var (
 	MAX_WORKER_LIMIT int32 = 1000
 	// Min allowed value for maxWorkers and numWorkers.
 	MIN_WORKER_LIMIT int32 = 1
-	// Default gcs path of the Dataflow template.
-	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates-southamerica-west1/2024-03-22-02_RC00/flex/Cloud_Datastream_to_Spanner"
 
 	DEFAULT_DATASTREAM_CLIENT_BACKOFF_BASE_DELAY time.Duration = 1.0 * time.Second
 	DEFAULT_DATASTREAM_CLIENT_BACKOFF_MAX_DELAY  time.Duration = 900 * time.Second
@@ -643,7 +641,7 @@ func LaunchDataflowJob(ctx context.Context, migrationProjectId string, targetPro
 	var (
 		dataflowProjectId        = migrationProjectId
 		dataflowVpcHostProjectId = migrationProjectId
-		gcsTemplatePath          = DEFAULT_TEMPLATE_PATH
+		gcsTemplatePath          = utils.GetDataflowTemplatePath()
 		dataflowSubnetwork       = ""
 		workerIpAddressConfig    = dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PUBLIC
 		dataflowUserLabels       = make(map[string]string)
