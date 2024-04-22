@@ -41,7 +41,7 @@ type CsvInterface interface {
 	ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr string, delimiter rune) error
 }
 
-type CsvImpl struct {}
+type CsvImpl struct{}
 
 // GetCSVFiles finds the appropriate files paths and downloads gcs files in any.
 func (c *CsvImpl) GetCSVFiles(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tables []utils.ManifestTable, err error) {
@@ -49,8 +49,8 @@ func (c *CsvImpl) GetCSVFiles(conv *internal.Conv, sourceProfile profiles.Source
 	// in table_name.csv format.
 	if sourceProfile.Csv.Manifest == "" {
 		fmt.Println("Manifest file not provided, checking for files named `[table_name].csv` in current working directory...")
-		for t := range conv.SpSchema {
-			tables = append(tables, utils.ManifestTable{Table_name: t, File_patterns: []string{fmt.Sprintf("%s.csv", t)}})
+		for _, schema := range conv.SpSchema {
+			tables = append(tables, utils.ManifestTable{Table_name: schema.Name, File_patterns: []string{fmt.Sprintf("%s.csv", schema.Name)}})
 		}
 	} else {
 		fmt.Println("Manifest file provided, reading csv file paths...")
