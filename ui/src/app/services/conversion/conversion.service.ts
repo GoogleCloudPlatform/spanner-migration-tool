@@ -278,8 +278,10 @@ export class ConversionService {
         spId: spannerColDef ? colId : '',
         spColMaxLength: spannerColDef?.T.Len != 0 ? (spannerColDef?.T.Len != spColMax ? spannerColDef?.T.Len: 'MAX') : '',
         srcColMaxLength: data.SrcSchema[tableId].ColDefs[colId].Type.Mods != null ? data.SrcSchema[tableId].ColDefs[colId].Type.Mods[0] : '',
-        spAutoGenType: spannerColDef?.AutoGen != null ? spannerColDef?.AutoGen.Type : 'None',
-        spAutoGenName: spannerColDef?.AutoGen != null ? spannerColDef?.AutoGen.Name : 'None',
+        spAutoGen: spannerColDef?.AutoGen != null ? spannerColDef?.AutoGen : {
+          Name: 'None',
+          Type: 'None'
+        },
       }
     })
     if (spColIds) {
@@ -303,8 +305,7 @@ export class ConversionService {
             spId: colId,
             srcColMaxLength: '',
             spColMaxLength: spannerColDef?.T.Len,
-            spAutoGenType: spColumn.AutoGen.Type,
-            spAutoGenName: spColumn.AutoGen.Name,
+            spAutoGen: spColumn.AutoGen
           })
         }
       })

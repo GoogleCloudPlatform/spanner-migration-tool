@@ -148,8 +148,8 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if v.AutoGenType != "" {
-			UpdateAutoGenCol(v.AutoGenName, v.AutoGenType, tableId, colId, conv)
+		if v.AutoGen.Type != "" {
+			UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
 		}
 	}
 

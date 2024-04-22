@@ -31,8 +31,7 @@ type columnDetails struct {
 	Datatype    string `json:"Datatype"`
 	Length      int    `json:"Length"`
 	IsNullable  bool   `json:"IsNullable"`
-	AutoGenName string `json:"AutoGenName"`
-	AutoGenType string `json:"AutoGenType"`
+	AutoGen ddl.AutoGenCol `json:"AutoGen"`
 }
 
 // addColumn add given column into spannerTable.
@@ -94,7 +93,7 @@ func AddNewColumn(w http.ResponseWriter, r *http.Request) {
 		Name: details.Name, Id: columnId, T: ddl.Type{Name: details.Datatype,
 			Len: int64(details.Length)},
 		NotNull: !details.IsNullable,
-		AutoGen: ddl.AutoGenCol{Name: details.AutoGenName, Type: details.AutoGenType},
+		AutoGen: details.AutoGen,
 	}
 	sessionState.Conv.SpSchema[tableId] = ct
 	convm := session.ConvWithMetadata{

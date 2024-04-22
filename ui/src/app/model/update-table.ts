@@ -1,3 +1,5 @@
+import { AutoGen } from "./edit-table"
+
 interface IUpdateCol {
   Add: boolean
   Removed: boolean
@@ -5,8 +7,7 @@ interface IUpdateCol {
   NotNull: string
   ToType: string | String
   MaxColLength: string | undefined | Number
-  AutoGenName: string| String
-  AutoGenType: string| String
+  AutoGen: AutoGen
 }
 export interface ITableColumnChanges {
   ColumnId: string
@@ -40,6 +41,5 @@ export interface IAddColumn {
   Datatype: string
   Length: number
   IsNullable: boolean
-  AutoGenName: string
-  AutoGenType: string
+  AutoGen: AutoGen
 }

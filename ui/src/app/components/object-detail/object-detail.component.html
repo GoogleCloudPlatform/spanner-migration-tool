@@ -224,25 +224,34 @@
                 </div>
               </td>
             </ng-container>
+
             <ng-container matColumnDef="spAutoGen" *ngIf="srcDbName == 'MySQL'">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
               <td mat-cell *matCellDef="let element; let i = index">
                 <div class="sp-autogen-data-cells">
-                  <ng-container *ngIf="isEditMode && element.get('spAutoGenName').value !== '' && element.get('srcId').value !== ''">
+                  <ng-container *ngIf="isEditMode && element.get('spAutoGen').value.Type !== '' && element.get('srcId').value !== ''">
                     <mat-form-field appearance="outline" class="w-100">
-                      <mat-select  #matSelectsAutoGen [formControl]="element.get('spAutoGenName')"
-                      (selectionChange)="spTableEditAutoGen(element.get('spDataType').value, matSelectsAutoGen.value, element)">
-                        <mat-option *ngFor="let t of autoGenMap[element.get('spDataType').value]" [value]="t.Name">
-                          {{ t.Name }}{{ t.Type !== 'None' ? '(' + t.Type + ')' : '' }} 
-                        </mat-option>
-                        <mat-option *ngIf="element.get('srcDataType').value == ''" [value]="'None'">
-                          None
-                        </mat-option>
+                      <mat-select #matSelectsAutoGen [formControl]="element.get('spAutoGen')" [compareWith]="compareAutoGen">
+                        <ng-container *ngFor="let autoGen of autoGenMap[element.get('spDataType').value]">
+                          <mat-option *ngIf="autoGen.Type === 'None'" [value]="autoGen">
+                            {{ autoGen.Name }}
+                          </mat-option>
+                        </ng-container>
+                        <ng-container *ngIf="element.get('spDataType').value as spDataType">
+                          <ng-container *ngFor="let typeGroup of (processedAutoGenMap[spDataType] | keyvalue)">
+                            <mat-optgroup *ngIf="typeGroup.key !== 'None'" [label]="typeGroup.key">
+                              <mat-option *ngFor="let autoGen of typeGroup.value" [value]="autoGen">
+                                {{ autoGen.Name }}
+                              </mat-option>
+                            </mat-optgroup>
+                          </ng-container>
+                        </ng-container>
                       </mat-select>
                     </mat-form-field>
-                  </ng-container>
+                  </ng-container>                  
+                  
                   <ng-container *ngIf="!isEditMode">
-                    <p>{{ element.get('spAutoGenName').value }}</p>
+                    <p>{{ element.get('spAutoGen').value.Name }}</p>
                   </ng-container>
                 </div>
               </td>

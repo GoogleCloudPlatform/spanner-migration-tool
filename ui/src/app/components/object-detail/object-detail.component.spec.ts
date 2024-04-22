@@ -52,8 +52,10 @@ describe('ObjectDetailComponent', () => {
         spId: '1',
         srcColMaxLength: 50,
         spColMaxLength: 50,
-        spAutoGenName: "None",
-        spAutoGenType: "None"
+        spAutoGen: {
+          Name: 'None',
+          Type: 'None'
+        }
       },
       {
         spOrder: 2,
@@ -70,8 +72,10 @@ describe('ObjectDetailComponent', () => {
         spId: '2',
         srcColMaxLength: 50,
         spColMaxLength: 50,
-        spAutoGenName: "None",
-        spAutoGenType: "None"
+        spAutoGen: {
+          Name: 'None',
+          Type: 'None'
+        }
       },
     ]
     component.fkData = [

@@ -248,13 +248,10 @@ func UpdateNotNull(notNullChange, tableId, colId string, conv *internal.Conv) {
 	}
 }
 
-func UpdateAutoGenCol(autoGenName, autoGenType, tableId, colId string, conv *internal.Conv) {
+func UpdateAutoGenCol(autoGen ddl.AutoGenCol, tableId, colId string, conv *internal.Conv) {
 	sp := conv.SpSchema[tableId]
 	spColDef := sp.ColDefs[colId]
-	spColDef.AutoGen = ddl.AutoGenCol{
-		Name: autoGenName,
-		Type: autoGenType,
-	}
+	spColDef.AutoGen = autoGen
 	sp.ColDefs[colId] = spColDef
 }
 

@@ -2,10 +2,11 @@ import { Component, Inject, OnInit, Input } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { ColLength, DataTypes, Dialect, StorageKeys } from 'src/app/app.constants';
-import { IAddColumnProps } from 'src/app/model/edit-table';
+import { AutoGen, IAddColumnProps } from 'src/app/model/edit-table';
 import { IAddColumn } from 'src/app/model/update-table';
 import { DataService } from 'src/app/services/data/data.service';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
+import { GroupedAutoGens, processAutoGens } from 'src/app/utils/utils';
 @Component({
   selector: 'app-add-new-column',
   templateUrl: './add-new-column.component.html',
@@ -21,7 +22,11 @@ export class AddNewColumnComponent implements OnInit {
   selectedNull: boolean = true
   dataTypesWithColLen: string[] = ColLength.DataTypes
   autoGenMap : any = {}
-  selectedAutoGenName: string = "None"
+  selectedAutoGen: AutoGen = {
+    Name: 'None',
+    Type: 'None'
+  }
+  processedAutoGenMap: GroupedAutoGens = {};
   srcDbName: String = localStorage.getItem(StorageKeys.SourceDbName) as string
   constructor(
     private formBuilder: FormBuilder,
@@ -36,11 +41,15 @@ export class AddNewColumnComponent implements OnInit {
       datatype: ['', Validators.required],
       length: ['',Validators.pattern('^[0-9]+$')],
       isNullable: [],
-      autoGenName: ['None'],
+      autoGen: [{
+        Name: "None",
+        Type: "None"
+      }],
     })
     this.fetchSerice.getAutoGenMap().subscribe(
       (autoGen: any) => {
         this.autoGenMap = autoGen;
+        this.processedAutoGenMap = processAutoGens(this.autoGenMap)
       }
     );
   }
@@ -72,19 +81,12 @@ export class AddNewColumnComponent implements OnInit {
 
   addNewColumn() {
     let formValue = this.addNewColumnForm.value
-    let selectedAutoGenType : string = "None"
-    this.autoGenMap[this.selectedDatatype].forEach((autoGen: any) => {
-      if (this.selectedAutoGenName == autoGen.Name) {
-        selectedAutoGenType = autoGen.Type
-      }
-    })
     let payload: IAddColumn = {
       Name: formValue.name,
       Datatype: this.selectedDatatype,
       Length: parseInt(formValue.length),
       IsNullable: this.selectedNull,
-      AutoGenName: this.selectedAutoGenName,
-      AutoGenType: selectedAutoGenType
+      AutoGen: this.selectedAutoGen
     }
     this.dataService.addColumn(this.tableId, payload)
     this.dialogRef.close()

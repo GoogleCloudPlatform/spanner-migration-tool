@@ -2334,9 +2334,8 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		"INT8":        {types.AutoGen{Name: "None", Type: "None"}},
 		"JSONB":       {types.AutoGen{Name: "None", Type: "None"}},
 		"NUMERIC":     {types.AutoGen{Name: "None", Type: "None"}},
-		"STRING":      {types.AutoGen{Name: "None", Type: "None"}, types.AutoGen{Name: "UUID", Type: "UUID"}},
 		"TIMESTAMPTZ": {types.AutoGen{Name: "None", Type: "None"}},
-		"VARCHAR":     {types.AutoGen{Name: "None", Type: "None"}, types.AutoGen{Name: "UUID", Type: "UUID"}}}
+		"VARCHAR":     {types.AutoGen{Name: "None", Type: "None"}, types.AutoGen{Name: "UUID", Type: "Pre-defined"}}}
 
 	expectedAutoGenMapMySql := map[string][]types.AutoGen{
 		"BOOL":      {types.AutoGen{Name: "None", Type: "None"}},
@@ -2346,7 +2345,7 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		"INT64":     {types.AutoGen{Name: "None", Type: "None"}},
 		"JSON":      {types.AutoGen{Name: "None", Type: "None"}},
 		"NUMERIC":   {types.AutoGen{Name: "None", Type: "None"}},
-		"STRING":    {types.AutoGen{Name: "None", Type: "None"}, types.AutoGen{Name: "UUID", Type: "UUID"}},
+		"STRING":    {types.AutoGen{Name: "None", Type: "None"}, types.AutoGen{Name: "UUID", Type: "Pre-defined"}},
 		"TIMESTAMP": {types.AutoGen{Name: "None", Type: "None"}}}
 	tests := []struct {
 		dialect            string
