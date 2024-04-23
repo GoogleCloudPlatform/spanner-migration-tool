@@ -42,6 +42,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
 	"go.uber.org/ratelimit"
@@ -86,6 +87,11 @@ var (
 		codes.ResourceExhausted,
 		codes.Unknown,
 	}
+
+	DEFAULT_DATASTREAM_LRO_POLL_BASE_DELAY       time.Duration = 1.0 * time.Minute
+	DEFAULT_DATASTREAM_LRO_POLL_MAX_DELAY        time.Duration = 15 * time.Minute
+	DEFAULT_DATASTREAM_LRO_POLL_MAX_ELAPSED_TIME time.Duration = 30 * time.Minute
+	DEFAULT_DATASTREAM_LRO_POLL_MULTIPLIER       float64       = 1.6
 
 	// DataStream by default provides 20 API calls per second.
 	// Each launch operation calls datastream twice, ignoring `op.wait`, hence keeping it at 10 per second.
@@ -165,6 +171,21 @@ func dataStreamGaxRetrier() gax.Retryer {
 		Max:        DEFAULT_DATASTREAM_CLIENT_BACKOFF_MAX_DELAY,
 		Multiplier: DEFAULT_DATASTREAM_CLIENT_BACKOFF_MULTIPLIER,
 	})
+}
+
+// Returns ExponentialBackoff Operator for DataStream Update Stream Retries across LRO poll.
+func getUpdateDataStreamLRORetryBackoff() *backoff.ExponentialBackOff {
+	dataStreamUpdateBackoff := &backoff.ExponentialBackOff{
+		InitialInterval:     DEFAULT_DATASTREAM_LRO_POLL_BASE_DELAY,
+		RandomizationFactor: backoff.DefaultRandomizationFactor,
+		Multiplier:          DEFAULT_DATASTREAM_LRO_POLL_MULTIPLIER,
+		MaxInterval:         DEFAULT_DATASTREAM_LRO_POLL_MAX_DELAY,
+		MaxElapsedTime:      DEFAULT_DATASTREAM_LRO_POLL_MAX_ELAPSED_TIME,
+		Stop:                backoff.Stop,
+		Clock:               backoff.SystemClock,
+	}
+	dataStreamUpdateBackoff.Reset()
+	return dataStreamUpdateBackoff
 }
 
 // VerifyAndUpdateCfg checks the fields and errors out if certain fields are empty.
@@ -579,23 +600,38 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	}
 	fmt.Println("Successfully created stream ", datastreamCfg.StreamId)
 
+	/* Note: Retrying across an LRO poll is a workaround and not a fix, use it only after checking with the API server team.
+	 * In most cases, if a long running operation leads into a retriable failure, the server would retry internally before marking the operation as failed.
+	 */
+	updateErr := backoff.Retry(func() error { return updateStream(ctx, streamInfo, projectNumberResource, datastreamCfg, dsClient) },
+		getUpdateDataStreamLRORetryBackoff())
+	if updateErr != nil {
+		return updateErr
+	}
+	fmt.Println("Done")
+	return nil
+}
+
+func updateStream(ctx context.Context, streamInfo *datastreampb.Stream, projectNumberResource string, datastreamCfg DatastreamCfg, dsClient *datastream.Client) error {
 	fmt.Print("Setting stream state to RUNNING...")
 	streamInfo.Name = fmt.Sprintf("%s/locations/%s/streams/%s", projectNumberResource, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
+	// Setting a RequestId makes idempotent retries possible.
 	updateStreamRequest := &datastreampb.UpdateStreamRequest{
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"state"}},
 		Stream:     streamInfo,
-		// Setting a RequestId makes idempotent retries possible.
+
 		RequestId: uuid.New().String(),
 	}
 	upOp, err := dsClient.UpdateStream(ctx, updateStreamRequest, gax.WithRetry(dataStreamGaxRetrier))
 	if err != nil {
+		fmt.Printf("Encountered Error in updating datastream. Error before LRO poll: %v\n", err)
 		return fmt.Errorf("could not create update request: %v", err)
 	}
 	_, err = upOp.Wait(ctx)
 	if err != nil {
+		fmt.Printf("Encountered Error in updating datastream. Error after LRO poll: %v\n", err)
 		return fmt.Errorf("update stream operation failed: %v", err)
 	}
-	fmt.Println("Done")
 	return nil
 }
 
