@@ -1561,9 +1561,6 @@ func initializeAutoGenMap() {
 	case constants.DIALECT_POSTGRESQL:
 		makePostgresDialectAutoGenMap()
 		return
-	case constants.DIALECT_GOOGLESQL:
-		makeGoogleSqlDialectAutoGenMap()
-		return
 	default:
 		makeGoogleSqlDialectAutoGenMap()
 		return
