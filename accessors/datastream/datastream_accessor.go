@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/datastream/apiv1/datastreampb"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
+	datastreamclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 	"google.golang.org/api/iterator"
