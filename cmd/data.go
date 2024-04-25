@@ -172,7 +172,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		conv.Audit.DryRun = true
 		// If migration type is Minimal Downtime, validate if required resources can be generated
 		if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-			err := ValidateResourceGenerationHelper(ctx, cmd.project, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+			err := ValidateResourceGenerationHelper(ctx, cmd.project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 			if err != nil {
 				return subcommands.ExitFailure
 			}

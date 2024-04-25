@@ -15,9 +15,16 @@
 package webv2
 
 import (
+	"context"
 	"io/fs"
 	"net/http"
 
+	ds "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
+	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
+	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
+	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
@@ -36,6 +43,17 @@ func getRoutes() *mux.Router {
 	reportAPIHandler := api.ReportAPIHandler{
 		Report: &conversion.ReportImpl{},
 	}
+
+	ctx := context.Background()
+	spClient, _:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	dsClient, _ := ds.NewDatastreamClientImpl(ctx)
+	storageclient, _ := storageclient.NewStorageClientImpl(ctx)
+	validateResourceImpl := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
+		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
+	profileAPIHandler := profile.ProfileAPIHandler{
+		ValidateResources: validateResourceImpl,
+	}
+
 	router.HandleFunc("/connect", databaseConnection).Methods("POST")
 	router.HandleFunc("/convert/infoschema", api.ConvertSchemaSQL).Methods("GET")
 	router.HandleFunc("/convert/dump", api.ConvertSchemaDump).Methods("POST")
@@ -105,6 +123,9 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetConnectionProfiles", profile.ListConnectionProfiles).Methods("GET")
 	router.HandleFunc("/GetStaticIps", profile.GetStaticIps).Methods("GET")
 	router.HandleFunc("/CreateConnectionProfile", profile.CreateConnectionProfile).Methods("POST")
+
+	// Verify JSON Configuration
+	router.HandleFunc("/VerifyJsonConfiguration", profileAPIHandler.VerifyJsonConfiguration).Methods("POST")
 
 	// Clean up datastream and data flow jobs
 	router.HandleFunc("/CleanUpStreamingJobs", profile.CleanUpStreamingJobs).Methods("POST")

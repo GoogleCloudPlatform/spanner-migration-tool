@@ -96,14 +96,14 @@ func NewResourceGenerationImpl(dsAcc datastream_accessor.DatastreamAccessor, dsC
 }
 
 // Method to validate if in a minimal downtime migration, required resources can be generated
-func (v *ValidateResourcesImpl) ValidateResourceGeneration(ctx context.Context, migrationProjectId string, spannerProjectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
-	spannerRegion, err := v.SpAcc.GetSpannerLeaderLocation(ctx, v.SpInstanceAdmin, "projects/"+spannerProjectId+"/instances/"+instanceId)
+func (v *ValidateResourcesImpl) ValidateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
+	spannerRegion, err := v.SpAcc.GetSpannerLeaderLocation(ctx, v.SpInstanceAdmin, "projects/"+projectId+"/instances/"+instanceId)
 	if err != nil {
 		err = fmt.Errorf("unable to fetch Spanner Region: %v", err)
 		return err
 	}
 	conv.SpRegion = spannerRegion
-	err = v.ValidateOrCreateResources.ValidateOrCreateResourcesForShardedMigration(ctx, migrationProjectId, instanceId, true, spannerRegion, sourceProfile)
+	err = v.ValidateOrCreateResources.ValidateOrCreateResourcesForShardedMigration(ctx, projectId, instanceId, true, spannerRegion, sourceProfile)
 	if err != nil {
 		err = fmt.Errorf("unable to create connection profiles: %v", err)
 		return err
