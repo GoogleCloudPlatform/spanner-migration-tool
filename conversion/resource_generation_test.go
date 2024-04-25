@@ -22,6 +22,7 @@ import (
 
 	"cloud.google.com/go/datastream/apiv1/datastreampb"
 	datastreamclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
+	datastreamclient_test "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream/datastream_test"
 	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
@@ -84,7 +85,7 @@ func TestValidateResourceGeneration(t *testing.T) {
 		var m = conversion.MockValidateOrCreateResources{}
 		m.On("ValidateOrCreateResourcesForShardedMigration", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.createResourcesError)
 		vrg.ValidateOrCreateResources = &m
-		err := vrg.ValidateResourceGeneration(ctx, "project-id", "instance-id", sourceProfile, conv)
+		err := vrg.ValidateResourceGeneration(ctx, "migration-project-id", "spanner-project-id", "instance-id", sourceProfile, conv)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
@@ -213,7 +214,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 
 func TestPrepareMinimalDowntimeResources(t *testing.T) {
 	rg := conversion.ResourceGenerationImpl{
-		DsClient:      &datastreamclient.DatastreamClientMock{},
+		DsClient:      &datastreamclient_test.DatastreamClientMock{},
 		StorageClient: &storageclient.StorageClientMock{},
 	}
 	ctx := context.Background()
@@ -358,7 +359,7 @@ func TestRollbackResourceCreation(t *testing.T) {
 			BucketName: "bucket-name",
 		}}
 	rg := conversion.ResourceGenerationImpl{
-		DsClient:      &datastreamclient.DatastreamClientMock{},
+		DsClient:      &datastreamclient_test.DatastreamClientMock{},
 		StorageClient: &storageclient.StorageClientMock{},
 	}
 	ctx := context.Background()
@@ -421,7 +422,7 @@ func TestRollbackResourceCreation(t *testing.T) {
 
 func TestGetConnectionProfilesForResources(t *testing.T) {
 	rg := conversion.ResourceGenerationImpl{
-		DsClient: &datastreamclient.DatastreamClientMock{},
+		DsClient: &datastreamclient_test.DatastreamClientMock{},
 	}
 	ctx := context.Background()
 	testCases := []struct {
@@ -574,7 +575,7 @@ func TestNewValidateResourcesImpl(t *testing.T) {
 	spAcc := spanneraccessor.SpannerAccessorMock{}
 	spInAdmin := spinstanceadmin.InstanceAdminClientMock{}
 	dsAcc := datastream_accessor.DatastreamAccessorMock{}
-	dsClient := datastreamclient.DatastreamClientMock{}
+	dsClient := datastreamclient_test.DatastreamClientMock{}
 	storageAcc := storageaccessor.StorageAccessorMock{}
 	stoargeClient := storageclient.StorageClientMock{}
 	vr := conversion.NewValidateResourcesImpl(&spAcc, &spInAdmin, &dsAcc, &dsClient, &storageAcc, &stoargeClient)

@@ -98,7 +98,7 @@ func TestSchemaConv(t *testing.T) {
 		m := MockSchemaFromSource{}
 		m.On(tc.function, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.output, nil)
 		c := ConvImpl{}
-		_, err := c.SchemaConv(profiles.SourceProfile{Driver: tc.sourceProfileDriver}, profiles.TargetProfile{}, &utils.IOStreams{}, &m)
+		_, err := c.SchemaConv("migration-project-id", profiles.SourceProfile{Driver: tc.sourceProfileDriver}, profiles.TargetProfile{}, &utils.IOStreams{}, &m)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 		if err == nil {
 			m.AssertExpectations(t) 
@@ -185,7 +185,7 @@ func TestDataConv(t *testing.T) {
 		m := MockDataFromSource{}
 		m.On(tc.function, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.output, nil)
 		c := ConvImpl{}
-		_, err := c.DataConv(ctx, profiles.SourceProfile{Driver: tc.sourceProfileDriver}, profiles.TargetProfile{}, &utils.IOStreams{}, &sp.Client{}, &internal.Conv{}, true, int64(5), &m)
+		_, err := c.DataConv(ctx, "migration-project-id", profiles.SourceProfile{Driver: tc.sourceProfileDriver}, profiles.TargetProfile{}, &utils.IOStreams{}, &sp.Client{}, &internal.Conv{}, true, int64(5), &m)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 		if err == nil {
 			m.AssertExpectations(t) 

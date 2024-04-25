@@ -112,6 +112,7 @@ The Dataflow job that writes to source database exposes the following per shard 
 |replication_lag_in_seconds_\<logical shard name\>| Replication lag min,max and count value for the shard|
 | metadata_file_create_lag_retry_\<logical shard name\> | Count of file lookup retries done when the job that writes to GCS is lagging |
 | mySQL_retry_\<logical shard name\> | Number of retries done when MySQL is not reachable|
+| shard_failed_\<logical shard name\> | Published when there is a failure while processing the shard |
 
 These can be used to track the pipeline progress.
 However, there is a limit of 100 on the total number of metrics per project. So if this limit is exhausted, the Dataflow job will give a message like so:
@@ -200,6 +201,7 @@ In this case, check if you observe the following:
   2. The primary key value was not present in the change stream data
   3. When there is no data written to Spanner for a given interval for a given shard, no file is created in GCS. In such a case, the interval is skipped by the writer Dataflow job. This can be verified in the logs by searching for the text ```skipping the file```. If a file is marked as skipped in the logs but it exists in GCS - this indicates a data loss scenario - please raise a bug.
   4. Check the shard_file_process_progress table in the metadata database. If it is lagging, then wait for the pipeline to catch up so such that data gets reverse replicated.
+  5. Check if the shard_failed_\<logical shard name\> metric is present, this indicates there was a failure when processing the shard. Look at the logs for the failure details.
 
     
 #### There is higher load than the expected QPS on  spanner instance post cutover

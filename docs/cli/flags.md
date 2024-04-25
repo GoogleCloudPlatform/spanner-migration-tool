@@ -55,6 +55,9 @@ specified as "key1=value1,key2=value,..." pairs:
 
 * **`project`**: Specifies the name of the Google Cloud Project in which the Spanner instance is present. If the project is not specified, Spanner migration tool will try to fetch the configured project in the gCloud CLI.
 
+{: .note }
+This project flag can have different value than the --project flag in the main command. In some cases, you may want to keep the spanner instance in a separate GCP project than the project where all the migration resources are created. This project flag refers to the project in which the Spanner instance is present and --project flag in the main command refers to the project where the tool can create resources (Dataflow jobs, GCS Buckets etc.) for the migration.
+
 * **`dbName`**: Specifies the name of the Spanner database to create. This must be a
 new database. If dbName is not specified, Spanner migration tool creates a new unique
 dbName.

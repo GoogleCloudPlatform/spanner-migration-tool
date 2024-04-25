@@ -342,7 +342,7 @@ func TestIsOfflineSession(t *testing.T) {
 
 func TestSetSessionStorageConnectionState(t *testing.T) {
 
-	dbCreated, configValid := session.SetSessionStorageConnectionState("", "")
+	dbCreated, configValid := session.SetSessionStorageConnectionState("", "", "")
 	if dbCreated != false {
 		t.Errorf("Expected dbCreated to be false, but got %v", dbCreated)
 	}
@@ -353,7 +353,7 @@ func TestSetSessionStorageConnectionState(t *testing.T) {
 		t.Error("Expected IsOffline to be true, but got false")
 	}
 
-	dbCreated, configValid = session.SetSessionStorageConnectionState("my-project-id", "")
+	dbCreated, configValid = session.SetSessionStorageConnectionState("my-project-id", "", "")
 	if dbCreated != false {
 		t.Errorf("Expected dbCreated to be false, but got %v", dbCreated)
 	}
@@ -364,7 +364,7 @@ func TestSetSessionStorageConnectionState(t *testing.T) {
 		t.Error("Expected IsOffline to be true, but got false")
 	}
 
-	dbCreated, configValid = session.SetSessionStorageConnectionState("", "my-instance-id")
+	dbCreated, configValid = session.SetSessionStorageConnectionState("", "", "my-instance-id")
 	if dbCreated != false {
 		t.Errorf("Expected dbCreated to be false, but got %v", dbCreated)
 	}
