@@ -193,7 +193,7 @@ func migrateData(ctx context.Context, migrationProjectId string, targetProfile p
 
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		err := ValidateResourceGenerationHelper(ctx, migrationProjectId, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		err := ValidateResourceGenerationHelper(ctx, migrationProjectId, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}
@@ -235,7 +235,7 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
-		err := ValidateResourceGenerationHelper(ctx, migrationProjectId, targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
+		err := ValidateResourceGenerationHelper(ctx, migrationProjectId, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
 		if err != nil {
 			return nil, err
 		}
@@ -256,7 +256,7 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 	return bw, nil
 }
 
-func ValidateResourceGenerationHelper(ctx context.Context, migrationProjectId string, spannerProjectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
+func ValidateResourceGenerationHelper(ctx context.Context, migrationProjectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
 	spClient, err := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
 	if err != nil {
 		return err
@@ -271,7 +271,7 @@ func ValidateResourceGenerationHelper(ctx context.Context, migrationProjectId st
 	}
 	validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
 		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
-	err = validateResource.ValidateResourceGeneration(ctx, migrationProjectId, spannerProjectId, instanceId, sourceProfile, conv)
+	err = validateResource.ValidateResourceGeneration(ctx, migrationProjectId, instanceId, sourceProfile, conv)
 	if err != nil {
 		return err
 	}

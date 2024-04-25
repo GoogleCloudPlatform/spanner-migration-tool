@@ -100,3 +100,12 @@ func (mrg *MockResourceGeneration) PrepareMinimalDowntimeResources(createResourc
 	args := mrg.Called(createResourceData, mutex)
 	return args.Get(0).(common.TaskResult[*ConnectionProfileReq])
 }
+
+type MockValidateResources struct {
+	mock.Mock
+}
+
+func (mvr *MockValidateResources) ValidateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
+	args := mvr.Called(ctx, projectId, instanceId, sourceProfile, conv)
+	return args.Error(0)
+}
