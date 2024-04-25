@@ -49,21 +49,22 @@ A few prerequisites must be considered before starting with reverse replication.
   - Check that the MySQL server is up.
   - The MySQL user configured in the [source shards file](./RunnigReverseReplication.md#sample-sourceshards-file) should have [INSERT](https://dev.mysql.com/doc/refman/8.0/en/privileges-provided.html#priv_insert), [UPDATE](https://dev.mysql.com/doc/refman/8.0/en/privileges-provided.html#priv_update) and [DELETE](https://dev.mysql.com/doc/refman/8.0/en/privileges-provided.html#priv_delete) privileges on the database.
 2. Ensure that Dataflow permissions are present.[Basic permissions](https://cloud.google.com/dataflow/docs/guides/templates/using-flex-templates#before_you_begin:~:text=Grant%20roles%20to%20your%20Compute%20Engine%20default%20service%20account.%20Run%20the%20following%20command%20once%20for%20each%20of%20the%20following%20IAM%20roles%3A%20roles/dataflow.admin%2C%20roles/dataflow.worker%2C%20roles/bigquery.dataEditor%2C%20roles/pubsub.editor%2C%20roles/storage.objectAdmin%2C%20and%20roles/artifactregistry.reader) and [Flex template permissions](https://cloud.google.com/dataflow/docs/guides/templates/configuring-flex-templates#permissions).
-3. Ensure the compute engine service account has the following permission:
+3. Ensure that the port 12345 is open for communication among the Dataflow worker VMs.Please refer the Dataflow firewall [documentation](https://cloud.google.com/dataflow/docs/guides/routes-firewall#firewall_rules) for more.
+4. Ensure the compute engine service account has the following permission:
     - roles/spanner.databaseUser
     - roles/secretManager.secretAccessor
     - roles/secretmanager.viewer
-4. Ensure the authenticated user launching reverse replication has the following permissions: (this is the user account authenticated for the Spanner Migration Tool and not the service account)
+5. Ensure the authenticated user launching reverse replication has the following permissions: (this is the user account authenticated for the Spanner Migration Tool and not the service account)
     - roles/spanner.databaseUser
     - roles/dataflow.developer
-5. Ensure that [golang](https://go.dev/dl/) (version 1.18 and above) is setup on the machine from which reverse replication flow will be launched.
-6. Ensure that gcloud authentication is done,refer [here](./RunnigReverseReplication.md#before-you-begin).
-7. Ensure that the target Spanner instance ready.
-8. Ensure that that [session file](./RunnigReverseReplication.md#files-generated-by-spanner-migration-tool) is uploaded to GCS (this requires a schema conversion to be done).
-9. [Source shards file](./RunnigReverseReplication.md#sample-sourceshards-file) already uploaded to GCS.
-10. Resources needed for reverse replication incur cost. Make sure to read [cost](#cost).
-11. Reverse replication uses shard identifier column per table to route the Spanner records to a given source shard.The column identified as the sharding column needs to be selected via Spanner Migration Tool when performing migration.The value of this column should be the logicalShardId value specified in the [source shard file](./RunnigReverseReplication.md#sample-sourceshards-file).In the event that the shard identifier column is not an existing column,the application code needs to be changed to populate this shard identifier column when writing to Spanner.
-12. The reverse replication pipelines use GCS as data buffer, this GCS bucket needs to be created before starting the reverse replication flows.
+6. Ensure that [golang](https://go.dev/dl/) (version 1.18 and above) is setup on the machine from which reverse replication flow will be launched.
+7. Ensure that gcloud authentication is done,refer [here](./RunnigReverseReplication.md#before-you-begin).
+8. Ensure that the target Spanner instance ready.
+9. Ensure that that [session file](./RunnigReverseReplication.md#files-generated-by-spanner-migration-tool) is uploaded to GCS (this requires a schema conversion to be done).
+10. [Source shards file](./RunnigReverseReplication.md#sample-sourceshards-file) already uploaded to GCS.
+11. Resources needed for reverse replication incur cost. Make sure to read [cost](#cost).
+12. Reverse replication uses shard identifier column per table to route the Spanner records to a given source shard.The column identified as the sharding column needs to be selected via Spanner Migration Tool when performing migration.The value of this column should be the logicalShardId value specified in the [source shard file](./RunnigReverseReplication.md#sample-sourceshards-file).In the event that the shard identifier column is not an existing column,the application code needs to be changed to populate this shard identifier column when writing to Spanner.
+13. The reverse replication pipelines use GCS as data buffer, this GCS bucket needs to be created before starting the reverse replication flows.
 
 ## Launching reverse replication
 
