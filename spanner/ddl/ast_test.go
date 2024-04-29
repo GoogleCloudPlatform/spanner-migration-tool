@@ -474,7 +474,7 @@ func TestGetDDL(t *testing.T) {
 			ParentId:    "t1",
 		},
 	}
-	tablesOnly := s.GetDDL(Config{Tables: true, ForeignKeys: false})
+	tablesOnly := GetDDL(Config{Tables: true, ForeignKeys: false}, s, make(map[string]Sequence))
 	e := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT64,\n" +
@@ -496,14 +496,14 @@ func TestGetDDL(t *testing.T) {
 	}
 	assert.ElementsMatch(t, e, tablesOnly)
 
-	fksOnly := s.GetDDL(Config{Tables: false, ForeignKeys: true})
+	fksOnly := GetDDL(Config{Tables: false, ForeignKeys: true}, s, make(map[string]Sequence))
 	e2 := []string{
 		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
 	}
 	assert.ElementsMatch(t, e2, fksOnly)
 
-	tablesAndFks := s.GetDDL(Config{Tables: true, ForeignKeys: true})
+	tablesAndFks := GetDDL(Config{Tables: true, ForeignKeys: true}, s, make(map[string]Sequence))
 	e3 := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT64,\n" +
@@ -568,7 +568,7 @@ func TestGetPGDDL(t *testing.T) {
 			ParentId:    "t1",
 		},
 	}
-	tablesOnly := s.GetDDL(Config{Tables: true, ForeignKeys: false, SpDialect: constants.DIALECT_POSTGRESQL})
+	tablesOnly := GetDDL(Config{Tables: true, ForeignKeys: false, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence))
 	e := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT8,\n" +
@@ -592,14 +592,14 @@ func TestGetPGDDL(t *testing.T) {
 	}
 	assert.ElementsMatch(t, e, tablesOnly)
 
-	fksOnly := s.GetDDL(Config{Tables: false, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL})
+	fksOnly := GetDDL(Config{Tables: false, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence))
 	e2 := []string{
 		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
 	}
 	assert.ElementsMatch(t, e2, fksOnly)
 
-	tablesAndFks := s.GetDDL(Config{Tables: true, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL})
+	tablesAndFks := GetDDL(Config{Tables: true, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence))
 	e3 := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT8,\n" +

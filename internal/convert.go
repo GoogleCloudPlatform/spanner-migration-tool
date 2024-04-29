@@ -52,6 +52,7 @@ type Conv struct {
 	SpRegion           string              // Leader Region for Spanner Instance
 	ResourceValidation bool                // Flag denoting if validation for resources to generated is complete
 	UI                 bool                // Flag if UI interface was used for migration. ToDo: Remove flag after resource generation is introduced to UI
+	SpSequences        map[string]ddl.Sequence
 }
 
 type TableIssues struct {
@@ -223,26 +224,26 @@ type MonitoringResources struct {
 type ShardResources struct {
 	DatastreamResources DatastreamResources
 	PubsubResources     PubsubResources
-	DataflowResources	DataflowResources
-	GcsResources		GcsResources
+	DataflowResources   DataflowResources
+	GcsResources        GcsResources
 	MonitoringResources MonitoringResources
 }
 
 // Stores information related to the streaming migration process.
 type streamingStats struct {
-	Streaming                     bool                        // Flag for confirmation of streaming migration.
-	TotalRecords                  map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
-	BadRecords                    map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
-	DroppedRecords                map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
-	SampleBadRecords              []string                    // Records that generated errors during conversion.
-	SampleBadWrites               []string                    // Records that faced errors while writing to Cloud Spanner.
-	DatastreamResources           DatastreamResources
-	DataflowResources             DataflowResources
-	PubsubResources               PubsubResources
-	GcsResources                  GcsResources
-	MonitoringResources           MonitoringResources
-	ShardToShardResourcesMap      map[string]ShardResources
-	AggMonitoringResources        MonitoringResources
+	Streaming                bool                        // Flag for confirmation of streaming migration.
+	TotalRecords             map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
+	BadRecords               map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
+	DroppedRecords           map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
+	SampleBadRecords         []string                    // Records that generated errors during conversion.
+	SampleBadWrites          []string                    // Records that faced errors while writing to Cloud Spanner.
+	DatastreamResources      DatastreamResources
+	DataflowResources        DataflowResources
+	PubsubResources          PubsubResources
+	GcsResources             GcsResources
+	MonitoringResources      MonitoringResources
+	ShardToShardResourcesMap map[string]ShardResources
+	AggMonitoringResources   MonitoringResources
 }
 
 type PubsubCfg struct {
@@ -306,7 +307,8 @@ func MakeConv() *Conv {
 			StreamingStats: streamingStats{},
 			MigrationType:  migration.MigrationData_SCHEMA_ONLY.Enum(),
 		},
-		Rules: []Rule{},
+		Rules:       []Rule{},
+		SpSequences: make(map[string]ddl.Sequence),
 	}
 }
 

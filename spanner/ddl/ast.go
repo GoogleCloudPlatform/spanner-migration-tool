@@ -384,14 +384,14 @@ type AutoGenCol struct {
 }
 
 func (agc AutoGenCol) PrintAutoGenCol() string {
-	if (agc.Name == constants.UUID && agc.Type == "Pre-defined") {
+	if agc.Name == constants.UUID && agc.Type == "Pre-defined" {
 		return " DEFAULT (GENERATE_UUID())"
 	}
 	return ""
 }
 
 func (agc AutoGenCol) PGPrintAutoGenCol() string {
-	if (agc.Name == constants.UUID && agc.Type == "Pre-defined") {
+	if agc.Name == constants.UUID && agc.Type == "Pre-defined" {
 		return " DEFAULT (spanner.generate_uuid())"
 	}
 	return ""
@@ -422,7 +422,7 @@ func (ci CreateIndex) PrintCreateIndex(ct CreateTable, c Config) string {
 	if ci.StoredColumnIds != nil {
 		storedColumns := []string{}
 		for _, colId := range ci.StoredColumnIds {
-			if (!isStoredColumnKeyPartOfPrimaryKey(ct, colId)) {
+			if !isStoredColumnKeyPartOfPrimaryKey(ct, colId) {
 				storedColumns = append(storedColumns, c.quote(ct.ColDefs[colId].Name))
 			}
 		}
@@ -517,15 +517,15 @@ func GetSortedTableIdsBySpName(s Schema) []string {
 // Tables are printed in alphabetical order with one exception: interleaved
 // tables are potentially out of order since they must appear after the
 // definition of their parent table.
-func (s Schema) GetDDL(c Config) []string {
+func GetDDL(c Config, tableSchema Schema, sequenceSchema map[string]Sequence) []string {
 	var ddl []string
-	tableIds := GetSortedTableIdsBySpName(s)
+	tableIds := GetSortedTableIdsBySpName(tableSchema)
 
 	if c.Tables {
 		for _, tableId := range tableIds {
-			ddl = append(ddl, s[tableId].PrintCreateTable(s, c))
-			for _, index := range s[tableId].Indexes {
-				ddl = append(ddl, index.PrintCreateIndex(s[tableId], c))
+			ddl = append(ddl, tableSchema[tableId].PrintCreateTable(tableSchema, c))
+			for _, index := range tableSchema[tableId].Indexes {
+				ddl = append(ddl, index.PrintCreateIndex(tableSchema[tableId], c))
 			}
 		}
 	}
@@ -537,11 +537,20 @@ func (s Schema) GetDDL(c Config) []string {
 	// of circular foreign keys definitions. We opt for simplicity.
 	if c.ForeignKeys {
 		for _, t := range tableIds {
-			for _, fk := range s[t].ForeignKeys {
-				ddl = append(ddl, fk.PrintForeignKeyAlterTable(s, c, t))
+			for _, fk := range tableSchema[t].ForeignKeys {
+				ddl = append(ddl, fk.PrintForeignKeyAlterTable(tableSchema, c, t))
 			}
 		}
 	}
+
+	for _, seq := range sequenceSchema {
+		if c.SpDialect == constants.DIALECT_POSTGRESQL {
+			ddl = append(ddl, seq.PGPrintSequence())
+		} else {
+			ddl = append(ddl, seq.PrintSequence())
+		}
+	}
+
 	return ddl
 }
 
@@ -563,4 +572,59 @@ func maxStringLength(s []string) int {
 		}
 	}
 	return n
+}
+
+type Sequence struct {
+	Id               string
+	Name             string
+	SequenceKind     string
+	SkipRangeMin     string
+	SkipRangeMax     string
+	StartWithCounter string
+	ColumnsUsingSeq  map[string][]string
+}
+
+func (seq Sequence) PrintSequence() string {
+	var options []string
+	if seq.SequenceKind != "" {
+		options = append(options, fmt.Sprintf(" sequence_kind='%s' ", seq.SequenceKind))
+	}
+	if seq.SkipRangeMin != "" {
+		options = append(options, fmt.Sprintf(" skip_range_min = %s ", seq.SkipRangeMin))
+	}
+	if seq.SkipRangeMax != "" {
+		options = append(options, fmt.Sprintf(" skip_range_max = %s ", seq.SkipRangeMax))
+	}
+	if seq.StartWithCounter != "" {
+		options = append(options, fmt.Sprintf(" start_with_counter = %s ", seq.StartWithCounter))
+	}
+
+	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", seq.Name)
+	if len(options) > 0 {
+		seqDDL += " OPTIONS ( " + strings.Join(options, " , ") + " ) "
+	}
+	seqDDL += ";"
+
+	return seqDDL
+}
+
+func (seq Sequence) PGPrintSequence() string {
+	var options []string
+	if seq.SequenceKind != "" {
+		options = append(options, fmt.Sprintf(" %s ", seq.SequenceKind))
+	}
+	if seq.SkipRangeMax != "" && seq.SkipRangeMin != "" {
+		options = append(options, fmt.Sprintf(" SKIP RANGE %s %s ", seq.SkipRangeMin, seq.SkipRangeMax))
+	}
+	if seq.StartWithCounter != "" {
+		options = append(options, fmt.Sprintf(" START COUNTER WITH %s ", seq.StartWithCounter))
+	}
+
+	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", seq.Name)
+	if len(options) > 0 {
+		seqDDL += strings.Join(options, " ")
+	}
+	seqDDL += ";"
+
+	return seqDDL
 }
