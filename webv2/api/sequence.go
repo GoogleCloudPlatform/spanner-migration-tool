@@ -97,7 +97,6 @@ func UpdateSequence(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-
 func DropSequence(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.Lock()
@@ -137,7 +136,7 @@ func DropSequence(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-func dropSequenceHelper (columnsUsingSeq map[string][]string, tables ddl.Schema) ddl.Schema {
+func dropSequenceHelper(columnsUsingSeq map[string][]string, tables ddl.Schema) ddl.Schema {
 	for tableName, columns := range columnsUsingSeq {
 		for _, colId := range columns {
 			columnDef := tables[tableName].ColDefs[colId]
@@ -156,7 +155,7 @@ func PrintSequence(w http.ResponseWriter, r *http.Request) {
 	seqDDL := make(map[string]string)
 	for seqName, seq := range sessionState.Conv.SpSequences {
 		var ddl string
-		switch sessionState.Dialect{
+		switch sessionState.Dialect {
 		case constants.POSTGRES:
 			ddl = seq.PGPrintSequence()
 		default:
