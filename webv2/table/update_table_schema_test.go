@@ -1328,7 +1328,7 @@ func TestUpdateTableSchema(t *testing.T) {
 		}
 
 		if tc.statusCode == http.StatusOK {
-			assert.Equal(t, tc.expectedConv, res)
+			assert.Equal(t, tc.expectedConv, res, tc.name)
 		}
 	}
 }

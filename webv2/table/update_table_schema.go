@@ -122,7 +122,9 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.MaxColLength != "" {
 			UpdateColumnSize(v.MaxColLength, tableId, colId, conv)
 		}
-		UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
+		if !v.Removed {
+			UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
+		}
 	}
 
 	common.ComputeNonKeyColumnSize(conv, tableId)
