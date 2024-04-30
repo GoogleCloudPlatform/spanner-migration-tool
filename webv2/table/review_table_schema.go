@@ -148,9 +148,8 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if v.AutoGen.Type != "" {
-			UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
-		}
+		
+		UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
 	}
 
 	ddl := GetSpannerTableDDL(conv.SpSchema[tableId], conv.SpDialect, sessionState.Driver)

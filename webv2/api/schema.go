@@ -1571,15 +1571,15 @@ func makePostgresDialectAutoGenMap() {
 	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar, ddl.Numeric} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
-				Name: "None",
-				Type: "None",
+				Name: "",
+				GenerationType: "",
 			},
 		}
 	}
 	autoGenMap[ddl.PGVarchar] = append(autoGenMap[ddl.PGVarchar],
 		types.AutoGen{
 			Name: "UUID",
-			Type: "Pre-defined",
+			GenerationType: "Pre-defined",
 		})
 }
 
@@ -1587,14 +1587,14 @@ func makeGoogleSqlDialectAutoGenMap() {
 	for _, srcTypeName := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
-				Name: "None",
-				Type: "None",
+				Name: "",
+				GenerationType: "",
 			},
 		}
 	}
 	autoGenMap[ddl.String] = append(autoGenMap[ddl.String],
 		types.AutoGen{
 			Name: "UUID",
-			Type: "Pre-defined",
+			GenerationType: "Pre-defined",
 		})
 }
