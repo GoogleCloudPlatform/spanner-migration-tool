@@ -1454,8 +1454,8 @@ func TestRestoreTable(t *testing.T) {
 			"t1": {
 				Name:   "tn1",
 				ColIds: []string{"c1", "c2"},
-				ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "cn1", T: ddl.Type{Name: "STRING", IsArray: false}, NotNull: true, Comment: "", Id: "c1"},
-					"c2": {Name: "cn2", T: ddl.Type{Name: "STRING", IsArray: false}, NotNull: true, Comment: "", Id: "c2"},
+				ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "cn1", T: ddl.Type{Name: "STRING", IsArray: false}, NotNull: true, Comment: "", Id: "c1", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
+					"c2": {Name: "cn2", T: ddl.Type{Name: "STRING", IsArray: false}, NotNull: true, Comment: "", Id: "c2", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
 				Id:          "t1",
@@ -1522,8 +1522,8 @@ func TestRestoreTable(t *testing.T) {
 			"t1": {
 				Name:   "tn1",
 				ColIds: []string{"c1", "c2"},
-				ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "cn1", T: ddl.Type{Name: "STRING", Len: 0, IsArray: false}, NotNull: true, Comment: "", Id: "c1"},
-					"c2": {Name: "cn2", T: ddl.Type{Name: "STRING", Len: 0, IsArray: false}, NotNull: true, Comment: "", Id: "c2"},
+				ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "cn1", T: ddl.Type{Name: "STRING", Len: 0, IsArray: false}, NotNull: true, Comment: "", Id: "c1", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
+					"c2": {Name: "cn2", T: ddl.Type{Name: "STRING", Len: 0, IsArray: false}, NotNull: true, Comment: "", Id: "c2", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
 				Id:          "t1",
@@ -1533,9 +1533,9 @@ func TestRestoreTable(t *testing.T) {
 				Name:   "tn2",
 				ColIds: []string{"c3", "c4", "c5"},
 				ColDefs: map[string]ddl.ColumnDef{
-					"c3": {Name: "cn3", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "From: cn3 varchar", Id: "c3"},
-					"c4": {Name: "cn4", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "From: cn4 varchar", Id: "c4"},
-					"c5": {Name: "cn5", T: ddl.Type{Name: "INT64", Len: 0, IsArray: false}, NotNull: false, Comment: "From: cn5 bigint", Id: "c5"},
+					"c3": {Name: "cn3", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "From: cn3 varchar", Id: "c3", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
+					"c4": {Name: "cn4", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "From: cn4 varchar", Id: "c4", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
+					"c5": {Name: "cn5", T: ddl.Type{Name: "INT64", Len: 0, IsArray: false}, NotNull: false, Comment: "From: cn5 bigint", Id: "c5", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
 				Id:          "t2",
@@ -2317,4 +2317,65 @@ func buildConvPostgres(conv *internal.Conv) {
 	}
 	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"c20", 0}
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
+}
+
+func TestGetAutoGenMapMySQL(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.MYSQL
+	sessionState.Conv = internal.MakeConv()
+	buildConvMySQL(sessionState.Conv)
+	expectedAutoGenMapPostgres := map[string][]types.AutoGen{
+		"BOOL":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"BYTEA":       {types.AutoGen{Name: "", GenerationType: ""}},
+		"DATE":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT64":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT8":      {types.AutoGen{Name: "", GenerationType: ""}},
+		"INT64":       {types.AutoGen{Name: "", GenerationType: ""}},
+		"INT8":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"JSONB":       {types.AutoGen{Name: "", GenerationType: ""}},
+		"NUMERIC":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"TIMESTAMPTZ": {types.AutoGen{Name: "", GenerationType: ""}},
+		"VARCHAR":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}}}
+
+	expectedAutoGenMapMySql := map[string][]types.AutoGen{
+		"BOOL":      {types.AutoGen{Name: "", GenerationType: ""}},
+		"BYTES":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"DATE":      {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT64":   {types.AutoGen{Name: "", GenerationType: ""}},
+		"INT64":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"JSON":      {types.AutoGen{Name: "", GenerationType: ""}},
+		"NUMERIC":   {types.AutoGen{Name: "", GenerationType: ""}},
+		"STRING":    {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}},
+		"TIMESTAMP": {types.AutoGen{Name: "", GenerationType: ""}}}
+	tests := []struct {
+		dialect            string
+		expectedAutoGenMap map[string][]types.AutoGen
+	}{
+		{
+			dialect:            constants.DIALECT_POSTGRESQL,
+			expectedAutoGenMap: expectedAutoGenMapPostgres,
+		},
+		{
+			dialect:            constants.DIALECT_GOOGLESQL,
+			expectedAutoGenMap: expectedAutoGenMapMySql,
+		},
+	}
+	for _, tc := range tests {
+		var autoGenMap map[string][]types.AutoGen
+		sessionState.Conv.SpDialect = tc.dialect
+		req, err := http.NewRequest("GET", "/autoGenMap", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(api.GetAutoGenMap)
+		handler.ServeHTTP(rr, req)
+		json.Unmarshal(rr.Body.Bytes(), &autoGenMap)
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("handler returned wrong status code: got %v want %v",
+				status, http.StatusOK)
+		}
+		assert.Equal(t, tc.expectedAutoGenMap, autoGenMap, tc.dialect)
+	}
+
 }

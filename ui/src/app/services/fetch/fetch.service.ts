@@ -173,6 +173,10 @@ export class FetchService {
     return this.http.get(`${this.url}/typemap`)
   }
 
+  getAutoGenMap() {
+    return this.http.get(`${this.url}/autoGenMap`)
+  }
+
   getSpannerDefaultTypeMap() {
     return this.http.get(`${this.url}/spannerDefaultTypeMap`)
   }

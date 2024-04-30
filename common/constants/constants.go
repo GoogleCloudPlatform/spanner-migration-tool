@@ -101,6 +101,8 @@ const (
 	// Metadata table names
 	SMT_JOB_TABLE      string = "SMT_JOB"
 	SMT_RESOURCE_TABLE string = "SMT_RESOURCE"
+	// Auto Generated Keys
+	UUID string = "UUID"
 	// Default gcs path of the Dataflow template.
 	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner"
 )
