@@ -177,6 +177,13 @@
                       ADD COLUMN
                     </button>
                   </div>
+                  <div *ngIf="!isEditMode && !currentObject.isDeleted">
+                    <button mat-stroked-button color="primary" (click)="addNewSequence()"
+                      *ngIf="currentObject!.isSpannerNode">
+                      <mat-icon class="edit-icon">edit</mat-icon>
+                      ADD SEQUENCE
+                    </button>
+                  </div>
                 </div>
               </th>
             </ng-container>

@@ -53,6 +53,7 @@ type Conv struct {
 	ResourceValidation bool                // Flag denoting if validation for resources to generated is complete
 	UI                 bool                // Flag if UI interface was used for migration. ToDo: Remove flag after resource generation is introduced to UI
 	SpSequences        map[string]ddl.Sequence
+	SrcSequences       map[string]ddl.Sequence
 }
 
 type TableIssues struct {
@@ -307,8 +308,9 @@ func MakeConv() *Conv {
 			StreamingStats: streamingStats{},
 			MigrationType:  migration.MigrationData_SCHEMA_ONLY.Enum(),
 		},
-		Rules:       []Rule{},
-		SpSequences: make(map[string]ddl.Sequence),
+		Rules:        []Rule{},
+		SpSequences:  make(map[string]ddl.Sequence),
+		SrcSequences: make(map[string]ddl.Sequence),
 	}
 }
 

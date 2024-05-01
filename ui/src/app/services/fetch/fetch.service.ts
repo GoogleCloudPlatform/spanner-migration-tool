@@ -18,6 +18,7 @@ import IMigrationDetails, { IGeneratedResources, IProgress, ITables } from 'src/
 import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IDatastreamConfig, IGcsConfig, IMigrationProfile } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
 import IStructuredReport from 'src/app/model/structured-report'
+import IAddSequence from 'src/app/model/auto-gen'
 
 @Injectable({
   providedIn: 'root',
@@ -163,12 +164,20 @@ export class FetchService {
     return this.http.get(`${this.url}/ddl`)
   }
 
+  getSequencetDdl() {
+    return this.http.get(`${this.url}/seqDdl`)
+  }
+
   getTypeMap() {
     return this.http.get(`${this.url}/typemap`)
   }
 
   getAutoGenMap() {
     return this.http.get(`${this.url}/autoGenMap`)
+  }
+
+  getSequenceKind() {
+    return this.http.get(`${this.url}/getSequenceKind`)
   }
 
   getSpannerDefaultTypeMap() {
@@ -215,6 +224,10 @@ export class FetchService {
 
   addColumn(tableId: string,payload: IAddColumn) {
     return this.http.post(`${this.url}/AddColumn?table=${tableId}`, payload)
+  }
+
+  addSequence(payload: IAddSequence) {
+    return this.http.post(`${this.url}/AddSequence`, payload)
   }
 
   removeFk(tableId: string, fkId: string): any {

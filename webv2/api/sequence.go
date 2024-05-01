@@ -147,7 +147,7 @@ func dropSequenceHelper(columnsUsingSeq map[string][]string, tables ddl.Schema) 
 	return tables
 }
 
-func PrintSequence(w http.ResponseWriter, r *http.Request) {
+func GetSequenceDDL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
@@ -165,4 +165,12 @@ func PrintSequence(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(seqDDL)
+}
+
+func GetSequenceKind(w http.ResponseWriter, r *http.Request) {
+	sequenceKind := []string{
+		"BIT REVERSED POSITIVE",
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(sequenceKind)
 }

@@ -53,6 +53,7 @@ import { AddShardIdPrimaryKeyComponent } from './components/add-shard-id-primary
 import { EquivalentGcloudCommandComponent } from './components/equivalent-gcloud-command/equivalent-gcloud-command.component';
 import { TuneDatastreamFormComponent } from './components/tune-datastream-form/tune-datastream-form.component';
 import { TuneGcsFormComponent } from './components/tune-gcs-form/tune-gcs-form.component';
+import { AddNewSequenceComponent } from './components/add-new-sequence/add-new-sequence.component'
 
 @NgModule({
   declarations: [
@@ -98,6 +99,7 @@ import { TuneGcsFormComponent } from './components/tune-gcs-form/tune-gcs-form.c
     EquivalentGcloudCommandComponent,
     TuneDatastreamFormComponent,
     TuneGcsFormComponent,
+    AddNewSequenceComponent
   ],
   imports: [
     BrowserModule,

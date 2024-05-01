@@ -16,6 +16,7 @@ import { TableUpdatePubSubService } from '../table-update-pub-sub/table-update-p
 import { ConversionService } from '../conversion/conversion.service'
 import { ColLength, Dialect } from 'src/app/app.constants'
 import { ITables } from 'src/app/model/migrate'
+import IAddSequence from 'src/app/model/auto-gen'
 
 @Injectable({
   providedIn: 'root',
@@ -28,6 +29,7 @@ export class DataService {
   private autoGenMapSub = new BehaviorSubject({})
   private summarySub = new BehaviorSubject(new Map<string, ISummary>())
   private ddlSub = new BehaviorSubject({})
+  private seqDdlSub = new BehaviorSubject({})
   private tableInterleaveStatusSub = new BehaviorSubject({} as IInterleaveStatus)
   private sessionsSub = new BehaviorSubject({} as ISession[])
   private configSub = new BehaviorSubject({} as ISpannerConfig)
@@ -46,6 +48,7 @@ export class DataService {
   autoGenMap = this.autoGenMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   summary = this.summarySub.asObservable()
   ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  seqDdl = this.seqDdlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   tableInterleaveStatus = this.tableInterleaveStatusSub.asObservable()
   sessions = this.sessionsSub.asObservable()
   config = this.configSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
@@ -79,6 +82,18 @@ export class DataService {
   getDdl() {
     this.fetch.getDdl().subscribe((res) => {
       this.ddlSub.next(res)
+    })
+  }
+
+  getSequenceDdl() {
+    this.fetch.getSequencetDdl().subscribe((res) => {
+      this.seqDdlSub.next(res)
+    })
+  }
+
+  getAutoGenMap() {
+    this.fetch.getAutoGenMap().subscribe((res) => {
+      this.autoGenMapSub.next(res)
     })
   }
 
@@ -170,6 +185,7 @@ export class DataService {
       defaultTypeMap: this.fetch.getSpannerDefaultTypeMap(),
       summary: this.fetch.getSummary(),
       ddl: this.fetch.getDdl(),
+      seqDdl: this.fetch.getSequencetDdl(),
       autoGenMap: this.fetch.getAutoGenMap()
     })
       .pipe(
@@ -177,12 +193,13 @@ export class DataService {
           return of(err)
         })
       )
-      .subscribe(({ rates, typeMap,defaultTypeMap, summary, ddl ,autoGenMap}: any) => {
+      .subscribe(({ rates, typeMap,defaultTypeMap, summary, ddl ,seqDdl, autoGenMap}: any) => {
         this.conversionRateSub.next(rates)
         this.typeMapSub.next(typeMap)
         this.defaultTypeMapSub.next(defaultTypeMap)
         this.summarySub.next(new Map<string, ISummary>(Object.entries(summary)))
         this.ddlSub.next(ddl)
+        this.seqDdlSub.next(seqDdl)
         this.autoGenMapSub.next(autoGenMap)
       })
   }
@@ -431,6 +448,20 @@ export class DataService {
         this.convSubject.next(res)
         this.getDdl()
         this.snackbar.openSnackBar('Added new column.', 'Close', 5)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
+      },
+    })
+  }
+
+  addSequence(payload: IAddSequence) {
+    this.fetch.addSequence(payload).subscribe({
+      next: (res: any) => {
+        this.convSubject.next(res)
+        this.getSequenceDdl()
+        this.getAutoGenMap()
+        this.snackbar.openSnackBar('Added new sequence.', 'Close', 5)
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')

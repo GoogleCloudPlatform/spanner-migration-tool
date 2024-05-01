@@ -232,13 +232,16 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 	var s string
 	if c.SpDialect == constants.DIALECT_POSTGRESQL {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PGPrintColumnDefType())
+		if cd.NotNull {
+			s += " NOT NULL "
+		}
 		s += cd.AutoGen.PGPrintAutoGenCol()
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
+		if cd.NotNull {
+			s += " NOT NULL "
+		}
 		s += cd.AutoGen.PrintAutoGenCol()
-	}
-	if cd.NotNull {
-		s += " NOT NULL"
 	}
 	return s, cd.Comment
 }
@@ -387,12 +390,18 @@ func (agc AutoGenCol) PrintAutoGenCol() string {
 	if agc.Name == constants.UUID && agc.Type == "Pre-defined" {
 		return " DEFAULT (GENERATE_UUID())"
 	}
+	if agc.Type == constants.SEQUENCE {
+		return fmt.Sprintf(" DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE %s)) ", agc.Name)
+	}
 	return ""
 }
 
 func (agc AutoGenCol) PGPrintAutoGenCol() string {
 	if agc.Name == constants.UUID && agc.Type == "Pre-defined" {
 		return " DEFAULT (spanner.generate_uuid())"
+	}
+	if agc.Type == constants.SEQUENCE {
+		return fmt.Sprintf(" DEFAULT NEXTVAL('%s') ", agc.Name)
 	}
 	return ""
 }
@@ -519,6 +528,15 @@ func GetSortedTableIdsBySpName(s Schema) []string {
 // definition of their parent table.
 func GetDDL(c Config, tableSchema Schema, sequenceSchema map[string]Sequence) []string {
 	var ddl []string
+
+	for _, seq := range sequenceSchema {
+		if c.SpDialect == constants.DIALECT_POSTGRESQL {
+			ddl = append(ddl, seq.PGPrintSequence())
+		} else {
+			ddl = append(ddl, seq.PrintSequence())
+		}
+	}
+
 	tableIds := GetSortedTableIdsBySpName(tableSchema)
 
 	if c.Tables {
@@ -540,14 +558,6 @@ func GetDDL(c Config, tableSchema Schema, sequenceSchema map[string]Sequence) []
 			for _, fk := range tableSchema[t].ForeignKeys {
 				ddl = append(ddl, fk.PrintForeignKeyAlterTable(tableSchema, c, t))
 			}
-		}
-	}
-
-	for _, seq := range sequenceSchema {
-		if c.SpDialect == constants.DIALECT_POSTGRESQL {
-			ddl = append(ddl, seq.PGPrintSequence())
-		} else {
-			ddl = append(ddl, seq.PrintSequence())
 		}
 	}
 
@@ -587,7 +597,9 @@ type Sequence struct {
 func (seq Sequence) PrintSequence() string {
 	var options []string
 	if seq.SequenceKind != "" {
-		options = append(options, fmt.Sprintf(" sequence_kind='%s' ", seq.SequenceKind))
+		if seq.SequenceKind == "BIT REVERSED POSITIVE" {
+			options = append(options, " sequence_kind='bit_reversed_positive' ")
+		}
 	}
 	if seq.SkipRangeMin != "" {
 		options = append(options, fmt.Sprintf(" skip_range_min = %s ", seq.SkipRangeMin))
@@ -603,7 +615,6 @@ func (seq Sequence) PrintSequence() string {
 	if len(options) > 0 {
 		seqDDL += " OPTIONS ( " + strings.Join(options, " , ") + " ) "
 	}
-	seqDDL += ";"
 
 	return seqDDL
 }
@@ -611,7 +622,9 @@ func (seq Sequence) PrintSequence() string {
 func (seq Sequence) PGPrintSequence() string {
 	var options []string
 	if seq.SequenceKind != "" {
-		options = append(options, fmt.Sprintf(" %s ", seq.SequenceKind))
+		if seq.SequenceKind == "BIT REVERSED POSITIVE" {
+			options = append(options, " BIT_REVERSED_POSITIVE ")
+		}
 	}
 	if seq.SkipRangeMax != "" && seq.SkipRangeMin != "" {
 		options = append(options, fmt.Sprintf(" SKIP RANGE %s %s ", seq.SkipRangeMin, seq.SkipRangeMax))
@@ -624,7 +637,6 @@ func (seq Sequence) PGPrintSequence() string {
 	if len(options) > 0 {
 		seqDDL += strings.Join(options, " ")
 	}
-	seqDDL += ";"
 
 	return seqDDL
 }

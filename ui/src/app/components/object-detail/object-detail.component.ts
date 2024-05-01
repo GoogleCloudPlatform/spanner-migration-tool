@@ -23,6 +23,7 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
 import { AddNewColumnComponent } from '../add-new-column/add-new-column.component'
 import { GroupedAutoGens, processAutoGens } from 'src/app/utils/utils'
+import { AddNewSequenceComponent } from '../add-new-sequence/add-new-sequence.component'
 
 @Component({
   selector: 'app-object-detail',
@@ -418,6 +419,14 @@ export class ObjectDetailComponent implements OnInit {
         dialect: this.conv.SpDialect,
         tableId: this.currentObject?.id,
       }
+    })
+  }
+
+  addNewSequence() {
+    this.dialog.open(AddNewSequenceComponent, {
+      width: '30vw',
+      minWidth: '400px',
+      maxWidth: '500px',
     })
   }
 

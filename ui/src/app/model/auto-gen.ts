@@ -1,8 +1,7 @@
-export default interface ISequence {
+export default interface IAddSequence {
     Name: string
     SequenceKind: string
-    SkipRangeMin?: number
-    SkipRangeMax?: number
-    StartWithCounter?: number
-    ColumnsUsingSeq?: Map<string, string[]>
+    SkipRangeMin?: string
+    SkipRangeMax?: string
+    StartWithCounter?: string
   }

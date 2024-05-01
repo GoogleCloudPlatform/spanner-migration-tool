@@ -1,0 +1,39 @@
+<div mat-dialog-content>
+    <form [formGroup]="addNewSequenceForm" class="add-new-sequence-form">
+        <h2>Sequence Details</h2>
+        <mat-form-field class="full-width" appearance="outline">
+            <mat-label>Name</mat-label>
+            <input matInput placeholder="Sequence Name" type="text" formControlName="name" />
+        </mat-form-field> 
+        <br>
+        <mat-form-field appearance="outline">
+            <mat-label>Sequence Kind</mat-label>
+            <mat-select [(ngModel)]="selectedSequenceKind" class="input-field" formControlName="sequenceKind" required="true">
+                <mat-option *ngFor="let sk of sequenceKinds" [value]="sk">{{sk}}</mat-option>
+            </mat-select>
+        </mat-form-field>
+        <br>
+        <mat-form-field class="full-width" appearance="outline">
+            <mat-label>Skip Range Minimum</mat-label>
+            <input matInput placeholder="Skip Range Min" type="text" formControlName="skipRangeMin" />
+        </mat-form-field>
+        <br>
+        <mat-form-field class="full-width" appearance="outline">
+            <mat-label>Skip Range Maximum</mat-label>
+            <input matInput placeholder="Skip Range Max" type="text" formControlName="skipRangeMax" />
+        </mat-form-field>
+        <br>
+        <mat-form-field class="full-width" appearance="outline">
+            <mat-label>Start With Counter</mat-label>
+            <input matInput placeholder="Start With Counter" type="text" formControlName="startWithCounter" />
+        </mat-form-field>
+        <br>
+    </form>
+    <div mat-dialog-actions class="buttons-container">
+        <button mat-button color="primary" mat-dialog-close>CANCEL</button>
+        <button mat-button type="submit" color="primary" [disabled]="!(addNewSequenceForm.valid)"
+            (click)="addNewSequence()">
+            ADD
+        </button>
+    </div>
+</div>
