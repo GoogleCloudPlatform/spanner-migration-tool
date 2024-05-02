@@ -18,7 +18,7 @@ export default interface IColumnTabData {
 
 export interface AutoGen {
   Name: string;
-  Type: string;
+  GenerationType: string;
 }
 
 export interface IIndexData {

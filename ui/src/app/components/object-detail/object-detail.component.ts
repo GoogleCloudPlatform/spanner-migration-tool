@@ -382,7 +382,7 @@ export class ObjectDetailComponent implements OnInit {
         MaxColLength: '',
         AutoGen: {
           Name : '',
-          Type : ''
+          GenerationType : ''
         }
       }
     })
@@ -534,7 +534,7 @@ export class ObjectDetailComponent implements OnInit {
         col.spColMaxLength = ''
         col.spAutoGen = {
           Name : '',
-          Type : ''
+          GenerationType : ''
         }
       }
     })
@@ -566,7 +566,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   compareAutoGen(t1: any, t2: any): boolean {
-    return t1 && t2 ? t1.Name === t2.Name && t1.Type === t2.Type : t1 === t2;
+    return t1 && t2 ? t1.Name === t2.Name && t1.GenerationType === t2.GenerationType : t1 === t2;
   }
  
   setPkRows() {

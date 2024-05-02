@@ -38,6 +38,7 @@ describe('AddNewColumnComponent', () => {
     fixture = TestBed.createComponent(AddNewColumnComponent);
     component = fixture.componentInstance;
     component.dialect = Dialect.GoogleStandardSQLDialect;
+    console.log(component.datatypes)
     fixture.detectChanges();
   });
 

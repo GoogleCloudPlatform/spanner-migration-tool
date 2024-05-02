@@ -18,8 +18,8 @@ const mockIConv: IConv = {
                         IsArray: false
                     },
                     AutoGen: {
-                        Name: "None",
-                        Type: "None"
+                        Name: "",
+                        GenerationType: ""
                     }
                 }
             },

@@ -23,8 +23,8 @@ export class AddNewColumnComponent implements OnInit {
   dataTypesWithColLen: string[] = ColLength.DataTypes
   autoGenMap : any = {}
   selectedAutoGen: AutoGen = {
-    Name: 'None',
-    Type: 'None'
+    Name: '',
+    GenerationType: ''
   }
   processedAutoGenMap: GroupedAutoGens = {};
   srcDbName: String = localStorage.getItem(StorageKeys.SourceDbName) as string
@@ -42,8 +42,8 @@ export class AddNewColumnComponent implements OnInit {
       length: ['',Validators.pattern('^[0-9]+$')],
       isNullable: [],
       autoGen: [{
-        Name: "None",
-        Type: "None"
+        Name: "",
+        GenerationType: ""
       }],
     })
     this.fetchSerice.getAutoGenMap().subscribe(
