@@ -101,5 +101,6 @@ Detailed description of optional flags can be found [here](./flags.md).
         can create resources required for migration. If the project is not specified, Spanner migration 
         tool will try to fetch the configured project in the gCloud CLI.
 
-     --dataflow-template=DATAFLOW_TEMPLAtE
-        GCS path of the Dataflow template. Default value is the latest dataflow template.
+     --dataflow-template=DATAFLOW_TEMPLATE
+        The google cloud storage path of the minimal downtime migration
+        template to use to run the migration job. Default value is the latest dataflow template.
