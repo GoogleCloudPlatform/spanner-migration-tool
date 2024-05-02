@@ -106,7 +106,7 @@ The empty fields are optional.
                     "host": "",
                     "user" :"",
 					"port" :"",
-					"password" :"",
+                    "password" :"",
                     "location": ""
                 },
                 "dstConnectionProfile": {
