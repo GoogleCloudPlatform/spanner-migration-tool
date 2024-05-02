@@ -102,12 +102,16 @@ The empty fields are optional.
             {
                 "dataShardId": "smt_datashard_Jo1B_gVrJ",
                 "srcConnectionProfile": {
-                    "name": "test-src-conn",
-                    "location": "us-central1"
+                    "name": "",
+                    "host": "",
+                    "user" :"",
+					"port" :"",
+                    "password" :"",
+                    "location": ""
                 },
                 "dstConnectionProfile": {
-                    "name": "test-dst-conn",
-                    "location": "us-central1"
+                    "name": "",
+                    "location": ""
                 },
                 "tmpDir": "gs://my-bucket/path-to-folder",
                 "streamLocation": "us-central1",
@@ -146,3 +150,8 @@ The empty fields are optional.
     }
 }
 ```
+
+### Automatic generation of Connection Profiles
+Any source or destination connection file that does not exist will be created. 
+1. For Source Connection Profile, host, user, port and password need to be provided for creation of profile. If profile name is not provided then it will be generated. If profile location is not provided, spanner instance location will be used. Name and location can be optionally provided.
+2. For Destination Connection Profile, no extra details need to be provided. Name and location can be optionally provided.
