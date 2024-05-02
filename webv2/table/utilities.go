@@ -248,6 +248,13 @@ func UpdateNotNull(notNullChange, tableId, colId string, conv *internal.Conv) {
 	}
 }
 
+func UpdateAutoGenCol(autoGen ddl.AutoGenCol, tableId, colId string, conv *internal.Conv) {
+	sp := conv.SpSchema[tableId]
+	spColDef := sp.ColDefs[colId]
+	spColDef.AutoGen = autoGen
+	sp.ColDefs[colId] = spColDef
+}
+
 func getFkColumnPosition(colIds []string, colId string) int {
 	for i, id := range colIds {
 		if colId == id {

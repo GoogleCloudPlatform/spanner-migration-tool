@@ -169,8 +169,7 @@
                       EDIT
                     </button>
                   </div>
-                  <!--[TODO:khajanchi] Remove the predicate && false once transformations is in place-->
-                  <div *ngIf="!isEditMode && !currentObject.isDeleted && false">
+                  <div *ngIf="!isEditMode && !currentObject.isDeleted">
                     <button mat-stroked-button color="primary" (click)="addNewColumn()"
                       *ngIf="currentObject!.isSpannerNode">
                       <mat-icon class="edit-icon">edit</mat-icon>

@@ -73,6 +73,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/typemap/GetStandardTypeToPGSQLTypemap", api.GetStandardTypeToPGSQLTypemap).Methods("GET")
 	router.HandleFunc("/typemap/GetPGSQLToStandardTypeTypemap", api.GetPGSQLToStandardTypeTypemap).Methods("GET")
 	router.HandleFunc("/spannerDefaultTypeMap", api.SpannerDefaultTypeMap).Methods("GET")
+	router.HandleFunc("/autoGenMap", api.GetAutoGenMap).Methods("GET")
 
 	router.HandleFunc("/setparent", api.SetParentTable).Methods("GET")
 	router.HandleFunc("/removeParent", api.RemoveParentTable).Methods("POST")
