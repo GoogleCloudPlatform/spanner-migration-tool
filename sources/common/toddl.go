@@ -132,8 +132,8 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			Id:      srcColId,
 			AutoGen: ddl.AutoGenCol{
-				Name: "None",
-				Type: "None",
+				Name: "",
+				GenerationType: "",
 			},
 		}
 		if !checkIfColumnIsPartOfPK(srcColId, srcTable.PrimaryKeys) {

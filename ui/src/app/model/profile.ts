@@ -65,7 +65,11 @@ export interface IDirectConnectionConfig {
 }
 
 export interface IDatastreamConnProfile {
-    name: string
+    name?: string
+    host?: string
+    user?: string
+    password?: string
+    port?: string
     location?: string
 }
 

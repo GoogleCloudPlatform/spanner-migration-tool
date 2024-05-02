@@ -122,7 +122,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.MaxColLength != "" {
 			UpdateColumnSize(v.MaxColLength, tableId, colId, conv)
 		}
-		if v.AutoGen.Type != "" {
+		if !v.Removed {
 			UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
 		}
 	}

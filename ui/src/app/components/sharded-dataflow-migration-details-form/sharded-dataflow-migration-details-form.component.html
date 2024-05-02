@@ -33,6 +33,43 @@
                     #autosize="cdkTextareaAutosize" cdkAutosizeMinRows="5" cdkAutosizeMaxRows="20"></textarea>
             </mat-form-field>
         </div>
+        <div class="textInput" *ngIf="(migrationProfileForm.value.inputType === 'text')">
+            <div><b>Copy the public IPs below, and use them to configure the network firewall to accept
+                connections
+                from them.</b><a
+                href="https://cloud.google.com/datastream/docs/network-connectivity-options#ipallowlists" target="_blank">Learn
+                More</a></div>
+            <br>
+            <li *ngFor="let ip of ipList" class="connection-form-container">
+                <span class="left-text">{{ip}}</span>
+                <span>
+                    <mat-icon class="icon copy" [cdkCopyToClipboard]="ip" matTooltip="Copy">file_copy</mat-icon>
+                </span>
+            </li>
+        </div>
+        <div *ngIf="!verifyJson && errorVerMsg != ''" class="failure">
+            <span class="left-text">JSON Verification failed</span>
+            <mat-icon class="icon error" [matTooltip]="errorVerMsg" matTooltipPosition="above">
+                error
+            </mat-icon>
+        </div>  
+        <div *ngIf="verifyingJson">
+            <br>
+            <span class="spinner">
+                <mat-spinner [diameter]="20">
+                </mat-spinner>
+            </span>
+            <span class="spinner-small-text">Validating Resources</span><br>
+        </div>
+        <mat-icon *ngIf="verifyJson" class="success" matTooltip="JSON Verification successful"
+                    matTooltipPosition="above">
+                    check_circle
+            </mat-icon>
+        <div class="textInput" *ngIf="(migrationProfileForm.value.inputType === 'text')">
+            <button mat-raised-button type="button" color="primary"
+                [disabled]="!migrationProfileForm.valid || verifyingJson"
+                    (click)="verifyTextJson()">VERIFY JSON</button>
+        </div>
         <div class="textInput" *ngIf="(migrationProfileForm.value.inputType === 'form')">
 
             <span class="mat-h4 header-title">Configure Source Profile</span>

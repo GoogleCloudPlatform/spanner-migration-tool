@@ -223,26 +223,26 @@ type MonitoringResources struct {
 type ShardResources struct {
 	DatastreamResources DatastreamResources
 	PubsubResources     PubsubResources
-	DataflowResources	DataflowResources
-	GcsResources		GcsResources
+	DataflowResources   DataflowResources
+	GcsResources        GcsResources
 	MonitoringResources MonitoringResources
 }
 
 // Stores information related to the streaming migration process.
 type streamingStats struct {
-	Streaming                     bool                        // Flag for confirmation of streaming migration.
-	TotalRecords                  map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
-	BadRecords                    map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
-	DroppedRecords                map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
-	SampleBadRecords              []string                    // Records that generated errors during conversion.
-	SampleBadWrites               []string                    // Records that faced errors while writing to Cloud Spanner.
-	DatastreamResources           DatastreamResources
-	DataflowResources             DataflowResources
-	PubsubResources               PubsubResources
-	GcsResources                  GcsResources
-	MonitoringResources           MonitoringResources
-	ShardToShardResourcesMap      map[string]ShardResources
-	AggMonitoringResources        MonitoringResources
+	Streaming                bool                        // Flag for confirmation of streaming migration.
+	TotalRecords             map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
+	BadRecords               map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
+	DroppedRecords           map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
+	SampleBadRecords         []string                    // Records that generated errors during conversion.
+	SampleBadWrites          []string                    // Records that faced errors while writing to Cloud Spanner.
+	DatastreamResources      DatastreamResources
+	DataflowResources        DataflowResources
+	PubsubResources          PubsubResources
+	GcsResources             GcsResources
+	MonitoringResources      MonitoringResources
+	ShardToShardResourcesMap map[string]ShardResources
+	AggMonitoringResources   MonitoringResources
 }
 
 type PubsubCfg struct {
@@ -438,7 +438,7 @@ func (conv *Conv) AddShardIdColumn() {
 			colName := conv.buildColumnNameWithBase(t, ShardIdColumn)
 			columnId := GenerateColumnId()
 			ct.ColIds = append(ct.ColIds, columnId)
-			ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false, AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}}
+			ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false, AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}}
 			ct.ShardIdColumn = columnId
 			conv.SpSchema[t] = ct
 			var issues []SchemaIssue
@@ -474,7 +474,7 @@ func (conv *Conv) AddPrimaryKeys() {
 				k := conv.buildColumnNameWithBase(t, SyntheticPrimaryKey)
 				columnId := GenerateColumnId()
 				ct.ColIds = append(ct.ColIds, columnId)
-				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}}
+				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}}
 				ct.PrimaryKeys = []ddl.IndexKey{{ColId: columnId, Order: 1}}
 				conv.SyntheticPKeys[t] = SyntheticPKey{columnId, 0}
 				addMissingPrimaryKeyWarning(ct.Id, columnId, conv, MissingPrimaryKey)
