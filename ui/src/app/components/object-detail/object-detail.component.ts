@@ -428,6 +428,7 @@ export class ObjectDetailComponent implements OnInit {
       minWidth: '400px',
       maxWidth: '500px',
     })
+    this.updateSidebar.emit(true)
   }
 
   setColumn(columnName: string) {

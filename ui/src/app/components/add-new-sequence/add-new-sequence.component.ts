@@ -1,7 +1,7 @@
 import { Component, OnInit} from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef} from '@angular/material/dialog';
-import IAddSequence from 'src/app/model/auto-gen';
+import ICreateSequence from 'src/app/model/auto-gen';
 import { DataService } from 'src/app/services/data/data.service';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 @Component({
@@ -37,7 +37,7 @@ export class AddNewSequenceComponent implements OnInit {
  
   addNewSequence() {
     let formValue = this.addNewSequenceForm.value
-    let payload: IAddSequence = {
+    let payload: ICreateSequence = {
       Name: formValue.name,
       SequenceKind: this.selectedSequenceKind,
       SkipRangeMin: formValue.skipRangeMin,

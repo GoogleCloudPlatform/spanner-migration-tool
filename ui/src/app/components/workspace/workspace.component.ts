@@ -200,6 +200,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
   reRenderObjectExplorerSpanner() {
     this.spannerTree = this.conversion.createTreeNode(this.conv, this.conversionRates)
+    console.log("rendered")
+    console.log(this.spannerTree)
   }
   reRenderObjectExplorerSrc() {
     this.srcTree = this.conversion.createTreeNodeForSource(this.conv, this.conversionRates)

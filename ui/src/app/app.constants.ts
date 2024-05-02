@@ -24,6 +24,7 @@ export enum ObjectExplorerNodeType {
   Table = 'tableName',
   Indexes = 'indexes',
   Index = 'indexName',
+  Sequences = 'sequences'
 }
 
 export enum RulesTypes {

@@ -1,3 +1,4 @@
+import ICreateSequence from './auto-gen'
 import IRule from './rule'
 
 export default interface IConv {
@@ -18,6 +19,8 @@ export default interface IConv {
   EditorName: string
   SpDialect: string
   IsSharded: boolean
+  SpSequences: Record<string, ICreateSequence>
+  SrcSequences: Record<string, ICreateSequence>
 }
 
 export interface IFkeyAndIdxs {

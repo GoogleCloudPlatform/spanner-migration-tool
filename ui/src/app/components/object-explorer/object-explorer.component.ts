@@ -106,6 +106,9 @@ export class ObjectExplorerComponent implements OnInit {
       this.dataSource.data = newSpannerTree
       this.treeControl.expand(this.treeControl.dataNodes[0])
       this.treeControl.expand(this.treeControl.dataNodes[1])
+      console.log("tree control")
+      console.log(this.treeControl)
+      console.log(this.dataSource.data)
     }
   }
 

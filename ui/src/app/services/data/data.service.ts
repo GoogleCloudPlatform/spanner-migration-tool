@@ -16,7 +16,7 @@ import { TableUpdatePubSubService } from '../table-update-pub-sub/table-update-p
 import { ConversionService } from '../conversion/conversion.service'
 import { ColLength, Dialect } from 'src/app/app.constants'
 import { ITables } from 'src/app/model/migrate'
-import IAddSequence from 'src/app/model/auto-gen'
+import ICreateSequence from 'src/app/model/auto-gen'
 
 @Injectable({
   providedIn: 'root',
@@ -455,7 +455,7 @@ export class DataService {
     })
   }
 
-  addSequence(payload: IAddSequence) {
+  addSequence(payload: ICreateSequence) {
     this.fetch.addSequence(payload).subscribe({
       next: (res: any) => {
         this.convSubject.next(res)

@@ -52,6 +52,10 @@ export class ConversionService {
       conv.SpSchema[tableId].Name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
     )
 
+    let spannerSequenceIds = Object.keys(conv.SpSequences).filter((seqId: string) =>
+      conv.SpSequences[seqId].Name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
+    )
+
     let deletedTableIds = Object.keys(conv.SrcSchema).filter((tableId: string) => {
       return (
         spannerTableIds.indexOf(tableId) == -1 &&
@@ -147,10 +151,34 @@ export class ConversionService {
         })
       }
     })
+
+    let sequenceNode: ISchemaObjectNode = {
+      name: `Sequences (${spannerSequenceIds.length})`,
+      type: ObjectExplorerNodeType.Sequences,
+      parent: '',
+      pos: -1,
+      isSpannerNode: true,
+      id: '',
+      parentId: '',
+      children: spannerSequenceIds.map((seqId: string) => {
+        let spannerSequence = conv.SpSequences[seqId]
+        return {
+          name: spannerSequence.Name,
+          status: '',
+          type: ObjectExplorerNodeType.Sequences,
+          parent: '',
+          pos: -1,
+          isSpannerNode: true,
+          id: seqId,
+          parentId: '',
+          children: [],
+        }
+      }),
+    }
     return [
       {
         name: conv.DatabaseName,
-        children: [parentNode],
+        children: [parentNode, sequenceNode],
         type: ObjectExplorerNodeType.DbName,
         parent: '',
         pos: -1,

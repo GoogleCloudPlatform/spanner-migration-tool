@@ -15,6 +15,7 @@
 package table
 
 import (
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
@@ -251,8 +252,15 @@ func UpdateNotNull(notNullChange, tableId, colId string, conv *internal.Conv) {
 func UpdateAutoGenCol(autoGen ddl.AutoGenCol, tableId, colId string, conv *internal.Conv) {
 	sp := conv.SpSchema[tableId]
 	spColDef := sp.ColDefs[colId]
+	if spColDef.AutoGen.Type == constants.SEQUENCE {
+		deleteColumnFromSequence(spColDef.AutoGen, tableId, colId, conv)
+	}
 	spColDef.AutoGen = autoGen
 	sp.ColDefs[colId] = spColDef
+	if autoGen.Type == constants.SEQUENCE {
+		addColumnToSequence(autoGen, tableId, colId, conv)
+	}
+	conv.SpSchema[tableId] = sp
 }
 
 func getFkColumnPosition(colIds []string, colId string) int {
@@ -271,4 +279,35 @@ func isColFistOderPk(pks []ddl.IndexKey, colId string) bool {
 		}
 	}
 	return false
+}
+
+func deleteColumnFromSequence(autoGen ddl.AutoGenCol, tableId, colId string, conv *internal.Conv) {
+	if _, ok := conv.SpSequences[autoGen.Name].ColumnsUsingSeq[tableId]; ok {
+		cols := conv.SpSequences[autoGen.Name].ColumnsUsingSeq[tableId]
+		for i, col := range cols {
+			if col == colId {
+				conv.SpSequences[autoGen.Name].ColumnsUsingSeq[tableId] = append(cols[:i], cols[i+1:]...)
+				break
+			}
+		}
+	}
+}
+
+func addColumnToSequence(autoGen ddl.AutoGenCol, tableId, colId string, conv *internal.Conv) {
+	if _, ok := conv.SpSequences[autoGen.Name].ColumnsUsingSeq[tableId]; ok {
+		cols := conv.SpSequences[autoGen.Name].ColumnsUsingSeq[tableId]
+		found := false
+		for _, c := range cols {
+			if c == colId {
+				found = true
+				break
+			}
+		}
+		if !found {
+			conv.SpSequences[autoGen.Name].ColumnsUsingSeq[tableId] = append(cols, colId)
+		}
+	} else {
+		cols := []string{colId}
+		conv.SpSequences[autoGen.Name].ColumnsUsingSeq[tableId] = cols
+	}
 }

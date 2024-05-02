@@ -1,4 +1,4 @@
-export default interface IAddSequence {
+export default interface ICreateSequence {
     Name: string
     SequenceKind: string
     SkipRangeMin?: string
