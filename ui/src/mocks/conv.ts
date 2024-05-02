@@ -68,7 +68,7 @@ const mockIConv: IConv = {
                         Exclusion: false,
                         ForeignKey: false,
                         AutoIncrement: false
-                    },
+                    }
                 }
             },
             PrimaryKeys: [],
