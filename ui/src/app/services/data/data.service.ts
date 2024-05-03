@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
 import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
 import IRule from 'src/app/model/rule'
-import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
+import { BehaviorSubject, forkJoin, Observable, of, Subject } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
 import IUpdateTable, { IAddColumn, IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
 import IDumpConfig, { IConvertFromDumpRequest } from 'src/app/model/dump-config'
@@ -37,6 +37,7 @@ export class DataService {
   private currentSessionSub = new BehaviorSubject({} as ISession)
   private isOfflineSub = new BehaviorSubject<boolean>(false)
   private ruleMapSub = new BehaviorSubject<IRule[]>([])
+  private treeUpdatedSub = new Subject<void>();
 
   rule = this.ruleMapSub.asObservable()
   conv = this.convSubject.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
@@ -46,6 +47,7 @@ export class DataService {
   typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   defaultTypeMap = this.defaultTypeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   autoGenMap = this.autoGenMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  treeUpdate = this.treeUpdatedSub.asObservable();
   summary = this.summarySub.asObservable()
   ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   seqDdl = this.seqDdlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
@@ -95,6 +97,10 @@ export class DataService {
     this.fetch.getAutoGenMap().subscribe((res) => {
       this.autoGenMapSub.next(res)
     })
+  }
+
+  notifyTreeUpdate() {
+    this.treeUpdatedSub.next();
   }
 
   getSchemaConversionFromDb() {
@@ -461,6 +467,7 @@ export class DataService {
         this.convSubject.next(res)
         this.getSequenceDdl()
         this.getAutoGenMap()
+        this.notifyTreeUpdate();
         this.snackbar.openSnackBar('Added new sequence.', 'Close', 5)
       },
       error: (err: any) => {
@@ -515,6 +522,27 @@ export class DataService {
           this.getDdl()
           this.ruleMapSub.next(data?.Rules)
           this.snackbar.openSnackBar('Index skipped successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
+  }
+
+  dropSequence(seqName: string): Observable<string> {
+    return this.fetch.dropSequence(seqName).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.getDdl()
+          this.notifyTreeUpdate();
+          this.snackbar.openSnackBar('Sequence Deleted successfully', 'Close', 5)
           return ''
         }
       })

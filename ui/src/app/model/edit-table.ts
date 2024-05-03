@@ -32,6 +32,19 @@ export interface IIndexData {
   spDesc: boolean | undefined | string
 }
 
+export interface ISequenceData {
+  spName?: string | undefined
+  spSequenceKind?: string | undefined
+  spSkipRangeMin?: string | undefined
+  spSkipRangeMax?: string | undefined
+  spStartWithCounter?: string | undefined
+  srcName?: string | undefined
+  srcSequenceKind?: string | undefined
+  srcSkipRangeMin?: string | undefined
+  srcSkipRangeMax?: string | undefined
+  srcStartWithCounter?: string | undefined
+}
+
 export interface IColMaxLength {
   spDataType: string,
   spColMaxLength: Number | string | undefined

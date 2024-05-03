@@ -24,7 +24,8 @@ export enum ObjectExplorerNodeType {
   Table = 'tableName',
   Indexes = 'indexes',
   Index = 'indexName',
-  Sequences = 'sequences'
+  Sequences = 'sequences',
+  Sequence = 'sequenceName'
 }
 
 export enum RulesTypes {
@@ -41,6 +42,7 @@ export enum MigrationModes {
 export enum ObjectDetailNodeType {
   Table = 'table',
   Index = 'index',
+  Sequence = 'sequence'
 }
 
 export enum MigrationTypes {

@@ -280,6 +280,10 @@ export class FetchService {
     })
   }
 
+  dropSequence(sequenceName: string) {
+    return this.http.post<IConv>(`${this.url}/drop/sequence?sequence=${sequenceName}`, {})
+  }
+
   restoreIndex(tableId: string, indexId: string) {
     return this.http.post<HttpResponse<IConv>>(
       `${this.url}/restore/secondaryIndex?tableId=${tableId}&indexId=${indexId}`,

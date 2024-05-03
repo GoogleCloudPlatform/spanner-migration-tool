@@ -88,7 +88,8 @@
 .column-tab-container,
 .fk-tab-container,
 .pk-tab-container,
-.index-tab-container {
+.index-tab-container,
+.sequence-tab-container {
   height: 84%;
 
   .column-table-container {
@@ -170,7 +171,8 @@
   .mat-column-srcIsPk,
   .mat-column-spIsPk,
   .mat-column-spIndexOrder,
-  .mat-column-srcIndexOrder {
+  .mat-column-srcIndexOrder,
+  .mat-column-srcStartWithCounter {
     min-width: 40px;
     text-align: center;
   }
@@ -182,6 +184,8 @@
   .mat-column-spDataType,
   .mat-column-spIndexColName,
   .mat-column-srcIndexColName,
+  .mat-column-srcSeqName,
+  .mat-column-spSeqName,
   .mat-column-spColMaxLength,
   .mat-column-srcColMaxLength {
     min-width: 100px;
@@ -195,7 +199,8 @@
   .mat-column-srcIsNotNull,
   .mat-column-srcReferColumns,
   .mat-column-srcDatabase,
-  .mat-column-srcIndexOrder {
+  .mat-column-srcIndexOrder,
+  .mat-column-srcStartWithCounter {
     border-right: 1px solid #cdcccd;
   }
   .drop-button-left-border {

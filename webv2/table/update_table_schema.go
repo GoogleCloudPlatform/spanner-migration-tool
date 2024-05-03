@@ -124,6 +124,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		if v.AutoGen.Type != "" {
 			UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
+			//conv.SpSequences = sequences
 		}
 	}
 

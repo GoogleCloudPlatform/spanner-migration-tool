@@ -28,6 +28,7 @@ func AddNewSequence(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
+	seq.ColumnsUsingSeq = make(map[string][]string)
 
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.Lock()
@@ -48,7 +49,7 @@ func AddNewSequence(w http.ResponseWriter, r *http.Request) {
 	seq.Id = internal.GenerateSequenceId()
 	sessionState.Conv.UsedNames[strings.ToLower(seq.Name)] = true
 
-	spSequences[seq.Name] = seq
+	spSequences[seq.Id] = seq
 	sessionState.Conv.SpSequences = spSequences
 
 	convm := session.ConvWithMetadata{
@@ -98,34 +99,32 @@ func UpdateSequence(w http.ResponseWriter, r *http.Request) {
 }
 
 func DropSequence(w http.ResponseWriter, r *http.Request) {
+	sequenceName := r.FormValue("sequence")
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
 
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-	}
-
-	var dropDetail struct{ SequenceName string }
-	if err = json.Unmarshal(reqBody, &dropDetail); err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, "Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner.", http.StatusNotFound)
 		return
 	}
 
-	if dropDetail.SequenceName == "" {
+	spSequence := sessionState.Conv.SpSequences
+	if sequenceName == "" {
 		http.Error(w, "Sequence name is empty", http.StatusBadRequest)
 	}
 
-	spSequence := sessionState.Conv.SpSequences
-	updatedTables := dropSequenceHelper(spSequence[dropDetail.SequenceName].ColumnsUsingSeq, sessionState.Conv.SpSchema)
+	if _, seqExists := spSequence[sequenceName]; !seqExists {
+		http.Error(w, "Sequence doesn't exist", http.StatusBadRequest)
+	}
+
+	updatedTables := dropSequenceHelper(spSequence[sequenceName].ColumnsUsingSeq, sessionState.Conv.SpSchema)
 	sessionState.Conv.SpSchema = updatedTables
 
-	delete(spSequence, dropDetail.SequenceName)
+	usedNames := sessionState.Conv.UsedNames
+	delete(usedNames, sequenceName)
+
+	delete(spSequence, sequenceName)
 	sessionState.Conv.SpSequences = spSequence
 
 	convm := session.ConvWithMetadata{

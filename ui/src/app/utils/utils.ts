@@ -1,3 +1,4 @@
+import { AbstractControl, FormGroup, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { SourceDbNames } from '../app.constants'
 import IConv from '../model/conv'
 import { AutoGen } from '../model/edit-table'
@@ -51,4 +52,20 @@ export function processAutoGens(autoGenMap: any): GroupedAutoGens {
     groupedAutoGens[key] = groupAutoGenByType(autoGenMap[key]);
   });
   return groupedAutoGens;
+}
+
+export function linkedFieldsValidator(skipRangeMin: string, skipRangeMax: string): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const formGroup = control as FormGroup; 
+    const min = formGroup.get(skipRangeMin);
+    const max = formGroup.get(skipRangeMax);
+
+    if (!min || !max) {
+      return null; 
+    }
+    if ((min.value && !max.value) || (!min.value && max.value)) {
+      return { linkedError: 'Both Skip Range Min and Max are required' };
+    }
+    return null; 
+  };
 }

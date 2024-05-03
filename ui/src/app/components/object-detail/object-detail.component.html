@@ -33,7 +33,7 @@
       <h3 class="title">
         <mat-icon class="icon material-icons-outlined" *ngIf="currentObject!.type === ObjectExplorerNodeType.Table">
           table_chart</mat-icon>
-        <svg *ngIf="currentObject!.type === ObjectExplorerNodeType.Index" class="icon" width="18" height="20"
+        <svg *ngIf="currentObject!.type === ObjectExplorerNodeType.Index || currentObject!.type === ObjectExplorerNodeType.Sequence" class="icon" width="18" height="20"
           viewBox="0 0 12 14" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path fill-rule="evenodd" clip-rule="evenodd"
             d="M11.005 14C11.555 14 12 13.554 12 13.002V5L10 3V12H2V14H11.005ZM0 0.996C0 0.446 0.438 0 1.003 0H7L9 2.004V10.004C9 10.554 8.554 11 8.002 11H0.998C0.867035 11.0003 0.737304 10.9747 0.616233 10.9248C0.495162 10.8748 0.385128 10.8015 0.292428 10.709C0.199729 10.6165 0.126186 10.5066 0.0760069 10.3856C0.0258282 10.2646 -2.64036e-07 10.135 0 10.004V0.996ZM6 1L5 5.5H2L6 1ZM3 10L4 5.5H7L3 10Z"
@@ -52,6 +52,14 @@
           <mat-icon>delete</mat-icon>
           <span>SKIP INDEX</span>
         </button>
+        <button mat-button color="primary" class="icon drop" (click)="dropSequence()" *ngIf="
+            currentObject!.isSpannerNode &&
+            !currentObject!.isDeleted &&
+            currentObject!.type === 'sequenceName'
+          ">
+          <mat-icon>delete</mat-icon>
+          <span>DELETE SEQUENCE</span>
+        </button>
         <button mat-button color="primary" class="icon drop" (click)="restoreIndex()" *ngIf="
             currentObject!.isSpannerNode &&
             currentObject!.isDeleted &&
@@ -62,7 +70,7 @@
         </button>
         <button mat-button color="primary" class="icon drop" (click)="dropTable()" *ngIf="
             currentObject!.isSpannerNode &&
-            currentObject!.type !== 'indexName' &&
+            (currentObject!.type !== 'indexName' && currentObject!.type !== 'sequenceName')&&
             !currentObject!.isDeleted
           ">
           <mat-icon>delete</mat-icon>
@@ -804,7 +812,154 @@
       </button>
     </div>
   </div>
+  
+  <div *ngIf="currentObject!.type === 'sequenceName'" class="sequence-tab-container">
+    <table mat-table [dataSource]="spDataSource">
+      <ng-container matColumnDef="srcDatabase">
+        <th mat-header-cell class="db_name" *matHeaderCellDef colspan="5">{{ srcDbName }}</th>
+      </ng-container>
 
+      <ng-container matColumnDef="spDatabase">
+        <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
+          <div class="spanner_edit-button">
+            <span>Spanner</span>
+
+            <div *ngIf="!isSequenceEditMode && !currentObject!.isDeleted && currentObject!.isSpannerNode">
+              <button mat-stroked-button color="primary" (click)="toggleSequenceEdit()">
+                <mat-icon class="edit-icon">edit</mat-icon>
+                EDIT
+              </button>
+            </div>
+          </div>
+        </th>
+      </ng-container>
+
+      <ng-container matColumnDef="srcSeqName">
+        <th class="table_header" mat-header-cell *matHeaderCellDef>Name</th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.get('srcSeqName').value }}
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="srcSequenceKind">
+        <th class="table_header" mat-header-cell *matHeaderCellDef>Sequence Kind</th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.get('srcSequenceKind').value }}
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="srcSkipRangeMin">
+        <th class="table_header" mat-header-cell *matHeaderCellDef>Skip Range Min</th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.get('srcSkipRangeMin').value }}
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="srcSkipRangeMax">
+        <th class="table_header" mat-header-cell *matHeaderCellDef>Skip Range Max</th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.get('srcSkipRangeMax').value }}
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="srcStartWithCounter">
+        <th class="table_header" mat-header-cell *matHeaderCellDef>Start With Counter</th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.get('srcStartWithCounter').value }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="spSeqName">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
+        <td mat-cell *matCellDef="let element">
+          <div *ngIf="isSequenceEditMode">
+            <input
+              matInput
+              class="name_input"
+              type="text"
+              [formControl]="element.get('spSeqName')"
+              matTooltip="No special characters allowed except underscore."
+              [matTooltipDisabled]="!element.get('spSeqName')?.hasError('pattern')" />
+          </div>
+          <p *ngIf="!isSequenceEditMode && element.get('spSeqName').value">{{ element.get('spSeqName').value }}</p>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="spSequenceKind">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Sequence Kind</th>
+        <td mat-cell *matCellDef="let element">
+          <p *ngIf="!isSequenceEditMode && element.get('spSequenceKind').value">{{ element.get('spSequenceKind').value }}</p>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="spSkipRangeMin">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Skip Range Min</th>
+        <td mat-cell *matCellDef="let element">
+          <div *ngIf="isSequenceEditMode">
+            <input
+              matInput
+              class="name_input"
+              type="text"
+              [formControl]="element.get('spSkipRangeMin')"
+              matTooltip="Should be a number and both min and max must be set or neither"
+              [matTooltipDisabled]="!element.get('spSkipRangeMin')?.hasError('pattern')" />
+          </div>
+          <p *ngIf="!isSequenceEditMode && element.get('spSkipRangeMin').value">{{ element.get('spSkipRangeMin').value }}</p>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="spSkipRangeMax">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Skip Range Max</th>
+        <td mat-cell *matCellDef="let element">
+          <div *ngIf="isSequenceEditMode">
+            <input
+              matInput
+              class="name_input"
+              type="text"
+              [formControl]="element.get('spSkipRangeMax')"
+              matTooltip="Should be a number and both min and max must be set or neither"
+              [matTooltipDisabled]="!element.get('spSkipRangeMax')?.hasError('pattern')" />
+          </div>
+          <p *ngIf="!isSequenceEditMode && element.get('spSkipRangeMax').value">{{ element.get('spSkipRangeMax').value }}</p>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="spStartWithCounter">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Start With Counter</th>
+        <td mat-cell *matCellDef="let element">
+          <div *ngIf="isSequenceEditMode">
+            <input
+              matInput
+              class="name_input"
+              type="text"
+              [formControl]="element.get('spStartWithCounter')"
+              matTooltip="Should be a number"
+              [matTooltipDisabled]="!element.get('spStartWithCounter')?.hasError('pattern')" />
+          </div>
+          <p *ngIf="!isSequenceEditMode && element.get('spStartWithCounter').value">{{ element.get('spStartWithCounter').value }}</p>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="['srcDatabase', 'spDatabase']"></tr>
+      <tr mat-header-row *matHeaderRowDef="sequenceDisplayedColumns"></tr>
+      <tr mat-row class="sequence-data-row" *matRowDef="let row; columns: sequenceDisplayedColumns"></tr>
+    </table>
+    <!-- <div [formGroup]="addIndexKeyForm" *ngIf="isIndexEditMode && indexColumnNames.length > 0"
+      class="add-index-column-container">
+      <mat-form-field appearance="outline" class="index-column-list">
+        <mat-label>Column Name</mat-label>
+        <mat-select matSelect class="input-field" formControlName="columnName">
+          <mat-option *ngFor="let column of indexColumnNames" [value]="column">{{
+            column
+            }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="index-column-order">
+        <mat-label>Sort By</mat-label>
+        <mat-select matSelect class="input-field" formControlName="ascOrDesc">
+          <mat-option value="asc">Ascending</mat-option>
+          <mat-option value="desc">Descending</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <button mat-raised-button color="primary" type="submit" [disabled]="!addIndexKeyForm.valid"
+        (click)="addIndexKey()">
+        <mat-icon>add</mat-icon>
+        <span> ADD COLUMN</span>
+      </button>
+    </div> -->
+  </div>
   <div class="save-edits">
     <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode"></mat-divider>
 

@@ -4,6 +4,7 @@ import { MatDialogRef} from '@angular/material/dialog';
 import ICreateSequence from 'src/app/model/auto-gen';
 import { DataService } from 'src/app/services/data/data.service';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
+import { linkedFieldsValidator } from 'src/app/utils/utils';
 @Component({
   selector: 'app-add-new-sequence',
   templateUrl: './add-new-sequence.component.html',
@@ -25,7 +26,7 @@ export class AddNewSequenceComponent implements OnInit {
       skipRangeMin: ['', Validators.pattern('^[0-9]+$')],
       skipRangeMax: ['', Validators.pattern('^[0-9]+$')],
       startWithCounter: ['', Validators.pattern('^[0-9]+$')],
-    }, { validator: this.linkedFieldsValidator('skipRangeMin', 'skipRangeMax') })
+    }, { validator: linkedFieldsValidator('skipRangeMin', 'skipRangeMax') })
     this.fetchSerice.getSequenceKind().subscribe(
       (sequenceKinds: any) => {
         this.sequenceKinds = sequenceKinds;
@@ -46,22 +47,5 @@ export class AddNewSequenceComponent implements OnInit {
     }
     this.dataService.addSequence(payload)
     this.dialogRef.close()
-  }
-
-  linkedFieldsValidator(skipRangeMin: string, skipRangeMax: string) {
-    return (formGroup: FormGroup): { [key: string]: any } | null => {
-      const min = formGroup.get(skipRangeMin);
-      const max = formGroup.get(skipRangeMax);
-  
-      if (!min || !max) {
-        return null;
-      }
-      if (min.value && !max.value) {
-        return { linkedError: 'Both Skip Range Min and Max are required' };
-      } else if (!min.value && max.value) {
-        return { linkedError: 'Both Skip Range Min and Max are required' };
-      }
-      return null;
-    };
   }
 }

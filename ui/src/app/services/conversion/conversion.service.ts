@@ -9,7 +9,7 @@ import IConv, {
   ISrcIndexKey,
   IColumnDef,
 } from '../../model/conv'
-import IColumnTabData, { IIndexData } from '../../model/edit-table'
+import IColumnTabData, { IIndexData, ISequenceData } from '../../model/edit-table'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import { ColLength, Dialect, ObjectExplorerNodeType } from 'src/app/app.constants'
 import { BehaviorSubject } from 'rxjs'
@@ -52,10 +52,17 @@ export class ConversionService {
       conv.SpSchema[tableId].Name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
     )
 
+    console.log("table ids")
+    console.log(spannerTableIds)
+
+    console.log(conv.SpSchema)
     let spannerSequenceIds = Object.keys(conv.SpSequences).filter((seqId: string) =>
       conv.SpSequences[seqId].Name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
     )
 
+
+    console.log("seq ids")
+    console.log(spannerSequenceIds)
     let deletedTableIds = Object.keys(conv.SrcSchema).filter((tableId: string) => {
       return (
         spannerTableIds.indexOf(tableId) == -1 &&
@@ -165,7 +172,7 @@ export class ConversionService {
         return {
           name: spannerSequence.Name,
           status: '',
-          type: ObjectExplorerNodeType.Sequences,
+          type: ObjectExplorerNodeType.Sequence,
           parent: '',
           pos: -1,
           isSpannerNode: true,
@@ -442,6 +449,21 @@ export class ConversionService {
     return indexData
   }
 
+  getSequenceMapping(seqId: string, data: IConv): ISequenceData {
+    let srcSequence = null
+    let spSequenceName = this.getSpannerSequenceNameFromId(seqId, data)
+    let sequence: ISequenceData = {}
+    if (spSequenceName != null) {
+      let spSequence = data.SpSequences[seqId]
+      sequence.spName = spSequence.Name
+      sequence.spSequenceKind = spSequence.SequenceKind
+      sequence.spSkipRangeMax = spSequence.SkipRangeMax
+      sequence.spSkipRangeMin = spSequence.SkipRangeMin
+      sequence.spStartWithCounter = spSequence.StartWithCounter
+    }
+    return sequence
+  }
+
   getSpannerFkFromId(conv: IConv, tableId: string, srcFkId: string): IForeignKey | null {
     let spFk: IForeignKey | null = null
     conv.SpSchema[tableId]?.ForeignKeys?.forEach((fk: IForeignKey) => {
@@ -470,6 +492,19 @@ export class ConversionService {
       }
     })
     return spIndex
+  }
+
+  getSpannerSequenceNameFromId(id: string, conv: IConv): string | null {
+    console.log(conv.SpSequences)
+    let spSeqName: string | null = null
+    Object.keys(conv.SpSequences).forEach((key: string) => {
+      if (conv.SpSequences[key].Id === id) {
+        console.log("Here@1")
+        console.log(conv.SpSequences[key].Name)
+        spSeqName = conv.SpSequences[key].Name
+      }
+    })
+    return spSeqName
   }
 
   getSpannerIndexKeyFromColId(
