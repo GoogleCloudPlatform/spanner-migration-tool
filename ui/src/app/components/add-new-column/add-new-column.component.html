@@ -21,7 +21,7 @@
             </mat-form-field>
             <br>
         </div>
-        <div *ngIf="selectedDatatype != '' && autoGenMap[selectedDatatype].length > 1 && srcDbName == 'MySQL'">
+        <div *ngIf="selectedDatatype != '' && autoGenMap[selectedDatatype].length > 1 && autGenSupported">
             <mat-form-field class="full-width" appearance="outline">
                 <mat-label>Auto Generated</mat-label>
                 <mat-select [(ngModel)]="selectedAutoGen" class="input-field" formControlName="autoGen">

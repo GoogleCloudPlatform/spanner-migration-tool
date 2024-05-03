@@ -50,7 +50,7 @@ export class ObjectDetailComponent implements OnInit {
   @Input() tableData: IColumnTabData[] = []
   @Input() currentDatabase: string = 'spanner'
   @Input() indexData: IIndexData[] = []
-  @Input() srcDbName: String = localStorage.getItem(StorageKeys.SourceDbName) as string
+  @Input() srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   @Output() updateSidebar = new EventEmitter<boolean>()
   ObjectExplorerNodeType = ObjectExplorerNodeType
   conv: IConv = {} as IConv
@@ -62,6 +62,8 @@ export class ObjectDetailComponent implements OnInit {
   isMiddleColumnCollapse: boolean = false
   isPostgreSQLDialect: boolean = false
   processedAutoGenMap: GroupedAutoGens = {};
+  autoGenSupportedDbs: string[] = ['MySQL']
+  autGenSupported: boolean = false
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
@@ -69,6 +71,7 @@ export class ObjectDetailComponent implements OnInit {
         this.isPostgreSQLDialect = this.conv.SpDialect === Dialect.PostgreSQLDialect
       },
     })
+    this.autGenSupported = this.autoGenSupportedDbs.includes(this.srcDbName)
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
@@ -171,9 +174,9 @@ export class ObjectDetailComponent implements OnInit {
     this.localTableData = JSON.parse(JSON.stringify(this.tableData))
     this.localIndexData = JSON.parse(JSON.stringify(this.indexData))
 
-    if(this.srcDbName == SourceDbNames.MySQL && this.spColspan<7) {
-      this.spDisplayedColumns.splice(2, 0, "spAutoGen")
-      this.spColspan++
+    if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
+      this.spDisplayedColumns.splice(2, 0, "spAutoGen");
+      this.spColspan++;
     }
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {

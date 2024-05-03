@@ -27,7 +27,9 @@ export class AddNewColumnComponent implements OnInit {
     GenerationType: ''
   }
   processedAutoGenMap: GroupedAutoGens = {};
-  srcDbName: String = localStorage.getItem(StorageKeys.SourceDbName) as string
+  srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
+  autoGenSupportedDbs: string[] = ['MySQL']
+  autGenSupported: boolean = false
   constructor(
     private formBuilder: FormBuilder,
     private dataService: DataService,
@@ -52,6 +54,7 @@ export class AddNewColumnComponent implements OnInit {
         this.processedAutoGenMap = processAutoGens(this.autoGenMap)
       }
     );
+    this.autGenSupported = this.autoGenSupportedDbs.includes(this.srcDbName)
   }
 
 

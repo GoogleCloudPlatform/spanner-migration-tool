@@ -224,7 +224,7 @@
               </td>
             </ng-container>
 
-            <ng-container matColumnDef="spAutoGen" *ngIf="srcDbName == 'MySQL'">
+            <ng-container matColumnDef="spAutoGen" *ngIf="autGenSupported">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
               <td mat-cell *matCellDef="let element; let i = index">
                 <div class="sp-autogen-data-cells">
