@@ -88,7 +88,7 @@ export class DataService {
   }
 
   getSequenceDdl() {
-    this.fetch.getSequencetDdl().subscribe((res) => {
+    this.fetch.getSequenceDdl().subscribe((res) => {
       this.seqDdlSub.next(res)
     })
   }
@@ -191,7 +191,7 @@ export class DataService {
       defaultTypeMap: this.fetch.getSpannerDefaultTypeMap(),
       summary: this.fetch.getSummary(),
       ddl: this.fetch.getDdl(),
-      seqDdl: this.fetch.getSequencetDdl(),
+      seqDdl: this.fetch.getSequenceDdl(),
       autoGenMap: this.fetch.getAutoGenMap()
     })
       .pipe(
@@ -501,6 +501,25 @@ export class DataService {
         } else {
           this.convSubject.next(data)
           this.getDdl()
+          return ''
+        }
+      })
+    )
+  }
+
+  updateSequence(payload: ICreateSequence) {
+    return this.fetch.updateSequence(payload).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data: any) => {
+        if (data.error) {
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.getSequenceDdl()
+          this.notifyTreeUpdate();
           return ''
         }
       })

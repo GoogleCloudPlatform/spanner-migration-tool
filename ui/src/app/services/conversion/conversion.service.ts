@@ -52,17 +52,10 @@ export class ConversionService {
       conv.SpSchema[tableId].Name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
     )
 
-    console.log("table ids")
-    console.log(spannerTableIds)
-
-    console.log(conv.SpSchema)
     let spannerSequenceIds = Object.keys(conv.SpSequences).filter((seqId: string) =>
       conv.SpSequences[seqId].Name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
     )
 
-
-    console.log("seq ids")
-    console.log(spannerSequenceIds)
     let deletedTableIds = Object.keys(conv.SrcSchema).filter((tableId: string) => {
       return (
         spannerTableIds.indexOf(tableId) == -1 &&
@@ -119,11 +112,6 @@ export class ConversionService {
           ],
         }
       }),
-    }
-    if (sortOrder === 'asc' || sortOrder === '') {
-      parentNode.children?.sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
-    } else if (sortOrder === 'desc') {
-      parentNode.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
     }
 
     deletedTableIds.forEach((tableId: string) => {
@@ -182,6 +170,15 @@ export class ConversionService {
         }
       }),
     }
+
+    if (sortOrder === 'asc' || sortOrder === '') {
+      parentNode.children?.sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
+      sequenceNode.children?.sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
+    } else if (sortOrder === 'desc') {
+      parentNode.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
+      sequenceNode.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
+    }
+
     return [
       {
         name: conv.DatabaseName,
@@ -455,7 +452,7 @@ export class ConversionService {
     let sequence: ISequenceData = {}
     if (spSequenceName != null) {
       let spSequence = data.SpSequences[seqId]
-      sequence.spName = spSequence.Name
+      sequence.spSeqName = spSequence.Name
       sequence.spSequenceKind = spSequence.SequenceKind
       sequence.spSkipRangeMax = spSequence.SkipRangeMax
       sequence.spSkipRangeMin = spSequence.SkipRangeMin
@@ -495,12 +492,9 @@ export class ConversionService {
   }
 
   getSpannerSequenceNameFromId(id: string, conv: IConv): string | null {
-    console.log(conv.SpSequences)
     let spSeqName: string | null = null
     Object.keys(conv.SpSequences).forEach((key: string) => {
       if (conv.SpSequences[key].Id === id) {
-        console.log("Here@1")
-        console.log(conv.SpSequences[key].Name)
         spSeqName = conv.SpSequences[key].Name
       }
     })

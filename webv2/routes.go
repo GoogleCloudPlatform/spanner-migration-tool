@@ -72,6 +72,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/drop/tables", api.DropTables).Methods("POST")
 
 	router.HandleFunc("/drop/sequence", api.DropSequence).Methods("POST")
+	router.HandleFunc("/UpdateSequence", api.UpdateSequence).Methods("POST")
 
 	router.HandleFunc("/update/fks", api.UpdateForeignKeys).Methods("POST")
 	router.HandleFunc("/update/indexes", api.UpdateIndexes).Methods("POST")

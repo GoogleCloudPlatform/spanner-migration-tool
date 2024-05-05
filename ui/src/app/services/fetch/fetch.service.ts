@@ -18,7 +18,7 @@ import IMigrationDetails, { IGeneratedResources, IProgress, ITables } from 'src/
 import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IDatastreamConfig, IGcsConfig, IMigrationProfile } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
 import IStructuredReport from 'src/app/model/structured-report'
-import IAddSequence from 'src/app/model/auto-gen'
+import ICreateSequence from 'src/app/model/auto-gen'
 
 @Injectable({
   providedIn: 'root',
@@ -164,7 +164,7 @@ export class FetchService {
     return this.http.get(`${this.url}/ddl`)
   }
 
-  getSequencetDdl() {
+  getSequenceDdl() {
     return this.http.get(`${this.url}/seqDdl`)
   }
 
@@ -226,7 +226,7 @@ export class FetchService {
     return this.http.post(`${this.url}/AddColumn?table=${tableId}`, payload)
   }
 
-  addSequence(payload: IAddSequence) {
+  addSequence(payload: ICreateSequence) {
     return this.http.post(`${this.url}/AddSequence`, payload)
   }
 
@@ -272,6 +272,10 @@ export class FetchService {
 
   updateIndex(tableId: string, payload: ICreateIndex[]) {
     return this.http.post<IConv>(`${this.url}/update/indexes?table=${tableId}`, payload)
+  }
+
+  updateSequence(payload: ICreateSequence) {
+    return this.http.post<IConv>(`${this.url}/UpdateSequence`, payload)
   }
 
   dropIndex(tableId: string, indexName: string) {

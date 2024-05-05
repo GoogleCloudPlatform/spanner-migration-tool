@@ -225,9 +225,6 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     } else if (object.type === ObjectExplorerNodeType.Sequence) {
       this.currentObject = object
       this.sequenceData = this.conversion.getSequenceMapping(object.id, this.conv)
-      console.log("Setting Sequence data")
-      console.log(this.sequenceData)
-      console.log(object.id)
     }
     else {
       this.currentObject = null

@@ -33,7 +33,7 @@ export interface IIndexData {
 }
 
 export interface ISequenceData {
-  spName?: string | undefined
+  spSeqName?: string | undefined
   spSequenceKind?: string | undefined
   spSkipRangeMin?: string | undefined
   spSkipRangeMax?: string | undefined

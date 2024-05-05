@@ -83,6 +83,7 @@ func UpdateSequence(w http.ResponseWriter, r *http.Request) {
 	for i, seq := range spSequences {
 
 		if seq.Id == newSeq.Id {
+			newSeq.ColumnsUsingSeq = spSequences[i].ColumnsUsingSeq
 			spSequences[i] = newSeq
 			break
 		}

@@ -25,6 +25,8 @@ import { AddNewColumnComponent } from '../add-new-column/add-new-column.componen
 import { GroupedAutoGens, processAutoGens } from 'src/app/utils/utils'
 import { AddNewSequenceComponent } from '../add-new-sequence/add-new-sequence.component'
 import { linkedFieldsValidator } from 'src/app/utils/utils';
+import { FetchService } from 'src/app/services/fetch/fetch.service'
+import ICreateSequence from 'src/app/model/auto-gen'
 
 @Component({
   selector: 'app-object-detail',
@@ -41,6 +43,7 @@ export class ObjectDetailComponent implements OnInit {
     private sidenav: SidenavService,
     private tableUpdatePubSub: TableUpdatePubSubService,
     private fb: FormBuilder,
+    private fetchSerice: FetchService,
   ) { }
 
   @Input() currentObject: FlatNode | null = null
@@ -66,6 +69,7 @@ export class ObjectDetailComponent implements OnInit {
   isMiddleColumnCollapse: boolean = false
   isPostgreSQLDialect: boolean = false
   processedAutoGenMap: GroupedAutoGens = {};
+  sequenceKinds: string[] = []
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
@@ -170,10 +174,8 @@ export class ObjectDetailComponent implements OnInit {
     this.tableData = changes['tableData']?.currentValue || this.tableData
     this.indexData = changes['indexData']?.currentValue || this.indexData
     this.sequenceData = changes['sequenceData']?.currentValue || this.sequenceData
-    console.log("in details sequence data")
-    console.log(this.sequenceData)
     this.currentDatabase = changes['currentDatabase']?.currentValue || this.currentDatabase
-    this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Index ? -1 : 0
+    this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Index || this.currentObject?.type === ObjectExplorerNodeType.Sequence? -1 : 0
     this.isObjectSelected = this.currentObject ? true : false
     this.pkData = this.conversion.getPkMapping(this.tableData)
     this.interleaveParentName = this.getInterleaveParentFromConv()
@@ -193,8 +195,6 @@ export class ObjectDetailComponent implements OnInit {
     this.localTableData = JSON.parse(JSON.stringify(this.tableData))
     this.localIndexData = JSON.parse(JSON.stringify(this.indexData))
     this.localSequenceData = JSON.parse(JSON.stringify(this.sequenceData))
-    console.log("in details local sequence data")
-    console.log(this.localSequenceData)
 
     if(this.srcDbName == SourceDbNames.MySQL && this.spColspan<7) {
       this.spDisplayedColumns.splice(2, 0, "spAutoGen")
@@ -222,7 +222,12 @@ export class ObjectDetailComponent implements OnInit {
       this.indexOrderValidation()
       this.setIndexRows()
     } else if (this.currentObject?.type === ObjectExplorerNodeType.Sequence) {
-      this.setSequenceRows()
+      this.setSequence()
+      this.fetchSerice.getSequenceKind().subscribe(
+        (sequenceKinds: any) => {
+          this.sequenceKinds = sequenceKinds;
+        }
+      );
     }
 
     this.data.getSummary()
@@ -1221,7 +1226,7 @@ export class ObjectDetailComponent implements OnInit {
     }
   }
 
-  setSequenceRows() {
+  setSequence() {
     this.spRowArray = this.fb.array([])
     this.spRowArray.push(
       new FormGroup({
@@ -1230,7 +1235,7 @@ export class ObjectDetailComponent implements OnInit {
         srcSkipRangeMin: new FormControl(this.localSequenceData.srcSkipRangeMin),
         srcSkipRangeMax: new FormControl(this.localSequenceData.srcSkipRangeMax),
         srcStartWithCounter: new FormControl(this.localSequenceData.srcStartWithCounter),
-        spSeqName: new FormControl(this.localSequenceData.spName, [
+        spSeqName: new FormControl(this.localSequenceData.spSeqName, [
             Validators.required,
             Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?')
         ]),
@@ -1241,9 +1246,6 @@ export class ObjectDetailComponent implements OnInit {
     }, { validators: linkedFieldsValidator('spSkipRangeMin', 'spSkipRangeMax') })
     )
     this.spDataSource = this.spRowArray.controls
-    console.log("spDataSource")
-    console.log(this.spDataSource)
-    console.log(this.localSequenceData)
   }
 
   toggleIndexEdit() {
@@ -1259,7 +1261,7 @@ export class ObjectDetailComponent implements OnInit {
   toggleSequenceEdit() {
     if (this.isSequenceEditMode) {
       this.localSequenceData = JSON.parse(JSON.stringify(this.sequenceData))
-      this.setSequenceRows()
+      this.setSequence()
       this.isSequenceEditMode = false
     } else {
       this.isSequenceEditMode = true
@@ -1311,6 +1313,22 @@ export class ObjectDetailComponent implements OnInit {
       this.data.getSummary()
       this.isIndexEditMode = false
     }
+  }
+
+  saveSequence() {
+    this.spRowArray.value.forEach((seqData: ISequenceData) => {
+      let payload : ICreateSequence = {
+        Name: seqData.spSeqName ? seqData.spSeqName: '',
+        Id: this.currentObject!.id,
+        SequenceKind: seqData.spSequenceKind ? seqData.spSequenceKind : '',
+        SkipRangeMax: seqData.spSkipRangeMax ? seqData.spSkipRangeMax : '',
+        SkipRangeMin: seqData.spSkipRangeMin ? seqData.spSkipRangeMin : '',
+        StartWithCounter: seqData.spStartWithCounter ? seqData.spStartWithCounter : ''
+      }
+      this.data.updateSequence(payload).pipe(take(1))
+      .subscribe(() => {})
+    })
+    this.isSequenceEditMode = false
   }
 
   dropIndex() {
