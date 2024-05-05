@@ -123,8 +123,8 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 			UpdateColumnSize(v.MaxColLength, tableId, colId, conv)
 		}
 		if !v.Removed {
-			UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
-			//conv.SpSequences = sequences
+			sequences := UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
+			conv.SpSequences = sequences
 		}
 	}
 

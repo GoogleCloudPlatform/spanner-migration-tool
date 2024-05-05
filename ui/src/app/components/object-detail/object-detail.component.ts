@@ -22,11 +22,12 @@ import { DropObjectDetailDialogComponent } from '../drop-object-detail-dialog/dr
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
 import { AddNewColumnComponent } from '../add-new-column/add-new-column.component'
-import { GroupedAutoGens, processAutoGens } from 'src/app/utils/utils'
+import { GroupedAutoGens, extractSourceDbName, processAutoGens } from 'src/app/utils/utils'
 import { AddNewSequenceComponent } from '../add-new-sequence/add-new-sequence.component'
 import { linkedFieldsValidator } from 'src/app/utils/utils';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ICreateSequence from 'src/app/model/auto-gen'
+import { autoGenSupportedDbs } from 'src/app/app.constants'
 
 @Component({
   selector: 'app-object-detail',
@@ -70,8 +71,7 @@ export class ObjectDetailComponent implements OnInit {
   isPostgreSQLDialect: boolean = false
   processedAutoGenMap: GroupedAutoGens = {};
   sequenceKinds: string[] = []
-  autoGenSupportedDbs: string[] = ['MySQL']
-  autGenSupported: boolean = false
+  autoGenSupported: boolean = false
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
@@ -79,7 +79,10 @@ export class ObjectDetailComponent implements OnInit {
         this.isPostgreSQLDialect = this.conv.SpDialect === Dialect.PostgreSQLDialect
       },
     })
-    this.autGenSupported = this.autoGenSupportedDbs.includes(this.srcDbName)
+    if (this.conv.DatabaseType) {
+      this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
+    }
+    this.autoGenSupported = autoGenSupportedDbs.includes(this.srcDbName)
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
@@ -201,6 +204,7 @@ export class ObjectDetailComponent implements OnInit {
 
     if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
       this.spDisplayedColumns.splice(2, 0, "spAutoGen");
+      this.displayedPkColumns.splice(8, 0, "spAutoGen");
       this.spColspan++;
     }
 
@@ -703,7 +707,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(spArr[i].spIsPk),
             spIsNotNull: new FormControl(spArr[i].spIsNotNull),
             spId: new FormControl(spArr[i].spId),
-            spAutoGenGen: new FormControl(spArr[i].spAutoGen)
+            spAutoGen: new FormControl(spArr[i].spAutoGen)
           })
         )
       }

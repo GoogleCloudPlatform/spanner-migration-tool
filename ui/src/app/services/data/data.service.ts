@@ -560,6 +560,7 @@ export class DataService {
         } else {
           this.convSubject.next(data)
           this.getDdl()
+          this.getAutoGenMap()
           this.notifyTreeUpdate();
           this.snackbar.openSnackBar('Sequence Deleted successfully', 'Close', 5)
           return ''

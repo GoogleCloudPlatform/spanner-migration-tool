@@ -184,7 +184,7 @@
                       ADD COLUMN
                     </button>
                   </div>
-                  <div *ngIf="!isEditMode && !currentObject.isDeleted">
+                  <div *ngIf="!isEditMode && !currentObject.isDeleted && autoGenSupported">
                     <button mat-stroked-button color="primary" (click)="addNewSequence()"
                       *ngIf="currentObject!.isSpannerNode">
                       <mat-icon class="edit-icon">edit</mat-icon>
@@ -239,7 +239,7 @@
               </td>
             </ng-container>
 
-            <ng-container matColumnDef="spAutoGen" *ngIf="autGenSupported">
+            <ng-container matColumnDef="spAutoGen" *ngIf="autoGenSupported">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
               <td mat-cell *matCellDef="let element; let i = index">
                 <div class="sp-autogen-data-cells">
@@ -465,6 +465,13 @@
                   [matTooltip]="spTableSuggestion[i]" matTooltipPosition="above">warning</span>
                 <p>{{ element.get('spDataType').value }}</p>
               </div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="spAutoGen" *ngIf="autoGenSupported">
+            <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
+            <td mat-cell *matCellDef="let element">
+              <p>{{ element.get('spAutoGen').value.Name !== '' ? element.get('spAutoGen').value.Name : 'None' }}</p>
             </td>
           </ng-container>
 
@@ -809,7 +816,7 @@
     </div>
   </div>
 
-  <div *ngIf="currentObject!.type === 'sequenceName'" class="sequence-tab-container">
+  <div *ngIf="currentObject!.type === 'sequenceName' && autoGenSupported" class="sequence-tab-container">
     <table mat-table [dataSource]="spDataSource">
       <ng-container matColumnDef="srcDatabase">
         <th mat-header-cell class="db_name" *matHeaderCellDef colspan="5">{{ srcDbName }}</th>

@@ -100,7 +100,7 @@ func UpdateSequence(w http.ResponseWriter, r *http.Request) {
 }
 
 func DropSequence(w http.ResponseWriter, r *http.Request) {
-	sequenceName := r.FormValue("sequence")
+	sequenceId := r.FormValue("sequence")
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
@@ -111,21 +111,22 @@ func DropSequence(w http.ResponseWriter, r *http.Request) {
 	}
 
 	spSequence := sessionState.Conv.SpSequences
-	if sequenceName == "" {
+	if sequenceId == "" {
 		http.Error(w, "Sequence name is empty", http.StatusBadRequest)
 	}
 
-	if _, seqExists := spSequence[sequenceName]; !seqExists {
+	if _, seqExists := spSequence[sequenceId]; !seqExists {
 		http.Error(w, "Sequence doesn't exist", http.StatusBadRequest)
 	}
 
-	updatedTables := dropSequenceHelper(spSequence[sequenceName].ColumnsUsingSeq, sessionState.Conv.SpSchema)
+	updatedTables := dropSequenceHelper(spSequence[sequenceId].ColumnsUsingSeq, sessionState.Conv.SpSchema)
 	sessionState.Conv.SpSchema = updatedTables
 
+	sequenceName := GetSequenceName(sequenceId, spSequence)
 	usedNames := sessionState.Conv.UsedNames
 	delete(usedNames, sequenceName)
 
-	delete(spSequence, sequenceName)
+	delete(spSequence, sequenceId)
 	sessionState.Conv.SpSequences = spSequence
 
 	convm := session.ConvWithMetadata{
@@ -173,4 +174,13 @@ func GetSequenceKind(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sequenceKind)
+}
+
+func GetSequenceName(sequenceId string, spSequences map[string]ddl.Sequence) string {
+	for seqId, seq := range spSequences {
+		if seqId == sequenceId {
+			return seq.Name
+		}
+	}
+	return ""
 }

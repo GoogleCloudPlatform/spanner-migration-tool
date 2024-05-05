@@ -149,8 +149,8 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !v.Removed {
-			UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
-			//conv.SpSequences = sequences
+			sequences := UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
+			conv.SpSequences = sequences
 		}
 	}
 

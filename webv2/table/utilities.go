@@ -256,12 +256,14 @@ func UpdateAutoGenCol(autoGen ddl.AutoGenCol, tableId, colId string, conv *inter
 	sequences := conv.SpSequences
 	spColDef := sp.ColDefs[colId]
 	if spColDef.AutoGen.GenerationType == constants.SEQUENCE {
-		sequences = deleteColumnFromSequence(spColDef.AutoGen, tableId, colId, sequences)
+		seqId := GetSequenceId(spColDef.AutoGen.Name, conv)
+		sequences = deleteColumnFromSequence(seqId, tableId, colId, sequences)
 	}
 	spColDef.AutoGen = autoGen
 	sp.ColDefs[colId] = spColDef
 	if autoGen.GenerationType == constants.SEQUENCE {
-		sequences = addColumnToSequence(autoGen, tableId, colId, sequences)
+		seqId := GetSequenceId(autoGen.Name, conv)
+		sequences = addColumnToSequence(seqId, tableId, colId, sequences)
 	}
 	conv.SpSchema[tableId] = sp
 	return sequences
@@ -285,12 +287,12 @@ func isColFistOderPk(pks []ddl.IndexKey, colId string) bool {
 	return false
 }
 
-func deleteColumnFromSequence(autoGen ddl.AutoGenCol, tableId, colId string, sequences map[string]ddl.Sequence) map[string]ddl.Sequence {
-	if _, ok := sequences[autoGen.Name].ColumnsUsingSeq[tableId]; ok {
-		cols := sequences[autoGen.Name].ColumnsUsingSeq[tableId]
+func deleteColumnFromSequence(sequenceId string, tableId, colId string, sequences map[string]ddl.Sequence) map[string]ddl.Sequence {
+	if _, ok := sequences[sequenceId].ColumnsUsingSeq[tableId]; ok {
+		cols := sequences[sequenceId].ColumnsUsingSeq[tableId]
 		for i, col := range cols {
 			if col == colId {
-				sequences[autoGen.Name].ColumnsUsingSeq[tableId] = append(cols[:i], cols[i+1:]...)
+				sequences[sequenceId].ColumnsUsingSeq[tableId] = append(cols[:i], cols[i+1:]...)
 				return sequences
 			}
 		}
@@ -298,9 +300,9 @@ func deleteColumnFromSequence(autoGen ddl.AutoGenCol, tableId, colId string, seq
 	return sequences
 }
 
-func addColumnToSequence(autoGen ddl.AutoGenCol, tableId, colId string, sequences map[string]ddl.Sequence) map[string]ddl.Sequence {
-	if _, ok := sequences[autoGen.Name].ColumnsUsingSeq[tableId]; ok {
-		cols := sequences[autoGen.Name].ColumnsUsingSeq[tableId]
+func addColumnToSequence(sequenceId string, tableId, colId string, sequences map[string]ddl.Sequence) map[string]ddl.Sequence {
+	if _, ok := sequences[sequenceId].ColumnsUsingSeq[tableId]; ok {
+		cols := sequences[sequenceId].ColumnsUsingSeq[tableId]
 		found := false
 		for _, c := range cols {
 			if c == colId {
@@ -310,17 +312,26 @@ func addColumnToSequence(autoGen ddl.AutoGenCol, tableId, colId string, sequence
 			}
 		}
 		if !found {
-			sequences[autoGen.Name].ColumnsUsingSeq[tableId] = append(cols, colId)
+			sequences[sequenceId].ColumnsUsingSeq[tableId] = append(cols, colId)
 			return sequences
 		}
 	} else {
 		cols := []string{colId}
-		seq := sequences[autoGen.Name]
+		seq := sequences[sequenceId]
 		if seq.ColumnsUsingSeq == nil {
 			seq.ColumnsUsingSeq = make(map[string][]string)
 		}
 		seq.ColumnsUsingSeq[tableId] = cols
-		sequences[autoGen.Name] = seq
+		sequences[sequenceId] = seq
 	}
 	return sequences
+}
+
+func GetSequenceId(sequenceName string, conv *internal.Conv) string {
+	for seqId, seq := range conv.SpSequences {
+		if seq.Name == sequenceName {
+			return seqId
+		}
+	}
+	return ""
 }

@@ -11,9 +11,10 @@ import IConv, {
 } from '../../model/conv'
 import IColumnTabData, { IIndexData, ISequenceData } from '../../model/edit-table'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ColLength, Dialect, ObjectExplorerNodeType } from 'src/app/app.constants'
+import { ColLength, Dialect, ObjectExplorerNodeType, StorageKeys, autoGenSupportedDbs } from 'src/app/app.constants'
 import { BehaviorSubject } from 'rxjs'
 import { FetchService } from '../fetch/fetch.service'
+import { extractSourceDbName } from 'src/app/utils/utils'
 
 @Injectable({
   providedIn: 'root',
@@ -25,6 +26,7 @@ export class ConversionService {
 
   standardTypeToPGSQLTypeMap = this.standardTypeToPGSQLTypeMapSub.asObservable()
   pgSQLToStandardTypeTypeMap = this.pgSQLToStandardTypeTypeMapSub.asObservable()
+  srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
 
   getStandardTypeToPGSQLTypemap() {
     return this.fetch.getStandardTypeToPGSQLTypemap().subscribe({
@@ -48,6 +50,9 @@ export class ConversionService {
     searchText: string = '',
     sortOrder: string = ''
   ): ISchemaObjectNode[] {
+    if (conv.DatabaseType) {
+      this.srcDbName = extractSourceDbName(conv.DatabaseType)
+    }
     let spannerTableIds = Object.keys(conv.SpSchema).filter((tableId: string) =>
       conv.SpSchema[tableId].Name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
     )
@@ -179,10 +184,17 @@ export class ConversionService {
       sequenceNode.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
     }
 
+    console.log(sequenceNode)
+    let mainNodeChildren :ISchemaObjectNode[] = [parentNode]
+    if (autoGenSupportedDbs.includes(this.srcDbName)) {
+      console.log("#1")
+      mainNodeChildren.push(sequenceNode)
+    }
+    console.log(mainNodeChildren)
     return [
       {
         name: conv.DatabaseName,
-        children: [parentNode, sequenceNode],
+        children: mainNodeChildren,
         type: ObjectExplorerNodeType.DbName,
         parent: '',
         pos: -1,

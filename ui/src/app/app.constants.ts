@@ -153,3 +153,5 @@ export enum PersistedFormValues {
     DirectConnectForm = 'directConnectForm',
     IsConnectionSuccessful = 'isConnectionSuccessful'
 }
+
+export const autoGenSupportedDbs: string[] = ['MySQL']
