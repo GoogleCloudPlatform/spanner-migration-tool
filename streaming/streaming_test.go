@@ -423,3 +423,11 @@ func assertEqualPostgresqlSourceConfig(t *testing.T, expected, actual *datastrea
 		assertEqualPostgresqlSchema(t, expected.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[i], actual.PostgresqlSourceConfig.IncludeObjects.PostgresqlSchemas[i])
 	}
 }
+
+func TestGetUpdateDataStreamLRORetryBackoff(t *testing.T) {
+	backoff := getUpdateDataStreamLRORetryBackoff()
+	assert.Equal(t, backoff.InitialInterval, DEFAULT_DATASTREAM_LRO_POLL_BASE_DELAY)
+	assert.Equal(t, backoff.Multiplier, DEFAULT_DATASTREAM_LRO_POLL_MULTIPLIER)
+	assert.Equal(t, backoff.MaxInterval, DEFAULT_DATASTREAM_LRO_POLL_MAX_DELAY)
+	assert.Equal(t, backoff.MaxElapsedTime, DEFAULT_DATASTREAM_LRO_POLL_MAX_ELAPSED_TIME)
+}

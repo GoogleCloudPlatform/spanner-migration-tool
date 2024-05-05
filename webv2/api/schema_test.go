@@ -1454,8 +1454,8 @@ func TestRestoreTable(t *testing.T) {
 			"t1": {
 				Name:   "tn1",
 				ColIds: []string{"c1", "c2"},
-				ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "cn1", T: ddl.Type{Name: "STRING", IsArray: false}, NotNull: true, Comment: "", Id: "c1", AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
-					"c2": {Name: "cn2", T: ddl.Type{Name: "STRING", IsArray: false}, NotNull: true, Comment: "", Id: "c2", AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
+				ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "cn1", T: ddl.Type{Name: "STRING", IsArray: false}, NotNull: true, Comment: "", Id: "c1", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
+					"c2": {Name: "cn2", T: ddl.Type{Name: "STRING", IsArray: false}, NotNull: true, Comment: "", Id: "c2", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
 				Id:          "t1",
@@ -1522,8 +1522,8 @@ func TestRestoreTable(t *testing.T) {
 			"t1": {
 				Name:   "tn1",
 				ColIds: []string{"c1", "c2"},
-				ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "cn1", T: ddl.Type{Name: "STRING", Len: 0, IsArray: false}, NotNull: true, Comment: "", Id: "c1", AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
-					"c2": {Name: "cn2", T: ddl.Type{Name: "STRING", Len: 0, IsArray: false}, NotNull: true, Comment: "", Id: "c2", AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
+				ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "cn1", T: ddl.Type{Name: "STRING", Len: 0, IsArray: false}, NotNull: true, Comment: "", Id: "c1", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
+					"c2": {Name: "cn2", T: ddl.Type{Name: "STRING", Len: 0, IsArray: false}, NotNull: true, Comment: "", Id: "c2", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
 				Id:          "t1",
@@ -1533,9 +1533,9 @@ func TestRestoreTable(t *testing.T) {
 				Name:   "tn2",
 				ColIds: []string{"c3", "c4", "c5"},
 				ColDefs: map[string]ddl.ColumnDef{
-					"c3": {Name: "cn3", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "From: cn3 varchar", Id: "c3", AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
-					"c4": {Name: "cn4", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "From: cn4 varchar", Id: "c4", AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
-					"c5": {Name: "cn5", T: ddl.Type{Name: "INT64", Len: 0, IsArray: false}, NotNull: false, Comment: "From: cn5 bigint", Id: "c5", AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}},
+					"c3": {Name: "cn3", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "From: cn3 varchar", Id: "c3", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
+					"c4": {Name: "cn4", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "From: cn4 varchar", Id: "c4", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
+					"c5": {Name: "cn5", T: ddl.Type{Name: "INT64", Len: 0, IsArray: false}, NotNull: false, Comment: "From: cn5 bigint", Id: "c5", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
 				Id:          "t2",
@@ -2325,28 +2325,28 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 	sessionState.Conv = internal.MakeConv()
 	buildConvMySQL(sessionState.Conv)
 	expectedAutoGenMapPostgres := map[string][]types.AutoGen{
-		"BOOL":        {types.AutoGen{Name: "None", Type: "None"}},
-		"BYTEA":       {types.AutoGen{Name: "None", Type: "None"}},
-		"DATE":        {types.AutoGen{Name: "None", Type: "None"}},
-		"FLOAT64":     {types.AutoGen{Name: "None", Type: "None"}},
-		"FLOAT8":      {types.AutoGen{Name: "None", Type: "None"}},
-		"INT64":       {types.AutoGen{Name: "None", Type: "None"}},
-		"INT8":        {types.AutoGen{Name: "None", Type: "None"}},
-		"JSONB":       {types.AutoGen{Name: "None", Type: "None"}},
-		"NUMERIC":     {types.AutoGen{Name: "None", Type: "None"}},
-		"TIMESTAMPTZ": {types.AutoGen{Name: "None", Type: "None"}},
-		"VARCHAR":     {types.AutoGen{Name: "None", Type: "None"}, types.AutoGen{Name: "UUID", Type: "Pre-defined"}}}
+		"BOOL":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"BYTEA":       {types.AutoGen{Name: "", GenerationType: ""}},
+		"DATE":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT64":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT8":      {types.AutoGen{Name: "", GenerationType: ""}},
+		"INT64":       {types.AutoGen{Name: "", GenerationType: ""}},
+		"INT8":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"JSONB":       {types.AutoGen{Name: "", GenerationType: ""}},
+		"NUMERIC":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"TIMESTAMPTZ": {types.AutoGen{Name: "", GenerationType: ""}},
+		"VARCHAR":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}}}
 
 	expectedAutoGenMapMySql := map[string][]types.AutoGen{
-		"BOOL":      {types.AutoGen{Name: "None", Type: "None"}},
-		"BYTES":     {types.AutoGen{Name: "None", Type: "None"}},
-		"DATE":      {types.AutoGen{Name: "None", Type: "None"}},
-		"FLOAT64":   {types.AutoGen{Name: "None", Type: "None"}},
-		"INT64":     {types.AutoGen{Name: "None", Type: "None"}},
-		"JSON":      {types.AutoGen{Name: "None", Type: "None"}},
-		"NUMERIC":   {types.AutoGen{Name: "None", Type: "None"}},
-		"STRING":    {types.AutoGen{Name: "None", Type: "None"}, types.AutoGen{Name: "UUID", Type: "Pre-defined"}},
-		"TIMESTAMP": {types.AutoGen{Name: "None", Type: "None"}}}
+		"BOOL":      {types.AutoGen{Name: "", GenerationType: ""}},
+		"BYTES":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"DATE":      {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT64":   {types.AutoGen{Name: "", GenerationType: ""}},
+		"INT64":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"JSON":      {types.AutoGen{Name: "", GenerationType: ""}},
+		"NUMERIC":   {types.AutoGen{Name: "", GenerationType: ""}},
+		"STRING":    {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}},
+		"TIMESTAMP": {types.AutoGen{Name: "", GenerationType: ""}}}
 	tests := []struct {
 		dialect            string
 		expectedAutoGenMap map[string][]types.AutoGen

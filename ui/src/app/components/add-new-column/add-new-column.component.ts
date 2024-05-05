@@ -23,11 +23,13 @@ export class AddNewColumnComponent implements OnInit {
   dataTypesWithColLen: string[] = ColLength.DataTypes
   autoGenMap : any = {}
   selectedAutoGen: AutoGen = {
-    Name: 'None',
-    Type: 'None'
+    Name: '',
+    GenerationType: ''
   }
   processedAutoGenMap: GroupedAutoGens = {};
-  srcDbName: String = localStorage.getItem(StorageKeys.SourceDbName) as string
+  srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
+  autoGenSupportedDbs: string[] = ['MySQL']
+  autGenSupported: boolean = false
   constructor(
     private formBuilder: FormBuilder,
     private dataService: DataService,
@@ -42,8 +44,8 @@ export class AddNewColumnComponent implements OnInit {
       length: ['',Validators.pattern('^[0-9]+$')],
       isNullable: [],
       autoGen: [{
-        Name: "None",
-        Type: "None"
+        Name: "",
+        GenerationType: ""
       }],
     })
     this.fetchSerice.getAutoGenMap().subscribe(
@@ -52,6 +54,7 @@ export class AddNewColumnComponent implements OnInit {
         this.processedAutoGenMap = processAutoGens(this.autoGenMap)
       }
     );
+    this.autGenSupported = this.autoGenSupportedDbs.includes(this.srcDbName)
   }
 
 

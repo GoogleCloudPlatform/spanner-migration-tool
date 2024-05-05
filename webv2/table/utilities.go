@@ -255,12 +255,12 @@ func UpdateAutoGenCol(autoGen ddl.AutoGenCol, tableId, colId string, conv *inter
 	sp := conv.SpSchema[tableId]
 	sequences := conv.SpSequences
 	spColDef := sp.ColDefs[colId]
-	if spColDef.AutoGen.Type == constants.SEQUENCE {
+	if spColDef.AutoGen.GenerationType == constants.SEQUENCE {
 		sequences = deleteColumnFromSequence(spColDef.AutoGen, tableId, colId, sequences)
 	}
 	spColDef.AutoGen = autoGen
 	sp.ColDefs[colId] = spColDef
-	if autoGen.Type == constants.SEQUENCE {
+	if autoGen.GenerationType == constants.SEQUENCE {
 		sequences = addColumnToSequence(autoGen, tableId, colId, sequences)
 	}
 	conv.SpSchema[tableId] = sp

@@ -311,8 +311,8 @@ export class ConversionService {
         spColMaxLength: spannerColDef?.T.Len != 0 ? (spannerColDef?.T.Len != spColMax ? spannerColDef?.T.Len: 'MAX') : '',
         srcColMaxLength: data.SrcSchema[tableId].ColDefs[colId].Type.Mods != null ? data.SrcSchema[tableId].ColDefs[colId].Type.Mods[0] : '',
         spAutoGen: spannerColDef?.AutoGen != null ? spannerColDef?.AutoGen : {
-          Name: 'None',
-          Type: 'None'
+          Name: '',
+          GenerationType: ''
         },
       }
     })

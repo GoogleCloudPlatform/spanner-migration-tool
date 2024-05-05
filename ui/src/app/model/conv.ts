@@ -172,7 +172,7 @@ export interface IPrimaryKey {
 
 export interface IAutoGen {
   Name: string
-  Type: string
+  GenerationType: string
 }
 
 export interface ISessionSummary {

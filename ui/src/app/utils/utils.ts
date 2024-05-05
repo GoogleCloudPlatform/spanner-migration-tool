@@ -37,7 +37,7 @@ export function downloadSession(conv: IConv) {
 
 export function groupAutoGenByType(autoGens: AutoGen[]): { [type: string]: AutoGen[] } {
   return autoGens.reduce((acc: { [type: string]: AutoGen[] }, autoGen: AutoGen) => {
-    const type = autoGen.Type;
+    const type = autoGen.GenerationType;
     if (!acc[type]) {
       acc[type] = [];
     }

@@ -56,7 +56,7 @@ export class ObjectDetailComponent implements OnInit {
   @Input() currentDatabase: string = 'spanner'
   @Input() indexData: IIndexData[] = []
   @Input() sequenceData: ISequenceData = {}
-  @Input() srcDbName: String = localStorage.getItem(StorageKeys.SourceDbName) as string
+  @Input() srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   @Output() updateSidebar = new EventEmitter<boolean>()
   ObjectExplorerNodeType = ObjectExplorerNodeType
   conv: IConv = {} as IConv
@@ -70,6 +70,8 @@ export class ObjectDetailComponent implements OnInit {
   isPostgreSQLDialect: boolean = false
   processedAutoGenMap: GroupedAutoGens = {};
   sequenceKinds: string[] = []
+  autoGenSupportedDbs: string[] = ['MySQL']
+  autGenSupported: boolean = false
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
@@ -77,6 +79,7 @@ export class ObjectDetailComponent implements OnInit {
         this.isPostgreSQLDialect = this.conv.SpDialect === Dialect.PostgreSQLDialect
       },
     })
+    this.autGenSupported = this.autoGenSupportedDbs.includes(this.srcDbName)
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
@@ -196,9 +199,9 @@ export class ObjectDetailComponent implements OnInit {
     this.localIndexData = JSON.parse(JSON.stringify(this.indexData))
     this.localSequenceData = JSON.parse(JSON.stringify(this.sequenceData))
 
-    if(this.srcDbName == SourceDbNames.MySQL && this.spColspan<7) {
-      this.spDisplayedColumns.splice(2, 0, "spAutoGen")
-      this.spColspan++
+    if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
+      this.spDisplayedColumns.splice(2, 0, "spAutoGen");
+      this.spColspan++;
     }
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
@@ -414,7 +417,7 @@ export class ObjectDetailComponent implements OnInit {
         MaxColLength: '',
         AutoGen: {
           Name : '',
-          Type : ''
+          GenerationType : ''
         }
       }
     })
@@ -575,7 +578,7 @@ export class ObjectDetailComponent implements OnInit {
         col.spColMaxLength = ''
         col.spAutoGen = {
           Name : '',
-          Type : ''
+          GenerationType : ''
         }
       }
     })
@@ -607,7 +610,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   compareAutoGen(t1: any, t2: any): boolean {
-    return t1 && t2 ? t1.Name === t2.Name && t1.Type === t2.Type : t1 === t2;
+    return t1 && t2 ? t1.Name === t2.Name && t1.GenerationType === t2.GenerationType : t1 === t2;
   }
  
   setPkRows() {

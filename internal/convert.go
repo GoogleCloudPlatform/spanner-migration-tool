@@ -442,7 +442,7 @@ func (conv *Conv) AddShardIdColumn() {
 			colName := conv.buildColumnNameWithBase(t, ShardIdColumn)
 			columnId := GenerateColumnId()
 			ct.ColIds = append(ct.ColIds, columnId)
-			ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false, AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}}
+			ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false, AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}}
 			ct.ShardIdColumn = columnId
 			conv.SpSchema[t] = ct
 			var issues []SchemaIssue
@@ -478,7 +478,7 @@ func (conv *Conv) AddPrimaryKeys() {
 				k := conv.buildColumnNameWithBase(t, SyntheticPrimaryKey)
 				columnId := GenerateColumnId()
 				ct.ColIds = append(ct.ColIds, columnId)
-				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, AutoGen: ddl.AutoGenCol{Name: "None", Type: "None"}}
+				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}}
 				ct.PrimaryKeys = []ddl.IndexKey{{ColId: columnId, Order: 1}}
 				conv.SyntheticPKeys[t] = SyntheticPKey{columnId, 0}
 				addMissingPrimaryKeyWarning(ct.Id, columnId, conv, MissingPrimaryKey)

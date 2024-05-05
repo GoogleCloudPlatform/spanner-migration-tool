@@ -18,8 +18,8 @@ const mockIConv: IConv = {
                         IsArray: false
                     },
                     AutoGen: {
-                        Name: "None",
-                        Type: "None"
+                        Name: "",
+                        GenerationType: ""
                     }
                 }
             },
@@ -68,7 +68,7 @@ const mockIConv: IConv = {
                         Exclusion: false,
                         ForeignKey: false,
                         AutoIncrement: false
-                    },
+                    }
                 }
             },
             PrimaryKeys: [],

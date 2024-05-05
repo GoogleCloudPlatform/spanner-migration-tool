@@ -53,8 +53,8 @@ describe('ObjectDetailComponent', () => {
         srcColMaxLength: 50,
         spColMaxLength: 50,
         spAutoGen: {
-          Name: 'None',
-          Type: 'None'
+          Name: '',
+          GenerationType: ''
         }
       },
       {
@@ -73,8 +73,8 @@ describe('ObjectDetailComponent', () => {
         srcColMaxLength: 50,
         spColMaxLength: 50,
         spAutoGen: {
-          Name: 'None',
-          Type: 'None'
+          Name: '',
+          GenerationType: ''
         }
       },
     ]
