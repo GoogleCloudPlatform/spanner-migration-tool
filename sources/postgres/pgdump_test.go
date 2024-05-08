@@ -1401,12 +1401,12 @@ func TestProcessPgDump_GetDDL(t *testing.T) {
 		"ALTER TABLE ONLY cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);")
 	expected :=
 		"CREATE TABLE cart (\n" +
-			"	productid STRING(MAX) NOT NULL,\n" +
-			"	userid STRING(MAX) NOT NULL,\n" +
+			"	productid STRING(MAX) NOT NULL ,\n" +
+			"	userid STRING(MAX) NOT NULL ,\n" +
 			"	quantity INT64,\n" +
 			") PRIMARY KEY (productid, userid)"
 	c := ddl.Config{Tables: true}
-	assert.Equal(t, expected, strings.Join(conv.SpSchema.GetDDL(c), " "))
+	assert.Equal(t, expected, strings.Join(ddl.GetDDL(c, conv.SpSchema, conv.SpSequences), " "))
 }
 
 func TestProcessPgDump_GetPGDDL(t *testing.T) {
@@ -1414,13 +1414,13 @@ func TestProcessPgDump_GetPGDDL(t *testing.T) {
 		"ALTER TABLE ONLY cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);")
 	expected :=
 		"CREATE TABLE cart (\n" +
-			"	productid VARCHAR(2621440) NOT NULL,\n" +
-			"	userid VARCHAR(2621440) NOT NULL,\n" +
+			"	productid VARCHAR(2621440) NOT NULL ,\n" +
+			"	userid VARCHAR(2621440) NOT NULL ,\n" +
 			"	quantity INT8,\n" +
 			"	PRIMARY KEY (productid, userid)\n" +
 			")"
 	c := ddl.Config{Tables: true, SpDialect: conv.SpDialect}
-	assert.Equal(t, expected, strings.Join(conv.SpSchema.GetDDL(c), " "))
+	assert.Equal(t, expected, strings.Join(ddl.GetDDL(c, conv.SpSchema, conv.SpSequences), " "))
 }
 
 func TestProcessPgDump_Rows(t *testing.T) {

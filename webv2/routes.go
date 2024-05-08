@@ -59,6 +59,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/convert/dump", api.ConvertSchemaDump).Methods("POST")
 	router.HandleFunc("/convert/session", loadSession).Methods("POST")
 	router.HandleFunc("/ddl", api.GetDDL).Methods("GET")
+	router.HandleFunc("/seqDdl", api.GetSequenceDDL).Methods("GET")
 	router.HandleFunc("/conversion", api.GetConversionRate).Methods("GET")
 	router.HandleFunc("/typemap", api.GetTypeMap).Methods("GET")
 	router.HandleFunc("/report", reportAPIHandler.GetReportFile).Methods("GET")
@@ -74,6 +75,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/typemap/GetPGSQLToStandardTypeTypemap", api.GetPGSQLToStandardTypeTypemap).Methods("GET")
 	router.HandleFunc("/spannerDefaultTypeMap", api.SpannerDefaultTypeMap).Methods("GET")
 	router.HandleFunc("/autoGenMap", api.GetAutoGenMap).Methods("GET")
+	router.HandleFunc("/getSequenceKind", api.GetSequenceKind).Methods("GET")
 
 	router.HandleFunc("/setparent", api.SetParentTable).Methods("GET")
 	router.HandleFunc("/removeParent", api.RemoveParentTable).Methods("POST")
@@ -86,6 +88,9 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/restore/tables", api.RestoreTables).Methods("POST")
 	router.HandleFunc("/drop/table", api.DropTable).Methods("POST")
 	router.HandleFunc("/drop/tables", api.DropTables).Methods("POST")
+
+	router.HandleFunc("/drop/sequence", api.DropSequence).Methods("POST")
+	router.HandleFunc("/UpdateSequence", api.UpdateSequence).Methods("POST")
 
 	router.HandleFunc("/update/fks", api.UpdateForeignKeys).Methods("POST")
 	router.HandleFunc("/update/indexes", api.UpdateIndexes).Methods("POST")
@@ -101,6 +106,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/primaryKey", primarykey.PrimaryKey).Methods("POST")
 
 	router.HandleFunc("/AddColumn", table.AddNewColumn).Methods("POST")
+	router.HandleFunc("/AddSequence", api.AddNewSequence).Methods("POST")
 
 	// Summary
 	router.HandleFunc("/summary", summary.GetSummary).Methods("GET")
