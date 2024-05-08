@@ -846,8 +846,8 @@ func TestProcessMySQLDump_GetDDL(t *testing.T) {
 		"ALTER TABLE cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);")
 	expected :=
 		"CREATE TABLE cart (\n" +
-			"	productid STRING(MAX) NOT NULL,\n" +
-			"	userid STRING(MAX) NOT NULL,\n" +
+			"	productid STRING(MAX) NOT NULL ,\n" +
+			"	userid STRING(MAX) NOT NULL ,\n" +
 			"	quantity INT64,\n" +
 			") PRIMARY KEY (productid, userid)"
 	c := ddl.Config{Tables: true}

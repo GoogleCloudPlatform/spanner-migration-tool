@@ -74,8 +74,8 @@ func TestPrintColumnDef(t *testing.T) {
 	}{
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, expected: "col1 INT64"},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}}, expected: "col1 ARRAY<INT64>"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT64 NOT NULL"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 ARRAY<INT64> NOT NULL"},
+		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT64 NOT NULL "},
+		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 ARRAY<INT64> NOT NULL "},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "`col1` INT64"},
 	}
 	for _, tc := range tests {
@@ -92,8 +92,8 @@ func TestPrintColumnDefPG(t *testing.T) {
 	}{
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, expected: "col1 INT8"},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}}, expected: "col1 VARCHAR(2621440)"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT8 NOT NULL"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 VARCHAR(2621440) NOT NULL"},
+		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT8 NOT NULL "},
+		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 VARCHAR(2621440) NOT NULL "},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "col1 INT8"},
 	}
 	for _, tc := range tests {
@@ -168,7 +168,7 @@ func TestPrintCreateTable(t *testing.T) {
 			false,
 			t1,
 			"CREATE TABLE mytable (\n" +
-				"	col1 INT64 NOT NULL,\n" +
+				"	col1 INT64 NOT NULL ,\n" +
 				"	col2 STRING(MAX),\n" +
 				"	col3 BYTES(42),\n" +
 				") PRIMARY KEY (col1 DESC)",
@@ -178,7 +178,7 @@ func TestPrintCreateTable(t *testing.T) {
 			true,
 			t1,
 			"CREATE TABLE `mytable` (\n" +
-				"	`col1` INT64 NOT NULL,\n" +
+				"	`col1` INT64 NOT NULL ,\n" +
 				"	`col2` STRING(MAX),\n" +
 				"	`col3` BYTES(42),\n" +
 				") PRIMARY KEY (`col1` DESC)",
@@ -188,7 +188,7 @@ func TestPrintCreateTable(t *testing.T) {
 			false,
 			t2,
 			"CREATE TABLE mytable (\n" +
-				"	col1 INT64 NOT NULL,\n" +
+				"	col1 INT64 NOT NULL ,\n" +
 				"	col2 STRING(MAX),\n" +
 				"	col3 BYTES(42),\n" +
 				") PRIMARY KEY (col1 DESC),\n" +
@@ -240,7 +240,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 			false,
 			t1,
 			"CREATE TABLE mytable (\n" +
-				"	col1 INT8 NOT NULL,\n" +
+				"	col1 INT8 NOT NULL ,\n" +
 				"	col2 VARCHAR(2621440),\n" +
 				"	col3 BYTEA,\n" +
 				"	PRIMARY KEY (col1 DESC)\n" +
@@ -251,7 +251,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 			true,
 			t1,
 			"CREATE TABLE mytable (\n" +
-				"	col1 INT8 NOT NULL,\n" +
+				"	col1 INT8 NOT NULL ,\n" +
 				"	col2 VARCHAR(2621440),\n" +
 				"	col3 BYTEA,\n" +
 				"	PRIMARY KEY (col1 DESC)\n" +
@@ -262,7 +262,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 			false,
 			t2,
 			"CREATE TABLE mytable (\n" +
-				"	col1 INT8 NOT NULL,\n" +
+				"	col1 INT8 NOT NULL ,\n" +
 				"	col2 VARCHAR(2621440),\n" +
 				"	col3 BYTEA,\n" +
 				"	PRIMARY KEY (col1 DESC)\n" +

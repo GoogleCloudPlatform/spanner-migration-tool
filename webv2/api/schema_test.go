@@ -265,8 +265,8 @@ func TestGetDDL(t *testing.T) {
 					},
 				},
 			},
-			expectedDDL: map[string]string{"t1": "CREATE TABLE table1 (\n\ta INT64 NOT NULL,\n\tb INT64 NOT NULL,\n\tc STRING(MAX) NOT NULL,\n) PRIMARY KEY (a);\n\nCREATE INDEX index1 ON table1 (a);\n\nALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES table2 (d);",
-				"t2": "CREATE TABLE table2 (\n\td INT64 NOT NULL,\n) ;"},
+			expectedDDL: map[string]string{"t1": "CREATE TABLE table1 (\n\ta INT64 NOT NULL ,\n\tb INT64 NOT NULL ,\n\tc STRING(MAX) NOT NULL ,\n) PRIMARY KEY (a);\n\nCREATE INDEX index1 ON table1 (a);\n\nALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES table2 (d);",
+				"t2": "CREATE TABLE table2 (\n\td INT64 NOT NULL ,\n) ;"},
 			statusCode: http.StatusOK,
 		},
 	}
