@@ -49,6 +49,10 @@ import (
 	"google.golang.org/api/option"
 )
 
+var (
+	dataflowTemplatePath = constants.DEFAULT_TEMPLATE_PATH
+)
+
 // IOStreams is a struct that contains the file descriptor for dumpFile.
 type IOStreams struct {
 	In, SeekableIn, Out *os.File
@@ -647,4 +651,12 @@ func FindInPrimaryKey(id string, primaryKeys []ddl.IndexKey) bool {
 		}
 	}
 	return false
+}
+
+func SetDataflowTemplatePath(path string) {
+	dataflowTemplatePath = path
+}
+
+func GetDataflowTemplatePath() string {
+	return dataflowTemplatePath
 }

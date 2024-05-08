@@ -49,3 +49,4 @@ ignore:
   - ".docker"
   - ".github"
   - "docs"
+  - "**/mocks.go"
