@@ -1583,11 +1583,11 @@ func makePostgresDialectAutoGenMap(sequences map[string]ddl.Sequence) {
 		})
 
 	typesSupportingSequences := []string{ddl.Float64, ddl.Int64, ddl.PGFloat8, ddl.PGInt8}
-	for seq, _ := range sequences {
+	for _, seq := range sequences {
 		for _, srcTypeName := range typesSupportingSequences {
 			autoGenMap[srcTypeName] = append(autoGenMap[srcTypeName],
 				types.AutoGen{
-					Name:           seq,
+					Name:           seq.Name,
 					GenerationType: "Sequence",
 				})
 		}

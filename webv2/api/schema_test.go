@@ -2324,14 +2324,23 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 	sessionState.Driver = constants.MYSQL
 	sessionState.Conv = internal.MakeConv()
 	buildConvMySQL(sessionState.Conv)
+
+	sequences := make(map[string]ddl.Sequence)
+	sequences["s1"] = ddl.Sequence{
+		Name:         "Sequence1",
+		Id:           "s1",
+		SequenceKind: "BIT REVERSED POSITIVE",
+	}
+	sessionState.Conv.SpSequences = sequences
+
 	expectedAutoGenMapPostgres := map[string][]types.AutoGen{
 		"BOOL":        {types.AutoGen{Name: "", GenerationType: ""}},
 		"BYTEA":       {types.AutoGen{Name: "", GenerationType: ""}},
 		"DATE":        {types.AutoGen{Name: "", GenerationType: ""}},
-		"FLOAT64":     {types.AutoGen{Name: "", GenerationType: ""}},
-		"FLOAT8":      {types.AutoGen{Name: "", GenerationType: ""}},
-		"INT64":       {types.AutoGen{Name: "", GenerationType: ""}},
-		"INT8":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"FLOAT8":      {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"INT64":       {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"INT8":        {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
 		"JSONB":       {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"TIMESTAMPTZ": {types.AutoGen{Name: "", GenerationType: ""}},
@@ -2341,8 +2350,8 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		"BOOL":      {types.AutoGen{Name: "", GenerationType: ""}},
 		"BYTES":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"DATE":      {types.AutoGen{Name: "", GenerationType: ""}},
-		"FLOAT64":   {types.AutoGen{Name: "", GenerationType: ""}},
-		"INT64":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT64":   {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"INT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
 		"JSON":      {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":   {types.AutoGen{Name: "", GenerationType: ""}},
 		"STRING":    {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}},

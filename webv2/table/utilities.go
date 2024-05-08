@@ -256,13 +256,13 @@ func UpdateAutoGenCol(autoGen ddl.AutoGenCol, tableId, colId string, conv *inter
 	sequences := conv.SpSequences
 	spColDef := sp.ColDefs[colId]
 	if spColDef.AutoGen.GenerationType == constants.SEQUENCE {
-		seqId := GetSequenceId(spColDef.AutoGen.Name, conv)
+		seqId := getSequenceId(spColDef.AutoGen.Name, conv.SpSequences)
 		sequences = deleteColumnFromSequence(seqId, tableId, colId, sequences)
 	}
 	spColDef.AutoGen = autoGen
 	sp.ColDefs[colId] = spColDef
 	if autoGen.GenerationType == constants.SEQUENCE {
-		seqId := GetSequenceId(autoGen.Name, conv)
+		seqId := getSequenceId(autoGen.Name, conv.SpSequences)
 		sequences = addColumnToSequence(seqId, tableId, colId, sequences)
 	}
 	conv.SpSchema[tableId] = sp
@@ -327,8 +327,8 @@ func addColumnToSequence(sequenceId string, tableId, colId string, sequences map
 	return sequences
 }
 
-func GetSequenceId(sequenceName string, conv *internal.Conv) string {
-	for seqId, seq := range conv.SpSequences {
+func getSequenceId(sequenceName string, spSeq map[string]ddl.Sequence) string {
+	for seqId, seq := range spSeq {
 		if seq.Name == sequenceName {
 			return seqId
 		}

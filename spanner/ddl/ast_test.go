@@ -434,6 +434,134 @@ func TestPGPrintAutoGenCol(t *testing.T) {
 	}
 }
 
+func TestPrintSequence(t *testing.T) {
+	s1 := Sequence{
+		Id:               "s1",
+		Name:             "sequence1",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "",
+		SkipRangeMax:     "",
+		StartWithCounter: "",
+	}
+	s2 := Sequence{
+		Id:               "s2",
+		Name:             "sequence2",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "0",
+		SkipRangeMax:     "1",
+		StartWithCounter: "",
+	}
+	s3 := Sequence{
+		Id:               "s3",
+		Name:             "sequence3",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "",
+		SkipRangeMax:     "",
+		StartWithCounter: "7",
+	}
+	s4 := Sequence{
+		Id:               "s3",
+		Name:             "sequence4",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "0",
+		SkipRangeMax:     "1",
+		StartWithCounter: "7",
+	}
+	tests := []struct {
+		name     string
+		sequence Sequence
+		expected string
+	}{
+		{
+			name:     "no optional values set",
+			sequence: s1,
+			expected: "CREATE SEQUENCE sequence1 OPTIONS (  sequence_kind='bit_reversed_positive'  ) ",
+		},
+		{
+			name:     "min and max skip range set",
+			sequence: s2,
+			expected: "CREATE SEQUENCE sequence2 OPTIONS (  sequence_kind='bit_reversed_positive'  ,  skip_range_min = 0  ,  skip_range_max = 1  ) ",
+		},
+		{
+			name:     "start with counter set",
+			sequence: s3,
+			expected: "CREATE SEQUENCE sequence3 OPTIONS (  sequence_kind='bit_reversed_positive'  ,  start_with_counter = 7  ) ",
+		},
+		{
+			name:     "all optional values set",
+			sequence: s4,
+			expected: "CREATE SEQUENCE sequence4 OPTIONS (  sequence_kind='bit_reversed_positive'  ,  skip_range_min = 0  ,  skip_range_max = 1  ,  start_with_counter = 7  ) ",
+		},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.sequence.PrintSequence())
+	}
+}
+
+func TestPGPrintSequence(t *testing.T) {
+	s1 := Sequence{
+		Id:               "s1",
+		Name:             "sequence1",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "",
+		SkipRangeMax:     "",
+		StartWithCounter: "",
+	}
+	s2 := Sequence{
+		Id:               "s2",
+		Name:             "sequence2",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "0",
+		SkipRangeMax:     "1",
+		StartWithCounter: "",
+	}
+	s3 := Sequence{
+		Id:               "s3",
+		Name:             "sequence3",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "",
+		SkipRangeMax:     "",
+		StartWithCounter: "7",
+	}
+	s4 := Sequence{
+		Id:               "s3",
+		Name:             "sequence4",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "0",
+		SkipRangeMax:     "1",
+		StartWithCounter: "7",
+	}
+	tests := []struct {
+		name     string
+		sequence Sequence
+		expected string
+	}{
+		{
+			name:     "no optional values set",
+			sequence: s1,
+			expected: "CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE ",
+		},
+		{
+			name:     "min and max skip range set",
+			sequence: s2,
+			expected: "CREATE SEQUENCE sequence2 BIT_REVERSED_POSITIVE   SKIP RANGE 0 1 ",
+		},
+		{
+			name:     "start with counter set",
+			sequence: s3,
+			expected: "CREATE SEQUENCE sequence3 BIT_REVERSED_POSITIVE   START COUNTER WITH 7 ",
+		},
+		{
+			name:     "all optional values set",
+			sequence: s4,
+			expected: "CREATE SEQUENCE sequence4 BIT_REVERSED_POSITIVE   SKIP RANGE 0 1   START COUNTER WITH 7 ",
+		},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.sequence.PGPrintSequence())
+	}
+}
+
 func TestGetDDL(t *testing.T) {
 	s := Schema{
 		"t1": CreateTable{
@@ -526,6 +654,20 @@ func TestGetDDL(t *testing.T) {
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
 	}
 	assert.ElementsMatch(t, e3, tablesAndFks)
+
+	sequences := make(map[string]Sequence)
+	sequences["s1"] = Sequence{
+		Id:               "s1",
+		Name:             "sequence1",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "0",
+		SkipRangeMax:     "5",
+		StartWithCounter: "7",
+	}
+	e4 := []string{
+		"CREATE SEQUENCE sequence1 OPTIONS (  sequence_kind='bit_reversed_positive'  ,  skip_range_min = 0  ,  skip_range_max = 5  ,  start_with_counter = 7  ) "}
+	sequencesOnly := GetDDL(Config{}, Schema{}, sequences)
+	assert.ElementsMatch(t, e4, sequencesOnly)
 }
 
 func TestGetPGDDL(t *testing.T) {
@@ -624,6 +766,20 @@ func TestGetPGDDL(t *testing.T) {
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
 	}
 	assert.ElementsMatch(t, e3, tablesAndFks)
+
+	sequences := make(map[string]Sequence)
+	sequences["s1"] = Sequence{
+		Id:               "s1",
+		Name:             "sequence1",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "0",
+		SkipRangeMax:     "5",
+		StartWithCounter: "7",
+	}
+	e4 := []string{
+		"CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE   SKIP RANGE 0 5   START COUNTER WITH 7 "}
+	sequencesOnly := GetDDL(Config{SpDialect: constants.DIALECT_POSTGRESQL}, Schema{}, sequences)
+	assert.ElementsMatch(t, e4, sequencesOnly)
 }
 
 func TestGetSortedTableIdsBySpName(t *testing.T) {

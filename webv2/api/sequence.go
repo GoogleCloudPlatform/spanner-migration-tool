@@ -122,7 +122,7 @@ func DropSequence(w http.ResponseWriter, r *http.Request) {
 	updatedTables := dropSequenceHelper(spSequence[sequenceId].ColumnsUsingSeq, sessionState.Conv.SpSchema)
 	sessionState.Conv.SpSchema = updatedTables
 
-	sequenceName := GetSequenceName(sequenceId, spSequence)
+	sequenceName := getSequenceName(sequenceId, spSequence)
 	usedNames := sessionState.Conv.UsedNames
 	delete(usedNames, sequenceName)
 
@@ -176,7 +176,7 @@ func GetSequenceKind(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sequenceKind)
 }
 
-func GetSequenceName(sequenceId string, spSequences map[string]ddl.Sequence) string {
+func getSequenceName(sequenceId string, spSequences map[string]ddl.Sequence) string {
 	for seqId, seq := range spSequences {
 		if seqId == sequenceId {
 			return seq.Name

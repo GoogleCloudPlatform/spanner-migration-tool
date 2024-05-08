@@ -1295,6 +1295,174 @@ func TestUpdateTableSchema(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "Test update auto-gen UUID",
+			table: "t1",
+			payload: `{
+				"UpdateCols":{ "c2": {"AutoGen":{"Name":"UUID","GenerationType":"Pre-defined"}}}
+				}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						ParentId:    "t2",
+					},
+				},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}, AutoGen: ddl.AutoGenCol{Name: "UUID", GenerationType: "Pre-defined"}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						ParentId:    "t2",
+					},
+				},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "Test update auto-gen Sequence",
+			table: "t1",
+			payload: `{
+				"UpdateCols":{ "c1": {"AutoGen":{"Name":"seq1","GenerationType":"Sequence"}}}
+				}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						ParentId:    "t2",
+					},
+				},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
+					},
+				},
+				SpSequences: map[string]ddl.Sequence{
+					"s1": {
+						Id:              "s1",
+						Name:            "seq1",
+						SequenceKind:    "BIT REVERSED POSITIVE",
+						ColumnsUsingSeq: make(map[string][]string),
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, AutoGen: ddl.AutoGenCol{Name: "seq1", GenerationType: "Sequence"}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						ParentId:    "t2",
+					},
+				},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					}},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
+					},
+				},
+				SpSequences: map[string]ddl.Sequence{
+					"s1": {
+						Id:           "s1",
+						Name:         "seq1",
+						SequenceKind: "BIT REVERSED POSITIVE",
+						ColumnsUsingSeq: map[string][]string{
+							"t1": {"c1"},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tc {
