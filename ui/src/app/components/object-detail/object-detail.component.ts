@@ -4,10 +4,10 @@ import IUpdateTable from '../../model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
-import IColumnTabData, { IIndexData } from '../../model/edit-table'
+import IColumnTabData, { AutoGen, IIndexData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
+import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, SourceDbNames, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/'
@@ -22,6 +22,7 @@ import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/d
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
 import { AddNewColumnComponent } from '../add-new-column/add-new-column.component'
+import { GroupedAutoGens, processAutoGens } from 'src/app/utils/utils'
 
 @Component({
   selector: 'app-object-detail',
@@ -43,12 +44,13 @@ export class ObjectDetailComponent implements OnInit {
   @Input() currentObject: FlatNode | null = null
   @Input() typeMap: any = {}
   @Input() defaultTypeMap: any = {}
+  @Input() autoGenMap: any = {}
   @Input() ddlStmts: any = {}
   @Input() fkData: IFkTabData[] = []
   @Input() tableData: IColumnTabData[] = []
   @Input() currentDatabase: string = 'spanner'
   @Input() indexData: IIndexData[] = []
-  @Input() srcDbName: String = localStorage.getItem(StorageKeys.SourceDbName) as string
+  @Input() srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   @Output() updateSidebar = new EventEmitter<boolean>()
   ObjectExplorerNodeType = ObjectExplorerNodeType
   conv: IConv = {} as IConv
@@ -59,6 +61,9 @@ export class ObjectDetailComponent implements OnInit {
   localIndexData: IIndexData[] = []
   isMiddleColumnCollapse: boolean = false
   isPostgreSQLDialect: boolean = false
+  processedAutoGenMap: GroupedAutoGens = {};
+  autoGenSupportedDbs: string[] = ['MySQL']
+  autGenSupported: boolean = false
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
@@ -66,6 +71,7 @@ export class ObjectDetailComponent implements OnInit {
         this.isPostgreSQLDialect = this.conv.SpDialect === Dialect.PostgreSQLDialect
       },
     })
+    this.autGenSupported = this.autoGenSupportedDbs.includes(this.srcDbName)
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
@@ -141,6 +147,7 @@ export class ObjectDetailComponent implements OnInit {
   })
   pkObj: IPrimaryKey = {} as IPrimaryKey
   dataTypesWithColLen: string[] = ColLength.DataTypes
+  spColspan : number = 6
 
   ngOnChanges(changes: SimpleChanges): void {
     this.fkData = changes['fkData']?.currentValue || this.fkData
@@ -167,6 +174,11 @@ export class ObjectDetailComponent implements OnInit {
     this.localTableData = JSON.parse(JSON.stringify(this.tableData))
     this.localIndexData = JSON.parse(JSON.stringify(this.indexData))
 
+    if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
+      this.spDisplayedColumns.splice(2, 0, "spAutoGen");
+      this.spColspan++;
+    }
+
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.checkIsInterleave()
 
@@ -183,6 +195,7 @@ export class ObjectDetailComponent implements OnInit {
       this.setFkRows()
       this.updateSpTableSuggestion()
       this.setShardIdColumn()
+      this.processedAutoGenMap = processAutoGens(this.autoGenMap)
     } else if (this.currentObject?.type === ObjectExplorerNodeType.Index) {
       this.indexOrderValidation()
       this.setIndexRows()
@@ -213,6 +226,7 @@ export class ObjectDetailComponent implements OnInit {
           srcId: new FormControl(row.srcId),
           spColMaxLength: new FormControl(row.spColMaxLength, [
             Validators.required]),
+          spAutoGen: new FormControl(row.spAutoGen),
         })
         if (this.dataTypesWithColLen.indexOf(row.spDataType.toString()) > -1) {
           fb.get('spColMaxLength')?.setValidators([Validators.required, Validators.pattern('([1-9][0-9]*|MAX)')])
@@ -259,6 +273,7 @@ export class ObjectDetailComponent implements OnInit {
             spId: new FormControl(col.spId),
             srcId: new FormControl(col.srcId),
             spColMaxLength: new FormControl(col.spColMaxLength),
+            spAutoGen: new FormControl(col.spAutoGen),
           })
         )
       } else {
@@ -278,6 +293,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
             spColMaxLength: new FormControl(col.srcColMaxLength),
+            spAutoGen: new FormControl(col.spAutoGen)
           })
         )
       }
@@ -340,7 +356,8 @@ export class ObjectDetailComponent implements OnInit {
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
-            MaxColLength: col.spColMaxLength
+            MaxColLength: col.spColMaxLength,
+            AutoGen: col.spAutoGen
           }
           break
         }
@@ -351,7 +368,8 @@ export class ObjectDetailComponent implements OnInit {
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
-            MaxColLength: col.spColMaxLength
+            MaxColLength: col.spColMaxLength,
+            AutoGen: col.spAutoGen
           }
         }
       }
@@ -365,6 +383,10 @@ export class ObjectDetailComponent implements OnInit {
         Removed: true,
         ToType: '',
         MaxColLength: '',
+        AutoGen: {
+          Name : '',
+          GenerationType : ''
+        }
       }
     })
 
@@ -418,6 +440,7 @@ export class ObjectDetailComponent implements OnInit {
     this.localTableData[index].spIsPk = this.droppedColumns[addedRowIndex].spIsPk
     this.localTableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
     this.localTableData[index].spColMaxLength = this.droppedColumns[addedRowIndex].spColMaxLength
+    this.localTableData[index].spAutoGen = this.droppedColumns[addedRowIndex].spAutoGen
     let ind = this.droppedColumns
       .map((col: IColumnTabData) => col.spColName)
       .indexOf(this.addedColumnName)
@@ -512,6 +535,10 @@ export class ObjectDetailComponent implements OnInit {
         col.spIsPk = false
         col.spOrder = ''
         col.spColMaxLength = ''
+        col.spAutoGen = {
+          Name : '',
+          GenerationType : ''
+        }
       }
     })
     this.setSpTableRows()
@@ -541,6 +568,10 @@ export class ObjectDetailComponent implements OnInit {
     this.spTableSuggestion[index] = brief
   }
 
+  compareAutoGen(t1: any, t2: any): boolean {
+    return t1 && t2 ? t1.Name === t2.Name && t1.GenerationType === t2.GenerationType : t1 === t2;
+  }
+ 
   setPkRows() {
     this.pkArray = this.fb.array([])
     this.pkOrderValidation()
@@ -565,6 +596,7 @@ export class ObjectDetailComponent implements OnInit {
           spIsPk: row.spIsPk,
           spOrder: row.spOrder,
           spId: row.spId,
+          spAutoGen: row.spAutoGen
         })
       }
     })
@@ -590,6 +622,7 @@ export class ObjectDetailComponent implements OnInit {
           spIsPk: new FormControl(spArr[i].spIsPk),
           spIsNotNull: new FormControl(spArr[i].spIsNotNull),
           spId: new FormControl(spArr[i].spId),
+          spAutoGen: new FormControl(spArr[i].spAutoGen),
         })
       )
     }
@@ -609,6 +642,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(false),
             spIsNotNull: new FormControl(false),
             spId: new FormControl(''),
+            spAutoGen: new FormControl(spArr[i].spAutoGen),
           })
         )
       }
@@ -628,6 +662,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(spArr[i].spIsPk),
             spIsNotNull: new FormControl(spArr[i].spIsNotNull),
             spId: new FormControl(spArr[i].spId),
+            spAutoGenGen: new FormControl(spArr[i].spAutoGen)
           })
         )
       }

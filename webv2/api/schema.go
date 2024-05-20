@@ -42,12 +42,14 @@ var postgresTypeMap = make(map[string][]types.TypeIssue)
 var sqlserverTypeMap = make(map[string][]types.TypeIssue)
 var oracleTypeMap = make(map[string][]types.TypeIssue)
 
+var autoGenMap = make(map[string][]types.AutoGen)
+
 func init() {
 	sessionState := session.GetSessionState()
 	utilities.InitObjectId()
 	sessionState.Conv = internal.MakeConv()
 	config := config.TryInitializeSpannerConfig()
-	session.SetSessionStorageConnectionState(config.GCPProjectID, config.SpannerInstanceID)
+	session.SetSessionStorageConnectionState(config.GCPProjectID, config.SpannerProjectID, config.SpannerInstanceID)
 }
 
 // ConvertSchemaSQL converts source database to Spanner when using
@@ -333,6 +335,23 @@ func GetTypeMap(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(filteredTypeMap)
+}
+
+func GetAutoGenMap(w http.ResponseWriter, r *http.Request) {
+
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
+	switch sessionState.Driver {
+	case constants.MYSQL:
+		initializeAutoGenMap()
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(autoGenMap)
 }
 
 // GetTableWithErrors checks the errors in the spanner schema
@@ -1533,4 +1552,49 @@ func addShardIdToForeignKeyPerTable(isAddedAtFirst bool, table ddl.CreateTable) 
 		}
 		sessionState.Conv.SpSchema[table.Id].ForeignKeys[i] = fk
 	}
+}
+
+func initializeAutoGenMap() {
+	sessionState := session.GetSessionState()
+	autoGenMap = make(map[string][]types.AutoGen)
+	switch sessionState.Conv.SpDialect {
+	case constants.DIALECT_POSTGRESQL:
+		makePostgresDialectAutoGenMap()
+		return
+	default:
+		makeGoogleSqlDialectAutoGenMap()
+		return
+	}
+}
+
+func makePostgresDialectAutoGenMap() {
+	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar, ddl.Numeric} {
+		autoGenMap[srcTypeName] = []types.AutoGen{
+			{
+				Name: "",
+				GenerationType: "",
+			},
+		}
+	}
+	autoGenMap[ddl.PGVarchar] = append(autoGenMap[ddl.PGVarchar],
+		types.AutoGen{
+			Name: "UUID",
+			GenerationType: "Pre-defined",
+		})
+}
+
+func makeGoogleSqlDialectAutoGenMap() {
+	for _, srcTypeName := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+		autoGenMap[srcTypeName] = []types.AutoGen{
+			{
+				Name: "",
+				GenerationType: "",
+			},
+		}
+	}
+	autoGenMap[ddl.String] = append(autoGenMap[ddl.String],
+		types.AutoGen{
+			Name: "UUID",
+			GenerationType: "Pre-defined",
+		})
 }

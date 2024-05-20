@@ -49,6 +49,10 @@ import (
 	"google.golang.org/api/option"
 )
 
+var (
+	dataflowTemplatePath = constants.DEFAULT_TEMPLATE_PATH
+)
+
 // IOStreams is a struct that contains the file descriptor for dumpFile.
 type IOStreams struct {
 	In, SeekableIn, Out *os.File
@@ -182,7 +186,7 @@ func PreloadGCSFiles(tables []ManifestTable) ([]ManifestTable, error) {
 	return tables, nil
 }
 
-// GetProject returns the cloud project we should use for accessing Spanner.
+// GetProject returns the cloud project we should use by default to create resources.
 // Use environment variable GCLOUD_PROJECT if it is set.
 // Otherwise, use the default project returned from gcloud.
 func (gui *GetUtilInfoImpl) GetProject() (string, error) {
@@ -647,4 +651,12 @@ func FindInPrimaryKey(id string, primaryKeys []ddl.IndexKey) bool {
 		}
 	}
 	return false
+}
+
+func SetDataflowTemplatePath(path string) {
+	dataflowTemplatePath = path
+}
+
+func GetDataflowTemplatePath() string {
+	return dataflowTemplatePath
 }

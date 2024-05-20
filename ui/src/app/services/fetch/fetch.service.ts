@@ -155,6 +155,12 @@ export class FetchService {
     return this.http.post(`${this.url}/CreateConnectionProfile`, payload)
   }
 
+  verifyJsonConfiguration(payload : IMigrationProfile):any {
+    return this.http.post(`${this.url}/VerifyJsonConfiguration`, {
+      MigrationProfile: payload
+    })
+  }
+
   getSummary() {
     return this.http.get(`${this.url}/summary`)
   }
@@ -165,6 +171,10 @@ export class FetchService {
 
   getTypeMap() {
     return this.http.get(`${this.url}/typemap`)
+  }
+
+  getAutoGenMap() {
+    return this.http.get(`${this.url}/autoGenMap`)
   }
 
   getSpannerDefaultTypeMap() {

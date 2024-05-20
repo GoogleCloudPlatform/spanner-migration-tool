@@ -32,16 +32,16 @@ type MockGetInfo struct {
 	mock.Mock
 }
 
-func (mgi *MockGetInfo) getInfoSchemaForShard(shardConnInfo profiles.DirectConnectionConfig, driver string, targetProfile profiles.TargetProfile, s profiles.SourceProfileDialectInterface, g GetInfoInterface) (common.InfoSchema, error) {
-	args := mgi.Called(shardConnInfo, driver, targetProfile, s, g)
+func (mgi *MockGetInfo) getInfoSchemaForShard(migrationShardId string, shardConnInfo profiles.DirectConnectionConfig, driver string, targetProfile profiles.TargetProfile, s profiles.SourceProfileDialectInterface, g GetInfoInterface) (common.InfoSchema, error) {
+	args := mgi.Called(migrationShardId, shardConnInfo, driver, targetProfile, s, g)
 	return args.Get(0).(common.InfoSchema), args.Error(1)
 }
-func (mgi *MockGetInfo) GetInfoSchemaFromCloudSQL(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
-	args := mgi.Called(sourceProfile, targetProfile)
+func (mgi *MockGetInfo) GetInfoSchemaFromCloudSQL(migrationShardId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
+	args := mgi.Called(migrationShardId, sourceProfile, targetProfile)
 	return args.Get(0).(common.InfoSchema), args.Error(1)
 }
-func (mgi *MockGetInfo) GetInfoSchema(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
-	args := mgi.Called(sourceProfile, targetProfile)
+func (mgi *MockGetInfo) GetInfoSchema(migrationShardId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
+	args := mgi.Called(migrationShardId, sourceProfile, targetProfile)
 	return args.Get(0).(common.InfoSchema), args.Error(1)
 }
 
@@ -49,8 +49,8 @@ type MockSchemaFromSource struct {
 	mock.Mock
 }
 
-func (msads *MockSchemaFromSource) schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, getInfo GetInfoInterface, processSchema common.ProcessSchemaInterface) (*internal.Conv, error) {
-	args := msads.Called(sourceProfile, targetProfile, getInfo, processSchema)
+func (msads *MockSchemaFromSource) schemaFromDatabase(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, getInfo GetInfoInterface, processSchema common.ProcessSchemaInterface) (*internal.Conv, error) {
+	args := msads.Called(migrationProjectId, sourceProfile, targetProfile, getInfo, processSchema)
 	return args.Get(0).(*internal.Conv), args.Error(1)
 }
 func (msads *MockSchemaFromSource) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
@@ -62,8 +62,8 @@ type MockDataFromSource struct {
 	mock.Mock
 }
 
-func (msads *MockDataFromSource) dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, getInfo GetInfoInterface, dataFromDb DataFromDatabaseInterface, snapshotMigration SnapshotMigrationInterface) (*writer.BatchWriter, error) {
-	args := msads.Called(ctx, sourceProfile, targetProfile, config, conv, client, getInfo, dataFromDb, snapshotMigration)
+func (msads *MockDataFromSource) dataFromDatabase(ctx context.Context, migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, getInfo GetInfoInterface, dataFromDb DataFromDatabaseInterface, snapshotMigration SnapshotMigrationInterface) (*writer.BatchWriter, error) {
+	args := msads.Called(ctx, migrationProjectId, sourceProfile, targetProfile, config, conv, client, getInfo, dataFromDb, snapshotMigration)
 	return args.Get(0).(*writer.BatchWriter), args.Error(1)
 }
 func (msads *MockDataFromSource) dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, processDump ProcessDumpByDialectInterface, populateDataConv PopulateDataConvInterface) (*writer.BatchWriter, error) {
@@ -99,4 +99,13 @@ func (mrg *MockResourceGeneration) GetConnectionProfilesForResources(ctx context
 func (mrg *MockResourceGeneration) PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq] {
 	args := mrg.Called(createResourceData, mutex)
 	return args.Get(0).(common.TaskResult[*ConnectionProfileReq])
+}
+
+type MockValidateResources struct {
+	mock.Mock
+}
+
+func (mvr *MockValidateResources) ValidateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
+	args := mvr.Called(ctx, projectId, instanceId, sourceProfile, conv)
+	return args.Error(0)
 }

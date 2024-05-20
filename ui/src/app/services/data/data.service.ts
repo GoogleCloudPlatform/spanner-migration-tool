@@ -25,6 +25,7 @@ export class DataService {
   private conversionRateSub = new BehaviorSubject({})
   private typeMapSub = new BehaviorSubject({})
   private defaultTypeMapSub = new BehaviorSubject({})
+  private autoGenMapSub = new BehaviorSubject({})
   private summarySub = new BehaviorSubject(new Map<string, ISummary>())
   private ddlSub = new BehaviorSubject({})
   private tableInterleaveStatusSub = new BehaviorSubject({} as IInterleaveStatus)
@@ -42,6 +43,7 @@ export class DataService {
     .pipe(filter((res) => Object.keys(res).length !== 0))
   typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   defaultTypeMap = this.defaultTypeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  autoGenMap = this.autoGenMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   summary = this.summarySub.asObservable()
   ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   tableInterleaveStatus = this.tableInterleaveStatusSub.asObservable()
@@ -68,6 +70,7 @@ export class DataService {
     this.conversionRateSub.next({})
     this.typeMapSub.next({})
     this.defaultTypeMapSub.next({})
+    this.autoGenMapSub.next({})
     this.summarySub.next(new Map<string, ISummary>())
     this.ddlSub.next({})
     this.tableInterleaveStatusSub.next({} as IInterleaveStatus)
@@ -167,18 +170,20 @@ export class DataService {
       defaultTypeMap: this.fetch.getSpannerDefaultTypeMap(),
       summary: this.fetch.getSummary(),
       ddl: this.fetch.getDdl(),
+      autoGenMap: this.fetch.getAutoGenMap()
     })
       .pipe(
         catchError((err: any) => {
           return of(err)
         })
       )
-      .subscribe(({ rates, typeMap,defaultTypeMap, summary, ddl }: any) => {
+      .subscribe(({ rates, typeMap,defaultTypeMap, summary, ddl ,autoGenMap}: any) => {
         this.conversionRateSub.next(rates)
         this.typeMapSub.next(typeMap)
         this.defaultTypeMapSub.next(defaultTypeMap)
         this.summarySub.next(new Map<string, ISummary>(Object.entries(summary)))
         this.ddlSub.next(ddl)
+        this.autoGenMapSub.next(autoGenMap)
       })
   }
   getSummary() {

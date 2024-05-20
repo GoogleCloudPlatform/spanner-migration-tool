@@ -57,6 +57,7 @@ var (
 	networkTags                    string
 	runIdentifier                  string
 	readerMaxWorkers               int
+	spannerProjectId               string
 )
 
 const (
@@ -64,7 +65,7 @@ const (
 )
 
 func setupGlobalFlags() {
-	flag.StringVar(&projectId, "projectId", "", "ProjectId.")
+	flag.StringVar(&projectId, "projectId", "", "ProjectId for Dataflow jobs. If spannerProjectId is not specified, this value is used for Cloud Spanner project id as well.")
 	flag.StringVar(&dataflowRegion, "dataflowRegion", "", "Region for dataflow jobs.")
 	flag.StringVar(&jobNamePrefix, "jobNamePrefix", "smt-reverse-replication", "Job name prefix for the dataflow jobs, defaults to reverse-rep. Automatically converted to lower case due to Dataflow name constraints.")
 	flag.StringVar(&changeStreamName, "changeStreamName", "reverseReplicationStream", "Change stream name, defaults to reverseReplicationStream.")
@@ -90,8 +91,8 @@ func setupGlobalFlags() {
 	flag.StringVar(&serviceAccountEmail, "serviceAccountEmail", "", "The email address of the service account to run the job as.")
 	flag.IntVar(&readerWorkers, "readerWorkers", 5, "Number of workers for reader job.")
 	flag.IntVar(&writerWorkers, "writerWorkers", 5, "Number of workers for writer job.")
-	flag.StringVar(&spannerReaderTemplateLocation, "spannerReaderTemplateLocation", "gs://dataflow-templates-us-east7/2024-03-06-00_RC00/flex/Spanner_Change_Streams_to_Sharded_File_Sink", "The dataflow template location for the Spanner reader job.")
-	flag.StringVar(&sourceWriterTemplateLocation, "sourceWriterTemplateLocation", "gs://dataflow-templates-us-east7/2024-03-06-00_RC00/flex/GCS_to_Sourcedb", "The dataflow template location for the Source writer job.")
+	flag.StringVar(&spannerReaderTemplateLocation, "spannerReaderTemplateLocation", "gs://dataflow-templates-us-east7/2024-03-27-00_RC00/flex/Spanner_Change_Streams_to_Sharded_File_Sink", "The dataflow template location for the Spanner reader job.")
+	flag.StringVar(&sourceWriterTemplateLocation, "sourceWriterTemplateLocation", "gs://dataflow-templates-us-east7/2024-04-23-00_RC00/flex/GCS_to_Sourcedb", "The dataflow template location for the Source writer job.")
 	flag.StringVar(&jobsToLaunch, "jobsToLaunch", "both", "Whether to launch the spanner reader job or the source writer job or both. Default is both. Support values are both,reader,writer.")
 	flag.BoolVar(&skipChangeStreamCreation, "skipChangeStreamCreation", false, "Whether to skip the change stream creation. Default is false.")
 	flag.BoolVar(&skipMetadataDatabaseCreation, "skipMetadataDatabaseCreation", false, "Whether to skip Metadata database creation.Default is false.")
@@ -101,6 +102,7 @@ func setupGlobalFlags() {
 	flag.StringVar(&runIdentifier, "runIdentifier", "", "The run identifier for the Dataflow jobs.")
 	flag.StringVar(&readerShardingCustomParameters, "readerShardingCustomParameters", "", "Any custom parameters to be supplied to custom sharding class.")
 	flag.IntVar(&readerMaxWorkers, "readerMaxWorkers", 20, "Number of max workers for reader job.")
+	flag.StringVar(&spannerProjectId, "spannerProjectId", "", "The project id where Cloud Spanner resides, for use case when Cloud Spanner is in a different project than where Dataflow would run.")
 
 }
 
@@ -175,6 +177,11 @@ func prechecks() error {
 		return fmt.Errorf("please specify a valid GCS path for readerShardingCustomJarPath, like gs://<>")
 	}
 
+	if spannerProjectId == "" {
+		fmt.Println("Setting the Spanner Project Id to Dataflow project id: ", projectId)
+		spannerProjectId = projectId
+	}
+
 	return nil
 }
 
@@ -190,7 +197,7 @@ func main() {
 		return
 	}
 
-	dbUri := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, dbName)
+	dbUri := fmt.Sprintf("projects/%s/instances/%s/databases/%s", spannerProjectId, instanceId, dbName)
 
 	ctx := context.Background()
 	adminClient, _ := database.NewDatabaseAdminClient(ctx)
@@ -223,7 +230,7 @@ func main() {
 
 	if !skipMetadataDatabaseCreation {
 		createDbReq := &adminpb.CreateDatabaseRequest{
-			Parent:          fmt.Sprintf("projects/%s/instances/%s", projectId, metadataInstance),
+			Parent:          fmt.Sprintf("projects/%s/instances/%s", spannerProjectId, metadataInstance),
 			CreateStatement: fmt.Sprintf("CREATE DATABASE `%s`", metadataDatabase),
 		}
 
@@ -233,7 +240,7 @@ func main() {
 				fmt.Printf("Cannot submit create database request for metadata db: %v\n", err)
 				return
 			} else {
-				fmt.Printf("metadata db %s already exists...skipping creation\n", fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, metadataInstance, metadataDatabase))
+				fmt.Printf("metadata db %s already exists...skipping creation\n", fmt.Sprintf("projects/%s/instances/%s/databases/%s", spannerProjectId, metadataInstance, metadataDatabase))
 			}
 		} else {
 			if _, err := createDbOp.Wait(ctx); err != nil {
@@ -241,10 +248,10 @@ func main() {
 					fmt.Printf("create database request failed for metadata db: %v\n", err)
 					return
 				} else {
-					fmt.Printf("metadata db %s already exists...skipping creation\n", fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, metadataInstance, metadataDatabase))
+					fmt.Printf("metadata db %s already exists...skipping creation\n", fmt.Sprintf("projects/%s/instances/%s/databases/%s", spannerProjectId, metadataInstance, metadataDatabase))
 				}
 			} else {
-				fmt.Println("Created metadata db", fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, metadataInstance, metadataDatabase))
+				fmt.Println("Created metadata db", fmt.Sprintf("projects/%s/instances/%s/databases/%s", spannerProjectId, metadataInstance, metadataDatabase))
 			}
 		}
 	}
@@ -288,7 +295,7 @@ func main() {
 			"changeStreamName":     changeStreamName,
 			"instanceId":           instanceId,
 			"databaseId":           dbName,
-			"spannerProjectId":     projectId,
+			"spannerProjectId":     spannerProjectId,
 			"metadataInstance":     metadataInstance,
 			"metadataDatabase":     metadataDatabase,
 			"startTimestamp":       startTimestamp,
@@ -356,7 +363,7 @@ func main() {
 				"sourceDbTimezoneOffset": sourceDbTimezoneOffset,
 				"metadataTableSuffix":    metadataTableSuffix,
 				"GCSInputDirectoryPath":  gcsPath,
-				"spannerProjectId":       projectId,
+				"spannerProjectId":       spannerProjectId,
 				"metadataInstance":       metadataInstance,
 				"metadataDatabase":       metadataDatabase,
 				"runMode":                writerRunMode,

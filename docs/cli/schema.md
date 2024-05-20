@@ -35,7 +35,7 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
     ./spanner-migration-tool schema --source=SOURCE [--dry-run]
         [--log-level=LOG_LEVEL] [--prefix=PREFIX]
         [--source-profile=SOURCE_PROFILE] [--target=TARGET]
-        [--target-profile=TARGET_PROFILE] [GCLOUD_WIDE_FLAG ...]
+        [--target-profile=TARGET_PROFILE] [--project=PROJECT] [GCLOUD_WIDE_FLAG ...]
 
 ## DESCRIPTION
 
@@ -54,7 +54,7 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
             --source-profile='host=host,port=3306,user=user,password=pwd,dbN\
         ame=db' \
             --target-profile='project=spanner-project,instance=spanner-insta\
-        nce'
+        nce' --project='migration-project'
 
 ## REQUIRED FLAGS
 
@@ -88,3 +88,8 @@ Detailed description of optional flags can be found [here](./flags.md).
      --target-profile=TARGET_PROFILE
         Flag for specifying connection profile for target database (e.g.,
         "dialect=postgresql").
+
+     --project=PROJECT
+        Flag for specifying the name of the Google Cloud Project in which the Spanner migration tool
+        can create resources required for migration. If the project is not specified, Spanner migration 
+        tool will try to fetch the configured project in the gCloud CLI.

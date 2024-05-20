@@ -1,5 +1,11 @@
 import { SourceDbNames } from '../app.constants'
 import IConv from '../model/conv'
+import { AutoGen } from '../model/edit-table'
+
+export interface GroupedAutoGens {
+  [key: string]: { [type: string]: AutoGen[] };
+}
+
 
 export function extractSourceDbName(srcDbName: string) {
   if (srcDbName == 'mysql' || srcDbName == 'mysqldump') {
@@ -26,4 +32,23 @@ export function downloadSession(conv: IConv) {
     a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
     a.download = `${conv.SessionName}_${conv.DatabaseType}_${conv.DatabaseName}.json`
     a.click()
+}
+
+export function groupAutoGenByType(autoGens: AutoGen[]): { [type: string]: AutoGen[] } {
+  return autoGens.reduce((acc: { [type: string]: AutoGen[] }, autoGen: AutoGen) => {
+    const type = autoGen.GenerationType;
+    if (!acc[type]) {
+      acc[type] = [];
+    }
+    acc[type].push(autoGen);
+    return acc;
+  }, {});
+}
+
+export function processAutoGens(autoGenMap: any): GroupedAutoGens {
+  const groupedAutoGens: GroupedAutoGens = {};
+  Object.keys(autoGenMap).forEach(key => {
+    groupedAutoGens[key] = groupAutoGenByType(autoGenMap[key]);
+  });
+  return groupedAutoGens;
 }

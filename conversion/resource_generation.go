@@ -53,7 +53,7 @@ type ResourceGenerationImpl struct {
 }
 
 type ValidateOrCreateResourcesInterface interface {
-	ValidateOrCreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error
+	ValidateOrCreateResourcesForShardedMigration(ctx context.Context, migrationProjectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error
 }
 
 type ValidateOrCreateResourcesImpl struct {
@@ -181,7 +181,7 @@ func (r ResourceGenerationImpl) RollbackResourceCreation(ctx context.Context, pr
 }
 
 // Returns source and destination connection profiles to be created
-func (r ResourceGenerationImpl) GetConnectionProfilesForResources(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error) {
+func (r ResourceGenerationImpl) GetConnectionProfilesForResources(ctx context.Context, migrationProjectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error) {
 	var sourceProfilesToCreate []*ConnectionProfileReq
 	var dstProfilesToCreate []*ConnectionProfileReq
 
@@ -191,7 +191,7 @@ func (r ResourceGenerationImpl) GetConnectionProfilesForResources(ctx context.Co
 
 	for _, profile := range sourceProfile.Config.ShardConfigurationDataflow.DataShards {
 		// Check if source profile needs to be created
-		sourceProfile, err := getSourceConnectionProfileForCreation(ctx, projectId, profile, region, validateOnly, connectionProfiles, r.DsAcc, r.DsClient)
+		sourceProfile, err := getSourceConnectionProfileForCreation(ctx, migrationProjectId, profile, region, validateOnly, connectionProfiles, r.DsAcc, r.DsClient)
 		if err != nil {
 			return sourceProfilesToCreate, dstProfilesToCreate, err
 		}
@@ -200,7 +200,7 @@ func (r ResourceGenerationImpl) GetConnectionProfilesForResources(ctx context.Co
 		}
 
 		// Check if destination profile needs to be created
-		dstProfile, err := getDstConnectionProfileForCreation(ctx, projectId, profile, region, validateOnly, connectionProfiles, r.DsAcc, r.DsClient)
+		dstProfile, err := getDstConnectionProfileForCreation(ctx, migrationProjectId, profile, region, validateOnly, connectionProfiles, r.DsAcc, r.DsClient)
 		if err != nil {
 			return sourceProfilesToCreate, dstProfilesToCreate, err
 		}
@@ -214,12 +214,12 @@ func (r ResourceGenerationImpl) GetConnectionProfilesForResources(ctx context.Co
 // 1. For each datashard, check if source and destination connection profile exists or not
 // 2. If source connection profile doesn't exists create it or validate if creation is possible.
 // 3. If validation is false and destination connection profile doesn't exists create a corresponding gcs bucket and then a destination connection profile
-func (c *ValidateOrCreateResourcesImpl) ValidateOrCreateResourcesForShardedMigration(ctx context.Context, projectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error {
+func (c *ValidateOrCreateResourcesImpl) ValidateOrCreateResourcesForShardedMigration(ctx context.Context, migrationProjectId string, instanceName string, validateOnly bool, region string, sourceProfile profiles.SourceProfile) error {
 	var sourceProfilesToCreate []*ConnectionProfileReq
 	var dstProfilesToCreate []*ConnectionProfileReq
 
 	// Fetches list with resources which do not exist and need to be created
-	sourceProfilesToCreate, dstProfilesToCreate, err := c.ResourceGenerator.GetConnectionProfilesForResources(ctx, projectId, sourceProfile, region, validateOnly)
+	sourceProfilesToCreate, dstProfilesToCreate, err := c.ResourceGenerator.GetConnectionProfilesForResources(ctx, migrationProjectId, sourceProfile, region, validateOnly)
 	if err != nil {
 		return fmt.Errorf("resource generation failed %s", err)
 	}

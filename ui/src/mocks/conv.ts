@@ -16,6 +16,10 @@ const mockIConv: IConv = {
                         Name: "STRING",
                         Len: 50,
                         IsArray: false
+                    },
+                    AutoGen: {
+                        Name: "",
+                        GenerationType: ""
                     }
                 }
             },

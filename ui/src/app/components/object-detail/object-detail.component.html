@@ -169,8 +169,7 @@
                       EDIT
                     </button>
                   </div>
-                  <!--[TODO:khajanchi] Remove the predicate && false once transformations is in place-->
-                  <div *ngIf="!isEditMode && !currentObject.isDeleted && false">
+                  <div *ngIf="!isEditMode && !currentObject.isDeleted">
                     <button mat-stroked-button color="primary" (click)="addNewColumn()"
                       *ngIf="currentObject!.isSpannerNode">
                       <mat-icon class="edit-icon">edit</mat-icon>
@@ -225,6 +224,36 @@
               </td>
             </ng-container>
 
+            <ng-container matColumnDef="spAutoGen" *ngIf="autGenSupported">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
+              <td mat-cell *matCellDef="let element; let i = index">
+                <div class="sp-autogen-data-cells">
+                  <ng-container *ngIf="isEditMode && element.get('srcId').value !== ''">
+                    <mat-form-field appearance="outline" class="w-100">
+                      <mat-select #matSelectsAutoGen [formControl]="element.get('spAutoGen')" [compareWith]="compareAutoGen">
+                        <ng-container *ngFor="let autoGen of autoGenMap[element.get('spDataType').value]">
+                          <mat-option *ngIf="autoGen.GenerationType === ''" [value]="autoGen">
+                            {{ autoGen.Name !== '' ? autoGen.Name : 'None' }}
+                          </mat-option>
+                        </ng-container>
+                        <ng-container *ngIf="element.get('spDataType').value as spDataType">
+                          <ng-container *ngFor="let typeGroup of (processedAutoGenMap[spDataType] | keyvalue)">
+                            <mat-optgroup *ngIf="typeGroup.key !== ''" [label]="typeGroup.key">
+                              <mat-option *ngFor="let autoGen of typeGroup.value" [value]="autoGen">
+                                {{ autoGen.Name }}
+                              </mat-option>
+                            </mat-optgroup>
+                          </ng-container>
+                        </ng-container>
+                      </mat-select>
+                    </mat-form-field>
+                  </ng-container>                  
+                  <ng-container *ngIf="!isEditMode">
+                    <p>{{ element.get('spAutoGen').value.Name !== '' ? element.get('spAutoGen').value.Name : 'None' }}</p>
+                  </ng-container>
+                </div>
+              </td>
+            </ng-container>
             <ng-container matColumnDef="spColMaxLength">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Max Length</th>
               <td mat-cell *matCellDef="let element">
@@ -334,7 +363,7 @@
           </ng-container>
 
           <ng-container matColumnDef="spDatabase">
-            <th mat-header-cell *matHeaderCellDef class="db_name" colspan="6">
+            <th mat-header-cell *matHeaderCellDef class="db_name" colspan=spColspan>
               <div class="spanner_edit-button">
                 <span>Spanner</span>
                 <div *ngIf="

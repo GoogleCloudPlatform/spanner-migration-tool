@@ -244,8 +244,8 @@ func getLocalConv(versionId string) (ConvWithMetadata, error) {
 
 func getMetadataDbUri() string {
 	sessionState := GetSessionState()
-	if sessionState.GCPProjectID == "" || sessionState.SpannerInstanceID == "" {
+	if sessionState.SpannerProjectId == "" || sessionState.SpannerInstanceID == "" {
 		return ""
 	}
-	return helpers.GetSpannerUri(sessionState.GCPProjectID, sessionState.SpannerInstanceID)
+	return helpers.GetSpannerUri(sessionState.SpannerProjectId, sessionState.SpannerInstanceID)
 }

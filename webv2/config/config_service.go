@@ -63,12 +63,18 @@ func TryInitializeSpannerConfig() Config {
 	//Try load spanner config from environment variables and save to config
 	if err != nil || c.GCPProjectID == "" || c.SpannerInstanceID == "" {
 		projectId := os.Getenv("GCPProjectID")
+		spProjectId := os.Getenv("SpannerProjectID")
 		spInstanceId := os.Getenv("SpannerInstanceID")
+
+		if spProjectId == "" {
+			spProjectId = projectId
+		}
 
 		if projectId == "" || spInstanceId == "" {
 			fmt.Println("Note: To store the sessions please set the environment variables 'GCPProjectID' and 'SpannerInstanceID'. You would set these as part of the migration workflow if you are using the Spanner migration tool Web UI.")
 		} else {
 			c.GCPProjectID = projectId
+			c.SpannerProjectID = spProjectId
 			c.SpannerInstanceID = spInstanceId
 			SaveSpannerConfig(c)
 		}
