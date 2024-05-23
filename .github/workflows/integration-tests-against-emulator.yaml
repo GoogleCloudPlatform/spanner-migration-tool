@@ -126,12 +126,14 @@ jobs:
       - name: Install sqlplus required for loading .sql files
         run: |
           sudo apt-get update
-          sudo apt install alien libaio1
-          curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-basic-21.5.0.0.0-1.x86_64.rpm          
-          curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-sqlplus-21.5.0.0.0-1.x86_64.rpm
-          sudo alien -i oracle-instantclient-basic-21.5.0.0.0-1.x86_64.rpm
-          sudo alien -i oracle-instantclient-sqlplus-21.5.0.0.0-1.x86_64.rpm
-          sudo sh -c 'echo /usr/lib/oracle/21.5/client64/lib/ > /etc/ld.so.conf.d/oracle.conf'
+          sudo apt-get install -y libaio1 rpm2cpio cpio
+          curl -O https://download.oracle.com/otn_software/linux/instantclient/2340000/oracle-instantclient-basic-23.4.0.24.05-1.el9.x86_64.rpm
+          curl -O https://download.oracle.com/otn_software/linux/instantclient/2340000/oracle-instantclient-sqlplus-23.4.0.24.05-1.el9.x86_64.rpm
+          rpm2cpio oracle-instantclient-basic-23.4.0.24.05-1.el9.x86_64.rpm | sudo cpio -idmv
+          sudo cp -r usr/* /usr/
+          rpm2cpio oracle-instantclient-sqlplus-23.4.0.24.05-1.el9.x86_64.rpm | sudo cpio -idmv
+          sudo cp -r usr/* /usr/
+          sudo sh -c 'echo /usr/lib/oracle/23/client64/lib/ > /etc/ld.so.conf.d/oracle.conf'
           sudo ldconfig
       - run: sqlplus SYS/oracle@127.0.0.1:1521/xe as sysdba @test_data/oracle.test.out
       # create a spanner instance
