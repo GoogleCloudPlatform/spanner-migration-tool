@@ -41,6 +41,8 @@ cloud.google.com/go/dataflow v0.9.4 h1:7VmCNWcPJBS/srN2QnStTB6nu4Eb5TMcpkmtaPVhR
 cloud.google.com/go/dataflow v0.9.4/go.mod h1:4G8vAkHYCSzU8b/kmsoR2lWyHJD85oMJPHMtan40K8w=
 cloud.google.com/go/dataflow v0.9.6 h1:GuZJgkOL64cYySwYEYqQkggdxwoZTk8cvekQW0t3KRM=
 cloud.google.com/go/dataflow v0.9.6/go.mod h1:nO0hYepRlPlulvAHCJ+YvRPLnL/bwUswIbhgemAt6eM=
+cloud.google.com/go/dataflow v0.9.7 h1:wKEakCbRevlwsWqTn34pWJUFmdbx0HKwpRH6HhU7NIs=
+cloud.google.com/go/dataflow v0.9.7/go.mod h1:3BjkOxANrm1G3+/EBnEsTEEgJu1f79mFqoOOZfz3v+E=
 cloud.google.com/go/datastore v1.0.0/go.mod h1:LXYbyblFSglQ5pkeyhO+Qmw7ukd3C+pD7TKLgZqpHYE=
 cloud.google.com/go/datastore v1.1.0/go.mod h1:umbIZjpQpHh4hmRpGhH4tLFup+FVzqBi1b3c64qFpCk=
 cloud.google.com/go/datastream v1.10.3 h1:Z2sKPIB7bT2kMW5Uhxy44ZgdJzxzE5uKjavoW+EuHEE=
