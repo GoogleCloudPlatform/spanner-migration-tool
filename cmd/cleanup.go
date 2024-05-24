@@ -20,10 +20,12 @@ import (
 	"os"
 	"path"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 	"github.com/google/subcommands"
+	"go.uber.org/zap"
 )
 
 // CleanupCmd is the command for cleaning up the migration resources during a minimal
@@ -108,7 +110,13 @@ func (cmd *CleanupCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interf
 		Pubsub:     cmd.pubsub,
 		Monitoring: cmd.monitoring,
 	}
+	getInfo := &utils.GetUtilInfoImpl{}
+	migrationProjectId, err := getInfo.GetProject()
+	if err != nil {
+		logger.Log.Error("Could not get project id from gcloud environment. Inferring migration project id from target profile.", zap.Error(err))
+		migrationProjectId = project
+	}
 	logger.Log.Info(fmt.Sprintf("Initiating job cleanup for jobId: %v \n", cmd.jobId))
-	streaming.InitiateJobCleanup(ctx, cmd.jobId, dataShardIds, jobCleanupOptions, project, instance)
+	streaming.InitiateJobCleanup(ctx, cmd.jobId, dataShardIds, jobCleanupOptions, migrationProjectId, project, instance)
 	return subcommands.ExitSuccess
 }

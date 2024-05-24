@@ -408,6 +408,32 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 	}
 }
 
+func TestPrintAutoGenCol(t *testing.T) {
+	tests := []struct {
+		agc      AutoGenCol
+		expected string
+	}{
+		{AutoGenCol{Name: constants.UUID, GenerationType: "Pre-defined"}, " DEFAULT (GENERATE_UUID())"},
+		{AutoGenCol{GenerationType: "", Name: ""}, ""},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.agc.PrintAutoGenCol())
+	}
+}
+
+func TestPGPrintAutoGenCol(t *testing.T) {
+	tests := []struct {
+		agc      AutoGenCol
+		expected string
+	}{
+		{AutoGenCol{Name: constants.UUID, GenerationType: "Pre-defined"}, " DEFAULT (spanner.generate_uuid())"},
+		{AutoGenCol{GenerationType: "", Name: ""}, ""},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.agc.PGPrintAutoGenCol())
+	}
+}
+
 func TestGetDDL(t *testing.T) {
 	s := Schema{
 		"t1": CreateTable{

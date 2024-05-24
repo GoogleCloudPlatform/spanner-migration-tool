@@ -42,6 +42,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
 	"go.uber.org/ratelimit"
@@ -76,8 +77,6 @@ var (
 	MAX_WORKER_LIMIT int32 = 1000
 	// Min allowed value for maxWorkers and numWorkers.
 	MIN_WORKER_LIMIT int32 = 1
-	// Default gcs path of the Dataflow template.
-	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner"
 
 	DEFAULT_DATASTREAM_CLIENT_BACKOFF_BASE_DELAY time.Duration = 1.0 * time.Second
 	DEFAULT_DATASTREAM_CLIENT_BACKOFF_MAX_DELAY  time.Duration = 900 * time.Second
@@ -88,6 +87,11 @@ var (
 		codes.ResourceExhausted,
 		codes.Unknown,
 	}
+
+	DEFAULT_DATASTREAM_LRO_POLL_BASE_DELAY       time.Duration = 1.0 * time.Minute
+	DEFAULT_DATASTREAM_LRO_POLL_MAX_DELAY        time.Duration = 15 * time.Minute
+	DEFAULT_DATASTREAM_LRO_POLL_MAX_ELAPSED_TIME time.Duration = 30 * time.Minute
+	DEFAULT_DATASTREAM_LRO_POLL_MULTIPLIER       float64       = 1.6
 
 	// DataStream by default provides 20 API calls per second.
 	// Each launch operation calls datastream twice, ignoring `op.wait`, hence keeping it at 10 per second.
@@ -167,6 +171,21 @@ func dataStreamGaxRetrier() gax.Retryer {
 		Max:        DEFAULT_DATASTREAM_CLIENT_BACKOFF_MAX_DELAY,
 		Multiplier: DEFAULT_DATASTREAM_CLIENT_BACKOFF_MULTIPLIER,
 	})
+}
+
+// Returns ExponentialBackoff Operator for DataStream Update Stream Retries across LRO poll.
+func getUpdateDataStreamLRORetryBackoff() *backoff.ExponentialBackOff {
+	dataStreamUpdateBackoff := &backoff.ExponentialBackOff{
+		InitialInterval:     DEFAULT_DATASTREAM_LRO_POLL_BASE_DELAY,
+		RandomizationFactor: backoff.DefaultRandomizationFactor,
+		Multiplier:          DEFAULT_DATASTREAM_LRO_POLL_MULTIPLIER,
+		MaxInterval:         DEFAULT_DATASTREAM_LRO_POLL_MAX_DELAY,
+		MaxElapsedTime:      DEFAULT_DATASTREAM_LRO_POLL_MAX_ELAPSED_TIME,
+		Stop:                backoff.Stop,
+		Clock:               backoff.SystemClock,
+	}
+	dataStreamUpdateBackoff.Reset()
+	return dataStreamUpdateBackoff
 }
 
 // VerifyAndUpdateCfg checks the fields and errors out if certain fields are empty.
@@ -521,8 +540,8 @@ func createNotificationOnBucket(ctx context.Context, storageClient *storage.Clie
 }
 
 // LaunchStream populates the parameters from the streaming config and triggers a stream on Cloud Datastream.
-func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, projectID string, datastreamCfg DatastreamCfg) error {
-	projectNumberResource := GetProjectNumberResource(ctx, fmt.Sprintf("projects/%s", projectID))
+func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbList []profiles.LogicalShard, migrationProjectId string, datastreamCfg DatastreamCfg) error {
+	projectNumberResource := GetProjectNumberResource(ctx, fmt.Sprintf("projects/%s", migrationProjectId))
 	fmt.Println("Launching stream ", fmt.Sprintf("%s/locations/%s", projectNumberResource, datastreamCfg.StreamLocation))
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
@@ -581,36 +600,51 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, dbL
 	}
 	fmt.Println("Successfully created stream ", datastreamCfg.StreamId)
 
-	fmt.Print("Setting stream state to RUNNING...")
-	streamInfo.Name = fmt.Sprintf("%s/locations/%s/streams/%s", projectNumberResource, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
-	updateStreamRequest := &datastreampb.UpdateStreamRequest{
-		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"state"}},
-		Stream:     streamInfo,
-		// Setting a RequestId makes idempotent retries possible.
-		RequestId: uuid.New().String(),
-	}
-	upOp, err := dsClient.UpdateStream(ctx, updateStreamRequest, gax.WithRetry(dataStreamGaxRetrier))
-	if err != nil {
-		return fmt.Errorf("could not create update request: %v", err)
-	}
-	_, err = upOp.Wait(ctx)
-	if err != nil {
-		return fmt.Errorf("update stream operation failed: %v", err)
+	/* Note: Retrying across an LRO poll is a workaround and not a fix, use it only after checking with the API server team.
+	 * In most cases, if a long running operation leads into a retriable failure, the server would retry internally before marking the operation as failed.
+	 */
+	updateErr := backoff.Retry(func() error { return updateStream(ctx, streamInfo, projectNumberResource, datastreamCfg, dsClient) },
+		getUpdateDataStreamLRORetryBackoff())
+	if updateErr != nil {
+		return updateErr
 	}
 	fmt.Println("Done")
 	return nil
 }
 
+func updateStream(ctx context.Context, streamInfo *datastreampb.Stream, projectNumberResource string, datastreamCfg DatastreamCfg, dsClient *datastream.Client) error {
+	fmt.Print("Setting stream state to RUNNING...")
+	streamInfo.Name = fmt.Sprintf("%s/locations/%s/streams/%s", projectNumberResource, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
+	// Setting a RequestId makes idempotent retries possible.
+	updateStreamRequest := &datastreampb.UpdateStreamRequest{
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"state"}},
+		Stream:     streamInfo,
+
+		RequestId: uuid.New().String(),
+	}
+	upOp, err := dsClient.UpdateStream(ctx, updateStreamRequest, gax.WithRetry(dataStreamGaxRetrier))
+	if err != nil {
+		fmt.Printf("Encountered Error in updating datastream. Error before LRO poll: %v\n", err)
+		return fmt.Errorf("could not create update request: %v", err)
+	}
+	_, err = upOp.Wait(ctx)
+	if err != nil {
+		fmt.Printf("Encountered Error in updating datastream. Error after LRO poll: %v\n", err)
+		return fmt.Errorf("update stream operation failed: %v", err)
+	}
+	return nil
+}
+
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
-func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
-	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil, &utils.GetUtilInfoImpl{})
+func LaunchDataflowJob(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
+	spannerProjectId, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil, &utils.GetUtilInfoImpl{})
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
 
 	// Rate limit this function to match DataFlow createJob Quota.
 	DATA_FLOW_RL.Take()
 
-	fmt.Println("Launching dataflow job ", dataflowCfg.JobName, " in ", project, "-", dataflowCfg.Location)
+	fmt.Println("Launching dataflow job ", dataflowCfg.JobName, " in ", migrationProjectId, "-", dataflowCfg.Location)
 
 	c, err := dataflow.NewFlexTemplatesClient(ctx)
 	if err != nil {
@@ -627,7 +661,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	defer dsClient.Close()
 
 	// Fetch the GCS path from the destination connection profile.
-	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", project, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name)
+	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", migrationProjectId, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name)
 	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("could not get connection profiles: %v", err)
@@ -641,19 +675,19 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 
 	// Initiate runtime environment flags and overrides.
 	var (
-		dataflowProjectId        = project
-		dataflowVpcHostProjectId = project
-		gcsTemplatePath          = DEFAULT_TEMPLATE_PATH
+		dataflowProjectId        = migrationProjectId
+		dataflowVpcHostProjectId = migrationProjectId
+		gcsTemplatePath          = utils.GetDataflowTemplatePath()
 		dataflowSubnetwork       = ""
 		workerIpAddressConfig    = dataflowpb.WorkerIPAddressConfiguration_WORKER_IP_PUBLIC
 		dataflowUserLabels       = make(map[string]string)
 		machineType              = "n1-standard-2"
 	)
-	// If project override present, use that otherwise default to Spanner project. Useful when customers want to run Dataflow in separate project.
+	// If project override present, use that otherwise default to Migration project. Useful when customers want to run Dataflow in separate project.
 	if dataflowCfg.ProjectId != "" {
 		dataflowProjectId = dataflowCfg.ProjectId
 	}
-	// If VPC Host project override present, use that otherwise default to Spanner project.
+	// If VPC Host project override present, use that otherwise default to Migration project.
 	if dataflowCfg.VpcHostProjectId != "" {
 		dataflowVpcHostProjectId = dataflowCfg.VpcHostProjectId
 	}
@@ -706,13 +740,14 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: gcsTemplatePath},
 		Parameters: map[string]string{
 			"inputFilePattern":              utils.ConcatDirectoryPath(inputFilePattern, "data"),
-			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
+			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", migrationProjectId, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
+			"projectId":                     spannerProjectId,
 			"instanceId":                    instance,
 			"databaseId":                    dbName,
 			"sessionFilePath":               streamingCfg.TmpDir + "session.json",
 			"deadLetterQueueDirectory":      inputFilePattern + "dlq",
 			"transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
-			"gcsPubSubSubscription":         fmt.Sprintf("projects/%s/subscriptions/%s", project, streamingCfg.PubsubCfg.SubscriptionId),
+			"gcsPubSubSubscription":         fmt.Sprintf("projects/%s/subscriptions/%s", migrationProjectId, streamingCfg.PubsubCfg.SubscriptionId),
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			MaxWorkers:            maxWorkers,
@@ -750,7 +785,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	return internal.DataflowOutput{JobID: respDf.Job.Id, GCloudCmd: gcloudDfCmd}, nil
 }
 
-func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJobId, gcloudDataflowCmd, project, dataShardId string, gcsBucket internal.GcsResources, dashboardName string) {
+func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJobId, gcloudDataflowCmd, migrationProjectId, dataShardId string, gcsBucket internal.GcsResources, dashboardName string) {
 	datastreamCfg := streamingCfg.DatastreamCfg
 	dataflowCfg := streamingCfg.DataflowCfg
 	conv.Audit.StreamingStats.DatastreamResources = internal.DatastreamResources{DatastreamName: datastreamCfg.StreamId, Region: datastreamCfg.StreamLocation}
@@ -774,8 +809,8 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 		conv.Audit.StreamingStats.ShardToShardResourcesMap[dataShardId] = shardResources
 		resourceMutex.Unlock()
 	}
-	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
-	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, dataflowCfg.Location, dataflowCfg.JobName, dfJobId)
+	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", migrationProjectId, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
+	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", migrationProjectId, dataflowCfg.Location, dataflowCfg.JobName, dfJobId)
 	logger.Log.Info("\n------------------------------------------\n")
 	logger.Log.Info("The Datastream stream: " + fullStreamName + " ,the Dataflow job: " + dfJobDetails +
 		" the Pubsub topic: " + streamingCfg.PubsubCfg.TopicId + " ,the subscription: " + streamingCfg.PubsubCfg.SubscriptionId +
@@ -863,7 +898,7 @@ func GetProjectNumberResource(ctx context.Context, projectID string) string {
 
 }
 
-func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, schemaDetails map[string]internal.SchemaDetails) (StreamingCfg, error) {
+func StartDatastream(ctx context.Context, migrationProjectId string, streamingCfg StreamingCfg, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, schemaDetails map[string]internal.SchemaDetails) (StreamingCfg, error) {
 	driver := sourceProfile.Driver
 	var dbList []profiles.LogicalShard
 	switch driver {
@@ -874,14 +909,14 @@ func StartDatastream(ctx context.Context, streamingCfg StreamingCfg, sourceProfi
 	case constants.POSTGRES:
 		dbList = append(dbList, profiles.LogicalShard{DbName: streamingCfg.DatastreamCfg.Properties})
 	}
-	err := LaunchStream(ctx, sourceProfile, dbList, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
+	err := LaunchStream(ctx, sourceProfile, dbList, migrationProjectId, streamingCfg.DatastreamCfg)
 	if err != nil {
 		return streamingCfg, fmt.Errorf("error launching stream: %v", err)
 	}
 	return streamingCfg, nil
 }
 
-func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
+func StartDataflow(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) (internal.DataflowOutput, error) {
 	sc, err := storageclient.NewStorageClientImpl(ctx)
 	if err != nil {
 		return internal.DataflowOutput{}, err
@@ -906,7 +941,7 @@ func StartDataflow(ctx context.Context, targetProfile profiles.TargetProfile, st
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("error while writing to GCS: %v", err)
 	}
-	dfOutput, err := LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv)
+	dfOutput, err := LaunchDataflowJob(ctx, migrationProjectId, targetProfile, streamingCfg, conv)
 	if err != nil {
 		return internal.DataflowOutput{}, fmt.Errorf("error launching dataflow: %v", err)
 	}

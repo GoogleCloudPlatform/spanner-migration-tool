@@ -147,6 +147,10 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 				interleaveTableSchema = ReviewColumnSize(colMaxLength, tableId, colId, conv, interleaveTableSchema)
 			}
 		}
+
+		if !v.Removed {
+			UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
+		}
 	}
 
 	ddl := GetSpannerTableDDL(conv.SpSchema[tableId], conv.SpDialect, sessionState.Driver)

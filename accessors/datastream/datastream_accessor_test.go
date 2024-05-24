@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/datastream/apiv1/datastreampb"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
+	datastreamclient_test "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream/datastream_test"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/operation"
 	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
@@ -38,7 +38,6 @@ func TestFetchTargetBucketAndPath(t *testing.T) {
 	da := datastream_accessor.DatastreamAccessorImpl{}
 	testCases := []struct {
 		name               string
-		dsm                datastreamclient.DatastreamClientMock
 		connectionProfile  *datastreampb.ConnectionProfile
 		getProfileErr      error
 		expectedBucketName string
@@ -71,7 +70,7 @@ func TestFetchTargetBucketAndPath(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		dsm := datastreamclient.DatastreamClientMock{}
+		dsm := datastreamclient_test.DatastreamClientMock{}
 		dsm.On("GetConnectionProfile", mock.Anything, mock.Anything).Return(tc.connectionProfile, tc.getProfileErr)
 		bucketName, prefix, err := da.FetchTargetBucketAndPath(ctx, &dsm, "project-id", dstConfig)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
@@ -111,7 +110,7 @@ func TestDeleteConnectionProfile(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		dsm := datastreamclient.DatastreamClientMock{}
+		dsm := datastreamclient_test.DatastreamClientMock{}
 		op := operation.NewNilOperationWrapper(tc.op)
 		dsm.On("DeleteConnectionProfile", mock.Anything, mock.Anything).Return(&op, tc.deleteConnProfileErr)
 		err := da.DeleteConnectionProfile(ctx, &dsm, "id", "project-id", "region")
@@ -155,7 +154,7 @@ func TestCreateConnectionProfile(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		dsm := datastreamclient.DatastreamClientMock{}
+		dsm := datastreamclient_test.DatastreamClientMock{}
 		op := operation.NewOperationWrapper[datastreampb.ConnectionProfile](tc.op)
 		dsm.On("CreateConnectionProfile", mock.Anything, mock.Anything).Return(&op, tc.createProfileError)
 		_, err := da.CreateConnectionProfile(ctx, &dsm, &datastreampb.CreateConnectionProfileRequest{})

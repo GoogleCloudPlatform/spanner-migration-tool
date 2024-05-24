@@ -74,4 +74,6 @@ For JSON based configuration, creation of new resources is not supported. The co
 
 SMT provides an example of how a JSON based configuration looks like [here](https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/test_data/mysql_shard_streaming.cfg).
 
+Source and Target connection profiles can be automatically generated. Refer to [this](../../cli/config-json.md#automatic-generation-of-connection-profiles) documentation to know more.
+
 ![](https://services.google.com/fh/files/misc/text_input_shard.png)

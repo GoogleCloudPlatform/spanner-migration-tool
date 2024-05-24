@@ -21,6 +21,28 @@
             </mat-form-field>
             <br>
         </div>
+        <div *ngIf="selectedDatatype != '' && autoGenMap[selectedDatatype].length > 1 && autGenSupported">
+            <mat-form-field class="full-width" appearance="outline">
+                <mat-label>Auto Generated</mat-label>
+                <mat-select [(ngModel)]="selectedAutoGen" class="input-field" formControlName="autoGen">
+                    <ng-container *ngFor="let autoGen of autoGenMap[selectedDatatype]">
+                        <mat-option *ngIf="autoGen.GenerationType === ''" [value]="autoGen">
+                            {{ autoGen.Name !== '' ? autoGen.Name : 'None' }}
+                        </mat-option>
+                    </ng-container>
+                    <ng-container *ngIf="processedAutoGenMap[selectedDatatype] as types">
+                        <ng-container *ngFor="let type of types | keyvalue">
+                            <mat-optgroup *ngIf="type.key !== ''" [label]="type.key">
+                                <mat-option *ngFor="let autoGen of type.value" [value]="autoGen">
+                                    {{ autoGen.Name }}
+                                </mat-option>
+                            </mat-optgroup>
+                        </ng-container>
+                    </ng-container>
+                </mat-select>
+            </mat-form-field>
+            <br>
+        </div>                     
         <mat-form-field appearance="outline">
             <mat-label>IsNullable</mat-label>
             <mat-select [(ngModel)]="selectedNull" formControlName="isNullable" required="true">

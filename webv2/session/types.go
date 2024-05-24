@@ -43,26 +43,27 @@ type SourceDBConnDetails struct {
 
 // SessionState stores information for the current migration session.
 type SessionState struct {
-	SourceDB            *sql.DB             // Connection to source database in case of direct connection
-	SourceDBConnDetails SourceDBConnDetails // Connection details for source database
-	DbName              string              // Name of source database
-	Driver              string              // Name of Spanner migration tool driver in use
-	Conv                *internal.Conv      // Current conversion state
-	SessionFile         string              // Path to session file
-	IsOffline           bool                // True if the connection to remote metadata database is invalid
-	GCPProjectID        string
-	SpannerInstanceID   string
-	Dialect             string
-	IsSharded 			bool
-	TmpDir string
+	SourceDB             *sql.DB             // Connection to source database in case of direct connection
+	SourceDBConnDetails  SourceDBConnDetails // Connection details for source database
+	DbName               string              // Name of source database
+	Driver               string              // Name of Spanner migration tool driver in use
+	Conv                 *internal.Conv      // Current conversion state
+	SessionFile          string              // Path to session file
+	IsOffline            bool                // True if the connection to remote metadata database is invalid
+	GCPProjectID         string              // GCP project id where the migration resources are created
+	SpannerProjectId     string              // Project id of the spanner instance
+	SpannerInstanceID    string
+	Dialect              string
+	IsSharded            bool
+	TmpDir               string
 	ShardedDbConnDetails []profiles.DirectConnectionConfig
-	SourceProfileConfig profiles.SourceProfileConfig
-	Region              string
-	SpannerDatabaseName string
-	Bucket              string
-	RootPath            string
-	SessionMetadata     SessionMetadata
-	Error               error
+	SourceProfileConfig  profiles.SourceProfileConfig
+	Region               string
+	SpannerDatabaseName  string
+	Bucket               string
+	RootPath             string
+	SessionMetadata      SessionMetadata
+	Error                error
 	Counter
 }
 

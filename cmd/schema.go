@@ -41,6 +41,7 @@ type SchemaCmd struct {
 	target        string
 	targetProfile string
 	filePrefix    string // TODO: move filePrefix to global flags
+	project       string
 	logLevel      string
 	dryRun        bool
 	validate      bool
@@ -74,6 +75,7 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
+	f.StringVar(&cmd.project, "project", "", "Flag spcifying default project id for all the generated resources for the migration")
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
@@ -100,6 +102,14 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return subcommands.ExitUsageError
 	}
+	if cmd.project == "" {
+		getInfo := &utils.GetUtilInfoImpl{}
+		cmd.project, err = getInfo.GetProject()
+		if err != nil {
+			logger.Log.Error("Could not get project id from gcloud environment or --project flag. Either pass the projectId in the --project flag or configure in gcloud CLI using gcloud config set", zap.Error(err))
+			return subcommands.ExitUsageError
+		}
+	}
 
 	if cmd.validate {
 		return subcommands.ExitSuccess
@@ -113,7 +123,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	schemaConversionStartTime := time.Now()
 	var conv *internal.Conv
 	convImpl := &conversion.ConvImpl{}
-	conv, err = convImpl.SchemaConv(sourceProfile, targetProfile, &ioHelper, &conversion.SchemaFromSourceImpl{})
+	conv, err = convImpl.SchemaConv(cmd.project, sourceProfile, targetProfile, &ioHelper, &conversion.SchemaFromSourceImpl{})
 	if err != nil {
 		return subcommands.ExitFailure
 	}
@@ -127,7 +137,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
 	conv.Audit.SkipMetricsPopulation = os.Getenv("SKIP_METRICS_POPULATION") == "true"
 	if !cmd.dryRun {
-		_, err = MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd, conv, nil)
+		_, err = MigrateDatabase(ctx, cmd.project, targetProfile, sourceProfile, dbName, &ioHelper, cmd, conv, nil)
 		if err != nil {
 			err = fmt.Errorf("can't finish database migration for db %s: %v", dbName, err)
 			return subcommands.ExitFailure
