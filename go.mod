@@ -8,7 +8,7 @@ require (
 	cloud.google.com/go/datastream v1.10.6
 	cloud.google.com/go/monitoring v1.19.0
 	cloud.google.com/go/pubsub v1.37.0
-	cloud.google.com/go/resourcemanager v1.9.6
+	cloud.google.com/go/resourcemanager v1.9.7
 	cloud.google.com/go/spanner v1.60.0
 	cloud.google.com/go/storage v1.40.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
