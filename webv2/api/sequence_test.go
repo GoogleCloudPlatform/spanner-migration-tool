@@ -215,7 +215,7 @@ func TestGetSequenceDDL(t *testing.T) {
 	var res map[string]string
 	json.Unmarshal(rr.Body.Bytes(), &res)
 
-	expectedSeqDDL := map[string]string{"s1": "CREATE SEQUENCE seq OPTIONS (  sequence_kind='bit_reversed_positive'  ,  skip_range_min = 1  ,  skip_range_max = 2  ,  start_with_counter = 3  ) "}
+	expectedSeqDDL := map[string]string{"s1": "CREATE SEQUENCE seq OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 1, skip_range_max = 2, start_with_counter = 3) "}
 
 	if status := rr.Code; int64(status) != http.StatusOK {
 		t.Errorf("Get Sequence DDL : handler returned wrong status code: got %v want %v",
@@ -254,7 +254,7 @@ func TestGetSequenceKind(t *testing.T) {
 	var res map[string]string
 	json.Unmarshal(rr.Body.Bytes(), &res)
 
-	expectedSeqDDL := map[string]string{"s1": "CREATE SEQUENCE seq OPTIONS (  sequence_kind='bit_reversed_positive'  ,  skip_range_min = 1  ,  skip_range_max = 2  ,  start_with_counter = 3  ) "}
+	expectedSeqDDL := map[string]string{"s1": "CREATE SEQUENCE seq OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 1, skip_range_max = 2, start_with_counter = 3) "}
 
 	if status := rr.Code; int64(status) != http.StatusOK {
 		t.Errorf("Get Sequence DDL : handler returned wrong status code: got %v want %v",
