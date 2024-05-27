@@ -277,6 +277,7 @@ export class ObjectDetailComponent implements OnInit {
           })
         )
       } else {
+        // If the default type map doesn't have the source datatype as key then fallback to STRING with max length
         let droppedColumnSpDataType = ''
         let droppedColumnSpMaxLength = col.srcColMaxLength
         if (this.defaultTypeMap[col.srcDataType] === undefined) {
@@ -285,6 +286,12 @@ export class ObjectDetailComponent implements OnInit {
         } else {
           droppedColumnSpDataType = this.defaultTypeMap[col.srcDataType].Name
         }
+
+        // If the source max column length is empty but spanner datatype is STRING or BYTES, set column length to MAX
+        if (droppedColumnSpMaxLength == '' && (droppedColumnSpDataType == 'STRING' || droppedColumnSpDataType == 'BYTES')) {
+          droppedColumnSpMaxLength = 'MAX'
+        }
+        
         this.srcRowArray.push(
           new FormGroup({
             srcOrder: new FormControl(col.srcOrder),
