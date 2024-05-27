@@ -665,7 +665,7 @@ func TestGetDDL(t *testing.T) {
 		StartWithCounter: "7",
 	}
 	e4 := []string{
-		"CREATE SEQUENCE sequence1 OPTIONS (  sequence_kind='bit_reversed_positive'  ,  skip_range_min = 0  ,  skip_range_max = 5  ,  start_with_counter = 7  ) "}
+		"CREATE SEQUENCE sequence1 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 5, start_with_counter = 7) "}
 	sequencesOnly := GetDDL(Config{}, Schema{}, sequences)
 	assert.ElementsMatch(t, e4, sequencesOnly)
 }
@@ -777,7 +777,7 @@ func TestGetPGDDL(t *testing.T) {
 		StartWithCounter: "7",
 	}
 	e4 := []string{
-		"CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE   SKIP RANGE 0 5   START COUNTER WITH 7 "}
+		"CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE SKIP RANGE 0 5 START COUNTER WITH 7"}
 	sequencesOnly := GetDDL(Config{SpDialect: constants.DIALECT_POSTGRESQL}, Schema{}, sequences)
 	assert.ElementsMatch(t, e4, sequencesOnly)
 }
