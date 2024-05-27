@@ -1445,7 +1445,7 @@ func initializeTypeMap() {
 	}
 	// Initialize postgresTypeMap.
 	toddl = postgres.InfoSchemaImpl{}.GetToDdl()
-	for _, srcTypeName := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
+	for _, srcTypeName := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying", "path"} {
 		var l []types.TypeIssue
 		srcType := schema.MakeType()
 		srcType.Name = srcTypeName
@@ -1571,14 +1571,14 @@ func makePostgresDialectAutoGenMap() {
 	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar, ddl.Numeric} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
-				Name: "",
+				Name:           "",
 				GenerationType: "",
 			},
 		}
 	}
 	autoGenMap[ddl.PGVarchar] = append(autoGenMap[ddl.PGVarchar],
 		types.AutoGen{
-			Name: "UUID",
+			Name:           "UUID",
 			GenerationType: "Pre-defined",
 		})
 }
@@ -1587,14 +1587,14 @@ func makeGoogleSqlDialectAutoGenMap() {
 	for _, srcTypeName := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
-				Name: "",
+				Name:           "",
 				GenerationType: "",
 			},
 		}
 	}
 	autoGenMap[ddl.String] = append(autoGenMap[ddl.String],
 		types.AutoGen{
-			Name: "UUID",
+			Name:           "UUID",
 			GenerationType: "Pre-defined",
 		})
 }
