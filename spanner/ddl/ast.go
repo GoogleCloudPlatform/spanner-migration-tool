@@ -599,22 +599,22 @@ func (seq Sequence) PrintSequence() string {
 	var options []string
 	if seq.SequenceKind != "" {
 		if seq.SequenceKind == "BIT REVERSED POSITIVE" {
-			options = append(options, " sequence_kind='bit_reversed_positive' ")
+			options = append(options, "sequence_kind='bit_reversed_positive'")
 		}
 	}
 	if seq.SkipRangeMin != "" {
-		options = append(options, fmt.Sprintf(" skip_range_min = %s ", seq.SkipRangeMin))
+		options = append(options, fmt.Sprintf("skip_range_min = %s", seq.SkipRangeMin))
 	}
 	if seq.SkipRangeMax != "" {
-		options = append(options, fmt.Sprintf(" skip_range_max = %s ", seq.SkipRangeMax))
+		options = append(options, fmt.Sprintf("skip_range_max = %s", seq.SkipRangeMax))
 	}
 	if seq.StartWithCounter != "" {
-		options = append(options, fmt.Sprintf(" start_with_counter = %s ", seq.StartWithCounter))
+		options = append(options, fmt.Sprintf("start_with_counter = %s", seq.StartWithCounter))
 	}
 
 	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", seq.Name)
 	if len(options) > 0 {
-		seqDDL += " OPTIONS ( " + strings.Join(options, " , ") + " ) "
+		seqDDL += " OPTIONS (" + strings.Join(options, ", ") + ") "
 	}
 
 	return seqDDL
@@ -624,14 +624,14 @@ func (seq Sequence) PGPrintSequence() string {
 	var options []string
 	if seq.SequenceKind != "" {
 		if seq.SequenceKind == "BIT REVERSED POSITIVE" {
-			options = append(options, " BIT_REVERSED_POSITIVE ")
+			options = append(options, " BIT_REVERSED_POSITIVE")
 		}
 	}
 	if seq.SkipRangeMax != "" && seq.SkipRangeMin != "" {
-		options = append(options, fmt.Sprintf(" SKIP RANGE %s %s ", seq.SkipRangeMin, seq.SkipRangeMax))
+		options = append(options, fmt.Sprintf("SKIP RANGE %s %s", seq.SkipRangeMin, seq.SkipRangeMax))
 	}
 	if seq.StartWithCounter != "" {
-		options = append(options, fmt.Sprintf(" START COUNTER WITH %s ", seq.StartWithCounter))
+		options = append(options, fmt.Sprintf("START COUNTER WITH %s", seq.StartWithCounter))
 	}
 
 	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", seq.Name)
