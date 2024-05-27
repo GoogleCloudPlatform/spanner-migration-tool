@@ -78,6 +78,8 @@ cloud.google.com/go/resourcemanager v1.9.4 h1:JwZ7Ggle54XQ/FVYSBrMLOQIKoIT/uer8m
 cloud.google.com/go/resourcemanager v1.9.4/go.mod h1:N1dhP9RFvo3lUfwtfLWVxfUWq8+KUQ+XLlHLH3BoFJ0=
 cloud.google.com/go/resourcemanager v1.9.6 h1:VPfJFbWxrTYQzEXCDbJNpcvSB8eZhTSM0YHH146fIB8=
 cloud.google.com/go/resourcemanager v1.9.6/go.mod h1:d+XUOGbxg6Aka3lmC4fDiserslux3d15uX08C6a0MBg=
+cloud.google.com/go/resourcemanager v1.9.7 h1:SdvD0PaPX60+yeKoSe16mawFpM0EPuiPPihTIVlhRsY=
+cloud.google.com/go/resourcemanager v1.9.7/go.mod h1:cQH6lJwESufxEu6KepsoNAsjrUtYYNXRwxm4QFE5g8A=
 cloud.google.com/go/spanner v1.53.0 h1:/NzWQJ1MEhdRcffiutRKbW/AIGVKhcTeivWTDjEyCCo=
 cloud.google.com/go/spanner v1.53.0/go.mod h1:liG4iCeLqm5L3fFLU5whFITqP0e0orsAW1uUSrd4rws=
 cloud.google.com/go/spanner v1.60.0 h1:O9kf49dfaDRzPpKJNChHUJ+Bao02WPedZb8ZPyi02lI=
