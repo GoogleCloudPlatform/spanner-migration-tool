@@ -184,13 +184,10 @@ export class ConversionService {
       sequenceNode.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
     }
 
-    console.log(sequenceNode)
     let mainNodeChildren :ISchemaObjectNode[] = [parentNode]
     if (autoGenSupportedDbs.includes(this.srcDbName)) {
-      console.log("#1")
       mainNodeChildren.push(sequenceNode)
     }
-    console.log(mainNodeChildren)
     return [
       {
         name: conv.DatabaseName,

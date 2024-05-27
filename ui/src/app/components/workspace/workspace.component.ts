@@ -98,9 +98,11 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
         this.autoGenMap = autoGenMap
       })
     }
-    this.rerenderObj = this.data.treeUpdate.subscribe(() => {
-      this.reRenderObjectExplorerSpanner();
-    });
+    if (this.data.treeUpdate){
+      this.rerenderObj = this.data.treeUpdate.subscribe(() => {
+        this.reRenderObjectExplorerSpanner();
+      });
+    }
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
       if (Object.keys(data.SrcSchema).length <= 0) {
@@ -178,7 +180,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     if (this.autoGenMapObj){
       this.autoGenMapObj.unsubscribe()
     }
-    this.rerenderObj.unsubscribe();
+    if (this.rerenderObj){
+      this.rerenderObj.unsubscribe();
+    }
   }
 
   updateConversionRatePercentages() {
