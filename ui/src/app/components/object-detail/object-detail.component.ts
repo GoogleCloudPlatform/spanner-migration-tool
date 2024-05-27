@@ -277,6 +277,14 @@ export class ObjectDetailComponent implements OnInit {
           })
         )
       } else {
+        let droppedColumnSpDataType = ''
+        let droppedColumnSpMaxLength = col.srcColMaxLength
+        if (this.defaultTypeMap[col.srcDataType] === undefined) {
+          droppedColumnSpDataType = 'STRING'
+          droppedColumnSpMaxLength = 'MAX'
+        } else {
+          droppedColumnSpDataType = this.defaultTypeMap[col.srcDataType].Name
+        }
         this.srcRowArray.push(
           new FormGroup({
             srcOrder: new FormControl(col.srcOrder),
@@ -288,11 +296,11 @@ export class ObjectDetailComponent implements OnInit {
             spOrder: new FormControl(col.srcOrder),
             spColName: new FormControl(col.srcColName),
             spDataType: new FormControl(
-              this.defaultTypeMap[col.srcDataType].Name
+              droppedColumnSpDataType
             ),
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
-            spColMaxLength: new FormControl(col.srcColMaxLength),
+            spColMaxLength: new FormControl(droppedColumnSpMaxLength),
             spAutoGen: new FormControl(col.spAutoGen)
           })
         )
