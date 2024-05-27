@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestApplyRule(t *testing.T) {
 	tcAddIndex := []struct {
 		name         string
@@ -243,7 +242,7 @@ func TestApplyRule(t *testing.T) {
 			expectedSchema: ddl.CreateTable{
 				Name:   "table1",
 				Id:     "t1",
-				ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16"},
+				ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17"},
 				ColDefs: map[string]ddl.ColumnDef{
 					"c1":  {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"c2":  {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -261,6 +260,7 @@ func TestApplyRule(t *testing.T) {
 					"c14": {Name: "n", Id: "c14", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 					"c15": {Name: "o", Id: "c15", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"c16": {Name: "p", Id: "c16", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"c17": {Name: "q", Id: "c17", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 			},
@@ -278,6 +278,7 @@ func TestApplyRule(t *testing.T) {
 					"c13": {internal.Widened, internal.Serial},
 					"c15": {internal.Widened},
 					"c16": {internal.Widened},
+					"c17": {internal.NoGoodType},
 				},
 			},
 		},
@@ -300,7 +301,7 @@ func TestApplyRule(t *testing.T) {
 			expectedSchema: ddl.CreateTable{
 				Name:   "table1",
 				Id:     "t1",
-				ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16"},
+				ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17"},
 				ColDefs: map[string]ddl.ColumnDef{
 					"c1":  {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"c2":  {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -318,6 +319,7 @@ func TestApplyRule(t *testing.T) {
 					"c14": {Name: "n", Id: "c14", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"c15": {Name: "o", Id: "c15", T: ddl.Type{Name: ddl.Timestamp}},
 					"c16": {Name: "p", Id: "c16", T: ddl.Type{Name: ddl.Int64}},
+					"c17": {Name: "q", Id: "c17", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 			},
@@ -331,6 +333,7 @@ func TestApplyRule(t *testing.T) {
 					"c13": {internal.Serial},
 					"c15": {internal.Timestamp},
 					"c16": {internal.Widened},
+					"c17": {internal.NoGoodType},
 				},
 			},
 		},
