@@ -113,6 +113,8 @@ func TestGetTypeMapPostgres(t *testing.T) {
 		"varchar": {
 			{T: ddl.Bytes, DisplayT: ddl.Bytes},
 			{T: ddl.String, DisplayT: ddl.String}},
+		"path": {
+			{T: ddl.String, Brief: reports.IssueDB[internal.NoGoodType].Brief, DisplayT: ddl.String}},
 	}
 	assert.Equal(t, expectedTypemap, typemap)
 
@@ -2230,7 +2232,7 @@ func buildConvPostgres(conv *internal.Conv) {
 		"t1": {
 			Name:   "table1",
 			Id:     "t1",
-			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16"},
+			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17"},
 			ColDefs: map[string]schema.Column{
 				"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: "int8"}},
 				"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: "float4"}},
@@ -2248,6 +2250,7 @@ func buildConvPostgres(conv *internal.Conv) {
 				"c14": {Name: "n", Id: "c14", Type: schema.Type{Name: "text"}},
 				"c15": {Name: "o", Id: "c15", Type: schema.Type{Name: "timestamp"}},
 				"c16": {Name: "p", Id: "c16", Type: schema.Type{Name: "bool"}},
+				"c17": {Name: "q", Id: "c17", Type: schema.Type{Name: "path"}},
 			},
 			PrimaryKeys: []schema.Key{{ColId: "c1"}}},
 		"t2": {
@@ -2264,7 +2267,7 @@ func buildConvPostgres(conv *internal.Conv) {
 		"t1": {
 			Name:   "table1",
 			Id:     "t1",
-			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16"},
+			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"c1":  {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 				"c2":  {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
@@ -2282,6 +2285,7 @@ func buildConvPostgres(conv *internal.Conv) {
 				"c14": {Name: "n", Id: "c14", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"c15": {Name: "o", Id: "c15", T: ddl.Type{Name: ddl.Timestamp}},
 				"c16": {Name: "p", Id: "c16", T: ddl.Type{Name: ddl.Int64}},
+				"c17": {Name: "q", Id: "c17", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 		},
@@ -2302,11 +2306,12 @@ func buildConvPostgres(conv *internal.Conv) {
 	conv.SchemaIssues = map[string]internal.TableIssues{
 		"t1": {
 			ColumnLevelIssues: map[string][]internal.SchemaIssue{
-				"c2":  {internal.Widened},   //b
-				"c7":  {internal.Serial},    //g
-				"c12": {internal.Widened},   //l
-				"c13": {internal.Serial},    //m
-				"c15": {internal.Timestamp}, //o
+				"c2":  {internal.Widened},    //b
+				"c7":  {internal.Serial},     //g
+				"c12": {internal.Widened},    //l
+				"c13": {internal.Serial},     //m
+				"c15": {internal.Timestamp},  //o
+				"c17": {internal.NoGoodType}, //q
 			},
 		},
 		"t2": {
