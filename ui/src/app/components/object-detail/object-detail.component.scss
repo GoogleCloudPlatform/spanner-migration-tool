@@ -194,7 +194,6 @@
   .mat-column-srcDataType,
   .mat-column-spDataType,
   .mat-column-spAutoGen,
-  .mat-column-spSequenceKind,
   .mat-column-spIndexColName,
   .mat-column-srcIndexColName,
   .mat-column-srcSeqName,
@@ -202,6 +201,10 @@
   .mat-column-spColMaxLength,
   .mat-column-srcColMaxLength {
     min-width: 100px;
+  }
+  
+  .mat-column-spSequenceKind{
+    min-width: 250px;
   }
 
   .mat-column-srcIsNotNull,
@@ -301,3 +304,15 @@ tr.mat-mdc-row {
   border: inset;
 }
 
+.custom-mat-form-field {
+  min-width: 250px;
+}
+
+.custom-mat-form-field .mat-select-panel {
+  max-width: none !important;
+  width: auto !important;
+}
+
+.custom-mat-form-field .mat-select-panel .mat-option {
+  white-space: nowrap;
+}

@@ -879,7 +879,7 @@
         <td mat-cell *matCellDef="let element; let i = index">
           <div class="sp-sequence-data-cells">
             <ng-container *ngIf="isSequenceEditMode && element.get('spSequenceKind').value !== ''">
-              <mat-form-field appearance="outline" class="w-100">
+              <mat-form-field appearance="outline" class="w-100 custom-mat-form-field">
                 <mat-select #matSelectsSequenceKind [formControl]="element.get('spSequenceKind')">
                   <ng-container *ngFor="let sk of sequenceKinds">
                     <mat-option [value]="sk">
@@ -894,7 +894,7 @@
             </ng-container>
           </div>
         </td>
-      </ng-container>
+      </ng-container>      
       <ng-container matColumnDef="spSkipRangeMin">
         <th mat-header-cell class="table_header" *matHeaderCellDef>Skip Range Min</th>
         <td mat-cell *matCellDef="let element">
