@@ -72,7 +72,6 @@ export class ObjectDetailComponent implements OnInit {
   processedAutoGenMap: GroupedAutoGens = {};
   sequenceKinds: string[] = []
   autoGenSupported: boolean = false
-  autoGenSupportedDbs: string[] = ['MySQL']
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
@@ -83,7 +82,7 @@ export class ObjectDetailComponent implements OnInit {
     if (this.conv.DatabaseType) {
       this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
     }
-    this.autoGenSupported = this.autoGenSupportedDbs.includes(this.srcDbName)
+    this.autoGenSupported = autoGenSupportedDbs.includes(this.srcDbName)
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
@@ -125,11 +124,6 @@ export class ObjectDetailComponent implements OnInit {
   ]
 
   sequenceDisplayedColumns = [
-    "srcSeqName",
-    "srcSequenceKind",
-    "srcSkipRangeMin",
-    "srcSkipRangeMax",
-    "srcStartWithCounter",
     "spSeqName",
     "spSequenceKind",
     "spSkipRangeMin",
@@ -1258,11 +1252,6 @@ export class ObjectDetailComponent implements OnInit {
     this.spRowArray = this.fb.array([])
     this.spRowArray.push(
       new FormGroup({
-        srcSeqName: new FormControl(this.localSequenceData.srcName),
-        srcSequenceKind: new FormControl(this.localSequenceData.srcSequenceKind ? this.localSequenceData.srcSequenceKind : ''),
-        srcSkipRangeMin: new FormControl(this.localSequenceData.srcSkipRangeMin),
-        srcSkipRangeMax: new FormControl(this.localSequenceData.srcSkipRangeMax),
-        srcStartWithCounter: new FormControl(this.localSequenceData.srcStartWithCounter),
         spSeqName: new FormControl(this.localSequenceData.spSeqName, [
             Validators.required,
             Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?')
