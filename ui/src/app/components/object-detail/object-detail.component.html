@@ -818,10 +818,6 @@
 
   <div *ngIf="currentObject!.type === 'sequenceName' && autoGenSupported" class="sequence-tab-container">
     <table mat-table [dataSource]="spDataSource">
-      <ng-container matColumnDef="srcDatabase">
-        <th mat-header-cell class="db_name" *matHeaderCellDef colspan="5">{{ srcDbName }}</th>
-      </ng-container>
-
       <ng-container matColumnDef="spDatabase">
         <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
           <div class="spanner_edit-button">
@@ -835,37 +831,6 @@
             </div>
           </div>
         </th>
-      </ng-container>
-
-      <ng-container matColumnDef="srcSeqName">
-        <th class="table_header" mat-header-cell *matHeaderCellDef>Sequence Name</th>
-        <td mat-cell *matCellDef="let element">
-          {{ element.get('srcSeqName').value }}
-        </td>
-      </ng-container>
-      <ng-container matColumnDef="srcSequenceKind">
-        <th class="table_header" mat-header-cell *matHeaderCellDef>Sequence Kind</th>
-        <td mat-cell *matCellDef="let element">
-          {{ element.get('srcSequenceKind').value }}
-        </td>
-      </ng-container>
-      <ng-container matColumnDef="srcSkipRangeMin">
-        <th class="table_header" mat-header-cell *matHeaderCellDef>Skip Range Min</th>
-        <td mat-cell *matCellDef="let element">
-          {{ element.get('srcSkipRangeMin').value }}
-        </td>
-      </ng-container>
-      <ng-container matColumnDef="srcSkipRangeMax">
-        <th class="table_header" mat-header-cell *matHeaderCellDef>Skip Range Max</th>
-        <td mat-cell *matCellDef="let element">
-          {{ element.get('srcSkipRangeMax').value }}
-        </td>
-      </ng-container>
-      <ng-container matColumnDef="srcStartWithCounter">
-        <th class="table_header" mat-header-cell *matHeaderCellDef>Start With Counter</th>
-        <td mat-cell *matCellDef="let element">
-          {{ element.get('srcStartWithCounter').value }}
-        </td>
       </ng-container>
 
       <ng-container matColumnDef="spSeqName">
@@ -941,7 +906,7 @@
         </td>
       </ng-container>
 
-      <tr mat-header-row *matHeaderRowDef="['srcDatabase', 'spDatabase']"></tr>
+      <tr mat-header-row *matHeaderRowDef="['spDatabase']"></tr>
       <tr mat-header-row *matHeaderRowDef="sequenceDisplayedColumns"></tr>
       <tr mat-row class="sequence-data-row" *matRowDef="let row; columns: sequenceDisplayedColumns"></tr>
     </table>
