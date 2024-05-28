@@ -4,7 +4,7 @@ import IUpdateTable from '../../model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
-import IColumnTabData, { IIndexData, ISequenceData } from '../../model/edit-table'
+import IColumnTabData, { AutoGen, IIndexData, ISequenceData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, SourceDbNames, StorageKeys } from 'src/app/app.constants'
@@ -72,6 +72,7 @@ export class ObjectDetailComponent implements OnInit {
   processedAutoGenMap: GroupedAutoGens = {};
   sequenceKinds: string[] = []
   autoGenSupported: boolean = false
+  autoGenSupportedDbs: string[] = ['MySQL']
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
@@ -82,7 +83,7 @@ export class ObjectDetailComponent implements OnInit {
     if (this.conv.DatabaseType) {
       this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
     }
-    this.autoGenSupported = autoGenSupportedDbs.includes(this.srcDbName)
+    this.autoGenSupported = this.autoGenSupportedDbs.includes(this.srcDbName)
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
@@ -208,6 +209,11 @@ export class ObjectDetailComponent implements OnInit {
       this.spColspan++;
     }
 
+    if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
+      this.spDisplayedColumns.splice(2, 0, "spAutoGen");
+      this.spColspan++;
+    }
+
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.checkIsInterleave()
 
@@ -313,6 +319,21 @@ export class ObjectDetailComponent implements OnInit {
           })
         )
       } else {
+        // If the default type map doesn't have the source datatype as key then fallback to STRING with max length
+        let droppedColumnSpDataType = ''
+        let droppedColumnSpMaxLength = col.srcColMaxLength
+        if (this.defaultTypeMap[col.srcDataType] === undefined) {
+          droppedColumnSpDataType = 'STRING'
+          droppedColumnSpMaxLength = 'MAX'
+        } else {
+          droppedColumnSpDataType = this.defaultTypeMap[col.srcDataType].Name
+        }
+
+        // If the source max column length is empty but spanner datatype is STRING or BYTES, set column length to MAX
+        if (droppedColumnSpMaxLength == '' && (droppedColumnSpDataType == 'STRING' || droppedColumnSpDataType == 'BYTES')) {
+          droppedColumnSpMaxLength = 'MAX'
+        }
+        
         this.srcRowArray.push(
           new FormGroup({
             srcOrder: new FormControl(col.srcOrder),
@@ -324,11 +345,11 @@ export class ObjectDetailComponent implements OnInit {
             spOrder: new FormControl(col.srcOrder),
             spColName: new FormControl(col.srcColName),
             spDataType: new FormControl(
-              this.defaultTypeMap[col.srcDataType].Name
+              droppedColumnSpDataType
             ),
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
-            spColMaxLength: new FormControl(col.srcColMaxLength),
+            spColMaxLength: new FormControl(droppedColumnSpMaxLength),
             spAutoGen: new FormControl(col.spAutoGen)
           })
         )

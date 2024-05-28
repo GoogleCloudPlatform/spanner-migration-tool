@@ -7,7 +7,6 @@ import { IAddColumn } from 'src/app/model/update-table';
 import { DataService } from 'src/app/services/data/data.service';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { GroupedAutoGens, processAutoGens } from 'src/app/utils/utils';
-import { autoGenSupportedDbs } from 'src/app/app.constants';
 @Component({
   selector: 'app-add-new-column',
   templateUrl: './add-new-column.component.html',
@@ -29,6 +28,7 @@ export class AddNewColumnComponent implements OnInit {
   }
   processedAutoGenMap: GroupedAutoGens = {};
   srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
+  autoGenSupportedDbs: string[] = ['MySQL']
   autGenSupported: boolean = false
   constructor(
     private formBuilder: FormBuilder,
@@ -54,7 +54,7 @@ export class AddNewColumnComponent implements OnInit {
         this.processedAutoGenMap = processAutoGens(this.autoGenMap)
       }
     );
-    this.autGenSupported = autoGenSupportedDbs.includes(this.srcDbName)
+    this.autGenSupported = this.autoGenSupportedDbs.includes(this.srcDbName)
   }
 
 

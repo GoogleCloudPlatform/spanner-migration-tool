@@ -475,22 +475,22 @@ func TestPrintSequence(t *testing.T) {
 		{
 			name:     "no optional values set",
 			sequence: s1,
-			expected: "CREATE SEQUENCE sequence1 OPTIONS (  sequence_kind='bit_reversed_positive'  ) ",
+			expected: "CREATE SEQUENCE sequence1 OPTIONS (sequence_kind='bit_reversed_positive') ",
 		},
 		{
 			name:     "min and max skip range set",
 			sequence: s2,
-			expected: "CREATE SEQUENCE sequence2 OPTIONS (  sequence_kind='bit_reversed_positive'  ,  skip_range_min = 0  ,  skip_range_max = 1  ) ",
+			expected: "CREATE SEQUENCE sequence2 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 1) ",
 		},
 		{
 			name:     "start with counter set",
 			sequence: s3,
-			expected: "CREATE SEQUENCE sequence3 OPTIONS (  sequence_kind='bit_reversed_positive'  ,  start_with_counter = 7  ) ",
+			expected: "CREATE SEQUENCE sequence3 OPTIONS (sequence_kind='bit_reversed_positive', start_with_counter = 7) ",
 		},
 		{
 			name:     "all optional values set",
 			sequence: s4,
-			expected: "CREATE SEQUENCE sequence4 OPTIONS (  sequence_kind='bit_reversed_positive'  ,  skip_range_min = 0  ,  skip_range_max = 1  ,  start_with_counter = 7  ) ",
+			expected: "CREATE SEQUENCE sequence4 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 1, start_with_counter = 7) ",
 		},
 	}
 	for _, tc := range tests {
@@ -539,22 +539,22 @@ func TestPGPrintSequence(t *testing.T) {
 		{
 			name:     "no optional values set",
 			sequence: s1,
-			expected: "CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE ",
+			expected: "CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE",
 		},
 		{
 			name:     "min and max skip range set",
 			sequence: s2,
-			expected: "CREATE SEQUENCE sequence2 BIT_REVERSED_POSITIVE   SKIP RANGE 0 1 ",
+			expected: "CREATE SEQUENCE sequence2 BIT_REVERSED_POSITIVE SKIP RANGE 0 1",
 		},
 		{
 			name:     "start with counter set",
 			sequence: s3,
-			expected: "CREATE SEQUENCE sequence3 BIT_REVERSED_POSITIVE   START COUNTER WITH 7 ",
+			expected: "CREATE SEQUENCE sequence3 BIT_REVERSED_POSITIVE START COUNTER WITH 7",
 		},
 		{
 			name:     "all optional values set",
 			sequence: s4,
-			expected: "CREATE SEQUENCE sequence4 BIT_REVERSED_POSITIVE   SKIP RANGE 0 1   START COUNTER WITH 7 ",
+			expected: "CREATE SEQUENCE sequence4 BIT_REVERSED_POSITIVE SKIP RANGE 0 1 START COUNTER WITH 7",
 		},
 	}
 	for _, tc := range tests {
@@ -665,7 +665,7 @@ func TestGetDDL(t *testing.T) {
 		StartWithCounter: "7",
 	}
 	e4 := []string{
-		"CREATE SEQUENCE sequence1 OPTIONS (  sequence_kind='bit_reversed_positive'  ,  skip_range_min = 0  ,  skip_range_max = 5  ,  start_with_counter = 7  ) "}
+		"CREATE SEQUENCE sequence1 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 5, start_with_counter = 7) "}
 	sequencesOnly := GetDDL(Config{}, Schema{}, sequences)
 	assert.ElementsMatch(t, e4, sequencesOnly)
 }
@@ -777,7 +777,7 @@ func TestGetPGDDL(t *testing.T) {
 		StartWithCounter: "7",
 	}
 	e4 := []string{
-		"CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE   SKIP RANGE 0 5   START COUNTER WITH 7 "}
+		"CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE SKIP RANGE 0 5 START COUNTER WITH 7"}
 	sequencesOnly := GetDDL(Config{SpDialect: constants.DIALECT_POSTGRESQL}, Schema{}, sequences)
 	assert.ElementsMatch(t, e4, sequencesOnly)
 }

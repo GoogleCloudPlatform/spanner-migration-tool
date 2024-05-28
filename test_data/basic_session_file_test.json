@@ -1,0 +1,150 @@
+{
+ "SpSchema": {
+  "t1": {
+   "Name": "numbers",
+   "ColIds": [
+    "c1",
+    "c2"
+   ],
+   "ShardIdColumn": "c1",
+   "ColDefs": {
+    "c1": {
+     "Name": "id",
+     "T": {
+      "Name": "",
+      "Len": 0,
+      "IsArray": false
+     },
+     "NotNull": true,
+     "Comment": "From: id int(10)",
+     "Id": "c2",
+     "AutoGen": {
+      "Name": "",
+      "GenerationType": ""
+     }
+    },
+    "c2": {
+     "Name": "value",
+     "T": {
+      "Name": "",
+      "Len": 0,
+      "IsArray": false
+     },
+     "NotNull": false,
+     "Comment": "",
+     "Id": "c2",
+     "AutoGen": {
+      "Name": "",
+      "GenerationType": ""
+     }
+    }
+   },
+   "PrimaryKeys": [
+    {
+     "ColId": "c1",
+     "Desc": false,
+     "Order": 1
+    }
+   ],
+   "ForeignKeys": null,
+   "Indexes": null,
+   "ParentId": "",
+   "Comment": "Spanner schema for source table numbers",
+   "Id": "t1"
+  }
+ },
+ "SyntheticPKeys": {},
+ "SrcSchema": {
+  "t1": {
+   "Name": "numbers",
+   "Schema": "default",
+   "ColIds": [
+    "c1",
+    "c2"
+   ],
+   "ColDefs": {
+    "c1": {
+     "Name": "id",
+     "Type": {
+      "Name": "int",
+      "Mods": [
+       10
+      ],
+      "ArrayBounds": null
+     },
+     "NotNull": true,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     },
+     "Id": "c1"
+    },
+    "c2": {
+     "Name": "value",
+     "Type": {
+      "Name": "int",
+      "Mods": [
+       10
+      ],
+      "ArrayBounds": null
+     },
+     "NotNull": true,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     },
+     "Id": "c2"
+    }
+   },
+   "PrimaryKeys": [
+    {
+     "ColId": "c1",
+     "Desc": false,
+     "Order": 1
+    }
+   ],
+   "ForeignKeys": null,
+   "Indexes": null,
+   "Id": "t1"
+  }
+ },
+ "SchemaIssues": {
+  "t1": {
+   "ColumnLevelIssues": {
+    "c1": [
+     14
+    ]
+   },
+   "TableLevelIssues": null
+  }
+ },
+ "Location": {},
+ "TimezoneOffset": "+00:00",
+ "SpDialect": "",
+ "UniquePKey": {},
+ "Rules": [],
+ "IsSharded": false,
+ "SpRegion": "",
+ "ResourceValidation": false,
+ "UI": false,
+ "SpSequences": {
+  "s1": {
+   "Id": "s1",
+   "Name": "Seq",
+   "SequenceKind": "BIT REVERSED POSITIVE",
+   "SkipRangeMin": "",
+   "SkipRangeMax": "",
+   "StartWithCounter": "",
+   "ColumnsUsingSeq": null
+  }
+ },
+ "SrcSequences": {}
+}
