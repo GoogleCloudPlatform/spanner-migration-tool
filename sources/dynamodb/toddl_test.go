@@ -59,7 +59,7 @@ func TestToSpannerType(t *testing.T) {
 	conv.SrcSchema[name] = srcSchema
 	conv.Audit = audit
 	schemaToSpanner := common.SchemaToSpannerImpl{}
-	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
+	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}, constants.DYNAMODB))
 	actual := conv.SpSchema[name]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
@@ -120,7 +120,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	conv.SrcSchema["t1"] = srcSchema
 	conv.Audit = audit
 	schemaToSpanner := common.SchemaToSpannerImpl{}
-	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
+	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}, constants.DYNAMODB))
 	actual := conv.SpSchema["t1"]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{

@@ -50,8 +50,9 @@ type ToDdl interface {
 }
 
 type SchemaToSpannerInterface interface {
-	SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error
-	SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error
+	SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl, driver string) error
+	SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool, driver string) error
+	SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error
 }
 
 type SchemaToSpannerImpl struct {}
@@ -59,17 +60,21 @@ type SchemaToSpannerImpl struct {}
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
-func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
+func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl, driver string) error {
+	srcSequences := conv.SrcSequences
+	for _, srcSequence := range srcSequences {
+		ss.SchemaToSpannerSequenceHelper(conv, srcSequence)
+	}
 	tableIds := GetSortedTableIdsBySrcName(conv.SrcSchema)
 	for _, tableId := range tableIds {
 		srcTable := conv.SrcSchema[tableId]
-		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
+		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false, driver)
 	}
 	internal.ResolveRefs(conv)
 	return nil
 }
 
-func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error {
+func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool, driver string) error {
 	spTableName, err := internal.GetSpannerTable(conv, srcTable.Id)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
@@ -121,6 +126,18 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 			issues = append(issues, internal.ArrayTypeNotSupported)
 			isNotNull = false
 		}
+		// Set auto generation for column
+		srcAutoGen := srcCol.AutoGen
+		autoGenCol := ddl.AutoGenCol{}
+		if(srcAutoGen.Name != "") {
+			if srcAutoGen.GenerationType == constants.AUTO_INCREMENT && driver == constants.MYSQL {
+				autoGenCol, err = getColumnAutoGen(conv, srcAutoGen)
+				if err != nil{
+					srcCol.Ignored.AutoIncrement= true
+					issues = append(issues, internal.AutoIncrement)
+				}
+			}
+		}
 		if len(issues) > 0 {
 			columnLevelIssues[srcColId] = issues
 		}
@@ -131,10 +148,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 			NotNull: isNotNull,
 			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			Id:      srcColId,
-			AutoGen: ddl.AutoGenCol{
-				Name: "",
-				GenerationType: "",
-			},
+			AutoGen: autoGenCol,
 		}
 		if !checkIfColumnIsPartOfPK(srcColId, srcTable.PrimaryKeys) {
 			totalNonKeyColumnSize += getColumnSize(ty.Name, ty.Len)
@@ -157,6 +171,51 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		Indexes:     cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef),
 		Comment:     comment,
 		Id:          srcTable.Id}
+	return nil
+}
+
+func getColumnAutoGen(conv *internal.Conv, autoGenCol schema.AutoGenCol) (ddl.AutoGenCol, error) {
+	switch autoGenCol.GenerationType{
+	case constants.AUTO_INCREMENT:
+		sequenceId := ""
+		srcSequences := conv.SrcSequences
+		for seqId, seq := range srcSequences {
+			if seq.Name == autoGenCol.Name {
+				sequenceId = seqId
+			}
+		}
+		if sequenceId == "" {
+			return ddl.AutoGenCol{}, fmt.Errorf("sequence corresponding to column auto generation not found")
+		}
+		return ddl.AutoGenCol{Name: conv.SpSequences[sequenceId].Name, GenerationType: constants.SEQUENCE}, nil
+	default:
+		return ddl.AutoGenCol{}, fmt.Errorf("auto generation not supported")
+	}
+}
+
+func (ss *SchemaToSpannerImpl) SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error {
+	switch srcSequence.SequenceKind {
+	case constants.AUTO_INCREMENT:
+		spSequence := ddl.Sequence{
+			Name: srcSequence.Name,
+			Id: srcSequence.Id,
+			SequenceKind: "BIT REVERSED POSITIVE",
+			SkipRangeMin: srcSequence.SkipRangeMin,
+			SkipRangeMax: srcSequence.SkipRangeMax,
+			StartWithCounter: srcSequence.StartWithCounter,
+		}
+		conv.SpSequences[srcSequence.Id] = spSequence
+	default: 
+		spSequence := ddl.Sequence{
+			Name: srcSequence.Name,
+			Id: srcSequence.Id,
+			SequenceKind: "BIT REVERSED POSITIVE",
+			SkipRangeMin: srcSequence.SkipRangeMin,
+			SkipRangeMax: srcSequence.SkipRangeMax,
+			StartWithCounter: srcSequence.StartWithCounter,
+		}
+		conv.SpSequences[srcSequence.Id] = spSequence
+	}
 	return nil
 }
 
@@ -236,9 +295,9 @@ func cvtIndexes(conv *internal.Conv, tableId string, srcIndexes []schema.Index, 
 	return spIndexes
 }
 
-func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table) error {
+func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, driver string) error {
 	schemaToSpanner := SchemaToSpannerImpl{}
-	err := schemaToSpanner.SchemaToSpannerDDLHelper(conv, toddl, srcTable, true)
+	err := schemaToSpanner.SchemaToSpannerDDLHelper(conv, toddl, srcTable, true, driver)
 	if err != nil {
 		return err
 	}

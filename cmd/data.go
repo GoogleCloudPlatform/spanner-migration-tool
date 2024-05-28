@@ -204,7 +204,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 }
 
 // validateExistingDb validates that the existing spanner schema is in accordance with the one specified in the session file.
-func validateExistingDb(ctx context.Context, spDialect, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, conv *internal.Conv) error {
+func validateExistingDb(ctx context.Context, spDialect, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, conv *internal.Conv, driver string) error {
 	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 	if err != nil {
 		return err
@@ -230,7 +230,7 @@ func validateExistingDb(ctx context.Context, spDialect, dbURI string, adminClien
 	}
 	spannerConv := internal.MakeConv()
 	spannerConv.SpDialect = spDialect
-	err = utils.ReadSpannerSchema(ctx, spannerConv, client)
+	err = utils.ReadSpannerSchema(ctx, spannerConv, client, driver)
 	if err != nil {
 		err = fmt.Errorf("can't read spanner schema: %v", err)
 		return err

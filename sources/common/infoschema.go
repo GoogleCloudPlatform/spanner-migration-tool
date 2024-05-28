@@ -68,7 +68,7 @@ type InfoSchemaInterface interface {
 type InfoSchemaImpl struct {}
 
 type ProcessSchemaInterface interface {
-	ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error
+	ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, driver string, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error
 }
 
 type ProcessSchemaImpl struct {}
@@ -76,7 +76,7 @@ type ProcessSchemaImpl struct {}
 // ProcessSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-func (ps* ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error {
+func (ps* ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, driver string, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error {
 
 	tableCount, err := is.GenerateSrcSchema(conv, infoSchema, numWorkers)
 	if err != nil {
@@ -84,7 +84,7 @@ func (ps* ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoS
 	}
 	uo.initPrimaryKeyOrder(conv)
 	uo.initIndexOrder(conv)
-	s.SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
+	s.SchemaToSpannerDDL(conv, infoSchema.GetToDdl(), driver)
 	if tableCount != len(conv.SpSchema) {
 		fmt.Printf("Failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.\n", tableCount, len(conv.SpSchema))
 		return fmt.Errorf("failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.", tableCount, len(conv.SpSchema))

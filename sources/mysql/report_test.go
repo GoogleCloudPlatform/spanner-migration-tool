@@ -57,7 +57,7 @@ func TestReport(t *testing.T) {
       c text);`
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{})
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{}, constants.MYSQLDUMP)
 	conv.SetDataMode()
 
 	badSchemaTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "bad_schema")

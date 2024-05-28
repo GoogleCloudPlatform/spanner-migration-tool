@@ -25,6 +25,7 @@ import (
 	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
 	_ "github.com/lib/pq"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -185,6 +186,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	var colName, dataType, isNullable, columnType string
 	var colDefault, colExtra sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
+	var colAutoGen schema.AutoGenCol
 	for cols.Next() {
 		err := cols.Scan(&colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &colExtra)
 		if err != nil {
@@ -204,7 +206,13 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		}
 		ignored.Default = colDefault.Valid
 		if colExtra.String == "auto_increment" {
-			ignored.AutoIncrement = true
+			sequence := createSequence(conv)
+			colAutoGen = schema.AutoGenCol{
+				Name: sequence.Name,
+				GenerationType: constants.AUTO_INCREMENT,
+			}
+		} else {
+			colAutoGen = schema.AutoGenCol{}
 		}
 		colId := internal.GenerateColumnId()
 		c := schema.Column{
@@ -213,6 +221,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			Type:    toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
 			NotNull: common.ToNotNull(conv, isNullable),
 			Ignored: ignored,
+			AutoGen: colAutoGen,
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)
@@ -451,4 +460,19 @@ func valsToStrings(vals []sql.RawBytes) []string {
 		s = append(s, toString(v))
 	}
 	return s
+}
+
+func createSequence(conv *internal.Conv) ddl.Sequence{
+	id := internal.GenerateSequenceId()
+	sequenceName := "Sequence" + id[1:]
+	sequence := ddl.Sequence{
+		Id: id,
+		Name: sequenceName,
+		SequenceKind: constants.AUTO_INCREMENT,
+	}
+	conv.ConvLock.Lock()
+	defer conv.ConvLock.Unlock()
+	srcSequences := conv.SrcSequences
+	srcSequences[id] = sequence
+	return sequence
 }

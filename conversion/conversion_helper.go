@@ -88,9 +88,9 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 func (pdd *ProcessDumpByDialectImpl) ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	switch driver {
 	case constants.MYSQLDUMP:
-		return common.ProcessDbDump(conv, r, mysql.DbDumpImpl{})
+		return common.ProcessDbDump(conv, r, mysql.DbDumpImpl{}, driver)
 	case constants.PGDUMP:
-		return common.ProcessDbDump(conv, r, postgres.DbDumpImpl{})
+		return common.ProcessDbDump(conv, r, postgres.DbDumpImpl{}, driver)
 	default:
 		return fmt.Errorf("process dump for driver %s not supported", driver)
 	}
