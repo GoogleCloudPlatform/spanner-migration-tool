@@ -267,8 +267,8 @@ func TestGetDDL(t *testing.T) {
 					},
 				},
 			},
-			expectedDDL: map[string]string{"t1": "CREATE TABLE table1 (\n\ta INT64 NOT NULL,\n\tb INT64 NOT NULL,\n\tc STRING(MAX) NOT NULL,\n) PRIMARY KEY (a);\n\nCREATE INDEX index1 ON table1 (a);\n\nALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES table2 (d);",
-				"t2": "CREATE TABLE table2 (\n\td INT64 NOT NULL,\n) ;"},
+			expectedDDL: map[string]string{"t1": "CREATE TABLE table1 (\n\ta INT64 NOT NULL ,\n\tb INT64 NOT NULL ,\n\tc STRING(MAX) NOT NULL ,\n) PRIMARY KEY (a);\n\nCREATE INDEX index1 ON table1 (a);\n\nALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES table2 (d);",
+				"t2": "CREATE TABLE table2 (\n\td INT64 NOT NULL ,\n) ;"},
 			statusCode: http.StatusOK,
 		},
 	}
@@ -2329,14 +2329,23 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 	sessionState.Driver = constants.MYSQL
 	sessionState.Conv = internal.MakeConv()
 	buildConvMySQL(sessionState.Conv)
+
+	sequences := make(map[string]ddl.Sequence)
+	sequences["s1"] = ddl.Sequence{
+		Name:         "Sequence1",
+		Id:           "s1",
+		SequenceKind: "BIT REVERSED POSITIVE",
+	}
+	sessionState.Conv.SpSequences = sequences
+
 	expectedAutoGenMapPostgres := map[string][]types.AutoGen{
 		"BOOL":        {types.AutoGen{Name: "", GenerationType: ""}},
 		"BYTEA":       {types.AutoGen{Name: "", GenerationType: ""}},
 		"DATE":        {types.AutoGen{Name: "", GenerationType: ""}},
-		"FLOAT64":     {types.AutoGen{Name: "", GenerationType: ""}},
-		"FLOAT8":      {types.AutoGen{Name: "", GenerationType: ""}},
-		"INT64":       {types.AutoGen{Name: "", GenerationType: ""}},
-		"INT8":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"FLOAT8":      {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"INT64":       {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"INT8":        {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
 		"JSONB":       {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"TIMESTAMPTZ": {types.AutoGen{Name: "", GenerationType: ""}},
@@ -2346,8 +2355,8 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		"BOOL":      {types.AutoGen{Name: "", GenerationType: ""}},
 		"BYTES":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"DATE":      {types.AutoGen{Name: "", GenerationType: ""}},
-		"FLOAT64":   {types.AutoGen{Name: "", GenerationType: ""}},
-		"INT64":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT64":   {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"INT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
 		"JSON":      {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":   {types.AutoGen{Name: "", GenerationType: ""}},
 		"STRING":    {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}},

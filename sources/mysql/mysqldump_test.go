@@ -846,12 +846,12 @@ func TestProcessMySQLDump_GetDDL(t *testing.T) {
 		"ALTER TABLE cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);")
 	expected :=
 		"CREATE TABLE cart (\n" +
-			"	productid STRING(MAX) NOT NULL,\n" +
-			"	userid STRING(MAX) NOT NULL,\n" +
+			"	productid STRING(MAX) NOT NULL ,\n" +
+			"	userid STRING(MAX) NOT NULL ,\n" +
 			"	quantity INT64,\n" +
 			") PRIMARY KEY (productid, userid)"
 	c := ddl.Config{Tables: true}
-	assert.Equal(t, expected, strings.Join(conv.SpSchema.GetDDL(c), " "))
+	assert.Equal(t, expected, strings.Join(ddl.GetDDL(c, conv.SpSchema, conv.SpSequences), " "))
 }
 
 func TestProcessMySQLDump_Rows(t *testing.T) {

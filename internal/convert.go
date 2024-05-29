@@ -38,20 +38,22 @@ type Conv struct {
 	ToSource           map[string]NameAndCols   `json:"-"` // Maps from Spanner table name to source-DB table name and column mapping.
 	UsedNames          map[string]bool          `json:"-"` // Map storing the names that are already assigned to tables, indices or foreign key contraints.
 	dataSink           func(table string, cols []string, values []interface{})
-	DataFlush          func()              `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
-	Location           *time.Location      // Timezone (for timestamp conversion).
-	sampleBadRows      rowSamples          // Rows that generated errors during conversion.
-	Stats              stats               `json:"-"`
-	TimezoneOffset     string              // Timezone offset for timestamp conversion.
-	SpDialect          string              // The dialect of the spanner database to which Spanner migration tool is writing.
-	UniquePKey         map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
-	Audit              Audit               `json:"-"` // Stores the audit information for the database conversion
-	Rules              []Rule              // Stores applied rules during schema conversion
-	IsSharded          bool                // Flag denoting if the migration is sharded or not
-	ConvLock           sync.RWMutex        `json:"-"` // ConvLock prevents concurrent map read/write operations. This lock will be used in all the APIs that either read or write elements to the conv object.
-	SpRegion           string              // Leader Region for Spanner Instance
-	ResourceValidation bool                // Flag denoting if validation for resources to generated is complete
-	UI                 bool                // Flag if UI interface was used for migration. ToDo: Remove flag after resource generation is introduced to UI
+	DataFlush          func()                  `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
+	Location           *time.Location          // Timezone (for timestamp conversion).
+	sampleBadRows      rowSamples              // Rows that generated errors during conversion.
+	Stats              stats                   `json:"-"`
+	TimezoneOffset     string                  // Timezone offset for timestamp conversion.
+	SpDialect          string                  // The dialect of the spanner database to which Spanner migration tool is writing.
+	UniquePKey         map[string][]string     // Maps Spanner table name to unique column name being used as primary key (if needed).
+	Audit              Audit                   `json:"-"` // Stores the audit information for the database conversion
+	Rules              []Rule                  // Stores applied rules during schema conversion
+	IsSharded          bool                    // Flag denoting if the migration is sharded or not
+	ConvLock           sync.RWMutex            `json:"-"` // ConvLock prevents concurrent map read/write operations. This lock will be used in all the APIs that either read or write elements to the conv object.
+	SpRegion           string                  // Leader Region for Spanner Instance
+	ResourceValidation bool                    // Flag denoting if validation for resources to generated is complete
+	UI                 bool                    // Flag if UI interface was used for migration. ToDo: Remove flag after resource generation is introduced to UI
+	SpSequences        map[string]ddl.Sequence // Maps Spanner Sequences to Sequence Schema
+	SrcSequences       map[string]ddl.Sequence // Maps source-DB Sequences to Sequence schema information
 }
 
 type TableIssues struct {
@@ -306,7 +308,9 @@ func MakeConv() *Conv {
 			StreamingStats: streamingStats{},
 			MigrationType:  migration.MigrationData_SCHEMA_ONLY.Enum(),
 		},
-		Rules: []Rule{},
+		Rules:        []Rule{},
+		SpSequences:  make(map[string]ddl.Sequence),
+		SrcSequences: make(map[string]ddl.Sequence),
 	}
 }
 

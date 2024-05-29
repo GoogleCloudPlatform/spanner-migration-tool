@@ -1559,15 +1559,15 @@ func initializeAutoGenMap() {
 	autoGenMap = make(map[string][]types.AutoGen)
 	switch sessionState.Conv.SpDialect {
 	case constants.DIALECT_POSTGRESQL:
-		makePostgresDialectAutoGenMap()
+		makePostgresDialectAutoGenMap(sessionState.Conv.SpSequences)
 		return
 	default:
-		makeGoogleSqlDialectAutoGenMap()
+		makeGoogleSqlDialectAutoGenMap(sessionState.Conv.SpSequences)
 		return
 	}
 }
 
-func makePostgresDialectAutoGenMap() {
+func makePostgresDialectAutoGenMap(sequences map[string]ddl.Sequence) {
 	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar, ddl.Numeric} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
@@ -1581,9 +1581,20 @@ func makePostgresDialectAutoGenMap() {
 			Name:           "UUID",
 			GenerationType: "Pre-defined",
 		})
+
+	typesSupportingSequences := []string{ddl.Float64, ddl.Int64, ddl.PGFloat8, ddl.PGInt8}
+	for _, seq := range sequences {
+		for _, srcTypeName := range typesSupportingSequences {
+			autoGenMap[srcTypeName] = append(autoGenMap[srcTypeName],
+				types.AutoGen{
+					Name:           seq.Name,
+					GenerationType: "Sequence",
+				})
+		}
+	}
 }
 
-func makeGoogleSqlDialectAutoGenMap() {
+func makeGoogleSqlDialectAutoGenMap(sequences map[string]ddl.Sequence) {
 	for _, srcTypeName := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
@@ -1597,4 +1608,15 @@ func makeGoogleSqlDialectAutoGenMap() {
 			Name:           "UUID",
 			GenerationType: "Pre-defined",
 		})
+
+	typesSupportingSequences := []string{ddl.Float64, ddl.Int64}
+	for _, seq := range sequences {
+		for _, srcTypeName := range typesSupportingSequences {
+			autoGenMap[srcTypeName] = append(autoGenMap[srcTypeName],
+				types.AutoGen{
+					Name:           seq.Name,
+					GenerationType: "Sequence",
+				})
+		}
+	}
 }
