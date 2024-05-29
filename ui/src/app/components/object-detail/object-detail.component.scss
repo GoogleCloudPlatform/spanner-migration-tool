@@ -196,7 +196,6 @@
   .mat-column-spAutoGen,
   .mat-column-spIndexColName,
   .mat-column-srcIndexColName,
-  .mat-column-srcSeqName,
   .mat-column-spSeqName,
   .mat-column-spColMaxLength,
   .mat-column-srcColMaxLength {
@@ -215,8 +214,7 @@
   .mat-column-srcIsNotNull,
   .mat-column-srcReferColumns,
   .mat-column-srcDatabase,
-  .mat-column-srcIndexOrder,
-  .mat-column-srcStartWithCounter {
+  .mat-column-srcIndexOrder {
     border-right: 1px solid #cdcccd;
   }
   .drop-button-left-border {

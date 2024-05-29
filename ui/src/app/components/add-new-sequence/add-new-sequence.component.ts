@@ -4,7 +4,7 @@ import { MatDialogRef} from '@angular/material/dialog';
 import ICreateSequence from 'src/app/model/auto-gen';
 import { DataService } from 'src/app/services/data/data.service';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
-import { linkedFieldsValidator } from 'src/app/utils/utils';
+import { linkedFieldsValidatorSequence } from 'src/app/utils/utils';
 @Component({
   selector: 'app-add-new-sequence',
   templateUrl: './add-new-sequence.component.html',
@@ -26,7 +26,7 @@ export class AddNewSequenceComponent implements OnInit {
       skipRangeMin: ['', Validators.pattern('^[0-9]+$')],
       skipRangeMax: ['', Validators.pattern('^[0-9]+$')],
       startWithCounter: ['', Validators.pattern('^[0-9]+$')],
-    }, { validator: linkedFieldsValidator('skipRangeMin', 'skipRangeMax') })
+    }, { validator: linkedFieldsValidatorSequence('skipRangeMin', 'skipRangeMax') })
     this.fetchSerice.getSequenceKind().subscribe(
       (sequenceKinds: any) => {
         this.sequenceKinds = sequenceKinds;

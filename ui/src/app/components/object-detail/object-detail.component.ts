@@ -24,7 +24,7 @@ import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/
 import { AddNewColumnComponent } from '../add-new-column/add-new-column.component'
 import { GroupedAutoGens, extractSourceDbName, processAutoGens } from 'src/app/utils/utils'
 import { AddNewSequenceComponent } from '../add-new-sequence/add-new-sequence.component'
-import { linkedFieldsValidator } from 'src/app/utils/utils';
+import { linkedFieldsValidatorSequence } from 'src/app/utils/utils';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ICreateSequence from 'src/app/model/auto-gen'
 import { autoGenSupportedDbs } from 'src/app/app.constants'
@@ -1260,7 +1260,7 @@ export class ObjectDetailComponent implements OnInit {
         spSkipRangeMin: new FormControl(this.localSequenceData.spSkipRangeMin, Validators.pattern('^[0-9]+$')),
         spSkipRangeMax: new FormControl(this.localSequenceData.spSkipRangeMax, Validators.pattern('^[0-9]+$')),
         spStartWithCounter: new FormControl(this.localSequenceData.spStartWithCounter, Validators.pattern('^[0-9]+$'))
-    }, { validators: linkedFieldsValidator('spSkipRangeMin', 'spSkipRangeMax') })
+    }, { validators: linkedFieldsValidatorSequence('spSkipRangeMin', 'spSkipRangeMax') })
     )
     this.spDataSource = this.spRowArray.controls
   }

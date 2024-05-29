@@ -48,8 +48,8 @@ describe('AddNewSequenceComponent', () => {
 
   it('add new sequence', () => {
     let formBuilder = new FormBuilder()
-      component.addNewSequenceForm = formBuilder.group({})
-      component.addNewSequence()
-      expect(dataServiceSpy.addSequence).toHaveBeenCalled()
+    component.addNewSequenceForm = formBuilder.group({})
+    component.addNewSequence()
+    expect(dataServiceSpy.addSequence).toHaveBeenCalled()
   });
 });
