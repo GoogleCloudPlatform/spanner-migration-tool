@@ -1,3 +1,5 @@
+import { MatDialogConfig } from "@angular/material/dialog"
+
 export enum InputType {
   DirectConnect = 'directConnect',
   DumpFile = 'dumpFile',
@@ -155,3 +157,15 @@ export enum PersistedFormValues {
 }
 
 export const autoGenSupportedDbs: string[] = ['MySQL']
+
+export const dialogConfigAddSequence: MatDialogConfig<any> = {
+  width: '30vw',
+  minWidth: '400px',
+  maxWidth: '500px',
+}
+
+export const dialogConfigDropComponent: MatDialogConfig<any> = {
+  width: '35vw',
+  minWidth: '450px',
+  maxWidth: '600px',
+}

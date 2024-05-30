@@ -7,7 +7,7 @@
         </mat-form-field> 
         <br>
         <mat-form-field appearance="outline">
-            <mat-label>Sequence Kind</mat-label>
+            <mat-label>Sequence Type</mat-label>
             <mat-select [(ngModel)]="selectedSequenceKind" class="input-field" formControlName="sequenceKind" required="true">
                 <mat-option *ngFor="let sk of sequenceKinds" [value]="sk">{{sk}}</mat-option>
             </mat-select>

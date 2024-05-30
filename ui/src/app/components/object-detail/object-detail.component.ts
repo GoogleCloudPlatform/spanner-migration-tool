@@ -4,10 +4,10 @@ import IUpdateTable from '../../model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
-import IColumnTabData, { AutoGen, IIndexData, ISequenceData } from '../../model/edit-table'
+import IColumnTabData, { IIndexData, ISequenceData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, SourceDbNames, StorageKeys } from 'src/app/app.constants'
+import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, SourceDbNames, StorageKeys, dialogConfigAddSequence, dialogConfigDropComponent} from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/'
@@ -476,11 +476,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   addNewSequence() {
-    this.dialog.open(AddNewSequenceComponent, {
-      width: '30vw',
-      minWidth: '400px',
-      maxWidth: '500px',
-    })
+    this.dialog.open(AddNewSequenceComponent, dialogConfigAddSequence)
     this.updateSidebar.emit(true)
   }
 
@@ -1372,12 +1368,9 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropSequence() {
-    let openDialog = this.dialog.open(DropObjectDetailDialogComponent, {
-      width: '35vw',
-      minWidth: '450px',
-      maxWidth: '600px',
-      data: { name: this.currentObject?.name, type: ObjectDetailNodeType.Sequence },
-    })
+    let dialogConfig = dialogConfigDropComponent
+    dialogConfig.data = { name: this.currentObject?.name, type: ObjectDetailNodeType.Sequence }
+    let openDialog = this.dialog.open(DropObjectDetailDialogComponent, dialogConfig)
     openDialog.afterClosed().subscribe((res: string) => {
       if (res === ObjectDetailNodeType.Sequence) {
         this.data
