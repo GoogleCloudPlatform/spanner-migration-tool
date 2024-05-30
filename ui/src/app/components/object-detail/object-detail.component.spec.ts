@@ -55,7 +55,11 @@ describe('ObjectDetailComponent', () => {
         spAutoGen: {
           Name: '',
           GenerationType: ''
-        }
+        },
+        srcAutoGen: {
+          Name: '',
+          GenerationType: ''
+        },
       },
       {
         spOrder: 2,
@@ -75,7 +79,11 @@ describe('ObjectDetailComponent', () => {
         spAutoGen: {
           Name: '',
           GenerationType: ''
-        }
+        },
+        srcAutoGen: {
+          Name: '',
+          GenerationType: ''
+        },
       },
     ]
     component.fkData = [

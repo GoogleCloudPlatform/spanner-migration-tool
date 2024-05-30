@@ -33,7 +33,7 @@ type InfoSchema interface {
 	GetToDdl() ToDdl
 	GetTableName(schema string, tableName string) string
 	GetTables() ([]SchemaAndName, error)
-	GetColumns(conv *internal.Conv, table SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error)
+	GetColumns(conv *internal.Conv, table SchemaAndName, constraints map[string][]string, primaryKeys []string, tableId string) (map[string]schema.Column, []string, error)
 	GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error)
 	GetRowCount(table SchemaAndName) (int64, error)
 	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, map[string][]string, error)
@@ -191,7 +191,7 @@ func (is *InfoSchemaImpl) processTable(conv *internal.Conv, table SchemaAndName,
 		return t, fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 
-	colDefs, colIds, err := infoSchema.GetColumns(conv, table, constraints, primaryKeys)
+	colDefs, colIds, err := infoSchema.GetColumns(conv, table, constraints, primaryKeys, tblId)
 	if err != nil {
 		return t, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
 	}

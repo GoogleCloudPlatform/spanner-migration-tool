@@ -131,10 +131,13 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		autoGenCol := ddl.AutoGenCol{}
 		if(srcAutoGen.Name != "") {
 			if srcAutoGen.GenerationType == constants.AUTO_INCREMENT && driver == constants.MYSQL {
-				autoGenCol, err = getColumnAutoGen(conv, srcAutoGen)
+				autoGenCol, err = getColumnAutoGen(conv, srcAutoGen, srcColId, srcTable.Id)
 				if err != nil{
 					srcCol.Ignored.AutoIncrement= true
 					issues = append(issues, internal.AutoIncrement)
+				} else 
+				{
+					issues = append(issues, internal.SequenceCreated)
 				}
 			}
 		}
@@ -174,7 +177,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 	return nil
 }
 
-func getColumnAutoGen(conv *internal.Conv, autoGenCol schema.AutoGenCol) (ddl.AutoGenCol, error) {
+func getColumnAutoGen(conv *internal.Conv, autoGenCol schema.AutoGenCol, colId string, tableId string) (ddl.AutoGenCol, error) {
 	switch autoGenCol.GenerationType{
 	case constants.AUTO_INCREMENT:
 		sequenceId := ""
@@ -187,6 +190,13 @@ func getColumnAutoGen(conv *internal.Conv, autoGenCol schema.AutoGenCol) (ddl.Au
 		if sequenceId == "" {
 			return ddl.AutoGenCol{}, fmt.Errorf("sequence corresponding to column auto generation not found")
 		}
+		spSequences := conv.SrcSequences
+		sequence := spSequences[sequenceId]
+		sequence.ColumnsUsingSeq = map[string][]string {
+			tableId: {colId},
+		}
+		spSequences[sequenceId] = sequence
+		conv.SpSequences = spSequences
 		return ddl.AutoGenCol{Name: conv.SpSequences[sequenceId].Name, GenerationType: constants.SEQUENCE}, nil
 	default:
 		return ddl.AutoGenCol{}, fmt.Errorf("auto generation not supported")

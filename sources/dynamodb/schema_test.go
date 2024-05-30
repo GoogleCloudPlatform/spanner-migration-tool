@@ -710,7 +710,7 @@ func TestInfoSchemaImpl_GetColumns(t *testing.T) {
 
 	isi := InfoSchemaImpl{client, nil, 10}
 
-	colDefs, _, err := isi.GetColumns(conv, dySchema, nil, nil)
+	colDefs, _, err := isi.GetColumns(conv, dySchema, nil, nil, "t1")
 	assert.Nil(t, err)
 	expectColNames := []string{
 		"a", "b",

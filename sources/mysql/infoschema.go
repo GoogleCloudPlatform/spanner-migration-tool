@@ -172,7 +172,7 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 }
 
 // GetColumns returns a list of Column objects and names// ProcessColumns
-func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
+func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string, tableId string) (map[string]schema.Column, []string, error) {
 	q := `SELECT c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.extra
               FROM information_schema.COLUMNS c
               where table_schema = ? and table_name = ? ORDER BY c.ordinal_position;`
@@ -205,16 +205,20 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			}
 		}
 		ignored.Default = colDefault.Valid
+		colId := internal.GenerateColumnId()
 		if colExtra.String == "auto_increment" {
 			sequence := createSequence(conv)
 			colAutoGen = schema.AutoGenCol{
 				Name: sequence.Name,
 				GenerationType: constants.AUTO_INCREMENT,
 			}
+			sequence.ColumnsUsingSeq = map[string][]string{
+				tableId: {colId},
+			}
+			conv.SrcSequences[sequence.Id] = sequence
 		} else {
 			colAutoGen = schema.AutoGenCol{}
 		}
-		colId := internal.GenerateColumnId()
 		c := schema.Column{
 			Id:      colId,
 			Name:    colName,
@@ -468,7 +472,7 @@ func createSequence(conv *internal.Conv) ddl.Sequence{
 	sequence := ddl.Sequence{
 		Id: id,
 		Name: sequenceName,
-		SequenceKind: constants.AUTO_INCREMENT,
+		SequenceKind: "BIT REVERSED SEQUENCE",
 	}
 	conv.ConvLock.Lock()
 	defer conv.ConvLock.Unlock()

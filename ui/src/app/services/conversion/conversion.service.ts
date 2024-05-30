@@ -323,6 +323,10 @@ export class ConversionService {
           Name: '',
           GenerationType: ''
         },
+        srcAutoGen: data.SrcSchema[tableId].ColDefs[colId].AutoGen ? data.SrcSchema[tableId].ColDefs[colId].AutoGen : {
+          Name: '',
+          GenerationType: ''
+        },
       }
     })
     if (spColIds) {
@@ -346,7 +350,11 @@ export class ConversionService {
             spId: colId,
             srcColMaxLength: '',
             spColMaxLength: spannerColDef?.T.Len,
-            spAutoGen: spColumn.AutoGen
+            spAutoGen: spColumn.AutoGen,
+            srcAutoGen: {
+              Name: '',
+              GenerationType: ''
+            }
           })
         }
       })
