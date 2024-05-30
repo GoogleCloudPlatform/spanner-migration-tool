@@ -386,7 +386,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	columnLevelIssues := map[string][]internal.SchemaIssue{
-		"c5": []internal.SchemaIssue{
+		"c49": []internal.SchemaIssue{
 			2,
 		},
 	}
