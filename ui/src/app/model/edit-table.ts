@@ -39,11 +39,6 @@ export interface ISequenceData {
   spSkipRangeMin?: string | undefined
   spSkipRangeMax?: string | undefined
   spStartWithCounter?: string | undefined
-  srcName?: string | undefined
-  srcSequenceKind?: string | undefined
-  srcSkipRangeMin?: string | undefined
-  srcSkipRangeMax?: string | undefined
-  srcStartWithCounter?: string | undefined
 }
 
 export interface IColMaxLength {

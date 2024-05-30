@@ -176,13 +176,8 @@ export class ConversionService {
       }),
     }
 
-    if (sortOrder === 'asc' || sortOrder === '') {
-      parentNode.children?.sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
-      sequenceNode.children?.sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
-    } else if (sortOrder === 'desc') {
-      parentNode.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
-      sequenceNode.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
-    }
+    this.sortNodeChildren(parentNode, sortOrder)
+    this.sortNodeChildren(sequenceNode, sortOrder)
 
     let mainNodeChildren :ISchemaObjectNode[] = [parentNode]
     if (autoGenSupportedDbs.includes(this.srcDbName)) {
@@ -200,6 +195,14 @@ export class ConversionService {
         parentId: '',
       },
     ]
+  }
+
+  sortNodeChildren(node: ISchemaObjectNode, sortOrder: string) {
+    if (sortOrder === 'asc' || sortOrder === '') {
+      node.children?.sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
+    } else if (sortOrder === 'desc') {
+      node.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
+    }
   }
 
   createTreeNodeForSource(

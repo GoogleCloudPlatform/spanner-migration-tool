@@ -4,10 +4,10 @@ import IUpdateTable from '../../model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
-import IColumnTabData, { AutoGen, IIndexData, ISequenceData } from '../../model/edit-table'
+import IColumnTabData, { IIndexData, ISequenceData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, SourceDbNames, StorageKeys } from 'src/app/app.constants'
+import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, SourceDbNames, StorageKeys, dialogConfigAddSequence, dialogConfigDropComponent} from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/'
@@ -24,7 +24,7 @@ import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/
 import { AddNewColumnComponent } from '../add-new-column/add-new-column.component'
 import { GroupedAutoGens, extractSourceDbName, processAutoGens } from 'src/app/utils/utils'
 import { AddNewSequenceComponent } from '../add-new-sequence/add-new-sequence.component'
-import { linkedFieldsValidator } from 'src/app/utils/utils';
+import { linkedFieldsValidatorSequence } from 'src/app/utils/utils';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ICreateSequence from 'src/app/model/auto-gen'
 import { autoGenSupportedDbs } from 'src/app/app.constants'
@@ -478,11 +478,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   addNewSequence() {
-    this.dialog.open(AddNewSequenceComponent, {
-      width: '30vw',
-      minWidth: '400px',
-      maxWidth: '500px',
-    })
+    this.dialog.open(AddNewSequenceComponent, dialogConfigAddSequence)
     this.updateSidebar.emit(true)
   }
 
@@ -1269,7 +1265,7 @@ export class ObjectDetailComponent implements OnInit {
         spSkipRangeMin: new FormControl(this.localSequenceData.spSkipRangeMin, Validators.pattern('^[0-9]+$')),
         spSkipRangeMax: new FormControl(this.localSequenceData.spSkipRangeMax, Validators.pattern('^[0-9]+$')),
         spStartWithCounter: new FormControl(this.localSequenceData.spStartWithCounter, Validators.pattern('^[0-9]+$'))
-    }, { validators: linkedFieldsValidator('spSkipRangeMin', 'spSkipRangeMax') })
+    }, { validators: linkedFieldsValidatorSequence('spSkipRangeMin', 'spSkipRangeMax') })
     )
     this.spDataSource = this.spRowArray.controls
   }
@@ -1381,12 +1377,9 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropSequence() {
-    let openDialog = this.dialog.open(DropObjectDetailDialogComponent, {
-      width: '35vw',
-      minWidth: '450px',
-      maxWidth: '600px',
-      data: { name: this.currentObject?.name, type: ObjectDetailNodeType.Sequence },
-    })
+    let dialogConfig = dialogConfigDropComponent
+    dialogConfig.data = { name: this.currentObject?.name, type: ObjectDetailNodeType.Sequence }
+    let openDialog = this.dialog.open(DropObjectDetailDialogComponent, dialogConfig)
     openDialog.afterClosed().subscribe((res: string) => {
       if (res === ObjectDetailNodeType.Sequence) {
         this.data

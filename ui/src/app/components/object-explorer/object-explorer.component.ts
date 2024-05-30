@@ -3,7 +3,7 @@ import ISchemaObjectNode, { FlatNode } from 'src/app/model/schema-object-node'
 import { FlatTreeControl } from '@angular/cdk/tree'
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree'
 import { ConversionService } from '../../services/conversion/conversion.service'
-import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
+import { ObjectExplorerNodeType, StorageKeys, dialogConfigAddSequence } from 'src/app/app.constants'
 import { SidenavService } from '../../services/sidenav/sidenav.service'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 import IConv from '../../model/conv'
@@ -194,11 +194,7 @@ export class ObjectExplorerComponent implements OnInit {
   }
 
   openAddSequenceForm(): void {
-    this.dialog.open(AddNewSequenceComponent, {
-      width: '30vw',
-      minWidth: '400px',
-      maxWidth: '500px',
-    })
+    this.dialog.open(AddNewSequenceComponent, dialogConfigAddSequence)
   }
 
   shouldHighlight(data: FlatNode) {

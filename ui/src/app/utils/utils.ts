@@ -54,7 +54,7 @@ export function processAutoGens(autoGenMap: any): GroupedAutoGens {
   return groupedAutoGens;
 }
 
-export function linkedFieldsValidator(skipRangeMin: string, skipRangeMax: string): ValidatorFn {
+export function linkedFieldsValidatorSequence(skipRangeMin: string, skipRangeMax: string): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
     const formGroup = control as FormGroup; 
     const min = formGroup.get(skipRangeMin);
