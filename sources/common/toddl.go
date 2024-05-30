@@ -55,7 +55,7 @@ type SchemaToSpannerInterface interface {
 	SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error
 }
 
-type SchemaToSpannerImpl struct {}
+type SchemaToSpannerImpl struct{}
 
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
@@ -129,14 +129,13 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		// Set auto generation for column
 		srcAutoGen := srcCol.AutoGen
 		autoGenCol := ddl.AutoGenCol{}
-		if(srcAutoGen.Name != "") {
+		if srcAutoGen.Name != "" {
 			if srcAutoGen.GenerationType == constants.AUTO_INCREMENT && driver == constants.MYSQL {
 				autoGenCol, err = getColumnAutoGen(conv, srcAutoGen, srcColId, srcTable.Id)
-				if err != nil{
-					srcCol.Ignored.AutoIncrement= true
+				if err != nil {
+					srcCol.Ignored.AutoIncrement = true
 					issues = append(issues, internal.AutoIncrement)
-				} else 
-				{
+				} else {
 					issues = append(issues, internal.SequenceCreated)
 				}
 			}
@@ -177,8 +176,8 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 	return nil
 }
 
-func getColumnAutoGen(conv *internal.Conv, autoGenCol schema.AutoGenCol, colId string, tableId string) (ddl.AutoGenCol, error) {
-	switch autoGenCol.GenerationType{
+func getColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (ddl.AutoGenCol, error) {
+	switch autoGenCol.GenerationType {
 	case constants.AUTO_INCREMENT:
 		sequenceId := ""
 		srcSequences := conv.SrcSequences
@@ -190,9 +189,9 @@ func getColumnAutoGen(conv *internal.Conv, autoGenCol schema.AutoGenCol, colId s
 		if sequenceId == "" {
 			return ddl.AutoGenCol{}, fmt.Errorf("sequence corresponding to column auto generation not found")
 		}
-		spSequences := conv.SrcSequences
+		spSequences := conv.SpSequences
 		sequence := spSequences[sequenceId]
-		sequence.ColumnsUsingSeq = map[string][]string {
+		sequence.ColumnsUsingSeq = map[string][]string{
 			tableId: {colId},
 		}
 		spSequences[sequenceId] = sequence
@@ -207,21 +206,21 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerSequenceHelper(conv *internal.Conv
 	switch srcSequence.SequenceKind {
 	case constants.AUTO_INCREMENT:
 		spSequence := ddl.Sequence{
-			Name: srcSequence.Name,
-			Id: srcSequence.Id,
-			SequenceKind: "BIT REVERSED POSITIVE",
-			SkipRangeMin: srcSequence.SkipRangeMin,
-			SkipRangeMax: srcSequence.SkipRangeMax,
+			Name:             srcSequence.Name,
+			Id:               srcSequence.Id,
+			SequenceKind:     "BIT REVERSED POSITIVE",
+			SkipRangeMin:     srcSequence.SkipRangeMin,
+			SkipRangeMax:     srcSequence.SkipRangeMax,
 			StartWithCounter: srcSequence.StartWithCounter,
 		}
 		conv.SpSequences[srcSequence.Id] = spSequence
-	default: 
+	default:
 		spSequence := ddl.Sequence{
-			Name: srcSequence.Name,
-			Id: srcSequence.Id,
-			SequenceKind: "BIT REVERSED POSITIVE",
-			SkipRangeMin: srcSequence.SkipRangeMin,
-			SkipRangeMax: srcSequence.SkipRangeMax,
+			Name:             srcSequence.Name,
+			Id:               srcSequence.Id,
+			SequenceKind:     "BIT REVERSED POSITIVE",
+			SkipRangeMin:     srcSequence.SkipRangeMin,
+			SkipRangeMax:     srcSequence.SkipRangeMax,
 			StartWithCounter: srcSequence.StartWithCounter,
 		}
 		conv.SpSequences[srcSequence.Id] = spSequence

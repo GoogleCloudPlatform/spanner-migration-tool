@@ -18,9 +18,11 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_quoteIfNeeded(t *testing.T) {
@@ -374,5 +376,97 @@ func Test_cvtForeignKeysForAReferenceTable(t *testing.T) {
 				t.Errorf("cvtForeignKeysForAReferenceTable() = %v and wants %v ", result, tt.expectedForeignKey)
 			}
 		})
+	}
+}
+
+func Test_SchemaToSpannerSequenceHelper(t *testing.T) {
+	expectedConv := internal.MakeConv()
+	expectedConv.SpSequences["s1"] = ddl.Sequence{
+		Name:             "Sequence1",
+		Id:               "s1",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "1",
+		SkipRangeMax:     "2",
+		StartWithCounter: "3",
+	}
+	tc := []struct {
+		expectedConv *internal.Conv
+		srcSequence  ddl.Sequence
+	}{
+		{
+			expectedConv: expectedConv,
+			srcSequence: ddl.Sequence{
+				Name:             "Sequence1",
+				Id:               "s1",
+				SequenceKind:     constants.AUTO_INCREMENT,
+				SkipRangeMin:     "1",
+				SkipRangeMax:     "2",
+				StartWithCounter: "3",
+			},
+		},
+	}
+
+	for _, tt := range tc {
+		conv := internal.MakeConv()
+		ss := SchemaToSpannerImpl{}
+		ss.SchemaToSpannerSequenceHelper(conv, tt.srcSequence)
+		assert.Equal(t, expectedConv, conv)
+	}
+}
+
+func Test_getColumnAutoGen(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SrcSequences["s1"] = ddl.Sequence{
+		Name:             "Sequence1",
+		Id:               "s1",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "1",
+		SkipRangeMax:     "2",
+		StartWithCounter: "3",
+	}
+	conv.SpSequences["s1"] = ddl.Sequence{
+		Name:             "Sequence1",
+		Id:               "s1",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "1",
+		SkipRangeMax:     "2",
+		StartWithCounter: "3",
+	}
+	autoGenCol := ddl.AutoGenCol{
+		Name:           "Sequence1",
+		GenerationType: constants.AUTO_INCREMENT,
+	}
+	tc := []struct {
+		conv               *internal.Conv
+		srcSequence        ddl.Sequence
+		autoGenCol         ddl.AutoGenCol
+		expectedAutoGenCol ddl.AutoGenCol
+		colId              string
+		tableId            string
+	}{
+		{
+			conv: conv,
+			srcSequence: ddl.Sequence{
+				Name:             "Sequence1",
+				Id:               "s1",
+				SequenceKind:     "Auto Increment",
+				SkipRangeMin:     "1",
+				SkipRangeMax:     "2",
+				StartWithCounter: "3",
+			},
+			autoGenCol: autoGenCol,
+			expectedAutoGenCol: ddl.AutoGenCol{
+				Name:           "Sequence1",
+				GenerationType: constants.SEQUENCE,
+			},
+			colId:   "c1",
+			tableId: "t1",
+		},
+	}
+
+	for _, tt := range tc {
+		autoGenCol, _ := getColumnAutoGen(tt.conv, tt.autoGenCol, tt.colId, tt.tableId)
+		assert.Equal(t, tt.expectedAutoGenCol, autoGenCol)
+		assert.Equal(t, len(tt.conv.SpSequences[tt.srcSequence.Id].ColumnsUsingSeq[tt.tableId]), 1)
 	}
 }

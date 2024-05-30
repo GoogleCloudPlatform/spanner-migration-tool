@@ -186,7 +186,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	var colName, dataType, isNullable, columnType string
 	var colDefault, colExtra sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
-	var colAutoGen schema.AutoGenCol
+	var colAutoGen ddl.AutoGenCol
 	for cols.Next() {
 		err := cols.Scan(&colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &colExtra)
 		if err != nil {
@@ -208,8 +208,8 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		colId := internal.GenerateColumnId()
 		if colExtra.String == "auto_increment" {
 			sequence := createSequence(conv)
-			colAutoGen = schema.AutoGenCol{
-				Name: sequence.Name,
+			colAutoGen = ddl.AutoGenCol{
+				Name:           sequence.Name,
 				GenerationType: constants.AUTO_INCREMENT,
 			}
 			sequence.ColumnsUsingSeq = map[string][]string{
@@ -217,7 +217,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			}
 			conv.SrcSequences[sequence.Id] = sequence
 		} else {
-			colAutoGen = schema.AutoGenCol{}
+			colAutoGen = ddl.AutoGenCol{}
 		}
 		c := schema.Column{
 			Id:      colId,
@@ -466,12 +466,12 @@ func valsToStrings(vals []sql.RawBytes) []string {
 	return s
 }
 
-func createSequence(conv *internal.Conv) ddl.Sequence{
+func createSequence(conv *internal.Conv) ddl.Sequence {
 	id := internal.GenerateSequenceId()
 	sequenceName := "Sequence" + id[1:]
 	sequence := ddl.Sequence{
-		Id: id,
-		Name: sequenceName,
+		Id:           id,
+		Name:         sequenceName,
 		SequenceKind: "BIT REVERSED SEQUENCE",
 	}
 	conv.ConvLock.Lock()
