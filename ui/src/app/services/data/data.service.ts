@@ -547,8 +547,8 @@ export class DataService {
     )
   }
 
-  dropSequence(seqName: string): Observable<string> {
-    return this.fetch.dropSequence(seqName).pipe(
+  dropSequence(sequenceId: string): Observable<string> {
+    return this.fetch.dropSequence(sequenceId).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),

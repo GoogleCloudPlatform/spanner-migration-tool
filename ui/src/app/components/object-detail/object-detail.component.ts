@@ -203,11 +203,6 @@ export class ObjectDetailComponent implements OnInit {
       this.spColspan++;
     }
 
-    if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
-      this.spDisplayedColumns.splice(2, 0, "spAutoGen");
-      this.spColspan++;
-    }
-
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.checkIsInterleave()
 
