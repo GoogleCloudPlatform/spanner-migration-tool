@@ -201,8 +201,6 @@ export class ObjectDetailComponent implements OnInit {
     if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
       this.spDisplayedColumns.splice(2, 0, "spAutoGen");
       this.displayedPkColumns.splice(8, 0, "spAutoGen");
-      this.srcDisplayedColumns.splice(2, 0, "srcAutoGen");
-      this.displayedPkColumns.splice(2, 0, "srcAutoGen");
       this.spColspan++;
       this.srcColspan++;
     }

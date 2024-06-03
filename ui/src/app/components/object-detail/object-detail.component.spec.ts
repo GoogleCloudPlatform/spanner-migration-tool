@@ -176,9 +176,9 @@ describe('ObjectDetailComponent', () => {
     component.dropSequence();
 
     expect(dialogSpyObj.open).toHaveBeenCalledWith(DropObjectDetailDialogComponent, {
-      width: '35vw',
-      minWidth: '450px',
-      maxWidth: '600px',
+      width: '100%',
+      minWidth: '50%',
+      maxWidth: '75%',
       data: { name: 'Sequence Name', type: ObjectDetailNodeType.Sequence },
     });
 

@@ -114,7 +114,13 @@ const mockIConv: IConv = {
     EditorName: 'SampleEditorName',
     SpDialect: 'googlestandardsql',
     IsSharded: false,
-    SpSequences: {},
+    SpSequences: {
+        "s1": {
+            Id: "s1",
+            Name: "Sequence1",
+            SequenceKind: "BIT REVERSED POSITIVE"
+        },
+    },
     SrcSequences: {}
 };
 

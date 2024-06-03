@@ -159,13 +159,13 @@ export enum PersistedFormValues {
 export const autoGenSupportedDbs: string[] = ['MySQL']
 
 export const dialogConfigAddSequence: MatDialogConfig<any> = {
-  width: '30vw',
-  minWidth: '400px',
-  maxWidth: '500px',
+  width: '50%',
+  minWidth: '40%',
+  maxWidth: '70%',
 }
 
 export const dialogConfigDropComponent: MatDialogConfig<any> = {
-  width: '35vw',
-  minWidth: '450px',
-  maxWidth: '600px',
+  width: '100%',
+  minWidth: '50%',
+  maxWidth: '75%',
 }
