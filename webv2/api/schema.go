@@ -850,25 +850,6 @@ func UpdateIndexes(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	for i, spIndex := range sp.Indexes {
-
-		for j, srcIndex := range st.Indexes {
-
-			for k, spIndexKey := range spIndex.Keys {
-
-				for l, srcIndexKey := range srcIndex.Keys {
-
-					if srcIndexKey.ColId == spIndexKey.ColId {
-
-						st.Indexes[j].Keys[l].Order = sp.Indexes[i].Keys[k].Order
-					}
-
-				}
-			}
-
-		}
-	}
-
 	sessionState.Conv.SpSchema[table] = sp
 
 	sessionState.Conv.SrcSchema[table] = st
