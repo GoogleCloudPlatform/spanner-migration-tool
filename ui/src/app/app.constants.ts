@@ -1,3 +1,5 @@
+import { MatDialogConfig } from "@angular/material/dialog"
+
 export enum InputType {
   DirectConnect = 'directConnect',
   DumpFile = 'dumpFile',
@@ -24,6 +26,8 @@ export enum ObjectExplorerNodeType {
   Table = 'tableName',
   Indexes = 'indexes',
   Index = 'indexName',
+  Sequences = 'sequences',
+  Sequence = 'sequenceName'
 }
 
 export enum RulesTypes {
@@ -40,6 +44,7 @@ export enum MigrationModes {
 export enum ObjectDetailNodeType {
   Table = 'table',
   Index = 'index',
+  Sequence = 'sequence'
 }
 
 export enum MigrationTypes {
@@ -149,4 +154,18 @@ export const DataTypes = {
 export enum PersistedFormValues {
     DirectConnectForm = 'directConnectForm',
     IsConnectionSuccessful = 'isConnectionSuccessful'
+}
+
+export const autoGenSupportedDbs: string[] = ['MySQL']
+
+export const dialogConfigAddSequence: MatDialogConfig<any> = {
+  width: '50%',
+  minWidth: '40%',
+  maxWidth: '70%',
+}
+
+export const dialogConfigDropComponent: MatDialogConfig<any> = {
+  width: '100%',
+  minWidth: '50%',
+  maxWidth: '75%',
 }
