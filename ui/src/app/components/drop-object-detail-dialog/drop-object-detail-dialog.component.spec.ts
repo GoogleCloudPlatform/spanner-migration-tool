@@ -1,15 +1,15 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 
-import { DropIndexOrTableDialogComponent } from './drop-index-or-table-dialog.component'
+import { DropObjectDetailDialogComponent } from './drop-object-detail-dialog.component'
 
-describe('DropIndexOrTableDialogComponent', () => {
-  let component: DropIndexOrTableDialogComponent
-  let fixture: ComponentFixture<DropIndexOrTableDialogComponent>
+describe('DropObjectDetailDialogComponent', () => {
+  let component: DropObjectDetailDialogComponent
+  let fixture: ComponentFixture<DropObjectDetailDialogComponent>
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [DropIndexOrTableDialogComponent],
+      declarations: [DropObjectDetailDialogComponent],
       providers: [
         {
           provide: MatDialogRef,
@@ -27,7 +27,7 @@ describe('DropIndexOrTableDialogComponent', () => {
   })
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(DropIndexOrTableDialogComponent)
+    fixture = TestBed.createComponent(DropObjectDetailDialogComponent)
     component = fixture.componentInstance
     fixture.detectChanges()
   })

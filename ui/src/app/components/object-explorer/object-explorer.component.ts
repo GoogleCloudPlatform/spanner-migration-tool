@@ -1,9 +1,9 @@
-import { Component, EventEmitter, Input, OnInit, Output, SimpleChanges } from '@angular/core'
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core'
 import ISchemaObjectNode, { FlatNode } from 'src/app/model/schema-object-node'
 import { FlatTreeControl } from '@angular/cdk/tree'
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree'
 import { ConversionService } from '../../services/conversion/conversion.service'
-import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
+import { ObjectExplorerNodeType, StorageKeys, dialogConfigAddSequence } from 'src/app/app.constants'
 import { SidenavService } from '../../services/sidenav/sidenav.service'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 import IConv from '../../model/conv'
@@ -14,6 +14,7 @@ import { take } from 'rxjs'
 import { ITableState, ITables } from 'src/app/model/migrate'
 import { MatDialog } from '@angular/material/dialog'
 import { BulkDropRestoreTableDialogComponent } from '../bulk-drop-restore-table-dialog/bulk-drop-restore-table-dialog.component'
+import { AddNewSequenceComponent } from '../add-new-sequence/add-new-sequence.component'
 
 @Component({
   selector: 'app-object-explorer',
@@ -140,7 +141,7 @@ export class ObjectExplorerComponent implements OnInit {
 
   objectSelected(data: FlatNode) {
     this.currentSelectedObject = data
-    if (data.type === ObjectExplorerNodeType.Index || data.type === ObjectExplorerNodeType.Table) {
+    if (data.type === ObjectExplorerNodeType.Index || data.type === ObjectExplorerNodeType.Table || data.type === ObjectExplorerNodeType.Sequence) {
       this.selectObject.emit(data)
     }
   }
@@ -158,8 +159,26 @@ export class ObjectExplorerComponent implements OnInit {
     return new RegExp('^indexes').test(name)
   }
 
+  isSequenceNode(name: string) {
+    return new RegExp('^sequences').test(name)
+  }
+
   isIndexLikeNode(data: FlatNode): boolean {
     if (data.type == ObjectExplorerNodeType.Index || data.type == ObjectExplorerNodeType.Indexes) {
+      return true
+    }
+    return false
+  }
+
+  isTableLikeNode(data: FlatNode): boolean {
+    if (data.type == ObjectExplorerNodeType.Table || data.type == ObjectExplorerNodeType.Tables) {
+      return true
+    }
+    return false
+  }
+
+  isSequenceLikeNode(data: FlatNode): boolean {
+    if (data.type == ObjectExplorerNodeType.Sequence || data.type == ObjectExplorerNodeType.Sequences) {
       return true
     }
     return false
@@ -172,6 +191,10 @@ export class ObjectExplorerComponent implements OnInit {
     this.sidenav.setSidenavComponent('rule')
     this.sidenav.setRuleData([])
     this.sidenav.setDisplayRuleFlag(false)
+  }
+
+  openAddSequenceForm(): void {
+    this.dialog.open(AddNewSequenceComponent, dialogConfigAddSequence)
   }
 
   shouldHighlight(data: FlatNode) {

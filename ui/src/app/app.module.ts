@@ -34,7 +34,7 @@ import { AddIndexFormComponent } from './components/add-index-form/add-index-for
 import { EditGlobalDatatypeFormComponent } from './components/edit-global-datatype-form/edit-global-datatype-form.component'
 import { SidenavViewAssessmentComponent } from './components/sidenav-view-assessment/sidenav-view-assessment.component'
 import { SidenavSaveSessionComponent } from './components/sidenav-save-session/sidenav-save-session.component'
-import { DropIndexOrTableDialogComponent } from './components/drop-index-or-table-dialog/drop-index-or-table-dialog.component'
+import { DropObjectDetailDialogComponent } from './components/drop-object-detail-dialog/drop-object-detail-dialog.component'
 import { DatabaseLoaderComponent } from './components/database-loader/database-loader.component'
 import { PrepareMigrationComponent } from './components/prepare-migration/prepare-migration.component'
 import { TargetDetailsFormComponent } from './components/target-details-form/target-details-form.component'
@@ -53,6 +53,7 @@ import { AddShardIdPrimaryKeyComponent } from './components/add-shard-id-primary
 import { EquivalentGcloudCommandComponent } from './components/equivalent-gcloud-command/equivalent-gcloud-command.component';
 import { TuneDatastreamFormComponent } from './components/tune-datastream-form/tune-datastream-form.component';
 import { TuneGcsFormComponent } from './components/tune-gcs-form/tune-gcs-form.component';
+import { AddNewSequenceComponent } from './components/add-new-sequence/add-new-sequence.component'
 
 @NgModule({
   declarations: [
@@ -80,7 +81,7 @@ import { TuneGcsFormComponent } from './components/tune-gcs-form/tune-gcs-form.c
     SidenavViewAssessmentComponent,
     SidenavSaveSessionComponent,
     DatabaseLoaderComponent,
-    DropIndexOrTableDialogComponent,
+    DropObjectDetailDialogComponent,
     PrepareMigrationComponent,
     TargetDetailsFormComponent,
     ConnectionProfileFormComponent,
@@ -98,6 +99,7 @@ import { TuneGcsFormComponent } from './components/tune-gcs-form/tune-gcs-form.c
     EquivalentGcloudCommandComponent,
     TuneDatastreamFormComponent,
     TuneGcsFormComponent,
+    AddNewSequenceComponent
   ],
   imports: [
     BrowserModule,
