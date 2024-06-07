@@ -129,7 +129,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		}
 		// Set auto generation for column
 		srcAutoGen := srcCol.AutoGen
-		var autoGenCol *ddl.AutoGenCol
+		var autoGenCol *ddl.AutoGenCol = &ddl.AutoGenCol{}
 		if srcAutoGen.Name != "" {
 			autoGenCol, err = toddl.GetColumnAutoGen(conv, srcAutoGen, srcColId, srcTable.Id)
 			if autoGenCol != nil {
@@ -139,8 +139,6 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 				} else {
 					issues = append(issues, internal.SequenceCreated)
 				}
-			} else {
-				autoGenCol = &ddl.AutoGenCol{}
 			}
 		}
 		if len(issues) > 0 {
@@ -177,32 +175,6 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		Comment:     comment,
 		Id:          srcTable.Id}
 	return nil
-}
-
-func getColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (ddl.AutoGenCol, error) {
-	switch autoGenCol.GenerationType {
-	case constants.AUTO_INCREMENT:
-		sequenceId := ""
-		srcSequences := conv.SrcSequences
-		for seqId, seq := range srcSequences {
-			if seq.Name == autoGenCol.Name {
-				sequenceId = seqId
-			}
-		}
-		if sequenceId == "" {
-			return ddl.AutoGenCol{}, fmt.Errorf("sequence corresponding to column auto generation not found")
-		}
-		spSequences := conv.SpSequences
-		sequence := spSequences[sequenceId]
-		sequence.ColumnsUsingSeq = map[string][]string{
-			tableId: {colId},
-		}
-		spSequences[sequenceId] = sequence
-		conv.SpSequences = spSequences
-		return ddl.AutoGenCol{Name: conv.SpSequences[sequenceId].Name, GenerationType: constants.SEQUENCE}, nil
-	default:
-		return ddl.AutoGenCol{}, fmt.Errorf("auto generation not supported")
-	}
 }
 
 func (ss *SchemaToSpannerImpl) SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error {
