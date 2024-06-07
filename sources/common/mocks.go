@@ -67,7 +67,7 @@ type MockProcessSchema struct {
     mock.Mock
 }
 
-func (mps *MockProcessSchema) ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, driver string, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error {
+func (mps *MockProcessSchema) ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error {
 	args := mps.Called(conv, infoSchema, numWorkers, attributes, s, uo, is)
 	return args.Error(0)
 }

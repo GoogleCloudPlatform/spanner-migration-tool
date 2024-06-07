@@ -23,7 +23,6 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -231,7 +230,7 @@ func TestProcessSchema(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	processSchema := common.ProcessSchemaImpl{}
-	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, 1, internal.AdditionalSchemaAttributes{}, constants.POSTGRES, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"user": ddl.CreateTable{
@@ -509,7 +508,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	processSchema := common.ProcessSchemaImpl{}
-	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, 1, internal.AdditionalSchemaAttributes{}, constants.POSTGRES, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}, newFalsePtr()}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
 	conv.SetDataMode()
 	var rows []spannerData

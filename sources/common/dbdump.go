@@ -29,7 +29,7 @@ type DbDump interface {
 // In schema mode, this method incrementally builds a schema (updating conv).
 // In data mode, this method uses this schema to convert data and writes it
 // to Spanner, using the data sink specified in conv.
-func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump, driver string) error {
+func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump) error {
 	if err := dbDump.ProcessDump(conv, r); err != nil {
 		return err
 	}
@@ -38,7 +38,7 @@ func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump, drive
 		utilsOrder.initPrimaryKeyOrder(conv)
 		utilsOrder.initIndexOrder(conv)
 		schemaToSpanner := SchemaToSpannerImpl{}
-		schemaToSpanner.SchemaToSpannerDDL(conv, dbDump.GetToDdl(), driver)
+		schemaToSpanner.SchemaToSpannerDDL(conv, dbDump.GetToDdl())
 		conv.AddPrimaryKeys()
 	}
 	return nil

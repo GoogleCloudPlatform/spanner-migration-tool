@@ -40,6 +40,10 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 	return ty, issues
 }
 
+func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
+	return nil, nil
+}
+
 func toSpannerTypeInternal(conv *internal.Conv, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType.Name {
 	case typeNumber:

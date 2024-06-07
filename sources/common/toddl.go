@@ -47,11 +47,12 @@ import (
 // supported, an error is to be returned by the corresponding method.
 type ToDdl interface {
 	ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue)
+	GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error)
 }
 
 type SchemaToSpannerInterface interface {
-	SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl, driver string) error
-	SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool, driver string) error
+	SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error
+	SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error
 	SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error
 }
 
@@ -60,7 +61,7 @@ type SchemaToSpannerImpl struct{}
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
-func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl, driver string) error {
+func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
 	srcSequences := conv.SrcSequences
 	for _, srcSequence := range srcSequences {
 		ss.SchemaToSpannerSequenceHelper(conv, srcSequence)
@@ -68,13 +69,13 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 	tableIds := GetSortedTableIdsBySrcName(conv.SrcSchema)
 	for _, tableId := range tableIds {
 		srcTable := conv.SrcSchema[tableId]
-		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false, driver)
+		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
 	internal.ResolveRefs(conv)
 	return nil
 }
 
-func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool, driver string) error {
+func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error {
 	spTableName, err := internal.GetSpannerTable(conv, srcTable.Id)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
@@ -128,16 +129,18 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		}
 		// Set auto generation for column
 		srcAutoGen := srcCol.AutoGen
-		autoGenCol := ddl.AutoGenCol{}
+		var autoGenCol *ddl.AutoGenCol
 		if srcAutoGen.Name != "" {
-			if srcAutoGen.GenerationType == constants.AUTO_INCREMENT && driver == constants.MYSQL {
-				autoGenCol, err = getColumnAutoGen(conv, srcAutoGen, srcColId, srcTable.Id)
+			autoGenCol, err = toddl.GetColumnAutoGen(conv, srcAutoGen, srcColId, srcTable.Id)
+			if autoGenCol != nil {
 				if err != nil {
 					srcCol.Ignored.AutoIncrement = true
 					issues = append(issues, internal.AutoIncrement)
 				} else {
 					issues = append(issues, internal.SequenceCreated)
 				}
+			} else {
+				autoGenCol = &ddl.AutoGenCol{}
 			}
 		}
 		if len(issues) > 0 {
@@ -150,7 +153,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 			NotNull: isNotNull,
 			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			Id:      srcColId,
-			AutoGen: autoGenCol,
+			AutoGen: *autoGenCol,
 		}
 		if !checkIfColumnIsPartOfPK(srcColId, srcTable.PrimaryKeys) {
 			totalNonKeyColumnSize += getColumnSize(ty.Name, ty.Len)
@@ -304,9 +307,9 @@ func cvtIndexes(conv *internal.Conv, tableId string, srcIndexes []schema.Index, 
 	return spIndexes
 }
 
-func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, driver string) error {
+func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table) error {
 	schemaToSpanner := SchemaToSpannerImpl{}
-	err := schemaToSpanner.SchemaToSpannerDDLHelper(conv, toddl, srcTable, true, driver)
+	err := schemaToSpanner.SchemaToSpannerDDLHelper(conv, toddl, srcTable, true)
 	if err != nil {
 		return err
 	}

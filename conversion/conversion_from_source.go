@@ -96,7 +96,7 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: isSharded,
 	}
-	return conv, processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, sourceProfile.Driver, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	return conv, processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 }
 
 func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
@@ -178,7 +178,7 @@ func (sads *DataFromSourceImpl) dataFromCSV(ctx context.Context, sourceProfile p
 
 	delimiter := rune(delimiterStr[0])
 
-	err = utils.ReadSpannerSchema(ctx, conv, client, sourceProfile.Driver)
+	err = utils.ReadSpannerSchema(ctx, conv, client)
 	if err != nil {
 		return nil, fmt.Errorf("error trying to read and convert spanner schema: %v", err)
 	}

@@ -22,7 +22,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -238,7 +237,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			"f4":  schema.Column{Name: "f4", Type: schema.Type{Name: "float", Mods: []int64{24}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"f8":  schema.Column{Name: "f8", Type: schema.Type{Name: "double", Mods: []int64{53}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"i2":  schema.Column{Name: "i2", Type: schema.Type{Name: "smallint", Mods: []int64{16}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"i4":  schema.Column{Name: "i4", Type: schema.Type{Name: "integer", Mods: []int64{32}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", AutoGen: ddl.AutoGenCol{Name: "Sequence34", GenerationType: constants.AUTO_INCREMENT}},
+			"i4":  schema.Column{Name: "i4", Type: schema.Type{Name: "integer", Mods: []int64{32}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: true}, Id: ""},
 			"i8":  schema.Column{Name: "i8", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"id":  schema.Column{Name: "id", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"s":   schema.Column{Name: "s", Type: schema.Type{Name: "set", Mods: []int64(nil), ArrayBounds: []int64{-1}}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
@@ -370,7 +369,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
 	processSchema := common.ProcessSchemaImpl{}
-	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{}, constants.MYSQL, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"test": ddl.CreateTable{
@@ -386,7 +385,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	columnLevelIssues := map[string][]internal.SchemaIssue{
-		"c49": []internal.SchemaIssue{
+		"c48": []internal.SchemaIssue{
 			2,
 		},
 	}
@@ -459,7 +458,7 @@ func TestProcessSchema_Sharded(t *testing.T) {
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
 	processSchema := common.ProcessSchemaImpl{}
-	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{IsSharded: true}, constants.MYSQL, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{IsSharded: true}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"test": {
