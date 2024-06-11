@@ -3,14 +3,11 @@
     <h2>Spanner Database Details<mat-icon class="configure"
       matTooltip='Schema & Schema and data migration: Specify new database name or existing database with empty schema. Data migration: Specify existing database with tables already created'>
     info</mat-icon></h2>
-    
-    
-    <mat-form-field class="full-width" appearance="outline"  
-    >
+    <mat-form-field class="full-width" appearance="outline">
       <mat-label>Spanner Database</mat-label>
       <input matInput placeholder="Target Database" type="text" formControlName="targetDb"
         ng-value="targetDetails.TargetDB" />
-          <mat-hint >
+          <mat-hint>
             <div class="container"  style="display: inline;">
               Min. 2 characters and Max. 30 characters. 
               <a  href="https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language#naming_conventions">More Details</a> 
