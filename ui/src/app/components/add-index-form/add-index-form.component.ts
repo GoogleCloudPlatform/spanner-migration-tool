@@ -33,7 +33,7 @@ export class AddIndexFormComponent implements OnInit {
   ) {
     this.addIndexForm = this.fb.group({
       tableName: ['', Validators.required],
-      indexName: ['', [Validators.required, Validators.pattern('^[a-zA-Z].{0,59}$')]],
+      indexName: ['', [Validators.required, Validators.pattern('^[A-Za-z][A-Za-z0-9_]{0,127}$')]],
       ColsArray: this.fb.array([]),
     })
   }
