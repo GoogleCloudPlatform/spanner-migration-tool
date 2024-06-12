@@ -773,8 +773,17 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details type
 	} else {
 		sessionState.Conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
 		sessionState.Conv.Audit.MigrationRequestId = strings.Replace(sessionState.Conv.Audit.MigrationRequestId, "_", "-", -1)
-		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
-		sessionState.RootPath = "/"
+		if details.TargetDetails.GcsMetadataPath.GcsBucketName != "" {
+			sessionState.Bucket = details.TargetDetails.GcsMetadataPath.GcsBucketName
+			if details.TargetDetails.GcsMetadataPath.GcsBucketRootPath != "" {
+				sessionState.RootPath = details.TargetDetails.GcsMetadataPath.GcsBucketRootPath
+			} else {
+				sessionState.RootPath = "/"
+			}
+		} else {
+			sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
+			sessionState.RootPath = "/"
+		}
 	}
 	source, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {

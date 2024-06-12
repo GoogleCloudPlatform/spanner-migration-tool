@@ -1,0 +1,27 @@
+<div mat-dialog-content>
+  <form [formGroup]="gcsMetadataDetailsForm" class="gcs-metadata-detail-form">
+    <h2>GCS Metadata Storage<mat-icon class="configure"
+      matTooltip='Specify existing or new GCS path to store metadata for migration'>
+    info</mat-icon></h2>
+    
+    <mat-form-field class="full-width" appearance="outline">
+      <mat-label>GCS Name</mat-label>
+      <input matInput placeholder="GCS Name" type="text" formControlName="gcsName"
+        ng-value="TargetDetails.GcsMetadataName" />
+    </mat-form-field>
+    <br>
+    <mat-form-field class="full-width" appearance="outline">
+      <mat-label>GCS Root Path</mat-label>
+      <input matInput placeholder="GCS Root Path" type="text" formControlName="gcsRootPath"
+        ng-value="TargetDetails.GcsMetadataRootPath" />
+    </mat-form-field>
+    <br>
+  </form>
+  <div mat-dialog-actions class="buttons-container">
+    <button mat-button color="primary" mat-dialog-close>Cancel</button>
+    <button mat-button type="submit" color="primary" [disabled]="!(gcsMetadataDetailsForm.valid)"
+      (click)="updateGcsPathMetadataDetails()">
+      Save
+    </button>
+  </div>
+</div>
