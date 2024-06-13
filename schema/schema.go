@@ -52,6 +52,7 @@ type Column struct {
 	NotNull 	bool
 	Ignored 	Ignored
 	Id      	string
+	Default     string
 }
 
 // ForeignKey represents a foreign key.
