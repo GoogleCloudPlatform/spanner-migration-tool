@@ -774,11 +774,9 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details type
 		sessionState.Conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
 		sessionState.Conv.Audit.MigrationRequestId = strings.Replace(sessionState.Conv.Audit.MigrationRequestId, "_", "-", -1)
 		if details.TargetDetails.GcsMetadataPath.GcsBucketName != "" {
-			sessionState.Bucket = details.TargetDetails.GcsMetadataPath.GcsBucketName
+			sessionState.Bucket = details.TargetDetails.GcsMetadataPath.GcsBucketName + "/"
 			if details.TargetDetails.GcsMetadataPath.GcsBucketRootPath != "" {
-				sessionState.RootPath = details.TargetDetails.GcsMetadataPath.GcsBucketRootPath
-			} else {
-				sessionState.RootPath = "/"
+				sessionState.RootPath = details.TargetDetails.GcsMetadataPath.GcsBucketRootPath + "/"
 			}
 		} else {
 			sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
