@@ -6,7 +6,7 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import IConv, { ISessionSummary, ISpannerDetails } from 'src/app/model/conv'
 import IMigrationDetails, { IGeneratedResources, IProgress, ISourceAndTargetDetails, ResourceDetails } from 'src/app/model/migrate'
-import { Datastream, Gcs, Dataflow, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
+import { Datastream, Gcs, Dataflow, InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails, dialogDefault } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
@@ -25,6 +25,7 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { downloadSession } from 'src/app/utils/utils'
 import {MatPaginator} from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table'
+import { GcsMetadataDetailsFormComponent } from '../gcs-metadata-details-form/gcs-metadata-details-form.component'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -56,6 +57,7 @@ export class PrepareMigrationComponent implements OnInit {
   isForeignKeySkipped: boolean = false
   isMigrationDetailSet: boolean = false
   isStreamingSupported: boolean = false
+  isGcsMetadataDetailSet: boolean = false
   hasDataMigrationStarted: boolean = false
   hasSchemaMigrationStarted: boolean = false
   hasForeignKeyUpdateStarted: boolean = false
@@ -119,6 +121,10 @@ export class PrepareMigrationComponent implements OnInit {
     TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
     ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
     Publication: localStorage.getItem(TargetDetails.Publication) as string,
+    GcsMetadataPath: {
+      GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
+      GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) || '',
+    },
   }
 
   datastreamConfig: IDatastreamConfig = {
@@ -210,6 +216,7 @@ export class PrepareMigrationComponent implements OnInit {
     this.isDatastreamConfigurationSet = false
     this.isGcsConfigurationSet = false
     this.isDataflowConfigurationSet = false
+    this.isGcsMetadataDetailSet = false
     this.refreshMigrationMode()
   }
 
@@ -318,6 +325,9 @@ export class PrepareMigrationComponent implements OnInit {
     if (localStorage.getItem(Dataflow.IsDataflowConfigSet) != null) {
       this.isDataflowConfigurationSet = (localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true')
     }
+    if (localStorage.getItem(MigrationDetails.IsGcsMetadataPathSet) != null) {
+      this.isGcsMetadataDetailSet = (localStorage.getItem(MigrationDetails.IsGcsMetadataPathSet) as string) === 'true'
+    }
     if (localStorage.getItem(MigrationDetails.IsTargetConnectionProfileSet) != null) {
       this.isTargetConnectionProfileSet =
         (localStorage.getItem(MigrationDetails.IsTargetConnectionProfileSet) as string) === 'true'
@@ -388,6 +398,7 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.MigrationMode)
     localStorage.removeItem(MigrationDetails.MigrationType)
     localStorage.removeItem(MigrationDetails.IsTargetDetailSet)
+    localStorage.removeItem(MigrationDetails.IsGcsMetadataPathSet)
     localStorage.removeItem(MigrationDetails.isForeignKeySkipped)
     localStorage.removeItem(MigrationDetails.IsSourceConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsTargetConnectionProfileSet)
@@ -444,6 +455,10 @@ export class PrepareMigrationComponent implements OnInit {
         TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
         ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
         Publication: localStorage.getItem(TargetDetails.Publication) as string,
+        GcsMetadataPath: {
+          GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
+          GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
+        },
       }
       this.isSourceConnectionProfileSet =
         (localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string) === 'true'
@@ -479,6 +494,10 @@ export class PrepareMigrationComponent implements OnInit {
         TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
         ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
         Publication: localStorage.getItem(TargetDetails.Publication) as string,
+        GcsMetadataPath: {
+          GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
+          GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
+        },
       }
       if (localStorage.getItem(MigrationDetails.NumberOfShards) != null) {
         this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
@@ -673,6 +692,10 @@ export class PrepareMigrationComponent implements OnInit {
         TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
         ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
         Publication: localStorage.getItem(TargetDetails.Publication) as string,
+        GcsMetadataPath: {
+          GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
+          GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
+        },
       }
       this.isTargetDetailSet =
         (localStorage.getItem(MigrationDetails.IsTargetDetailSet) as string) === 'true'
@@ -699,6 +722,24 @@ export class PrepareMigrationComponent implements OnInit {
       ) {
         localStorage.setItem(MigrationDetails.IsMigrationDetailSet, 'true')
         this.isMigrationDetailSet = true
+      }
+    })
+  }
+
+  openGcsMetadataDetailsForm() {
+    let dialogRef = this.dialog.open(GcsMetadataDetailsFormComponent, dialogDefault)
+    dialogRef.afterClosed().subscribe(() => {
+      this.isGcsMetadataDetailSet = localStorage.getItem(MigrationDetails.IsGcsMetadataPathSet) as string === 'true'
+      this.targetDetails = {
+        TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
+        SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
+        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
+        ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
+        Publication: localStorage.getItem(TargetDetails.Publication) as string,
+        GcsMetadataPath: {
+          GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
+          GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
+        },
       }
     })
   }
@@ -1017,6 +1058,7 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.setItem(MigrationDetails.ForeignKeyProgressMessage, this.foreignKeyProgressMessage)
     localStorage.setItem(MigrationDetails.IsTargetDetailSet, this.isTargetDetailSet.toString())
     localStorage.setItem(MigrationDetails.GeneratingResources, this.generatingResources.toString())
+    localStorage.setItem(MigrationDetails.IsGcsMetadataPathSet, this.isGcsMetadataDetailSet.toString())
   }
 
   openSaveSessionSidenav() {
