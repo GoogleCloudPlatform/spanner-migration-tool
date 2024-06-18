@@ -207,9 +207,13 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			ignored.AutoIncrement = true
 		}
 		colId := internal.GenerateColumnId()
-		defaultVal := ""
+		defaultVal := schema.DefaultValue{
+			IsPresent:          colDefault.Valid,
+			DefaultValue:       "",
+			IsSpannerSupported: false,
+		}
 		if colDefault.Valid {
-			defaultVal=colDefault.String
+			defaultVal.DefaultValue = colDefault.String
 		}
 		c := schema.Column{
 			Id:      colId,
