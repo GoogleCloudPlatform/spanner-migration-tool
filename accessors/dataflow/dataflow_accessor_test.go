@@ -39,7 +39,6 @@ func TestMain(m *testing.M) {
 
 func getParameters() map[string]string {
 	return map[string]string{
-		"inputFilePattern":                "gs://inputFilePattern",
 		"streamName":                      "my-stream",
 		"instanceId":                      "my-instance",
 		"databaseId":                      "my-dbName",
@@ -47,6 +46,7 @@ func getParameters() map[string]string {
 		"deadLetterQueueDirectory":        "gs://dlq",
 		"transformationContextFilePath":   "gs://transformationContext.json",
 		"directoryWatchDurationInMinutes": "480", // Setting directory watch timeout to 8 hours
+		"gcsPubSubSubscription":		   "projects/my-project/subscriptions/my-subscription",
 	}
 }
 
@@ -106,7 +106,7 @@ func getExpectedGcloudCmd1() string {
 		"--dataflow-kms-key sample-kms-key --disable-public-ips " +
 		"--enable-streaming-engine " +
 		"--parameters databaseId=my-dbName,deadLetterQueueDirectory=gs://dlq," +
-		"directoryWatchDurationInMinutes=480,inputFilePattern=gs://inputFilePattern," +
+		"directoryWatchDurationInMinutes=480,gcsPubSubSubscription=projects/my-project/subscriptions/my-subscription," +
 		"instanceId=my-instance,sessionFilePath=gs://session.json,streamName=my-stream," +
 		"transformationContextFilePath=gs://transformationContext.json"
 }
@@ -142,7 +142,8 @@ func getTemplateDfRequest2() *dataflowpb.LaunchFlexTemplateRequest {
 }
 
 func getExpectedGcloudCmd2() string {
-	return "gcloud dataflow flex-template run test-job " +
+	return ""+
+	"gcloud dataflow flex-template run test-job " +
 		"--project=test-project --region=us-central1 " +
 		"--template-file-gcs-location=gs://template/Cloud_Datastream_to_Spanner " +
 		"--num-workers 10 --max-workers 50 --service-account-email svc-account@google.com " +
@@ -153,7 +154,7 @@ func getExpectedGcloudCmd2() string {
 		"--worker-zone test-worker-zone --enable-streaming-engine " +
 		"--flexrs-goal FLEXRS_SPEED_OPTIMIZED --staging-location gs://staging-location " +
 		"--parameters databaseId=my-dbName,deadLetterQueueDirectory=gs://dlq," +
-		"directoryWatchDurationInMinutes=480,inputFilePattern=gs://inputFilePattern," +
+		"directoryWatchDurationInMinutes=480,gcsPubSubSubscription=projects/my-project/subscriptions/my-subscription," +
 		"instanceId=my-instance,sessionFilePath=gs://session.json,streamName=my-stream," +
 		"transformationContextFilePath=gs://transformationContext.json"
 }

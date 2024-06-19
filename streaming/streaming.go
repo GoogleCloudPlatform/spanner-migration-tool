@@ -739,7 +739,6 @@ func LaunchDataflowJob(ctx context.Context, migrationProjectId string, targetPro
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: gcsTemplatePath},
 		Parameters: map[string]string{
-			"inputFilePattern":              utils.ConcatDirectoryPath(inputFilePattern, "data"),
 			"streamName":                    fmt.Sprintf("projects/%s/locations/%s/streams/%s", migrationProjectId, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
 			"projectId":                     spannerProjectId,
 			"instanceId":                    instance,
