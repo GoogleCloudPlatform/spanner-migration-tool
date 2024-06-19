@@ -314,12 +314,21 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		}
 		ignored.Default = colDefault.Valid
 		colId := internal.GenerateColumnId()
+		defaultVal := schema.DefaultValue{
+			IsPresent:          colDefault.Valid,
+			DefaultValue:       "",
+			IsSpannerSupported: false,
+		}
+		if colDefault.Valid {
+			defaultVal.DefaultValue = colDefault.String
+		}
 		c := schema.Column{
 			Id:      colId,
 			Name:    colName,
 			Type:    toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale),
 			NotNull: common.ToNotNull(conv, isNullable),
 			Ignored: ignored,
+			Default: defaultVal,
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)

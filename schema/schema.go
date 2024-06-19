@@ -44,6 +44,13 @@ type Table struct {
 	Id           string
 }
 
+// DefaultValue represents whether Defaultvalue is present, DefaultValue and IsSpannerSupported.
+type DefaultValue struct {
+	IsPresent          bool
+	DefaultValue       string
+	IsSpannerSupported bool
+}
+
 // Column represents a database column.
 // TODO: add support for foreign keys.
 type Column struct {
@@ -52,6 +59,7 @@ type Column struct {
 	NotNull 	bool
 	Ignored 	Ignored
 	Id      	string
+	Default DefaultValue
 }
 
 // ForeignKey represents a foreign key.
