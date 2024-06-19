@@ -84,7 +84,7 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	}
 }
 
-func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string, tableId string) (map[string]schema.Column, []string, error) {
+func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
 	stats, count, err := scanSampleData(isi.DynamoClient, isi.SampleSize, table.Name)
 	if err != nil {
 		return nil, nil, err
