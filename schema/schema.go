@@ -44,7 +44,7 @@ type Table struct {
 	Id           string
 }
 
-// DefaultValue represents whether Defaultvalue is present, DefaultValue and IsSQLFunction.
+// DefaultValue represents whether Defaultvalue is present, DefaultValue and IsSpannerSupported.
 type DefaultValue struct {
 	IsPresent          bool
 	DefaultValue       string
