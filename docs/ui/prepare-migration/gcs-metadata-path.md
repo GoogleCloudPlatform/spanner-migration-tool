@@ -11,4 +11,6 @@ nav_order: 7
 
 {: .important }
 
-In case of minimal downtime migration, for each shard, the Datastream jobs launched by the Spanner Migration Tool write data to a destination path on Google Cloud Storage. To store the metadata information such as session file, a new GCS Bucket is hence created. If the user does not wish for a new GCS Bucket to be created or wishes to name the bucket created, then the **GCS Metadata Path** Parameter can be set **optionally**.
+In case of minimal downtime sharded migration, for each shard, the Datastream jobs launched by the Spanner Migration Tool write data to a destination path on Google Cloud Storage. To store the metadata information such as session file, a new GCS Bucket is hence created. If the user does not wish for a new GCS Bucket to be created or wishes to name the bucket created, then the **GCS Metadata Path** Parameter can be set **optionally**.
+
+![](https://services.google.com/fh/files/misc/gcs-bucket-metadata.png)
