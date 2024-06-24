@@ -207,7 +207,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				case internal.SequenceCreated:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
-						Description: fmt.Sprintf("Auto-Increment has been converted to Sequence '%s' for column '%s' in table '%s'. Set Ignore Range or Start with Counter to avoid duplicate value errors.", conv.SpSchema[tableId].ColDefs[colId].AutoGen.Name, spColName, conv.SpSchema[tableId].Name),
+						Description: fmt.Sprintf("Auto-Increment has been converted to Sequence '%s' for column '%s' in table '%s'. Set Skipped Range or Start with Counter to avoid duplicate value errors.", conv.SpSchema[tableId].ColDefs[colId].AutoGen.Name, spColName, conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
 				case internal.Timestamp:
@@ -530,7 +530,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.UniqueIndexPrimaryKey: {Category: "UNIQUE_INDEX_PRIMARY_KEY",
 		CategoryDescription: "Primary Key is missing, unique column(s) used as primary key"},
 	internal.ArrayTypeNotSupported: {Brief: "Array datatype migration is not fully supported. Please validate data after data migration", severity: warning, Category: "ARRAY_TYPE_NOT_SUPPORTED"},
-	internal.SequenceCreated: {Brief: "Auto Increment has been converted to Sequence, set Ignore Range or Start with Counter to avoid duplicate value errors", severity: warning, Category: "SEQUENCE_CREATED"},
+	internal.SequenceCreated: {Brief: "Auto Increment has been converted to Sequence, set Skipped Range or Start with Counter to avoid duplicate value errors", severity: warning, Category: "SEQUENCE_CREATED"},
 }
 
 type severity int
