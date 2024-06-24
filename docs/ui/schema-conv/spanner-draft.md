@@ -91,6 +91,8 @@ Auto-Generated Columns populate Spanner columns automatically if no value is pro
 1. UUID function: Generate a UUID (v4) as part of a table’s primary key DEFAULT expression.
 2. Bit reverse function: Map existing integer keys using the same logic as a bit-reversed sequence to avoid hotspotting.
 
+Refer to [documentation](https://cloud.google.com/spanner/docs/primary-key-default-value).
+
 ### UUID
 
 The default recommendation for primary keys in Spanner is to use a Universally Unique Identifier, or UUID. Users can convert existing columns to be filled by UUID by choosing the **Edit** option in a table and under the **Auto-Generated** column choosing UUID.
