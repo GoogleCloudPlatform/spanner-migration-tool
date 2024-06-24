@@ -62,6 +62,17 @@
   }
 }
 
+.table {
+  height: 100%;
+  background-color: white;
+  .mat-mdc-tab-group {
+    height: 93%;
+  }
+  .height-on-edit {
+    height: 84%;
+  }
+}
+
 .add-index-column-container {
   margin-left: 45%;
   padding-top: 10px;

@@ -108,7 +108,7 @@
         <div class="column-table-container">
           <table mat-table [dataSource]="srcDataSource">
             <ng-container matColumnDef="srcDatabase">
-              <th mat-header-cell class="db_name" *matHeaderCellDef colspan="6">{{ srcDbName }}</th>
+              <th mat-header-cell class="db_name" *matHeaderCellDef colspan=srcColspan>{{ srcDbName }}</th>
             </ng-container>
 
             <ng-container matColumnDef="srcOrder">
@@ -136,6 +136,13 @@
               <th mat-header-cell class="table_header" *matHeaderCellDef>Max Length</th>
               <td mat-cell *matCellDef="let element">
                 {{ element.get('srcColMaxLength').value }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="srcAutoGen" *ngIf="autoGenSupported">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
+              <td mat-cell *matCellDef="let element">
+                {{ element.get('srcAutoGen').value.GenerationType !== '' ? element.get('srcAutoGen').value.GenerationType : 'None' }}
               </td>
             </ng-container>
 
@@ -434,6 +441,13 @@
             <th mat-header-cell class="table_header" *matHeaderCellDef>Nullable</th>
             <td mat-cell *matCellDef="let element">
               {{ element.get('srcIsNotNull').value ? 'Not Null' : '' }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="srcAutoGen" *ngIf="autoGenSupported">
+            <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
+            <td mat-cell *matCellDef="let element">
+              {{ element.get('srcAutoGen').value.GenerationType !== '' ? element.get('srcAutoGen').value.GenerationType : 'None' }}
             </td>
           </ng-container>
 
