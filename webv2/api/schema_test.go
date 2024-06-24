@@ -433,7 +433,7 @@ func TestUpdateIndexes(t *testing.T) {
 					}},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
-						Indexes: []schema.Index{{Name: "idx", Id: "i1", Keys: []schema.Key{{ColId: "c2", Desc: false, Order: 2}, {ColId: "c3", Desc: true, Order: 1}}}},
+						Indexes: []schema.Index{{Name: "idx", Id: "i1", Keys: []schema.Key{{ColId: "c2", Desc: false, Order: 1}, {ColId: "c3", Desc: true, Order: 2}}}},
 					},
 				},
 			},
