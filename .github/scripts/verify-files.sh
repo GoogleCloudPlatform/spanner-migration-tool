@@ -11,7 +11,7 @@ if [ ! -f "$INDEX_FILE" ]; then
 fi
 
 # Define the patterns to search for
-declare -a patterns=("styles.*\.css" "runtime.*\.js" "polyfills.*\.js" "main.*\.js")
+declare -a patterns=("styles[^\"']*\.css" "runtime[^\"']*\.js" "polyfills[^\"']*\.js" "main[^\"']*\.js")
 
 # Flag to check if any file is missing
 MISSING_FILES=false
