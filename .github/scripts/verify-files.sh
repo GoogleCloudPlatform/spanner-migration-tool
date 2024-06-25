@@ -19,8 +19,7 @@ MISSING_FILES=false
 # Check each pattern
 for pattern in "${patterns[@]}"; do
   # Use grep to find the file reference in index.html
-  file=$(grep -oP '(?<=href="|src=")'$pattern'"' "$INDEX_FILE" | head -n 1)
-  file=${file%\"*}  # Remove trailing characters after file name
+  file=$(grep -oP "(?<=href=\"|src=\")$pattern(?=\")" "$INDEX_FILE" | head -n 1)
 
   if [ -z "$file" ]; then
     echo "Error: No file matching pattern $pattern found in $INDEX_FILE"
