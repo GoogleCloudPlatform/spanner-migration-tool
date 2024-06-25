@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the path to the dist directory and index.html file
-DIST_DIR="ui/dist/ui"
+DIST_DIR="ui/dist"
 INDEX_FILE="${DIST_DIR}/index.html"
 
 # Check if index.html exists
@@ -19,7 +19,9 @@ MISSING_FILES=false
 # Check each pattern
 for pattern in "${patterns[@]}"; do
   # Use grep to find the file reference in index.html
-  file=$(grep -oP '(?<=href="|src=")'$pattern'' "$INDEX_FILE" | head -n 1)
+  file=$(grep -oP '(?<=href="|src=")'$pattern'"' "$INDEX_FILE" | head -n 1)
+  file=${file%\"*}  # Remove trailing characters after file name
+
   if [ -z "$file" ]; then
     echo "Error: No file matching pattern $pattern found in $INDEX_FILE"
     MISSING_FILES=true
