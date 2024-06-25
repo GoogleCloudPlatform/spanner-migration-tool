@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the path to the dist directory and index.html file
-DIST_DIR="ui/dist"
+DIST_DIR="ui/dist/ui"
 INDEX_FILE="${DIST_DIR}/index.html"
 
 # Check if index.html exists
