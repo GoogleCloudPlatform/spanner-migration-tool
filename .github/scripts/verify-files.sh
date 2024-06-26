@@ -38,8 +38,8 @@ done
 
 # Exit with an error if any file was missing
 if [ "$MISSING_FILES" = true ]; then
-  echo "Some files are missing. Verification failed."
+  echo "Verification failed. File mismatch issue. Please ensure that you have run ng build."
   exit 1
 else
-  echo "All files are present. Verification passed."
+  echo "All expected files are present. Verification passed."
 fi
