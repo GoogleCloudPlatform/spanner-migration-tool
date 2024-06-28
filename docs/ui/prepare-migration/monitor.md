@@ -3,7 +3,7 @@ layout: default
 title: Monitoring
 parent: Prepare Migration Page
 grand_parent: SMT UI
-nav_order: 7
+nav_order: 8
 ---
 
 # Monitoring

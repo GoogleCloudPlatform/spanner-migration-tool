@@ -123,6 +123,7 @@ const (
 	ShardIdColumnAdded
 	ShardIdColumnPrimaryKey
 	ArrayTypeNotSupported
+	SequenceCreated
 )
 
 const (
