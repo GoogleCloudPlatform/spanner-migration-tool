@@ -48,6 +48,7 @@ type InfoSchema interface {
 type SchemaAndName struct {
 	Schema string
 	Name   string
+	Id     string
 }
 
 // FkConstraint contains foreign key constraints
@@ -191,6 +192,7 @@ func (is *InfoSchemaImpl) processTable(conv *internal.Conv, table SchemaAndName,
 		return t, fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 
+	table.Id = tblId
 	colDefs, colIds, err := infoSchema.GetColumns(conv, table, constraints, primaryKeys)
 	if err != nil {
 		return t, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
