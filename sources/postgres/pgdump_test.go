@@ -45,33 +45,65 @@ func TestProcessPgDump(t *testing.T) {
 		ty       string
 		expected ddl.Type
 	}{
+		{"bit", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"bigint", ddl.Type{Name: ddl.Int64}},
 		{"bool", ddl.Type{Name: ddl.Bool}},
 		{"boolean", ddl.Type{Name: ddl.Bool}},
+		{"box", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"bytea", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+		{"char", ddl.Type{Name: ddl.String, Len: int64(1)}},
 		{"char(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
+		{"cidr", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"circle", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"date", ddl.Type{Name: ddl.Date}},
 		{"decimal", ddl.Type{Name: ddl.Numeric}}, // pg parser maps this to numeric.
 		{"double precision", ddl.Type{Name: ddl.Float64}},
-		{"float8", ddl.Type{Name: ddl.Float64}},
 		{"float4", ddl.Type{Name: ddl.Float64}},
+		{"float8", ddl.Type{Name: ddl.Float64}},
+		{"inet", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"int2", ddl.Type{Name: ddl.Int64}},
+		{"int4", ddl.Type{Name: ddl.Int64}},
+		{"int8", ddl.Type{Name: ddl.Int64}},
 		{"integer", ddl.Type{Name: ddl.Int64}},
+		{"interval", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"json", ddl.Type{Name: ddl.JSON}},
+		{"jsonb", ddl.Type{Name: ddl.JSON}},
+		{"line", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"lseg", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"macaddr", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"macaddr8", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"money", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"numeric", ddl.Type{Name: ddl.Numeric}},
 		{"numeric(4)", ddl.Type{Name: ddl.Numeric}},
 		{"numeric(6, 4)", ddl.Type{Name: ddl.Numeric}},
+		{"path", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"pg_lsn", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"pg_snapshot", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"point", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"polygon", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"real", ddl.Type{Name: ddl.Float64}},
 		{"smallint", ddl.Type{Name: ddl.Int64}},
+		{"serial", ddl.Type{Name: ddl.Int64}},
+		{"serial2", ddl.Type{Name: ddl.Int64}},
+		{"serial4", ddl.Type{Name: ddl.Int64}},
+		{"serial8", ddl.Type{Name: ddl.Int64}},
 		{"text", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"time", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}},
 		{"timestamp without time zone", ddl.Type{Name: ddl.Timestamp}},
 		{"timestamp(5)", ddl.Type{Name: ddl.Timestamp}},
 		{"timestamptz", ddl.Type{Name: ddl.Timestamp}},
 		{"timestamp with time zone", ddl.Type{Name: ddl.Timestamp}},
 		{"timestamptz(5)", ddl.Type{Name: ddl.Timestamp}},
+		{"timetz", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"tsquery", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"tsvector", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"txid_snapshot", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"uuid", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"varbit", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"varchar", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"varchar(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
-		{"json", ddl.Type{Name: ddl.JSON}},
-		{"jsonb", ddl.Type{Name: ddl.JSON}},
+		{"xml", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 	}
 	for _, tc := range scalarTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
@@ -80,7 +112,7 @@ func TestProcessPgDump(t *testing.T) {
 		assert.Equal(t, nil, err)
 		colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
 		assert.Equal(t, nil, err)
-		assert.Equal(t, conv.SpSchema[tableId].ColDefs[colId].T, tc.expected, "Scalar type: "+tc.ty)
+		assert.Equal(t, tc.expected, conv.SpSchema[tableId].ColDefs[colId].T, "Scalar type: "+tc.ty)
 	}
 	// Next test array types and not null.
 	singleColTests := []struct {
@@ -636,15 +668,15 @@ COPY test (id, a, b, c, d) FROM stdin;
 				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), big.NewRat(1112469, 2500)}}},
 		},
 		{
-			name: "Data conversion: serial, text, timestamp, timestamptz, varchar, json",
+			name: "Data conversion: serial, text, timestamp, timestamptz, varchar, json, serial2, serial4, serial8",
 			input: `
-CREATE TABLE test (id integer PRIMARY KEY, a serial, b text, c timestamp, d timestamptz, e varchar, f json, g jsonb);
-COPY test (id, a, b, c, d, e, f, g) FROM stdin;
-1	2	my text	2019-10-29 05:30:00	2019-10-29 05:30:00+10:30	my varchar	{"k":"k1", "v":"v1"}	{"k":"k2", "v":"v2"}
+CREATE TABLE test (id integer PRIMARY KEY, a serial, b text, c timestamp, d timestamptz, e varchar, f json, g jsonb, h serial2, i serial4, j serial8);
+COPY test (id, a, b, c, d, e, f, g, h, i, j) FROM stdin;
+1	2	my text	2019-10-29 05:30:00	2019-10-29 05:30:00+10:30	my varchar	{"k":"k1", "v":"v1"}	{"k":"k2", "v":"v2"}	3	4	5
 \.
 `,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d", "e", "f", "g"}, vals: []interface{}{int64(1), int64(2), "my text", getTime(t, "2019-10-29T05:30:00Z"), getTime(t, "2019-10-29T05:30:00+10:30"), "my varchar", "{\"k\":\"k1\", \"v\":\"v1\"}", "{\"k\":\"k2\", \"v\":\"v2\"}"}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}, vals: []interface{}{int64(1), int64(2), "my text", getTime(t, "2019-10-29T05:30:00Z"), getTime(t, "2019-10-29T05:30:00+10:30"), "my varchar", "{\"k\":\"k1\", \"v\":\"v1\"}", "{\"k\":\"k2\", \"v\":\"v2\"}", int64(3), int64(4), int64(5)}}},
 		},
 	}
 	for _, tc := range multiColTests {
