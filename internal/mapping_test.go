@@ -317,15 +317,11 @@ func TestToSpannerOnDelete(t *testing.T) {
 	}
 
 	tests := []struct {
-		name             string // Name of test.
-		args             arg
-		expectedOnDelete string
-		expectedIssues   []SchemaIssue
+		name             string        // Name of test
+		args             arg           //Arguments to be passed to function
+		expectedOnDelete string        //Expected ON DELETE action
+		expectedIssues   []SchemaIssue //Expected issues to be appended to Conv
 	}{
-		//more compact
-		// {"restrict", arg{conv, "t", "RESTRICT"}, "NO ACTION", []SchemaIssue{ForeignKeyOnDelete}},
-
-		//more readable
 		{
 			name: "restrict",
 			args: arg{
@@ -388,8 +384,7 @@ func TestToSpannerOnDelete(t *testing.T) {
 				srcDeleteRule: "",
 			},
 			expectedOnDelete: "",
-			// expectedIssues:   []SchemaIssue{ForeignKeyActionsNotSupported},
-			expectedIssues: nil,
+			expectedIssues:   nil,
 		},
 	}
 	for _, tc := range tests {
@@ -410,10 +405,10 @@ func TestToSpannerOnUpdate(t *testing.T) {
 	}
 
 	tests := []struct {
-		name             string // Name of test.
-		args             arg
-		expectedOnUpdate string
-		expectedIssues   []SchemaIssue
+		name             string        // Name of test
+		args             arg           //Arguments to be passed to function
+		expectedOnUpdate string        //Expected ON UPDATE action
+		expectedIssues   []SchemaIssue //Expected issues to be appended to Conv
 	}{
 		{
 			name: "restrict",
@@ -477,8 +472,7 @@ func TestToSpannerOnUpdate(t *testing.T) {
 				srcUpdateRule: "",
 			},
 			expectedOnUpdate: "",
-			// expectedIssues:   []SchemaIssue{ForeignKeyActionsNotSupported},
-			expectedIssues: nil,
+			expectedIssues:   nil,
 		},
 	}
 	for _, tc := range tests {

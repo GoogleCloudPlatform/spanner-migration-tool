@@ -142,28 +142,25 @@ func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
 	return getSpannerValidName(conv, srcFkName)
 }
 
-//this function already exists in sources/common/utils.go but is private - can I reuse it by making it public?
-// func findSchemaIssue(schemaissue []SchemaIssue, issue SchemaIssue) bool {
-// 	ind := -1
-// 	for i := 0; i < len(schemaissue); i++ {
-// 		if schemaissue[i] == issue {
-// 			ind = i
-// 		}
-// 	}
-// 	return ind!=-1
-// }
-
-// if source schema is not reading the rule (i.e. srcDeleteRule = "", then return the same)
+// ToSpannerOnDelete maps the source ON DELETE action
+// to the corresponding Spanner compatible action.
+// The following mapping is followed:
+// a) CASCADE/NO ACTION -> mapped to the same as source action
+// b) all others -> NO ACTION (default)
+//
+// Since only MySQL and PostgreSQL have this functionality
+// as of yet, for other sources OnDelete fields are
+// kept empty i.e. "" is mapped to ""
+//
+// For all source actions converted to a different action,
+// an issue is appended to it's TableLevelIssues to
+// generate a warning message for the user
 func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) string {
 	srcDeleteRule = strings.ToUpper(srcDeleteRule)
 	if srcDeleteRule == "NO ACTION" || srcDeleteRule == "CASCADE" || srcDeleteRule == "" {
 		return srcDeleteRule
 	}
 
-	// if srcDeleteRule == "" {
-	// 	conv.SchemaIssues[srcTableId] = AddTableLevelIssue(conv.SchemaIssues[srcTableId], ForeignKeyActionsNotSupported)
-	// 	return ""
-	// }
 	if conv.SchemaIssues == nil {
 		conv.SchemaIssues = make(map[string]TableIssues)
 	}
@@ -171,17 +168,25 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 	return "NO ACTION"
 }
 
-// Add comment
+// ToSpannerOnUpdate maps the source ON UPDATE action
+// to the corresponding Spanner compatible action.
+// The following mapping is followed:
+// all actions -> NO ACTION (default)
+// (Spanner only supports ON UPDATE NO ACTION)
+//
+// Since only MySQL and PostgreSQL have this functionality
+// as of yet, for other sources OnDelete fields are
+// kept empty i.e. "" is mapped to ""
+//
+// For all source actions converted to a different action,
+// an issue is appended to it's TableLevelIssues to
+// generate a warning message for the user
 func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) string {
 	srcUpdateRule = strings.ToUpper(srcUpdateRule)
 	if srcUpdateRule == "NO ACTION" || srcUpdateRule == "" {
 		return srcUpdateRule
 	}
 
-	// if srcUpdateRule == "" {
-	// 	conv.SchemaIssues[srcTableId] = AddTableLevelIssue(conv.SchemaIssues[srcTableId], ForeignKeyActionsNotSupported)
-	// 	return ""
-	// }
 	if conv.SchemaIssues == nil {
 		conv.SchemaIssues = make(map[string]TableIssues)
 	}
