@@ -52,10 +52,12 @@ type SchemaAndName struct {
 
 // FkConstraint contains foreign key constraints
 type FkConstraint struct {
-	Name    string
-	Table   string
-	Refcols []string
-	Cols    []string
+	Name     string
+	Table    string
+	Refcols  []string
+	Cols     []string
+	OnDelete string
+	OnUpdate string
 }
 
 type InfoSchemaInterface interface {
@@ -63,20 +65,20 @@ type InfoSchemaInterface interface {
 	ProcessData(conv *internal.Conv, infoSchema InfoSchema, additionalAttributes internal.AdditionalDataAttributes)
 	SetRowStats(conv *internal.Conv, infoSchema InfoSchema)
 	processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error)
-	GetIncludedSrcTablesFromConv(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error) 
+	GetIncludedSrcTablesFromConv(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error)
 }
-type InfoSchemaImpl struct {}
+type InfoSchemaImpl struct{}
 
 type ProcessSchemaInterface interface {
 	ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error
 }
 
-type ProcessSchemaImpl struct {}
+type ProcessSchemaImpl struct{}
 
 // ProcessSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-func (ps* ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error {
+func (ps *ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error {
 
 	tableCount, err := is.GenerateSrcSchema(conv, infoSchema, numWorkers)
 	if err != nil {

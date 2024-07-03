@@ -357,14 +357,25 @@ func toForeignKeys(conv *internal.Conv, fk *ast.Constraint) (fkey schema.Foreign
 		colNames = append(colNames, column.Column.Name.String())
 		referColNames = append(referColNames, referColumns[i].Column.Name.String())
 	}
+	onDelete := fk.Refer.OnDelete.ReferOpt.String()
+	onUpdate := fk.Refer.OnUpdate.ReferOpt.String()
+
+	if onDelete == "" {
+		onDelete = "NO ACTION"
+	}
+
+	if onUpdate == "" {
+		onUpdate = "NO ACTION"
+	}
+
 	fkey = schema.ForeignKey{
 		Id:               internal.GenerateForeignkeyId(),
 		Name:             fk.Name,
 		ColumnNames:      colNames,
 		ReferTableName:   referTable,
 		ReferColumnNames: referColNames,
-		OnDelete:         fk.Refer.OnDelete.ReferOpt.String(),
-		OnUpdate:         fk.Refer.OnUpdate.ReferOpt.String()}
+		OnDelete:         onDelete,
+		OnUpdate:         onUpdate}
 	return fkey
 }
 

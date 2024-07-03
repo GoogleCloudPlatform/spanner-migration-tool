@@ -106,7 +106,7 @@ func Test_cvtForeignKeys(t *testing.T) {
 					"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: ddl.String, Mods: []int64{255}}},
 					"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: ddl.Numeric, Mods: []int64{6, 4}}},
 				},
-				ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColumnNames: []string{"a"}, ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, ReferTableName: "table2", ReferColumnNames: []string{"c"}}},
+				ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColumnNames: []string{"a"}, ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, ReferTableName: "table2", ReferColumnNames: []string{"c"}, OnDelete: "RESTRICT", OnUpdate: "CASCADE"}},
 			},
 			"t2": {
 				Name:   "table2",
@@ -117,7 +117,8 @@ func Test_cvtForeignKeys(t *testing.T) {
 				},
 			},
 		},
-		UsedNames: map[string]bool{},
+		UsedNames:    map[string]bool{},
+		SchemaIssues: map[string]internal.TableIssues{},
 	}
 	spTableName := "table1"
 	srcTableId := "t1"
@@ -131,6 +132,8 @@ func Test_cvtForeignKeys(t *testing.T) {
 			ReferColumnIds:   []string{"c3"},
 			ReferColumnNames: []string{"c"},
 			Id:               "f1",
+			OnDelete:         "RESTRICT",
+			OnUpdate:         "CASCADE",
 		},
 	}
 
@@ -140,6 +143,8 @@ func Test_cvtForeignKeys(t *testing.T) {
 		ReferTableId:   "t2",
 		ReferColumnIds: []string{"c3"},
 		Id:             "f1",
+		OnDelete:       "NO ACTION",
+		OnUpdate:       "NO ACTION",
 	},
 	}
 
@@ -287,7 +292,7 @@ func Test_cvtForeignKeysForAReferenceTable(t *testing.T) {
 					"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: ddl.String, Mods: []int64{255}}},
 					"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: ddl.Numeric, Mods: []int64{6, 4}}},
 				},
-				ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColumnNames: []string{"a"}, ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, ReferTableName: "table2", ReferColumnNames: []string{"c"}}},
+				ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColumnNames: []string{"a"}, ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, ReferTableName: "table2", ReferColumnNames: []string{"c"}, OnDelete: "RESTRICT", OnUpdate: "CASCADE"}},
 			},
 			"t2": {
 				Name:   "table2",
@@ -296,6 +301,7 @@ func Test_cvtForeignKeysForAReferenceTable(t *testing.T) {
 				ColDefs: map[string]schema.Column{
 					"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: ddl.String, Mods: []int64{255}}},
 				},
+				ForeignKeys: []schema.ForeignKey{},
 			},
 		},
 		UsedNames: map[string]bool{},
@@ -306,7 +312,8 @@ func Test_cvtForeignKeysForAReferenceTable(t *testing.T) {
 				ColDefs: map[string]ddl.ColumnDef{
 					"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: 255}},
 				},
-				Id: "t2",
+				Id:          "t2",
+				ForeignKeys: []ddl.Foreignkey{},
 			},
 		},
 	}
@@ -322,6 +329,8 @@ func Test_cvtForeignKeysForAReferenceTable(t *testing.T) {
 			ReferColumnIds:   []string{"c3"},
 			ReferColumnNames: []string{"c"},
 			Id:               "f1",
+			OnDelete:         "RESTRICT",
+			OnUpdate:         "CASCADE",
 		},
 	}
 	resultForeignKey := []ddl.Foreignkey{
@@ -331,6 +340,8 @@ func Test_cvtForeignKeysForAReferenceTable(t *testing.T) {
 			ReferTableId:   "t2",
 			ReferColumnIds: []string{"c3"},
 			Id:             "f1",
+			OnDelete:       "NO ACTION",
+			OnUpdate:       "NO ACTION",
 		},
 		{
 			Name:           "fk1",
@@ -338,6 +349,8 @@ func Test_cvtForeignKeysForAReferenceTable(t *testing.T) {
 			ReferTableId:   "t2",
 			ReferColumnIds: []string{"c3"},
 			Id:             "f1",
+			OnDelete:       "NO ACTION",
+			OnUpdate:       "NO ACTION",
 		},
 	}
 	spKey := []ddl.Foreignkey{{
@@ -346,6 +359,8 @@ func Test_cvtForeignKeysForAReferenceTable(t *testing.T) {
 		ReferTableId:   "t2",
 		ReferColumnIds: []string{"c3"},
 		Id:             "f1",
+		OnDelete:       "NO ACTION",
+		OnUpdate:       "NO ACTION",
 	},
 	}
 

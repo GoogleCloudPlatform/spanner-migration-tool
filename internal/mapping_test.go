@@ -308,6 +308,188 @@ func TestToSpannerForeignKey(t *testing.T) {
 	}
 }
 
+func TestToSpannerOnDelete(t *testing.T) {
+	conv := MakeConv()
+	type arg struct {
+		conv          *Conv
+		srcTableId    string
+		srcDeleteRule string
+	}
+
+	tests := []struct {
+		name             string // Name of test.
+		args             arg
+		expectedOnDelete string
+		expectedIssues   []SchemaIssue
+	}{
+		//more compact
+		// {"restrict", arg{conv, "t", "RESTRICT"}, "NO ACTION", []SchemaIssue{ForeignKeyOnDelete}},
+
+		//more readable
+		{
+			name: "restrict",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t1",
+				srcDeleteRule: "RESTRICT",
+			},
+			expectedOnDelete: "NO ACTION",
+			expectedIssues:   []SchemaIssue{ForeignKeyOnDelete},
+		}, {
+			name: "set default",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t2",
+				srcDeleteRule: "SET DEFAULT",
+			},
+			expectedOnDelete: "NO ACTION",
+			expectedIssues:   []SchemaIssue{ForeignKeyOnDelete},
+		}, {
+			name: "set null",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t3",
+				srcDeleteRule: "SET NULL",
+			},
+			expectedOnDelete: "NO ACTION",
+			expectedIssues:   []SchemaIssue{ForeignKeyOnDelete},
+		}, {
+			name: "cascade",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t4",
+				srcDeleteRule: "CASCADE",
+			},
+			expectedOnDelete: "CASCADE",
+			expectedIssues:   nil,
+		}, {
+			name: "no action - lowercase",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t5",
+				srcDeleteRule: "no action",
+			},
+			expectedOnDelete: "NO ACTION",
+			expectedIssues:   nil,
+		}, {
+			name: "random",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t6",
+				srcDeleteRule: "xyz",
+			},
+			expectedOnDelete: "NO ACTION",
+			expectedIssues:   []SchemaIssue{ForeignKeyOnDelete},
+		}, {
+			name: "fk action not read - for sources other than MySQL and Postgres",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t7",
+				srcDeleteRule: "",
+			},
+			expectedOnDelete: "",
+			// expectedIssues:   []SchemaIssue{ForeignKeyActionsNotSupported},
+			expectedIssues: nil,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			spKeyOnDelete := ToSpannerOnDelete(tc.args.conv, tc.args.srcTableId, tc.args.srcDeleteRule)
+			assert.Equal(t, tc.expectedOnDelete, spKeyOnDelete, tc.name)
+			assert.Equal(t, tc.expectedIssues, conv.SchemaIssues[tc.args.srcTableId].TableLevelIssues)
+		})
+	}
+}
+
+func TestToSpannerOnUpdate(t *testing.T) {
+	conv := MakeConv()
+	type arg struct {
+		conv          *Conv
+		srcTableId    string
+		srcUpdateRule string
+	}
+
+	tests := []struct {
+		name             string // Name of test.
+		args             arg
+		expectedOnUpdate string
+		expectedIssues   []SchemaIssue
+	}{
+		{
+			name: "restrict",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t1",
+				srcUpdateRule: "RESTRICT",
+			},
+			expectedOnUpdate: "NO ACTION",
+			expectedIssues:   []SchemaIssue{ForeignKeyOnUpdate},
+		}, {
+			name: "set default",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t2",
+				srcUpdateRule: "SET DEFAULT",
+			},
+			expectedOnUpdate: "NO ACTION",
+			expectedIssues:   []SchemaIssue{ForeignKeyOnUpdate},
+		}, {
+			name: "set null",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t3",
+				srcUpdateRule: "SET NULL",
+			},
+			expectedOnUpdate: "NO ACTION",
+			expectedIssues:   []SchemaIssue{ForeignKeyOnUpdate},
+		}, {
+			name: "cascade",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t4",
+				srcUpdateRule: "CASCADE",
+			},
+			expectedOnUpdate: "NO ACTION",
+			expectedIssues:   []SchemaIssue{ForeignKeyOnUpdate},
+		}, {
+			name: "no action - lowercase",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t5",
+				srcUpdateRule: "no action",
+			},
+			expectedOnUpdate: "NO ACTION",
+			expectedIssues:   nil,
+		}, {
+			name: "random",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t6",
+				srcUpdateRule: "xyz",
+			},
+			expectedOnUpdate: "NO ACTION",
+			expectedIssues:   []SchemaIssue{ForeignKeyOnUpdate},
+		}, {
+			name: "fk action not read - for sources other than MySQL and Postgres",
+			args: arg{
+				conv:          conv,
+				srcTableId:    "t7",
+				srcUpdateRule: "",
+			},
+			expectedOnUpdate: "",
+			// expectedIssues:   []SchemaIssue{ForeignKeyActionsNotSupported},
+			expectedIssues: nil,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			spKeyOUpdate := ToSpannerOnUpdate(tc.args.conv, tc.args.srcTableId, tc.args.srcUpdateRule)
+			assert.Equal(t, tc.expectedOnUpdate, spKeyOUpdate, tc.name)
+			assert.Equal(t, tc.expectedIssues, conv.SchemaIssues[tc.args.srcTableId].TableLevelIssues)
+		})
+	}
+}
+
 func TestGetSpannerID(t *testing.T) {
 	conv := MakeConv()
 	basicTests := []struct {

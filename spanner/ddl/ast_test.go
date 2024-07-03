@@ -327,6 +327,8 @@ func TestPrintForeignKey(t *testing.T) {
 			"ref_table",
 			[]string{"ref_c1", "ref_c2"},
 			"1",
+			"NO ACTION",
+			"NO ACTION",
 		},
 		{
 			"",
@@ -334,6 +336,17 @@ func TestPrintForeignKey(t *testing.T) {
 			"ref_table",
 			[]string{"ref_c1"},
 			"1",
+			"CASCADE",
+			"NO ACTION",
+		},
+		{
+			"fk_test",
+			[]string{"c1", "c2"},
+			"ref_table",
+			[]string{"ref_c1", "ref_c2"},
+			"1",
+			"",
+			"",
 		},
 	}
 	tests := []struct {
@@ -343,13 +356,16 @@ func TestPrintForeignKey(t *testing.T) {
 		expected   string
 		fk         Foreignkey
 	}{
-		{"no quote", false, "", "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[0]},
-		{"quote", true, "", "CONSTRAINT `fk_test` FOREIGN KEY (`c1`, `c2`) REFERENCES `ref_table` (`ref_c1`, `ref_c2`)", fk[0]},
-		{"no constraint name", false, "", "FOREIGN KEY (c1) REFERENCES ref_table (ref_c1)", fk[1]},
-		{"quote PG", true, constants.DIALECT_POSTGRESQL, "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[0]},
+		{"no quote", false, "", "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2) ON DELETE NO ACTION", fk[0]},
+		{"quote", true, "", "CONSTRAINT `fk_test` FOREIGN KEY (`c1`, `c2`) REFERENCES `ref_table` (`ref_c1`, `ref_c2`) ON DELETE NO ACTION", fk[0]},
+		{"no constraint name", false, "", "FOREIGN KEY (c1) REFERENCES ref_table (ref_c1) ON DELETE CASCADE", fk[1]},
+		{"quote PG", true, constants.DIALECT_POSTGRESQL, "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2) ON DELETE NO ACTION", fk[0]},
+		{"foreign key constraints not supported i.e. dont print ON DELETE", false, "", "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[2]},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.fk.PrintForeignKey(Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}))
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.fk.PrintForeignKey(Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}))
+		})
 	}
 }
 
@@ -370,6 +386,8 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 					"t2",
 					[]string{"c4", "c5"},
 					"f1",
+					"CASCADE",
+					"NO ACTION",
 				},
 				{
 					"",
@@ -377,6 +395,17 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 					"t2",
 					[]string{"c4"},
 					"f2",
+					"NO ACTION",
+					"NO ACTION",
+				},
+				{
+					"fk_test2",
+					[]string{"c1", "c2"},
+					"t2",
+					[]string{"c4", "c5"},
+					"f1",
+					"",
+					"",
 				},
 			},
 		},
@@ -398,13 +427,16 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 		expected   string
 		fk         Foreignkey
 	}{
-		{"no quote", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[0]},
-		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (productid, userid) REFERENCES `table2` (productid, userid)", spannerSchema["t1"].ForeignKeys[0]},
-		{"no constraint name", "t1", false, "", "ALTER TABLE table1 ADD FOREIGN KEY (productid) REFERENCES table2 (productid)", spannerSchema["t1"].ForeignKeys[1]},
-		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[0]},
+		{"no quote", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (productid, userid) REFERENCES `table2` (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"no constraint name", "t1", false, "", "ALTER TABLE table1 ADD FOREIGN KEY (productid) REFERENCES table2 (productid) ON DELETE NO ACTION", spannerSchema["t1"].ForeignKeys[1]},
+		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"foreign key constraints not supported i.e. dont print ON DELETE", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test2 FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[2]},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.fk.PrintForeignKeyAlterTable(spannerSchema, Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}, tc.table))
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.fk.PrintForeignKeyAlterTable(spannerSchema, Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}, tc.table))
+		})
 	}
 }
 
@@ -573,7 +605,7 @@ func TestGetDDL(t *testing.T) {
 				"c2": {Name: "b", Id: "c2", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c1"}},
-			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c5"}}},
+			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c5"}, OnDelete: "CASCADE", OnUpdate: "NO ACTION"}},
 			Indexes:     []CreateIndex{{Name: "index1", TableId: "t1", Unique: false, Keys: []IndexKey{{ColId: "c2", Desc: false}}}},
 		},
 		"t2": CreateTable{
@@ -586,7 +618,7 @@ func TestGetDDL(t *testing.T) {
 				"c6": {Name: "c", Id: "c6", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c4"}},
-			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c5", "c6"}, ReferTableId: "t3", ReferColumnIds: []string{"c8", "c9"}}},
+			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c5", "c6"}, ReferTableId: "t3", ReferColumnIds: []string{"c8", "c9"}, OnDelete: "NO ACTION", OnUpdate: "NO ACTION"}},
 			Indexes:     []CreateIndex{{Name: "index2", TableId: "t2", Unique: true, Keys: []IndexKey{{ColId: "c5", Desc: true}, {ColId: "c6", Desc: false}}}},
 		},
 		"t3": CreateTable{
@@ -626,8 +658,8 @@ func TestGetDDL(t *testing.T) {
 
 	fksOnly := GetDDL(Config{Tables: false, ForeignKeys: true}, s, make(map[string]Sequence))
 	e2 := []string{
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
-		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
 	assert.ElementsMatch(t, e2, fksOnly)
 
@@ -650,8 +682,8 @@ func TestGetDDL(t *testing.T) {
 			"	c INT64,\n" +
 			") PRIMARY KEY (a, b),\n" +
 			"INTERLEAVE IN PARENT table1",
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
-		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
 	assert.ElementsMatch(t, e3, tablesAndFks)
 
@@ -681,7 +713,7 @@ func TestGetPGDDL(t *testing.T) {
 				"c2": {Name: "b", Id: "c2", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c1"}},
-			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}}},
+			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, OnDelete: "CASCADE", OnUpdate: "NO ACTION"}},
 			Indexes:     []CreateIndex{{Name: "index1", TableId: "t1", Unique: false, Keys: []IndexKey{{ColId: "c2", Desc: false}}}},
 		},
 		"t2": CreateTable{
@@ -694,7 +726,7 @@ func TestGetPGDDL(t *testing.T) {
 				"c5": {Name: "c", Id: "c5", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c3"}},
-			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c4", "c5"}, ReferTableId: "t3", ReferColumnIds: []string{"c7", "c8"}}},
+			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c4", "c5"}, ReferTableId: "t3", ReferColumnIds: []string{"c7", "c8"}, OnDelete: "NO ACTION", OnUpdate: "NO ACTION"}},
 			Indexes:     []CreateIndex{{Name: "index2", TableId: "t2", Unique: true, Keys: []IndexKey{{ColId: "c4", Desc: true}, {ColId: "c5", Desc: false}}}},
 		},
 		"t3": CreateTable{
@@ -736,8 +768,8 @@ func TestGetPGDDL(t *testing.T) {
 
 	fksOnly := GetDDL(Config{Tables: false, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence))
 	e2 := []string{
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
-		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
 	assert.ElementsMatch(t, e2, fksOnly)
 
@@ -762,8 +794,8 @@ func TestGetPGDDL(t *testing.T) {
 			"	c INT8,\n" +
 			"	PRIMARY KEY (a, b)\n" +
 			") INTERLEAVE IN PARENT table1",
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
-		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
 	assert.ElementsMatch(t, e3, tablesAndFks)
 
