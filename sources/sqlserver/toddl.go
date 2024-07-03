@@ -34,6 +34,10 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 	return ty, issues
 }
 
+func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
+	return nil, nil
+}
+
 // toSpannerTypeInternal defines the mapping of source types into Spanner
 // types. Each source type has a default Spanner type, as well as other potential
 // Spanner types it could map to. When calling toSpannerTypeInternal, you specify
