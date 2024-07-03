@@ -12,9 +12,13 @@ spanner_migration_tool_output/
 # angular ui development
 ui/.angular
 ui/node_modules
+ui/dist
 
 # webv2 config
 webv2/config.json
 
 #file upload 
 upload-file/
+
+# cli
+spanner-migration-tool
