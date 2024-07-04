@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
@@ -157,7 +158,7 @@ func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
 // generate a warning message for the user
 func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) string {
 	srcDeleteRule = strings.ToUpper(srcDeleteRule)
-	if srcDeleteRule == "NO ACTION" || srcDeleteRule == "CASCADE" || srcDeleteRule == "" {
+	if srcDeleteRule == constants.NO_ACTION || srcDeleteRule == constants.CASCADE || srcDeleteRule == "" {
 		return srcDeleteRule
 	}
 
@@ -168,7 +169,7 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 		TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyOnDelete),
 		ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
 
-	return "NO ACTION"
+	return constants.NO_ACTION
 }
 
 // ToSpannerOnUpdate maps the source ON UPDATE action
@@ -186,7 +187,7 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 // generate a warning message for the user
 func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) string {
 	srcUpdateRule = strings.ToUpper(srcUpdateRule)
-	if srcUpdateRule == "NO ACTION" || srcUpdateRule == "" {
+	if srcUpdateRule == constants.NO_ACTION || srcUpdateRule == "" {
 		return srcUpdateRule
 	}
 
@@ -197,7 +198,7 @@ func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) stri
 		TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyOnUpdate),
 		ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
 
-	return "NO ACTION"
+	return constants.NO_ACTION
 }
 
 // ToSpannerIndexName maps source index name to legal Spanner index name.
