@@ -164,7 +164,10 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 	if conv.SchemaIssues == nil {
 		conv.SchemaIssues = make(map[string]TableIssues)
 	}
-	conv.SchemaIssues[srcTableId] = AddTableLevelIssue(conv.SchemaIssues[srcTableId], ForeignKeyOnDelete)
+	conv.SchemaIssues[srcTableId] = TableIssues{
+		TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyOnDelete),
+		ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
+
 	return "NO ACTION"
 }
 
@@ -190,7 +193,10 @@ func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) stri
 	if conv.SchemaIssues == nil {
 		conv.SchemaIssues = make(map[string]TableIssues)
 	}
-	conv.SchemaIssues[srcTableId] = AddTableLevelIssue(conv.SchemaIssues[srcTableId], ForeignKeyOnUpdate)
+	conv.SchemaIssues[srcTableId] = TableIssues{
+		TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyOnUpdate),
+		ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
+
 	return "NO ACTION"
 }
 

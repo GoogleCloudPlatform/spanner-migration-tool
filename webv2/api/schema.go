@@ -364,7 +364,6 @@ func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	for id, issues := range sessionState.Conv.SchemaIssues {
 		for _, issue := range issues.TableLevelIssues {
 			if reports.IssueDB[issue].Severity == reports.Errors {
-				// if issue == internal.RowLimitExceeded {
 				t := types.TableIdAndName{
 					Id:   id,
 					Name: sessionState.Conv.SpSchema[id].Name,

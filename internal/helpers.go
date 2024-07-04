@@ -182,11 +182,3 @@ func ResolveForeignKeyIds(schema map[string]schema.Table) {
 		}
 	}
 }
-
-func AddTableLevelIssue(tableIssues TableIssues, issue SchemaIssue) TableIssues {
-	tableIssues = TableIssues{
-		TableLevelIssues:  append(tableIssues.TableLevelIssues, issue),
-		ColumnLevelIssues: tableIssues.ColumnLevelIssues}
-
-	return tableIssues
-}
