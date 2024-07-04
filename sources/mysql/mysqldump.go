@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -361,11 +362,11 @@ func toForeignKeys(conv *internal.Conv, fk *ast.Constraint) (fkey schema.Foreign
 	onUpdate := fk.Refer.OnUpdate.ReferOpt.String()
 
 	if onDelete == "" {
-		onDelete = "NO ACTION"
+		onDelete = constants.NO_ACTION
 	}
 
 	if onUpdate == "" {
-		onUpdate = "NO ACTION"
+		onUpdate = constants.NO_ACTION
 	}
 
 	fkey = schema.ForeignKey{
