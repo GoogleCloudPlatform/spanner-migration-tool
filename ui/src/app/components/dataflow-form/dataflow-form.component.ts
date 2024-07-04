@@ -32,6 +32,9 @@ export class DataflowFormComponent implements OnInit {
       serviceAccountEmail: new FormControl(''),
       additionalUserLabels: new FormControl('', [Validators.pattern('^{("([0-9a-zA-Z_-]+)":"([0-9a-zA-Z_-]+)",?)+}$')]),
       kmsKeyName: new FormControl('', [Validators.pattern('^projects\\/[^\\n\\r]+\\/locations\\/[^\\n\\r]+\\/keyRings\\/[^\\n\\r]+\\/cryptoKeys\\/[^\\n\\r]+$')]),
+      customJarPath: new FormControl(''),
+      customClassName: new FormControl(''),
+      customParameter: new FormControl(''),
     })
     this.presetFlagsForm = new FormGroup({
       dataflowProjectId: new FormControl(data.GCPProjectID),
@@ -59,6 +62,9 @@ export class DataflowFormComponent implements OnInit {
     localStorage.setItem(Dataflow.Location, this.presetFlagsForm.value.dataflowLocation)
     localStorage.setItem(Dataflow.GcsTemplatePath, this.presetFlagsForm.value.gcsTemplatePath)
     localStorage.setItem(Dataflow.IsDataflowConfigSet, "true")
+    localStorage.setItem(Dataflow.CustomClassName, formValue.customClassName)
+    localStorage.setItem(Dataflow.CustomJarPath, formValue.customJarPath)
+    localStorage.setItem(Dataflow.CustomParameter, formValue.customParameter)
     this.dialofRef.close()
   }
 
