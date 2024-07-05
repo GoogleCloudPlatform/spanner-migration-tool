@@ -93,10 +93,14 @@ export class ObjectDetailComponent implements OnInit {
     'srcColumns',
     'srcReferTable',
     'srcReferColumns',
+    'srcOnDelete',
+    'srcOnUpdate',
     'spName',
     'spColumns',
     'spReferTable',
     'spReferColumns',
+    'spOnDelete',
+    'spOnUpdate',
     'dropButton',
   ]
   displayedPkColumns = [
@@ -1008,6 +1012,8 @@ export class ObjectDetailComponent implements OnInit {
         srcColumns: fk.srcColumns,
         srcRefTable: fk.srcReferTable,
         srcRefColumns: fk.srcReferColumns,
+        srcOnDelete: fk.srcOnDelete,
+        srcOnUpdate: fk.srcOnUpdate,
         Id: fk.srcFkId,
       })
       if (fk.spName != '') {
@@ -1016,6 +1022,8 @@ export class ObjectDetailComponent implements OnInit {
           spColumns: fk.spColumns,
           spRefTable: fk.spReferTable,
           spRefColumns: fk.spReferColumns,
+          spOnDelete: fk.spOnDelete,
+          spOnUpdate: fk.spOnUpdate,
           Id: fk.spFkId,
           spColIds: fk.spColIds,
           spReferColumnIds: fk.spReferColumnIds,
@@ -1039,6 +1047,10 @@ export class ObjectDetailComponent implements OnInit {
           srcReferTable: new FormControl(srcArr[i].srcRefTable),
           spReferColumns: new FormControl(spArr[i].spRefColumns),
           srcReferColumns: new FormControl(srcArr[i].srcRefColumns),
+          spOnDelete: new FormControl(spArr[i].spOnDelete),
+          srcOnDelete: new FormControl(srcArr[i].srcOnDelete),
+          spOnUpdate: new FormControl(spArr[i].spOnUpdate),
+          srcOnUpdate: new FormControl(srcArr[i].srcOnUpdate),
           Id: new FormControl(spArr[i].Id),
           spColIds: new FormControl(spArr[i].spColIds),
           spReferColumnIds: new FormControl(spArr[i].spReferColumnIds),
@@ -1062,6 +1074,10 @@ export class ObjectDetailComponent implements OnInit {
             srcReferTable: new FormControl(srcArr[i].srcRefTable),
             spReferColumns: new FormControl([]),
             srcReferColumns: new FormControl(srcArr[i].srcRefColumns),
+            spOnDelete: new FormControl(''),  //check if this needs to be changed
+            srcOnDelete: new FormControl(srcArr[i].srcOnDelete),
+            spOnUpdate: new FormControl(''),
+            srcOnUpdate: new FormControl(srcArr[i].srcOnUpdate),
             Id: new FormControl(srcArr[i].Id),
             spColIds: new FormControl([]),
             spReferColumnIds: new FormControl([]),
@@ -1092,6 +1108,8 @@ export class ObjectDetailComponent implements OnInit {
         ColIds: fk.spColIds,
         ReferTableId: fk.spReferTableId,
         ReferColumnIds: fk.spReferColumnIds,
+        OnDelete: fk.spOnDelete,
+        OnUpdate: fk.spOnUpdate,
         Id: fk.spFkId,
       })
     })
@@ -1120,6 +1138,8 @@ export class ObjectDetailComponent implements OnInit {
         fk.spColIds = []
         fk.spReferColumnIds = []
         fk.spReferTableId = ''
+        fk.spOnDelete = '' //check if this needs to be changed
+        fk.spOnUpdate = ''
       }
     })
     this.setFkRows()
