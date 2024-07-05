@@ -338,8 +338,8 @@ func TestGetTableWithErrors(t *testing.T) {
 					},
 				},
 				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete}},
 					"t2": {TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnUpdate}},
+					"t1": {TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete}},
 				},
 			},
 			expectedTableIdName: nil,
