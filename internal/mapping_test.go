@@ -388,8 +388,7 @@ func TestToSpannerOnDelete(t *testing.T) {
 				srcDeleteRule: "",
 			},
 			expectedOnDelete: "",
-			// expectedIssues:   []SchemaIssue{ForeignKeyActionsNotSupported},
-			expectedIssues: nil,
+			expectedIssues:   []SchemaIssue{ForeignKeyActionsNotSupported},
 		},
 	}
 	for _, tc := range tests {
@@ -477,8 +476,7 @@ func TestToSpannerOnUpdate(t *testing.T) {
 				srcUpdateRule: "",
 			},
 			expectedOnUpdate: "",
-			// expectedIssues:   []SchemaIssue{ForeignKeyActionsNotSupported},
-			expectedIssues: nil,
+			expectedIssues:   []SchemaIssue{ForeignKeyActionsNotSupported},
 		},
 	}
 	for _, tc := range tests {

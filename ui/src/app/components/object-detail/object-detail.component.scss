@@ -212,12 +212,12 @@
   }
 
   .mat-column-srcIsNotNull,
-  // .mat-column-srcReferColumns,
-  .mat-column-srcOnUpdate,
   .mat-column-srcDatabase,
   .mat-column-srcIndexOrder {
     border-right: 1px solid #cdcccd;
   }
+
+  .mat-column-spName,
   .drop-button-left-border {
     border-left: 1px solid #cdcccd;
   }

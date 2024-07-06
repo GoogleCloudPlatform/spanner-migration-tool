@@ -72,6 +72,8 @@ export class ObjectDetailComponent implements OnInit {
   processedAutoGenMap: GroupedAutoGens = {};
   sequenceKinds: string[] = []
   autoGenSupported: boolean = false
+  foreignKeyActionsSupported: boolean = false
+
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
@@ -83,6 +85,9 @@ export class ObjectDetailComponent implements OnInit {
       this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
     }
     this.autoGenSupported = autoGenSupportedDbs.includes(this.srcDbName)
+    if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres){
+          this.foreignKeyActionsSupported = true
+        }
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
@@ -93,14 +98,10 @@ export class ObjectDetailComponent implements OnInit {
     'srcColumns',
     'srcReferTable',
     'srcReferColumns',
-    'srcOnDelete',
-    'srcOnUpdate',
     'spName',
     'spColumns',
     'spReferTable',
     'spReferColumns',
-    'spOnDelete',
-    'spOnUpdate',
     'dropButton',
   ]
   displayedPkColumns = [
@@ -209,6 +210,10 @@ export class ObjectDetailComponent implements OnInit {
       this.displayedPkColumns.splice(2, 0, "srcAutoGen");
       this.spColspan++;
       this.srcColspan++;
+    }
+    if (this.foreignKeyActionsSupported && !this.displayedFkColumns.includes('srcOnDelete') ) {
+      this.displayedFkColumns.splice(4, 0, 'srcOnDelete', 'srcOnUpdate');
+      this.displayedFkColumns.splice(10, 0, 'spOnDelete', 'spOnUpdate'); 
     }
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {

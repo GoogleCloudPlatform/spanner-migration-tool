@@ -125,7 +125,7 @@ const (
 	ArrayTypeNotSupported
 	ForeignKeyOnDelete
 	ForeignKeyOnUpdate
-	// ForeignKeyActionsNotSupported
+	ForeignKeyActionsNotSupported
 	SequenceCreated
 )
 

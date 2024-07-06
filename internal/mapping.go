@@ -142,50 +142,47 @@ func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
 	return getSpannerValidName(conv, srcFkName)
 }
 
-//this function already exists in sources/common/utils.go but is private - can I reuse it by making it public?
-// func findSchemaIssue(schemaissue []SchemaIssue, issue SchemaIssue) bool {
-// 	ind := -1
-// 	for i := 0; i < len(schemaissue); i++ {
-// 		if schemaissue[i] == issue {
-// 			ind = i
-// 		}
-// 	}
-// 	return ind!=-1
-// }
-
-// if source schema is not reading the rule (i.e. srcDeleteRule = "", then return the same)
 func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) string {
 	srcDeleteRule = strings.ToUpper(srcDeleteRule)
-	if srcDeleteRule == "NO ACTION" || srcDeleteRule == "CASCADE" || srcDeleteRule == "" {
+	if srcDeleteRule == "NO ACTION" || srcDeleteRule == "CASCADE" {
 		return srcDeleteRule
 	}
 
-	// if srcDeleteRule == "" {
-	// 	conv.SchemaIssues[srcTableId] = AddTableLevelIssue(conv.SchemaIssues[srcTableId], ForeignKeyActionsNotSupported)
-	// 	return ""
-	// }
 	if conv.SchemaIssues == nil {
 		conv.SchemaIssues = make(map[string]TableIssues)
 	}
-	conv.SchemaIssues[srcTableId] = AddTableLevelIssue(conv.SchemaIssues[srcTableId], ForeignKeyOnDelete)
+	if srcDeleteRule == "" {
+		conv.SchemaIssues[srcTableId] = TableIssues{
+			TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyActionsNotSupported),
+			ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
+		return ""
+	}
+	conv.SchemaIssues[srcTableId] = TableIssues{
+		TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyOnDelete),
+		ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
 	return "NO ACTION"
 }
 
 // Add comment
 func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) string {
 	srcUpdateRule = strings.ToUpper(srcUpdateRule)
-	if srcUpdateRule == "NO ACTION" || srcUpdateRule == "" {
+	if srcUpdateRule == "NO ACTION" {
 		return srcUpdateRule
 	}
 
-	// if srcUpdateRule == "" {
-	// 	conv.SchemaIssues[srcTableId] = AddTableLevelIssue(conv.SchemaIssues[srcTableId], ForeignKeyActionsNotSupported)
-	// 	return ""
-	// }
 	if conv.SchemaIssues == nil {
 		conv.SchemaIssues = make(map[string]TableIssues)
 	}
-	conv.SchemaIssues[srcTableId] = AddTableLevelIssue(conv.SchemaIssues[srcTableId], ForeignKeyOnUpdate)
+	if srcUpdateRule == "" {
+		conv.SchemaIssues[srcTableId] = TableIssues{
+			TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyActionsNotSupported),
+			ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
+		return ""
+	}
+	conv.SchemaIssues[srcTableId] = TableIssues{
+		TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyOnUpdate),
+		ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
+
 	return "NO ACTION"
 }
 

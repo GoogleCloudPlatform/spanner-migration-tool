@@ -367,51 +367,27 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 
 // GetForeignKeys returns a list of all the foreign key constraints.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	// q := `SELECT
-	// 		rc.constraint_schema AS "TABLE_SCHEMA",
-	// 		ccu.table_name AS "REFERENCED_TABLE_NAME",
-	// 		kcu.column_name AS "COLUMN_NAME",
-	// 		ccu.column_name AS "REF_COLUMN_NAME",
-	// 		rc.constraint_name AS "CONSTRAINT_NAME",
-	// 		rc.delete_rule AS "ON_DELETE",
-	// 		rc.update_rule AS "ON_UPDATE"
-	// 	FROM
-	// 		INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
-	// 	INNER JOIN
-	// 		INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
-	// 		ON rc.constraint_name = kcu.constraint_name
-	// 		AND rc.constraint_schema = kcu.constraint_schema
-	// 		AND rc.table_name = kcu.table_name
-	// 	INNER JOIN
-	// 		INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE ccu
-	// 		ON rc.constraint_name = ccu.constraint_name
-	// 		AND rc.constraint_schema = ccu.constraint_schema
-	// 	WHERE
-	// 		rc.constraint_schema = $1
-	// 		AND kcu.table_name = $2;`
-	q := `SELECT 
-	schema_name AS "TABLE_SCHEMA", 
-	cl.relname AS "TABLE_NAME", 
-	att2.attname AS "COLUMN_NAME", 
-	att.attname AS "REF_COLUMN_NAME", 
-	conname AS "CONSTRAINT_NAME"
-	FROM (SELECT 
-		UNNEST(con1.conkey) AS "parent", 
-		UNNEST(con1.confkey) AS "child", 
-		con1.confrelid, 
-		con1.conrelid, 
-		con1.conname, 
-		ns.nspname AS schema_name
-		FROM PG_CLASS cl
-			JOIN PG_NAMESPACE ns ON cl.relnamespace = ns.oid
-			JOIN PG_CONSTRAINT con1 ON con1.conrelid = cl.oid
-			WHERE ns.nspname = $1 AND cl.relname = $2 AND con1.contype = 'f') con
-	   JOIN PG_ATTRIBUTE att ON
-		   att.attrelid = con.confrelid AND att.attnum = con.child
-	   JOIN PG_CLASS cl ON
-		   cl.oid = con.confrelid
-	   JOIN PG_ATTRIBUTE att2 ON
-		   att2.attrelid = con.conrelid AND att2.attnum = con.parent;`
+	q := `SELECT
+			rc.constraint_schema AS "TABLE_SCHEMA",
+			ccu.table_name AS "REFERENCED_TABLE_NAME",
+			kcu.column_name AS "COLUMN_NAME",
+			ccu.column_name AS "REF_COLUMN_NAME",
+			rc.constraint_name AS "CONSTRAINT_NAME",
+			rc.delete_rule AS "ON_DELETE",
+			rc.update_rule AS "ON_UPDATE"
+		FROM
+			INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
+		INNER JOIN
+			INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+			ON rc.constraint_name = kcu.constraint_name
+			AND rc.constraint_schema = kcu.constraint_schema
+		INNER JOIN
+			INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE ccu
+			ON rc.constraint_name = ccu.constraint_name
+			AND rc.constraint_schema = ccu.constraint_schema
+		WHERE
+			rc.constraint_schema = $1
+			AND kcu.table_name = $2;`
 
 	rows, err := isi.Db.Query(q, table.Schema, table.Name)
 
@@ -424,8 +400,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	fKeys := make(map[string]common.FkConstraint)
 	var keyNames []string
 	for rows.Next() {
-		// err := rows.Scan(&refTable.Schema, &refTable.Name, &col, &refCol, &fKeyName, &onDelete, &onUpdate)
-		err := rows.Scan(&refTable.Schema, &refTable.Name, &col, &refCol, &fKeyName)
+		err := rows.Scan(&refTable.Schema, &refTable.Name, &col, &refCol, &fKeyName, &onDelete, &onUpdate)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -436,12 +411,11 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 			fk.Cols = append(fk.Cols, col)
 			fk.Refcols = append(fk.Refcols, refCol)
 			fKeys[fKeyName] = fk
-			// fk.OnDelete = onDelete
-			// fk.OnUpdate = onUpdate
+			fk.OnDelete = onDelete
+			fk.OnUpdate = onUpdate
 			continue
 		}
-		// fKeys[fKeyName] = common.FkConstraint{Name: fKeyName, Table: tableName, Refcols: []string{refCol}, Cols: []string{col}, OnDelete: onDelete, OnUpdate: onUpdate}
-		fKeys[fKeyName] = common.FkConstraint{Name: fKeyName, Table: tableName, Refcols: []string{refCol}, Cols: []string{col}}
+		fKeys[fKeyName] = common.FkConstraint{Name: fKeyName, Table: tableName, Refcols: []string{refCol}, Cols: []string{col}, OnDelete: onDelete, OnUpdate: onUpdate}
 		keyNames = append(keyNames, fKeyName)
 	}
 
@@ -454,10 +428,8 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 				ColumnNames:      fKeys[k].Cols,
 				ReferTableName:   fKeys[k].Table,
 				ReferColumnNames: fKeys[k].Refcols,
-				// OnDelete:         fKeys[k].OnDelete,
-				// OnUpdate:         fKeys[k].OnUpdate,
-				OnDelete: "xyz",
-				OnUpdate: "xyz",
+				OnDelete:         fKeys[k].OnDelete,
+				OnUpdate:         fKeys[k].OnUpdate,
 			})
 	}
 	return foreignKeys, nil
