@@ -17,6 +17,7 @@ package internal
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
@@ -317,50 +318,46 @@ func TestToSpannerOnDelete(t *testing.T) {
 	}
 
 	tests := []struct {
-		name             string // Name of test.
-		args             arg
-		expectedOnDelete string
-		expectedIssues   []SchemaIssue
+		name             string        // Name of test
+		args             arg           //Arguments to be passed to function
+		expectedOnDelete string        //Expected ON DELETE action
+		expectedIssues   []SchemaIssue //Expected issues to be appended to Conv
 	}{
-		//more compact
-		// {"restrict", arg{conv, "t", "RESTRICT"}, "NO ACTION", []SchemaIssue{ForeignKeyOnDelete}},
-
-		//more readable
 		{
 			name: "restrict",
 			args: arg{
 				conv:          conv,
 				srcTableId:    "t1",
-				srcDeleteRule: "RESTRICT",
+				srcDeleteRule: constants.RESTRICT,
 			},
-			expectedOnDelete: "NO ACTION",
+			expectedOnDelete: constants.NO_ACTION,
 			expectedIssues:   []SchemaIssue{ForeignKeyOnDelete},
 		}, {
 			name: "set default",
 			args: arg{
 				conv:          conv,
 				srcTableId:    "t2",
-				srcDeleteRule: "SET DEFAULT",
+				srcDeleteRule: constants.SET_DEFAULT,
 			},
-			expectedOnDelete: "NO ACTION",
+			expectedOnDelete: constants.NO_ACTION,
 			expectedIssues:   []SchemaIssue{ForeignKeyOnDelete},
 		}, {
 			name: "set null",
 			args: arg{
 				conv:          conv,
 				srcTableId:    "t3",
-				srcDeleteRule: "SET NULL",
+				srcDeleteRule: constants.SET_NULL,
 			},
-			expectedOnDelete: "NO ACTION",
+			expectedOnDelete: constants.NO_ACTION,
 			expectedIssues:   []SchemaIssue{ForeignKeyOnDelete},
 		}, {
 			name: "cascade",
 			args: arg{
 				conv:          conv,
 				srcTableId:    "t4",
-				srcDeleteRule: "CASCADE",
+				srcDeleteRule: constants.CASCADE,
 			},
-			expectedOnDelete: "CASCADE",
+			expectedOnDelete: constants.CASCADE,
 			expectedIssues:   nil,
 		}, {
 			name: "no action - lowercase",
@@ -369,7 +366,7 @@ func TestToSpannerOnDelete(t *testing.T) {
 				srcTableId:    "t5",
 				srcDeleteRule: "no action",
 			},
-			expectedOnDelete: "NO ACTION",
+			expectedOnDelete: constants.NO_ACTION,
 			expectedIssues:   nil,
 		}, {
 			name: "random",
@@ -378,7 +375,7 @@ func TestToSpannerOnDelete(t *testing.T) {
 				srcTableId:    "t6",
 				srcDeleteRule: "xyz",
 			},
-			expectedOnDelete: "NO ACTION",
+			expectedOnDelete: constants.NO_ACTION,
 			expectedIssues:   []SchemaIssue{ForeignKeyOnDelete},
 		}, {
 			name: "fk action not read - for sources other than MySQL and Postgres",
@@ -409,46 +406,46 @@ func TestToSpannerOnUpdate(t *testing.T) {
 	}
 
 	tests := []struct {
-		name             string // Name of test.
-		args             arg
-		expectedOnUpdate string
-		expectedIssues   []SchemaIssue
+		name             string        // Name of test
+		args             arg           //Arguments to be passed to function
+		expectedOnUpdate string        //Expected ON UPDATE action
+		expectedIssues   []SchemaIssue //Expected issues to be appended to Conv
 	}{
 		{
 			name: "restrict",
 			args: arg{
 				conv:          conv,
 				srcTableId:    "t1",
-				srcUpdateRule: "RESTRICT",
+				srcUpdateRule: constants.RESTRICT,
 			},
-			expectedOnUpdate: "NO ACTION",
+			expectedOnUpdate: constants.NO_ACTION,
 			expectedIssues:   []SchemaIssue{ForeignKeyOnUpdate},
 		}, {
 			name: "set default",
 			args: arg{
 				conv:          conv,
 				srcTableId:    "t2",
-				srcUpdateRule: "SET DEFAULT",
+				srcUpdateRule: constants.SET_DEFAULT,
 			},
-			expectedOnUpdate: "NO ACTION",
+			expectedOnUpdate: constants.NO_ACTION,
 			expectedIssues:   []SchemaIssue{ForeignKeyOnUpdate},
 		}, {
 			name: "set null",
 			args: arg{
 				conv:          conv,
 				srcTableId:    "t3",
-				srcUpdateRule: "SET NULL",
+				srcUpdateRule: constants.SET_NULL,
 			},
-			expectedOnUpdate: "NO ACTION",
+			expectedOnUpdate: constants.NO_ACTION,
 			expectedIssues:   []SchemaIssue{ForeignKeyOnUpdate},
 		}, {
 			name: "cascade",
 			args: arg{
 				conv:          conv,
 				srcTableId:    "t4",
-				srcUpdateRule: "CASCADE",
+				srcUpdateRule: constants.CASCADE,
 			},
-			expectedOnUpdate: "NO ACTION",
+			expectedOnUpdate: constants.NO_ACTION,
 			expectedIssues:   []SchemaIssue{ForeignKeyOnUpdate},
 		}, {
 			name: "no action - lowercase",
@@ -457,7 +454,7 @@ func TestToSpannerOnUpdate(t *testing.T) {
 				srcTableId:    "t5",
 				srcUpdateRule: "no action",
 			},
-			expectedOnUpdate: "NO ACTION",
+			expectedOnUpdate: constants.NO_ACTION,
 			expectedIssues:   nil,
 		}, {
 			name: "random",
@@ -466,7 +463,7 @@ func TestToSpannerOnUpdate(t *testing.T) {
 				srcTableId:    "t6",
 				srcUpdateRule: "xyz",
 			},
-			expectedOnUpdate: "NO ACTION",
+			expectedOnUpdate: constants.NO_ACTION,
 			expectedIssues:   []SchemaIssue{ForeignKeyOnUpdate},
 		}, {
 			name: "fk action not read - for sources other than MySQL and Postgres",

@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
@@ -142,6 +143,19 @@ func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
 	return getSpannerValidName(conv, srcFkName)
 }
 
+// ToSpannerOnDelete maps the source ON DELETE action
+// to the corresponding Spanner compatible action.
+// The following mapping is followed:
+// a) CASCADE/NO ACTION -> mapped to the same as source action
+// b) all others -> NO ACTION (default)
+//
+// Since only MySQL and PostgreSQL have this functionality
+// as of yet, for other sources OnDelete fields are
+// kept empty i.e. "" is mapped to ""
+//
+// For all source actions converted to a different action,
+// an issue is appended to it's TableLevelIssues to
+// generate a warning message for the user
 func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) string {
 	srcDeleteRule = strings.ToUpper(srcDeleteRule)
 	if srcDeleteRule == "NO ACTION" || srcDeleteRule == "CASCADE" {
@@ -160,10 +174,22 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 	conv.SchemaIssues[srcTableId] = TableIssues{
 		TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyOnDelete),
 		ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
-	return "NO ACTION"
+	return constants.NO_ACTION
 }
 
-// Add comment
+// ToSpannerOnUpdate maps the source ON UPDATE action
+// to the corresponding Spanner compatible action.
+// The following mapping is followed:
+// all actions -> NO ACTION (default)
+// (Spanner only supports ON UPDATE NO ACTION)
+//
+// Since only MySQL and PostgreSQL have this functionality
+// as of yet, for other sources OnDelete fields are
+// kept empty i.e. "" is mapped to ""
+//
+// For all source actions converted to a different action,
+// an issue is appended to it's TableLevelIssues to
+// generate a warning message for the user
 func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) string {
 	srcUpdateRule = strings.ToUpper(srcUpdateRule)
 	if srcUpdateRule == "NO ACTION" {
@@ -183,7 +209,7 @@ func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) stri
 		TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyOnUpdate),
 		ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
 
-	return "NO ACTION"
+	return constants.NO_ACTION
 }
 
 // ToSpannerIndexName maps source index name to legal Spanner index name.
