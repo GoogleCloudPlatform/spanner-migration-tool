@@ -771,6 +771,8 @@ func LaunchDataflowJob(ctx context.Context, migrationProjectId string, targetPro
 		launchParameters.Parameters["transformationJarPath"] = dataflowCfg.CustomJarPath
 		launchParameters.Parameters["transformationClassName"] = dataflowCfg.CustomClassName
 		launchParameters.Parameters["transformationCustomParameters"] = dataflowCfg.CustomParameter
+	} else if (dataflowCfg.CustomClassName != "" && dataflowCfg.CustomJarPath == "") || (dataflowCfg.CustomClassName == "" && dataflowCfg.CustomJarPath != "") {
+		return internal.DataflowOutput{}, fmt.Errorf("specify both the custom class name and custom parameter, or specify neither")
 	}
 
 	req := &dataflowpb.LaunchFlexTemplateRequest{

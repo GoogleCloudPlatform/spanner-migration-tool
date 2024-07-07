@@ -32,7 +32,7 @@ export class DataflowFormComponent implements OnInit {
       serviceAccountEmail: new FormControl(''),
       additionalUserLabels: new FormControl('', [Validators.pattern('^{("([0-9a-zA-Z_-]+)":"([0-9a-zA-Z_-]+)",?)+}$')]),
       kmsKeyName: new FormControl('', [Validators.pattern('^projects\\/[^\\n\\r]+\\/locations\\/[^\\n\\r]+\\/keyRings\\/[^\\n\\r]+\\/cryptoKeys\\/[^\\n\\r]+$')]),
-      customJarPath: new FormControl(''),
+      customJarPath: new FormControl('',[Validators.pattern('^gs:\\/\\/[^\\n\\r]+$')]),
       customClassName: new FormControl(''),
       customParameter: new FormControl(''),
     })
