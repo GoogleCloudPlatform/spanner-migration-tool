@@ -16,6 +16,8 @@
 package mysql
 
 import (
+	"fmt"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -47,6 +49,32 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 		ty = common.ToPGDialectType(ty)
 	}
 	return ty, issues
+}
+
+func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
+	switch autoGenCol.GenerationType {
+	case constants.AUTO_INCREMENT:
+		sequenceId := ""
+		srcSequences := conv.SrcSequences
+		for seqId, seq := range srcSequences {
+			if seq.Name == autoGenCol.Name {
+				sequenceId = seqId
+			}
+		}
+		if sequenceId == "" {
+			return &ddl.AutoGenCol{}, fmt.Errorf("sequence corresponding to column auto generation not found")
+		}
+		spSequences := conv.SpSequences
+		sequence := spSequences[sequenceId]
+		sequence.ColumnsUsingSeq = map[string][]string{
+			tableId: {colId},
+		}
+		spSequences[sequenceId] = sequence
+		conv.SpSequences = spSequences
+		return &ddl.AutoGenCol{Name: conv.SpSequences[sequenceId].Name, GenerationType: constants.SEQUENCE}, nil
+	default:
+		return &ddl.AutoGenCol{}, fmt.Errorf("auto generation not supported")
+	}
 }
 
 func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []internal.SchemaIssue) {

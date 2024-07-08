@@ -47,6 +47,10 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 	return ty, issues
 }
 
+func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
+	return nil, nil
+}
+
 func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	// Oracle returns some datatype with the precision,
 	// So will get TIMESTAMP as TIMESTAMP(6),TIMESTAMP(6) WITH TIME ZONE,TIMESTAMP(6) WITH LOCAL TIME ZONE.

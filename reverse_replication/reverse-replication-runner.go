@@ -92,7 +92,7 @@ func setupGlobalFlags() {
 	flag.IntVar(&readerWorkers, "readerWorkers", 5, "Number of workers for reader job.")
 	flag.IntVar(&writerWorkers, "writerWorkers", 5, "Number of workers for writer job.")
 	flag.StringVar(&spannerReaderTemplateLocation, "spannerReaderTemplateLocation", "gs://dataflow-templates-us-east7/2024-05-21-00_RC00/flex/Spanner_Change_Streams_to_Sharded_File_Sink", "The dataflow template location for the Spanner reader job.")
-	flag.StringVar(&sourceWriterTemplateLocation, "sourceWriterTemplateLocation", "gs://dataflow-templates-us-east7/2024-05-21-00_RC00/flex/GCS_to_Sourcedb", "The dataflow template location for the Source writer job.")
+	flag.StringVar(&sourceWriterTemplateLocation, "sourceWriterTemplateLocation", "gs://dataflow-templates-us-east7/2024-07-01-00_RC00/flex/GCS_to_Sourcedb", "The dataflow template location for the Source writer job.")
 	flag.StringVar(&jobsToLaunch, "jobsToLaunch", "both", "Whether to launch the spanner reader job or the source writer job or both. Default is both. Support values are both,reader,writer.")
 	flag.BoolVar(&skipChangeStreamCreation, "skipChangeStreamCreation", false, "Whether to skip the change stream creation. Default is false.")
 	flag.BoolVar(&skipMetadataDatabaseCreation, "skipMetadataDatabaseCreation", false, "Whether to skip Metadata database creation.Default is false.")

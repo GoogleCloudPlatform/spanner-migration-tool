@@ -68,7 +68,11 @@ const mockIConv: IConv = {
                         Exclusion: false,
                         ForeignKey: false,
                         AutoIncrement: false
-                    }
+                    },
+                    AutoGen: {
+                        Name: "",
+                        GenerationType: ""
+                    },
                 }
             },
             PrimaryKeys: [],
@@ -197,7 +201,11 @@ export const mockIConv2: IConv = {
                         Exclusion: false,
                         ForeignKey: false,
                         AutoIncrement: false
-                    }
+                    },
+                    AutoGen: {
+                        Name: "",
+                        GenerationType: ""
+                    },
                 }
             },
             PrimaryKeys: [],
