@@ -47,3 +47,5 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          # Temp fix for https://github.com/codecov/codecov-action/issues/1487
+          version: v0.6.0

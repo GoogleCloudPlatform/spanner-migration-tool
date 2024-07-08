@@ -258,7 +258,7 @@ func TestGetDDL(t *testing.T) {
 						"c2": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						"c3": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1", Desc: false}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
 					Indexes:     []ddl.CreateIndex{{Name: "index1", TableId: "t1", Id: "i1", Keys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}}}},
 				},
 					"t2": {Name: "table2",
@@ -267,7 +267,7 @@ func TestGetDDL(t *testing.T) {
 					},
 				},
 			},
-			expectedDDL: map[string]string{"t1": "CREATE TABLE table1 (\n\ta INT64 NOT NULL ,\n\tb INT64 NOT NULL ,\n\tc STRING(MAX) NOT NULL ,\n) PRIMARY KEY (a);\n\nCREATE INDEX index1 ON table1 (a);\n\nALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES table2 (d);",
+			expectedDDL: map[string]string{"t1": "CREATE TABLE table1 (\n\ta INT64 NOT NULL ,\n\tb INT64 NOT NULL ,\n\tc STRING(MAX) NOT NULL ,\n) PRIMARY KEY (a);\n\nCREATE INDEX index1 ON table1 (a);\n\nALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES table2 (d) ON DELETE CASCADE;",
 				"t2": "CREATE TABLE table2 (\n\td INT64 NOT NULL ,\n) ;"},
 			statusCode: http.StatusOK,
 		},
@@ -299,6 +299,101 @@ func TestGetDDL(t *testing.T) {
 	}
 }
 
+func TestGetTableWithErrors(t *testing.T) {
+	tc := []struct {
+		name                string
+		conv                *internal.Conv
+		expectedTableIdName []types.TableIdAndName
+		statusCode          int64
+	}{
+		{
+			name: "No tables with TableLevelIssues",
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name: "table1",
+						Id:   "t1",
+					},
+					"t2": {
+						Name: "table2",
+						Id:   "t2",
+					},
+				},
+				SchemaIssues: nil,
+			},
+			expectedTableIdName: nil,
+			statusCode:          http.StatusOK,
+		},
+		{
+			name: "Foreign Key Action Issues in Schema - no table should be returned",
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name: "table1",
+						Id:   "t1",
+					},
+					"t2": {
+						Name: "table2",
+						Id:   "t2",
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t2": {TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnUpdate}},
+					"t1": {TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete}},
+				},
+			},
+			expectedTableIdName: nil,
+			statusCode:          http.StatusOK,
+		},
+		{
+			name: "Multiple tables with error in Schema - all tables should be returned",
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name: "table1",
+						Id:   "t1",
+					},
+					"t2": {
+						Name: "table2",
+						Id:   "t2",
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {TableLevelIssues: []internal.SchemaIssue{internal.RowLimitExceeded}},
+					"t2": {TableLevelIssues: []internal.SchemaIssue{internal.RowLimitExceeded, internal.ForeignKeyOnUpdate}},
+				},
+			},
+			expectedTableIdName: []types.TableIdAndName{
+				types.TableIdAndName{Id: "t1", Name: "table1"},
+				types.TableIdAndName{Id: "t2", Name: "table2"}},
+			statusCode: http.StatusOK,
+		},
+	}
+	for _, tc := range tc {
+		sessionState := session.GetSessionState()
+		sessionState.Conv = tc.conv
+		req, err := http.NewRequest("GET", "/GetTableWithErrors", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(api.GetTableWithErrors)
+		handler.ServeHTTP(rr, req)
+
+		var tableIdName []types.TableIdAndName
+		json.Unmarshal(rr.Body.Bytes(), &tableIdName)
+
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("%s : handler returned wrong status code: got %v want %v",
+				tc.name, status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedTableIdName, tableIdName)
+		}
+	}
+}
+
 func TestDropForeignKey(t *testing.T) {
 	tc := []struct {
 		name         string
@@ -311,14 +406,14 @@ func TestDropForeignKey(t *testing.T) {
 		{
 			name:  "Test drop valid FK success",
 			table: "t1",
-			input: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1"},
-				{Name: "", ColIds: []string{}, ReferTableId: "", ReferColumnIds: []string{}, Id: "f2"}},
+			input: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION},
+				{Name: "", ColIds: []string{}, ReferTableId: "", ReferColumnIds: []string{}, Id: "f2", OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1"},
-							{Name: "fk2", ColIds: []string{"c3", "c4"}, ReferTableId: "reft2", ReferColumnIds: []string{"ref_c2", "ref_c3"}, Id: "f2"}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION},
+							{Name: "fk2", ColIds: []string{"c3", "c4"}, ReferTableId: "reft2", ReferColumnIds: []string{"ref_c2", "ref_c3"}, Id: "f2", OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -327,7 +422,7 @@ func TestDropForeignKey(t *testing.T) {
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1"}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
 					}},
 			},
 		},
