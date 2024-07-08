@@ -117,6 +117,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				if err != nil {
 					continue
 				}
+
 				if srcFk.OnDelete != spFk.OnDelete {
 					issue := internal.ForeignKeyOnDelete
 					toAppend := Issue{
