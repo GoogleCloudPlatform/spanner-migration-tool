@@ -158,7 +158,7 @@ func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
 // generate a warning message for the user
 func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) string {
 	srcDeleteRule = strings.ToUpper(srcDeleteRule)
-	if srcDeleteRule == "NO ACTION" || srcDeleteRule == "CASCADE" || srcDeleteRule == "" {
+	if srcDeleteRule == constants.NO_ACTION || srcDeleteRule == constants.CASCADE || srcDeleteRule == "" {
 		return srcDeleteRule
 	}
 
@@ -168,6 +168,7 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 	conv.SchemaIssues[srcTableId] = TableIssues{
 		TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyOnDelete),
 		ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
+
 	return constants.NO_ACTION
 }
 
@@ -186,7 +187,8 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 // generate a warning message for the user
 func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) string {
 	srcUpdateRule = strings.ToUpper(srcUpdateRule)
-	if srcUpdateRule == "NO ACTION" || srcUpdateRule == "" {
+
+	if srcUpdateRule == constants.NO_ACTION || srcUpdateRule == "" {
 		return srcUpdateRule
 	}
 
