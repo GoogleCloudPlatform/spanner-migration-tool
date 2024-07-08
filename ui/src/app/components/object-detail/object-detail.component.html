@@ -33,7 +33,7 @@
       <h3 class="title">
         <mat-icon class="icon material-icons-outlined" *ngIf="currentObject!.type === ObjectExplorerNodeType.Table">
           table_chart</mat-icon>
-        <svg *ngIf="currentObject!.type === ObjectExplorerNodeType.Index" class="icon" width="18" height="20"
+        <svg *ngIf="currentObject!.type === ObjectExplorerNodeType.Index || currentObject!.type === ObjectExplorerNodeType.Sequence" class="icon" width="18" height="20"
           viewBox="0 0 12 14" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path fill-rule="evenodd" clip-rule="evenodd"
             d="M11.005 14C11.555 14 12 13.554 12 13.002V5L10 3V12H2V14H11.005ZM0 0.996C0 0.446 0.438 0 1.003 0H7L9 2.004V10.004C9 10.554 8.554 11 8.002 11H0.998C0.867035 11.0003 0.737304 10.9747 0.616233 10.9248C0.495162 10.8748 0.385128 10.8015 0.292428 10.709C0.199729 10.6165 0.126186 10.5066 0.0760069 10.3856C0.0258282 10.2646 -2.64036e-07 10.135 0 10.004V0.996ZM6 1L5 5.5H2L6 1ZM3 10L4 5.5H7L3 10Z"
@@ -52,6 +52,14 @@
           <mat-icon>delete</mat-icon>
           <span>SKIP INDEX</span>
         </button>
+        <button mat-button color="primary" class="icon drop" (click)="dropSequence()" *ngIf="
+            currentObject!.isSpannerNode &&
+            !currentObject!.isDeleted &&
+            currentObject!.type === 'sequenceName'
+          ">
+          <mat-icon>delete</mat-icon>
+          <span>DELETE SEQUENCE</span>
+        </button>
         <button mat-button color="primary" class="icon drop" (click)="restoreIndex()" *ngIf="
             currentObject!.isSpannerNode &&
             currentObject!.isDeleted &&
@@ -62,7 +70,7 @@
         </button>
         <button mat-button color="primary" class="icon drop" (click)="dropTable()" *ngIf="
             currentObject!.isSpannerNode &&
-            currentObject!.type !== 'indexName' &&
+            (currentObject!.type !== 'indexName' && currentObject!.type !== 'sequenceName')&&
             !currentObject!.isDeleted
           ">
           <mat-icon>delete</mat-icon>
@@ -100,7 +108,7 @@
         <div class="column-table-container">
           <table mat-table [dataSource]="srcDataSource">
             <ng-container matColumnDef="srcDatabase">
-              <th mat-header-cell class="db_name" *matHeaderCellDef colspan="6">{{ srcDbName }}</th>
+              <th mat-header-cell class="db_name" *matHeaderCellDef colspan=srcColspan>{{ srcDbName }}</th>
             </ng-container>
 
             <ng-container matColumnDef="srcOrder">
@@ -128,6 +136,13 @@
               <th mat-header-cell class="table_header" *matHeaderCellDef>Max Length</th>
               <td mat-cell *matCellDef="let element">
                 {{ element.get('srcColMaxLength').value }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="srcAutoGen" *ngIf="autoGenSupported">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
+              <td mat-cell *matCellDef="let element">
+                {{ element.get('srcAutoGen').value.GenerationType !== '' ? element.get('srcAutoGen').value.GenerationType : 'None' }}
               </td>
             </ng-container>
 
@@ -174,6 +189,13 @@
                       *ngIf="currentObject!.isSpannerNode">
                       <mat-icon class="edit-icon">edit</mat-icon>
                       ADD COLUMN
+                    </button>
+                  </div>
+                  <div *ngIf="!isEditMode && !currentObject.isDeleted && autoGenSupported">
+                    <button mat-stroked-button color="primary" (click)="addNewSequence()"
+                      *ngIf="currentObject!.isSpannerNode">
+                      <mat-icon class="edit-icon">edit</mat-icon>
+                      ADD SEQUENCE
                     </button>
                   </div>
                 </div>
@@ -224,7 +246,7 @@
               </td>
             </ng-container>
 
-            <ng-container matColumnDef="spAutoGen" *ngIf="autGenSupported">
+            <ng-container matColumnDef="spAutoGen" *ngIf="autoGenSupported">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
               <td mat-cell *matCellDef="let element; let i = index">
                 <div class="sp-autogen-data-cells">
@@ -422,6 +444,13 @@
             </td>
           </ng-container>
 
+          <ng-container matColumnDef="srcAutoGen" *ngIf="autoGenSupported">
+            <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
+            <td mat-cell *matCellDef="let element">
+              {{ element.get('srcAutoGen').value.GenerationType !== '' ? element.get('srcAutoGen').value.GenerationType : 'None' }}
+            </td>
+          </ng-container>
+
           <ng-container matColumnDef="spOrder">
             <th class="table_header" mat-header-cell *matHeaderCellDef>Order</th>
             <td mat-cell *matCellDef="let element">
@@ -450,6 +479,13 @@
                   [matTooltip]="spTableSuggestion[i]" matTooltipPosition="above">warning</span>
                 <p>{{ element.get('spDataType').value }}</p>
               </div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="spAutoGen" *ngIf="autoGenSupported">
+            <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
+            <td mat-cell *matCellDef="let element">
+              <p>{{ element.get('spAutoGen').value.Name !== '' ? element.get('spAutoGen').value.Name : 'None' }}</p>
             </td>
           </ng-container>
 
@@ -794,6 +830,103 @@
     </div>
   </div>
 
+  <div *ngIf="currentObject!.type === 'sequenceName' && autoGenSupported" class="sequence-tab-container">
+    <table mat-table [dataSource]="spDataSource">
+      <ng-container matColumnDef="spDatabase">
+        <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
+          <div class="spanner_edit-button">
+            <span>Spanner</span>
+
+            <div *ngIf="!isSequenceEditMode && !currentObject!.isDeleted && currentObject!.isSpannerNode">
+              <button mat-stroked-button color="primary" (click)="toggleSequenceEdit()">
+                <mat-icon class="edit-icon">edit</mat-icon>
+                EDIT
+              </button>
+            </div>
+          </div>
+        </th>
+      </ng-container>
+
+      <ng-container matColumnDef="spSeqName">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
+        <td mat-cell *matCellDef="let element">
+          <p *ngIf="element.get('spSeqName').value">{{ element.get('spSeqName').value }}</p>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="spSequenceKind">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Sequence Type</th>
+        <td mat-cell *matCellDef="let element; let i = index">
+          <div class="sp-sequence-data-cells">
+            <ng-container *ngIf="isSequenceEditMode && element.get('spSequenceKind').value !== ''">
+              <mat-form-field appearance="outline" class="w-100 custom-mat-form-field">
+                <mat-select #matSelectsSequenceKind [formControl]="element.get('spSequenceKind')">
+                  <ng-container *ngFor="let sk of sequenceKinds">
+                    <mat-option [value]="sk">
+                      {{ sk }}
+                    </mat-option>
+                  </ng-container>
+                </mat-select>
+              </mat-form-field>
+            </ng-container>
+            <ng-container *ngIf="!isSequenceEditMode">
+              <p>{{ element.get('spSequenceKind').value }}</p>
+            </ng-container>
+          </div>
+        </td>
+      </ng-container>      
+      <ng-container matColumnDef="spSkipRangeMin">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Skip Range Min</th>
+        <td mat-cell *matCellDef="let element">
+          <div *ngIf="isSequenceEditMode">
+            <input
+              matInput
+              class="name_input"
+              type="text"
+              [formControl]="element.get('spSkipRangeMin')"
+              matTooltip="Should be a number and both min and max must be set or neither"
+              [matTooltipDisabled]="!element.get('spSkipRangeMin')?.hasError('pattern')" />
+          </div>
+          <p *ngIf="!isSequenceEditMode && element.get('spSkipRangeMin').value">{{ element.get('spSkipRangeMin').value }}</p>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="spSkipRangeMax">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Skip Range Max</th>
+        <td mat-cell *matCellDef="let element">
+          <div *ngIf="isSequenceEditMode">
+            <input
+              matInput
+              class="name_input"
+              type="text"
+              [formControl]="element.get('spSkipRangeMax')"
+              matTooltip="Should be a number and both min and max must be set or neither"
+              [matTooltipDisabled]="!element.get('spSkipRangeMax')?.hasError('pattern')" />
+          </div>
+          <p *ngIf="!isSequenceEditMode && element.get('spSkipRangeMax').value">{{ element.get('spSkipRangeMax').value }}</p>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="spStartWithCounter">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Start With Counter</th>
+        <td mat-cell *matCellDef="let element">
+          <div *ngIf="isSequenceEditMode">
+            <input
+              matInput
+              class="name_input"
+              type="text"
+              [formControl]="element.get('spStartWithCounter')"
+              matTooltip="Should be a number"
+              [matTooltipDisabled]="!element.get('spStartWithCounter')?.hasError('pattern')" />
+          </div>
+          <p *ngIf="!isSequenceEditMode && element.get('spStartWithCounter').value">{{ element.get('spStartWithCounter').value }}</p>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="['spDatabase']"></tr>
+      <tr mat-header-row *matHeaderRowDef="sequenceDisplayedColumns"></tr>
+      <tr mat-row class="sequence-data-row" *matRowDef="let row; columns: sequenceDisplayedColumns"></tr>
+    </table>
+    
+  </div>
+
   <div class="save-edits">
     <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode"></mat-divider>
 
@@ -825,6 +958,15 @@
     <div class="save-button" *ngIf="isIndexEditMode && currentTabIndex === -1">
       <button mat-raised-button color="primary" (click)="saveIndex()">SAVE & CONVERT</button>
       <button class="cancel-button" mat-raised-button color="primary" (click)="toggleIndexEdit()"
+        *ngIf="currentObject!.isSpannerNode">
+        CANCEL
+      </button>
+    </div>
+    <div class="save-button" *ngIf="isSequenceEditMode && currentTabIndex === -1">
+      <button mat-raised-button color="primary" (click)="saveSequence()" [disabled]="!spRowArray.valid">
+        SAVE & CONVERT
+      </button>
+      <button class="cancel-button" mat-raised-button color="primary" (click)="toggleSequenceEdit()"
         *ngIf="currentObject!.isSpannerNode">
         CANCEL
       </button>

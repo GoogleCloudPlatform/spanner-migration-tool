@@ -62,6 +62,17 @@
   }
 }
 
+.table {
+  height: 100%;
+  background-color: white;
+  .mat-mdc-tab-group {
+    height: 93%;
+  }
+  .height-on-edit {
+    height: 84%;
+  }
+}
+
 .add-index-column-container {
   margin-left: 45%;
   padding-top: 10px;
@@ -88,7 +99,8 @@
 .column-tab-container,
 .fk-tab-container,
 .pk-tab-container,
-.index-tab-container {
+.index-tab-container,
+.sequence-tab-container {
   height: 84%;
 
   .column-table-container {
@@ -170,7 +182,8 @@
   .mat-column-srcIsPk,
   .mat-column-spIsPk,
   .mat-column-spIndexOrder,
-  .mat-column-srcIndexOrder {
+  .mat-column-srcIndexOrder,
+  .mat-column-srcStartWithCounter {
     min-width: 40px;
     text-align: center;
   }
@@ -180,11 +193,17 @@
   .mat-column-spColName,
   .mat-column-srcDataType,
   .mat-column-spDataType,
+  .mat-column-spAutoGen,
   .mat-column-spIndexColName,
   .mat-column-srcIndexColName,
+  .mat-column-spSeqName,
   .mat-column-spColMaxLength,
   .mat-column-srcColMaxLength {
     min-width: 100px;
+  }
+  
+  .mat-column-spSequenceKind{
+    min-width: 250px;
   }
 
   .mat-column-srcIsNotNull,
@@ -283,3 +302,15 @@ tr.mat-mdc-row {
   border: inset;
 }
 
+.custom-mat-form-field {
+  min-width: 250px;
+}
+
+.custom-mat-form-field .mat-select-panel {
+  max-width: none !important;
+  width: auto !important;
+}
+
+.custom-mat-form-field .mat-select-panel .mat-option {
+  white-space: nowrap;
+}

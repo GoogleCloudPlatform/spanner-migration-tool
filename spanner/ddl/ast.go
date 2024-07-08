@@ -232,13 +232,16 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 	var s string
 	if c.SpDialect == constants.DIALECT_POSTGRESQL {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PGPrintColumnDefType())
+		if cd.NotNull {
+			s += " NOT NULL "
+		}
 		s += cd.AutoGen.PGPrintAutoGenCol()
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
+		if cd.NotNull {
+			s += " NOT NULL "
+		}
 		s += cd.AutoGen.PrintAutoGenCol()
-	}
-	if cd.NotNull {
-		s += " NOT NULL"
 	}
 	return s, cd.Comment
 }
@@ -275,6 +278,8 @@ type Foreignkey struct {
 	ReferTableId   string
 	ReferColumnIds []string
 	Id             string
+	OnDelete       string
+	OnUpdate       string
 }
 
 // PrintForeignKey unparses the foreign keys.
@@ -288,7 +293,11 @@ func (k Foreignkey) PrintForeignKey(c Config) string {
 	if k.Name != "" {
 		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name))
 	}
-	return s + fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s (%s)", strings.Join(cols, ", "), c.quote(k.ReferTableId), strings.Join(referCols, ", "))
+	s = s + fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s (%s)", strings.Join(cols, ", "), c.quote(k.ReferTableId), strings.Join(referCols, ", "))
+	if k.OnDelete != "" {
+		s = s + fmt.Sprintf(" ON DELETE %s", k.OnDelete)
+	}
+	return s
 }
 
 // CreateTable encodes the following DDL definition:
@@ -388,12 +397,18 @@ func (agc AutoGenCol) PrintAutoGenCol() string {
 	if agc.Name == constants.UUID && agc.GenerationType == "Pre-defined" {
 		return " DEFAULT (GENERATE_UUID())"
 	}
+	if agc.GenerationType == constants.SEQUENCE {
+		return fmt.Sprintf(" DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE %s)) ", agc.Name)
+	}
 	return ""
 }
 
 func (agc AutoGenCol) PGPrintAutoGenCol() string {
 	if agc.Name == constants.UUID && agc.GenerationType == "Pre-defined" {
 		return " DEFAULT (spanner.generate_uuid())"
+	}
+	if agc.GenerationType == constants.SEQUENCE {
+		return fmt.Sprintf(" DEFAULT NEXTVAL('%s') ", agc.Name)
 	}
 	return ""
 }
@@ -455,7 +470,11 @@ func (k Foreignkey) PrintForeignKeyAlterTable(spannerSchema Schema, c Config, ta
 	if k.Name != "" {
 		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name))
 	}
-	return fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(spannerSchema[tableId].Name), s, strings.Join(cols, ", "), c.quote(spannerSchema[k.ReferTableId].Name), strings.Join(referCols, ", "))
+	s = fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(spannerSchema[tableId].Name), s, strings.Join(cols, ", "), c.quote(spannerSchema[k.ReferTableId].Name), strings.Join(referCols, ", "))
+	if k.OnDelete != "" {
+		s = s + fmt.Sprintf(" ON DELETE %s", k.OnDelete)
+	}
+	return s
 }
 
 // Schema stores a map of table names and Tables.
@@ -518,15 +537,24 @@ func GetSortedTableIdsBySpName(s Schema) []string {
 // Tables are printed in alphabetical order with one exception: interleaved
 // tables are potentially out of order since they must appear after the
 // definition of their parent table.
-func (s Schema) GetDDL(c Config) []string {
+func GetDDL(c Config, tableSchema Schema, sequenceSchema map[string]Sequence) []string {
 	var ddl []string
-	tableIds := GetSortedTableIdsBySpName(s)
+
+	for _, seq := range sequenceSchema {
+		if c.SpDialect == constants.DIALECT_POSTGRESQL {
+			ddl = append(ddl, seq.PGPrintSequence())
+		} else {
+			ddl = append(ddl, seq.PrintSequence())
+		}
+	}
+
+	tableIds := GetSortedTableIdsBySpName(tableSchema)
 
 	if c.Tables {
 		for _, tableId := range tableIds {
-			ddl = append(ddl, s[tableId].PrintCreateTable(s, c))
-			for _, index := range s[tableId].Indexes {
-				ddl = append(ddl, index.PrintCreateIndex(s[tableId], c))
+			ddl = append(ddl, tableSchema[tableId].PrintCreateTable(tableSchema, c))
+			for _, index := range tableSchema[tableId].Indexes {
+				ddl = append(ddl, index.PrintCreateIndex(tableSchema[tableId], c))
 			}
 		}
 	}
@@ -538,11 +566,12 @@ func (s Schema) GetDDL(c Config) []string {
 	// of circular foreign keys definitions. We opt for simplicity.
 	if c.ForeignKeys {
 		for _, t := range tableIds {
-			for _, fk := range s[t].ForeignKeys {
-				ddl = append(ddl, fk.PrintForeignKeyAlterTable(s, c, t))
+			for _, fk := range tableSchema[t].ForeignKeys {
+				ddl = append(ddl, fk.PrintForeignKeyAlterTable(tableSchema, c, t))
 			}
 		}
 	}
+
 	return ddl
 }
 
@@ -564,4 +593,61 @@ func maxStringLength(s []string) int {
 		}
 	}
 	return n
+}
+
+type Sequence struct {
+	Id               string
+	Name             string
+	SequenceKind     string
+	SkipRangeMin     string
+	SkipRangeMax     string
+	StartWithCounter string
+	ColumnsUsingSeq  map[string][]string
+}
+
+func (seq Sequence) PrintSequence() string {
+	var options []string
+	if seq.SequenceKind != "" {
+		if seq.SequenceKind == "BIT REVERSED POSITIVE" {
+			options = append(options, "sequence_kind='bit_reversed_positive'")
+		}
+	}
+	if seq.SkipRangeMin != "" {
+		options = append(options, fmt.Sprintf("skip_range_min = %s", seq.SkipRangeMin))
+	}
+	if seq.SkipRangeMax != "" {
+		options = append(options, fmt.Sprintf("skip_range_max = %s", seq.SkipRangeMax))
+	}
+	if seq.StartWithCounter != "" {
+		options = append(options, fmt.Sprintf("start_with_counter = %s", seq.StartWithCounter))
+	}
+
+	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", seq.Name)
+	if len(options) > 0 {
+		seqDDL += " OPTIONS (" + strings.Join(options, ", ") + ") "
+	}
+
+	return seqDDL
+}
+
+func (seq Sequence) PGPrintSequence() string {
+	var options []string
+	if seq.SequenceKind != "" {
+		if seq.SequenceKind == "BIT REVERSED POSITIVE" {
+			options = append(options, " BIT_REVERSED_POSITIVE")
+		}
+	}
+	if seq.SkipRangeMax != "" && seq.SkipRangeMin != "" {
+		options = append(options, fmt.Sprintf("SKIP RANGE %s %s", seq.SkipRangeMin, seq.SkipRangeMax))
+	}
+	if seq.StartWithCounter != "" {
+		options = append(options, fmt.Sprintf("START COUNTER WITH %s", seq.StartWithCounter))
+	}
+
+	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", seq.Name)
+	if len(options) > 0 {
+		seqDDL += strings.Join(options, " ")
+	}
+
+	return seqDDL
 }

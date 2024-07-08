@@ -74,8 +74,8 @@ func TestPrintColumnDef(t *testing.T) {
 	}{
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, expected: "col1 INT64"},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}}, expected: "col1 ARRAY<INT64>"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT64 NOT NULL"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 ARRAY<INT64> NOT NULL"},
+		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT64 NOT NULL "},
+		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 ARRAY<INT64> NOT NULL "},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "`col1` INT64"},
 	}
 	for _, tc := range tests {
@@ -92,8 +92,8 @@ func TestPrintColumnDefPG(t *testing.T) {
 	}{
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, expected: "col1 INT8"},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}}, expected: "col1 VARCHAR(2621440)"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT8 NOT NULL"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 VARCHAR(2621440) NOT NULL"},
+		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT8 NOT NULL "},
+		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 VARCHAR(2621440) NOT NULL "},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "col1 INT8"},
 	}
 	for _, tc := range tests {
@@ -168,7 +168,7 @@ func TestPrintCreateTable(t *testing.T) {
 			false,
 			t1,
 			"CREATE TABLE mytable (\n" +
-				"	col1 INT64 NOT NULL,\n" +
+				"	col1 INT64 NOT NULL ,\n" +
 				"	col2 STRING(MAX),\n" +
 				"	col3 BYTES(42),\n" +
 				") PRIMARY KEY (col1 DESC)",
@@ -178,7 +178,7 @@ func TestPrintCreateTable(t *testing.T) {
 			true,
 			t1,
 			"CREATE TABLE `mytable` (\n" +
-				"	`col1` INT64 NOT NULL,\n" +
+				"	`col1` INT64 NOT NULL ,\n" +
 				"	`col2` STRING(MAX),\n" +
 				"	`col3` BYTES(42),\n" +
 				") PRIMARY KEY (`col1` DESC)",
@@ -188,7 +188,7 @@ func TestPrintCreateTable(t *testing.T) {
 			false,
 			t2,
 			"CREATE TABLE mytable (\n" +
-				"	col1 INT64 NOT NULL,\n" +
+				"	col1 INT64 NOT NULL ,\n" +
 				"	col2 STRING(MAX),\n" +
 				"	col3 BYTES(42),\n" +
 				") PRIMARY KEY (col1 DESC),\n" +
@@ -240,7 +240,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 			false,
 			t1,
 			"CREATE TABLE mytable (\n" +
-				"	col1 INT8 NOT NULL,\n" +
+				"	col1 INT8 NOT NULL ,\n" +
 				"	col2 VARCHAR(2621440),\n" +
 				"	col3 BYTEA,\n" +
 				"	PRIMARY KEY (col1 DESC)\n" +
@@ -251,7 +251,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 			true,
 			t1,
 			"CREATE TABLE mytable (\n" +
-				"	col1 INT8 NOT NULL,\n" +
+				"	col1 INT8 NOT NULL ,\n" +
 				"	col2 VARCHAR(2621440),\n" +
 				"	col3 BYTEA,\n" +
 				"	PRIMARY KEY (col1 DESC)\n" +
@@ -262,7 +262,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 			false,
 			t2,
 			"CREATE TABLE mytable (\n" +
-				"	col1 INT8 NOT NULL,\n" +
+				"	col1 INT8 NOT NULL ,\n" +
 				"	col2 VARCHAR(2621440),\n" +
 				"	col3 BYTEA,\n" +
 				"	PRIMARY KEY (col1 DESC)\n" +
@@ -327,6 +327,8 @@ func TestPrintForeignKey(t *testing.T) {
 			"ref_table",
 			[]string{"ref_c1", "ref_c2"},
 			"1",
+			constants.NO_ACTION,
+			constants.NO_ACTION,
 		},
 		{
 			"",
@@ -334,6 +336,17 @@ func TestPrintForeignKey(t *testing.T) {
 			"ref_table",
 			[]string{"ref_c1"},
 			"1",
+			constants.CASCADE,
+			constants.NO_ACTION,
+		},
+		{
+			"fk_test",
+			[]string{"c1", "c2"},
+			"ref_table",
+			[]string{"ref_c1", "ref_c2"},
+			"1",
+			"",
+			"",
 		},
 	}
 	tests := []struct {
@@ -343,13 +356,16 @@ func TestPrintForeignKey(t *testing.T) {
 		expected   string
 		fk         Foreignkey
 	}{
-		{"no quote", false, "", "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[0]},
-		{"quote", true, "", "CONSTRAINT `fk_test` FOREIGN KEY (`c1`, `c2`) REFERENCES `ref_table` (`ref_c1`, `ref_c2`)", fk[0]},
-		{"no constraint name", false, "", "FOREIGN KEY (c1) REFERENCES ref_table (ref_c1)", fk[1]},
-		{"quote PG", true, constants.DIALECT_POSTGRESQL, "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[0]},
+		{"no quote", false, "", "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2) ON DELETE NO ACTION", fk[0]},
+		{"quote", true, "", "CONSTRAINT `fk_test` FOREIGN KEY (`c1`, `c2`) REFERENCES `ref_table` (`ref_c1`, `ref_c2`) ON DELETE NO ACTION", fk[0]},
+		{"no constraint name", false, "", "FOREIGN KEY (c1) REFERENCES ref_table (ref_c1) ON DELETE CASCADE", fk[1]},
+		{"quote PG", true, constants.DIALECT_POSTGRESQL, "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2) ON DELETE NO ACTION", fk[0]},
+		{"foreign key constraints not supported i.e. dont print ON DELETE", false, "", "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[2]},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.fk.PrintForeignKey(Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}))
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.fk.PrintForeignKey(Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}))
+		})
 	}
 }
 
@@ -370,6 +386,8 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 					"t2",
 					[]string{"c4", "c5"},
 					"f1",
+					constants.CASCADE,
+					constants.NO_ACTION,
 				},
 				{
 					"",
@@ -377,6 +395,17 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 					"t2",
 					[]string{"c4"},
 					"f2",
+					constants.NO_ACTION,
+					constants.NO_ACTION,
+				},
+				{
+					"fk_test2",
+					[]string{"c1", "c2"},
+					"t2",
+					[]string{"c4", "c5"},
+					"f1",
+					"",
+					"",
 				},
 			},
 		},
@@ -398,13 +427,16 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 		expected   string
 		fk         Foreignkey
 	}{
-		{"no quote", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[0]},
-		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (productid, userid) REFERENCES `table2` (productid, userid)", spannerSchema["t1"].ForeignKeys[0]},
-		{"no constraint name", "t1", false, "", "ALTER TABLE table1 ADD FOREIGN KEY (productid) REFERENCES table2 (productid)", spannerSchema["t1"].ForeignKeys[1]},
-		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[0]},
+		{"no quote", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (productid, userid) REFERENCES `table2` (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"no constraint name", "t1", false, "", "ALTER TABLE table1 ADD FOREIGN KEY (productid) REFERENCES table2 (productid) ON DELETE NO ACTION", spannerSchema["t1"].ForeignKeys[1]},
+		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"foreign key constraints not supported i.e. dont print ON DELETE", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test2 FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[2]},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.fk.PrintForeignKeyAlterTable(spannerSchema, Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}, tc.table))
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.fk.PrintForeignKeyAlterTable(spannerSchema, Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}, tc.table))
+		})
 	}
 }
 
@@ -434,6 +466,134 @@ func TestPGPrintAutoGenCol(t *testing.T) {
 	}
 }
 
+func TestPrintSequence(t *testing.T) {
+	s1 := Sequence{
+		Id:               "s1",
+		Name:             "sequence1",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "",
+		SkipRangeMax:     "",
+		StartWithCounter: "",
+	}
+	s2 := Sequence{
+		Id:               "s2",
+		Name:             "sequence2",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "0",
+		SkipRangeMax:     "1",
+		StartWithCounter: "",
+	}
+	s3 := Sequence{
+		Id:               "s3",
+		Name:             "sequence3",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "",
+		SkipRangeMax:     "",
+		StartWithCounter: "7",
+	}
+	s4 := Sequence{
+		Id:               "s3",
+		Name:             "sequence4",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "0",
+		SkipRangeMax:     "1",
+		StartWithCounter: "7",
+	}
+	tests := []struct {
+		name     string
+		sequence Sequence
+		expected string
+	}{
+		{
+			name:     "no optional values set",
+			sequence: s1,
+			expected: "CREATE SEQUENCE sequence1 OPTIONS (sequence_kind='bit_reversed_positive') ",
+		},
+		{
+			name:     "min and max skip range set",
+			sequence: s2,
+			expected: "CREATE SEQUENCE sequence2 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 1) ",
+		},
+		{
+			name:     "start with counter set",
+			sequence: s3,
+			expected: "CREATE SEQUENCE sequence3 OPTIONS (sequence_kind='bit_reversed_positive', start_with_counter = 7) ",
+		},
+		{
+			name:     "all optional values set",
+			sequence: s4,
+			expected: "CREATE SEQUENCE sequence4 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 1, start_with_counter = 7) ",
+		},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.sequence.PrintSequence())
+	}
+}
+
+func TestPGPrintSequence(t *testing.T) {
+	s1 := Sequence{
+		Id:               "s1",
+		Name:             "sequence1",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "",
+		SkipRangeMax:     "",
+		StartWithCounter: "",
+	}
+	s2 := Sequence{
+		Id:               "s2",
+		Name:             "sequence2",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "0",
+		SkipRangeMax:     "1",
+		StartWithCounter: "",
+	}
+	s3 := Sequence{
+		Id:               "s3",
+		Name:             "sequence3",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "",
+		SkipRangeMax:     "",
+		StartWithCounter: "7",
+	}
+	s4 := Sequence{
+		Id:               "s3",
+		Name:             "sequence4",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "0",
+		SkipRangeMax:     "1",
+		StartWithCounter: "7",
+	}
+	tests := []struct {
+		name     string
+		sequence Sequence
+		expected string
+	}{
+		{
+			name:     "no optional values set",
+			sequence: s1,
+			expected: "CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE",
+		},
+		{
+			name:     "min and max skip range set",
+			sequence: s2,
+			expected: "CREATE SEQUENCE sequence2 BIT_REVERSED_POSITIVE SKIP RANGE 0 1",
+		},
+		{
+			name:     "start with counter set",
+			sequence: s3,
+			expected: "CREATE SEQUENCE sequence3 BIT_REVERSED_POSITIVE START COUNTER WITH 7",
+		},
+		{
+			name:     "all optional values set",
+			sequence: s4,
+			expected: "CREATE SEQUENCE sequence4 BIT_REVERSED_POSITIVE SKIP RANGE 0 1 START COUNTER WITH 7",
+		},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.sequence.PGPrintSequence())
+	}
+}
+
 func TestGetDDL(t *testing.T) {
 	s := Schema{
 		"t1": CreateTable{
@@ -445,7 +605,7 @@ func TestGetDDL(t *testing.T) {
 				"c2": {Name: "b", Id: "c2", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c1"}},
-			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c5"}}},
+			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c5"}, OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
 			Indexes:     []CreateIndex{{Name: "index1", TableId: "t1", Unique: false, Keys: []IndexKey{{ColId: "c2", Desc: false}}}},
 		},
 		"t2": CreateTable{
@@ -458,7 +618,7 @@ func TestGetDDL(t *testing.T) {
 				"c6": {Name: "c", Id: "c6", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c4"}},
-			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c5", "c6"}, ReferTableId: "t3", ReferColumnIds: []string{"c8", "c9"}}},
+			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c5", "c6"}, ReferTableId: "t3", ReferColumnIds: []string{"c8", "c9"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
 			Indexes:     []CreateIndex{{Name: "index2", TableId: "t2", Unique: true, Keys: []IndexKey{{ColId: "c5", Desc: true}, {ColId: "c6", Desc: false}}}},
 		},
 		"t3": CreateTable{
@@ -474,7 +634,7 @@ func TestGetDDL(t *testing.T) {
 			ParentId:    "t1",
 		},
 	}
-	tablesOnly := s.GetDDL(Config{Tables: true, ForeignKeys: false})
+	tablesOnly := GetDDL(Config{Tables: true, ForeignKeys: false}, s, make(map[string]Sequence))
 	e := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT64,\n" +
@@ -496,14 +656,14 @@ func TestGetDDL(t *testing.T) {
 	}
 	assert.ElementsMatch(t, e, tablesOnly)
 
-	fksOnly := s.GetDDL(Config{Tables: false, ForeignKeys: true})
+	fksOnly := GetDDL(Config{Tables: false, ForeignKeys: true}, s, make(map[string]Sequence))
 	e2 := []string{
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
-		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
 	assert.ElementsMatch(t, e2, fksOnly)
 
-	tablesAndFks := s.GetDDL(Config{Tables: true, ForeignKeys: true})
+	tablesAndFks := GetDDL(Config{Tables: true, ForeignKeys: true}, s, make(map[string]Sequence))
 	e3 := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT64,\n" +
@@ -522,10 +682,24 @@ func TestGetDDL(t *testing.T) {
 			"	c INT64,\n" +
 			") PRIMARY KEY (a, b),\n" +
 			"INTERLEAVE IN PARENT table1",
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
-		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
 	assert.ElementsMatch(t, e3, tablesAndFks)
+
+	sequences := make(map[string]Sequence)
+	sequences["s1"] = Sequence{
+		Id:               "s1",
+		Name:             "sequence1",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "0",
+		SkipRangeMax:     "5",
+		StartWithCounter: "7",
+	}
+	e4 := []string{
+		"CREATE SEQUENCE sequence1 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 5, start_with_counter = 7) "}
+	sequencesOnly := GetDDL(Config{}, Schema{}, sequences)
+	assert.ElementsMatch(t, e4, sequencesOnly)
 }
 
 func TestGetPGDDL(t *testing.T) {
@@ -539,7 +713,7 @@ func TestGetPGDDL(t *testing.T) {
 				"c2": {Name: "b", Id: "c2", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c1"}},
-			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}}},
+			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
 			Indexes:     []CreateIndex{{Name: "index1", TableId: "t1", Unique: false, Keys: []IndexKey{{ColId: "c2", Desc: false}}}},
 		},
 		"t2": CreateTable{
@@ -552,7 +726,7 @@ func TestGetPGDDL(t *testing.T) {
 				"c5": {Name: "c", Id: "c5", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c3"}},
-			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c4", "c5"}, ReferTableId: "t3", ReferColumnIds: []string{"c7", "c8"}}},
+			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c4", "c5"}, ReferTableId: "t3", ReferColumnIds: []string{"c7", "c8"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
 			Indexes:     []CreateIndex{{Name: "index2", TableId: "t2", Unique: true, Keys: []IndexKey{{ColId: "c4", Desc: true}, {ColId: "c5", Desc: false}}}},
 		},
 		"t3": CreateTable{
@@ -568,7 +742,7 @@ func TestGetPGDDL(t *testing.T) {
 			ParentId:    "t1",
 		},
 	}
-	tablesOnly := s.GetDDL(Config{Tables: true, ForeignKeys: false, SpDialect: constants.DIALECT_POSTGRESQL})
+	tablesOnly := GetDDL(Config{Tables: true, ForeignKeys: false, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence))
 	e := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT8,\n" +
@@ -592,14 +766,14 @@ func TestGetPGDDL(t *testing.T) {
 	}
 	assert.ElementsMatch(t, e, tablesOnly)
 
-	fksOnly := s.GetDDL(Config{Tables: false, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL})
+	fksOnly := GetDDL(Config{Tables: false, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence))
 	e2 := []string{
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
-		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
 	assert.ElementsMatch(t, e2, fksOnly)
 
-	tablesAndFks := s.GetDDL(Config{Tables: true, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL})
+	tablesAndFks := GetDDL(Config{Tables: true, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence))
 	e3 := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT8,\n" +
@@ -620,10 +794,24 @@ func TestGetPGDDL(t *testing.T) {
 			"	c INT8,\n" +
 			"	PRIMARY KEY (a, b)\n" +
 			") INTERLEAVE IN PARENT table1",
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
-		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
 	assert.ElementsMatch(t, e3, tablesAndFks)
+
+	sequences := make(map[string]Sequence)
+	sequences["s1"] = Sequence{
+		Id:               "s1",
+		Name:             "sequence1",
+		SequenceKind:     "BIT REVERSED POSITIVE",
+		SkipRangeMin:     "0",
+		SkipRangeMax:     "5",
+		StartWithCounter: "7",
+	}
+	e4 := []string{
+		"CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE SKIP RANGE 0 5 START COUNTER WITH 7"}
+	sequencesOnly := GetDDL(Config{SpDialect: constants.DIALECT_POSTGRESQL}, Schema{}, sequences)
+	assert.ElementsMatch(t, e4, sequencesOnly)
 }
 
 func TestGetSortedTableIdsBySpName(t *testing.T) {

@@ -1,6 +1,6 @@
 import { HttpClientModule } from '@angular/common/http'
 import { ComponentFixture, TestBed } from '@angular/core/testing'
-import { MatDialogModule } from '@angular/material/dialog'
+import { MatDialog, MatDialogModule } from '@angular/material/dialog'
 import { By } from '@angular/platform-browser'
 import IColumnTabData from 'src/app/model/edit-table'
 import { ObjectDetailComponent } from './object-detail.component'
@@ -9,17 +9,41 @@ import { MatTabsModule } from '@angular/material/tabs'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { MatDividerModule } from '@angular/material/divider'
 import { MatIconModule } from '@angular/material/icon'
-import { MatSnackBar } from '@angular/material/snack-bar'
-import { ObjectExplorerNodeType } from 'src/app/app.constants'
+import { MatSnackBar} from '@angular/material/snack-bar'
+import { DataService } from 'src/app/services/data/data.service'
+import mockIConv from 'src/mocks/conv'
+import { of } from 'rxjs'
+import { FormBuilder } from '@angular/forms'
+import { FlatNode } from 'src/app/model/schema-object-node'
+import { DropObjectDetailDialogComponent } from '../drop-object-detail-dialog/drop-object-detail-dialog.component'
+import { ObjectDetailNodeType } from 'src/app/app.constants'
 
 describe('ObjectDetailComponent', () => {
   let component: ObjectDetailComponent
   let fixture: ComponentFixture<ObjectDetailComponent>
+  let dataServiceSpy: jasmine.SpyObj<DataService>;
+  let dialogSpyObj: jasmine.SpyObj<MatDialog>;
   let rowData: IColumnTabData[]
+
   beforeEach(async () => {
+    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence']);
+    dataServiceSpy.updateSequence.and.returnValue(of({}));
+    dataServiceSpy.dropSequence.and.returnValue(of(''));
+    dialogSpyObj = jasmine.createSpyObj('MatDialog', ['open']);
+
     await TestBed.configureTestingModule({
       declarations: [ObjectDetailComponent],
-      providers: [MatSnackBar],
+      providers: [
+        MatSnackBar,
+        {
+          provide: DataService,
+          useValue: dataServiceSpy
+        },
+        {
+          provide: MatDialog,
+          useValue: dialogSpyObj
+        }
+      ],
       imports: [
         HttpClientModule,
         MatDialogModule,
@@ -30,6 +54,7 @@ describe('ObjectDetailComponent', () => {
         MatIconModule,
       ],
     }).compileComponents()
+    dataServiceSpy.conv = of(mockIConv);
   })
 
   beforeEach(() => {
@@ -55,7 +80,11 @@ describe('ObjectDetailComponent', () => {
         spAutoGen: {
           Name: '',
           GenerationType: ''
-        }
+        },
+        srcAutoGen: {
+          Name: '',
+          GenerationType: ''
+        },
       },
       {
         spOrder: 2,
@@ -75,7 +104,11 @@ describe('ObjectDetailComponent', () => {
         spAutoGen: {
           Name: '',
           GenerationType: ''
-        }
+        },
+        srcAutoGen: {
+          Name: '',
+          GenerationType: ''
+        },
       },
     ]
     component.fkData = [
@@ -105,10 +138,53 @@ describe('ObjectDetailComponent', () => {
     expect(component).toBeTruthy()
   })
 
-  it('should render default Ui when no table is selected', () => {
+  it('should render default UI when no table is selected', () => {
     component.isObjectSelected = false
     fixture.detectChanges()
     let title = fixture.debugElement.query(By.css('.title'))
     expect(title.nativeElement.textContent).toEqual('OBJECT VIEWER')
   })
-})
+
+  it('should save sequence', () => {
+    let formBuilder = new FormBuilder();
+    component.spRowArray = formBuilder.array([
+      {
+        Id: "s2",
+        spSeqName: 'Test Sequence',
+        spSequenceKind: 'Kind',
+        spSkipRangeMax: '10',
+        spSkipRangeMin: '1',
+        spStartWithCounter: '100'
+      }
+    ]);
+    component.currentObject = { id: 's2' } as FlatNode;
+    component.saveSequence();
+    expect(dataServiceSpy.updateSequence).toHaveBeenCalled();
+  });
+
+  it('should drop sequence and update sidebar', () => {
+    const dialogRefSpyObj = jasmine.createSpyObj({
+      afterClosed: of(ObjectDetailNodeType.Sequence),
+      close: null
+    });
+    dialogSpyObj.open.and.returnValue(dialogRefSpyObj);
+
+    component.currentObject = { id: 's2', name: 'Sequence Name' } as FlatNode;
+    component.isObjectSelected = true;
+    spyOn(component.updateSidebar, 'emit');
+
+    component.dropSequence();
+
+    expect(dialogSpyObj.open).toHaveBeenCalledWith(DropObjectDetailDialogComponent, {
+      width: '100%',
+      minWidth: '50%',
+      maxWidth: '75%',
+      data: { name: 'Sequence Name', type: ObjectDetailNodeType.Sequence },
+    });
+
+    expect(dataServiceSpy.dropSequence).toHaveBeenCalled();
+    expect(component.isObjectSelected).toBe(false);
+    expect(component.updateSidebar.emit).toHaveBeenCalledWith(true);
+    expect(component.currentObject).toBeNull();
+  });
+});

@@ -51,7 +51,7 @@ jobs:
 
     services:
       spanner_emulator:
-        image: gcr.io/cloud-spanner-emulator/emulator:1.5.13
+        image: gcr.io/cloud-spanner-emulator/emulator:1.5.19
         ports:
           - 9010:9010
           - 9020:9020

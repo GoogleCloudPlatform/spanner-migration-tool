@@ -113,6 +113,8 @@ func TestGetTypeMapPostgres(t *testing.T) {
 		"varchar": {
 			{T: ddl.Bytes, DisplayT: ddl.Bytes},
 			{T: ddl.String, DisplayT: ddl.String}},
+		"path": {
+			{T: ddl.String, Brief: reports.IssueDB[internal.NoGoodType].Brief, DisplayT: ddl.String}},
 	}
 	assert.Equal(t, expectedTypemap, typemap)
 
@@ -256,7 +258,7 @@ func TestGetDDL(t *testing.T) {
 						"c2": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						"c3": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1", Desc: false}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
 					Indexes:     []ddl.CreateIndex{{Name: "index1", TableId: "t1", Id: "i1", Keys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}}}},
 				},
 					"t2": {Name: "table2",
@@ -265,8 +267,8 @@ func TestGetDDL(t *testing.T) {
 					},
 				},
 			},
-			expectedDDL: map[string]string{"t1": "CREATE TABLE table1 (\n\ta INT64 NOT NULL,\n\tb INT64 NOT NULL,\n\tc STRING(MAX) NOT NULL,\n) PRIMARY KEY (a);\n\nCREATE INDEX index1 ON table1 (a);\n\nALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES table2 (d);",
-				"t2": "CREATE TABLE table2 (\n\td INT64 NOT NULL,\n) ;"},
+			expectedDDL: map[string]string{"t1": "CREATE TABLE table1 (\n\ta INT64 NOT NULL ,\n\tb INT64 NOT NULL ,\n\tc STRING(MAX) NOT NULL ,\n) PRIMARY KEY (a);\n\nCREATE INDEX index1 ON table1 (a);\n\nALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES table2 (d) ON DELETE CASCADE;",
+				"t2": "CREATE TABLE table2 (\n\td INT64 NOT NULL ,\n) ;"},
 			statusCode: http.StatusOK,
 		},
 	}
@@ -297,6 +299,101 @@ func TestGetDDL(t *testing.T) {
 	}
 }
 
+func TestGetTableWithErrors(t *testing.T) {
+	tc := []struct {
+		name                string
+		conv                *internal.Conv
+		expectedTableIdName []types.TableIdAndName
+		statusCode          int64
+	}{
+		{
+			name: "No tables with TableLevelIssues",
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name: "table1",
+						Id:   "t1",
+					},
+					"t2": {
+						Name: "table2",
+						Id:   "t2",
+					},
+				},
+				SchemaIssues: nil,
+			},
+			expectedTableIdName: nil,
+			statusCode:          http.StatusOK,
+		},
+		{
+			name: "Foreign Key Action Issues in Schema - no table should be returned",
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name: "table1",
+						Id:   "t1",
+					},
+					"t2": {
+						Name: "table2",
+						Id:   "t2",
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t2": {TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnUpdate}},
+					"t1": {TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete}},
+				},
+			},
+			expectedTableIdName: nil,
+			statusCode:          http.StatusOK,
+		},
+		{
+			name: "Multiple tables with error in Schema - all tables should be returned",
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name: "table1",
+						Id:   "t1",
+					},
+					"t2": {
+						Name: "table2",
+						Id:   "t2",
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {TableLevelIssues: []internal.SchemaIssue{internal.RowLimitExceeded}},
+					"t2": {TableLevelIssues: []internal.SchemaIssue{internal.RowLimitExceeded, internal.ForeignKeyOnUpdate}},
+				},
+			},
+			expectedTableIdName: []types.TableIdAndName{
+				types.TableIdAndName{Id: "t1", Name: "table1"},
+				types.TableIdAndName{Id: "t2", Name: "table2"}},
+			statusCode: http.StatusOK,
+		},
+	}
+	for _, tc := range tc {
+		sessionState := session.GetSessionState()
+		sessionState.Conv = tc.conv
+		req, err := http.NewRequest("GET", "/GetTableWithErrors", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(api.GetTableWithErrors)
+		handler.ServeHTTP(rr, req)
+
+		var tableIdName []types.TableIdAndName
+		json.Unmarshal(rr.Body.Bytes(), &tableIdName)
+
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("%s : handler returned wrong status code: got %v want %v",
+				tc.name, status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedTableIdName, tableIdName)
+		}
+	}
+}
+
 func TestDropForeignKey(t *testing.T) {
 	tc := []struct {
 		name         string
@@ -309,14 +406,14 @@ func TestDropForeignKey(t *testing.T) {
 		{
 			name:  "Test drop valid FK success",
 			table: "t1",
-			input: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1"},
-				{Name: "", ColIds: []string{}, ReferTableId: "", ReferColumnIds: []string{}, Id: "f2"}},
+			input: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION},
+				{Name: "", ColIds: []string{}, ReferTableId: "", ReferColumnIds: []string{}, Id: "f2", OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1"},
-							{Name: "fk2", ColIds: []string{"c3", "c4"}, ReferTableId: "reft2", ReferColumnIds: []string{"ref_c2", "ref_c3"}, Id: "f2"}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION},
+							{Name: "fk2", ColIds: []string{"c3", "c4"}, ReferTableId: "reft2", ReferColumnIds: []string{"ref_c2", "ref_c3"}, Id: "f2", OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -325,7 +422,7 @@ func TestDropForeignKey(t *testing.T) {
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1"}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
 					}},
 			},
 		},
@@ -431,7 +528,7 @@ func TestUpdateIndexes(t *testing.T) {
 					}},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
-						Indexes: []schema.Index{{Name: "idx", Id: "i1", Keys: []schema.Key{{ColId: "c2", Desc: false, Order: 2}, {ColId: "c3", Desc: true, Order: 1}}}},
+						Indexes: []schema.Index{{Name: "idx", Id: "i1", Keys: []schema.Key{{ColId: "c2", Desc: false, Order: 1}, {ColId: "c3", Desc: true, Order: 2}}}},
 					},
 				},
 			},
@@ -2230,7 +2327,7 @@ func buildConvPostgres(conv *internal.Conv) {
 		"t1": {
 			Name:   "table1",
 			Id:     "t1",
-			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16"},
+			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17"},
 			ColDefs: map[string]schema.Column{
 				"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: "int8"}},
 				"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: "float4"}},
@@ -2248,6 +2345,7 @@ func buildConvPostgres(conv *internal.Conv) {
 				"c14": {Name: "n", Id: "c14", Type: schema.Type{Name: "text"}},
 				"c15": {Name: "o", Id: "c15", Type: schema.Type{Name: "timestamp"}},
 				"c16": {Name: "p", Id: "c16", Type: schema.Type{Name: "bool"}},
+				"c17": {Name: "q", Id: "c17", Type: schema.Type{Name: "path"}},
 			},
 			PrimaryKeys: []schema.Key{{ColId: "c1"}}},
 		"t2": {
@@ -2264,7 +2362,7 @@ func buildConvPostgres(conv *internal.Conv) {
 		"t1": {
 			Name:   "table1",
 			Id:     "t1",
-			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16"},
+			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"c1":  {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 				"c2":  {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
@@ -2282,6 +2380,7 @@ func buildConvPostgres(conv *internal.Conv) {
 				"c14": {Name: "n", Id: "c14", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"c15": {Name: "o", Id: "c15", T: ddl.Type{Name: ddl.Timestamp}},
 				"c16": {Name: "p", Id: "c16", T: ddl.Type{Name: ddl.Int64}},
+				"c17": {Name: "q", Id: "c17", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 		},
@@ -2302,11 +2401,12 @@ func buildConvPostgres(conv *internal.Conv) {
 	conv.SchemaIssues = map[string]internal.TableIssues{
 		"t1": {
 			ColumnLevelIssues: map[string][]internal.SchemaIssue{
-				"c2":  {internal.Widened},   //b
-				"c7":  {internal.Serial},    //g
-				"c12": {internal.Widened},   //l
-				"c13": {internal.Serial},    //m
-				"c15": {internal.Timestamp}, //o
+				"c2":  {internal.Widened},    //b
+				"c7":  {internal.Serial},     //g
+				"c12": {internal.Widened},    //l
+				"c13": {internal.Serial},     //m
+				"c15": {internal.Timestamp},  //o
+				"c17": {internal.NoGoodType}, //q
 			},
 		},
 		"t2": {
@@ -2324,14 +2424,23 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 	sessionState.Driver = constants.MYSQL
 	sessionState.Conv = internal.MakeConv()
 	buildConvMySQL(sessionState.Conv)
+
+	sequences := make(map[string]ddl.Sequence)
+	sequences["s1"] = ddl.Sequence{
+		Name:         "Sequence1",
+		Id:           "s1",
+		SequenceKind: "BIT REVERSED POSITIVE",
+	}
+	sessionState.Conv.SpSequences = sequences
+
 	expectedAutoGenMapPostgres := map[string][]types.AutoGen{
 		"BOOL":        {types.AutoGen{Name: "", GenerationType: ""}},
 		"BYTEA":       {types.AutoGen{Name: "", GenerationType: ""}},
 		"DATE":        {types.AutoGen{Name: "", GenerationType: ""}},
-		"FLOAT64":     {types.AutoGen{Name: "", GenerationType: ""}},
-		"FLOAT8":      {types.AutoGen{Name: "", GenerationType: ""}},
-		"INT64":       {types.AutoGen{Name: "", GenerationType: ""}},
-		"INT8":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"FLOAT8":      {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"INT64":       {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"INT8":        {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
 		"JSONB":       {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"TIMESTAMPTZ": {types.AutoGen{Name: "", GenerationType: ""}},
@@ -2341,8 +2450,8 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		"BOOL":      {types.AutoGen{Name: "", GenerationType: ""}},
 		"BYTES":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"DATE":      {types.AutoGen{Name: "", GenerationType: ""}},
-		"FLOAT64":   {types.AutoGen{Name: "", GenerationType: ""}},
-		"INT64":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT64":   {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"INT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
 		"JSON":      {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":   {types.AutoGen{Name: "", GenerationType: ""}},
 		"STRING":    {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}},

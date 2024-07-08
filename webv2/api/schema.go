@@ -362,12 +362,14 @@ func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	defer sessionState.Conv.ConvLock.RUnlock()
 	var tableIdName []types.TableIdAndName
 	for id, issues := range sessionState.Conv.SchemaIssues {
-		if len(issues.TableLevelIssues) != 0 {
-			t := types.TableIdAndName{
-				Id:   id,
-				Name: sessionState.Conv.SpSchema[id].Name,
+		for _, issue := range issues.TableLevelIssues {
+			if reports.IssueDB[issue].Severity == reports.Errors {
+				t := types.TableIdAndName{
+					Id:   id,
+					Name: sessionState.Conv.SpSchema[id].Name,
+				}
+				tableIdName = append(tableIdName, t)
 			}
-			tableIdName = append(tableIdName, t)
 		}
 	}
 	w.WriteHeader(http.StatusOK)
@@ -847,25 +849,6 @@ func UpdateIndexes(w http.ResponseWriter, r *http.Request) {
 			sp.Indexes[i].Id = newIndexes[0].Id
 
 			break
-		}
-	}
-
-	for i, spIndex := range sp.Indexes {
-
-		for j, srcIndex := range st.Indexes {
-
-			for k, spIndexKey := range spIndex.Keys {
-
-				for l, srcIndexKey := range srcIndex.Keys {
-
-					if srcIndexKey.ColId == spIndexKey.ColId {
-
-						st.Indexes[j].Keys[l].Order = sp.Indexes[i].Keys[k].Order
-					}
-
-				}
-			}
-
 		}
 	}
 
@@ -1445,7 +1428,7 @@ func initializeTypeMap() {
 	}
 	// Initialize postgresTypeMap.
 	toddl = postgres.InfoSchemaImpl{}.GetToDdl()
-	for _, srcTypeName := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
+	for _, srcTypeName := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying", "path"} {
 		var l []types.TypeIssue
 		srcType := schema.MakeType()
 		srcType.Name = srcTypeName
@@ -1559,42 +1542,64 @@ func initializeAutoGenMap() {
 	autoGenMap = make(map[string][]types.AutoGen)
 	switch sessionState.Conv.SpDialect {
 	case constants.DIALECT_POSTGRESQL:
-		makePostgresDialectAutoGenMap()
+		makePostgresDialectAutoGenMap(sessionState.Conv.SpSequences)
 		return
 	default:
-		makeGoogleSqlDialectAutoGenMap()
+		makeGoogleSqlDialectAutoGenMap(sessionState.Conv.SpSequences)
 		return
 	}
 }
 
-func makePostgresDialectAutoGenMap() {
+func makePostgresDialectAutoGenMap(sequences map[string]ddl.Sequence) {
 	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar, ddl.Numeric} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
-				Name: "",
+				Name:           "",
 				GenerationType: "",
 			},
 		}
 	}
 	autoGenMap[ddl.PGVarchar] = append(autoGenMap[ddl.PGVarchar],
 		types.AutoGen{
-			Name: "UUID",
+			Name:           "UUID",
 			GenerationType: "Pre-defined",
 		})
+
+	typesSupportingSequences := []string{ddl.Float64, ddl.Int64, ddl.PGFloat8, ddl.PGInt8}
+	for _, seq := range sequences {
+		for _, srcTypeName := range typesSupportingSequences {
+			autoGenMap[srcTypeName] = append(autoGenMap[srcTypeName],
+				types.AutoGen{
+					Name:           seq.Name,
+					GenerationType: "Sequence",
+				})
+		}
+	}
 }
 
-func makeGoogleSqlDialectAutoGenMap() {
+func makeGoogleSqlDialectAutoGenMap(sequences map[string]ddl.Sequence) {
 	for _, srcTypeName := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
-				Name: "",
+				Name:           "",
 				GenerationType: "",
 			},
 		}
 	}
 	autoGenMap[ddl.String] = append(autoGenMap[ddl.String],
 		types.AutoGen{
-			Name: "UUID",
+			Name:           "UUID",
 			GenerationType: "Pre-defined",
 		})
+
+	typesSupportingSequences := []string{ddl.Float64, ddl.Int64}
+	for _, seq := range sequences {
+		for _, srcTypeName := range typesSupportingSequences {
+			autoGenMap[srcTypeName] = append(autoGenMap[srcTypeName],
+				types.AutoGen{
+					Name:           seq.Name,
+					GenerationType: "Sequence",
+				})
+		}
+	}
 }

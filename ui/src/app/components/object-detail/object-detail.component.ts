@@ -4,10 +4,10 @@ import IUpdateTable from '../../model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
-import IColumnTabData, { AutoGen, IIndexData } from '../../model/edit-table'
+import IColumnTabData, { IIndexData, ISequenceData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, SourceDbNames, StorageKeys } from 'src/app/app.constants'
+import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, SourceDbNames, StorageKeys, dialogConfigAddSequence, dialogConfigDropComponent} from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/'
@@ -18,11 +18,16 @@ import IConv, {
   IPrimaryKey,
 } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
-import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
+import { DropObjectDetailDialogComponent } from '../drop-object-detail-dialog/drop-object-detail-dialog.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
 import { AddNewColumnComponent } from '../add-new-column/add-new-column.component'
-import { GroupedAutoGens, processAutoGens } from 'src/app/utils/utils'
+import { GroupedAutoGens, extractSourceDbName, processAutoGens } from 'src/app/utils/utils'
+import { AddNewSequenceComponent } from '../add-new-sequence/add-new-sequence.component'
+import { linkedFieldsValidatorSequence } from 'src/app/utils/utils';
+import { FetchService } from 'src/app/services/fetch/fetch.service'
+import ICreateSequence from 'src/app/model/auto-gen'
+import { autoGenSupportedDbs } from 'src/app/app.constants'
 
 @Component({
   selector: 'app-object-detail',
@@ -39,6 +44,7 @@ export class ObjectDetailComponent implements OnInit {
     private sidenav: SidenavService,
     private tableUpdatePubSub: TableUpdatePubSubService,
     private fb: FormBuilder,
+    private fetchSerice: FetchService,
   ) { }
 
   @Input() currentObject: FlatNode | null = null
@@ -50,6 +56,7 @@ export class ObjectDetailComponent implements OnInit {
   @Input() tableData: IColumnTabData[] = []
   @Input() currentDatabase: string = 'spanner'
   @Input() indexData: IIndexData[] = []
+  @Input() sequenceData: ISequenceData = {}
   @Input() srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   @Output() updateSidebar = new EventEmitter<boolean>()
   ObjectExplorerNodeType = ObjectExplorerNodeType
@@ -59,11 +66,12 @@ export class ObjectDetailComponent implements OnInit {
   interleaveParentName: string | null = null
   localTableData: IColumnTabData[] = []
   localIndexData: IIndexData[] = []
+  localSequenceData: ISequenceData = {}
   isMiddleColumnCollapse: boolean = false
   isPostgreSQLDialect: boolean = false
   processedAutoGenMap: GroupedAutoGens = {};
-  autoGenSupportedDbs: string[] = ['MySQL']
-  autGenSupported: boolean = false
+  sequenceKinds: string[] = []
+  autoGenSupported: boolean = false
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
@@ -71,7 +79,10 @@ export class ObjectDetailComponent implements OnInit {
         this.isPostgreSQLDialect = this.conv.SpDialect === Dialect.PostgreSQLDialect
       },
     })
-    this.autGenSupported = this.autoGenSupportedDbs.includes(this.srcDbName)
+    if (this.conv.DatabaseType) {
+      this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
+    }
+    this.autoGenSupported = autoGenSupportedDbs.includes(this.srcDbName)
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
@@ -111,6 +122,14 @@ export class ObjectDetailComponent implements OnInit {
     'spIndexOrder',
     'dropButton',
   ]
+
+  sequenceDisplayedColumns = [
+    "spSeqName",
+    "spSequenceKind",
+    "spSkipRangeMin",
+    "spSkipRangeMax",
+    "spStartWithCounter",
+  ]
   spDataSource: any = []
   srcDataSource: any = []
   fkDataSource: any = []
@@ -120,6 +139,7 @@ export class ObjectDetailComponent implements OnInit {
   isEditMode: boolean = false
   isFkEditMode: boolean = false
   isIndexEditMode: boolean = false
+  isSequenceEditMode: boolean = false
   isObjectSelected: boolean = false
   srcRowArray: FormArray = this.fb.array([])
   spRowArray: FormArray = this.fb.array([])
@@ -148,14 +168,16 @@ export class ObjectDetailComponent implements OnInit {
   pkObj: IPrimaryKey = {} as IPrimaryKey
   dataTypesWithColLen: string[] = ColLength.DataTypes
   spColspan : number = 6
+  srcColspan : number = 6
 
   ngOnChanges(changes: SimpleChanges): void {
     this.fkData = changes['fkData']?.currentValue || this.fkData
     this.currentObject = changes['currentObject']?.currentValue || this.currentObject
     this.tableData = changes['tableData']?.currentValue || this.tableData
     this.indexData = changes['indexData']?.currentValue || this.indexData
+    this.sequenceData = changes['sequenceData']?.currentValue || this.sequenceData
     this.currentDatabase = changes['currentDatabase']?.currentValue || this.currentDatabase
-    this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Table ? 0 : -1
+    this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Index || this.currentObject?.type === ObjectExplorerNodeType.Sequence? -1 : 0
     this.isObjectSelected = this.currentObject ? true : false
     this.pkData = this.conversion.getPkMapping(this.tableData)
     this.interleaveParentName = this.getInterleaveParentFromConv()
@@ -163,6 +185,7 @@ export class ObjectDetailComponent implements OnInit {
     this.isEditMode = false
     this.isFkEditMode = false
     this.isIndexEditMode = false
+    this.isSequenceEditMode = false
     this.isPkEditMode = false
     this.srcRowArray = this.fb.array([])
     this.spRowArray = this.fb.array([])
@@ -173,10 +196,15 @@ export class ObjectDetailComponent implements OnInit {
 
     this.localTableData = JSON.parse(JSON.stringify(this.tableData))
     this.localIndexData = JSON.parse(JSON.stringify(this.indexData))
+    this.localSequenceData = JSON.parse(JSON.stringify(this.sequenceData))
 
     if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
       this.spDisplayedColumns.splice(2, 0, "spAutoGen");
+      this.displayedPkColumns.splice(8, 0, "spAutoGen");
+      this.srcDisplayedColumns.splice(2, 0, "srcAutoGen");
+      this.displayedPkColumns.splice(2, 0, "srcAutoGen");
       this.spColspan++;
+      this.srcColspan++;
     }
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
@@ -199,6 +227,13 @@ export class ObjectDetailComponent implements OnInit {
     } else if (this.currentObject?.type === ObjectExplorerNodeType.Index) {
       this.indexOrderValidation()
       this.setIndexRows()
+    } else if (this.currentObject?.type === ObjectExplorerNodeType.Sequence) {
+      this.setSequence()
+      this.fetchSerice.getSequenceKind().subscribe(
+        (sequenceKinds: any) => {
+          this.sequenceKinds = sequenceKinds;
+        }
+      );
     }
 
     this.data.getSummary()
@@ -215,6 +250,7 @@ export class ObjectDetailComponent implements OnInit {
           srcIsPk: new FormControl(row.srcIsPk),
           srcIsNotNull: new FormControl(row.srcIsNotNull),
           srcColMaxLength: new FormControl(row.srcColMaxLength),
+          srcAutoGen: new FormControl(row.srcAutoGen),
           spOrder: new FormControl(row.srcOrder),
           spColName: new FormControl(row.spColName, [
             Validators.required,
@@ -265,6 +301,7 @@ export class ObjectDetailComponent implements OnInit {
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
             srcColMaxLength: new FormControl(col.srcColMaxLength),
+            srcAutoGen: new FormControl(col.srcAutoGen),
             spOrder: new FormControl(col.spOrder),
             spColName: new FormControl(col.spColName),
             spDataType: new FormControl(col.spDataType),
@@ -277,6 +314,21 @@ export class ObjectDetailComponent implements OnInit {
           })
         )
       } else {
+        // If the default type map doesn't have the source datatype as key then fallback to STRING with max length
+        let droppedColumnSpDataType = ''
+        let droppedColumnSpMaxLength = col.srcColMaxLength
+        if (this.defaultTypeMap[col.srcDataType] === undefined) {
+          droppedColumnSpDataType = 'STRING'
+          droppedColumnSpMaxLength = 'MAX'
+        } else {
+          droppedColumnSpDataType = this.defaultTypeMap[col.srcDataType].Name
+        }
+
+        // If the source max column length is empty but spanner datatype is STRING or BYTES, set column length to MAX
+        if (droppedColumnSpMaxLength == '' && (droppedColumnSpDataType == 'STRING' || droppedColumnSpDataType == 'BYTES')) {
+          droppedColumnSpMaxLength = 'MAX'
+        }
+        
         this.srcRowArray.push(
           new FormGroup({
             srcOrder: new FormControl(col.srcOrder),
@@ -285,14 +337,15 @@ export class ObjectDetailComponent implements OnInit {
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
             srcColMaxLength: new FormControl(col.srcColMaxLength),
+            srcAutoGen: new FormControl(col.srcAutoGen),
             spOrder: new FormControl(col.srcOrder),
             spColName: new FormControl(col.srcColName),
             spDataType: new FormControl(
-              this.defaultTypeMap[col.srcDataType].Name
+              droppedColumnSpDataType
             ),
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
-            spColMaxLength: new FormControl(col.srcColMaxLength),
+            spColMaxLength: new FormControl(droppedColumnSpMaxLength),
             spAutoGen: new FormControl(col.spAutoGen)
           })
         )
@@ -422,6 +475,11 @@ export class ObjectDetailComponent implements OnInit {
         tableId: this.currentObject?.id,
       }
     })
+  }
+
+  addNewSequence() {
+    this.dialog.open(AddNewSequenceComponent, dialogConfigAddSequence)
+    this.updateSidebar.emit(true)
   }
 
   setColumn(columnName: string) {
@@ -586,6 +644,7 @@ export class ObjectDetailComponent implements OnInit {
           srcIsPk: row.srcIsPk,
           srcOrder: row.srcOrder,
           srcId: row.srcId,
+          srcAutoGen: row.srcAutoGen
         })
       }
       if (row.spIsPk) {
@@ -613,6 +672,7 @@ export class ObjectDetailComponent implements OnInit {
           srcDataType: new FormControl(srcArr[i].srcDataType),
           srcIsPk: new FormControl(srcArr[i].srcIsPk),
           srcIsNotNull: new FormControl(srcArr[i].srcIsNotNull),
+          srcAutoGen: new FormControl(srcArr[i].srcAutoGen),
           spOrder: new FormControl(spArr[i].spOrder, [
             Validators.required,
             Validators.pattern('^[1-9][0-9]*$'),
@@ -635,6 +695,7 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(srcArr[i].srcDataType),
             srcIsPk: new FormControl(srcArr[i].srcIsPk),
             srcIsNotNull: new FormControl(srcArr[i].srcIsNotNull),
+            srcAutoGen: new FormControl(srcArr[i].srcAutoGen),
             srcId: new FormControl(srcArr[i].srcId),
             spOrder: new FormControl(''),
             spColName: new FormControl(''),
@@ -655,6 +716,10 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(''),
             srcIsPk: new FormControl(false),
             srcIsNotNull: new FormControl(false),
+            srcAutoGen: new FormControl({
+              Name: "",
+              GenerationType: ""
+            }),
             srcId: new FormControl(''),
             spOrder: new FormControl(spArr[i].spOrder),
             spColName: new FormControl(spArr[i].spColName),
@@ -662,7 +727,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(spArr[i].spIsPk),
             spIsNotNull: new FormControl(spArr[i].spIsNotNull),
             spId: new FormControl(spArr[i].spId),
-            spAutoGenGen: new FormControl(spArr[i].spAutoGen)
+            spAutoGen: new FormControl(spArr[i].spAutoGen)
           })
         )
       }
@@ -1188,6 +1253,23 @@ export class ObjectDetailComponent implements OnInit {
     }
   }
 
+  setSequence() {
+    this.spRowArray = this.fb.array([])
+    this.spRowArray.push(
+      new FormGroup({
+        spSeqName: new FormControl(this.localSequenceData.spSeqName, [
+            Validators.required,
+            Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?')
+        ]),
+        spSequenceKind: new FormControl(this.localSequenceData.spSequenceKind, Validators.required),
+        spSkipRangeMin: new FormControl(this.localSequenceData.spSkipRangeMin, Validators.pattern('^[0-9]+$')),
+        spSkipRangeMax: new FormControl(this.localSequenceData.spSkipRangeMax, Validators.pattern('^[0-9]+$')),
+        spStartWithCounter: new FormControl(this.localSequenceData.spStartWithCounter, Validators.pattern('^[0-9]+$'))
+    }, { validators: linkedFieldsValidatorSequence('spSkipRangeMin', 'spSkipRangeMax') })
+    )
+    this.spDataSource = this.spRowArray.controls
+  }
+
   toggleIndexEdit() {
     if (this.isIndexEditMode) {
       this.localIndexData = JSON.parse(JSON.stringify(this.indexData))
@@ -1195,6 +1277,16 @@ export class ObjectDetailComponent implements OnInit {
       this.isIndexEditMode = false
     } else {
       this.isIndexEditMode = true
+    }
+  }
+
+  toggleSequenceEdit() {
+    if (this.isSequenceEditMode) {
+      this.localSequenceData = JSON.parse(JSON.stringify(this.sequenceData))
+      this.setSequence()
+      this.isSequenceEditMode = false
+    } else {
+      this.isSequenceEditMode = true
     }
   }
 
@@ -1245,8 +1337,24 @@ export class ObjectDetailComponent implements OnInit {
     }
   }
 
+  saveSequence() {
+    this.spRowArray.value.forEach((seqData: ISequenceData) => {
+      let payload : ICreateSequence = {
+        Name: seqData.spSeqName ? seqData.spSeqName: '',
+        Id: this.currentObject!.id,
+        SequenceKind: seqData.spSequenceKind ? seqData.spSequenceKind : '',
+        SkipRangeMax: seqData.spSkipRangeMax ? seqData.spSkipRangeMax : '',
+        SkipRangeMin: seqData.spSkipRangeMin ? seqData.spSkipRangeMin : '',
+        StartWithCounter: seqData.spStartWithCounter ? seqData.spStartWithCounter : ''
+      }
+      this.data.updateSequence(payload).pipe(take(1))
+      .subscribe(() => {})
+    })
+    this.isSequenceEditMode = false
+  }
+
   dropIndex() {
-    let openDialog = this.dialog.open(DropIndexOrTableDialogComponent, {
+    let openDialog = this.dialog.open(DropObjectDetailDialogComponent, {
       width: '35vw',
       minWidth: '450px',
       maxWidth: '600px',
@@ -1256,6 +1364,26 @@ export class ObjectDetailComponent implements OnInit {
       if (res === ObjectDetailNodeType.Index) {
         this.data
           .dropIndex(this.currentObject!.parentId, this.currentObject!.id)
+          .pipe(take(1))
+          .subscribe((res: string) => {
+            if (res === '') {
+              this.isObjectSelected = false
+              this.updateSidebar.emit(true)
+            }
+          })
+        this.currentObject = null
+      }
+    })
+  }
+
+  dropSequence() {
+    let dialogConfig = dialogConfigDropComponent
+    dialogConfig.data = { name: this.currentObject?.name, type: ObjectDetailNodeType.Sequence }
+    let openDialog = this.dialog.open(DropObjectDetailDialogComponent, dialogConfig)
+    openDialog.afterClosed().subscribe((res: string) => {
+      if (res === ObjectDetailNodeType.Sequence) {
+        this.data
+          .dropSequence(this.currentObject!.id)
           .pipe(take(1))
           .subscribe((res: string) => {
             if (res === '') {
@@ -1333,7 +1461,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropTable() {
-    let openDialog = this.dialog.open(DropIndexOrTableDialogComponent, {
+    let openDialog = this.dialog.open(DropObjectDetailDialogComponent, {
       width: '35vw',
       minWidth: '450px',
       maxWidth: '600px',
