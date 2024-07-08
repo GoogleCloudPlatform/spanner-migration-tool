@@ -345,7 +345,7 @@ func TestGetTableWithErrors(t *testing.T) {
 			expectedTableIdName: nil,
 			statusCode:          http.StatusOK,
 		},
-		/*{
+		{
 			name: "Multiple tables with error in Schema - all tables should be returned",
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -367,7 +367,7 @@ func TestGetTableWithErrors(t *testing.T) {
 				types.TableIdAndName{Id: "t1", Name: "table1"},
 				types.TableIdAndName{Id: "t2", Name: "table2"}},
 			statusCode: http.StatusOK,
-		},*/
+		},
 	}
 	for _, tc := range tc {
 		sessionState := session.GetSessionState()
