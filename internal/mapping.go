@@ -158,18 +158,12 @@ func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
 // generate a warning message for the user
 func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) string {
 	srcDeleteRule = strings.ToUpper(srcDeleteRule)
-	if srcDeleteRule == "NO ACTION" || srcDeleteRule == "CASCADE" {
+	if srcDeleteRule == "NO ACTION" || srcDeleteRule == "CASCADE" || srcDeleteRule == "" {
 		return srcDeleteRule
 	}
 
 	if conv.SchemaIssues == nil {
 		conv.SchemaIssues = make(map[string]TableIssues)
-	}
-	if srcDeleteRule == "" {
-		conv.SchemaIssues[srcTableId] = TableIssues{
-			TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyActionsNotSupported),
-			ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
-		return ""
 	}
 	conv.SchemaIssues[srcTableId] = TableIssues{
 		TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyOnDelete),
@@ -192,18 +186,12 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 // generate a warning message for the user
 func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) string {
 	srcUpdateRule = strings.ToUpper(srcUpdateRule)
-	if srcUpdateRule == "NO ACTION" {
+	if srcUpdateRule == "NO ACTION" || srcUpdateRule == "" {
 		return srcUpdateRule
 	}
 
 	if conv.SchemaIssues == nil {
 		conv.SchemaIssues = make(map[string]TableIssues)
-	}
-	if srcUpdateRule == "" {
-		conv.SchemaIssues[srcTableId] = TableIssues{
-			TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyActionsNotSupported),
-			ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
-		return ""
 	}
 	conv.SchemaIssues[srcTableId] = TableIssues{
 		TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyOnUpdate),
