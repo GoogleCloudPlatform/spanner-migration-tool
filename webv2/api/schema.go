@@ -372,6 +372,9 @@ func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	sort.Slice(tableIdName, func(i, j int) bool {
+		return tableIdName[i].Name < tableIdName[j].Name
+	})
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tableIdName)
 }
