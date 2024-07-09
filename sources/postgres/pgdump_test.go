@@ -225,14 +225,14 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
 				}},
 		},
 		{
 			name: "Alter table with single foreign key",
 			input: "CREATE TABLE test (a bigint PRIMARY KEY, b text );\n" +
 				"CREATE TABLE test2 (c bigint, d bigint);\n" +
-				"ALTER TABLE ONLY test2 ADD CONSTRAINT fk_test FOREIGN KEY (d) REFERENCES test(a) ON UPDATE CASCADE ON DELETE RESTRICT;\n",
+				"ALTER TABLE ONLY test2 ADD CONSTRAINT fk_test FOREIGN KEY (d) REFERENCES test(a) ON DELETE CASCADE ON UPDATE RESTRICT;\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:   "test",
@@ -251,14 +251,14 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
 				}},
 		},
 		{
 			name: "Alter table with single foreign key multiple column",
 			input: "CREATE TABLE test (a bigint PRIMARY KEY, b bigint, c text );\n" +
 				"CREATE TABLE test2 (c bigint, d bigint);\n" +
-				"ALTER TABLE ONLY test2 ADD CONSTRAINT fk_test FOREIGN KEY (c,d) REFERENCES test(a,b) ON UPDATE CASCADE ON DELETE RESTRICT;\n",
+				"ALTER TABLE ONLY test2 ADD CONSTRAINT fk_test FOREIGN KEY (c,d) REFERENCES test(a,b) ON DELETE SET NULL ON UPDATE NO ACTION;\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:   "test",
@@ -278,7 +278,7 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c", "d"}, ReferTableId: "test", ReferColumnIds: []string{"a", "b"}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c", "d"}, ReferTableId: "test", ReferColumnIds: []string{"a", "b"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
 				}},
 		},
 		{
@@ -286,8 +286,8 @@ func TestProcessPgDump(t *testing.T) {
 			input: "CREATE TABLE test (a bigint PRIMARY KEY, b text );\n" +
 				"CREATE TABLE test2 (c bigint PRIMARY KEY, d text );\n" +
 				"CREATE TABLE test3 (e bigint, f bigint, g text );\n" +
-				"ALTER TABLE ONLY test3 ADD CONSTRAINT fk_test FOREIGN KEY (e) REFERENCES test (a);\n" +
-				"ALTER TABLE ONLY test3 ADD CONSTRAINT fk_test2 FOREIGN KEY (f) REFERENCES test2 (c);",
+				"ALTER TABLE ONLY test3 ADD CONSTRAINT fk_test FOREIGN KEY (e) REFERENCES test (a) ON DELETE SET DEFAULT;\n" +
+				"ALTER TABLE ONLY test3 ADD CONSTRAINT fk_test2 FOREIGN KEY (f) REFERENCES test2 (c) ON UPDATE CASCADE;",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:   "test",
@@ -315,8 +315,8 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"e"}, ReferTableId: "test", ReferColumnIds: []string{"a"}},
-						ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"f"}, ReferTableId: "test2", ReferColumnIds: []string{"c"}}}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"e"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION},
+						ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"f"}, ReferTableId: "test2", ReferColumnIds: []string{"c"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}}}},
 		},
 		{
 			name: "Create index statement",
@@ -901,14 +901,14 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
 				}},
 		},
 		{
 			name: "Alter table with single foreign key",
 			input: "CREATE TABLE test (a bigint PRIMARY KEY, b text );\n" +
 				"CREATE TABLE test2 (c bigint, d bigint);\n" +
-				"ALTER TABLE ONLY test2 ADD CONSTRAINT fk_test FOREIGN KEY (d) REFERENCES test(a) ON UPDATE CASCADE ON DELETE RESTRICT;\n",
+				"ALTER TABLE ONLY test2 ADD CONSTRAINT fk_test FOREIGN KEY (d) REFERENCES test(a) ON DELETE CASCADE ON UPDATE RESTRICT;\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:   "test",
@@ -927,14 +927,14 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
 				}},
 		},
 		{
 			name: "Alter table with single foreign key multiple column",
 			input: "CREATE TABLE test (a bigint PRIMARY KEY, b bigint, c text );\n" +
 				"CREATE TABLE test2 (c bigint, d bigint);\n" +
-				"ALTER TABLE ONLY test2 ADD CONSTRAINT fk_test FOREIGN KEY (c,d) REFERENCES test(a,b) ON UPDATE CASCADE ON DELETE RESTRICT;\n",
+				"ALTER TABLE ONLY test2 ADD CONSTRAINT fk_test FOREIGN KEY (c,d) REFERENCES test(a,b) ON UPDATE SET NULL;\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:   "test",
@@ -954,7 +954,7 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c", "d"}, ReferTableId: "test", ReferColumnIds: []string{"a", "b"}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c", "d"}, ReferTableId: "test", ReferColumnIds: []string{"a", "b"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
 				}},
 		},
 		{
@@ -962,7 +962,7 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 			input: "CREATE TABLE test (a bigint PRIMARY KEY, b text );\n" +
 				"CREATE TABLE test2 (c bigint PRIMARY KEY, d text );\n" +
 				"CREATE TABLE test3 (e bigint, f bigint, g text );\n" +
-				"ALTER TABLE ONLY test3 ADD CONSTRAINT fk_test FOREIGN KEY (e) REFERENCES test (a);\n" +
+				"ALTER TABLE ONLY test3 ADD CONSTRAINT fk_test FOREIGN KEY (e) REFERENCES test (a) ON DELETE CASCADE;\n" +
 				"ALTER TABLE ONLY test3 ADD CONSTRAINT fk_test2 FOREIGN KEY (f) REFERENCES test2 (c);",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
@@ -991,8 +991,8 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"e"}, ReferTableId: "test", ReferColumnIds: []string{"a"}},
-						ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"f"}, ReferTableId: "test2", ReferColumnIds: []string{"c"}}}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"e"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION},
+						ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"f"}, ReferTableId: "test2", ReferColumnIds: []string{"c"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}}}},
 		},
 		{
 			name: "Create index statement",

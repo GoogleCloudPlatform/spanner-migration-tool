@@ -413,6 +413,10 @@ export class ConversionService {
         spColIds: spColIds,
         spReferColumnIds: spReferColumnIds,
         spReferTableId: spFk ? spFk.ReferTableId : '',
+        srcOnDelete: srcFk.OnDelete,
+        spOnDelete: spFk ? spFk.OnDelete : '',
+        srcOnUpdate: srcFk.OnUpdate,
+        spOnUpdate: spFk? spFk.OnUpdate : '',
       }
     })
   }

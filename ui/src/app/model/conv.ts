@@ -124,6 +124,8 @@ export interface IForeignKey {
   ReferTableId: string
   ReferColumnIds: string[]
   Id: string | undefined
+  OnDelete: string
+  OnUpdate: string
 }
 
 export interface IIndexKey {
