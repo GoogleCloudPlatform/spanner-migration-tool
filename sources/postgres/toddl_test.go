@@ -15,6 +15,7 @@
 package postgres
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -185,10 +186,17 @@ func TestToSpannerType(t *testing.T) {
 			ddl.CreateIndex{Name: "index2", TableId: tableId, Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c4", Desc: true}}}},
 	}
 	assert.Equal(t, expected, actual)
-	expectedIssues := map[string][]internal.SchemaIssue{
-		"c2": []internal.SchemaIssue{internal.Widened},
+	expectedIssues := internal.TableIssues{
+		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete, internal.ForeignKeyOnUpdate},
+		ColumnLevelIssues: map[string][]internal.SchemaIssue{
+			"c2": []internal.SchemaIssue{internal.Widened}},
 	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
+	actualIssues := conv.SchemaIssues[tableId]
+	sort.Slice(actualIssues.TableLevelIssues, func(i, j int) bool {
+		return actualIssues.TableLevelIssues[i] < actualIssues.TableLevelIssues[j]
+	})
+
+	assert.Equal(t, expectedIssues, actualIssues)
 }
 
 // This is just a very basic smoke-test for toExperimentalSpannerType.
@@ -267,10 +275,17 @@ func TestToExperimentalSpannerType(t *testing.T) {
 			ddl.CreateIndex{Name: "index2", TableId: tableId, Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c4", Desc: true}}}},
 	}
 	assert.Equal(t, expected, actual)
-	expectedIssues := map[string][]internal.SchemaIssue{
-		"c2": []internal.SchemaIssue{internal.Widened},
+	expectedIssues := internal.TableIssues{
+		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete, internal.ForeignKeyOnUpdate},
+		ColumnLevelIssues: map[string][]internal.SchemaIssue{
+			"c2": []internal.SchemaIssue{internal.Widened}},
 	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
+	actualIssues := conv.SchemaIssues[tableId]
+	sort.Slice(actualIssues.TableLevelIssues, func(i, j int) bool {
+		return actualIssues.TableLevelIssues[i] < actualIssues.TableLevelIssues[j]
+	})
+
+	assert.Equal(t, expectedIssues, actualIssues)
 }
 
 func dropComments(t *ddl.CreateTable) {
