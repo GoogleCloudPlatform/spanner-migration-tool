@@ -4,6 +4,31 @@
       <h5>This form is optional and should only be edited to tune runtime environment for Dataflow.</h5>
 
       <mat-expansion-panel>
+        <mat-expansion-panel-header class="mat-row" matTooltip="Edit to run custom transformations">
+          <span>Custom Transformations</span>
+        </mat-expansion-panel-header>
+        <div>
+          <mat-form-field class="full-width" appearance="outline" matTooltip="Specify the GCS path for custom jar"
+          [matTooltipPosition]="'right'">
+            <mat-label>Custom JAR GCS Path</mat-label>
+            <input matInput placeholder="Custom JAR GCS Path" type="text" formControlName="customJarPath"/>
+          </mat-form-field>
+          <br>
+          <mat-form-field class="full-width" appearance="outline" matTooltip="Specify the fully classified class name"
+          [matTooltipPosition]="'right'">
+            <mat-label>Custom Class Name</mat-label>
+            <input matInput placeholder="Fully Classified Class Name" type="text" formControlName="customClassName"/>
+          </mat-form-field>
+          <br>
+          <mat-form-field class="full-width" appearance="outline" matTooltip="Specify the custom parameter required by the JAR"
+          [matTooltipPosition]="'right'">
+            <mat-label>Custom Parameter</mat-label>
+            <input matInput placeholder="Custom Parameters" type="text" formControlName="customParameter"/>
+          </mat-form-field>
+        </div>
+      </mat-expansion-panel>
+      <br>
+      <mat-expansion-panel>
         <mat-expansion-panel-header class="mat-row" matTooltip="Edit to run Dataflow in a VPC">
           <span>Networking</span>
         </mat-expansion-panel-header>
