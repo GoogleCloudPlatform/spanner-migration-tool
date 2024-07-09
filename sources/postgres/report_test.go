@@ -45,7 +45,7 @@ func TestReport(t *testing.T) {
             a text primary key,
             b bigint);
         CREATE TABLE foreign_key (
-            a text primary key references excellent_schema(a),
+            a text primary key references excellent_schema(a) on delete restrict on update cascade,
             b bigint);
         CREATE TABLE no_pk (
             a bigint[],

@@ -149,25 +149,44 @@ func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
 // a) CASCADE/NO ACTION -> mapped to the same as source action
 // b) all others -> NO ACTION (default)
 //
-// Since only MySQL and PostgreSQL have this functionality
-// as of yet, for other sources OnDelete fields are
-// kept empty i.e. "" is mapped to ""
-//
 // For all source actions converted to a different action,
 // an issue is appended to it's TableLevelIssues to
 // generate a warning message for the user
+//
+// Since only MySQL and PostgreSQL have this functionality
+// as of yet, for other sources OnDelete fields are
+// kept empty i.e. "" is mapped to "" and an issue is appended
+// to generate warning message (prints only once for each table with FK Actions)
 func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) string {
 	srcDeleteRule = strings.ToUpper(srcDeleteRule)
-	if srcDeleteRule == "NO ACTION" || srcDeleteRule == "CASCADE" || srcDeleteRule == "" {
+	if srcDeleteRule == constants.NO_ACTION || srcDeleteRule == constants.CASCADE {
 		return srcDeleteRule
 	}
-
 	if conv.SchemaIssues == nil {
 		conv.SchemaIssues = make(map[string]TableIssues)
 	}
+	tableIssues := conv.SchemaIssues[srcTableId]
+
+	if srcDeleteRule == "" {
+		//add ForeignKeyActionsNotSupported issue only if not previously added
+		flag := false
+		for i := 0; i < len(tableIssues.TableLevelIssues); i++ {
+			if tableIssues.TableLevelIssues[i] == ForeignKeyActionsNotSupported {
+				flag = true
+				break
+			}
+		}
+		if !flag {
+			conv.SchemaIssues[srcTableId] = TableIssues{
+				TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyActionsNotSupported),
+				ColumnLevelIssues: tableIssues.ColumnLevelIssues}
+		}
+		return ""
+	}
 	conv.SchemaIssues[srcTableId] = TableIssues{
-		TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyOnDelete),
-		ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
+		TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyOnDelete),
+		ColumnLevelIssues: tableIssues.ColumnLevelIssues}
+
 	return constants.NO_ACTION
 }
 
@@ -177,25 +196,44 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 // all actions -> NO ACTION (default)
 // (Spanner only supports ON UPDATE NO ACTION)
 //
-// Since only MySQL and PostgreSQL have this functionality
-// as of yet, for other sources OnDelete fields are
-// kept empty i.e. "" is mapped to ""
-//
 // For all source actions converted to a different action,
 // an issue is appended to it's TableLevelIssues to
 // generate a warning message for the user
+//
+// Since only MySQL and PostgreSQL have this functionality
+// as of yet, for other sources OnUpdate fields are
+// kept empty i.e. "" is mapped to "" and an issue is appended
+// to generate warning message (prints only once for each table with FK Actions)
 func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) string {
 	srcUpdateRule = strings.ToUpper(srcUpdateRule)
-	if srcUpdateRule == "NO ACTION" || srcUpdateRule == "" {
+	if srcUpdateRule == constants.NO_ACTION {
 		return srcUpdateRule
 	}
 
 	if conv.SchemaIssues == nil {
 		conv.SchemaIssues = make(map[string]TableIssues)
 	}
+	tableIssues := conv.SchemaIssues[srcTableId]
+
+	if srcUpdateRule == "" {
+		//add ForeignKeyActionsNotSupported issue only if not previously added
+		flag := false
+		for i := 0; i < len(tableIssues.TableLevelIssues); i++ {
+			if tableIssues.TableLevelIssues[i] == ForeignKeyActionsNotSupported {
+				flag = true
+				break
+			}
+		}
+		if !flag {
+			conv.SchemaIssues[srcTableId] = TableIssues{
+				TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyActionsNotSupported),
+				ColumnLevelIssues: tableIssues.ColumnLevelIssues}
+		}
+		return ""
+	}
 	conv.SchemaIssues[srcTableId] = TableIssues{
-		TableLevelIssues:  append(conv.SchemaIssues[srcTableId].TableLevelIssues, ForeignKeyOnUpdate),
-		ColumnLevelIssues: conv.SchemaIssues[srcTableId].ColumnLevelIssues}
+		TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyOnUpdate),
+		ColumnLevelIssues: tableIssues.ColumnLevelIssues}
 
 	return constants.NO_ACTION
 }

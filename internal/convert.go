@@ -126,6 +126,7 @@ const (
 	ForeignKeyOnDelete
 	ForeignKeyOnUpdate
 	SequenceCreated
+	ForeignKeyActionsNotSupported
 )
 
 const (

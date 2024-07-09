@@ -128,8 +128,8 @@ func TestToSpannerType(t *testing.T) {
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c1"}},
 		ForeignKeys: []schema.ForeignKey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c9"}},
-			{Name: "fk_fake", ColIds: []string{"x"}, ReferTableId: "t2", ReferColumnIds: []string{"x"}},
-			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c12"}}},
+			{Name: "fk_fake", ColIds: []string{"x"}, ReferTableId: "t2", ReferColumnIds: []string{"x"}, OnDelete: "", OnUpdate: ""},
+			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c12"}, OnDelete: "", OnUpdate: ""}},
 		Indexes: []schema.Index{{Name: "index1", Unique: true, Keys: []schema.Key{{ColId: "c1", Desc: false}, {ColId: "c4", Desc: true}}},
 			{Name: "index_with_0_key", Unique: true, Keys: []schema.Key{{ColId: "m", Desc: false}, {ColId: "y", Desc: true}}},
 		},
@@ -177,14 +177,18 @@ func TestToSpannerType(t *testing.T) {
 			"c8": {Name: "h", Id: "c8", T: ddl.Type{Name: ddl.Int64}},
 		},
 		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-		ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c9"}},
-			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c12"}}},
+		ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c9"}, OnDelete: "", OnUpdate: ""},
+			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c12"}, OnDelete: "", OnUpdate: ""}},
 		Indexes: []ddl.CreateIndex{{Name: "index1", TableId: tableId, Unique: true, Keys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c4", Desc: true}}},
 			{Name: "index_with_0_key", TableId: tableId, Unique: true, Keys: nil}},
 	}
 	assert.Equal(t, expected, actual)
-	expectedIssues := map[string][]internal.SchemaIssue{}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
+
+	expectedIssues := internal.TableIssues{
+		TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyActionsNotSupported},
+		ColumnLevelIssues: map[string][]internal.SchemaIssue{},
+	}
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
 	// 1 FK issue, 2 index col not found
 	assert.Equal(t, int64(3), conv.Unexpecteds())
 }
@@ -215,8 +219,8 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c1"}},
 		ForeignKeys: []schema.ForeignKey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c12"}},
-			{Name: "fk_fake", ColIds: []string{"x"}, ReferTableId: "t2", ReferColumnIds: []string{"x"}},
-			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c15"}}},
+			{Name: "fk_fake", ColIds: []string{"x"}, ReferTableId: "t2", ReferColumnIds: []string{"x"}, OnDelete: "", OnUpdate: ""},
+			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c15"}, OnDelete: "", OnUpdate: ""}},
 		Indexes: []schema.Index{{Name: "index1", Unique: true, Keys: []schema.Key{{ColId: "c1", Desc: false}, {ColId: "c4", Desc: true}}},
 			{Name: "index_with_0_key", Unique: true, Keys: []schema.Key{{ColId: "m", Desc: false}, {ColId: "y", Desc: true}}},
 		},
@@ -267,13 +271,18 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 			"c11": {Name: "k", Id: "c11", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		},
 		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-		ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c12"}},
-			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c15"}}},
+		ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c12"}, OnDelete: "", OnUpdate: ""},
+			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c15"}, OnDelete: "", OnUpdate: ""}},
 		Indexes: []ddl.CreateIndex{{Name: "index_with_0_key", TableId: tableId, Unique: true, Keys: nil}},
 	}
 	assert.Equal(t, expected, actual)
-	expectedIssues := map[string][]internal.SchemaIssue{}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
+
+	expectedIssues := internal.TableIssues{
+		TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyActionsNotSupported},
+		ColumnLevelIssues: map[string][]internal.SchemaIssue{},
+	}
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
+
 	// 1 FK issue, 2 index col not found
 	assert.Equal(t, int64(3), conv.Unexpecteds())
 }

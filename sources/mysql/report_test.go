@@ -50,7 +50,7 @@ func TestReport(t *testing.T) {
       a text,
       b bigint,
       PRIMARY KEY (a),
-      FOREIGN KEY (a) REFERENCES excellent_schema(a));
+      FOREIGN KEY (a) REFERENCES excellent_schema(a) on delete restrict on update cascade);
   CREATE TABLE no_pk (
       a bigint,
       b integer NOT NULL,
