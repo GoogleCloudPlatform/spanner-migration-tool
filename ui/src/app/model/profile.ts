@@ -54,6 +54,9 @@ export interface IDataflowConfig {
     projectId: string
     location: string
     gcsTemplatePath: string
+    customJarPath: string
+    customClassName: string
+    customParameter: string
 }
 
 export interface IDirectConnectionConfig {
