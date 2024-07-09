@@ -140,6 +140,9 @@ export const Dataflow = {
   Location: 'dataflowLocation',
   GcsTemplatePath: 'gcsTemplatePath',
   IsDataflowConfigSet: 'isDataflowConfigSet',
+  CustomJarPath: 'customJarPath',
+  CustomClassName: 'customClassName',
+  CustomParameter: 'customParameter'
 }
 
 export const ColLength = {

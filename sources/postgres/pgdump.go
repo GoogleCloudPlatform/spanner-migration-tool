@@ -23,6 +23,7 @@ import (
 
 	pg_query "github.com/pganalyze/pg_query_go/v5"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -585,6 +586,8 @@ type constraint struct {
 	/* Fields used for FOREIGN KEY constraints: */
 	referCols  []string
 	referTable string
+	onDelete   string
+	onUpdate   string
 }
 
 // extractConstraints traverses a list of nodes (expecting them to be
@@ -595,7 +598,7 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 		case *pg_query.Node_Constraint:
 			c := d.Constraint
 			var cols, referCols []string
-			var referTable string
+			var referTable, onDelete, onUpdate string
 			var conName string
 			switch c.Contype {
 			case pg_query.ConstrType_CONSTR_FOREIGN:
@@ -627,6 +630,42 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 					}
 					referCols = append(referCols, f)
 				}
+				onDelete = c.GetFkDelAction()
+				switch onDelete {
+				case "a":
+					onDelete = constants.NO_ACTION
+				case "r":
+					onDelete = constants.RESTRICT
+				case "c":
+					onDelete = constants.CASCADE
+				case "n":
+					onDelete = constants.SET_NULL
+				case "d":
+					onDelete = constants.SET_DEFAULT
+				case " ":
+					onDelete = constants.NO_ACTION
+				default:
+					onDelete = "UNKNOWN"
+				}
+
+				onUpdate = c.GetFkUpdAction()
+				switch onUpdate {
+				case "a":
+					onUpdate = constants.NO_ACTION
+				case "r":
+					onUpdate = constants.RESTRICT
+				case "c":
+					onUpdate = constants.CASCADE
+				case "n":
+					onUpdate = constants.SET_NULL
+				case "d":
+					onUpdate = constants.SET_DEFAULT
+				case " ":
+					onUpdate = constants.NO_ACTION
+				default:
+					onUpdate = "UNKNOWN"
+				}
+
 			default:
 				if c.Conname != "" {
 					conName = c.Conname
@@ -641,7 +680,7 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 					cols = append(cols, k)
 				}
 			}
-			cs = append(cs, constraint{ct: c.Contype, cols: cols, name: conName, referCols: referCols, referTable: referTable})
+			cs = append(cs, constraint{ct: c.Contype, cols: cols, name: conName, referCols: referCols, referTable: referTable, onDelete: onDelete, onUpdate: onUpdate})
 		default:
 			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node while processing constraints\n", stmtType, printNodeType(d)))
 		}
@@ -758,7 +797,10 @@ func toForeignKeys(fk constraint) (fkey schema.ForeignKey) {
 		Name:             fk.name,
 		ColumnNames:      fk.cols,
 		ReferTableName:   fk.referTable,
-		ReferColumnNames: fk.referCols}
+		ReferColumnNames: fk.referCols,
+		OnDelete:         fk.onDelete,
+		OnUpdate:         fk.onUpdate,
+	}
 	return fkey
 }
 

@@ -187,6 +187,7 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 // generate a warning message for the user
 func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) string {
 	srcUpdateRule = strings.ToUpper(srcUpdateRule)
+
 	if srcUpdateRule == constants.NO_ACTION || srcUpdateRule == "" {
 		return srcUpdateRule
 	}
