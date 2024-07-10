@@ -1,0 +1,16 @@
+CREATE TABLE test (
+    id bigint PRIMARY KEY,
+    col text
+)
+--
+CREATE TABLE `test` (
+    `id` INT64 NOT NULL ,
+    `col` STRING(MAX),
+) PRIMARY KEY (`id`)
+--
+CREATE TABLE test (
+    id INT8 NOT NULL ,
+    col VARCHAR(2621440),
+    PRIMARY KEY (id)
+)
+==
