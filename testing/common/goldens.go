@@ -74,6 +74,9 @@ func GoldenTestCasesFrom(path string) ([]GoldenTestCase, error) {
 				ExpectedGSQLSchema: sanitizedGSQLSchema,
 				ExpectedPSQLSchema: sanitizedPSQLSchema})
 			parsingStatus = InputSchema
+			inputSchema.Reset()
+			expectedGSQLSchema.Reset()
+			expectedPSQLSchema.Reset()
 			continue
 		}
 
