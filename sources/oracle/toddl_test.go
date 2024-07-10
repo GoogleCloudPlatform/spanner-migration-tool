@@ -185,7 +185,7 @@ func TestToSpannerType(t *testing.T) {
 	assert.Equal(t, expected, actual)
 
 	expectedIssues := internal.TableIssues{
-		TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyActionsNotSupported},
+		TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{},
 	}
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
@@ -278,7 +278,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	assert.Equal(t, expected, actual)
 
 	expectedIssues := internal.TableIssues{
-		TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyActionsNotSupported},
+		TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{},
 	}
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])

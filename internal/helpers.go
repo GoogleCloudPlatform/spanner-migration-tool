@@ -182,3 +182,13 @@ func ResolveForeignKeyIds(schema map[string]schema.Table) {
 		}
 	}
 }
+
+// Checks if target is present in slice
+func Contains[T comparable](slice []T, target T) bool {
+	for _, item := range slice {
+		if target == item {
+			return true
+		}
+	}
+	return false
+}

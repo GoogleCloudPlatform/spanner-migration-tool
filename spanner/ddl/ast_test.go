@@ -329,8 +329,8 @@ func TestPrintForeignKey(t *testing.T) {
 			"ref_table",
 			[]string{"ref_c1", "ref_c2"},
 			"1",
-			constants.NO_ACTION,
-			constants.NO_ACTION,
+			constants.FK_NO_ACTION,
+			constants.FK_NO_ACTION,
 		},
 		{
 			"",
@@ -338,8 +338,8 @@ func TestPrintForeignKey(t *testing.T) {
 			"ref_table",
 			[]string{"ref_c1"},
 			"1",
-			constants.CASCADE,
-			constants.NO_ACTION,
+			constants.FK_CASCADE,
+			constants.FK_NO_ACTION,
 		},
 		{
 			"fk_test",
@@ -388,8 +388,8 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 					"t2",
 					[]string{"c4", "c5"},
 					"f1",
-					constants.CASCADE,
-					constants.NO_ACTION,
+					constants.FK_CASCADE,
+					constants.FK_NO_ACTION,
 				},
 				{
 					"",
@@ -397,8 +397,8 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 					"t2",
 					[]string{"c4"},
 					"f2",
-					constants.NO_ACTION,
-					constants.NO_ACTION,
+					constants.FK_NO_ACTION,
+					constants.FK_NO_ACTION,
 				},
 				{
 					"fk_test2",
@@ -607,7 +607,7 @@ func TestGetDDL(t *testing.T) {
 				"c2": {Name: "b", Id: "c2", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c1"}},
-			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c5"}, OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
+			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c5"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION}},
 			Indexes:     []CreateIndex{{Name: "index1", TableId: "t1", Unique: false, Keys: []IndexKey{{ColId: "c2", Desc: false}}}},
 		},
 		"t2": CreateTable{
@@ -620,7 +620,7 @@ func TestGetDDL(t *testing.T) {
 				"c6": {Name: "c", Id: "c6", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c4"}},
-			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c5", "c6"}, ReferTableId: "t3", ReferColumnIds: []string{"c8", "c9"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
+			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c5", "c6"}, ReferTableId: "t3", ReferColumnIds: []string{"c8", "c9"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 			Indexes:     []CreateIndex{{Name: "index2", TableId: "t2", Unique: true, Keys: []IndexKey{{ColId: "c5", Desc: true}, {ColId: "c6", Desc: false}}}},
 		},
 		"t3": CreateTable{
@@ -715,7 +715,7 @@ func TestGetPGDDL(t *testing.T) {
 				"c2": {Name: "b", Id: "c2", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c1"}},
-			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
+			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION}},
 			Indexes:     []CreateIndex{{Name: "index1", TableId: "t1", Unique: false, Keys: []IndexKey{{ColId: "c2", Desc: false}}}},
 		},
 		"t2": CreateTable{
@@ -728,7 +728,7 @@ func TestGetPGDDL(t *testing.T) {
 				"c5": {Name: "c", Id: "c5", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c3"}},
-			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c4", "c5"}, ReferTableId: "t3", ReferColumnIds: []string{"c7", "c8"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
+			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c4", "c5"}, ReferTableId: "t3", ReferColumnIds: []string{"c7", "c8"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 			Indexes:     []CreateIndex{{Name: "index2", TableId: "t2", Unique: true, Keys: []IndexKey{{ColId: "c4", Desc: true}, {ColId: "c5", Desc: false}}}},
 		},
 		"t3": CreateTable{

@@ -62,7 +62,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			args:  []driver.Value{"test", "user"},
 			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_RULE", "UPDATE_RULE"},
 			rows: [][]driver.Value{
-				{"test", "ref", "id", "fk_test", constants.SET_NULL, constants.CASCADE},
+				{"test", "ref", "id", "fk_test", constants.FK_SET_NULL, constants.FK_CASCADE},
 			},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -91,8 +91,8 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			args:  []driver.Value{"test", "cart"},
 			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_RULE", "UPDATE_RULE"},
 			rows: [][]driver.Value{
-				{"product", "productid", "product_id", "fk_test2", constants.NO_ACTION, constants.NO_ACTION},
-				{"user", "userid", "user_id", "fk_test3", constants.RESTRICT, constants.SET_NULL},
+				{"product", "productid", "product_id", "fk_test2", constants.FK_NO_ACTION, constants.FK_NO_ACTION},
+				{"user", "userid", "user_id", "fk_test3", constants.FK_RESTRICT, constants.FK_SET_NULL},
 			},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -148,8 +148,8 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "test"},
 			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_RULE", "UPDATE_RULE"},
-			rows: [][]driver.Value{{"test_ref", "id", "ref_id", "fk_test4", constants.CASCADE, constants.RESTRICT},
-				{"test_ref", "txt", "ref_txt", "fk_test4", constants.CASCADE, constants.RESTRICT}},
+			rows: [][]driver.Value{{"test_ref", "id", "ref_id", "fk_test4", constants.FK_CASCADE, constants.FK_RESTRICT},
+				{"test_ref", "txt", "ref_txt", "fk_test4", constants.FK_CASCADE, constants.FK_RESTRICT}},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "test"},
@@ -221,7 +221,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			"quantity":  schema.Column{Name: "quantity", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"userid":    schema.Column{Name: "userid", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
 			PrimaryKeys: []schema.Key{schema.Key{ColId: "productid", Desc: false, Order: 0}, schema.Key{ColId: "userid", Desc: false, Order: 0}},
-			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "product", ReferColumnIds: []string{"product_id"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION, Id: ""}, schema.ForeignKey{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}, OnUpdate: constants.SET_NULL, OnDelete: constants.RESTRICT, Id: ""}},
+			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "product", ReferColumnIds: []string{"product_id"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION, Id: ""}, schema.ForeignKey{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}, OnUpdate: constants.FK_SET_NULL, OnDelete: constants.FK_RESTRICT, Id: ""}},
 			Indexes:     []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{ColId: "userid", Desc: false, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}, schema.Index{Name: "index2", Unique: false, Keys: []schema.Key{schema.Key{ColId: "userid", Desc: false, Order: 0}, schema.Key{ColId: "productid", Desc: true, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}, schema.Index{Name: "index3", Unique: true, Keys: []schema.Key{schema.Key{ColId: "productid", Desc: false, Order: 0}, schema.Key{ColId: "userid", Desc: true, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}}, Id: ""},
 
 		"product": schema.Table{Name: "product", Schema: "test", ColIds: []string{"product_id", "product_name"}, ColDefs: map[string]schema.Column{
@@ -252,7 +252,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			"vc":  schema.Column{Name: "vc", Type: schema.Type{Name: "varchar", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"vc6": schema.Column{Name: "vc6", Type: schema.Type{Name: "varchar", Mods: []int64{6}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
 			PrimaryKeys: []schema.Key{schema.Key{ColId: "id", Desc: false, Order: 0}},
-			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test4", ColIds: []string{"id", "txt"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id", "ref_txt"}, OnUpdate: constants.RESTRICT, OnDelete: constants.CASCADE, Id: ""}},
+			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test4", ColIds: []string{"id", "txt"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id", "ref_txt"}, OnUpdate: constants.FK_RESTRICT, OnDelete: constants.FK_CASCADE, Id: ""}},
 			Indexes:     []schema.Index(nil), Id: ""},
 		"test_ref": schema.Table{Name: "test_ref", Schema: "test", ColIds: []string{"ref_id", "ref_txt", "abc"}, ColDefs: map[string]schema.Column{
 			"abc":     schema.Column{Name: "abc", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
@@ -266,7 +266,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			"ref":     schema.Column{Name: "ref", Type: schema.Type{Name: "bigint", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"user_id": schema.Column{Name: "user_id", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
 			PrimaryKeys: []schema.Key{schema.Key{ColId: "user_id", Desc: false, Order: 0}},
-			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"id"}, OnUpdate: constants.CASCADE, OnDelete: constants.SET_NULL, Id: ""}},
+			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"id"}, OnUpdate: constants.FK_CASCADE, OnDelete: constants.FK_SET_NULL, Id: ""}},
 			Indexes:     []schema.Index(nil), Id: ""}}
 	internal.AssertSrcSchema(t, conv, expectedSchema, conv.SrcSchema)
 	assert.Equal(t, int64(0), conv.Unexpecteds())

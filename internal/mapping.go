@@ -159,7 +159,7 @@ func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
 // to generate warning message (prints only once for each table with FK Actions)
 func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) string {
 	srcDeleteRule = strings.ToUpper(srcDeleteRule)
-	if srcDeleteRule == constants.NO_ACTION || srcDeleteRule == constants.CASCADE {
+	if srcDeleteRule == constants.FK_NO_ACTION || srcDeleteRule == constants.FK_CASCADE {
 		return srcDeleteRule
 	}
 	if conv.SchemaIssues == nil {
@@ -167,19 +167,14 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 	}
 	tableIssues := conv.SchemaIssues[srcTableId]
 
+	// srcDeleteRule will only be empty for unsupported sources (Oracle, SQL Server)
 	if srcDeleteRule == "" {
-		//add ForeignKeyActionsNotSupported issue only if not previously added
-		flag := false
-		for i := 0; i < len(tableIssues.TableLevelIssues); i++ {
-			if tableIssues.TableLevelIssues[i] == ForeignKeyActionsNotSupported {
-				flag = true
-				break
-			}
-		}
-		if !flag {
+		//add ForeignKeyActionNotSupported issue only if not previously added
+		if !Contains(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported) {
 			conv.SchemaIssues[srcTableId] = TableIssues{
-				TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyActionsNotSupported),
-				ColumnLevelIssues: tableIssues.ColumnLevelIssues}
+				TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported),
+				ColumnLevelIssues: tableIssues.ColumnLevelIssues,
+			}
 		}
 		return ""
 	}
@@ -187,7 +182,7 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 		TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyOnDelete),
 		ColumnLevelIssues: tableIssues.ColumnLevelIssues}
 
-	return constants.NO_ACTION
+	return constants.FK_NO_ACTION
 }
 
 // ToSpannerOnUpdate maps the source ON UPDATE action
@@ -206,7 +201,7 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 // to generate warning message (prints only once for each table with FK Actions)
 func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) string {
 	srcUpdateRule = strings.ToUpper(srcUpdateRule)
-	if srcUpdateRule == constants.NO_ACTION {
+	if srcUpdateRule == constants.FK_NO_ACTION {
 		return srcUpdateRule
 	}
 
@@ -215,19 +210,14 @@ func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) stri
 	}
 	tableIssues := conv.SchemaIssues[srcTableId]
 
+	// srcUpdateRule will only be empty for unsupported sources (Oracle, SQL Server)
 	if srcUpdateRule == "" {
-		//add ForeignKeyActionsNotSupported issue only if not previously added
-		flag := false
-		for i := 0; i < len(tableIssues.TableLevelIssues); i++ {
-			if tableIssues.TableLevelIssues[i] == ForeignKeyActionsNotSupported {
-				flag = true
-				break
-			}
-		}
-		if !flag {
+		//add ForeignKeyActionNotSupported issue only if not previously added
+		if !Contains(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported) {
 			conv.SchemaIssues[srcTableId] = TableIssues{
-				TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyActionsNotSupported),
-				ColumnLevelIssues: tableIssues.ColumnLevelIssues}
+				TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported),
+				ColumnLevelIssues: tableIssues.ColumnLevelIssues,
+			}
 		}
 		return ""
 	}
@@ -235,7 +225,7 @@ func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) stri
 		TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyOnUpdate),
 		ColumnLevelIssues: tableIssues.ColumnLevelIssues}
 
-	return constants.NO_ACTION
+	return constants.FK_NO_ACTION
 }
 
 // ToSpannerIndexName maps source index name to legal Spanner index name.

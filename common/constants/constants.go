@@ -109,9 +109,9 @@ const (
 	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner"
 
 	//FK Actions
-	NO_ACTION   string = "NO ACTION"
-	CASCADE     string = "CASCADE"
-	SET_DEFAULT string = "SET DEFAULT"
-	SET_NULL    string = "SET NULL"
-	RESTRICT    string = "RESTRICT"
+	FK_NO_ACTION   string = "NO ACTION"
+	FK_CASCADE     string = "CASCADE"
+	FK_SET_DEFAULT string = "SET DEFAULT"
+	FK_SET_NULL    string = "SET NULL"
+	FK_RESTRICT    string = "RESTRICT"
 )
