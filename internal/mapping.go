@@ -16,7 +16,6 @@ package internal
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -171,10 +170,11 @@ func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) stri
 	// srcDeleteRule will only be empty for unsupported sources (Oracle, SQL Server)
 	if srcDeleteRule == "" {
 		//add ForeignKeyActionNotSupported issue only if not previously added
-		if !slices.Contains(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported) {
+		if !Contains(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported) {
 			conv.SchemaIssues[srcTableId] = TableIssues{
 				TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported),
-				ColumnLevelIssues: tableIssues.ColumnLevelIssues}
+				ColumnLevelIssues: tableIssues.ColumnLevelIssues,
+			}
 		}
 		return ""
 	}
@@ -213,10 +213,11 @@ func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) stri
 	// srcUpdateRule will only be empty for unsupported sources (Oracle, SQL Server)
 	if srcUpdateRule == "" {
 		//add ForeignKeyActionNotSupported issue only if not previously added
-		if !slices.Contains(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported) {
+		if !Contains(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported) {
 			conv.SchemaIssues[srcTableId] = TableIssues{
 				TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported),
-				ColumnLevelIssues: tableIssues.ColumnLevelIssues}
+				ColumnLevelIssues: tableIssues.ColumnLevelIssues,
+			}
 		}
 		return ""
 	}
