@@ -120,7 +120,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				}
 				if srcFk.OnDelete == "" && srcFk.OnUpdate == "" && flag == false {
 					flag = true
-					issue := internal.ForeignKeyActionsNotSupported
+					issue := internal.ForeignKeyActionNotSupported
 					toAppend := Issue{
 						Category:    IssueDB[issue].Category,
 						Description: fmt.Sprintf("Table '%s': %s", conv.SpSchema[tableId].Name, IssueDB[issue].Brief),
@@ -556,11 +556,11 @@ var IssueDB = map[internal.SchemaIssue]struct {
 		CategoryDescription: "Primary Key is missing, synthetic column created as a primary key"},
 	internal.UniqueIndexPrimaryKey: {Category: "UNIQUE_INDEX_PRIMARY_KEY",
 		CategoryDescription: "Primary Key is missing, unique column(s) used as primary key"},
-	internal.ArrayTypeNotSupported:         {Brief: "Array datatype migration is not fully supported. Please validate data after data migration", Severity: warning, Category: "ARRAY_TYPE_NOT_SUPPORTED"},
-	internal.SequenceCreated:               {Brief: "Auto Increment has been converted to Sequence, set Skipped Range or Start with Counter to avoid duplicate value errors", Severity: warning, Category: "SEQUENCE_CREATED"},
-	internal.ForeignKeyOnDelete:            {Brief: "Spanner supports only ON DELETE CASCADE/NO ACTION", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
-	internal.ForeignKeyOnUpdate:            {Brief: "Spanner supports only ON UPDATE NO ACTION", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
-	internal.ForeignKeyActionsNotSupported: {Brief: "Spanner doesn't support foreign key action migration", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
+	internal.ArrayTypeNotSupported:        {Brief: "Array datatype migration is not fully supported. Please validate data after data migration", Severity: warning, Category: "ARRAY_TYPE_NOT_SUPPORTED"},
+	internal.SequenceCreated:              {Brief: "Auto Increment has been converted to Sequence, set Skipped Range or Start with Counter to avoid duplicate value errors", Severity: warning, Category: "SEQUENCE_CREATED"},
+	internal.ForeignKeyOnDelete:           {Brief: "Spanner supports only ON DELETE CASCADE/NO ACTION", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
+	internal.ForeignKeyOnUpdate:           {Brief: "Spanner supports only ON UPDATE NO ACTION", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
+	internal.ForeignKeyActionNotSupported: {Brief: "Spanner supports foreign key action migration only for MySQL and PostgreSQL", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
 }
 
 type Severity int

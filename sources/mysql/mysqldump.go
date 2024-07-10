@@ -362,11 +362,11 @@ func toForeignKeys(conv *internal.Conv, fk *ast.Constraint) (fkey schema.Foreign
 	onUpdate := fk.Refer.OnUpdate.ReferOpt.String()
 
 	if onDelete == "" {
-		onDelete = constants.NO_ACTION
+		onDelete = constants.FK_NO_ACTION
 	}
 
 	if onUpdate == "" {
-		onUpdate = constants.NO_ACTION
+		onUpdate = constants.FK_NO_ACTION
 	}
 
 	fkey = schema.ForeignKey{
