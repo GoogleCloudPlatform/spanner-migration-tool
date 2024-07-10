@@ -1143,7 +1143,7 @@ export class ObjectDetailComponent implements OnInit {
         fk.spColIds = []
         fk.spReferColumnIds = []
         fk.spReferTableId = ''
-        fk.spOnDelete = '' //check if this needs to be changed
+        fk.spOnDelete = '' 
         fk.spOnUpdate = ''
       }
     })
