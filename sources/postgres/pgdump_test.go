@@ -29,7 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
-	pg_query "github.com/pganalyze/pg_query_go/v2"
+	pg_query "github.com/pganalyze/pg_query_go/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -80,7 +80,7 @@ func TestProcessPgDump(t *testing.T) {
 		assert.Equal(t, nil, err)
 		colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
 		assert.Equal(t, nil, err)
-		assert.Equal(t, conv.SpSchema[tableId].ColDefs[colId].T, tc.expected, "Scalar type: "+tc.ty)
+		assert.Equal(t, tc.expected, conv.SpSchema[tableId].ColDefs[colId].T, "Scalar type: "+tc.ty)
 	}
 	// Next test array types and not null.
 	singleColTests := []struct {

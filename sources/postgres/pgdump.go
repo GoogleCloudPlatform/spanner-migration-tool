@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	pg_query "github.com/pganalyze/pg_query_go/v2"
+	pg_query "github.com/pganalyze/pg_query_go/v5"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -481,12 +481,12 @@ func processVariableSetStmt(conv *internal.Conv, n *pg_query.VariableSetStmt) {
 			arg := n.Args[0]
 			switch c := arg.GetNode().(type) {
 			case *pg_query.Node_AConst:
-				tz, err := getString(c.AConst.Val)
-				if err != nil {
-					logStmtError(conv, c, fmt.Errorf("can't get Arg: %w", err))
+				tz := c.AConst.GetSval()
+				if tz == nil {
+					logStmtError(conv, c, fmt.Errorf("can't get timezone Arg"))
 					return
 				}
-				loc, err := time.LoadLocation(tz)
+				loc, err := time.LoadLocation(tz.Sval)
 				if err != nil {
 					logStmtError(conv, c, err)
 					return
@@ -504,9 +504,9 @@ func getTypeMods(conv *internal.Conv, t []*pg_query.Node) (l []int64) {
 	for _, x := range t {
 		switch t1 := x.GetNode().(type) {
 		case *pg_query.Node_AConst:
-			switch t2 := t1.AConst.Val.GetNode().(type) {
-			case *pg_query.Node_Integer:
-				l = append(l, int64(t2.Integer.Ival))
+			switch t2 := (t1.AConst.Val).(type) {
+			case *pg_query.A_Const_Ival:
+				l = append(l, int64(t2.Ival.Ival))
 			default:
 				conv.Unexpected(fmt.Sprintf("Found %s node while processing Typmods", printNodeType(t2)))
 			}
@@ -828,26 +828,28 @@ func getRows(conv *internal.Conv, vll []*pg_query.Node, n *pg_query.InsertStmt) 
 			for _, v := range vals.List.Items {
 				switch val := v.GetNode().(type) {
 				case *pg_query.Node_AConst:
-					switch c := val.AConst.Val.GetNode().(type) {
-					// Most data is dumped enclosed in quotes ('') lke 'abc', '12:30:45' etc which is classified
-					// as type Node_String_ by the parser. Some data might not be quoted like (NULL, 14.67) and
-					// the type assigned to them is Node_Null and Node_Float respectively.
-					case *pg_query.Node_String_:
-						values = append(values, trimString(c.String_))
-					case *pg_query.Node_Integer:
-						// For uniformity, convert to string and handle everything in
-						// dataConversion(). If performance of insert statements becomes a
-						// high priority (it isn't right now), then consider preserving int64
-						// here to avoid the int64 -> string -> int64 conversions.
-						values = append(values, strconv.FormatInt(int64(c.Integer.Ival), 10))
-					case *pg_query.Node_Float:
-						values = append(values, c.Float.Str)
-					case *pg_query.Node_Null:
+					if val.AConst.Isnull {
 						values = append(values, "NULL")
-					// TODO: There might be other Node types like Node_IntList, Node_List, Node_BitString etc that
-					// need to be checked if they are handled or not.
-					default:
-						conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node for A_Const Val", printNodeType(n), printNodeType(c)))
+					} else {
+						switch c := val.AConst.Val.(type) {
+						// Most data is dumped enclosed in quotes ('') lke 'abc', '12:30:45' etc which is classified
+						// as type Node_String_ by the parser. Some data might not be quoted like (NULL, 14.67) and
+						// the type assigned to them is Node_Null and Node_Float respectively.
+						case *pg_query.A_Const_Sval:
+							values = append(values, trimString(c.Sval))
+						case *pg_query.A_Const_Ival:
+							// For uniformity, convert to string and handle everything in
+							// dataConversion(). If performance of insert statements becomes a
+							// high priority (it isn't right now), then consider preserving int64
+							// here to avoid the int64 -> string -> int64 conversions.
+							values = append(values, strconv.FormatInt(int64(c.Ival.Ival), 10))
+						case *pg_query.A_Const_Fval:
+							values = append(values, string(c.Fval.Fval))
+						// TODO: There might be other Node types like Node_IntList, Node_List, Node_BitString etc that
+						// need to be checked if they are handled or not.
+						default:
+							conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node for A_Const Val", printNodeType(n), printNodeType(c)))
+						}
 					}
 				default:
 					conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node for ValuesList.Val", printNodeType(n), printNodeType(val)))
@@ -893,7 +895,7 @@ func printNodeType(node interface{}) string {
 }
 
 func trimString(s *pg_query.String) string {
-	str := strings.TrimPrefix(s.String(), "str:")
+	str := s.Sval
 	str = trimEscapeChars(str)
 	return trimQuote(str)
 }
