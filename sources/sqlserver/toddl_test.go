@@ -136,8 +136,8 @@ func TestToSpannerType(t *testing.T) {
 			"c15": {Name: "o", Id: "c15", Type: schema.Type{Name: "uniqueidentifier"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c1"}},
-		ForeignKeys: []schema.ForeignKey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c16"}},
-			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c19"}}},
+		ForeignKeys: []schema.ForeignKey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c16"}, OnDelete: "", OnUpdate: ""},
+			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c19"}, OnDelete: "", OnUpdate: ""}},
 		Indexes: []schema.Index{{Name: "index1", Unique: true, Keys: []schema.Key{{ColId: "c1", Desc: false}, {ColId: "c4", Desc: true}}}},
 	}
 	conv.SrcSchema[tableId] = srcSchema
@@ -191,19 +191,23 @@ func TestToSpannerType(t *testing.T) {
 		},
 
 		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-		ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c16"}},
-			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c19"}}},
+		ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c16"}, OnDelete: "", OnUpdate: ""},
+			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c19"}, OnDelete: "", OnUpdate: ""}},
 		Indexes: []ddl.CreateIndex{{Name: "index1", TableId: tableId, Unique: true, Keys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c4", Desc: true}}}},
 	}
 	assert.Equal(t, expected, actual)
-	expectedIssues := map[string][]internal.SchemaIssue{
-		"c1":  {internal.Widened},
-		"c2":  {internal.Widened},
-		"c3":  {internal.Widened},
-		"c10": {internal.Timestamp},
-		"c13": {internal.NoGoodType},
+
+	expectedIssues := internal.TableIssues{
+		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
+		ColumnLevelIssues: map[string][]internal.SchemaIssue{
+			"c1":  {internal.Widened},
+			"c2":  {internal.Widened},
+			"c3":  {internal.Widened},
+			"c10": {internal.Timestamp},
+			"c13": {internal.NoGoodType},
+		},
 	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
 }
 
 // This is just a very basic smoke-test for toSpannerPostgreSQLDialectType.
@@ -235,8 +239,8 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 			"c15": {Name: "o", Id: "c15", Type: schema.Type{Name: "uniqueidentifier"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c1"}},
-		ForeignKeys: []schema.ForeignKey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c16"}},
-			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c19"}}},
+		ForeignKeys: []schema.ForeignKey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c16"}, OnDelete: "", OnUpdate: ""},
+			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c19"}, OnDelete: "", OnUpdate: ""}},
 		Indexes: []schema.Index{{Name: "index1", Unique: true, Keys: []schema.Key{{ColId: "c1", Desc: false}, {ColId: "c4", Desc: true}}}},
 	}
 	conv.SrcSchema[tableId] = srcSchema
@@ -290,19 +294,23 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		},
 
 		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-		ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c16"}},
-			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c19"}}},
+		ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c16"}, OnDelete: "", OnUpdate: ""},
+			{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c19"}, OnDelete: "", OnUpdate: ""}},
 		Indexes: []ddl.CreateIndex{{Name: "index1", TableId: tableId, Unique: true, Keys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c4", Desc: true}}}},
 	}
 	assert.Equal(t, expected, actual)
-	expectedIssues := map[string][]internal.SchemaIssue{
-		"c1":  {internal.Widened},
-		"c2":  {internal.Widened},
-		"c3":  {internal.Widened},
-		"c10": {internal.Timestamp},
-		"c13": {internal.NoGoodType},
+
+	expectedIssues := internal.TableIssues{
+		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
+		ColumnLevelIssues: map[string][]internal.SchemaIssue{
+			"c1":  {internal.Widened},
+			"c2":  {internal.Widened},
+			"c3":  {internal.Widened},
+			"c10": {internal.Timestamp},
+			"c13": {internal.NoGoodType},
+		},
 	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
 }
 
 func dropComments(t *ddl.CreateTable) {

@@ -193,7 +193,7 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 				}},
 		},
 		{
@@ -219,7 +219,7 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION}},
 				}},
 		},
 		{
@@ -246,7 +246,7 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c", "d"}, ReferTableId: "test", ReferColumnIds: []string{"a", "b"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c", "d"}, ReferTableId: "test", ReferColumnIds: []string{"a", "b"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 				}},
 		},
 		{
@@ -283,8 +283,8 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"e"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION},
-						ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"f"}, ReferTableId: "test2", ReferColumnIds: []string{"c"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"e"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
+						ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"f"}, ReferTableId: "test2", ReferColumnIds: []string{"c"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}}}},
 		},
 		{
 			name: "Create index statement",
@@ -869,7 +869,7 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 				}},
 		},
 		{
@@ -895,7 +895,7 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION}},
 				}},
 		},
 		{
@@ -922,7 +922,7 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c", "d"}, ReferTableId: "test", ReferColumnIds: []string{"a", "b"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c", "d"}, ReferTableId: "test", ReferColumnIds: []string{"a", "b"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 				}},
 		},
 		{
@@ -959,8 +959,8 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"e"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION},
-						ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"f"}, ReferTableId: "test2", ReferColumnIds: []string{"c"}, OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"e"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION},
+						ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"f"}, ReferTableId: "test2", ReferColumnIds: []string{"c"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}}}},
 		},
 		{
 			name: "Create index statement",

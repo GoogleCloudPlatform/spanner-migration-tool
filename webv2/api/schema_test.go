@@ -258,7 +258,7 @@ func TestGetDDL(t *testing.T) {
 						"c2": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						"c3": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1", Desc: false}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION}},
 					Indexes:     []ddl.CreateIndex{{Name: "index1", TableId: "t1", Id: "i1", Keys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}}}},
 				},
 					"t2": {Name: "table2",
@@ -406,14 +406,14 @@ func TestDropForeignKey(t *testing.T) {
 		{
 			name:  "Test drop valid FK success",
 			table: "t1",
-			input: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION},
-				{Name: "", ColIds: []string{}, ReferTableId: "", ReferColumnIds: []string{}, Id: "f2", OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
+			input: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION},
+				{Name: "", ColIds: []string{}, ReferTableId: "", ReferColumnIds: []string{}, Id: "f2", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION},
-							{Name: "fk2", ColIds: []string{"c3", "c4"}, ReferTableId: "reft2", ReferColumnIds: []string{"ref_c2", "ref_c3"}, Id: "f2", OnDelete: constants.NO_ACTION, OnUpdate: constants.NO_ACTION}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION},
+							{Name: "fk2", ColIds: []string{"c3", "c4"}, ReferTableId: "reft2", ReferColumnIds: []string{"ref_c2", "ref_c3"}, Id: "f2", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -422,7 +422,7 @@ func TestDropForeignKey(t *testing.T) {
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.CASCADE, OnUpdate: constants.NO_ACTION}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION}},
 					}},
 			},
 		},

@@ -633,17 +633,17 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 				onDelete = c.GetFkDelAction()
 				switch onDelete {
 				case "a":
-					onDelete = constants.NO_ACTION
+					onDelete = constants.FK_NO_ACTION
 				case "r":
-					onDelete = constants.RESTRICT
+					onDelete = constants.FK_RESTRICT
 				case "c":
-					onDelete = constants.CASCADE
+					onDelete = constants.FK_CASCADE
 				case "n":
-					onDelete = constants.SET_NULL
+					onDelete = constants.FK_SET_NULL
 				case "d":
-					onDelete = constants.SET_DEFAULT
+					onDelete = constants.FK_SET_DEFAULT
 				case " ":
-					onDelete = constants.NO_ACTION
+					onDelete = constants.FK_NO_ACTION
 				default:
 					onDelete = "UNKNOWN"
 				}
@@ -651,17 +651,17 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 				onUpdate = c.GetFkUpdAction()
 				switch onUpdate {
 				case "a":
-					onUpdate = constants.NO_ACTION
+					onUpdate = constants.FK_NO_ACTION
 				case "r":
-					onUpdate = constants.RESTRICT
+					onUpdate = constants.FK_RESTRICT
 				case "c":
-					onUpdate = constants.CASCADE
+					onUpdate = constants.FK_CASCADE
 				case "n":
-					onUpdate = constants.SET_NULL
+					onUpdate = constants.FK_SET_NULL
 				case "d":
-					onUpdate = constants.SET_DEFAULT
+					onUpdate = constants.FK_SET_DEFAULT
 				case " ":
-					onUpdate = constants.NO_ACTION
+					onUpdate = constants.FK_NO_ACTION
 				default:
 					onUpdate = "UNKNOWN"
 				}
