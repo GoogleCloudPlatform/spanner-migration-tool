@@ -32,6 +32,7 @@ func TestGenerateIdSuffix(t *testing.T) {
 		{10000, "40000"},
 	}
 	for _, tc := range tests {
+		// Call GenerateIdSuffix n number of times parallely. 
 		for i := 0; i < tc.number; i++ {
 			// Increment the WaitGroup counter.
 			wg.Add(1)
@@ -43,6 +44,7 @@ func TestGenerateIdSuffix(t *testing.T) {
 		}
 		// Wait for all Go routines in the tc to complete
         wg.Wait()
+		// Assert that the counter is actually incremented to n.
 		assert.Equal(t, tc.expected, Cntr.ObjectId)
 	}
 }
