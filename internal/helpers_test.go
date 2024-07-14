@@ -31,8 +31,8 @@ func TestGenerateIdSuffix(t *testing.T) {
 		{20000, "30000"},
 		{10000, "40000"},
 	}
+	counter := Counter{}
 	for _, tc := range tests {
-		counter := Counter{}
 		// Call GenerateIdSuffix n number of times parallely. 
 		for i := 0; i < tc.number; i++ {
 			// Increment the WaitGroup counter.
