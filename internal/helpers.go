@@ -32,20 +32,20 @@ type Counter struct {
 var Cntr Counter
 
 // Thread safe Counter to generate ids in session file.
-func GenerateIdSuffix() string {
-	Cntr.counterMutex.Lock()
-	counter, _ := strconv.Atoi(Cntr.ObjectId)
+func (c *Counter) GenerateIdSuffix() string {
+	c.counterMutex.Lock()
+	counter, _ := strconv.Atoi(c.ObjectId)
 
 	counter = counter + 1
 
-	Cntr.ObjectId = strconv.Itoa(counter)
-	returnVal := Cntr.ObjectId
-	Cntr.counterMutex.Unlock()
+	c.ObjectId = strconv.Itoa(counter)
+	returnVal := c.ObjectId
+	c.counterMutex.Unlock()
 	return returnVal
 }
 
 func GenerateId(idPrefix string) string {
-	idSuffix := GenerateIdSuffix()
+	idSuffix := Cntr.GenerateIdSuffix()
 	id := idPrefix + idSuffix
 	return id
 }
