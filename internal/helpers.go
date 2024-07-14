@@ -18,25 +18,30 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 type Counter struct {
+	counterMutex sync.Mutex
 	ObjectId string
 }
 
 var Cntr Counter
 
+// Thread safe Counter to generate ids in session file.
 func GenerateIdSuffix() string {
-
+	Cntr.counterMutex.Lock()
 	counter, _ := strconv.Atoi(Cntr.ObjectId)
 
 	counter = counter + 1
 
 	Cntr.ObjectId = strconv.Itoa(counter)
-	return Cntr.ObjectId
+	returnVal := Cntr.ObjectId
+	Cntr.counterMutex.Unlock()
+	return returnVal
 }
 
 func GenerateId(idPrefix string) string {
