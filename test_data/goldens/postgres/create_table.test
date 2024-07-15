@@ -1,27 +1,29 @@
+-- invalid_table_name
 CREATE TABLE "table-with-invalid-chars$%^&" (
     id bigint
 );
 ALTER TABLE "table-with-invalid-chars$%^&" ADD PRIMARY KEY (id)
---
+-- GoogleSQL
 CREATE TABLE `table_with_invalid_chars____` (
     `id` INT64 NOT NULL ,
 ) PRIMARY KEY (`id`)
---
+-- PostgreSQL
 CREATE TABLE table_with_invalid_chars____ (
     id INT8 NOT NULL ,
     PRIMARY KEY (id)
 )
 ==
+-- create_table_happy_path
 CREATE TABLE test (
     id bigint PRIMARY KEY,
     col text
 )
---
+-- GoogleSQL
 CREATE TABLE `test` (
     `id` INT64 NOT NULL ,
     `col` STRING(MAX),
 ) PRIMARY KEY (`id`)
---
+-- PostgreSQL
 CREATE TABLE test (
     id INT8 NOT NULL ,
     col VARCHAR(2621440),
