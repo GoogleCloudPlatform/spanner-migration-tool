@@ -150,7 +150,7 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 			// if this numeric won't fit in Spanner's NUMERIC.
 			return ddl.Type{Name: ddl.Numeric}, nil
 		}
-	case "serial":
+	case "serial", "serial2", "serial4", "serial8":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.Serial}
