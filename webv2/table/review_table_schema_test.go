@@ -344,7 +344,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
 					},
 					"t2": {
 						Name:   "table2",
@@ -396,7 +396,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
 					},
 					"t2": {
 						Name:   "table2",
@@ -457,7 +457,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
 					},
 					"t2": {
 						Name:   "table2",
@@ -509,7 +509,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
 					},
 					"t2": {
 						Name:   "table2",
@@ -693,7 +693,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c3", Desc: false, Order: 2}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
 					},
 					"t2": {
 						Name:   "table2",
@@ -729,7 +729,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
-						ParentId:    "",
+						ParentTable: ddl.InterleavedParent{Id: "", OnDelete: ""},
 					},
 					"t2": {
 						Name:   "table2",
@@ -782,7 +782,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false, Order: 1}},
-						ParentId:    "t1",
+						ParentTable: ddl.InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION},
 					},
 				},
 
@@ -808,7 +808,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
-						ParentId:    "",
+						ParentTable: ddl.InterleavedParent{Id: "", OnDelete: ""},
 					},
 					"t2": {
 						Name:   "table2",
@@ -1381,7 +1381,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
 					},
 					"t2": {
 						Name:   "t2",
@@ -1406,7 +1406,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
 					},
 					"t2": {
 						Name:   "t2",
@@ -1443,7 +1443,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
 					},
 					"t2": {
 						Name:   "t2",
@@ -1468,7 +1468,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
 					},
 					"t2": {
 						Name:   "t2",
@@ -1630,7 +1630,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
-						ParentId:    "t1",
+						ParentTable: ddl.InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION},
 					},
 				},
 			},
@@ -1657,7 +1657,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
-						ParentId:    "t1",
+						ParentTable: ddl.InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION},
 					},
 				},
 			},
@@ -1680,7 +1680,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
 					},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -1715,7 +1715,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}, AutoGen: ddl.AutoGenCol{Name: "UUID", GenerationType: "Pre-defined"}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
 					},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -1758,7 +1758,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
 					},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -1801,7 +1801,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
 					},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -1852,7 +1852,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
 					},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -1903,7 +1903,7 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
 					},
 				},
 				SrcSchema: map[string]schema.Table{

@@ -23,6 +23,7 @@ import (
 	"cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
 	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
 	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -339,29 +340,29 @@ func TestSpannerAccessorImpl_GetSpannerLeaderLocation(t *testing.T) {
 
 func TestSpannerAccessorImpl_CreateDatabase(t *testing.T) {
 	testCases := []struct {
-		name        string
-		acm         spanneradmin.AdminClientMock
-		dialect     string
+		name          string
+		acm           spanneradmin.AdminClientMock
+		dialect       string
 		migrationType string
-		expectError bool
+		expectError   bool
 	}{
 		{
 			name: "GoogleSql Dataflow",
 			acm: spanneradmin.AdminClientMock{
-				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error)  {
+				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
 					return &spanneradmin.CreateDatabaseOperationMock{
 						WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, nil },
 					}, nil
 				},
 			},
-			expectError: false,
-			dialect:        "google_standard_sql",
-			migrationType:  "dataflow",
+			expectError:   false,
+			dialect:       "google_standard_sql",
+			migrationType: "dataflow",
 		},
 		{
 			name: "Pg Dataflow",
 			acm: spanneradmin.AdminClientMock{
-				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error)  {
+				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
 					return &spanneradmin.CreateDatabaseOperationMock{
 						WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, nil },
 					}, nil
@@ -372,27 +373,27 @@ func TestSpannerAccessorImpl_CreateDatabase(t *testing.T) {
 					}, nil
 				},
 			},
-			expectError: false,
-			dialect:        "postgresql",
-			migrationType:  "dataflow",
+			expectError:   false,
+			dialect:       "postgresql",
+			migrationType: "dataflow",
 		},
 		{
 			name: "GoogleSql bulk",
 			acm: spanneradmin.AdminClientMock{
-				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error)  {
+				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
 					return &spanneradmin.CreateDatabaseOperationMock{
 						WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, nil },
 					}, nil
 				},
 			},
-			expectError: false,
-			dialect:     "google_standard_sql",
-			migrationType:  "bulk",
+			expectError:   false,
+			dialect:       "google_standard_sql",
+			migrationType: "bulk",
 		},
 		{
 			name: "Pg bulk",
 			acm: spanneradmin.AdminClientMock{
-				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error)  {
+				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
 					return &spanneradmin.CreateDatabaseOperationMock{
 						WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, nil },
 					}, nil
@@ -403,25 +404,25 @@ func TestSpannerAccessorImpl_CreateDatabase(t *testing.T) {
 					}, nil
 				},
 			},
-			expectError: false,
-			dialect:     "postgresql",
-			migrationType:  "bulk",
+			expectError:   false,
+			dialect:       "postgresql",
+			migrationType: "bulk",
 		},
 		{
 			name: "GoogleSql Dataflow create database error",
 			acm: spanneradmin.AdminClientMock{
-				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error)  {
+				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
 					return nil, fmt.Errorf("error")
 				},
 			},
-			expectError: true,
-			dialect:        "google_standard_sql",
-			migrationType:  "dataflow",
+			expectError:   true,
+			dialect:       "google_standard_sql",
+			migrationType: "dataflow",
 		},
 		{
 			name: "Pg Dataflow update error",
 			acm: spanneradmin.AdminClientMock{
-				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error)  {
+				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
 					return &spanneradmin.CreateDatabaseOperationMock{
 						WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, nil },
 					}, nil
@@ -430,22 +431,24 @@ func TestSpannerAccessorImpl_CreateDatabase(t *testing.T) {
 					return nil, fmt.Errorf("error")
 				},
 			},
-			expectError: true,
-			dialect:        "postgresql",
-			migrationType:  "dataflow",
+			expectError:   true,
+			dialect:       "postgresql",
+			migrationType: "dataflow",
 		},
 		{
 			name: "GoogleSql Dataflow operation error",
 			acm: spanneradmin.AdminClientMock{
-				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error)  {
+				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
 					return &spanneradmin.CreateDatabaseOperationMock{
-						WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, fmt.Errorf("error") },
+						WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) {
+							return nil, fmt.Errorf("error")
+						},
 					}, nil
 				},
 			},
-			expectError: true,
-			dialect:        "google_standard_sql",
-			migrationType:  "dataflow",
+			expectError:   true,
+			dialect:       "google_standard_sql",
+			migrationType: "dataflow",
 		},
 	}
 	ctx := context.Background()
@@ -461,16 +464,16 @@ func TestSpannerAccessorImpl_CreateDatabase(t *testing.T) {
 
 func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 	testCases := []struct {
-		name        string
-		acm         spanneradmin.AdminClientMock
-		dialect     string
+		name          string
+		acm           spanneradmin.AdminClientMock
+		dialect       string
 		migrationType string
-		expectError bool
+		expectError   bool
 	}{
 		{
 			name: "GoogleSql Dataflow db does not exist",
 			acm: spanneradmin.AdminClientMock{
-				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error)  {
+				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
 					return &spanneradmin.CreateDatabaseOperationMock{
 						WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, nil },
 					}, nil
@@ -482,14 +485,14 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 					return &databasepb.GetDatabaseDdlResponse{}, nil
 				},
 			},
-			expectError: false,
-			dialect:        "google_standard_sql",
-			migrationType:  "dataflow",
+			expectError:   false,
+			dialect:       "google_standard_sql",
+			migrationType: "dataflow",
 		},
 		{
 			name: "GoogleSql Dataflow db exists",
 			acm: spanneradmin.AdminClientMock{
-				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error)  {
+				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
 					return &spanneradmin.CreateDatabaseOperationMock{
 						WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, nil },
 					}, nil
@@ -501,9 +504,9 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 					return &databasepb.GetDatabaseDdlResponse{}, nil
 				},
 			},
-			expectError: true,
-			dialect:        "google_standard_sql",
-			migrationType:  "dataflow",
+			expectError:   true,
+			dialect:       "google_standard_sql",
+			migrationType: "dataflow",
 		},
 		{
 			name: "Postgres Dataflow db exists",
@@ -515,9 +518,9 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 					return &databasepb.GetDatabaseDdlResponse{}, nil
 				},
 			},
-			expectError: true,
-			dialect:        "google_standard_sql",
-			migrationType:  "dataflow",
+			expectError:   true,
+			dialect:       "google_standard_sql",
+			migrationType: "dataflow",
 		},
 		{
 			name: "Postgres bulk db exists",
@@ -534,10 +537,10 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 					return &databasepb.GetDatabaseDdlResponse{}, nil
 				},
 			},
-			expectError: false,
-			dialect:        "google_standard_sql",
-			migrationType:  "bulk",
-		},	
+			expectError:   false,
+			dialect:       "google_standard_sql",
+			migrationType: "bulk",
+		},
 		{
 			name: "GoogleSql Dataflow db get database error",
 			acm: spanneradmin.AdminClientMock{
@@ -548,9 +551,9 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 					return &databasepb.GetDatabaseDdlResponse{}, nil
 				},
 			},
-			expectError: true,
-			dialect:        "google_standard_sql",
-			migrationType:  "dataflow",
+			expectError:   true,
+			dialect:       "google_standard_sql",
+			migrationType: "dataflow",
 		},
 		{
 			name: "GoogleSql Dataflow db ddl statements nto empty",
@@ -562,14 +565,14 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 					return &databasepb.GetDatabaseDdlResponse{Statements: []string{"string"}}, nil
 				},
 			},
-			expectError: true,
-			dialect:        "google_standard_sql",
-			migrationType:  "dataflow",
+			expectError:   true,
+			dialect:       "google_standard_sql",
+			migrationType: "dataflow",
 		},
 		{
 			name: "GoogleSql Dataflow db get database ddl error",
 			acm: spanneradmin.AdminClientMock{
-				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error)  {
+				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
 					return &spanneradmin.CreateDatabaseOperationMock{
 						WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, nil },
 					}, nil
@@ -581,9 +584,9 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 					return nil, fmt.Errorf("error")
 				},
 			},
-			expectError: true,
-			dialect:        "google_standard_sql",
-			migrationType:  "dataflow",
+			expectError:   true,
+			dialect:       "google_standard_sql",
+			migrationType: "dataflow",
 		},
 		{
 			name: "Postgres bulk db exists update ddl error",
@@ -598,14 +601,14 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 					return &databasepb.GetDatabaseDdlResponse{}, nil
 				},
 			},
-			expectError: true,
-			dialect:        "google_standard_sql",
-			migrationType:  "bulk",
-		},	
+			expectError:   true,
+			dialect:       "google_standard_sql",
+			migrationType: "bulk",
+		},
 		{
 			name: "GoogleSql Dataflow db does not exist create error",
 			acm: spanneradmin.AdminClientMock{
-				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error)  {
+				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
 					return nil, fmt.Errorf("error")
 				},
 				GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
@@ -615,9 +618,9 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 					return &databasepb.GetDatabaseDdlResponse{}, nil
 				},
 			},
-			expectError: true,
-			dialect:        "google_standard_sql",
-			migrationType:  "dataflow",
+			expectError:   true,
+			dialect:       "google_standard_sql",
+			migrationType: "dataflow",
 		},
 	}
 	ctx := context.Background()
@@ -679,34 +682,33 @@ func TestSpannerAccessorImpl_UpdateDatabase(t *testing.T) {
 	}
 }
 
-
 func TestSpannerAccessorImpl_UpdateDDLForeignKey(t *testing.T) {
-	schemaWithStatements:=map[string]ddl.CreateTable{
-		"table_id" : {
+	schemaWithStatements := map[string]ddl.CreateTable{
+		"table_id": {
 			Name: "table1",
-			Id: "table_id",
+			Id:   "table_id",
 		},
-		"table_id2" : {
-			Name: "table2",
-			Id: "table_id2",
-			ParentId: "table1",
+		"table_id2": {
+			Name:        "table2",
+			Id:          "table_id2",
+			ParentTable: ddl.InterleavedParent{Id: "table1", OnDelete: constants.FK_CASCADE},
 			ForeignKeys: []ddl.Foreignkey{
 				{
-					Name: "fk",
-					ColIds: []string{"columns"},
-					ReferTableId:"table1",
-					ReferColumnIds:[]string{"column"},
-					Id:"table_id",
+					Name:           "fk",
+					ColIds:         []string{"columns"},
+					ReferTableId:   "table1",
+					ReferColumnIds: []string{"column"},
+					Id:             "table_id",
 				},
 			},
 		},
 	}
 	testCases := []struct {
-		name        	string
-		acm         	spanneradmin.AdminClientMock
-		dialect     	string
-		migrationType	string
-		spSchema 		ddl.Schema
+		name          string
+		acm           spanneradmin.AdminClientMock
+		dialect       string
+		migrationType string
+		spSchema      ddl.Schema
 	}{
 		{
 			name: "Update DDL ForeignKey successful pg dataflow",
@@ -717,8 +719,8 @@ func TestSpannerAccessorImpl_UpdateDDLForeignKey(t *testing.T) {
 					}, nil
 				},
 			},
-			dialect: "postgresql",
-			spSchema: schemaWithStatements,
+			dialect:       "postgresql",
+			spSchema:      schemaWithStatements,
 			migrationType: "dataflow",
 		},
 		{
@@ -730,8 +732,8 @@ func TestSpannerAccessorImpl_UpdateDDLForeignKey(t *testing.T) {
 					}, nil
 				},
 			},
-			dialect: "postgresql",
-			spSchema: map[string]ddl.CreateTable{},
+			dialect:       "postgresql",
+			spSchema:      map[string]ddl.CreateTable{},
 			migrationType: "dataflow",
 		},
 		{
@@ -743,8 +745,8 @@ func TestSpannerAccessorImpl_UpdateDDLForeignKey(t *testing.T) {
 					}, nil
 				},
 			},
-			dialect: "google_standard_sql",
-			spSchema: schemaWithStatements,
+			dialect:       "google_standard_sql",
+			spSchema:      schemaWithStatements,
 			migrationType: "dataflow",
 		},
 		{
@@ -754,8 +756,8 @@ func TestSpannerAccessorImpl_UpdateDDLForeignKey(t *testing.T) {
 					return nil, fmt.Errorf("error")
 				},
 			},
-			dialect: "postgresql",
-			spSchema: schemaWithStatements,
+			dialect:       "postgresql",
+			spSchema:      schemaWithStatements,
 			migrationType: "dataflow",
 		},
 		{
@@ -767,8 +769,8 @@ func TestSpannerAccessorImpl_UpdateDDLForeignKey(t *testing.T) {
 					}, nil
 				},
 			},
-			dialect: "postgresql",
-			spSchema: schemaWithStatements,
+			dialect:       "postgresql",
+			spSchema:      schemaWithStatements,
 			migrationType: "dataflow",
 		},
 	}

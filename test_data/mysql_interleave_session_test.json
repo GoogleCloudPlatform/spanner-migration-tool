@@ -61,7 +61,7 @@
 				}
 			],
 			"Indexes": null,
-			"ParentId": "",
+			"ParentTable": {"Id": "", "OnDelete": ""},
 			"Comment": "Spanner schema for source table cart",
 			"Id": "t46"
 		},
@@ -101,7 +101,7 @@
 			],
 			"ForeignKeys": null,
 			"Indexes": null,
-			"ParentId": "",
+			"ParentTable": {"Id": "", "OnDelete": ""},
 			"Comment": "Spanner schema for source table user",
 			"Id": "t51"
 		}

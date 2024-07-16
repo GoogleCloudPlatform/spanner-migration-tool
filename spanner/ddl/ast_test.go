@@ -154,7 +154,7 @@ func TestPrintCreateTable(t *testing.T) {
 		PrimaryKeys:   []IndexKey{{ColId: "col1", Desc: true}},
 		ForeignKeys:   nil,
 		Indexes:       nil,
-		ParentTable:   InterleavedParent{Id: "par1", OnDelete: constants.CASCADE},
+		ParentTable:   InterleavedParent{Id: "par1", OnDelete: constants.FK_CASCADE},
 		Comment:       "",
 		Id:            "1",
 	}
@@ -227,7 +227,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 		PrimaryKeys:   []IndexKey{{ColId: "col1", Desc: true}},
 		ForeignKeys:   nil,
 		Indexes:       nil,
-		ParentTable:   InterleavedParent{Id: "par1", OnDelete: constants.CASCADE},
+		ParentTable:   InterleavedParent{Id: "par1", OnDelete: constants.FK_CASCADE},
 		Comment:       "",
 		Id:            "1",
 	}
@@ -633,7 +633,7 @@ func TestGetDDL(t *testing.T) {
 				"c9": {Name: "c", Id: "c9", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c7"}, {ColId: "c8"}},
-			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.NO_ACTION},
+			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION},
 		},
 	}
 	tablesOnly := GetDDL(Config{Tables: true, ForeignKeys: false}, s, make(map[string]Sequence))
@@ -741,7 +741,7 @@ func TestGetPGDDL(t *testing.T) {
 				"c8": {Name: "c", Id: "c8", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c6"}, {ColId: "c7"}},
-			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.NO_ACTION},
+			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION},
 		},
 	}
 	tablesOnly := GetDDL(Config{Tables: true, ForeignKeys: false, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence))
@@ -850,12 +850,12 @@ func TestGetSortedTableIdsBySpName(t *testing.T) {
 				"table_id_2": CreateTable{
 					Name:        "Table2",
 					Id:          "table_id_2",
-					ParentTable: InterleavedParent{Id: "table_id_1", OnDelete: constants.CASCADE},
+					ParentTable: InterleavedParent{Id: "table_id_1", OnDelete: constants.FK_CASCADE},
 				},
 				"table_id_3": CreateTable{
 					Name:        "Table3",
 					Id:          "table_id_3",
-					ParentTable: InterleavedParent{Id: "table_id_2", OnDelete: constants.NO_ACTION},
+					ParentTable: InterleavedParent{Id: "table_id_2", OnDelete: constants.FK_NO_ACTION},
 				},
 			},
 			expected: []string{"table_id_1", "table_id_2", "table_id_3"},
@@ -882,7 +882,7 @@ func TestGetSortedTableIdsBySpName(t *testing.T) {
 				"table_id_1": CreateTable{
 					Name:        "Table1",
 					Id:          "table_id_1",
-					ParentTable: InterleavedParent{Id: "table_id_2", OnDelete: constants.NO_ACTION},
+					ParentTable: InterleavedParent{Id: "table_id_2", OnDelete: constants.FK_NO_ACTION},
 				},
 			},
 			expected: []string{"table_id_1"},

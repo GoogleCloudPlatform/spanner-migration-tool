@@ -387,6 +387,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 	return indexes, nil
 }
 
+// TODO: Extract & initialise ON DELETE action and return it (ON_DELETE_ACTION in information_schema.tables)
 func (isi InfoSchemaImpl) GetInterleaveTables() (map[string]string, error) {
 	q := `SELECT table_name, parent_table_name FROM information_schema.tables 
 	WHERE interleave_type = 'IN PARENT' AND table_type = 'BASE TABLE' AND table_schema = ''`
