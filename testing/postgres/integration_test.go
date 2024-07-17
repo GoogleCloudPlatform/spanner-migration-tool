@@ -390,12 +390,12 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 		log.Fatal(err)
 	}
 	defer client.Close()
-	mutation := spanner.Delete("products", spanner.Key{"2KJHWIUS9K"})
+	mutation := spanner.Delete("test_fka.products", spanner.Key{"2KJHWIUS9K"})
 
 	_, err = client.Apply(ctx, []*spanner.Mutation{mutation})
 	assert.Error(t, err, "Expected ON DELETE NO ACTION to prevent deletion")
 
-	stmt := spanner.Statement{SQL: `SELECT * FROM cart WHERE productid = "2KJHWIUS9K"`}
+	stmt := spanner.Statement{SQL: `SELECT * FROM test_fka.cart WHERE productid = "2KJHWIUS9K"`}
 	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	row, err := iter.Next()
