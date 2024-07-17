@@ -48,7 +48,7 @@ func ClearEnvVariables(vars []string) map[string]string {
 	envVars := make(map[string]string)
 	for _, v := range vars {
 		envVars[v] = os.Getenv(v)
-		// os.Setenv(v, "")
+		os.Setenv(v, "")
 	}
 	return envVars
 }

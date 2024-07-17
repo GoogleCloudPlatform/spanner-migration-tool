@@ -329,6 +329,14 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	}
 	defer client.Close()
 
+	//comment this out
+	stmt1 := spanner.Statement{SQL: `SELECT * FROM products WHERE product_id = "zxi-631"`}
+	iter1 := client.Single().Query(ctx, stmt1)
+	defer iter1.Stop()
+	_, err = iter1.Next()
+	assert.Equal(t, nil, err, "Expected rows in 'products'")
+	//--
+
 	mutation := spanner.Delete("products", spanner.Key{"zxi-631"})
 
 	_, err = client.Apply(ctx, []*spanner.Mutation{mutation})
