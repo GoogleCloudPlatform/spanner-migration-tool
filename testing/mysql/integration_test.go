@@ -225,14 +225,15 @@ func TestIntegration_MYSQL_ForeignKeyActionMigration(t *testing.T) {
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "mysql-dc-schema-and-data"
+	dbName := "mysql-foreignkey-actions"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName)
 
-	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), "test_foreign_key_action_data", os.Getenv("MYSQLPWD")
+	// host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), "test_foreign_key_action_data", os.Getenv("MYSQLPWD")
 	envVars := common.ClearEnvVariables([]string{"MYSQLHOST", "MYSQLUSER", "MYSQLPWD"})
-	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName)
-	err := common.RunCommand(args, projectID)
+	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=localhost,user=root,dbName=test_foreign_key_action_data,password=root' -target-profile='instance=test-instance,dbName=mysql-foreignkey-actions'", constants.MYSQL, filePrefix)
+	err := common.RunCommand(args, "emulator-test-project")
 	common.RestoreEnvVariables(envVars)
 	if err != nil {
 		t.Fatal(err)
