@@ -32,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/testing/common"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/iterator"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
@@ -211,6 +212,7 @@ func checkResults(t *testing.T, dbURI string) {
 	checkTimestamps(ctx, t, client)
 	checkCoreTypes(ctx, t, client)
 	checkArrays(ctx, t, client)
+	checkForeignKeyActions(ctx, t, client)
 }
 
 func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
@@ -326,6 +328,22 @@ func checkArrays(ctx context.Context, t *testing.T, client *spanner.Client) {
 	if got, want := strs, "{1,nice,foo}"; !reflect.DeepEqual(got, want) {
 		t.Fatalf("string array is not correct: got %v, want %v", got, want)
 	}
+}
+
+func checkForeignKeyActions(ctx context.Context, t *testing.T, client *spanner.Client) {
+
+	mutation := spanner.Delete("products", spanner.Key{"2KJHWIUS9K"})
+
+	_, err := client.Apply(ctx, []*spanner.Mutation{mutation})
+	assert.Error(t, err, "Expected ON DELETE NO ACTION to prevent deletion")
+
+	stmt := spanner.Statement{SQL: `SELECT * FROM cart WHERE productid = "2KJHWIUS9K"`}
+	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	row, err := iter.Next()
+
+	assert.Nil(t, err, "Error fetching rows from 'cart'") //testing ON DELETE NO ACTION
+	assert.NotNil(t, row, "Expected rows in 'cart' to still exist")
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {

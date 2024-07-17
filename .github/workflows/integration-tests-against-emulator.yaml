@@ -110,6 +110,7 @@ jobs:
       - run: mysql --version
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot test < test_data/mysqldump.test.out
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_interleave_dump.test.out
+      - run: mysql -v -P 3306 --protocol=tcp -u root -proot fkactions_test < test_data/mysql_foreignkeyaction_dump.test.out
 
       # init sql server with test_data
       - name: Install sqlcmd required for loading .sql files
