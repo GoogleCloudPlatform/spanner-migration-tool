@@ -18,36 +18,37 @@ SET row_security = off;
 
 SET default_tablespace = '';
 
+CREATE DATABASE test_fka;
 --
--- Name: cart; Type: TABLE; Schema: public; Owner: postgres
+-- Name: cart; Type: TABLE; Schema: test_fka; Owner: postgres
 --
 
-CREATE TABLE public.cart (
+CREATE TABLE test_fka.cart (
     productid text NOT NULL,
     userid text NOT NULL,
     quantity bigint
 );
 
 
-ALTER TABLE public.cart OWNER TO postgres;
+ALTER TABLE test_fka.cart OWNER TO postgres;
 
 --
--- Name: products; Type: TABLE; Schema: public; Owner: postgres
+-- Name: products; Type: TABLE; Schema: test_fka; Owner: postgres
 --
 
-CREATE TABLE public.products (
+CREATE TABLE test_fka.products (
     productid text NOT NULL,
     description text,
     price numeric(10, 2)
 );
 
-ALTER TABLE public.products OWNER TO postgres;
+ALTER TABLE test_fka.products OWNER TO postgres;
 
 --
--- Data for Name: cart; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: cart; Type: TABLE DATA; Schema: test_fka; Owner: postgres
 --
 
-COPY public.cart (productid, userid, quantity) FROM stdin;
+COPY test_fka.cart (productid, userid, quantity) FROM stdin;
 1YMWWN1N4O	64e10503-9b6f-48e5-9e9c-2b7818ee322d	2
 OLJCESPC7Z	419af207-ac61-4131-b1a6-bb627405e92d	1
 OLJCESPC7Z	31ad80e3-182b-42b0-a164-b4c7ea976ce4	125
@@ -56,10 +57,10 @@ OLJCESPC7Z	17b14ec1-5a42-4087-bb3f-3ebd32bacf2a	106
 \.
 
 --
--- Data for Name: products; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: products; Type: TABLE DATA; Schema: test_fka; Owner: postgres
 --
 
-COPY public.products (productid, description, price) FROM stdin;
+COPY test_fka.products (productid, description, price) FROM stdin;
 1YMWWN1N4O	bookshelf	45.50
 OLJCESPC7Z	armchair	54.99
 2KJHWIUS9K	sofa	        125.00
@@ -67,33 +68,33 @@ OLJCESPC7Z	armchair	54.99
 \.
 
 --
--- Name: cart cart_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: cart cart_pkey; Type: CONSTRAINT; Schema: test_fka; Owner: postgres
 --
 
-ALTER TABLE ONLY public.cart
+ALTER TABLE ONLY test_fka.cart
     ADD CONSTRAINT cart_pkey PRIMARY KEY (userid, productid);
    
 --
--- Name: products products_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: products products_pkey; Type: CONSTRAINT; Schema: test_fka; Owner: postgres
 --
 
-ALTER TABLE ONLY public.products
+ALTER TABLE ONLY test_fka.products
     ADD CONSTRAINT products_pkey PRIMARY KEY (productid);
 
 --
--- Name: cart fk_cart_products; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: cart fk_cart_products; Type: CONSTRAINT; Schema: test_fka; Owner: postgres
 --
-ALTER TABLE ONLY public.cart
-    ADD CONSTRAINT fk_cart_products FOREIGN KEY (productid) REFERENCES products (productid) ON DELETE CASCADE ON UPDATE RESTRICT;
+ALTER TABLE ONLY test_fka.cart
+    ADD CONSTRAINT fk_cart_products FOREIGN KEY (productid) REFERENCES test_fka.products (productid) ON DELETE NO ACTION ON UPDATE RESTRICT;
     
 --
 -- Name: SCHEMA public; Type: ACL; Schema: -; Owner: cloudsqlsuperuser
 --
 
-REVOKE ALL ON SCHEMA public FROM cloudsqladmin;
-REVOKE ALL ON SCHEMA public FROM PUBLIC;
-GRANT ALL ON SCHEMA public TO cloudsqlsuperuser;
-GRANT ALL ON SCHEMA public TO PUBLIC;
+REVOKE ALL ON SCHEMA test_fka FROM cloudsqladmin;
+REVOKE ALL ON SCHEMA test_fka FROM PUBLIC;
+GRANT ALL ON SCHEMA test_fka TO cloudsqlsuperuser;
+GRANT ALL ON SCHEMA test_fka TO PUBLIC;
 
 
 --

@@ -200,6 +200,60 @@ func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
 	defer dropDatabase(t, dbURI)
 }
 
+func TestIntegration_PGDUMP_ForeignKeyActionMigration(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	now := time.Now()
+	g := utils.GetUtilInfoImpl{}
+	dbName, _ := g.GetDatabaseName(constants.PGDUMP, now)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+
+	dataFilepath := "../../test_data/pg_foreignkeyaction_dump.test.out"
+	filePrefix := filepath.Join(tmpdir, dbName)
+
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s' < %s", filePrefix, instanceID, dbName, dataFilepath)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Drop the database later.
+	defer dropDatabase(t, dbURI)
+
+	checkForeignKeyActions(ctx, t, dbURI)
+}
+
+func TestIntegration_POSTGRES_ForeignKeyActionMigration(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	now := time.Now()
+	g := utils.GetUtilInfoImpl{}
+	dbName, _ := g.GetDatabaseName(constants.POSTGRES, now)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	filePrefix := filepath.Join(tmpdir, dbName)
+
+	host, user, srcDb, password := os.Getenv("PGHOST"), os.Getenv("PGUSER"), os.Getenv("test_fka"), os.Getenv("PGPWD")
+	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName)
+	err := common.RunCommand(args, projectID)
+
+	// args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
+	// err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Drop the database later.
+	defer dropDatabase(t, dbURI)
+
+	checkForeignKeyActions(ctx, t, dbURI)
+}
+
 func checkResults(t *testing.T, dbURI string) {
 	// Make a query to check results.
 	client, err := spanner.NewClient(ctx, dbURI)
@@ -212,7 +266,6 @@ func checkResults(t *testing.T, dbURI string) {
 	checkTimestamps(ctx, t, client)
 	checkCoreTypes(ctx, t, client)
 	checkArrays(ctx, t, client)
-	checkForeignKeyActions(ctx, t, client)
 }
 
 func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
@@ -330,11 +383,16 @@ func checkArrays(ctx context.Context, t *testing.T, client *spanner.Client) {
 	}
 }
 
-func checkForeignKeyActions(ctx context.Context, t *testing.T, client *spanner.Client) {
-
+func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
+	// Make a query to check results.
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
 	mutation := spanner.Delete("products", spanner.Key{"2KJHWIUS9K"})
 
-	_, err := client.Apply(ctx, []*spanner.Mutation{mutation})
+	_, err = client.Apply(ctx, []*spanner.Mutation{mutation})
 	assert.Error(t, err, "Expected ON DELETE NO ACTION to prevent deletion")
 
 	stmt := spanner.Statement{SQL: `SELECT * FROM cart WHERE productid = "2KJHWIUS9K"`}
