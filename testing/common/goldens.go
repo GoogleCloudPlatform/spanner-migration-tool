@@ -16,101 +16,154 @@ package common
 
 import (
 	"bufio"
-	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"testing"
 )
 
 type GoldenTestCase struct {
-	InputSchema        string
-	ExpectedGSQLSchema string
-	ExpectedPSQLSchema string
+	Name     string
+	Input    string
+	GSQLWant string
+	PSQLWant string
 }
 
-type GoldenParseStatus int
+type parseStatus int
 
 const (
-	InputSchema GoldenParseStatus = iota
-	GSQLSchema
-	PSQLSchema
+	parsingInput parseStatus = iota
+	parsingGSQL
+	parsingPSQL
 )
 
 const (
-	GoldenTestPartSeparator = "--"
-	GoldenTestCaseSeparator = "=="
+	goldenTestCaseNamePrefix    = "--"
+	goldenGoogleSQLExpectation  = "-- GoogleSQL"
+	goldenPostgreSQLExpectation = "-- PostgreSQL"
+	goldenTestCaseEndOfTest     = "=="
 )
 
-func GoldenTestCasesFrom(path string) ([]GoldenTestCase, error) {
-	file, err := os.Open(path)
+func GoldenTestCasesFrom(t testing.TB, dir string) []GoldenTestCase {
+	t.Helper()
+	var tests []GoldenTestCase
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, err
+		t.Fatalf("error when reading golden tests from dir %s: %s", dir, err)
+		return nil
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			path := filepath.Join(dir, entry.Name())
+			ts := goldenTestCasesFromFile(t, path)
+			if err != nil {
+				return nil
+			}
+			tests = append(tests, ts...)
+		}
+	}
+	return tests
+}
+
+func goldenTestCasesFromFile(t testing.TB, filePath string) []GoldenTestCase {
+	t.Helper()
+	file, err := os.Open(filePath)
+	dirName := filepath.Base(filepath.Dir(filePath))
+	fileName := filepath.Base(filePath)
+	if err != nil {
+		t.Fatalf("error when reading golden tests from path %s: %s", filePath, err)
+		return nil
 	}
 	defer file.Close()
 
 	var testCases []GoldenTestCase
-	var inputSchema, expectedGSQLSchema, expectedPSQLSchema strings.Builder
-	parsingStatus := InputSchema
+	var testName, inputSchema, GSQLWant, PSQLWant strings.Builder
+	parsingStatus := parsingInput
 	lineNum := 0
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Text()
 
+		// First line should be the test case name
+		if testName.Len() == 0 {
+			testName.WriteString(dirName)
+			testName.WriteString("/")
+			testName.WriteString(fileName)
+			testName.WriteString("/")
+			testName.WriteString(strings.Trim(strings.ReplaceAll(line, goldenTestCaseNamePrefix, ""), ""))
+			continue
+		}
+		// Beginning of GoogleSQL expectation
+		if line == goldenGoogleSQLExpectation {
+			if GSQLWant.Len() != 0 {
+				t.Fatal("bad format: Duplicated GoogleSQL definition in test case")
+				return nil
+			}
+			parsingStatus = parsingGSQL
+			continue
+		}
+		// Beginning of PostgreSQL expectation
+		if line == goldenPostgreSQLExpectation {
+			if PSQLWant.Len() != 0 {
+				t.Fatal("bad format: Duplicated PostgreSQL definition in test case")
+				return nil
+			}
+			parsingStatus = parsingPSQL
+			continue
+		}
+
 		// End of a test case
-		if line == GoldenTestCaseSeparator {
+		if line == goldenTestCaseEndOfTest {
 			if inputSchema.Len() == 0 {
-				return nil, fmt.Errorf("bad format: Invalid test case at line %d, missing source schema", lineNum)
+				t.Fatalf("bad format: Invalid test case at line %d, missing source schema", lineNum)
+				return nil
 			}
-			if expectedGSQLSchema.Len() == 0 {
-				return nil, fmt.Errorf("bad format: Invalid test case at line %d, missing expected GoogleSQL schema", lineNum)
+			if GSQLWant.Len() == 0 {
+				t.Fatalf("bad format: Invalid test case at line %d, missing expected GoogleSQL schema", lineNum)
+				return nil
 			}
-			if expectedPSQLSchema.Len() == 0 {
-				return nil, fmt.Errorf("bad format: Invalid test case at line %d, missing expected PostgreSQL schema", lineNum)
+			if PSQLWant.Len() == 0 {
+				t.Fatalf("bad format: Invalid test case at line %d, missing expected PostgreSQL schema", lineNum)
+				return nil
 			}
-			sanitizedGSQLSchema := strings.TrimRight(expectedGSQLSchema.String(), "\n")
-			sanitizedPSQLSchema := strings.TrimRight(expectedPSQLSchema.String(), "\n")
 			testCases = append(testCases, GoldenTestCase{
-				InputSchema:        inputSchema.String(),
-				ExpectedGSQLSchema: sanitizedGSQLSchema,
-				ExpectedPSQLSchema: sanitizedPSQLSchema})
-			parsingStatus = InputSchema
+				Name:     testName.String(),
+				Input:    inputSchema.String(),
+				GSQLWant: strings.TrimRight(GSQLWant.String(), "\n"),
+				PSQLWant: strings.TrimRight(PSQLWant.String(), "\n")})
+			parsingStatus = parsingInput
+			testName.Reset()
 			inputSchema.Reset()
-			expectedGSQLSchema.Reset()
-			expectedPSQLSchema.Reset()
+			GSQLWant.Reset()
+			PSQLWant.Reset()
 			continue
 		}
 
-		// End of part of a test case
-		if line == GoldenTestPartSeparator {
-			switch parsingStatus {
-			case InputSchema:
-				parsingStatus = GSQLSchema
-			case GSQLSchema:
-				parsingStatus = PSQLSchema
-			default:
-				return nil, fmt.Errorf("bad format: expected end of test case at line %d", lineNum)
-			}
-			continue
-		}
-
+		// Test body
 		switch parsingStatus {
-		case InputSchema:
-			inputSchema.WriteString(line + "\n")
-		case GSQLSchema:
-			expectedGSQLSchema.WriteString(line + "\n")
-		case PSQLSchema:
-			expectedPSQLSchema.WriteString(line + "\n")
+		case parsingInput:
+			inputSchema.WriteString(line)
+			inputSchema.WriteString("\n")
+		case parsingGSQL:
+			GSQLWant.WriteString(line)
+			GSQLWant.WriteString("\n")
+		case parsingPSQL:
+			PSQLWant.WriteString(line)
+			PSQLWant.WriteString("\n")
 		}
 	}
 
-	// Test case is invalid
-	if parsingStatus != InputSchema {
-		return nil, fmt.Errorf("bad format: Invalid test case at line %d", lineNum)
+	// Test case not finished
+	if parsingStatus != parsingInput {
+		t.Fatalf("bad format: Invalid test case at line %d", lineNum)
+		return nil
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		t.Fatalf("bad format: Error when scanning golden test file %s: %s", filePath, err)
+		return nil
 	}
 
-	return testCases, nil
+	return testCases
 }
