@@ -17,7 +17,7 @@
 
 
 CREATE DATABASE test_foreign_key_action_data;
-USE test_interleave_table_data;
+USE test_foreign_key_action_data;
 
 --
 -- Table structure for table `cart`
