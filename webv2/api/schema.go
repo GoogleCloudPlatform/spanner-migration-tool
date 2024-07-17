@@ -1423,7 +1423,7 @@ func initializeTypeMap() {
 		var l []types.TypeIssue
 		srcType := schema.MakeType()
 		srcType.Name = srcTypeName
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
@@ -1440,7 +1440,7 @@ func initializeTypeMap() {
 		var l []types.TypeIssue
 		srcType := schema.MakeType()
 		srcType.Name = srcTypeName
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
@@ -1455,7 +1455,7 @@ func initializeTypeMap() {
 		var l []types.TypeIssue
 		srcType := schema.MakeType()
 		srcType.Name = srcTypeName
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
@@ -1470,7 +1470,7 @@ func initializeTypeMap() {
 		var l []types.TypeIssue
 		srcType := schema.MakeType()
 		srcType.Name = srcTypeName
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
@@ -1559,7 +1559,7 @@ func initializeAutoGenMap() {
 }
 
 func makePostgresDialectAutoGenMap(sequences map[string]ddl.Sequence) {
-	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar, ddl.Numeric} {
+	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat4, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar, ddl.Numeric} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
 				Name:           "",
@@ -1586,7 +1586,7 @@ func makePostgresDialectAutoGenMap(sequences map[string]ddl.Sequence) {
 }
 
 func makeGoogleSqlDialectAutoGenMap(sequences map[string]ddl.Sequence) {
-	for _, srcTypeName := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+	for _, srcTypeName := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
 				Name:           "",

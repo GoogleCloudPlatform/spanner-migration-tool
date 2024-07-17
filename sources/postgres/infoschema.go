@@ -539,6 +539,7 @@ func cvtSQLArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, v
 //	bool
 //	[]byte
 //	int64
+//	float32
 //	float64
 //	string
 //	time.Time
@@ -575,16 +576,33 @@ func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, 
 			return convInt64(string(v))
 		case int64:
 			return v, nil
+		case float32: // Truncate.
+			return int64(v), nil
 		case float64: // Truncate.
 			return int64(v), nil
 		case string: // Parse as int64.
 			return convInt64(v)
+		}
+	case ddl.Float32:
+		switch v := val.(type) {
+		case []byte: // Note: PostgreSQL uses []byte for numeric.
+			return convFloat32(string(v))
+		case int64:
+			return float32(v), nil
+		case float32:
+			return v, nil
+		case float64:
+			return float32(v), nil
+		case string:
+			return convFloat32(v)
 		}
 	case ddl.Float64:
 		switch v := val.(type) {
 		case []byte: // Note: PostgreSQL uses []byte for numeric.
 			return convFloat64(string(v))
 		case int64:
+			return float64(v), nil
+		case float32:
 			return float64(v), nil
 		case float64:
 			return v, nil
@@ -604,6 +622,8 @@ func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, 
 			return string(v), nil
 		case int64:
 			return strconv.FormatInt(v, 10), nil
+		case float32:
+			return strconv.FormatFloat(float64(v), 'g', -1, 32), nil
 		case float64:
 			return strconv.FormatFloat(v, 'g', -1, 64), nil
 		case string:

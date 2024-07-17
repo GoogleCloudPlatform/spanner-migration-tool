@@ -38,7 +38,7 @@ The Spanner migration tool maps MySQL types to Spanner types as follows:
 | `DECIMAL`, `NUMERIC`                              | `NUMERIC`        | potential changes of precision                           |
 | `DOUBLE`                                          | `FLOAT64`        |                                                          |
 | `ENUM`                                            | `STRING(MAX)`    |                                                          |
-| `FLOAT`                                           | `FLOAT64`        | changes in storage size                                  |
+| `FLOAT`                                           | `FLOAT32`        |                                                          |
 | `INTEGER`, `MEDIUMINT`,<br/>`TINYINT`, `SMALLINT` | `INT64`          | changes in storage size                                  |
 | `JSON`                                            | `JSON`           |                                                          |
 | `SET`                                             | `ARRAY<STRING>`  | SET only supports string values                          |
