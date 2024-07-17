@@ -239,10 +239,10 @@ func TestIntegration_POSTGRES_ForeignKeyActionMigration(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName)
 
-	host, user, srcDb, password := os.Getenv("PGHOST"), os.Getenv("PGUSER"), "test_fka", os.Getenv("PGPASSWORD")
+	// host, user, srcDb, password := os.Getenv("PGHOST"), os.Getenv("PGUSER"), "test_fka", os.Getenv("PGPASSWORD")
 	envVars := common.ClearEnvVariables([]string{"PGHOST", "PGUSER", "PGPASSWORD"})
-	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.POSTGRES, filePrefix, host, user, srcDb, password, instanceID, dbName)
-	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=localhost,user=postgres,dbName=test_fka,password=postgres' -target-profile='instance=test-instance,dbName=postgres-foreignkey-actions'", constants.POSTGRES, filePrefix)
+	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.POSTGRES, filePrefix, host, user, srcDb, password, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=localhost,user=postgres,dbName=test_fka,password=postgres' -target-profile='instance=test-instance,dbName=postgres-foreignkey-actions'", constants.POSTGRES, filePrefix)
 	err := common.RunCommand(args, "emulator-test-project")
 	common.RestoreEnvVariables(envVars)
 	if err != nil {
@@ -259,7 +259,7 @@ func TestIntegration_POSTGRES_ForeignKeyActionMigration(t *testing.T) {
 	// filePrefix := filepath.Join(tmpdir, dbName)
 
 	// host, user, srcDb, password := os.Getenv("PGHOST"), os.Getenv("PGUSER"), os.Getenv("test_fka"), os.Getenv("PGPWD")
-	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName)
+	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.POSTGRES, filePrefix, host, user, srcDb, password, instanceID, dbName)
 	// err := common.RunCommand(args, projectID)
 
 	// args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
@@ -408,12 +408,12 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 		log.Fatal(err)
 	}
 	defer client.Close()
-	mutation := spanner.Delete("products", spanner.Key{"2KJHWIUS9K"})
+	mutation := spanner.Delete("test_fka_products", spanner.Key{"2KJHWIUS9K"})
 
 	_, err = client.Apply(ctx, []*spanner.Mutation{mutation})
 	assert.Error(t, err, "Expected ON DELETE NO ACTION to prevent deletion")
 
-	stmt := spanner.Statement{SQL: `SELECT * FROM cart WHERE productid = "2KJHWIUS9K"`}
+	stmt := spanner.Statement{SQL: `SELECT * FROM test_fka_cart WHERE productid = "2KJHWIUS9K"`}
 	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	row, err := iter.Next()
