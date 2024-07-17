@@ -181,7 +181,7 @@ ALTER TABLE ONLY public.test
 -- Name: cart fk_cart_products; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 ALTER TABLE ONLY public.cart
-    ADD CONSTRAINT fk_cart_products FOREIGN KEY (productid) REFERENCES products (productid) ON DELETE CASCADE ON UPDATE RESTRICT;
+    ADD CONSTRAINT fk_cart_products FOREIGN KEY (productid) REFERENCES products (productid) ON DELETE NO ACTION ON UPDATE RESTRICT;
     
 --
 -- Name: SCHEMA public; Type: ACL; Schema: -; Owner: cloudsqlsuperuser
