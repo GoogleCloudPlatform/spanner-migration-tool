@@ -8,6 +8,12 @@
       <mat-label>Spanner Database</mat-label>
       <input matInput placeholder="Target Database" type="text" formControlName="targetDb"
         ng-value="targetDetails.TargetDB" />
+          <mat-hint>
+            <div class="container"  style="display: inline;">
+              Min. 2 characters and Max. 30 characters. 
+              <a  href="https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language#naming_conventions">More Details</a> 
+            </div>
+            </mat-hint>
     </mat-form-field>
     <br>
     <br>

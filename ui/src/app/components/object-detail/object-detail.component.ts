@@ -72,6 +72,8 @@ export class ObjectDetailComponent implements OnInit {
   processedAutoGenMap: GroupedAutoGens = {};
   sequenceKinds: string[] = []
   autoGenSupported: boolean = false
+  foreignKeyActionsSupported: boolean = false
+
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
@@ -83,6 +85,9 @@ export class ObjectDetailComponent implements OnInit {
       this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
     }
     this.autoGenSupported = autoGenSupportedDbs.includes(this.srcDbName)
+    if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres){
+          this.foreignKeyActionsSupported = true
+        }
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
@@ -168,6 +173,7 @@ export class ObjectDetailComponent implements OnInit {
   pkObj: IPrimaryKey = {} as IPrimaryKey
   dataTypesWithColLen: string[] = ColLength.DataTypes
   spColspan : number = 6
+  srcColspan : number = 6
 
   ngOnChanges(changes: SimpleChanges): void {
     this.fkData = changes['fkData']?.currentValue || this.fkData
@@ -200,7 +206,14 @@ export class ObjectDetailComponent implements OnInit {
     if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
       this.spDisplayedColumns.splice(2, 0, "spAutoGen");
       this.displayedPkColumns.splice(8, 0, "spAutoGen");
+      this.srcDisplayedColumns.splice(2, 0, "srcAutoGen");
+      this.displayedPkColumns.splice(2, 0, "srcAutoGen");
       this.spColspan++;
+      this.srcColspan++;
+    }
+    if (this.foreignKeyActionsSupported && !this.displayedFkColumns.includes('srcOnDelete') ) {
+      this.displayedFkColumns.splice(4, 0, 'srcOnDelete', 'srcOnUpdate');
+      this.displayedFkColumns.splice(10, 0, 'spOnDelete', 'spOnUpdate'); 
     }
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
@@ -246,6 +259,7 @@ export class ObjectDetailComponent implements OnInit {
           srcIsPk: new FormControl(row.srcIsPk),
           srcIsNotNull: new FormControl(row.srcIsNotNull),
           srcColMaxLength: new FormControl(row.srcColMaxLength),
+          srcAutoGen: new FormControl(row.srcAutoGen),
           spOrder: new FormControl(row.srcOrder),
           spColName: new FormControl(row.spColName, [
             Validators.required,
@@ -296,6 +310,7 @@ export class ObjectDetailComponent implements OnInit {
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
             srcColMaxLength: new FormControl(col.srcColMaxLength),
+            srcAutoGen: new FormControl(col.srcAutoGen),
             spOrder: new FormControl(col.spOrder),
             spColName: new FormControl(col.spColName),
             spDataType: new FormControl(col.spDataType),
@@ -331,6 +346,7 @@ export class ObjectDetailComponent implements OnInit {
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
             srcColMaxLength: new FormControl(col.srcColMaxLength),
+            srcAutoGen: new FormControl(col.srcAutoGen),
             spOrder: new FormControl(col.srcOrder),
             spColName: new FormControl(col.srcColName),
             spDataType: new FormControl(
@@ -637,6 +653,7 @@ export class ObjectDetailComponent implements OnInit {
           srcIsPk: row.srcIsPk,
           srcOrder: row.srcOrder,
           srcId: row.srcId,
+          srcAutoGen: row.srcAutoGen
         })
       }
       if (row.spIsPk) {
@@ -664,6 +681,7 @@ export class ObjectDetailComponent implements OnInit {
           srcDataType: new FormControl(srcArr[i].srcDataType),
           srcIsPk: new FormControl(srcArr[i].srcIsPk),
           srcIsNotNull: new FormControl(srcArr[i].srcIsNotNull),
+          srcAutoGen: new FormControl(srcArr[i].srcAutoGen),
           spOrder: new FormControl(spArr[i].spOrder, [
             Validators.required,
             Validators.pattern('^[1-9][0-9]*$'),
@@ -686,6 +704,7 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(srcArr[i].srcDataType),
             srcIsPk: new FormControl(srcArr[i].srcIsPk),
             srcIsNotNull: new FormControl(srcArr[i].srcIsNotNull),
+            srcAutoGen: new FormControl(srcArr[i].srcAutoGen),
             srcId: new FormControl(srcArr[i].srcId),
             spOrder: new FormControl(''),
             spColName: new FormControl(''),
@@ -706,6 +725,10 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(''),
             srcIsPk: new FormControl(false),
             srcIsNotNull: new FormControl(false),
+            srcAutoGen: new FormControl({
+              Name: "",
+              GenerationType: ""
+            }),
             srcId: new FormControl(''),
             spOrder: new FormControl(spArr[i].spOrder),
             spColName: new FormControl(spArr[i].spColName),
@@ -994,6 +1017,8 @@ export class ObjectDetailComponent implements OnInit {
         srcColumns: fk.srcColumns,
         srcRefTable: fk.srcReferTable,
         srcRefColumns: fk.srcReferColumns,
+        srcOnDelete: fk.srcOnDelete,
+        srcOnUpdate: fk.srcOnUpdate,
         Id: fk.srcFkId,
       })
       if (fk.spName != '') {
@@ -1002,6 +1027,8 @@ export class ObjectDetailComponent implements OnInit {
           spColumns: fk.spColumns,
           spRefTable: fk.spReferTable,
           spRefColumns: fk.spReferColumns,
+          spOnDelete: fk.spOnDelete,
+          spOnUpdate: fk.spOnUpdate,
           Id: fk.spFkId,
           spColIds: fk.spColIds,
           spReferColumnIds: fk.spReferColumnIds,
@@ -1025,6 +1052,10 @@ export class ObjectDetailComponent implements OnInit {
           srcReferTable: new FormControl(srcArr[i].srcRefTable),
           spReferColumns: new FormControl(spArr[i].spRefColumns),
           srcReferColumns: new FormControl(srcArr[i].srcRefColumns),
+          spOnDelete: new FormControl(spArr[i].spOnDelete),
+          srcOnDelete: new FormControl(srcArr[i].srcOnDelete),
+          spOnUpdate: new FormControl(spArr[i].spOnUpdate),
+          srcOnUpdate: new FormControl(srcArr[i].srcOnUpdate),
           Id: new FormControl(spArr[i].Id),
           spColIds: new FormControl(spArr[i].spColIds),
           spReferColumnIds: new FormControl(spArr[i].spReferColumnIds),
@@ -1048,6 +1079,10 @@ export class ObjectDetailComponent implements OnInit {
             srcReferTable: new FormControl(srcArr[i].srcRefTable),
             spReferColumns: new FormControl([]),
             srcReferColumns: new FormControl(srcArr[i].srcRefColumns),
+            spOnDelete: new FormControl(''),  //check if this needs to be changed
+            srcOnDelete: new FormControl(srcArr[i].srcOnDelete),
+            spOnUpdate: new FormControl(''),
+            srcOnUpdate: new FormControl(srcArr[i].srcOnUpdate),
             Id: new FormControl(srcArr[i].Id),
             spColIds: new FormControl([]),
             spReferColumnIds: new FormControl([]),
@@ -1078,6 +1113,8 @@ export class ObjectDetailComponent implements OnInit {
         ColIds: fk.spColIds,
         ReferTableId: fk.spReferTableId,
         ReferColumnIds: fk.spReferColumnIds,
+        OnDelete: fk.spOnDelete,
+        OnUpdate: fk.spOnUpdate,
         Id: fk.spFkId,
       })
     })
@@ -1106,6 +1143,8 @@ export class ObjectDetailComponent implements OnInit {
         fk.spColIds = []
         fk.spReferColumnIds = []
         fk.spReferTableId = ''
+        fk.spOnDelete = '' 
+        fk.spOnUpdate = ''
       }
     })
     this.setFkRows()

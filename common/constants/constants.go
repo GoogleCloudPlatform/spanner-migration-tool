@@ -102,8 +102,16 @@ const (
 	SMT_JOB_TABLE      string = "SMT_JOB"
 	SMT_RESOURCE_TABLE string = "SMT_RESOURCE"
 	// Auto Generated Keys
-	UUID     string = "UUID"
-	SEQUENCE string = "Sequence"
+	UUID           string = "UUID"
+	SEQUENCE       string = "Sequence"
+	AUTO_INCREMENT string = "Auto Increment"
 	// Default gcs path of the Dataflow template.
 	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner"
+
+	//FK Actions
+	FK_NO_ACTION   string = "NO ACTION"
+	FK_CASCADE     string = "CASCADE"
+	FK_SET_DEFAULT string = "SET DEFAULT"
+	FK_SET_NULL    string = "SET NULL"
+	FK_RESTRICT    string = "RESTRICT"
 )

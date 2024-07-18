@@ -73,7 +73,8 @@ export enum MigrationDetails {
   GeneratingResources = 'generatingResources',
   NumberOfShards = 'numberOfShards',
   NumberOfInstances = 'numberOfInstances',
-  isForeignKeySkipped = 'isForeignKeySkipped'
+  isForeignKeySkipped = 'isForeignKeySkipped',
+  IsGcsMetadataPathSet = 'isGcsMetadataPathSet'
 }
 
 export enum TargetDetails {
@@ -82,7 +83,9 @@ export enum TargetDetails {
   SourceConnProfile = 'sourceConnProfile',
   TargetConnProfile = 'targetConnProfile',
   ReplicationSlot = 'replicationSlot',
-  Publication = 'publication'
+  Publication = 'publication',
+  GcsMetadataName = 'gcsName',
+  GcsMetadataRootPath = 'gcsRootPath'
 }
 
 export const Profile = {
@@ -137,6 +140,9 @@ export const Dataflow = {
   Location: 'dataflowLocation',
   GcsTemplatePath: 'gcsTemplatePath',
   IsDataflowConfigSet: 'isDataflowConfigSet',
+  CustomJarPath: 'customJarPath',
+  CustomClassName: 'customClassName',
+  CustomParameter: 'customParameter'
 }
 
 export const ColLength = {
@@ -168,4 +174,10 @@ export const dialogConfigDropComponent: MatDialogConfig<any> = {
   width: '100%',
   minWidth: '50%',
   maxWidth: '75%',
+}
+
+export const dialogDefault: MatDialogConfig<any> = {
+  width: '30vw',
+  minWidth: '400px',
+  maxWidth: '500px',
 }

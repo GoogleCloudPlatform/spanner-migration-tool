@@ -4,6 +4,12 @@ export default interface ITargetDetails {
     TargetConnProfile: string
     ReplicationSlot: string
     Publication: string
+    GcsMetadataPath: GcsMetadataPath
+}
+
+export interface GcsMetadataPath {
+    GcsBucketName : string
+    GcsBucketRootPath: string
 }
 
 export interface ISpannerDetails {
