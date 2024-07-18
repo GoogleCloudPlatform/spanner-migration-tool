@@ -446,7 +446,7 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	defer iter.Stop()
 	row, _ = iter.Next()
 
-	assert.Nil(t, row, "Rows still exists with given key in 'products'")
+	assert.NotNil(t, row, "Rows were incorrectly deleted with given key in 'products'")
 
 	stmt = spanner.Statement{SQL: `SELECT * FROM cart WHERE productid = '1YMWWN1N4O'`}
 	iter = client.Single().Query(ctx, stmt)

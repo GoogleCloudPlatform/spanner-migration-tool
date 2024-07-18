@@ -331,12 +331,12 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	defer client.Close()
 
 	//comment this out
-	stmt1 := spanner.Statement{SQL: `SELECT * FROM products WHERE product_id = "zxi-631"`}
-	iter1 := client.Single().Query(ctx, stmt1)
-	defer iter1.Stop()
-	_, err = iter1.Next()
+	stmt := spanner.Statement{SQL: `SELECT * FROM products WHERE product_id = "zxi-631"`}
+	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	_, err = iter.Next()
 	assert.Equal(t, nil, err, "Expected rows in 'products'")
-	//--
+	//-
 
 	mutation := spanner.Delete("products", spanner.Key{"zxi-631"})
 
@@ -345,8 +345,15 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 		t.Fatalf("Failed to delete row: %v", err)
 	}
 
-	stmt := spanner.Statement{SQL: `SELECT * FROM cart WHERE product_id = "zxi-631"`}
-	iter := client.Single().Query(ctx, stmt)
+	stmt = spanner.Statement{SQL: `SELECT * FROM products WHERE productid = "zxi-631"`}
+	iter = client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	row, _ := iter.Next()
+
+	assert.Nil(t, row, "Rows still exists with given key in 'products'")
+
+	stmt = spanner.Statement{SQL: `SELECT * FROM cart WHERE product_id = "zxi-631"`}
+	iter = client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	_, err = iter.Next()
 
