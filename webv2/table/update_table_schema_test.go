@@ -642,7 +642,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, OnDelete: constants.FK_CASCADE}},
 					},
 					"t2": {
 						Name:   "table2",
@@ -696,7 +696,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, OnDelete: constants.FK_CASCADE}},
 					},
 					"t2": {
 						Name:   "table2",
@@ -761,7 +761,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, OnDelete: constants.FK_NO_ACTION}},
 					},
 					"t2": {
 						Name:   "table2",
@@ -815,7 +815,126 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, OnDelete: constants.FK_NO_ACTION}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]schema.Column{
+							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+						},
+					}},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
+					},
+					"t2": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c3": {internal.Widened},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "Test change type success with interleave 3",
+			table: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+		    "c1": { "ToType": "STRING" }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, OnDelete: constants.FK_RESTRICT}},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]schema.Column{
+							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+						},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+					"t2": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
+					},
+					"t2": {
+						Name:   "table2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "table1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Id: "f1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}, OnDelete: constants.FK_RESTRICT}},
 					},
 					"t2": {
 						Name:   "table2",

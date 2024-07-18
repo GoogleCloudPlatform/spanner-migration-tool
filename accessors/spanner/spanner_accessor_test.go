@@ -702,6 +702,20 @@ func TestSpannerAccessorImpl_UpdateDDLForeignKey(t *testing.T) {
 				},
 			},
 		},
+		"table_id3": {
+			Name:        "table3",
+			Id:          "table_id3",
+			ParentTable: ddl.InterleavedParent{Id: "table1", OnDelete: constants.FK_NO_ACTION},
+			ForeignKeys: []ddl.Foreignkey{
+				{
+					Name:           "fk2",
+					ColIds:         []string{"columns"},
+					ReferTableId:   "table1",
+					ReferColumnIds: []string{"column"},
+					Id:             "table_id",
+				},
+			},
+		},
 	}
 	testCases := []struct {
 		name          string

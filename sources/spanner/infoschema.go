@@ -388,19 +388,19 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 }
 
 // TODO: Extract & initialise ON DELETE action and return it (ON_DELETE_ACTION in information_schema.tables)
-func (isi InfoSchemaImpl) GetInterleaveTables() (map[string]string, error) {
-	q := `SELECT table_name, parent_table_name FROM information_schema.tables 
+func (isi InfoSchemaImpl) GetInterleaveTables(spSchema ddl.Schema) (map[string]ddl.InterleavedParent, error) {
+	q := `SELECT table_name, parent_table_name, on_delete_action FROM information_schema.tables 
 	WHERE interleave_type = 'IN PARENT' AND table_type = 'BASE TABLE' AND table_schema = ''`
 	if isi.SpDialect == constants.DIALECT_POSTGRESQL {
-		q = `SELECT table_name, parent_table_name FROM information_schema.tables 
+		q = `SELECT table_name, parent_table_name, on_delete_action FROM information_schema.tables 
 		WHERE interleave_type = 'IN PARENT' AND table_type = 'BASE TABLE' AND table_schema = 'public'`
 	}
 	stmt := spanner.Statement{SQL: q}
 	iter := isi.Client.Single().Query(isi.Ctx, stmt)
 	defer iter.Stop()
 
-	var tableName, parentTable string
-	parentTables := map[string]string{}
+	var tableName, parentTableName, onDelete string
+	parentTables := map[string]ddl.InterleavedParent{}
 	for {
 		row, err := iter.Next()
 		if err == iterator.Done {
@@ -409,11 +409,12 @@ func (isi InfoSchemaImpl) GetInterleaveTables() (map[string]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("couldn't read row while fetching interleaved tables: %w", err)
 		}
-		err = row.Columns(&tableName, &parentTable)
+		err = row.Columns(&tableName, &parentTableName, &onDelete)
 		if err != nil {
 			return nil, err
 		}
-		parentTables[tableName] = parentTable
+		parentTableId, _ := internal.GetTableIdFromSpName(spSchema, parentTableName)
+		parentTables[tableName] = ddl.InterleavedParent{Id: parentTableId, OnDelete: onDelete}
 	}
 	return parentTables, nil
 }
