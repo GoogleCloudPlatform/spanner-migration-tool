@@ -429,22 +429,29 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	}
 	defer client.Close()
 
-	stmt1 := spanner.Statement{SQL: `SELECT * FROM products WHERE productid = '2KJHWIUS9K'`}
-	iter1 := client.Single().Query(ctx, stmt1)
-	defer iter1.Stop()
-	row1, _ := iter1.Next()
+	stmt := spanner.Statement{SQL: `SELECT * FROM products WHERE productid = '1YMWWN1N4O'`}
+	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	row, _ := iter.Next()
 
-	assert.NotNil(t, row1, "No row exists with given key in 'products'")
+	assert.NotNil(t, row, "No row exists with given key in 'products'")
 
-	mutation := spanner.Delete("products", spanner.Key{"2KJHWIUS9K"})
+	mutation := spanner.Delete("products", spanner.Key{"1YMWWN1N4O"})
 
 	_, err = client.Apply(ctx, []*spanner.Mutation{mutation})
 	// assert.Error(t, err, "Expected ON DELETE NO ACTION to prevent deletion")
 
-	stmt := spanner.Statement{SQL: `SELECT * FROM cart WHERE productid = '2KJHWIUS9K'`}
-	iter := client.Single().Query(ctx, stmt)
+	stmt = spanner.Statement{SQL: `SELECT * FROM products WHERE productid = '1YMWWN1N4O'`}
+	iter = client.Single().Query(ctx, stmt)
 	defer iter.Stop()
-	row, err := iter.Next()
+	row, _ = iter.Next()
+
+	assert.Nil(t, row, "Rows still exists with given key in 'products'")
+
+	stmt = spanner.Statement{SQL: `SELECT * FROM cart WHERE productid = '1YMWWN1N4O'`}
+	iter = client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	row, err = iter.Next()
 
 	assert.Nil(t, err, "Error fetching rows from 'cart'") //testing ON DELETE NO ACTION
 	assert.NotNil(t, row, "Expected rows in 'cart' to still exist")

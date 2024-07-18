@@ -18,6 +18,7 @@ SET row_security = off;
 
 SET default_tablespace = '';
 
+CREATE DATABASE test_fka;
 --
 -- Name: cart; Type: TABLE; Schema: public; Owner: postgres
 --
@@ -38,54 +39,10 @@ ALTER TABLE public.cart OWNER TO postgres;
 CREATE TABLE public.products (
     productid text NOT NULL,
     description text,
-    price bigint
+    price numeric(10, 2)
 );
 
 ALTER TABLE public.products OWNER TO postgres;
-
---
--- Name: test; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.test (
-    id integer NOT NULL,
-    t timestamp without time zone,
-    tz timestamp with time zone
-);
-
-
-ALTER TABLE public.test OWNER TO postgres;
-
---
--- Name: test2; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.test2 (
-    id integer NOT NULL,
-    a boolean,
-    b bytea,
-    c date,
-    d double precision,
-    e integer,
-    f numeric(38, 9),
-    g text
-);
-
-
-ALTER TABLE public.test2 OWNER TO postgres;
-
---
--- Name: test3; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.test3 (
-    id integer NOT NULL,
-    a integer[],
-    b text[]
-);
-
-
-ALTER TABLE public.test3 OWNER TO postgres;
 
 --
 -- Data for Name: cart; Type: TABLE DATA; Schema: public; Owner: postgres
@@ -96,7 +53,6 @@ COPY public.cart (productid, userid, quantity) FROM stdin;
 OLJCESPC7Z	419af207-ac61-4131-b1a6-bb627405e92d	1
 OLJCESPC7Z	31ad80e3-182b-42b0-a164-b4c7ea976ce4	125
 OLJCESPC7Z	17b14ec1-5a42-4087-bb3f-3ebd32bacf2a	106
-2KJHWIUS9K      23n81hi2-8n35-4820-an9w-7febu5sfyv8f    3
 \.
 
 --
@@ -104,40 +60,10 @@ OLJCESPC7Z	17b14ec1-5a42-4087-bb3f-3ebd32bacf2a	106
 --
 
 COPY public.products (productid, description, price) FROM stdin;
-1YMWWN1N4O	bookshelf	45
-OLJCESPC7Z	armchair	54
-2KJHWIUS9K	sofa	        125
-0MWERIJB8H	cupboard	59
-\.
-
---
--- Data for Name: test; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.test (id, t, tz) FROM stdin;
-1	2019-10-28 15:00:00	2019-10-28 19:00:00+00
-2	2019-10-28 15:00:00	2019-10-28 15:00:00+00
-3	2019-10-28 15:00:00	2019-10-28 19:00:00+00
-4	2019-10-28 15:00:00.123457	2019-10-28 15:00:00.123457+00
-\.
-
---
--- Data for Name: test2; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.test2 (id, a, b, c, d, e, f, g) FROM stdin;
-1	t	\\x00010203deadbeef	2019-10-28	99.9	42	1234567890123456789012345678.123456789	hi
-2	f	\\x00010203424344	2018-11-28	12.3	6	1234567890123456789012345.1223456	hello
-\.
-
-
---
--- Data for Name: test3; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.test3 (id, a, b) FROM stdin;
-1	{1,2,3}	{1,nice,foo}
-2	{6}	{i,am,not,a,number}
+1YMWWN1N4O	bookshelf	45.50
+OLJCESPC7Z	armchair	54.99
+2KJHWIUS9K	sofa	125.00
+0MWERIJB8H	cupboard	59.99
 \.
 
 --
@@ -154,34 +80,11 @@ ALTER TABLE ONLY public.cart
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_pkey PRIMARY KEY (productid);
 
-
---
--- Name: test2 test2_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.test2
-    ADD CONSTRAINT test2_pkey PRIMARY KEY (id);
-
-
---
--- Name: test3 test3_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.test3
-    ADD CONSTRAINT test3_pkey PRIMARY KEY (id);
-
---
--- Name: test test_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.test
-    ADD CONSTRAINT test_pkey PRIMARY KEY (id);
-
 --
 -- Name: cart fk_cart_products; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 ALTER TABLE ONLY public.cart
-    ADD CONSTRAINT fk_cart_products FOREIGN KEY (productid) REFERENCES products (productid) ON DELETE NO ACTION ON UPDATE RESTRICT;
+    ADD CONSTRAINT fk_cart_products FOREIGN KEY (productid) REFERENCES public.products (productid) ON DELETE NO ACTION ON UPDATE RESTRICT;
     
 --
 -- Name: SCHEMA public; Type: ACL; Schema: -; Owner: cloudsqlsuperuser
