@@ -122,10 +122,8 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName)
 
 	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDATABASE"), os.Getenv("MYSQLPWD")
-	envVars := common.ClearEnvVariables([]string{"MYSQLHOST", "MYSQLUSER", "MYSQLDATABASE", "MYSQLPWD"})
 	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
-	common.RestoreEnvVariables(envVars)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,6 +216,44 @@ func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
 	checkResults(t, dbURI, false)
 }
 
+func TestIntegration_MYSQL_ForeignKeyActionMigration(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "mysql-foreignkey-actions"
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	filePrefix := filepath.Join(tmpdir, dbName)
+
+	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), "test_foreign_key_action_data", os.Getenv("MYSQLPWD")
+	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dropDatabase(t, dbURI)
+
+	checkForeignKeyActions(ctx, t, dbURI)
+}
+
+func TestIntegration_MySQLDUMP_ForeignKeyActionMigration(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-schema-and-data"
+	dumpFilePath := "../../test_data/mysql_foreignkeyaction_dump.test.out"
+	filePrefix := filepath.Join(tmpdir, dbName)
+
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
+
+	defer dropDatabase(t, dbURI)
+	checkForeignKeyActions(ctx, t, dbURI)
+}
+
 func checkResults(t *testing.T, dbURI string, skipJson bool) {
 	// Make a query to check results.
 	client, err := spanner.NewClient(ctx, dbURI)
@@ -281,6 +317,35 @@ func checkJson(ctx context.Context, t *testing.T, client *spanner.Client, dbURI 
 	want_profile := spanner.NullJSON{Valid: true}
 	json.Unmarshal([]byte("{\"first_name\": \"Ernie\", \"status\": \"Looking for treats\", \"location\" : \"Brooklyn\"}"), &want_profile.Value)
 	assert.Equal(t, got_profile, want_profile)
+}
+
+func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
+
+	// Verifying that the row to be deleted exists in child - otherwise test will incorrectly pass
+	stmt := spanner.Statement{SQL: `SELECT * FROM cart WHERE product_id = "zxi-631"`}
+	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	_, err = iter.Next()
+	assert.Equal(t, nil, err, "Expected rows with product_id \"zxi-631\" in 'cart'")
+
+	// Deleting row from parent table in Spanner DB
+	mutation := spanner.Delete("products", spanner.Key{"zxi-631"})
+	_, err = client.Apply(ctx, []*spanner.Mutation{mutation})
+	if err != nil {
+		t.Fatalf("Failed to delete row: %v", err)
+	}
+
+	// Testing ON DELETE CASCADE i.e. row from child (cart) should have been automatically deleted
+	stmt = spanner.Statement{SQL: `SELECT * FROM cart WHERE product_id = "zxi-631"`}
+	iter = client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	_, err = iter.Next()
+	assert.Equal(t, iterator.Done, err, "Expected no rows in 'cart' with deleted product_id")
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
