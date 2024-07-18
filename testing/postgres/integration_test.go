@@ -516,19 +516,27 @@ func printSpannerData(ctx context.Context, dbURI string) {
 func printReferentialConstraints(ctx context.Context, client *spanner.Client) {
 	fmt.Println("\nReferential Constraints:")
 	stmt := spanner.Statement{SQL: `
-	  SELECT 
-	      tc.table_name AS referencing_table,
-	      cc.column_name AS referencing_column,
-	      tc.constraint_name,
-	      kcu.table_name AS referenced_table,
-	      kcu.column_name AS referenced_column
-	  FROM information_schema.table_constraints AS tc
-	  JOIN information_schema.constraint_column_usage AS ccu
-	      ON tc.constraint_name = ccu.constraint_name
-	  JOIN information_schema.key_column_usage AS kcu
-	      ON tc.constraint_name = kcu.constraint_name
-	  WHERE tc.constraint_type = 'FOREIGN KEY'
+	SELECT
+	rc.constraint_schema AS "TABLE_SCHEMA",
+	ccu.table_name AS "REFERENCED_TABLE_NAME",
+	kcu.column_name AS "COLUMN_NAME",
+	ccu.column_name AS "REF_COLUMN_NAME",
+	rc.constraint_name AS "CONSTRAINT_NAME",
+	rc.delete_rule AS "ON_DELETE",
+	rc.update_rule AS "ON_UPDATE"
+FROM
+	INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
+INNER JOIN
+	INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+	ON rc.constraint_name = kcu.constraint_name
+	AND rc.constraint_schema = kcu.constraint_schema
+INNER JOIN
+	INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE ccu
+	ON rc.constraint_name = ccu.constraint_name
+	AND rc.constraint_schema = ccu.constraint_schema
+WHERE tc.constraint_type = 'FOREIGN KEY'
 	`}
+
 	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 
