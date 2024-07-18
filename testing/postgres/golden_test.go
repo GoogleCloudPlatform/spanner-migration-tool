@@ -16,8 +16,6 @@ package postgres_test
 
 import (
 	"bufio"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -41,49 +39,39 @@ func formatDdl(ddl []string) string {
 
 func TestGoldens(t *testing.T) {
 	logger.Log = zap.NewNop()
-	entries, err := os.ReadDir(GoldenTestsDir)
-	if err != nil {
-		t.Fatalf("error when reading entries of golden tests dir %s: %s", GoldenTestsDir, err)
-	}
+	testCases := commonTesting.GoldenTestCasesFrom(t, GoldenTestsDir)
+	t.Logf("executing %d test cases from %s", len(testCases), GoldenTestsDir)
 
 	schemaToSpanner := common.SchemaToSpannerImpl{}
 
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			path := filepath.Join(GoldenTestsDir, entry.Name())
-			testCases, err := commonTesting.GoldenTestCasesFrom(path)
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			conv := internal.MakeConv()
+			conv.SetLocation(time.UTC)
+			conv.SetSchemaMode()
+
+			err := common.ProcessDbDump(
+				conv,
+				internal.NewReader(bufio.NewReader(strings.NewReader(tc.Input)), nil),
+				postgres.DbDumpImpl{})
 			if err != nil {
-				t.Fatalf("error when reading golden tests from path %s: %s", path, err)
+				t.Fatalf("error when processing dump %s: %s", tc.Input, err)
 			}
 
-			t.Logf("executing %d test cases from %s", len(testCases), path)
-			for _, testCase := range testCases {
-				conv := internal.MakeConv()
-				conv.SetLocation(time.UTC)
-				conv.SetSchemaMode()
-
-				err := common.ProcessDbDump(
-					conv,
-					internal.NewReader(bufio.NewReader(strings.NewReader(testCase.InputSchema)), nil),
-					postgres.DbDumpImpl{})
-				if err != nil {
-					t.Fatalf("error when processing dump %s: %s", testCase.InputSchema, err)
-				}
-
-				err = schemaToSpanner.SchemaToSpannerDDL(conv, postgres.ToDdlImpl{})
-				if err != nil {
-					t.Fatalf("error when converting schema to spanner ddl %s: %s", testCase.InputSchema, err)
-				}
-				config := ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true}
-
-				config.SpDialect = constants.DIALECT_GOOGLESQL
-				actual := ddl.GetDDL(config, conv.SpSchema, conv.SpSequences)
-				assert.Equal(t, testCase.ExpectedGSQLSchema, formatDdl(actual))
-
-				config.SpDialect = constants.DIALECT_POSTGRESQL
-				actual = ddl.GetDDL(config, conv.SpSchema, conv.SpSequences)
-				assert.Equal(t, testCase.ExpectedPSQLSchema, formatDdl(actual))
+			err = schemaToSpanner.SchemaToSpannerDDL(conv, postgres.ToDdlImpl{})
+			if err != nil {
+				t.Fatalf("error when converting schema to spanner ddl %s: %s", tc.Input, err)
 			}
-		}
+			config := ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true}
+
+			config.SpDialect = constants.DIALECT_GOOGLESQL
+			actual := ddl.GetDDL(config, conv.SpSchema, conv.SpSequences)
+			assert.Equal(t, tc.GSQLWant, formatDdl(actual))
+
+			config.SpDialect = constants.DIALECT_POSTGRESQL
+			actual = ddl.GetDDL(config, conv.SpSchema, conv.SpSequences)
+			assert.Equal(t, tc.PSQLWant, formatDdl(actual))
+
+		})
 	}
 }
