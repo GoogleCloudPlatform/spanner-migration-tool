@@ -38,7 +38,7 @@ ALTER TABLE public.cart OWNER TO postgres;
 CREATE TABLE public.products (
     productid text NOT NULL,
     description text,
-    price numeric(10, 2)
+    price bigint
 );
 
 ALTER TABLE public.products OWNER TO postgres;
@@ -104,10 +104,10 @@ OLJCESPC7Z	17b14ec1-5a42-4087-bb3f-3ebd32bacf2a	106
 --
 
 COPY public.products (productid, description, price) FROM stdin;
-1YMWWN1N4O	bookshelf	45.50
-OLJCESPC7Z	armchair	54.99
-2KJHWIUS9K	sofa	        125.00
-0MWERIJB8H	cupboard	59.99
+1YMWWN1N4O	bookshelf	45
+OLJCESPC7Z	armchair	54
+2KJHWIUS9K	sofa	        125
+0MWERIJB8H	cupboard	59
 \.
 
 --

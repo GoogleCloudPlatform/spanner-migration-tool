@@ -504,7 +504,8 @@ func printTableRows(ctx context.Context, client *spanner.Client, tableName strin
 		}
 
 		// Assuming you know the column structure, adjust this part accordingly
-		var col1, col2, col3 string // Replace with your actual column types
+		var col1, col2 string // Replace with your actual column types
+		var col3 int
 		if err := row.Columns(&col1, &col2, &col3); err != nil {
 			log.Fatal(err)
 		}
