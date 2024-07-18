@@ -176,8 +176,8 @@ func TestIntegration_POSTGRES_SchemaAndDataSubcommand(t *testing.T) {
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
-	// checkResults(t, dbURI)
-	printSpannerData(ctx, dbURI)
+	checkResults(t, dbURI)
+	// printReferentialConstraints(ctx, dbURI)
 }
 
 func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
@@ -214,7 +214,8 @@ func TestIntegration_PGDUMP_ForeignKeyActionMigration(t *testing.T) {
 	// dbName := "pgdump-fka"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
-	dataFilepath := "../../test_data/pg_foreignkeyaction_dump.test.out"
+	// dataFilepath := "../../test_data/pg_foreignkeyaction_dump.test.out"
+	dataFilepath := "../../test_data/pg_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)
 
 	// host, user, srcDb, password := os.Getenv("PGHOST"), os.Getenv("PGUSER"), "test_fka", os.Getenv("PGPASSWORD")
@@ -228,15 +229,29 @@ func TestIntegration_PGDUMP_ForeignKeyActionMigration(t *testing.T) {
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
-	// checkForeignKeyActions(ctx, t, dbURI)
+	checkForeignKeyActions(ctx, t, dbURI)
 }
 
 func TestIntegration_POSTGRES_ForeignKeyActionMigration(t *testing.T) {
-	// onlyRunForEmulatorTest(t)
+	onlyRunForEmulatorTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
+
+	now := time.Now()
+	g := utils.GetUtilInfoImpl{}
+	dbName, _ := g.GetDatabaseName(constants.POSTGRES, now)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	filePrefix := filepath.Join(tmpdir, dbName)
+
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dropDatabase(t, dbURI)
+	checkForeignKeyActions(ctx, t, dbURI)
 
 	// dbName := "postgres-foreignkey-actions"
 	// dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
@@ -276,21 +291,6 @@ func TestIntegration_POSTGRES_ForeignKeyActionMigration(t *testing.T) {
 
 	// checkForeignKeyActions(ctx, t, dbURI)
 
-	now := time.Now()
-	g := utils.GetUtilInfoImpl{}
-	dbName, _ := g.GetDatabaseName(constants.POSTGRES, now)
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	filePrefix := filepath.Join(tmpdir, dbName)
-
-	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
-	err := common.RunCommand(args, projectID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Drop the database later.
-	defer dropDatabase(t, dbURI)
-	// checkForeignKeyActions(ctx, t, dbURI)
-	printSpannerData(ctx, dbURI)
 }
 
 func checkResults(t *testing.T, dbURI string) {
@@ -428,6 +428,14 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 		log.Fatal(err)
 	}
 	defer client.Close()
+
+	stmt1 := spanner.Statement{SQL: `SELECT * FROM products WHERE productid = "2KJHWIUS9K"`}
+	iter1 := client.Single().Query(ctx, stmt1)
+	defer iter1.Stop()
+	row1, _ := iter1.Next()
+
+	assert.NotNil(t, row1, "Error fetching rows from 'products'")
+
 	mutation := spanner.Delete("products", spanner.Key{"2KJHWIUS9K"})
 
 	_, err = client.Apply(ctx, []*spanner.Mutation{mutation})
@@ -470,7 +478,7 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	// 	fmt.Println("- ", tableName)
 	// }
 }
-func printSpannerData(ctx context.Context, dbURI string) {
+func printReferentialConstraints(ctx context.Context, dbURI string) {
 	client, err := spanner.NewClient(ctx, dbURI)
 	if err != nil {
 		log.Fatal(err)
@@ -478,42 +486,6 @@ func printSpannerData(ctx context.Context, dbURI string) {
 	defer client.Close()
 	fmt.Println("dbURI- ", dbURI)
 
-	// Print rows from the "products" table
-	// printTableRows(ctx, client, "products")
-
-	// Print rows from the "cart" table
-	// printTableRows(ctx, client, "cart")
-
-	// Print referential constraint information
-	printReferentialConstraints(ctx, client)
-}
-
-// func printTableRows(ctx context.Context, client *spanner.Client, tableName string) {
-// 	fmt.Printf("\nRows in table '%s':\n", tableName)
-// 	stmt := spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM %s", tableName)}
-// 	iter := client.Single().Query(ctx, stmt)
-// 	defer iter.Stop()
-
-// 	for {
-// 		row, err := iter.Next()
-// 		if err == io.EOF {
-// 			break
-// 		}
-// 		if err != nil {
-// 			log.Fatal(err)
-// 		}
-
-// 		// Assuming you know the column structure, adjust this part accordingly
-// 		var col1, col2 string // Replace with your actual column types
-// 		var col3 int
-// 		if err := row.Columns(&col1, &col2, &col3); err != nil {
-// 			log.Fatal(err)
-// 		}
-// 		fmt.Printf("  %s, %s, %s\n", col1, col2, col3)
-// 	}
-// }
-
-func printReferentialConstraints(ctx context.Context, client *spanner.Client) {
 	fmt.Println("\nReferential Constraints:")
 	stmt := spanner.Statement{SQL: `
 	SELECT
