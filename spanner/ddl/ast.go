@@ -366,9 +366,12 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 		if config.SpDialect == constants.DIALECT_POSTGRESQL {
 			// PG spanner only supports PRIMARY KEY() inside the CREATE TABLE()
 			// and thus INTERLEAVE follows immediately after closing brace.
-			interleave = " INTERLEAVE IN PARENT " + config.quote(parent) + " ON DELETE " + ct.ParentTable.OnDelete
+			interleave = " INTERLEAVE IN PARENT " + config.quote(parent)
 		} else {
-			interleave = ",\nINTERLEAVE IN PARENT " + config.quote(parent) + " ON DELETE " + ct.ParentTable.OnDelete
+			interleave = ",\nINTERLEAVE IN PARENT " + config.quote(parent)
+		}
+		if ct.ParentTable.OnDelete != "" {
+			interleave = interleave + " ON DELETE " + ct.ParentTable.OnDelete
 		}
 	}
 

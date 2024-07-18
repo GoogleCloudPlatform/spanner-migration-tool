@@ -158,6 +158,18 @@ func TestPrintCreateTable(t *testing.T) {
 		Comment:       "",
 		Id:            "1",
 	}
+	t3 := CreateTable{
+		Name:          "mytable",
+		ColIds:        []string{"col1", "col2", "col3"},
+		ShardIdColumn: "",
+		ColDefs:       cds,
+		PrimaryKeys:   []IndexKey{{ColId: "col1", Desc: true}},
+		ForeignKeys:   nil,
+		Indexes:       nil,
+		ParentTable:   InterleavedParent{Id: "par1", OnDelete: ""},
+		Comment:       "",
+		Id:            "1",
+	}
 	tests := []struct {
 		name       string
 		protectIds bool
@@ -194,6 +206,17 @@ func TestPrintCreateTable(t *testing.T) {
 				"	col3 BYTES(42),\n" +
 				") PRIMARY KEY (col1 DESC),\n" +
 				"INTERLEAVE IN PARENT  ON DELETE CASCADE",
+		},
+		{
+			"interleaved without on delete support",
+			false,
+			t3,
+			"CREATE TABLE mytable (\n" +
+				"	col1 INT64 NOT NULL ,\n" +
+				"	col2 STRING(MAX),\n" +
+				"	col3 BYTES(42),\n" +
+				") PRIMARY KEY (col1 DESC),\n" +
+				"INTERLEAVE IN PARENT ",
 		},
 	}
 	for _, tc := range tests {
