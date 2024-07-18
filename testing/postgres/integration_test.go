@@ -426,8 +426,9 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 		log.Fatal(err)
 	}
 	defer client.Close()
+	fmt.Println("dbURI- ", dbURI)
 
-	stmt := spanner.Statement{SQL: `SELECT table_name FROM information_schema.tables WHERE table_schema = ''`}
+	stmt := spanner.Statement{SQL: `SELECT table_name FROM information_schema.tables`}
 	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 
