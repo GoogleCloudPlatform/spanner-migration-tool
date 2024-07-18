@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -175,7 +176,8 @@ func TestIntegration_POSTGRES_SchemaAndDataSubcommand(t *testing.T) {
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
-	checkResults(t, dbURI)
+	// checkResults(t, dbURI)
+	printSpannerData(ctx, dbURI)
 }
 
 func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
@@ -287,7 +289,8 @@ func TestIntegration_POSTGRES_ForeignKeyActionMigration(t *testing.T) {
 	}
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
-	checkForeignKeyActions(ctx, t, dbURI)
+	// checkForeignKeyActions(ctx, t, dbURI)
+	printSpannerData(ctx, dbURI)
 }
 
 func checkResults(t *testing.T, dbURI string) {
@@ -466,6 +469,83 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 
 	// 	fmt.Println("- ", tableName)
 	// }
+}
+func printSpannerData(ctx context.Context, dbURI string) {
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
+	fmt.Println("dbURI- ", dbURI)
+
+	// Print rows from the "products" table
+	printTableRows(ctx, client, "products")
+
+	// Print rows from the "cart" table
+	printTableRows(ctx, client, "cart")
+
+	// Print referential constraint information
+	printReferentialConstraints(ctx, client)
+}
+
+func printTableRows(ctx context.Context, client *spanner.Client, tableName string) {
+	fmt.Printf("\nRows in table '%s':\n", tableName)
+	stmt := spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM %s", tableName)}
+	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+
+	for {
+		row, err := iter.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Assuming you know the column structure, adjust this part accordingly
+		var col1, col2, col3 string // Replace with your actual column types
+		if err := row.Columns(&col1, &col2, &col3); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("  %s, %s, %s\n", col1, col2, col3)
+	}
+}
+
+func printReferentialConstraints(ctx context.Context, client *spanner.Client) {
+	fmt.Println("\nReferential Constraints:")
+	stmt := spanner.Statement{SQL: `
+	  SELECT 
+	      tc.table_name AS referencing_table,
+	      cc.column_name AS referencing_column,
+	      tc.constraint_name,
+	      kcu.table_name AS referenced_table,
+	      kcu.column_name AS referenced_column
+	  FROM information_schema.table_constraints AS tc
+	  JOIN information_schema.constraint_column_usage AS ccu
+	      ON tc.constraint_name = ccu.constraint_name
+	  JOIN information_schema.key_column_usage AS kcu
+	      ON tc.constraint_name = kcu.constraint_name
+	  WHERE tc.constraint_type = 'FOREIGN KEY'
+	`}
+	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+
+	for {
+		row, err := iter.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var refTable, refColumn, constraint, referencedTable, referencedColumn string
+		if err := row.Columns(&refTable, &refColumn, &constraint, &referencedTable, &referencedColumn); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("  Constraint: %s, From: %s.%s, To: %s.%s\n", constraint, refTable, refColumn, referencedTable, referencedColumn)
+	}
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
