@@ -76,6 +76,17 @@ CREATE TABLE public.test3 (
 ALTER TABLE public.test3 OWNER TO postgres;
 
 --
+-- Name: test_numeric_pk; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.test_numeric_pk (
+    id numeric NOT NULL
+);
+
+
+ALTER TABLE public.test_numeric_pk OWNER TO postgres;
+
+--
 -- Data for Name: cart; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -146,6 +157,13 @@ ALTER TABLE ONLY public.test3
 
 ALTER TABLE ONLY public.test
     ADD CONSTRAINT test_pkey PRIMARY KEY (id);
+
+--
+-- Name: test_numeric_pk test_numeric_pk_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.test_numeric_pk
+    ADD CONSTRAINT test_numeric_pk_pkey PRIMARY KEY (id);
 
 --
 -- Name: SCHEMA public; Type: ACL; Schema: -; Owner: cloudsqlsuperuser

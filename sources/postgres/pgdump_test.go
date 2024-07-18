@@ -405,6 +405,19 @@ func TestProcessPgDump(t *testing.T) {
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}}}},
 		},
 		{
+			name:  "Create table with numeric primary key",
+			input: "CREATE TABLE myschema.numericpk (a numeric PRIMARY KEY, b text);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"myschema_numericpk": ddl.CreateTable{
+					Name:   "myschema_numericpk",
+					ColIds: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "a", Order: 1}}}},
+		},
+		{
 			name: "ALTER TABLE SET NOT NULL",
 			input: "CREATE TABLE test (a text PRIMARY KEY, b text);\n" +
 				"ALTER TABLE test ALTER COLUMN b SET NOT NULL;\n",

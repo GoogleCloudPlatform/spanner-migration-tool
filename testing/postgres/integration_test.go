@@ -132,25 +132,30 @@ func TestIntegration_PGDUMP_SchemaAndDataSubcommand(t *testing.T) {
 }
 
 func TestIntegration_PGDUMP_SchemaSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
-	t.Parallel()
+	for _, d := range []string{"google_standard_sql", "postgresql"} {
+		dialect := d
+		t.Run(dialect, func(t *testing.T) {
+			onlyRunForEmulatorTest(t)
+			t.Parallel()
 
-	tmpdir := prepareIntegrationTest(t)
-	defer os.RemoveAll(tmpdir)
-	now := time.Now()
-	g := utils.GetUtilInfoImpl{}
-	dbName, _ := g.GetDatabaseName(constants.PGDUMP, now)
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+			tmpdir := prepareIntegrationTest(t)
+			defer os.RemoveAll(tmpdir)
+			now := time.Now()
+			g := utils.GetUtilInfoImpl{}
+			dbName, _ := g.GetDatabaseName(constants.PGDUMP, now)
+			dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
-	dataFilepath := "../../test_data/pg_dump.test.out"
+			dataFilepath := "../../test_data/pg_dump.test.out"
 
-	args := fmt.Sprintf("schema -source=pg -target-profile='instance=%s,dbName=%s' < %s", instanceID, dbName, dataFilepath)
-	err := common.RunCommand(args, projectID)
-	if err != nil {
-		t.Fatal(err)
+			args := fmt.Sprintf("schema -source=pg -target-profile='instance=%s,dbName=%s,dialect=%s' < %s", instanceID, dbName, dialect, dataFilepath)
+			err := common.RunCommand(args, projectID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Drop the database later.
+			defer dropDatabase(t, dbURI)
+		})
 	}
-	// Drop the database later.
-	defer dropDatabase(t, dbURI)
 }
 
 func TestIntegration_POSTGRES_SchemaAndDataSubcommand(t *testing.T) {
