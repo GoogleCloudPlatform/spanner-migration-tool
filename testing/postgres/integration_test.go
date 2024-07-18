@@ -18,7 +18,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -177,7 +176,6 @@ func TestIntegration_POSTGRES_SchemaAndDataSubcommand(t *testing.T) {
 	defer dropDatabase(t, dbURI)
 
 	checkResults(t, dbURI)
-	// printReferentialConstraints(ctx, dbURI)
 }
 
 func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
@@ -211,16 +209,11 @@ func TestIntegration_PGDUMP_ForeignKeyActionMigration(t *testing.T) {
 	now := time.Now()
 	g := utils.GetUtilInfoImpl{}
 	dbName, _ := g.GetDatabaseName(constants.PGDUMP, now)
-	// dbName := "pgdump-fka"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
-	// dataFilepath := "../../test_data/pg_foreignkeyaction_dump.test.out"
 	dataFilepath := "../../test_data/pg_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)
 
-	// host, user, srcDb, password := os.Getenv("PGHOST"), os.Getenv("PGUSER"), "test_fka", os.Getenv("PGPASSWORD")
-	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s' < %s", constants.POSTGRES, filePrefix, host, user, srcDb, password, instanceID, dbName, dataFilepath)
-	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=localhost,user=postgres,dbName=test_fka,password=postgres' -target-profile='instance=test-instance,dbName=%s' < %s", constants.POSTGRES, filePrefix, dataFilepath, dbName)
 	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=test-instance,dbName=%s' < %s", filePrefix, dbName, dataFilepath)
 	err := common.RunCommand(args, "emulator-test-project")
 	if err != nil {
@@ -390,7 +383,7 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	}
 	defer client.Close()
 
-	// Verifying that the row to be deleted exists in parent
+	// Verifying that the row to be deleted exists in parent - otherwise testing would be incorrect
 	stmt := spanner.Statement{SQL: `SELECT * FROM products WHERE productid = '1YMWWN1N4O'`}
 	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
@@ -398,100 +391,26 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 
 	assert.NotNil(t, row, "No row exists with given key in 'products'")
 
-	// Deleting row from Spanner DB
+	// Deleting row from parent table in Spanner DB
 	mutation := spanner.Delete("products", spanner.Key{"1YMWWN1N4O"})
 	_, err = client.Apply(ctx, []*spanner.Mutation{mutation})
+	// check iska behaviour
+	if err != nil {
+		t.Fatalf("Failed to delete row: %v", err)
+	}
 
 	// Testing ON DELETE NO ACTION - row shouldn't have been deleted in parent and child
 	stmt = spanner.Statement{SQL: `SELECT * FROM products WHERE productid = '1YMWWN1N4O'`}
 	iter = client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	row, _ = iter.Next()
-	assert.NotNil(t, row, "Rows were incorrectly deleted with given key in 'products'")
+	assert.NotNil(t, row, "Expected rows in 'products' to still exist")
 
 	stmt = spanner.Statement{SQL: `SELECT * FROM cart WHERE productid = '1YMWWN1N4O'`}
 	iter = client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	row, err = iter.Next()
 	assert.NotNil(t, row, "Expected rows in 'cart' to still exist")
-
-	// client, err := spanner.NewClient(ctx, dbURI)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer client.Close()
-	// fmt.Println("dbURI- ", dbURI)
-
-	// stmt := spanner.Statement{SQL: `SELECT table_name FROM information_schema.tables WHERE table_schema = ''`}
-	// iter := client.Single().Query(ctx, stmt)
-	// defer iter.Stop()
-
-	// fmt.Println("Tables in Spanner database:")
-	// for {
-	// 	row, err := iter.Next()
-	// 	if err == io.EOF {
-	// 		break
-	// 	}
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-
-	// 	var tableName string
-	// 	if err := row.Columns(&tableName); err != nil {
-	// 		log.Fatal(err)
-	// 	}
-
-	// 	fmt.Println("- ", tableName)
-	// }
-}
-func printReferentialConstraints(ctx context.Context, dbURI string) {
-	client, err := spanner.NewClient(ctx, dbURI)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer client.Close()
-	fmt.Println("dbURI- ", dbURI)
-
-	fmt.Println("\nReferential Constraints:")
-	stmt := spanner.Statement{SQL: `
-	SELECT
-	rc.constraint_schema AS TABLE_SCHEMA,
-	ccu.table_name AS REFERENCED_TABLE_NAME,
-	kcu.column_name AS COLUMN_NAME,
-	ccu.column_name AS REF_COLUMN_NAME,
-	rc.constraint_name AS CONSTRAINT_NAME,
-	rc.delete_rule AS ON_DELETE,
-	rc.update_rule AS ON_UPDATE
-FROM
-	INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
-INNER JOIN
-	INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
-	ON rc.constraint_name = kcu.constraint_name
-	AND rc.constraint_schema = kcu.constraint_schema
-INNER JOIN
-	INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE ccu
-	ON rc.constraint_name = ccu.constraint_name
-	AND rc.constraint_schema = ccu.constraint_schema
-	`}
-
-	iter := client.Single().Query(ctx, stmt)
-	defer iter.Stop()
-
-	for {
-		row, err := iter.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		var refTable, refColumn, constraint, referencedTable, referencedColumn string
-		if err := row.Columns(&refTable, &refColumn, &constraint, &referencedTable, &referencedColumn); err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("  Constraint: %s, From: %s.%s, To: %s.%s\n", constraint, refTable, refColumn, referencedTable, referencedColumn)
-	}
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {

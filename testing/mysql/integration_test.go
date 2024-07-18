@@ -122,10 +122,8 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName)
 
 	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDATABASE"), os.Getenv("MYSQLPWD")
-	// envVars := common.ClearEnvVariables([]string{"MYSQLHOST", "MYSQLUSER", "MYSQLDATABASE", "MYSQLPWD"})
 	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
-	// common.RestoreEnvVariables(envVars)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,12 +228,8 @@ func TestIntegration_MYSQL_ForeignKeyActionMigration(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName)
 
 	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), "test_foreign_key_action_data", os.Getenv("MYSQLPWD")
-	// envVars := common.ClearEnvVariables([]string{"MYSQLHOST", "MYSQLUSER", "MYSQLPWD"})
 	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName)
-	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=localhost,user=root,dbName=test_foreign_key_action_data,password=root' -target-profile='instance=test-instance,dbName=mysql-foreignkey-actions'", constants.MYSQL, filePrefix)
-	// err := common.RunCommand(args, "emulator-test-project")
 	err := common.RunCommand(args, projectID)
-	// common.RestoreEnvVariables(envVars)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,6 +249,7 @@ func TestIntegration_MySQLDUMP_ForeignKeyActionMigration(t *testing.T) {
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
+
 	defer dropDatabase(t, dbURI)
 	checkForeignKeyActions(ctx, t, dbURI)
 }
@@ -338,7 +333,7 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	_, err = iter.Next()
 	assert.Equal(t, nil, err, "Expected rows with product_id \"zxi-631\" in 'cart'")
 
-	// Deleting row from Spanner DB
+	// Deleting row from parent table in Spanner DB
 	mutation := spanner.Delete("products", spanner.Key{"zxi-631"})
 	_, err = client.Apply(ctx, []*spanner.Mutation{mutation})
 	if err != nil {
@@ -352,27 +347,6 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	_, err = iter.Next()
 	assert.Equal(t, iterator.Done, err, "Expected no rows in 'cart' with deleted product_id")
 }
-
-// // Generated DDL always contains Foreign Key Definitions as 'ALTER TABLE' statements
-// // and will always define the ON DELETE action. Spanner does not support
-// // ON UPDATE and this should not be a part of the DDL.
-// func checkForeignKeyActions(ctx context.Context, t *testing.T, client *spanner.Client, dbURI string) {
-
-// 	resp, err := databaseAdmin.GetDatabaseDdl(ctx, &databasepb.GetDatabaseDdlRequest{Database: dbURI})
-// 	if err != nil {
-// 		t.Fatalf("Could not read DDL from database %s: %v", dbURI, err)
-// 	}
-// 	for _, stmt := range resp.Statements {
-// 		if strings.Contains(stmt, "ALTER TABLE ") && strings.Contains(stmt, "FOREIGN KEY") {
-// 			assert.True(t, strings.Contains(stmt, "ON DELETE"), "Missing ON DELETE action")
-// 			assert.False(t, strings.Contains(stmt, "ON UPDATE"), "Unexpected ON UPDATE action")
-
-// 			if strings.Contains(stmt, "cart") {
-// 				assert.True(t, strings.Contains(stmt, "ON DELETE CASCADE"))
-// 			}
-// 		}
-// 	}
-// }
 
 func onlyRunForEmulatorTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
