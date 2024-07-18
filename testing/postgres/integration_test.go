@@ -236,41 +236,42 @@ func TestIntegration_POSTGRES_ForeignKeyActionMigration(t *testing.T) {
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "postgres-foreignkey-actions"
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	filePrefix := filepath.Join(tmpdir, dbName)
-
-	// host, user, srcDb, password := os.Getenv("PGHOST"), os.Getenv("PGUSER"), "test_fka", os.Getenv("PGPASSWORD")
-	envVars := common.ClearEnvVariables([]string{"PGHOST", "PGUSER", "PGPASSWORD"})
-	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.POSTGRES, filePrefix, host, user, srcDb, password, instanceID, dbName)
-	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=localhost,user=postgres,dbName=test_fka,password=postgres' -target-profile='instance=test-instance,dbName=postgres-foreignkey-actions'", constants.POSTGRES, filePrefix)
-	err := common.RunCommand(args, "emulator-test-project")
-	common.RestoreEnvVariables(envVars)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer dropDatabase(t, dbURI)
-
-	checkForeignKeyActions(ctx, t, dbURI)
-
-	// now := time.Now()
-	// g := utils.GetUtilInfoImpl{}
-	// dbName, _ := g.GetDatabaseName(constants.POSTGRES, now)
+	// dbName := "postgres-foreignkey-actions"
 	// dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	// filePrefix := filepath.Join(tmpdir, dbName)
 
-	// host, user, srcDb, password := os.Getenv("PGHOST"), os.Getenv("PGUSER"), os.Getenv("test_fka"), os.Getenv("PGPWD")
-	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.POSTGRES, filePrefix, host, user, srcDb, password, instanceID, dbName)
-	// err := common.RunCommand(args, projectID)
-
-	// args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
-	// err := common.RunCommand(args, projectID)
+	// // host, user, srcDb, password := os.Getenv("PGHOST"), os.Getenv("PGUSER"), "test_fka", os.Getenv("PGPASSWORD")
+	// envVars := common.ClearEnvVariables([]string{"PGHOST", "PGUSER", "PGPASSWORD"})
+	// // args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.POSTGRES, filePrefix, host, user, srcDb, password, instanceID, dbName)
+	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=localhost,user=postgres,dbName=test_fka,password=postgres' -target-profile='instance=test-instance,dbName=postgres-foreignkey-actions'", constants.POSTGRES, filePrefix)
+	// err := common.RunCommand(args, "emulator-test-project")
+	// common.RestoreEnvVariables(envVars)
 	// if err != nil {
 	// 	t.Fatal(err)
 	// }
 	// defer dropDatabase(t, dbURI)
 
 	// checkForeignKeyActions(ctx, t, dbURI)
+
+	now := time.Now()
+	g := utils.GetUtilInfoImpl{}
+	dbName, _ := g.GetDatabaseName(constants.POSTGRES, now)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	filePrefix := filepath.Join(tmpdir, dbName)
+
+	// host, user, srcDb, password := os.Getenv("PGHOST"), os.Getenv("PGUSER"), os.Getenv("test_fka"), os.Getenv("PGPWD")
+	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=localhost,user=postgres,dbName=test_fka,password=postgres' -target-profile='instance=test-instance,dbName=%s'", constants.POSTGRES, filePrefix, dbName)
+	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.POSTGRES, filePrefix, host, user, srcDb, password, instanceID, dbName)
+	err := common.RunCommand(args, projectID)
+
+	// args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
+	// err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dropDatabase(t, dbURI)
+
+	checkForeignKeyActions(ctx, t, dbURI)
 }
 
 func checkResults(t *testing.T, dbURI string) {
@@ -428,7 +429,7 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	defer client.Close()
 	fmt.Println("dbURI- ", dbURI)
 
-	stmt := spanner.Statement{SQL: `SELECT table_name FROM information_schema.tables`}
+	stmt := spanner.Statement{SQL: `SELECT table_name FROM information_schema.tables WHERE table_schema = ''`}
 	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 
