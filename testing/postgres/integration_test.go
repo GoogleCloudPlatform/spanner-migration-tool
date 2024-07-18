@@ -534,7 +534,6 @@ INNER JOIN
 	INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE ccu
 	ON rc.constraint_name = ccu.constraint_name
 	AND rc.constraint_schema = ccu.constraint_schema
-WHERE rc.constraint_type = 'FOREIGN KEY'
 	`}
 
 	iter := client.Single().Query(ctx, stmt)
