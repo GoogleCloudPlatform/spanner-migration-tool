@@ -18,7 +18,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -33,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/testing/common"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/iterator"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
@@ -206,10 +206,10 @@ func TestIntegration_PGDUMP_ForeignKeyActionMigration(t *testing.T) {
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	// now := time.Now()
-	// g := utils.GetUtilInfoImpl{}
-	// dbName, _ := g.GetDatabaseName(constants.PGDUMP, now)
-	dbName := "pgdump-fka"
+	now := time.Now()
+	g := utils.GetUtilInfoImpl{}
+	dbName, _ := g.GetDatabaseName(constants.PGDUMP, now)
+	// dbName := "pgdump-fka"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
 	dataFilepath := "../../test_data/pg_foreignkeyaction_dump.test.out"
@@ -217,8 +217,8 @@ func TestIntegration_PGDUMP_ForeignKeyActionMigration(t *testing.T) {
 
 	// host, user, srcDb, password := os.Getenv("PGHOST"), os.Getenv("PGUSER"), "test_fka", os.Getenv("PGPASSWORD")
 	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s' < %s", constants.POSTGRES, filePrefix, host, user, srcDb, password, instanceID, dbName, dataFilepath)
-	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=localhost,user=postgres,dbName=test_fka,password=postgres' -target-profile='instance=test-instance,dbName=pgdump-fka' < %s", constants.POSTGRES, filePrefix, dataFilepath)
-	// args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s' < %s", filePrefix, instanceID, dbName, dataFilepath)
+	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=localhost,user=postgres,dbName=test_fka,password=postgres' -target-profile='instance=test-instance,dbName=%s' < %s", constants.POSTGRES, filePrefix, dataFilepath, dbName)
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=test-instance,dbName=%s' < %s", filePrefix, dbName, dataFilepath)
 	err := common.RunCommand(args, "emulator-test-project")
 	if err != nil {
 		t.Fatal(err)
@@ -253,24 +253,40 @@ func TestIntegration_POSTGRES_ForeignKeyActionMigration(t *testing.T) {
 
 	// checkForeignKeyActions(ctx, t, dbURI)
 
+	// ------------------
+	// now := time.Now()
+	// g := utils.GetUtilInfoImpl{}
+	// dbName, _ := g.GetDatabaseName(constants.POSTGRES, now)
+	// dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	// filePrefix := filepath.Join(tmpdir, dbName)
+
+	// // host, user, srcDb, password := os.Getenv("PGHOST"), os.Getenv("PGUSER"), os.Getenv("test_fka"), os.Getenv("PGPWD")
+	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=localhost,user=postgres,dbName=test_fka,password=postgres' -target-profile='instance=test-instance,dbName=%s'", constants.POSTGRES, filePrefix, dbName)
+	// // args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.POSTGRES, filePrefix, host, user, srcDb, password, instanceID, dbName)
+	// err := common.RunCommand(args, projectID)
+
+	// // args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
+	// // err := common.RunCommand(args, projectID)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// defer dropDatabase(t, dbURI)
+
+	// checkForeignKeyActions(ctx, t, dbURI)
+
 	now := time.Now()
 	g := utils.GetUtilInfoImpl{}
 	dbName, _ := g.GetDatabaseName(constants.POSTGRES, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName)
 
-	// host, user, srcDb, password := os.Getenv("PGHOST"), os.Getenv("PGUSER"), os.Getenv("test_fka"), os.Getenv("PGPWD")
-	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=localhost,user=postgres,dbName=test_fka,password=postgres' -target-profile='instance=test-instance,dbName=%s'", constants.POSTGRES, filePrefix, dbName)
-	// args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.POSTGRES, filePrefix, host, user, srcDb, password, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
-
-	// args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
-	// err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Drop the database later.
 	defer dropDatabase(t, dbURI)
-
 	checkForeignKeyActions(ctx, t, dbURI)
 }
 
@@ -404,52 +420,52 @@ func checkArrays(ctx context.Context, t *testing.T, client *spanner.Client) {
 }
 
 func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
-	// client, err := spanner.NewClient(ctx, dbURI)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer client.Close()
-	// mutation := spanner.Delete("test_fka.products", spanner.Key{"2KJHWIUS9K"})
-
-	// _, err = client.Apply(ctx, []*spanner.Mutation{mutation})
-	// assert.Error(t, err, "Expected ON DELETE NO ACTION to prevent deletion")
-
-	// stmt := spanner.Statement{SQL: `SELECT * FROM test_fka.cart WHERE productid = "2KJHWIUS9K"`}
-	// iter := client.Single().Query(ctx, stmt)
-	// defer iter.Stop()
-	// row, err := iter.Next()
-
-	// assert.Nil(t, err, "Error fetching rows from 'cart'") //testing ON DELETE NO ACTION
-	// assert.NotNil(t, row, "Expected rows in 'cart' to still exist")
-
 	client, err := spanner.NewClient(ctx, dbURI)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer client.Close()
-	fmt.Println("dbURI- ", dbURI)
+	mutation := spanner.Delete("products", spanner.Key{"2KJHWIUS9K"})
 
-	stmt := spanner.Statement{SQL: `SELECT table_name FROM information_schema.tables WHERE table_schema = ''`}
+	_, err = client.Apply(ctx, []*spanner.Mutation{mutation})
+	assert.Error(t, err, "Expected ON DELETE NO ACTION to prevent deletion")
+
+	stmt := spanner.Statement{SQL: `SELECT * FROM cart WHERE productid = "2KJHWIUS9K"`}
 	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
+	row, err := iter.Next()
 
-	fmt.Println("Tables in Spanner database:")
-	for {
-		row, err := iter.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Fatal(err)
-		}
+	assert.Nil(t, err, "Error fetching rows from 'cart'") //testing ON DELETE NO ACTION
+	assert.NotNil(t, row, "Expected rows in 'cart' to still exist")
 
-		var tableName string
-		if err := row.Columns(&tableName); err != nil {
-			log.Fatal(err)
-		}
+	// client, err := spanner.NewClient(ctx, dbURI)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer client.Close()
+	// fmt.Println("dbURI- ", dbURI)
 
-		fmt.Println("- ", tableName)
-	}
+	// stmt := spanner.Statement{SQL: `SELECT table_name FROM information_schema.tables WHERE table_schema = ''`}
+	// iter := client.Single().Query(ctx, stmt)
+	// defer iter.Stop()
+
+	// fmt.Println("Tables in Spanner database:")
+	// for {
+	// 	row, err := iter.Next()
+	// 	if err == io.EOF {
+	// 		break
+	// 	}
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+
+	// 	var tableName string
+	// 	if err := row.Columns(&tableName); err != nil {
+	// 		log.Fatal(err)
+	// 	}
+
+	// 	fmt.Println("- ", tableName)
+	// }
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
