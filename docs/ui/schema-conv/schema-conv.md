@@ -21,6 +21,7 @@ In the configure schema page, the user can view details of the source database a
         1. Interleave
         1. SQL
     1. Index details
+    1. Sequence Details (Only for Source DB MySql)
 1. Issues & Suggestions
 
 ![](https://services.google.com/fh/files/helpcenter/asset-lwlr5arntba.png)

@@ -269,6 +269,24 @@
                             </mat-icon>
                         </button></span>
                 </p>
+                <p class="point" *ngIf="isSharded">
+                    <span class="bullet" *ngIf="(selectedMigrationMode ==='Schema')">2</span>
+                    <span class="bullet" *ngIf="!(selectedMigrationMode ==='Schema')">6</span>
+                    <span>GCS Metadata Path (Optional)
+                        <mat-icon class="configure"
+                            matTooltip="Specify existing or new GCS path to store metadata for migration.">
+                            info</mat-icon>
+                    </span>
+                    <span><button mat-button (click)="openGcsMetadataDetailsForm()"
+                            [disabled]="isMigrationInProgress || !isTargetDetailSet" color="primary">
+                            Configure
+                            <mat-icon iconPositionEnd>edit</mat-icon>
+                            <mat-icon iconPositionEnd *ngIf="isGcsMetadataDetailSet" class="success"
+                                matTooltip="GCS Metadata Path Configured" matTooltipPosition="above">
+                                check_circle
+                            </mat-icon>
+                        </button></span>
+                </p>
                 <p class="point"
                     *ngIf="(selectedMigrationType ==='lowdt') && !(selectedMigrationMode ==='Schema') && isSharded">
                     <span class="bullet" *ngIf="isSharded">5</span>

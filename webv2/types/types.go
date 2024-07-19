@@ -69,11 +69,17 @@ type MigrationDetails struct {
 }
 
 type TargetDetails struct {
-	TargetDB                    string `json:"TargetDB"`
-	SourceConnectionProfileName string `json:"SourceConnProfile"`
-	TargetConnectionProfileName string `json:"TargetConnProfile"`
-	ReplicationSlot             string `json:"ReplicationSlot"`
-	Publication                 string `json:"Publication"`
+	TargetDB                    string          `json:"TargetDB"`
+	SourceConnectionProfileName string          `json:"SourceConnProfile"`
+	TargetConnectionProfileName string          `json:"TargetConnProfile"`
+	ReplicationSlot             string          `json:"ReplicationSlot"`
+	Publication                 string          `json:"Publication"`
+	GcsMetadataPath             GcsMetadataPath `json:"GcsMetadataPath"`
+}
+
+type GcsMetadataPath struct {
+	GcsBucketName     string `json:"GcsBucketName"`
+	GcsBucketRootPath string `json:"GcsBucketRootPath"`
 }
 
 type ColMaxLength struct {

@@ -38,6 +38,7 @@ import { DropObjectDetailDialogComponent } from './components/drop-object-detail
 import { DatabaseLoaderComponent } from './components/database-loader/database-loader.component'
 import { PrepareMigrationComponent } from './components/prepare-migration/prepare-migration.component'
 import { TargetDetailsFormComponent } from './components/target-details-form/target-details-form.component'
+import { GcsMetadataDetailsFormComponent } from './components/gcs-metadata-details-form/gcs-metadata-details-form.component'
 import { ConnectionProfileFormComponent } from './components/connection-profile-form/connection-profile-form.component'
 import { SourceDetailsFormComponent } from './components/source-details-form/source-details-form.component'
 import { SidenavReviewChangesComponent } from './components/sidenav-review-changes/sidenav-review-changes.component'
@@ -84,6 +85,7 @@ import { AddNewSequenceComponent } from './components/add-new-sequence/add-new-s
     DropObjectDetailDialogComponent,
     PrepareMigrationComponent,
     TargetDetailsFormComponent,
+    GcsMetadataDetailsFormComponent,
     ConnectionProfileFormComponent,
     SidenavReviewChangesComponent,
     TableColumnChangesPreviewComponent,

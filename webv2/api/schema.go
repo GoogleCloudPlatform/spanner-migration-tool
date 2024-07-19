@@ -362,14 +362,19 @@ func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	defer sessionState.Conv.ConvLock.RUnlock()
 	var tableIdName []types.TableIdAndName
 	for id, issues := range sessionState.Conv.SchemaIssues {
-		if len(issues.TableLevelIssues) != 0 {
-			t := types.TableIdAndName{
-				Id:   id,
-				Name: sessionState.Conv.SpSchema[id].Name,
+		for _, issue := range issues.TableLevelIssues {
+			if reports.IssueDB[issue].Severity == reports.Errors {
+				t := types.TableIdAndName{
+					Id:   id,
+					Name: sessionState.Conv.SpSchema[id].Name,
+				}
+				tableIdName = append(tableIdName, t)
 			}
-			tableIdName = append(tableIdName, t)
 		}
 	}
+	sort.Slice(tableIdName, func(i, j int) bool {
+		return tableIdName[i].Name < tableIdName[j].Name
+	})
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tableIdName)
 }

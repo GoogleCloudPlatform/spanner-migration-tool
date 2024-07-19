@@ -1,4 +1,5 @@
 import ICreateSequence from './auto-gen'
+import { AutoGen } from './edit-table'
 import IRule from './rule'
 
 export default interface IConv {
@@ -60,6 +61,7 @@ export interface IColumn {
   NotNull: boolean
   Ignored: IIgnored
   Id: string
+  AutoGen: AutoGen
 }
 
 export interface IIgnored {
@@ -122,6 +124,8 @@ export interface IForeignKey {
   ReferTableId: string
   ReferColumnIds: string[]
   Id: string | undefined
+  OnDelete: string
+  OnUpdate: string
 }
 
 export interface IIndexKey {

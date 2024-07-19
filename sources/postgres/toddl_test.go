@@ -15,6 +15,7 @@
 package postgres
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -133,8 +134,8 @@ func TestToSpannerType(t *testing.T) {
 			"c6": schema.Column{Name: "f", Id: "c6", Type: schema.Type{Name: "timestamptz"}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{ColId: "c1"}},
-		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}},
-			schema.ForeignKey{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c10"}}},
+		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_RESTRICT},
+			schema.ForeignKey{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c10"}, OnDelete: constants.FK_SET_NULL, OnUpdate: constants.FK_NO_ACTION}},
 		Indexes: []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{ColId: "c1", Desc: false}, schema.Key{ColId: "c4", Desc: true}}},
 			schema.Index{Name: "index2", Unique: false, Keys: []schema.Key{schema.Key{ColId: "c4", Desc: true}}}},
 	}
@@ -179,16 +180,23 @@ func TestToSpannerType(t *testing.T) {
 			"c6": ddl.ColumnDef{Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Timestamp}},
 		},
 		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1"}},
-		ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}},
-			ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c10"}}},
+		ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION},
+			ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c10"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", TableId: tableId, Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1", Desc: false}, ddl.IndexKey{ColId: "c4", Desc: true}}},
 			ddl.CreateIndex{Name: "index2", TableId: tableId, Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c4", Desc: true}}}},
 	}
 	assert.Equal(t, expected, actual)
-	expectedIssues := map[string][]internal.SchemaIssue{
-		"c2": []internal.SchemaIssue{internal.Widened},
+	expectedIssues := internal.TableIssues{
+		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete, internal.ForeignKeyOnUpdate},
+		ColumnLevelIssues: map[string][]internal.SchemaIssue{
+			"c2": []internal.SchemaIssue{internal.Widened}},
 	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
+	actualIssues := conv.SchemaIssues[tableId]
+	sort.Slice(actualIssues.TableLevelIssues, func(i, j int) bool {
+		return actualIssues.TableLevelIssues[i] < actualIssues.TableLevelIssues[j]
+	})
+
+	assert.Equal(t, expectedIssues, actualIssues)
 }
 
 // This is just a very basic smoke-test for toExperimentalSpannerType.
@@ -214,8 +222,8 @@ func TestToExperimentalSpannerType(t *testing.T) {
 			"c7": schema.Column{Name: "g", Id: "c7", Type: schema.Type{Name: "json"}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{ColId: "c1"}},
-		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}},
-			schema.ForeignKey{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c10"}}},
+		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_RESTRICT},
+			schema.ForeignKey{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c10"}, OnDelete: constants.FK_SET_NULL, OnUpdate: constants.FK_NO_ACTION}},
 		Indexes: []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{ColId: "c1", Desc: false}, schema.Key{ColId: "c4", Desc: true}}},
 			schema.Index{Name: "index2", Unique: false, Keys: []schema.Key{schema.Key{ColId: "c4", Desc: true}}}},
 	}
@@ -261,16 +269,23 @@ func TestToExperimentalSpannerType(t *testing.T) {
 			"c7": ddl.ColumnDef{Name: "g", Id: "c7", T: ddl.Type{Name: ddl.JSON}},
 		},
 		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1"}},
-		ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}},
-			ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c10"}}},
+		ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION},
+			ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"c1"}, ReferTableId: "t3", ReferColumnIds: []string{"c10"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", TableId: tableId, Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1", Desc: false}, ddl.IndexKey{ColId: "c4", Desc: true}}},
 			ddl.CreateIndex{Name: "index2", TableId: tableId, Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c4", Desc: true}}}},
 	}
 	assert.Equal(t, expected, actual)
-	expectedIssues := map[string][]internal.SchemaIssue{
-		"c2": []internal.SchemaIssue{internal.Widened},
+	expectedIssues := internal.TableIssues{
+		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete, internal.ForeignKeyOnUpdate},
+		ColumnLevelIssues: map[string][]internal.SchemaIssue{
+			"c2": []internal.SchemaIssue{internal.Widened}},
 	}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
+	actualIssues := conv.SchemaIssues[tableId]
+	sort.Slice(actualIssues.TableLevelIssues, func(i, j int) bool {
+		return actualIssues.TableLevelIssues[i] < actualIssues.TableLevelIssues[j]
+	})
+
+	assert.Equal(t, expectedIssues, actualIssues)
 }
 
 func dropComments(t *ddl.CreateTable) {
