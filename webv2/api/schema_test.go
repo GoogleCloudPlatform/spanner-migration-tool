@@ -406,23 +406,45 @@ func TestDropForeignKey(t *testing.T) {
 		{
 			name:  "Test drop valid FK success",
 			table: "t1",
-			input: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION},
+			input: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
 				{Name: "", ColIds: []string{}, ReferTableId: "", ReferColumnIds: []string{}, Id: "f2", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.FK_SET_DEFAULT, OnUpdate: constants.FK_RESTRICT},
+							{Name: "fk2", ColIds: []string{"c3", "c4"}, ReferTableId: "reft2", ReferColumnIds: []string{"ref_c2", "ref_c3"}, Id: "f2", OnDelete: constants.FK_RESTRICT, OnUpdate: constants.FK_NO_ACTION}},
+					}},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
 							{Name: "fk2", ColIds: []string{"c3", "c4"}, ReferTableId: "reft2", ReferColumnIds: []string{"ref_c2", "ref_c3"}, Id: "f2", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
+					}},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": internal.TableIssues{
+						TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyOnDelete, internal.ForeignKeyOnUpdate, internal.ForeignKeyOnDelete},
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
 			},
 			expectedConv: &internal.Conv{
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.FK_SET_DEFAULT, OnUpdate: constants.FK_RESTRICT},
+							{Name: "fk2", ColIds: []string{"c3", "c4"}, ReferTableId: "reft2", ReferColumnIds: []string{"ref_c2", "ref_c3"}, Id: "f2", OnDelete: constants.FK_RESTRICT, OnUpdate: constants.FK_NO_ACTION}},
+					}},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_c1"}, Id: "f1", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
+					}},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": internal.TableIssues{
+						TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnUpdate, internal.ForeignKeyOnDelete},
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c3": {},
+						},
 					}},
 			},
 		},
@@ -1470,7 +1492,8 @@ func TestDropTable(t *testing.T) {
 					"c5": {Name: "cn5", Type: schema.Type{Name: "varchar"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c5"},
 					"c6": {Name: "cn6", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c6"},
 				},
-				Id: "t2",
+				ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c4"}, ReferTableId: "t1", ReferColumnIds: []string{"c1"}, Id: "f1", OnDelete: constants.FK_CASCADE}},
+				Id:          "t2",
 			},
 		},
 		SpSchema: map[string]ddl.CreateTable{
@@ -1493,6 +1516,7 @@ func TestDropTable(t *testing.T) {
 					"c7": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, Id: "c7"},
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c7", Desc: false}},
+				ParentTable: ddl.InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE},
 				Id:          "t2",
 			}},
 		Audit: internal.Audit{
@@ -1533,6 +1557,7 @@ func TestDropTable(t *testing.T) {
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c7", Desc: false, Order: 0}},
 				ForeignKeys: []ddl.Foreignkey{},
 				Indexes:     []ddl.CreateIndex(nil),
+				ParentTable: ddl.InterleavedParent{},
 				Id:          "t2",
 			}},
 	}
@@ -1647,13 +1672,14 @@ func TestRestoreTable(t *testing.T) {
 // todo update SetParentTable with case III suggest interleve table column.
 func TestSetParentTable(t *testing.T) {
 	tests := []struct {
-		name             string
-		ct               *internal.Conv
-		table            string
-		statusCode       int64
-		expectedResponse *types.TableInterleaveStatus
-		expectedFKs      []ddl.Foreignkey
-		parentTable      string
+		name                string
+		ct                  *internal.Conv
+		table               string
+		statusCode          int64
+		expectedResponse    *types.TableInterleaveStatus
+		expectedFKs         []ddl.Foreignkey
+		parentTable         ddl.InterleavedParent
+		expectedTableIssues []internal.SchemaIssue
 	}{
 		{
 			name:       "no conv provided",
@@ -1787,7 +1813,7 @@ func TestSetParentTable(t *testing.T) {
 			},
 			table:            "t1",
 			statusCode:       http.StatusOK,
-			expectedResponse: &types.TableInterleaveStatus{Possible: false, Parent: "", Comment: "No valid prefix"},
+			expectedResponse: &types.TableInterleaveStatus{Possible: false, Parent: "", OnDelete: "", Comment: "No valid prefix"},
 			expectedFKs:      []ddl.Foreignkey{{}},
 		},
 		{
@@ -1840,7 +1866,7 @@ func TestSetParentTable(t *testing.T) {
 							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 2}, {ColId: "c2", Desc: false, Order: 2}},
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, OnDelete: constants.FK_CASCADE}},
 					},
 					"t2": {
 						Name:   "t2",
@@ -1865,13 +1891,19 @@ func TestSetParentTable(t *testing.T) {
 			},
 			table:            "t1",
 			statusCode:       http.StatusOK,
-			expectedResponse: &types.TableInterleaveStatus{Possible: false, Parent: "", Comment: "No valid prefix"},
-			expectedFKs:      []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}}},
-			parentTable:      "",
+			expectedResponse: &types.TableInterleaveStatus{Possible: false, Parent: "", OnDelete: "", Comment: "No valid prefix"},
+			expectedFKs:      []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, OnDelete: constants.FK_CASCADE}},
+			parentTable:      ddl.InterleavedParent{Id: "", OnDelete: ""},
 		},
 		{
 			name: "successful interleave",
 			ct: &internal.Conv{
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:        "t1",
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}, Id: "f1", OnDelete: constants.FK_RESTRICT}},
+					},
+				},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "t1",
@@ -1881,7 +1913,7 @@ func TestSetParentTable(t *testing.T) {
 							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}, Id: "f1", OnDelete: constants.FK_NO_ACTION}},
 					},
 					"t2": {
 						Name:   "t2",
@@ -1895,6 +1927,7 @@ func TestSetParentTable(t *testing.T) {
 				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
+						TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyOnDelete},
 						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
 					},
 				},
@@ -1902,15 +1935,22 @@ func TestSetParentTable(t *testing.T) {
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
 			},
-			table:            "t1",
-			statusCode:       http.StatusOK,
-			expectedResponse: &types.TableInterleaveStatus{Possible: true, Parent: "t2"},
-			expectedFKs:      []ddl.Foreignkey{},
-			parentTable:      "t2",
+			table:               "t1",
+			statusCode:          http.StatusOK,
+			expectedResponse:    &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_NO_ACTION},
+			expectedFKs:         []ddl.Foreignkey{},
+			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
+			expectedTableIssues: []internal.SchemaIssue{},
 		},
 		{
 			name: "successful interleave with same primary key",
 			ct: &internal.Conv{
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:        "t1",
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1", "c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c1", "c2"}, Id: "f1", OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_RESTRICT}},
+					},
+				},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "t1",
@@ -1920,7 +1960,7 @@ func TestSetParentTable(t *testing.T) {
 							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1", "c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c1", "c2"}}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1", "c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c1", "c2"}, Id: "f1", OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION}},
 					},
 					"t2": {
 						Name:   "t2",
@@ -1934,6 +1974,7 @@ func TestSetParentTable(t *testing.T) {
 				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
+						TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyOnUpdate},
 						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
 					},
 				},
@@ -1941,15 +1982,23 @@ func TestSetParentTable(t *testing.T) {
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
 			},
-			table:            "t1",
-			statusCode:       http.StatusOK,
-			expectedResponse: &types.TableInterleaveStatus{Possible: true, Parent: "t2"},
-			expectedFKs:      []ddl.Foreignkey{},
-			parentTable:      "t2",
+			table:               "t1",
+			statusCode:          http.StatusOK,
+			expectedResponse:    &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_CASCADE},
+			expectedFKs:         []ddl.Foreignkey{},
+			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
+			expectedTableIssues: []internal.SchemaIssue{},
 		},
 		{
 			name: "successful interleave with multiple fks refering multiple tables",
 			ct: &internal.Conv{
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						ForeignKeys: []schema.ForeignKey{
+							{Name: "fk1", ColIds: []string{"c3"}, ReferTableId: "t3", ReferColumnIds: []string{"c3"}, Id: "f1", OnDelete: constants.FK_SET_DEFAULT, OnUpdate: constants.FK_NO_ACTION},
+							{Name: "fk1", ColIds: []string{"c1", "c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c1", "c2"}, Id: "f2", OnDelete: constants.FK_RESTRICT, OnUpdate: constants.FK_CASCADE}},
+					},
+				},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "t1",
@@ -1960,8 +2009,8 @@ func TestSetParentTable(t *testing.T) {
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
 						ForeignKeys: []ddl.Foreignkey{
-							{Name: "fk1", ColIds: []string{"c3"}, ReferTableId: "t3", ReferColumnIds: []string{"c3"}},
-							{Name: "fk1", ColIds: []string{"c1", "c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c1", "c2"}}},
+							{Name: "fk1", ColIds: []string{"c3"}, ReferTableId: "t3", ReferColumnIds: []string{"c3"}, Id: "f1", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
+							{Name: "fk1", ColIds: []string{"c1", "c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c1", "c2"}, Id: "f2", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 					},
 					"t2": {
 						Name:   "t2",
@@ -1985,17 +2034,19 @@ func TestSetParentTable(t *testing.T) {
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+						TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyOnDelete, internal.ForeignKeyOnDelete, internal.ForeignKeyOnUpdate},
 					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
 			},
-			table:            "t1",
-			statusCode:       http.StatusOK,
-			expectedResponse: &types.TableInterleaveStatus{Possible: true, Parent: "t2"},
-			expectedFKs:      []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", ColIds: []string{"c1", "c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c1", "c2"}, Id: ""}},
-			parentTable:      "t2",
+			table:               "t1",
+			statusCode:          http.StatusOK,
+			expectedResponse:    &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_NO_ACTION},
+			expectedFKs:         []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c3"}, ReferTableId: "t3", ReferColumnIds: []string{"c3"}, Id: "f1", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
+			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
+			expectedTableIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete},
 		},
 	}
 	for _, tc := range tests {
@@ -2036,9 +2087,10 @@ func TestSetParentTable(t *testing.T) {
 		if tc.statusCode == http.StatusOK {
 			assert.Equal(t, tc.expectedResponse, res, tc.name)
 		}
-		if tc.parentTable != "" {
-			assert.Equal(t, tc.parentTable, sessionState.Conv.SpSchema[tc.table].ParentId, tc.name)
+		if tc.parentTable.Id != "" {
+			assert.Equal(t, tc.parentTable, sessionState.Conv.SpSchema[tc.table].ParentTable, tc.name)
 			assert.Equal(t, tc.expectedFKs, sessionState.Conv.SpSchema[tc.table].ForeignKeys, tc.name)
+			assert.Equal(t, tc.expectedTableIssues, sessionState.Conv.SchemaIssues[tc.table].TableLevelIssues, tc.name)
 		}
 	}
 }
@@ -2070,7 +2122,7 @@ func TestRemoveParentTable(t *testing.T) {
 							"c3": {Name: "c", Type: schema.Type{Name: "varchar"}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c3"},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, Id: "f1"}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, Id: "f1", OnDelete: constants.FK_CASCADE}},
 						Id:          "t1",
 					},
 
@@ -2096,7 +2148,7 @@ func TestRemoveParentTable(t *testing.T) {
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
 						Id:          "t1",
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
 					},
 					"t2": {
 						Name:   "table2",
@@ -2123,9 +2175,9 @@ func TestRemoveParentTable(t *testing.T) {
 						"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 					},
 					PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-					ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, Id: "f1"}},
+					ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, Id: "f1", OnDelete: constants.FK_CASCADE}},
 					Id:          "t1",
-					ParentId:    "",
+					ParentTable: ddl.InterleavedParent{Id: "", OnDelete: ""},
 				},
 				"t2": {
 					Name:   "table2",
@@ -2158,7 +2210,7 @@ func TestRemoveParentTable(t *testing.T) {
 							"c3": {Name: "c", Type: schema.Type{Name: "varchar"}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c3"},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, Id: "f1"}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, Id: "f1", OnDelete: constants.FK_NO_ACTION}},
 						Id:          "t1",
 					},
 
@@ -2184,7 +2236,7 @@ func TestRemoveParentTable(t *testing.T) {
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
 						Id:          "t1",
-						ParentId:    "t2",
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
 					},
 					"t2": {
 						Name:   "table2",
