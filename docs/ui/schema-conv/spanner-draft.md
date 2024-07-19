@@ -30,6 +30,14 @@ Column tab provides information on the columns that are a part of the selected t
 
 ![](https://services.google.com/fh/files/misc/column-info-edit.png)
 
+#### Add Column
+
+In addition to editing the existing columns in the Spanner draft mapped from the source database, users can also add new columns to the selected table.
+
+![](https://services.google.com/fh/files/misc/add_column.png)
+![](https://services.google.com/fh/files/misc/add_column_form.png)
+![](https://services.google.com/fh/files/misc/new_column.png)
+
 ### Primary Key
 
 Users can view and edit the primary key of a table from the primary key tab. They can remove/add a column from the primary key or change the order of columns in the primary key. Once these changes are made, the session file is updated and they can also be verified from the [SQL tab](#sql).  

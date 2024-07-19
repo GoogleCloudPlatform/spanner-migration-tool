@@ -29,7 +29,7 @@ Some use cases when the user would want to tweak the jobs are:
 
 To tune dataflow, first specify the target database in the 'Configure Spanner Database' step. This enables the configure button for the remaining steps.
 
-![](https://services.google.com/fh/gumdrop/preview/misc/dataflow-form.png)
+![](https://services.google.com/fh/files/misc/dataflow-tuning.png)
 
 <details open markdown="block">
   <summary>
@@ -48,6 +48,10 @@ SMT exposes the most frequently changed dataflow configurations to the user. Ple
 Specify the GCS path of the jar containing custom transformation logic. For custom transformation, specify both custom jar GCS path and fully classified class name. If no custom jar and class name are provided, only the default transformations will be used.
 
 Present under the Custom Transformations section of the form.
+
+{: .highlight }
+
+Please make sure that the custom JAR code is idempotent to manage transaction retries effectively.
 
 ### Custom Class Name
 Specify the fully classified class name of the class containing custom transformation logic. For custom transformation, specify both custom jar GCS path and fully classified class name. If no custom jar and class name are provided, only the default transformations will be used.
