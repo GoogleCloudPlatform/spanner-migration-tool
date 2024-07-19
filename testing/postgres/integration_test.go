@@ -388,13 +388,11 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	row, _ := iter.Next()
-
-	assert.NotNil(t, row, "No row exists with given key in 'products'")
+	assert.NotNil(t, row, "Expected rows with product_id \"1YMWWN1N4O\" in table 'products'")
 
 	// Deleting row from parent table in Spanner DB
 	mutation := spanner.Delete("products", spanner.Key{"1YMWWN1N4O"})
 	_, err = client.Apply(ctx, []*spanner.Mutation{mutation})
-	// check iska behaviour
 	if err != nil {
 		t.Fatalf("Failed to delete row: %v", err)
 	}
@@ -404,13 +402,13 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	iter = client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	row, _ = iter.Next()
-	assert.NotNil(t, row, "Expected rows in 'products' to still exist")
+	assert.NotNil(t, row, "Expected rows in table 'products' with productid '1YMWWN1N4O' to still exist")
 
 	stmt = spanner.Statement{SQL: `SELECT * FROM cart WHERE productid = '1YMWWN1N4O'`}
 	iter = client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	row, err = iter.Next()
-	assert.NotNil(t, row, "Expected rows in 'cart' to still exist")
+	assert.NotNil(t, row, "Expected rows in table 'cart' with productid '1YMWWN1N4O' to still exist")
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {

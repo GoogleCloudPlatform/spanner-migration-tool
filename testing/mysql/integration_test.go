@@ -227,7 +227,7 @@ func TestIntegration_MYSQL_ForeignKeyActionMigration(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName)
 
-	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), "test_foreign_key_action_data", os.Getenv("MYSQLPWD")
+	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDB_FKACTION"), os.Getenv("MYSQLPWD")
 	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
@@ -330,8 +330,8 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	stmt := spanner.Statement{SQL: `SELECT * FROM cart WHERE product_id = "zxi-631"`}
 	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
-	_, err = iter.Next()
-	assert.Equal(t, nil, err, "Expected rows with product_id \"zxi-631\" in 'cart'")
+	row, _ := iter.Next()
+	assert.NotNil(t, row, "Expected rows with product_id \"zxi-631\" in table 'cart'")
 
 	// Deleting row from parent table in Spanner DB
 	mutation := spanner.Delete("products", spanner.Key{"zxi-631"})
@@ -345,7 +345,7 @@ func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
 	iter = client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	_, err = iter.Next()
-	assert.Equal(t, iterator.Done, err, "Expected no rows in 'cart' with deleted product_id")
+	assert.Equal(t, iterator.Done, err, "Expected rows in table 'cart' with productid 'zxi-631' to be deleted")
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {

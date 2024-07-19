@@ -37,6 +37,7 @@ jobs:
       MYSQLPORT: 3306
       MYSQLUSER: root
       MYSQLDATABASE: test_interleave_table_data
+      MYSQLDB_FKACTION: test_foreign_key_action_data
       MYSQLPWD: root
 
       # set DynamoDB related environment variables
