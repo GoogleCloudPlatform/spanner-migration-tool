@@ -129,46 +129,52 @@ func TestPrintPkOrIndexKey(t *testing.T) {
 }
 
 func TestPrintCreateTable(t *testing.T) {
-	cds := make(map[string]ColumnDef)
-	cds["col1"] = ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}
-	cds["col2"] = ColumnDef{Name: "col2", T: Type{Name: String, Len: MaxLength}, NotNull: false}
-	cds["col3"] = ColumnDef{Name: "col3", T: Type{Name: Bytes, Len: int64(42)}, NotNull: false}
-
-	t1 := CreateTable{
-		Name:          "mytable",
-		ColIds:        []string{"col1", "col2", "col3"},
-		ShardIdColumn: "",
-		ColDefs:       cds,
-		PrimaryKeys:   []IndexKey{{ColId: "col1", Desc: true}},
-		ForeignKeys:   nil,
-		Indexes:       nil,
-		ParentTable:   InterleavedParent{},
-		Comment:       "",
-		Id:            "1",
-	}
-	t2 := CreateTable{
-		Name:          "mytable",
-		ColIds:        []string{"col1", "col2", "col3"},
-		ShardIdColumn: "",
-		ColDefs:       cds,
-		PrimaryKeys:   []IndexKey{{ColId: "col1", Desc: true}},
-		ForeignKeys:   nil,
-		Indexes:       nil,
-		ParentTable:   InterleavedParent{Id: "par1", OnDelete: constants.FK_CASCADE},
-		Comment:       "",
-		Id:            "1",
-	}
-	t3 := CreateTable{
-		Name:          "mytable",
-		ColIds:        []string{"col1", "col2", "col3"},
-		ShardIdColumn: "",
-		ColDefs:       cds,
-		PrimaryKeys:   []IndexKey{{ColId: "col1", Desc: true}},
-		ForeignKeys:   nil,
-		Indexes:       nil,
-		ParentTable:   InterleavedParent{Id: "par1", OnDelete: ""},
-		Comment:       "",
-		Id:            "1",
+	s := Schema{
+		"t1": CreateTable{
+			Name:          "table1",
+			ColIds:        []string{"col1", "col2", "col3"},
+			ShardIdColumn: "",
+			ColDefs: map[string]ColumnDef{
+				"col1": {Name: "col1", T: Type{Name: Int64}, NotNull: true},
+				"col2": {Name: "col2", T: Type{Name: String, Len: MaxLength}, NotNull: false},
+				"col3": {Name: "col3", T: Type{Name: Bytes, Len: int64(42)}, NotNull: false},
+			},
+			PrimaryKeys: []IndexKey{{ColId: "col1", Desc: true}},
+			ForeignKeys: nil,
+			Indexes:     nil,
+			ParentTable: InterleavedParent{},
+			Comment:     "",
+			Id:          "t1",
+		},
+		"t2": CreateTable{
+			Name:          "table2",
+			ColIds:        []string{"col4", "col5"},
+			ShardIdColumn: "",
+			ColDefs: map[string]ColumnDef{
+				"col4": {Name: "col4", T: Type{Name: Int64}, NotNull: true},
+				"col5": {Name: "col5", T: Type{Name: String, Len: MaxLength}, NotNull: false},
+			},
+			PrimaryKeys: []IndexKey{{ColId: "col4", Desc: true}},
+			ForeignKeys: nil,
+			Indexes:     nil,
+			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE},
+			Comment:     "",
+			Id:          "t2",
+		},
+		"t3": CreateTable{
+			Name:          "table3",
+			ColIds:        []string{"col6"},
+			ShardIdColumn: "",
+			ColDefs: map[string]ColumnDef{
+				"col6": {Name: "col6", T: Type{Name: Int64}, NotNull: true},
+			},
+			PrimaryKeys: []IndexKey{{ColId: "col6", Desc: true}},
+			ForeignKeys: nil,
+			Indexes:     nil,
+			ParentTable: InterleavedParent{Id: "t1", OnDelete: ""},
+			Comment:     "",
+			Id:          "t3",
+		},
 	}
 	tests := []struct {
 		name       string
@@ -179,8 +185,8 @@ func TestPrintCreateTable(t *testing.T) {
 		{
 			"no quote",
 			false,
-			t1,
-			"CREATE TABLE mytable (\n" +
+			s["t1"],
+			"CREATE TABLE table1 (\n" +
 				"	col1 INT64 NOT NULL ,\n" +
 				"	col2 STRING(MAX),\n" +
 				"	col3 BYTES(42),\n" +
@@ -189,8 +195,8 @@ func TestPrintCreateTable(t *testing.T) {
 		{
 			"quote",
 			true,
-			t1,
-			"CREATE TABLE `mytable` (\n" +
+			s["t1"],
+			"CREATE TABLE `table1` (\n" +
 				"	`col1` INT64 NOT NULL ,\n" +
 				"	`col2` STRING(MAX),\n" +
 				"	`col3` BYTES(42),\n" +
@@ -199,60 +205,75 @@ func TestPrintCreateTable(t *testing.T) {
 		{
 			"interleaved",
 			false,
-			t2,
-			"CREATE TABLE mytable (\n" +
-				"	col1 INT64 NOT NULL ,\n" +
-				"	col2 STRING(MAX),\n" +
-				"	col3 BYTES(42),\n" +
-				") PRIMARY KEY (col1 DESC),\n" +
-				"INTERLEAVE IN PARENT  ON DELETE CASCADE",
+			s["t2"],
+			"CREATE TABLE table2 (\n" +
+				"	col4 INT64 NOT NULL ,\n" +
+				"	col5 STRING(MAX),\n" +
+				") PRIMARY KEY (col4 DESC),\n" +
+				"INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
 		},
 		{
 			"interleaved without on delete support",
 			false,
-			t3,
-			"CREATE TABLE mytable (\n" +
-				"	col1 INT64 NOT NULL ,\n" +
-				"	col2 STRING(MAX),\n" +
-				"	col3 BYTES(42),\n" +
-				") PRIMARY KEY (col1 DESC),\n" +
-				"INTERLEAVE IN PARENT ",
+			s["t3"],
+			"CREATE TABLE table3 (\n" +
+				"	col6 INT64 NOT NULL ,\n" +
+				") PRIMARY KEY (col6 DESC),\n" +
+				"INTERLEAVE IN PARENT table1",
 		},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.ct.PrintCreateTable(Schema{}, Config{ProtectIds: tc.protectIds}))
+		assert.Equal(t, tc.expected, tc.ct.PrintCreateTable(s, Config{ProtectIds: tc.protectIds}))
 	}
 }
 
 func TestPrintCreateTablePG(t *testing.T) {
-	cds := make(map[string]ColumnDef)
-	cds["col1"] = ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}
-	cds["col2"] = ColumnDef{Name: "col2", T: Type{Name: String, Len: MaxLength}, NotNull: false}
-	cds["col3"] = ColumnDef{Name: "col3", T: Type{Name: Bytes, Len: int64(42)}, NotNull: false}
-
-	t1 := CreateTable{
-		Name:          "mytable",
-		ColIds:        []string{"col1", "col2", "col3"},
-		ShardIdColumn: "",
-		ColDefs:       cds,
-		PrimaryKeys:   []IndexKey{{ColId: "col1", Desc: true}},
-		ForeignKeys:   nil,
-		Indexes:       nil,
-		ParentTable:   InterleavedParent{},
-		Comment:       "",
-		Id:            "1",
-	}
-	t2 := CreateTable{
-		Name:          "mytable",
-		ColIds:        []string{"col1", "col2", "col3"},
-		ShardIdColumn: "",
-		ColDefs:       cds,
-		PrimaryKeys:   []IndexKey{{ColId: "col1", Desc: true}},
-		ForeignKeys:   nil,
-		Indexes:       nil,
-		ParentTable:   InterleavedParent{Id: "par1", OnDelete: constants.FK_CASCADE},
-		Comment:       "",
-		Id:            "1",
+	s := Schema{
+		"t1": CreateTable{
+			Name:          "table1",
+			ColIds:        []string{"col1", "col2", "col3"},
+			ShardIdColumn: "",
+			ColDefs: map[string]ColumnDef{
+				"col1": {Name: "col1", T: Type{Name: Int64}, NotNull: true},
+				"col2": {Name: "col2", T: Type{Name: String, Len: MaxLength}, NotNull: false},
+				"col3": {Name: "col3", T: Type{Name: Bytes, Len: int64(42)}, NotNull: false},
+			},
+			PrimaryKeys: []IndexKey{{ColId: "col1", Desc: true}},
+			ForeignKeys: nil,
+			Indexes:     nil,
+			ParentTable: InterleavedParent{},
+			Comment:     "",
+			Id:          "t1",
+		},
+		"t2": CreateTable{
+			Name:          "table2",
+			ColIds:        []string{"col4", "col5"},
+			ShardIdColumn: "",
+			ColDefs: map[string]ColumnDef{
+				"col4": {Name: "col4", T: Type{Name: Int64}, NotNull: true},
+				"col5": {Name: "col5", T: Type{Name: String, Len: MaxLength}, NotNull: false},
+			},
+			PrimaryKeys: []IndexKey{{ColId: "col4", Desc: true}},
+			ForeignKeys: nil,
+			Indexes:     nil,
+			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE},
+			Comment:     "",
+			Id:          "t2",
+		},
+		"t3": CreateTable{
+			Name:          "table3",
+			ColIds:        []string{"col6"},
+			ShardIdColumn: "",
+			ColDefs: map[string]ColumnDef{
+				"col6": {Name: "col6", T: Type{Name: Int64}, NotNull: true},
+			},
+			PrimaryKeys: []IndexKey{{ColId: "col6", Desc: true}},
+			ForeignKeys: nil,
+			Indexes:     nil,
+			ParentTable: InterleavedParent{Id: "t1", OnDelete: ""},
+			Comment:     "",
+			Id:          "t3",
+		},
 	}
 	tests := []struct {
 		name       string
@@ -263,8 +284,8 @@ func TestPrintCreateTablePG(t *testing.T) {
 		{
 			"no quote",
 			false,
-			t1,
-			"CREATE TABLE mytable (\n" +
+			s["t1"],
+			"CREATE TABLE table1 (\n" +
 				"	col1 INT8 NOT NULL ,\n" +
 				"	col2 VARCHAR(2621440),\n" +
 				"	col3 BYTEA,\n" +
@@ -274,8 +295,8 @@ func TestPrintCreateTablePG(t *testing.T) {
 		{
 			"quote",
 			true,
-			t1,
-			"CREATE TABLE mytable (\n" +
+			s["t1"],
+			"CREATE TABLE table1 (\n" +
 				"	col1 INT8 NOT NULL ,\n" +
 				"	col2 VARCHAR(2621440),\n" +
 				"	col3 BYTEA,\n" +
@@ -285,17 +306,25 @@ func TestPrintCreateTablePG(t *testing.T) {
 		{
 			"interleaved",
 			false,
-			t2,
-			"CREATE TABLE mytable (\n" +
-				"	col1 INT8 NOT NULL ,\n" +
-				"	col2 VARCHAR(2621440),\n" +
-				"	col3 BYTEA,\n" +
-				"	PRIMARY KEY (col1 DESC)\n" +
-				") INTERLEAVE IN PARENT  ON DELETE CASCADE",
+			s["t2"],
+			"CREATE TABLE table2 (\n" +
+				"	col4 INT8 NOT NULL ,\n" +
+				"	col5 VARCHAR(2621440),\n" +
+				"	PRIMARY KEY (col4 DESC)\n" +
+				") INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+		},
+		{
+			"interleaved without on delete support",
+			false,
+			s["t3"],
+			"CREATE TABLE table3 (\n" +
+				"	col6 INT8 NOT NULL ,\n" +
+				"	PRIMARY KEY (col6 DESC)\n" +
+				") INTERLEAVE IN PARENT table1",
 		},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.ct.PrintCreateTable(Schema{}, Config{ProtectIds: tc.protectIds, SpDialect: constants.DIALECT_POSTGRESQL}))
+		assert.Equal(t, tc.expected, tc.ct.PrintCreateTable(s, Config{ProtectIds: tc.protectIds, SpDialect: constants.DIALECT_POSTGRESQL}))
 	}
 }
 
