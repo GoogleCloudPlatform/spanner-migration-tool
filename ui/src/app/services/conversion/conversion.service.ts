@@ -85,11 +85,11 @@ export class ConversionService {
           name: spannerTable.Name,
           status: conversionRates[tableId],
           type: ObjectExplorerNodeType.Table,
-          parent: spannerTable.ParentId != '' ? conv.SpSchema[spannerTable.ParentId]?.Name : '',
+          parent: spannerTable.ParentTable.Id != '' ? conv.SpSchema[spannerTable.ParentTable.Id]?.Name : '',
           pos: -1,
           isSpannerNode: true,
           id: tableId,
-          parentId: spannerTable.ParentId,
+          parentId: spannerTable.ParentTable.Id,
           children: [
             {
               name: `Indexes (${spannerTable.Indexes ? spannerTable.Indexes.length : 0})`,
@@ -234,6 +234,7 @@ export class ConversionService {
           isSpannerNode: false,
           id: tableId,
           parentId: '',
+          parentOnDelete: '',
           children: [
             {
               name: `Indexes (${srcTable.Indexes?.length || '0'})`,
@@ -244,6 +245,7 @@ export class ConversionService {
               isSpannerNode: false,
               id: '',
               parentId: '',
+              parentOnDelete: '',
               children: srcTable.Indexes
                 ? srcTable.Indexes.map((index: IIndex, i: number) => {
                     return {

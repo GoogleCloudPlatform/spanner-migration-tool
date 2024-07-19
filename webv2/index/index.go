@@ -90,7 +90,7 @@ func checkRedundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) 
 func checkInterleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
 	// Suggestion gets added only if the table can be interleaved.
-	isInterleavable := spannerTable.ParentId != ""
+	isInterleavable := spannerTable.ParentTable.Id != ""
 
 	sessionState := session.GetSessionState()
 
