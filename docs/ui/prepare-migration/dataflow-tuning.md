@@ -44,6 +44,24 @@ To tune dataflow, first specify the target database in the 'Configure Spanner Da
 
 SMT exposes the most frequently changed dataflow configurations to the user. Please reach out to us if you have a use-case that is not satisfied by the provided configurations.
 
+### Custom JAR GCS Path
+Specify the GCS path of the jar containing custom transformation logic. For custom transformation, specify both custom jar GCS path and fully classified class name. If no custom jar and class name are provided, only the default transformations will be used.
+
+Present under the Custom Transformations section of the form.
+
+### Custom Class Name
+Specify the fully classified class name of the class containing custom transformation logic. For custom transformation, specify both custom jar GCS path and fully classified class name. If no custom jar and class name are provided, only the default transformations will be used.
+
+Present under the Custom Transformations section of the form.
+
+{: .highlight }
+Specify both the custom class name and custom jar GCS path, or specify neither.
+
+### Custom Parameter
+Specify the custom parameters to be passed to the custom transformation logic implementation.
+
+Present under the Custom Transformations section of the form.
+
 ### VPC Host ProjectId
 Specify the project id of the VPC that you want to use. This is required in order to use private connectivity. By default, this is assumed to be the same as Spanner project. Ensure this is specified if also specifying a network and subnetwork.
 
