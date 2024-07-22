@@ -925,7 +925,7 @@ export class ObjectDetailComponent implements OnInit {
         dialogRef.afterClosed().subscribe((dialogResult) => {
           if (dialogResult) {
             let interleavedChildId: string =
-              this.conv.SpSchema[this.currentObject!.id].ParentId != ''
+              this.conv.SpSchema[this.currentObject!.id].ParentTable.Id != ''
                 ? this.currentObject!.id
                 : this.conv.SpSchema[interleaveTableId].Id
             this.data
@@ -1191,8 +1191,8 @@ export class ObjectDetailComponent implements OnInit {
     return this.currentObject?.type === ObjectExplorerNodeType.Table &&
       this.currentObject.isSpannerNode &&
       !this.currentObject.isDeleted &&
-      this.conv.SpSchema[this.currentObject.id].ParentId != ''
-      ? this.conv.SpSchema[this.conv.SpSchema[this.currentObject.id].ParentId]?.Name
+      this.conv.SpSchema[this.currentObject.id].ParentTable.Id != ''
+      ? this.conv.SpSchema[this.conv.SpSchema[this.currentObject.id].ParentTable.Id]?.Name
       : null
   }
 
@@ -1520,14 +1520,14 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   tableInterleaveWith(table: string): string {
-    if (this.conv.SpSchema[table].ParentId != '') {
-      return this.conv.SpSchema[table].ParentId
+    if (this.conv.SpSchema[table].ParentTable.Id != '') {
+      return this.conv.SpSchema[table].ParentTable.Id
     }
     let interleaveTable = ''
     Object.keys(this.conv.SpSchema).forEach((tableName: string) => {
       if (
-        this.conv.SpSchema[tableName].ParentId != '' &&
-        this.conv.SpSchema[tableName].ParentId == table
+        this.conv.SpSchema[tableName].ParentTable.Id != '' &&
+        this.conv.SpSchema[tableName].ParentTable.Id == table
       ) {
         interleaveTable = tableName
       }
@@ -1538,7 +1538,7 @@ export class ObjectDetailComponent implements OnInit {
 
   isPKPrefixModified(tableId: string, interleaveTableId: string): boolean {
     let parentPrimaryKey,childPrimaryKey: IIndexKey[]
-    if (this.conv.SpSchema[tableId].ParentId != interleaveTableId) {
+    if (this.conv.SpSchema[tableId].ParentTable.Id != interleaveTableId) {
       parentPrimaryKey = this.pkObj.Columns
       childPrimaryKey = this.conv.SpSchema[interleaveTableId].PrimaryKeys
     } else {

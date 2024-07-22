@@ -403,7 +403,7 @@ func revertShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
 func checkInterleaving() string {
 	sessionState := session.GetSessionState()
 	for _, spSchema := range sessionState.Conv.SpSchema {
-		if spSchema.ParentId != "" {
+		if spSchema.ParentTable.Id != "" {
 			return spSchema.Name
 		}
 	}

@@ -79,7 +79,7 @@ func isValidColumnIds(pkRequest PrimaryKeyRequest, spannertable ddl.CreateTable)
 }
 
 func RemoveInterleave(conv *internal.Conv, spannertable ddl.CreateTable) {
-	if spannertable.ParentId != "" {
+	if spannertable.ParentTable.Id != "" {
 		var childPkFirstColumn string
 		var parentPkFirstColumn string
 		for i := 0; i < len(spannertable.PrimaryKeys); i++ {
@@ -87,13 +87,14 @@ func RemoveInterleave(conv *internal.Conv, spannertable ddl.CreateTable) {
 				childPkFirstColumn = spannertable.PrimaryKeys[i].ColId
 			}
 		}
-		for i := 0; i < len(conv.SpSchema[spannertable.ParentId].PrimaryKeys); i++ {
-			if conv.SpSchema[spannertable.ParentId].PrimaryKeys[i].Order == 1 {
-				parentPkFirstColumn = conv.SpSchema[spannertable.ParentId].PrimaryKeys[i].ColId
+		for i := 0; i < len(conv.SpSchema[spannertable.ParentTable.Id].PrimaryKeys); i++ {
+			if conv.SpSchema[spannertable.ParentTable.Id].PrimaryKeys[i].Order == 1 {
+				parentPkFirstColumn = conv.SpSchema[spannertable.ParentTable.Id].PrimaryKeys[i].ColId
 			}
 		}
 		if childPkFirstColumn != parentPkFirstColumn {
-			spannertable.ParentId = ""
+			spannertable.ParentTable.Id = ""
+			spannertable.ParentTable.OnDelete = ""
 			conv.SpSchema[spannertable.Name] = spannertable
 		}
 	}

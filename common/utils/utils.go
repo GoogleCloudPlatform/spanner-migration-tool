@@ -513,7 +513,7 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 	if err != nil {
 		return fmt.Errorf("error trying to read and convert spanner schema: %v", err)
 	}
-	parentTables, err := infoSchema.GetInterleaveTables()
+	parentTables, err := infoSchema.GetInterleaveTables(conv.SpSchema)
 	if err != nil {
 		// We should ideally throw an error here as it could potentially cause a lot of failed writes.
 		// We raise an unexpected error for now to make it compatible with the integration tests.
@@ -521,11 +521,11 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 		conv.Unexpected(fmt.Sprintf("error trying to fetch interleave table info from schema: %v", err))
 	}
 	// Assign parents if any.
-	for tableName, parentName := range parentTables {
+	for tableName, parentTable := range parentTables {
 		tableId, _ := internal.GetTableIdFromSpName(conv.SpSchema, tableName)
-		parentTableId, _ := internal.GetTableIdFromSpName(conv.SpSchema, parentName)
 		spTable := conv.SpSchema[tableId]
-		spTable.ParentId = parentTableId
+		spTable.ParentTable.Id = parentTable.Id
+		spTable.ParentTable.OnDelete = parentTable.OnDelete
 		conv.SpSchema[tableId] = spTable
 	}
 	return nil
@@ -542,8 +542,8 @@ func CompareSchema(sessionFileConv, actualSpannerConv *internal.Conv) error {
 			return fmt.Errorf("table %v not found in the spanner database schema but found in the session file. If this table does not need to be migrated, please exclude it during the schema conversion and migration process", sessionTable.Name)
 		}
 		spannerTable := actualSpannerConv.SpSchema[spannerTableId]
-		sessionTableParentName := sessionFileConv.SpSchema[sessionTable.ParentId].Name
-		spannerTableParentName := actualSpannerConv.SpSchema[spannerTable.ParentId].Name
+		sessionTableParentName := sessionFileConv.SpSchema[sessionTable.ParentTable.Id].Name
+		spannerTableParentName := actualSpannerConv.SpSchema[spannerTable.ParentTable.Id].Name
 
 		//table names should match
 		if sessionTable.Name != spannerTable.Name {
@@ -553,6 +553,11 @@ func CompareSchema(sessionFileConv, actualSpannerConv *internal.Conv) error {
 		//parent table names should match
 		if sessionTableParentName != spannerTableParentName {
 			return fmt.Errorf("parent table name don't match: session table %v, parent session table name: %v, spanner table %v, parent spanner table name: %v", sessionTable.Name, sessionTableParentName, spannerTable.Name, spannerTableParentName)
+		}
+
+		//parent table on delete actions should match
+		if sessionTable.ParentTable.OnDelete != spannerTable.ParentTable.OnDelete {
+			return fmt.Errorf("parent table on delete actions don't match: session table %v, parent session table name: %v, spanner table %v, parent spanner table name: %v", sessionTable.Name, sessionTable.ParentTable.OnDelete, spannerTable.Name, spannerTable.ParentTable.OnDelete)
 		}
 
 		//number of columns should match

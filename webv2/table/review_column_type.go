@@ -22,7 +22,7 @@ import (
 	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 )
 
-// ReviewColumnNameType review update of colum type to given newType.
+// ReviewColumnNameType review update of column type to given newType.
 func ReviewColumnType(newType, tableId, colId string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, w http.ResponseWriter) (_ []InterleaveTableSchema, err error) {
 	// review update of column type for refer table.
 	interleaveTableSchema, err = reviewColumnTypeForReferredTable(newType, tableId, colId, conv, interleaveTableSchema)
@@ -114,7 +114,7 @@ func reviewColumnTypeForReferringTable(newType, tableId, colId string, conv *int
 
 func reviewColumnTypeForParentTable(newType, tableId, colId string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, w http.ResponseWriter) (_ []InterleaveTableSchema, parentTableId string, err error) {
 	sp := conv.SpSchema[tableId]
-	parentTableId = conv.SpSchema[tableId].ParentId
+	parentTableId = conv.SpSchema[tableId].ParentTable.Id
 	if parentTableId != "" {
 		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
 		if err == nil {
@@ -207,7 +207,7 @@ func reviewColumnSizeForChildTable(colSize int64, tableId, colId string, conv *i
 
 func reviewColumnSizeForParentTable(colSize int64, tableId, colId string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema) (_ []InterleaveTableSchema, parentTableId string) {
 	sp := conv.SpSchema[tableId]
-	parentTableId = conv.SpSchema[tableId].ParentId
+	parentTableId = conv.SpSchema[tableId].ParentTable.Id
 	if parentTableId != "" {
 		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
 		if err == nil {
