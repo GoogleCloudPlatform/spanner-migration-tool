@@ -411,7 +411,7 @@ Here is a table that details the source data type for **MySQL**, its correspondi
 | INT64           | TINYINT                 | String                                    | String                                                                                 |
 | INT64           | INT                     | String                                    | String                                                                                 |
 | INT64           | BIGINT                  | String                                    | String                                                                                 |
-| STRING          | TIME                    | String ([time-micros](https://avro.apache.org/docs/current/specification/_print/#time-microsecond-precision) ex: 45296000000 for 12:34:56)      | String(Format: Time value **enclosed in single quotes**, ex: '123456' for 12:34:56)|
+| STRING          | TIME                    | String ([time-micros](https://avro.apache.org/docs/current/specification/_print/#time-microsecond-precision) ex: 45296000000 for 12:34:56)      | String(Format: Time value **enclosed in single quotes**, ex: '14:30:00')|
 | STRING          | YEAR                    | String                                    | String                                                                                 |
 | FLOAT32         | FLOAT                   | BigDecimal                                | String                                                                                 |
 | FLOAT64         | DOUBLE                  | BigDecimal                                | String                                                                                 |
