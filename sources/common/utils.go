@@ -228,7 +228,7 @@ func ToPGDialectType(standardType ddl.Type, isPk bool) (ddl.Type, []internal.Sch
 	}
 	if isPk && standardType.Name == ddl.Numeric {
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false},
-			[]internal.SchemaIssue{internal.ArrayTypeNotSupported}
+			[]internal.SchemaIssue{internal.NumericPKNotSupported}
 	}
 	return standardType, nil
 }
