@@ -53,6 +53,8 @@ Present under the Custom Transformations section of the form.
 
 Please make sure that the custom JAR code is idempotent to manage transaction retries effectively.
 
+Refer to [Custom transformations](transformations.md) for more details.
+
 ### Custom Class Name
 Specify the fully classified class name of the class containing custom transformation logic. For custom transformation, specify both custom jar GCS path and fully classified class name. If no custom jar and class name are provided, only the default transformations will be used.
 

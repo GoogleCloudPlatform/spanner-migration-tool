@@ -113,6 +113,9 @@ The Dataflow job that writes to source database exposes the following per shard 
 | metadata_file_create_lag_retry_\<logical shard name\> | Count of file lookup retries done when the job that writes to GCS is lagging |
 | mySQL_retry_\<logical shard name\> | Number of retries done when MySQL is not reachable|
 | shard_failed_\<logical shard name\> | Published when there is a failure while processing the shard |
+| custom_transformation_exception | Number of exception encountered in the custom transformation jar |
+| filtered_events_\<logical shard name\> | Number of events filtered via custom transformation per shard |
+| apply_custom_transformation_impl_latency_ms | Time taken for the execution of custom transformation logic. |
 
 These can be used to track the pipeline progress.
 However, there is a limit of 100 on the total number of metrics per project. So if this limit is exhausted, the Dataflow job will give a message like so:
@@ -378,18 +381,53 @@ In order to make it easier for users to customize the shard routing logic, the [
 Steps to perfrom customization:
 1. Write custom shard id fetcher logic [CustomShardIdFetcher.java](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomShardIdFetcher.java). Details of the ShardIdRequest class can be found [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-migrations-sdk/src/main/java/com/google/cloud/teleport/v2/spanner/utils/ShardIdRequest.java).
 2. Build the [JAR](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/spanner-custom-shard) and upload the jar to GCS
-3. Invoke the reverse replication flow by passing the [custom jar path and custom class path](RunnigReverseReplication.md#custom-jar).
+3. Invoke the reverse replication flow by passing the [custom jar path and custom class path](RunnigReverseReplication.md#custom-shard-identification).
 4. If any custom parameters are needed in the custom shard identification logic, they can be passed via the *readerShardingCustomParameters* input to the runner. These parameters will be passed to the *init* method of the custom class. The *init* method is invoked once per worker setup.
 
 ### Custom transformations
-For cases where a user wants to handle a custom transformation logic, they need to specify the following parameters in the [GCS to Sourcedb](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/gcs-to-sourcedb) - a GCS path that points to a custom jar, fully classified custom class name of the class containing custom transformation logic and custom parameters which might be used by the jar to invoke custom logic to perform transformation.
+For cases where a user wants to handle a custom transformation logic, they need to specify the following parameters in the [GCS to Sourcedb](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/gcs-to-sourcedb) template - a GCS path that points to a custom jar, fully classified custom class name of the class containing custom transformation logic and custom parameters which might be used by the jar to invoke custom logic to perform transformation.
 
 Steps to perfrom customization:
-1. Write custom transformation logic in [CustomShardIdFetcher.java](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomShardIdFetcher.java). Details of the ShardIdRequest class can be found [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-migrations-sdk/src/main/java/com/google/cloud/teleport/v2/spanner/utils/ShardIdRequest.java).
+1. Implement custom transformation logic for reverse replication in the [toSourceRow](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationFetcher.java#L59) method of the **CustomTransformationFetcher.java**. Details of the MigrationTransformationRequest class can be found [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-migrations-sdk/src/main/java/com/google/cloud/teleport/v2/spanner/utils/MigrationTransformationRequest.java).
 2. Build the [JAR](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/spanner-custom-shard) and upload the jar to GCS
-3. Invoke the reverse replication flow by passing the [custom jar path and custom class path](RunnigReverseReplication.md#custom-jar).
-4. If any custom parameters are needed in the custom shard identification logic, they can be passed via the *readerShardingCustomParameters* input to the runner. These parameters will be passed to the *init* method of the custom class. The *init* method is invoked once per worker setup.
+3. Invoke the reverse replication flow by passing the [custom jar path and custom class path](RunnigReverseReplication.md#custom-transformation).
+4. If any custom parameters are needed in the custom transformation logic, they can be passed via the *writerTransformationCustomParameters* input to the runner. These parameters will be passed to the *init* method of the custom class. The *init* method is invoked once per worker setup.
 
+Implementation details for custom transformation:
+1. [MigrationTransformationRequest](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-migrations-sdk/src/main/java/com/google/cloud/teleport/v2/spanner/utils/MigrationTransformationRequest.java) contains the following information - 
+    - tableName - Name of the spanner table to which the event belongs to.
+    - shardId - Logical shard id of the record.
+    - eventType - The event type can either be INSERT, UPDATE or DELETE
+    - requestRow - It is a map where key is the spanner column name and value is spanner column value.
+2. [MigrationTransformationResponse](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-migrations-sdk/src/main/java/com/google/cloud/teleport/v2/spanner/utils/MigrationTransformationResponse.java) contains the following information - 
+    - responseRow - It is a map where key is the source column name and value is source column value.
+    - isEventFiltered - If set to true, event will be skipped and not written to source.
+3. Values in the response row should be exactly in the format compatible with source schema, which means users also need to enclose string values in **single quotes** as they would normally do in an INSERT statement.
+4. Please throw **InvalidTransformationException** in case of any error while processing a particular event in custom jar.
+
+Here is a table that details the source data type for **MySQL**, its corresponding request row object type, spanner datatype and the expected response format:
+|Spanner datatype | Source datatype         | Request object type                       | Response format                                                                        |
+|-----------------|-------------------------|-------------------------------------------|----------------------------------------------------------------------------------------|
+| INT64           | TINYINT                 | String                                    | String                                                                                 |
+| INT64           | INT                     | String                                    | String                                                                                 |
+| INT64           | BIGINT                  | String                                    | String                                                                                 |
+| STRING          | TIME                    | String ([time-micros](https://avro.apache.org/docs/current/specification/_print/#time-microsecond-precision) ex: 45296000000 for 12:34:56)      | String(Format: Time value **enclosed in single quotes**, ex: '14:30:00')|
+| STRING          | YEAR                    | String                                    | String                                                                                 |
+| FLOAT32         | FLOAT                   | BigDecimal                                | String                                                                                 |
+| FLOAT64         | DOUBLE                  | BigDecimal                                | String                                                                                 |
+| NUMERIC         | DECIMAL                 | String                                    | String                                                                                 |
+| BOOL            | BOOLEAN                 | String( ex: "false")                      | String                                                                                 |
+| STRING          | TEXT                    | String                                    | String( **enclosed in single quotes**, ex: 'Transformed text')                         |
+| STRING          | ENUM                    | String                                    | String( **enclosed in single quotes**, ex: 'Enum value')                               |
+| BYTES           | BLOB                    | String (Base64 encoded)                   | Binary String                                                                          |
+| BYTES           | BINARY                  | String (Base64 encoded)                   | Binary String                                                                          |
+| BYTES           | BIT                     | String (Base64 encoded)                   | Binary String                                                                          |
+| DATE            | DATE                    | String (Format: yyyy-MM-dd))              | String( Format: yyyy-MM-dd **enclosed in single quotes**, ex: '1995-01-13')            |
+| TIMESTAMP       | DATETIME                | String (ex: 2024-01-01T12:34:56Z)         | String                                                                                 |
+| TIMESTAMP       | TIMESTAMP               | String (ex: 2024-01-01T12:34:56Z)         | String                                                                                 |
+
+
+Please refer to the sample implementation of **toSourceRow** for all MySQL datatype columns [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/d7db191b49ba0e5ecfde6d15f60d2801b05f8cc2/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationWithShardForIT.java#L145).
 
 ## Cost
 
