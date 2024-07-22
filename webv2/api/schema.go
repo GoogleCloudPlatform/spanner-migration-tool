@@ -1419,13 +1419,13 @@ func initializeTypeMap() {
 		srcType := schema.MakeType()
 		srcType.Name = srcTypeName
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
+			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType, false)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		if srcTypeName == "tinyint" {
 			l = append(l, types.TypeIssue{T: ddl.Bool, Brief: "Only tinyint(1) can be converted to BOOL, for any other mods it will be converted to INT64"})
 		}
-		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType)
+		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType, false)
 		mysqlDefaultTypeMap[srcTypeName] = ty
 		mysqlTypeMap[srcTypeName] = l
 	}
@@ -1436,10 +1436,10 @@ func initializeTypeMap() {
 		srcType := schema.MakeType()
 		srcType.Name = srcTypeName
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
+			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType, false)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
-		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType)
+		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType, false)
 		postgresDefaultTypeMap[srcTypeName] = ty
 		postgresTypeMap[srcTypeName] = l
 	}
@@ -1451,10 +1451,10 @@ func initializeTypeMap() {
 		srcType := schema.MakeType()
 		srcType.Name = srcTypeName
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
+			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType, false)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
-		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType)
+		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType, false)
 		sqlserverDefaultTypeMap[srcTypeName] = ty
 		sqlserverTypeMap[srcTypeName] = l
 	}
@@ -1466,10 +1466,10 @@ func initializeTypeMap() {
 		srcType := schema.MakeType()
 		srcType.Name = srcTypeName
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
+			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType, false)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
-		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType)
+		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType, false)
 		oracleDefaultTypeMap[srcTypeName] = ty
 		oracleTypeMap[srcTypeName] = l
 	}
