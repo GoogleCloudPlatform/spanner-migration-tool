@@ -555,36 +555,32 @@ func UpdateForeignKeys(w http.ResponseWriter, r *http.Request) {
 	updatedFKs := []ddl.Foreignkey{}
 
 	for _, foreignKey := range sp.ForeignKeys {
-		for _, updatedForeignkey := range newFKs {
+		for i, updatedForeignkey := range newFKs {
 			if foreignKey.Id == updatedForeignkey.Id && len(updatedForeignkey.ColIds) != 0 && updatedForeignkey.ReferTableId != "" {
 				delete(usedNames, strings.ToLower(foreignKey.Name))
 				foreignKey.Name = updatedForeignkey.Name
 				updatedFKs = append(updatedFKs, foreignKey)
 			}
-		}
-	}
+			if foreignKey.Id == updatedForeignkey.Id && len(updatedForeignkey.ReferColumnIds) == 0 && updatedForeignkey.ReferTableId == "" {
+				dropFkId := updatedForeignkey.Id
 
-	position := -1
-
-	for i, fk := range updatedFKs {
-		// Condition to check whether FK has to be dropped
-		if len(fk.ReferColumnIds) == 0 && fk.ReferTableId == "" {
-			position = i
-			dropFkId := fk.Id
-
-			// To remove the interleavable suggestions if they exist on dropping fk
-			colId := sp.ForeignKeys[position].ColIds[0]
-			schemaIssue := []internal.SchemaIssue{}
-			for _, v := range sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] {
-				if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder && v != internal.InterleavedChangeColumnSize {
-					schemaIssue = append(schemaIssue, v)
+				// To remove the interleavable suggestions if they exist on dropping fk
+				colId := sp.ForeignKeys[i].ColIds[0]
+				schemaIssue := []internal.SchemaIssue{}
+				for _, v := range sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] {
+					if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder && v != internal.InterleavedChangeColumnSize {
+						schemaIssue = append(schemaIssue, v)
+					}
+				}
+				if _, ok := sessionState.Conv.SchemaIssues[tableId]; ok {
+					sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaIssue
+				}
+				var err error
+				sp.ForeignKeys, err = utilities.RemoveFk(sp.ForeignKeys, dropFkId, sessionState.Conv.SrcSchema[tableId], tableId)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
 				}
 			}
-			if _, ok := sessionState.Conv.SchemaIssues[tableId]; ok {
-				sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaIssue
-			}
-
-			sp.ForeignKeys = utilities.RemoveFk(updatedFKs, dropFkId)
 		}
 	}
 	sp.ForeignKeys = updatedFKs
@@ -745,7 +741,7 @@ func RemoveParentTable(w http.ResponseWriter, r *http.Request) {
 	defer sessionState.Conv.ConvLock.Unlock()
 	conv := sessionState.Conv
 
-	if conv.SpSchema[tableId].ParentId == "" {
+	if conv.SpSchema[tableId].ParentTable.Id == "" {
 		http.Error(w, fmt.Sprintf("Table is not interleaved"), http.StatusBadRequest)
 		return
 	}
@@ -783,17 +779,18 @@ func RemoveParentTable(w http.ResponseWriter, r *http.Request) {
 	if isPresent {
 		if isAddedAtFirst {
 			spFk.ColIds = append([]string{spTable.ShardIdColumn}, spFk.ColIds...)
-			spFk.ReferColumnIds = append([]string{sessionState.Conv.SpSchema[spTable.ParentId].ShardIdColumn}, spFk.ReferColumnIds...)
+			spFk.ReferColumnIds = append([]string{sessionState.Conv.SpSchema[spTable.ParentTable.Id].ShardIdColumn}, spFk.ReferColumnIds...)
 		} else {
 			spFk.ColIds = append(spFk.ColIds, spTable.ShardIdColumn)
-			spFk.ReferColumnIds = append(spFk.ReferColumnIds, sessionState.Conv.SpSchema[spTable.ParentId].ShardIdColumn)
+			spFk.ReferColumnIds = append(spFk.ReferColumnIds, sessionState.Conv.SpSchema[spTable.ParentTable.Id].ShardIdColumn)
 		}
 	}
 
 	spFks := spTable.ForeignKeys
 	spFks = append(spFks, spFk)
 	spTable.ForeignKeys = spFks
-	spTable.ParentId = ""
+	spTable.ParentTable.Id = ""
+	spTable.ParentTable.OnDelete = ""
 	conv.SpSchema[tableId] = spTable
 
 	sessionState.Conv = conv
@@ -1018,6 +1015,8 @@ func parentTableHelper(tableId string, update bool) *types.TableInterleaveStatus
 	// TODO: Allow users to pick which parent to use if more than one.
 	for i, fk := range sessionState.Conv.SpSchema[tableId].ForeignKeys {
 		refTableId := fk.ReferTableId
+		onDelete := fk.OnDelete
+		var err error
 
 		if _, found := sessionState.Conv.SyntheticPKeys[refTableId]; found {
 			continue
@@ -1028,11 +1027,15 @@ func parentTableHelper(tableId string, update bool) *types.TableInterleaveStatus
 
 			colIdNotInOrder := checkPrimaryKeyOrder(tableId, refTableId, fk)
 
-			if update && sp.ParentId == "" && colIdNotInOrder == "" {
+			if update && sp.ParentTable.Id == "" && colIdNotInOrder == "" {
 				usedNames := sessionState.Conv.UsedNames
 				delete(usedNames, strings.ToLower(sp.ForeignKeys[i].Name))
-				sp.ParentId = refTableId
-				sp.ForeignKeys = utilities.RemoveFk(sp.ForeignKeys, sp.ForeignKeys[i].Id)
+				sp.ParentTable.Id = refTableId
+				sp.ParentTable.OnDelete = onDelete
+				sp.ForeignKeys, err = utilities.RemoveFk(sp.ForeignKeys, sp.ForeignKeys[i].Id, sessionState.Conv.SrcSchema[tableId], tableId)
+				if err != nil {
+					continue
+				}
 			}
 			sessionState.Conv.SpSchema[tableId] = sp
 
@@ -1056,6 +1059,7 @@ func parentTableHelper(tableId string, update bool) *types.TableInterleaveStatus
 
 					tableInterleaveStatus.Possible = true
 					tableInterleaveStatus.Parent = refTableId
+					tableInterleaveStatus.OnDelete = onDelete
 					tableInterleaveStatus.Comment = ""
 
 				} else {
@@ -1356,8 +1360,9 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 
 	//remove interleave that are interleaved on the drop table as parent
 	for id, spTable := range spSchema {
-		if spTable.ParentId == tableId {
-			spTable.ParentId = ""
+		if spTable.ParentTable.Id == tableId {
+			spTable.ParentTable.Id = ""
+			spTable.ParentTable.OnDelete = ""
 			spSchema[id] = spTable
 		}
 	}
