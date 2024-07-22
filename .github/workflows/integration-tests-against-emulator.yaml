@@ -37,6 +37,7 @@ jobs:
       MYSQLPORT: 3306
       MYSQLUSER: root
       MYSQLDATABASE: test_interleave_table_data
+      MYSQLDB_FKACTION: test_foreign_key_action_data
       MYSQLPWD: root
 
       # set DynamoDB related environment variables
@@ -110,6 +111,7 @@ jobs:
       - run: mysql --version
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot test < test_data/mysqldump.test.out
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_interleave_dump.test.out
+      - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_foreignkeyaction_dump.test.out
 
       # init sql server with test_data
       - name: Install sqlcmd required for loading .sql files
