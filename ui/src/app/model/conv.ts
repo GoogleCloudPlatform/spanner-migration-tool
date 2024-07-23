@@ -51,7 +51,7 @@ export interface ITable {
   ColIds: string[]
   ColDefs: Record<string, IColumn>
   PrimaryKeys: ISrcIndexKey[]
-  ForeignKeys: ISpannerForeignKey[]
+  ForeignKeys: IForeignKey[]
   Indexes: IIndex[]
 }
 
@@ -83,16 +83,6 @@ export interface IIndex {
   Name: string
   Unique: boolean
   Keys: ISrcIndexKey[]
-  Id: string
-}
-
-export interface ISpannerForeignKey {
-  Name: string
-  ColIds: string[]
-  ReferTableId: string
-  ReferColumnIds: string[]
-  OnDelete: string
-  OnUpdate: string
   Id: string
 }
 
@@ -128,9 +118,9 @@ export interface IForeignKey {
   ColIds: string[]
   ReferTableId: string
   ReferColumnIds: string[]
-  Id: string | undefined
   OnDelete: string
   OnUpdate: string
+  Id: string|undefined
 }
 
 export interface IIndexKey {
