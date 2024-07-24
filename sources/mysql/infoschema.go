@@ -241,13 +241,16 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	return colDefs, colIds, nil
 }
 
-// sanitizeDefaultValue removes extra characters added to Default Values.
+// sanitizeDefaultValue removes extra characters added to Default Value.
+// These extra characters are charset which are not supported by spanner.
 // Example:
 // Default Value: "concat('John', 'swamp', 'span')"
 // Default Value with extra characters: "concat(_utf8mb4\\'John\\',_utf8mb4\\'swamp\\',_utf8mb4\\'span\\')"
 func sanitizeDefaultValue(defaultValue string) string {
-	defaultValue = strings.ReplaceAll(defaultValue, "\\", "")          // Default Value after removing all backslashes: "concat(_utf8mb4'John',_utf8mb4'swamp',_utf8mb4'span')"
-	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", " ") // Default Value after removing "_utf8mb4": "concat('John', 'swamp', 'span')"
+	 // Default Value after removing all backslashes: "concat(_utf8mb4'John',_utf8mb4'swamp',_utf8mb4'span')"
+	defaultValue = strings.ReplaceAll(defaultValue, "\\", "")
+	// Default Value after removing "_utf8mb4": "concat('John', 'swamp', 'span')"
+	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", " ")
 	return defaultValue
 }
 
