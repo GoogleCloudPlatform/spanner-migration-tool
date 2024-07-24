@@ -211,7 +211,7 @@
     min-width: 100px;
   }
 
-  .mat-column-srcIsNotNull,
+  .mat-column-srcDefaultValue,
   .mat-column-srcDatabase,
   .mat-column-srcIndexOrder {
     border-right: 1px solid #cdcccd;
@@ -220,6 +220,13 @@
   .mat-column-spName,
   .drop-button-left-border {
     border-left: 1px solid #cdcccd;
+  }
+
+  .trimmed-text {
+    width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .sp-datatype-data-cells {

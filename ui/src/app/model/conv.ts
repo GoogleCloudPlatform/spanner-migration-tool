@@ -62,6 +62,7 @@ export interface IColumn {
   Ignored: IIgnored
   Id: string
   AutoGen: AutoGen
+  DefaultValue: IDefaultValue
 }
 
 export interface IIgnored {
@@ -152,6 +153,12 @@ export interface IColumnDef {
   NotNull: boolean
   Comment: string
   AutoGen: IAutoGen
+  DefaultValue: IDefaultValue
+}
+
+export interface IDefaultValue {
+  IsPresent: boolean
+  Value: string
 }
 
 export interface IType {
