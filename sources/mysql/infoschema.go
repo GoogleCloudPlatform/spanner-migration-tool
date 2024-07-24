@@ -241,15 +241,14 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	return colDefs, colIds, nil
 }
 
-// SanitizeDefaultValue removes extra characters added to Default Values.
+// sanitizeDefaultValue removes extra characters added to Default Values.
 // Example:
 // Default Value: "concat('John', 'swamp', 'span')"
 // Default Value with extra characters: "concat(_utf8mb4\\'John\\',_utf8mb4\\'swamp\\',_utf8mb4\\'span\\')"
-func sanitizeDefaultValue(str string) string {
-	str = strings.ReplaceAll(str, "\\", "")          // Default Value after removing all backslashes: "concat(_utf8mb4'John',_utf8mb4'swamp',_utf8mb4'span')"
-	after := strings.Replace(str, "_utf8mb4", "", 1) // Default Value after removing first "_utf8mb4": "concat('John',_utf8mb4'swamp',_utf8mb4'span')"
-	str = strings.ReplaceAll(after, "_utf8mb4", " ") // Default Value after removing remaining "_utf8mb4": "concat('John', 'swamp', 'span')"
-	return str
+func sanitizeDefaultValue(defaultValue string) string {
+	defaultValue = strings.ReplaceAll(defaultValue, "\\", "")          // Default Value after removing all backslashes: "concat(_utf8mb4'John',_utf8mb4'swamp',_utf8mb4'span')"
+	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", " ") // Default Value after removing "_utf8mb4": "concat('John', 'swamp', 'span')"
+	return defaultValue
 }
 
 // GetConstraints returns a list of primary keys and by-column map of
