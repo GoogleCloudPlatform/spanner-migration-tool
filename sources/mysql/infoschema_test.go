@@ -371,7 +371,6 @@ func TestProcessData_MultiCol(t *testing.T) {
 				{"a", "text", "text", "NO", nil, nil, nil, nil, nil},
 				{"b", "double", "double", "YES", nil, nil, 53, nil, nil},
 				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, nil}},
-				// {"d", "varchar", "varchar", "YES", "John", nil, nil, nil, nil}},
 		},
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
@@ -400,7 +399,6 @@ func TestProcessData_MultiCol(t *testing.T) {
 				"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
 				"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
-				// "d":		ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Int64}, DefaultValue: },
 				"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 			},
 			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}}},
