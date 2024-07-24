@@ -182,8 +182,10 @@ func migrateData(ctx context.Context, migrationProjectId string, targetProfile p
 		bw  *writer.BatchWriter
 		err error
 	)
+	SpProjectId := targetProfile.Conn.Sp.Project
+	SpInstanceId := targetProfile.Conn.Sp.Instance
 	if !sourceProfile.UseTargetSchema() {
-		err = validateExistingDb(ctx, conv.SpDialect, dbURI, adminClient, client, conv)
+		err = validateExistingDb(SpProjectId, SpInstanceId, ctx, conv.SpDialect, dbURI, adminClient, client, conv)
 		if err != nil {
 			err = fmt.Errorf("error while validating existing database: %v", err)
 			return nil, err

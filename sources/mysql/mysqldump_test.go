@@ -929,13 +929,13 @@ func runProcessMySQLDump(s string) (*internal.Conv, []spannerData) {
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
 	mysqlDbDump := DbDumpImpl{}
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), mysqlDbDump)
+	common.ProcessDbDump("", "", conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), mysqlDbDump)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {
 		rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 	})
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), mysqlDbDump)
+	common.ProcessDbDump("", "", conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), mysqlDbDump)
 	return conv, rows
 }
 

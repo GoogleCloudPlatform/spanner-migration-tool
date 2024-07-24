@@ -38,14 +38,14 @@ import (
 
 type SchemaFromSourceInterface interface {
 	schemaFromDatabase(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, getInfo GetInfoInterface, processSchema common.ProcessSchemaInterface) (*internal.Conv, error)
-	SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error)
+	SchemaFromDump(SpProjectId string, SpInstanceId string, driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error)
 }
 
 type SchemaFromSourceImpl struct{}
 
 type DataFromSourceInterface interface {
 	dataFromDatabase(ctx context.Context, migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, getInfo GetInfoInterface, dataFromDb DataFromDatabaseInterface, snapshotMigration SnapshotMigrationInterface) (*writer.BatchWriter, error)
-	dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, processDump ProcessDumpByDialectInterface, populateDataConv PopulateDataConvInterface) (*writer.BatchWriter, error)
+	dataFromDump(targetProfile profiles.TargetProfile, driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, processDump ProcessDumpByDialectInterface, populateDataConv PopulateDataConvInterface) (*writer.BatchWriter, error)
 	dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, populateDataConv PopulateDataConvInterface, csv csv.CsvInterface) (*writer.BatchWriter, error)
 }
 
@@ -59,6 +59,8 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	var infoSchema common.InfoSchema
 	var err error
 	isSharded := false
+	SpProjectId := targetProfile.Conn.Sp.Project
+	SpInstanceId := targetProfile.Conn.Sp.Instance
 	switch sourceProfile.Ty {
 	case profiles.SourceProfileTypeConfig:
 		isSharded = true
@@ -96,10 +98,10 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: isSharded,
 	}
-	return conv, processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	return conv, processSchema.ProcessSchema(SpProjectId, SpInstanceId, conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 }
 
-func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
+func (sads *SchemaFromSourceImpl) SchemaFromDump(SpProjectId, SpInstanceId, driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
 	f, n, err := getSeekable(ioHelper.In)
 	if err != nil {
 		utils.PrintSeekError(driver, err, ioHelper.Out)
@@ -113,7 +115,7 @@ func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in dump.
 	conv.SetDataSink(nil)
-	err = processDump.ProcessDump(driver, conv, r)
+	err = processDump.ProcessDump(SpProjectId, SpInstanceId, driver, conv, r)
 	if err != nil {
 		fmt.Fprintf(ioHelper.Out, "Failed to parse the data file: %v", err)
 		return nil, fmt.Errorf("failed to parse the data file")
@@ -122,7 +124,7 @@ func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string
 	return conv, nil
 }
 
-func (sads *DataFromSourceImpl) dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, processDump ProcessDumpByDialectInterface, populateDataConv PopulateDataConvInterface) (*writer.BatchWriter, error) {
+func (sads *DataFromSourceImpl) dataFromDump(targetProfile profiles.TargetProfile, driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, processDump ProcessDumpByDialectInterface, populateDataConv PopulateDataConvInterface) (*writer.BatchWriter, error) {
 	// TODO: refactor of the way we handle getSeekable
 	// to avoid the code duplication here
 	if !dataOnly {
@@ -147,7 +149,9 @@ func (sads *DataFromSourceImpl) dataFromDump(driver string, config writer.BatchW
 	conv.Audit.Progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false, int(internal.DataWriteInProgress))
 	r := internal.NewReader(bufio.NewReader(ioHelper.SeekableIn), nil)
 	batchWriter := populateDataConv.populateDataConv(conv, config, client)
-	processDump.ProcessDump(driver, conv, r)
+	SpProjectId := targetProfile.Conn.Sp.Project
+	SpInstanceId := targetProfile.Conn.Sp.Instance
+	processDump.ProcessDump(SpProjectId, SpInstanceId, driver, conv, r)
 	batchWriter.Flush()
 	conv.Audit.Progress.Done()
 
@@ -178,7 +182,9 @@ func (sads *DataFromSourceImpl) dataFromCSV(ctx context.Context, sourceProfile p
 
 	delimiter := rune(delimiterStr[0])
 
-	err = utils.ReadSpannerSchema(ctx, conv, client)
+	SpProjectId := targetProfile.Conn.Sp.Project
+	SpInstanceId := targetProfile.Conn.Sp.Instance
+	err = utils.ReadSpannerSchema(SpProjectId, SpInstanceId, ctx, conv, client)
 	if err != nil {
 		return nil, fmt.Errorf("error trying to read and convert spanner schema: %v", err)
 	}
