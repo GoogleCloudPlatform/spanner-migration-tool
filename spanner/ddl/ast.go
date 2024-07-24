@@ -278,6 +278,16 @@ type Foreignkey struct {
 	ReferTableId   string
 	ReferColumnIds []string
 	Id             string
+	OnDelete       string
+	OnUpdate       string
+}
+
+// InterleavedParent encodes the following DDL definition:
+//
+//	INTERLEAVE IN PARENT parent_name ON DELETE delete_rule
+type InterleavedParent struct {
+	Id       string
+	OnDelete string
 }
 
 // PrintForeignKey unparses the foreign keys.
@@ -291,7 +301,11 @@ func (k Foreignkey) PrintForeignKey(c Config) string {
 	if k.Name != "" {
 		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name))
 	}
-	return s + fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s (%s)", strings.Join(cols, ", "), c.quote(k.ReferTableId), strings.Join(referCols, ", "))
+	s = s + fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s (%s)", strings.Join(cols, ", "), c.quote(k.ReferTableId), strings.Join(referCols, ", "))
+	if k.OnDelete != "" {
+		s = s + fmt.Sprintf(" ON DELETE %s", k.OnDelete)
+	}
+	return s
 }
 
 // CreateTable encodes the following DDL definition:
@@ -305,7 +319,7 @@ type CreateTable struct {
 	PrimaryKeys   []IndexKey
 	ForeignKeys   []Foreignkey
 	Indexes       []CreateIndex
-	ParentId      string //if not empty, this table will be interleaved
+	ParentTable   InterleavedParent //if not empty, this table will be interleaved
 	Comment       string
 	Id            string
 }
@@ -347,14 +361,17 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 	}
 
 	var interleave string
-	if ct.ParentId != "" {
-		parent := spSchema[ct.ParentId].Name
+	if ct.ParentTable.Id != "" {
+		parent := spSchema[ct.ParentTable.Id].Name
 		if config.SpDialect == constants.DIALECT_POSTGRESQL {
 			// PG spanner only supports PRIMARY KEY() inside the CREATE TABLE()
 			// and thus INTERLEAVE follows immediately after closing brace.
 			interleave = " INTERLEAVE IN PARENT " + config.quote(parent)
 		} else {
 			interleave = ",\nINTERLEAVE IN PARENT " + config.quote(parent)
+		}
+		if ct.ParentTable.OnDelete != "" {
+			interleave = interleave + " ON DELETE " + ct.ParentTable.OnDelete
 		}
 	}
 
@@ -464,7 +481,11 @@ func (k Foreignkey) PrintForeignKeyAlterTable(spannerSchema Schema, c Config, ta
 	if k.Name != "" {
 		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name))
 	}
-	return fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(spannerSchema[tableId].Name), s, strings.Join(cols, ", "), c.quote(spannerSchema[k.ReferTableId].Name), strings.Join(referCols, ", "))
+	s = fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(spannerSchema[tableId].Name), s, strings.Join(cols, ", "), c.quote(spannerSchema[k.ReferTableId].Name), strings.Join(referCols, ", "))
+	if k.OnDelete != "" {
+		s = s + fmt.Sprintf(" ON DELETE %s", k.OnDelete)
+	}
+	return s
 }
 
 // Schema stores a map of table names and Tables.
@@ -497,14 +518,14 @@ func GetSortedTableIdsBySpName(s Schema) []string {
 		table := s[tableNameIdMap[tableName]]
 		tableQueue = tableQueue[1:]
 		parentTableExists := false
-		if table.ParentId != "" {
-			_, parentTableExists = s[table.ParentId]
+		if table.ParentTable.Id != "" {
+			_, parentTableExists = s[table.ParentTable.Id]
 		}
 
 		// Add table t if either:
 		// a) t is not interleaved in another table, or
 		// b) t is interleaved in another table and that table has already been added to the list.
-		if table.ParentId == "" || tableAdded[s[table.ParentId].Name] || !parentTableExists {
+		if table.ParentTable.Id == "" || tableAdded[s[table.ParentTable.Id].Name] || !parentTableExists {
 			sortedTableNames = append(sortedTableNames, tableName)
 			tableAdded[tableName] = true
 		} else {
@@ -568,7 +589,7 @@ func GetDDL(c Config, tableSchema Schema, sequenceSchema map[string]Sequence) []
 // CheckInterleaved checks if schema contains interleaved tables.
 func (s Schema) CheckInterleaved() bool {
 	for _, table := range s {
-		if table.ParentId != "" {
+		if table.ParentTable.Id != "" {
 			return true
 		}
 	}

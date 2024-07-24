@@ -26,8 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
-
-
 // AnalyzeTables generates table reports for all processed tables.
 func AnalyzeTables(conv *internal.Conv, badWrites map[string]int64) (r []tableReport) {
 	// Process tables in alphabetical order. This ensures that tables
@@ -86,12 +84,12 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 	var body []tableReportBody
 	for _, p := range []struct {
 		heading  string
-		severity severity
+		severity Severity
 	}{
 		{"Warning", warning},
 		{"Note", note},
 		{"Suggestion", suggestion},
-		{"Error", errors},
+		{"Error", Errors},
 	} {
 		// Print out issues is alphabetical column order.
 		var colNames []string
@@ -100,7 +98,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 		}
 		sort.Strings(colNames)
 		l := []Issue{}
-		if p.severity == errors && len(tableLevelIssues) != 0 {
+		if p.severity == Errors && len(tableLevelIssues) != 0 {
 			for _, issue := range tableLevelIssues {
 				if issue == internal.RowLimitExceeded {
 					toAppend := Issue{
@@ -114,11 +112,40 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 		}
 
 		if p.severity == warning {
+			flag := false
 			for _, spFk := range conv.SpSchema[tableId].ForeignKeys {
 				srcFk, err := internal.GetSrcFkFromId(conv.SrcSchema[tableId].ForeignKeys, spFk.Id)
 				if err != nil {
 					continue
 				}
+				if srcFk.OnDelete == "" && srcFk.OnUpdate == "" && flag == false {
+					flag = true
+					issue := internal.ForeignKeyActionNotSupported
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': %s", conv.SpSchema[tableId].Name, IssueDB[issue].Brief),
+					}
+					l = append(l, toAppend)
+				}
+
+				if srcFk.OnDelete != spFk.OnDelete {
+					issue := internal.ForeignKeyOnDelete
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': ON DELETE action of Foreign Key '%s' mapped from %s to %s - %s", conv.SpSchema[tableId].Name, srcFk.Name, srcFk.OnDelete, spFk.OnDelete, IssueDB[issue].Brief),
+					}
+					l = append(l, toAppend)
+				}
+
+				if srcFk.OnUpdate != spFk.OnUpdate {
+					issue := internal.ForeignKeyOnUpdate
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': ON UPDATE action of Foreign Key '%s' mapped from %s to %s - %s", conv.SpSchema[tableId].Name, srcFk.Name, srcFk.OnUpdate, spFk.OnUpdate, IssueDB[issue].Brief),
+					}
+					l = append(l, toAppend)
+				}
+
 				_, isChanged := internal.FixName(srcFk.Name)
 				if isChanged && srcFk.Name != spFk.Name {
 					toAppend := Issue{
@@ -157,7 +184,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 		for _, colName := range colNames {
 			colId, _ := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
 			for _, i := range issues[colId] {
-				if IssueDB[i].severity != p.severity {
+				if IssueDB[i].Severity != p.severity {
 					continue
 				}
 				if IssueDB[i].batch {
@@ -482,64 +509,67 @@ func fillRowStats(conv *internal.Conv, srcTable string, badWrites map[string]int
 // e.g. for timestamp description.
 var IssueDB = map[internal.SchemaIssue]struct {
 	Brief               string // Short description of issue.
-	severity            severity
+	Severity            Severity
 	batch               bool   // Whether multiple instances of this issue are combined.
 	Category            string // Standarized issue type
 	CategoryDescription string
 }{
-	internal.DefaultValue:          {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
-	internal.ForeignKey:            {Brief: "Spanner does not support foreign keys", severity: warning, Category: "FOREIGN_KEY_USES"},
-	internal.MultiDimensionalArray: {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning, Category: "MULTI_DIMENSIONAL_ARRAY_USES"},
-	internal.NoGoodType: {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", severity: warning, Category: "INAPPROPRIATE_TYPE",
+	internal.DefaultValue:          {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
+	internal.ForeignKey:            {Brief: "Spanner does not support foreign keys", Severity: warning, Category: "FOREIGN_KEY_USES"},
+	internal.MultiDimensionalArray: {Brief: "Spanner doesn't support multi-dimensional arrays", Severity: warning, Category: "MULTI_DIMENSIONAL_ARRAY_USES"},
+	internal.NoGoodType: {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", Severity: warning, Category: "INAPPROPRIATE_TYPE",
 		CategoryDescription: "No appropriate Spanner type"},
-	internal.Numeric:              {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning, Category: "NUMERIC_USES"},
-	internal.NumericThatFits:      {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: suggestion, Category: "NUMERIC_THAT_FITS"},
-	internal.Decimal:              {Brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning, Category: "DECIMAL_USES"},
-	internal.DecimalThatFits:      {Brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", severity: suggestion, Category: "DECIMAL_THAT_FITS"},
-	internal.Serial:               {Brief: "Spanner does not support autoincrementing types", severity: warning, Category: "AUTOINCREMENTING_TYPE_USES"},
-	internal.AutoIncrement:        {Brief: "Spanner does not support auto_increment attribute", severity: warning, Category: "AUTO_INCREMENT_ATTRIBUTE_USES"},
-	internal.Timestamp:            {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: suggestion, batch: true, Category: "TIMESTAMP_SUGGESTION"},
-	internal.Datetime:             {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: warning, batch: true, Category: "TIMESTAMP_WARNING"},
-	internal.Time:                 {Brief: "Spanner does not support time/year types", severity: warning, batch: true, Category: "TIME_YEAR_TYPE_USES"},
-	internal.Widened:              {Brief: "Some columns will consume more storage in Spanner", severity: warning, batch: true, Category: "STORAGE_WARNING"},
-	internal.StringOverflow:       {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning, Category: "STRING_OVERFLOW_WARNING"},
-	internal.HotspotTimestamp:     {Brief: "Timestamp Hotspot Occured", severity: warning, Category: "TIMESTAMP_HOTSPOT"},
-	internal.HotspotAutoIncrement: {Brief: "Autoincrement Hotspot Occured", severity: warning, Category: "AUTOINCREMENT_HOTSPOT"},
-	internal.InterleavedOrder: {Brief: "can be converted as Interleaved with Table", severity: suggestion, Category: "INTERLEAVE_TABLE_SUGGESTION",
+	internal.Numeric:              {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", Severity: warning, Category: "NUMERIC_USES"},
+	internal.NumericThatFits:      {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", Severity: suggestion, Category: "NUMERIC_THAT_FITS"},
+	internal.Decimal:              {Brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", Severity: warning, Category: "DECIMAL_USES"},
+	internal.DecimalThatFits:      {Brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", Severity: suggestion, Category: "DECIMAL_THAT_FITS"},
+	internal.Serial:               {Brief: "Spanner does not support autoincrementing types", Severity: warning, Category: "AUTOINCREMENTING_TYPE_USES"},
+	internal.AutoIncrement:        {Brief: "Spanner does not support auto_increment attribute", Severity: warning, Category: "AUTO_INCREMENT_ATTRIBUTE_USES"},
+	internal.Timestamp:            {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", Severity: suggestion, batch: true, Category: "TIMESTAMP_SUGGESTION"},
+	internal.Datetime:             {Brief: "Spanner timestamp is closer to MySQL timestamp", Severity: warning, batch: true, Category: "TIMESTAMP_WARNING"},
+	internal.Time:                 {Brief: "Spanner does not support time/year types", Severity: warning, batch: true, Category: "TIME_YEAR_TYPE_USES"},
+	internal.Widened:              {Brief: "Some columns will consume more storage in Spanner", Severity: warning, batch: true, Category: "STORAGE_WARNING"},
+	internal.StringOverflow:       {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", Severity: warning, Category: "STRING_OVERFLOW_WARNING"},
+	internal.HotspotTimestamp:     {Brief: "Timestamp Hotspot Occured", Severity: warning, Category: "TIMESTAMP_HOTSPOT"},
+	internal.HotspotAutoIncrement: {Brief: "Autoincrement Hotspot Occured", Severity: warning, Category: "AUTOINCREMENT_HOTSPOT"},
+	internal.InterleavedOrder: {Brief: "can be converted as Interleaved with Table", Severity: suggestion, Category: "INTERLEAVE_TABLE_SUGGESTION",
 		CategoryDescription: "Some tables can be interleaved"},
-	internal.RedundantIndex:     {Brief: "Redundant Index", severity: warning, Category: "REDUNDANT_INDEX"},
-	internal.AutoIncrementIndex: {Brief: "Auto increment column in Index can create a Hotspot", severity: warning, Category: "AUTO-INCREMENT_INDEX"},
-	internal.InterleaveIndex: {Brief: "can be converted to an Interleave Index", severity: suggestion, Category: "INTERLEAVE_INDEX_SUGGESTION",
+	internal.RedundantIndex:     {Brief: "Redundant Index", Severity: warning, Category: "REDUNDANT_INDEX"},
+	internal.AutoIncrementIndex: {Brief: "Auto increment column in Index can create a Hotspot", Severity: warning, Category: "AUTO-INCREMENT_INDEX"},
+	internal.InterleaveIndex: {Brief: "can be converted to an Interleave Index", Severity: suggestion, Category: "INTERLEAVE_INDEX_SUGGESTION",
 		CategoryDescription: "Some columns can be converted to interleave index"},
-	internal.InterleavedNotInOrder: {Brief: "if primary key order parameter is changed for the table", severity: suggestion, Category: "INTERLEAVED_NOT_IN_ORDER",
+	internal.InterleavedNotInOrder: {Brief: "if primary key order parameter is changed for the table", Severity: suggestion, Category: "INTERLEAVED_NOT_IN_ORDER",
 		CategoryDescription: "Some tables can be interleaved with parent table if primary key order parameter is changed to 1"},
-	internal.InterleavedAddColumn: {Brief: "Candidate for Interleaved Table", severity: suggestion, Category: "ADD_INTERLEAVED_COLUMN",
+	internal.InterleavedAddColumn: {Brief: "Candidate for Interleaved Table", Severity: suggestion, Category: "ADD_INTERLEAVED_COLUMN",
 		CategoryDescription: "If there is some primary key added in table, it can be interleaved"},
-	internal.IllegalName: {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning, Category: "ILLEGAL_NAME"},
-	internal.InterleavedRenameColumn: {Brief: "Candidate for Interleaved Table", severity: suggestion, Category: "RENAME_INTERLEAVED_COLUMN_PRIMARY_KEY",
+	internal.IllegalName: {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", Severity: warning, Category: "ILLEGAL_NAME"},
+	internal.InterleavedRenameColumn: {Brief: "Candidate for Interleaved Table", Severity: suggestion, Category: "RENAME_INTERLEAVED_COLUMN_PRIMARY_KEY",
 		CategoryDescription: "If primary key is renamed in table to match the foreign key, the table can be interleaved"},
-	internal.InterleavedChangeColumnSize: {Brief: "Candidate for Interleaved Table", severity: suggestion, Category: "CHANGE_INTERLEAVED_COLUMN_SIZE",
+	internal.InterleavedChangeColumnSize: {Brief: "Candidate for Interleaved Table", Severity: suggestion, Category: "CHANGE_INTERLEAVED_COLUMN_SIZE",
 		CategoryDescription: "If column size of this table's primary key is changed to match the foreign key, the table can be interleaved"},
-	internal.RowLimitExceeded: {Brief: "Non key columns exceed the spanner limit of 1600 MB. Please modify the column sizes", severity: errors, Category: "ROW_LIMIT_EXCEEDED"},
-	internal.ShardIdColumnAdded: {Brief: "column was added because this is a sharded migration and this column cannot be dropped", severity: note, Category: "SHARD_ID_COLUMN_ADDED",
+	internal.RowLimitExceeded: {Brief: "Non key columns exceed the spanner limit of 1600 MB. Please modify the column sizes", Severity: Errors, Category: "ROW_LIMIT_EXCEEDED"},
+	internal.ShardIdColumnAdded: {Brief: "column was added because this is a sharded migration and this column cannot be dropped", Severity: note, Category: "SHARD_ID_COLUMN_ADDED",
 		CategoryDescription: "Shard id column was added because this is a sharded migration and that column couldn't be dropped"},
-	internal.ShardIdColumnPrimaryKey: {Brief: "column is not a part of primary key. You may go to the Primary Key tab and add this column as a part of Primary Key", severity: suggestion, Category: "SHARD_ID_ADD_COLUMN_PRIMARY_KEY",
+	internal.ShardIdColumnPrimaryKey: {Brief: "column is not a part of primary key. You may go to the Primary Key tab and add this column as a part of Primary Key", Severity: suggestion, Category: "SHARD_ID_ADD_COLUMN_PRIMARY_KEY",
 		CategoryDescription: "Shard id column is not a part of primary key. Please add it to primary key"},
 	internal.MissingPrimaryKey: {Category: "MISSING_PRIMARY_KEY",
 		CategoryDescription: "Primary Key is missing, synthetic column created as a primary key"},
 	internal.UniqueIndexPrimaryKey: {Category: "UNIQUE_INDEX_PRIMARY_KEY",
 		CategoryDescription: "Primary Key is missing, unique column(s) used as primary key"},
-	internal.ArrayTypeNotSupported: {Brief: "Array datatype migration is not fully supported. Please validate data after data migration", severity: warning, Category: "ARRAY_TYPE_NOT_SUPPORTED"},
-	internal.SequenceCreated: {Brief: "Auto Increment has been converted to Sequence, set Skipped Range or Start with Counter to avoid duplicate value errors", severity: warning, Category: "SEQUENCE_CREATED"},
+	internal.ArrayTypeNotSupported:        {Brief: "Array datatype migration is not fully supported. Please validate data after data migration", Severity: warning, Category: "ARRAY_TYPE_NOT_SUPPORTED"},
+	internal.SequenceCreated:              {Brief: "Auto Increment has been converted to Sequence, set Skipped Range or Start with Counter to avoid duplicate value errors", Severity: warning, Category: "SEQUENCE_CREATED"},
+	internal.ForeignKeyOnDelete:           {Brief: "Spanner supports only ON DELETE CASCADE/NO ACTION", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
+	internal.ForeignKeyOnUpdate:           {Brief: "Spanner supports only ON UPDATE NO ACTION", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
+	internal.ForeignKeyActionNotSupported: {Brief: "Spanner supports foreign key action migration only for MySQL and PostgreSQL", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
 }
 
-type severity int
+type Severity int
 
 const (
-	warning severity = iota
+	warning Severity = iota
 	note
 	suggestion
-	errors
+	Errors
 )
 
 // AnalyzeCols returns information about the quality of schema mappings
@@ -558,9 +588,9 @@ func AnalyzeCols(conv *internal.Conv, tableId string) (map[string][]internal.Sch
 		m[c] = l
 		for _, i := range l {
 			switch {
-			case IssueDB[i].severity == warning && IssueDB[i].batch:
+			case IssueDB[i].Severity == warning && IssueDB[i].batch:
 				warningBatcher[i] = true
-			case IssueDB[i].severity == warning && !IssueDB[i].batch:
+			case IssueDB[i].Severity == warning && !IssueDB[i].batch:
 				colWarning = true
 			}
 		}

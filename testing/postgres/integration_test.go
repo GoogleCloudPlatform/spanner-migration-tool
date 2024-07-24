@@ -32,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/testing/common"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/iterator"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
@@ -183,7 +184,6 @@ func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
 
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
-
 	now := time.Now()
 	g := utils.GetUtilInfoImpl{}
 	dbName, _ := g.GetDatabaseName(constants.POSTGRES, now)
@@ -191,12 +191,60 @@ func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName)
 
 	args := fmt.Sprintf("schema -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
-	err := common.RunCommand(args, projectID)
+	err := common.RunCommand(args, "emulator-test-project")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer dropDatabase(t, dbURI)
+}
+
+func TestIntegration_PGDUMP_ForeignKeyActionMigration(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	now := time.Now()
+	g := utils.GetUtilInfoImpl{}
+	dbName, _ := g.GetDatabaseName(constants.PGDUMP, now)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+
+	dataFilepath := "../../test_data/pg_dump.test.out"
+	filePrefix := filepath.Join(tmpdir, dbName)
+
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=test-instance,dbName=%s' < %s", filePrefix, dbName, dataFilepath)
+	err := common.RunCommand(args, "emulator-test-project")
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
+
+	checkForeignKeyActions(ctx, t, dbURI)
+}
+
+func TestIntegration_POSTGRES_ForeignKeyActionMigration(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	now := time.Now()
+	g := utils.GetUtilInfoImpl{}
+	dbName, _ := g.GetDatabaseName(constants.POSTGRES, now)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	filePrefix := filepath.Join(tmpdir, dbName)
+
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
+	err := common.RunCommand(args, "emulator-test-project")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dropDatabase(t, dbURI)
+	checkForeignKeyActions(ctx, t, dbURI)
 }
 
 func checkResults(t *testing.T, dbURI string) {
@@ -326,6 +374,41 @@ func checkArrays(ctx context.Context, t *testing.T, client *spanner.Client) {
 	if got, want := strs, "{1,nice,foo}"; !reflect.DeepEqual(got, want) {
 		t.Fatalf("string array is not correct: got %v, want %v", got, want)
 	}
+}
+
+func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
+
+	// Verifying that the row to be deleted exists in parent - otherwise testing would be incorrect
+	stmt := spanner.Statement{SQL: `SELECT * FROM products WHERE productid = '1YMWWN1N4O'`}
+	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	row, _ := iter.Next()
+	assert.NotNil(t, row, "Expected rows with product_id \"1YMWWN1N4O\" in table 'products'")
+
+	// Deleting row from parent table in Spanner DB
+	mutation := spanner.Delete("products", spanner.Key{"1YMWWN1N4O"})
+	_, err = client.Apply(ctx, []*spanner.Mutation{mutation})
+	if err != nil {
+		t.Fatalf("Failed to delete row: %v", err)
+	}
+
+	// Testing ON DELETE NO ACTION - row shouldn't have been deleted in parent and child
+	stmt = spanner.Statement{SQL: `SELECT * FROM products WHERE productid = '1YMWWN1N4O'`}
+	iter = client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	row, _ = iter.Next()
+	assert.NotNil(t, row, "Expected rows in table 'products' with productid '1YMWWN1N4O' to still exist")
+
+	stmt = spanner.Statement{SQL: `SELECT * FROM cart WHERE productid = '1YMWWN1N4O'`}
+	iter = client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	row, err = iter.Next()
+	assert.NotNil(t, row, "Expected rows in table 'cart' with productid '1YMWWN1N4O' to still exist")
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
