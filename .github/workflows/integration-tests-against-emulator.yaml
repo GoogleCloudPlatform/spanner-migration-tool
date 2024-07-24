@@ -80,7 +80,7 @@ jobs:
           - 8000:8000
         options: --workdir /home/dynamodblocal --health-cmd "curl --fail http://127.0.0.1:8000/shell/ || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
       sqlserver:
-        image: mcr.microsoft.com/mssql/server
+        image: mcr.microsoft.com/mssql/server:2022-CU10-ubuntu-22.04
         env:
           SA_PASSWORD: ${{env.MSSQL_SA_PASSWORD}}
           MSSQL_PID: Express
