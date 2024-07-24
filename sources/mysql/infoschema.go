@@ -248,7 +248,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 func sanitizeDefaultValue(str string) string {
 	str = strings.ReplaceAll(str, "\\", "")          // Default Value after removing all backslashes: "concat(_utf8mb4'John',_utf8mb4'swamp',_utf8mb4'span')"
 	after := strings.Replace(str, "_utf8mb4", "", 1) // Default Value after removing first "_utf8mb4": "concat('John',_utf8mb4'swamp',_utf8mb4'span')"
-	str = strings.ReplaceAll(after, "_utf8mb4", " ") // Default Value after remaining "_utf8mb4": "concat('John', 'swamp', 'span')"
+	str = strings.ReplaceAll(after, "_utf8mb4", " ") // Default Value after removing remaining "_utf8mb4": "concat('John', 'swamp', 'span')"
 	return str
 }
 
