@@ -32,6 +32,18 @@ CREATE TABLE public.cart (
 ALTER TABLE public.cart OWNER TO postgres;
 
 --
+-- Name: products; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.products (
+    productid text NOT NULL,
+    description text,
+    price numeric(10, 2)
+);
+
+ALTER TABLE public.products OWNER TO postgres;
+
+--
 -- Name: test; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -86,6 +98,16 @@ OLJCESPC7Z	31ad80e3-182b-42b0-a164-b4c7ea976ce4	125
 OLJCESPC7Z	17b14ec1-5a42-4087-bb3f-3ebd32bacf2a	106
 \.
 
+--
+-- Data for Name: products; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.products (productid, description, price) FROM stdin;
+1YMWWN1N4O	bookshelf	45.50
+OLJCESPC7Z	armchair	54.99
+2KJHWIUS9K	sofa	125.00
+0MWERIJB8H	cupboard	59.99
+\.
 
 --
 -- Data for Name: test; Type: TABLE DATA; Schema: public; Owner: postgres
@@ -148,6 +170,12 @@ ALTER TABLE ONLY public.test
     ADD CONSTRAINT test_pkey PRIMARY KEY (id);
 
 --
+-- Name: cart fk_cart_products; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+ALTER TABLE ONLY public.cart
+    ADD CONSTRAINT fk_cart_products FOREIGN KEY (productid) REFERENCES public.products (productid) ON DELETE NO ACTION ON UPDATE RESTRICT;
+    
+--
 -- Name: SCHEMA public; Type: ACL; Schema: -; Owner: cloudsqlsuperuser
 --
 
@@ -160,4 +188,3 @@ GRANT ALL ON SCHEMA public TO PUBLIC;
 --
 -- PostgreSQL database dump complete
 --
-

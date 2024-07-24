@@ -29,13 +29,13 @@ type UtilsOrderInterface interface {
 	initPrimaryKeyOrder(conv *internal.Conv)
 	initIndexOrder(conv *internal.Conv)
 }
-type UtilsOrderImpl struct {}
+type UtilsOrderImpl struct{}
 
 type RunParallelTasksInterface[I any, O any] interface {
 	RunParallelTasks(input []I, numWorkers int, f func(i I, mutex *sync.Mutex) TaskResult[O], fastExit bool) ([]TaskResult[O], error)
 }
 
-type RunParallelTasksImpl[I any, O any] struct {}
+type RunParallelTasksImpl[I any, O any] struct{}
 
 // ToNotNull returns true if a column is not nullable and false if it is.
 func ToNotNull(conv *internal.Conv, isNullable string) bool {

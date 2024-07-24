@@ -43,7 +43,7 @@ export interface NameAndCols {
   Cols: Record<string, string>
 }
 
-// Spanner schema
+// Source schema
 export interface ITable {
   Name: string
   Id: string
@@ -96,7 +96,12 @@ export interface ISpannerForeignKey {
   Id: string
 }
 
-// source schema
+export interface IInterleavedParent{
+  Id: string
+  OnDelete: string
+}
+
+// spanner schema
 export interface ICreateTable {
   Name: string
   ColIds: string[]
@@ -105,7 +110,7 @@ export interface ICreateTable {
   PrimaryKeys: IIndexKey[]
   ForeignKeys: IForeignKey[]
   Indexes: ICreateIndex[]
-  ParentId: string
+  ParentTable: IInterleavedParent
   Comment: string
   Id: string
 }
@@ -124,6 +129,8 @@ export interface IForeignKey {
   ReferTableId: string
   ReferColumnIds: string[]
   Id: string | undefined
+  OnDelete: string
+  OnUpdate: string
 }
 
 export interface IIndexKey {

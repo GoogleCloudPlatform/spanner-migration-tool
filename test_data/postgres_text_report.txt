@@ -61,8 +61,14 @@ Data conversion: NONE (100% of 0 rows written to Spanner).
 ----------------------------
 Table foreign_key
 ----------------------------
-Schema conversion: EXCELLENT (100% of 2 columns mapped cleanly).
+Schema conversion: POOR (100% of 2 columns mapped cleanly).
 Data conversion: NONE (100% of 0 rows written to Spanner).
+
+Warnings
+1) Table 'foreign_key': ON DELETE action of Foreign Key '' mapped from RESTRICT
+   to NO ACTION - Spanner supports only ON DELETE CASCADE/NO ACTION.
+2) Table 'foreign_key': ON UPDATE action of Foreign Key '' mapped from CASCADE to
+   NO ACTION - Spanner supports only ON UPDATE NO ACTION.
 
 ----------------------------
 Table no_pk

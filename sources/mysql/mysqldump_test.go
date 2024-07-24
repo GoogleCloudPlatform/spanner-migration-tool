@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -168,7 +169,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 		{
 			name: "Create table with single foreign key",
 			input: "CREATE TABLE test (a SMALLINT, b text, PRIMARY KEY (a) );\n" +
-				"CREATE TABLE test2 (c SMALLINT, d SMALLINT, CONSTRAINT `fk_test` FOREIGN KEY (d) REFERENCES test (a) ON DELETE RESTRICT ON UPDATE CASCADE );",
+				"CREATE TABLE test2 (c SMALLINT, d SMALLINT, CONSTRAINT `fk_test` FOREIGN KEY (d) REFERENCES test (a) ON DELETE RESTRICT ON UPDATE CASCADE);",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": {
 					Name:   "test",
@@ -187,7 +188,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}}}}},
+					ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}}}},
 		},
 		{
 			name: "Create table with multiple foreign key test constraint name",
@@ -221,8 +222,8 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "A_fk_test_2", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}},
-						ddl.Foreignkey{Name: "A_fk_test_2_3", ColIds: []string{"c"}, ReferTableId: "test3", ReferColumnIds: []string{"e"}}}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "A_fk_test_2", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
+						ddl.Foreignkey{Name: "A_fk_test_2_3", ColIds: []string{"c"}, ReferTableId: "test3", ReferColumnIds: []string{"e"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}}}},
 		},
 		{
 			name: "Alter table add foreign key",
@@ -247,7 +248,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}}}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}}}},
 		},
 		{
 			name: "Alter table add constraint foreign key",
@@ -272,13 +273,13 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}}}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"d"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}}}},
 		},
 		{
 			name: "Create table with multiple foreign keys",
 			input: "CREATE TABLE test (a SMALLINT, b text, PRIMARY KEY (a) );\n" +
 				"CREATE TABLE test2 (c SMALLINT, d text, PRIMARY KEY (c) );\n" +
-				"CREATE TABLE test3 (e SMALLINT, f SMALLINT, g text, CONSTRAINT `fk_test` FOREIGN KEY (e) REFERENCES test (a) ON DELETE RESTRICT ON UPDATE CASCADE,CONSTRAINT `fk_test2` FOREIGN KEY (f) REFERENCES test2 (c) ON DELETE RESTRICT ON UPDATE CASCADE );",
+				"CREATE TABLE test3 (e SMALLINT, f SMALLINT, g text, CONSTRAINT `fk_test` FOREIGN KEY (e) REFERENCES test (a) ON DELETE CASCADE ON UPDATE CASCADE,CONSTRAINT `fk_test2` FOREIGN KEY (f) REFERENCES test2 (c) ON DELETE RESTRICT);",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:   "test",
@@ -306,13 +307,13 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"e"}, ReferTableId: "test", ReferColumnIds: []string{"a"}},
-						ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"f"}, ReferTableId: "test2", ReferColumnIds: []string{"c"}}}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"e"}, ReferTableId: "test", ReferColumnIds: []string{"a"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION},
+						ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"f"}, ReferTableId: "test2", ReferColumnIds: []string{"c"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}}}},
 		},
 		{
 			name: "Create table with single foreign key multiple column",
 			input: "CREATE TABLE test (a SMALLINT, b SMALLINT, c text, PRIMARY KEY (a) );\n" +
-				"CREATE TABLE test2 (e SMALLINT, f SMALLINT, g text, CONSTRAINT `fk_test` FOREIGN KEY (e,f) REFERENCES test (a,b) ON DELETE RESTRICT ON UPDATE CASCADE );",
+				"CREATE TABLE test2 (e SMALLINT, f SMALLINT, g text, CONSTRAINT `fk_test` FOREIGN KEY (e,f) REFERENCES test (a,b) ON UPDATE CASCADE );",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:   "test",
@@ -334,7 +335,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Order: 1}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"e", "f"}, ReferTableId: "test", ReferColumnIds: []string{"a", "b"}}}}},
+					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"e", "f"}, ReferTableId: "test", ReferColumnIds: []string{"a", "b"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}}}},
 		},
 		{
 			name: "Create table with index keys",

@@ -153,6 +153,9 @@ type DataflowCfg struct {
 	KmsKeyName           string            `json:"kmsKeyName"`
 	GcsTemplatePath      string            `json:"gcsTemplatePath"`
 	DbNameToShardIdMap   map[string]string `json:"dbNameToShardIdMap"`
+	CustomJarPath        string            `json:"customJarPath"`
+	CustomClassName      string            `json:"customClassName"`
+	CustomParameter      string            `json:"customParameter"`
 }
 
 type StreamingCfg struct {
@@ -763,6 +766,15 @@ func LaunchDataflowJob(ctx context.Context, migrationProjectId string, targetPro
 			KmsKeyName:            dataflowCfg.KmsKeyName,
 		},
 	}
+
+	if dataflowCfg.CustomClassName != "" && dataflowCfg.CustomJarPath != "" {
+		launchParameters.Parameters["transformationJarPath"] = dataflowCfg.CustomJarPath
+		launchParameters.Parameters["transformationClassName"] = dataflowCfg.CustomClassName
+		launchParameters.Parameters["transformationCustomParameters"] = dataflowCfg.CustomParameter
+	} else if (dataflowCfg.CustomClassName != "" && dataflowCfg.CustomJarPath == "") || (dataflowCfg.CustomClassName == "" && dataflowCfg.CustomJarPath != "") {
+		return internal.DataflowOutput{}, fmt.Errorf("specify both the custom class name and custom jar GCS path, or specify neither")
+	}
+
 	req := &dataflowpb.LaunchFlexTemplateRequest{
 		ProjectId:       dataflowProjectId,
 		LaunchParameter: launchParameters,
@@ -836,6 +848,9 @@ func CreateStreamingConfig(pl profiles.DataShard) StreamingCfg {
 		AdditionalUserLabels: inputDataflowConfig.AdditionalUserLabels,
 		KmsKeyName:           inputDataflowConfig.KmsKeyName,
 		GcsTemplatePath:      inputDataflowConfig.GcsTemplatePath,
+		CustomJarPath:        inputDataflowConfig.CustomJarPath,
+		CustomClassName:      inputDataflowConfig.CustomClassName,
+		CustomParameter:      inputDataflowConfig.CustomParameter,
 	}
 	//create src and dst datastream from pl receiver object
 	datastreamCfg := DatastreamCfg{
