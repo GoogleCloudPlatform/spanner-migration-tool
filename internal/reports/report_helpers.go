@@ -112,6 +112,17 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 		}
 
 		if p.severity == warning {
+			for _, colName := range colNames {
+				colId, _ := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
+				if !conv.SpSchema[tableId].ColDefs[colId].DefaultValue.IsPresent {
+					issue := internal.DefaultValue
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("%s for table '%s' e.g. column '%s'", IssueDB[issue].Brief, conv.SpSchema[tableId].Name, colName),
+					}
+					l = append(l, toAppend)
+				}
+			}
 			flag := false
 			for _, spFk := range conv.SpSchema[tableId].ForeignKeys {
 				srcFk, err := internal.GetSrcFkFromId(conv.SrcSchema[tableId].ForeignKeys, spFk.Id)
@@ -213,12 +224,6 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				// on case of srcType.
 				spColType = strings.ToLower(spColType)
 				switch i {
-				case internal.DefaultValue:
-					toAppend := Issue{
-						Category:    IssueDB[i].Category,
-						Description: fmt.Sprintf("%s for table '%s' e.g. column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName),
-					}
-					l = append(l, toAppend)
 				case internal.ForeignKey:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
@@ -514,7 +519,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	Category            string // Standarized issue type
 	CategoryDescription string
 }{
-	internal.DefaultValue:          {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
+	internal.DefaultValue:          {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: warning, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
 	internal.ForeignKey:            {Brief: "Spanner does not support foreign keys", Severity: warning, Category: "FOREIGN_KEY_USES"},
 	internal.MultiDimensionalArray: {Brief: "Spanner doesn't support multi-dimensional arrays", Severity: warning, Category: "MULTI_DIMENSIONAL_ARRAY_USES"},
 	internal.NoGoodType: {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", Severity: warning, Category: "INAPPROPRIATE_TYPE",
