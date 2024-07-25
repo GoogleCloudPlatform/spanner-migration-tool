@@ -9,6 +9,8 @@ import { DialectList, InputType, PersistedFormValues, StorageKeys } from 'src/ap
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
+import { MatDialog } from '@angular/material/dialog'
+import { InfodialogComponent } from '../infodialog/infodialog.component'
 
 @Component({
   selector: 'app-direct-connection',
@@ -35,6 +37,7 @@ export class DirectConnectionComponent implements OnInit {
   ]
 
   isTestConnectionSuccessful = false
+  isOfflineStatus: boolean = false
 
   connectRequest: any = null
   getSchemaRequest: any = null
@@ -51,7 +54,8 @@ export class DirectConnectionComponent implements OnInit {
     private data: DataService,
     private loader: LoaderService,
     private snackbarService: SnackbarService,
-    private clickEvent: ClickEventService
+    private clickEvent: ClickEventService,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
@@ -70,6 +74,12 @@ export class DirectConnectionComponent implements OnInit {
             this.getSchemaRequest.unsubscribe()
           }
         }
+      },
+    })
+
+    this.data.isOffline.subscribe({
+      next: (res) => {
+        this.isOfflineStatus = res
       },
     })
   }
@@ -101,6 +111,24 @@ export class DirectConnectionComponent implements OnInit {
           this.clickEvent.closeDatabaseLoader()
         }
       })
+  }
+
+  checkSpConfig() {
+    if (this.isOfflineStatus) {
+      const dialogRef = this.dialog.open(InfodialogComponent, {
+        data: { message: "Please configure spanner project id and instance id to proceed otherwise default values will not be migrated", type: 'warning', title: 'Configure Spanner' },
+        maxWidth: '500px',
+      })
+      dialogRef.afterClosed().subscribe((dialogResult) => {
+        if (dialogResult) {
+          this.connectToDb();
+        } else {
+          // user cancelled, stays on same page.
+        }
+      })
+    } else {
+      this.connectToDb();
+    }
   }
 
   connectToDb() {
