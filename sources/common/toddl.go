@@ -110,9 +110,6 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		if isChanged && (srcCol.Name != colName) {
 			issues = append(issues, internal.IllegalName)
 		}
-		if srcCol.Ignored.Default {
-			issues = append(issues, internal.DefaultValue)
-		}
 		if srcCol.Ignored.AutoIncrement { //TODO(adibh) - check why this is not there in postgres
 			issues = append(issues, internal.AutoIncrement)
 		}
