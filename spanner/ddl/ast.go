@@ -39,6 +39,8 @@ const (
 	Bytes string = "BYTES"
 	// Date represent DATE type.
 	Date string = "DATE"
+	// Float64 represent FLOAT32 type.
+	Float32 string = "FLOAT32"
 	// Float64 represent FLOAT64 type.
 	Float64 string = "FLOAT64"
 	// Int64 represent INT64 type.
@@ -63,6 +65,8 @@ const (
 	// Spanner with google_standard_sql.
 	// PGBytea represent BYTEA type, which is BYTES type in PG.
 	PGBytea string = "BYTEA"
+	// PGFloat4 represents the FLOAT4 type, which is a float type in PG.
+	PGFloat4 string = "FLOAT4"
 	// PGFloat8 represent FLOAT8 type, which is double type in PG.
 	PGFloat8 string = "FLOAT8"
 	// PGInt8 respresent INT8, which is INT type in PG.
@@ -79,6 +83,7 @@ const (
 
 var STANDARD_TYPE_TO_PGSQL_TYPEMAP = map[string]string{
 	Bytes:     PGBytea,
+	Float32:   PGFloat4,
 	Float64:   PGFloat8,
 	Int64:     PGInt8,
 	String:    PGVarchar,
@@ -88,6 +93,7 @@ var STANDARD_TYPE_TO_PGSQL_TYPEMAP = map[string]string{
 
 var PGSQL_TO_STANDARD_TYPE_TYPEMAP = map[string]string{
 	PGBytea:       Bytes,
+	PGFloat4:      Float32,
 	PGFloat8:      Float64,
 	PGInt8:        Int64,
 	PGVarchar:     String,
@@ -109,7 +115,7 @@ var PGSQL_RESERVED_KEYWORD_LIST = []string{"ALL", "ANALYSE", "ANALYZE", "AND", "
 // Type represents the type of a column.
 //
 //	type:
-//	   { BOOL | INT64 | FLOAT64 | STRING( length ) | BYTES( length ) | DATE | TIMESTAMP | NUMERIC }
+//	   { BOOL | INT64 | FLOAT32 | FLOAT64 | STRING( length ) | BYTES( length ) | DATE | TIMESTAMP | NUMERIC }
 type Type struct {
 	Name string
 	// Len encodes the following Spanner DDL definition:

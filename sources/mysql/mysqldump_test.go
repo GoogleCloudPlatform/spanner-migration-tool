@@ -46,7 +46,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		{"date", ddl.Type{Name: ddl.Date}},
 		{"decimal(4,10)", ddl.Type{Name: ddl.Numeric}},
 		{"double(4,10)", ddl.Type{Name: ddl.Float64}},
-		{"float(4,10)", ddl.Type{Name: ddl.Float64}},
+		{"float(4,10)", ddl.Type{Name: ddl.Float32}},
 		{"integer", ddl.Type{Name: ddl.Int64}},
 		{"mediumint", ddl.Type{Name: ddl.Int64}},
 		{"int", ddl.Type{Name: ddl.Int64}},
@@ -736,7 +736,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 		INSERT INTO test (id, a, b, c) VALUES (1,'2019-10-29',4.444,5.44444);
 		`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), big.NewRat(136111, 25000)}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float32(4.444), big.NewRat(136111, 25000)}}},
 		},
 		{
 			name: "Data conversion: smallint, mediumint, bigint, double",
@@ -804,8 +804,8 @@ func TestProcessMySQLDump_DataError(t *testing.T) {
 		{
 			// Test bad data for each scalar type (except text, which accepts all values) and an array type.
 			name: "Data conversion errors",
-			input: "CREATE TABLE test (a int, b float, c bool, d date, e blob, f set('42','6'), g bit);\n" +
-				`INSERT INTO test (a, b, c, d, e, f, g) VALUES (7,42.1,1,'2019-10-29',_binary '` + string([]byte{137, 80}) + `','42,6', 0);` + // Baseline (good)
+			input: "CREATE TABLE test (a int, b double, c bool, d date, e blob, f set('42','6'), g bit, h float);\n" +
+				`INSERT INTO test (a, b, c, d, e, f, g, h) VALUES (7,42.1,1,'2019-10-29',_binary '` + string([]byte{137, 80}) + `','42,6', 0, 3.14);` + // Baseline (good)
 				"INSERT INTO test (a, b, c, d, e, f, g) VALUES (7,NULL,NULL,NULL,NULL,NULL, NULL);\n" + // Good
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (7.1,NULL,NULL,NULL,NULL,NULL);\n" + // Error
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,42.1,NULL,NULL,NULL,NULL);\n" + // Good
@@ -816,13 +816,15 @@ func TestProcessMySQLDump_DataError(t *testing.T) {
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,NULL,'2019-10-42',NULL,NULL);\n" + // Error
 				`INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,NULL,NULL,_binary '` + string([]byte{137, 80}) + `',NULL);` + // Good
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,NULL,NULL,NULL,'42,6');\n" + // Good
-				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,NULL,NULL,NULL,42,6);\n", // Error
+				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,NULL,NULL,NULL,42,6);\n" + // Error
+				"INSERT INTO test (a, b, c, d, e, f, h) VALUES (NULL,NULL,NULL,NULL,NULL,NULL, 3.14);\n" + // Good
+				"INSERT INTO test (a, b, c, d, e, f, h) VALUES (NULL,NULL,NULL,NULL,NULL,NULL, '3-14');\n", // Error
 			expectedData: []spannerData{
 				spannerData{
-					table: "test", cols: []string{"a", "b", "c", "d", "e", "f", "g", "synth_id"},
+					table: "test", cols: []string{"a", "b", "c", "d", "e", "f", "g", "h", "synth_id"},
 					vals: []interface{}{int64(7), float64(42.1), true,
 						getDate("2019-10-29"), []byte{0x89, 0x50},
-						"42,6", false,
+						"42,6", false, float32(3.14),
 						fmt.Sprintf("%d", bitReverse(0))}},
 				spannerData{table: "test", cols: []string{"a", "synth_id"}, vals: []interface{}{int64(7), fmt.Sprintf("%d", bitReverse(1))}},
 				spannerData{table: "test", cols: []string{"b", "synth_id"}, vals: []interface{}{float64(42.1), fmt.Sprintf("%d", bitReverse(2))}},
@@ -831,13 +833,14 @@ func TestProcessMySQLDump_DataError(t *testing.T) {
 				spannerData{table: "test", cols: []string{"e", "synth_id"}, vals: []interface{}{[]byte{0x89, 0x50}, fmt.Sprintf("%d", bitReverse(5))}},
 				spannerData{table: "test", cols: []string{"f", "synth_id"},
 					vals: []interface{}{"42,6", fmt.Sprintf("%d", bitReverse(6))}},
+				spannerData{table: "test", cols: []string{"h", "synth_id"}, vals: []interface{}{float32(3.14), fmt.Sprintf("%d", bitReverse(7))}},
 			},
 		},
 	}
 	for _, tc := range dataErrorTests {
 		conv, rows := runProcessMySQLDump(tc.input)
 		assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-		assert.Equal(t, conv.BadRows(), int64(5), tc.name+": Error count did not match")
+		assert.Equal(t, conv.BadRows(), int64(6), tc.name+": Error count did not match")
 	}
 }
 

@@ -36,6 +36,8 @@ func ToSpannerType(columnType string) (ddl.Type, error) {
 		return ddl.Type{}, fmt.Errorf("%v is not a valid Spanner column type", columnType)
 	case ty == "DATE":
 		return ddl.Type{Name: ddl.Date}, nil
+	case ty == "FLOAT32":
+		return ddl.Type{Name: ddl.Float32}, nil
 	case ty == "FLOAT64":
 		return ddl.Type{Name: ddl.Float64}, nil
 	case ty == "INT64":

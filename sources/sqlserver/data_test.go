@@ -39,8 +39,8 @@ type spannerData struct {
 func TestProcessDataRow(t *testing.T) {
 	tableName := "testtable"
 	tableId := "t1"
-	cols := []string{"a", "b", "c"}
-	colIds := []string{"c1", "c2", "c3"}
+	cols := []string{"a", "b", "c", "d"}
+	colIds := []string{"c1", "c2", "c3", "c4"}
 	conv := buildConv(
 		ddl.CreateTable{
 			Name:   tableName,
@@ -50,6 +50,7 @@ func TestProcessDataRow(t *testing.T) {
 				"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Float64}},
 				"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}},
 				"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c4": {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.Float32}},
 			}},
 		schema.Table{
 			Name:   tableName,
@@ -59,14 +60,15 @@ func TestProcessDataRow(t *testing.T) {
 				"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "float"}},
 				"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "int"}},
 				"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "text"}},
+				"c4": {Name: "d", Id: "c4", Type: schema.Type{Name: "real"}},
 			}})
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {
 		rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 	})
-	ProcessDataRow(conv, tableId, colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], []string{"4.2", "6", "prisoner zero"})
-	assert.Equal(t, []spannerData{{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero"}}}, rows)
+	ProcessDataRow(conv, tableId, colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], []string{"4.2", "6", "prisoner zero", "3.14"})
+	assert.Equal(t, []spannerData{{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero", float32(3.14)}}}, rows)
 }
 
 func TestConvertData(t *testing.T) {
@@ -86,6 +88,7 @@ func TestConvertData(t *testing.T) {
 		{"bit 1", ddl.Type{Name: ddl.Bool}, "", "1", true},
 		{"bytes", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, "", string([]byte{137, 80}), []byte{0x89, 0x50}}, // need some other approach to testblob type
 		{"date", ddl.Type{Name: ddl.Date}, "", "2019-10-29", getDate("2019-10-29")},
+		{"float32", ddl.Type{Name: ddl.Float32}, "", "3.14", float32(3.14)},
 		{"float64", ddl.Type{Name: ddl.Float64}, "", "42.6", float64(42.6)},
 		{"int64", ddl.Type{Name: ddl.Int64}, "", "42", int64(42)},
 		{"string", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, "", "eh", "eh"},
