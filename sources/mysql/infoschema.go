@@ -243,14 +243,24 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 
 // sanitizeDefaultValue removes extra characters added to Default Value.
 // These extra characters are charset which are not supported by spanner.
-// Example:
+// Example_1:
 // Default Value: "concat('John', 'swamp', 'span')"
 // Default Value with extra characters: "concat(_utf8mb4\\'John\\',_utf8mb4\\'swamp\\',_utf8mb4\\'span\\')"
+// Default Value after removing "_utf8mb4": "concat( \\'John\\',  \\'swamp\\',  \\'span\\')"
+// Default Value after removing all backslashes: "concat('John','swamp','span')"
+// Example_2:
+// Default Value: "This is a message \\\\nwith a newline\\\\rand a carriage return."
+// Default Value with extra characters: "_utf8mb4\\'This is a \\tmessage \\\\nwith a newline\\\\\\'s and \\\\ra carriage return.\\'"
+// Default Value after removing "_utf8mb4": " \\'This is a \\tmessage \\\\nwith a newline\\\\\\'s and \\\\ra carriage return.\\'"
+// Default Value after removing all "\\\\": " \\'This is a \\tmessage \\nwith a newline\\\\'s and \\ra carriage return.\\'
+// Default Value after removing all "\\'": "'This is a 	message \\nwith a newline\\'s \\rand a carriage return.'
 func sanitizeDefaultValue(defaultValue string) string {
-	// Default Value after removing all backslashes: "concat(_utf8mb4'John',_utf8mb4'swamp',_utf8mb4'span')"
-	defaultValue = strings.ReplaceAll(defaultValue, "\\", "")
-	// Default Value after removing "_utf8mb4": "concat('John', 'swamp', 'span')"
+// replaces all occurrences of the "_utf8mb4" pattern within the defaultValue string with a single space character (" ")
 	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", " ")
+// replaces all occurrences of the "\\\\" pattern within the defaultValue string with "\\" to handle escape characters like \\n(new line), \\r(return carraige), \\t(tab), \\'(apostrophe)
+	defaultValue = strings.ReplaceAll(defaultValue, "\\\\", "\\")
+// replaces all occurrences of the "\\'" pattern within the defaultValue string with a single quote character "'"
+	defaultValue = strings.ReplaceAll(defaultValue, "\\'", "'")
 	return defaultValue
 }
 
