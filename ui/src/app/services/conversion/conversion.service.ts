@@ -4,7 +4,6 @@ import IConv, {
   ICreateIndex,
   IIndexKey,
   IIndex,
-  ISpannerForeignKey,
   IForeignKey,
   ISrcIndexKey,
   IColumnDef,
@@ -380,7 +379,7 @@ export class ConversionService {
     if (!srcFks) {
       return []
     }
-    return srcFks.map((srcFk: ISpannerForeignKey) => {
+    return srcFks.map((srcFk: IForeignKey) => {
       let spFk = this.getSpannerFkFromId(data, id, srcFk.Id)
       let spColumns = spFk
         ? spFk.ColIds.map((columnId: string) => {
@@ -487,7 +486,7 @@ export class ConversionService {
     return sequence
   }
 
-  getSpannerFkFromId(conv: IConv, tableId: string, srcFkId: string): IForeignKey | null {
+  getSpannerFkFromId(conv: IConv, tableId: string, srcFkId: string | undefined): IForeignKey | null {
     let spFk: IForeignKey | null = null
     conv.SpSchema[tableId]?.ForeignKeys?.forEach((fk: IForeignKey) => {
       if (fk.Id == srcFkId) {

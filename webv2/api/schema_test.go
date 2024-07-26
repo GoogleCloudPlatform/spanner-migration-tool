@@ -1559,7 +1559,7 @@ func TestDropTable(t *testing.T) {
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c7", Desc: false, Order: 0}},
 				ForeignKeys: []ddl.Foreignkey{},
 				Indexes:     []ddl.CreateIndex(nil),
-				ParentTable: ddl.InterleavedParent{},
+				ParentTable: ddl.InterleavedParent{Id: "", OnDelete: ""},
 				Id:          "t2",
 			}},
 	}
