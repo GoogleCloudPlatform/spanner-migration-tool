@@ -51,6 +51,10 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck == nil {
 		t.Errorf("Error in float to string conversion")
 	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"float", []int64{1, 2, 3}, []int64{1, 2, 3}}, "FLOAT64")
+	if errCheck == nil {
+		t.Errorf("Error in float to float64 conversion")
+	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{"decimal", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in decimal to string conversion")
@@ -130,10 +134,10 @@ func TestToSpannerType(t *testing.T) {
 	srcSchema := schema.Table{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c17"},
 		ColDefs: map[string]schema.Column{
 			"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
-			"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: "float"}},
+			"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: "double"}},
 			"c3":  {Name: "c", Id: "c3", Type: schema.Type{Name: "tinyint", Mods: []int64{1}}},
 			"c4":  {Name: "d", Id: "c4", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 			"c5":  {Name: "e", Id: "c5", Type: schema.Type{Name: "numeric"}},
@@ -142,6 +146,7 @@ func TestToSpannerType(t *testing.T) {
 			"c8":  {Name: "h", Id: "c8", Type: schema.Type{Name: "date"}},
 			"c9":  {Name: "i", Id: "c9", Type: schema.Type{Name: "timestamp"}},
 			"c10": {Name: "j", Id: "c10", Type: schema.Type{Name: "bit"}},
+			"c17": {Name: "k", Id: "c17", Type: schema.Type{Name: "float"}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{ColId: "c1"}},
 		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c11"}},
@@ -179,7 +184,7 @@ func TestToSpannerType(t *testing.T) {
 	expected := ddl.CreateTable{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c17"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"c1":  ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 			"c2":  ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
@@ -191,6 +196,7 @@ func TestToSpannerType(t *testing.T) {
 			"c8":  ddl.ColumnDef{Name: "h", Id: "c8", T: ddl.Type{Name: ddl.Date}},
 			"c9":  ddl.ColumnDef{Name: "i", Id: "c9", T: ddl.Type{Name: ddl.Timestamp}},
 			"c10": ddl.ColumnDef{Name: "j", Id: "c10", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"c17": ddl.ColumnDef{Name: "k", Id: "c17", T: ddl.Type{Name: ddl.Float32}},
 		},
 		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1"}},
 		ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c11"}},
@@ -200,7 +206,6 @@ func TestToSpannerType(t *testing.T) {
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{
 		"c1": []internal.SchemaIssue{internal.Widened},
-		"c2": []internal.SchemaIssue{internal.Widened},
 	}
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 	commonInfoSchema := common.InfoSchemaImpl{}
@@ -223,10 +228,10 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	srcSchema := schema.Table{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c17"},
 		ColDefs: map[string]schema.Column{
 			"c1":  schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
-			"c2":  schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "float"}},
+			"c2":  schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "double"}},
 			"c3":  schema.Column{Name: "c", Id: "c3", Type: schema.Type{Name: "tinyint", Mods: []int64{1}}},
 			"c4":  schema.Column{Name: "d", Id: "c4", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 			"c5":  schema.Column{Name: "e", Id: "c5", Type: schema.Type{Name: "numeric"}},
@@ -235,6 +240,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 			"c8":  schema.Column{Name: "h", Id: "c8", Type: schema.Type{Name: "date"}},
 			"c9":  schema.Column{Name: "i", Id: "c9", Type: schema.Type{Name: "timestamp"}},
 			"c10": schema.Column{Name: "j", Id: "c10", Type: schema.Type{Name: "bit"}},
+			"c17": schema.Column{Name: "k", Id: "c17", Type: schema.Type{Name: "float"}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{ColId: "c1"}},
 		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c11"}},
@@ -272,7 +278,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	expected := ddl.CreateTable{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c17"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"c1":  ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 			"c2":  ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
@@ -284,6 +290,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 			"c8":  ddl.ColumnDef{Name: "h", Id: "c8", T: ddl.Type{Name: ddl.Date}},
 			"c9":  ddl.ColumnDef{Name: "i", Id: "c9", T: ddl.Type{Name: ddl.Timestamp}},
 			"c10": ddl.ColumnDef{Name: "j", Id: "c10", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"c17": ddl.ColumnDef{Name: "k", Id: "c17", T: ddl.Type{Name: ddl.Float32}},
 		},
 		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1"}},
 		ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c11"}},
@@ -293,7 +300,6 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{
 		"c1": []internal.SchemaIssue{internal.Widened},
-		"c2": []internal.SchemaIssue{internal.Widened},
 	}
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 }

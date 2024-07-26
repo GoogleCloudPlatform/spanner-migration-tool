@@ -34,8 +34,8 @@ import (
 func TestReport(t *testing.T) {
 	s := `
    CREATE TABLE bad_schema (
-      a float,
-      b integer NOT NULL);
+      a integer,
+			b integer NOT NULL);
   CREATE TABLE default_value (
       a text,
       b bigint DEFAULT 42,
@@ -44,6 +44,7 @@ func TestReport(t *testing.T) {
   CREATE TABLE excellent_schema (
       a text,
       b bigint,
+			c float,
       PRIMARY KEY (a)
       );
   CREATE TABLE foreign_key (

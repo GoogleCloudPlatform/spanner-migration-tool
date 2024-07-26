@@ -81,6 +81,14 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck != nil {
 		t.Errorf("Error in date to string conversion")
 	}
+	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"BINARY_FLOAT", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in binary_float to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(conv, "FLOAT64", schema.Type{"BINARY_FLOAT", []int64{1, 2, 3}, []int64{1, 2, 3}})
+	if errCheck != nil {
+		t.Errorf("Error in binary_float to float64 conversion")
+	}
 	_, errCheck = toSpannerTypeInternal(conv, "STRING", schema.Type{"FLOAT", []int64{1, 2, 3}, []int64{1, 2, 3}})
 	if errCheck != nil {
 		t.Errorf("Error in float to string conversion")
@@ -115,16 +123,17 @@ func TestToSpannerType(t *testing.T) {
 	srcSchema := schema.Table{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c15"},
 		ColDefs: map[string]schema.Column{
-			"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "NUMBER"}},
-			"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "FLOAT"}},
-			"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "BFILE"}},
-			"c4": {Name: "d", Id: "c4", Type: schema.Type{Name: "VARCHAR2", Mods: []int64{20}}},
-			"c5": {Name: "e", Id: "c5", Type: schema.Type{Name: "DATE"}},
-			"c6": {Name: "f", Id: "c6", Type: schema.Type{Name: "TIMESTAMP"}},
-			"c7": {Name: "g", Id: "c7", Type: schema.Type{Name: "LONG"}},
-			"c8": {Name: "h", Id: "c8", Type: schema.Type{Name: "NUMBER", Mods: []int64{13}}},
+			"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: "NUMBER"}},
+			"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: "FLOAT"}},
+			"c3":  {Name: "c", Id: "c3", Type: schema.Type{Name: "BFILE"}},
+			"c4":  {Name: "d", Id: "c4", Type: schema.Type{Name: "VARCHAR2", Mods: []int64{20}}},
+			"c5":  {Name: "e", Id: "c5", Type: schema.Type{Name: "DATE"}},
+			"c6":  {Name: "f", Id: "c6", Type: schema.Type{Name: "TIMESTAMP"}},
+			"c7":  {Name: "g", Id: "c7", Type: schema.Type{Name: "LONG"}},
+			"c8":  {Name: "h", Id: "c8", Type: schema.Type{Name: "NUMBER", Mods: []int64{13}}},
+			"c15": {Name: "i", Id: "c15", Type: schema.Type{Name: "BINARY_FLOAT"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c1"}},
 		ForeignKeys: []schema.ForeignKey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c9"}},
@@ -165,16 +174,17 @@ func TestToSpannerType(t *testing.T) {
 	expected := ddl.CreateTable{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c15"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Numeric}},
-			"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
-			"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-			"c4": {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(20)}},
-			"c5": {Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Date}},
-			"c6": {Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Timestamp}},
-			"c7": {Name: "g", Id: "c7", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"c8": {Name: "h", Id: "c8", T: ddl.Type{Name: ddl.Int64}},
+			"c1":  {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Numeric}},
+			"c2":  {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
+			"c3":  {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"c4":  {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(20)}},
+			"c5":  {Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Date}},
+			"c6":  {Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Timestamp}},
+			"c7":  {Name: "g", Id: "c7", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c8":  {Name: "h", Id: "c8", T: ddl.Type{Name: ddl.Int64}},
+			"c15": {Name: "i", Id: "c15", T: ddl.Type{Name: ddl.Float32}},
 		},
 		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 		ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c9"}, OnDelete: "", OnUpdate: ""},
@@ -203,7 +213,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	srcSchema := schema.Table{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c18"},
 		ColDefs: map[string]schema.Column{
 			"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: "NUMBER"}},
 			"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: "FLOAT"}},
@@ -216,6 +226,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 			"c9":  {Name: "i", Id: "c9", Type: schema.Type{Name: "JSON"}},
 			"c10": {Name: "j", Id: "c10", Type: schema.Type{Name: "NCLOB"}},
 			"c11": {Name: "k", Id: "c11", Type: schema.Type{Name: "XMLTYPE"}},
+			"c18": {Name: "l", Id: "c18", Type: schema.Type{Name: "BINARY_FLOAT"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c1"}},
 		ForeignKeys: []schema.ForeignKey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c12"}},
@@ -256,7 +267,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	expected := ddl.CreateTable{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c18"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"c1":  {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Numeric}},
 			"c2":  {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
@@ -269,6 +280,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 			"c9":  {Name: "i", Id: "c9", T: ddl.Type{Name: ddl.JSON}},
 			"c10": {Name: "j", Id: "c10", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"c11": {Name: "k", Id: "c11", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c18": {Name: "l", Id: "c18", T: ddl.Type{Name: ddl.Float32}},
 		},
 		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 		ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c12"}, OnDelete: "", OnUpdate: ""},

@@ -87,6 +87,7 @@ func TestGetTypeMapPostgres(t *testing.T) {
 			{T: ddl.Float64, DisplayT: ddl.Float64},
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"float4": {
+			{T: ddl.Float32, DisplayT: ddl.Float32},
 			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"int8": {
@@ -196,6 +197,7 @@ func TestGetTypeMapMySQL(t *testing.T) {
 			{T: ddl.Float64, DisplayT: ddl.Float64},
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"float": {
+			{T: ddl.Float32, DisplayT: ddl.Float32},
 			{T: ddl.Float64, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
 			{T: ddl.String, Brief: reports.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"numeric": {
@@ -2335,7 +2337,7 @@ func buildConvMySQL(conv *internal.Conv) {
 				"c9":  {Name: "i", Id: "c9", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 				"c10": {Name: "j", Id: "c10", T: ddl.Type{Name: ddl.Int64}},
 				"c11": {Name: "k", Id: "c11", T: ddl.Type{Name: ddl.Float64}},
-				"c12": {Name: "l", Id: "c12", T: ddl.Type{Name: ddl.Float64}},
+				"c12": {Name: "l", Id: "c12", T: ddl.Type{Name: ddl.Float32}},
 				"c13": {Name: "m", Id: "c13", T: ddl.Type{Name: ddl.Numeric}},
 				"c14": {Name: "n", Id: "c14", T: ddl.Type{Name: ddl.Date}},
 				"c15": {Name: "o", Id: "c15", T: ddl.Type{Name: ddl.Timestamp}},
@@ -2360,7 +2362,6 @@ func buildConvMySQL(conv *internal.Conv) {
 		"t1": {
 			ColumnLevelIssues: map[string][]internal.SchemaIssue{
 				"c10": {internal.Widened},
-				"c12": {internal.Widened},
 				"c15": {internal.Time},
 			},
 		},
@@ -2417,7 +2418,7 @@ func buildConvPostgres(conv *internal.Conv) {
 			ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"c1":  {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
-				"c2":  {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
+				"c2":  {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float32}},
 				"c3":  {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bool}},
 				"c4":  {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 				"c5":  {Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Numeric}},
@@ -2442,7 +2443,7 @@ func buildConvPostgres(conv *internal.Conv) {
 			ColIds: []string{"c17", "c18", "c19", "c20"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"c17": {Name: "a", Id: "c17", T: ddl.Type{Name: ddl.Int64}},
-				"c18": {Name: "b", Id: "c18", T: ddl.Type{Name: ddl.Float64}},
+				"c18": {Name: "b", Id: "c18", T: ddl.Type{Name: ddl.Float32}},
 				"c19": {Name: "c", Id: "c19", T: ddl.Type{Name: ddl.Bool}},
 				"c20": {Name: "synth_id", Id: "c20", T: ddl.Type{Name: ddl.Int64}},
 			},
@@ -2453,7 +2454,6 @@ func buildConvPostgres(conv *internal.Conv) {
 	conv.SchemaIssues = map[string]internal.TableIssues{
 		"t1": {
 			ColumnLevelIssues: map[string][]internal.SchemaIssue{
-				"c2":  {internal.Widened},    //b
 				"c7":  {internal.Serial},     //g
 				"c12": {internal.Widened},    //l
 				"c13": {internal.Serial},     //m
@@ -2462,9 +2462,7 @@ func buildConvPostgres(conv *internal.Conv) {
 			},
 		},
 		"t2": {
-			ColumnLevelIssues: map[string][]internal.SchemaIssue{
-				"c18": {internal.Widened},
-			},
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{},
 		},
 	}
 	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"c20", 0}
@@ -2489,6 +2487,8 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		"BOOL":        {types.AutoGen{Name: "", GenerationType: ""}},
 		"BYTEA":       {types.AutoGen{Name: "", GenerationType: ""}},
 		"DATE":        {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT32":     {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT4":      {types.AutoGen{Name: "", GenerationType: ""}},
 		"FLOAT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
 		"FLOAT8":      {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
 		"INT64":       {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
@@ -2502,6 +2502,7 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		"BOOL":      {types.AutoGen{Name: "", GenerationType: ""}},
 		"BYTES":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"DATE":      {types.AutoGen{Name: "", GenerationType: ""}},
+		"FLOAT32":   {types.AutoGen{Name: "", GenerationType: ""}},
 		"FLOAT64":   {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
 		"INT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
 		"JSON":      {types.AutoGen{Name: "", GenerationType: ""}},

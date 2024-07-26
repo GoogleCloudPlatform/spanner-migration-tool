@@ -42,6 +42,14 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck == nil {
 		t.Errorf("Error in tinyint of sptype int64")
 	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"real", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in real of sptype string")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"real", []int64{1, 2, 3}, []int64{1, 2, 3}}, "FLOAT64")
+	if errCheck == nil {
+		t.Errorf("Error in real of sptype float64")
+	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{"float", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in float of sptype string")
@@ -117,7 +125,7 @@ func TestToSpannerType(t *testing.T) {
 	srcSchema := schema.Table{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c22"},
 		ColDefs: map[string]schema.Column{
 			"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
 			"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: "float"}},
@@ -134,6 +142,7 @@ func TestToSpannerType(t *testing.T) {
 			"c13": {Name: "m", Id: "c13", Type: schema.Type{Name: "geometry"}},
 			"c14": {Name: "n", Id: "c14", Type: schema.Type{Name: "bit"}},
 			"c15": {Name: "o", Id: "c15", Type: schema.Type{Name: "uniqueidentifier"}},
+			"c22": {Name: "p", Id: "c22", Type: schema.Type{Name: "real"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c1"}},
 		ForeignKeys: []schema.ForeignKey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c16"}, OnDelete: "", OnUpdate: ""},
@@ -171,7 +180,7 @@ func TestToSpannerType(t *testing.T) {
 	expected := ddl.CreateTable{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c22"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"c1":  {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 			"c2":  {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
@@ -188,6 +197,7 @@ func TestToSpannerType(t *testing.T) {
 			"c13": {Name: "m", Id: "c13", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"c14": {Name: "n", Id: "c14", T: ddl.Type{Name: ddl.Bool}},
 			"c15": {Name: "o", Id: "c15", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c22": {Name: "p", Id: "c22", T: ddl.Type{Name: ddl.Float32}},
 		},
 
 		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
@@ -201,7 +211,6 @@ func TestToSpannerType(t *testing.T) {
 		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{
 			"c1":  {internal.Widened},
-			"c2":  {internal.Widened},
 			"c3":  {internal.Widened},
 			"c10": {internal.Timestamp},
 			"c13": {internal.NoGoodType},
@@ -220,7 +229,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	srcSchema := schema.Table{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c22"},
 		ColDefs: map[string]schema.Column{
 			"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
 			"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: "float"}},
@@ -237,6 +246,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 			"c13": {Name: "m", Id: "c13", Type: schema.Type{Name: "geometry"}},
 			"c14": {Name: "n", Id: "c14", Type: schema.Type{Name: "bit"}},
 			"c15": {Name: "o", Id: "c15", Type: schema.Type{Name: "uniqueidentifier"}},
+			"c22": {Name: "p", Id: "c22", Type: schema.Type{Name: "real"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c1"}},
 		ForeignKeys: []schema.ForeignKey{{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c16"}, OnDelete: "", OnUpdate: ""},
@@ -274,7 +284,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	expected := ddl.CreateTable{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c22"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"c1":  {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 			"c2":  {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
@@ -291,6 +301,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 			"c13": {Name: "m", Id: "c13", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"c14": {Name: "n", Id: "c14", T: ddl.Type{Name: ddl.Bool}},
 			"c15": {Name: "o", Id: "c15", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c22": {Name: "p", Id: "c22", T: ddl.Type{Name: ddl.Float32}},
 		},
 
 		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
@@ -304,7 +315,6 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyActionNotSupported},
 		ColumnLevelIssues: map[string][]internal.SchemaIssue{
 			"c1":  {internal.Widened},
-			"c2":  {internal.Widened},
 			"c3":  {internal.Widened},
 			"c10": {internal.Timestamp},
 			"c13": {internal.NoGoodType},

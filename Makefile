@@ -5,7 +5,7 @@ ifndef $(GOPATH)
 endif
 # Build the default binary
 build:
-	cd ui/ && ng build
+	cd ui/ && npm install && ng build
 	go build -o spanner-migration-tool
 # Build a static binary
 build-static:
