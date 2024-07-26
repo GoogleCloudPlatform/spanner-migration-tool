@@ -54,12 +54,12 @@ func TestProcessPgDump(t *testing.T) {
 		{"decimal", ddl.Type{Name: ddl.Numeric}}, // pg parser maps this to numeric.
 		{"double precision", ddl.Type{Name: ddl.Float64}},
 		{"float8", ddl.Type{Name: ddl.Float64}},
-		{"float4", ddl.Type{Name: ddl.Float64}},
+		{"float4", ddl.Type{Name: ddl.Float32}},
 		{"integer", ddl.Type{Name: ddl.Int64}},
 		{"numeric", ddl.Type{Name: ddl.Numeric}},
 		{"numeric(4)", ddl.Type{Name: ddl.Numeric}},
 		{"numeric(6, 4)", ddl.Type{Name: ddl.Numeric}},
-		{"real", ddl.Type{Name: ddl.Float64}},
+		{"real", ddl.Type{Name: ddl.Float32}},
 		{"smallint", ddl.Type{Name: ddl.Int64}},
 		{"text", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}},
@@ -635,7 +635,7 @@ COPY test (id, a, b, c) FROM stdin;
 \.
 `,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), float64(5.44444)}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), float32(5.44444)}}},
 		},
 		{
 			name: "Data conversion: int8, int4, int2, numeric",
@@ -689,30 +689,32 @@ COPY test (id, a, b, c, d, e, f, g) FROM stdin;
 		{
 			// Test bad data for each scalar type (except text, which accepts all values) and an array type.
 			name: "Data conversion errors",
-			input: "CREATE TABLE test (int8 int8, float8 float8, bool bool, timestamp timestamp, date date, bytea bytea, arr integer array);\n" +
-				"COPY public.test (int8, float8, bool, timestamp, date, bytea, arr) FROM stdin;\n" +
-				"7	42.1	true	2019-10-29 05:30:00	2019-10-29	\\\\x0001beef	{42,6}\n" + // Baseline (good)
-				"7	\\N	\\N	\\N	\\N	\\N	\\N\n" + // Good
-				"7-	\\N	\\N	\\N	\\N	\\N	\\N\n" + // Error
-				"\\N	42.1	\\N	\\N	\\N	\\N	\\N\n" + // Good
-				"\\N	4.2.1	\\N	\\N	\\N	\\N	\\N\n" + // Error
-				"\\N	\\N	true	\\N	\\N	\\N	\\N\n" + // Good
-				"\\N	\\N	truefalse	\\N	\\N	\\N	\\N\n" + // Error
-				"\\N	\\N	\\N	2019-10-29 05:30:00	\\N	\\N	\\N\n" + // Good
-				"\\N	\\N	\\N	2019-100-29 05:30:00	\\N	\\N	\\N\n" + // Error
-				"\\N	\\N	\\N	\\N	2019-10-29	\\N	\\N\n" + // Good
-				"\\N	\\N	\\N	\\N	2019-10-42	\\N	\\N\n" + // Error
-				"\\N	\\N	\\N	\\N	\\N	\\\\x0001beef	\\N\n" + // Good
-				"\\N	\\N	\\N	\\N	\\N	\\ \\x0001beef	\\N\n" + // Error
-				"\\N	\\N	\\N	\\N	\\N	\\N	{42,6}\n" + // Good
-				"\\N	\\N	\\N	\\N	\\N	\\N	{42, 6}\n" + // Error
+			input: "CREATE TABLE test (int8 int8, float8 float8, bool bool, timestamp timestamp, date date, bytea bytea, arr integer array, float4 float4);\n" +
+				"COPY public.test (int8, float8, bool, timestamp, date, bytea, arr, float4) FROM stdin;\n" +
+				"7	42.1	true	2019-10-29 05:30:00	2019-10-29	\\\\x0001beef	{42,6}	3.14\n" + // Baseline (good)
+				"7	\\N	\\N	\\N	\\N	\\N	\\N	\\N\n" + // Good
+				"7-	\\N	\\N	\\N	\\N	\\N	\\N	\\N\n" + // Error
+				"\\N	42.1	\\N	\\N	\\N	\\N	\\N	\\N\n" + // Good
+				"\\N	4.2.1	\\N	\\N	\\N	\\N	\\N	\\N\n" + // Error
+				"\\N	\\N	true	\\N	\\N	\\N	\\N	\\N\n" + // Good
+				"\\N	\\N	truefalse	\\N	\\N	\\N	\\N	\\N\n" + // Error
+				"\\N	\\N	\\N	2019-10-29 05:30:00	\\N	\\N	\\N	\\N\n" + // Good
+				"\\N	\\N	\\N	2019-100-29 05:30:00	\\N	\\N	\\N	\\N\n" + // Error
+				"\\N	\\N	\\N	\\N	2019-10-29	\\N	\\N	\\N\n" + // Good
+				"\\N	\\N	\\N	\\N	2019-10-42	\\N	\\N	\\N\n" + // Error
+				"\\N	\\N	\\N	\\N	\\N	\\\\x0001beef	\\N	\\N\n" + // Good
+				"\\N	\\N	\\N	\\N	\\N	\\ \\x0001beef	\\N	\\N\n" + // Error
+				"\\N	\\N	\\N	\\N	\\N	\\N	{42,6}	\\N\n" + // Good
+				"\\N	\\N	\\N	\\N	\\N	\\N	{42, 6}	\\N\n" + // Good
+				"\\N	\\N	\\N	\\N	\\N	\\N	\\N	3.14\n" + // Good
+				"\\N	\\N	\\N	\\N	\\N	\\N	\\N	3.1.4\n" + // Error
 				"\\.\n",
 			expectedData: []spannerData{
 				spannerData{
-					table: "test", cols: []string{"int8", "float8", "bool", "timestamp", "date", "bytea", "arr", "synth_id"},
+					table: "test", cols: []string{"int8", "float8", "bool", "timestamp", "date", "bytea", "arr", "float4", "synth_id"},
 					vals: []interface{}{int64(7), float64(42.1), true, getTime(t, "2019-10-29T05:30:00Z"),
 						getDate("2019-10-29"), []byte{0x0, 0x1, 0xbe, 0xef},
-						"{42,6}",
+						"{42,6}", float32(3.14),
 						fmt.Sprintf("%d", bitReverse(0))}},
 				spannerData{table: "test", cols: []string{"int8", "synth_id"}, vals: []interface{}{int64(7), fmt.Sprintf("%d", bitReverse(1))}},
 				spannerData{table: "test", cols: []string{"float8", "synth_id"}, vals: []interface{}{float64(42.1), fmt.Sprintf("%d", bitReverse(2))}},
@@ -724,13 +726,14 @@ COPY test (id, a, b, c, d, e, f, g) FROM stdin;
 					vals: []interface{}{"{42,6}", fmt.Sprintf("%d", bitReverse(7))}},
 				spannerData{table: "test", cols: []string{"arr", "synth_id"},
 					vals: []interface{}{"{42, 6}", fmt.Sprintf("%d", bitReverse(8))}},
+				spannerData{table: "test", cols: []string{"float4", "synth_id"}, vals: []interface{}{float32(3.14), fmt.Sprintf("%d", bitReverse(9))}},
 			},
 		},
 	}
 	for _, tc := range dataErrorTests {
 		conv, rows := runProcessPgDump(tc.input)
 		assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-		assert.Equal(t, conv.BadRows(), int64(6), tc.name+": Error count did not match")
+		assert.Equal(t, conv.BadRows(), int64(7), tc.name+": Error count did not match")
 	}
 }
 
@@ -749,12 +752,12 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 		{"decimal", ddl.Type{Name: ddl.Numeric}}, // pg parser maps this to numeric.
 		{"double precision", ddl.Type{Name: ddl.Float64}},
 		{"float8", ddl.Type{Name: ddl.Float64}},
-		{"float4", ddl.Type{Name: ddl.Float64}},
+		{"float4", ddl.Type{Name: ddl.Float32}},
 		{"integer", ddl.Type{Name: ddl.Int64}},
 		{"numeric", ddl.Type{Name: ddl.Numeric}},
 		{"numeric(4)", ddl.Type{Name: ddl.Numeric}},
 		{"numeric(6, 4)", ddl.Type{Name: ddl.Numeric}},
-		{"real", ddl.Type{Name: ddl.Float64}},
+		{"real", ddl.Type{Name: ddl.Float32}},
 		{"smallint", ddl.Type{Name: ddl.Int64}},
 		{"text", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}},
@@ -1311,7 +1314,7 @@ COPY test (id, a, b, c) FROM stdin;
 \.
 `,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), float64(5.44444)}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), float32(5.44444)}}},
 		},
 		{
 			name: "Data conversion: int8, int4, int2, numeric",
@@ -1364,30 +1367,32 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 		{
 			// Test bad data for each scalar type (except text, which accepts all values) and an array type.
 			name: "Data conversion errors",
-			input: "CREATE TABLE test (int8 int8, float8 float8, bool bool, timestamp timestamp, date date, bytea bytea, arr integer array);\n" +
-				"COPY public.test (int8, float8, bool, timestamp, date, bytea, arr) FROM stdin;\n" +
-				"7	42.1	true	2019-10-29 05:30:00	2019-10-29	\\\\x0001beef	{42,6}\n" + // Baseline (good)
-				"7	\\N	\\N	\\N	\\N	\\N	\\N\n" + // Good
-				"7-	\\N	\\N	\\N	\\N	\\N	\\N\n" + // Error
-				"\\N	42.1	\\N	\\N	\\N	\\N	\\N\n" + // Good
-				"\\N	4.2.1	\\N	\\N	\\N	\\N	\\N\n" + // Error
-				"\\N	\\N	true	\\N	\\N	\\N	\\N\n" + // Good
-				"\\N	\\N	truefalse	\\N	\\N	\\N	\\N\n" + // Error
-				"\\N	\\N	\\N	2019-10-29 05:30:00	\\N	\\N	\\N\n" + // Good
-				"\\N	\\N	\\N	2019-100-29 05:30:00	\\N	\\N	\\N\n" + // Error
-				"\\N	\\N	\\N	\\N	2019-10-29	\\N	\\N\n" + // Good
-				"\\N	\\N	\\N	\\N	2019-10-42	\\N	\\N\n" + // Error
-				"\\N	\\N	\\N	\\N	\\N	\\\\x0001beef	\\N\n" + // Good
-				"\\N	\\N	\\N	\\N	\\N	\\ \\x0001beef	\\N\n" + // Error
-				"\\N	\\N	\\N	\\N	\\N	\\N	{42,6}\n" + // Good
-				"\\N	\\N	\\N	\\N	\\N	\\N	{42, 6}\n" + // Good
+			input: "CREATE TABLE test (int8 int8, float8 float8, bool bool, timestamp timestamp, date date, bytea bytea, arr integer array, float4 float4);\n" +
+				"COPY public.test (int8, float8, bool, timestamp, date, bytea, arr, float4) FROM stdin;\n" +
+				"7	42.1	true	2019-10-29 05:30:00	2019-10-29	\\\\x0001beef	{42,6}	3.14\n" + // Baseline (good)
+				"7	\\N	\\N	\\N	\\N	\\N	\\N	\\N\n" + // Good
+				"7-	\\N	\\N	\\N	\\N	\\N	\\N	\\N\n" + // Error
+				"\\N	42.1	\\N	\\N	\\N	\\N	\\N	\\N\n" + // Good
+				"\\N	4.2.1	\\N	\\N	\\N	\\N	\\N	\\N\n" + // Error
+				"\\N	\\N	true	\\N	\\N	\\N	\\N	\\N\n" + // Good
+				"\\N	\\N	truefalse	\\N	\\N	\\N	\\N	\\N\n" + // Error
+				"\\N	\\N	\\N	2019-10-29 05:30:00	\\N	\\N	\\N	\\N\n" + // Good
+				"\\N	\\N	\\N	2019-100-29 05:30:00	\\N	\\N	\\N	\\N\n" + // Error
+				"\\N	\\N	\\N	\\N	2019-10-29	\\N	\\N	\\N\n" + // Good
+				"\\N	\\N	\\N	\\N	2019-10-42	\\N	\\N	\\N\n" + // Error
+				"\\N	\\N	\\N	\\N	\\N	\\\\x0001beef	\\N	\\N\n" + // Good
+				"\\N	\\N	\\N	\\N	\\N	\\ \\x0001beef	\\N	\\N\n" + // Error
+				"\\N	\\N	\\N	\\N	\\N	\\N	{42,6}	\\N\n" + // Good
+				"\\N	\\N	\\N	\\N	\\N	\\N	{42, 6}	\\N\n" + // Good
+				"\\N	\\N	\\N	\\N	\\N	\\N	\\N	3.14\n" + // Good
+				"\\N	\\N	\\N	\\N	\\N	\\N	\\N	3.1.4\n" + // Error
 				"\\.\n",
 			expectedData: []spannerData{
 				spannerData{
-					table: "test", cols: []string{"int8", "float8", "bool", "timestamp", "date", "bytea", "arr", "synth_id"},
+					table: "test", cols: []string{"int8", "float8", "bool", "timestamp", "date", "bytea", "arr", "float4", "synth_id"},
 					vals: []interface{}{int64(7), float64(42.1), true, getTime(t, "2019-10-29T05:30:00Z"),
 						getDate("2019-10-29"), []byte{0x0, 0x1, 0xbe, 0xef},
-						"{42,6}",
+						"{42,6}", float32(3.14),
 						fmt.Sprintf("%d", bitReverse(0))}},
 				spannerData{table: "test", cols: []string{"int8", "synth_id"}, vals: []interface{}{int64(7), fmt.Sprintf("%d", bitReverse(1))}},
 				spannerData{table: "test", cols: []string{"float8", "synth_id"}, vals: []interface{}{float64(42.1), fmt.Sprintf("%d", bitReverse(2))}},
@@ -1397,13 +1402,14 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 				spannerData{table: "test", cols: []string{"bytea", "synth_id"}, vals: []interface{}{[]byte{0x0, 0x1, 0xbe, 0xef}, fmt.Sprintf("%d", bitReverse(6))}},
 				spannerData{table: "test", cols: []string{"arr", "synth_id"}, vals: []interface{}{"{42,6}", fmt.Sprintf("%d", bitReverse(7))}},
 				spannerData{table: "test", cols: []string{"arr", "synth_id"}, vals: []interface{}{"{42, 6}", fmt.Sprintf("%d", bitReverse(8))}},
+				spannerData{table: "test", cols: []string{"float4", "synth_id"}, vals: []interface{}{float32(3.14), fmt.Sprintf("%d", bitReverse(9))}},
 			},
 		},
 	}
 	for _, tc := range dataErrorTests {
 		conv, rows := runProcessPgDumpPGTarget(tc.input)
 		assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-		assert.Equal(t, conv.BadRows(), int64(6), tc.name+": Error count did not match")
+		assert.Equal(t, conv.BadRows(), int64(7), tc.name+": Error count did not match")
 	}
 }
 

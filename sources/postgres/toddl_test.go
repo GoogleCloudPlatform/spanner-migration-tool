@@ -67,6 +67,10 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck == nil {
 		t.Errorf("Error in float4 to string conversion")
 	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"float4", []int64{}, []int64{1, 2, 3}}, "FLOAT64")
+	if errCheck == nil {
+		t.Errorf("Error in float4 to float64 conversion")
+	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{"int8", []int64{}, []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in int8 to string conversion")
@@ -124,14 +128,15 @@ func TestToSpannerType(t *testing.T) {
 	srcSchema := schema.Table{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c13"},
 		ColDefs: map[string]schema.Column{
-			"c1": schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "int8"}},
-			"c2": schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "float4"}},
-			"c3": schema.Column{Name: "c", Id: "c3", Type: schema.Type{Name: "bool"}},
-			"c4": schema.Column{Name: "d", Id: "c4", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-			"c5": schema.Column{Name: "e", Id: "c5", Type: schema.Type{Name: "numeric"}},
-			"c6": schema.Column{Name: "f", Id: "c6", Type: schema.Type{Name: "timestamptz"}},
+			"c1":  schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "int8"}},
+			"c2":  schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "float8"}},
+			"c3":  schema.Column{Name: "c", Id: "c3", Type: schema.Type{Name: "bool"}},
+			"c4":  schema.Column{Name: "d", Id: "c4", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+			"c5":  schema.Column{Name: "e", Id: "c5", Type: schema.Type{Name: "numeric"}},
+			"c6":  schema.Column{Name: "f", Id: "c6", Type: schema.Type{Name: "timestamptz"}},
+			"c13": schema.Column{Name: "g", Id: "c13", Type: schema.Type{Name: "float4"}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{ColId: "c1"}},
 		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_RESTRICT},
@@ -146,7 +151,7 @@ func TestToSpannerType(t *testing.T) {
 		ColIds: []string{"c7", "c8", "c9"},
 		ColDefs: map[string]schema.Column{
 			"c7": {Name: "dref", Id: "c7", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-			"c8": {Name: "b", Id: "c8", Type: schema.Type{Name: "float4"}},
+			"c8": {Name: "b", Id: "c8", Type: schema.Type{Name: "float8"}},
 			"c9": {Name: "c", Id: "c9", Type: schema.Type{Name: "bool"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c7"}},
@@ -157,7 +162,7 @@ func TestToSpannerType(t *testing.T) {
 		ColIds: []string{"c10", "c11", "c12"},
 		ColDefs: map[string]schema.Column{
 			"c10": {Name: "aref", Id: "c10", Type: schema.Type{Name: "int8"}},
-			"c11": {Name: "b", Id: "c11", Type: schema.Type{Name: "float4"}},
+			"c11": {Name: "b", Id: "c11", Type: schema.Type{Name: "float8"}},
 			"c12": {Name: "c", Id: "c12", Type: schema.Type{Name: "bool"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c10"}},
@@ -170,14 +175,15 @@ func TestToSpannerType(t *testing.T) {
 	expected := ddl.CreateTable{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c13"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"c1": ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
-			"c2": ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
-			"c3": ddl.ColumnDef{Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bool}},
-			"c4": ddl.ColumnDef{Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-			"c5": ddl.ColumnDef{Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Numeric}},
-			"c6": ddl.ColumnDef{Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Timestamp}},
+			"c1":  ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+			"c2":  ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
+			"c3":  ddl.ColumnDef{Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bool}},
+			"c4":  ddl.ColumnDef{Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
+			"c5":  ddl.ColumnDef{Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Numeric}},
+			"c6":  ddl.ColumnDef{Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Timestamp}},
+			"c13": ddl.ColumnDef{Name: "g", Id: "c13", T: ddl.Type{Name: ddl.Float32}},
 		},
 		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1"}},
 		ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION},
@@ -187,9 +193,8 @@ func TestToSpannerType(t *testing.T) {
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := internal.TableIssues{
-		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete, internal.ForeignKeyOnUpdate},
-		ColumnLevelIssues: map[string][]internal.SchemaIssue{
-			"c2": []internal.SchemaIssue{internal.Widened}},
+		TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyOnDelete, internal.ForeignKeyOnUpdate},
+		ColumnLevelIssues: map[string][]internal.SchemaIssue{},
 	}
 	actualIssues := conv.SchemaIssues[tableId]
 	sort.Slice(actualIssues.TableLevelIssues, func(i, j int) bool {
@@ -211,15 +216,16 @@ func TestToExperimentalSpannerType(t *testing.T) {
 	srcSchema := schema.Table{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c13"},
 		ColDefs: map[string]schema.Column{
-			"c1": schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "int8"}},
-			"c2": schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "float4"}},
-			"c3": schema.Column{Name: "c", Id: "c3", Type: schema.Type{Name: "bool"}},
-			"c4": schema.Column{Name: "d", Id: "c4", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-			"c5": schema.Column{Name: "e", Id: "c5", Type: schema.Type{Name: "numeric"}},
-			"c6": schema.Column{Name: "f", Id: "c6", Type: schema.Type{Name: "date"}},
-			"c7": schema.Column{Name: "g", Id: "c7", Type: schema.Type{Name: "json"}},
+			"c1":  schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "int8"}},
+			"c2":  schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "float8"}},
+			"c3":  schema.Column{Name: "c", Id: "c3", Type: schema.Type{Name: "bool"}},
+			"c4":  schema.Column{Name: "d", Id: "c4", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+			"c5":  schema.Column{Name: "e", Id: "c5", Type: schema.Type{Name: "numeric"}},
+			"c6":  schema.Column{Name: "f", Id: "c6", Type: schema.Type{Name: "date"}},
+			"c7":  schema.Column{Name: "g", Id: "c7", Type: schema.Type{Name: "json"}},
+			"c13": schema.Column{Name: "h", Id: "c13", Type: schema.Type{Name: "float4"}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{ColId: "c1"}},
 		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_RESTRICT},
@@ -234,7 +240,7 @@ func TestToExperimentalSpannerType(t *testing.T) {
 		ColIds: []string{"c7", "c8", "c9"},
 		ColDefs: map[string]schema.Column{
 			"c7": {Name: "dref", Id: "c7", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-			"c8": {Name: "b", Id: "c8", Type: schema.Type{Name: "float4"}},
+			"c8": {Name: "b", Id: "c8", Type: schema.Type{Name: "float8"}},
 			"c9": {Name: "c", Id: "c9", Type: schema.Type{Name: "bool"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c7"}},
@@ -245,7 +251,7 @@ func TestToExperimentalSpannerType(t *testing.T) {
 		ColIds: []string{"c10", "c11", "c12"},
 		ColDefs: map[string]schema.Column{
 			"c10": {Name: "aref", Id: "c10", Type: schema.Type{Name: "int8"}},
-			"c11": {Name: "b", Id: "c11", Type: schema.Type{Name: "float4"}},
+			"c11": {Name: "b", Id: "c11", Type: schema.Type{Name: "float8"}},
 			"c12": {Name: "c", Id: "c12", Type: schema.Type{Name: "bool"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c10"}},
@@ -258,15 +264,16 @@ func TestToExperimentalSpannerType(t *testing.T) {
 	expected := ddl.CreateTable{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c13"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"c1": ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
-			"c2": ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
-			"c3": ddl.ColumnDef{Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bool}},
-			"c4": ddl.ColumnDef{Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-			"c5": ddl.ColumnDef{Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Numeric}},
-			"c6": ddl.ColumnDef{Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Date}},
-			"c7": ddl.ColumnDef{Name: "g", Id: "c7", T: ddl.Type{Name: ddl.JSON}},
+			"c1":  ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+			"c2":  ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
+			"c3":  ddl.ColumnDef{Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bool}},
+			"c4":  ddl.ColumnDef{Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
+			"c5":  ddl.ColumnDef{Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Numeric}},
+			"c6":  ddl.ColumnDef{Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Date}},
+			"c7":  ddl.ColumnDef{Name: "g", Id: "c7", T: ddl.Type{Name: ddl.JSON}},
+			"c13": ddl.ColumnDef{Name: "h", Id: "c13", T: ddl.Type{Name: ddl.Float32}},
 		},
 		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1"}},
 		ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c7"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION},
@@ -276,9 +283,8 @@ func TestToExperimentalSpannerType(t *testing.T) {
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := internal.TableIssues{
-		TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete, internal.ForeignKeyOnUpdate},
-		ColumnLevelIssues: map[string][]internal.SchemaIssue{
-			"c2": []internal.SchemaIssue{internal.Widened}},
+		TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyOnDelete, internal.ForeignKeyOnUpdate},
+		ColumnLevelIssues: map[string][]internal.SchemaIssue{},
 	}
 	actualIssues := conv.SchemaIssues[tableId]
 	sort.Slice(actualIssues.TableLevelIssues, func(i, j int) bool {

@@ -31,7 +31,7 @@ Spanner migration tool makes some assumptions while performing data type convers
 | ROWVERSION             | INT64        |
 | BIT                    | BOOL         |
 | FLOAT                  | FLOAT64      |
-| REAL                   | FLOAT64      |
+| REAL                   | FLOAT32      |
 | NUMERIC                | NUMERIC      |
 | DECIMAL                | NUMERIC      |
 | MONEY                  | NUMERIC      |
@@ -60,13 +60,13 @@ Spanner migration tool makes some assumptions while performing data type convers
 
 ## Spatial datatypes
 
-SQL Server supports `SPATIAL GEOGRAPHY` and `SPATIAL GEOMETRY` datatypes however, Spanner 
+SQL Server supports `SPATIAL GEOGRAPHY` and `SPATIAL GEOMETRY` datatypes however, Spanner
 does not support spatial data types.
 These datatype are currently mapped to standard `STRING` Spanner datatype.
 
 ## TIMESTAMP
 
-The `TIMESTAMP` datatype (deprecated in the newer versions of SQL Server) 
+The `TIMESTAMP` datatype (deprecated in the newer versions of SQL Server)
 was used for Row versioning. Hence, it is mapped to INT64 to keep it consistent
 with the `ROWVERSION` data type.
 
@@ -83,10 +83,10 @@ primary keys for all tables, but does not enforce this. When converting a table
 without a primary key:
 
 - Spanner migration tool will check for `UNIQUE` constraints on the table. If found, it
-will automatically pick any one of the unique constraints and convert it to a 
+will automatically pick any one of the unique constraints and convert it to a
 primary key.
-- If no `UNIQUE` constraints are present, Spanner migration tool will create a new primary 
-key column of type INT64. By default, the name of the new column is `synth_id`. 
+- If no `UNIQUE` constraints are present, Spanner migration tool will create a new primary
+key column of type INT64. By default, the name of the new column is `synth_id`.
 - If there is already a column with that name, then a variation is used to avoid collisions.
 
 ## NOT NULL Constraints
@@ -118,6 +118,6 @@ maps `UNIQUE` constraint into `UNIQUE` secondary index.
 ## Other SQL Server features
 
 SQL Server has many other features we haven't discussed, including functions,
-sequences, procedures, triggers and views which are currently not supported in Spanner. 
+sequences, procedures, triggers and views which are currently not supported in Spanner.
 The tool does not support these and the relevant schema info is ignored during schema
 conversion.

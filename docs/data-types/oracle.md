@@ -32,7 +32,7 @@ In Oracle DB, USER is the account name, SCHEMA is the set of objects owned by th
 | ---------------------- | ------------ |
 | NUMBER (* , 0)         | INT64        |
 | FLOAT                  | FLOAT64      |
-| BINARY_FLOAT           | FLOAT64      |
+| BINARY_FLOAT           | FLOAT32      |
 | BINARY_DOUBLE          | FLOAT64      |
 | NUMBER (* , >0)        | NUMERIC      |
 | CHAR                   | STRING(1)    |

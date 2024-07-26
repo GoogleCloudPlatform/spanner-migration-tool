@@ -33,8 +33,8 @@ import (
 func TestProcessDataRow(t *testing.T) {
 	tableName := "testtable"
 	tableId := "t1"
-	cols := []string{"a", "b", "c"}
-	colIds := []string{"c1", "c2", "c3"}
+	cols := []string{"a", "b", "c", "d"}
+	colIds := []string{"c1", "c2", "c3", "c4"}
 	conv := buildConv(
 		ddl.CreateTable{
 			Name:   tableName,
@@ -44,6 +44,7 @@ func TestProcessDataRow(t *testing.T) {
 				"c1": ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Float64}},
 				"c2": ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}},
 				"c3": ddl.ColumnDef{Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c4": ddl.ColumnDef{Name: "d", Id: "c4", T: ddl.Type{Name: ddl.Float32}},
 			}},
 		schema.Table{
 			Name:   tableName,
@@ -53,6 +54,7 @@ func TestProcessDataRow(t *testing.T) {
 				"c1": schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "float"}},
 				"c2": schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "int"}},
 				"c3": schema.Column{Name: "c", Id: "c3", Type: schema.Type{Name: "text"}},
+				"c4": schema.Column{Name: "d", Id: "c4", Type: schema.Type{Name: "real"}},
 			}})
 	conv.SetDataMode()
 	var rows []spannerData
@@ -60,8 +62,8 @@ func TestProcessDataRow(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	ProcessDataRow(conv, tableId, colIds, []string{"4.2", "6", "prisoner zero"})
-	assert.Equal(t, []spannerData{spannerData{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero"}}}, rows)
+	ProcessDataRow(conv, tableId, colIds, []string{"4.2", "6", "prisoner zero", "3.14"})
+	assert.Equal(t, []spannerData{spannerData{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero", float32(3.14)}}}, rows)
 }
 
 func TestConvertData(t *testing.T) {
@@ -75,6 +77,7 @@ func TestConvertData(t *testing.T) {
 		{"bool", ddl.Type{Name: ddl.Bool}, "", "true", true},
 		{"bytes", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, "", `\x0001beef`, []byte{0x0, 0x1, 0xbe, 0xef}},
 		{"date", ddl.Type{Name: ddl.Date}, "", "2019-10-29", getDate("2019-10-29")},
+		{"float32", ddl.Type{Name: ddl.Float32}, "", "3.14", float32(3.14)},
 		{"float64", ddl.Type{Name: ddl.Float64}, "", "42.6", float64(42.6)},
 		{"int64", ddl.Type{Name: ddl.Int64}, "", "42", int64(42)},
 		{"string", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, "", "eh", "eh"},
@@ -92,6 +95,11 @@ func TestConvertData(t *testing.T) {
 			spanner.NullDate{Date: getDate("2019-10-29"), Valid: true},
 			spanner.NullDate{Valid: false},
 			spanner.NullDate{Date: getDate("2019-10-28"), Valid: true}}},
+		{"float32 array", ddl.Type{Name: ddl.Float32, IsArray: true}, "", "{1.1,NULL,2.2,3.3}", []spanner.NullFloat32{
+			spanner.NullFloat32{Float32: 1.1, Valid: true},
+			spanner.NullFloat32{Valid: false},
+			spanner.NullFloat32{Float32: 2.2, Valid: true},
+			spanner.NullFloat32{Float32: 3.3, Valid: true}}},
 		{"float64 array", ddl.Type{Name: ddl.Float64, IsArray: true}, "", "{1.1,NULL,2.2,3.3}", []spanner.NullFloat64{
 			spanner.NullFloat64{Float64: 1.1, Valid: true},
 			spanner.NullFloat64{Valid: false},

@@ -38,8 +38,8 @@ type spannerData struct {
 func TestProcessDataRow(t *testing.T) {
 	tableName := "testtable"
 	tableId := "t1"
-	cols := []string{"a", "b", "c", "d"}
-	colIds := []string{"c1", "c2", "c3", "c4"}
+	cols := []string{"a", "b", "c", "d", "e"}
+	colIds := []string{"c1", "c2", "c3", "c4", "c5"}
 	conv := buildConv(
 		ddl.CreateTable{
 			Name:   tableName,
@@ -50,6 +50,7 @@ func TestProcessDataRow(t *testing.T) {
 				"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}},
 				"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Timestamp}},
 				"c4": {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
+				"c5": {Name: "e", Id: "c5", T: ddl.Type{Name: ddl.Float32}},
 			}},
 		schema.Table{
 			Name:   tableName,
@@ -60,14 +61,15 @@ func TestProcessDataRow(t *testing.T) {
 				"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "NUMER"}},
 				"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "TIMESTAMP(6)"}},
 				"c4": {Name: "d", Id: "c4", Type: schema.Type{Name: "CHAR", Mods: []int64{1}}},
+				"c5": {Name: "e", Id: "c5", Type: schema.Type{Name: "BINARY_FLOAT"}},
 			}})
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {
 		rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 	})
-	ProcessDataRow(conv, tableId, colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], []string{"4.2", "6", "2022-01-19T09:34:06.47Z", "p"})
-	assert.Equal(t, []spannerData{{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), getTime("2022-01-19T09:34:06.47Z"), "p"}}}, rows)
+	ProcessDataRow(conv, tableId, colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], []string{"4.2", "6", "2022-01-19T09:34:06.47Z", "p", "3.14"})
+	assert.Equal(t, []spannerData{{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), getTime("2022-01-19T09:34:06.47Z"), "p", float32(3.14)}}}, rows)
 }
 
 func TestConvertData(t *testing.T) {
@@ -85,6 +87,7 @@ func TestConvertData(t *testing.T) {
 	}{
 		{"bytes", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, "", string([]byte{137, 80}), []byte{0x89, 0x50}}, // need some other approach to testblob type
 		{"date", ddl.Type{Name: ddl.Date}, "", "2019-10-29", getDate("2019-10-29")},
+		{"binary_float", ddl.Type{Name: ddl.Float32}, "", "3.14", float32(3.14)},
 		{"float", ddl.Type{Name: ddl.Float64}, "", "42.6", float64(42.6)},
 		{"int", ddl.Type{Name: ddl.Int64}, "", "42", int64(42)},
 		{"string", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, "VARCHAR2", "eh", "eh"},
@@ -94,8 +97,9 @@ func TestConvertData(t *testing.T) {
 		{"bool", ddl.Type{Name: ddl.Bool}, "CHAR(1)", "T", true},
 		{"arrayStr", ddl.Type{Name: ddl.String, IsArray: true}, "", "[\"CA\",\"CDSC\",\"DSCCS\"]", []spanner.NullString{{StringVal: "CA", Valid: true}, {StringVal: "CDSC", Valid: true}, {StringVal: "DSCCS", Valid: true}}},
 		{"arrayInt", ddl.Type{Name: ddl.Int64, IsArray: true}, "", "[1,2,3]", []spanner.NullInt64{{Int64: 1, Valid: true}, {Int64: 2, Valid: true}, {Int64: 3, Valid: true}}},
+		{"arrayBinaryFloat", ddl.Type{Name: ddl.Float32, IsArray: true}, "", "[1.5,0.00002,357657]", []spanner.NullFloat32{{Float32: 1.5, Valid: true}, {Float32: 0.00002, Valid: true}, {Float32: 357657, Valid: true}}},
 		{"arrayFloat", ddl.Type{Name: ddl.Float64, IsArray: true}, "", "[1.5,0.00002,357657]", []spanner.NullFloat64{{Float64: 1.5, Valid: true}, {Float64: 0.00002, Valid: true}, {Float64: 357657, Valid: true}}},
-		{"arrayFloat", ddl.Type{Name: ddl.Date, IsArray: true}, "", "[\"2022-04-12\", \"2022-11-12\", \"2022-09-12\"]", getDateArray()},
+		{"arrayDate", ddl.Type{Name: ddl.Date, IsArray: true}, "", "[\"2022-04-12\", \"2022-11-12\", \"2022-09-12\"]", getDateArray()},
 		{"object", ddl.Type{Name: ddl.JSON}, "OBJECT", "<PERSON_TYP><IDNO>1</IDNO><NAME>test</NAME><PHONE>123456</PHONE></PERSON_TYP>", outputJson},
 	}
 	tableName := "testtable"
@@ -198,19 +202,19 @@ func TestConvertMultiColData(t *testing.T) {
 	}{
 		{
 			name:   "Cols in order",
-			cols:   []string{"a", "b", "c"},
-			colIds: []string{"c1", "c2", "c3"},
-			vals:   []string{"6", "6.6", "1"},
-			ecols:  []string{"a", "b", "c"},
-			evals:  []interface{}{int64(6), float64(6.6), "1"},
+			cols:   []string{"a", "b", "c", "d"},
+			colIds: []string{"c1", "c2", "c3", "c4"},
+			vals:   []string{"6", "6.6", "1", "3.14"},
+			ecols:  []string{"a", "b", "c", "d"},
+			evals:  []interface{}{int64(6), float64(6.6), "1", float32(3.14)},
 		},
 		{
 			name:   "Cols out of order",
-			cols:   []string{"b", "c", "a"},
-			colIds: []string{"c2", "c3", "c1"},
-			vals:   []string{"6.6", "1", "6"},
-			ecols:  []string{"b", "c", "a"},
-			evals:  []interface{}{float64(6.6), "1", int64(6)},
+			cols:   []string{"b", "c", "d", "a"},
+			colIds: []string{"c2", "c3", "c4", "c1"},
+			vals:   []string{"6.6", "1", "3.14", "6"},
+			ecols:  []string{"b", "c", "d", "a"},
+			evals:  []interface{}{float64(6.6), "1", float32(3.14), int64(6)},
 		},
 		{
 			name:   "Null column",
@@ -231,7 +235,7 @@ func TestConvertMultiColData(t *testing.T) {
 	}
 	tableName := "testtable"
 	tableId := "t1"
-	colIds := []string{"c1", "c2", "c3"}
+	colIds := []string{"c1", "c2", "c3", "c4"}
 	spTable := ddl.CreateTable{
 		Name:   tableName,
 		Id:     tableId,
@@ -240,6 +244,7 @@ func TestConvertMultiColData(t *testing.T) {
 			"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 			"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
 			"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
+			"c4": {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.Float32}},
 		}}
 	srcTable := schema.Table{
 		Name:   tableName,
@@ -249,6 +254,7 @@ func TestConvertMultiColData(t *testing.T) {
 			"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "NUMBER", Mods: []int64{5}}},
 			"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "FLOAT"}},
 			"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "CHAR", Mods: []int64{1}}},
+			"c4": {Name: "d", Id: "c4", Type: schema.Type{Name: "BINARY_FLOAT"}},
 		}}
 	for _, tc := range multiColTests {
 		t.Run(tc.name, func(t *testing.T) {
