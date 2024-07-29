@@ -31,7 +31,7 @@ type ToDdlImpl struct {
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type, isPk bool) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(srcType, spType)
 	if len(srcType.ArrayBounds) > 1 {
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
@@ -43,7 +43,9 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 		issues = append(issues, internal.ArrayTypeNotSupported)
 	}
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
-		ty = common.ToPGDialectType(ty)
+		var pg_issues []internal.SchemaIssue
+		ty, pg_issues = common.ToPGDialectType(ty, isPk)
+		issues = append(issues, pg_issues...)
 	}
 	return ty, issues
 }

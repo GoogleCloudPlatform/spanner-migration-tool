@@ -33,22 +33,23 @@ func GetType(conv *internal.Conv, newType, tableId, colId string) (ddl.CreateTab
 
 	sp := conv.SpSchema[tableId]
 	srcCol := conv.SrcSchema[tableId].ColDefs[colId]
+	isPk := common.IsPrimaryKey(colId, conv.SrcSchema[tableId])
 	var ty ddl.Type
 	var issues []internal.SchemaIssue
 	var toddl common.ToDdl
 	switch sessionState.Driver {
 	case constants.MYSQL, constants.MYSQLDUMP:
 		toddl = mysql.InfoSchemaImpl{}.GetToDdl()
-		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
+		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type, isPk)
 	case constants.PGDUMP, constants.POSTGRES:
 		toddl = postgres.InfoSchemaImpl{}.GetToDdl()
-		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
+		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type, isPk)
 	case constants.SQLSERVER:
 		toddl = sqlserver.InfoSchemaImpl{}.GetToDdl()
-		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
+		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type, isPk)
 	case constants.ORACLE:
 		toddl = oracle.InfoSchemaImpl{}.GetToDdl()
-		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
+		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type, isPk)
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.Driver)
 	}

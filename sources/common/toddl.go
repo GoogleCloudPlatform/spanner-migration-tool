@@ -46,7 +46,7 @@ import (
 // type expected. In case a particular source to target transoformation is not
 // supported, an error is to be returned by the corresponding method.
 type ToDdl interface {
-	ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue)
+	ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type, isPk bool) (ddl.Type, []internal.SchemaIssue)
 	GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error)
 }
 
@@ -100,7 +100,8 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 			continue
 		}
 		spColIds = append(spColIds, srcColId)
-		ty, issues := toddl.ToSpannerType(conv, "", srcCol.Type)
+		isPk := IsPrimaryKey(srcColId, srcTable)
+		ty, issues := toddl.ToSpannerType(conv, "", srcCol.Type, isPk)
 
 		// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
 		if srcCol.Ignored.ForeignKey {

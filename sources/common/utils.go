@@ -221,11 +221,25 @@ func processAsync[I any, O any](f func(i I, mutex *sync.Mutex) TaskResult[O], in
 	wg.Done()
 }
 
-func ToPGDialectType(standardType ddl.Type) ddl.Type {
+func ToPGDialectType(standardType ddl.Type, isPk bool) (ddl.Type, []internal.SchemaIssue) {
 	if standardType.IsArray {
-		return ddl.Type{ddl.String, ddl.MaxLength, false}
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false},
+			[]internal.SchemaIssue{internal.ArrayTypeNotSupported}
 	}
-	return standardType
+	if isPk && standardType.Name == ddl.Numeric {
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false},
+			[]internal.SchemaIssue{internal.NumericPKNotSupported}
+	}
+	return standardType, nil
+}
+
+func IsPrimaryKey(colId string, table schema.Table) bool {
+	for _, pk := range table.PrimaryKeys {
+		if pk.ColId == colId {
+			return true
+		}
+	}
+	return false
 }
 
 // Data type sizes are referred from https://cloud.google.com/spanner/docs/reference/standard-sql/data-types#storage_size_for_data_types

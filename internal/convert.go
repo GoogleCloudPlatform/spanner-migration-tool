@@ -127,6 +127,7 @@ const (
 	ForeignKeyOnUpdate
 	SequenceCreated
 	ForeignKeyActionNotSupported
+	NumericPKNotSupported
 )
 
 const (
