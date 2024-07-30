@@ -7,9 +7,7 @@ permalink: /custom-transformation
 
 # Custom transformation
 {: .no_toc }
-Dataflow pipeline does the basic data conversion from source datatype
-It can be used to specify any custom transformation logic , logic to populate new columns in spanner that didn't exist in source or to filter a column during migration.
-For the ease of customer we have implemented [CustomTransformationFetcher](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationFetcher.java) class in `v2/spanner-custom-shard` which can be updated as per customer's logic. Below are the details on how to implement custom transfomation
+Users can follow this guide to apply custom transformations at the row level to all columns in their schema, including primary key columns. This guide can be used to specify custom transformation logic for existing columns, to populate new columns in Spanner that didn't exist in the source, or to filter a row during migration. For ease of use, we have implemented the [CustomTransformationFetcher](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationFetcher.java) class in `v2/spanner-custom-shard`, which can be updated according to the user's logic.
 
 <details open markdown="block">
   <summary>
@@ -188,6 +186,19 @@ Please refer to the sample implementation of **toSourceRow** for most MySQL data
 5. Upload the built JAR located in v2/spanner-custom-shard/target with the name `spanner-custom-shard-1.0-SNAPSHOT.jar` to a GCS bucket
 
 ## Error handling
+
+### Forward migration
+- If the value of a column, received as a response from the custom JAR, cannot be successfully parsed into the corresponding Spanner column datatype, pipeline will deem the record as failed and label it as a SEVERE error in the DLQ.
+- If the custom JAR sends a NULL response for a NOT NULL column, the record will encounter a failure during insertion and will be labelled as a SEVERE error in the DLQ.
+- If the custom JAR returns an exception while processing a record then pipeline will deem the record as failed, label it as a SEVERE error in the DLQ and will increment the `Custom Transformation Exceptions` metric.
+- If the custom JAR returns an extra column in response which is not present in the spanner schema then the extra column will be ignored.
+
+### Reverse replication
+- If the value of a column, received as a response from the custom JAR, cannot be successfully inserted into the source database then the reverse replication pipeline will stop processing records for the particular shard.
+- If the custom JAR returns a NULL value for a NOT NULL column, the record will encounter a failure during insertion and will stop processing records for the particular shard.
+- If the custom JAR returns an exception while processing a record then pipeline will deem the record as failed, will stop processing records for the particular shard and will increment the `custom_transformation_exception` metric.
+- If the custom JAR returns an extra column in response which is not present in the spanner schema then the extra column will be ignored.
+
 
 ## Best practices
 - Avoid time-consuming operations in the custom JAR, as they can slow down the pipeline since it is executed at a per-record level.
