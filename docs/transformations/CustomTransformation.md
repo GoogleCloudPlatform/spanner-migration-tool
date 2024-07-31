@@ -191,7 +191,10 @@ Please refer to the sample implementation of **toSourceRow** for most MySQL data
 - If the value of a column, received as a response from the custom JAR, cannot be successfully parsed into the corresponding Spanner column datatype, pipeline will deem the record as failed and label it as a SEVERE error in the DLQ.
 - If the custom JAR sends a NULL response for a NOT NULL column, the record will encounter a failure during insertion and will be labelled as a SEVERE error in the DLQ.
 - If the custom JAR returns an exception while processing a record then pipeline will deem the record as failed, label it as a SEVERE error in the DLQ and will increment the `Custom Transformation Exceptions` metric.
-- If the custom JAR returns an extra column in response which is not present in the spanner schema then the extra column will be ignored.
+<!---
+[TODO]: Once the fix to ignore extra columns in response during forward migration is released, update the documentation.
+-->
+- If the custom JAR returns an extra column in response which is not present in the spanner schema then the record will be labelled as SEVERE error and moved to DLQ.
 
 ### Reverse replication
 - If the value of a column, received as a response from the custom JAR, cannot be successfully inserted into the source database then the reverse replication pipeline will stop processing records for the particular shard.
