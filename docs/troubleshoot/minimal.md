@@ -55,7 +55,7 @@ Migration progress can be tracked by monitoring the Dataflow job and following c
 | Successful events                             | Total number of events successfully processed and applied to Spanner database                                                    |
 | Retryable errors                              | The count of events that were errored out but will be retried                                                                    |
 | Total permanent errors                        | The number of events that are errored out with non-retriable errors in addition to the number of errors after exhausting retries |
-| Conversion errors                             | Number of events that could not be converted to Spanner.This is a permanent error category.                                      |
+| Conversion errors                             | Number of events that could not be converted to Spanner. This is a permanent error category.                                      |
 | Skipped events                                | The events that are skipped from migration since the table was dropped from migration                                            |
 | Other permanent errors                        | The remaining permanent errors.                                                                                                  |
 | Transformed events                            | The number of events that were successfully transformed, including retries and permanent errors.                                 |

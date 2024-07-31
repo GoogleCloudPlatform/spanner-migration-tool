@@ -55,7 +55,7 @@ The following table outlines the Java object type that will be sent in the reque
 | BOOLEAN        | Long                |
 | CHAR           | String              |
 | DATE           | String (Format: yyyy-MM-dd) |
-| DATETIME       | String (e.g., 2024-01-01T12:34:56Z) |
+| DATETIME       | String (UTC format) |
 | DECIMAL        | String              |
 | DOUBLE         | Double              |
 | ENUM           | String              |
@@ -71,7 +71,7 @@ The following table outlines the Java object type that will be sent in the reque
 | SMALLINT       | Long                |
 | TEXT           | String              |
 | TIME           | Long ([time-micros](https://avro.apache.org/docs/current/specification/_print/#time-microsecond-precision) e.g., 45296000000 for 12:34:56) |
-| TIMESTAMP      | String (e.g., 2024-01-01T12:34:56Z) |
+| TIMESTAMP      | String (UTC format) |
 | TINYBLOB       | String (hex encoded)|
 | TINYINT        | Long                |
 | TINYTEXT       | String              |
@@ -128,7 +128,7 @@ The following table outlines the Java object type that will be sent in the reque
 | STRING          | String                               |
 | BYTES           | String (Base64 encoded)              |
 | DATE            | String (Format: yyyy-MM-dd)          |
-| TIMESTAMP       | String (e.g., 2024-01-01T12:34:56Z)  |
+| TIMESTAMP       | String (UTC format)                  |
 | JSON            | String                               |                                                   
 
 #### Response
@@ -150,7 +150,7 @@ The following table outlines format of the response string for each **MySQL** da
 | String (**enclosed in single quotes**, e.g., 'Transformed text')                    | TEXT, ENUM, JSON, CHAR, LONGTEXT, MEDIUMTEXT, SET, TINYTEXT, VARCHAR             |
 | Binary String                                                                       | BLOB, BINARY, BIT, LONGBLOB, MEDIUMBLOB, TINYBLOB, VARBINARY                     |
 | String (Format: yyyy-MM-dd **enclosed in single quotes**, e.g., '1995-01-13')       | DATE                                                                             |
-| String (e.g., 2024-01-01T12:34:56Z)                                                 | DATETIME, TIMESTAMP                                                              |
+| String (UTC format,e.g. 2024-01-01T12:34:56Z)                                       | DATETIME, TIMESTAMP                                                              |
 | String (**enclosed in single quotes**)                                              | [Spatial Datatypes](https://dev.mysql.com/doc/refman/8.0/en/spatial-type-overview.html) |
 
 {: .highlight }
