@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,44 +21,48 @@ import (
 )
 
 var (
-	projectId                      string
-	dataflowRegion                 string
-	jobNamePrefix                  string
-	changeStreamName               string
-	instanceId                     string
-	dbName                         string
-	metadataInstance               string
-	metadataDatabase               string
-	startTimestamp                 string
-	sourceShardsFilePath           string
-	sessionFilePath                string
-	machineType                    string
-	vpcNetwork                     string
-	vpcSubnetwork                  string
-	vpcHostProjectId               string
-	serviceAccountEmail            string
-	readerWorkers                  int
-	writerWorkers                  int
-	windowDuration                 string
-	gcsPath                        string
-	filtrationMode                 string
-	metadataTableSuffix            string
-	sourceDbTimezoneOffset         string
-	writerRunMode                  string
-	readerRunMode                  string
-	readerShardingCustomJarPath    string
-	readerShardingCustomClassName  string
-	readerShardingCustomParameters string
-	readerSkipDirectoryName        string
-	spannerReaderTemplateLocation  string
-	sourceWriterTemplateLocation   string
-	jobsToLaunch                   string
-	skipChangeStreamCreation       bool
-	skipMetadataDatabaseCreation   bool
-	networkTags                    string
-	runIdentifier                  string
-	readerMaxWorkers               int
-	spannerProjectId               string
+	projectId                            string
+	dataflowRegion                       string
+	jobNamePrefix                        string
+	changeStreamName                     string
+	instanceId                           string
+	dbName                               string
+	metadataInstance                     string
+	metadataDatabase                     string
+	startTimestamp                       string
+	sourceShardsFilePath                 string
+	sessionFilePath                      string
+	machineType                          string
+	vpcNetwork                           string
+	vpcSubnetwork                        string
+	vpcHostProjectId                     string
+	serviceAccountEmail                  string
+	readerWorkers                        int
+	writerWorkers                        int
+	windowDuration                       string
+	gcsPath                              string
+	filtrationMode                       string
+	metadataTableSuffix                  string
+	sourceDbTimezoneOffset               string
+	writerRunMode                        string
+	readerRunMode                        string
+	readerShardingCustomJarPath          string
+	readerShardingCustomClassName        string
+	readerShardingCustomParameters       string
+	readerSkipDirectoryName              string
+	spannerReaderTemplateLocation        string
+	sourceWriterTemplateLocation         string
+	jobsToLaunch                         string
+	skipChangeStreamCreation             bool
+	skipMetadataDatabaseCreation         bool
+	networkTags                          string
+	runIdentifier                        string
+	readerMaxWorkers                     int
+	spannerProjectId                     string
+	writeFilteredEventsToGcs             bool
+	writerTransformationCustomJarPath    string
+	writerTransformationCustomClassName  string
+	writerTransformationCustomParameters string
 )
 
 const (
@@ -103,7 +108,10 @@ func setupGlobalFlags() {
 	flag.StringVar(&readerShardingCustomParameters, "readerShardingCustomParameters", "", "Any custom parameters to be supplied to custom sharding class.")
 	flag.IntVar(&readerMaxWorkers, "readerMaxWorkers", 20, "Number of max workers for reader job.")
 	flag.StringVar(&spannerProjectId, "spannerProjectId", "", "The project id where Cloud Spanner resides, for use case when Cloud Spanner is in a different project than where Dataflow would run.")
-
+	flag.BoolVar(&writeFilteredEventsToGcs, "writeFilteredEventsToGcs", false, "Whether to write filtered events to GCS. Default is false.")
+	flag.StringVar(&writerTransformationCustomJarPath, "writerTransformationCustomJarPath", "", "The GCS path to custom jar for custom transformation logic.")
+	flag.StringVar(&writerTransformationCustomClassName, "writerTransformationCustomClassName", "", "The fully qualified custom class name for custom transformation logic.")
+	flag.StringVar(&writerTransformationCustomParameters, "writerTransformationCustomParameters", "", "Any custom parameters to be supplied to custom transformation class.")
 }
 
 func prechecks() error {
@@ -354,21 +362,30 @@ func main() {
 			additionalExpr = []string{"use_network_tags=" + networkTags, "use_network_tags_for_flex_templates=" + networkTags}
 		}
 
+		writerParams := map[string]string{
+			"sourceShardsFilePath":   sourceShardsFilePath,
+			"sessionFilePath":        sessionFilePath,
+			"sourceDbTimezoneOffset": sourceDbTimezoneOffset,
+			"metadataTableSuffix":    metadataTableSuffix,
+			"GCSInputDirectoryPath":  gcsPath,
+			"spannerProjectId":       spannerProjectId,
+			"metadataInstance":       metadataInstance,
+			"metadataDatabase":       metadataDatabase,
+			"runMode":                writerRunMode,
+			"runIdentifier":          runId,
+		}
+
+		if writerTransformationCustomJarPath != "" {
+			writerParams["transformationJarPath"] = writerTransformationCustomJarPath
+			writerParams["transformationClassName"] = writerTransformationCustomClassName
+			writerParams["transformationCustomParameters"] = writerTransformationCustomParameters
+			writerParams["writeFilteredEventsToGcs"] = strconv.FormatBool(writeFilteredEventsToGcs)
+		}
+
 		launchParameters := &dataflowpb.LaunchFlexTemplateParameter{
-			JobName:  fmt.Sprintf("%s-writer-%s-%s", jobNamePrefix, runId, utils.GenerateHashStr()),
-			Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: sourceWriterTemplateLocation},
-			Parameters: map[string]string{
-				"sourceShardsFilePath":   sourceShardsFilePath,
-				"sessionFilePath":        sessionFilePath,
-				"sourceDbTimezoneOffset": sourceDbTimezoneOffset,
-				"metadataTableSuffix":    metadataTableSuffix,
-				"GCSInputDirectoryPath":  gcsPath,
-				"spannerProjectId":       spannerProjectId,
-				"metadataInstance":       metadataInstance,
-				"metadataDatabase":       metadataDatabase,
-				"runMode":                writerRunMode,
-				"runIdentifier":          runId,
-			},
+			JobName:    fmt.Sprintf("%s-writer-%s-%s", jobNamePrefix, runId, utils.GenerateHashStr()),
+			Template:   &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: sourceWriterTemplateLocation},
+			Parameters: writerParams,
 			Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 				NumWorkers:            int32(writerWorkers),
 				AdditionalExperiments: additionalExpr,

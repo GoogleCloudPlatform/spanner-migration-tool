@@ -50,29 +50,38 @@ Migration progress can be tracked by monitoring the Dataflow job and following c
 
 ### Metrics for regular run
 
-| Metric Name                           | Description                                                                                                                      |
-|---------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
-| Successful events                     | Total number of events successfully processed and applied to Spanner database                                                    |
-| Retryable errors                      | The count of events that were errored out but will be retried                                                                    |
-| Total permanent errors                | The number of events that are errored out with non-retriable errors in addition to the number of errors after exhausting retries |
-| Conversion errors                     | Number of events that could not be converted to Spanner.This is a permanent error category.                                      |
-| Skipped events                        | The events that are skipped from migration since the table was dropped from migration                                            |
-| Other permanent errors                | The remaining permanent errors.                                                                                                  |
-| Total events processed                | The number of events that were tried for forward migration, including retries and permanent errors.                              |
-| elementsReconsumedFromDeadLetterQueue | The total number of events consumed from DLQ for retry                                                                           |
+| Metric Name                                   | Description                                                                                                                      |
+|-----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| Successful events                             | Total number of events successfully processed and applied to Spanner database                                                    |
+| Retryable errors                              | The count of events that were errored out but will be retried                                                                    |
+| Total permanent errors                        | The number of events that are errored out with non-retriable errors in addition to the number of errors after exhausting retries |
+| Conversion errors                             | Number of events that could not be converted to Spanner. This is a permanent error category.                                      |
+| Skipped events                                | The events that are skipped from migration since the table was dropped from migration                                            |
+| Other permanent errors                        | The remaining permanent errors.                                                                                                  |
+| Transformed events                            | The number of events that were successfully transformed, including retries and permanent errors.                                 |
+| Filtered events                               | The number of events that were were filtered as a part of custom transformation.                                                 |
+| Custom Transformation Exceptions              | The number of events that were errored out due to some exception in custom transformation jar.                                   |
+| Total events processed                        | The number of events that were tried for forward migration, including retries and permanent errors.                              |
+| apply_custom_transformation_impl_latency_ms   | Latency of applying custom transformation to the event.                                                                          |
+| elementsReconsumedFromDeadLetterQueue         | The total number of events consumed from DLQ for retry.                                                                          |
 
 
 ### Metrics for retryDLQ run
 
-| Metric Name                           | Description                                                                                         |
-|---------------------------------------|-----------------------------------------------------------------------------------------------------|
-| Successful events                     | Total number of events successfully processed and applied to Spanner database                       |
-| elementsReconsumedFromDeadLetterQueue | The total number of events consumed from DLQ for retry                                              |
-| Elements requeued for retry           | The total number of events that were re queued for retry                                            |
-| Conversion errors                     | Number of events that could not be converted to Spanner.This is a permanent error category.         |
-| Skipped events                        | The events that are skipped from migration since the table was dropped from migration               |
-| Other permanent errors                | The remaining permanent errors.                                                                     |
-| Total events processed                | The number of events that were tried for forward migration, including retries and permanent errors. |
+| Metric Name                                   | Description                                                                                         |
+|-----------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| Successful events                             | Total number of events successfully processed and applied to Spanner database                       |
+| elementsReconsumedFromDeadLetterQueue         | The total number of events consumed from DLQ for retry                                              |
+| Elements requeued for retry                   | The total number of events that were re queued for retry                                            |
+| Conversion errors                             | Number of events that could not be converted to Spanner.This is a permanent error category.         |
+| Skipped events                                | The events that are skipped from migration since the table was dropped from migration               |
+| Other permanent errors                        | The remaining permanent errors.                                                                     |
+| Total events processed                        | The number of events that were tried for forward migration, including retries and permanent errors. |
+| Transformed events                            | The number of events that were successfully transformed, including retries and permanent errors.    |
+| Filtered events                               | The number of events that were were filtered as a part of custom transformation.                    |
+| Custom Transformation Exceptions              | The number of events that were errored out due to some exception in custom transformation jar.      |
+| Total events processed                        | The number of events that were tried for forward migration, including retries and permanent errors. |
+| apply_custom_transformation_impl_latency_ms   | Latency of applying custom transformation to the event.                                             |
 
 It can happen that in retryDLQ mode, there are still permanent errors. To identify that all the retryable errors have been processed and only permanent errors remain for reprocessing - one can look at the ‘Successful events' count - it would remain constant after every retry iteration. Each retry iteration, the ‘elementsReconsumedFromDeadLetterQueue' would increment.
 

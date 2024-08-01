@@ -113,6 +113,9 @@ The Dataflow job that writes to source database exposes the following per shard 
 | metadata_file_create_lag_retry_\<logical shard name\> | Count of file lookup retries done when the job that writes to GCS is lagging |
 | mySQL_retry_\<logical shard name\> | Number of retries done when MySQL is not reachable|
 | shard_failed_\<logical shard name\> | Published when there is a failure while processing the shard |
+| custom_transformation_exception | Number of exception encountered in the custom transformation jar |
+| filtered_events_\<logical shard name\> | Number of events filtered via custom transformation per shard |
+| apply_custom_transformation_impl_latency_ms | Time taken for the execution of custom transformation logic. |
 
 These can be used to track the pipeline progress.
 However, there is a limit of 100 on the total number of metrics per project. So if this limit is exhausted, the Dataflow job will give a message like so:
@@ -378,10 +381,13 @@ In order to make it easier for users to customize the shard routing logic, the [
 Steps to perfrom customization:
 1. Write custom shard id fetcher logic [CustomShardIdFetcher.java](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomShardIdFetcher.java). Details of the ShardIdRequest class can be found [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-migrations-sdk/src/main/java/com/google/cloud/teleport/v2/spanner/utils/ShardIdRequest.java).
 2. Build the [JAR](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/spanner-custom-shard) and upload the jar to GCS
-3. Invoke the reverse replication flow by passing the [custom jar path and custom class path](RunnigReverseReplication.md#custom-jar).
+3. Invoke the reverse replication flow by passing the [custom jar path and custom class path](RunnigReverseReplication.md#custom-shard-identification).
 4. If any custom parameters are needed in the custom shard identification logic, they can be passed via the *readerShardingCustomParameters* input to the runner. These parameters will be passed to the *init* method of the custom class. The *init* method is invoked once per worker setup.
 
-
+### Custom transformations
+For cases where a user wants to handle a custom transformation logic, they need to specify the following parameters in the [GCS to Sourcedb](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/gcs-to-sourcedb) template - a GCS path that points to a custom jar, fully classified custom class name of the class containing custom transformation logic and custom parameters which might be used by the jar to invoke custom logic to perform transformation.
+ 
+For details on how to implement and use custom transformations, please refer to the [Custom Transformation](../transformations/CustomTransformation.md) section.
 
 ## Cost
 

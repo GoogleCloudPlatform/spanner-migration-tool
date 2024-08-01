@@ -48,6 +48,10 @@ To launch reverse replication, refer details [here](./reverse-replication/Revers
 
 To find out how to monitor your migration, refer [here](./monitoring/MonitoringUserGuide.md).
 
+### Custom transformation
+
+To find out how to configure custom transformations, refer [here](./transformations/CustomTransformation.md)
+
 ## Supported Sources and Targets
 
 - **Schema Migrations**: SMT supports schema migrations for MySQL, PostgreSQL, SQLServer and Oracle.

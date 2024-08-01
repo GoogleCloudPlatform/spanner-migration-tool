@@ -771,6 +771,7 @@ func LaunchDataflowJob(ctx context.Context, migrationProjectId string, targetPro
 		launchParameters.Parameters["transformationJarPath"] = dataflowCfg.CustomJarPath
 		launchParameters.Parameters["transformationClassName"] = dataflowCfg.CustomClassName
 		launchParameters.Parameters["transformationCustomParameters"] = dataflowCfg.CustomParameter
+		launchParameters.Parameters["filteredEventsDirectory"] = utils.ConcatDirectoryPath(inputFilePattern, "filteredEvents")
 	} else if (dataflowCfg.CustomClassName != "" && dataflowCfg.CustomJarPath == "") || (dataflowCfg.CustomClassName == "" && dataflowCfg.CustomJarPath != "") {
 		return internal.DataflowOutput{}, fmt.Errorf("specify both the custom class name and custom jar GCS path, or specify neither")
 	}
