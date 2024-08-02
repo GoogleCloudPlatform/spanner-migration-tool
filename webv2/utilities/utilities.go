@@ -98,6 +98,16 @@ func RemoveSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.Schema
 	return schemaissue[0:k]
 }
 
+// Removes only the first occurance of SchemaIssue from given list
+func RemoveSchemaIssueOnlyOnce(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
+	for i, v := range schemaissue {
+		if v == issue {
+			return append(schemaissue[:i], schemaissue[i+1:]...)
+		}
+	}
+	return schemaissue
+}
+
 // IsSchemaIssuePresent checks if issue is present in the given schemaissue list.
 func IsSchemaIssuePresent(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
 
@@ -236,15 +246,38 @@ func RemovePk(slice []ddl.IndexKey, s int) []ddl.IndexKey {
 	return append(slice[:s], slice[s+1:]...)
 }
 
-func RemoveFk(slice []ddl.Foreignkey, fkId string) []ddl.Foreignkey {
+func RemoveFk(slice []ddl.Foreignkey, fkId string, srcSchema schema.Table, tableId string) ([]ddl.Foreignkey, error) {
+	sessionState := session.GetSessionState()
+	tableIssues := sessionState.Conv.SchemaIssues[tableId].TableLevelIssues
+
 	pos := -1
 	for i, fk := range slice {
 		if fk.Id == fkId {
 			pos = i
+
+			// Remove foreign key action conversion warnings for dropped FK
+			//
+			// Issues ForeignKeyOnDelete and ForeignKeyOnUpdate might be added to SchemaIssues[tableId] multiple times
+			// due to existance of multiple FKs. We only delete one instance of these issues to maintain
+			// correct warnings for other FKs
+			srcFk, err := internal.GetSrcFkFromId(srcSchema.ForeignKeys, fk.Id)
+			if err != nil {
+				return nil, err
+			}
+			if srcFk.OnDelete != fk.OnDelete {
+				tableIssues = RemoveSchemaIssueOnlyOnce(tableIssues, internal.ForeignKeyOnDelete)
+			}
+			if srcFk.OnUpdate != fk.OnUpdate {
+				tableIssues = RemoveSchemaIssueOnlyOnce(tableIssues, internal.ForeignKeyOnUpdate)
+			}
+			if issues, ok := sessionState.Conv.SchemaIssues[tableId]; ok {
+				issues.TableLevelIssues = tableIssues
+				sessionState.Conv.SchemaIssues[tableId] = issues
+			}
 			break
 		}
 	}
-	return append(slice[:pos], slice[pos+1:]...)
+	return append(slice[:pos], slice[pos+1:]...), nil
 }
 
 func RemoveSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {
@@ -362,7 +395,7 @@ func UpdateMaxColumnLen(conv *internal.Conv, dataType, tableId, colId string, sp
 	}
 
 	// update column size of parent table.
-	parentTableId := conv.SpSchema[tableId].ParentId
+	parentTableId := conv.SpSchema[tableId].ParentTable.Id
 	if parentTableId != "" {
 		parentColId, err := GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
 		if err == nil {
@@ -388,7 +421,7 @@ func IsParent(tableId string) (bool, string) {
 	sessionState := session.GetSessionState()
 
 	for _, spSchema := range sessionState.Conv.SpSchema {
-		if spSchema.ParentId == tableId {
+		if spSchema.ParentTable.Id == tableId {
 			return true, spSchema.Id
 		}
 	}

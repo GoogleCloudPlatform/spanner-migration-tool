@@ -25,11 +25,11 @@ import (
 
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
-	xj "github.com/basgys/goxml2json"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	xj "github.com/basgys/goxml2json"
 )
 
 func ProcessDataRow(conv *internal.Conv, tableId string, colIds []string, srcSchema schema.Table, spSchema ddl.CreateTable, vals []string) {
@@ -109,6 +109,8 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 		return convBytes(val)
 	case ddl.Date:
 		return convDate(val)
+	case ddl.Float32:
+		return convFloat32(val)
 	case ddl.Float64:
 		return convFloat64(val)
 	case ddl.Int64:
@@ -156,6 +158,14 @@ func convDate(val string) (civil.Date, error) {
 		return d, fmt.Errorf("can't convert to date: %w", err)
 	}
 	return d, err
+}
+
+func convFloat32(val string) (float32, error) {
+	f, err := strconv.ParseFloat(val, 32)
+	if err != nil {
+		return float32(f), fmt.Errorf("can't convert to float32: %w", err)
+	}
+	return float32(f), err
 }
 
 func convFloat64(val string) (float64, error) {
@@ -267,6 +277,25 @@ func convArray(spannerType ddl.Type, srcTypeName string, v string) (interface{},
 				return []spanner.NullInt64{}, err
 			}
 			r = append(r, spanner.NullInt64{Int64: val, Valid: true})
+		}
+		return r, nil
+	case ddl.Float32:
+		var a []interface{}
+		var r []spanner.NullFloat32
+		err := json.Unmarshal([]byte(v), &a)
+		if err != nil {
+			return []spanner.NullFloat32{}, err
+		}
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullFloat32{Valid: false})
+				continue
+			}
+			val, err := convFloat32(fmt.Sprint(s))
+			if err != nil {
+				return []spanner.NullFloat32{}, err
+			}
+			r = append(r, spanner.NullFloat32{Float32: val, Valid: true})
 		}
 		return r, nil
 	case ddl.Float64:

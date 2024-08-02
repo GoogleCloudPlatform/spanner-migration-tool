@@ -31,14 +31,16 @@ func RemoveColumn(tableId string, colId string, conv *internal.Conv) {
 	if isParent {
 		if isColFistOderPk(conv.SpSchema[tableId].PrimaryKeys, colId) {
 			childSp := conv.SpSchema[childTableId]
-			childSp.ParentId = ""
+			childSp.ParentTable.Id = ""
+			childSp.ParentTable.OnDelete = ""
 			conv.SpSchema[childTableId] = childSp
 		}
 	}
 
-	if conv.SpSchema[tableId].ParentId != "" {
+	if conv.SpSchema[tableId].ParentTable.Id != "" {
 		if isColFistOderPk(conv.SpSchema[tableId].PrimaryKeys, colId) {
-			sp.ParentId = ""
+			sp.ParentTable.Id = ""
+			sp.ParentTable.OnDelete = ""
 			conv.SpSchema[tableId] = sp
 		}
 	}

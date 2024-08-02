@@ -16,6 +16,8 @@
 package mysql
 
 import (
+	"fmt"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -32,7 +34,7 @@ type ToDdlImpl struct {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 // Functions below implement the common.ToDdl interface
-func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type, isPk bool) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(srcType, spType)
 	if len(srcType.ArrayBounds) > 1 {
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
@@ -44,9 +46,37 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 		issues = append(issues, internal.ArrayTypeNotSupported)
 	}
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
-		ty = common.ToPGDialectType(ty)
+		var pg_issues []internal.SchemaIssue
+		ty, pg_issues = common.ToPGDialectType(ty, isPk)
+		issues = append(issues, pg_issues...)
 	}
 	return ty, issues
+}
+
+func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
+	switch autoGenCol.GenerationType {
+	case constants.AUTO_INCREMENT:
+		sequenceId := ""
+		srcSequences := conv.SrcSequences
+		for seqId, seq := range srcSequences {
+			if seq.Name == autoGenCol.Name {
+				sequenceId = seqId
+			}
+		}
+		if sequenceId == "" {
+			return &ddl.AutoGenCol{}, fmt.Errorf("sequence corresponding to column auto generation not found")
+		}
+		spSequences := conv.SpSequences
+		sequence := spSequences[sequenceId]
+		sequence.ColumnsUsingSeq = map[string][]string{
+			tableId: {colId},
+		}
+		spSequences[sequenceId] = sequence
+		conv.SpSequences = spSequences
+		return &ddl.AutoGenCol{Name: conv.SpSequences[sequenceId].Name, GenerationType: constants.SEQUENCE}, nil
+	default:
+		return &ddl.AutoGenCol{}, fmt.Errorf("auto generation not supported")
+	}
 }
 
 func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []internal.SchemaIssue) {
@@ -84,8 +114,10 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
-		default:
+		case ddl.Float64:
 			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Float32}, nil
 		}
 	case "numeric", "decimal":
 		switch spType {

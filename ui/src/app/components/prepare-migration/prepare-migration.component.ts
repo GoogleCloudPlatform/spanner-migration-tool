@@ -149,7 +149,10 @@ export class PrepareMigrationComponent implements OnInit {
     kmsKeyName: localStorage.getItem(Dataflow.KmsKeyName) as string,
     projectId: localStorage.getItem(Dataflow.ProjectId) as string,
     location: localStorage.getItem(Dataflow.Location) as string,
-    gcsTemplatePath: localStorage.getItem(Dataflow.GcsTemplatePath) as string
+    gcsTemplatePath: localStorage.getItem(Dataflow.GcsTemplatePath) as string,
+    customJarPath: localStorage.getItem(Dataflow.CustomJarPath) as string,
+    customClassName: localStorage.getItem(Dataflow.CustomClassName) as string,
+    customParameter: localStorage.getItem(Dataflow.CustomParameter) as string
   }
   spannerConfig: ISpannerConfig = {
     GCPProjectID: '',
@@ -605,7 +608,10 @@ export class PrepareMigrationComponent implements OnInit {
         kmsKeyName: localStorage.getItem(Dataflow.KmsKeyName) as string,
         projectId: localStorage.getItem(Dataflow.ProjectId) as string,
         location: localStorage.getItem(Dataflow.Location) as string,
-        gcsTemplatePath: localStorage.getItem(Dataflow.GcsTemplatePath) as string
+        gcsTemplatePath: localStorage.getItem(Dataflow.GcsTemplatePath) as string,
+        customJarPath: localStorage.getItem(Dataflow.CustomJarPath) as string,
+        customClassName: localStorage.getItem(Dataflow.CustomClassName) as string,
+        customParameter: localStorage.getItem(Dataflow.CustomParameter) as string
       }
       this.isDataflowConfigurationSet = localStorage.getItem(Dataflow.IsDataflowConfigSet) as string === 'true'
       // We only call setDataflowDetailsForShardedMigrations for sharded flows. Non-sharded flows write a streaming config file

@@ -36,7 +36,7 @@ The Spanner migration tool maps PostgreSQL types to Spanner types as follows:
 | `DOUBLE PRECISION` | `FLOAT64`              |                                                               |
 | `INTEGER`          | `INT64`                | changes in storage size                                       |
 | `NUMERIC`          | `NUMERIC`              | potential changes of precision                                |
-| `REAL`             | `FLOAT64`              | changes in storage size                                       |
+| `REAL`             | `FLOAT32`              |                                                               |
 | `SERIAL`           | `INT64`                | dropped autoincrement functionality , changes in storage size |
 | `SMALLINT`         | `INT64`                | changes in storage size                                       |
 | `TEXT`             | `STRING(MAX)`          |                                                               |
@@ -109,7 +109,7 @@ arrays.
 ## Arrays
 
 Spanner does not support multi-dimensional arrays. So while `TEXT[4]` maps to
-`ARRAY<STRING(MAX)>` and `REAL ARRAY` maps to `ARRAY<FLOAT64>`, `TEXT[][]` maps
+`ARRAY<STRING(MAX)>` and `REAL ARRAY` maps to `ARRAY<FLOAT32>`, `TEXT[][]` maps
 to `STRING(MAX)`.
 
 Also note that PosgreSQL supports array limits, but the PostgreSQL

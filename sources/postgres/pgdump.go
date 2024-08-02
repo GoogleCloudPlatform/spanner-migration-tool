@@ -21,8 +21,9 @@ import (
 	"strings"
 	"time"
 
-	pg_query "github.com/pganalyze/pg_query_go/v2"
+	pg_query "github.com/pganalyze/pg_query_go/v5"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -480,12 +481,12 @@ func processVariableSetStmt(conv *internal.Conv, n *pg_query.VariableSetStmt) {
 			arg := n.Args[0]
 			switch c := arg.GetNode().(type) {
 			case *pg_query.Node_AConst:
-				tz, err := getString(c.AConst.Val)
-				if err != nil {
-					logStmtError(conv, c, fmt.Errorf("can't get Arg: %w", err))
+				tz := c.AConst.GetSval()
+				if tz == nil {
+					logStmtError(conv, c, fmt.Errorf("can't get timezone Arg"))
 					return
 				}
-				loc, err := time.LoadLocation(tz)
+				loc, err := time.LoadLocation(tz.Sval)
 				if err != nil {
 					logStmtError(conv, c, err)
 					return
@@ -503,9 +504,9 @@ func getTypeMods(conv *internal.Conv, t []*pg_query.Node) (l []int64) {
 	for _, x := range t {
 		switch t1 := x.GetNode().(type) {
 		case *pg_query.Node_AConst:
-			switch t2 := t1.AConst.Val.GetNode().(type) {
-			case *pg_query.Node_Integer:
-				l = append(l, int64(t2.Integer.Ival))
+			switch t2 := (t1.AConst.Val).(type) {
+			case *pg_query.A_Const_Ival:
+				l = append(l, int64(t2.Ival.Ival))
 			default:
 				conv.Unexpected(fmt.Sprintf("Found %s node while processing Typmods", printNodeType(t2)))
 			}
@@ -585,6 +586,8 @@ type constraint struct {
 	/* Fields used for FOREIGN KEY constraints: */
 	referCols  []string
 	referTable string
+	onDelete   string
+	onUpdate   string
 }
 
 // extractConstraints traverses a list of nodes (expecting them to be
@@ -595,7 +598,7 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 		case *pg_query.Node_Constraint:
 			c := d.Constraint
 			var cols, referCols []string
-			var referTable string
+			var referTable, onDelete, onUpdate string
 			var conName string
 			switch c.Contype {
 			case pg_query.ConstrType_CONSTR_FOREIGN:
@@ -627,6 +630,42 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 					}
 					referCols = append(referCols, f)
 				}
+				onDelete = c.GetFkDelAction()
+				switch onDelete {
+				case "a":
+					onDelete = constants.FK_NO_ACTION
+				case "r":
+					onDelete = constants.FK_RESTRICT
+				case "c":
+					onDelete = constants.FK_CASCADE
+				case "n":
+					onDelete = constants.FK_SET_NULL
+				case "d":
+					onDelete = constants.FK_SET_DEFAULT
+				case " ":
+					onDelete = constants.FK_NO_ACTION
+				default:
+					onDelete = "UNKNOWN"
+				}
+
+				onUpdate = c.GetFkUpdAction()
+				switch onUpdate {
+				case "a":
+					onUpdate = constants.FK_NO_ACTION
+				case "r":
+					onUpdate = constants.FK_RESTRICT
+				case "c":
+					onUpdate = constants.FK_CASCADE
+				case "n":
+					onUpdate = constants.FK_SET_NULL
+				case "d":
+					onUpdate = constants.FK_SET_DEFAULT
+				case " ":
+					onUpdate = constants.FK_NO_ACTION
+				default:
+					onUpdate = "UNKNOWN"
+				}
+
 			default:
 				if c.Conname != "" {
 					conName = c.Conname
@@ -641,7 +680,7 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 					cols = append(cols, k)
 				}
 			}
-			cs = append(cs, constraint{ct: c.Contype, cols: cols, name: conName, referCols: referCols, referTable: referTable})
+			cs = append(cs, constraint{ct: c.Contype, cols: cols, name: conName, referCols: referCols, referTable: referTable, onDelete: onDelete, onUpdate: onUpdate})
 		default:
 			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node while processing constraints\n", stmtType, printNodeType(d)))
 		}
@@ -758,7 +797,10 @@ func toForeignKeys(fk constraint) (fkey schema.ForeignKey) {
 		Name:             fk.name,
 		ColumnNames:      fk.cols,
 		ReferTableName:   fk.referTable,
-		ReferColumnNames: fk.referCols}
+		ReferColumnNames: fk.referCols,
+		OnDelete:         fk.onDelete,
+		OnUpdate:         fk.onUpdate,
+	}
 	return fkey
 }
 
@@ -786,26 +828,28 @@ func getRows(conv *internal.Conv, vll []*pg_query.Node, n *pg_query.InsertStmt) 
 			for _, v := range vals.List.Items {
 				switch val := v.GetNode().(type) {
 				case *pg_query.Node_AConst:
-					switch c := val.AConst.Val.GetNode().(type) {
-					// Most data is dumped enclosed in quotes ('') lke 'abc', '12:30:45' etc which is classified
-					// as type Node_String_ by the parser. Some data might not be quoted like (NULL, 14.67) and
-					// the type assigned to them is Node_Null and Node_Float respectively.
-					case *pg_query.Node_String_:
-						values = append(values, trimString(c.String_))
-					case *pg_query.Node_Integer:
-						// For uniformity, convert to string and handle everything in
-						// dataConversion(). If performance of insert statements becomes a
-						// high priority (it isn't right now), then consider preserving int64
-						// here to avoid the int64 -> string -> int64 conversions.
-						values = append(values, strconv.FormatInt(int64(c.Integer.Ival), 10))
-					case *pg_query.Node_Float:
-						values = append(values, c.Float.Str)
-					case *pg_query.Node_Null:
+					if val.AConst.Isnull {
 						values = append(values, "NULL")
-					// TODO: There might be other Node types like Node_IntList, Node_List, Node_BitString etc that
-					// need to be checked if they are handled or not.
-					default:
-						conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node for A_Const Val", printNodeType(n), printNodeType(c)))
+					} else {
+						switch c := val.AConst.Val.(type) {
+						// Most data is dumped enclosed in quotes ('') lke 'abc', '12:30:45' etc which is classified
+						// as type Node_String_ by the parser. Some data might not be quoted like (NULL, 14.67) and
+						// the type assigned to them is Node_Null and Node_Float respectively.
+						case *pg_query.A_Const_Sval:
+							values = append(values, trimString(c.Sval))
+						case *pg_query.A_Const_Ival:
+							// For uniformity, convert to string and handle everything in
+							// dataConversion(). If performance of insert statements becomes a
+							// high priority (it isn't right now), then consider preserving int64
+							// here to avoid the int64 -> string -> int64 conversions.
+							values = append(values, strconv.FormatInt(int64(c.Ival.Ival), 10))
+						case *pg_query.A_Const_Fval:
+							values = append(values, string(c.Fval.Fval))
+						// TODO: There might be other Node types like Node_IntList, Node_List, Node_BitString etc that
+						// need to be checked if they are handled or not.
+						default:
+							conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node for A_Const Val", printNodeType(n), printNodeType(c)))
+						}
 					}
 				default:
 					conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node for ValuesList.Val", printNodeType(n), printNodeType(val)))
@@ -851,7 +895,7 @@ func printNodeType(node interface{}) string {
 }
 
 func trimString(s *pg_query.String) string {
-	str := strings.TrimPrefix(s.String(), "str:")
+	str := s.Sval
 	str = trimEscapeChars(str)
 	return trimQuote(str)
 }

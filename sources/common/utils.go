@@ -29,13 +29,13 @@ type UtilsOrderInterface interface {
 	initPrimaryKeyOrder(conv *internal.Conv)
 	initIndexOrder(conv *internal.Conv)
 }
-type UtilsOrderImpl struct {}
+type UtilsOrderImpl struct{}
 
 type RunParallelTasksInterface[I any, O any] interface {
 	RunParallelTasks(input []I, numWorkers int, f func(i I, mutex *sync.Mutex) TaskResult[O], fastExit bool) ([]TaskResult[O], error)
 }
 
-type RunParallelTasksImpl[I any, O any] struct {}
+type RunParallelTasksImpl[I any, O any] struct{}
 
 // ToNotNull returns true if a column is not nullable and false if it is.
 func ToNotNull(conv *internal.Conv, isNullable string) bool {
@@ -221,17 +221,32 @@ func processAsync[I any, O any](f func(i I, mutex *sync.Mutex) TaskResult[O], in
 	wg.Done()
 }
 
-func ToPGDialectType(standardType ddl.Type) ddl.Type {
+func ToPGDialectType(standardType ddl.Type, isPk bool) (ddl.Type, []internal.SchemaIssue) {
 	if standardType.IsArray {
-		return ddl.Type{ddl.String, ddl.MaxLength, false}
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false},
+			[]internal.SchemaIssue{internal.ArrayTypeNotSupported}
 	}
-	return standardType
+	if isPk && standardType.Name == ddl.Numeric {
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false},
+			[]internal.SchemaIssue{internal.NumericPKNotSupported}
+	}
+	return standardType, nil
+}
+
+func IsPrimaryKey(colId string, table schema.Table) bool {
+	for _, pk := range table.PrimaryKeys {
+		if pk.ColId == colId {
+			return true
+		}
+	}
+	return false
 }
 
 // Data type sizes are referred from https://cloud.google.com/spanner/docs/reference/standard-sql/data-types#storage_size_for_data_types
 var DATATYPE_TO_STORAGE_SIZE = map[string]int{
 	ddl.Bool:      1,
 	ddl.Date:      4,
+	ddl.Float32:   4,
 	ddl.Float64:   8,
 	ddl.Int64:     8,
 	ddl.JSON:      ddl.StringMaxLength,

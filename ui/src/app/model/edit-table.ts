@@ -14,6 +14,7 @@ export default interface IColumnTabData {
   spId: string
   srcColMaxLength: Number | string | undefined
   spColMaxLength: Number | string | undefined
+  srcAutoGen: AutoGen
 }
 
 export interface AutoGen {

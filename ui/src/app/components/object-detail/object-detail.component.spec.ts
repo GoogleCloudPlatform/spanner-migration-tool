@@ -80,7 +80,11 @@ describe('ObjectDetailComponent', () => {
         spAutoGen: {
           Name: '',
           GenerationType: ''
-        }
+        },
+        srcAutoGen: {
+          Name: '',
+          GenerationType: ''
+        },
       },
       {
         spOrder: 2,
@@ -100,24 +104,32 @@ describe('ObjectDetailComponent', () => {
         spAutoGen: {
           Name: '',
           GenerationType: ''
-        }
+        },
+        srcAutoGen: {
+          Name: '',
+          GenerationType: ''
+        },
       },
     ]
     component.fkData = [
       {
-        spName: 'abc',
-        srcName: 'abc',
-        spColumns: ['abc_id'],
-        srcColumns: ['abc_id'],
-        spReferTable: 'def',
-        srcReferTable: 'def',
-        spReferColumns: ['def_if'],
-        srcReferColumns: ['def_if'],
+        srcName: 'fk_1',
+        spName: 'fk_1',
+        srcColumns: ['col1'],
+        spColumns: ['col1'],
+        srcReferTable: 'table2',
+        spReferTable: 'table2',
+        srcReferColumns: ['col2'],
+        spReferColumns: ['col2'],
+        srcOnDelete: 'CASCADE',
+        spOnDelete: 'CASCADE',
+        srcOnUpdate: 'NO ACTION',
+        spOnUpdate: 'NO ACTION',
         srcFkId: '1',
         spFkId: '1',
-        spColIds: ['1'],
-        spReferColumnIds: ['1'],
-        spReferTableId: '1',
+        spColIds: ['col1_id'],
+        spReferColumnIds: ['col2_id'],
+        spReferTableId: 'table2_id',
       },
     ]
     component.ddlStmts = 'some ddl statment'

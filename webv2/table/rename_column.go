@@ -34,8 +34,8 @@ func renameColumn(newName, tableId, colId string, conv *internal.Conv) {
 		}
 	}
 
-	if conv.SpSchema[tableId].ParentId != "" {
-		parentTableId := conv.SpSchema[tableId].ParentId
+	if conv.SpSchema[tableId].ParentTable.Id != "" {
+		parentTableId := conv.SpSchema[tableId].ParentTable.Id
 		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
 		if err == nil {
 			renameColumnNameTableSchema(conv, parentTableId, parentColId, newName)

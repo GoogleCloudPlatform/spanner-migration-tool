@@ -1,4 +1,5 @@
 import ICreateSequence from './auto-gen'
+import { AutoGen } from './edit-table'
 import IRule from './rule'
 
 export default interface IConv {
@@ -42,7 +43,7 @@ export interface NameAndCols {
   Cols: Record<string, string>
 }
 
-// Spanner schema
+// Source schema
 export interface ITable {
   Name: string
   Id: string
@@ -50,7 +51,7 @@ export interface ITable {
   ColIds: string[]
   ColDefs: Record<string, IColumn>
   PrimaryKeys: ISrcIndexKey[]
-  ForeignKeys: ISpannerForeignKey[]
+  ForeignKeys: IForeignKey[]
   Indexes: IIndex[]
 }
 
@@ -60,6 +61,7 @@ export interface IColumn {
   NotNull: boolean
   Ignored: IIgnored
   Id: string
+  AutoGen: AutoGen
 }
 
 export interface IIgnored {
@@ -84,17 +86,12 @@ export interface IIndex {
   Id: string
 }
 
-export interface ISpannerForeignKey {
-  Name: string
-  ColIds: string[]
-  ReferTableId: string
-  ReferColumnIds: string[]
-  OnDelete: string
-  OnUpdate: string
+export interface IInterleavedParent{
   Id: string
+  OnDelete: string
 }
 
-// source schema
+// spanner schema
 export interface ICreateTable {
   Name: string
   ColIds: string[]
@@ -103,7 +100,7 @@ export interface ICreateTable {
   PrimaryKeys: IIndexKey[]
   ForeignKeys: IForeignKey[]
   Indexes: ICreateIndex[]
-  ParentId: string
+  ParentTable: IInterleavedParent
   Comment: string
   Id: string
 }
@@ -121,7 +118,9 @@ export interface IForeignKey {
   ColIds: string[]
   ReferTableId: string
   ReferColumnIds: string[]
-  Id: string | undefined
+  OnDelete: string
+  OnUpdate: string
+  Id: string|undefined
 }
 
 export interface IIndexKey {
