@@ -204,7 +204,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				// Nothing to do here -- these are all handled elsewhere.
 			}
 		}
-		ignored.Default = colDefault.Valid
+		ignored.Default = false
 		colId := internal.GenerateColumnId()
 		if colExtra.String == "auto_increment" {
 			sequence := createSequence(conv)
