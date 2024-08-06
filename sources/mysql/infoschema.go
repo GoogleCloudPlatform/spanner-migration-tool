@@ -204,7 +204,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				// Nothing to do here -- these are all handled elsewhere.
 			}
 		}
-		ignored.Default = colDefault.Valid
+		ignored.Default = false
 		colId := internal.GenerateColumnId()
 		if colExtra.String == "auto_increment" {
 			sequence := createSequence(conv)
@@ -219,13 +219,22 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		} else {
 			colAutoGen = ddl.AutoGenCol{}
 		}
+		defaultVal := schema.DefaultValue{
+			IsPresent: colDefault.Valid,
+			Value:     "",
+		}
+		if colDefault.Valid {
+			defaultVal.Value = colDefault.String
+		}
+
 		c := schema.Column{
-			Id:      colId,
-			Name:    colName,
-			Type:    toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
-			NotNull: common.ToNotNull(conv, isNullable),
-			Ignored: ignored,
-			AutoGen: colAutoGen,
+			Id:           colId,
+			Name:         colName,
+			Type:         toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
+			NotNull:      common.ToNotNull(conv, isNullable),
+			Ignored:      ignored,
+			AutoGen:      colAutoGen,
+			DefaultValue: defaultVal,
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)

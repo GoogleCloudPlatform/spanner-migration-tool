@@ -71,7 +71,8 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			rows: [][]driver.Value{
 				{"user_id", "text", "text", "NO", nil, nil, nil, nil, nil},
 				{"name", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"ref", "bigint", "bigint", "NO", nil, nil, nil, nil, nil}},
+				{"ref", "bigint", "bigint", "NO", nil, nil, nil, nil, nil},
+				{"defval_1", "varchar", "varchar", "YES", "John", nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -101,7 +102,8 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			rows: [][]driver.Value{
 				{"productid", "text", "text", "NO", nil, nil, nil, nil, nil},
 				{"userid", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"quantity", "bigint", "bigint", "YES", nil, nil, 64, 0, nil}},
+				{"quantity", "bigint", "bigint", "YES", nil, nil, 64, 0, nil},
+				{"defval_2", "varchar", "varchar", "YES", "John", nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -131,7 +133,8 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
 			rows: [][]driver.Value{
 				{"product_id", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"product_name", "text", "text", "NO", nil, nil, nil, nil, nil}},
+				{"product_name", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"defval_3", "varchar", "varchar", "YES", "John", nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -174,7 +177,8 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 				{"ts", "datetime", "datetime", "YES", nil, nil, nil, nil, nil},
 				{"tz", "timestamp", "timestamp", "YES", nil, nil, nil, nil, nil},
 				{"vc", "varchar", "varchar", "YES", nil, nil, nil, nil, nil},
-				{"vc6", "varchar", "varchar(6)", "YES", nil, 6, nil, nil, nil}},
+				{"vc6", "varchar", "varchar(6)", "YES", nil, 6, nil, nil, nil},
+				{"def", "varchar", "varchar", "YES", "John", nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -200,7 +204,8 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			rows: [][]driver.Value{
 				{"ref_id", "bigint", "bigint", "NO", nil, nil, 64, 0, nil},
 				{"ref_txt", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"abc", "text", "text", "NO", nil, nil, nil, nil, nil}},
+				{"abc", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"defval_4", "varchar", "varchar", "YES", "John", nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -216,24 +221,26 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 	_, err := commonInfoSchema.GenerateSrcSchema(conv, isi, 1)
 	assert.Nil(t, err)
 	expectedSchema := map[string]schema.Table{
-		"cart": schema.Table{Name: "cart", Schema: "test", ColIds: []string{"productid", "userid", "quantity"}, ColDefs: map[string]schema.Column{
+		"cart": schema.Table{Name: "cart", Schema: "test", ColIds: []string{"productid", "userid", "quantity", "defval_2"}, ColDefs: map[string]schema.Column{
 			"productid": schema.Column{Name: "productid", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"quantity":  schema.Column{Name: "quantity", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"userid":    schema.Column{Name: "userid", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
+			"userid":    schema.Column{Name: "userid", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"defval_2": schema.Column{Name: "defval_2", Type: schema.Type{Name: "varchar", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: schema.DefaultValue{IsPresent: true, Value: "John"}}},
 			PrimaryKeys: []schema.Key{schema.Key{ColId: "productid", Desc: false, Order: 0}, schema.Key{ColId: "userid", Desc: false, Order: 0}},
 			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "product", ReferColumnIds: []string{"product_id"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION, Id: ""}, schema.ForeignKey{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}, OnUpdate: constants.FK_SET_NULL, OnDelete: constants.FK_RESTRICT, Id: ""}},
 			Indexes:     []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{ColId: "userid", Desc: false, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}, schema.Index{Name: "index2", Unique: false, Keys: []schema.Key{schema.Key{ColId: "userid", Desc: false, Order: 0}, schema.Key{ColId: "productid", Desc: true, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}, schema.Index{Name: "index3", Unique: true, Keys: []schema.Key{schema.Key{ColId: "productid", Desc: false, Order: 0}, schema.Key{ColId: "userid", Desc: true, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}}, Id: ""},
 
-		"product": schema.Table{Name: "product", Schema: "test", ColIds: []string{"product_id", "product_name"}, ColDefs: map[string]schema.Column{
+		"product": schema.Table{Name: "product", Schema: "test", ColIds: []string{"product_id", "product_name", "defval_3"}, ColDefs: map[string]schema.Column{
 			"product_id":   schema.Column{Name: "product_id", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"product_name": schema.Column{Name: "product_name", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
+			"product_name": schema.Column{Name: "product_name", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"defval_3": schema.Column{Name: "defval_3", Type: schema.Type{Name: "varchar", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: schema.DefaultValue{IsPresent: true, Value: "John"}}},
 			PrimaryKeys: []schema.Key{schema.Key{ColId: "product_id", Desc: false, Order: 0}},
 			ForeignKeys: []schema.ForeignKey(nil),
 			Indexes:     []schema.Index(nil), Id: ""},
-		"test": schema.Table{Name: "test", Schema: "test", ColIds: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "dec", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6"}, ColDefs: map[string]schema.Column{
+		"test": schema.Table{Name: "test", Schema: "test", ColIds: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "dec", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6", "def"}, ColDefs: map[string]schema.Column{
 			"b":   schema.Column{Name: "b", Type: schema.Type{Name: "boolean", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"bl":  schema.Column{Name: "bl", Type: schema.Type{Name: "blob", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"bs":  schema.Column{Name: "bs", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"bs":  schema.Column{Name: "bs", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: schema.DefaultValue{IsPresent: true, Value: "nextval('test11_bs_seq'::regclass)"}},
 			"c":   schema.Column{Name: "c", Type: schema.Type{Name: "char", Mods: []int64{1}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"c8":  schema.Column{Name: "c8", Type: schema.Type{Name: "char", Mods: []int64{8}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"d":   schema.Column{Name: "d", Type: schema.Type{Name: "date", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
@@ -241,30 +248,33 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			"f4":  schema.Column{Name: "f4", Type: schema.Type{Name: "float", Mods: []int64{24}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"f8":  schema.Column{Name: "f8", Type: schema.Type{Name: "double", Mods: []int64{53}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"i2":  schema.Column{Name: "i2", Type: schema.Type{Name: "smallint", Mods: []int64{16}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"i4":  schema.Column{Name: "i4", Type: schema.Type{Name: "integer", Mods: []int64{32}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", AutoGen: ddl.AutoGenCol{Name: "Sequence34", GenerationType: constants.AUTO_INCREMENT}},
+			"i4":  schema.Column{Name: "i4", Type: schema.Type{Name: "integer", Mods: []int64{32}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", AutoGen: ddl.AutoGenCol{Name: "Sequence37", GenerationType: constants.AUTO_INCREMENT}},
 			"i8":  schema.Column{Name: "i8", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"id":  schema.Column{Name: "id", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"s":   schema.Column{Name: "s", Type: schema.Type{Name: "set", Mods: []int64(nil), ArrayBounds: []int64{-1}}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"si":  schema.Column{Name: "si", Type: schema.Type{Name: "integer", Mods: []int64{32}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"si":  schema.Column{Name: "si", Type: schema.Type{Name: "integer", Mods: []int64{32}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: schema.DefaultValue{IsPresent: true, Value: "nextval('test11_s_seq'::regclass)"}},
 			"ts":  schema.Column{Name: "ts", Type: schema.Type{Name: "datetime", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"txt": schema.Column{Name: "txt", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"tz":  schema.Column{Name: "tz", Type: schema.Type{Name: "timestamp", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"vc":  schema.Column{Name: "vc", Type: schema.Type{Name: "varchar", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"vc6": schema.Column{Name: "vc6", Type: schema.Type{Name: "varchar", Mods: []int64{6}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
+			"vc6": schema.Column{Name: "vc6", Type: schema.Type{Name: "varchar", Mods: []int64{6}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"def": schema.Column{Name: "def", Type: schema.Type{Name: "varchar", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: schema.DefaultValue{IsPresent: true, Value: "John"}}},
 			PrimaryKeys: []schema.Key{schema.Key{ColId: "id", Desc: false, Order: 0}},
 			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test4", ColIds: []string{"id", "txt"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id", "ref_txt"}, OnUpdate: constants.FK_RESTRICT, OnDelete: constants.FK_CASCADE, Id: ""}},
 			Indexes:     []schema.Index(nil), Id: ""},
-		"test_ref": schema.Table{Name: "test_ref", Schema: "test", ColIds: []string{"ref_id", "ref_txt", "abc"}, ColDefs: map[string]schema.Column{
+		"test_ref": schema.Table{Name: "test_ref", Schema: "test", ColIds: []string{"ref_id", "ref_txt", "abc", "defval_4"}, ColDefs: map[string]schema.Column{
 			"abc":     schema.Column{Name: "abc", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"ref_id":  schema.Column{Name: "ref_id", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"ref_txt": schema.Column{Name: "ref_txt", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
+			"ref_txt": schema.Column{Name: "ref_txt", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"defval_4": schema.Column{Name: "defval_4", Type: schema.Type{Name: "varchar", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: schema.DefaultValue{IsPresent: true, Value: "John"}}},
 			PrimaryKeys: []schema.Key{schema.Key{ColId: "ref_id", Desc: false, Order: 0}, schema.Key{ColId: "ref_txt", Desc: false, Order: 0}},
 			ForeignKeys: []schema.ForeignKey(nil),
 			Indexes:     []schema.Index(nil), Id: ""},
-		"user": schema.Table{Name: "user", Schema: "test", ColIds: []string{"user_id", "name", "ref"}, ColDefs: map[string]schema.Column{
+		"user": schema.Table{Name: "user", Schema: "test", ColIds: []string{"user_id", "name", "ref", "defval_1"}, ColDefs: map[string]schema.Column{
 			"name":    schema.Column{Name: "name", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"ref":     schema.Column{Name: "ref", Type: schema.Type{Name: "bigint", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"user_id": schema.Column{Name: "user_id", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
+			"user_id": schema.Column{Name: "user_id", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"defval_1": schema.Column{Name: "defval_1", Type: schema.Type{Name: "varchar", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: schema.DefaultValue{IsPresent: true, Value: "John"}}},
 			PrimaryKeys: []schema.Key{schema.Key{ColId: "user_id", Desc: false, Order: 0}},
 			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"id"}, OnUpdate: constants.FK_CASCADE, OnDelete: constants.FK_SET_NULL, Id: ""}},
 			Indexes:     []schema.Index(nil), Id: ""}}
@@ -395,7 +405,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	columnLevelIssues := map[string][]internal.SchemaIssue{
-		"c49": []internal.SchemaIssue{
+		"c54": []internal.SchemaIssue{
 			2,
 		},
 	}
