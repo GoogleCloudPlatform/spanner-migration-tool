@@ -114,7 +114,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 		if p.severity == warning {
 			for _, colName := range colNames {
 				colId, _ := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
-				if !conv.SpSchema[tableId].ColDefs[colId].DefaultValue.IsPresent && conv.SpSchema[tableId].ColDefs[colId].DefaultValue.Value != "" {
+				if srcSchema.ColDefs[colId].DefaultValue.IsPresent && !spSchema.ColDefs[colId].DefaultValue.IsPresent {
 					issue := internal.DefaultValue
 					toAppend := Issue{
 						Category:    IssueDB[issue].Category,
