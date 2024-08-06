@@ -24,16 +24,16 @@ import (
 )
 
 type SpannerMetadataAccessor interface {
-	// IsSpannerSupportedStatement checks whether the statement from Source database is supported by Spanner or not.
+	// IsSpannerSupportedStatement checks if the given statement is supported by Spanner.
 	IsSpannerSupportedStatement(SpProjectId string, SpInstanceId string, statement string, columntype string) bool
-	// isValidSpannerStatement fires query to spanner to cast statement based on spanner column type.
-	isValidSpannerStatement(db string, defaultval string, ty string) error
+	// isValidSpannerStatement queries spanner and checks if statement evaluates to a data corresponding to given type.
+	isValidSpannerStatement(db string, defaultval string, datatype string) error
 }
 
 type SpannerMetadataAccessorImpl struct{}
 
 func (spm *SpannerMetadataAccessorImpl) IsSpannerSupportedStatement(SpProjectId string, SpInstanceId string, statement string, columntype string) bool {
-	db := getSpannerUri(SpProjectId, SpInstanceId)
+	db := getSpannerMetadataDbUri(SpProjectId, SpInstanceId)
 	if SpProjectId == "" || SpInstanceId == "" {
 		return false
 	}
@@ -44,7 +44,7 @@ func (spm *SpannerMetadataAccessorImpl) IsSpannerSupportedStatement(SpProjectId 
 		return true
 	}
 }
-func (spm *SpannerMetadataAccessorImpl) isValidSpannerStatement(db string, statement string, ty string) error {
+func (spm *SpannerMetadataAccessorImpl) isValidSpannerStatement(db string, statement string, datatype string) error {
 	ctx := context.Background()
 	spmClient, err := spannermetadataclient.GetOrCreateClient(ctx, db)
 	if err != nil {
@@ -52,10 +52,10 @@ func (spm *SpannerMetadataAccessorImpl) isValidSpannerStatement(db string, state
 	}
 
 	if spmClient == nil {
-		return fmt.Errorf("Client is nil")
+		return fmt.Errorf("spannerMetadataClient is nil")
 	}
 	stmt := spanner.Statement{
-		SQL: "SELECT CAST(" + statement + " AS " + ty + ") AS ConvertedDefaultval",
+		SQL: "SELECT CAST(" + statement + " AS " + datatype + ") AS statementValue",
 	}
 	iter := spmClient.Single().Query(ctx, stmt)
 	defer iter.Stop()
@@ -71,6 +71,6 @@ func (spm *SpannerMetadataAccessorImpl) isValidSpannerStatement(db string, state
 	}
 }
 
-func getSpannerUri(projectId string, instanceId string) string {
+func getSpannerMetadataDbUri(projectId string, instanceId string) string {
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, constants.METADATA_DB)
 }

@@ -49,8 +49,8 @@ func TestGetOrCreateClient_Basic(t *testing.T) {
 	newClient = func(ctx context.Context, database string, opts ...option.ClientOption) (*sp.Client, error) {
 		return &sp.Client{}, nil
 	}
-	c, err := GetOrCreateClient(ctx, "testURI")
-	assert.NotNil(t, c)
+	client, err := GetOrCreateClient(ctx, "testURI")
+	assert.NotNil(t, client)
 	assert.Nil(t, err)
 }
 
@@ -63,8 +63,8 @@ func TestGetOrCreateClient_OnlyOnceViaSync(t *testing.T) {
 	newClient = func(ctx context.Context, database string, opts ...option.ClientOption) (*sp.Client, error) {
 		return &sp.Client{}, nil
 	}
-	c, err := GetOrCreateClient(ctx, "testURI")
-	assert.NotNil(t, c)
+	client, err := GetOrCreateClient(ctx, "testURI")
+	assert.NotNil(t, client)
 	assert.Nil(t, err)
 	// Explicitly set the client to nil. Running GetOrCreateClient should not create a
 	// new client since sync would already be executed.
@@ -72,8 +72,8 @@ func TestGetOrCreateClient_OnlyOnceViaSync(t *testing.T) {
 	newClient = func(ctx context.Context, database string, opts ...option.ClientOption) (*sp.Client, error) {
 		return nil, fmt.Errorf("test error")
 	}
-	c, err = GetOrCreateClient(ctx, "testURI")
-	assert.Nil(t, c)
+	client, err = GetOrCreateClient(ctx, "testURI")
+	assert.Nil(t, client)
 	assert.Nil(t, err)
 }
 
@@ -110,7 +110,7 @@ func TestGetOrCreateClient_Error(t *testing.T) {
 	newClient = func(ctx context.Context, database string, opts ...option.ClientOption) (*sp.Client, error) {
 		return nil, fmt.Errorf("test error")
 	}
-	c, err := GetOrCreateClient(ctx, "testURI")
-	assert.Nil(t, c)
+	client, err := GetOrCreateClient(ctx, "testURI")
+	assert.Nil(t, client)
 	assert.NotNil(t, err)
 }

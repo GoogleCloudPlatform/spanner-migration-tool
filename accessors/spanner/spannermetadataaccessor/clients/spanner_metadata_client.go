@@ -33,7 +33,7 @@ func GetOrCreateClient(ctx context.Context, dbURI string) (*sp.Client, error) {
 			spannermetadataClient, err = newClient(ctx, dbURI)
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create spanner database client: %v", err)
+			return nil, fmt.Errorf("failed to create spanner metadata database client: %v", err)
 		}
 		return spannermetadataClient, nil
 	}

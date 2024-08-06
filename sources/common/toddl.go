@@ -148,13 +148,16 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(SpProjectId string, SpIn
 		}
 
 		defaultVal := ddl.DefaultValue{
-			IsPresent: srcCol.DefaultValue.IsPresent,
-			Value:     srcCol.DefaultValue.Value,
+			IsPresent: false,
+			Value:     "",
 		}
 
 		if srcCol.DefaultValue.IsPresent {
 			spM := spannermetadataaccessor.SpannerMetadataAccessorImpl{}
 			defaultVal.IsPresent = spM.IsSpannerSupportedStatement(SpProjectId, SpInstanceId, srcCol.DefaultValue.Value, ty.Name)
+		}
+		if defaultVal.IsPresent {
+			defaultVal.Value = srcCol.DefaultValue.Value
 		}
 
 		spColDef[srcColId] = ddl.ColumnDef{
