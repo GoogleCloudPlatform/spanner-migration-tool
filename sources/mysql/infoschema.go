@@ -254,11 +254,8 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 // Default Value after removing all "\\\\": " \\'This is a \\tmessage \\nwith a newline\\\\'s and \\ra carriage return.\\'
 // Default Value after removing all "\\'": "'This is a 	message \\nwith a newline\\'s \\rand a carriage return.'
 func sanitizeDefaultValue(defaultValue string) string {
-	// replaces all occurrences of the "_utf8mb4" pattern within the defaultValue string with a single space character (" ")
 	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", " ")
-	// replaces all occurrences of the "\\\\" pattern within the defaultValue string with "\\" to handle escape characters like \\n(new line), \\r(return carraige), \\t(tab), \\'(apostrophe)
 	defaultValue = strings.ReplaceAll(defaultValue, "\\\\", "\\")
-	// replaces all occurrences of the "\\'" pattern within the defaultValue string with a single quote character "'"
 	defaultValue = strings.ReplaceAll(defaultValue, "\\'", "'")
 	return defaultValue
 }
