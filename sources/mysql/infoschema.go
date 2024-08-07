@@ -226,6 +226,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		if colDefault.Valid {
 			defaultVal.Value = sanitizeDefaultValue(colDefault.String)
 		}
+		
 		c := schema.Column{
 			Id:           colId,
 			Name:         colName,
