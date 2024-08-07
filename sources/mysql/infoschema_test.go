@@ -537,12 +537,9 @@ func TestSanitizeDefaultValue(t *testing.T) {
 		{"_utf8mb4\\'This product has\tmultiple features.\\'", " 'This product has\tmultiple features.'"},
 		{"_utf8mb4\\'C:\\\\\\\\Users\\\\\\\\johndoe\\\\\\\\Documents\\\\\\\\myfile.txt\\'", " 'C:\\\\Users\\\\johndoe\\\\Documents\\\\myfile.txt'"},
 	}
-
 	for _, test := range tests {
 		result := sanitizeDefaultValue(test.input)
-		if result != test.expected {
-			t.Errorf("Actual sanitizeDefaultValue(%q) = %q; expected %q", test.input, result, test.expected)
-		}
+		assert.Equal(t, test.expected, result)
 	}
 }
 
