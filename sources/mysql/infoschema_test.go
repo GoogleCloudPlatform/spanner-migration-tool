@@ -524,6 +524,25 @@ func TestSetRowStats(t *testing.T) {
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
+func TestSanitizeDefaultValue(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"_utf8mb4\\'hello world\\'", " 'hello world'"},
+		{"week(_utf8mb4\\'2024-06-20\\',0)", "week( '2024-06-20',0)"},
+		{"_utf8mb4\\'This is a message \\\\nwith a newline\\\\rand a carriage return.\\'", " 'This is a message \\nwith a newline\\rand a carriage return.'"},
+		{"strcmp(_utf8mb4\\'abc\\',_utf8mb4\\'abcd\\')", "strcmp( 'abc', 'abcd')"},
+		{"_utf8mb4\\'John\\\\\\'s Jack\\'", " 'John\\'s Jack'"},
+		{"_utf8mb4\\'This product has\tmultiple features.\\'", " 'This product has\tmultiple features.'"},
+		{"_utf8mb4\\'C:\\\\\\\\Users\\\\\\\\johndoe\\\\\\\\Documents\\\\\\\\myfile.txt\\'", " 'C:\\\\Users\\\\johndoe\\\\Documents\\\\myfile.txt'"},
+	}
+	for _, test := range tests {
+		result := sanitizeDefaultValue(test.input)
+		assert.Equal(t, test.expected, result)
+	}
+}
+
 func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 	db, mock, err := sqlmock.New()
 	assert.Nil(t, err)

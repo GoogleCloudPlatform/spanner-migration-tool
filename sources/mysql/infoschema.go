@@ -224,7 +224,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			Value:     "",
 		}
 		if colDefault.Valid {
-			defaultVal.Value = colDefault.String
+			defaultVal.Value = sanitizeDefaultValue(colDefault.String)
 		}
 
 		c := schema.Column{
@@ -240,6 +240,25 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		colIds = append(colIds, colId)
 	}
 	return colDefs, colIds, nil
+}
+
+// sanitizeDefaultValue removes extra characters added to Default Value in information schema in MySQL.
+// Example_1:
+// Default Value: "concat('John', 'swamp', 'span')"
+// Default Value in MySQL infoschema with extra characters: "concat(_utf8mb4\\'John\\',_utf8mb4\\'swamp\\',_utf8mb4\\'span\\')"
+// Default Value after removing "_utf8mb4": "concat( \\'John\\',  \\'swamp\\',  \\'span\\')"
+// Default Value after removing all backslashes: "concat('John','swamp','span')"
+// Example_2:
+// Default Value: "This is a message \nwith a newline\rand a carriage return."
+// Default Value in MySQL infoschema with extra characters: "_utf8mb4\\'This is a \\tmessage \\\\nwith a newline\\\\\\'s and \\\\ra carriage return.\\'"
+// Default Value after removing "_utf8mb4": " \\'This is a \\tmessage \\\\nwith a newline\\\\\\'s and \\\\ra carriage return.\\'"
+// Default Value after removing all "\\\\": " \\'This is a \\tmessage \\nwith a newline\\\\'s and \\ra carriage return.\\'
+// Default Value after removing all "\\'": "'This is a 	message \\nwith a newline\\'s \\rand a carriage return.'
+func sanitizeDefaultValue(defaultValue string) string {
+	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", " ")
+	defaultValue = strings.ReplaceAll(defaultValue, "\\\\", "\\")
+	defaultValue = strings.ReplaceAll(defaultValue, "\\'", "'")
+	return defaultValue
 }
 
 // GetConstraints returns a list of primary keys and by-column map of
