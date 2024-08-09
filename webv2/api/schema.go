@@ -159,8 +159,8 @@ func ConvertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sourceProfile.Driver = dc.Config.Driver
 	schemaFromSource := conversion.SchemaFromSourceImpl{}
 	sessionState := session.GetSessionState()
-	SpProjectId:=sessionState.SpannerProjectId
-	SpInstanceId :=sessionState.SpannerInstanceID
+	SpProjectId := sessionState.SpannerProjectId
+	SpInstanceId := sessionState.SpannerInstanceID
 	conv, err := schemaFromSource.SchemaFromDump(SpProjectId, SpInstanceId, sourceProfile.Driver, dc.SpannerDetails.Dialect, &utils.IOStreams{In: f, Out: os.Stdout}, &conversion.ProcessDumpByDialectImpl{})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
