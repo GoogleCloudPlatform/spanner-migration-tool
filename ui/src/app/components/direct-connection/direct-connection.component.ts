@@ -122,8 +122,6 @@ export class DirectConnectionComponent implements OnInit {
       dialogRef.afterClosed().subscribe((dialogResult) => {
         if (dialogResult) {
           this.connectToDb();
-        } else {
-          // user cancelled, stays on same page.
         }
       })
     } else {
