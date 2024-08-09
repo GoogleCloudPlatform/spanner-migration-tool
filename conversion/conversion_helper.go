@@ -42,7 +42,7 @@ import (
 )
 
 type ProcessDumpByDialectInterface interface{
-	ProcessDump(SpProjectId string, SpInstanceId string, driver string, conv *internal.Conv, r *internal.Reader) error
+	ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error
 }
 
 type ProcessDumpByDialectImpl struct{}
@@ -85,12 +85,12 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 }
 
 // ProcessDump invokes process dump function from a sql package based on driver selected.
-func (pdd *ProcessDumpByDialectImpl) ProcessDump(SpProjectId string, SpInstanceId string, driver string, conv *internal.Conv, r *internal.Reader) error {
+func (pdd *ProcessDumpByDialectImpl) ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	switch driver {
 	case constants.MYSQLDUMP:
-		return common.ProcessDbDump(SpProjectId, SpInstanceId, conv, r, mysql.DbDumpImpl{})
+		return common.ProcessDbDump(conv, r, mysql.DbDumpImpl{})
 	case constants.PGDUMP:
-		return common.ProcessDbDump(SpProjectId, SpInstanceId, conv, r, postgres.DbDumpImpl{})
+		return common.ProcessDbDump(conv, r, postgres.DbDumpImpl{})
 	default:
 		return fmt.Errorf("process dump for driver %s not supported", driver)
 	}

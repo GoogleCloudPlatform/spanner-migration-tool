@@ -230,7 +230,9 @@ func validateExistingDb(SpProjectId string, SpInstanceId string, ctx context.Con
 	}
 	spannerConv := internal.MakeConv()
 	spannerConv.SpDialect = spDialect
-	err = utils.ReadSpannerSchema(SpProjectId, SpInstanceId, ctx, spannerConv, client)
+	spannerConv.SpProjectId = SpProjectId
+	spannerConv.SpInstanceId = SpInstanceId
+	err = utils.ReadSpannerSchema(ctx, spannerConv, client)
 	if err != nil {
 		err = fmt.Errorf("can't read spanner schema: %v", err)
 		return err

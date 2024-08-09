@@ -51,7 +51,6 @@ func TestGoldens(t *testing.T) {
 			conv.SetSchemaMode()
 
 			err := common.ProcessDbDump(
-				"", "", 
 				conv,
 				internal.NewReader(bufio.NewReader(strings.NewReader(tc.Input)), nil),
 				postgres.DbDumpImpl{})
@@ -59,7 +58,7 @@ func TestGoldens(t *testing.T) {
 				t.Fatalf("error when processing dump %s: %s", tc.Input, err)
 			}
 
-			err = schemaToSpanner.SchemaToSpannerDDL("", "", conv, postgres.ToDdlImpl{})
+			err = schemaToSpanner.SchemaToSpannerDDL(conv, postgres.ToDdlImpl{})
 			if err != nil {
 				t.Fatalf("error when converting schema to spanner ddl %s: %s", tc.Input, err)
 			}

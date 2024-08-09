@@ -1511,7 +1511,7 @@ func TestProcessPgDump_WithUnparsableContent(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
-	err := common.ProcessDbDump("", "", conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{})
+	err := common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{})
 	if err == nil {
 		t.Fatalf("Expect an error, but got nil")
 	}
@@ -1525,14 +1525,14 @@ func runProcessPgDump(s string) (*internal.Conv, []spannerData) {
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
 	pgDump := DbDumpImpl{}
-	common.ProcessDbDump("", "", conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump)
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessDbDump("", "", conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump)
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump)
 	return conv, rows
 }
 
@@ -1542,14 +1542,14 @@ func runProcessPgDumpPGTarget(s string) (*internal.Conv, []spannerData) {
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
 	pgDump := DbDumpImpl{}
-	common.ProcessDbDump("", "", conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump)
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessDbDump("", "", conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump)
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump)
 	return conv, rows
 }
 
