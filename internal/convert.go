@@ -44,6 +44,8 @@ type Conv struct {
 	Stats              stats                   `json:"-"`
 	TimezoneOffset     string                  // Timezone offset for timestamp conversion.
 	SpDialect          string                  // The dialect of the spanner database to which Spanner migration tool is writing.
+	SpProjectId        string				   // The projectId of the spanner database to which Spanner migration tool is writing.
+	SpInstanceId	   string				   // The instanceId of the spanner database to which Spanner migration tool is writing.
 	UniquePKey         map[string][]string     // Maps Spanner table name to unique column name being used as primary key (if needed).
 	Audit              Audit                   `json:"-"` // Stores the audit information for the database conversion
 	Rules              []Rule                  // Stores applied rules during schema conversion

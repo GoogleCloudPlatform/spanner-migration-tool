@@ -35,6 +35,7 @@ import (
 	"strconv"
 	"unicode"
 
+	spannermetadataaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner/spannermetadataaccessor"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -146,13 +147,27 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 			columnLevelIssues[srcColId] = issues
 		}
 
+		defaultVal := ddl.DefaultValue{
+			IsPresent: false,
+			Value:     "",
+		}
+
+		if srcCol.DefaultValue.IsPresent {
+			spM := spannermetadataaccessor.SpannerMetadataAccessorImpl{}
+			defaultVal.IsPresent = spM.IsSpannerSupportedDefaultStatement(conv.SpProjectId, conv.SpInstanceId, srcCol.DefaultValue.Value, ty.Name)
+		}
+		if defaultVal.IsPresent {
+			defaultVal.Value = srcCol.DefaultValue.Value
+		}
+
 		spColDef[srcColId] = ddl.ColumnDef{
-			Name:    colName,
-			T:       ty,
-			NotNull: isNotNull,
-			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
-			Id:      srcColId,
-			AutoGen: *autoGenCol,
+			Name:         colName,
+			T:            ty,
+			NotNull:      isNotNull,
+			Comment:      "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
+			Id:           srcColId,
+			AutoGen:      *autoGenCol,
+			DefaultValue: defaultVal,
 		}
 		if !checkIfColumnIsPartOfPK(srcColId, srcTable.PrimaryKeys) {
 			totalNonKeyColumnSize += getColumnSize(ty.Name, ty.Len)
