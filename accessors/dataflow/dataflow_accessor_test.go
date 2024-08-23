@@ -44,9 +44,9 @@ func getParameters() map[string]string {
 		"instanceId":                      "my-instance",
 		"databaseId":                      "my-dbName",
 		"sessionFilePath":                 "gs://session.json",
-		"deadLetterQueueDirectory":        "gs://dlq",
 		"transformationContextFilePath":   "gs://transformationContext.json",
 		"directoryWatchDurationInMinutes": "480", // Setting directory watch timeout to 8 hours
+		"dlqGcsPubSubSubscription":        "projects/my-project/subscriptions/my-dlq-subscription",
 	}
 }
 
@@ -104,9 +104,9 @@ func getExpectedGcloudCmd1() string {
 		"--additional-experiments use_runner_V2,test-experiment --network my-network " +
 		"--subnetwork https://www.googleapis.com/compute/v1/projects/host-project/regions/us-central1/subnetworks/my-subnetwork --additional-user-labels name=wrench " +
 		"--dataflow-kms-key sample-kms-key --disable-public-ips " +
-		"--enable-streaming-engine " +
-		"--parameters databaseId=my-dbName,deadLetterQueueDirectory=gs://dlq," +
-		"directoryWatchDurationInMinutes=480,inputFilePattern=gs://inputFilePattern," +
+		"--enable-streaming-engine --parameters databaseId=my-dbName,directoryWatchDurationInMinutes=480," +
+		"dlqGcsPubSubSubscription=projects/my-project/subscriptions/my-dlq-subscription," +
+		"inputFilePattern=gs://inputFilePattern," +
 		"instanceId=my-instance,sessionFilePath=gs://session.json,streamName=my-stream," +
 		"transformationContextFilePath=gs://transformationContext.json"
 }
@@ -152,8 +152,8 @@ func getExpectedGcloudCmd2() string {
 		"--dataflow-kms-key sample-kms-key --disable-public-ips --worker-region test-worker-region " +
 		"--worker-zone test-worker-zone --enable-streaming-engine " +
 		"--flexrs-goal FLEXRS_SPEED_OPTIMIZED --staging-location gs://staging-location " +
-		"--parameters databaseId=my-dbName,deadLetterQueueDirectory=gs://dlq," +
-		"directoryWatchDurationInMinutes=480,inputFilePattern=gs://inputFilePattern," +
+		"--parameters databaseId=my-dbName,directoryWatchDurationInMinutes=480," +
+		"dlqGcsPubSubSubscription=projects/my-project/subscriptions/my-dlq-subscription,inputFilePattern=gs://inputFilePattern," +
 		"instanceId=my-instance,sessionFilePath=gs://session.json,streamName=my-stream," +
 		"transformationContextFilePath=gs://transformationContext.json"
 }
