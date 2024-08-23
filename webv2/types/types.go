@@ -155,6 +155,10 @@ type GeneratedResources struct {
 	PubsubTopicUrl             string `json:"PubsubTopicUrl"`
 	PubsubSubscriptionName     string `json:"PubsubSubscriptionName"`
 	PubsubSubscriptionUrl      string `json:"PubsubSubscriptionUrl"`
+	DlqPubsubTopicName            string `json:"DlqPubsubTopicName"`
+	DlqPubsubTopicUrl             string `json:"DlqPubsubTopicUrl"`
+	DlqPubsubSubscriptionName     string `json:"DlqPubsubSubscriptionName"`
+	DlqPubsubSubscriptionUrl      string `json:"DlqPubsubSubscriptionUrl"`
 	MonitoringDashboardName    string `json:"MonitoringDashboardName"`
 	MonitoringDashboardUrl     string `json:"MonitoringDashboardUrl"`
 	AggMonitoringDashboardName string `json:"AggMonitoringDashboardName"`

@@ -89,6 +89,11 @@ func InitiateJobCleanup(ctx context.Context, migrationJobId string, dataShardIds
 		if err != nil {
 			logger.Log.Debug(fmt.Sprintf("Unable to fetch pubsub resources for jobId: %s: %v\n", migrationJobId, err))
 		}
+		dlqPubSubList, err := FetchResources(ctx, migrationJobId, constants.DLQ_PUBSUB_RESOURCE, dataShardIds, spannerProjectId, instance)
+		if err != nil {
+			logger.Log.Debug(fmt.Sprintf("Unable to fetch pubsub resources for jobId: %s: %v\n", migrationJobId, err))
+		}
+		pubsubResourcesList = append(pubsubResourcesList, dlqPubSubList...)
 		//cleanup
 		for _, resources := range pubsubResourcesList {
 			var pubsubResources internal.PubsubResources

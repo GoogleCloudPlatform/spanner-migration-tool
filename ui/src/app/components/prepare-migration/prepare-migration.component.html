@@ -441,6 +441,22 @@
                                 target="_blank">{{resourcesGenerated.PubsubSubscriptionName}}</a></span>
                     </p>
                 </span>
+                <span
+                    *ngIf="resourcesGenerated.DlqPubsubTopicName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
+                    <p class="point">
+                        <span class="bullet">6</span>
+                        <span><b>Dlq Pubsub topic: </b><a [href]="resourcesGenerated.DlqPubsubTopicUrl"
+                                target="_blank">{{resourcesGenerated.DlqPubsubTopicName}}</a></span>
+                    </p>
+                </span>
+                <span
+                    *ngIf="resourcesGenerated.DlqPubsubSubscriptionName!=='' && (selectedMigrationType ==='lowdt') && !isSharded">
+                    <p class="point">
+                        <span class="bullet">7</span>
+                        <span><b>Dlq Pubsub subscription: </b><a [href]="resourcesGenerated.DlqPubsubSubscriptionUrl"
+                                target="_blank">{{resourcesGenerated.DlqPubsubSubscriptionName}}</a></span>
+                    </p>
+                </span>
             </mat-card>
         </div>
         <span *ngIf="(selectedMigrationType ==='lowdt') && isSharded">

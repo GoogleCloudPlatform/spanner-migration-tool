@@ -164,6 +164,7 @@ type StreamingCfg struct {
 	DataflowCfg   DataflowCfg              `json:"dataflowCfg"`
 	TmpDir        string                   `json:"tmpDir"`
 	PubsubCfg     internal.PubsubResources `json:"pubsubCfg"`
+	DlqPubsubCfg  internal.PubsubResources `json:"dlqPubsubCfg"`
 	DataShardId   string                   `json:"dataShardId"`
 }
 
@@ -421,7 +422,7 @@ func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile prof
 	}
 }
 
-func CreatePubsubResources(ctx context.Context, projectID string, datastreamDestinationConnCfg DstConnCfg, dbName string) (*internal.PubsubResources, error) {
+func CreatePubsubResources(ctx context.Context, projectID string, datastreamDestinationConnCfg DstConnCfg, dbName string, pubsubDestination string) (*internal.PubsubResources, error) {
 	pubsubClient, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("pubsub client can not be created: %v", err)
@@ -429,7 +430,7 @@ func CreatePubsubResources(ctx context.Context, projectID string, datastreamDest
 	defer pubsubClient.Close()
 
 	// Create pubsub topic and subscription
-	pubsubCfg, err := createPubsubTopicAndSubscription(ctx, pubsubClient, dbName)
+	pubsubCfg, err := createPubsubTopicAndSubscription(ctx, pubsubClient, dbName, "-"+pubsubDestination)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Could not create pubsub resources. Some permissions missing. Please check https://googlecloudplatform.github.io/spanner-migration-tool/permissions.html for required pubsub permissions. error=%v", err))
 		return nil, err
@@ -455,7 +456,9 @@ func CreatePubsubResources(ctx context.Context, projectID string, datastreamDest
 		return nil, fmt.Errorf("GCS client can not be created: %v", err)
 	}
 	defer storageClient.Close()
-
+	if pubsubDestination != "" {
+		bucketName += "/" + pubsubDestination
+	}
 	notificationID, err := createNotificationOnBucket(ctx, storageClient, projectID, pubsubCfg.TopicId, bucketName, prefix)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Could not create pubsub resources. Some permissions missing. Please check https://googlecloudplatform.github.io/spanner-migration-tool/permissions.html for required pubsub permissions. error=%v", err))
@@ -467,16 +470,16 @@ func CreatePubsubResources(ctx context.Context, projectID string, datastreamDest
 	return &pubsubCfg, nil
 }
 
-func createPubsubTopicAndSubscription(ctx context.Context, pubsubClient *pubsub.Client, dbName string) (internal.PubsubResources, error) {
+func createPubsubTopicAndSubscription(ctx context.Context, pubsubClient *pubsub.Client, dbName string, pubsubDestination string) (internal.PubsubResources, error) {
 	pubsubCfg := internal.PubsubResources{}
 	// Generate ID
-	subscriptionId, err := utils.GenerateName("smt-sub-" + dbName)
+	subscriptionId, err := utils.GenerateName("smt-sub-" + dbName + pubsubDestination)
 	if err != nil {
 		return pubsubCfg, fmt.Errorf("error generating pubsub subscription ID: %v", err)
 	}
 	pubsubCfg.SubscriptionId = subscriptionId
 
-	topicId, err := utils.GenerateName("smt-topic-" + dbName)
+	topicId, err := utils.GenerateName("smt-topic-" + dbName + pubsubDestination)
 	if err != nil {
 		return pubsubCfg, fmt.Errorf("error generating pubsub topic ID: %v", err)
 	}
@@ -748,9 +751,9 @@ func LaunchDataflowJob(ctx context.Context, migrationProjectId string, targetPro
 			"instanceId":                    instance,
 			"databaseId":                    dbName,
 			"sessionFilePath":               streamingCfg.TmpDir + "session.json",
-			"deadLetterQueueDirectory":      inputFilePattern + "dlq",
 			"transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
 			"gcsPubSubSubscription":         fmt.Sprintf("projects/%s/subscriptions/%s", migrationProjectId, streamingCfg.PubsubCfg.SubscriptionId),
+			"dlqGcsPubSubSubscription":		 fmt.Sprintf("projects/%s/subscriptions/%s", migrationProjectId, streamingCfg.DlqPubsubCfg.SubscriptionId),
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			MaxWorkers:            maxWorkers,
@@ -804,6 +807,7 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 	conv.Audit.StreamingStats.DatastreamResources = internal.DatastreamResources{DatastreamName: datastreamCfg.StreamId, Region: datastreamCfg.StreamLocation}
 	conv.Audit.StreamingStats.DataflowResources = internal.DataflowResources{JobId: dfJobId, GcloudCmd: gcloudDataflowCmd, Region: dataflowCfg.Location}
 	conv.Audit.StreamingStats.PubsubResources = streamingCfg.PubsubCfg
+	conv.Audit.StreamingStats.DlqPubsubResources = streamingCfg.DlqPubsubCfg
 	conv.Audit.StreamingStats.GcsResources = gcsBucket
 	conv.Audit.StreamingStats.MonitoringResources = internal.MonitoringResources{DashboardName: dashboardName}
 	if dataShardId != "" {
@@ -813,6 +817,7 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 		shardResources.DatastreamResources = internal.DatastreamResources{DatastreamName: datastreamCfg.StreamId, Region: datastreamCfg.StreamLocation}
 		shardResources.DataflowResources = internal.DataflowResources{JobId: dfJobId, GcloudCmd: gcloudDataflowCmd, Region: dataflowCfg.Location}
 		shardResources.PubsubResources = streamingCfg.PubsubCfg
+		shardResources.DlqPubsubResources = streamingCfg.DlqPubsubCfg
 		shardResources.GcsResources = gcsBucket
 		if dashboardName != "" {
 			{
@@ -826,8 +831,9 @@ func StoreGeneratedResources(conv *internal.Conv, streamingCfg StreamingCfg, dfJ
 	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", migrationProjectId, dataflowCfg.Location, dataflowCfg.JobName, dfJobId)
 	logger.Log.Info("\n------------------------------------------\n")
 	logger.Log.Info("The Datastream stream: " + fullStreamName + " ,the Dataflow job: " + dfJobDetails +
-		" the Pubsub topic: " + streamingCfg.PubsubCfg.TopicId + " ,the subscription: " + streamingCfg.PubsubCfg.SubscriptionId +
-		" and the pubsub Notification id:" + streamingCfg.PubsubCfg.NotificationId + " on bucket: " + streamingCfg.PubsubCfg.BucketName +
+		" the Pubsub topic: " + streamingCfg.PubsubCfg.TopicId + " and " + streamingCfg.DlqPubsubCfg.TopicId + " ,the subscription: " + 
+		streamingCfg.PubsubCfg.SubscriptionId + " and " + streamingCfg.DlqPubsubCfg.SubscriptionId + " and the pubsub Notification id:" + 
+		streamingCfg.PubsubCfg.NotificationId + " and " + streamingCfg.DlqPubsubCfg.NotificationId + " on bucket: " + streamingCfg.PubsubCfg.BucketName +
 		" can be cleaned up by using the UI if you have it open. Otherwise, you can use the cleanup CLI command and supply the migrationjobId" +
 		" generated by Spanner migration tool. You can find the migrationJobId in the logs or in the 'spannermigrationtool_metadata'" +
 		" database in your spanner instance. If migrationJobId is not stored due to an error, you will have to clean up the resources manually.")
