@@ -738,7 +738,7 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 		dlqTopicResourceDetails := types.ResourceDetails{ResourceType: constants.DLQ_PUBSUB_TOPIC_RESOURCE, ResourceName: shardResources.DlqPubsubResources.TopicId, ResourceUrl: dlqTopicUrl}
 		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], dlqTopicResourceDetails)
 		dlqSubscriptionUrl := fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/subscription/detail/%v?project=%v", shardResources.DlqPubsubResources.SubscriptionId, sessionState.GCPProjectID)
-		dlqSubscriptionResourceDetails := types.ResourceDetails{ResourceType: constants.DLQ_PUBSUB_SUB_RESOURCE, ResourceName: shardResources.DlqweResources.SubscriptionId, ResourceUrl: dlqSubscriptionUrl}
+		dlqSubscriptionResourceDetails := types.ResourceDetails{ResourceType: constants.DLQ_PUBSUB_SUB_RESOURCE, ResourceName: shardResources.DlqPubsubResources.SubscriptionId, ResourceUrl: dlqSubscriptionUrl}
 		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], dlqSubscriptionResourceDetails)
 	}
 	w.WriteHeader(http.StatusOK)
