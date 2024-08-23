@@ -261,7 +261,7 @@ func (sads *DataFromSourceImpl) dataFromDatabase(ctx context.Context, migrationP
 			streamingCfg, _ := streamInfo["streamingCfg"].(streaming.StreamingCfg)
 			// Fetch and store the GCS bucket associated with the datastream
 			dsClient := GetDatastreamClient(ctx)
-			gcsBucket, gcsDestPrefix, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, migrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig)
+			gcsBucket, gcsDestPrefix, fetchGcsErr := streaming.FetchTargetBucketAndPath(ctx, dsClient, migrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, "data")
 			if fetchGcsErr != nil {
 				logger.Log.Info("Could not fetch GCS Bucket, hence Monitoring Dashboard will not contain Metrics for the gcs bucket\n")
 				logger.Log.Debug("Error", zap.Error(fetchGcsErr))
