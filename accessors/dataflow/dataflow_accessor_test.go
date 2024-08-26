@@ -43,6 +43,7 @@ func getParameters() map[string]string {
 		"instanceId":                    "my-instance",
 		"databaseId":                    "my-dbName",
 		"sessionFilePath":               "gs://session.json",
+		"deadLetterQueueDirectory":      "gs://dlq",
 		"transformationContextFilePath": "gs://transformationContext.json",
 		"dlqGcsPubSubSubscription":      "projects/my-project/subscriptions/my-dlq-subscription",
 		"gcsPubSubSubscription":         "projects/my-project/subscriptions/my-subscription",
@@ -104,7 +105,7 @@ func getExpectedGcloudCmd1() string {
 		"--subnetwork https://www.googleapis.com/compute/v1/projects/host-project/regions/us-central1/subnetworks/my-subnetwork --additional-user-labels name=wrench " +
 		"--dataflow-kms-key sample-kms-key --disable-public-ips " +
 		"--enable-streaming-engine " +
-		"--parameters databaseId=my-dbName," +
+		"--parameters databaseId=my-dbName,deadLetterQueueDirectory=gs://dlq," +
 		"dlqGcsPubSubSubscription=projects/my-project/subscriptions/my-dlq-subscription," +
 		"gcsPubSubSubscription=projects/my-project/subscriptions/my-subscription," +
 		"instanceId=my-instance,sessionFilePath=gs://session.json,streamName=my-stream," +
@@ -153,7 +154,7 @@ func getExpectedGcloudCmd2() string {
 		"--dataflow-kms-key sample-kms-key --disable-public-ips --worker-region test-worker-region " +
 		"--worker-zone test-worker-zone --enable-streaming-engine " +
 		"--flexrs-goal FLEXRS_SPEED_OPTIMIZED --staging-location gs://staging-location " +
-		"--parameters databaseId=my-dbName," +
+		"--parameters databaseId=my-dbName,deadLetterQueueDirectory=gs://dlq," +
 		"dlqGcsPubSubSubscription=projects/my-project/subscriptions/my-dlq-subscription," +
 		"gcsPubSubSubscription=projects/my-project/subscriptions/my-subscription," +
 		"instanceId=my-instance,sessionFilePath=gs://session.json,streamName=my-stream," +

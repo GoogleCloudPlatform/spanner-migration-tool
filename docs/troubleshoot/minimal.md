@@ -101,7 +101,7 @@ gcloud dataflow flex-template run <jobName> \
  --template-file-gcs-location=gs://dataflow-templates-southamerica-west1/2023-09-12-00_RC00/flex/Cloud_Datastream_to_Spanner \
  --num-workers 1 --max-workers 50 \
  --enable-streaming-engine \
- --parameters databaseId=<database id>,gcsPubSubSubscription=<pubsub subscription being used in a gcs notification policy>,dlqGcsPubSubSubscription=<pubsub subscription being used in a dlq gcs notification policy>,instanceId=<spanner-instance-id>,sessionFilePath=<GCS location of the session json>,streamName=<data stream name>,transformationContextFilePath=<path to transformation context json>
+ --parameters databaseId=<database id>,deadLetterQueueDirectory=<GCS location of the DLQ directory>,gcsPubSubSubscription=<pubsub subscription being used in a gcs notification policy>,dlqGcsPubSubSubscription=<pubsub subscription being used in a dlq gcs notification policy>,instanceId=<spanner-instance-id>,sessionFilePath=<GCS location of the session json>,streamName=<data stream name>,transformationContextFilePath=<path to transformation context json>
 
 ```
 
@@ -121,7 +121,8 @@ gcloud  dataflow flex-template run <jobname> \
 --additional-experiments=use_runner_v2 \
 --parameters gcsPubSubSubscription=<pubsub subscription being used in a gcs notification policy>,streamName=<Datastream name>, \
 instanceId=<Spanner Instance Id>,databaseId=<Spanner Database Id>,sessionFilePath=<GCS path to session file>, \
-dlqGcsPubSubSubscription=<pubsub subscription being used in a dlq gcs notification policy>,runMode=retryDLQ
+dlqGcsPubSubSubscription=<pubsub subscription being used in a dlq gcs notification policy>, \
+deadLetterQueueDirectory=<GCS path to the DLQ>,runMode=retryDLQ
 ```
 
 The following parameters can be taken from the regular forward migration Dataflow job:
@@ -133,5 +134,6 @@ streamName
 instanceId
 databaseId
 sessionFilePath
+deadLetterQueueDirectory
 dlqGcsPubSubSubscription
 ```

@@ -456,6 +456,7 @@ func CreatePubsubResources(ctx context.Context, projectID string, datastreamDest
 		return nil, fmt.Errorf("GCS client can not be created: %v", err)
 	}
 	defer storageClient.Close()
+
 	notificationID, err := createNotificationOnBucket(ctx, storageClient, projectID, pubsubCfg.TopicId, bucketName, prefix)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Could not create pubsub resources. Some permissions missing. Please check https://googlecloudplatform.github.io/spanner-migration-tool/permissions.html for required pubsub permissions. error=%v", err))
@@ -747,6 +748,7 @@ func LaunchDataflowJob(ctx context.Context, migrationProjectId string, targetPro
 			"instanceId":                    instance,
 			"databaseId":                    dbName,
 			"sessionFilePath":               streamingCfg.TmpDir + "session.json",
+			"deadLetterQueueDirectory":      inputFilePattern + "dlq",
 			"transformationContextFilePath": streamingCfg.TmpDir + "transformationContext.json",
 			"gcsPubSubSubscription":         fmt.Sprintf("projects/%s/subscriptions/%s", migrationProjectId, streamingCfg.PubsubCfg.SubscriptionId),
 			"dlqGcsPubSubSubscription":      fmt.Sprintf("projects/%s/subscriptions/%s", migrationProjectId, streamingCfg.DlqPubsubCfg.SubscriptionId),
