@@ -23,6 +23,7 @@ import (
 
 	sp "cloud.google.com/go/spanner"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -438,12 +439,12 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 	if err != nil {
 		return nil, fmt.Errorf("error reading streaming config: %v", err)
 	}
-	pubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.MigrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.SourceProfile.Conn.Oracle.User, "data")
+	pubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.MigrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.SourceProfile.Conn.Oracle.User, constants.REGULAR_GCS)
 	if err != nil {
 		return nil, fmt.Errorf("error creating pubsub resources: %v", err)
 	}
 	streamingCfg.PubsubCfg = *pubsubCfg
-	dlqPubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.MigrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.SourceProfile.Conn.Oracle.User, "dlq")
+	dlqPubsubCfg, err := streaming.CreatePubsubResources(ctx, isi.MigrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, isi.SourceProfile.Conn.Oracle.User, constants.DLQ_GCS)
 	if err != nil {
 		return nil, fmt.Errorf("error creating pubsub resources: %v", err)
 	}

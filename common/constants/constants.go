@@ -92,7 +92,7 @@ const (
 	//Job Resource Types
 	DATAFLOW_RESOURCE         string = "dataflow"
 	PUBSUB_RESOURCE           string = "pubsub"
-	DLQ_PUBSUB_RESOURCE       string = "pubsub"
+	DLQ_PUBSUB_RESOURCE       string = "dlq_pubsub"
 	PUBSUB_TOPIC_RESOURCE     string = "pubsub_topic"
 	DLQ_PUBSUB_TOPIC_RESOURCE string = "dlq_pubsub_topic"
 	PUBSUB_SUB_RESOURCE       string = "pubsub_sub"
@@ -117,4 +117,8 @@ const (
 	FK_SET_DEFAULT string = "SET DEFAULT"
 	FK_SET_NULL    string = "SET NULL"
 	FK_RESTRICT    string = "RESTRICT"
+
+	// GCS PUBSUB MODES
+	REGULAR_GCS string = "data"
+	DLQ_GCS     string = "dlq"
 )
