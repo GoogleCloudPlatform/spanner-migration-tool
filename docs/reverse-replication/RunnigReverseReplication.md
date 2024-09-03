@@ -69,6 +69,10 @@ The script takes in multiple arguments to orchestrate the pipeline. They are:
 - `vpcHostProjectId`: project ID hosting the subnetwork. If unspecified, the 'projectId' parameter value will be used for subnetwork.
 - `vpcNetwork`: name of the VPC network to be used for the dataflow jobs
 - `vpcSubnetwork`: name of the VPC subnetwork to be used for the dataflow jobs. Subnet should exist in the same region as the 'dataflowRegion' parameter.
+- `writeFilteredEventsToGcs`: Whether to write filtered events to GCS. Default is false.
+- `writerTransformationCustomJarPath`: The GCS path to custom jar for custom transformation logic.
+- `writerTransformationCustomClassName`: The fully qualified custom class name for custom transformation logic.
+- `writerTransformationCustomParameters`: Any custom parameters to be supplied to custom transformation class.
 
 
 ## Pre-requisites
@@ -139,9 +143,9 @@ Launched writer job:  id:"<>" project_id:"<>" name:"<>" current_state_time:{} cr
 
 ```
 
-### Custom Jar
+### Custom shard identification
 
-In order to specify custom shard identification function, custom jar and class names need to give. The command to do that is below:
+In order to specify custom shard identification function, custom jar and class names need to be given. The command to do that is below:
 
 ```
 go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -gcsPath=gs://bucket-name/<directory> -readerShardingCustomJarPath=gs://bucket-name/custom.jar -readerShardingCustomClassName=com.custom.classname -readerShardingCustomParameters='a=b,c=d'
@@ -151,6 +155,26 @@ The sample reader job gcloud command for the same
 
 ```
 gcloud dataflow flex-template run smt-reverse-replication-reader-2024-01-05t10-33-56z --project=<project> --region=<region> --template-file-gcs-location=<template location>  --parameters sessionFilePath=<session path>,windowDuration=10s,filtrationMode=forward_migration,skipDirectoryName=skip,instanceId=<spanner instance id>,spannerProjectId=<spanner-project-id>,metadataDatabase=rev_repl_metadata,gcsOutputDirectory=<gcs path>,metadataTableSuffix=,runMode=regular,metadataInstance=<spanner instance>,startTimestamp=,sourceShardsFilePath=<shard file path>,changeStreamName=reverseReplicationStream,databaseId=<spanner database name>,runIdentifier=2024-01-05t10-33-56z,shardingCustomJarPath=<jar path>,shardingCustomClassName=<custom class name>,shardingCustomParameters=a=b,c=d --num-workers=5 --worker-machine-type=n2-standard-4 --additional-experiments=use_runner_v2
+```
+
+
+### Custom transformation
+
+In order to specify custom transformation, custom jar and class names need to be given. The command to do that is below:
+
+```
+go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -gcsPath=gs://bucket-name/<directory> -writerTransformationCustomJarPath=gs://bucket-name/custom.jar -writerTransformationCustomClassName=com.custom.classname -writerTransformationCustomParameters='a=b,c=d'
+``` 
+
+If a user wants to write the records filtered via custom transformation to GCS, they can use the command below:
+```
+go run reverse-replication-runner.go -projectId=<project-id> -dataflowRegion=<region> -instanceId=<spanner-instance> -dbName=<spanner-database> -sourceShardsFilePath=gs://bucket-name/shards.json -sessionFilePath=gs://bucket-name/session.json -gcsPath=gs://bucket-name/<directory> -writerTransformationCustomJarPath=gs://bucket-name/custom.jar -writerTransformationCustomClassName=com.custom.classname -writerTransformationCustomParameters='a=b,c=d' -writeFilteredEventsToGcs
+```
+
+The sample reader job gcloud command for the same
+
+```
+gcloud dataflow flex-template run smt-reverse-replication-writer-2024-04-17t08-00-37z-8dac-d95f --project=<project> --region=<region> --template-file-gcs-location=<template location> --parameters sessionFilePath=<session path>,sourceDbTimezoneOffset=+00:00,spannerProjectId=span-cloud-testing,runMode=regular,sourceShardsFilePath=<shard file path>,metadataTableSuffix=,GCSInputDirectoryPath=<gcs path>,metadataInstance=<spanner instance>,metadataDatabase=<spanner metadata database>,runIdentifier=2024-04-17t08-00-37z,transformationJarPath=<jar path>,transformationClassName=<custom class name>,transformationCustomParameters=a=b,c=d,writeFilteredEventsToGcs=true --num-workers=5 --worker-machine-type=n2-standard-4 --additional-experiments=use_runner_v2
 ```
 
 

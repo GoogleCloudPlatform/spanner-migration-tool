@@ -23,6 +23,7 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -65,11 +66,11 @@ func TestProcessSchema(t *testing.T) {
 				{"ref", "FOREIGN KEY"}},
 		},
 		{
-			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "user"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 			rows: [][]driver.Value{
-				{"public", "test", "ref", "id", "fk_test"},
+				{"public", "test", "ref", "id", "fk_test", constants.FK_RESTRICT, constants.FK_CASCADE},
 			},
 		},
 		{
@@ -97,12 +98,12 @@ func TestProcessSchema(t *testing.T) {
 				{"userid", "PRIMARY KEY"}},
 		},
 		{
-			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "cart"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 			rows: [][]driver.Value{
-				{"public", "product", "productid", "product_id", "fk_test2"},
-				{"public", "user", "userid", "user_id", "fk_test3"}},
+				{"public", "product", "productid", "product_id", "fk_test2", constants.FK_NO_ACTION, constants.FK_SET_NULL},
+				{"public", "user", "userid", "user_id", "fk_test3", constants.FK_SET_NULL, constants.FK_RESTRICT}},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -133,9 +134,9 @@ func TestProcessSchema(t *testing.T) {
 				{"product_id", "PRIMARY KEY"}},
 		},
 		{
-			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "product"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -158,11 +159,11 @@ func TestProcessSchema(t *testing.T) {
 			cols:  []string{"column_name", "constraint_type"},
 			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}},
 		}, {
-			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "test"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
-			rows: [][]driver.Value{{"public", "test_ref", "id", "ref_id", "fk_test4"},
-				{"public", "test_ref", "txt", "ref_txt", "fk_test4"}},
+			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
+			rows: [][]driver.Value{{"public", "test_ref", "id", "ref_id", "fk_test4", constants.FK_CASCADE, constants.FK_NO_ACTION},
+				{"public", "test_ref", "txt", "ref_txt", "fk_test4", constants.FK_CASCADE, constants.FK_NO_ACTION}},
 		},
 
 		{
@@ -207,9 +208,9 @@ func TestProcessSchema(t *testing.T) {
 				{"ref_id", "PRIMARY KEY"},
 				{"ref_txt", "PRIMARY KEY"}},
 		}, {
-			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "test_ref"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -242,7 +243,7 @@ func TestProcessSchema(t *testing.T) {
 				"ref":     ddl.ColumnDef{Name: "ref", T: ddl.Type{Name: ddl.Int64}},
 			},
 			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "user_id", Order: 1}},
-			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"id"}}}},
+			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"id"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}}},
 		"cart": ddl.CreateTable{
 			Name:   "cart",
 			ColIds: []string{"productid", "userid", "quantity"},
@@ -252,8 +253,8 @@ func TestProcessSchema(t *testing.T) {
 				"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
 			},
 			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid", Order: 1}, ddl.IndexKey{ColId: "userid", Order: 2}},
-			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "product", ReferColumnIds: []string{"product_id"}},
-				ddl.Foreignkey{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}}},
+			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "product", ReferColumnIds: []string{"product_id"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
+				ddl.Foreignkey{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}, OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
 			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", TableId: "cart", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "userid", Desc: false, Order: 1}}},
 				ddl.CreateIndex{Name: "index2", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "userid", Desc: false, Order: 1}, ddl.IndexKey{ColId: "productid", Desc: true, Order: 2}}},
 				ddl.CreateIndex{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid", Desc: true, Order: 1}, ddl.IndexKey{ColId: "userid", Desc: false, Order: 2}}}}},
@@ -279,7 +280,7 @@ func TestProcessSchema(t *testing.T) {
 				"c_8":   ddl.ColumnDef{Name: "c_8", T: ddl.Type{Name: ddl.String, Len: int64(8)}},
 				"d":     ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Date}},
 				"f8":    ddl.ColumnDef{Name: "f8", T: ddl.Type{Name: ddl.Float64}},
-				"f4":    ddl.ColumnDef{Name: "f4", T: ddl.Type{Name: ddl.Float64}},
+				"f4":    ddl.ColumnDef{Name: "f4", T: ddl.Type{Name: ddl.Float32}},
 				"i8":    ddl.ColumnDef{Name: "i8", T: ddl.Type{Name: ddl.Int64}},
 				"i4":    ddl.ColumnDef{Name: "i4", T: ddl.Type{Name: ddl.Int64}},
 				"i2":    ddl.ColumnDef{Name: "i2", T: ddl.Type{Name: ddl.Int64}},
@@ -292,7 +293,7 @@ func TestProcessSchema(t *testing.T) {
 				"vc6":   ddl.ColumnDef{Name: "vc6", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 			},
 			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
-			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test4", ColIds: []string{"id", "txt"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id", "ref_txt"}}}},
+			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test4", ColIds: []string{"id", "txt"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id", "ref_txt"}, OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION}}},
 		"test_ref": ddl.CreateTable{
 			Name:   "test_ref",
 			ColIds: []string{"ref_id", "ref_txt", "abc"},
@@ -310,7 +311,6 @@ func TestProcessSchema(t *testing.T) {
 	expectedIssues := map[string][]internal.SchemaIssue{
 		"aint":  []internal.SchemaIssue{internal.Widened, internal.ArrayTypeNotSupported},
 		"bs":    []internal.SchemaIssue{internal.DefaultValue},
-		"f4":    []internal.SchemaIssue{internal.Widened},
 		"i4":    []internal.SchemaIssue{internal.Widened},
 		"i2":    []internal.SchemaIssue{internal.Widened},
 		"s":     []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
@@ -355,7 +355,7 @@ func TestProcessData(t *testing.T) {
 			Schema: "public",
 			ColIds: []string{"c1", "c2", "c3"},
 			ColDefs: map[string]schema.Column{
-				"c1": schema.Column{Name: "a a", Id: "c1", Type: schema.Type{Name: "float4"}},
+				"c1": schema.Column{Name: "a a", Id: "c1", Type: schema.Type{Name: "float8"}},
 				"c2": schema.Column{Name: " b", Id: "c2", Type: schema.Type{Name: "int8"}},
 				"c3": schema.Column{Name: " c ", Id: "c3", Type: schema.Type{Name: "text"}},
 			}})
@@ -395,17 +395,25 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 		{name: "date string", srcType: schema.Type{Name: "date"}, spType: ddl.Type{Name: ddl.Date}, in: "2019-10-29", e: getDate("2019-10-29")},
 		{name: "int64", srcType: schema.Type{Name: "bigint"}, spType: ddl.Type{Name: ddl.Int64}, in: int64(42), e: int64(42)},
 		{name: "int64 string", srcType: schema.Type{Name: "text"}, spType: ddl.Type{Name: ddl.Int64}, in: "42", e: int64(42)},
+		{name: "int64 float32", srcType: schema.Type{Name: "float4"}, spType: ddl.Type{Name: ddl.Int64}, in: float32(42), e: int64(42)},
 		{name: "int64 float64", srcType: schema.Type{Name: "float8"}, spType: ddl.Type{Name: ddl.Int64}, in: float64(42), e: int64(42)},
 		{name: "int64 byte", srcType: schema.Type{Name: "bytea"}, spType: ddl.Type{Name: ddl.Int64}, in: []byte("42"), e: int64(42)},
+		{name: "float32", srcType: schema.Type{Name: "float4"}, spType: ddl.Type{Name: ddl.Float32}, in: float32(42.6), e: float32(42.6)},
+		{name: "float32 string", srcType: schema.Type{Name: "text"}, spType: ddl.Type{Name: ddl.Float32}, in: "42.6", e: float32(42.6)},
+		{name: "float32 int", srcType: schema.Type{Name: "bigint"}, spType: ddl.Type{Name: ddl.Float32}, in: int64(42), e: float32(42)},
+		{name: "float32 float64", srcType: schema.Type{Name: "float8"}, spType: ddl.Type{Name: ddl.Float32}, in: float64(42.6), e: float32(42.6)},
+		{name: "float32 byte", srcType: schema.Type{Name: "numeric"}, spType: ddl.Type{Name: ddl.Float32}, in: []byte("42.6"), e: float32(42.6)},
 		{name: "float64", srcType: schema.Type{Name: "float8"}, spType: ddl.Type{Name: ddl.Float64}, in: float64(42.6), e: float64(42.6)},
 		{name: "float64 string", srcType: schema.Type{Name: "text"}, spType: ddl.Type{Name: ddl.Float64}, in: "42.6", e: float64(42.6)},
 		{name: "float64 int", srcType: schema.Type{Name: "bigint"}, spType: ddl.Type{Name: ddl.Float64}, in: int64(42), e: float64(42)},
+		{name: "float64 float32", srcType: schema.Type{Name: "float4"}, spType: ddl.Type{Name: ddl.Float64}, in: float32(42.6), e: float64(float32(42.6))},
 		{name: "float64 byte", srcType: schema.Type{Name: "numeric"}, spType: ddl.Type{Name: ddl.Float64}, in: []byte("42.6"), e: float64(42.6)},
 		{name: "numeric", srcType: schema.Type{Name: "numeric"}, spType: ddl.Type{Name: ddl.Numeric}, in: []byte("999.99999"), e: big.NewRat(99999999, 100000)},
 		{name: "string", srcType: schema.Type{Name: "text"}, spType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, in: "eh", e: "eh"},
 		{name: "string bool", srcType: schema.Type{Name: "bool"}, spType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, in: true, e: "true"},
 		{name: "string byte", srcType: schema.Type{Name: "bytea"}, spType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, in: []byte("abc"), e: "abc"},
 		{name: "string int64", srcType: schema.Type{Name: "bigint"}, spType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, in: int64(42), e: "42"},
+		{name: "string float32", srcType: schema.Type{Name: "float4"}, spType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, in: float32(42.3), e: "42.3"},
 		{name: "string float64", srcType: schema.Type{Name: "float8"}, spType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, in: float64(42.3), e: "42.3"},
 		{name: "string time", srcType: schema.Type{Name: "timestamp"}, spType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
 			in: getTime(t, "2019-10-29T05:30:00+10:00"), e: "2019-10-29 05:30:00 +1000 +1000"},
@@ -478,9 +486,9 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			rows:  [][]driver.Value{}, // No primary key --> force generation of synthetic key.
 		},
 		{
-			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "test"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",

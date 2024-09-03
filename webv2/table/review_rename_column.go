@@ -62,7 +62,7 @@ func reviewRenameColumnForChildTable(newName, tableId, colId string, conv *inter
 
 func reviewRenameColumnForParentTable(newName, tableId, colId string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema) ([]InterleaveTableSchema, string) {
 	sp := conv.SpSchema[tableId]
-	parentTableId := conv.SpSchema[tableId].ParentId
+	parentTableId := conv.SpSchema[tableId].ParentTable.Id
 
 	if parentTableId != "" {
 		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)

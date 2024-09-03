@@ -72,6 +72,8 @@ export class ObjectDetailComponent implements OnInit {
   processedAutoGenMap: GroupedAutoGens = {};
   sequenceKinds: string[] = []
   autoGenSupported: boolean = false
+  foreignKeyActionsSupported: boolean = false
+
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
@@ -83,6 +85,9 @@ export class ObjectDetailComponent implements OnInit {
       this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
     }
     this.autoGenSupported = autoGenSupportedDbs.includes(this.srcDbName)
+    if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres){
+          this.foreignKeyActionsSupported = true
+        }
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
@@ -205,6 +210,10 @@ export class ObjectDetailComponent implements OnInit {
       this.displayedPkColumns.splice(2, 0, "srcAutoGen");
       this.spColspan++;
       this.srcColspan++;
+    }
+    if (this.foreignKeyActionsSupported && !this.displayedFkColumns.includes('srcOnDelete') ) {
+      this.displayedFkColumns.splice(4, 0, 'srcOnDelete', 'srcOnUpdate');
+      this.displayedFkColumns.splice(10, 0, 'spOnDelete', 'spOnUpdate'); 
     }
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
@@ -916,7 +925,7 @@ export class ObjectDetailComponent implements OnInit {
         dialogRef.afterClosed().subscribe((dialogResult) => {
           if (dialogResult) {
             let interleavedChildId: string =
-              this.conv.SpSchema[this.currentObject!.id].ParentId != ''
+              this.conv.SpSchema[this.currentObject!.id].ParentTable.Id != ''
                 ? this.currentObject!.id
                 : this.conv.SpSchema[interleaveTableId].Id
             this.data
@@ -1008,6 +1017,8 @@ export class ObjectDetailComponent implements OnInit {
         srcColumns: fk.srcColumns,
         srcRefTable: fk.srcReferTable,
         srcRefColumns: fk.srcReferColumns,
+        srcOnDelete: fk.srcOnDelete,
+        srcOnUpdate: fk.srcOnUpdate,
         Id: fk.srcFkId,
       })
       if (fk.spName != '') {
@@ -1016,6 +1027,8 @@ export class ObjectDetailComponent implements OnInit {
           spColumns: fk.spColumns,
           spRefTable: fk.spReferTable,
           spRefColumns: fk.spReferColumns,
+          spOnDelete: fk.spOnDelete,
+          spOnUpdate: fk.spOnUpdate,
           Id: fk.spFkId,
           spColIds: fk.spColIds,
           spReferColumnIds: fk.spReferColumnIds,
@@ -1039,6 +1052,10 @@ export class ObjectDetailComponent implements OnInit {
           srcReferTable: new FormControl(srcArr[i].srcRefTable),
           spReferColumns: new FormControl(spArr[i].spRefColumns),
           srcReferColumns: new FormControl(srcArr[i].srcRefColumns),
+          spOnDelete: new FormControl(spArr[i].spOnDelete),
+          srcOnDelete: new FormControl(srcArr[i].srcOnDelete),
+          spOnUpdate: new FormControl(spArr[i].spOnUpdate),
+          srcOnUpdate: new FormControl(srcArr[i].srcOnUpdate),
           Id: new FormControl(spArr[i].Id),
           spColIds: new FormControl(spArr[i].spColIds),
           spReferColumnIds: new FormControl(spArr[i].spReferColumnIds),
@@ -1062,6 +1079,10 @@ export class ObjectDetailComponent implements OnInit {
             srcReferTable: new FormControl(srcArr[i].srcRefTable),
             spReferColumns: new FormControl([]),
             srcReferColumns: new FormControl(srcArr[i].srcRefColumns),
+            spOnDelete: new FormControl(''),  //check if this needs to be changed
+            srcOnDelete: new FormControl(srcArr[i].srcOnDelete),
+            spOnUpdate: new FormControl(''),
+            srcOnUpdate: new FormControl(srcArr[i].srcOnUpdate),
             Id: new FormControl(srcArr[i].Id),
             spColIds: new FormControl([]),
             spReferColumnIds: new FormControl([]),
@@ -1092,6 +1113,8 @@ export class ObjectDetailComponent implements OnInit {
         ColIds: fk.spColIds,
         ReferTableId: fk.spReferTableId,
         ReferColumnIds: fk.spReferColumnIds,
+        OnDelete: fk.spOnDelete,
+        OnUpdate: fk.spOnUpdate,
         Id: fk.spFkId,
       })
     })
@@ -1120,6 +1143,8 @@ export class ObjectDetailComponent implements OnInit {
         fk.spColIds = []
         fk.spReferColumnIds = []
         fk.spReferTableId = ''
+        fk.spOnDelete = '' 
+        fk.spOnUpdate = ''
       }
     })
     this.setFkRows()
@@ -1166,8 +1191,8 @@ export class ObjectDetailComponent implements OnInit {
     return this.currentObject?.type === ObjectExplorerNodeType.Table &&
       this.currentObject.isSpannerNode &&
       !this.currentObject.isDeleted &&
-      this.conv.SpSchema[this.currentObject.id].ParentId != ''
-      ? this.conv.SpSchema[this.conv.SpSchema[this.currentObject.id].ParentId]?.Name
+      this.conv.SpSchema[this.currentObject.id].ParentTable.Id != ''
+      ? this.conv.SpSchema[this.conv.SpSchema[this.currentObject.id].ParentTable.Id]?.Name
       : null
   }
 
@@ -1495,14 +1520,14 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   tableInterleaveWith(table: string): string {
-    if (this.conv.SpSchema[table].ParentId != '') {
-      return this.conv.SpSchema[table].ParentId
+    if (this.conv.SpSchema[table].ParentTable.Id != '') {
+      return this.conv.SpSchema[table].ParentTable.Id
     }
     let interleaveTable = ''
     Object.keys(this.conv.SpSchema).forEach((tableName: string) => {
       if (
-        this.conv.SpSchema[tableName].ParentId != '' &&
-        this.conv.SpSchema[tableName].ParentId == table
+        this.conv.SpSchema[tableName].ParentTable.Id != '' &&
+        this.conv.SpSchema[tableName].ParentTable.Id == table
       ) {
         interleaveTable = tableName
       }
@@ -1513,7 +1538,7 @@ export class ObjectDetailComponent implements OnInit {
 
   isPKPrefixModified(tableId: string, interleaveTableId: string): boolean {
     let parentPrimaryKey,childPrimaryKey: IIndexKey[]
-    if (this.conv.SpSchema[tableId].ParentId != interleaveTableId) {
+    if (this.conv.SpSchema[tableId].ParentTable.Id != interleaveTableId) {
       parentPrimaryKey = this.pkObj.Columns
       childPrimaryKey = this.conv.SpSchema[interleaveTableId].PrimaryKeys
     } else {

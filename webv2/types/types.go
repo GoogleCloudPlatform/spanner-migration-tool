@@ -171,5 +171,6 @@ type DropDetail struct {
 type TableInterleaveStatus struct {
 	Possible bool
 	Parent   string
+	OnDelete string
 	Comment  string
 }

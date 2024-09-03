@@ -23,13 +23,14 @@ Some use cases when the user would want to tweak the jobs are:
 - Dataflow and Spanner should run in separate projects for cost tracking.
 - Use a custom service account to launch the Dataflow job.
 - Apply labels for better cost tracking for the jobs.
+- Apply custom transformations to the records.
 
 
 {: .highlight }
 
 To tune dataflow, first specify the target database in the 'Configure Spanner Database' step. This enables the configure button for the remaining steps.
 
-![](https://services.google.com/fh/gumdrop/preview/misc/dataflow-form.png)
+![](https://services.google.com/fh/files/misc/dataflow-tuning.png)
 
 <details open markdown="block">
   <summary>
@@ -43,6 +44,35 @@ To tune dataflow, first specify the target database in the 'Configure Spanner Da
 {: .highlight }
 
 SMT exposes the most frequently changed dataflow configurations to the user. Please reach out to us if you have a use-case that is not satisfied by the provided configurations.
+
+### Custom transformations
+For cases where a user wants to handle a custom transformation logic, they need to specify the following parameters in the [dataflow](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/datastream-to-spanner) template from the SMT UI - a GCS path that points to a custom jar, fully classified custom class name of the class containing custom transformation logic and custom parameters which might be used by the jar to invoke custom logic to perform transformation.
+
+The records processed through custom transformation will be written to the `filteredEvents/` directory in the destination connection profile's GCS bucket. 
+
+#### Custom JAR GCS Path
+Specify the GCS path of the jar containing custom transformation logic. For custom transformation, specify both custom jar GCS path and fully classified class name. If no custom jar and class name are provided, only the default transformations will be used.
+
+Present under the Custom Transformations section of the form.
+
+{: .highlight }
+
+Please make sure that the custom JAR code is idempotent to manage transaction retries effectively.
+
+Refer to [Custom transformations](../../transformations/CustomTransformation.md) for more details.
+
+#### Custom Class Name
+Specify the fully classified class name of the class containing custom transformation logic (e.g.: `com.custom.CustomTransformationFetcher.java`). For custom transformation, specify both custom jar GCS path and fully classified class name. If no custom jar and class name are provided, only the default transformations will be used.
+
+Present under the Custom Transformations section of the form.
+
+{: .highlight }
+Specify both the custom class name and custom jar GCS path, or specify neither.
+
+#### Custom Parameter
+Specify the custom parameters to be passed to the custom transformation logic implementation.
+
+Present under the Custom Transformations section of the form.
 
 ### VPC Host ProjectId
 Specify the project id of the VPC that you want to use. This is required in order to use private connectivity. By default, this is assumed to be the same as Spanner project. Ensure this is specified if also specifying a network and subnetwork.

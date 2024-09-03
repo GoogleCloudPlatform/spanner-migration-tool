@@ -123,7 +123,11 @@ const (
 	ShardIdColumnAdded
 	ShardIdColumnPrimaryKey
 	ArrayTypeNotSupported
+	ForeignKeyOnDelete
+	ForeignKeyOnUpdate
 	SequenceCreated
+	ForeignKeyActionNotSupported
+	NumericPKNotSupported
 )
 
 const (
