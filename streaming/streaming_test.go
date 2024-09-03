@@ -431,3 +431,95 @@ func TestGetUpdateDataStreamLRORetryBackoff(t *testing.T) {
 	assert.Equal(t, backoff.MaxInterval, DEFAULT_DATASTREAM_LRO_POLL_MAX_DELAY)
 	assert.Equal(t, backoff.MaxElapsedTime, DEFAULT_DATASTREAM_LRO_POLL_MAX_ELAPSED_TIME)
 }
+
+func TestCreateStreamingConfig(t *testing.T) {
+	// Mock data
+	inputDataflowConfig := profiles.DataflowConfig{
+		ProjectId:            "project-id",
+		Location:             "us-central1",
+		Network:              "network",
+		VpcHostProjectId:     "vpc-host-project-id",
+		Subnetwork:           "subnetwork",
+		MaxWorkers:           "10",
+		NumWorkers:           "5",
+		ServiceAccountEmail:  "service-account-email",
+		MachineType:          "machine-type",
+		AdditionalUserLabels: "",
+		KmsKeyName:           "kms-key-name",
+		GcsTemplatePath:      "gcs-template-path",
+		CustomJarPath:        "custom-jar-path",
+		CustomClassName:      "custom-class-name",
+		CustomParameter:      "custom-parameter",
+	}
+
+	inputDatastreamConfig := profiles.DatastreamConfig{
+		MaxConcurrentBackfillTasks: "3",
+		MaxConcurrentCdcTasks:      "5",
+	}
+
+	inputSrcConnProfile := profiles.DatastreamConnProfileSource{
+		Location: "us-central1",
+		Name:     "src-conn-profile",
+	}
+
+	inputDstConnProfile := profiles.DatastreamConnProfileTarget{
+		Name:     "dst-conn-profile",
+		Location: "us-central1",
+	}
+
+	inputGcsConfig := profiles.GcsConfig{
+		TtlInDays:    7,
+		TtlInDaysSet: true,
+	}
+
+	inputDataShard := profiles.DataShard{
+		DataflowConfig:       inputDataflowConfig,
+		StreamLocation:       "us-central1",
+		DatastreamConfig:     inputDatastreamConfig,
+		SrcConnectionProfile: inputSrcConnProfile,
+		DstConnectionProfile: inputDstConnProfile,
+		GcsConfig:            inputGcsConfig,
+		TmpDir:               "gs://my-bucket/tmp/",
+		DataShardId:          "data-shard-id",
+	}
+
+	// Expected output
+	expectedStreamingCfg := StreamingCfg{
+		DatastreamCfg: DatastreamCfg{
+			StreamLocation:              "us-central1",
+			MaxConcurrentBackfillTasks:  "3",
+			MaxConcurrentCdcTasks:       "5",
+			SourceConnectionConfig:      SrcConnCfg{Location: "us-central1", Name: "src-conn-profile"},
+			DestinationConnectionConfig: DstConnCfg{Name: "dst-conn-profile", Location: "us-central1"},
+		},
+		GcsCfg: GcsCfg{
+			TtlInDays:    7,
+			TtlInDaysSet: true,
+		},
+		DataflowCfg: DataflowCfg{
+			ProjectId:            "project-id",
+			Location:             "us-central1",
+			Network:              "network",
+			VpcHostProjectId:     "vpc-host-project-id",
+			Subnetwork:           "subnetwork",
+			MaxWorkers:           "10",
+			NumWorkers:           "5",
+			ServiceAccountEmail:  "service-account-email",
+			MachineType:          "machine-type",
+			AdditionalUserLabels: "",
+			KmsKeyName:           "kms-key-name",
+			GcsTemplatePath:      "gcs-template-path",
+			CustomJarPath:        "custom-jar-path",
+			CustomClassName:      "custom-class-name",
+			CustomParameter:      "custom-parameter",
+		},
+		TmpDir:      "gs://my-bucket/tmp/",
+		DataShardId: "data-shard-id",
+	}
+
+	// Call function
+	actualStreamingCfg := CreateStreamingConfig(inputDataShard)
+
+	// Compare expected and actual output
+	assert.Equal(t, expectedStreamingCfg, actualStreamingCfg, "The streaming configuration should match the expected configuration")
+}

@@ -76,6 +76,8 @@ func assertSpFk(conv *Conv, t *testing.T, tableId string, expectedFks, actualFks
 			assert.Equal(t, nil, err)
 			expectedFks[i].ReferColumnIds[j] = colId
 		}
+		assert.Equal(t, expectedFks[i].OnDelete, actualFks[i].OnDelete)
+		assert.Equal(t, expectedFks[i].OnUpdate, actualFks[i].OnUpdate)
 	}
 	assert.ElementsMatch(t, expectedFks, actualFks)
 }
@@ -178,6 +180,8 @@ func assertSrcFk(t *testing.T, conv *Conv, tableId string, expectedFks, actualFk
 			assert.NotEqual(t, colId, "")
 			expectedFks[i].ReferColumnIds[j] = colId
 		}
+		assert.Equal(t, expectedFks[i].OnDelete, actualFks[i].OnDelete)
+		assert.Equal(t, expectedFks[i].OnUpdate, actualFks[i].OnUpdate)
 	}
 	assert.ElementsMatch(t, expectedFks, actualFks)
 }

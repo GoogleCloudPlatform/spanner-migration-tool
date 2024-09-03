@@ -12,4 +12,8 @@ export default interface IFkTabData {
   spColIds: string[]
   spReferColumnIds: string[]
   spReferTableId: string
+  srcOnDelete: string
+  spOnDelete: string
+  srcOnUpdate: string
+  spOnUpdate: string
 }

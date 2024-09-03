@@ -938,6 +938,9 @@ func createStreamingCfgFile(sessionState *session.SessionState, details types.Mi
 			AdditionalUserLabels: dataflowConfig.AdditionalUserLabels,
 			KmsKeyName:           dataflowConfig.KmsKeyName,
 			GcsTemplatePath:      dataflowConfig.GcsTemplatePath,
+			CustomJarPath:        dataflowConfig.CustomJarPath,
+			CustomClassName:      dataflowConfig.CustomClassName,
+			CustomParameter:      dataflowConfig.CustomParameter,
 		},
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}

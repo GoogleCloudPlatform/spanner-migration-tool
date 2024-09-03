@@ -112,7 +112,7 @@ func updateColumnTypeForChildTable(newType, tableId, colId string, conv *interna
 func updateColumnTypeForParentTable(newType, tableId, colId string, conv *internal.Conv, w http.ResponseWriter) {
 	sp := conv.SpSchema[tableId]
 
-	parentTableId := conv.SpSchema[tableId].ParentId
+	parentTableId := conv.SpSchema[tableId].ParentTable.Id
 	if parentTableId != "" {
 		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
 		if err == nil {
@@ -148,7 +148,7 @@ func updateColumnSizeForChildTable(newSize, tableId, colId string, conv *interna
 
 func updateColumnSizeForParentTable(newSize, tableId, colId string, conv *internal.Conv) {
 	sp := conv.SpSchema[tableId]
-	parentTableId := conv.SpSchema[tableId].ParentId
+	parentTableId := conv.SpSchema[tableId].ParentTable.Id
 	if parentTableId != "" {
 		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
 		if err == nil {

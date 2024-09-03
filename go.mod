@@ -23,7 +23,7 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/lib/pq v1.9.0
-	github.com/pganalyze/pg_query_go/v2 v2.2.0
+	github.com/pganalyze/pg_query_go/v5 v5.1.0
 	github.com/pingcap/tidb v1.1.0-beta.0.20230918090611-71bcc44f77a3
 	github.com/pingcap/tidb/parser v0.0.0-20230918090611-71bcc44f77a3
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
@@ -37,7 +37,7 @@ require (
 	google.golang.org/api v0.178.0
 	google.golang.org/genproto v0.0.0-20240401170217-c3f982113cda
 	google.golang.org/grpc v1.63.2
-	google.golang.org/protobuf v1.34.1
+	google.golang.org/protobuf v1.34.2
 )
 
 require (

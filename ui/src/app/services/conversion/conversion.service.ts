@@ -4,7 +4,6 @@ import IConv, {
   ICreateIndex,
   IIndexKey,
   IIndex,
-  ISpannerForeignKey,
   IForeignKey,
   ISrcIndexKey,
   IColumnDef,
@@ -85,11 +84,11 @@ export class ConversionService {
           name: spannerTable.Name,
           status: conversionRates[tableId],
           type: ObjectExplorerNodeType.Table,
-          parent: spannerTable.ParentId != '' ? conv.SpSchema[spannerTable.ParentId]?.Name : '',
+          parent: spannerTable.ParentTable.Id != '' ? conv.SpSchema[spannerTable.ParentTable.Id]?.Name : '',
           pos: -1,
           isSpannerNode: true,
           id: tableId,
-          parentId: spannerTable.ParentId,
+          parentId: spannerTable.ParentTable.Id,
           children: [
             {
               name: `Indexes (${spannerTable.Indexes ? spannerTable.Indexes.length : 0})`,
@@ -234,6 +233,7 @@ export class ConversionService {
           isSpannerNode: false,
           id: tableId,
           parentId: '',
+          parentOnDelete: '',
           children: [
             {
               name: `Indexes (${srcTable.Indexes?.length || '0'})`,
@@ -244,6 +244,7 @@ export class ConversionService {
               isSpannerNode: false,
               id: '',
               parentId: '',
+              parentOnDelete: '',
               children: srcTable.Indexes
                 ? srcTable.Indexes.map((index: IIndex, i: number) => {
                     return {
@@ -378,7 +379,7 @@ export class ConversionService {
     if (!srcFks) {
       return []
     }
-    return srcFks.map((srcFk: ISpannerForeignKey) => {
+    return srcFks.map((srcFk: IForeignKey) => {
       let spFk = this.getSpannerFkFromId(data, id, srcFk.Id)
       let spColumns = spFk
         ? spFk.ColIds.map((columnId: string) => {
@@ -413,6 +414,10 @@ export class ConversionService {
         spColIds: spColIds,
         spReferColumnIds: spReferColumnIds,
         spReferTableId: spFk ? spFk.ReferTableId : '',
+        srcOnDelete: srcFk.OnDelete,
+        spOnDelete: spFk ? spFk.OnDelete : '',
+        srcOnUpdate: srcFk.OnUpdate,
+        spOnUpdate: spFk? spFk.OnUpdate : '',
       }
     })
   }
@@ -481,7 +486,7 @@ export class ConversionService {
     return sequence
   }
 
-  getSpannerFkFromId(conv: IConv, tableId: string, srcFkId: string): IForeignKey | null {
+  getSpannerFkFromId(conv: IConv, tableId: string, srcFkId: string | undefined): IForeignKey | null {
     let spFk: IForeignKey | null = null
     conv.SpSchema[tableId]?.ForeignKeys?.forEach((fk: IForeignKey) => {
       if (fk.Id == srcFkId) {
