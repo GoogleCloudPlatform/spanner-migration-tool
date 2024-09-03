@@ -82,7 +82,8 @@ describe('template spec', () => {
     // Check that workspace is rendered with correct number of tables in Object Viewer
     cy.url().should('include', '/workspace');
     cy.fixture('mysql-config').then((json) => {
-      cy.get('#table-and-index-list').find('tbody tr').should('have.length', json.tableCount + 2);
+      cy.get('#schema-object-list').find('tbody tr').should('have.length', json.tableCount + 3);
+      cy.get('#schema-object-list').contains('td', 'Sequences (1)').should('exist');
     })
   });
 });

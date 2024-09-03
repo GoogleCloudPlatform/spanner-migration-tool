@@ -22,11 +22,12 @@ Spanner migration tool scans through the generated spanner schema and notifies t
 
 ## Warnings
 
-- Detection of an auto-increment key in source database because auto-increments are currently not supported in spanner
+- Detection of an auto-increment key in source database because auto-increments are currently not supported for all source databases.
 - Spanner data type consuming more storage than source data type
 - Redundant indexes
 - Addition of [synthetic primary key](../ui.md/#termsterminology) - synth_id
 - [Hotspotting](https://cloud.google.com/spanner/docs/schema-design) due to timestamp or auto-increment keys
+- Auto Increment has been converted to Sequence, set Ignore Range or Start with Counter to avoid duplicate value errors
 
 ## Suggestions
 

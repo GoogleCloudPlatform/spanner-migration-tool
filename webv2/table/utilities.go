@@ -15,6 +15,9 @@
 package table
 
 import (
+	"fmt"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
@@ -248,11 +251,22 @@ func UpdateNotNull(notNullChange, tableId, colId string, conv *internal.Conv) {
 	}
 }
 
-func UpdateAutoGenCol(autoGen ddl.AutoGenCol, tableId, colId string, conv *internal.Conv) {
+func UpdateAutoGenCol(autoGen ddl.AutoGenCol, tableId, colId string, conv *internal.Conv) map[string]ddl.Sequence {
 	sp := conv.SpSchema[tableId]
+	sequences := conv.SpSequences
 	spColDef := sp.ColDefs[colId]
+	if spColDef.AutoGen.GenerationType == constants.SEQUENCE {
+		seqId := getSequenceId(spColDef.AutoGen.Name, conv.SpSequences)
+		sequences = deleteColumnFromSequence(seqId, tableId, colId, sequences)
+	}
 	spColDef.AutoGen = autoGen
 	sp.ColDefs[colId] = spColDef
+	if autoGen.GenerationType == constants.SEQUENCE {
+		seqId := getSequenceId(autoGen.Name, conv.SpSequences)
+		sequences = addColumnToSequence(seqId, tableId, colId, sequences)
+	}
+	conv.SpSchema[tableId] = sp
+	return sequences
 }
 
 func getFkColumnPosition(colIds []string, colId string) int {
@@ -271,4 +285,53 @@ func isColFistOderPk(pks []ddl.IndexKey, colId string) bool {
 		}
 	}
 	return false
+}
+
+func deleteColumnFromSequence(sequenceId string, tableId, colId string, sequences map[string]ddl.Sequence) map[string]ddl.Sequence {
+	if _, ok := sequences[sequenceId].ColumnsUsingSeq[tableId]; ok {
+		cols := sequences[sequenceId].ColumnsUsingSeq[tableId]
+		for i, col := range cols {
+			if col == colId {
+				sequences[sequenceId].ColumnsUsingSeq[tableId] = append(cols[:i], cols[i+1:]...)
+				return sequences
+			}
+		}
+	}
+	return sequences
+}
+
+func addColumnToSequence(sequenceId string, tableId, colId string, sequences map[string]ddl.Sequence) map[string]ddl.Sequence {
+	if _, ok := sequences[sequenceId].ColumnsUsingSeq[tableId]; ok {
+		cols := sequences[sequenceId].ColumnsUsingSeq[tableId]
+		found := false
+		for _, c := range cols {
+			if c == colId {
+				found = true
+				fmt.Println(found)
+				return sequences
+			}
+		}
+		if !found {
+			sequences[sequenceId].ColumnsUsingSeq[tableId] = append(cols, colId)
+			return sequences
+		}
+	} else {
+		cols := []string{colId}
+		seq := sequences[sequenceId]
+		if seq.ColumnsUsingSeq == nil {
+			seq.ColumnsUsingSeq = make(map[string][]string)
+		}
+		seq.ColumnsUsingSeq[tableId] = cols
+		sequences[sequenceId] = seq
+	}
+	return sequences
+}
+
+func getSequenceId(sequenceName string, spSeq map[string]ddl.Sequence) string {
+	for seqId, seq := range spSeq {
+		if seq.Name == sequenceName {
+			return seqId
+		}
+	}
+	return ""
 }

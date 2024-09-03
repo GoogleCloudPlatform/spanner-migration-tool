@@ -38,7 +38,7 @@ The Spanner migration tool maps MySQL types to Spanner types as follows:
 | `DECIMAL`, `NUMERIC`                              | `NUMERIC`        | potential changes of precision                           |
 | `DOUBLE`                                          | `FLOAT64`        |                                                          |
 | `ENUM`                                            | `STRING(MAX)`    |                                                          |
-| `FLOAT`                                           | `FLOAT64`        | changes in storage size                                  |
+| `FLOAT`                                           | `FLOAT32`        |                                                          |
 | `INTEGER`, `MEDIUMINT`,<br/>`TINYINT`, `SMALLINT` | `INT64`          | changes in storage size                                  |
 | `JSON`                                            | `JSON`           |                                                          |
 | `SET`                                             | `ARRAY<STRING>`  | SET only supports string values                          |
@@ -152,10 +152,13 @@ maps `UNIQUE` constraint into `UNIQUE` secondary index. Note that due to limitat
 mysqldump parser, we are not able to handle key column ordering (i.e. ASC/DESC) in
 mysqldump files. All key columns in mysqldump files will be treated as ASC.
 
+## Auto-Increment and Sequences
+
+The tool creates a new sequence for auto-increment columns and maps the auto-generation of these columns to this sequence. The sequence type is of *bit reversed positive*. Users need to set skip range and/or start with counter to avoid duplicate key errors.
+
 ## Other MySQL features
 
-MySQL has many other features we haven't discussed, including functions,
-sequences, procedures, triggers, (non-primary) indexes and views. The tool does
+MySQL has many other features we haven't discussed, including functions procedures, triggers, (non-primary) indexes and views. The tool does
 not support these and the relevant statements are dropped during schema
 conversion.
 

@@ -6,7 +6,7 @@ import IConv, { ITableIdAndName, IType } from '../../model/conv'
 import { Subscription } from 'rxjs/internal/Subscription'
 import { MatDialog } from '@angular/material/dialog'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import IColumnTabData, { IIndexData } from '../../model/edit-table'
+import IColumnTabData, { IIndexData, ISequenceData } from '../../model/edit-table'
 import ISchemaObjectNode, { FlatNode } from 'src/app/model/schema-object-node'
 import { InputType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
@@ -32,6 +32,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   currentObject: FlatNode | null
   tableData: IColumnTabData[] = []
   indexData: IIndexData[] = []
+  sequenceData: ISequenceData = {}
   typeMap: Record<string, Record<string, string>> | boolean = false
   defaultTypeMap: Record<string, IType> | boolean = false
   conversionRates: Record<string, string> = {}
@@ -43,6 +44,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   converObj!: Subscription
   ddlsumconvObj!: Subscription
   ddlObj!: Subscription
+  rerenderObj!: Subscription;
   isLeftColumnCollapse: boolean = false
   isRightColumnCollapse: boolean = true
   isMiddleColumnCollapse: boolean = true
@@ -95,6 +97,11 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       this.autoGenMapObj = this.data.autoGenMap.subscribe((autoGenMap) => {
         this.autoGenMap = autoGenMap
       })
+    }
+    if (this.data.treeUpdate){
+      this.rerenderObj = this.data.treeUpdate.subscribe(() => {
+        this.reRenderObjectExplorerSpanner();
+      });
     }
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
@@ -173,6 +180,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     if (this.autoGenMapObj){
       this.autoGenMapObj.unsubscribe()
     }
+    if (this.rerenderObj){
+      this.rerenderObj.unsubscribe();
+    }
   }
 
   updateConversionRatePercentages() {
@@ -216,7 +226,11 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     } else if (object.type === ObjectExplorerNodeType.Index) {
       this.currentObject = object
       this.indexData = this.conversion.getIndexMapping(object.parentId, this.conv, object.id)
-    } else {
+    } else if (object.type === ObjectExplorerNodeType.Sequence) {
+      this.currentObject = object
+      this.sequenceData = this.conversion.getSequenceMapping(object.id, this.conv)
+    }
+    else {
       this.currentObject = null
     }
   }

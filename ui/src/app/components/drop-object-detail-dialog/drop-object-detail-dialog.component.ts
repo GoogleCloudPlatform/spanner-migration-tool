@@ -5,15 +5,15 @@ import { ObjectDetailNodeType } from 'src/app/app.constants'
 
 @Component({
   selector: 'app-drop-index-dialog',
-  templateUrl: './drop-index-or-table-dialog.component.html',
-  styleUrls: ['./drop-index-or-table-dialog.component.scss'],
+  templateUrl: './drop-object-detail-dialog.component.html',
+  styleUrls: ['./drop-object-detail-dialog.component.scss'],
 })
-export class DropIndexOrTableDialogComponent implements OnInit {
+export class DropObjectDetailDialogComponent implements OnInit {
   ObjectDetailNodeType = ObjectDetailNodeType
   confirmationInput: FormControl
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: { name: string; type: string },
-    private dialogRef: MatDialogRef<DropIndexOrTableDialogComponent>
+    private dialogRef: MatDialogRef<DropObjectDetailDialogComponent>
   ) {
     ;(this.confirmationInput = new FormControl('', [
       Validators.required,

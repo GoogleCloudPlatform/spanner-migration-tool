@@ -130,7 +130,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 			"c1":  ddl.ColumnDef{Name: "a", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c1"},
 			"c10": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c10"},
 			"c11": ddl.ColumnDef{Name: "k", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c11"},
-			"c2":  ddl.ColumnDef{Name: "b", T: ddl.Type{Name: "NUMERIC", Len: 0, IsArray: false}, NotNull: false, Comment: "", Id: "c2"},
+			"c2":  ddl.ColumnDef{Name: "b", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c2"},
 			"c3":  ddl.ColumnDef{Name: "c", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c3"},
 			"c4":  ddl.ColumnDef{Name: "d", T: ddl.Type{Name: "BOOL", Len: 0, IsArray: false}, NotNull: false, Comment: "", Id: "c4"},
 			"c5":  ddl.ColumnDef{Name: "e", T: ddl.Type{Name: "BYTES", Len: 9223372036854775807, IsArray: false}, NotNull: false, Comment: "", Id: "c5"},
@@ -141,7 +141,8 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1", Desc: false, Order: 0}, ddl.IndexKey{ColId: "c2", Desc: false, Order: 0}},
 		ForeignKeys: []ddl.Foreignkey(nil),
 		Indexes: []ddl.CreateIndex{
-			ddl.CreateIndex{Name: "test_1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c4", Desc: false, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}},
+			ddl.CreateIndex{Name: "index1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c2", Desc: false, Order: 0}, ddl.IndexKey{ColId: "c3", Desc: false, Order: 0}}, Id: "", StoredColumnIds: []string(nil)},
+			ddl.CreateIndex{Name: "test_2", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "c4", Desc: false, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}},
 		Id: "t1"}
 	assert.Equal(t, expected, actual)
 }

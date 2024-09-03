@@ -17,6 +17,7 @@ package oracle
 import (
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -146,7 +147,9 @@ func TestProcessSchemaOracle(t *testing.T) {
 				{"ARRAY_STRING", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "VARCHAR2", 15, nil, nil},
 				{"ARRAY_DATE", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "DATE", nil, nil, nil},
 				{"ARRAY_INT", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "NUMBER", nil, 10, 0},
-				{"OBJECT", "CONTACTS", "N", nil, nil, nil, nil, "OBJECT", nil, nil, nil, nil}},
+				{"OBJECT", "CONTACTS", "N", nil, nil, nil, nil, "OBJECT", nil, nil, nil, nil},
+				{"BINARY_FLOAT", "BINARY_FLOAT", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
+				{"ARRAY_BINARY_FLOAT", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "BINARY_FLOAT", nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -189,17 +192,19 @@ func TestProcessSchemaOracle(t *testing.T) {
 		},
 		"TEST2": {
 			Name:   "TEST2",
-			ColIds: []string{"ID", "JSON", "REALJSON", "ARRAY_NUM", "ARRAY_FLOAT", "ARRAY_STRING", "ARRAY_DATE", "ARRAY_INT", "OBJECT"},
+			ColIds: []string{"ID", "JSON", "REALJSON", "ARRAY_NUM", "ARRAY_FLOAT", "ARRAY_STRING", "ARRAY_DATE", "ARRAY_INT", "OBJECT", "BINARY_FLOAT", "ARRAY_BINARY_FLOAT"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"ID":           {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
-				"JSON":         {Name: "JSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
-				"REALJSON":     {Name: "REALJSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
-				"ARRAY_NUM":    {Name: "ARRAY_NUM", T: ddl.Type{Name: ddl.Numeric, IsArray: true}, NotNull: false},
-				"ARRAY_FLOAT":  {Name: "ARRAY_FLOAT", T: ddl.Type{Name: ddl.Float64, IsArray: true}, NotNull: false},
-				"ARRAY_STRING": {Name: "ARRAY_STRING", T: ddl.Type{Name: ddl.String, Len: int64(15), IsArray: true}, NotNull: false},
-				"ARRAY_DATE":   {Name: "ARRAY_DATE", T: ddl.Type{Name: ddl.Date, IsArray: true}, NotNull: false},
-				"ARRAY_INT":    {Name: "ARRAY_INT", T: ddl.Type{Name: ddl.Int64, IsArray: true}, NotNull: false},
-				"OBJECT":       {Name: "OBJECT", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
+				"ID":                 {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
+				"JSON":               {Name: "JSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
+				"REALJSON":           {Name: "REALJSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
+				"ARRAY_NUM":          {Name: "ARRAY_NUM", T: ddl.Type{Name: ddl.Numeric, IsArray: true}, NotNull: false},
+				"ARRAY_FLOAT":        {Name: "ARRAY_FLOAT", T: ddl.Type{Name: ddl.Float64, IsArray: true}, NotNull: false},
+				"ARRAY_STRING":       {Name: "ARRAY_STRING", T: ddl.Type{Name: ddl.String, Len: int64(15), IsArray: true}, NotNull: false},
+				"ARRAY_DATE":         {Name: "ARRAY_DATE", T: ddl.Type{Name: ddl.Date, IsArray: true}, NotNull: false},
+				"ARRAY_INT":          {Name: "ARRAY_INT", T: ddl.Type{Name: ddl.Int64, IsArray: true}, NotNull: false},
+				"OBJECT":             {Name: "OBJECT", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
+				"BINARY_FLOAT":       {Name: "BINARY_FLOAT", T: ddl.Type{Name: ddl.Float32}, NotNull: true},
+				"ARRAY_BINARY_FLOAT": {Name: "ARRAY_BINARY_FLOAT", T: ddl.Type{Name: ddl.Float32, IsArray: true}, NotNull: false},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "ID", Order: 1}},
 		},
@@ -212,9 +217,11 @@ func TestProcessSchemaOracle(t *testing.T) {
 	test2TableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "TEST2")
 	assert.Equal(t, nil, err)
 
+	fmt.Printf("arawind@: %v", conv.SchemaIssues[test2TableId].ColumnLevelIssues)
+
 	assert.Equal(t, len(conv.SchemaIssues[userTableId].ColumnLevelIssues), 0)
 	assert.Equal(t, len(conv.SchemaIssues[testTableId].ColumnLevelIssues), 0)
-	assert.Equal(t, len(conv.SchemaIssues[test2TableId].ColumnLevelIssues), 5)
+	assert.Equal(t, len(conv.SchemaIssues[test2TableId].ColumnLevelIssues), 6)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 

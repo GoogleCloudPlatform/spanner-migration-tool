@@ -18,6 +18,7 @@ import IMigrationDetails, { IGeneratedResources, IProgress, ITables } from 'src/
 import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IDatastreamConfig, IGcsConfig, IMigrationProfile } from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
 import IStructuredReport from 'src/app/model/structured-report'
+import ICreateSequence from 'src/app/model/auto-gen'
 
 @Injectable({
   providedIn: 'root',
@@ -169,12 +170,20 @@ export class FetchService {
     return this.http.get(`${this.url}/ddl`)
   }
 
+  getSequenceDdl() {
+    return this.http.get(`${this.url}/seqDdl`)
+  }
+
   getTypeMap() {
     return this.http.get(`${this.url}/typemap`)
   }
 
   getAutoGenMap() {
     return this.http.get(`${this.url}/autoGenMap`)
+  }
+
+  getSequenceKind() {
+    return this.http.get(`${this.url}/getSequenceKind`)
   }
 
   getSpannerDefaultTypeMap() {
@@ -223,6 +232,10 @@ export class FetchService {
     return this.http.post(`${this.url}/AddColumn?table=${tableId}`, payload)
   }
 
+  addSequence(payload: ICreateSequence) {
+    return this.http.post(`${this.url}/AddSequence`, payload)
+  }
+
   removeFk(tableId: string, fkId: string): any {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableId}`, {
       Id: fkId,
@@ -267,10 +280,18 @@ export class FetchService {
     return this.http.post<IConv>(`${this.url}/update/indexes?table=${tableId}`, payload)
   }
 
+  updateSequence(payload: ICreateSequence) {
+    return this.http.post<IConv>(`${this.url}/UpdateSequence`, payload)
+  }
+
   dropIndex(tableId: string, indexName: string) {
     return this.http.post<IConv>(`${this.url}/drop/secondaryindex?table=${tableId}`, {
       Id: indexName,
     })
+  }
+
+  dropSequence(sequenceId: string) {
+    return this.http.post<IConv>(`${this.url}/drop/sequence?sequence=${sequenceId}`, {})
   }
 
   restoreIndex(tableId: string, indexId: string) {

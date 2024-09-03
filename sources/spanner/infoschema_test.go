@@ -31,7 +31,8 @@ func TestToType(t *testing.T) {
 		// Scalar inputs.
 		{"bool", "BOOL", schema.Type{Name: "BOOL"}},
 		{"int", "INT64", schema.Type{Name: "INT64"}},
-		{"float", "FLOAT64", schema.Type{Name: "FLOAT64"}},
+		{"float32", "FLOAT32", schema.Type{Name: "FLOAT32"}},
+		{"float64", "FLOAT64", schema.Type{Name: "FLOAT64"}},
 		{"date", "DATE", schema.Type{Name: "DATE"}},
 		{"numeric", "NUMERIC", schema.Type{Name: "NUMERIC"}},
 		{"json", "JSON", schema.Type{Name: "JSON"}},
@@ -43,7 +44,8 @@ func TestToType(t *testing.T) {
 		// Array types.
 		{"string_max_arr", "ARRAY<STRING(MAX)>", schema.Type{Name: "STRING", Mods: []int64{ddl.MaxLength}, ArrayBounds: []int64{-1}}},
 		{"string_arr", "ARRAY<STRING(100)>", schema.Type{Name: "STRING", Mods: []int64{100}, ArrayBounds: []int64{-1}}},
-		{"float_arr", "ARRAY<FLOAT64>", schema.Type{Name: "FLOAT64", ArrayBounds: []int64{-1}}},
+		{"float32_arr", "ARRAY<FLOAT32>", schema.Type{Name: "FLOAT32", ArrayBounds: []int64{-1}}},
+		{"float64_arr", "ARRAY<FLOAT64>", schema.Type{Name: "FLOAT64", ArrayBounds: []int64{-1}}},
 		{"numeric_arr", "ARRAY<NUMERIC>", schema.Type{Name: "NUMERIC", ArrayBounds: []int64{-1}}},
 	}
 	for _, tc := range testCases {

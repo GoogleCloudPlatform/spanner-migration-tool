@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
@@ -140,6 +141,91 @@ func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
 		return ""
 	}
 	return getSpannerValidName(conv, srcFkName)
+}
+
+// ToSpannerOnDelete maps the source ON DELETE action
+// to the corresponding Spanner compatible action.
+// The following mapping is followed:
+// a) CASCADE/NO ACTION -> mapped to the same as source action
+// b) all others -> NO ACTION (default)
+//
+// For all source actions converted to a different action,
+// an issue is appended to it's TableLevelIssues to
+// generate a warning message for the user
+//
+// Since only MySQL and PostgreSQL have this functionality
+// as of yet, for other sources OnDelete fields are
+// kept empty i.e. "" is mapped to "" and an issue is appended
+// to generate warning message (prints only once for each table with FK Actions)
+func ToSpannerOnDelete(conv *Conv, srcTableId string, srcDeleteRule string) string {
+	srcDeleteRule = strings.ToUpper(srcDeleteRule)
+	if srcDeleteRule == constants.FK_NO_ACTION || srcDeleteRule == constants.FK_CASCADE {
+		return srcDeleteRule
+	}
+	if conv.SchemaIssues == nil {
+		conv.SchemaIssues = make(map[string]TableIssues)
+	}
+	tableIssues := conv.SchemaIssues[srcTableId]
+
+	// srcDeleteRule will only be empty for unsupported sources (Oracle, SQL Server)
+	if srcDeleteRule == "" {
+		//add ForeignKeyActionNotSupported issue only if not previously added
+		if !Contains(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported) {
+			conv.SchemaIssues[srcTableId] = TableIssues{
+				TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported),
+				ColumnLevelIssues: tableIssues.ColumnLevelIssues,
+			}
+		}
+		return ""
+	}
+	conv.SchemaIssues[srcTableId] = TableIssues{
+		TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyOnDelete),
+		ColumnLevelIssues: tableIssues.ColumnLevelIssues}
+
+	return constants.FK_NO_ACTION
+}
+
+// ToSpannerOnUpdate maps the source ON UPDATE action
+// to the corresponding Spanner compatible action.
+// The following mapping is followed:
+// all actions -> NO ACTION (default)
+// (Spanner only supports ON UPDATE NO ACTION)
+//
+// For all source actions converted to a different action,
+// an issue is appended to it's TableLevelIssues to
+// generate a warning message for the user
+//
+// Since only MySQL and PostgreSQL have this functionality
+// as of yet, for other sources OnUpdate fields are
+// kept empty i.e. "" is mapped to "" and an issue is appended
+// to generate warning message (prints only once for each table with FK Actions)
+func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) string {
+	srcUpdateRule = strings.ToUpper(srcUpdateRule)
+	if srcUpdateRule == constants.FK_NO_ACTION {
+		return srcUpdateRule
+	}
+
+	if conv.SchemaIssues == nil {
+		conv.SchemaIssues = make(map[string]TableIssues)
+	}
+	tableIssues := conv.SchemaIssues[srcTableId]
+
+	// srcUpdateRule will only be empty for unsupported sources (Oracle, SQL Server)
+	if srcUpdateRule == "" {
+		//add ForeignKeyActionNotSupported issue only if not previously added
+		if !Contains(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported) {
+			conv.SchemaIssues[srcTableId] = TableIssues{
+				TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyActionNotSupported),
+				ColumnLevelIssues: tableIssues.ColumnLevelIssues,
+			}
+		}
+		return ""
+	}
+	conv.SchemaIssues[srcTableId] = TableIssues{
+		TableLevelIssues:  append(tableIssues.TableLevelIssues, ForeignKeyOnUpdate),
+		ColumnLevelIssues: tableIssues.ColumnLevelIssues}
+
+	return constants.FK_NO_ACTION
 }
 
 // ToSpannerIndexName maps source index name to legal Spanner index name.

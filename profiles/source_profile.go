@@ -28,7 +28,6 @@ import (
 
 type SourceProfileType int
 
-
 const (
 	SourceProfileTypeUnset = iota
 	SourceProfileTypeFile
@@ -54,7 +53,7 @@ type SourceProfileDialectInterface interface {
 	NewSourceProfileConnectionOracle(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionOracle, error)
 }
 
-type SourceProfileDialectImpl struct {}
+type SourceProfileDialectImpl struct{}
 
 // Interface to create new source profiles for different input types
 type NewSourceProfileInterface interface {
@@ -101,11 +100,11 @@ const (
 )
 
 type SourceProfileConnectionCloudSQLMySQL struct {
-	User string
-	Db string
+	User         string
+	Db           string
 	InstanceName string
-	Project string
-	Region string
+	Project      string
+	Region       string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLMySQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLMySQL, error) {
@@ -202,11 +201,11 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionMySQL(params map[
 }
 
 type SourceProfileConnectionCloudSQLPostgreSQL struct {
-	User string
-	Db string
+	User         string
+	Db           string
 	InstanceName string
-	Project string
-	Region string
+	Project      string
+	Region       string
 }
 
 func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCloudSQLPostgreSQL(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCloudSQLPostgreSQL, error) {
@@ -468,9 +467,9 @@ type SourceProfileConnection struct {
 }
 
 type SourceProfileConnectionCloudSQL struct {
-	Ty        SourceProfileConnectionTypeCloudSQL
-	Mysql     SourceProfileConnectionCloudSQLMySQL
-	Pg        SourceProfileConnectionCloudSQLPostgreSQL
+	Ty    SourceProfileConnectionTypeCloudSQL
+	Mysql SourceProfileConnectionCloudSQLMySQL
+	Pg    SourceProfileConnectionCloudSQLPostgreSQL
 }
 
 func (nsp *NewSourceProfileImpl) NewSourceProfileConnection(source string, params map[string]string, s SourceProfileDialectInterface) (SourceProfileConnection, error) {
@@ -571,16 +570,16 @@ type DirectConnectionConfig struct {
 
 type DatastreamConnProfileSource struct {
 	Name     string `json:"name"`
-	Host     string  `json:"host"`
-	User     string  `json:"user"`
-	Port     string  `json:"port"`
-	Password string  `json:"password"`
-	Location string  `json:"location"`
+	Host     string `json:"host"`
+	User     string `json:"user"`
+	Port     string `json:"port"`
+	Password string `json:"password"`
+	Location string `json:"location"`
 }
 
 type DatastreamConnProfileTarget struct {
 	Name     string `json:"name"`
-	Location string  `json:"location"`
+	Location string `json:"location"`
 }
 
 type DatastreamConfig struct {
@@ -607,18 +606,21 @@ type DataflowConfig struct {
 	AdditionalUserLabels string `json:"additionalUserLabels"`
 	KmsKeyName           string `json:"kmsKeyName"`
 	GcsTemplatePath      string `json:"gcsTemplatePath"`
+	CustomJarPath        string `json:"customJarPath"`
+	CustomClassName      string `json:"customClassName"`
+	CustomParameter      string `json:"customParameter"`
 }
 
 type DataShard struct {
-	DataShardId          string                		 `json:"dataShardId"`
+	DataShardId          string                      `json:"dataShardId"`
 	SrcConnectionProfile DatastreamConnProfileSource `json:"srcConnectionProfile"`
 	DstConnectionProfile DatastreamConnProfileTarget `json:"dstConnectionProfile"`
-	DatastreamConfig     DatastreamConfig      		 `json:"datastreamConfig"`
-	GcsConfig            GcsConfig             		 `json:"gcsConfig"`
-	DataflowConfig       DataflowConfig        		 `json:"dataflowConfig"`
-	TmpDir               string                		 `json:"tmpDir"`
-	StreamLocation       string               		 `json:"streamLocation"`
-	LogicalShards        []LogicalShard      		 `json:"databases"`
+	DatastreamConfig     DatastreamConfig            `json:"datastreamConfig"`
+	GcsConfig            GcsConfig                   `json:"gcsConfig"`
+	DataflowConfig       DataflowConfig              `json:"dataflowConfig"`
+	TmpDir               string                      `json:"tmpDir"`
+	StreamLocation       string                      `json:"streamLocation"`
+	LogicalShards        []LogicalShard              `json:"databases"`
 }
 
 type LogicalShard struct {
@@ -690,13 +692,13 @@ func NewSourceProfileCsv(params map[string]string) SourceProfileCsv {
 }
 
 type SourceProfile struct {
-	Driver string
-	Ty     SourceProfileType
-	File   SourceProfileFile
-	Conn   SourceProfileConnection
+	Driver       string
+	Ty           SourceProfileType
+	File         SourceProfileFile
+	Conn         SourceProfileConnection
 	ConnCloudSQL SourceProfileConnectionCloudSQL
-	Config SourceProfileConfig
-	Csv    SourceProfileCsv
+	Config       SourceProfileConfig
+	Csv          SourceProfileCsv
 }
 
 // UseTargetSchema returns true if the driver expects an existing schema

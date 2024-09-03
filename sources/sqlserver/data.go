@@ -105,6 +105,8 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, t
 		return convBytes(val)
 	case ddl.Date:
 		return convDate(val)
+	case ddl.Float32:
+		return convFloat32(val)
 	case ddl.Float64:
 		return convFloat64(val)
 	case ddl.Int64:
@@ -141,6 +143,14 @@ func convDate(val string) (civil.Date, error) {
 		return d, fmt.Errorf("can't convert to date: %w", err)
 	}
 	return d, err
+}
+
+func convFloat32(val string) (float32, error) {
+	float, err := strconv.ParseFloat(val, 32)
+	if err != nil {
+		return float32(float), fmt.Errorf("can't convert to float32: %w", err)
+	}
+	return float32(float), err
 }
 
 func convFloat64(val string) (float64, error) {

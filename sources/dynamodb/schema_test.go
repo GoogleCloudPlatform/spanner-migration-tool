@@ -656,7 +656,7 @@ func TestInfoSchemaImpl_GetTables(t *testing.T) {
 	isi := InfoSchemaImpl{client, nil, 10}
 	tables, err := isi.GetTables()
 	assert.Nil(t, err)
-	assert.Equal(t, []common.SchemaAndName{{"", "table-a"}, {"", "table-b"}}, tables)
+	assert.Equal(t, []common.SchemaAndName{{Schema: "", Name: "table-a", Id: ""}, {"", "table-b", ""}}, tables)
 }
 
 func TestInfoSchemaImpl_GetTableName(t *testing.T) {
@@ -705,7 +705,7 @@ func TestInfoSchemaImpl_GetColumns(t *testing.T) {
 	client := &mockDynamoClient{
 		scanOutputs: scanOutputs,
 	}
-	dySchema := common.SchemaAndName{Name: "test"}
+	dySchema := common.SchemaAndName{Name: "test", Id:  "t1"}
 
 	isi := InfoSchemaImpl{client, nil, 10}
 

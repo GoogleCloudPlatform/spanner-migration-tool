@@ -25,6 +25,7 @@ import (
 	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
 	_ "github.com/lib/pq"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -185,6 +186,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	var colName, dataType, isNullable, columnType string
 	var colDefault, colExtra sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
+	var colAutoGen ddl.AutoGenCol
 	for cols.Next() {
 		err := cols.Scan(&colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &colExtra)
 		if err != nil {
@@ -203,16 +205,27 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			}
 		}
 		ignored.Default = colDefault.Valid
-		if colExtra.String == "auto_increment" {
-			ignored.AutoIncrement = true
-		}
 		colId := internal.GenerateColumnId()
+		if colExtra.String == "auto_increment" {
+			sequence := createSequence(conv)
+			colAutoGen = ddl.AutoGenCol{
+				Name:           sequence.Name,
+				GenerationType: constants.AUTO_INCREMENT,
+			}
+			sequence.ColumnsUsingSeq = map[string][]string{
+				table.Id: {colId},
+			}
+			conv.SrcSequences[sequence.Id] = sequence
+		} else {
+			colAutoGen = ddl.AutoGenCol{}
+		}
 		c := schema.Column{
 			Id:      colId,
 			Name:    colName,
 			Type:    toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
 			NotNull: common.ToNotNull(conv, isNullable),
 			Ignored: ignored,
+			AutoGen: colAutoGen,
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)
@@ -264,16 +277,21 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 // of the Spanner migration tool focuses on a specific database) and so we can't handle
 // them effectively.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := `SELECT k.REFERENCED_TABLE_NAME,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME,k.CONSTRAINT_NAME
-		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t 
-		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k 
-			ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
-			AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
-			AND t.TABLE_NAME = k.TABLE_NAME 
+	q := `SELECT k.REFERENCED_TABLE_NAME,
+			k.COLUMN_NAME,
+			k.REFERENCED_COLUMN_NAME,
+			k.CONSTRAINT_NAME,
+			r.DELETE_RULE,
+			r.UPDATE_RULE
+		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS AS r
+		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+			ON r.CONSTRAINT_NAME = k.CONSTRAINT_NAME
+			AND r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA
+			AND r.TABLE_NAME = k.TABLE_NAME
+			AND r.REFERENCED_TABLE_NAME = k.REFERENCED_TABLE_NAME
 			AND k.REFERENCED_TABLE_SCHEMA = k.TABLE_SCHEMA
-		WHERE k.TABLE_SCHEMA = ? 
-			AND k.TABLE_NAME = ? 
-			AND t.CONSTRAINT_TYPE = "FOREIGN KEY" 
+		WHERE k.TABLE_SCHEMA = ?
+			AND k.TABLE_NAME = ?
 		ORDER BY
 			k.REFERENCED_TABLE_NAME,
 			k.COLUMN_NAME,
@@ -283,12 +301,12 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 		return nil, err
 	}
 	defer rows.Close()
-	var col, refCol, refTable, fKeyName string
+	var col, refCol, refTable, fKeyName, OnDelete, OnUpdate string
 	fKeys := make(map[string]common.FkConstraint)
 	var keyNames []string
 
 	for rows.Next() {
-		err := rows.Scan(&refTable, &col, &refCol, &fKeyName)
+		err := rows.Scan(&refTable, &col, &refCol, &fKeyName, &OnDelete, &OnUpdate)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -298,9 +316,11 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 			fk.Cols = append(fk.Cols, col)
 			fk.Refcols = append(fk.Refcols, refCol)
 			fKeys[fKeyName] = fk
+			fk.OnDelete = OnDelete
+			fk.OnUpdate = OnUpdate
 			continue
 		}
-		fKeys[fKeyName] = common.FkConstraint{Name: fKeyName, Table: refTable, Refcols: []string{refCol}, Cols: []string{col}}
+		fKeys[fKeyName] = common.FkConstraint{Name: fKeyName, Table: refTable, Refcols: []string{refCol}, Cols: []string{col}, OnDelete: OnDelete, OnUpdate: OnUpdate}
 		keyNames = append(keyNames, fKeyName)
 	}
 	sort.Strings(keyNames)
@@ -312,6 +332,8 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 				ColumnNames:      fKeys[k].Cols,
 				ReferTableName:   fKeys[k].Table,
 				ReferColumnNames: fKeys[k].Refcols,
+				OnDelete:         fKeys[k].OnDelete,
+				OnUpdate:         fKeys[k].OnUpdate,
 			})
 	}
 	return foreignKeys, nil
@@ -451,4 +473,19 @@ func valsToStrings(vals []sql.RawBytes) []string {
 		s = append(s, toString(v))
 	}
 	return s
+}
+
+func createSequence(conv *internal.Conv) ddl.Sequence {
+	id := internal.GenerateSequenceId()
+	sequenceName := "Sequence" + id[1:]
+	sequence := ddl.Sequence{
+		Id:           id,
+		Name:         sequenceName,
+		SequenceKind: "BIT REVERSED SEQUENCE",
+	}
+	conv.ConvLock.Lock()
+	defer conv.ConvLock.Unlock()
+	srcSequences := conv.SrcSequences
+	srcSequences[id] = sequence
+	return sequence
 }

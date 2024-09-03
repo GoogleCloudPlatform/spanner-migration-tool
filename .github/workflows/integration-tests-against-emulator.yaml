@@ -37,6 +37,7 @@ jobs:
       MYSQLPORT: 3306
       MYSQLUSER: root
       MYSQLDATABASE: test_interleave_table_data
+      MYSQLDB_FKACTION: test_foreign_key_action_data
       MYSQLPWD: root
 
       # set DynamoDB related environment variables
@@ -51,7 +52,7 @@ jobs:
 
     services:
       spanner_emulator:
-        image: gcr.io/cloud-spanner-emulator/emulator:1.5.13
+        image: gcr.io/cloud-spanner-emulator/emulator:1.5.19
         ports:
           - 9010:9010
           - 9020:9020
@@ -80,7 +81,7 @@ jobs:
           - 8000:8000
         options: --workdir /home/dynamodblocal --health-cmd "curl --fail http://127.0.0.1:8000/shell/ || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
       sqlserver:
-        image: mcr.microsoft.com/mssql/server
+        image: mcr.microsoft.com/mssql/server:2022-CU10-ubuntu-22.04
         env:
           SA_PASSWORD: ${{env.MSSQL_SA_PASSWORD}}
           MSSQL_PID: Express
@@ -110,6 +111,7 @@ jobs:
       - run: mysql --version
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot test < test_data/mysqldump.test.out
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_interleave_dump.test.out
+      - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_foreignkeyaction_dump.test.out
 
       # init sql server with test_data
       - name: Install sqlcmd required for loading .sql files

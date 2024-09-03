@@ -15,6 +15,7 @@
 package table
 
 import (
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
@@ -30,14 +31,16 @@ func RemoveColumn(tableId string, colId string, conv *internal.Conv) {
 	if isParent {
 		if isColFistOderPk(conv.SpSchema[tableId].PrimaryKeys, colId) {
 			childSp := conv.SpSchema[childTableId]
-			childSp.ParentId = ""
+			childSp.ParentTable.Id = ""
+			childSp.ParentTable.OnDelete = ""
 			conv.SpSchema[childTableId] = childSp
 		}
 	}
 
-	if conv.SpSchema[tableId].ParentId != "" {
+	if conv.SpSchema[tableId].ParentTable.Id != "" {
 		if isColFistOderPk(conv.SpSchema[tableId].PrimaryKeys, colId) {
-			sp.ParentId = ""
+			sp.ParentTable.Id = ""
+			sp.ParentTable.OnDelete = ""
 			conv.SpSchema[tableId] = sp
 		}
 	}
@@ -71,6 +74,8 @@ func RemoveColumn(tableId string, colId string, conv *internal.Conv) {
 func removeColumnFromTableSchema(conv *internal.Conv, tableId string, colId string) {
 	sp := conv.SpSchema[tableId]
 
+	spSeq := removeColumnFromSequence(conv.SpSequences, colId, tableId, sp.ColDefs[colId].AutoGen)
+
 	sp = removeColumnFromSpannerColDefs(sp, colId)
 
 	sp = removeColumnFromSpannerPK(sp, colId)
@@ -86,6 +91,7 @@ func removeColumnFromTableSchema(conv *internal.Conv, tableId string, colId stri
 	removeSpannerSchemaIssue(tableId, colId, conv)
 
 	conv.SpSchema[tableId] = sp
+	conv.SpSequences = spSeq
 }
 
 // removeColumnFromSpannerColNames remove given column from ColNames.
@@ -187,4 +193,19 @@ func removeColumnFromSpannerForeignkeyReferColumns(sp ddl.CreateTable, colId str
 		}
 	}
 	return sp
+}
+
+func removeColumnFromSequence(spSeq map[string]ddl.Sequence, colId string, tableId string, autoGen ddl.AutoGenCol) map[string]ddl.Sequence {
+	if autoGen.GenerationType == constants.SEQUENCE {
+		seqName := getSequenceId(autoGen.Name, spSeq)
+		columns := spSeq[seqName].ColumnsUsingSeq[tableId]
+		for i, col := range columns {
+			if col == colId {
+				columns = append(columns[:i], columns[i+1:]...)
+				break
+			}
+		}
+		spSeq[seqName].ColumnsUsingSeq[tableId] = columns
+	}
+	return spSeq
 }

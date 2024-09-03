@@ -4,16 +4,16 @@ import IConv, {
   ICreateIndex,
   IIndexKey,
   IIndex,
-  ISpannerForeignKey,
   IForeignKey,
   ISrcIndexKey,
   IColumnDef,
 } from '../../model/conv'
-import IColumnTabData, { IIndexData } from '../../model/edit-table'
+import IColumnTabData, { IIndexData, ISequenceData } from '../../model/edit-table'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ColLength, Dialect, ObjectExplorerNodeType } from 'src/app/app.constants'
+import { ColLength, Dialect, ObjectExplorerNodeType, StorageKeys, autoGenSupportedDbs } from 'src/app/app.constants'
 import { BehaviorSubject } from 'rxjs'
 import { FetchService } from '../fetch/fetch.service'
+import { extractSourceDbName } from 'src/app/utils/utils'
 
 @Injectable({
   providedIn: 'root',
@@ -25,6 +25,7 @@ export class ConversionService {
 
   standardTypeToPGSQLTypeMap = this.standardTypeToPGSQLTypeMapSub.asObservable()
   pgSQLToStandardTypeTypeMap = this.pgSQLToStandardTypeTypeMapSub.asObservable()
+  srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
 
   getStandardTypeToPGSQLTypemap() {
     return this.fetch.getStandardTypeToPGSQLTypemap().subscribe({
@@ -48,8 +49,15 @@ export class ConversionService {
     searchText: string = '',
     sortOrder: string = ''
   ): ISchemaObjectNode[] {
+    if (conv.DatabaseType) {
+      this.srcDbName = extractSourceDbName(conv.DatabaseType)
+    }
     let spannerTableIds = Object.keys(conv.SpSchema).filter((tableId: string) =>
       conv.SpSchema[tableId].Name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
+    )
+
+    let spannerSequenceIds = Object.keys(conv.SpSequences).filter((seqId: string) =>
+      conv.SpSequences[seqId].Name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
     )
 
     let deletedTableIds = Object.keys(conv.SrcSchema).filter((tableId: string) => {
@@ -76,11 +84,11 @@ export class ConversionService {
           name: spannerTable.Name,
           status: conversionRates[tableId],
           type: ObjectExplorerNodeType.Table,
-          parent: spannerTable.ParentId != '' ? conv.SpSchema[spannerTable.ParentId]?.Name : '',
+          parent: spannerTable.ParentTable.Id != '' ? conv.SpSchema[spannerTable.ParentTable.Id]?.Name : '',
           pos: -1,
           isSpannerNode: true,
           id: tableId,
-          parentId: spannerTable.ParentId,
+          parentId: spannerTable.ParentTable.Id,
           children: [
             {
               name: `Indexes (${spannerTable.Indexes ? spannerTable.Indexes.length : 0})`,
@@ -108,11 +116,6 @@ export class ConversionService {
           ],
         }
       }),
-    }
-    if (sortOrder === 'asc' || sortOrder === '') {
-      parentNode.children?.sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
-    } else if (sortOrder === 'desc') {
-      parentNode.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
     }
 
     deletedTableIds.forEach((tableId: string) => {
@@ -147,10 +150,42 @@ export class ConversionService {
         })
       }
     })
+
+    let sequenceNode: ISchemaObjectNode = {
+      name: `Sequences (${spannerSequenceIds.length})`,
+      type: ObjectExplorerNodeType.Sequences,
+      parent: '',
+      pos: -1,
+      isSpannerNode: true,
+      id: '',
+      parentId: '',
+      children: spannerSequenceIds.map((seqId: string) => {
+        let spannerSequence = conv.SpSequences[seqId]
+        return {
+          name: spannerSequence.Name,
+          status: '',
+          type: ObjectExplorerNodeType.Sequence,
+          parent: '',
+          pos: -1,
+          isSpannerNode: true,
+          id: seqId,
+          parentId: '',
+          children: [],
+        }
+      }),
+    }
+
+    this.sortNodeChildren(parentNode, sortOrder)
+    this.sortNodeChildren(sequenceNode, sortOrder)
+
+    let mainNodeChildren :ISchemaObjectNode[] = [parentNode]
+    if (autoGenSupportedDbs.includes(this.srcDbName)) {
+      mainNodeChildren.push(sequenceNode)
+    }
     return [
       {
         name: conv.DatabaseName,
-        children: [parentNode],
+        children: mainNodeChildren,
         type: ObjectExplorerNodeType.DbName,
         parent: '',
         pos: -1,
@@ -159,6 +194,14 @@ export class ConversionService {
         parentId: '',
       },
     ]
+  }
+
+  sortNodeChildren(node: ISchemaObjectNode, sortOrder: string) {
+    if (sortOrder === 'asc' || sortOrder === '') {
+      node.children?.sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
+    } else if (sortOrder === 'desc') {
+      node.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
+    }
   }
 
   createTreeNodeForSource(
@@ -190,6 +233,7 @@ export class ConversionService {
           isSpannerNode: false,
           id: tableId,
           parentId: '',
+          parentOnDelete: '',
           children: [
             {
               name: `Indexes (${srcTable.Indexes?.length || '0'})`,
@@ -200,6 +244,7 @@ export class ConversionService {
               isSpannerNode: false,
               id: '',
               parentId: '',
+              parentOnDelete: '',
               children: srcTable.Indexes
                 ? srcTable.Indexes.map((index: IIndex, i: number) => {
                     return {
@@ -282,6 +327,10 @@ export class ConversionService {
           Name: '',
           GenerationType: ''
         },
+        srcAutoGen: data.SrcSchema[tableId].ColDefs[colId].AutoGen ? data.SrcSchema[tableId].ColDefs[colId].AutoGen : {
+          Name: '',
+          GenerationType: ''
+        },
       }
     })
     if (spColIds) {
@@ -305,7 +354,11 @@ export class ConversionService {
             spId: colId,
             srcColMaxLength: '',
             spColMaxLength: spannerColDef?.T.Len,
-            spAutoGen: spColumn.AutoGen
+            spAutoGen: spColumn.AutoGen,
+            srcAutoGen: {
+              Name: '',
+              GenerationType: ''
+            }
           })
         }
       })
@@ -326,7 +379,7 @@ export class ConversionService {
     if (!srcFks) {
       return []
     }
-    return srcFks.map((srcFk: ISpannerForeignKey) => {
+    return srcFks.map((srcFk: IForeignKey) => {
       let spFk = this.getSpannerFkFromId(data, id, srcFk.Id)
       let spColumns = spFk
         ? spFk.ColIds.map((columnId: string) => {
@@ -361,6 +414,10 @@ export class ConversionService {
         spColIds: spColIds,
         spReferColumnIds: spReferColumnIds,
         spReferTableId: spFk ? spFk.ReferTableId : '',
+        srcOnDelete: srcFk.OnDelete,
+        spOnDelete: spFk ? spFk.OnDelete : '',
+        srcOnUpdate: srcFk.OnUpdate,
+        spOnUpdate: spFk? spFk.OnUpdate : '',
       }
     })
   }
@@ -414,7 +471,22 @@ export class ConversionService {
     return indexData
   }
 
-  getSpannerFkFromId(conv: IConv, tableId: string, srcFkId: string): IForeignKey | null {
+  getSequenceMapping(seqId: string, data: IConv): ISequenceData {
+    let srcSequence = null
+    let spSequenceName = this.getSpannerSequenceNameFromId(seqId, data)
+    let sequence: ISequenceData = {}
+    if (spSequenceName != null) {
+      let spSequence = data.SpSequences[seqId]
+      sequence.spSeqName = spSequence.Name
+      sequence.spSequenceKind = spSequence.SequenceKind
+      sequence.spSkipRangeMax = spSequence.SkipRangeMax
+      sequence.spSkipRangeMin = spSequence.SkipRangeMin
+      sequence.spStartWithCounter = spSequence.StartWithCounter
+    }
+    return sequence
+  }
+
+  getSpannerFkFromId(conv: IConv, tableId: string, srcFkId: string | undefined): IForeignKey | null {
     let spFk: IForeignKey | null = null
     conv.SpSchema[tableId]?.ForeignKeys?.forEach((fk: IForeignKey) => {
       if (fk.Id == srcFkId) {
@@ -442,6 +514,16 @@ export class ConversionService {
       }
     })
     return spIndex
+  }
+
+  getSpannerSequenceNameFromId(id: string, conv: IConv): string | null {
+    let spSeqName: string | null = null
+    Object.keys(conv.SpSequences).forEach((key: string) => {
+      if (conv.SpSequences[key].Id === id) {
+        spSeqName = conv.SpSequences[key].Name
+      }
+    })
+    return spSeqName
   }
 
   getSpannerIndexKeyFromColId(

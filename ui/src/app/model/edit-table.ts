@@ -14,6 +14,7 @@ export default interface IColumnTabData {
   spId: string
   srcColMaxLength: Number | string | undefined
   spColMaxLength: Number | string | undefined
+  srcAutoGen: AutoGen
 }
 
 export interface AutoGen {
@@ -30,6 +31,14 @@ export interface IIndexData {
   srcOrder: number | string
   spOrder: number | string | undefined
   spDesc: boolean | undefined | string
+}
+
+export interface ISequenceData {
+  spSeqName?: string | undefined
+  spSequenceKind?: string | undefined
+  spSkipRangeMin?: string | undefined
+  spSkipRangeMax?: string | undefined
+  spStartWithCounter?: string | undefined
 }
 
 export interface IColMaxLength {
