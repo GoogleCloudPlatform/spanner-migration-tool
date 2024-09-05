@@ -521,6 +521,9 @@ func FetchTargetBucketAndPath(ctx context.Context, datastreamClient *datastream.
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
 	bucketName := gcsProfile.Bucket
 	prefix := gcsProfile.RootPath + datastreamDestinationConnCfg.Prefix
+	if pubsubDestination == constants.DLQ_GCS {
+		pubsubDestination += "retry"
+	}
 	prefix = utils.ConcatDirectoryPath(prefix, pubsubDestination+"/")
 	return bucketName, prefix, nil
 }
