@@ -230,6 +230,7 @@ type MonitoringResources struct {
 type ShardResources struct {
 	DatastreamResources DatastreamResources
 	PubsubResources     PubsubResources
+	DlqPubsubResources  PubsubResources
 	DataflowResources   DataflowResources
 	GcsResources        GcsResources
 	MonitoringResources MonitoringResources
@@ -246,6 +247,7 @@ type streamingStats struct {
 	DatastreamResources      DatastreamResources
 	DataflowResources        DataflowResources
 	PubsubResources          PubsubResources
+	DlqPubsubResources       PubsubResources
 	GcsResources             GcsResources
 	MonitoringResources      MonitoringResources
 	ShardToShardResourcesMap map[string]ShardResources
