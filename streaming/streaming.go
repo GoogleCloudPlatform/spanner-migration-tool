@@ -521,6 +521,7 @@ func FetchTargetBucketAndPath(ctx context.Context, datastreamClient *datastream.
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
 	bucketName := gcsProfile.Bucket
 	prefix := gcsProfile.RootPath + datastreamDestinationConnCfg.Prefix
+	// For DLQ gcs folder, notification is created only on retry
 	if pubsubDestination == constants.DLQ_GCS {
 		pubsubDestination += "retry"
 	}
