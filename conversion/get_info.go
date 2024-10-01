@@ -54,13 +54,14 @@ func (gi *GetInfoImpl) getInfoSchemaForShard(migrationProjectId string, shardCon
 	params["dbName"] = shardConnInfo.DbName
 	params["port"] = shardConnInfo.Port
 	params["password"] = shardConnInfo.Password
+	fmt.Printf("shard conn info %+v\n", shardConnInfo)
 	//while adding other sources, a switch-case will be added here on the basis of the driver input param passed.
 	//pased on the driver name, profiles.NewSourceProfileConnection<DBName> will need to be called to create
 	//the source profile information.
 	getUtilsInfo := utils.GetUtilInfoImpl{}
 	sourceProfileConnectionMySQL, err := sourceProfileDialect.NewSourceProfileConnectionMySQL(params, &getUtilsInfo)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse connection configuration for the primary shard")
+		return nil, fmt.Errorf("cannot parse connection configuration for the primary shard: %+v", err)
 	}
 	sourceProfileConnection := profiles.SourceProfileConnection{Mysql: sourceProfileConnectionMySQL, Ty: profiles.SourceProfileConnectionTypeMySQL}
 	//create a source profile which contains the sourceProfileConnection object for the primary shard
@@ -105,25 +106,25 @@ func (gi *GetInfoImpl) GetInfoSchemaFromCloudSQL(migrationProjectId string, sour
 		}, nil
 	case constants.POSTGRES:
 		d, err := cloudsqlconn.NewDialer(context.Background(), cloudsqlconn.WithIAMAuthN())
-        if err != nil {
-                return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
-        }
-        var opts []cloudsqlconn.DialOption
+		if err != nil {
+			return nil, fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
+		}
+		var opts []cloudsqlconn.DialOption
 
-        dsn := fmt.Sprintf("user=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Db)
-        config, err := pgx.ParseConfig(dsn)
-        if err != nil {
-                return nil, err
-        }
+		dsn := fmt.Sprintf("user=%s database=%s", sourceProfile.ConnCloudSQL.Pg.User, sourceProfile.ConnCloudSQL.Pg.Db)
+		config, err := pgx.ParseConfig(dsn)
+		if err != nil {
+			return nil, err
+		}
 		instanceName := fmt.Sprintf("%s:%s:%s", sourceProfile.ConnCloudSQL.Pg.Project, sourceProfile.ConnCloudSQL.Pg.Region, sourceProfile.ConnCloudSQL.Pg.InstanceName)
-        config.DialFunc = func(ctx context.Context, network, instance string) (net.Conn, error) {
-                return d.Dial(ctx, instanceName, opts...)
-        }
-        dbURI := stdlib.RegisterConnConfig(config)
-        db, err := sql.Open("pgx", dbURI)
-        if err != nil {
-                return nil, fmt.Errorf("sql.Open: %w", err)
-        }
+		config.DialFunc = func(ctx context.Context, network, instance string) (net.Conn, error) {
+			return d.Dial(ctx, instanceName, opts...)
+		}
+		dbURI := stdlib.RegisterConnConfig(config)
+		db, err := sql.Open("pgx", dbURI)
+		if err != nil {
+			return nil, fmt.Errorf("sql.Open: %w", err)
+		}
 		temp := false
 		return postgres.InfoSchemaImpl{
 			Db:                 db,

@@ -8,6 +8,7 @@ spanner_migration_tool_output/
 *.code-workspace
 .DS_Store
 *.log
+spanner-migration-tool
 
 # angular ui development
 ui/.angular

@@ -80,7 +80,7 @@ type ProcessSchemaImpl struct{}
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
 func (ps *ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error {
-
+	fmt.Println("attempting to load schema")
 	tableCount, err := is.GenerateSrcSchema(conv, infoSchema, numWorkers)
 	if err != nil {
 		return err
@@ -94,6 +94,7 @@ func (ps *ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoS
 	}
 	conv.AddPrimaryKeys()
 	if attributes.IsSharded {
+		fmt.Println("processing as sharded migration")
 		conv.AddShardIdColumn()
 	}
 	fmt.Println("loaded schema")

@@ -155,6 +155,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 			err = fmt.Errorf("running data migration for Spanner dialect: %v, whereas schema mapping was done for dialect: %v", targetProfile.Conn.Sp.Dialect, conv.SpDialect)
 			return subcommands.ExitUsageError
 		}
+		//Ignoring shard flags as config is being read from the session file.
 	}
 
 	var (

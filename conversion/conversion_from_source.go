@@ -59,18 +59,27 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	var infoSchema common.InfoSchema
 	var err error
 	isSharded := false
+	fmt.Printf("fetching schema from database %+v\n", sourceProfile.Config.ShardConfigurationBulk)
 	switch sourceProfile.Ty {
 	case profiles.SourceProfileTypeConfig:
 		isSharded = true
+		//Add rule to set add prefix shard id
+		if sourceProfile.Config.ShardIdPrefix {
+			fmt.Printf("applying shard id rule\n")
+			shardPrefixRule := internal.Rule{Id: "shardIdPrefixRule", Name: "shardIdPrefixRule", Type: constants.AddShardIdPrimaryKey, Enabled: true}
+			conv.Rules = append(conv.Rules, shardPrefixRule)
+		}
 		//Find Primary Shard Name
 		if sourceProfile.Config.ConfigType == constants.BULK_MIGRATION {
 			schemaSource := sourceProfile.Config.ShardConfigurationBulk.SchemaSource
+			fmt.Printf("schema source %+v\n", schemaSource)
 			infoSchema, err = getInfo.getInfoSchemaForShard(migrationProjectId, schemaSource, sourceProfile.Driver, targetProfile, &profiles.SourceProfileDialectImpl{}, &GetInfoImpl{})
 			if err != nil {
 				return conv, err
 			}
 		} else if sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
 			schemaSource := sourceProfile.Config.ShardConfigurationDataflow.SchemaSource
+			fmt.Printf("schema source dataflow %+v\n", schemaSource)
 			infoSchema, err = getInfo.getInfoSchemaForShard(migrationProjectId, schemaSource, sourceProfile.Driver, targetProfile, &profiles.SourceProfileDialectImpl{}, &GetInfoImpl{})
 			if err != nil {
 				return conv, err
@@ -96,6 +105,7 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: isSharded,
 	}
+	conv.IsSharded = isSharded
 	return conv, processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 }
 

@@ -177,6 +177,7 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionMySQL(params map[
 		mysql.Host, mysql.User, mysql.Db, mysql.Port, mysql.Pwd = host, user, db, port, pwd
 		// Throw error if the input entered is empty.
 		if mysql.Host == "" || mysql.User == "" || mysql.Db == "" {
+			fmt.Printf("%+v", mysql)
 			return mysql, fmt.Errorf("found empty string for host/user/dbName. Please specify host, port, user and dbName in the source-profile")
 		}
 	} else {
@@ -651,6 +652,7 @@ type SourceProfileConfig struct {
 	ShardConfigurationBulk     ShardConfigurationBulk     `json:"shardConfigurationBulk"`
 	ShardConfigurationDataflow ShardConfigurationDataflow `json:"shardConfigurationDataflow"`
 	ShardConfigurationDMS      ShardConfigurationDMS      `json:"shardConfigurationDMS"`
+	ShardIdPrefix              bool
 }
 
 func (nsp *NewSourceProfileImpl) NewSourceProfileConfig(source string, path string) (SourceProfileConfig, error) {
