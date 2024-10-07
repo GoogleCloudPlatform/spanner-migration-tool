@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Permissions and Connectivity
-nav_order: 4
+nav_order: 5
 description: "Permissions and connectivity required to run SMT"
 ---
 
