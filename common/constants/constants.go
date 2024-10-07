@@ -121,4 +121,9 @@ const (
 	// GCS PUBSUB MODES
 	REGULAR_GCS string = "data"
 	DLQ_GCS     string = "dlq"
+
+	//SHARD ID CONFIG
+	SHARD_ID_PREFIX string = "prefix"
+	SHARD_ID_SUFFIX string = "suffix"
+	SHARD_ID_NONE   string = "none"
 )

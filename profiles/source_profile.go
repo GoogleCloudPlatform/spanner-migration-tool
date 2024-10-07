@@ -177,7 +177,6 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionMySQL(params map[
 		mysql.Host, mysql.User, mysql.Db, mysql.Port, mysql.Pwd = host, user, db, port, pwd
 		// Throw error if the input entered is empty.
 		if mysql.Host == "" || mysql.User == "" || mysql.Db == "" {
-			fmt.Printf("%+v", mysql)
 			return mysql, fmt.Errorf("found empty string for host/user/dbName. Please specify host, port, user and dbName in the source-profile")
 		}
 	} else {
@@ -652,7 +651,7 @@ type SourceProfileConfig struct {
 	ShardConfigurationBulk     ShardConfigurationBulk     `json:"shardConfigurationBulk"`
 	ShardConfigurationDataflow ShardConfigurationDataflow `json:"shardConfigurationDataflow"`
 	ShardConfigurationDMS      ShardConfigurationDMS      `json:"shardConfigurationDMS"`
-	ShardIdPrefix              bool
+	ShardIdConfig              string
 }
 
 func (nsp *NewSourceProfileImpl) NewSourceProfileConfig(source string, path string) (SourceProfileConfig, error) {
@@ -807,8 +806,25 @@ func NewSourceProfile(s string, source string, n NewSourceProfileInterface) (Sou
 	} else if format, ok := params["format"]; ok {
 		// File is not passed in from stdin or specified using "file" flag.
 		return SourceProfile{Ty: SourceProfileTypeFile}, fmt.Errorf("file not specified, but format set to %v", format)
-	} else if file, ok := params["config"]; ok {
+	} else if file, ok := params["shardingConfig"]; ok {
 		config, err := n.NewSourceProfileConfig(strings.ToLower(source), file)
+		shardIdConfig, ok2 := params["shardIdConfig"]
+		if ok2 {
+			switch shardIdConfig {
+			case constants.SHARD_ID_PREFIX:
+				config.ShardIdConfig = shardIdConfig
+			case constants.SHARD_ID_SUFFIX:
+				config.ShardIdConfig = shardIdConfig
+			case constants.SHARD_ID_NONE:
+				config.ShardIdConfig = shardIdConfig
+			default:
+				return SourceProfile{}, fmt.Errorf("invalid shard id config passed")
+			}
+		} else {
+			//Default to setting shard id config to none
+			config.ShardIdConfig = constants.SHARD_ID_NONE
+		}
+		fmt.Printf("\nsetting sharded config %v", config.ShardIdConfig)
 		return SourceProfile{Ty: SourceProfileTypeConfig, Config: config}, err
 	} else if _, ok := params["instance"]; ok {
 		conn, err := n.NewSourceProfileConnectionCloudSQL(source, params, &SourceProfileDialectImpl{})

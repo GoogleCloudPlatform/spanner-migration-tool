@@ -1070,7 +1070,7 @@ func TestNewSourceProfile(t *testing.T) {
 		},
 		{
 			name:          "source profile for config",
-			params:        "config='file.cfg'",
+			params:        "shardingConfig='file.cfg'",
 			source:        "cfg",
 			function:      "NewSourceProfileConfig",
 			mockReturn:    SourceProfileConfig{},

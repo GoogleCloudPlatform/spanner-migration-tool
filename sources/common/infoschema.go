@@ -96,7 +96,9 @@ func (ps *ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoS
 	if attributes.IsSharded {
 		fmt.Println("processing as sharded migration")
 		conv.AddShardIdColumn()
+		conv.IsSharded = true
 	}
+
 	fmt.Println("loaded schema")
 	return nil
 }

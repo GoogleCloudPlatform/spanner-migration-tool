@@ -64,10 +64,14 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	case profiles.SourceProfileTypeConfig:
 		isSharded = true
 		//Add rule to set add prefix shard id
-		if sourceProfile.Config.ShardIdPrefix {
-			fmt.Printf("applying shard id rule\n")
+		if sourceProfile.Config.ShardIdConfig == constants.SHARD_ID_PREFIX {
+			fmt.Printf("applying shard id prefix rule\n")
 			shardPrefixRule := internal.Rule{Id: "shardIdPrefixRule", Name: "shardIdPrefixRule", Type: constants.AddShardIdPrimaryKey, Enabled: true}
 			conv.Rules = append(conv.Rules, shardPrefixRule)
+		} else if sourceProfile.Config.ShardIdConfig == constants.SHARD_ID_SUFFIX {
+			return nil, fmt.Errorf("shard id suffix not supported")
+		} else {
+			fmt.Printf("defaulting to not adding shard id to primary key\n")
 		}
 		//Find Primary Shard Name
 		if sourceProfile.Config.ConfigType == constants.BULK_MIGRATION {

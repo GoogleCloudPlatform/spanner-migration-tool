@@ -48,6 +48,8 @@ such as `avro` etc.
 Please note that streaming migration is only supported for MySQL, Oracle and PostgreSQL databases currently.
 Here is an example of a [streamingCfg JSON](./config-json.md#streamingcfg-for-non-sharded-minimal-downtime-migrations) and [how to use it in the CLI](./schema-and-data.md#examples).
 
+* **`shardingConfig`**: Specifies the sharding config file.
+
 ## Target Profile
 
 Spanner migration tool accepts the following options for --target-profile,
