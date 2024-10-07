@@ -6,8 +6,9 @@ description: "Terraform templates to run migrations"
 ---
 
 # Terraform Templates
-{: .no_toc }
-New
+{: .d-inline-block }
+
+New (v0.4.0)
 {: .label .label-green }
 
 Dataflow templates now contains a repository that provides samples for common scenarios users might have while trying to run a live migration to Spanner using Terraform based orchestration.
