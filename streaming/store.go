@@ -112,7 +112,7 @@ func PersistResources(ctx context.Context, targetProfile profiles.TargetProfile,
 		err = fmt.Errorf("can't create database client: %v", err)
 		return err
 	}
-	err = writeJobResources(ctx, migrationJobId, dataShardId, conv.Audit.StreamingStats.DataflowResources, conv.Audit.StreamingStats.DatastreamResources, conv.Audit.StreamingStats.GcsResources, conv.Audit.StreamingStats.PubsubResources, conv.Audit.StreamingStats.MonitoringResources, time.Now(), client)
+	err = writeJobResources(ctx, migrationJobId, dataShardId, conv.Audit.StreamingStats.DataflowResources, conv.Audit.StreamingStats.DatastreamResources, conv.Audit.StreamingStats.GcsResources, conv.Audit.StreamingStats.PubsubResources, conv.Audit.StreamingStats.DlqPubsubResources, conv.Audit.StreamingStats.MonitoringResources, time.Now(), client)
 	if err != nil {
 		err = fmt.Errorf("can't store generated resources for datashard: %v", err)
 		return err
@@ -156,7 +156,7 @@ func writeJobDetails(ctx context.Context, migrationJobId string, isShardedMigrat
 	return nil
 }
 
-func writeJobResources(ctx context.Context, migrationJobId string, dataShardId string, dataflowResources internal.DataflowResources, datastreamResources internal.DatastreamResources, gcsResources internal.GcsResources, pubsubResources internal.PubsubResources, monitoringResources internal.MonitoringResources, createTimestamp time.Time, client *spanner.Client) error {
+func writeJobResources(ctx context.Context, migrationJobId string, dataShardId string, dataflowResources internal.DataflowResources, datastreamResources internal.DatastreamResources, gcsResources internal.GcsResources, pubsubResources internal.PubsubResources, dlqPubsubResources internal.PubsubResources, monitoringResources internal.MonitoringResources, createTimestamp time.Time, client *spanner.Client) error {
 	datastreamResourcesBytes, err := json.Marshal(datastreamResources)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("can't marshal datastream resources for data shard %s: %v\n", dataShardId, err))
@@ -173,6 +173,11 @@ func writeJobResources(ctx context.Context, migrationJobId string, dataShardId s
 		return err
 	}
 	pubsubResourcesBytes, err := json.Marshal(pubsubResources)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("can't marshal pubsub resources for data shard %s: %v\n", dataShardId, err))
+		return err
+	}
+	dlqPubsubResourcesBytes, err := json.Marshal(dlqPubsubResources)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("can't marshal pubsub resources for data shard %s: %v\n", dataShardId, err))
 		return err
@@ -200,11 +205,15 @@ func writeJobResources(ctx context.Context, migrationJobId string, dataShardId s
 		if errr != nil {
 			return errr
 		}
+		dlqPubsubMutation, errr := createResourceMutation(migrationJobId, dlqPubsubResources.TopicId, constants.DLQ_PUBSUB_RESOURCE, dlqPubsubResources.TopicId, MinimalDowntimeResourceData{DataShardId: dataShardId, ResourcePayload: string(dlqPubsubResourcesBytes)})
+		if errr != nil {
+			return errr
+		}
 		monitoringMutation, err := createResourceMutation(migrationJobId, monitoringResources.DashboardName, constants.MONITORING_RESOURCE, monitoringResources.DashboardName, MinimalDowntimeResourceData{DataShardId: dataShardId, ResourcePayload: string(monitoringResourcesBytes)})
 		if err != nil {
 			return err
 		}
-		err = txn.BufferWrite([]*spanner.Mutation{datastreamMutation, dataflowMutation, gcsMutation, pubsubMutation, monitoringMutation})
+		err = txn.BufferWrite([]*spanner.Mutation{datastreamMutation, dataflowMutation, gcsMutation, pubsubMutation, dlqPubsubMutation, monitoringMutation})
 		if err != nil {
 			return err
 		}

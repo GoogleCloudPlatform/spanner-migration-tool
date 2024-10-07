@@ -32,6 +32,10 @@ export interface IGeneratedResources {
     PubsubTopicUrl: string
     PubsubSubscriptionName: string
     PubsubSubscriptionUrl: string
+    DlqPubsubTopicName: string
+    DlqPubsubTopicUrl: string
+    DlqPubsubSubscriptionName: string
+    DlqPubsubSubscriptionUrl: string
     MonitoringDashboardName: string
     MonitoringDashboardUrl: string
     AggMonitoringDashboardName: string

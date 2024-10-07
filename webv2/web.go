@@ -696,9 +696,9 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 		generatedResources.PubsubTopicName = sessionState.Conv.Audit.StreamingStats.PubsubResources.TopicId
 		generatedResources.PubsubTopicUrl = fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/topic/detail/%v?project=%v", sessionState.Conv.Audit.StreamingStats.PubsubResources.TopicId, sessionState.GCPProjectID)
 	}
-	if sessionState.Conv.Audit.StreamingStats.PubsubResources.SubscriptionId != "" {
-		generatedResources.PubsubSubscriptionName = sessionState.Conv.Audit.StreamingStats.PubsubResources.SubscriptionId
-		generatedResources.PubsubSubscriptionUrl = fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/subscription/detail/%v?project=%v", sessionState.Conv.Audit.StreamingStats.PubsubResources.SubscriptionId, sessionState.GCPProjectID)
+	if sessionState.Conv.Audit.StreamingStats.DlqPubsubResources.SubscriptionId != "" {
+		generatedResources.DlqPubsubSubscriptionName = sessionState.Conv.Audit.StreamingStats.DlqPubsubResources.SubscriptionId
+		generatedResources.DlqPubsubSubscriptionUrl = fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/subscription/detail/%v?project=%v", sessionState.Conv.Audit.StreamingStats.DlqPubsubResources.SubscriptionId, sessionState.GCPProjectID)
 	}
 	if sessionState.Conv.Audit.StreamingStats.MonitoringResources.DashboardName != "" {
 		generatedResources.MonitoringDashboardName = sessionState.Conv.Audit.StreamingStats.MonitoringResources.DashboardName
@@ -733,6 +733,13 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 		subscriptionUrl := fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/subscription/detail/%v?project=%v", shardResources.PubsubResources.SubscriptionId, sessionState.GCPProjectID)
 		subscriptionResourceDetails := types.ResourceDetails{ResourceType: constants.PUBSUB_SUB_RESOURCE, ResourceName: shardResources.PubsubResources.SubscriptionId, ResourceUrl: subscriptionUrl}
 		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], subscriptionResourceDetails)
+		//dlq-pubsub
+		dlqTopicUrl := fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/topic/detail/%v?project=%v", shardResources.DlqPubsubResources.TopicId, sessionState.GCPProjectID)
+		dlqTopicResourceDetails := types.ResourceDetails{ResourceType: constants.DLQ_PUBSUB_TOPIC_RESOURCE, ResourceName: shardResources.DlqPubsubResources.TopicId, ResourceUrl: dlqTopicUrl}
+		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], dlqTopicResourceDetails)
+		dlqSubscriptionUrl := fmt.Sprintf("https://console.cloud.google.com/cloudpubsub/subscription/detail/%v?project=%v", shardResources.DlqPubsubResources.SubscriptionId, sessionState.GCPProjectID)
+		dlqSubscriptionResourceDetails := types.ResourceDetails{ResourceType: constants.DLQ_PUBSUB_SUB_RESOURCE, ResourceName: shardResources.DlqPubsubResources.SubscriptionId, ResourceUrl: dlqSubscriptionUrl}
+		generatedResources.ShardToShardResourcesMap[shardId] = append(generatedResources.ShardToShardResourcesMap[shardId], dlqSubscriptionResourceDetails)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(generatedResources)
