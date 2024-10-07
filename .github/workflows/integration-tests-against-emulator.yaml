@@ -81,7 +81,7 @@ jobs:
           - 8000:8000
         options: --workdir /home/dynamodblocal --health-cmd "curl --fail http://127.0.0.1:8000/shell/ || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
       sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-CU10-ubuntu-22.04
+        image: mcr.microsoft.com/mssql/server:2022-latest
         env:
           SA_PASSWORD: ${{env.MSSQL_SA_PASSWORD}}
           MSSQL_PID: Express
@@ -89,7 +89,7 @@ jobs:
         ports:
           - 1433:1433
         options:
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P $SA_PASSWORD -Q 'select 1' -b -o /dev/null"
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -U sa -P $SA_PASSWORD -Q 'select 1' -b -No -o /dev/null"
           --health-interval 10s --health-timeout 5s --health-retries 3
       oracle:
         image: oracleinanutshell/oracle-xe-11g
