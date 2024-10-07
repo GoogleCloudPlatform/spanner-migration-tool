@@ -7,7 +7,6 @@ description: "Terraform templates to run migrations"
 
 # Terraform Templates
 {: .no_toc }
-
 New
 {: .label .label-green }
 
@@ -20,6 +19,15 @@ Pick a sample that is closest to your use-case, and use it as a starting point, 
 1. [Bulk migration](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/main/v2/datastream-to-spanner/terraform/samples)
 2. [Live migration](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/sourcedb-to-spanner/terraform/samples)
 3. [Sample environment setups](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-common/terraform/samples)
+
+## Commonly used templates & guides
+
+1. [How to run a production migration using a combination of bulk and live migrations](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-common/docs/END-TO-END-PRODUCTION-MIGRATION.md)
+2. [Bulk migration](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/sourcedb-to-spanner/terraform/samples/single-job-bulk-migration/README.md)
+3. [Live migration](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/datastream-to-spanner/terraform/samples/mysql-end-to-end/README.md)
+4. [Sharded bulk migration](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/sourcedb-to-spanner/terraform/samples/sharded-bulk-migration/README.md)
+5. [Sharded live migration using one dataflow job](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/datastream-to-spanner/terraform/samples/mysql-sharded-single-df-job/README.md)
+6. [Sharded live migration using multiple dataflow jobs](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/datastream-to-spanner/terraform/samples/mysql-sharded-end-to-end/README.md)
 
 ## Sample structure
 
@@ -36,12 +44,3 @@ Each sample contains the following (and potentially more) files:
    to run the example.
 6. `terraform_simple.tfvars` - This contains the minimal list of dummy inputs
    that need to be populated to run the example.
-
-## Commonly used templates & guides
-
-1. [How to run a production migration using a combination of bulk and live migrations](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-common/docs/END-TO-END-PRODUCTION-MIGRATION.md)
-2. [Bulk migration](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/sourcedb-to-spanner/terraform/samples/single-job-bulk-migration/README.md)
-3. [Live migration](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/datastream-to-spanner/terraform/samples/mysql-end-to-end/README.md)
-4. [Sharded bulk migration](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/sourcedb-to-spanner/terraform/samples/sharded-bulk-migration/README.md)
-5. [Sharded live migration using one dataflow job](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/datastream-to-spanner/terraform/samples/mysql-sharded-single-df-job/README.md)
-6. [Sharded live migration using multiple dataflow jobs](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/datastream-to-spanner/terraform/samples/mysql-sharded-end-to-end/README.md)
