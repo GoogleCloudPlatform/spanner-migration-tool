@@ -63,7 +63,8 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	switch sourceProfile.Ty {
 	case profiles.SourceProfileTypeConfig:
 		isSharded = true
-		//Add rule to set add prefix shard id
+		//Add rule to set add prefix shard id - this is not being applied currently as rule application is in the web package
+		//TODO - implement applying these rules
 		if sourceProfile.Config.ShardIdConfig == constants.SHARD_ID_PREFIX {
 			fmt.Printf("applying shard id prefix rule\n")
 			shardPrefixRule := internal.Rule{Id: "shardIdPrefixRule", Name: "shardIdPrefixRule", Type: constants.AddShardIdPrimaryKey, Enabled: true}
