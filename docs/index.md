@@ -21,7 +21,7 @@ Spanner migration tool (SMT) is a stand-alone open source tool for Cloud Spanner
 We have changed architecture of the minimal downtime migration and added Pub/Sub notifications component. There are changes on required permissions to run the migrations because of the new component. Please go through [Permissions page](./permissions.md) and [design page](./minimal/minimal.md) of the documentation.
 
 Spanner migration tool is a stand-alone open source tool for Cloud Spanner evaluation and
-migration, using data from an existing PostgreSQL, MySQL, SQL Server, Oracle or DynamoDB database.
+migration, using data from an existing PostgreSQL or MySQL database.
 The tool ingests schema and data from either a pg_dump/mysqldump file or directly
 from the source database, and supports both schema and data migration.
 
@@ -54,8 +54,8 @@ To find out how to configure custom transformations, refer [here](./transformati
 
 ## Supported Sources and Targets
 
-- **Schema Migrations**: SMT supports schema migrations for MySQL, PostgreSQL, SQLServer and Oracle.
-- **Data Migrations**: SMT supports minimal downtime migrations for MySQL, PostgreSQL and Oracle, and POC migration for MySQL, PostgreSQL, SQLServer and Oracle.
+- **Schema Migrations**: SMT supports schema migrations for MySQL and PostgreSQL.
+- **Data Migrations**: SMT supports minimal downtime migrations and POC migration for MySQL and PostgreSQL databases.
 
 ## About the project
 

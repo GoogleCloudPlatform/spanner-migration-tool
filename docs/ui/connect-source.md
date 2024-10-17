@@ -25,7 +25,7 @@ Spanner migration tool allows users to connect to the source database via three 
 
 ## Connect to Database
 
-In this connection mechanism the user needs to first select the type of source database engine and then specify the source database connection details like host, port, username , password and database name. Currently, Spanner Migration Tool UI supports the following source databases - MySQL, PostgreSQL, Oracle and SQLServer. User also needs to specify the **spanner** **dialect,** it specifies the query language used. Spanner provides support for two dialects - Google Standard SQL and PostgreSQL.
+In this connection mechanism the user needs to first select the type of source database engine and then specify the source database connection details like host, port, username , password and database name. Currently, Spanner Migration Tool UI supports the following source databases - MySQL and PostgreSQL. User also needs to specify the **spanner** **dialect,** it specifies the query language used. Spanner provides support for two dialects - Google Standard SQL and PostgreSQL.
 
 ![](https://services.google.com/fh/files/helpcenter/connect.png)
 

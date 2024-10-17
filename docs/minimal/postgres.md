@@ -64,7 +64,7 @@ Follow the steps below to configure a minimal downtime migration are PostgreSQL:
 
 1. [Connect to source database](../ui/connect-source.md).
 2. [Connect to spanner instance](../ui/connect-spanner.md).
-3. [Convert PostgreSQL schema to Spanner schema using the schema conversion workspace](../ui/schema-conv/schema-conv.md). Follow the documentation in the schema conversion workspace section of the documentation for different schema modifications that are supported by SMT. For guidance on specific data type conversion for Oracle, look at the [data conversion](../data-types/postgres.md) for Postgres documentation.
+3. [Convert PostgreSQL schema to Spanner schema using the schema conversion workspace](../ui/schema-conv/schema-conv.md). Follow the documentation in the schema conversion workspace section of the documentation for different schema modifications that are supported by SMT. For guidance on specific data type conversion for Postgres, look at the [data conversion](../data-types/postgres.md) documentation.
 4. [Configure datastream and dataflow details](../ui/prepare-migration/prepare.md).
 5. Wait for the migration to be orchestrated by SMT.
 6. Look at the list of [generated resources](../ui/prepare-migration/monitor.md/#generated-resources) for links to the Datastream stream and the Dataflow job crearted.

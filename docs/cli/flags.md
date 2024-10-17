@@ -45,7 +45,7 @@ such as `avro` etc.
 * **`password`**: Specifies the password for the source database.
 
 * **`streamingCfg`**: Optional flag. Specifies the file path for streaming config.
-Please note that streaming migration is only supported for MySQL, Oracle and PostgreSQL databases currently.
+Please note that streaming migration is only supported for MySQL and PostgreSQL databases currently.
 Here is an example of a [streamingCfg JSON](./config-json.md#streamingcfg-for-non-sharded-minimal-downtime-migrations) and [how to use it in the CLI](./schema-and-data.md#examples).
 
 ## Target Profile

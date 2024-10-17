@@ -10,7 +10,7 @@ permalink: /minimal
 {: .no_toc }
 
 {: .note }
-Minimal downtime migrations are only supported for MySQL, Postgres and Oracle source databases.
+Minimal downtime migrations are only supported for MySQL and Postgres source databases.
 
 A minimal downtime migration consists of two components, migration of existing data from the database and the stream of changes (writes and updates) that are made to the source database during migration, referred to as change database capture (CDC). The process of migration involves Datastream reading data from the source database and writing to a GCS bucket, then GCS publishing a notification to Pub/Sub topic on each new file, then a Dataflow job when notified by the Pub/Sub subscription about the new file, reading the data from GCS bucket and writing to spanner database. With Spanner migration tool, this entire process can be orchestrated using a unified interface. Performing schema changes on the source database during the migration is not supported. This is the suggested mode of migration for most databases.
 
