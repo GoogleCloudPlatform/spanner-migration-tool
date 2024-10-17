@@ -70,7 +70,7 @@ The following table outlines the Java object type that will be sent in the reque
 | SET            | String              |
 | SMALLINT       | Long                |
 | TEXT           | String              |
-| TIME           | Long ([time-micros](https://avro.apache.org/docs/current/specification/_print/#time-microsecond-precision) e.g., 45296000000 for 12:34:56) |
+| TIME           | String (Format: HH-mm-ss) |
 | TIMESTAMP      | String (UTC format) |
 | TINYBLOB       | String (hex encoded)|
 | TINYINT        | Long                |
