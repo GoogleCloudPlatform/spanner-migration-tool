@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Known Limitations
-nav_order: 12
+nav_order: 13
 permalink: /known-limitations
 ---
 
@@ -22,7 +22,6 @@ Please refer to the [issues section](https://github.com/GoogleCloudPlatform/span
 
 ### Schema Conversion
 
-- Loading dump files from SQL Server, Oracle and DynamoDB is not supported
 - Schema Only Mode does not create foreign keys
 - Foreign key actions such as [ON DELETE CASCADE](https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language#create_table) are not supported. If you do not specify a foreign key action, Spanner infers NO ACTION as the default action
 - Migration of check constraints, functions and views is not supported

@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Permissions and Connectivity
-nav_order: 4
+nav_order: 5
 description: "Permissions and connectivity required to run SMT"
 ---
 
@@ -81,7 +81,6 @@ before using SMT.
 
 - [MySQL](https://cloud.google.com/datastream/docs/configure-your-source-mysql-database)
 - [Postgres](https://cloud.google.com/datastream/docs/configure-your-source-postgresql-database)
-- [Oracle](https://cloud.google.com/datastream/docs/configure-your-source-oracle-database)
 
 ### Configuring connectivity for Dataflow
 
