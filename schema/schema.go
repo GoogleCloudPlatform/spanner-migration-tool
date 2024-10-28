@@ -108,6 +108,7 @@ type Type struct {
 	Name        string
 	Mods        []int64 // List of modifiers (aka type parameters e.g. varchar(8) or numeric(6, 4).
 	ArrayBounds []int64 // Empty for scalar types.
+	FullName	string // Full name with qualifiers e.g. bigint(20) unsigned
 }
 
 // Ignored represents column properties/constraints that are not

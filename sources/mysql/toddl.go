@@ -17,6 +17,7 @@ package mysql
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -138,6 +139,10 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
+			// Unsigned bigint is doesn't fit in INT64
+			if strings.Contains(strings.ToLower(srcType.FullName), "unsigned") {
+				return ddl.Type{Name: ddl.Numeric}, nil
+			}
 			return ddl.Type{Name: ddl.Int64}, nil
 		}
 	case "smallint", "mediumint", "integer", "int":
