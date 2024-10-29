@@ -24,6 +24,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 )
@@ -93,16 +94,60 @@ func WriteSessionFile(conv *internal.Conv, name string, out *os.File) {
 	}
 	// Session file will basically contain 'conv' struct in JSON format.
 	// It contains all the information for schema and data conversion state.
-	convJSON, err := json.MarshalIndent(conv, "", " ")
+
+	// add backticks from names for table, sequences, columns, etc
+	convCopy := addBackticksToNames(conv, out)
+	convJSON, err := json.MarshalIndent(convCopy, "", " ")
 	if err != nil {
 		fmt.Fprintf(out, "Can't encode session state to JSON: %v\n", err)
 		return
 	}
+
 	if _, err := f.Write(convJSON); err != nil {
 		fmt.Fprintf(out, "Can't write out session file: %v\n", err)
 		return
 	}
 	fmt.Fprintf(out, "Wrote session to file '%s'.\n", name)
+}
+
+func addBackticksToNames(conv *internal.Conv, out *os.File) *internal.Conv {
+	convJSON, err := json.MarshalIndent(conv, "", " ")
+	if err != nil {
+		fmt.Fprintf(out, "Can't encode session state to JSON: %v\n", err)
+		return conv
+	}
+	// Creating copy of conv object to modify it before write
+	convCopy := &internal.Conv{}
+	err = json.Unmarshal(convJSON, convCopy)
+	if err != nil {
+		fmt.Fprintf(out, "Can't encode session state to JSON: %v\n", err)
+		return conv
+	}
+
+	srcSchemaCopy := make(map[string]schema.Table)
+	for tableName, table := range conv.SrcSchema {
+		// Add backticks to table Name
+		table.Name = "`" + table.Name + "`"
+
+		// Add backticks to each ColId
+		for colName, column := range table.ColDefs {
+			column.Name = "`" + column.Name + "`"
+			table.ColDefs[colName] = column
+		}
+
+		srcSchemaCopy[tableName] = table
+	}
+
+	convCopy.SrcSchema = srcSchemaCopy
+
+	srcSequenceCopy := make(map[string]ddl.Sequence)
+	for sequenceName, sequence := range conv.SrcSequences {
+		// Add backticks to Sequence Name
+		sequence.Name = "`" + sequence.Name + "`"
+		srcSequenceCopy[sequenceName] = sequence
+	}
+	convCopy.SrcSequences = srcSequenceCopy
+	return convCopy
 }
 
 // WriteConvGeneratedFiles creates a directory labeled downloads with the current timestamp
@@ -136,7 +181,42 @@ func ReadSessionFile(conv *internal.Conv, sessionJSON string) error {
 	if err != nil {
 		return err
 	}
+
+	// remove backticks from names for table, sequences, columns, etc
+	removeBackticks(conv)
 	return nil
+}
+
+func removeBackticks(conv *internal.Conv) {
+	processString := func(s *string) string {
+		if len(*s) >= 2 && (*s)[0] == '`' && (*s)[len(*s)-1] == '`' {
+			*s = (*s)[1 : len(*s)-1]
+		}
+		return *s
+	}
+
+	// Remove backticks from SrcSchema
+	for tableName, table := range conv.SrcSchema {
+		// Remove backticks from table Name
+		processString(&table.Name)
+
+		// Remove backticks from each ColDef
+		for colName, col := range table.ColDefs {
+			col.Name = processString(&col.Name)
+			table.ColDefs[colName] = col
+		}
+
+		conv.SrcSchema[tableName] = table
+	}
+
+	// Remove backticks from SrcSequences
+	for sequenceName, sequence := range conv.SrcSequences {
+		// Remove backticks from Sequence Name
+		sequence.Name = processString(&sequence.Name)
+		conv.SrcSequences[sequenceName] = sequence
+
+		conv.SrcSequences[sequenceName] = sequence
+	}
 }
 
 // WriteBadData prints summary stats about bad rows and writes detailed info

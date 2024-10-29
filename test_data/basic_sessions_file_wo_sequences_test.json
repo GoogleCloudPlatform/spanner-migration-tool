@@ -56,7 +56,7 @@
   "SyntheticPKeys": {},
   "SrcSchema": {
    "t1": {
-    "Name": "numbers",
+    "Name": "`numbers`",
     "Schema": "default",
     "ColIds": [
      "c1",
@@ -64,7 +64,7 @@
     ],
     "ColDefs": {
      "c1": {
-      "Name": "id",
+      "Name": "`id`",
       "Type": {
        "Name": "int",
        "Mods": [
@@ -84,7 +84,7 @@
       "Id": "c1"
      },
      "c2": {
-      "Name": "value",
+      "Name": "`value`",
       "Type": {
        "Name": "int",
        "Mods": [
