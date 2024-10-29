@@ -125,11 +125,11 @@ func addBackticksToNames(conv *internal.Conv, out *os.File) *internal.Conv {
 	}
 
 	srcSchemaCopy := make(map[string]schema.Table)
-	for tableName, table := range conv.SrcSchema {
+	for tableName, table := range convCopy.SrcSchema {
 		// Add backticks to table Name
 		table.Name = "`" + table.Name + "`"
 
-		// Add backticks to each ColId
+		// Add backticks to each ColName
 		for colName, column := range table.ColDefs {
 			column.Name = "`" + column.Name + "`"
 			table.ColDefs[colName] = column
@@ -141,7 +141,7 @@ func addBackticksToNames(conv *internal.Conv, out *os.File) *internal.Conv {
 	convCopy.SrcSchema = srcSchemaCopy
 
 	srcSequenceCopy := make(map[string]ddl.Sequence)
-	for sequenceName, sequence := range conv.SrcSequences {
+	for sequenceName, sequence := range convCopy.SrcSequences {
 		// Add backticks to Sequence Name
 		sequence.Name = "`" + sequence.Name + "`"
 		srcSequenceCopy[sequenceName] = sequence
