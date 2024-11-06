@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, OnInit, Output, SimpleChanges } from '@angular/core'
-import { FormArray, FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms'
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms'
 import IUpdateTable from '../../model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
@@ -39,6 +39,7 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ICreateSequence from 'src/app/model/auto-gen'
 import { autoGenSupportedDbs } from 'src/app/app.constants'
 import ICcTabData from 'src/app/model/cc-tab-data'
+import { Parser } from 'node-sql-parser'
 
 @Component({
   selector: 'app-object-detail',
@@ -1168,7 +1169,8 @@ export class ObjectDetailComponent implements OnInit {
     this.setPkRows()
   }
   setCCRows() {
-    const regex = /^\s*\(\s*[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?\s*(=|!=|<|<=|>|>=)\s*(\d+(\.\d+)?|(['"])[^'"]*\5)\s*\)\s*((\s*(AND|OR)\s*\(\s*[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?\s*(=|!=|<|<=|>|>=)\s*(\d+(\.\d+)?|(['"])[^'"]*\13)\s*\))?)*\s*$/;
+    // const regex = /^\s*\(\s*(`[a-zA-Z][a-zA-Z0-9_]*`|[a-zA-Z][a-zA-Z0-9_]*)\s*(=|!=|<|<=|>|>=)\s*(\d+(\.\d+)?|(['"])[^'"]*\5)\s*\)(\s+(AND|OR)\s+\(\s*(`[a-zA-Z][a-zA-Z0-9_]*`|[a-zA-Z][a-zA-Z0-9_]*)\s*(=|!=|<|<=|>|>=)\s*(\d+(\.\d+)?|(['"])[^'"]*\11)\s*\))*\s*$/i;
+    const regex = /^\s*\(\s*(`[a-zA-Z][a-zA-Z0-9_]*`|[a-zA-Z][a-zA-Z0-9_]*)\s*(=|!=|<|<=|>|>=)\s*(\d+(\.\d+)?|(['"])[^'"]*\5)\s*\)(\s+(AND|OR|and|or)\s+\(\s*(`[a-zA-Z][a-zA-Z0-9_]*`|[a-zA-Z][a-zA-Z0-9_]*)\s*(=|!=|<|<=|>|>=)\s*(\d+(\.\d+)?|(['"])[^'"]*\11)\s*\))*\s*$/i;
     this.ccArray = this.fb.array([])
     let index = 0
     this.ccData.forEach((cc) => {
@@ -1185,13 +1187,54 @@ export class ObjectDetailComponent implements OnInit {
           ]),
           spCondition: new FormControl(cc.spCondition, [
             Validators.required,
-            Validators.pattern(regex),
+            this.checkWhere(),
           ]),
         })
       )
     })
 
     this.ccDataSource = this.ccArray.controls
+  }
+
+//   function isValidCheckConstraint(constraint) {
+//     const sql = `
+//         CREATE TABLE test (
+//             id INT,
+//             ${constraint}
+//         );
+//     `;
+
+//     try {
+//         const ast = parser.astify(sql);
+//         return true;  // If parsing succeeds, it's considered valid
+//     } catch (error) {
+//         console.error("Invalid constraint:", error.message);
+//         return false;
+//     }
+// }
+
+
+  checkWhere(): ValidatorFn{
+    return (control: AbstractControl): ValidationErrors | null => {
+      debugger
+      const parser = new Parser();
+
+      const sql = `
+    ALTER TABLE employees
+    ADD CONSTRAINT chk_age4
+    CHECK ${control.value};
+      `;
+
+
+  try {
+    const ast = parser.astify(sql);
+    return null;  // If parsing succeeds, it's considered valid
+} catch (error) {
+    return{ error}
+}
+
+
+    }
   }
   setFkRows() {
     this.fkArray = this.fb.array([])

@@ -319,14 +319,9 @@ tr.mat-mdc-row {
 }
 
 .overflow-cell {
-  max-width: 150px; // Set a max-width for the cell
-  white-space: nowrap; // Prevent text from wrapping to the next line
-  text-overflow: ellipsis; // Show ellipsis (...) for overflowed text
-  cursor: pointer; // Indicate that the cell is interactive to show tooltip
-
-  &:hover {
-    overflow: visible; // Show the text when hovering
-    white-space: normal; // Allow text to wrap and show fully
-    // Optionally, customize this styling further for better tooltip effects
-  }
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
 }

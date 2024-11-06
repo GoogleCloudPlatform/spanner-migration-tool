@@ -287,11 +287,10 @@ WHERE
 			}
 			switch constraint {
 			case "CHECK":
-				if strings.Contains(checkClause, "_utf8mb4") {
-					checkClause = strings.ReplaceAll(checkClause, "_utf8mb4", "")
-					checkClause = strings.TrimSpace(checkClause)
-				}
-				checkKeys = append(checkKeys, schema.CheckConstraints{Name: constraintName, Expr: checkClause, Id: internal.GenerateCheckConstrainstId()})
+				checkClause = strings.ReplaceAll(checkClause, "_utf8mb4\\", "")
+				checkClause = strings.ReplaceAll(checkClause, "\\", "")
+
+				checkKeys = append(checkKeys, schema.CheckConstraints{Name: constraintName, Expr: string(checkClause), Id: internal.GenerateCheckConstrainstId()})
 			default:
 				m[col] = append(m[col], constraint)
 			}
