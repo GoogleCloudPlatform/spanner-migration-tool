@@ -199,7 +199,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			// We've already filtered out PRIMARY KEY.
 			switch c {
 			case "CHECK":
-				ignored.Check = true
+				// ignored.Check = true
 			case "FOREIGN KEY", "PRIMARY KEY", "UNIQUE":
 				// Nothing to do here -- these are all handled elsewhere.
 			}
@@ -237,30 +237,69 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
-func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, map[string][]string, error) {
-	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
-              FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
-                INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
-                  ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND t.TABLE_NAME=k.TABLE_NAME
-              WHERE k.TABLE_SCHEMA = ? AND k.TABLE_NAME = ? ORDER BY k.ordinal_position;`
-	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, []schema.CheckConstraints, map[string][]string, error) {
+	// q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
+	//           FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
+	//             INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+	//               ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND t.TABLE_NAME=k.TABLE_NAME
+	//           WHERE k.TABLE_SCHEMA = ? AND k.TABLE_NAME = ? ORDER BY k.ordinal_position;`
+	q1 := `SELECT 
+    COALESCE(k.COLUMN_NAME, '') AS COLUMN_NAME,  -- Replace NULL with empty string
+    t.CONSTRAINT_NAME,
+    t.CONSTRAINT_TYPE,
+    COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE -- Replace NULL with empty string
+FROM 
+    INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
+LEFT JOIN 
+    INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+    ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
+    AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
+    AND t.TABLE_NAME = k.TABLE_NAME
+LEFT JOIN 
+    INFORMATION_SCHEMA.CHECK_CONSTRAINTS AS c
+    ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
+WHERE 
+    t.TABLE_SCHEMA = ?
+    AND t.TABLE_NAME = ?
+    ORDER BY  k.ORDINAL_POSITION;
+`
+	rows, err := isi.Db.Query(q1, table.Schema, table.Name)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	defer rows.Close()
 	var primaryKeys []string
-	var col, constraint string
+	var checkKeys []schema.CheckConstraints
+	var col, constraintName, constraint, checkClause string
 	m := make(map[string][]string)
 	for rows.Next() {
-		err := rows.Scan(&col, &constraint)
+		err := rows.Scan(&col, &constraintName, &constraint, &checkClause)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
 		if col == "" || constraint == "" {
 			conv.Unexpected(fmt.Sprintf("Got empty col or constraint"))
+
+			if constraintName == "" || checkClause == "" {
+				conv.Unexpected(fmt.Sprintf("Got empty constraintName or checkClause"))
+				continue
+			}
+			switch constraint {
+			case "CHECK":
+				if strings.Contains(checkClause, "_utf8mb4") {
+					checkClause = strings.ReplaceAll(checkClause, "_utf8mb4", "")
+					checkClause = strings.TrimSpace(checkClause)
+				}
+				checkKeys = append(checkKeys, schema.CheckConstraints{Name: constraintName, Expr: checkClause, Id: internal.GenerateCheckConstrainstId()})
+			default:
+				m[col] = append(m[col], constraint)
+			}
+
 			continue
+
 		}
+
 		switch constraint {
 		case "PRIMARY KEY":
 			primaryKeys = append(primaryKeys, col)
@@ -268,7 +307,8 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 			m[col] = append(m[col], constraint)
 		}
 	}
-	return primaryKeys, m, nil
+	fmt.Printf("check %s", checkClause)
+	return primaryKeys, checkKeys, m, nil
 }
 
 // GetForeignKeys return list all the foreign keys constraints.

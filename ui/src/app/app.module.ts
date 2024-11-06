@@ -1,3 +1,4 @@
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { NgModule } from '@angular/core'
 import { BrowserModule } from '@angular/platform-browser'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
@@ -113,7 +114,8 @@ import { AddNewSequenceComponent } from './components/add-new-sequence/add-new-s
     MatRadioModule,
     ClipboardModule,
     MatProgressSpinnerModule,
-    MatChipsModule
+    MatChipsModule,
+    MatTooltipModule
   ],
   providers: [
     {

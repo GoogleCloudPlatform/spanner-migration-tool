@@ -14,6 +14,7 @@ import { ColLength, Dialect, ObjectExplorerNodeType, StorageKeys, autoGenSupport
 import { BehaviorSubject } from 'rxjs'
 import { FetchService } from '../fetch/fetch.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
+import ICcTabData from 'src/app/model/cc-tab-data'
 
 @Injectable({
   providedIn: 'root',
@@ -282,7 +283,26 @@ export class ConversionService {
       },
     ]
   }
+  getCheckConstrainst(tableId: string, data: IConv): ICcTabData[] {
+    debugger
+    let checkConstrainsts =  data.SrcSchema[tableId].CheckConstraints
+    let res:ICcTabData[]=[]
+    let index = 0
+    checkConstrainsts.forEach((item)=>{
+      index++
+      let checkConstrainst = {
+        srcSno: index,
+        srcConstraintName: item.Name,
+        srcCondition: item.Expr,
+        spSno: index,
+        spConstraintName: item.Name,
+        spCondition: item.Expr
+      }
+      res.push(checkConstrainst)
+    })
 
+    return res
+  }
   getColumnMapping(tableId: string, data: IConv): IColumnTabData[] {
     let spTableName = this.getSpannerTableNameFromId(tableId, data)
     let srcColIds = data.SrcSchema[tableId].ColIds
