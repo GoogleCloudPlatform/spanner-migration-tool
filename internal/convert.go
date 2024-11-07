@@ -290,6 +290,27 @@ type TableDetails struct {
 	TableName string `json:TableName`
 }
 
+type ExpressionDetail struct {
+	ReferenceElement ReferenceElement
+	Expression string
+	Type string
+	Metadata map[string]string
+}
+
+type ReferenceElement struct {
+	Id string
+	Name string
+}
+
+type VerificationResult struct {
+	Result bool
+	err error
+}
+
+type BatchVerificationResult struct {
+	VerificationResultList []VerificationResult
+}
+
 // MakeConv returns a default-configured Conv.
 func MakeConv() *Conv {
 	return &Conv{
