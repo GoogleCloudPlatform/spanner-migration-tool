@@ -302,9 +302,14 @@ type ReferenceElement struct {
 	Name string
 }
 
+type VerificationInput struct {
+	DbURI string
+	ExpressionDetail ExpressionDetail
+}
+
 type VerificationResult struct {
 	Result bool
-	err error
+	Err error
 }
 
 type BatchVerificationResult struct {
