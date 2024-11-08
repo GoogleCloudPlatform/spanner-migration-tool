@@ -74,6 +74,10 @@ type SpannerAccessor interface {
 	ValidateDDL(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) error
 	// UpdateDDLForeignKeys updates the Spanner database with foreign key constraints using ALTER TABLE statements.
 	UpdateDDLForeignKeys(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string, conv *internal.Conv, driver string, migrationType string)
+	// Deletes a database.
+	DropDatabase(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) error
+	//Runs a query against the provided spanner database and returns if the executed DML is validate or not
+	ValidateDML(ctx context.Context, dbURI string, query string) (bool, error)
 }
 
 // This implements the SpannerAccessor interface. This is the primary implementation that should be used in all places other than tests.
@@ -428,4 +432,32 @@ func (sp *SpannerAccessorImpl) UpdateDDLForeignKeys(ctx context.Context, adminCl
 	}
 	conv.Audit.Progress.UpdateProgress("Foreign key update complete.", 100, internal.ForeignKeyUpdateComplete)
 	conv.Audit.Progress.Done()
+}
+
+func (sp *SpannerAccessorImpl) DropDatabase(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) error {
+	
+	err := adminClient.DropDatabase(ctx, &adminpb.DropDatabaseRequest{Database: dbURI})
+	if err != nil {
+		return fmt.Errorf("can't build DropDatabaseRequest: %w", utils.AnalyzeError(err, dbURI))
+	}
+	return nil
+}
+
+func (sp *SpannerAccessorImpl) ValidateDML(ctx context.Context, dbURI string, query string) (bool, error) {
+	spClient, err := spannerclient.GetOrCreateClient(ctx, dbURI)
+	if err != nil {
+		return false, err
+	}
+	stmt := spanner.Statement{
+		SQL: query,
+	}
+	iter := spClient.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	_, err = iter.Next()
+	// there is an error but the error does not indicate no more rows, means a syntax error.
+	if err != iterator.Done && err != nil {
+		return false, err
+	} else {
+		return true, nil
+	}
 }
