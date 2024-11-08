@@ -18,7 +18,7 @@ type ExpressionVerificationAccessor interface {
 	//Deletes a staging database
 	DeleteStagingDb(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (bool, error)
 	//Internal API which verifies an expression by making a call to Spanner
-	VerifyExpression(verificationInput internal.VerificationInput, mutex *sync.Mutex) common.TaskResult[internal.VerificationResult]
+	VerifyExpression(ctx context.Context, verificationInput internal.VerificationInput, mutex *sync.Mutex) common.TaskResult[internal.VerificationResult]
 	//Batch API which parallelizes expression verification calls
 	BatchVerifyExpressions(ctx context.Context, verificationInputList []internal.VerificationInput) internal.BatchVerificationResult
 }
@@ -37,7 +37,7 @@ func (ev *ExpressionVerificationAccessorImpl) DeleteStagingDb(ctx context.Contex
 	return true, nil
 }
 
-func (ev *ExpressionVerificationAccessorImpl) VerifyExpression(verificationInput internal.VerificationInput, mutex *sync.Mutex) common.TaskResult[internal.VerificationResult] {
+func (ev *ExpressionVerificationAccessorImpl) VerifyExpression(ctx context.Context, verificationInput internal.VerificationInput, mutex *sync.Mutex) common.TaskResult[internal.VerificationResult] {
 	return common.TaskResult[internal.VerificationResult]{}
 }
 
