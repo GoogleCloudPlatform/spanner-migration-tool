@@ -288,6 +288,12 @@ type Foreignkey struct {
 	OnUpdate       string
 }
 
+type Checkconstraint struct {
+	Id   string
+	Name string
+	Expr string
+}
+
 // InterleavedParent encodes the following DDL definition:
 //
 //	INTERLEAVE IN PARENT parent_name ON DELETE delete_rule
@@ -318,16 +324,17 @@ func (k Foreignkey) PrintForeignKey(c Config) string {
 //
 //	create_table: CREATE TABLE table_name ([column_def, ...] ) primary_key [, cluster]
 type CreateTable struct {
-	Name          string
-	ColIds        []string // Provides names and order of columns
-	ShardIdColumn string
-	ColDefs       map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
-	PrimaryKeys   []IndexKey
-	ForeignKeys   []Foreignkey
-	Indexes       []CreateIndex
-	ParentTable   InterleavedParent //if not empty, this table will be interleaved
-	Comment       string
-	Id            string
+	Name            string
+	ColIds          []string // Provides names and order of columns
+	ShardIdColumn   string
+	ColDefs         map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
+	PrimaryKeys     []IndexKey
+	ForeignKeys     []Foreignkey
+	CheckConstraint []Checkconstraint
+	Indexes         []CreateIndex
+	ParentTable     InterleavedParent //if not empty, this table will be interleaved
+	Comment         string
+	Id              string
 }
 
 // PrintCreateTable unparses a CREATE TABLE statement.

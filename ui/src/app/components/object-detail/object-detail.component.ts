@@ -1,5 +1,14 @@
 import { Component, EventEmitter, Input, OnInit, Output, SimpleChanges } from '@angular/core'
-import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms'
+import {
+  AbstractControl,
+  FormArray,
+  FormBuilder,
+  FormControl,
+  FormGroup,
+  ValidationErrors,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms'
 import IUpdateTable from '../../model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
@@ -691,7 +700,6 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   checkIfPkColumn(colId: string) {
-    debugger
     let isPkColumn = false
     if (
       this.conv.SpSchema[this.currentObject!.id].PrimaryKeys != null &&
@@ -769,6 +777,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setPkRows() {
+    debugger
     this.pkArray = this.fb.array([])
     this.pkOrderValidation()
     var srcArr = new Array()
@@ -879,10 +888,10 @@ export class ObjectDetailComponent implements OnInit {
   addCcColumn() {
     let index = this.ccData.length
     this.ccData.push({
-      spSno: index + 1,
+      spSno: `${index + 1}`,
       spConstraintName: `Constrainst_name${index + 1}`,
       spCondition: '',
-      srcSno: Number(''),
+      srcSno: '',
       srcCondition: '',
       srcConstraintName: '',
     })
@@ -1030,14 +1039,6 @@ export class ObjectDetailComponent implements OnInit {
       this.isPkEditMode = true
     }
   }
-  saveCc() {
-    console.log('save data')
-    this.ccArray.valid
-    this.ccArray.value.forEach((cc: ICcTabData) => {
-      debugger
-      console.log(cc)
-    })
-  }
 
   savePk() {
     this.pkArray.value.forEach((pk: IColumnTabData) => {
@@ -1113,6 +1114,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropCc(element: any) {
+    this.setCCRows()
     debugger
     let index = this.ccData.map((item) => item.spSno).indexOf(element.value.spSno)
     if (index != -1) {
@@ -1122,6 +1124,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropPk(element: any) {
+    debugger
     let index = this.localTableData.map((item) => item.spColName).indexOf(element.value.spColName)
     let colId = this.localTableData[index].spId
     let synthColId = this.conv.SyntheticPKeys[this.currentObject!.id]
@@ -1169,71 +1172,108 @@ export class ObjectDetailComponent implements OnInit {
     this.setPkRows()
   }
   setCCRows() {
-    // const regex = /^\s*\(\s*(`[a-zA-Z][a-zA-Z0-9_]*`|[a-zA-Z][a-zA-Z0-9_]*)\s*(=|!=|<|<=|>|>=)\s*(\d+(\.\d+)?|(['"])[^'"]*\5)\s*\)(\s+(AND|OR)\s+\(\s*(`[a-zA-Z][a-zA-Z0-9_]*`|[a-zA-Z][a-zA-Z0-9_]*)\s*(=|!=|<|<=|>|>=)\s*(\d+(\.\d+)?|(['"])[^'"]*\11)\s*\))*\s*$/i;
-    const regex = /^\s*\(\s*(`[a-zA-Z][a-zA-Z0-9_]*`|[a-zA-Z][a-zA-Z0-9_]*)\s*(=|!=|<|<=|>|>=)\s*(\d+(\.\d+)?|(['"])[^'"]*\5)\s*\)(\s+(AND|OR|and|or)\s+\(\s*(`[a-zA-Z][a-zA-Z0-9_]*`|[a-zA-Z][a-zA-Z0-9_]*)\s*(=|!=|<|<=|>|>=)\s*(\d+(\.\d+)?|(['"])[^'"]*\11)\s*\))*\s*$/i;
+    debugger
     this.ccArray = this.fb.array([])
+    var srcArr = new Array()
+    var spArr = new Array()
+
     let index = 0
     this.ccData.forEach((cc) => {
       index++
+      srcArr.push({
+        srcSno: cc.srcSno,
+        srcConstraintName: cc.srcConstraintName,
+        srcCondition: cc.srcCondition,
+        spSno: `${index}`,
+        spConstraintName: cc.spConstraintName,
+        spCondition: cc.spCondition,
+      })
+      if (cc.spConstraintName != '') {
+        spArr.push({
+          srcSno: cc.srcSno,
+          srcConstraintName: cc.srcConstraintName,
+          srcCondition: cc.srcCondition,
+          spSno: `${index}`,
+          spConstraintName: cc.spConstraintName,
+          spCondition: cc.spCondition,
+        })
+      }
+    })
+
+    for (let i = 0; i < Math.min(srcArr.length, spArr.length); i++) {
       this.ccArray.push(
         new FormGroup({
-          srcSno: new FormControl(cc.srcSno),
-          srcConstraintName: new FormControl(cc.srcConstraintName),
-          srcCondition: new FormControl(cc.srcCondition),
-          spSno: new FormControl(index, [Validators.required]),
-          spConstraintName: new FormControl(cc.spConstraintName, [
+          srcSno: new FormControl(srcArr[i].srcSno),
+          srcConstraintName: new FormControl(srcArr[i].srcConstraintName),
+          srcCondition: new FormControl(srcArr[i].srcCondition),
+          spSno: new FormControl(srcArr[i].spSno),
+          spConstraintName: new FormControl(srcArr[i].spConstraintName, [
             Validators.required,
             Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
           ]),
-          spCondition: new FormControl(cc.spCondition, [
+          spCondition: new FormControl(srcArr[i].spCondition, [
             Validators.required,
             this.checkWhere(),
           ]),
         })
       )
-    })
+    }
+
+    if (srcArr.length > Math.min(srcArr.length, spArr.length))
+      for (let i = Math.min(srcArr.length, spArr.length); i < srcArr.length; i++) {
+        this.ccArray.push(
+          new FormGroup({
+            srcSno: new FormControl(srcArr[i].srcSno),
+            srcConstraintName: new FormControl(srcArr[i].srcConstraintName),
+            srcCondition: new FormControl(srcArr[i].srcCondition),
+            spSno: new FormControl(''),
+            spConstraintName: new FormControl('', [
+              Validators.required,
+              Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
+            ]),
+            spCondition: new FormControl('', [Validators.required, this.checkWhere()]),
+          })
+        )
+      }
+    else if (spArr.length > Math.min(srcArr.length, spArr.length))
+      for (let i = Math.min(srcArr.length, spArr.length); i < spArr.length; i++) {
+        this.ccArray.push(
+          new FormGroup({
+            srcSno: new FormControl(''),
+            srcConstraintName: new FormControl(''),
+            srcCondition: new FormControl(''),
+            spSno: new FormControl(spArr[i].spSno),
+            spConstraintName: new FormControl(spArr[i].spConstraintName, [
+              Validators.required,
+              Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
+            ]),
+            spCondition: new FormControl(spArr[i].spCondition, [
+              Validators.required,
+              this.checkWhere(),
+            ]),
+          })
+        )
+      }
 
     this.ccDataSource = this.ccArray.controls
   }
 
-//   function isValidCheckConstraint(constraint) {
-//     const sql = `
-//         CREATE TABLE test (
-//             id INT,
-//             ${constraint}
-//         );
-//     `;
-
-//     try {
-//         const ast = parser.astify(sql);
-//         return true;  // If parsing succeeds, it's considered valid
-//     } catch (error) {
-//         console.error("Invalid constraint:", error.message);
-//         return false;
-//     }
-// }
-
-
-  checkWhere(): ValidatorFn{
+  checkWhere(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
-      debugger
-      const parser = new Parser();
+      const parser = new Parser()
 
       const sql = `
     ALTER TABLE employees
     ADD CONSTRAINT chk_age4
     CHECK ${control.value};
-      `;
+      `
 
-
-  try {
-    const ast = parser.astify(sql);
-    return null;  // If parsing succeeds, it's considered valid
-} catch (error) {
-    return{ error}
-}
-
-
+      try {
+        const ast = parser.astify(sql)
+        return null // If parsing succeeds, it's considered valid
+      } catch (error) {
+        return { error }
+      }
     }
   }
   setFkRows() {
@@ -1342,6 +1382,31 @@ export class ObjectDetailComponent implements OnInit {
       this.currentTabIndex = 3
       this.isCcEditMode = true
     }
+  }
+
+  saveCc() {
+    let spCkArr: ICheckConstrainsts[] = []
+
+    console.log('save data')
+    this.ccArray.value.forEach((cc: ICcTabData) => {
+      spCkArr.push({
+        Id: cc.spSno,
+        Name: cc.spConstraintName,
+        Expr: cc.spCondition,
+      })
+    })
+    this.data.updateCC(this.currentObject!.id, spCkArr).subscribe({
+      next: (res: string) => {
+        if (res == '') {
+          this.isCcEditMode = false
+        } else {
+          this.dialog.open(InfodialogComponent, {
+            data: { message: res, type: 'error' },
+            maxWidth: '500px',
+          })
+        }
+      },
+    })
   }
 
   saveFk() {

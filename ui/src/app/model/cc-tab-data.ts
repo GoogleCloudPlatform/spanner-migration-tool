@@ -1,8 +1,8 @@
 export default interface ICcTabData {
-  srcSno: number
+  srcSno: string
   srcConstraintName: string
   srcCondition: string
-  spSno: number
+  spSno: string
   spConstraintName: string
   spCondition: string
 }

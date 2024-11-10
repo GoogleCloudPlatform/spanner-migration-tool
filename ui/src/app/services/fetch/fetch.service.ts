@@ -4,6 +4,7 @@ import IDbConfig, { IDbConfigs } from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
 import IUpdateTable, { IAddColumn, IReviewUpdateTable } from '../../model/update-table'
 import IConv, {
+  ICheckConstrainsts,
   ICreateIndex,
   IForeignKey,
   IInterleaveStatus,
@@ -15,7 +16,13 @@ import IDumpConfig, { IConvertFromDumpRequest } from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IGeneratedResources, IProgress, ITables } from 'src/app/model/migrate'
-import IConnectionProfile, { ICreateConnectionProfileV2, IDataflowConfig, IDatastreamConfig, IGcsConfig, IMigrationProfile } from 'src/app/model/profile'
+import IConnectionProfile, {
+  ICreateConnectionProfileV2,
+  IDataflowConfig,
+  IDatastreamConfig,
+  IGcsConfig,
+  IMigrationProfile,
+} from 'src/app/model/profile'
 import IRule from 'src/app/model/rule'
 import IStructuredReport from 'src/app/model/structured-report'
 import ICreateSequence from 'src/app/model/auto-gen'
@@ -76,8 +83,8 @@ export class FetchService {
   setShardsSourceDBDetailsForBulk(payload: IDbConfigs) {
     const { dbConfigs, isRestoredSession } = payload
     let mappedDBConfig: Array<any> = []
-    dbConfigs.forEach( (dbConfig) => {
-      mappedDBConfig.push( {
+    dbConfigs.forEach((dbConfig) => {
+      mappedDBConfig.push({
         Driver: dbConfig.dbEngine,
         Host: dbConfig.hostName,
         Port: dbConfig.port,
@@ -89,13 +96,13 @@ export class FetchService {
     })
     return this.http.post(`${this.url}/SetShardsSourceDBDetailsForBulk`, {
       DbConfigs: mappedDBConfig,
-      IsRestoredSession: isRestoredSession
+      IsRestoredSession: isRestoredSession,
     })
   }
 
   setShardsSourceDBDetailsForDataflow(payload: IMigrationProfile) {
     return this.http.post(`${this.url}/SetShardsSourceDBDetailsForDataflow`, {
-      MigrationProfile: payload
+      MigrationProfile: payload,
     })
   }
 
@@ -119,20 +126,20 @@ export class FetchService {
     return this.http.post<IConv>(`${this.url}/convert/session`, payload)
   }
 
-  getDStructuredReport(){
+  getDStructuredReport() {
     return this.http.get<IStructuredReport>(`${this.url}/downloadStructuredReport`)
   }
 
-  getDTextReport(){
+  getDTextReport() {
     return this.http.get<string>(`${this.url}/downloadTextReport`)
   }
 
-  getDSpannerDDL(){
+  getDSpannerDDL() {
     return this.http.get<string>(`${this.url}/downloadDDL`)
   }
 
-  getIssueDescription(){
-    return this.http.get<{[key: string]: string}>(`${this.url}/issueDescription`)
+  getIssueDescription() {
+    return this.http.get<{ [key: string]: string }>(`${this.url}/issueDescription`)
   }
 
   getConversionRate() {
@@ -157,9 +164,9 @@ export class FetchService {
     return this.http.post(`${this.url}/CreateConnectionProfile`, payload)
   }
 
-  verifyJsonConfiguration(payload : IMigrationProfile):any {
+  verifyJsonConfiguration(payload: IMigrationProfile): any {
     return this.http.post(`${this.url}/VerifyJsonConfiguration`, {
-      MigrationProfile: payload
+      MigrationProfile: payload,
     })
   }
 
@@ -229,7 +236,11 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/update/fks?table=${tableId}`, payload)
   }
 
-  addColumn(tableId: string,payload: IAddColumn) {
+  updateCC(tableId: string, payload: ICheckConstrainsts[]): any {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/update/cks?table=${tableId}`, payload)
+  }
+
+  addColumn(tableId: string, payload: IAddColumn) {
     return this.http.post(`${this.url}/AddColumn?table=${tableId}`, payload)
   }
 
@@ -336,10 +347,10 @@ export class FetchService {
   }
 
   getStandardTypeToPGSQLTypemap() {
-    return this.http.get<Map<string,string>>(`${this.url}/typemap/GetStandardTypeToPGSQLTypemap`)
+    return this.http.get<Map<string, string>>(`${this.url}/typemap/GetStandardTypeToPGSQLTypemap`)
   }
   getPGSQLToStandardTypeTypemap() {
-    return this.http.get<Map<string,string>>(`${this.url}/typemap/GetPGSQLToStandardTypeTypemap`)
+    return this.http.get<Map<string, string>>(`${this.url}/typemap/GetPGSQLToStandardTypeTypemap`)
   }
   checkBackendHealth() {
     return this.http.get(`${this.url}/ping`)

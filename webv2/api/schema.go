@@ -488,6 +488,55 @@ func RestoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// updated the check constraint and check it supported by spanner or not
+func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("table")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+	println(tableId)
+	println(reqBody)
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
+
+	newCKs := []ddl.Checkconstraint{}
+	if err = json.Unmarshal(reqBody, &newCKs); err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// check for if requested data can be migrated to spanner
+
+	// for _, oldCk := range sessionState.Conv.SrcSchema[tableId].CheckConstraints {
+	// 	println(oldCk.Name)
+	// 	// if newFk.Id == oldFk.Id && newFk.Name != oldFk.Name && newFk.Name != "" {
+	// 	// 	newNames = append(newNames, strings.ToLower(newFk.Name))
+	// 	// }
+	// }
+
+	sp := sessionState.Conv.SpSchema[tableId]
+
+	sp.CheckConstraint = newCKs
+
+	sessionState.Conv.SpSchema[tableId] = sp
+
+	session.UpdateSessionFile()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+
+}
+
 // renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables
 // secondary indexes or foreign key constraints. If above checks passed then foreignKey renaming reflected in the schema else appropriate
 // error thrown.

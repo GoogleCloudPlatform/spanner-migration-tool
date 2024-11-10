@@ -1,10 +1,20 @@
 import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
-import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
+import IConv, {
+  ICheckConstrainsts,
+  ICreateIndex,
+  IForeignKey,
+  IInterleaveStatus,
+  IPrimaryKey,
+} from '../../model/conv'
 import IRule from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of, Subject } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
-import IUpdateTable, { IAddColumn, IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
+import IUpdateTable, {
+  IAddColumn,
+  IReviewInterleaveTableChanges,
+  ITableColumnChanges,
+} from 'src/app/model/update-table'
 import IDumpConfig, { IConvertFromDumpRequest } from 'src/app/model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISession from 'src/app/model/session'
@@ -37,7 +47,7 @@ export class DataService {
   private currentSessionSub = new BehaviorSubject({} as ISession)
   private isOfflineSub = new BehaviorSubject<boolean>(false)
   private ruleMapSub = new BehaviorSubject<IRule[]>([])
-  private treeUpdatedSub = new Subject<void>();
+  private treeUpdatedSub = new Subject<void>()
 
   rule = this.ruleMapSub.asObservable()
   conv = this.convSubject.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
@@ -45,9 +55,13 @@ export class DataService {
     .asObservable()
     .pipe(filter((res) => Object.keys(res).length !== 0))
   typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
-  defaultTypeMap = this.defaultTypeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
-  autoGenMap = this.autoGenMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
-  treeUpdate = this.treeUpdatedSub.asObservable();
+  defaultTypeMap = this.defaultTypeMapSub
+    .asObservable()
+    .pipe(filter((res) => Object.keys(res).length !== 0))
+  autoGenMap = this.autoGenMapSub
+    .asObservable()
+    .pipe(filter((res) => Object.keys(res).length !== 0))
+  treeUpdate = this.treeUpdatedSub.asObservable()
   summary = this.summarySub.asObservable()
   ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   seqDdl = this.seqDdlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
@@ -100,7 +114,7 @@ export class DataService {
   }
 
   notifyTreeUpdate() {
-    this.treeUpdatedSub.next();
+    this.treeUpdatedSub.next()
   }
 
   getSchemaConversionFromDb() {
@@ -192,14 +206,14 @@ export class DataService {
       summary: this.fetch.getSummary(),
       ddl: this.fetch.getDdl(),
       seqDdl: this.fetch.getSequenceDdl(),
-      autoGenMap: this.fetch.getAutoGenMap()
+      autoGenMap: this.fetch.getAutoGenMap(),
     })
       .pipe(
         catchError((err: any) => {
           return of(err)
         })
       )
-      .subscribe(({ rates, typeMap,defaultTypeMap, summary, ddl ,seqDdl, autoGenMap}: any) => {
+      .subscribe(({ rates, typeMap, defaultTypeMap, summary, ddl, seqDdl, autoGenMap }: any) => {
         this.conversionRateSub.next(rates)
         this.typeMapSub.next(typeMap)
         this.defaultTypeMapSub.next(defaultTypeMap)
@@ -227,24 +241,24 @@ export class DataService {
         if (data.error) {
           return data.error
         } else {
-          let standardDatatypeToPGSQLTypemap: Map<String, String>;
+          let standardDatatypeToPGSQLTypemap: Map<String, String>
           this.conversion.standardTypeToPGSQLTypeMap.subscribe((typemap) => {
             standardDatatypeToPGSQLTypemap = typemap
           })
           this.conv.subscribe((convData: IConv) => {
-
             data.Changes.forEach((table: IReviewInterleaveTableChanges) => {
               table.InterleaveColumnChanges.forEach((column: ITableColumnChanges) => {
                 if (convData.SpDialect === Dialect.PostgreSQLDialect) {
                   let pgSQLType = standardDatatypeToPGSQLTypemap.get(column.Type)
                   let pgSQLUpdateType = standardDatatypeToPGSQLTypemap.get(column.UpdateType)
                   column.Type = pgSQLType === undefined ? column.Type : pgSQLType
-                  column.UpdateType = pgSQLUpdateType === undefined ? column.UpdateType : pgSQLUpdateType
+                  column.UpdateType =
+                    pgSQLUpdateType === undefined ? column.UpdateType : pgSQLUpdateType
                 }
-                if (ColLength.DataTypes.indexOf(column.Type.toString())>-1) {
+                if (ColLength.DataTypes.indexOf(column.Type.toString()) > -1) {
                   column.Type += this.updateColumnSize(column.Size)
                 }
-                if (ColLength.DataTypes.indexOf(column.UpdateType.toString())>-1) {
+                if (ColLength.DataTypes.indexOf(column.UpdateType.toString()) > -1) {
                   column.UpdateType += this.updateColumnSize(column.UpdateSize)
                 }
               })
@@ -395,6 +409,23 @@ export class DataService {
       })
     )
   }
+  updateCC(tableId: string, updatedCC: ICheckConstrainsts[]): Observable<string> {
+    return this.fetch.updateCC(tableId, updatedCC).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data: any) => {
+        if (data.error) {
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.getDdl()
+          return ''
+        }
+      })
+    )
+  }
 
   updateFkNames(tableId: string, updatedFk: IForeignKey[]): Observable<string> {
     return this.fetch.updateFk(tableId, updatedFk).pipe(
@@ -448,8 +479,8 @@ export class DataService {
     })
   }
 
-  addColumn(tableId: string,payload: IAddColumn) {
-    this.fetch.addColumn(tableId,payload).subscribe({
+  addColumn(tableId: string, payload: IAddColumn) {
+    this.fetch.addColumn(tableId, payload).subscribe({
       next: (res: any) => {
         this.convSubject.next(res)
         this.getDdl()
@@ -467,7 +498,7 @@ export class DataService {
         this.convSubject.next(res)
         this.getSequenceDdl()
         this.getAutoGenMap()
-        this.notifyTreeUpdate();
+        this.notifyTreeUpdate()
         this.snackbar.openSnackBar('Added new sequence.', 'Close', 5)
       },
       error: (err: any) => {
@@ -519,7 +550,7 @@ export class DataService {
         } else {
           this.convSubject.next(data)
           this.getSequenceDdl()
-          this.notifyTreeUpdate();
+          this.notifyTreeUpdate()
           return ''
         }
       })
@@ -561,7 +592,7 @@ export class DataService {
           this.convSubject.next(data)
           this.getDdl()
           this.getAutoGenMap()
-          this.notifyTreeUpdate();
+          this.notifyTreeUpdate()
           this.snackbar.openSnackBar('Sequence Deleted successfully', 'Close', 5)
           return ''
         }

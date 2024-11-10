@@ -45,7 +45,7 @@ func getRoutes() *mux.Router {
 	}
 
 	ctx := context.Background()
-	spClient, _:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	spClient, _ := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
 	dsClient, _ := ds.NewDatastreamClientImpl(ctx)
 	storageclient, _ := storageclient.NewStorageClientImpl(ctx)
 	validateResourceImpl := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
@@ -93,6 +93,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/UpdateSequence", api.UpdateSequence).Methods("POST")
 
 	router.HandleFunc("/update/fks", api.UpdateForeignKeys).Methods("POST")
+	router.HandleFunc("/update/cks", api.UpdateCheckConstraint).Methods("POST")
 	router.HandleFunc("/update/indexes", api.UpdateIndexes).Methods("POST")
 
 	// Session Management
