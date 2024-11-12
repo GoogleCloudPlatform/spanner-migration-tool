@@ -74,16 +74,7 @@ export class ObjectDetailComponent implements OnInit {
   @Input() autoGenMap: any = {}
   @Input() ddlStmts: any = {}
   @Input() fkData: IFkTabData[] = []
-  @Input() ccData: ICcTabData[] = [
-    // {
-    //   srcSno: '1',
-    //   srcConstraintName: 'check_age',
-    //   srcCondition: 'age < 23',
-    //   spSno: "1",
-    //   spConstraintName: 'check_age',
-    //   spCondition: 'age < 23',
-    // },
-  ]
+  @Input() ccData: ICcTabData[] = []
   @Input() tableData: IColumnTabData[] = []
   @Input() currentDatabase: string = 'spanner'
   @Input() indexData: IIndexData[] = []
@@ -1389,15 +1380,31 @@ export class ObjectDetailComponent implements OnInit {
 
   saveCc() {
     let spCkArr: ICheckConstrainsts[] = []
-
-    console.log('save data')
+    let isDuplicate = false
     this.ccArray.value.forEach((cc: ICcTabData) => {
-      spCkArr.push({
-        Id: cc.spSno,
-        Name: cc.spConstraintName,
-        Expr: cc.spCondition,
-      })
+      isDuplicate = spCkArr.some(
+        (item) => item.Name === cc.spConstraintName || item.Expr === cc.spCondition
+      )
+
+      if (!isDuplicate)
+        spCkArr.push({
+          Id: cc.spSno,
+          Name: cc.spConstraintName,
+          Expr: cc.spCondition,
+        })
+      return
     })
+    if (isDuplicate) {
+      this.dialog.open(InfodialogComponent, {
+        data: {
+          message: `Check constraint name and Condition is Duplicate. Remove the dependencies from respective row before saving the Column Data. `,
+          type: 'error',
+        },
+        maxWidth: '500px',
+      })
+      return
+    }
+
     this.data.updateCC(this.currentObject!.id, spCkArr).subscribe({
       next: (res: string) => {
         if (res == '') {

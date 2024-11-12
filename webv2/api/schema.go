@@ -497,6 +497,7 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	}
 	println(tableId)
 	println(reqBody)
+	// internal.ToSpannerCheckConstraintName()
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)

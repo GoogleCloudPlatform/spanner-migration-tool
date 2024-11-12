@@ -243,6 +243,10 @@ func ToSpannerIndexName(conv *Conv, srcIndexName string) string {
 	return getSpannerValidName(conv, srcIndexName)
 }
 
+func ToSpannerCheckConstraintName(conv *Conv, srcCheckConstraintName string) string {
+	return getSpannerValidName(conv, srcCheckConstraintName)
+}
+
 // conv.UsedNames tracks Spanner names that have been used for table names, foreign key constraints
 // and indexes. We use this to ensure we generate unique names when
 // we map from source dbs to Spanner since Spanner requires all these names to be

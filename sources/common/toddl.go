@@ -173,7 +173,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		ColDefs:         spColDef,
 		PrimaryKeys:     cvtPrimaryKeys(srcTable.PrimaryKeys),
 		ForeignKeys:     cvtForeignKeys(conv, spTableName, srcTable.Id, srcTable.ForeignKeys, isRestore),
-		CheckConstraint: cvtCheckContraint(srcTable.CheckConstraints),
+		CheckConstraint: cvtCheckContraint(conv, srcTable.CheckConstraints),
 		Indexes:         cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef),
 		Comment:         comment,
 		Id:              srcTable.Id}
@@ -236,20 +236,19 @@ func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTableId string, 
 	return spKeys
 }
 
-func cvtCheckContraint(srcKeys []schema.CheckConstraints) []ddl.Checkconstraint {
+func cvtCheckContraint(conv *internal.Conv, srcKeys []schema.CheckConstraints) []ddl.Checkconstraint {
 	var spcks []ddl.Checkconstraint
 
 	for _, cks := range srcKeys {
 		spcks = append(spcks, ddl.Checkconstraint{
 			Id:   cks.Id,
-			Name: cks.Name,
+			Name: internal.ToSpannerCheckConstraintName(conv, cks.Name),
 			Expr: cks.Expr,
 		})
 
 	}
 	return spcks
 }
-
 func CvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTableId string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
 	if len(srcKey.ColIds) != len(srcKey.ReferColumnIds) {
 		conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: ColIds and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source tableId: %s, referenced table: %s", len(srcKey.ColIds), len(srcKey.ReferColumnIds), srcTableId, srcKey.ReferTableId))

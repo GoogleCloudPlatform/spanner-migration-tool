@@ -238,32 +238,63 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
 func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, []schema.CheckConstraints, map[string][]string, error) {
-	// q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
-	//           FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
-	//             INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
-	//               ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND t.TABLE_NAME=k.TABLE_NAME
-	//           WHERE k.TABLE_SCHEMA = ? AND k.TABLE_NAME = ? ORDER BY k.ordinal_position;`
+	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
+	          FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
+	            INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+	              ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND t.TABLE_NAME=k.TABLE_NAME
+	          WHERE k.TABLE_SCHEMA = ? AND k.TABLE_NAME = ? ORDER BY k.ordinal_position;`
+
 	q1 := `SELECT 
     COALESCE(k.COLUMN_NAME, '') AS COLUMN_NAME,  -- Replace NULL with empty string
     t.CONSTRAINT_NAME,
     t.CONSTRAINT_TYPE,
     COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE -- Replace NULL with empty string
-FROM 
-    INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
-LEFT JOIN 
-    INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
-    ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
-    AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
-    AND t.TABLE_NAME = k.TABLE_NAME
-LEFT JOIN 
-    INFORMATION_SCHEMA.CHECK_CONSTRAINTS AS c
-    ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
-WHERE 
-    t.TABLE_SCHEMA = ?
-    AND t.TABLE_NAME = ?
-    ORDER BY  k.ORDINAL_POSITION;
+	FROM 
+		INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
+	LEFT JOIN 
+		INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+		ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
+		AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
+		AND t.TABLE_NAME = k.TABLE_NAME
+	LEFT JOIN 
+		INFORMATION_SCHEMA.CHECK_CONSTRAINTS AS c
+		ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
+	WHERE 
+		t.TABLE_SCHEMA = ?
+		AND t.TABLE_NAME = ?
+		ORDER BY  k.ORDINAL_POSITION;
 `
-	rows, err := isi.Db.Query(q1, table.Schema, table.Name)
+	checkQuery := `SELECT COUNT(*) 
+	FROM INFORMATION_SCHEMA.TABLES 
+	WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA'
+	AND TABLE_NAME = 'CHECK_CONSTRAINTS';
+	`
+
+	var tableExistsCount int
+	rows1, err := isi.Db.Query(checkQuery) //.Scan(&tableExistsCount)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	for rows1.Next() {
+		err1 := rows1.Scan(&tableExistsCount)
+		if err1 != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			return nil, nil, nil, err
+		}
+	}
+
+	defer rows1.Close()
+
+	tableExists := tableExistsCount > 0
+
+	var finalQuery string
+	if tableExists {
+		finalQuery = q1
+	} else {
+		finalQuery = q
+	}
+
+	rows, err := isi.Db.Query(finalQuery, table.Schema, table.Name)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -273,11 +304,20 @@ WHERE
 	var col, constraintName, constraint, checkClause string
 	m := make(map[string][]string)
 	for rows.Next() {
-		err := rows.Scan(&col, &constraintName, &constraint, &checkClause)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
-			continue
+		if tableExists {
+			err := rows.Scan(&col, &constraintName, &constraint, &checkClause)
+			if err != nil {
+				conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+				continue
+			}
+		} else {
+			err := rows.Scan(&col, &constraintName, &constraint)
+			if err != nil {
+				conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+				continue
+			}
 		}
+
 		if col == "" || constraint == "" {
 			conv.Unexpected(fmt.Sprintf("Got empty col or constraint"))
 

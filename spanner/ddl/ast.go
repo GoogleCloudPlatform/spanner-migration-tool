@@ -400,7 +400,7 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 	if config.SpDialect == constants.DIALECT_POSTGRESQL {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
-	return fmt.Sprintf("%sCREATE TABLE %s (\n%s %s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, config.quote(checkString), strings.Join(keys, ", "), interleave)
+	return fmt.Sprintf("%sCREATE TABLE %s (\n%s %s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, checkString, strings.Join(keys, ", "), interleave)
 }
 
 // CreateIndex encodes the following DDL definition:
@@ -511,9 +511,13 @@ func PrintCheckConstraintTable(cks []Checkconstraint) string {
 
 	var s string
 	s = ""
-	for _, col := range cks {
+	for index, col := range cks {
+		if index == len(cks)-1 {
+			s = s + fmt.Sprintf("CONSTRAINT %s CHECK %s\n", col.Name, col.Expr)
+		} else {
+			s = s + fmt.Sprintf("CONSTRAINT %s CHECK %s,\n", col.Name, col.Expr)
+		}
 
-		s = s + fmt.Sprintf("CONSTRAINT %s CHECK %s\n", col.Name, col.Expr)
 	}
 
 	return s
