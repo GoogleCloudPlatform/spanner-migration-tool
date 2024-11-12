@@ -115,6 +115,20 @@ func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema Info
 		table, e := is.processTable(conv, t, infoSchema)
 		mutex.Lock()
 		conv.SrcSchema[table.Id] = table
+
+		var spCks []ddl.Checkconstraint
+		for _, cks := range table.CheckConstraints {
+			dc := ddl.Checkconstraint{
+				Id:   cks.Id,
+				Name: cks.Name,
+				Expr: cks.Expr,
+			}
+			spCks = append(spCks, dc)
+		}
+		// SpSchema := conv.SpSchema[table.Id]
+		// SpSchema.CheckConstraint = spCks
+		// conv.SpSchema[table.Id] = SpSchema
+
 		mutex.Unlock()
 		res := TaskResult[SchemaAndName]{t, e}
 		return res

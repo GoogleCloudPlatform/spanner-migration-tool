@@ -104,6 +104,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		ty, issues := toddl.ToSpannerType(conv, "", srcCol.Type, isPk)
 
 		// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
+		// if sr
 		if srcCol.Ignored.ForeignKey {
 			issues = append(issues, internal.ForeignKey)
 		}
@@ -167,14 +168,15 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 	}
 	comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
 	conv.SpSchema[srcTable.Id] = ddl.CreateTable{
-		Name:        spTableName,
-		ColIds:      spColIds,
-		ColDefs:     spColDef,
-		PrimaryKeys: cvtPrimaryKeys(srcTable.PrimaryKeys),
-		ForeignKeys: cvtForeignKeys(conv, spTableName, srcTable.Id, srcTable.ForeignKeys, isRestore),
-		Indexes:     cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef),
-		Comment:     comment,
-		Id:          srcTable.Id}
+		Name:            spTableName,
+		ColIds:          spColIds,
+		ColDefs:         spColDef,
+		PrimaryKeys:     cvtPrimaryKeys(srcTable.PrimaryKeys),
+		ForeignKeys:     cvtForeignKeys(conv, spTableName, srcTable.Id, srcTable.ForeignKeys, isRestore),
+		CheckConstraint: cvtCheckContraint(srcTable.CheckConstraints),
+		Indexes:         cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef),
+		Comment:         comment,
+		Id:              srcTable.Id}
 	return nil
 }
 
@@ -232,6 +234,20 @@ func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTableId string, 
 		spKeys = append(spKeys, spKey)
 	}
 	return spKeys
+}
+
+func cvtCheckContraint(srcKeys []schema.CheckConstraints) []ddl.Checkconstraint {
+	var spcks []ddl.Checkconstraint
+
+	for _, cks := range srcKeys {
+		spcks = append(spcks, ddl.Checkconstraint{
+			Id:   cks.Id,
+			Name: cks.Name,
+			Expr: cks.Expr,
+		})
+
+	}
+	return spcks
 }
 
 func CvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTableId string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {

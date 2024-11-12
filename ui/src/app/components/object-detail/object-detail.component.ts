@@ -777,7 +777,6 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setPkRows() {
-    debugger
     this.pkArray = this.fb.array([])
     this.pkOrderValidation()
     var srcArr = new Array()
@@ -894,6 +893,7 @@ export class ObjectDetailComponent implements OnInit {
       srcSno: '',
       srcCondition: '',
       srcConstraintName: '',
+      deleteIndex: `ck${index + 1}`,
     })
     this.setCCRows()
   }
@@ -1114,9 +1114,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropCc(element: any) {
-    this.setCCRows()
-    debugger
-    let index = this.ccData.map((item) => item.spSno).indexOf(element.value.spSno)
+    let index = this.ccData.map((item) => item.deleteIndex).indexOf(element.value.deleteIndex)
     if (index != -1) {
       this.ccData.splice(index, 1)
     }
@@ -1124,7 +1122,6 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropPk(element: any) {
-    debugger
     let index = this.localTableData.map((item) => item.spColName).indexOf(element.value.spColName)
     let colId = this.localTableData[index].spId
     let synthColId = this.conv.SyntheticPKeys[this.currentObject!.id]
@@ -1172,7 +1169,6 @@ export class ObjectDetailComponent implements OnInit {
     this.setPkRows()
   }
   setCCRows() {
-    debugger
     this.ccArray = this.fb.array([])
     var srcArr = new Array()
     var spArr = new Array()
@@ -1185,8 +1181,10 @@ export class ObjectDetailComponent implements OnInit {
         srcConstraintName: cc.srcConstraintName,
         srcCondition: cc.srcCondition,
         spSno: `${index}`,
+        // spSno: cc.spSno,
         spConstraintName: cc.spConstraintName,
         spCondition: cc.spCondition,
+        deleteIndex: cc.deleteIndex,
       })
       if (cc.spConstraintName != '') {
         spArr.push({
@@ -1194,8 +1192,10 @@ export class ObjectDetailComponent implements OnInit {
           srcConstraintName: cc.srcConstraintName,
           srcCondition: cc.srcCondition,
           spSno: `${index}`,
+          // spSno: cc.spSno,
           spConstraintName: cc.spConstraintName,
           spCondition: cc.spCondition,
+          deleteIndex: cc.deleteIndex,
         })
       }
     })
@@ -1215,6 +1215,7 @@ export class ObjectDetailComponent implements OnInit {
             Validators.required,
             this.checkWhere(),
           ]),
+          deleteIndex: new FormControl(srcArr[i].deleteIndex),
         })
       )
     }
@@ -1232,6 +1233,7 @@ export class ObjectDetailComponent implements OnInit {
               Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
             ]),
             spCondition: new FormControl('', [Validators.required, this.checkWhere()]),
+            deleteIndex: new FormControl(srcArr[i].deleteIndex),
           })
         )
       }
@@ -1251,6 +1253,7 @@ export class ObjectDetailComponent implements OnInit {
               Validators.required,
               this.checkWhere(),
             ]),
+            deleteIndex: new FormControl(spArr[i].deleteIndex),
           })
         )
       }

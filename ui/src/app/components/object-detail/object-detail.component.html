@@ -801,7 +801,7 @@
                    class="name_input" [formControl]="element.get('spCondition')"
                    matTooltip="Enter valid clause for CHECK constraints" id="ck1"></textarea>
               </div>
-              <p *ngIf="!isCcEditMode" matTooltip="{{ element.get('srcCondition').value }}"
+              <p *ngIf="!isCcEditMode" matTooltip="{{ element.get('spCondition').value }}"
               matTooltipPosition="above" class="overflow-cell">{{ element.get('spCondition').value }}</p>
             </td>
           </ng-container>

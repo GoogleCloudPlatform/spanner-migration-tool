@@ -312,44 +312,34 @@ export class ConversionService {
           spSno: `${index}`,
           spConstraintName: item.Name,
           spCondition: item.Expr,
+          deleteIndex: `ck${index}`,
         })
       })
-      return res
-    }
-
-    for (let i = 0; i < Math.min(srcArr.length, spArr.length); i++) {
-      res.push({
-        srcSno: `${i + 1}`,
-        srcConstraintName: srcArr[i].Name,
-        srcCondition: srcArr[i].Expr,
-        spSno: `${i + 1}`,
-        spConstraintName: srcArr[i].Name,
-        spCondition: srcArr[i].Expr,
-      })
-    }
-
-    if (srcArr.length > Math.min(srcArr.length, spArr.length))
-      for (let i = Math.min(srcArr.length, spArr.length); i < srcArr.length; i++) {
+    } else if (srcArr.length > spArr.length) {
+      for (let i = 0; i < srcArr.length; i++) {
         res.push({
           srcSno: `${i + 1}`,
           srcConstraintName: srcArr[i].Name,
           srcCondition: srcArr[i].Expr,
-          spSno: '',
-          spConstraintName: '',
-          spCondition: '',
+          spSno: spArr[i] ? `${i + 1}` : '',
+          spConstraintName: spArr[i] ? spArr[i].Name : '',
+          spCondition: spArr[i] ? spArr[i].Expr : '',
+          deleteIndex: `ck${i + 1}`,
         })
       }
-    else if (spArr.length > Math.min(srcArr.length, spArr.length))
-      for (let i = Math.min(srcArr.length, spArr.length); i < spArr.length; i++) {
+    } else {
+      for (let i = 0; i < spArr.length; i++) {
         res.push({
-          srcSno: '',
-          srcConstraintName: '',
-          srcCondition: '',
+          srcSno: srcArr[i] ? `${i + 1}` : '',
+          srcConstraintName: srcArr[i] ? srcArr[i].Name : '',
+          srcCondition: srcArr[i] ? srcArr[i].Expr : '',
           spSno: `${i + 1}`,
           spConstraintName: spArr[i].Name,
           spCondition: spArr[i].Expr,
+          deleteIndex: `ck${i + 1}`,
         })
       }
+    }
 
     return res
   }

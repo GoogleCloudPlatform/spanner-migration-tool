@@ -387,6 +387,12 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 			interleave = interleave + " ON DELETE " + ct.ParentTable.OnDelete
 		}
 	}
+	var checkString string
+	if len(ct.CheckConstraint) != 0 {
+		checkString = PrintCheckConstraintTable(ct.CheckConstraint)
+	} else {
+		checkString = ""
+	}
 
 	if len(keys) == 0 {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s) %s", tableComment, config.quote(ct.Name), cols, interleave)
@@ -394,7 +400,7 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 	if config.SpDialect == constants.DIALECT_POSTGRESQL {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
-	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
+	return fmt.Sprintf("%sCREATE TABLE %s (\n%s %s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, config.quote(checkString), strings.Join(keys, ", "), interleave)
 }
 
 // CreateIndex encodes the following DDL definition:
@@ -498,6 +504,18 @@ func (k Foreignkey) PrintForeignKeyAlterTable(spannerSchema Schema, c Config, ta
 	if k.OnDelete != "" {
 		s = s + fmt.Sprintf(" ON DELETE %s", k.OnDelete)
 	}
+	return s
+}
+
+func PrintCheckConstraintTable(cks []Checkconstraint) string {
+
+	var s string
+	s = ""
+	for _, col := range cks {
+
+		s = s + fmt.Sprintf("CONSTRAINT %s CHECK %s\n", col.Name, col.Expr)
+	}
+
 	return s
 }
 
