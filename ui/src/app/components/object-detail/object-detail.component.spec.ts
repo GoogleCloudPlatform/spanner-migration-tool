@@ -9,7 +9,7 @@ import { MatTabsModule } from '@angular/material/tabs'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { MatDividerModule } from '@angular/material/divider'
 import { MatIconModule } from '@angular/material/icon'
-import { MatSnackBar} from '@angular/material/snack-bar'
+import { MatSnackBar } from '@angular/material/snack-bar'
 import { DataService } from 'src/app/services/data/data.service'
 import mockIConv from 'src/mocks/conv'
 import { of } from 'rxjs'
@@ -17,19 +17,20 @@ import { FormBuilder } from '@angular/forms'
 import { FlatNode } from 'src/app/model/schema-object-node'
 import { DropObjectDetailDialogComponent } from '../drop-object-detail-dialog/drop-object-detail-dialog.component'
 import { ObjectDetailNodeType } from 'src/app/app.constants'
+import { InfodialogComponent } from '../infodialog/infodialog.component'
 
 describe('ObjectDetailComponent', () => {
   let component: ObjectDetailComponent
   let fixture: ComponentFixture<ObjectDetailComponent>
-  let dataServiceSpy: jasmine.SpyObj<DataService>;
-  let dialogSpyObj: jasmine.SpyObj<MatDialog>;
+  let dataServiceSpy: jasmine.SpyObj<DataService>
+  let dialogSpyObj: jasmine.SpyObj<MatDialog>
   let rowData: IColumnTabData[]
 
   beforeEach(async () => {
-    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence']);
-    dataServiceSpy.updateSequence.and.returnValue(of({}));
-    dataServiceSpy.dropSequence.and.returnValue(of(''));
-    dialogSpyObj = jasmine.createSpyObj('MatDialog', ['open']);
+    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence','updateCC'])
+    dataServiceSpy.updateSequence.and.returnValue(of({}))
+    dataServiceSpy.dropSequence.and.returnValue(of(''))
+    dialogSpyObj = jasmine.createSpyObj('MatDialog', ['open'])
 
     await TestBed.configureTestingModule({
       declarations: [ObjectDetailComponent],
@@ -37,12 +38,12 @@ describe('ObjectDetailComponent', () => {
         MatSnackBar,
         {
           provide: DataService,
-          useValue: dataServiceSpy
+          useValue: dataServiceSpy,
         },
         {
           provide: MatDialog,
-          useValue: dialogSpyObj
-        }
+          useValue: dialogSpyObj,
+        },
       ],
       imports: [
         HttpClientModule,
@@ -54,7 +55,8 @@ describe('ObjectDetailComponent', () => {
         MatIconModule,
       ],
     }).compileComponents()
-    dataServiceSpy.conv = of(mockIConv);
+    dataServiceSpy.conv = of(mockIConv)
+    dataServiceSpy.updateCC.and.returnValue(of(''))
   })
 
   beforeEach(() => {
@@ -79,11 +81,11 @@ describe('ObjectDetailComponent', () => {
         spColMaxLength: 50,
         spAutoGen: {
           Name: '',
-          GenerationType: ''
+          GenerationType: '',
         },
         srcAutoGen: {
           Name: '',
-          GenerationType: ''
+          GenerationType: '',
         },
       },
       {
@@ -103,11 +105,11 @@ describe('ObjectDetailComponent', () => {
         spColMaxLength: 50,
         spAutoGen: {
           Name: '',
-          GenerationType: ''
+          GenerationType: '',
         },
         srcAutoGen: {
           Name: '',
-          GenerationType: ''
+          GenerationType: '',
         },
       },
     ]
@@ -150,45 +152,201 @@ describe('ObjectDetailComponent', () => {
   })
 
   it('should save sequence', () => {
-    let formBuilder = new FormBuilder();
+    let formBuilder = new FormBuilder()
     component.spRowArray = formBuilder.array([
       {
-        Id: "s2",
+        Id: 's2',
         spSeqName: 'Test Sequence',
         spSequenceKind: 'Kind',
         spSkipRangeMax: '10',
         spSkipRangeMin: '1',
-        spStartWithCounter: '100'
-      }
-    ]);
-    component.currentObject = { id: 's2' } as FlatNode;
-    component.saveSequence();
-    expect(dataServiceSpy.updateSequence).toHaveBeenCalled();
-  });
+        spStartWithCounter: '100',
+      },
+    ])
+    component.currentObject = { id: 's2' } as FlatNode
+    component.saveSequence()
+    expect(dataServiceSpy.updateSequence).toHaveBeenCalled()
+  })
 
   it('should drop sequence and update sidebar', () => {
     const dialogRefSpyObj = jasmine.createSpyObj({
       afterClosed: of(ObjectDetailNodeType.Sequence),
-      close: null
-    });
-    dialogSpyObj.open.and.returnValue(dialogRefSpyObj);
+      close: null,
+    })
+    dialogSpyObj.open.and.returnValue(dialogRefSpyObj)
 
-    component.currentObject = { id: 's2', name: 'Sequence Name' } as FlatNode;
-    component.isObjectSelected = true;
-    spyOn(component.updateSidebar, 'emit');
+    component.currentObject = { id: 's2', name: 'Sequence Name' } as FlatNode
+    component.isObjectSelected = true
+    spyOn(component.updateSidebar, 'emit')
 
-    component.dropSequence();
+    component.dropSequence()
 
     expect(dialogSpyObj.open).toHaveBeenCalledWith(DropObjectDetailDialogComponent, {
       width: '100%',
       minWidth: '50%',
       maxWidth: '75%',
       data: { name: 'Sequence Name', type: ObjectDetailNodeType.Sequence },
-    });
+    })
 
-    expect(dataServiceSpy.dropSequence).toHaveBeenCalled();
-    expect(component.isObjectSelected).toBe(false);
-    expect(component.updateSidebar.emit).toHaveBeenCalledWith(true);
-    expect(component.currentObject).toBeNull();
+    expect(dataServiceSpy.dropSequence).toHaveBeenCalled()
+    expect(component.isObjectSelected).toBe(false)
+    expect(component.updateSidebar.emit).toHaveBeenCalledWith(true)
+    expect(component.currentObject).toBeNull()
+  })
+
+  it('should remove an item with a matching deleteIndex from Check Constraint Array', () => {
+    spyOn(component, 'setCCRows').and.callThrough()
+
+    component.ccData = [
+      {
+        srcSno: '',
+        srcConstraintName: 'test',
+        srcCondition: 't',
+        spSno: '1',
+        spConstraintName: 'test',
+        spCondition: 'test',
+        deleteIndex: 'ck1',
+      },
+    ]
+
+    const initialLength = component.ccData.length
+
+    component.dropCc({ value: { deleteIndex: 'ck1' } })
+    expect(component.ccData.length).toBe(initialLength - 1)
+    expect(component.setCCRows).toHaveBeenCalled()
+    expect(component.ccDataSource.length).toBe(0)
+    expect(component.ccData.length).toBe(0)
+    //
+  })
+
+  it('should not remove any items if deleteIndex does not exist from Check Constraint Array', () => {
+    component.ccData = [
+      {
+        srcSno: '',
+        srcConstraintName: 'test',
+        srcCondition: 't',
+        spSno: '1',
+        spConstraintName: 'test',
+        spCondition: 'test',
+        deleteIndex: 'ck1',
+      },
+    ]
+
+    const initialLength = component.ccData.length
+
+    component.dropCc({ value: { deleteIndex: 'ck2' } })
+
+    expect(component.ccData.length).toBe(initialLength)
+  })
+  it('should call setCCRows', () => {
+    component.ccData = [
+      {
+        srcSno: '',
+        srcConstraintName: 'contraintName',
+        srcCondition: 't',
+        spSno: '1',
+        spConstraintName: 'test',
+        spCondition: 'test',
+        deleteIndex: 'ck1',
+      },
+      {
+        srcSno: '',
+        srcConstraintName: '',
+        srcCondition: 't',
+        spSno: '1',
+        spConstraintName: 'contraintName',
+        spCondition: 'test',
+        deleteIndex: 'ck1',
+      },
+    ]
+    spyOn(component, 'setCCRows').and.callThrough()
+
+    component.dropCc({ value: { deleteIndex: 'ck1' } })
+
+    expect(component.setCCRows).toHaveBeenCalled()
+  })
+
+  it('should open dialog if there are duplicate constraints', () => {
+    spyOn(component, 'setCCRows').and.callThrough()
+    component.ccData = [
+      {
+        srcSno: '',
+        srcConstraintName: '',
+        srcCondition: '',
+        spSno: '1',
+        spConstraintName: 'check_1',
+        spCondition: 'age > 18',
+        deleteIndex: 'ck1',
+      },
+      {
+        srcSno: '',
+        srcConstraintName: '',
+        srcCondition: '',
+        spSno: '2',
+        spConstraintName: 'check_1',
+        spCondition: 'age >= 18',
+        deleteIndex: 'ck2',
+      },
+    ]
+    component.setCCRows()
+    component.currentObject = { id: 't2', name: 'Sequence Name' } as FlatNode
+    component.saveCc();
+
+    expect(dialogSpyObj.open).toHaveBeenCalledWith(InfodialogComponent, jasmine.objectContaining({
+      data: {
+        message: jasmine.stringMatching(/Duplicate/),
+        type: 'error'
+      }
+    }));
   });
-});
+
+  it('should call updateCC and handle success response', () => {
+    spyOn(component, 'setCCRows').and.callThrough()
+    component.ccData = [
+      {
+        srcSno: '',
+        srcConstraintName: '',
+        srcCondition: '',
+        spSno: '1',
+        spConstraintName: 'check_1',
+        spCondition: 'age > 18',
+        deleteIndex: 'ck1',
+      }
+    ]
+    component.setCCRows()
+    component.currentObject = { id: 't2' } as FlatNode
+
+    component.saveCc();
+
+    expect(dataServiceSpy.updateCC);
+    expect(component.isCcEditMode).toBe(false);
+
+  })
+
+  it('should show error dialog if updateCC response is an error', () => {
+
+    spyOn(component, 'setCCRows').and.callThrough()
+    dataServiceSpy.updateCC.and.returnValue(of('Error message'));
+    component.ccData = [
+      {
+        srcSno: '',
+        srcConstraintName: '',
+        srcCondition: '',
+        spSno: '1',
+        spConstraintName: 'check_1',
+        spCondition: 'age > 18',
+        deleteIndex: 'ck1',
+      }
+    ]
+    component.setCCRows()
+    component.currentObject = { id: 't2' } as FlatNode
+
+    component.saveCc();
+
+    expect(dialogSpyObj.open).toHaveBeenCalledWith(InfodialogComponent, jasmine.objectContaining({
+      data: { message: 'Error message', type: 'error' }
+    }));
+
+  })
+
+})

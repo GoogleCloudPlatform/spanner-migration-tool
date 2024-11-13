@@ -297,6 +297,7 @@ export class ConversionService {
     ]
   }
   getCheckConstrainst(tableId: string, data: IConv): ICcTabData[] {
+    debugger
     let srcArr = data.SrcSchema[tableId].CheckConstraints
     let spArr = data.SpSchema[tableId].CheckConstraint || []
 
