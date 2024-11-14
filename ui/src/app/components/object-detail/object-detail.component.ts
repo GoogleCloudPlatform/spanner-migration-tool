@@ -1257,10 +1257,10 @@ export class ObjectDetailComponent implements OnInit {
       const parser = new Parser()
 
       const sql = `
-    ALTER TABLE employees
-    ADD CONSTRAINT chk_age4
-    CHECK ${control.value};
-      `
+      ALTER TABLE employees
+      ADD CONSTRAINT chk_age4
+      CHECK ${control.value};
+        `
 
       try {
         const ast = parser.astify(sql)
