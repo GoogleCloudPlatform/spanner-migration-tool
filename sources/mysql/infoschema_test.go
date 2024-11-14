@@ -71,7 +71,8 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			rows: [][]driver.Value{
 				{"user_id", "text", "text", "NO", nil, nil, nil, nil, nil},
 				{"name", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"ref", "bigint", "bigint", "NO", nil, nil, nil, nil, nil}},
+				{"ref", "bigint", "bigint", "NO", nil, nil, nil, nil, nil},
+				{"defval_1", "varchar", "varchar", "YES", "John", nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -101,7 +102,8 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			rows: [][]driver.Value{
 				{"productid", "text", "text", "NO", nil, nil, nil, nil, nil},
 				{"userid", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"quantity", "bigint", "bigint", "YES", nil, nil, 64, 0, nil}},
+				{"quantity", "bigint", "bigint", "YES", nil, nil, 64, 0, nil},
+				{"defval_2", "varchar", "varchar", "YES", "John", nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -131,7 +133,8 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
 			rows: [][]driver.Value{
 				{"product_id", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"product_name", "text", "text", "NO", nil, nil, nil, nil, nil}},
+				{"product_name", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"defval_3", "varchar", "varchar", "YES", "John", nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -174,7 +177,8 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 				{"ts", "datetime", "datetime", "YES", nil, nil, nil, nil, nil},
 				{"tz", "timestamp", "timestamp", "YES", nil, nil, nil, nil, nil},
 				{"vc", "varchar", "varchar", "YES", nil, nil, nil, nil, nil},
-				{"vc6", "varchar", "varchar(6)", "YES", nil, 6, nil, nil, nil}},
+				{"vc6", "varchar", "varchar(6)", "YES", nil, 6, nil, nil, nil},
+				{"def", "varchar", "varchar", "YES", "John", nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
 		{
@@ -529,4 +533,23 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 		}
 	}
 	return db
+}
+
+func TestSanitizeDefaultValue(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"_utf8mb4\\'hello world\\'", " 'hello world'"},
+		{"week(_utf8mb4\\'2024-06-20\\',0)", "week( '2024-06-20',0)"},
+		{"_utf8mb4\\'This is a message \\\\nwith a newline\\\\rand a carriage return.\\'", " 'This is a message \\nwith a newline\\rand a carriage return.'"},
+		{"strcmp(_utf8mb4\\'abc\\',_utf8mb4\\'abcd\\')", "strcmp( 'abc', 'abcd')"},
+		{"_utf8mb4\\'John\\\\\\'s Jack\\'", " 'John\\'s Jack'"},
+		{"_utf8mb4\\'This product has\tmultiple features.\\'", " 'This product has\tmultiple features.'"},
+		{"_utf8mb4\\'C:\\\\\\\\Users\\\\\\\\johndoe\\\\\\\\Documents\\\\\\\\myfile.txt\\'", " 'C:\\\\Users\\\\johndoe\\\\Documents\\\\myfile.txt'"},
+	}
+	for _, test := range tests {
+		result := sanitizeDefaultValue(test.input)
+		assert.Equal(t, test.expected, result)
+	}
 }
