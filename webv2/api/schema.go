@@ -495,8 +495,6 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 	}
-	println(tableId)
-	println(reqBody)
 	// internal.ToSpannerCheckConstraintName()
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
@@ -511,15 +509,6 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-
-	// check for if requested data can be migrated to spanner
-
-	// for _, oldCk := range sessionState.Conv.SrcSchema[tableId].CheckConstraints {
-	// 	println(oldCk.Name)
-	// 	// if newFk.Id == oldFk.Id && newFk.Name != oldFk.Name && newFk.Name != "" {
-	// 	// 	newNames = append(newNames, strings.ToLower(newFk.Name))
-	// 	// }
-	// }
 
 	sp := sessionState.Conv.SpSchema[tableId]
 

@@ -2541,3 +2541,43 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 	}
 
 }
+
+func TestUpdateCheckConstraint(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.MYSQL
+	sessionState.Conv = internal.MakeConv()
+
+	tableID := "table1"
+
+	expectedCheckConstraint := []ddl.Checkconstraint{
+		{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
+		{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
+	}
+
+	checkConstraints := []schema.CheckConstraints{
+		{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
+		{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
+	}
+
+	body, err := json.Marshal(checkConstraints)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest("POST", "update/cks", bytes.NewBuffer(body))
+	assert.NoError(t, err)
+
+	q := req.URL.Query()
+	q.Add("table", tableID)
+	req.URL.RawQuery = q.Encode()
+
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(api.UpdateCheckConstraint)
+
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	updatedSp := sessionState.Conv.SpSchema[tableID]
+
+	assert.Equal(t, expectedCheckConstraint, updatedSp.CheckConstraint)
+}
