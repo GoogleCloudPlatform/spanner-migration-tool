@@ -245,10 +245,10 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 	          WHERE k.TABLE_SCHEMA = ? AND k.TABLE_NAME = ? ORDER BY k.ordinal_position;`
 
 	q1 := `SELECT 
-    COALESCE(k.COLUMN_NAME, '') AS COLUMN_NAME,  -- Replace NULL with empty string
+    COALESCE(k.COLUMN_NAME, '') AS COLUMN_NAME,
     t.CONSTRAINT_NAME,
     t.CONSTRAINT_TYPE,
-    COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE -- Replace NULL with empty string
+    COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE
 	FROM 
 		INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
 	LEFT JOIN 
@@ -271,7 +271,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 	`
 
 	var tableExistsCount int
-	rows1, err := isi.Db.Query(checkQuery) //.Scan(&tableExistsCount)
+	rows1, err := isi.Db.Query(checkQuery)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -311,7 +311,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 				continue
 			}
 		} else {
-			err := rows.Scan(&col, &constraintName, &constraint)
+			err := rows.Scan(&col, &constraintName, &constraint, &checkClause)
 			if err != nil {
 				conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 				continue
@@ -319,20 +319,23 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 		}
 
 		if col == "" || constraint == "" {
-			conv.Unexpected(fmt.Sprintf("Got empty col or constraint"))
 
-			if constraintName == "" || checkClause == "" {
-				conv.Unexpected(fmt.Sprintf("Got empty constraintName or checkClause"))
-				continue
-			}
-			switch constraint {
-			case "CHECK":
-				checkClause = strings.ReplaceAll(checkClause, "_utf8mb4\\", "")
-				checkClause = strings.ReplaceAll(checkClause, "\\", "")
+			if tableExists {
+				if constraintName == "" || checkClause == "" {
+					conv.Unexpected(fmt.Sprintf("Got empty constraintName or checkClause"))
+					continue
+				}
+				switch constraint {
+				case "CHECK":
+					checkClause = strings.ReplaceAll(checkClause, "_utf8mb4\\", "")
+					checkClause = strings.ReplaceAll(checkClause, "\\", "")
 
-				checkKeys = append(checkKeys, schema.CheckConstraints{Name: constraintName, Expr: string(checkClause), Id: internal.GenerateCheckConstrainstId()})
-			default:
-				m[col] = append(m[col], constraint)
+					checkKeys = append(checkKeys, schema.CheckConstraints{Name: constraintName, Expr: string(checkClause), Id: internal.GenerateCheckConstrainstId()})
+				default:
+					m[col] = append(m[col], constraint)
+				}
+			} else {
+				conv.Unexpected(fmt.Sprintf("Got empty col or constraint"))
 			}
 
 			continue

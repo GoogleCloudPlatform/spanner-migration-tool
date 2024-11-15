@@ -395,7 +395,7 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 	}
 
 	if len(keys) == 0 {
-		return fmt.Sprintf("%sCREATE TABLE %s (\n%s) %s", tableComment, config.quote(ct.Name), cols, interleave)
+		return fmt.Sprintf("%sCREATE TABLE %s (\n%s %s) %s", tableComment, config.quote(ct.Name), cols, checkString, interleave)
 	}
 	if config.SpDialect == constants.DIALECT_POSTGRESQL {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
