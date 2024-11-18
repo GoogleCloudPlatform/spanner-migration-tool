@@ -225,16 +225,16 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			Value:     "",
 		}
 		if colDefault.Valid {
-			defaultVal.Value = sanitizeDefaultValue(colDefault.String)
+			defaultVal.Value = sanitizeDefaultValue(colDefault.String, dataType, colExtra.String == "DEFAULT_GENERATED")
 		}
 
 		c := schema.Column{
-			Id:      colId,
-			Name:    colName,
-			Type:    toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
-			NotNull: common.ToNotNull(conv, isNullable),
-			Ignored: ignored,
-			AutoGen: colAutoGen,
+			Id:           colId,
+			Name:         colName,
+			Type:         toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
+			NotNull:      common.ToNotNull(conv, isNullable),
+			Ignored:      ignored,
+			AutoGen:      colAutoGen,
 			DefaultValue: defaultVal,
 		}
 		colDefs[colId] = c
@@ -506,9 +506,12 @@ func createSequence(conv *internal.Conv) ddl.Sequence {
 }
 
 // sanitizeDefaultValue removes extra characters added to Default Value in information schema in MySQL.
-func sanitizeDefaultValue(defaultValue string) string {
+func sanitizeDefaultValue(defaultValue string, ty string, generated bool) string {
 	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", " ")
 	defaultValue = strings.ReplaceAll(defaultValue, "\\\\", "\\")
 	defaultValue = strings.ReplaceAll(defaultValue, "\\'", "'")
+	if !generated && (ty == "char" || ty == "varchar") {
+		defaultValue = "'" + defaultValue + "'"
+	}
 	return defaultValue
 }

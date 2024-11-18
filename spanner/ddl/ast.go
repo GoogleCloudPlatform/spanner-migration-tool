@@ -180,12 +180,12 @@ func (ty Type) PGPrintColumnDefType() string {
 //	column_def:
 //	  column_name type [NOT NULL] [options_def]
 type ColumnDef struct {
-	Name    string
-	T       Type
-	NotNull bool
-	Comment string
-	Id      string
-	AutoGen AutoGenCol
+	Name         string
+	T            Type
+	NotNull      bool
+	Comment      string
+	Id           string
+	AutoGen      AutoGenCol
 	DefaultValue DefaultValue
 }
 

@@ -71,7 +71,7 @@ export class ObjectDetailComponent implements OnInit {
   isPostgreSQLDialect: boolean = false
   processedAutoGenMap: GroupedAutoGens = {};
   sequenceKinds: string[] = []
-  autoGenSupported: boolean = false
+  mySqlSource: boolean = false
   foreignKeyActionsSupported: boolean = false
 
   ngOnInit(): void {
@@ -84,7 +84,7 @@ export class ObjectDetailComponent implements OnInit {
     if (this.conv.DatabaseType) {
       this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
     }
-    this.autoGenSupported = autoGenSupportedDbs.includes(this.srcDbName)
+    this.mySqlSource = autoGenSupportedDbs.includes(this.srcDbName)
     if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres){
           this.foreignKeyActionsSupported = true
         }
@@ -173,7 +173,7 @@ export class ObjectDetailComponent implements OnInit {
   pkObj: IPrimaryKey = {} as IPrimaryKey
   dataTypesWithColLen: string[] = ColLength.DataTypes
   spColspan : number = 6
-  srcColspan : number = 6
+  srcColspan : number = 7
 
   ngOnChanges(changes: SimpleChanges): void {
     this.fkData = changes['fkData']?.currentValue || this.fkData
@@ -208,8 +208,9 @@ export class ObjectDetailComponent implements OnInit {
       this.displayedPkColumns.splice(8, 0, "spAutoGen");
       this.srcDisplayedColumns.splice(2, 0, "srcAutoGen");
       this.displayedPkColumns.splice(2, 0, "srcAutoGen");
-      this.spColspan++;
-      this.srcColspan++;
+      this.srcDisplayedColumns.splice(2, 0, "srcDefaultValue");
+      this.spColspan+=1;
+      this.srcColspan+=2;
     }
     if (this.foreignKeyActionsSupported && !this.displayedFkColumns.includes('srcOnDelete') ) {
       this.displayedFkColumns.splice(4, 0, 'srcOnDelete', 'srcOnUpdate');
@@ -258,6 +259,7 @@ export class ObjectDetailComponent implements OnInit {
           srcDataType: new FormControl(row.srcDataType),
           srcIsPk: new FormControl(row.srcIsPk),
           srcIsNotNull: new FormControl(row.srcIsNotNull),
+          srcDefaultValue: new FormControl(row.srcDefaultValue),
           srcColMaxLength: new FormControl(row.srcColMaxLength),
           srcAutoGen: new FormControl(row.srcAutoGen),
           spOrder: new FormControl(row.srcOrder),
@@ -309,6 +311,7 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(col.srcDataType),
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
+            srcDefaultValue: new FormControl(col.srcDefaultValue),
             srcColMaxLength: new FormControl(col.srcColMaxLength),
             srcAutoGen: new FormControl(col.srcAutoGen),
             spOrder: new FormControl(col.spOrder),
@@ -345,6 +348,7 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(col.srcDataType),
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
+            srcDefaultValue: new FormControl(col.srcDefaultValue),
             srcColMaxLength: new FormControl(col.srcColMaxLength),
             srcAutoGen: new FormControl(col.srcAutoGen),
             spOrder: new FormControl(col.srcOrder),

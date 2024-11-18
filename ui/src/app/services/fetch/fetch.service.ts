@@ -24,7 +24,7 @@ import ICreateSequence from 'src/app/model/auto-gen'
   providedIn: 'root',
 })
 export class FetchService {
-  private url: string = window.location.origin
+  private url: string = 'http://localhost:8080'
   constructor(private http: HttpClient) {}
 
   connectTodb(payload: IDbConfig, dialect: string) {
