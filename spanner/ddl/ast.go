@@ -513,9 +513,9 @@ func PrintCheckConstraintTable(cks []Checkconstraint) string {
 	s = ""
 	for index, col := range cks {
 		if index == len(cks)-1 {
-			s = s + fmt.Sprintf("CONSTRAINT %s CHECK %s\n", col.Name, col.Expr)
+			s = s + fmt.Sprintf("\tCONSTRAINT %s CHECK %s\n", col.Name, col.Expr)
 		} else {
-			s = s + fmt.Sprintf("CONSTRAINT %s CHECK %s,\n", col.Name, col.Expr)
+			s = s + fmt.Sprintf("\tCONSTRAINT %s CHECK %s,\n", col.Name, col.Expr)
 		}
 
 	}
