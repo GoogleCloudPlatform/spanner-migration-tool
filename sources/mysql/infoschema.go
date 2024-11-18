@@ -507,10 +507,10 @@ func createSequence(conv *internal.Conv) ddl.Sequence {
 
 // sanitizeDefaultValue removes extra characters added to Default Value in information schema in MySQL.
 func sanitizeDefaultValue(defaultValue string, ty string, generated bool) string {
-	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", " ")
+	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", "")
 	defaultValue = strings.ReplaceAll(defaultValue, "\\\\", "\\")
 	defaultValue = strings.ReplaceAll(defaultValue, "\\'", "'")
-	if !generated && (ty == "char" || ty == "varchar") {
+	if !generated && (ty == "char" || ty == "varchar" || ty == "text") && !strings.HasPrefix(defaultValue, "'") && !strings.HasSuffix(defaultValue, "'") {
 		defaultValue = "'" + defaultValue + "'"
 	}
 	return defaultValue

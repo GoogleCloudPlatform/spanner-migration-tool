@@ -208,7 +208,7 @@ export class ObjectDetailComponent implements OnInit {
       this.displayedPkColumns.splice(8, 0, "spAutoGen");
       this.srcDisplayedColumns.splice(2, 0, "srcAutoGen");
       this.displayedPkColumns.splice(2, 0, "srcAutoGen");
-      this.srcDisplayedColumns.splice(2, 0, "srcDefaultValue");
+      this.srcDisplayedColumns.push("srcDefaultValue");
       this.spColspan+=1;
       this.srcColspan+=2;
     }
