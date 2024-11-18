@@ -290,30 +290,40 @@ type TableDetails struct {
 	TableName string `json:TableName`
 }
 
+type VerifyExpressionsInput struct {
+	Project string
+	Instance string
+	Conv *Conv
+	Source string
+	ExpressionDetailList []ExpressionDetail
+}
+
 type ExpressionDetail struct {
 	ReferenceElement ReferenceElement
+	ExpressionId string
 	Expression string
 	Type string
 	Metadata map[string]string
 }
 
 type ReferenceElement struct {
-	Id string
 	Name string
 }
 
-type VerificationInput struct {
+type ExpressionVerificationInput struct {
 	DbURI string
 	ExpressionDetail ExpressionDetail
 }
 
-type VerificationResult struct {
+type ExpressionVerificationOutput struct {
+	ExpressionDetail ExpressionDetail
 	Result bool
 	Err error
 }
 
-type BatchVerificationResult struct {
-	VerificationResultList []VerificationResult
+type VerifyExpressionsOutput struct {
+	ExpressionVerificationOutputList []ExpressionVerificationOutput
+	Err error
 }
 
 // MakeConv returns a default-configured Conv.
