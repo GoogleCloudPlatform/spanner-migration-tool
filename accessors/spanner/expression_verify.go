@@ -2,6 +2,7 @@ package spanneraccessor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -9,88 +10,106 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 type ExpressionVerificationAccessor interface {
-	//Creates an empty staging database if it does not exist.
-	CreateStagingDb(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (bool, error)
-	//Initialize an empty database (or force initializes a non-empty one) with a conv object
-	InitializeStagingDb(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string, conv *internal.Conv, force bool) (bool, error)
-	//Deletes a staging database
-	DeleteStagingDb(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (bool, error)
-	//Internal API which verifies an expression by making a call to Spanner
-	VerifyExpression(verificationInput internal.VerificationInput, mutex *sync.Mutex) common.TaskResult[internal.VerificationResult]
 	//Batch API which parallelizes expression verification calls
-	BatchVerifyExpressions(ctx context.Context, verificationInputList []internal.VerificationInput) internal.BatchVerificationResult
+	VerifyExpressions(ctx context.Context, adminClient spanneradmin.AdminClient, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput
 }
 
 type ExpressionVerificationAccessorImpl struct {
 	SpannerAccessor SpannerAccessorImpl
 }
 
-func (ev *ExpressionVerificationAccessorImpl) CreateStagingDb(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (bool, error) {
+func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Context, adminClient spanneradmin.AdminClient, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+	err := ev.validateRequest(verifyExpressionsInput)
+	if err != nil {
+		return internal.VerifyExpressionsOutput{Err: err}
+	}
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", verifyExpressionsInput.Project, verifyExpressionsInput.Instance, "smt-staging-db")
 	dbExists, err := ev.SpannerAccessor.CheckExistingDb(ctx, adminClient, dbURI)
 	if err != nil {
-		return false, err
+		return internal.VerifyExpressionsOutput{Err: err}
 	}
-	if !dbExists {
-		err := ev.SpannerAccessor.CreateEmptyDatabase(ctx, adminClient, dbURI)
+	if dbExists {
+		err := ev.SpannerAccessor.DropDatabase(ctx, adminClient, dbURI)
 		if err != nil {
-			return false, err
+			return internal.VerifyExpressionsOutput{Err: err}
 		}
 	}
-	return true, nil
-}
-
-func (ev *ExpressionVerificationAccessorImpl) InitializeStagingDb(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string, conv *internal.Conv, force bool) (bool, error) {
-	if !force {
-		//if force is disabled, fail if the database is not empty
-		if ev.SpannerAccessor.ValidateDDL(ctx, adminClient, dbURI) != nil {
-			return false, fmt.Errorf("staging database is not empty and force is disabled, cannot update the staging db")
-		} else {
-			ev.SpannerAccessor.UpdateDatabase(ctx, adminClient, dbURI, conv, conv.SpDialect)
-		}
-	} else {
-		//if force is enabled, update database if it is empty, otherwise drop the non-empty database and create
-		// a new one.
-		if ev.SpannerAccessor.ValidateDDL(ctx, adminClient, dbURI) != nil {
-			fmt.Printf("StagingDb was not empty but force is passed!!")
-			ev.SpannerAccessor.CreateOrUpdateDatabase(ctx, adminClient, dbURI, conv.SpDialect, conv, constants.DATAFLOW_MIGRATION)
-		}
-	}
-	return true, nil
-}
-
-func (ev *ExpressionVerificationAccessorImpl) DeleteStagingDb(ctx context.Context, adminClient spanneradmin.AdminClient, dbURI string) (bool, error) {
-	err := ev.SpannerAccessor.DropDatabase(ctx, adminClient, dbURI)
+	verifyExpressionsInput.Conv, err = ev.simplifyConv(verifyExpressionsInput.Conv)
 	if err != nil {
-		return false, err
+		return internal.VerifyExpressionsOutput{Err: err}
 	}
-	return true, nil
-}
-
-func (ev *ExpressionVerificationAccessorImpl) VerifyExpression(verificationInput internal.VerificationInput, mutex *sync.Mutex) common.TaskResult[internal.VerificationResult] {
-	var sqlStatement string
-	switch verificationInput.ExpressionDetail.Type {
-	case "CHECK":
-		sqlStatement = fmt.Sprintf("SELECT 1 from %s where %s;", verificationInput.ExpressionDetail.ReferenceElement.Name, verificationInput.ExpressionDetail.Expression)
-	case "DEFAULT":
-		sqlStatement = fmt.Sprintf("SELECT CAST(%s) as %s", verificationInput.ExpressionDetail.Expression, verificationInput.ExpressionDetail.ReferenceElement.Name)
-	default:
-		return common.TaskResult[internal.VerificationResult]{Result: internal.VerificationResult{Result: false, Err: fmt.Errorf("invalid expression type requested")}, Err: nil}
+	err = ev.SpannerAccessor.CreateDatabase(ctx, adminClient, dbURI, verifyExpressionsInput.Conv, verifyExpressionsInput.Source, constants.DATAFLOW_MIGRATION)
+	if err != nil {
+		return internal.VerifyExpressionsOutput{Err: err}
 	}
-	result, err := ev.SpannerAccessor.ValidateDML(context.Background(), verificationInput.DbURI, sqlStatement)
-	return common.TaskResult[internal.VerificationResult]{Result: internal.VerificationResult{Result: result, Err: err}, Err: nil}
-}
-
-func (ev *ExpressionVerificationAccessorImpl) BatchVerifyExpressions(ctx context.Context, verificationInputList []internal.VerificationInput) internal.BatchVerificationResult {
-	r := common.RunParallelTasksImpl[internal.VerificationInput, internal.VerificationResult]{}
+	//Drop the staging database after verifications are completed.
+	defer ev.SpannerAccessor.DropDatabase(ctx, adminClient, dbURI)
+	verificationInputList := make([]internal.ExpressionVerificationInput, len(verifyExpressionsInput.ExpressionDetailList))
+    for i, expressionDetail := range verifyExpressionsInput.ExpressionDetailList {
+        verificationInputList[i] = internal.ExpressionVerificationInput{
+            DbURI:            dbURI,
+            ExpressionDetail: expressionDetail,
+        }
+    }
+	r := common.RunParallelTasksImpl[internal.ExpressionVerificationInput, internal.ExpressionVerificationOutput]{}
 	THREAD_POOL := 500
-	verificationResults, _ := r.RunParallelTasks(verificationInputList, THREAD_POOL, ev.VerifyExpression, true)
-	var batchVerificationResult internal.BatchVerificationResult
-	for _, verificationResult := range verificationResults {
-		batchVerificationResult.VerificationResultList = append(batchVerificationResult.VerificationResultList, verificationResult.Result)
-	}
 	fmt.Printf("Thread Pool size: %d\n", THREAD_POOL)
-	return batchVerificationResult
+	expressionVerificationOutputList, _ := r.RunParallelTasks(verificationInputList, THREAD_POOL, ev.verifyExpressionInternal, true)
+	var verifyExpressionsOutput internal.VerifyExpressionsOutput
+	for _, expressionVerificationOutput := range expressionVerificationOutputList {
+		verifyExpressionsOutput.ExpressionVerificationOutputList = append(verifyExpressionsOutput.ExpressionVerificationOutputList, expressionVerificationOutput.Result)
+	}
+	return verifyExpressionsOutput
+}
+
+func (ev *ExpressionVerificationAccessorImpl) verifyExpressionInternal(expressionVerificationInput internal.ExpressionVerificationInput, mutex *sync.Mutex) common.TaskResult[internal.ExpressionVerificationOutput] {
+	var sqlStatement string
+	switch expressionVerificationInput.ExpressionDetail.Type {
+	case "CHECK":
+		sqlStatement = fmt.Sprintf("SELECT 1 from %s where %s;", expressionVerificationInput.ExpressionDetail.ReferenceElement.Name, expressionVerificationInput.ExpressionDetail.Expression)
+	case "DEFAULT":
+		sqlStatement = fmt.Sprintf("SELECT CAST(%s) as %s", expressionVerificationInput.ExpressionDetail.Expression, expressionVerificationInput.ExpressionDetail.ReferenceElement.Name)
+	default:
+		return common.TaskResult[internal.ExpressionVerificationOutput]{Result: internal.ExpressionVerificationOutput{Result: false, Err: fmt.Errorf("invalid expression type requested")}, Err: nil}
+	}
+	result, err := ev.SpannerAccessor.ValidateDML(context.Background(), expressionVerificationInput.DbURI, sqlStatement)
+	return common.TaskResult[internal.ExpressionVerificationOutput]{Result: internal.ExpressionVerificationOutput{Result: result, Err: err}, Err: nil}
+}
+
+func (ev *ExpressionVerificationAccessorImpl) validateRequest(verifyExpressionsInput internal.VerifyExpressionsInput) error {
+	if verifyExpressionsInput.Project == "" || verifyExpressionsInput.Instance == "" || verifyExpressionsInput.Conv == nil || verifyExpressionsInput.Source == "" {
+		return fmt.Errorf("one of project, instance, conv or source is empty. These are mandatory fields = %v", verifyExpressionsInput)
+	}
+	for _,expressionDetail := range verifyExpressionsInput.ExpressionDetailList {
+		if expressionDetail.ExpressionId == "" || expressionDetail.Expression == "" || expressionDetail.Type == "" || expressionDetail.ReferenceElement.Name == "" {
+			return fmt.Errorf("one of expressionId, expression, type or referenceElement.Name is empty. These are mandatory fields = %v", expressionDetail)
+		}
+	}
+	return nil
+}
+
+//We simplify conv to remove any existing expressions that are part of the SpSchema to ensure that the stagingDB creation
+//does not fail due to inconsistent, user configured expressions during a schema conversion session. 
+//The minimal conv object needed for stagingDB is one which contains all table and column definitions only.
+func (ev *ExpressionVerificationAccessorImpl) simplifyConv(inputConv *internal.Conv) (*internal.Conv, error) {
+	convCopy := &internal.Conv{}
+    convJSON, err := json.Marshal(inputConv)
+    if err != nil {
+        return nil, fmt.Errorf("error marshaling conv: %v", err)
+    }
+    err = json.Unmarshal(convJSON, convCopy)
+    if err != nil {
+        return nil, fmt.Errorf("error unmarshaling conv: %v", err)
+    }
+    // Reset the SpSequences field in the Conv copy.  A nil check
+    // here won't hurt but shouldn't technically be necessary as the
+    // map should always be initialized.
+    if convCopy.SpSequences != nil {
+        convCopy.SpSequences = make(map[string]ddl.Sequence) // Reset to empty map
+    }
+	return convCopy, nil
 }
