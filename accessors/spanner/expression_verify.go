@@ -13,6 +13,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
+const THREAD_POOL = 500
+
 type ExpressionVerificationAccessor interface {
 	//Batch API which parallelizes expression verification calls
 	VerifyExpressions(ctx context.Context, adminClient spanneradmin.AdminClient, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput
@@ -56,8 +58,6 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
         }
     }
 	r := common.RunParallelTasksImpl[internal.ExpressionVerificationInput, internal.ExpressionVerificationOutput]{}
-	THREAD_POOL := 500
-	fmt.Printf("Thread Pool size: %d\n", THREAD_POOL)
 	expressionVerificationOutputList, _ := r.RunParallelTasks(verificationInputList, THREAD_POOL, ev.verifyExpressionInternal, true)
 	var verifyExpressionsOutput internal.VerifyExpressionsOutput
 	for _, expressionVerificationOutput := range expressionVerificationOutputList {
