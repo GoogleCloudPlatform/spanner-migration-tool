@@ -209,8 +209,8 @@ func validateExistingDb(ctx context.Context, spDialect, dbURI string, adminClien
 	if err != nil {
 		return err
 	}
-	spA := spanneraccessor.SpannerAccessorImpl{}
-	dbExists, err := spA.CheckExistingDb(ctx, adminClientImpl, dbURI)
+	spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
+	dbExists, err := spA.CheckExistingDb(ctx, dbURI)
 	if err != nil {
 		err = fmt.Errorf("can't verify target database: %v", err)
 		return err

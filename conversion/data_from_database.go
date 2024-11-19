@@ -65,8 +65,8 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationPr
 		if err != nil {
 			return nil, fmt.Errorf("unable to fetch Spanner Region for resource creation: %v", err)
 		}
-		spAcc := spanneraccessor.SpannerAccessorImpl{}
-		spannerRegion, err := spAcc.GetSpannerLeaderLocation(ctx, spInstanceAdmin, "projects/"+targetProfile.Conn.Sp.Project+"/instances/"+targetProfile.Conn.Sp.Instance)
+		spAcc := spanneraccessor.SpannerAccessorImpl{InstanceClient: spInstanceAdmin}
+		spannerRegion, err := spAcc.GetSpannerLeaderLocation(ctx, "projects/"+targetProfile.Conn.Sp.Project+"/instances/"+targetProfile.Conn.Sp.Instance)
 		if err != nil {
 			return nil, fmt.Errorf("unable to fetch Spanner Region for resource creation: %v", err)
 		}

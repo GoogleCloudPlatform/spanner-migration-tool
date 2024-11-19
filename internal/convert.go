@@ -310,11 +310,6 @@ type ReferenceElement struct {
 	Name string
 }
 
-type ExpressionVerificationInput struct {
-	DbURI string
-	ExpressionDetail ExpressionDetail
-}
-
 type ExpressionVerificationOutput struct {
 	ExpressionDetail ExpressionDetail
 	Result bool

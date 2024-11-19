@@ -195,19 +195,19 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		spA := spanneraccessor.SpannerAccessorImpl{}
 		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
+		spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
 		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
 		conv := BuildConv(t, tc.numCols, tc.numFks, false)
-		err = spA.CreateDatabase(ctx, adminClientImpl, dbURI, conv, "", constants.BULK_MIGRATION)
+		err = spA.CreateDatabase(ctx, dbURI, conv, "", constants.BULK_MIGRATION)
 		if err != nil {
 			t.Fatal(err)
 		}
 		spanneraccessor.MaxWorkers = tc.numWorkers
-		spA.UpdateDDLForeignKeys(ctx, adminClientImpl, dbURI, conv, "", constants.BULK_MIGRATION)
+		spA.UpdateDDLForeignKeys(ctx, dbURI, conv, "", constants.BULK_MIGRATION)
 
 		checkResults(t, dbURI, tc.numFks)
 		// Drop the database later.
@@ -230,18 +230,18 @@ func TestVerifyDb(t *testing.T) {
 
 	for _, tc := range testCases {
 		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
-		spA := spanneraccessor.SpannerAccessorImpl{}
 		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+		spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
 		if tc.dbExists {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = spA.CreateDatabase(ctx, adminClientImpl, dbURI, BuildConv(t, 2, 0, tc.emptySchema), "", constants.BULK_MIGRATION)
+			err = spA.CreateDatabase(ctx, dbURI, BuildConv(t, 2, 0, tc.emptySchema), "", constants.BULK_MIGRATION)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer dropDatabase(t, dbURI)
-			dbExists, err := spA.VerifyDb(ctx, adminClientImpl, dbURI)
+			dbExists, err := spA.VerifyDb(ctx, dbURI)
 			assert.True(t, dbExists)
 			if tc.emptySchema {
 				assert.Nil(t, err)
@@ -249,7 +249,7 @@ func TestVerifyDb(t *testing.T) {
 				assert.NotNil(t, err)
 			}
 		} else {
-			dbExists, err := spA.VerifyDb(ctx, adminClientImpl, dbURI)
+			dbExists, err := spA.VerifyDb(ctx, dbURI)
 			assert.Nil(t, err)
 			assert.False(t, dbExists)
 		}
@@ -270,17 +270,17 @@ func TestValidateDDL(t *testing.T) {
 
 	for _, tc := range testCases {
 		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
-		spA := spanneraccessor.SpannerAccessorImpl{}
 		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = spA.CreateDatabase(ctx, adminClientImpl, dbURI, BuildConv(t, 2, 0, tc.emptySchema), "", constants.BULK_MIGRATION)
+		spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
+		err = spA.CreateDatabase(ctx, dbURI, BuildConv(t, 2, 0, tc.emptySchema), "", constants.BULK_MIGRATION)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer dropDatabase(t, dbURI)
-		err = spA.ValidateDDL(ctx, adminClientImpl, dbURI)
+		err = spA.ValidateDDL(ctx, dbURI)
 		if tc.emptySchema {
 			assert.Nil(t, err)
 		} else {
