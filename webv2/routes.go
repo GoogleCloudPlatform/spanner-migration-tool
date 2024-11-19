@@ -45,10 +45,10 @@ func getRoutes() *mux.Router {
 	}
 
 	ctx := context.Background()
-	spClient, _:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	instanceAdminClient, _:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
 	dsClient, _ := ds.NewDatastreamClientImpl(ctx)
 	storageclient, _ := storageclient.NewStorageClientImpl(ctx)
-	validateResourceImpl := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
+	validateResourceImpl := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{InstanceClient: instanceAdminClient}, &datastream_accessor.DatastreamAccessorImpl{},
 		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
 	profileAPIHandler := profile.ProfileAPIHandler{
 		ValidateResources: validateResourceImpl,

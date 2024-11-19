@@ -162,12 +162,12 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient) error {
-		spA := spanneraccessor.SpannerAccessorImpl{}
 		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 		if err != nil {
 			return err
 		}
-		err = spA.CreateOrUpdateDatabase(ctx, adminClientImpl, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
+		spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
+		err = spA.CreateOrUpdateDatabase(ctx, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
 		if err != nil {
 			err = fmt.Errorf("can't create/update database: %v", err)
 			return err
@@ -209,24 +209,24 @@ func migrateData(ctx context.Context, migrationProjectId string, targetProfile p
 	}
 	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	if !cmd.SkipForeignKeys {
-		spA := spanneraccessor.SpannerAccessorImpl{}
 		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 		if err != nil {
 			return bw, err
 		}
-		spA.UpdateDDLForeignKeys(ctx, adminClientImpl, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
+		spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
+		spA.UpdateDDLForeignKeys(ctx, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
 	}
 	return bw, nil
 }
 
 func migrateSchemaAndData(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *SchemaAndDataCmd) (*writer.BatchWriter, error) {
-	spA := spanneraccessor.SpannerAccessorImpl{}
 	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 	if err != nil {
 		return nil, err
 	}
-	err = spA.CreateOrUpdateDatabase(ctx, adminClientImpl, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
+	spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
+	err = spA.CreateOrUpdateDatabase(ctx, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
 	if err != nil {
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return nil, err
@@ -252,13 +252,13 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 
 	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	if !cmd.SkipForeignKeys {
-		spA.UpdateDDLForeignKeys(ctx, adminClientImpl, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
+		spA.UpdateDDLForeignKeys(ctx, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
 	}
 	return bw, nil
 }
 
 func ValidateResourceGenerationHelper(ctx context.Context, migrationProjectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
-	spClient, err := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	instanceAdminClient, err := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func ValidateResourceGenerationHelper(ctx context.Context, migrationProjectId st
 	if err != nil {
 		return err
 	}
-	validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
+	validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{InstanceClient: instanceAdminClient}, &datastream_accessor.DatastreamAccessorImpl{},
 		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
 	err = validateResource.ValidateResourceGeneration(ctx, migrationProjectId, instanceId, sourceProfile, conv)
 	if err != nil {
