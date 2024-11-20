@@ -11,7 +11,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 const THREAD_POOL = 500
@@ -31,16 +30,20 @@ type ExpressionVerificationInput struct {
 	expressionDetail internal.ExpressionDetail
 }
 
+type DDLVerifier interface {
+	VerifySpannerDDL(conv *internal.Conv, tableIds []string) (internal.VerifyExpressionsOutput, error)
+}
+type DDLVerifierImpl struct {
+	Expressions ExpressionVerificationAccessor
+}
+
 func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
 	err := ev.validateRequest(verifyExpressionsInput)
 	if err != nil {
 		return internal.VerifyExpressionsOutput{Err: err}
 	}
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", verifyExpressionsInput.Project, verifyExpressionsInput.Instance, ev.SpannerAccessor.SpannerClient.DatabaseName())
+	dbURI := ev.SpannerAccessor.SpannerClient.DatabaseName()
 	dbExists, err := ev.SpannerAccessor.CheckExistingDb(ctx, dbURI)
-	if err != nil {
-		return internal.VerifyExpressionsOutput{Err: err}
-	}
 	if dbExists {
 		err := ev.SpannerAccessor.DropDatabase(ctx, dbURI)
 		if err != nil {
@@ -87,7 +90,7 @@ func (ev *ExpressionVerificationAccessorImpl) verifyExpressionInternal(expressio
 	case "CHECK":
 		sqlStatement = fmt.Sprintf("SELECT 1 from %s where %s;", expressionVerificationInput.expressionDetail.ReferenceElement.Name, expressionVerificationInput.expressionDetail.Expression)
 	case "DEFAULT":
-		sqlStatement = fmt.Sprintf("SELECT CAST(%s) as %s", expressionVerificationInput.expressionDetail.Expression, expressionVerificationInput.expressionDetail.ReferenceElement.Name)
+		sqlStatement = fmt.Sprintf("SELECT CAST(%s as %s)", expressionVerificationInput.expressionDetail.Expression, expressionVerificationInput.expressionDetail.ReferenceElement.Name)
 	default:
 		return task.TaskResult[internal.ExpressionVerificationOutput]{Result: internal.ExpressionVerificationOutput{Result: false, Err: fmt.Errorf("invalid expression type requested")}, Err: nil}
 	}
@@ -120,11 +123,39 @@ func (ev *ExpressionVerificationAccessorImpl) simplifyConv(inputConv *internal.C
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling conv: %v", err)
 	}
-	// Reset the SpSequences field in the Conv copy.  A nil check
-	// here won't hurt but shouldn't technically be necessary as the
-	// map should always be initialized.
-	if convCopy.SpSequences != nil {
-		convCopy.SpSequences = make(map[string]ddl.Sequence) // Reset to empty map
-	}
 	return convCopy, nil
+}
+
+func (ddlv *DDLVerifierImpl) VerifySpannerDDL(conv *internal.Conv, tableIds []string) (internal.VerifyExpressionsOutput, error) {
+	ctx := context.Background()
+	expressionDetails := []internal.ExpressionDetail{}
+	// Collect default values for verification
+	for _, tableId := range tableIds {
+		srcTable := conv.SrcSchema[tableId]
+		for _, srcColId := range srcTable.ColIds {
+			srcCol := srcTable.ColDefs[srcColId]
+			if srcCol.DefaultValue.IsPresent {
+				defaultValueExp := internal.ExpressionDetail{
+					ReferenceElement: internal.ReferenceElement{
+						Name: conv.SpSchema[tableId].ColDefs[srcColId].T.Name,
+					},
+					ExpressionId: srcCol.DefaultValue.Value.ExpressionId,
+					Expression:   srcCol.DefaultValue.Value.Query,
+					Type:         "DEFAULT",
+					Metadata:     map[string]string{"TableId": tableId, "ColId": srcColId},
+				}
+				expressionDetails = append(expressionDetails, defaultValueExp)
+			}
+		}
+	}
+	verifyExpressionsInput := internal.VerifyExpressionsInput{
+		Project:              conv.SpProjectId,
+		Instance:             conv.SpInstanceId,
+		Conv:                 conv,
+		Source:               conv.Source,
+		ExpressionDetailList: expressionDetails,
+	}
+	verificationResults := ddlv.Expressions.VerifyExpressions(ctx, verifyExpressionsInput)
+
+	return verificationResults, verificationResults.Err
 }

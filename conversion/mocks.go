@@ -54,8 +54,8 @@ func (msads *MockSchemaFromSource) schemaFromDatabase(migrationProjectId string,
 	args := msads.Called(migrationProjectId, sourceProfile, targetProfile, getInfo, processSchema)
 	return args.Get(0).(*internal.Conv), args.Error(1)
 }
-func (msads *MockSchemaFromSource) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
-	args := msads.Called(driver, spDialect, ioHelper, processDump)
+func (msads *MockSchemaFromSource) SchemaFromDump(SpProjectId string, SpInstanceId string, driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
+	args := msads.Called(SpProjectId, SpInstanceId, driver, spDialect, ioHelper, processDump)
 	return args.Get(0).(*internal.Conv), args.Error(1)
 }
 

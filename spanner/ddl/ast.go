@@ -414,7 +414,12 @@ type AutoGenCol struct {
 // DefaultValue represents a Default value.
 type DefaultValue struct {
 	IsPresent bool
-	Value     string
+	Value     Expression
+}
+
+type Expression struct {
+	ExpressionId string
+	Query        string
 }
 
 func (agc AutoGenCol) PrintAutoGenCol() string {

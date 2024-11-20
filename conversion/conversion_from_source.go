@@ -38,7 +38,7 @@ import (
 
 type SchemaFromSourceInterface interface {
 	schemaFromDatabase(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, getInfo GetInfoInterface, processSchema common.ProcessSchemaInterface) (*internal.Conv, error)
-	SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error)
+	SchemaFromDump(SpProjectId string, SpInstanceId string, driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error)
 }
 
 type SchemaFromSourceImpl struct{}
@@ -54,6 +54,9 @@ type DataFromSourceImpl struct{}
 func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, getInfo GetInfoInterface, processSchema common.ProcessSchemaInterface) (*internal.Conv, error) {
 	conv := internal.MakeConv()
 	conv.SpDialect = targetProfile.Conn.Sp.Dialect
+	conv.SpProjectId = targetProfile.Conn.Sp.Project
+	conv.SpInstanceId = targetProfile.Conn.Sp.Instance
+	conv.Source = sourceProfile.Driver
 	//handle fetching schema differently for sharded migrations, we only connect to the primary shard to
 	//fetch the schema. We reuse the SourceProfileConnection object for this purpose.
 	var infoSchema common.InfoSchema
@@ -96,10 +99,10 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: isSharded,
 	}
-	return conv, processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	return conv, processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, common.GetSchemaToSpannerImpl(conv), &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 }
 
-func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
+func (sads *SchemaFromSourceImpl) SchemaFromDump(SpProjectId string, SpInstanceId string, driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
 	f, n, err := getSeekable(ioHelper.In)
 	if err != nil {
 		utils.PrintSeekError(driver, err, ioHelper.Out)
@@ -109,6 +112,9 @@ func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string
 	ioHelper.BytesRead = n
 	conv := internal.MakeConv()
 	conv.SpDialect = spDialect
+	conv.SpProjectId = SpProjectId
+	conv.SpInstanceId = SpInstanceId
+	conv.Source = driver
 	p := internal.NewProgress(n, "Generating schema", internal.Verbose(), false, int(internal.SchemaCreationInProgress))
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in dump.
@@ -159,6 +165,9 @@ func (sads *DataFromSourceImpl) dataFromCSV(ctx context.Context, sourceProfile p
 		return nil, fmt.Errorf("dbName is mandatory in target-profile for csv source")
 	}
 	conv.SpDialect = targetProfile.Conn.Sp.Dialect
+	conv.SpProjectId = targetProfile.Conn.Sp.Project
+	conv.SpInstanceId = targetProfile.Conn.Sp.Instance
+	conv.Source = sourceProfile.Driver
 	dialect, err := targetProfile.FetchTargetDialect(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch dialect: %v", err)
