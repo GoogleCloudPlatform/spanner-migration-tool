@@ -102,13 +102,13 @@ func dropDatabase(t *testing.T, dbPath string) {
 
 func TestCheckExistingDb(t *testing.T) {
 	onlyRunForEmulatorTest(t)
-	spA := spanneraccessor.SpannerAccessorImpl{}
 	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+	spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, "check-db-exists") 
-	err = spA.CreateDatabase(ctx, adminClientImpl, dbURI, internal.MakeConv(), "", constants.BULK_MIGRATION)
+	err = spA.CreateDatabase(ctx, dbURI, internal.MakeConv(), "", constants.BULK_MIGRATION)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestCheckExistingDb(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range testCases {
-		dbExists, err := spA.CheckExistingDb(ctx, adminClientImpl, fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName))
+		dbExists, err := spA.CheckExistingDb(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName))
 		assert.Nil(t, err)
 		assert.Equal(t, tc.dbExists, dbExists)
 	}
