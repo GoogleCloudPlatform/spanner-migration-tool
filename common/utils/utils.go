@@ -40,6 +40,7 @@ import (
 	"cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/parse"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
@@ -235,7 +236,7 @@ func (gui *GetUtilInfoImpl) GetInstance(ctx context.Context, project string, out
 func getInstances(ctx context.Context, project string) ([]string, error) {
 	instanceClient, err := instance.NewInstanceAdminClient(ctx)
 	if err != nil {
-		return nil, AnalyzeError(err, fmt.Sprintf("projects/%s", project))
+		return nil, parse.AnalyzeError(err, fmt.Sprintf("projects/%s", project))
 	}
 	it := instanceClient.ListInstances(ctx, &instancepb.ListInstancesRequest{Parent: fmt.Sprintf("projects/%s", project)})
 	var l []string
@@ -245,7 +246,7 @@ func getInstances(ctx context.Context, project string) ([]string, error) {
 			break
 		}
 		if err != nil {
-			return nil, AnalyzeError(err, fmt.Sprintf("projects/%s", project))
+			return nil, parse.AnalyzeError(err, fmt.Sprintf("projects/%s", project))
 		}
 		l = append(l, strings.TrimPrefix(resp.Name, fmt.Sprintf("projects/%s/instances/", project)))
 	}
@@ -290,62 +291,6 @@ func GenerateHashStr() string {
 	return fmt.Sprintf("%x-%x", b[0:2], b[2:4])
 }
 
-// parseURI parses an unknown URI string that could be a database, instance or project URI.
-func parseURI(URI string) (project, instance, dbName string) {
-	project, instance, dbName = "", "", ""
-	if strings.Contains(URI, "databases") {
-		project, instance, dbName = ParseDbURI(URI)
-	} else if strings.Contains(URI, "instances") {
-		project, instance = parseInstanceURI(URI)
-	} else if strings.Contains(URI, "projects") {
-		project = parseProjectURI(URI)
-	}
-	return
-}
-
-func ParseDbURI(dbURI string) (project, instance, dbName string) {
-	split := strings.Split(dbURI, "/databases/")
-	project, instance = parseInstanceURI(split[0])
-	dbName = split[1]
-	return
-}
-
-func parseInstanceURI(instanceURI string) (project, instance string) {
-	split := strings.Split(instanceURI, "/instances/")
-	project = parseProjectURI(split[0])
-	instance = split[1]
-	return
-}
-
-func parseProjectURI(projectURI string) (project string) {
-	split := strings.Split(projectURI, "/")
-	project = split[1]
-	return
-}
-
-// AnalyzeError inspects an error returned from Cloud Spanner and adds information
-// about potential root causes e.g. authentication issues.
-func AnalyzeError(err error, URI string) error {
-	project, instance, _ := parseURI(URI)
-	e := strings.ToLower(err.Error())
-	if ContainsAny(e, []string{"unauthenticated", "cannot fetch token", "default credentials"}) {
-		return fmt.Errorf("%w."+`
-Possible cause: credentials are mis-configured. Do you need to run
-
-  gcloud auth application-default login
-
-or configure environment variable GOOGLE_APPLICATION_CREDENTIALS.
-See https://cloud.google.com/docs/authentication/getting-started`, err)
-	}
-	if ContainsAny(e, []string{"instance not found"}) && instance != "" {
-		return fmt.Errorf("%w.\n"+`
-Possible cause: Spanner instance specified via instance option does not exist.
-Please check that '%s' is correct and that it is a valid Spanner
-instance for project %s`, err, instance, project)
-	}
-	return err
-}
-
 // PrintPermissionsWarning prints permission warning.
 func PrintPermissionsWarning(driver string, out *os.File) {
 	fmt.Fprintf(out,
@@ -358,15 +303,6 @@ access the created database. Note that `+driver+` table-level and row-level
 ACLs are dropped during conversion since they are not supported by Spanner.
 
 `)
-}
-
-func ContainsAny(s string, l []string) bool {
-	for _, a := range l {
-		if strings.Contains(s, a) {
-			return true
-		}
-	}
-	return false
 }
 
 // CheckEqualSets checks if the set of values in a and b are equal.

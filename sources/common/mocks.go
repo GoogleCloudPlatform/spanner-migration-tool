@@ -17,32 +17,34 @@ package common
 import (
 	"sync"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/stretchr/testify/mock"
 )
 
 type MockInfoSchema struct {
-    mock.Mock
+	mock.Mock
 }
 
 func (mis *MockInfoSchema) GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) (int, error) {
 	args := mis.Called(conv, infoSchema, numWorkers)
 	return args.Get(0).(int), args.Error(1)
 }
-func (mis *MockInfoSchema) ProcessData(conv *internal.Conv, infoSchema InfoSchema, additionalAttributes internal.AdditionalDataAttributes) {}
+func (mis *MockInfoSchema) ProcessData(conv *internal.Conv, infoSchema InfoSchema, additionalAttributes internal.AdditionalDataAttributes) {
+}
 func (mis *MockInfoSchema) SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {}
-func (mis *MockInfoSchema) processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error)  {
+func (mis *MockInfoSchema) processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error) {
 	args := mis.Called(conv, table, infoSchema)
 	return args.Get(0).(schema.Table), args.Error(1)
 }
-func (mis *MockInfoSchema) GetIncludedSrcTablesFromConv(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error)   {
+func (mis *MockInfoSchema) GetIncludedSrcTablesFromConv(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error) {
 	args := mis.Called(conv)
 	return args.Get(0).(map[string]internal.SchemaDetails), args.Error(1)
 }
 
 type MockUtilsOrder struct {
-    mock.Mock
+	mock.Mock
 }
 
 func (muo *MockUtilsOrder) initPrimaryKeyOrder(conv *internal.Conv) {}
@@ -50,7 +52,7 @@ func (muo *MockUtilsOrder) initPrimaryKeyOrder(conv *internal.Conv) {}
 func (muo *MockUtilsOrder) initIndexOrder(conv *internal.Conv) {}
 
 type MockSchemaToSpanner struct {
-    mock.Mock
+	mock.Mock
 }
 
 func (mss *MockSchemaToSpanner) SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
@@ -64,7 +66,7 @@ func (mss *MockSchemaToSpanner) SchemaToSpannerDDLHelper(conv *internal.Conv, to
 }
 
 type MockProcessSchema struct {
-    mock.Mock
+	mock.Mock
 }
 
 func (mps *MockProcessSchema) ProcessSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int, attributes internal.AdditionalSchemaAttributes, s SchemaToSpannerInterface, uo UtilsOrderInterface, is InfoSchemaInterface) error {
@@ -76,8 +78,8 @@ type MockRunParallelTasks[I any, O any] struct {
 	mock.Mock
 }
 
-func (mrpt *MockRunParallelTasks[I, O]) RunParallelTasks(input []I, numWorkers int, f func(i I, mutex *sync.Mutex) TaskResult[O],
-fastExit bool) ([]TaskResult[O], error) {
+func (mrpt *MockRunParallelTasks[I, O]) RunParallelTasks(input []I, numWorkers int, f func(i I, mutex *sync.Mutex) task.TaskResult[O],
+	fastExit bool) ([]task.TaskResult[O], error) {
 	args := mrpt.Called(input, numWorkers, f, fastExit)
-	return args.Get(0).([]TaskResult[O]), args.Error(1)
+	return args.Get(0).([]task.TaskResult[O]), args.Error(1)
 }

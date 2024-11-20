@@ -27,7 +27,7 @@ import (
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/parse"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -108,7 +108,7 @@ func (sp *SpannerAccessorImpl) CheckExistingDb(ctx context.Context, dbURI string
 			logger.Log.Debug("WARNING! API call not responding: make sure that spanner api endpoint is configured properly")
 		case <-gotResponse:
 			if err != nil {
-				if utils.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
+				if parse.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
 					return false, nil
 				}
 				return false, fmt.Errorf("can't get database info: %s", err)
@@ -119,17 +119,17 @@ func (sp *SpannerAccessorImpl) CheckExistingDb(ctx context.Context, dbURI string
 }
 
 func (sp *SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, dbURI string) error {
-	project, instance, dbName := utils.ParseDbURI(dbURI)
+	project, instance, dbName := parse.ParseDbURI(dbURI)
 	req := &databasepb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
 		CreateStatement: "CREATE DATABASE `" + dbName + "`",
 	}
 	op, err := sp.AdminClient.CreateDatabase(ctx, req)
 	if err != nil {
-		return fmt.Errorf("can't build CreateDatabaseRequest: %w", utils.AnalyzeError(err, dbURI))
+		return fmt.Errorf("can't build CreateDatabaseRequest: %w", parse.AnalyzeError(err, dbURI))
 	}
 	if _, err := op.Wait(ctx); err != nil {
-		return fmt.Errorf("createDatabase call failed: %w", utils.AnalyzeError(err, dbURI))
+		return fmt.Errorf("createDatabase call failed: %w", parse.AnalyzeError(err, dbURI))
 	}
 	return nil
 }
@@ -242,7 +242,7 @@ func (sp *SpannerAccessorImpl) CreateChangeStream(ctx context.Context, changeStr
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
 func (sp *SpannerAccessorImpl) CreateDatabase(ctx context.Context, dbURI string, conv *internal.Conv, driver string, migrationType string) error {
-	project, instance, dbName := utils.ParseDbURI(dbURI)
+	project, instance, dbName := parse.ParseDbURI(dbURI)
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
@@ -269,10 +269,10 @@ func (sp *SpannerAccessorImpl) CreateDatabase(ctx context.Context, dbURI string,
 
 	op, err := sp.AdminClient.CreateDatabase(ctx, req)
 	if err != nil {
-		return fmt.Errorf("can't build CreateDatabaseRequest: %w", utils.AnalyzeError(err, dbURI))
+		return fmt.Errorf("can't build CreateDatabaseRequest: %w", parse.AnalyzeError(err, dbURI))
 	}
 	if _, err := op.Wait(ctx); err != nil {
-		return fmt.Errorf("createDatabase call failed: %w", utils.AnalyzeError(err, dbURI))
+		return fmt.Errorf("createDatabase call failed: %w", parse.AnalyzeError(err, dbURI))
 	}
 
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
@@ -299,10 +299,10 @@ func (sp *SpannerAccessorImpl) UpdateDatabase(ctx context.Context, dbURI string,
 	defer cancel()
 	op, err := sp.AdminClient.UpdateDatabaseDdl(ctx, req)
 	if err != nil {
-		return fmt.Errorf("can't build UpdateDatabaseDdlRequest: %w", utils.AnalyzeError(err, dbURI))
+		return fmt.Errorf("can't build UpdateDatabaseDdlRequest: %w", parse.AnalyzeError(err, dbURI))
 	}
 	if err := op.Wait(ctx); err != nil {
-		return fmt.Errorf("UpdateDatabaseDdl call failed: %w", utils.AnalyzeError(err, dbURI))
+		return fmt.Errorf("UpdateDatabaseDdl call failed: %w", parse.AnalyzeError(err, dbURI))
 	}
 	return nil
 }
@@ -442,7 +442,7 @@ func (sp *SpannerAccessorImpl) DropDatabase(ctx context.Context, dbURI string) e
 
 	err := sp.AdminClient.DropDatabase(ctx, &adminpb.DropDatabaseRequest{Database: dbURI})
 	if err != nil {
-		return fmt.Errorf("can't build DropDatabaseRequest: %w", utils.AnalyzeError(err, dbURI))
+		return fmt.Errorf("can't build DropDatabaseRequest: %w", parse.AnalyzeError(err, dbURI))
 	}
 	return nil
 }
