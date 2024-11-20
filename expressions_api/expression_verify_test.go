@@ -44,6 +44,9 @@ func TestVerifyExpressions(t *testing.T) {
 
 	t.Run("Happy case 1: stagingdb does not exist and expression is successfully verified", func(t *testing.T) {
 		spannerMockClient := spannerclient.SpannerClientMock{
+			DatabaseNameMock: func() string {
+				return "test-db"
+			},
 			SingleMock: func() spannerclient.ReadOnlyTransaction {
 				return &spannerclient.ReadOnlyTransactionMock{
 					QueryMock: func(ctx context.Context, stmt spanner.Statement) spannerclient.RowIterator {
@@ -80,6 +83,9 @@ func TestVerifyExpressions(t *testing.T) {
 
 	t.Run("Happy case 2: Successfully dropped existing stagingDb and verified expressions", func(t *testing.T) {
 		spannerMockClient := spannerclient.SpannerClientMock{
+			DatabaseNameMock: func() string {
+				return "test-db"
+			},
 			SingleMock: func() spannerclient.ReadOnlyTransaction {
 				return &spannerclient.ReadOnlyTransactionMock{
 					QueryMock: func(ctx context.Context, stmt spanner.Statement) spannerclient.RowIterator {
@@ -115,6 +121,11 @@ func TestVerifyExpressions(t *testing.T) {
 	})
 
 	t.Run("Error in creating staging database", func(t *testing.T) {
+		spannerMockClient := spannerclient.SpannerClientMock{
+			DatabaseNameMock: func() string {
+				return "test-db"
+			},
+		}
 		spannerAdminMockClient := &spanneradmin.AdminClientMock{
 			GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
 				//mocks that an existing stagingDb does not exist
@@ -133,12 +144,17 @@ func TestVerifyExpressions(t *testing.T) {
 				return fmt.Errorf("unable to drop the database")
 			},
 		}
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{AdminClient: spannerAdminMockClient}}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{AdminClient: spannerAdminMockClient, SpannerClient: spannerMockClient}}
 		output := ev.VerifyExpressions(ctx, input)
 		assert.NotNil(t, output.Err)
 	})
 
 	t.Run("Error in dropping existing database", func(t *testing.T) {
+		spannerMockClient := spannerclient.SpannerClientMock{
+			DatabaseNameMock: func() string {
+				return "test-db"
+			},
+		}
 		spannerAdminMockClient := &spanneradmin.AdminClientMock{
 			GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
 				//mocks that an existing stagingDb exists
@@ -154,7 +170,7 @@ func TestVerifyExpressions(t *testing.T) {
 				return fmt.Errorf("unable to drop the database")
 			},
 		}
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{AdminClient: spannerAdminMockClient}}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{AdminClient: spannerAdminMockClient, SpannerClient: spannerMockClient}}
 		output := ev.VerifyExpressions(ctx, input)
 		assert.NotNil(t, output.Err)
 
@@ -162,6 +178,9 @@ func TestVerifyExpressions(t *testing.T) {
 
 	t.Run("Invalid expression", func(t *testing.T) {
 		spannerMockClient := spannerclient.SpannerClientMock{
+			DatabaseNameMock: func() string {
+				return "test-db"
+			},
 			SingleMock: func() spannerclient.ReadOnlyTransaction {
 				return &spannerclient.ReadOnlyTransactionMock{
 					QueryMock: func(ctx context.Context, stmt spanner.Statement) spannerclient.RowIterator {

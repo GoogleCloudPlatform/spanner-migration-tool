@@ -36,7 +36,7 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 	if err != nil {
 		return internal.VerifyExpressionsOutput{Err: err}
 	}
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", verifyExpressionsInput.Project, verifyExpressionsInput.Instance, "smt-staging-db")
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", verifyExpressionsInput.Project, verifyExpressionsInput.Instance, ev.SpannerAccessor.SpannerClient.DatabaseName())
 	dbExists, err := ev.SpannerAccessor.CheckExistingDb(ctx, dbURI)
 	if err != nil {
 		return internal.VerifyExpressionsOutput{Err: err}
