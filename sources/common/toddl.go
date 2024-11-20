@@ -36,6 +36,7 @@ import (
 	"unicode"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -373,4 +374,20 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 		Id:              srcIndex.Id,
 	}
 	return spIndex
+}
+
+func VerifySpannerDDL(conv *internal.Conv, tableIds []string) error {
+	var expressions []expressions_api.ExpressionVerificationInput
+	// Collect default values for verification
+	for _, tableId := range tableIds {
+		srcTable := conv.SrcSchema[tableId]
+		for _, srcColId := range srcTable.ColIds {
+			srcCol := srcTable.ColDefs[srcColId]
+			if srcCol.DefaultValue.IsPresent {
+				defaultValueExp := expressions_api.ExpressionVerificationInput{}
+				expressions = append(expressions, defaultValueExp)
+			}
+		}
+	}
+	return nil
 }
