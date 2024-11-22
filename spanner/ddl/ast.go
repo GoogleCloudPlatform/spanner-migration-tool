@@ -264,7 +264,7 @@ type IndexKey struct {
 	Order int
 }
 
-type Checkconstraint struct {
+type CheckConstraint struct {
 	Id   string
 	Name string
 	Expr string
@@ -332,7 +332,7 @@ type CreateTable struct {
 	ForeignKeys     []Foreignkey
 	Indexes         []CreateIndex
 	ParentTable     InterleavedParent //if not empty, this table will be interleaved
-	CheckConstraint []Checkconstraint
+	CheckConstraint []CheckConstraint
 	Comment         string
 	Id              string
 }
@@ -509,7 +509,7 @@ func (k Foreignkey) PrintForeignKeyAlterTable(spannerSchema Schema, c Config, ta
 }
 
 // PrintCheckConstraintTable unparses the check constraints using CHECK CONSTRAINTS.
-func PrintCheckConstraintTable(cks []Checkconstraint) string {
+func PrintCheckConstraintTable(cks []CheckConstraint) string {
 
 	var s string
 	s = ""

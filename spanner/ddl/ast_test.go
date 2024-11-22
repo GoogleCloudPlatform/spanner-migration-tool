@@ -143,7 +143,7 @@ func TestPrintCreateTable(t *testing.T) {
 			},
 			PrimaryKeys: []IndexKey{{ColId: "col1", Desc: true}},
 			ForeignKeys: nil,
-			CheckConstraint: []Checkconstraint{
+			CheckConstraint: []CheckConstraint{
 				{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
 				{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
 			},
@@ -194,7 +194,7 @@ func TestPrintCreateTable(t *testing.T) {
 			},
 			PrimaryKeys: nil,
 			ForeignKeys: nil,
-			CheckConstraint: []Checkconstraint{
+			CheckConstraint: []CheckConstraint{
 				{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
 				{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
 			},

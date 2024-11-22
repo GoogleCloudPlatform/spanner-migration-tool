@@ -503,7 +503,7 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
 
-	newCKs := []ddl.Checkconstraint{}
+	newCKs := []ddl.CheckConstraint{}
 	if err = json.Unmarshal(reqBody, &newCKs); err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
@@ -526,7 +526,7 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func doesNameExist(spcks []ddl.Checkconstraint, targetName string) bool {
+func doesNameExist(spcks []ddl.CheckConstraint, targetName string) bool {
 	for _, spck := range spcks {
 		if strings.Contains(spck.Expr, targetName) {
 			return true

@@ -443,7 +443,7 @@ func Test_cvtCheckContraint(t *testing.T) {
 			Expr: "age < 99",
 		},
 	}
-	spSchema := []ddl.Checkconstraint{
+	spSchema := []ddl.CheckConstraint{
 		{
 			Id:   "ck1",
 			Name: "check_1",

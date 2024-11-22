@@ -235,11 +235,11 @@ func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTableId string, 
 	return spKeys
 }
 
-func cvtCheckConstraint(conv *internal.Conv, srcKeys []schema.CheckConstraints) []ddl.Checkconstraint {
-	var spcks []ddl.Checkconstraint
+func cvtCheckConstraint(conv *internal.Conv, srcKeys []schema.CheckConstraints) []ddl.CheckConstraint {
+	var spcks []ddl.CheckConstraint
 
 	for _, cks := range srcKeys {
-		spcks = append(spcks, ddl.Checkconstraint{
+		spcks = append(spcks, ddl.CheckConstraint{
 			Id:   cks.Id,
 			Name: internal.ToSpannerCheckConstraintName(conv, cks.Name),
 			Expr: cks.Expr,

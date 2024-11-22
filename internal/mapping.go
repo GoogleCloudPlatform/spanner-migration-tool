@@ -251,7 +251,7 @@ func ToSpannerCheckConstraintName(conv *Conv, srcCheckConstraintName string) str
 	return getSpannerValidName(conv, srcCheckConstraintName)
 }
 
-func GetSpannerValidExpression(cks []ddl.Checkconstraint) []ddl.Checkconstraint {
+func GetSpannerValidExpression(cks []ddl.CheckConstraint) []ddl.CheckConstraint {
 	// TODO validate the check constraints data with batch verification then send back
 	return cks
 }
