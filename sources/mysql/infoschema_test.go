@@ -17,6 +17,7 @@ package mysql
 import (
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -529,4 +530,118 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 		}
 	}
 	return db
+}
+func TestGetConstraints(t *testing.T) {
+
+	case1 := []mockSpec{
+		{
+			query: `SELECT COUNT\(\*\)
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA'
+			AND TABLE_NAME = 'CHECK_CONSTRAINTS';
+		  `,
+			cols: []string{"COUNT"},
+			rows: [][]driver.Value{{1}},
+		},
+		{
+			query: `(?i)SELECT\s+COALESCE\(k.COLUMN_NAME,\s*''\)\s+AS\s+COLUMN_NAME,\s+t\.CONSTRAINT_NAME,\s+t\.CONSTRAINT_TYPE,\s+COALESCE\(c.CHECK_CLAUSE,\s*''\)\s+AS\s+CHECK_CLAUSE\s+FROM\s+INFORMATION_SCHEMA\.TABLE_CONSTRAINTS\s+AS\s+t\s+LEFT\s+JOIN\s+INFORMATION_SCHEMA\.KEY_COLUMN_USAGE\s+AS\s+k\s+ON\s+t\.CONSTRAINT_NAME\s*=\s*k\.CONSTRAINT_NAME\s+AND\s+t\.CONSTRAINT_SCHEMA\s*=\s*k\.CONSTRAINT_SCHEMA\s+AND\s+t\.TABLE_NAME\s*=\s*k\.TABLE_NAME\s+LEFT\s+JOIN\s+INFORMATION_SCHEMA\.CHECK_CONSTRAINTS\s+AS\s+c\s+ON\s+t\.CONSTRAINT_NAME\s*=\s*c\.CONSTRAINT_NAME\s+WHERE\s+t\.TABLE_SCHEMA\s*=\s*\?\s+AND\s+t\.TABLE_NAME\s*=\s*\?\s*ORDER\s+BY\s+k\.ORDINAL_POSITION`,
+			args:  []driver.Value{"test_schema", "test_table"},
+			cols:  []string{"COLUMN_NAME", "CONSTRAINT_NAME", "CONSTRAINT_TYPE", "CHECK_CLAUSE"},
+			rows:  [][]driver.Value{{"id", "PRIMARY", "PRIMARY KEY", ""}, {"", "chk_test", "CHECK", "amount > 0"}},
+		},
+	}
+
+	case2 := []mockSpec{
+		{
+			query: `SELECT COUNT\(\*\)
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA'
+			AND TABLE_NAME = 'CHECK_CONSTRAINTS';
+		  `,
+			cols: []string{"COUNT"},
+			rows: [][]driver.Value{{0}},
+		},
+		{
+			query: `(?i)SELECT\s+k\.COLUMN_NAME,\s+t\.CONSTRAINT_TYPE\s+FROM\s+INFORMATION_SCHEMA\.TABLE_CONSTRAINTS\s+AS\s+t\s+INNER\s+JOIN\s+INFORMATION_SCHEMA\.KEY_COLUMN_USAGE\s+AS\s+k\s+ON\s+t\.CONSTRAINT_NAME\s*=\s*k\.CONSTRAINT_NAME\s+AND\s+t\.CONSTRAINT_SCHEMA\s*=\s*k\.CONSTRAINT_SCHEMA\s+AND\s+t\.TABLE_NAME\s*=\s*k\.TABLE_NAME\s+WHERE\s+k\.TABLE_SCHEMA\s*=\s*\?\s+AND\s+k\.TABLE_NAME\s*=\s*\?\s*ORDER\s+BY\s+k\.ORDINAL_POSITION;`,
+			args:  []driver.Value{"test_schema", "test_table"},
+			cols:  []string{"COLUMN_NAME", "CONSTRAINT_NAME", "CONSTRAINT_TYPE", "CHECK_CLAUSE"},
+			rows:  [][]driver.Value{{"id", "PRIMARY", "PRIMARY KEY", ""}},
+		},
+	}
+
+	cases := []struct {
+		db          []mockSpec
+		tableExists bool
+	}{
+		{
+			db:          case1,
+			tableExists: true,
+		},
+		{
+			db:          case2,
+			tableExists: false,
+		},
+	}
+
+	for _, tc := range cases {
+		if tc.tableExists {
+			db := mkMockDB(t, tc.db)
+
+			defer db.Close()
+
+			isi := InfoSchemaImpl{Db: db}
+
+			table := common.SchemaAndName{
+				Schema: "test_schema",
+				Name:   "test_table",
+			}
+
+			conv := new(internal.Conv)
+
+			primaryKeys, checkKeys, constraints, err := isi.GetConstraints(conv, table)
+			if err != nil {
+				t.Fatalf("expected no error, but got %v", err)
+			}
+
+			expectedPrimaryKeys := []string{"id"}
+			if fmt.Sprintf("%v", primaryKeys) != fmt.Sprintf("%v", expectedPrimaryKeys) {
+				t.Errorf("expected %v, got %v for primary keys", expectedPrimaryKeys, primaryKeys)
+			}
+
+			expectedCheckKeys := []schema.CheckConstraints{
+				{Name: "chk_test", Expr: "amount > 0", Id: "ck1"},
+			}
+
+			assert.Equal(t, expectedCheckKeys, checkKeys)
+			assert.Equal(t, expectedPrimaryKeys, primaryKeys)
+			assert.Empty(t, constraints)
+		} else {
+			db := mkMockDB(t, tc.db)
+
+			defer db.Close()
+
+			isi := InfoSchemaImpl{Db: db}
+
+			table := common.SchemaAndName{
+				Schema: "test_schema",
+				Name:   "test_table",
+			}
+
+			conv := new(internal.Conv)
+
+			primaryKeys, checkKeys, constraints, err := isi.GetConstraints(conv, table)
+			if err != nil {
+				t.Fatalf("expected no error, but got %v", err)
+			}
+
+			expectedPrimaryKeys := []string{"id"}
+			if fmt.Sprintf("%v", primaryKeys) != fmt.Sprintf("%v", expectedPrimaryKeys) {
+				t.Errorf("expected %v, got %v for primary keys", expectedPrimaryKeys, primaryKeys)
+			}
+
+			assert.Equal(t, expectedPrimaryKeys, primaryKeys)
+			assert.Empty(t, checkKeys)
+			assert.Empty(t, constraints)
+		}
+	}
 }

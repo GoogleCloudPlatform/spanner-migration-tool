@@ -143,6 +143,10 @@ func TestPrintCreateTable(t *testing.T) {
 			},
 			PrimaryKeys: []IndexKey{{ColId: "col1", Desc: true}},
 			ForeignKeys: nil,
+			CheckConstraint: []Checkconstraint{
+				{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
+				{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
+			},
 			Indexes:     nil,
 			ParentTable: InterleavedParent{},
 			Comment:     "",
@@ -156,12 +160,13 @@ func TestPrintCreateTable(t *testing.T) {
 				"col4": {Name: "col4", T: Type{Name: Int64}, NotNull: true},
 				"col5": {Name: "col5", T: Type{Name: String, Len: MaxLength}, NotNull: false},
 			},
-			PrimaryKeys: []IndexKey{{ColId: "col4", Desc: true}},
-			ForeignKeys: nil,
-			Indexes:     nil,
-			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE},
-			Comment:     "",
-			Id:          "t2",
+			PrimaryKeys:     []IndexKey{{ColId: "col4", Desc: true}},
+			ForeignKeys:     nil,
+			Indexes:         nil,
+			CheckConstraint: nil,
+			ParentTable:     InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE},
+			Comment:         "",
+			Id:              "t2",
 		},
 		"t3": CreateTable{
 			Name:          "table3",
@@ -170,12 +175,33 @@ func TestPrintCreateTable(t *testing.T) {
 			ColDefs: map[string]ColumnDef{
 				"col6": {Name: "col6", T: Type{Name: Int64}, NotNull: true},
 			},
-			PrimaryKeys: []IndexKey{{ColId: "col6", Desc: true}},
+			PrimaryKeys:     []IndexKey{{ColId: "col6", Desc: true}},
+			ForeignKeys:     nil,
+			Indexes:         nil,
+			CheckConstraint: nil,
+			ParentTable:     InterleavedParent{Id: "t1", OnDelete: ""},
+			Comment:         "",
+			Id:              "t3",
+		},
+		"t4": CreateTable{
+			Name:          "table1",
+			ColIds:        []string{"col1", "col2", "col3"},
+			ShardIdColumn: "",
+			ColDefs: map[string]ColumnDef{
+				"col1": {Name: "col1", T: Type{Name: Int64}, NotNull: true},
+				"col2": {Name: "col2", T: Type{Name: String, Len: MaxLength}, NotNull: false},
+				"col3": {Name: "col3", T: Type{Name: Bytes, Len: int64(42)}, NotNull: false},
+			},
+			PrimaryKeys: nil,
 			ForeignKeys: nil,
+			CheckConstraint: []Checkconstraint{
+				{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
+				{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
+			},
 			Indexes:     nil,
-			ParentTable: InterleavedParent{Id: "t1", OnDelete: ""},
+			ParentTable: InterleavedParent{},
 			Comment:     "",
-			Id:          "t3",
+			Id:          "t1",
 		},
 	}
 	tests := []struct {
@@ -191,7 +217,8 @@ func TestPrintCreateTable(t *testing.T) {
 			"CREATE TABLE table1 (\n" +
 				"	col1 INT64 NOT NULL ,\n" +
 				"	col2 STRING(MAX),\n" +
-				"	col3 BYTES(42),\n" +
+				"	col3 BYTES(42),\n " +
+				"CONSTRAINT check_1 CHECK (age > 18),\nCONSTRAINT check_2 CHECK (age < 99)\n" +
 				") PRIMARY KEY (col1 DESC)",
 		},
 		{
@@ -201,7 +228,8 @@ func TestPrintCreateTable(t *testing.T) {
 			"CREATE TABLE `table1` (\n" +
 				"	`col1` INT64 NOT NULL ,\n" +
 				"	`col2` STRING(MAX),\n" +
-				"	`col3` BYTES(42),\n" +
+				"	`col3` BYTES(42),\n " +
+				"CONSTRAINT check_1 CHECK (age > 18),\nCONSTRAINT check_2 CHECK (age < 99)\n" +
 				") PRIMARY KEY (`col1` DESC)",
 		},
 		{
@@ -222,6 +250,17 @@ func TestPrintCreateTable(t *testing.T) {
 				"	col6 INT64 NOT NULL ,\n" +
 				") PRIMARY KEY (col6 DESC),\n" +
 				"INTERLEAVE IN PARENT table1",
+		},
+		{
+			"no quote",
+			false,
+			s["t4"],
+			"CREATE TABLE table1 (\n" +
+				"	col1 INT64 NOT NULL ,\n" +
+				"	col2 STRING(MAX),\n" +
+				"	col3 BYTES(42),\n " +
+				"CONSTRAINT check_1 CHECK (age > 18),\nCONSTRAINT check_2 CHECK (age < 99)\n" +
+				") ",
 		},
 	}
 	for _, tc := range tests {

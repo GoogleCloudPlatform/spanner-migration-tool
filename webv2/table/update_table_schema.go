@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -55,6 +56,7 @@ type updateTable struct {
 // (3) Rename column.
 // (4) Add or Remove NotNull constraint.
 // (5) Update Spanner type.
+// (6) Update Check constraints Name.
 func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -95,6 +97,14 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if v.Rename != "" && v.Rename != conv.SpSchema[tableId].ColDefs[colId].Name {
+
+			oldName := conv.SrcSchema[tableId].ColDefs[colId].Name
+
+			for i := range conv.SpSchema[tableId].CheckConstraint {
+				originalString := conv.SpSchema[tableId].CheckConstraint[i].Expr
+				updatedValue := strings.ReplaceAll(originalString, oldName, v.Rename)
+				conv.SpSchema[tableId].CheckConstraint[i].Expr = updatedValue
+			}
 
 			renameColumn(v.Rename, tableId, colId, conv)
 		}

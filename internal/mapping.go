@@ -243,6 +243,19 @@ func ToSpannerIndexName(conv *Conv, srcIndexName string) string {
 	return getSpannerValidName(conv, srcIndexName)
 }
 
+// Note that the check constraints names in spanner have to be globally unique
+// (across the database). But in some source databases, such as MySQL,
+// they only have to be unique for a table. Hence we must map each source
+// constraint name to a unique spanner constraint name.
+func ToSpannerCheckConstraintName(conv *Conv, srcCheckConstraintName string) string {
+	return getSpannerValidName(conv, srcCheckConstraintName)
+}
+
+func GetSpannerValidExpression(cks []ddl.Checkconstraint) []ddl.Checkconstraint {
+	// TODO validate the check constraints data with batch verification then send back
+	return cks
+}
+
 // conv.UsedNames tracks Spanner names that have been used for table names, foreign key constraints
 // and indexes. We use this to ensure we generate unique names when
 // we map from source dbs to Spanner since Spanner requires all these names to be
