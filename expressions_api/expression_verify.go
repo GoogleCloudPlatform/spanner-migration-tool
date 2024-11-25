@@ -11,6 +11,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
+	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 )
 
 const THREAD_POOL = 500
@@ -35,6 +37,22 @@ type DDLVerifier interface {
 }
 type DDLVerifierImpl struct {
 	Expressions ExpressionVerificationAccessor
+}
+
+func GetDDLVerifier(conv *internal.Conv) DDLVerifier {
+	ctx := context.Background()
+	instanceAdmin, _ := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	adminClientImpl, _ := spanneradmin.NewAdminClientImpl(ctx)
+	spClientImpl, _ := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", conv.SpProjectId, conv.SpInstanceId, conv.Audit.MigrationRequestId+"temp-db"))
+	return  &DDLVerifierImpl{
+			Expressions: &ExpressionVerificationAccessorImpl{
+				SpannerAccessor: spanneraccessor.SpannerAccessorImpl{
+					InstanceClient: instanceAdmin,
+					AdminClient:    adminClientImpl,
+					SpannerClient:  spClientImpl,
+				},
+			},
+		}
 }
 
 func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
