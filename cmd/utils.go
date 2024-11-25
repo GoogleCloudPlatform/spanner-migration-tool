@@ -31,6 +31,7 @@ import (
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/parse"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -78,7 +79,7 @@ func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProf
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
 	adminClient, err := utils.NewDatabaseAdminClient(ctx)
 	if err != nil {
-		err = fmt.Errorf("can't create admin client: %v", utils.AnalyzeError(err, dbURI))
+		err = fmt.Errorf("can't create admin client: %v", parse.AnalyzeError(err, dbURI))
 		return nil, nil, dbURI, err
 	}
 	client, err := utils.GetClient(ctx, dbURI)
@@ -161,19 +162,19 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient) error {
-		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
-		if err != nil {
-			return err
-		}
-		spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
-		err = spA.CreateOrUpdateDatabase(ctx, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
-		if err != nil {
-			err = fmt.Errorf("can't create/update database: %v", err)
-			return err
-		}
-		metricsPopulation(ctx, sourceProfile.Driver, conv)
-		conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
-		return nil
+	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+	if err != nil {
+		return err
+	}
+	spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
+	err = spA.CreateOrUpdateDatabase(ctx, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
+	if err != nil {
+		err = fmt.Errorf("can't create/update database: %v", err)
+		return err
+	}
+	metricsPopulation(ctx, sourceProfile.Driver, conv)
+	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
+	return nil
 }
 
 func migrateData(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,

@@ -423,7 +423,7 @@ func Test_SchemaToSpannerSequenceHelper(t *testing.T) {
 
 	for _, tt := range tc {
 		conv := internal.MakeConv()
-		ss := SchemaToSpannerImpl{}
+		ss := GetSchemaToSpannerImpl(conv)
 		ss.SchemaToSpannerSequenceHelper(conv, tt.srcSequence)
 		assert.Equal(t, expectedConv, conv)
 	}

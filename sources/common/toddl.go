@@ -30,12 +30,19 @@ While adding new methods or code here
 package common
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"unicode"
 
+	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
+	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
+	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -54,9 +61,30 @@ type SchemaToSpannerInterface interface {
 	SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error
 	SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error
 	SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error
+	SpannerSchemaApplyExpressions(conv *internal.Conv, expressions internal.VerifyExpressionsOutput)
 }
 
-type SchemaToSpannerImpl struct{}
+type SchemaToSpannerImpl struct {
+	DdlV expressions_api.DDLVerifier
+}
+
+func GetSchemaToSpannerImpl(conv *internal.Conv) SchemaToSpannerInterface {
+	ctx := context.Background()
+	instanceAdmin, _ := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	adminClientImpl, _ := spanneradmin.NewAdminClientImpl(ctx)
+	spClientImpl, _ := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", conv.SpProjectId, conv.SpInstanceId, conv.Audit.MigrationRequestId+"temp-db"))
+	return &SchemaToSpannerImpl{
+		DdlV: &expressions_api.DDLVerifierImpl{
+			Expressions: &expressions_api.ExpressionVerificationAccessorImpl{
+				SpannerAccessor: spanneraccessor.SpannerAccessorImpl{
+					InstanceClient: instanceAdmin,
+					AdminClient:    adminClientImpl,
+					SpannerClient:  spClientImpl,
+				},
+			},
+		},
+	}
+}
 
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
@@ -72,6 +100,12 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
 	internal.ResolveRefs(conv)
+
+	expressions, err := ss.DdlV.VerifySpannerDDL(conv, tableIds)
+	if err != nil && !strings.Contains(err.Error(), "expressions either failed verification") {
+		return err
+	}
+	ss.SpannerSchemaApplyExpressions(conv, expressions)
 	return nil
 }
 
@@ -204,6 +238,34 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerSequenceHelper(conv *internal.Conv
 	return nil
 }
 
+func (ss *SchemaToSpannerImpl) SpannerSchemaApplyExpressions(conv *internal.Conv, expressions internal.VerifyExpressionsOutput) {
+	for _, expression := range expressions.ExpressionVerificationOutputList {
+		switch expression.ExpressionDetail.Type {
+		case "DEFAULT":
+			{
+				tableId := expression.ExpressionDetail.Metadata["TableId"]
+				columnId := expression.ExpressionDetail.Metadata["ColId"]
+
+				if expression.Result {
+					col := conv.SpSchema[tableId].ColDefs[columnId]
+					col.DefaultValue = ddl.DefaultValue{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: expression.ExpressionDetail.ExpressionId,
+							Query:        expression.ExpressionDetail.Expression,
+						},
+					}
+					conv.SpSchema[tableId].ColDefs[columnId] = col
+				} else {
+					colIssues := conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
+					colIssues = append(colIssues, internal.DefaultValue)
+					conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = colIssues
+				}
+			}
+		}
+	}
+}
+
 func quoteIfNeeded(s string) string {
 	for _, r := range s {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsPunct(r) {
@@ -285,7 +347,7 @@ func cvtIndexes(conv *internal.Conv, tableId string, srcIndexes []schema.Index, 
 }
 
 func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table) error {
-	schemaToSpanner := SchemaToSpannerImpl{}
+	schemaToSpanner := GetSchemaToSpannerImpl(conv)
 	err := schemaToSpanner.SchemaToSpannerDDLHelper(conv, toddl, srcTable, true)
 	if err != nil {
 		return err

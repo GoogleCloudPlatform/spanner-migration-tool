@@ -42,7 +42,8 @@ func TestGoldens(t *testing.T) {
 	testCases := commonTesting.GoldenTestCasesFrom(t, GoldenTestsDir)
 	t.Logf("executing %d test cases from %s", len(testCases), GoldenTestsDir)
 
-	schemaToSpanner := common.SchemaToSpannerImpl{}
+	conv := internal.MakeConv()
+	schemaToSpanner := common.GetSchemaToSpannerImpl(conv)
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {

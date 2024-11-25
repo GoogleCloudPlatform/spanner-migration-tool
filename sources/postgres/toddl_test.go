@@ -168,7 +168,7 @@ func TestToSpannerType(t *testing.T) {
 		PrimaryKeys: []schema.Key{{ColId: "c10"}},
 	}
 	conv.UsedNames = map[string]bool{"ref_table": true, "ref_table2": true}
-	schemaToSpanner := common.SchemaToSpannerImpl{}
+	schemaToSpanner := common.GetSchemaToSpannerImpl(conv)
 	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
 	actual := conv.SpSchema[tableId]
 	dropComments(&actual) // Don't test comment.
@@ -257,7 +257,7 @@ func TestToExperimentalSpannerType(t *testing.T) {
 		PrimaryKeys: []schema.Key{{ColId: "c10"}},
 	}
 	conv.UsedNames = map[string]bool{"ref_table": true, "ref_table2": true}
-	schemaToSpanner := common.SchemaToSpannerImpl{}
+	schemaToSpanner := common.GetSchemaToSpannerImpl(conv)
 	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
 	actual := conv.SpSchema[tableId]
 	dropComments(&actual) // Don't test comment.

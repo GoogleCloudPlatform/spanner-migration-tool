@@ -21,6 +21,7 @@ import (
 
 	sp "cloud.google.com/go/spanner"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -111,16 +112,16 @@ func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema Info
 		numWorkers = DefaultWorkers
 	}
 
-	asyncProcessTable := func(t SchemaAndName, mutex *sync.Mutex) TaskResult[SchemaAndName] {
+	asyncProcessTable := func(t SchemaAndName, mutex *sync.Mutex) task.TaskResult[SchemaAndName] {
 		table, e := is.processTable(conv, t, infoSchema)
 		mutex.Lock()
 		conv.SrcSchema[table.Id] = table
 		mutex.Unlock()
-		res := TaskResult[SchemaAndName]{t, e}
+		res := task.TaskResult[SchemaAndName]{t, e}
 		return res
 	}
 
-	r := RunParallelTasksImpl[SchemaAndName, SchemaAndName]{}
+	r := task.RunParallelTasksImpl[SchemaAndName, SchemaAndName]{}
 	res, e := r.RunParallelTasks(tables, numWorkers, asyncProcessTable, false)
 	if e != nil {
 		fmt.Printf("exiting due to error: %s , while processing schema for table %s\n", e, res)
