@@ -56,6 +56,7 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
             --target-profile='project=spanner-project,instance=spanner-insta\
         nce' --project='migration-project'
 
+    To run a minimal downtime schema and data migration on a multi-sharded source, refer to the [example source-profile configuration](config-json#config-for-sharded-minimal-downtime-migrations)
 ## REQUIRED FLAGS
 
      --source=SOURCE
