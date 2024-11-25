@@ -58,7 +58,7 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
 ## REQUIRED FLAGS
 
      --session=SESSION
-        Specifies the file that you restore session state from.
+        Specifies the file that you restore session state from. This file can be generaed using the [schma](schema.md) sub command.
 
      --source=SOURCE
         Flag for specifying source database (e.g., PostgreSQL, MySQL,
