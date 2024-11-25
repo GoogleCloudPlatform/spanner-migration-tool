@@ -7,7 +7,6 @@ import (
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
-	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	helpers "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 )
@@ -82,13 +81,11 @@ func getOldMetadataDbUri(projectId string, instanceId string) string {
 
 func migrateMetadataDb(projectId, instanceId string) {
 	ctx := context.Background()
-	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+	spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
-	spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
 	oldMetadataDbUri := getOldMetadataDbUri(projectId, instanceId)
 	oldMetadataDBExists, err := spA.CheckExistingDb(ctx, oldMetadataDbUri)
 	if err != nil {

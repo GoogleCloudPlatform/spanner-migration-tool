@@ -23,8 +23,6 @@ import (
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
-	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
-	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
@@ -162,11 +160,10 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient) error {
-		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+		spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 		if err != nil {
 			return err
 		}
-		spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
 		err = spA.CreateOrUpdateDatabase(ctx, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
 		if err != nil {
 			err = fmt.Errorf("can't create/update database: %v", err)
@@ -209,11 +206,10 @@ func migrateData(ctx context.Context, migrationProjectId string, targetProfile p
 	}
 	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	if !cmd.SkipForeignKeys {
-		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+		spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 		if err != nil {
 			return bw, err
 		}
-		spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
 		spA.UpdateDDLForeignKeys(ctx, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
 	}
 	return bw, nil
@@ -221,11 +217,10 @@ func migrateData(ctx context.Context, migrationProjectId string, targetProfile p
 
 func migrateSchemaAndData(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *SchemaAndDataCmd) (*writer.BatchWriter, error) {
-	adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+	spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		return nil, err
 	}
-	spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
 	err = spA.CreateOrUpdateDatabase(ctx, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
 	if err != nil {
 		err = fmt.Errorf("can't create/update database: %v", err)
@@ -258,7 +253,7 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 }
 
 func ValidateResourceGenerationHelper(ctx context.Context, migrationProjectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
-	instanceAdminClient, err := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	spanneraccessor, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		return err
 	}
@@ -270,7 +265,7 @@ func ValidateResourceGenerationHelper(ctx context.Context, migrationProjectId st
 	if err != nil {
 		return err
 	}
-	validateResource := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{InstanceClient: instanceAdminClient}, &datastream_accessor.DatastreamAccessorImpl{},
+	validateResource := conversion.NewValidateResourcesImpl(spanneraccessor, &datastream_accessor.DatastreamAccessorImpl{},
 		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
 	err = validateResource.ValidateResourceGeneration(ctx, migrationProjectId, instanceId, sourceProfile, conv)
 	if err != nil {

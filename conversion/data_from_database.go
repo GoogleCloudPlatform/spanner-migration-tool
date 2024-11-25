@@ -23,7 +23,6 @@ import (
 	"cloud.google.com/go/datastream/apiv1/datastreampb"
 	sp "cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
-	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
@@ -61,12 +60,11 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDMSMigration() (*writer.Batch
 // 5. Perform streaming migration via dataflow
 func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationProjectId string, targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv, is common.InfoSchemaInterface) (*writer.BatchWriter, error) {
 	// Fetch Spanner Region
-	if conv.SpRegion == "" {
-		spInstanceAdmin, err := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	if conv.SpRegion == "" {	
+		spAcc, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("unable to fetch Spanner Region for resource creation: %v", err)
 		}
-		spAcc := spanneraccessor.SpannerAccessorImpl{InstanceClient: spInstanceAdmin}
 		spannerRegion, err := spAcc.GetSpannerLeaderLocation(ctx, "projects/"+targetProfile.Conn.Sp.Project+"/instances/"+targetProfile.Conn.Sp.Instance)
 		if err != nil {
 			return nil, fmt.Errorf("unable to fetch Spanner Region for resource creation: %v", err)

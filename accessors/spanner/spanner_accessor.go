@@ -87,6 +87,34 @@ type SpannerAccessorImpl struct {
 	SpannerClient  spannerclient.SpannerClient
 }
 
+func NewSpannerAccessorClientImpl(ctx context.Context) (*SpannerAccessorImpl, error) {
+	instanceClient, err := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	if err != nil {
+		return nil, err
+	}
+	adminClient, err := spanneradmin.NewAdminClientImpl(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &SpannerAccessorImpl{InstanceClient: instanceClient, AdminClient: adminClient}, nil
+}
+
+func NewSpannerAccessorClientImplWithSpannerClient(ctx context.Context, dbURI string) (*SpannerAccessorImpl, error) {
+	instanceClient, err := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	if err != nil {
+		return nil, err
+	}
+	adminClient, err := spanneradmin.NewAdminClientImpl(ctx)
+	if err != nil {
+		return nil, err
+	}
+	spannerClient, err := spannerclient.NewSpannerClientImpl(ctx, dbURI)
+	if err != nil {
+		return nil, err
+	}
+	return &SpannerAccessorImpl{InstanceClient: instanceClient, AdminClient: adminClient, SpannerClient: spannerClient}, nil
+}
+
 func (sp *SpannerAccessorImpl) GetDatabaseDialect(ctx context.Context, dbURI string) (string, error) {
 	result, err := sp.AdminClient.GetDatabase(ctx, &databasepb.GetDatabaseRequest{Name: dbURI})
 	if err != nil {
