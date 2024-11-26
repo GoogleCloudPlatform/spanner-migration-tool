@@ -32,8 +32,6 @@ func TestVerifyExpressions(t *testing.T) {
 	conv := internal.MakeConv()
 	ReadSessionFile(conv, "../../test_data/session_expression_verify.json")
 	input := internal.VerifyExpressionsInput{
-		Project:  "test-project",
-		Instance: "test-instance",
 		Conv:     conv,
 		Source:   "mysql",
 		ExpressionDetailList: []internal.ExpressionDetail{
@@ -45,7 +43,7 @@ func TestVerifyExpressions(t *testing.T) {
 	t.Run("Happy case 1: stagingdb does not exist and expression is successfully verified", func(t *testing.T) {
 		spannerMockClient := spannerclient.SpannerClientMock{
 			DatabaseNameMock: func() string {
-				return "test-db"
+				return "projects/spanner-cloud-test/instances/foo/databases/foodb"
 			},
 			SingleMock: func() spannerclient.ReadOnlyTransaction {
 				return &spannerclient.ReadOnlyTransactionMock{
@@ -74,7 +72,7 @@ func TestVerifyExpressions(t *testing.T) {
 				return nil
 			},
 		}
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{SpannerClient: spannerMockClient, AdminClient: spannerAdminMockClient}}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{SpannerClient: spannerMockClient, AdminClient: spannerAdminMockClient}}
 		output := ev.VerifyExpressions(ctx, input)
 		assert.Nil(t, output.Err)
 		assert.Equal(t, len(output.ExpressionVerificationOutputList), 1)
@@ -84,7 +82,7 @@ func TestVerifyExpressions(t *testing.T) {
 	t.Run("Happy case 2: Successfully dropped existing stagingDb and verified expressions", func(t *testing.T) {
 		spannerMockClient := spannerclient.SpannerClientMock{
 			DatabaseNameMock: func() string {
-				return "test-db"
+				return "projects/spanner-cloud-test/instances/foo/databases/foodb"
 			},
 			SingleMock: func() spannerclient.ReadOnlyTransaction {
 				return &spannerclient.ReadOnlyTransactionMock{
@@ -113,7 +111,7 @@ func TestVerifyExpressions(t *testing.T) {
 				return nil
 			},
 		}
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{SpannerClient: spannerMockClient, AdminClient: spannerAdminMockClient}}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{SpannerClient: spannerMockClient, AdminClient: spannerAdminMockClient}}
 		output := ev.VerifyExpressions(ctx, input)
 		assert.Nil(t, output.Err)
 		assert.Equal(t, len(output.ExpressionVerificationOutputList), 1)
@@ -123,7 +121,7 @@ func TestVerifyExpressions(t *testing.T) {
 	t.Run("Error in creating staging database", func(t *testing.T) {
 		spannerMockClient := spannerclient.SpannerClientMock{
 			DatabaseNameMock: func() string {
-				return "test-db"
+				return "projects/spanner-cloud-test/instances/foo/databases/foodb"
 			},
 		}
 		spannerAdminMockClient := &spanneradmin.AdminClientMock{
@@ -144,7 +142,7 @@ func TestVerifyExpressions(t *testing.T) {
 				return fmt.Errorf("unable to drop the database")
 			},
 		}
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{AdminClient: spannerAdminMockClient, SpannerClient: spannerMockClient}}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{AdminClient: spannerAdminMockClient, SpannerClient: spannerMockClient}}
 		output := ev.VerifyExpressions(ctx, input)
 		assert.NotNil(t, output.Err)
 	})
@@ -152,7 +150,7 @@ func TestVerifyExpressions(t *testing.T) {
 	t.Run("Error in dropping existing database", func(t *testing.T) {
 		spannerMockClient := spannerclient.SpannerClientMock{
 			DatabaseNameMock: func() string {
-				return "test-db"
+				return "projects/spanner-cloud-test/instances/foo/databases/foodb"
 			},
 		}
 		spannerAdminMockClient := &spanneradmin.AdminClientMock{
@@ -170,7 +168,7 @@ func TestVerifyExpressions(t *testing.T) {
 				return fmt.Errorf("unable to drop the database")
 			},
 		}
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{AdminClient: spannerAdminMockClient, SpannerClient: spannerMockClient}}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{AdminClient: spannerAdminMockClient, SpannerClient: spannerMockClient}}
 		output := ev.VerifyExpressions(ctx, input)
 		assert.NotNil(t, output.Err)
 
@@ -179,7 +177,7 @@ func TestVerifyExpressions(t *testing.T) {
 	t.Run("Invalid expression", func(t *testing.T) {
 		spannerMockClient := spannerclient.SpannerClientMock{
 			DatabaseNameMock: func() string {
-				return "test-db"
+				return "projects/spanner-cloud-test/instances/foo/databases/foodb"
 			},
 			SingleMock: func() spannerclient.ReadOnlyTransaction {
 				return &spannerclient.ReadOnlyTransactionMock{
@@ -208,53 +206,35 @@ func TestVerifyExpressions(t *testing.T) {
 				return nil
 			},
 		}
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{SpannerClient: spannerMockClient, AdminClient: spannerAdminMockClient}}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{SpannerClient: spannerMockClient, AdminClient: spannerAdminMockClient}}
 		output := ev.VerifyExpressions(ctx, input)
 		assert.NotNil(t, output.Err)
 		assert.Equal(t, len(output.ExpressionVerificationOutputList), 1)
 		assert.False(t, output.ExpressionVerificationOutputList[0].Result)
 	})
 
-	t.Run("Missing Project", func(t *testing.T) {
-		badInput := input
-		badInput.Project = ""
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{}}
-		output := ev.VerifyExpressions(ctx, badInput)
-		assert.NotNil(t, output.Err)
-		assert.True(t, strings.Contains(output.Err.Error(), "one of project, instance, conv or source is empty. These are mandatory fields"))
-	})
-
-	t.Run("Missing Instance", func(t *testing.T) {
-		badInput := input
-		badInput.Instance = ""
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{}}
-		output := ev.VerifyExpressions(ctx, badInput)
-		assert.NotNil(t, output.Err)
-		assert.True(t, strings.Contains(output.Err.Error(), "one of project, instance, conv or source is empty. These are mandatory fields"))
-	})
-
 	t.Run("Nil conv", func(t *testing.T) {
 		badInput := input
 		badInput.Conv = nil
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{}}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{}}
 		output := ev.VerifyExpressions(ctx, badInput)
 		assert.NotNil(t, output.Err)
-		assert.True(t, strings.Contains(output.Err.Error(), "one of project, instance, conv or source is empty. These are mandatory fields"))
+		assert.True(t, strings.Contains(output.Err.Error(), "one of conv or source is empty. These are mandatory fields"))
 	})
 
 	t.Run("Missing Source", func(t *testing.T) {
 		badInput := input
 		badInput.Source = ""
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{}}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{}}
 		output := ev.VerifyExpressions(ctx, badInput)
 		assert.NotNil(t, output.Err)
-		assert.True(t, strings.Contains(output.Err.Error(), "one of project, instance, conv or source is empty. These are mandatory fields"))
+		assert.True(t, strings.Contains(output.Err.Error(), "one of conv or source is empty. These are mandatory fields"))
 	})
 
 	t.Run("Missing expressionId", func(t *testing.T) {
 		badInput := input
 		badInput.ExpressionDetailList[0].ExpressionId = ""
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{}}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{}}
 		output := ev.VerifyExpressions(ctx, badInput)
 		assert.NotNil(t, output.Err)
 		assert.True(t, strings.Contains(output.Err.Error(), "one of expressionId, expression, type or referenceElement.Name is empty. These are mandatory fields"))
@@ -263,7 +243,7 @@ func TestVerifyExpressions(t *testing.T) {
 	t.Run("Missing expression", func(t *testing.T) {
 		badInput := input
 		badInput.ExpressionDetailList[0].Expression = ""
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{}}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{}}
 		output := ev.VerifyExpressions(ctx, badInput)
 		assert.NotNil(t, output.Err)
 		assert.True(t, strings.Contains(output.Err.Error(), "one of expressionId, expression, type or referenceElement.Name is empty. These are mandatory fields"))
@@ -272,7 +252,7 @@ func TestVerifyExpressions(t *testing.T) {
 	t.Run("Missing expression type", func(t *testing.T) {
 		badInput := input
 		badInput.ExpressionDetailList[0].Type = ""
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{}}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{}}
 		output := ev.VerifyExpressions(ctx, badInput)
 		assert.NotNil(t, output.Err)
 		assert.True(t, strings.Contains(output.Err.Error(), "one of expressionId, expression, type or referenceElement.Name is empty. These are mandatory fields"))
@@ -281,7 +261,7 @@ func TestVerifyExpressions(t *testing.T) {
 	t.Run("Missing Reference Table Name", func(t *testing.T) {
 		badInput := input
 		badInput.ExpressionDetailList[0].ReferenceElement.Name = ""
-		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spanneraccessor.SpannerAccessorImpl{}}
+		ev := &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: &spanneraccessor.SpannerAccessorImpl{}}
 		output := ev.VerifyExpressions(ctx, badInput)
 		assert.NotNil(t, output.Err)
 		assert.True(t, strings.Contains(output.Err.Error(), "one of expressionId, expression, type or referenceElement.Name is empty. These are mandatory fields"))
