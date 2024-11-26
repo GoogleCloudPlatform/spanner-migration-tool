@@ -23,7 +23,6 @@ import (
 	"cloud.google.com/go/datastream/apiv1/datastreampb"
 	datastreamclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
 	datastreamclient_test "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream/datastream_test"
-	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
@@ -38,9 +37,7 @@ import (
 )
 
 func TestValidateResourceGeneration(t *testing.T) {
-	vrg := conversion.ValidateResourcesImpl{
-		SpInstanceAdmin: &spinstanceadmin.InstanceAdminClientMock{},
-	}
+	vrg := conversion.ValidateResourcesImpl{}
 	ctx := context.Background()
 	sourceProfile := profiles.SourceProfile{}
 	conv := internal.MakeConv()
@@ -53,7 +50,7 @@ func TestValidateResourceGeneration(t *testing.T) {
 		{
 			name: "Basic",
 			sam: spanneraccessor.SpannerAccessorMock{
-				GetSpannerLeaderLocationMock: func(ctx context.Context, instanceClient spinstanceadmin.InstanceAdminClient, instanceURI string) (string, error) {
+				GetSpannerLeaderLocationMock: func(ctx context.Context, instanceURI string) (string, error) {
 					return "region", nil
 				},
 			},
@@ -63,7 +60,7 @@ func TestValidateResourceGeneration(t *testing.T) {
 		{
 			name: "Spanner Region error",
 			sam: spanneraccessor.SpannerAccessorMock{
-				GetSpannerLeaderLocationMock: func(ctx context.Context, instanceClient spinstanceadmin.InstanceAdminClient, instanceURI string) (string, error) {
+				GetSpannerLeaderLocationMock: func(ctx context.Context, instanceURI string) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 			},
@@ -73,7 +70,7 @@ func TestValidateResourceGeneration(t *testing.T) {
 		{
 			name: "create resources error",
 			sam: spanneraccessor.SpannerAccessorMock{
-				GetSpannerLeaderLocationMock: func(ctx context.Context, instanceClient spinstanceadmin.InstanceAdminClient, instanceURI string) (string, error) {
+				GetSpannerLeaderLocationMock: func(ctx context.Context, instanceURI string) (string, error) {
 					return "region", nil
 				},
 			},
@@ -574,14 +571,12 @@ func TestGetConnectionProfilesForResources(t *testing.T) {
 
 func TestNewValidateResourcesImpl(t *testing.T) {
 	spAcc := spanneraccessor.SpannerAccessorMock{}
-	spInAdmin := spinstanceadmin.InstanceAdminClientMock{}
 	dsAcc := datastream_accessor.DatastreamAccessorMock{}
 	dsClient := datastreamclient_test.DatastreamClientMock{}
 	storageAcc := storageaccessor.StorageAccessorMock{}
 	stoargeClient := storageclient.StorageClientMock{}
-	vr := conversion.NewValidateResourcesImpl(&spAcc, &spInAdmin, &dsAcc, &dsClient, &storageAcc, &stoargeClient)
+	vr := conversion.NewValidateResourcesImpl(&spAcc, &dsAcc, &dsClient, &storageAcc, &stoargeClient)
 	assert.Equal(t, vr.SpAcc, &spAcc)
-	assert.Equal(t, vr.SpInstanceAdmin, &spInAdmin)
 	rg := vr.ValidateOrCreateResources.(*conversion.ValidateOrCreateResourcesImpl).ResourceGenerator.(*conversion.ResourceGenerationImpl)
 	assert.Equal(t, rg.DsAcc, &dsAcc)
 	assert.Equal(t, rg.DsClient, &dsClient)

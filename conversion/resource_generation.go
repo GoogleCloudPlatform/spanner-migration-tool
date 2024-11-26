@@ -24,7 +24,6 @@ import (
 
 	"cloud.google.com/go/datastream/apiv1/datastreampb"
 	ds "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
-	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
@@ -67,14 +66,12 @@ type ValidateResourcesInterface interface {
 
 type ValidateResourcesImpl struct {
 	SpAcc                     spanneraccessor.SpannerAccessor
-	SpInstanceAdmin           spinstanceadmin.InstanceAdminClient
 	ValidateOrCreateResources ValidateOrCreateResourcesInterface
 }
 
-func NewValidateResourcesImpl(spAcc spanneraccessor.SpannerAccessor, spInstanceAdmin spinstanceadmin.InstanceAdminClient, dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ValidateResourcesImpl {
+func NewValidateResourcesImpl(spAcc spanneraccessor.SpannerAccessor, dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ValidateResourcesImpl {
 	return &ValidateResourcesImpl{
 		SpAcc:                     spAcc,
-		SpInstanceAdmin:           spInstanceAdmin,
 		ValidateOrCreateResources: NewValidateOrCreateResourcesImpl(dsAcc, dsClient, storageAcc, storageClient),
 	}
 }
@@ -97,7 +94,7 @@ func NewResourceGenerationImpl(dsAcc datastream_accessor.DatastreamAccessor, dsC
 
 // Method to validate if in a minimal downtime migration, required resources can be generated
 func (v *ValidateResourcesImpl) ValidateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
-	spannerRegion, err := v.SpAcc.GetSpannerLeaderLocation(ctx, v.SpInstanceAdmin, "projects/"+projectId+"/instances/"+instanceId)
+	spannerRegion, err := v.SpAcc.GetSpannerLeaderLocation(ctx, "projects/"+projectId+"/instances/"+instanceId)
 	if err != nil {
 		err = fmt.Errorf("unable to fetch Spanner Region: %v", err)
 		return err

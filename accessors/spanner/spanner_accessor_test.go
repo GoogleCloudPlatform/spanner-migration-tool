@@ -19,9 +19,11 @@ import (
 	"os"
 	"testing"
 
+	"cloud.google.com/go/spanner"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	"cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
 	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
+	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -30,6 +32,7 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+	"google.golang.org/api/iterator"
 )
 
 func init() {
@@ -90,9 +93,9 @@ func TestSpannerAccessorImpl_GetDatabaseDialect(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	spA := SpannerAccessorImpl{}
 	for _, tc := range testCases {
-		got, err := spA.GetDatabaseDialect(ctx, &tc.acm, "testUri")
+		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
+		got, err := spA.GetDatabaseDialect(ctx, "testUri")
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 		assert.Equal(t, tc.want, got, tc.name)
 	}
@@ -137,9 +140,9 @@ func TestSpannerAccessorImpl_CheckExistingDb(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	spA := SpannerAccessorImpl{}
 	for _, tc := range testCases {
-		got, err := spA.CheckExistingDb(ctx, &tc.acm, "testUri")
+		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
+		got, err := spA.CheckExistingDb(ctx, "testUri")
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 		assert.Equal(t, tc.want, got, tc.name)
 	}
@@ -187,9 +190,9 @@ func TestSpannerAccessorImpl_CreateEmptyDatabase(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	spA := SpannerAccessorImpl{}
 	for _, tc := range testCases {
-		err := spA.CreateEmptyDatabase(ctx, &tc.acm, "projects/test-project/instances/test-instance/databases/mydb")
+		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
+		err := spA.CreateEmptyDatabase(ctx, "projects/test-project/instances/test-instance/databases/mydb")
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
@@ -236,9 +239,9 @@ func TestSpannerAccessorImpl_CreateChangeStream(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	spA := SpannerAccessorImpl{}
 	for _, tc := range testCases {
-		err := spA.CreateChangeStream(ctx, &tc.acm, "my-changestream", "projects/test-project/instances/test-instance/databases/mydb")
+		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
+		err := spA.CreateChangeStream(ctx, "my-changestream", "projects/test-project/instances/test-instance/databases/mydb")
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
@@ -330,9 +333,9 @@ func TestSpannerAccessorImpl_GetSpannerLeaderLocation(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	spA := SpannerAccessorImpl{}
 	for _, tc := range testCases {
-		got, err := spA.GetSpannerLeaderLocation(ctx, &tc.iac, "projects/test-project/instances/test-instance")
+		spA := SpannerAccessorImpl{InstanceClient: &tc.iac}
+		got, err := spA.GetSpannerLeaderLocation(ctx, "projects/test-project/instances/test-instance")
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 		assert.Equal(t, tc.want, got, tc.name)
 	}
@@ -452,12 +455,12 @@ func TestSpannerAccessorImpl_CreateDatabase(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	spA := SpannerAccessorImpl{}
 	for _, tc := range testCases {
 		dbURI := "projects/project-id/instances/instance-id/databases/database-id"
 		conv := internal.MakeConv()
 		conv.SpDialect = tc.dialect
-		err := spA.CreateDatabase(ctx, &tc.acm, dbURI, conv, "", tc.migrationType)
+		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
+		err := spA.CreateDatabase(ctx, dbURI, conv, "", tc.migrationType)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
@@ -624,12 +627,12 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	spA := SpannerAccessorImpl{}
 	for _, tc := range testCases {
 		dbURI := "projects/project-id/instances/instance-id/databases/database-id"
 		conv := internal.MakeConv()
 		conv.SpDialect = tc.dialect
-		err := spA.CreateOrUpdateDatabase(ctx, &tc.acm, dbURI, "", conv, tc.migrationType)
+		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
+		err := spA.CreateOrUpdateDatabase(ctx, dbURI, "", conv, tc.migrationType)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
@@ -673,11 +676,11 @@ func TestSpannerAccessorImpl_UpdateDatabase(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	spA := SpannerAccessorImpl{}
 	for _, tc := range testCases {
 		dbURI := "projects/project-id/instances/instance-id/databases/database-id"
 		conv := internal.MakeConv()
-		err := spA.UpdateDatabase(ctx, &tc.acm, dbURI, conv, "")
+		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
+		err := spA.UpdateDatabase(ctx, dbURI, conv, "")
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
@@ -789,12 +792,57 @@ func TestSpannerAccessorImpl_UpdateDDLForeignKey(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	spA := SpannerAccessorImpl{}
 	for _, tc := range testCases {
 		dbURI := "projects/project-id/instances/instance-id/databases/database-id"
 		conv := internal.MakeConv()
 		conv.SpDialect = tc.dialect
 		conv.SpSchema = tc.spSchema
-		spA.UpdateDDLForeignKeys(ctx, &tc.acm, dbURI, conv, "", tc.migrationType)
+		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
+		spA.UpdateDDLForeignKeys(ctx, dbURI, conv, "", tc.migrationType)
 	}
+}
+
+func TestValidateDML(t *testing.T) {
+	ctx := context.Background()
+	t.Run("Valid DML", func(t *testing.T) {
+		mockClient := spannerclient.SpannerClientMock{
+			SingleMock: func() spannerclient.ReadOnlyTransaction {
+				return &spannerclient.ReadOnlyTransactionMock{
+					QueryMock: func(ctx context.Context, stmt spanner.Statement) spannerclient.RowIterator {
+						return &spannerclient.RowIteratorMock{
+							NextMock: func() (*spanner.Row, error) {
+								return nil, iterator.Done // Simulate successful query
+							},
+							StopMock: func() {},
+						}
+					},
+				}
+			},
+		}
+		spannerAccessor := &SpannerAccessorImpl{SpannerClient: mockClient}
+		isValid, err := spannerAccessor.ValidateDML(ctx, "SELECT 1")
+		assert.True(t, isValid)
+		assert.Nil(t, err)
+	})
+
+	t.Run("Invalid DML", func(t *testing.T) {
+		mockClient := spannerclient.SpannerClientMock{
+			SingleMock: func() spannerclient.ReadOnlyTransaction {
+				return &spannerclient.ReadOnlyTransactionMock{
+					QueryMock: func(ctx context.Context, stmt spanner.Statement) spannerclient.RowIterator {
+						return &spannerclient.RowIteratorMock{
+							NextMock: func() (*spanner.Row, error) {
+								return nil, fmt.Errorf("invalid DML") // Simulate a DML error
+							},
+							StopMock: func() {},
+						}
+					},
+				}
+			},
+		}
+		spannerAccessor := &SpannerAccessorImpl{SpannerClient: mockClient}
+		isValid, err := spannerAccessor.ValidateDML(ctx, "INVALID DML")
+		assert.False(t, isValid)
+		assert.NotNil(t, err) // Expect an error
+	})
 }
