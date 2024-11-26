@@ -13,6 +13,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -365,6 +366,33 @@ func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.RLock()
 	defer sessionState.Conv.ConvLock.RUnlock()
+
+	conv := sessionState.Conv
+
+	tableIds := common.GetSortedTableIdsBySrcName(conv.SrcSchema)
+	internal.ResolveRefs(conv)
+	ddlV := expressions_api.GetDDLVerifier(conv)
+
+	expressions, err := ddlV.VerifySpannerDDL(conv, tableIds)
+	if err != nil && strings.Contains(err.Error(), "expressions either failed verification") {
+		for _, exp := range expressions.ExpressionVerificationOutputList {
+			switch exp.ExpressionDetail.Type {
+			case "DEFAULT":
+				{
+					if !exp.Result {
+						tableId := exp.ExpressionDetail.Metadata["TableId"]
+						columnId := exp.ExpressionDetail.Metadata["ColumnId"]
+						issues := conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
+						issues = append(issues, internal.DefaultValueError)
+						conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = issues
+					}
+				}
+			}
+		}
+	} else if err != nil {
+	}
+
+	session.UpdateSessionFile()
 
 	var tableIdName []types.TableIdAndName
 	for id, issues := range sessionState.Conv.SchemaIssues {

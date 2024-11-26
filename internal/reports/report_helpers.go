@@ -514,7 +514,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	Category            string // Standarized issue type
 	CategoryDescription string
 }{
-	internal.DefaultValue:          {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
+	internal.DefaultValue:          {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: Errors, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
 	internal.ForeignKey:            {Brief: "Spanner does not support foreign keys", Severity: warning, Category: "FOREIGN_KEY_USES"},
 	internal.MultiDimensionalArray: {Brief: "Spanner doesn't support multi-dimensional arrays", Severity: warning, Category: "MULTI_DIMENSIONAL_ARRAY_USES"},
 	internal.NoGoodType: {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", Severity: warning, Category: "INAPPROPRIATE_TYPE",
@@ -562,6 +562,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.ForeignKeyOnUpdate:           {Brief: "Spanner supports only ON UPDATE NO ACTION", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
 	internal.ForeignKeyActionNotSupported: {Brief: "Spanner supports foreign key action migration only for MySQL and PostgreSQL", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
 	internal.NumericPKNotSupported:        {Brief: "Spanner PostgreSQL does not support numeric primary keys / unique indices", Severity: warning, Category: "NUMERIC_PK_NOT_SUPPORTED"},
+	internal.DefaultValueError:          {Brief: "Some columns have default value expressions not supported by Spanner. Please fix them to continue migration.", Severity: Errors, batch: true, Category: "INCOMPATIBLE_DEFAULT_VALUE_CONSTRAINTS"},
 }
 
 type Severity int
