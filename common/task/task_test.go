@@ -16,29 +16,37 @@
 Package utils contains common helper functions used across multiple other packages.
 Utils should not import any Spanner migration tool packages.
 */
-package task
+package task_test
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/exp/rand"
+	"go.uber.org/zap"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 func TestWorkerPool(t *testing.T) {
 	input := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 
-	f := func(i int, mutex *sync.Mutex) TaskResult[int] {
+	f := func(i int, mutex *sync.Mutex) task.TaskResult[int] {
 		sleepTime := time.Duration(rand.Intn(1000 * 1000))
 		time.Sleep(sleepTime)
-		res := TaskResult[int]{Result: i, Err: nil}
+		res := task.TaskResult[int]{Result: i, Err: nil}
 		return res
 	}
 
-	r := RunParallelTasksImpl[int, int]{}
+	r := task.RunParallelTasksImpl[int, int]{}
 	out, _ := r.RunParallelTasks(input, 5, f, false)
 	assert.Equal(t, len(input), len(out), fmt.Sprintln("jobs not processed"))
 }
