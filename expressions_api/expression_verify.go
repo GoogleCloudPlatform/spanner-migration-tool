@@ -11,6 +11,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 const THREAD_POOL = 500
@@ -129,8 +130,14 @@ func (ev *ExpressionVerificationAccessorImpl) removeExpressions(inputConv *inter
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling conv: %v", err)
 	}
-	// TODO: Add logic here which removes expressions from the convCopy object and
-	// returns it back. This will include logic for DEFAULT and CHECK constraints,
-	// and sequences.
+	//Set sequences as nil
+	//TODO: Implement similar checks for DEFAULT and CHECK constraints as well
+	convCopy.SpSequences = nil
+	for _, table := range convCopy.SpSchema {
+		for colName, colDef := range table.ColDefs {
+			colDef.AutoGen = ddl.AutoGenCol{}
+			table.ColDefs[colName] = colDef
+		}
+	}
 	return convCopy, nil
 }
