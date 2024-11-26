@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	sp "cloud.google.com/go/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -96,9 +97,9 @@ func (mrg *MockResourceGeneration) GetConnectionProfilesForResources(ctx context
 	args := mrg.Called(ctx, projectId, sourceProfile, region, validateOnly)
 	return args.Get(0).([]*ConnectionProfileReq), args.Get(1).([]*ConnectionProfileReq), args.Error(2)
 }
-func (mrg *MockResourceGeneration) PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq] {
+func (mrg *MockResourceGeneration) PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) task.TaskResult[*ConnectionProfileReq] {
 	args := mrg.Called(createResourceData, mutex)
-	return args.Get(0).(common.TaskResult[*ConnectionProfileReq])
+	return args.Get(0).(task.TaskResult[*ConnectionProfileReq])
 }
 
 type MockValidateResources struct {

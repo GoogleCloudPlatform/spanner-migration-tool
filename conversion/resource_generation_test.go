@@ -28,6 +28,7 @@ import (
 	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -102,7 +103,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 		validateOnly                   bool
 		resourcesForGeneration         []*conversion.ConnectionProfileReq
 		resourcesForGenerationError    error
-		prepareResourcesResult         common.TaskResult[*conversion.ConnectionProfileReq]
+		prepareResourcesResult         task.TaskResult[*conversion.ConnectionProfileReq]
 		runParallelTasksForSourceError error
 		runParallelTasksForTargetError error
 		RollbackResourceCreationError  error
@@ -113,7 +114,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			validateOnly:                  true,
 			resourcesForGeneration:        validGetResourcesForGeneration,
 			resourcesForGenerationError:   nil,
-			prepareResourcesResult:        common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			prepareResourcesResult:        task.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
 			RollbackResourceCreationError: nil,
 			expectError:                   false,
 		},
@@ -122,7 +123,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			validateOnly:                  true,
 			resourcesForGeneration:        validGetResourcesForGeneration,
 			resourcesForGenerationError:   nil,
-			prepareResourcesResult:        common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			prepareResourcesResult:        task.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
 			RollbackResourceCreationError: nil,
 			expectError:                   false,
 		},
@@ -131,7 +132,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			validateOnly:                  true,
 			resourcesForGeneration:        []*conversion.ConnectionProfileReq{},
 			resourcesForGenerationError:   fmt.Errorf("error"),
-			prepareResourcesResult:        common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			prepareResourcesResult:        task.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
 			RollbackResourceCreationError: nil,
 			expectError:                   true,
 		},
@@ -140,7 +141,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			validateOnly:                   true,
 			resourcesForGeneration:         validGetResourcesForGeneration,
 			resourcesForGenerationError:    nil,
-			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			prepareResourcesResult:         task.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
 			RollbackResourceCreationError:  nil,
 			runParallelTasksForSourceError: fmt.Errorf("error"),
 			expectError:                    true,
@@ -150,7 +151,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			validateOnly:                   false,
 			resourcesForGeneration:         validGetResourcesForGeneration,
 			resourcesForGenerationError:    nil,
-			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			prepareResourcesResult:         task.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
 			RollbackResourceCreationError:  nil,
 			runParallelTasksForSourceError: fmt.Errorf("error"),
 			expectError:                    true,
@@ -160,7 +161,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			validateOnly:                   false,
 			resourcesForGeneration:         validGetResourcesForGeneration,
 			resourcesForGenerationError:    nil,
-			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			prepareResourcesResult:         task.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
 			RollbackResourceCreationError:  fmt.Errorf("error"),
 			runParallelTasksForSourceError: fmt.Errorf("error"),
 			expectError:                    true,
@@ -170,7 +171,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			validateOnly:                   false,
 			resourcesForGeneration:         validGetResourcesForGeneration,
 			resourcesForGenerationError:    nil,
-			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			prepareResourcesResult:         task.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
 			RollbackResourceCreationError:  nil,
 			runParallelTasksForTargetError: fmt.Errorf("error"),
 			expectError:                    true,
@@ -181,7 +182,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			validateOnly:                   false,
 			resourcesForGeneration:         validGetResourcesForGeneration,
 			resourcesForGenerationError:    nil,
-			prepareResourcesResult:         common.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
+			prepareResourcesResult:         task.TaskResult[*conversion.ConnectionProfileReq]{Result: validConnectionProfileReq, Err: nil},
 			RollbackResourceCreationError:  fmt.Errorf("error"),
 			runParallelTasksForTargetError: fmt.Errorf("error"),
 			expectError:                    true,
@@ -191,7 +192,7 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 			validateOnly:                  true,
 			resourcesForGeneration:        validGetResourcesForGeneration,
 			resourcesForGenerationError:   nil,
-			prepareResourcesResult:        common.TaskResult[*conversion.ConnectionProfileReq]{Result: errorConnectionProfileReq, Err: nil},
+			prepareResourcesResult:        task.TaskResult[*conversion.ConnectionProfileReq]{Result: errorConnectionProfileReq, Err: nil},
 			RollbackResourceCreationError: nil,
 			expectError:                   true,
 		},
@@ -203,8 +204,8 @@ func TestCreateResourcesForShardedMigration(t *testing.T) {
 		mrg.On("RollbackResourceCreation", mock.Anything, mock.Anything).Return(tc.RollbackResourceCreationError)
 
 		mrpt := common.MockRunParallelTasks[*conversion.ConnectionProfileReq, *conversion.ConnectionProfileReq]{}
-		mrpt.On("RunParallelTasks", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]common.TaskResult[*conversion.ConnectionProfileReq]{tc.prepareResourcesResult, tc.prepareResourcesResult}, tc.runParallelTasksForSourceError).Once()
-		mrpt.On("RunParallelTasks", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]common.TaskResult[*conversion.ConnectionProfileReq]{tc.prepareResourcesResult}, tc.runParallelTasksForTargetError).Once()
+		mrpt.On("RunParallelTasks", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]task.TaskResult[*conversion.ConnectionProfileReq]{tc.prepareResourcesResult, tc.prepareResourcesResult}, tc.runParallelTasksForSourceError).Once()
+		mrpt.On("RunParallelTasks", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]task.TaskResult[*conversion.ConnectionProfileReq]{tc.prepareResourcesResult}, tc.runParallelTasksForTargetError).Once()
 		cr.ResourceGenerator = &mrg
 		cr.RunParallel = &mrpt
 		err := cr.ValidateOrCreateResourcesForShardedMigration(ctx, "project-id", "instance-id", tc.validateOnly, "region", sourceProfile)
