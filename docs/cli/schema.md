@@ -8,9 +8,14 @@ nav_order: 1
 # Schema subcommand
 {: .no_toc }
 
-This subcommand can be used to perform schema conversion and report on the quality of the conversion. The generated schema mapping file (session.json) can be then further edited using the Spanner migration tool web UI to make custom edits to the destination schema. This session file
-is then passed to the data subcommand to perform data migration while honoring the defined
-schema mapping. Spanner migration tool also generates Spanner schema which users can modify manually and use directly as well.
+This subcommand can be used to perform schema conversion and report on the quality of the conversion. 
+Based on the options discussed further, it helps with:
+1. Generate Report on quality of conversion.
+2. Generate the Spanner schema in Schema file, which could be manually modified and applied on spanner if required.
+3. Generate schema mapping file (`session.json`), which helps the data migration pipeline with the context how the source shcema maps to spanner schema. If required, the schema mapping file can be manually edited (either directly or with the help of SMT web UI). The modified session file can be passed back as **sessionFilePath** parameter to schema sub command if required.
+4. If you would like to perform the data migration via spanner migration tool, the session file needs be passed to the [data subcommand](data.md) as the **--session** parameter.
+5. In case you would like to use [sourcedb-to-spanner](https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/94a7e9f08cadd4980201dfa8a7fc397970111021/v2/sourcedb-to-spanner) dataflow template for migrating the bulk data, you should updload the session file to GCS and pass the path to the same as **sessionFilePath**.
+6. Running with `--dry-run` option just generates the report, schema file and session file. In case you also want the generated schema to be automatically applied to spanner, you should run the cli without the `--dry-run` option.
 
 {: .highlight }
 The command below assumes that the open-source version of SMT is being used. For the CLI
