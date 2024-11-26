@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"io/ioutil"
 	"log"
 	"os"
 	"testing"
@@ -28,51 +27,33 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	cleanup := initIntegrationTests()
+	initIntegrationTests()
 	res := m.Run()
-	cleanup()
 	os.Exit(res)
 }
 
-func initIntegrationTests() (cleanup func()) {
+func initIntegrationTests() {
 	projectID = os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID")
 	instanceID = os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID")
 
 	ctx = context.Background()
 	flag.Parse() // Needed for testing.Short().
-	noop := func() {}
-
 	if testing.Short() {
 		log.Println("Integration tests skipped in -short mode.")
-		return noop
 	}
 
 	if projectID == "" {
 		log.Println("Integration tests skipped: SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID is missing")
-		return noop
 	}
 
 	if instanceID == "" {
 		log.Println("Integration tests skipped: SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID is missing")
-		return noop
 	}
-	return func() {}
-}
-
-func prepareIntegrationTest(t *testing.T) string {
-	tmpdir, err := ioutil.TempDir(".", "int-test-")
-	if err != nil {
-		log.Fatal(err)
-	}
-	return tmpdir
 }
 
 func TestIntegration_VerifyExpressions(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
-
-	tmpdir := prepareIntegrationTest(t)
-	defer os.RemoveAll(tmpdir)
 	ev, err := expressions_api.NewExpressionVerificationAccessorImpl(ctx, projectID, instanceID)
 	if err != nil {
 		t.Fatal(err)
