@@ -134,6 +134,7 @@ const (
 	DefaultValueError
 	TypeMismatch
 	DefaultValueError
+	TypeMismatch
 )
 
 const (
