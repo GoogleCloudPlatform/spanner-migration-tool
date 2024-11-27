@@ -129,20 +129,20 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 	return *result.Table.ItemCount, err
 }
 
-func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) (primaryKeys []string, constraints map[string][]string, err error) {
+func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) (primaryKeys []string, checkConstraints []schema.CheckConstraint, constraints map[string][]string, err error) {
 	input := &dynamodb.DescribeTableInput{
 		TableName: aws.String(table.Name),
 	}
 	result, err := isi.DynamoClient.DescribeTable(input)
 	if err != nil {
-		return primaryKeys, constraints, fmt.Errorf("failed to make a DescribeTable API call for table %v: %v", table.Name, err)
+		return primaryKeys, checkConstraints, constraints, fmt.Errorf("failed to make a DescribeTable API call for table %v: %v", table.Name, err)
 	}
 
 	// Primary keys.
 	for _, i := range result.Table.KeySchema {
 		primaryKeys = append(primaryKeys, *i.AttributeName)
 	}
-	return primaryKeys, constraints, nil
+	return primaryKeys, checkConstraints, constraints, nil
 }
 
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {

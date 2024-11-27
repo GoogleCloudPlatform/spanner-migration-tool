@@ -428,3 +428,34 @@ func Test_SchemaToSpannerSequenceHelper(t *testing.T) {
 		assert.Equal(t, expectedConv, conv)
 	}
 }
+
+func Test_cvtCheckContraint(t *testing.T) {
+
+	conv := internal.MakeConv()
+	srcSchema := []schema.CheckConstraint{
+		{
+			Id:   "ck1",
+			Name: "check_1",
+			Expr: "age > 0",
+		},
+		{
+			Id:   "ck1",
+			Name: "check_2",
+			Expr: "age < 99",
+		},
+	}
+	spSchema := []ddl.CheckConstraint{
+		{
+			Id:   "ck1",
+			Name: "check_1",
+			Expr: "age > 0",
+		},
+		{
+			Id:   "ck1",
+			Name: "check_2",
+			Expr: "age < 99",
+		},
+	}
+	result := cvtCheckConstraint(conv, srcSchema)
+	assert.Equal(t, spSchema, result)
+}
