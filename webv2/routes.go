@@ -93,7 +93,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/UpdateSequence", api.UpdateSequence).Methods("POST")
 
 	router.HandleFunc("/update/fks", api.UpdateForeignKeys).Methods("POST")
-	router.HandleFunc("/update/cks", api.UpdateCheckConstraint).Methods("POST")
+	router.HandleFunc("/update/cc", api.UpdateCheckConstraint).Methods("POST")
 	router.HandleFunc("/update/indexes", api.UpdateIndexes).Methods("POST")
 
 	// Session Management

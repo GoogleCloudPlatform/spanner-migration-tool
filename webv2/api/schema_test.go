@@ -2562,7 +2562,7 @@ func TestUpdateCheckConstraint(t *testing.T) {
 	body, err := json.Marshal(checkConstraints)
 	assert.NoError(t, err)
 
-	req, err := http.NewRequest("POST", "update/cks", bytes.NewBuffer(body))
+	req, err := http.NewRequest("POST", "update/cc", bytes.NewBuffer(body))
 	assert.NoError(t, err)
 
 	q := req.URL.Query()
@@ -2590,7 +2590,7 @@ func TestUpdateCheckConstraint_ParseError(t *testing.T) {
 	invalidJSON := "invalid json body"
 
 	rr := httptest.NewRecorder()
-	req, err := http.NewRequest("POST", "update/cks", io.NopCloser(strings.NewReader(invalidJSON)))
+	req, err := http.NewRequest("POST", "update/cc", io.NopCloser(strings.NewReader(invalidJSON)))
 	assert.NoError(t, err)
 
 	handler := http.HandlerFunc(api.UpdateCheckConstraint)
@@ -2613,7 +2613,7 @@ func TestUpdateCheckConstraint_ImproperSession(t *testing.T) {
 	sessionState.Conv = nil // Simulate no conversion
 
 	rr := httptest.NewRecorder()
-	req, err := http.NewRequest("POST", "update/cks", io.NopCloser(errReader{}))
+	req, err := http.NewRequest("POST", "update/cc", io.NopCloser(errReader{}))
 	assert.NoError(t, err)
 
 	handler := http.HandlerFunc(api.UpdateCheckConstraint)
