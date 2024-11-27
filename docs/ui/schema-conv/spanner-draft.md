@@ -69,7 +69,7 @@ Interleaving one table within another without Foreign key relationship is not cu
 
 ##### Prerequisites
 
-To interleave a `child table` within a p`arent table`, the following conditions must be met:
+To interleave a `child table` within a `parent table`, the following conditions must be met:
 
 1. The column names in the child table that reference the parent table must exactly match the column names in the parent table. The columns must also have the same data type and constraints (e.g., NOT NULL).
 2. The child table must reference all of the primary key columns from the parent table, and these columns must also be part of the primary key in the child table.
