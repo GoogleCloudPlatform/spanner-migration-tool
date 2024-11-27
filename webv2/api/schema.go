@@ -510,11 +510,8 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sp := sessionState.Conv.SpSchema[tableId]
-
-	sp.CheckConstraint = newCKs
-
+	sp.CheckConstraints = newCKs
 	sessionState.Conv.SpSchema[tableId] = sp
-
 	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
@@ -523,7 +520,6 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
-
 }
 
 func doesNameExist(spcks []ddl.CheckConstraint, targetName string) bool {
@@ -547,44 +543,30 @@ func ValidateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 
 	sp := sessionState.Conv.SpSchema
 	srcschema := sessionState.Conv.SrcSchema
-
 	flag := true
-
-	schemaissue := []internal.SchemaIssue{}
+	var schemaIssue []internal.SchemaIssue
 
 	for _, src := range srcschema {
-
 		for _, col := range sp[src.Id].ColDefs {
-
-			if len(sp[src.Id].CheckConstraint) != 0 {
+			if len(sp[src.Id].CheckConstraints) > 0 {
 				spType := col.T.Name
 				srcType := srcschema[src.Id].ColDefs[col.Id].Type
-
 				actualType := mysqlDefaultTypeMap[srcType.Name]
-
 				if actualType.Name != spType {
-
 					columnName := sp[src.Id].ColDefs[col.Id].Name
-					spcks := sp[src.Id].CheckConstraint
+					spcks := sp[src.Id].CheckConstraints
 					if doesNameExist(spcks, columnName) {
 						flag = false
-
-						schemaissue = sessionState.Conv.SchemaIssues[src.Id].ColumnLevelIssues[col.Id]
-
-						if !utilities.IsSchemaIssuePresent(schemaissue, internal.TypeMismatch) {
-							schemaissue = append(schemaissue, internal.TypeMismatch)
+						schemaIssue = sessionState.Conv.SchemaIssues[src.Id].ColumnLevelIssues[col.Id]
+						if !utilities.IsSchemaIssuePresent(schemaIssue, internal.TypeMismatch) {
+							schemaIssue = append(schemaIssue, internal.TypeMismatch)
 						}
-
-						sessionState.Conv.SchemaIssues[src.Id].ColumnLevelIssues[col.Id] = schemaissue
-
+						sessionState.Conv.SchemaIssues[src.Id].ColumnLevelIssues[col.Id] = schemaIssue
 						break
-
 					}
 				}
 			}
-
 		}
-
 	}
 
 	w.WriteHeader(http.StatusOK)

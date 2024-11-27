@@ -100,10 +100,10 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			oldName := conv.SrcSchema[tableId].ColDefs[colId].Name
 
-			for i := range conv.SpSchema[tableId].CheckConstraint {
-				originalString := conv.SpSchema[tableId].CheckConstraint[i].Expr
+			for i := range conv.SpSchema[tableId].CheckConstraints {
+				originalString := conv.SpSchema[tableId].CheckConstraints[i].Expr
 				updatedValue := strings.ReplaceAll(originalString, oldName, v.Rename)
-				conv.SpSchema[tableId].CheckConstraint[i].Expr = updatedValue
+				conv.SpSchema[tableId].CheckConstraints[i].Expr = updatedValue
 			}
 
 			renameColumn(v.Rename, tableId, colId, conv)

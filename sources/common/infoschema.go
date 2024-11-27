@@ -36,7 +36,7 @@ type InfoSchema interface {
 	GetColumns(conv *internal.Conv, table SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error)
 	GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error)
 	GetRowCount(table SchemaAndName) (int64, error)
-	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, []schema.CheckConstraints, map[string][]string, error)
+	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, []schema.CheckConstraint, map[string][]string, error)
 	GetForeignKeys(conv *internal.Conv, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
 	GetIndexes(conv *internal.Conv, table SchemaAndName, colNameIdMp map[string]string) ([]schema.Index, error)
 	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error

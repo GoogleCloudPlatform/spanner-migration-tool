@@ -190,7 +190,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
-func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, map[string][]string, error) {
+func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, []schema.CheckConstraint, map[string][]string, error) {
 	q := `SELECT k.column_name, t.constraint_type
               FROM information_schema.table_constraints AS t
                 INNER JOIN information_schema.KEY_COLUMN_USAGE AS k
@@ -221,11 +221,11 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 			break
 		}
 		if err != nil {
-			return nil, nil, fmt.Errorf("couldn't get row while reading constraints: %w", err)
+			return nil, nil, nil, fmt.Errorf("couldn't get row while reading constraints: %w", err)
 		}
 		err = row.Columns(&col, &constraint)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		if col == "" || constraint == "" {
 			conv.Unexpected("Got empty col or constraint")
@@ -238,7 +238,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 			m[col] = append(m[col], constraint)
 		}
 	}
-	return primaryKeys, m, nil
+	return primaryKeys, nil, m, nil
 }
 
 // GetForeignKeys returns a list of all the foreign key constraints.

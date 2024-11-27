@@ -42,7 +42,7 @@ type Table struct {
 	ColNameIdMap     map[string]string `json:"-"` // Computed every time just after conv is generated or after any column renaming
 	PrimaryKeys      []Key
 	ForeignKeys      []ForeignKey
-	CheckConstraints []CheckConstraints
+	CheckConstraints []CheckConstraint
 	Indexes          []Index
 	Id               string
 }
@@ -77,8 +77,8 @@ type ForeignKey struct {
 	Id               string
 }
 
-// CheckConstraints represents a Check Constrainst.
-type CheckConstraints struct {
+// CheckConstraints represents a check constraint defined in the schema.
+type CheckConstraint struct {
 	Name string
 	Expr string
 	Id   string

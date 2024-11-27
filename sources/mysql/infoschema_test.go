@@ -531,6 +531,7 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 	}
 	return db
 }
+
 func TestGetConstraints(t *testing.T) {
 
 	case1 := []mockSpec{
@@ -608,7 +609,7 @@ func TestGetConstraints(t *testing.T) {
 				t.Errorf("expected %v, got %v for primary keys", expectedPrimaryKeys, primaryKeys)
 			}
 
-			expectedCheckKeys := []schema.CheckConstraints{
+			expectedCheckKeys := []schema.CheckConstraint{
 				{Name: "chk_test", Expr: "amount > 0", Id: "ck1"},
 			}
 

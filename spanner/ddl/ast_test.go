@@ -143,7 +143,7 @@ func TestPrintCreateTable(t *testing.T) {
 			},
 			PrimaryKeys: []IndexKey{{ColId: "col1", Desc: true}},
 			ForeignKeys: nil,
-			CheckConstraint: []CheckConstraint{
+			CheckConstraints: []CheckConstraint{
 				{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
 				{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
 			},
@@ -160,13 +160,13 @@ func TestPrintCreateTable(t *testing.T) {
 				"col4": {Name: "col4", T: Type{Name: Int64}, NotNull: true},
 				"col5": {Name: "col5", T: Type{Name: String, Len: MaxLength}, NotNull: false},
 			},
-			PrimaryKeys:     []IndexKey{{ColId: "col4", Desc: true}},
-			ForeignKeys:     nil,
-			Indexes:         nil,
-			CheckConstraint: nil,
-			ParentTable:     InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE},
-			Comment:         "",
-			Id:              "t2",
+			PrimaryKeys:      []IndexKey{{ColId: "col4", Desc: true}},
+			ForeignKeys:      nil,
+			Indexes:          nil,
+			CheckConstraints: nil,
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE},
+			Comment:          "",
+			Id:               "t2",
 		},
 		"t3": CreateTable{
 			Name:          "table3",
@@ -175,13 +175,13 @@ func TestPrintCreateTable(t *testing.T) {
 			ColDefs: map[string]ColumnDef{
 				"col6": {Name: "col6", T: Type{Name: Int64}, NotNull: true},
 			},
-			PrimaryKeys:     []IndexKey{{ColId: "col6", Desc: true}},
-			ForeignKeys:     nil,
-			Indexes:         nil,
-			CheckConstraint: nil,
-			ParentTable:     InterleavedParent{Id: "t1", OnDelete: ""},
-			Comment:         "",
-			Id:              "t3",
+			PrimaryKeys:      []IndexKey{{ColId: "col6", Desc: true}},
+			ForeignKeys:      nil,
+			Indexes:          nil,
+			CheckConstraints: nil,
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: ""},
+			Comment:          "",
+			Id:               "t3",
 		},
 		"t4": CreateTable{
 			Name:          "table1",
@@ -194,7 +194,7 @@ func TestPrintCreateTable(t *testing.T) {
 			},
 			PrimaryKeys: nil,
 			ForeignKeys: nil,
-			CheckConstraint: []CheckConstraint{
+			CheckConstraints: []CheckConstraint{
 				{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
 				{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
 			},
@@ -217,8 +217,8 @@ func TestPrintCreateTable(t *testing.T) {
 			"CREATE TABLE table1 (\n" +
 				"	col1 INT64 NOT NULL ,\n" +
 				"	col2 STRING(MAX),\n" +
-				"	col3 BYTES(42),\n " +
-				"CONSTRAINT check_1 CHECK (age > 18),\nCONSTRAINT check_2 CHECK (age < 99)\n" +
+				"	col3 BYTES(42),\n" +
+				"\tCONSTRAINT check_1 CHECK (age > 18),\n\tCONSTRAINT check_2 CHECK (age < 99)\n" +
 				") PRIMARY KEY (col1 DESC)",
 		},
 		{
@@ -228,8 +228,8 @@ func TestPrintCreateTable(t *testing.T) {
 			"CREATE TABLE `table1` (\n" +
 				"	`col1` INT64 NOT NULL ,\n" +
 				"	`col2` STRING(MAX),\n" +
-				"	`col3` BYTES(42),\n " +
-				"CONSTRAINT check_1 CHECK (age > 18),\nCONSTRAINT check_2 CHECK (age < 99)\n" +
+				"	`col3` BYTES(42),\n" +
+				"\tCONSTRAINT check_1 CHECK (age > 18),\n\tCONSTRAINT check_2 CHECK (age < 99)\n" +
 				") PRIMARY KEY (`col1` DESC)",
 		},
 		{
@@ -258,8 +258,8 @@ func TestPrintCreateTable(t *testing.T) {
 			"CREATE TABLE table1 (\n" +
 				"	col1 INT64 NOT NULL ,\n" +
 				"	col2 STRING(MAX),\n" +
-				"	col3 BYTES(42),\n " +
-				"CONSTRAINT check_1 CHECK (age > 18),\nCONSTRAINT check_2 CHECK (age < 99)\n" +
+				"	col3 BYTES(42),\n" +
+				"\tCONSTRAINT check_1 CHECK (age > 18),\n\tCONSTRAINT check_2 CHECK (age < 99)\n" +
 				") ",
 		},
 	}
@@ -986,6 +986,42 @@ func TestGetSortedTableIdsBySpName(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			result := GetSortedTableIdsBySpName(tc.schema)
 			assert.ElementsMatch(t, tc.expected, result)
+		})
+	}
+}
+
+func TestPrintCheckConstraintTable(t *testing.T) {
+	tests := []struct {
+		description string
+		cks         []CheckConstraint
+		expected    string
+	}{
+		{
+			description: "Empty constraints list",
+			cks:         []CheckConstraint{},
+			expected:    "",
+		},
+		{
+			description: "Single constraint",
+			cks: []CheckConstraint{
+				{Name: "ck1", Expr: "(id > 0)"},
+			},
+			expected: "\tCONSTRAINT ck1 CHECK (id > 0)\n",
+		},
+		{
+			description: "Multiple constraints",
+			cks: []CheckConstraint{
+				{Name: "ck1", Expr: "(id > 0)"},
+				{Name: "ck2", Expr: "(name IS NOT NULL)"},
+			},
+			expected: "\tCONSTRAINT ck1 CHECK (id > 0),\n\tCONSTRAINT ck2 CHECK (name IS NOT NULL)\n",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.description, func(t *testing.T) {
+			actual := PrintCheckConstraintTable(tc.cks)
+			assert.Equal(t, tc.expected, actual)
 		})
 	}
 }

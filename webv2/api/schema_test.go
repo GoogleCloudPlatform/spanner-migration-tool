@@ -2549,12 +2549,12 @@ func TestUpdateCheckConstraint(t *testing.T) {
 
 	tableID := "table1"
 
-	expectedCheckConstraint := []ddl.Checkconstraint{
+	expectedCheckConstraint := []ddl.CheckConstraint{
 		{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
 		{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
 	}
 
-	checkConstraints := []schema.CheckConstraints{
+	checkConstraints := []schema.CheckConstraint{
 		{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
 		{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
 	}
@@ -2579,7 +2579,7 @@ func TestUpdateCheckConstraint(t *testing.T) {
 
 	updatedSp := sessionState.Conv.SpSchema[tableID]
 
-	assert.Equal(t, expectedCheckConstraint, updatedSp.CheckConstraint)
+	assert.Equal(t, expectedCheckConstraint, updatedSp.CheckConstraints)
 }
 
 func TestUpdateCheckConstraint_ParseError(t *testing.T) {
@@ -2601,6 +2601,8 @@ func TestUpdateCheckConstraint_ParseError(t *testing.T) {
 	expectedErrorMessage := "Request Body parse error"
 	assert.Contains(t, rr.Body.String(), expectedErrorMessage)
 }
+
+type errReader struct{}
 
 func (errReader) Read(p []byte) (n int, err error) {
 	return 0, fmt.Errorf("simulated read error")
@@ -2694,7 +2696,7 @@ func buildConvMySQL_NoTypeMatch(conv *internal.Conv) {
 			Name:   "table1",
 			Id:     "t1",
 			ColIds: []string{"c1", "c2", "c3"},
-			CheckConstraints: []schema.CheckConstraints{
+			CheckConstraints: []schema.CheckConstraint{
 				{
 					Id:   "ck1",
 					Name: "check_1",
@@ -2718,7 +2720,7 @@ func buildConvMySQL_NoTypeMatch(conv *internal.Conv) {
 			Name:   "table1",
 			Id:     "t1",
 			ColIds: []string{"c1", "c2", "c3"},
-			CheckConstraint: []ddl.Checkconstraint{
+			CheckConstraints: []ddl.CheckConstraint{
 				{
 					Id:   "ck1",
 					Name: "check_1",
@@ -2757,7 +2759,7 @@ func buildConvMySQL_TypeMatch(conv *internal.Conv) {
 			Name:   "table1",
 			Id:     "t1",
 			ColIds: []string{"c1", "c2", "c3"},
-			CheckConstraints: []schema.CheckConstraints{
+			CheckConstraints: []schema.CheckConstraint{
 				{
 					Id:   "ck1",
 					Name: "check_1",
@@ -2781,7 +2783,7 @@ func buildConvMySQL_TypeMatch(conv *internal.Conv) {
 			Name:   "table1",
 			Id:     "t1",
 			ColIds: []string{"c1", "c2", "c3"},
-			CheckConstraint: []ddl.Checkconstraint{
+			CheckConstraints: []ddl.CheckConstraint{
 				{
 					Id:   "ck1",
 					Name: "check_1",

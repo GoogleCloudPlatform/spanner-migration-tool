@@ -428,10 +428,11 @@ func Test_SchemaToSpannerSequenceHelper(t *testing.T) {
 		assert.Equal(t, expectedConv, conv)
 	}
 }
+
 func Test_cvtCheckContraint(t *testing.T) {
 
 	conv := internal.MakeConv()
-	srcSchema := []schema.CheckConstraints{
+	srcSchema := []schema.CheckConstraint{
 		{
 			Id:   "ck1",
 			Name: "check_1",
