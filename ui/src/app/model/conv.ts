@@ -24,6 +24,11 @@ export default interface IConv {
   SrcSequences: Record<string, ICreateSequence>
 }
 
+export interface IDefaultValue {
+  IsPresent: boolean
+  Value: string
+}
+
 export interface IFkeyAndIdxs {
   Name: string
   ForeignKey: Record<string, string>
@@ -62,6 +67,7 @@ export interface IColumn {
   Ignored: IIgnored
   Id: string
   AutoGen: AutoGen
+  DefaultValue: IDefaultValue
 }
 
 export interface IIgnored {

@@ -73,6 +73,10 @@ const mockIConv: IConv = {
                         Name: "",
                         GenerationType: ""
                     },
+                    DefaultValue: {
+                        Value: "",
+                        IsPresent: false
+                    }
                 }
             },
             PrimaryKeys: [],
@@ -206,6 +210,10 @@ export const mockIConv2: IConv = {
                         Name: "",
                         GenerationType: ""
                     },
+                    DefaultValue: {
+                        Value: "",
+                        IsPresent: false
+                    }
                 }
             },
             PrimaryKeys: [],
