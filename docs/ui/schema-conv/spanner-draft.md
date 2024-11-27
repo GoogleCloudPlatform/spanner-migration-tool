@@ -62,6 +62,31 @@ Interleaving property needs to be set during the migration and a table cannot be
 
 ![](https://services.google.com/fh/files/helpcenter/asset-jni7ugajpw.png)
 
+
+#### Interleave any table on any table
+
+Interleaving one table within another without Foreign key relationship is not currently supported by the Spanner migration tool. However, there is a workaround that customers can use to achieve this.
+
+##### Prerequisites
+
+To interleave a `child table` within a p`arent table`, the following conditions must be met:
+
+1. The column names in the child table that reference the parent table must exactly match the column names in the parent table. The columns must also have the same data type and constraints (e.g., NOT NULL).
+2. The child table must reference all of the primary key columns from the parent table, and these columns must also be part of the primary key in the child table.
+3. The column order for the referenced columns in the primary key of the child table must match the column order of the primary key in the parent table. Additionally, the referenced columns must appear at the beginning of the primary key set in the child table.
+
+##### Procedure
+
+1. Download the session file from the Spanner migration tool after connecting to the source database.
+2. Locate the table ID of the parent table in the session file.
+3. In the spSchema object, within the child table's section, set the Id field in the parentTable object to the parent table's ID. Also, specify the desired OnDelete action in the OnDelete field (NO ACTION or CASCADE), as illustrated below.
+
+![](https://services.google.com/fh/files/misc/smt_session_interleaving_parent.png)
+![](https://services.google.com/fh/files/misc/smt_session_interleaving_child.png)
+
+4. Use the modified session file in the [SMT commands](../../cli/cli.md) or it can be imported via [SMT UI](../connect-source.md#load-session-file) and proceed further.
+
+
 ### SQL
 
 Once the user is done with all the schema modifications they can then visit the SQL tab which shows the Spanner DDL for the modified schema.
