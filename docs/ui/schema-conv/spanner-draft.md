@@ -65,7 +65,7 @@ Interleaving property needs to be set during the migration and a table cannot be
 
 #### Interleave any table on any table
 
-Interleaving one table within another without Foreign key relationship is not currently supported by the Spanner migration tool. However, there is a workaround that customers can use to achieve this.
+Interleaving one table within another without Foreign key relationship is not currently supported on the Spanner migration tool UI. However, there is a workaround that customers can use to achieve this.
 
 ##### Prerequisites
 
