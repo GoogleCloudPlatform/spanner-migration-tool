@@ -27,6 +27,7 @@ type AdminClientMock struct {
 	CreateDatabaseMock    func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (CreateDatabaseOperation, error)
 	UpdateDatabaseDdlMock func(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (UpdateDatabaseDdlOperation, error)
 	GetDatabaseDdlMock    func(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error)
+	DropDatabaseMock      func(ctx context.Context, req *databasepb.DropDatabaseRequest, opts ...gax.CallOption) error
 }
 
 func (acm *AdminClientMock) GetDatabase(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
@@ -43,6 +44,10 @@ func (acm *AdminClientMock) UpdateDatabaseDdl(ctx context.Context, req *database
 
 func (acm *AdminClientMock) GetDatabaseDdl(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error) {
 	return acm.GetDatabaseDdlMock(ctx, req, opts...)
+}
+
+func (acm *AdminClientMock) DropDatabase(ctx context.Context, req *databasepb.DropDatabaseRequest, opts ...gax.CallOption) error {
+	return acm.DropDatabaseMock(ctx, req, opts...)
 }
 
 // Mock that implements the CreateDatabaseOperation interface.

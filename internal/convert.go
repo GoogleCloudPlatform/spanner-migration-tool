@@ -291,6 +291,37 @@ type TableDetails struct {
 	TableName string `json:TableName`
 }
 
+type VerifyExpressionsInput struct {
+	Project string
+	Instance string
+	Conv *Conv
+	Source string
+	ExpressionDetailList []ExpressionDetail
+}
+
+type ExpressionDetail struct {
+	ReferenceElement ReferenceElement
+	ExpressionId string
+	Expression string
+	Type string
+	Metadata map[string]string
+}
+
+type ReferenceElement struct {
+	Name string
+}
+
+type ExpressionVerificationOutput struct {
+	ExpressionDetail ExpressionDetail
+	Result bool
+	Err error
+}
+
+type VerifyExpressionsOutput struct {
+	ExpressionVerificationOutputList []ExpressionVerificationOutput
+	Err error
+}
+
 // MakeConv returns a default-configured Conv.
 func MakeConv() *Conv {
 	return &Conv{

@@ -27,6 +27,7 @@ type AdminClient interface {
 	CreateDatabase(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (CreateDatabaseOperation, error)
 	UpdateDatabaseDdl(ctx context.Context, req *databasepb.UpdateDatabaseDdlRequest, opts ...gax.CallOption) (UpdateDatabaseDdlOperation, error)
 	GetDatabaseDdl(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error)
+	DropDatabase(ctx context.Context, req *databasepb.DropDatabaseRequest, opts ...gax.CallOption) (error)
 }
 
 // Use this interface instead of database.CreateDatabaseOperation to support mocking.
@@ -92,4 +93,12 @@ func (c *UpdateDatabaseDdlImpl) Wait(ctx context.Context, opts ...gax.CallOption
 
 func (c *AdminClientImpl) GetDatabaseDdl(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error) {
 	return c.adminClient.GetDatabaseDdl(ctx, req, opts...)
+}
+
+func (c *AdminClientImpl) DropDatabase(ctx context.Context, req *databasepb.DropDatabaseRequest, opts ...gax.CallOption) error {
+	err := c.adminClient.DropDatabase(ctx, req, opts...)
+	if err != nil {
+		return err
+	}
+	return nil
 }

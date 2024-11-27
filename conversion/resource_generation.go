@@ -24,14 +24,13 @@ import (
 
 	"cloud.google.com/go/datastream/apiv1/datastreampb"
 	ds "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
-	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/google/uuid"
 )
 
@@ -42,7 +41,7 @@ var (
 type ResourceGenerationInterface interface {
 	RollbackResourceCreation(ctx context.Context, profiles []*ConnectionProfileReq) error
 	GetConnectionProfilesForResources(ctx context.Context, projectId string, sourceProfile profiles.SourceProfile, region string, validateOnly bool) ([]*ConnectionProfileReq, []*ConnectionProfileReq, error)
-	PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq]
+	PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) task.TaskResult[*ConnectionProfileReq]
 }
 
 type ResourceGenerationImpl struct {
@@ -58,7 +57,7 @@ type ValidateOrCreateResourcesInterface interface {
 
 type ValidateOrCreateResourcesImpl struct {
 	ResourceGenerator ResourceGenerationInterface
-	RunParallel       common.RunParallelTasksInterface[*ConnectionProfileReq, *ConnectionProfileReq]
+	RunParallel       task.RunParallelTasksInterface[*ConnectionProfileReq, *ConnectionProfileReq]
 }
 
 type ValidateResourcesInterface interface {
@@ -67,14 +66,12 @@ type ValidateResourcesInterface interface {
 
 type ValidateResourcesImpl struct {
 	SpAcc                     spanneraccessor.SpannerAccessor
-	SpInstanceAdmin           spinstanceadmin.InstanceAdminClient
 	ValidateOrCreateResources ValidateOrCreateResourcesInterface
 }
 
-func NewValidateResourcesImpl(spAcc spanneraccessor.SpannerAccessor, spInstanceAdmin spinstanceadmin.InstanceAdminClient, dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ValidateResourcesImpl {
+func NewValidateResourcesImpl(spAcc spanneraccessor.SpannerAccessor, dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ValidateResourcesImpl {
 	return &ValidateResourcesImpl{
 		SpAcc:                     spAcc,
-		SpInstanceAdmin:           spInstanceAdmin,
 		ValidateOrCreateResources: NewValidateOrCreateResourcesImpl(dsAcc, dsClient, storageAcc, storageClient),
 	}
 }
@@ -82,7 +79,7 @@ func NewValidateResourcesImpl(spAcc spanneraccessor.SpannerAccessor, spInstanceA
 func NewValidateOrCreateResourcesImpl(dsAcc datastream_accessor.DatastreamAccessor, dsClient ds.DatastreamClient, storageAcc storageaccessor.StorageAccessor, storageClient storageclient.StorageClient) *ValidateOrCreateResourcesImpl {
 	return &ValidateOrCreateResourcesImpl{
 		ResourceGenerator: NewResourceGenerationImpl(dsAcc, dsClient, storageAcc, storageClient),
-		RunParallel:       &common.RunParallelTasksImpl[*ConnectionProfileReq, *ConnectionProfileReq]{},
+		RunParallel:       &task.RunParallelTasksImpl[*ConnectionProfileReq, *ConnectionProfileReq]{},
 	}
 }
 
@@ -97,7 +94,7 @@ func NewResourceGenerationImpl(dsAcc datastream_accessor.DatastreamAccessor, dsC
 
 // Method to validate if in a minimal downtime migration, required resources can be generated
 func (v *ValidateResourcesImpl) ValidateResourceGeneration(ctx context.Context, projectId string, instanceId string, sourceProfile profiles.SourceProfile, conv *internal.Conv) error {
-	spannerRegion, err := v.SpAcc.GetSpannerLeaderLocation(ctx, v.SpInstanceAdmin, "projects/"+projectId+"/instances/"+instanceId)
+	spannerRegion, err := v.SpAcc.GetSpannerLeaderLocation(ctx, "projects/"+projectId+"/instances/"+instanceId)
 	if err != nil {
 		err = fmt.Errorf("unable to fetch Spanner Region: %v", err)
 		return err
@@ -114,7 +111,7 @@ func (v *ValidateResourcesImpl) ValidateResourceGeneration(ctx context.Context, 
 
 // 1. If destination connection profile needs to be created, creates a gcs bucket
 // 2. Creates the connection profile needed for migration
-func (r ResourceGenerationImpl) PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq] {
+func (r ResourceGenerationImpl) PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) task.TaskResult[*ConnectionProfileReq] {
 	req := &datastreampb.CreateConnectionProfileRequest{
 		Parent:              fmt.Sprintf("projects/%s/locations/%s", createResourceData.ConnectionProfile.ProjectId, createResourceData.ConnectionProfile.Region),
 		ConnectionProfileId: createResourceData.ConnectionProfile.Id,
@@ -136,7 +133,7 @@ func (r ResourceGenerationImpl) PrepareMinimalDowntimeResources(createResourceDa
 		})
 		if err != nil {
 			createResourceData.Error = err
-			return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: err}
+			return task.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: err}
 		}
 	}
 	createResourceData.ConnectionProfile.BucketName = bucketName
@@ -148,7 +145,7 @@ func (r ResourceGenerationImpl) PrepareMinimalDowntimeResources(createResourceDa
 	_, err := r.DsAcc.CreateConnectionProfile(createResourceData.Ctx, r.DsClient, req)
 	if err != nil {
 		createResourceData.Error = err
-		return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: err}
+		return task.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: err}
 	}
 
 	if !createResourceData.ConnectionProfile.ValidateOnly {
@@ -159,7 +156,7 @@ func (r ResourceGenerationImpl) PrepareMinimalDowntimeResources(createResourceDa
 		fmt.Printf("Connection Profile for Datashard %v has been validated: %v\n", createResourceData.ConnectionProfile.DatashardId, createResourceData.ConnectionProfile.Id)
 	}
 
-	return common.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: nil}
+	return task.TaskResult[*ConnectionProfileReq]{Result: createResourceData, Err: nil}
 }
 
 // If any of the resource creation fails, deletes all resources that were created
@@ -245,9 +242,9 @@ func (c *ValidateOrCreateResourcesImpl) ValidateOrCreateResourcesForShardedMigra
 	} else if resCreationErr != nil {
 		return resCreationErr
 	}
-	if validateOnly{
+	if validateOnly {
 		for _, resource := range resSourceProfiles {
-			if resource.Result.Error != nil{
+			if resource.Result.Error != nil {
 				// If validation failed, append to list of errors
 				errorsList = append(errorsList, resource.Result.Error)
 			}
