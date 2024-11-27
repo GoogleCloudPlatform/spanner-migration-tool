@@ -265,6 +265,12 @@ type IndexKey struct {
 	Order int
 }
 
+type CheckConstraint struct {
+	Id   string
+	Name string
+	Expr string
+}
+
 // PrintPkOrIndexKey unparses the primary or index keys.
 func (idx IndexKey) PrintPkOrIndexKey(ct CreateTable, c Config) string {
 	col := c.quote(ct.ColDefs[idx.ColId].Name)
@@ -319,16 +325,17 @@ func (k Foreignkey) PrintForeignKey(c Config) string {
 //
 //	create_table: CREATE TABLE table_name ([column_def, ...] ) primary_key [, cluster]
 type CreateTable struct {
-	Name          string
-	ColIds        []string // Provides names and order of columns
-	ShardIdColumn string
-	ColDefs       map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
-	PrimaryKeys   []IndexKey
-	ForeignKeys   []Foreignkey
-	Indexes       []CreateIndex
-	ParentTable   InterleavedParent //if not empty, this table will be interleaved
-	Comment       string
-	Id            string
+	Name             string
+	ColIds           []string // Provides names and order of columns
+	ShardIdColumn    string
+	ColDefs          map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
+	PrimaryKeys      []IndexKey
+	ForeignKeys      []Foreignkey
+	Indexes          []CreateIndex
+	ParentTable      InterleavedParent //if not empty, this table will be interleaved
+	CheckConstraints []CheckConstraint
+	Comment          string
+	Id               string
 }
 
 // PrintCreateTable unparses a CREATE TABLE statement.
@@ -382,13 +389,20 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 		}
 	}
 
+	var checkString string
+	if len(ct.CheckConstraints) > 0 {
+		checkString = PrintCheckConstraintTable(ct.CheckConstraints)
+	} else {
+		checkString = ""
+	}
+
 	if len(keys) == 0 {
-		return fmt.Sprintf("%sCREATE TABLE %s (\n%s) %s", tableComment, config.quote(ct.Name), cols, interleave)
+		return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s) %s", tableComment, config.quote(ct.Name), cols, checkString, interleave)
 	}
 	if config.SpDialect == constants.DIALECT_POSTGRESQL {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
-	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
+	return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, checkString, strings.Join(keys, ", "), interleave)
 }
 
 // CreateIndex encodes the following DDL definition:
@@ -532,6 +546,23 @@ func (k Foreignkey) PrintForeignKeyAlterTable(spannerSchema Schema, c Config, ta
 		s = s + fmt.Sprintf(" ON DELETE %s", k.OnDelete)
 	}
 	return s
+}
+
+// PrintCheckConstraintTable formats the check constraints in SQL syntax.
+func PrintCheckConstraintTable(cks []CheckConstraint) string {
+	var builder strings.Builder
+
+	for _, col := range cks {
+		builder.WriteString(fmt.Sprintf("\tCONSTRAINT %s CHECK %s,\n", col.Name, col.Expr))
+	}
+
+	if builder.Len() > 0 {
+		// Trim the trailing comma and newline
+		result := builder.String()
+		return result[:len(result)-2] + "\n"
+	}
+
+	return ""
 }
 
 // Schema stores a map of table names and Tables.

@@ -65,6 +65,11 @@ func GenerateForeignkeyId() string {
 func GenerateIndexesId() string {
 	return GenerateId("i")
 }
+
+func GenerateCheckConstrainstId() string {
+	return GenerateId("ck")
+}
+
 func GenerateRuleId() string {
 	return GenerateId("r")
 }

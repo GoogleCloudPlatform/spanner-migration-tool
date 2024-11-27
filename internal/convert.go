@@ -132,6 +132,7 @@ const (
 	ForeignKeyActionNotSupported
 	NumericPKNotSupported
 	DefaultValueError
+	TypeMismatch
 )
 
 const (

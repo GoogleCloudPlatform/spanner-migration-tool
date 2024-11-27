@@ -536,4 +536,33 @@ func TestSpannerSchemaApplyExpressions(t *testing.T) {
 			assert.Equal(t, tc.expectedConv, tc.conv)
 		})
 	}
+func Test_cvtCheckContraint(t *testing.T) {
+
+	conv := internal.MakeConv()
+	srcSchema := []schema.CheckConstraint{
+		{
+			Id:   "ck1",
+			Name: "check_1",
+			Expr: "age > 0",
+		},
+		{
+			Id:   "ck1",
+			Name: "check_2",
+			Expr: "age < 99",
+		},
+	}
+	spSchema := []ddl.CheckConstraint{
+		{
+			Id:   "ck1",
+			Name: "check_1",
+			Expr: "age > 0",
+		},
+		{
+			Id:   "ck1",
+			Name: "check_2",
+			Expr: "age < 99",
+		},
+	}
+	result := cvtCheckConstraint(conv, srcSchema)
+	assert.Equal(t, spSchema, result)
 }
