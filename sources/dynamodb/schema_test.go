@@ -633,7 +633,7 @@ func TestInfoSchemaImpl_GetConstraints(t *testing.T) {
 	dySchema := common.SchemaAndName{Name: "test"}
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{client, nil, 10}
-	primaryKeys, constraints, err := isi.GetConstraints(conv, dySchema)
+	primaryKeys, _, constraints, err := isi.GetConstraints(conv, dySchema)
 	assert.Nil(t, err)
 
 	pKeys := []string{"a", "b"}
@@ -705,7 +705,7 @@ func TestInfoSchemaImpl_GetColumns(t *testing.T) {
 	client := &mockDynamoClient{
 		scanOutputs: scanOutputs,
 	}
-	dySchema := common.SchemaAndName{Name: "test", Id:  "t1"}
+	dySchema := common.SchemaAndName{Name: "test", Id: "t1"}
 
 	isi := InfoSchemaImpl{client, nil, 10}
 

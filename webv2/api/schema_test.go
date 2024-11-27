@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -2540,4 +2541,277 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		assert.Equal(t, tc.expectedAutoGenMap, autoGenMap, tc.dialect)
 	}
 
+}
+func TestUpdateCheckConstraint(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.MYSQL
+	sessionState.Conv = internal.MakeConv()
+
+	tableID := "table1"
+
+	expectedCheckConstraint := []ddl.CheckConstraint{
+		{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
+		{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
+	}
+
+	checkConstraints := []schema.CheckConstraint{
+		{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
+		{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
+	}
+
+	body, err := json.Marshal(checkConstraints)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest("POST", "update/cks", bytes.NewBuffer(body))
+	assert.NoError(t, err)
+
+	q := req.URL.Query()
+	q.Add("table", tableID)
+	req.URL.RawQuery = q.Encode()
+
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(api.UpdateCheckConstraint)
+
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	updatedSp := sessionState.Conv.SpSchema[tableID]
+
+	assert.Equal(t, expectedCheckConstraint, updatedSp.CheckConstraints)
+}
+
+func TestUpdateCheckConstraint_ParseError(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.MYSQL
+	sessionState.Conv = internal.MakeConv()
+
+	invalidJSON := "invalid json body"
+
+	rr := httptest.NewRecorder()
+	req, err := http.NewRequest("POST", "update/cks", io.NopCloser(strings.NewReader(invalidJSON)))
+	assert.NoError(t, err)
+
+	handler := http.HandlerFunc(api.UpdateCheckConstraint)
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+
+	expectedErrorMessage := "Request Body parse error"
+	assert.Contains(t, rr.Body.String(), expectedErrorMessage)
+}
+
+type errReader struct{}
+
+func (errReader) Read(p []byte) (n int, err error) {
+	return 0, fmt.Errorf("simulated read error")
+}
+
+func TestUpdateCheckConstraint_ImproperSession(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Conv = nil // Simulate no conversion
+
+	rr := httptest.NewRecorder()
+	req, err := http.NewRequest("POST", "update/cks", io.NopCloser(errReader{}))
+	assert.NoError(t, err)
+
+	handler := http.HandlerFunc(api.UpdateCheckConstraint)
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Schema is not converted or Driver is not configured properly")
+
+}
+
+func TestValidateCheckConstraint_ImproperSession(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Conv = nil // Simulate no conversion
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/validateCheckConstraint", nil)
+
+	handler := http.HandlerFunc(api.ValidateCheckConstraint)
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Schema is not converted or Driver is not configured properly")
+
+}
+
+func TestValidateCheckConstraint_NoTypeMismatch(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.MYSQL
+	sessionState.Conv = internal.MakeConv()
+
+	buildConvMySQL_NoTypeMatch(sessionState.Conv)
+	rr1 := httptest.NewRecorder()
+	req1 := httptest.NewRequest("GET", "/spannerDefaultTypeMap", nil)
+
+	handler1 := http.HandlerFunc(api.SpannerDefaultTypeMap)
+	handler1.ServeHTTP(rr1, req1)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/validateCheckConstraint", nil)
+
+	handler := http.HandlerFunc(api.ValidateCheckConstraint)
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var responseFlag bool
+	json.NewDecoder(rr.Body).Decode(&responseFlag)
+	assert.True(t, responseFlag)
+}
+
+func TestValidateCheckConstraint_TypeMismatch(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.MYSQL
+	sessionState.Conv = internal.MakeConv()
+
+	buildConvMySQL_TypeMatch(sessionState.Conv)
+
+	rr1 := httptest.NewRecorder()
+	req1 := httptest.NewRequest("GET", "/spannerDefaultTypeMap", nil)
+
+	handler1 := http.HandlerFunc(api.SpannerDefaultTypeMap)
+	handler1.ServeHTTP(rr1, req1)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/validateCheckConstraint", nil)
+
+	handler := http.HandlerFunc(api.ValidateCheckConstraint)
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var responseFlag bool
+	json.NewDecoder(rr.Body).Decode(&responseFlag)
+	assert.False(t, responseFlag)
+	issues := sessionState.Conv.SchemaIssues["t1"].ColumnLevelIssues["c2"]
+	assert.Contains(t, issues, internal.TypeMismatch)
+}
+
+func buildConvMySQL_NoTypeMatch(conv *internal.Conv) {
+	conv.SrcSchema = map[string]schema.Table{
+		"t1": {
+			Name:   "table1",
+			Id:     "t1",
+			ColIds: []string{"c1", "c2", "c3"},
+			CheckConstraints: []schema.CheckConstraint{
+				{
+					Id:   "ck1",
+					Name: "check_1",
+					Expr: "age > 0",
+				},
+				{
+					Id:   "ck1",
+					Name: "check_2",
+					Expr: "age < 99",
+				},
+			},
+			ColDefs: map[string]schema.Column{
+				"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "json"}},
+				"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "decimal"}},
+				"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "datetime"}},
+			},
+			PrimaryKeys: []schema.Key{{ColId: "c1"}}},
+	}
+	conv.SpSchema = map[string]ddl.CreateTable{
+		"t1": {
+			Name:   "table1",
+			Id:     "t1",
+			ColIds: []string{"c1", "c2", "c3"},
+			CheckConstraints: []ddl.CheckConstraint{
+				{
+					Id:   "ck1",
+					Name: "check_1",
+					Expr: "age > 0",
+				},
+				{
+					Id:   "ck1",
+					Name: "check_2",
+					Expr: "age < 99",
+				},
+			},
+			ColDefs: map[string]ddl.ColumnDef{
+				"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.JSON}},
+				"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Numeric}},
+				"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Timestamp}},
+			},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+		},
+	}
+
+	conv.SchemaIssues = map[string]internal.TableIssues{
+		"t1": {
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{
+				"c1": {internal.Widened},
+				"c2": {internal.Time},
+			},
+		},
+	}
+	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"c20", 0}
+	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
+}
+
+func buildConvMySQL_TypeMatch(conv *internal.Conv) {
+	conv.SrcSchema = map[string]schema.Table{
+		"t1": {
+			Name:   "table1",
+			Id:     "t1",
+			ColIds: []string{"c1", "c2", "c3"},
+			CheckConstraints: []schema.CheckConstraint{
+				{
+					Id:   "ck1",
+					Name: "check_1",
+					Expr: "age > 0",
+				},
+				{
+					Id:   "ck1",
+					Name: "check_2",
+					Expr: "age < 99",
+				},
+			},
+			ColDefs: map[string]schema.Column{
+				"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "json"}},
+				"c2": {Name: "age", Id: "c2", Type: schema.Type{Name: "decimal"}},
+				"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "datetime"}},
+			},
+			PrimaryKeys: []schema.Key{{ColId: "c1"}}},
+	}
+	conv.SpSchema = map[string]ddl.CreateTable{
+		"t1": {
+			Name:   "table1",
+			Id:     "t1",
+			ColIds: []string{"c1", "c2", "c3"},
+			CheckConstraints: []ddl.CheckConstraint{
+				{
+					Id:   "ck1",
+					Name: "check_1",
+					Expr: "age > 0",
+				},
+				{
+					Id:   "ck1",
+					Name: "check_2",
+					Expr: "age < 99",
+				},
+			},
+			ColDefs: map[string]ddl.ColumnDef{
+				"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.JSON}},
+				"c2": {Name: "age", Id: "c2", T: ddl.Type{Name: ddl.String}},
+				"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Timestamp}},
+			},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+		},
+	}
+
+	conv.SchemaIssues = map[string]internal.TableIssues{
+		"t1": {
+			ColumnLevelIssues: map[string][]internal.SchemaIssue{
+				"c1": {internal.Widened},
+				"c2": {internal.Time},
+			},
+		},
+	}
+	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"c20", 0}
+	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 }

@@ -128,6 +128,7 @@ const (
 	SequenceCreated
 	ForeignKeyActionNotSupported
 	NumericPKNotSupported
+	TypeMismatch
 )
 
 const (
