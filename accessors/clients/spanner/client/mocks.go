@@ -8,6 +8,7 @@ import (
 
 type SpannerClientMock struct {
 	SingleMock func() ReadOnlyTransaction
+	DatabaseNameMock func() string
 }
 
 type ReadOnlyTransactionMock struct {
@@ -21,6 +22,10 @@ type RowIteratorMock struct {
 
 func (scm SpannerClientMock) Single() ReadOnlyTransaction {
 	return scm.SingleMock()
+}
+
+func (scm SpannerClientMock) DatabaseName() string {
+	return scm.DatabaseNameMock()
 }
 
 func (rom ReadOnlyTransactionMock) Query(ctx context.Context, stmt spanner.Statement) RowIterator {
