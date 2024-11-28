@@ -94,9 +94,9 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 func (ev *ExpressionVerificationAccessorImpl) verifyExpressionInternal(expressionVerificationInput ExpressionVerificationInput, mutex *sync.Mutex) task.TaskResult[internal.ExpressionVerificationOutput] {
 	var sqlStatement string
 	switch expressionVerificationInput.expressionDetail.Type {
-	case "CHECK":
+	case constants.CHECK_EXPRESSION:
 		sqlStatement = fmt.Sprintf("SELECT 1 from %s where %s;", expressionVerificationInput.expressionDetail.ReferenceElement.Name, expressionVerificationInput.expressionDetail.Expression)
-	case "DEFAULT":
+	case constants.DEFAUT_EXPRESSION:
 		sqlStatement = fmt.Sprintf("SELECT CAST(%s as %s)", expressionVerificationInput.expressionDetail.Expression, expressionVerificationInput.expressionDetail.ReferenceElement.Name)
 	default:
 		return task.TaskResult[internal.ExpressionVerificationOutput]{Result: internal.ExpressionVerificationOutput{Result: false, Err: fmt.Errorf("invalid expression type requested")}, Err: nil}
