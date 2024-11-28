@@ -291,8 +291,6 @@ type TableDetails struct {
 }
 
 type VerifyExpressionsInput struct {
-	Project string
-	Instance string
 	Conv *Conv
 	Source string
 	ExpressionDetailList []ExpressionDetail

@@ -22,7 +22,7 @@ import (
 
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
+	datastreamclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
@@ -160,18 +160,18 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
 	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient) error {
-		spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
-		if err != nil {
-			return err
-		}
-		err = spA.CreateOrUpdateDatabase(ctx, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
-		if err != nil {
-			err = fmt.Errorf("can't create/update database: %v", err)
-			return err
-		}
-		metricsPopulation(ctx, sourceProfile.Driver, conv)
-		conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
-		return nil
+	spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
+	if err != nil {
+		return err
+	}
+	err = spA.CreateOrUpdateDatabase(ctx, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
+	if err != nil {
+		err = fmt.Errorf("can't create/update database: %v", err)
+		return err
+	}
+	metricsPopulation(ctx, sourceProfile.Driver, conv)
+	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
+	return nil
 }
 
 func migrateData(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
