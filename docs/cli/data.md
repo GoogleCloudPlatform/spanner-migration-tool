@@ -55,7 +55,15 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
             --source-profile='host=host,port=3306,user=user,password=pwd,dbName=db,streamingCfg=streaming.json' \
             --target-profile='project=spanner-project,instance=spanner-instance' --project=migration-project
 
-    To run a minimal downtime data migration on a multi-sharded source, refer to the [example source-profile configuration](config-json#config-for-sharded-minimal-downtime-migrations)
+    To run a minimal downtime data migration for a sharded source:
+
+        $ ./spanner-migration-tool data --session=./session.json \
+            --source=MySQL \
+            --source-profile='config=shard-config.json' \
+            --target-profile='project=spanner-project,instance=spanner-instance' --project=migration-project
+
+For sharded migrations, you can refer to the example `source-config.json` passed in the source-profile option [here](./config-json.md#config-for-sharded-minimal-downtime-migrations).
+
 ## REQUIRED FLAGS
 
      --session=SESSION
