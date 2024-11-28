@@ -67,7 +67,7 @@ func GenerateIndexesId() string {
 }
 
 func GenerateCheckConstrainstId() string {
-	return GenerateId("ck")
+	return GenerateId("cc")
 }
 
 func GenerateRuleId() string {
