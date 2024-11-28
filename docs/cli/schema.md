@@ -8,9 +8,13 @@ nav_order: 1
 # Schema subcommand
 {: .no_toc }
 
-This subcommand can be used to perform schema conversion and report on the quality of the conversion. The generated schema mapping file (session.json) can be then further edited using the Spanner migration tool web UI to make custom edits to the destination schema. This session file
-is then passed to the data subcommand to perform data migration while honoring the defined
-schema mapping. Spanner migration tool also generates Spanner schema which users can modify manually and use directly as well.
+This subcommand can be used to perform schema conversion and report on the quality of the conversion. 
+Based on the options discussed further, it helps with:
+1. Generate Report on quality of conversion.
+2. Generate the Spanner schema in Schema file, which could be manually modified and applied on spanner if required.
+3. Generate schema mapping file (`session.json`), which helps the data migration pipeline with the context how the source shcema maps to spanner schema. If required, the schema mapping file can be manually edited (either directly or with the help of SMT web UI). The modified session file can be passed back as **sessionFilePath** parameter to schema sub command if required.
+4. If you would like to perform the data migration via spanner migration tool, the session file needs be passed to the [data subcommand](data.md) as the **--session** parameter.
+5. Running with `--dry-run` option just generates the report, schema file and session file. In case you also want the generated schema to be automatically applied to spanner, you should run the cli without the `--dry-run` option.
 
 {: .highlight }
 The command below assumes that the open-source version of SMT is being used. For the CLI
@@ -58,9 +62,8 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
 
 ## REQUIRED FLAGS
 
-     --source=SOURCE
-        Flag for specifying source database (e.g., PostgreSQL, MySQL,
-        DynamoDB).
+Either `--source-profile` or `--session` must be specified. In case both are specified,
+`--source-profile` is not used for schema conversion.
 
 ## OPTIONAL FLAGS
 
@@ -93,3 +96,10 @@ Detailed description of optional flags can be found [here](./flags.md).
         Flag for specifying the name of the Google Cloud Project in which the Spanner migration tool
         can create resources required for migration. If the project is not specified, Spanner migration 
         tool will try to fetch the configured project in the gCloud CLI.
+
+     --session=SESSION
+        Specifies the file that you restore session state from. This file can be generaed using the [schma](schema.md) sub command.
+
+     --source=SOURCE
+        Flag for specifying source database (e.g., PostgreSQL, MySQL,
+        DynamoDB).

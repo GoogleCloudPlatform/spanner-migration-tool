@@ -55,10 +55,11 @@ reference of the gCloud version of SMT, please refer [here](https://cloud.google
             --source-profile='host=host,port=3306,user=user,password=pwd,dbName=db,streamingCfg=streaming.json' \
             --target-profile='project=spanner-project,instance=spanner-instance' --project=migration-project
 
+    To run a minimal downtime data migration on a multi-sharded source, refer to the [example source-profile configuration](config-json#config-for-sharded-minimal-downtime-migrations)
 ## REQUIRED FLAGS
 
      --session=SESSION
-        Specifies the file that you restore session state from.
+        Specifies the file that you restore session state from. This file can be generated using the [schema](schema.md) sub command.
 
      --source=SOURCE
         Flag for specifying source database (e.g., PostgreSQL, MySQL,
