@@ -208,7 +208,8 @@ export class ObjectDetailComponent implements OnInit {
       this.displayedPkColumns.splice(8, 0, "spAutoGen");
       this.srcDisplayedColumns.splice(2, 0, "srcAutoGen");
       this.displayedPkColumns.splice(2, 0, "srcAutoGen");
-      this.srcDisplayedColumns.push("srcDefaultValue");
+      this.srcDisplayedColumns.push("srcDefaultValue");;
+      this.spDisplayedColumns.push("spDefaultValue");
       this.spColspan+=1;
       this.srcColspan+=2;
     }
@@ -274,6 +275,7 @@ export class ObjectDetailComponent implements OnInit {
           spColMaxLength: new FormControl(row.spColMaxLength, [
             Validators.required]),
           spAutoGen: new FormControl(row.spAutoGen),
+          spDefaultValue: new FormControl(row.spDefaultValue),
         })
         if (this.dataTypesWithColLen.indexOf(row.spDataType.toString()) > -1) {
           fb.get('spColMaxLength')?.setValidators([Validators.required, Validators.pattern('([1-9][0-9]*|MAX)')])
@@ -297,6 +299,7 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
     this.spDataSource = this.spRowArray.controls
+    console.log(this.spDataSource)
   }
 
   setSrcTableRows() {
@@ -323,6 +326,7 @@ export class ObjectDetailComponent implements OnInit {
             srcId: new FormControl(col.srcId),
             spColMaxLength: new FormControl(col.spColMaxLength),
             spAutoGen: new FormControl(col.spAutoGen),
+            spDefaultValue: new FormControl(col.spDefaultValue),
           })
         )
       } else {
@@ -359,7 +363,8 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
             spColMaxLength: new FormControl(droppedColumnSpMaxLength),
-            spAutoGen: new FormControl(col.spAutoGen)
+            spAutoGen: new FormControl(col.spAutoGen),
+            spDefaultValue: new FormControl(col.spDefaultValue),
           })
         )
       }
@@ -423,7 +428,8 @@ export class ObjectDetailComponent implements OnInit {
             Removed: false,
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
             MaxColLength: col.spColMaxLength,
-            AutoGen: col.spAutoGen
+            AutoGen: col.spAutoGen,
+            DefaultValue: col.spDefaultValue,
           }
           break
         }
@@ -435,7 +441,8 @@ export class ObjectDetailComponent implements OnInit {
             Removed: false,
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
             MaxColLength: col.spColMaxLength,
-            AutoGen: col.spAutoGen
+            AutoGen: col.spAutoGen,
+            DefaultValue: col.spDefaultValue,
           }
         }
       }
@@ -452,6 +459,13 @@ export class ObjectDetailComponent implements OnInit {
         AutoGen: {
           Name : '',
           GenerationType : ''
+        },
+        DefaultValue: {
+          IsPresent: false,
+          Value: {
+            ExpressionId: '',
+            Query: ''
+          }
         }
       }
     })
@@ -512,6 +526,7 @@ export class ObjectDetailComponent implements OnInit {
     this.localTableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
     this.localTableData[index].spColMaxLength = this.droppedColumns[addedRowIndex].spColMaxLength
     this.localTableData[index].spAutoGen = this.droppedColumns[addedRowIndex].spAutoGen
+    this.localTableData[index].spDefaultValue = this.droppedColumns[addedRowIndex].spDefaultValue
     let ind = this.droppedColumns
       .map((col: IColumnTabData) => col.spColName)
       .indexOf(this.addedColumnName)
@@ -610,6 +625,13 @@ export class ObjectDetailComponent implements OnInit {
           Name : '',
           GenerationType : ''
         }
+        col.spDefaultValue = {
+          Value: {
+            ExpressionId: '',
+            Query: ''
+          },
+          IsPresent: false
+        }
       }
     })
     this.setSpTableRows()
@@ -668,7 +690,8 @@ export class ObjectDetailComponent implements OnInit {
           spIsPk: row.spIsPk,
           spOrder: row.spOrder,
           spId: row.spId,
-          spAutoGen: row.spAutoGen
+          spAutoGen: row.spAutoGen,
+          spDefaultValue: row.spDefaultValue
         })
       }
     })
@@ -696,6 +719,7 @@ export class ObjectDetailComponent implements OnInit {
           spIsNotNull: new FormControl(spArr[i].spIsNotNull),
           spId: new FormControl(spArr[i].spId),
           spAutoGen: new FormControl(spArr[i].spAutoGen),
+          spDefaultValue: new FormControl(spArr[i].spDefaultValue),
         })
       )
     }
@@ -717,6 +741,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsNotNull: new FormControl(false),
             spId: new FormControl(''),
             spAutoGen: new FormControl(spArr[i].spAutoGen),
+            spDefaultValue: new FormControl(spArr[i].spDefaultValue),
           })
         )
       }
@@ -740,7 +765,8 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(spArr[i].spIsPk),
             spIsNotNull: new FormControl(spArr[i].spIsNotNull),
             spId: new FormControl(spArr[i].spId),
-            spAutoGen: new FormControl(spArr[i].spAutoGen)
+            spAutoGen: new FormControl(spArr[i].spAutoGen),
+            spDefaultValue: new FormControl(spArr[i].spDefaultValue),
           })
         )
       }

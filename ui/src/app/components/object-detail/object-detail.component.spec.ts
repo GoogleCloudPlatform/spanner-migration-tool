@@ -17,6 +17,7 @@ import { FormBuilder } from '@angular/forms'
 import { FlatNode } from 'src/app/model/schema-object-node'
 import { DropObjectDetailDialogComponent } from '../drop-object-detail-dialog/drop-object-detail-dialog.component'
 import { ObjectDetailNodeType } from 'src/app/app.constants'
+import { Expression } from '@angular/compiler'
 
 describe('ObjectDetailComponent', () => {
   let component: ObjectDetailComponent
@@ -85,7 +86,14 @@ describe('ObjectDetailComponent', () => {
           Name: '',
           GenerationType: ''
         },
-        srcDefaultValue: ''
+        srcDefaultValue: '',
+        spDefaultValue: {
+          Value: {
+            ExpressionId: '',
+            Query: ''
+          },
+          IsPresent: false
+        },
       },
       {
         spOrder: 2,
@@ -110,7 +118,14 @@ describe('ObjectDetailComponent', () => {
           Name: '',
           GenerationType: ''
         },
-        srcDefaultValue: ''
+        srcDefaultValue: '',
+        spDefaultValue: {
+          Value: {
+            ExpressionId: '',
+            Query: ''
+          },
+          IsPresent: false
+        },
       },
     ]
     component.fkData = [

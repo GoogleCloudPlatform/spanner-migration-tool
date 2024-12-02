@@ -284,6 +284,7 @@ export class ConversionService {
   }
 
   getColumnMapping(tableId: string, data: IConv): IColumnTabData[] {
+    console.log(data)
     let spTableName = this.getSpannerTableNameFromId(tableId, data)
     let srcColIds = data.SrcSchema[tableId].ColIds
     let spColIds = data.SpSchema[tableId] ? data.SpSchema[tableId].ColIds : null
@@ -320,7 +321,7 @@ export class ConversionService {
         spIsNotNull: spannerColDef && spTableName ? spannerColDef.NotNull : false,
         srcIsNotNull: data.SrcSchema[tableId].ColDefs[colId].NotNull,
         srcId: colId,
-        srcDefaultValue: data.SrcSchema[tableId].ColDefs[colId].DefaultValue.Value,
+        srcDefaultValue: data.SrcSchema[tableId].ColDefs[colId].DefaultValue.Value.Query,
         spId: spannerColDef ? colId : '',
         spColMaxLength: spannerColDef?.T.Len != 0 ? (spannerColDef?.T.Len != spColMax ? spannerColDef?.T.Len: 'MAX') : '',
         srcColMaxLength: data.SrcSchema[tableId].ColDefs[colId].Type.Mods != null ? data.SrcSchema[tableId].ColDefs[colId].Type.Mods[0] : '',
@@ -331,6 +332,13 @@ export class ConversionService {
         srcAutoGen: data.SrcSchema[tableId].ColDefs[colId].AutoGen ? data.SrcSchema[tableId].ColDefs[colId].AutoGen : {
           Name: '',
           GenerationType: ''
+        },
+        spDefaultValue: spannerColDef?.DefaultValue != null ? spannerColDef?.DefaultValue : {
+          IsPresent: false,
+          Value: {
+            ExpressionId: '',
+            Query: ''
+          }
         },
       }
     })
@@ -360,7 +368,14 @@ export class ConversionService {
             srcAutoGen: {
               Name: '',
               GenerationType: ''
-            }
+            },
+            spDefaultValue: spannerColDef?.DefaultValue != null ? spannerColDef?.DefaultValue : {
+              IsPresent: false,
+              Value: {
+                ExpressionId: '',
+                Query: ''
+              }
+            },
           })
         }
       })

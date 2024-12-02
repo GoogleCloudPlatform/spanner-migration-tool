@@ -369,11 +369,12 @@ func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 
 	conv := sessionState.Conv
 
-	tableIds := common.GetSortedTableIdsBySrcName(conv.SrcSchema)
+	tableIds := common.GetSortedTableIdsBySpName(conv.SpSchema)
 	internal.ResolveRefs(conv)
 	ddlV := expressions_api.GetDDLVerifier(conv)
-
-	expressions, err := ddlV.VerifySpannerDDL(conv, tableIds)
+	
+	expressionDetails := ddlV.GetSpannerExpressionDetails(conv, tableIds)
+	expressions, err := ddlV.VerifySpannerDDL(conv, expressionDetails)
 	if err != nil && strings.Contains(err.Error(), "expressions either failed verification") {
 		for _, exp := range expressions.ExpressionVerificationOutputList {
 			switch exp.ExpressionDetail.Type {
@@ -390,6 +391,16 @@ func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else if err != nil {
+		for _, tableId := range tableIds {
+			srcTable := conv.SrcSchema[tableId]
+			for _, srcColId := range srcTable.ColIds {
+				srcCol := srcTable.ColDefs[srcColId]
+				if srcCol.DefaultValue.IsPresent {
+					issues := conv.SchemaIssues[tableId]
+					conv.SchemaIssues[tableId] = issues
+				}
+			}
+		}
 	}
 
 	session.UpdateSessionFile()
