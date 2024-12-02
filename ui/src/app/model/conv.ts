@@ -26,7 +26,12 @@ export default interface IConv {
 
 export interface IDefaultValue {
   IsPresent: boolean
-  Value: string
+  Value: IExpression
+}
+
+export interface IExpression {
+  Query: string
+  ExpressionId: string
 }
 
 export interface IFkeyAndIdxs {
@@ -148,6 +153,7 @@ export interface IColumnDef {
   NotNull: boolean
   Comment: string
   AutoGen: IAutoGen
+  DefaultValue: IDefaultValue
 }
 
 export interface IType {

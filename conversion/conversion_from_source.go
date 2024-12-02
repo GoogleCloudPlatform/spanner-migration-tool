@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -38,7 +39,7 @@ import (
 
 type SchemaFromSourceInterface interface {
 	schemaFromDatabase(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, getInfo GetInfoInterface, processSchema common.ProcessSchemaInterface) (*internal.Conv, error)
-	SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error)
+	SchemaFromDump(SpProjectId string, SpInstanceId string, driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error)
 }
 
 type SchemaFromSourceImpl struct{}
@@ -54,6 +55,9 @@ type DataFromSourceImpl struct{}
 func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, getInfo GetInfoInterface, processSchema common.ProcessSchemaInterface) (*internal.Conv, error) {
 	conv := internal.MakeConv()
 	conv.SpDialect = targetProfile.Conn.Sp.Dialect
+	conv.SpProjectId = targetProfile.Conn.Sp.Project
+	conv.SpInstanceId = targetProfile.Conn.Sp.Instance
+	conv.Source = sourceProfile.Driver
 	//handle fetching schema differently for sharded migrations, we only connect to the primary shard to
 	//fetch the schema. We reuse the SourceProfileConnection object for this purpose.
 	var infoSchema common.InfoSchema
@@ -96,10 +100,18 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: isSharded,
 	}
-	return conv, processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	ctx := context.Background()
+	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+	if err != nil {
+		return conv, fmt.Errorf("error trying create ddl verifier: %v", err)
+	}
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		DdlV: ddlVerifier,
+	}
+	return conv, processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 }
 
-func (sads *SchemaFromSourceImpl) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
+func (sads *SchemaFromSourceImpl) SchemaFromDump(SpProjectId string, SpInstanceId string, driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
 	f, n, err := getSeekable(ioHelper.In)
 	if err != nil {
 		utils.PrintSeekError(driver, err, ioHelper.Out)
@@ -159,6 +171,9 @@ func (sads *DataFromSourceImpl) dataFromCSV(ctx context.Context, sourceProfile p
 		return nil, fmt.Errorf("dbName is mandatory in target-profile for csv source")
 	}
 	conv.SpDialect = targetProfile.Conn.Sp.Dialect
+	conv.SpProjectId = targetProfile.Conn.Sp.Project
+	conv.SpInstanceId = targetProfile.Conn.Sp.Instance
+	conv.Source = sourceProfile.Driver
 	dialect, err := targetProfile.FetchTargetDialect(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch dialect: %v", err)

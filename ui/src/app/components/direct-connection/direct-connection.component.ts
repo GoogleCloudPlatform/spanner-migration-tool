@@ -9,6 +9,8 @@ import { DialectList, InputType, PersistedFormValues, StorageKeys } from 'src/ap
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
+import { InfodialogComponent } from '../infodialog/infodialog.component'
+import { MatDialog } from '@angular/material/dialog'
 
 @Component({
   selector: 'app-direct-connection',
@@ -44,6 +46,7 @@ export class DirectConnectionComponent implements OnInit {
   ]
 
   dialect = DialectList
+  isOfflineStatus: boolean = false
 
   constructor(
     private router: Router,
@@ -51,7 +54,8 @@ export class DirectConnectionComponent implements OnInit {
     private data: DataService,
     private loader: LoaderService,
     private snackbarService: SnackbarService,
-    private clickEvent: ClickEventService
+    private clickEvent: ClickEventService,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
@@ -104,6 +108,19 @@ export class DirectConnectionComponent implements OnInit {
   }
 
   connectToDb() {
+    this.data.updateIsOffline()
+    this.data.isOffline.subscribe({
+      next: (res: boolean) => {
+        this.isOfflineStatus = res
+      },
+    })
+    if (this.isOfflineStatus) {
+      this.dialog.open(InfodialogComponent, {
+        data: { message: "Please configure spanner project id and instance id to proceed", type: 'error', title: 'Configure Spanner' },
+        maxWidth: '500px',
+      })
+      return
+    }
     this.clickEvent.openDatabaseLoader('direct', this.connectForm.value.dbName!)
     window.scroll(0, 0)
     this.data.resetStore()

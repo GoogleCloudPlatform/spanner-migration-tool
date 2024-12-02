@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -63,22 +65,34 @@ func ConvertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 
 	conv.SpDialect = sessionState.Dialect
+	conv.SpProjectId = sessionState.SpannerProjectId
+	conv.SpInstanceId = sessionState.SpannerInstanceID
+	conv.Source = sessionState.Driver
 	conv.IsSharded = sessionState.IsSharded
 	var err error
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: sessionState.IsSharded,
 	}
 	processSchema := common.ProcessSchemaImpl{}
+	ctx := context.Background()
+	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
+		return
+	}
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		DdlV: ddlVerifier,
+	}
 	switch sessionState.Driver {
 	case constants.MYSQL:
-		err = processSchema.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.POSTGRES:
 		temp := false
-		err = processSchema.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.SQLSERVER:
-		err = processSchema.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.ORACLE:
-		err = processSchema.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -156,7 +170,10 @@ func ConvertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver, &n)
 	sourceProfile.Driver = dc.Config.Driver
 	schemaFromSource := conversion.SchemaFromSourceImpl{}
-	conv, err := schemaFromSource.SchemaFromDump(sourceProfile.Driver, dc.SpannerDetails.Dialect, &utils.IOStreams{In: f, Out: os.Stdout}, &conversion.ProcessDumpByDialectImpl{})
+	sessionState := session.GetSessionState()
+	SpProjectId := sessionState.SpannerProjectId
+	SpInstanceId := sessionState.SpannerInstanceID
+	conv, err := schemaFromSource.SchemaFromDump(SpProjectId, SpInstanceId, sourceProfile.Driver, dc.SpannerDetails.Dialect, &utils.IOStreams{In: f, Out: os.Stdout}, &conversion.ProcessDumpByDialectImpl{})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
@@ -169,7 +186,6 @@ func ConvertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		Dialect:      dc.SpannerDetails.Dialect,
 	}
 
-	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
 	sessionState.Conv = conv
@@ -359,6 +375,45 @@ func GetAutoGenMap(w http.ResponseWriter, r *http.Request) {
 func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.RLock()
+
+	tableIds := common.GetSortedTableIdsBySpName(sessionState.Conv.SpSchema)
+	ddlV, err := expressions_api.NewDDLVerifierImpl(context.Background(), sessionState.Conv.SpProjectId, sessionState.Conv.SpInstanceId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("DDL Verifier could not be created : %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	expressionDetails := ddlV.GetSpannerExpressionDetails(sessionState.Conv, tableIds)
+	expressions, err := ddlV.VerifySpannerDDL(sessionState.Conv, expressionDetails)
+	if err != nil && strings.Contains(err.Error(), "expressions either failed verification") {
+		for _, exp := range expressions.ExpressionVerificationOutputList {
+			switch exp.ExpressionDetail.Type {
+			case "DEFAULT":
+				{
+					if !exp.Result {
+						tableId := exp.ExpressionDetail.Metadata["TableId"]
+						columnId := exp.ExpressionDetail.Metadata["ColId"]
+						issues := sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
+						issues = append(issues, internal.DefaultValueError)
+						sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = issues
+					}
+				}
+			}
+		}
+	} else if err != nil {
+		for _, tableId := range tableIds {
+			srcTable := sessionState.Conv.SrcSchema[tableId]
+			for _, srcColId := range srcTable.ColIds {
+				srcCol := srcTable.ColDefs[srcColId]
+				if srcCol.DefaultValue.IsPresent {
+					issues := sessionState.Conv.SchemaIssues[tableId]
+					sessionState.Conv.SchemaIssues[tableId] = issues
+				}
+			}
+		}
+	}
+
+	session.UpdateSessionFile()
 	defer sessionState.Conv.ConvLock.RUnlock()
 	var tableIdName []types.TableIdAndName
 	for id, issues := range sessionState.Conv.SchemaIssues {
@@ -371,8 +426,20 @@ func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 				tableIdName = append(tableIdName, t)
 			}
 		}
+		for _, columnIssues := range issues.ColumnLevelIssues {
+			for _, issue := range columnIssues {
+				if reports.IssueDB[issue].Severity == reports.Errors {
+					t := types.TableIdAndName{
+						Id:   id,
+						Name: sessionState.Conv.SpSchema[id].Name,
+					}
+					tableIdName = append(tableIdName, t)
+				}
+			}
+		}
 	}
 	sort.Slice(tableIdName, func(i, j int) bool {
+
 		return tableIdName[i].Name < tableIdName[j].Name
 	})
 	w.WriteHeader(http.StatusOK)

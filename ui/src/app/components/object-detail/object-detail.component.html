@@ -308,6 +308,18 @@
               </td>
             </ng-container>
 
+            <ng-container matColumnDef="spDefaultValue" *ngIf="mySqlSource">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Default Value</th>
+              <td mat-cell *matCellDef="let element">
+                <div
+                class="trimmed-text" 
+                matTooltip="{{ element.get('srcDefaultValue').value }}" 
+                matTooltipPosition="above">
+                  {{ element.get('spDefaultValue').value.Value.Query }}
+                </div>
+              </td>
+            </ng-container>
+
             <ng-container matColumnDef="spIsPk">
               <th class="table_header" mat-header-cell *matHeaderCellDef>Pk</th>
               <td mat-cell *matCellDef="let element">

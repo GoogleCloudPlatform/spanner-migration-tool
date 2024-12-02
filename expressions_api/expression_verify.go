@@ -23,15 +23,17 @@ type ExpressionVerificationAccessor interface {
 
 type ExpressionVerificationAccessorImpl struct {
 	SpannerAccessor *spanneraccessor.SpannerAccessorImpl
+	DbUri           string
 }
 
 func NewExpressionVerificationAccessorImpl(ctx context.Context, project string, instance string) (*ExpressionVerificationAccessorImpl, error) {
-	spannerAccessor, err := spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, "smt-staging-db"))
+	spannerAccessor, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return &ExpressionVerificationAccessorImpl{
 		SpannerAccessor: spannerAccessor,
+		DbUri:           fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, "smt-staging-db"),
 	}, nil
 }
 
@@ -41,12 +43,28 @@ type ExpressionVerificationInput struct {
 	expressionDetail internal.ExpressionDetail
 }
 
+type DDLVerifier interface {
+	VerifySpannerDDL(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error)
+	GetSourceExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail
+	GetSpannerExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail
+}
+type DDLVerifierImpl struct {
+	Expressions ExpressionVerificationAccessor
+}
+
+func NewDDLVerifierImpl(ctx context.Context, project string, instance string) (*DDLVerifierImpl, error) {
+	expVerifier, err := NewExpressionVerificationAccessorImpl(ctx, project, instance)
+	return &DDLVerifierImpl{
+		Expressions: expVerifier,
+	}, err
+}
+
 func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
 	err := ev.validateRequest(verifyExpressionsInput)
 	if err != nil {
 		return internal.VerifyExpressionsOutput{Err: err}
 	}
-	dbURI := ev.SpannerAccessor.SpannerClient.DatabaseName()
+	dbURI := ev.DbUri
 	dbExists, err := ev.SpannerAccessor.CheckExistingDb(ctx, dbURI)
 	if err != nil {
 		return internal.VerifyExpressionsOutput{Err: err}
@@ -62,6 +80,10 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 		return internal.VerifyExpressionsOutput{Err: err}
 	}
 	err = ev.SpannerAccessor.CreateDatabase(ctx, dbURI, verifyExpressionsInput.Conv, verifyExpressionsInput.Source, constants.DATAFLOW_MIGRATION)
+	if err != nil {
+		return internal.VerifyExpressionsOutput{Err: err}
+	}
+	ev.SpannerAccessor.SpannerClient, err = spannerclient.NewSpannerClientImpl(ctx, dbURI)
 	if err != nil {
 		return internal.VerifyExpressionsOutput{Err: err}
 	}
@@ -140,4 +162,64 @@ func (ev *ExpressionVerificationAccessorImpl) removeExpressions(inputConv *inter
 		}
 	}
 	return convCopy, nil
+}
+
+func (ddlv *DDLVerifierImpl) VerifySpannerDDL(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
+	ctx := context.Background()
+	verifyExpressionsInput := internal.VerifyExpressionsInput{
+		Conv:                 conv,
+		Source:               conv.Source,
+		ExpressionDetailList: expressionDetails,
+	}
+	verificationResults := ddlv.Expressions.VerifyExpressions(ctx, verifyExpressionsInput)
+
+	return verificationResults, verificationResults.Err
+}
+
+func (ddlv *DDLVerifierImpl) GetSourceExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail {
+	expressionDetails := []internal.ExpressionDetail{}
+	// Collect default values for verification
+	for _, tableId := range tableIds {
+		srcTable := conv.SrcSchema[tableId]
+		for _, srcColId := range srcTable.ColIds {
+			srcCol := srcTable.ColDefs[srcColId]
+			if srcCol.DefaultValue.IsPresent {
+				defaultValueExp := internal.ExpressionDetail{
+					ReferenceElement: internal.ReferenceElement{
+						Name: conv.SpSchema[tableId].ColDefs[srcColId].T.Name,
+					},
+					ExpressionId: srcCol.DefaultValue.Value.ExpressionId,
+					Expression:   srcCol.DefaultValue.Value.Query,
+					Type:         "DEFAULT",
+					Metadata:     map[string]string{"TableId": tableId, "ColId": srcColId},
+				}
+				expressionDetails = append(expressionDetails, defaultValueExp)
+			}
+		}
+	}
+	return expressionDetails
+}
+
+func (ddlv *DDLVerifierImpl) GetSpannerExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail {
+	expressionDetails := []internal.ExpressionDetail{}
+	// Collect default values for verification
+	for _, tableId := range tableIds {
+		spTable := conv.SpSchema[tableId]
+		for _, spColId := range spTable.ColIds {
+			spCol := spTable.ColDefs[spColId]
+			if spCol.DefaultValue.IsPresent {
+				defaultValueExp := internal.ExpressionDetail{
+					ReferenceElement: internal.ReferenceElement{
+						Name: conv.SpSchema[tableId].ColDefs[spColId].T.Name,
+					},
+					ExpressionId: spCol.DefaultValue.Value.ExpressionId,
+					Expression:   spCol.DefaultValue.Value.Query,
+					Type:         "DEFAULT",
+					Metadata:     map[string]string{"TableId": tableId, "ColId": spColId},
+				}
+				expressionDetails = append(expressionDetails, defaultValueExp)
+			}
+		}
+	}
+	return expressionDetails
 }

@@ -479,6 +479,8 @@ func (sp *SpannerAccessorImpl) ValidateDML(ctx context.Context, query string) (b
 	stmt := spanner.Statement{
 		SQL: query,
 	}
+	db := sp.SpannerClient.DatabaseName()
+	fmt.Printf(db)
 	iter := sp.SpannerClient.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	_, err := iter.Next()

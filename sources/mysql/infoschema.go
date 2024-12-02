@@ -222,10 +222,13 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 
 		defaultVal := ddl.DefaultValue{
 			IsPresent: colDefault.Valid,
-			Value:     "",
+			Value:     ddl.Expression{},
 		}
 		if colDefault.Valid {
-			defaultVal.Value = sanitizeDefaultValue(colDefault.String, dataType, colExtra.String == "DEFAULT_GENERATED")
+			defaultVal.Value = ddl.Expression{
+				ExpressionId: internal.GenerateExpressionId(),
+				Query:        sanitizeDefaultValue(colDefault.String, dataType, colExtra.String == "DEFAULT_GENERATED"),
+			}
 		}
 
 		c := schema.Column{

@@ -30,14 +30,9 @@ var newClient = sp.NewClient
 
 func GetOrCreateClient(ctx context.Context, dbURI string) (*sp.Client, error) {
 	var err error
-	if spannerClient == nil {
-		once.Do(func() {
-			spannerClient, err = newClient(ctx, dbURI)
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create spanner database client: %v", err)
-		}
-		return spannerClient, nil
+	spannerClient, err = newClient(ctx, dbURI)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create spanner database client: %v", err)
 	}
 	return spannerClient, nil
 }
