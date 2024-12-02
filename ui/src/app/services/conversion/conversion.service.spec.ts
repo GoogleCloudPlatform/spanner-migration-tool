@@ -1,11 +1,12 @@
 import { HttpClientModule } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
-import IConv from '../../model/conv'
+import IConv, { IInterleavedParent } from '../../model/conv'
 
 import { ConversionService } from './conversion.service';
 import ISchemaObjectNode from 'src/app/model/schema-object-node';
 import { ObjectExplorerNodeType } from 'src/app/app.constants';
+import ICcTabData from 'src/app/model/cc-tab-data';
 
 describe('ConversionService', () => {
   let service: ConversionService;
@@ -22,7 +23,7 @@ describe('ConversionService', () => {
   });
 
   it('getSpannerSequenceNameFromId', () => {
-    let conv: IConv = {} as IConv 
+    let conv: IConv = {} as IConv
     conv.SpSequences ={
       "s1": {
         Name: "Sequence1",
@@ -88,7 +89,7 @@ describe('ConversionService', () => {
   });
 
   it('getSequenceMapping', () => {
-    let conv: IConv = {} as IConv 
+    let conv: IConv = {} as IConv
     conv.SpSequences ={
       "s1": {
         Name: "Sequence1",
@@ -110,4 +111,187 @@ describe('ConversionService', () => {
       spStartWithCounter: undefined,
     });
   });
+
+  it('getCheckConstraints when src has more data then spanner', () => {
+    let conv: IConv = {} as IConv
+    conv.SrcSchema = {
+      t1: {
+        Name: 'test',
+        Id: '1',
+        Schema: '',
+        ColIds: [],
+        ColDefs: {},
+        PrimaryKeys: [],
+        ForeignKeys: [],
+
+        Indexes: [],
+        CheckConstraints: [
+          { Id: '1', Name: 'Name1', Expr: 'Expr1' },
+          { Id: '2', Name: 'Name2', Expr: 'Expr2' },
+        ],
+      },
+    }
+    conv.SpSchema = {
+      t1: {
+        Name: 'test',
+        Id: '1',
+        ColIds: [],
+        ShardIdColumn: '',
+        ColDefs: {},
+        PrimaryKeys: [],
+        ForeignKeys: [],
+
+        Indexes: [],
+        CheckConstraints: [{ Id: '1', Name: 'Name1', Expr: 'Expr1' }],
+        ParentTable: {} as IInterleavedParent,
+        Comment: '',
+      },
+    }
+
+    const expected: ICcTabData[] = [
+      {
+        srcSno: '1',
+        srcConstraintName: 'Name1',
+        srcCondition: 'Expr1',
+        spSno: '1',
+        spConstraintName: 'Name1',
+        spCondition: 'Expr1',
+        deleteIndex: 'cc1',
+      },
+      {
+        srcSno: '2',
+        srcConstraintName: 'Name2',
+        srcCondition: 'Expr2',
+        spSno: '',
+        spConstraintName: '',
+        spCondition: '',
+        deleteIndex: 'cc2',
+      },
+    ]
+
+    const result = service.getCheckConstraints('t1', conv)
+    expect(result).toEqual(expected)
+  })
+
+  it('getCheckConstraints when spanner is empty', () => {
+    let conv: IConv = {} as IConv
+    conv.SrcSchema = {
+      t1: {
+        Name: 'test',
+        Id: '1',
+        Schema: '',
+        ColIds: [],
+        ColDefs: {},
+        PrimaryKeys: [],
+        ForeignKeys: [],
+
+        Indexes: [],
+        CheckConstraints: [
+          { Id: '1', Name: 'Name1', Expr: 'Expr1' },
+          { Id: '2', Name: 'Name2', Expr: 'Expr2' },
+        ],
+      },
+    }
+    conv.SpSchema = {
+      t1: {
+        Name: 'test',
+        Id: '1',
+        ColIds: [],
+        ShardIdColumn: '',
+        ColDefs: {},
+        PrimaryKeys: [],
+        ForeignKeys: [],
+
+        Indexes: [],
+        CheckConstraints: [],
+        ParentTable: {} as IInterleavedParent,
+        Comment: '',
+      },
+    }
+
+    const expected: ICcTabData[] = [
+      {
+        srcSno: '1',
+        srcConstraintName: 'Name1',
+        srcCondition: 'Expr1',
+        spSno: '',
+        spConstraintName: '',
+        spCondition: '',
+        deleteIndex: 'cc1',
+      },
+      {
+        srcSno: '2',
+        srcConstraintName: 'Name2',
+        srcCondition: 'Expr2',
+        spSno: '',
+        spConstraintName: '',
+        spCondition: '',
+        deleteIndex: 'cc2',
+      },
+    ];
+
+    const result = service.getCheckConstraints('t1', conv)
+    expect(result).toEqual(expected)
+  })
+
+  it('getCheckConstraints when src is less than spanner', () => {
+    let conv: IConv = {} as IConv
+    conv.SrcSchema = {
+      t1: {
+        Name: 'test',
+        Id: '1',
+        Schema: '',
+        ColIds: [],
+        ColDefs: {},
+        PrimaryKeys: [],
+        ForeignKeys: [],
+
+        Indexes: [],
+        CheckConstraints: [{ Id: '1', Name: 'Name1', Expr: 'Expr1' }],
+      },
+    }
+    conv.SpSchema = {
+      t1: {
+        Name: 'test',
+        Id: '1',
+        ColIds: [],
+        ShardIdColumn: '',
+        ColDefs: {},
+        PrimaryKeys: [],
+        ForeignKeys: [],
+
+        Indexes: [],
+        CheckConstraints: [
+          { Id: '1', Name: 'Name1', Expr: 'Expr1' },
+          { Id: '2', Name: 'Name2', Expr: 'Expr2' },
+        ],
+        ParentTable: {} as IInterleavedParent,
+        Comment: '',
+      },
+    }
+
+    const expected: ICcTabData[] = [
+      {
+        srcSno: '1',
+        srcConstraintName: 'Name1',
+        srcCondition: 'Expr1',
+        spSno: '1',
+        spConstraintName: 'Name1',
+        spCondition: 'Expr1',
+        deleteIndex: 'cc1',
+      },
+      {
+        srcSno: '',
+        srcConstraintName: '',
+        srcCondition: '',
+        spSno: '2',
+        spConstraintName: 'Name2',
+        spCondition: 'Expr2',
+        deleteIndex: 'cc2',
+      },
+    ]
+
+    const result = service.getCheckConstraints('t1', conv)
+    expect(result).toEqual(expected)
+  })
 });

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
-import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
+import IConv, { ICheckConstraints, ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
 import IRule from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of, Subject } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
@@ -396,6 +396,25 @@ export class DataService {
         }
       })
     )
+  }
+
+  updateCC(tableId: string, updatedCC: ICheckConstraints[]): Observable<string> {
+    return this.fetch.updateCC(tableId, updatedCC).pipe(
+      catchError((error: any) => {
+        console.error('Error updating check constraints:', error);
+        return of(`Error: ${error.message || 'Unknown error'}`);
+      }),
+      tap(response => console.log('Update Response:', response)),
+      map((response: any) => {
+        if (response.error) {
+          return `Error: ${response.error}`;
+        } else {
+          this.convSubject.next(response);
+          this.getDdl();
+          return '';
+        }
+      })
+    );
   }
 
   updateFkNames(tableId: string, updatedFk: IForeignKey[]): Observable<string> {
