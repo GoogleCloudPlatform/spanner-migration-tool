@@ -35,6 +35,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
@@ -46,6 +47,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"golang.org/x/exp/rand"
 )
 
 // ToDdl interface is meant to be implemented by all sources. When support for a
@@ -68,11 +70,29 @@ type SchemaToSpannerImpl struct {
 	DdlV expressions_api.DDLVerifier
 }
 
+const charset = "abcdefghijklmnopqrstuvwxyz"
+
+var seededRand *rand.Rand = rand.New(
+  rand.NewSource(uint64(time.Now().UnixNano())))
+
+
+
+func StringWithCharset(length int, charset string) string {
+  b := make([]byte, length)
+  for i := range b {
+    b[i] = charset[seededRand.Intn(len(charset))]
+  }
+  return string(b)
+}
+
+func String(length int) string {
+  return StringWithCharset(length, charset)
+}
 func GetSchemaToSpannerImpl(conv *internal.Conv) SchemaToSpannerInterface {
 	ctx := context.Background()
 	instanceAdmin, _ := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
 	adminClientImpl, _ := spanneradmin.NewAdminClientImpl(ctx)
-	spClientImpl, _ := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", conv.SpProjectId, conv.SpInstanceId, conv.Audit.MigrationRequestId+"temp-db"))
+	spClientImpl, _ := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", conv.SpProjectId, conv.SpInstanceId, String(7)))
 	return &SchemaToSpannerImpl{
 		DdlV: &expressions_api.DDLVerifierImpl{
 			Expressions: &expressions_api.ExpressionVerificationAccessorImpl{
@@ -100,8 +120,8 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
 	internal.ResolveRefs(conv)
-
-	expressions, err := ss.DdlV.VerifySpannerDDL(conv, tableIds)
+	expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
+	expressions, err := ss.DdlV.VerifySpannerDDL(conv, expressionDetails)
 	if err != nil && !strings.Contains(err.Error(), "expressions either failed verification") {
 		return err
 	}

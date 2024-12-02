@@ -448,6 +448,8 @@ func (sp *SpannerAccessorImpl) DropDatabase(ctx context.Context, dbURI string) e
 }
 
 func (sp *SpannerAccessorImpl) ValidateDML(ctx context.Context, query string) (bool, error) {
+	name:=sp.SpannerClient.DatabaseName()
+	fmt.Printf(name)
 	stmt := spanner.Statement{
 		SQL: query,
 	}

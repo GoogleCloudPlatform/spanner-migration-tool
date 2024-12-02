@@ -5,14 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
+	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
+	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
-	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
-	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
+	"golang.org/x/exp/rand"
 )
 
 const THREAD_POOL = 500
@@ -33,17 +35,37 @@ type ExpressionVerificationInput struct {
 }
 
 type DDLVerifier interface {
-	VerifySpannerDDL(conv *internal.Conv, tableIds []string) (internal.VerifyExpressionsOutput, error)
+	VerifySpannerDDL(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error)
+	GetSourceExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail
+	GetSpannerExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail
 }
 type DDLVerifierImpl struct {
 	Expressions ExpressionVerificationAccessor
 }
 
+const charset = "abcdefghijklmnopqrstuvwxyz"
+
+var seededRand *rand.Rand = rand.New(
+  rand.NewSource(uint64(time.Now().UnixNano())))
+
+
+
+func StringWithCharset(length int, charset string) string {
+  b := make([]byte, length)
+  for i := range b {
+    b[i] = charset[seededRand.Intn(len(charset))]
+  }
+  return string(b)
+}
+
+func String(length int) string {
+  return StringWithCharset(length, charset)
+}
 func GetDDLVerifier(conv *internal.Conv) DDLVerifier {
 	ctx := context.Background()
 	instanceAdmin, _ := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
 	adminClientImpl, _ := spanneradmin.NewAdminClientImpl(ctx)
-	spClientImpl, _ := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", conv.SpProjectId, conv.SpInstanceId, conv.Audit.MigrationRequestId+"temp-db"))
+	spClientImpl, _ := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", conv.SpProjectId, conv.SpInstanceId, String(5)))
 	return  &DDLVerifierImpl{
 			Expressions: &ExpressionVerificationAccessorImpl{
 				SpannerAccessor: spanneraccessor.SpannerAccessorImpl{
@@ -61,9 +83,14 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 		return internal.VerifyExpressionsOutput{Err: err}
 	}
 	dbURI := ev.SpannerAccessor.SpannerClient.DatabaseName()
+	fmt.Print(dbURI)
 	dbExists, err := ev.SpannerAccessor.CheckExistingDb(ctx, dbURI)
+	if err != nil {
+		return internal.VerifyExpressionsOutput{Err: err}
+	}
 	if dbExists {
 		err := ev.SpannerAccessor.DropDatabase(ctx, dbURI)
+		
 		if err != nil {
 			return internal.VerifyExpressionsOutput{Err: err}
 		}
@@ -77,7 +104,7 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 		return internal.VerifyExpressionsOutput{Err: err}
 	}
 	//Drop the staging database after verifications are completed.
-	defer ev.SpannerAccessor.DropDatabase(ctx, dbURI)
+	
 	verificationInputList := make([]ExpressionVerificationInput, len(verifyExpressionsInput.ExpressionDetailList))
 	for i, expressionDetail := range verifyExpressionsInput.ExpressionDetailList {
 		verificationInputList[i] = ExpressionVerificationInput{
@@ -144,8 +171,21 @@ func (ev *ExpressionVerificationAccessorImpl) simplifyConv(inputConv *internal.C
 	return convCopy, nil
 }
 
-func (ddlv *DDLVerifierImpl) VerifySpannerDDL(conv *internal.Conv, tableIds []string) (internal.VerifyExpressionsOutput, error) {
+func (ddlv *DDLVerifierImpl) VerifySpannerDDL(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
 	ctx := context.Background()
+	verifyExpressionsInput := internal.VerifyExpressionsInput{
+		Project:              conv.SpProjectId,
+		Instance:             conv.SpInstanceId,
+		Conv:                 conv,
+		Source:               conv.Source,
+		ExpressionDetailList: expressionDetails,
+	}
+	verificationResults := ddlv.Expressions.VerifyExpressions(ctx, verifyExpressionsInput)
+
+	return verificationResults, verificationResults.Err
+}
+
+func (ddlv *DDLVerifierImpl) GetSourceExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail {
 	expressionDetails := []internal.ExpressionDetail{}
 	// Collect default values for verification
 	for _, tableId := range tableIds {
@@ -166,14 +206,29 @@ func (ddlv *DDLVerifierImpl) VerifySpannerDDL(conv *internal.Conv, tableIds []st
 			}
 		}
 	}
-	verifyExpressionsInput := internal.VerifyExpressionsInput{
-		Project:              conv.SpProjectId,
-		Instance:             conv.SpInstanceId,
-		Conv:                 conv,
-		Source:               conv.Source,
-		ExpressionDetailList: expressionDetails,
-	}
-	verificationResults := ddlv.Expressions.VerifyExpressions(ctx, verifyExpressionsInput)
+	return expressionDetails
+}
 
-	return verificationResults, verificationResults.Err
+func (ddlv *DDLVerifierImpl) GetSpannerExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail {
+	expressionDetails := []internal.ExpressionDetail{}
+	// Collect default values for verification
+	for _, tableId := range tableIds {
+		spTable := conv.SpSchema[tableId]
+		for _, spColId := range spTable.ColIds {
+			spCol := spTable.ColDefs[spColId]
+			if spCol.DefaultValue.IsPresent {
+				defaultValueExp := internal.ExpressionDetail{
+					ReferenceElement: internal.ReferenceElement{
+						Name: conv.SpSchema[tableId].ColDefs[spColId].T.Name,
+					},
+					ExpressionId: spCol.DefaultValue.Value.ExpressionId,
+					Expression:   spCol.DefaultValue.Value.Query,
+					Type:         "DEFAULT",
+					Metadata:     map[string]string{"TableId": tableId, "ColId": spColId},
+				}
+				expressionDetails = append(expressionDetails, defaultValueExp)
+			}
+		}
+	}
+	return expressionDetails
 }
