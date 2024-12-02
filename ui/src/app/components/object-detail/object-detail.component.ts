@@ -596,20 +596,17 @@ export class ObjectDetailComponent implements OnInit {
     } else if (this.checkIfCcColumn(colId)) {
       let message = `Column ${spColName} is a part of`;
       const dependencies = [];
-
       if (this.checkIfPkColumn(colId)) {
         dependencies.push(' Primary key');
       }
       if (associatedIndexes.length !== 0) {
         dependencies.push(` Index ${associatedIndexes}`);
       }
-
       // Join dependencies with appropriate punctuation
       if (dependencies.length > 0) {
         message += `${dependencies.join(' ,')} and`;
       }
       message += ' check constraints. Remove the dependencies from respective tabs before dropping the Column.';
-
       this.dialog.open(InfodialogComponent, {
         data: {
           message,
@@ -878,7 +875,6 @@ export class ObjectDetailComponent implements OnInit {
     this.ccArray = this.fb.array([]);
     const srcArr: ICcTabData[] = [];
     const spArr: ICcTabData[] = [];
-
     // Populate srcArr and spArr
     this.ccData.forEach((cc, index) => {
       const baseObject : ICcTabData = {
@@ -897,7 +893,6 @@ export class ObjectDetailComponent implements OnInit {
         spArr.push(baseObject);
       }
     });
-
     const createFormGroup = (data : ICcTabData) => new FormGroup({
       srcSno: new FormControl(data.srcSno || ''),
       srcConstraintName: new FormControl(data.srcConstraintName || ''),
@@ -916,7 +911,6 @@ export class ObjectDetailComponent implements OnInit {
     for (let i = 0; i < Math.min(srcArr.length, spArr.length); i++) {
       this.ccArray.push(createFormGroup(srcArr[i]));
     }
-
     for (let i = Math.min(srcArr.length, spArr.length); i < srcArr.length; i++) {
       this.ccArray.push(createFormGroup(srcArr[i]));
     }
@@ -940,7 +934,6 @@ export class ObjectDetailComponent implements OnInit {
     if (this.isCcEditMode) {
       this.setCCRows();
     }
-
     this.isCcEditMode = !this.isCcEditMode;
   }
 

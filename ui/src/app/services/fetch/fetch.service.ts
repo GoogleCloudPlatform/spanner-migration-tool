@@ -212,7 +212,6 @@ export class FetchService {
   }
 
   verifyCheckConstraintExpression() {
-    debugger
     return this.http.get(`${this.url}/verifyCheckConstraintExpression`)
   }
 
