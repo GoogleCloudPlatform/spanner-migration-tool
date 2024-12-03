@@ -121,4 +121,9 @@ const (
 	// GCS PUBSUB MODES
 	REGULAR_GCS string = "data"
 	DLQ_GCS     string = "dlq"
+
+	//VerifyExpresions API
+	CHECK_EXPRESSION = "CHECK"
+	DEFAUT_EXPRESSION = "DEFAULT"
+
 )

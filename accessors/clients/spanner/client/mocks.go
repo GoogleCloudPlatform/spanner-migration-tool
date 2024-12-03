@@ -8,6 +8,12 @@ import (
 
 type SpannerClientMock struct {
 	SingleMock func() ReadOnlyTransaction
+	DatabaseNameMock func() string
+	RefreshMock func(ctx context.Context, dbURI string) error
+}
+
+func (scm SpannerClientMock) Refresh(ctx context.Context, dbURI string) error {
+	return scm.RefreshMock(ctx, dbURI)
 }
 
 type ReadOnlyTransactionMock struct {
@@ -21,6 +27,10 @@ type RowIteratorMock struct {
 
 func (scm SpannerClientMock) Single() ReadOnlyTransaction {
 	return scm.SingleMock()
+}
+
+func (scm SpannerClientMock) DatabaseName() string {
+	return scm.DatabaseNameMock()
 }
 
 func (rom ReadOnlyTransactionMock) Query(ctx context.Context, stmt spanner.Statement) RowIterator {
