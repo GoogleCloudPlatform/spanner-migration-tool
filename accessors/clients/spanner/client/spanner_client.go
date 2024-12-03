@@ -41,3 +41,12 @@ func GetOrCreateClient(ctx context.Context, dbURI string) (*sp.Client, error) {
 	}
 	return spannerClient, nil
 }
+
+func CreateClient(ctx context.Context, dbURI string) (*sp.Client, error) {
+	var err error
+	spannerClient, err = newClient(ctx, dbURI)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create spanner database client: %v", err)
+	}
+	return spannerClient, nil
+}

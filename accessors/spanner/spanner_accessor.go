@@ -489,3 +489,7 @@ func (sp *SpannerAccessorImpl) ValidateDML(ctx context.Context, query string) (b
 		return true, nil
 	}
 }
+
+func (sp *SpannerAccessorImpl) Refresh(ctx context.Context, dbURI string) () {
+	sp.SpannerClient.Refresh(ctx, dbURI)
+}
