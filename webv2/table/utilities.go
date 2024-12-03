@@ -251,6 +251,15 @@ func UpdateNotNull(notNullChange, tableId, colId string, conv *internal.Conv) {
 	}
 }
 
+func UpdateDefaultValue(dv ddl.DefaultValue, tableId, colId string, conv *internal.Conv) {
+	sp := conv.SpSchema[tableId]
+
+	if dv.Value.ExpressionId
+		spColDef := sp.ColDefs[colId]
+		spColDef.NotNull = true
+		sp.ColDefs[colId] = spColDef
+}
+
 func UpdateAutoGenCol(autoGen ddl.AutoGenCol, tableId, colId string, conv *internal.Conv) map[string]ddl.Sequence {
 	sp := conv.SpSchema[tableId]
 	sequences := conv.SpSequences

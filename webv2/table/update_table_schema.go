@@ -42,6 +42,7 @@ type updateCol struct {
 	ToType       string         `json:"ToType"`
 	MaxColLength string         `json:"MaxColLength"`
 	AutoGen      ddl.AutoGenCol `json:"AutoGen"`
+	DefaultValue ddl.DefaultValue `json:"DefaultGen"`
 }
 
 type updateTable struct {
