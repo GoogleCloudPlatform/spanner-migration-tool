@@ -194,16 +194,6 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			continue
 		}
 		ignored := schema.Ignored{}
-		for _, c := range constraints[colName] {
-			// c can be UNIQUE, PRIMARY KEY, FOREIGN KEY or CHECK
-			// We've already filtered out PRIMARY KEY.
-			switch c {
-			case "CHECK":
-				ignored.Check = true
-			case "FOREIGN KEY", "PRIMARY KEY", "UNIQUE":
-				// Nothing to do here -- these are all handled elsewhere.
-			}
-		}
 		ignored.Default = colDefault.Valid
 		colId := internal.GenerateColumnId()
 		if colExtra.String == "auto_increment" {
@@ -237,38 +227,98 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
-func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, map[string][]string, error) {
-	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
-              FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
-                INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
-                  ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND t.TABLE_NAME=k.TABLE_NAME
-              WHERE k.TABLE_SCHEMA = ? AND k.TABLE_NAME = ? ORDER BY k.ordinal_position;`
-	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, []schema.CheckConstraint, map[string][]string, error) {
+	tableExists, err := isi.isCheckConstraintsTablePresent()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
+	}
+
+	finalQuery := isi.getQuery(tableExists)
+	rows, err := isi.Db.Query(finalQuery, table.Schema, table.Name)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 	defer rows.Close()
+
 	var primaryKeys []string
-	var col, constraint string
+	var checkKeys []schema.CheckConstraint
 	m := make(map[string][]string)
+
 	for rows.Next() {
-		err := rows.Scan(&col, &constraint)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+		if err := isi.processRow(rows, tableExists, conv, &primaryKeys, &checkKeys, m); err != nil {
 			continue
-		}
-		if col == "" || constraint == "" {
-			conv.Unexpected(fmt.Sprintf("Got empty col or constraint"))
-			continue
-		}
-		switch constraint {
-		case "PRIMARY KEY":
-			primaryKeys = append(primaryKeys, col)
-		default:
-			m[col] = append(m[col], constraint)
 		}
 	}
-	return primaryKeys, m, nil
+
+	return primaryKeys, checkKeys, m, nil
+}
+
+// checkCheckConstraintsTableExists checks if the CHECK_CONSTRAINTS table exists.
+func (isi InfoSchemaImpl) isCheckConstraintsTablePresent() (bool, error) {
+	var tableExistsCount int
+	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
+	err := isi.Db.QueryRow(checkQuery).Scan(&tableExistsCount)
+	if err != nil {
+		return false, err
+	}
+	return tableExistsCount > 0, nil
+}
+
+// getQuery returns the appropriate SQL query based on the existence of CHECK_CONSTRAINTS.
+func (isi InfoSchemaImpl) getQuery(tableExists bool) string {
+	if tableExists {
+		return `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
+            LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+            ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
+            AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
+            AND t.TABLE_NAME = k.TABLE_NAME
+            LEFT JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS AS c
+            ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
+            WHERE t.TABLE_SCHEMA = ? 
+            AND t.TABLE_NAME = ?
+            ORDER BY k.ORDINAL_POSITION;`
+	}
+	return `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
+            INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+            ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
+            AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
+            AND t.TABLE_NAME = k.TABLE_NAME
+            WHERE t.TABLE_SCHEMA = ?
+            AND t.TABLE_NAME = ?
+            ORDER BY k.ORDINAL_POSITION;`
+}
+
+// processRow handles scanning and processing of a database row for GetConstraints.
+func (isi InfoSchemaImpl) processRow(
+	rows *sql.Rows, tableExists bool, conv *internal.Conv, primaryKeys *[]string,
+	checkKeys *[]schema.CheckConstraint, m map[string][]string) error {
+
+	var col, constraintType, checkClause string
+	err := rows.Scan(&col, &constraintType, &checkClause)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+		return err
+	}
+
+	if col == "" || constraintType == "" {
+		conv.Unexpected("Got empty column or constraint type")
+		return nil
+	}
+
+	switch constraintType {
+	case "PRIMARY KEY":
+		*primaryKeys = append(*primaryKeys, col)
+	case "CHECK":
+		checkClause = strings.ReplaceAll(checkClause, "_utf8mb4\\", "")
+		checkClause = strings.ReplaceAll(checkClause, "\\", "")
+		constraintName := fmt.Sprintf("%s_check", col)
+		*checkKeys = append(*checkKeys, schema.CheckConstraint{Name: constraintName, Expr: checkClause, Id: internal.GenerateCheckConstrainstId()})
+	default:
+		m[col] = append(m[col], constraintType)
+	}
+	return nil
 }
 
 // GetForeignKeys return list all the foreign keys constraints.
