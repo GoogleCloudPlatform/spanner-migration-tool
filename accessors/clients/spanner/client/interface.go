@@ -10,6 +10,7 @@ import (
 type SpannerClient interface {
 	Single() ReadOnlyTransaction
 	DatabaseName() string
+	Refresh(ctx context.Context, dbURI string) error
 }
 
 type ReadOnlyTransaction interface {
@@ -33,6 +34,15 @@ func NewSpannerClientImpl(ctx context.Context, dbURI string) (*SpannerClientImpl
 		return nil, err
 	}
 	return &SpannerClientImpl{spannerClient: c}, nil
+}
+
+func (c *SpannerClientImpl) Refresh(ctx context.Context, dbURI string) error {
+	var err error
+	c.spannerClient, err = CreateClient(ctx, dbURI)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *SpannerClientImpl) Single() ReadOnlyTransaction {

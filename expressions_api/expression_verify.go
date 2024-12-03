@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sync"
 
-	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
@@ -35,12 +34,6 @@ func NewExpressionVerificationAccessorImpl(ctx context.Context, project string, 
 	}, nil
 }
 
-// This is an internal struct to the API implementation and should not leak out of the spanneraccessor package (member fields are not exported)
-type ExpressionVerificationInput struct {
-	spannerClient    spannerclient.SpannerClient
-	expressionDetail internal.ExpressionDetail
-}
-
 func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
 	err := ev.validateRequest(verifyExpressionsInput)
 	if err != nil {
@@ -67,15 +60,10 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 	}
 	//Drop the staging database after verifications are completed.
 	defer ev.SpannerAccessor.DropDatabase(ctx, dbURI)
-	verificationInputList := make([]ExpressionVerificationInput, len(verifyExpressionsInput.ExpressionDetailList))
-	for i, expressionDetail := range verifyExpressionsInput.ExpressionDetailList {
-		verificationInputList[i] = ExpressionVerificationInput{
-			spannerClient:    ev.SpannerAccessor.SpannerClient,
-			expressionDetail: expressionDetail,
-		}
-	}
-	r := task.RunParallelTasksImpl[ExpressionVerificationInput, internal.ExpressionVerificationOutput]{}
-	expressionVerificationOutputList, _ := r.RunParallelTasks(verificationInputList, THREAD_POOL, ev.verifyExpressionInternal, true)
+	//This recreates a spanner client for the staging database before doing operations on it.
+	ev.SpannerAccessor.Refresh(ctx, dbURI)
+	r := task.RunParallelTasksImpl[internal.ExpressionDetail, internal.ExpressionVerificationOutput]{}
+	expressionVerificationOutputList, _ := r.RunParallelTasks(verifyExpressionsInput.ExpressionDetailList, THREAD_POOL, ev.verifyExpressionInternal, true)
 	var verifyExpressionsOutput internal.VerifyExpressionsOutput
 	var errorCount int16 = 0
 	for _, expressionVerificationOutput := range expressionVerificationOutputList {
@@ -91,18 +79,18 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 	return verifyExpressionsOutput
 }
 
-func (ev *ExpressionVerificationAccessorImpl) verifyExpressionInternal(expressionVerificationInput ExpressionVerificationInput, mutex *sync.Mutex) task.TaskResult[internal.ExpressionVerificationOutput] {
+func (ev *ExpressionVerificationAccessorImpl) verifyExpressionInternal(expressionDetail internal.ExpressionDetail, mutex *sync.Mutex) task.TaskResult[internal.ExpressionVerificationOutput] {
 	var sqlStatement string
-	switch expressionVerificationInput.expressionDetail.Type {
+	switch expressionDetail.Type {
 	case constants.CHECK_EXPRESSION:
-		sqlStatement = fmt.Sprintf("SELECT 1 from %s where %s;", expressionVerificationInput.expressionDetail.ReferenceElement.Name, expressionVerificationInput.expressionDetail.Expression)
+		sqlStatement = fmt.Sprintf("SELECT 1 from %s where %s;", expressionDetail.ReferenceElement.Name, expressionDetail.Expression)
 	case constants.DEFAUT_EXPRESSION:
-		sqlStatement = fmt.Sprintf("SELECT CAST(%s as %s)", expressionVerificationInput.expressionDetail.Expression, expressionVerificationInput.expressionDetail.ReferenceElement.Name)
+		sqlStatement = fmt.Sprintf("SELECT CAST(%s as %s)", expressionDetail.Expression, expressionDetail.ReferenceElement.Name)
 	default:
 		return task.TaskResult[internal.ExpressionVerificationOutput]{Result: internal.ExpressionVerificationOutput{Result: false, Err: fmt.Errorf("invalid expression type requested")}, Err: nil}
 	}
 	result, err := ev.SpannerAccessor.ValidateDML(context.Background(), sqlStatement)
-	return task.TaskResult[internal.ExpressionVerificationOutput]{Result: internal.ExpressionVerificationOutput{Result: result, Err: err, ExpressionDetail: expressionVerificationInput.expressionDetail}, Err: nil}
+	return task.TaskResult[internal.ExpressionVerificationOutput]{Result: internal.ExpressionVerificationOutput{Result: result, Err: err, ExpressionDetail: expressionDetail}, Err: nil}
 }
 
 func (ev *ExpressionVerificationAccessorImpl) validateRequest(verifyExpressionsInput internal.VerifyExpressionsInput) error {
