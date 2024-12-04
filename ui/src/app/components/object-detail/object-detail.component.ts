@@ -4,7 +4,7 @@ import IUpdateTable from '../../model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
-import IColumnTabData, { IIndexData, ISequenceData } from '../../model/edit-table'
+import IColumnTabData, { AutoGen, IIndexData, ISequenceData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, SourceDbNames, StorageKeys, dialogConfigAddSequence, dialogConfigDropComponent} from 'src/app/app.constants'
@@ -209,7 +209,7 @@ export class ObjectDetailComponent implements OnInit {
       this.srcDisplayedColumns.splice(2, 0, "srcAutoGen");
       this.displayedPkColumns.splice(2, 0, "srcAutoGen");
       this.srcDisplayedColumns.push("srcDefaultValue");;
-      this.spDisplayedColumns.push("spDefaultValue");
+      this.spDisplayedColumns.splice(4, 0,"spDefaultValue");
       this.spColspan+=2;
       this.srcColspan+=2;
     }
@@ -275,8 +275,20 @@ export class ObjectDetailComponent implements OnInit {
           spColMaxLength: new FormControl(row.spColMaxLength, [
             Validators.required]),
           spAutoGen: new FormControl(row.spAutoGen),
-          spDefaultValue: new FormControl(row.spDefaultValue),
+          spDefaultValue: new FormControl(row.spDefaultValue ? row.spDefaultValue.Value.Query : ''),
         })
+        // Disable spDefaultValue if spAutoGen is set
+        if (row.spAutoGen.Name !== '') { 
+          fb.get('spDefaultValue')?.disable(); 
+        }
+        // Subscribe to changes in spAutoGen
+        fb.get('spAutoGen')?.valueChanges.subscribe((autoGen: AutoGen | null) => { // Allow null value
+          if (autoGen && autoGen.Name !== '') {
+            fb.get('spDefaultValue')?.disable();
+          } else {
+            fb.get('spDefaultValue')?.enable();
+          }
+        });
         if (this.dataTypesWithColLen.indexOf(row.spDataType.toString()) > -1) {
           fb.get('spColMaxLength')?.setValidators([Validators.required, Validators.pattern('([1-9][0-9]*|MAX)')])
           if (row.spColMaxLength === undefined) {
@@ -292,6 +304,9 @@ export class ObjectDetailComponent implements OnInit {
         } else {
           fb.controls['spColMaxLength'].clearValidators()
         }
+        if (row.spAutoGen?.Name !== '') {
+          fb.get('spDefaultValue')?.setValue('');
+        }
         fb.controls['spColMaxLength'].updateValueAndValidity()
         this.spRowArray.push(
           fb
@@ -299,6 +314,8 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
     this.spDataSource = this.spRowArray.controls
+    console.log("#1")
+    console.log(this.spDataSource)
   }
 
   setSrcTableRows() {
@@ -325,7 +342,7 @@ export class ObjectDetailComponent implements OnInit {
             srcId: new FormControl(col.srcId),
             spColMaxLength: new FormControl(col.spColMaxLength),
             spAutoGen: new FormControl(col.spAutoGen),
-            spDefaultValue: new FormControl(col.spDefaultValue),
+            spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Query : ''),
           })
         )
       } else {
@@ -363,7 +380,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsNotNull: new FormControl(col.srcIsNotNull),
             spColMaxLength: new FormControl(droppedColumnSpMaxLength),
             spAutoGen: new FormControl(col.spAutoGen),
-            spDefaultValue: new FormControl(col.spDefaultValue),
+            spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Query : ''),
           })
         )
       }
@@ -428,7 +445,13 @@ export class ObjectDetailComponent implements OnInit {
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
             MaxColLength: col.spColMaxLength,
             AutoGen: col.spAutoGen,
-            DefaultValue: col.spDefaultValue,
+            DefaultValue: { 
+              IsPresent: col.spDefaultValue ? true : false, 
+              Value: {
+                ExpressionId: '', 
+                Query: String(col.spDefaultValue)
+              }
+            }
           }
           break
         }
@@ -490,6 +513,20 @@ export class ObjectDetailComponent implements OnInit {
       },
     })
   }
+
+  // // Helper function to get the previous default value
+  // getPreviousDefaultValue(currentCol: IColumnTabData, originalCol: IColumnTabData): string {
+  //   console.log("#2")
+  //   console.log(originalCol)
+  //   console.log(currentCol)
+  //   if (
+  //     currentCol.spColName !== originalCol.spColName
+  //   ) {
+  //     return String(currentCol.spDefaultValue);
+  //   } else {
+  //     return originalCol.spDefaultValue ? originalCol.spDefaultValue.Value.Query : '';
+  //   }
+  // }
 
   addNewColumn() {
     this.dialog.open(AddNewColumnComponent, {

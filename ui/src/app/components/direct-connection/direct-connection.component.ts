@@ -108,6 +108,7 @@ export class DirectConnectionComponent implements OnInit {
   }
 
   connectToDb() {
+    console.log("in connect")
     this.data.updateIsOffline()
     this.data.isOffline.subscribe({
       next: (res: boolean) => {
@@ -121,6 +122,7 @@ export class DirectConnectionComponent implements OnInit {
       })
       return
     }
+    console.log(this.isOfflineStatus)
     this.clickEvent.openDatabaseLoader('direct', this.connectForm.value.dbName!)
     window.scroll(0, 0)
     this.data.resetStore()

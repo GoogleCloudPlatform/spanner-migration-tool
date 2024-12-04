@@ -158,6 +158,7 @@ func (ev *ExpressionVerificationAccessorImpl) removeExpressions(inputConv *inter
 	for _, table := range convCopy.SpSchema {
 		for colName, colDef := range table.ColDefs {
 			colDef.AutoGen = ddl.AutoGenCol{}
+			colDef.DefaultValue = ddl.DefaultValue{}
 			table.ColDefs[colName] = colDef
 		}
 	}

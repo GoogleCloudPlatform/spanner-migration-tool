@@ -445,6 +445,7 @@ export class DataService {
   updateIsOffline() {
     this.fetch.getIsOffline().subscribe((res: boolean) => {
       this.isOfflineSub.next(res)
+      console.log(res)
     })
   }
 
