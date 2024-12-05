@@ -114,7 +114,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		if srcCol.Ignored.Default {
 			issues = append(issues, internal.DefaultValue)
 		}
-		if srcCol.Ignored.AutoIncrement { //TODO(adibh) - check why this is not there in postgres
+		if srcCol.Ignored.AutoIncrement { // TODO(adibh) - check why this is not there in postgres
 			issues = append(issues, internal.AutoIncrement)
 		}
 		// Set the not null constraint to false for unsupported source datatypes
@@ -175,7 +175,8 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		CheckConstraints: cvtCheckConstraint(conv, srcTable.CheckConstraints),
 		Indexes:          cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef),
 		Comment:          comment,
-		Id:               srcTable.Id}
+		Id:               srcTable.Id,
+	}
 	return nil
 }
 
@@ -244,10 +245,8 @@ func cvtCheckConstraint(conv *internal.Conv, srcKeys []schema.CheckConstraint) [
 			Name: internal.ToSpannerCheckConstraintName(conv, cks.Name),
 			Expr: cks.Expr,
 		})
-
 	}
-
-	return internal.GetSpannerValidExpression(spcks)
+	return spcks
 }
 
 func CvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTableId string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
@@ -346,8 +345,8 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 				isPresent = true
 				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 					if spColDef[v].T.Name == ddl.Numeric {
-						//index on NUMERIC is not supported in PGSQL Dialect currently.
-						//Indexes which contains a NUMERIC column in it will need to be skipped.
+						// index on NUMERIC is not supported in PGSQL Dialect currently.
+						// Indexes which contains a NUMERIC column in it will need to be skipped.
 						return ddl.CreateIndex{}
 					}
 				}
