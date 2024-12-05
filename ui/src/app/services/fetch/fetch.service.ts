@@ -24,7 +24,7 @@ import ICreateSequence from 'src/app/model/auto-gen'
   providedIn: 'root',
 })
 export class FetchService {
-  private url: string = 'http://localhost:8080' 
+  private url: string = window.location.origin
   constructor(private http: HttpClient) {}
 
   connectTodb(payload: IDbConfig, dialect: string) {
@@ -269,6 +269,10 @@ export class FetchService {
   getSpannerConfig() {
     return this.http.get<ISpannerConfig>(`${this.url}/GetConfig`)
   }
+
+  fetchIsConfigSet() {
+    return this.http.get<boolean>(`${this.url}/IsConfigSet`);
+  }  
 
   setSpannerConfig(payload: ISpannerConfig) {
     return this.http.post<ISpannerConfig>(`${this.url}/SetSpannerConfig`, payload)

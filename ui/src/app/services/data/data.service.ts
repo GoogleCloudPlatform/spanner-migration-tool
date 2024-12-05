@@ -36,6 +36,7 @@ export class DataService {
   // currentSessionSub not using any where
   private currentSessionSub = new BehaviorSubject({} as ISession)
   private isOfflineSub = new BehaviorSubject<boolean>(false)
+  private isConfigSetSub = new BehaviorSubject<boolean>(false)
   private ruleMapSub = new BehaviorSubject<IRule[]>([])
   private treeUpdatedSub = new Subject<void>();
 
@@ -55,6 +56,7 @@ export class DataService {
   sessions = this.sessionsSub.asObservable()
   config = this.configSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   isOffline = this.isOfflineSub.asObservable()
+  isConfigSet = this.isConfigSetSub.asObservable()
   currentSession = this.currentSessionSub
     .asObservable()
     .pipe(filter((res) => Object.keys(res).length !== 0))
@@ -445,9 +447,15 @@ export class DataService {
   updateIsOffline() {
     this.fetch.getIsOffline().subscribe((res: boolean) => {
       this.isOfflineSub.next(res)
-      console.log(res)
     })
   }
+
+  updateIsConfigSet() {
+    this.fetch.fetchIsConfigSet().subscribe((res: boolean) => {
+      this.isConfigSetSub.next(res)
+    })
+  }
+  
 
   addColumn(tableId: string,payload: IAddColumn) {
     this.fetch.addColumn(tableId,payload).subscribe({

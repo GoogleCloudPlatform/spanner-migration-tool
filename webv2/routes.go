@@ -44,7 +44,7 @@ func getRoutes() *mux.Router {
 	}
 
 	ctx := context.Background()
-	spanneraccessor, _:= spanneraccessor.NewSpannerAccessorClientImpl(ctx)
+	spanneraccessor, _ := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	dsClient, _ := ds.NewDatastreamClientImpl(ctx)
 	storageclient, _ := storageclient.NewStorageClientImpl(ctx)
 	validateResourceImpl := conversion.NewValidateResourcesImpl(spanneraccessor, &datastream_accessor.DatastreamAccessorImpl{},
@@ -116,7 +116,7 @@ func getRoutes() *mux.Router {
 	// Application Configuration
 	router.HandleFunc("/GetConfig", config.GetConfig).Methods("GET")
 	router.HandleFunc("/SetSpannerConfig", config.SetSpannerConfig).Methods("POST")
-
+	router.HandleFunc("/IsConfigSet", config.IsConfigSet).Methods("GET")
 	// Run migration
 	router.HandleFunc("/Migrate", migrate).Methods("POST")
 
