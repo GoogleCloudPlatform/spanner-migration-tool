@@ -557,9 +557,9 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-func doesNameExist(spcks []ddl.CheckConstraint, targetName string) bool {
+func isCheckConstraintsNameExist(spcks []ddl.CheckConstraint, targetName string) bool {
 	for _, spck := range spcks {
-		if strings.Contains(spck.Expr, targetName) {
+		if spck.Expr == targetName {
 			return true
 		}
 	}
@@ -590,7 +590,7 @@ func ValidateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 				if actualType.Name != spType {
 					columnName := sp[src.Id].ColDefs[col.Id].Name
 					spcks := sp[src.Id].CheckConstraints
-					if doesNameExist(spcks, columnName) {
+					if isCheckConstraintsNameExist(spcks, columnName) {
 						flag = false
 						schemaIssue = sessionState.Conv.SchemaIssues[src.Id].ColumnLevelIssues[col.Id]
 						if !utilities.IsSchemaIssuePresent(schemaIssue, internal.TypeMismatch) {
