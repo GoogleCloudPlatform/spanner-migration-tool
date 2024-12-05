@@ -108,6 +108,9 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 			// Using a regular expression to match the exact column name
 			re := regexp.MustCompile(`\b` + regexp.QuoteMeta(oldName) + `\b`)
 
+			// Using a regular expression to match the exact column name
+			re := regexp.MustCompile(`\b` + regexp.QuoteMeta(oldName) + `\b`)
+
 			for i := range conv.SpSchema[tableId].CheckConstraints {
 				originalString := conv.SpSchema[tableId].CheckConstraints[i].Expr
 				updatedValue := re.ReplaceAllString(originalString, v.Rename)
