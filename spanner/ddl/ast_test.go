@@ -79,6 +79,17 @@ func TestPrintColumnDef(t *testing.T) {
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT64 NOT NULL "},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 ARRAY<INT64> NOT NULL "},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "`col1` INT64"},
+		{
+			in: ColumnDef{
+				Name: "col1",
+				T:    Type{Name: Int64},
+				DefaultValue: DefaultValue{
+					IsPresent: true,
+					Value:     Expression{Query: "(`col2` + 1)"},
+				},
+			},
+			expected: "col1 INT64 DEFAULT (`col2` + 1)",
+		},
 	}
 	for _, tc := range tests {
 		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds})
@@ -97,6 +108,17 @@ func TestPrintColumnDefPG(t *testing.T) {
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT8 NOT NULL "},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 VARCHAR(2621440) NOT NULL "},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "col1 INT8"},
+		{
+			in: ColumnDef{
+				Name: "col1",
+				T:    Type{Name: Int64},
+				DefaultValue: DefaultValue{
+					IsPresent: true,
+					Value:     Expression{Query: "(`col2` + 1)"},
+				},
+			},
+			expected: "col1 INT8 DEFAULT (`col2` + 1)",
+		},
 	}
 	for _, tc := range tests {
 		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds, SpDialect: constants.DIALECT_POSTGRESQL})
@@ -519,6 +541,60 @@ func TestPGPrintAutoGenCol(t *testing.T) {
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.agc.PGPrintAutoGenCol())
+	}
+}
+
+func TestPrintDefaultValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		dv       DefaultValue
+		expected string
+	}{
+		{
+			name: "default value present",
+			dv: DefaultValue{
+				IsPresent: true,
+				Value:     Expression{Query: "(`col1` + 1)"},
+			},
+			expected: " DEFAULT (`col1` + 1)",
+		},
+		{
+			name:     "empty default value",
+			dv:       DefaultValue{},
+			expected: "",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.dv.PrintDefaultValue())
+		})
+	}
+}
+
+func TestPGPrintDefaultValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		dv       DefaultValue
+		expected string
+	}{
+		{
+			name: "default value present",
+			dv: DefaultValue{
+				IsPresent: true,
+				Value:     Expression{Query: "(`col1` + 1)"},
+			},
+			expected: " DEFAULT (`col1` + 1)",
+		},
+		{
+			name:     "empty default value",
+			dv:       DefaultValue{},
+			expected: "",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.dv.PGPrintDefaultValue())
+		})
 	}
 }
 

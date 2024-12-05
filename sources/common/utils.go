@@ -74,7 +74,8 @@ func GetSortedTableIdsBySrcName(srcSchema map[string]schema.Table) []string {
 
 func GetSortedTableIdsBySpName(spSchema ddl.Schema) []string {
 	tableNameIdMap := map[string]string{}
-	var tableNames, sortedTableIds []string
+	tableNames := []string{}
+	sortedTableIds := []string{}
 	for id, spTable := range spSchema {
 		tableNames = append(tableNames, spTable.Name)
 		tableNameIdMap[spTable.Name] = id

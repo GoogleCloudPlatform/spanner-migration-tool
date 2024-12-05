@@ -314,8 +314,6 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
     this.spDataSource = this.spRowArray.controls
-    console.log("#1")
-    console.log(this.spDataSource)
   }
 
   setSrcTableRows() {
@@ -513,20 +511,6 @@ export class ObjectDetailComponent implements OnInit {
       },
     })
   }
-
-  // // Helper function to get the previous default value
-  // getPreviousDefaultValue(currentCol: IColumnTabData, originalCol: IColumnTabData): string {
-  //   console.log("#2")
-  //   console.log(originalCol)
-  //   console.log(currentCol)
-  //   if (
-  //     currentCol.spColName !== originalCol.spColName
-  //   ) {
-  //     return String(currentCol.spDefaultValue);
-  //   } else {
-  //     return originalCol.spDefaultValue ? originalCol.spDefaultValue.Value.Query : '';
-  //   }
-  // }
 
   addNewColumn() {
     this.dialog.open(AddNewColumnComponent, {

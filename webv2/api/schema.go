@@ -34,6 +34,10 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 )
 
+type TableAPIHandler struct {
+	DDLVerifier expressions_api.DDLVerifier
+}
+
 var mysqlDefaultTypeMap = make(map[string]ddl.Type)
 var postgresDefaultTypeMap = make(map[string]ddl.Type)
 var sqlserverDefaultTypeMap = make(map[string]ddl.Type)
@@ -372,19 +376,15 @@ func GetAutoGenMap(w http.ResponseWriter, r *http.Request) {
 
 // GetTableWithErrors checks the errors in the spanner schema
 // and returns a list of tables with errors
-func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
+func (tableHandler *TableAPIHandler) GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.RLock()
 
 	tableIds := common.GetSortedTableIdsBySpName(sessionState.Conv.SpSchema)
-	ddlV, err := expressions_api.NewDDLVerifierImpl(context.Background(), sessionState.Conv.SpProjectId, sessionState.Conv.SpInstanceId)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("DDL Verifier could not be created : %v", err), http.StatusInternalServerError)
-		return
-	}
+	tableHandler.DDLVerifier.RefreshSpannerClient(context.Background(), sessionState.Conv.SpProjectId, sessionState.Conv.SpInstanceId)
 
-	expressionDetails := ddlV.GetSpannerExpressionDetails(sessionState.Conv, tableIds)
-	expressions, err := ddlV.VerifySpannerDDL(sessionState.Conv, expressionDetails)
+	expressionDetails := tableHandler.DDLVerifier.GetSpannerExpressionDetails(sessionState.Conv, tableIds)
+	expressions, err := tableHandler.DDLVerifier.VerifySpannerDDL(sessionState.Conv, expressionDetails)
 	if err != nil && strings.Contains(err.Error(), "expressions either failed verification") {
 		for _, exp := range expressions.ExpressionVerificationOutputList {
 			switch exp.ExpressionDetail.Type {
@@ -413,7 +413,9 @@ func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	session.UpdateSessionFile()
+	if sessionState.Conv.SpProjectId != "" {
+		session.UpdateSessionFile()
+	}
 	defer sessionState.Conv.ConvLock.RUnlock()
 	var tableIdName []types.TableIdAndName
 	for id, issues := range sessionState.Conv.SchemaIssues {

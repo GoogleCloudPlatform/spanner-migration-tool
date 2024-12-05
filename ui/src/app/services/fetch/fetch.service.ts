@@ -191,8 +191,6 @@ export class FetchService {
   }
 
   reviewTableUpdate(tableName: string, data: IUpdateTable): any {
-    console.log("data")
-    console.log(data)
     return this.http.post<HttpResponse<IReviewUpdateTable>>(
       `${this.url}/typemap/reviewTableSchema?table=${tableName}`,
       data

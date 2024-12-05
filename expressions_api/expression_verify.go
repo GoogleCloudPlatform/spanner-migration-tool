@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
@@ -18,6 +19,7 @@ const THREAD_POOL = 500
 type ExpressionVerificationAccessor interface {
 	//Batch API which parallelizes expression verification calls
 	VerifyExpressions(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput
+	RefreshSpannerClient(ctx context.Context, project string, instance string) error
 }
 
 type ExpressionVerificationAccessorImpl struct {
@@ -25,9 +27,18 @@ type ExpressionVerificationAccessorImpl struct {
 }
 
 func NewExpressionVerificationAccessorImpl(ctx context.Context, project string, instance string) (*ExpressionVerificationAccessorImpl, error) {
-	spannerAccessor, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
-	if err != nil {
-		return nil, err
+	var spannerAccessor *spanneraccessor.SpannerAccessorImpl
+	var err error
+	if project != "" && instance != "" {
+		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, "smt-staging-db"))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImpl(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &ExpressionVerificationAccessorImpl{
 		SpannerAccessor: spannerAccessor,
@@ -38,6 +49,7 @@ type DDLVerifier interface {
 	VerifySpannerDDL(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error)
 	GetSourceExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail
 	GetSpannerExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail
+	RefreshSpannerClient(ctx context.Context, project string, instance string) error
 }
 type DDLVerifierImpl struct {
 	Expressions ExpressionVerificationAccessor
@@ -93,6 +105,15 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 
 	}
 	return verifyExpressionsOutput
+}
+
+func (ev *ExpressionVerificationAccessorImpl) RefreshSpannerClient(ctx context.Context, project string, instance string) error {
+	spannerClient, err := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, "smt-staging-db"))
+	if err != nil {
+		return err
+	}
+	ev.SpannerAccessor.SpannerClient = spannerClient
+	return nil
 }
 
 func (ev *ExpressionVerificationAccessorImpl) verifyExpressionInternal(expressionDetail internal.ExpressionDetail, mutex *sync.Mutex) task.TaskResult[internal.ExpressionVerificationOutput] {
@@ -205,4 +226,8 @@ func (ddlv *DDLVerifierImpl) GetSpannerExpressionDetails(conv *internal.Conv, ta
 		}
 	}
 	return expressionDetails
+}
+
+func (ddlv *DDLVerifierImpl) RefreshSpannerClient(ctx context.Context, project string, instance string) error {
+	return ddlv.Expressions.RefreshSpannerClient(ctx, project, instance)
 }
