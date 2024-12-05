@@ -395,7 +395,8 @@ func TestPrintCreateIndex(t *testing.T) {
 			[]IndexKey{{ColId: "c1", Desc: true}, {ColId: "c2"}},
 			"i2",
 			nil,
-		}}
+		},
+	}
 	tests := []struct {
 		name       string
 		protectIds bool
@@ -466,13 +467,13 @@ func TestPrintForeignKey(t *testing.T) {
 
 func TestPrintForeignKeyAlterTable(t *testing.T) {
 	spannerSchema := map[string]CreateTable{
-		"t1": CreateTable{
+		"t1": {
 			Name:   "table1",
 			ColIds: []string{"c1", "c2", "c3"},
 			ColDefs: map[string]ColumnDef{
-				"c1": ColumnDef{Name: "productid", T: Type{Name: String, Len: MaxLength}},
-				"c2": ColumnDef{Name: "userid", T: Type{Name: String, Len: MaxLength}},
-				"c3": ColumnDef{Name: "quantity", T: Type{Name: Int64}},
+				"c1": {Name: "productid", T: Type{Name: String, Len: MaxLength}},
+				"c2": {Name: "userid", T: Type{Name: String, Len: MaxLength}},
+				"c3": {Name: "quantity", T: Type{Name: Int64}},
 			},
 			ForeignKeys: []Foreignkey{
 				{
@@ -505,14 +506,15 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 			},
 		},
 
-		"t2": CreateTable{
+		"t2": {
 			Name:   "table2",
 			ColIds: []string{"c4", "c5"},
 			ColDefs: map[string]ColumnDef{
-				"c4": ColumnDef{Name: "productid", T: Type{Name: String, Len: MaxLength}},
-				"c5": ColumnDef{Name: "userid", T: Type{Name: String, Len: MaxLength}},
+				"c4": {Name: "productid", T: Type{Name: String, Len: MaxLength}},
+				"c5": {Name: "userid", T: Type{Name: String, Len: MaxLength}},
 			},
-		}}
+		},
+	}
 
 	tests := []struct {
 		name       string
@@ -792,7 +794,8 @@ func TestGetDDL(t *testing.T) {
 		StartWithCounter: "7",
 	}
 	e4 := []string{
-		"CREATE SEQUENCE sequence1 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 5, start_with_counter = 7) "}
+		"CREATE SEQUENCE sequence1 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 5, start_with_counter = 7) ",
+	}
 	sequencesOnly := GetDDL(Config{}, Schema{}, sequences)
 	assert.ElementsMatch(t, e4, sequencesOnly)
 }
@@ -904,7 +907,8 @@ func TestGetPGDDL(t *testing.T) {
 		StartWithCounter: "7",
 	}
 	e4 := []string{
-		"CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE SKIP RANGE 0 5 START COUNTER WITH 7"}
+		"CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE SKIP RANGE 0 5 START COUNTER WITH 7",
+	}
 	sequencesOnly := GetDDL(Config{SpDialect: constants.DIALECT_POSTGRESQL}, Schema{}, sequences)
 	assert.ElementsMatch(t, e4, sequencesOnly)
 }
@@ -990,7 +994,7 @@ func TestGetSortedTableIdsBySpName(t *testing.T) {
 	}
 }
 
-func TestPrintCheckConstraintTable(t *testing.T) {
+func TestFormatCheckConstraints(t *testing.T) {
 	tests := []struct {
 		description string
 		cks         []CheckConstraint
@@ -1009,6 +1013,13 @@ func TestPrintCheckConstraintTable(t *testing.T) {
 			expected: "\tCONSTRAINT ck1 CHECK (id > 0)\n",
 		},
 		{
+			description: "Constraint without name",
+			cks: []CheckConstraint{
+				{Name: "", Expr: "(id > 0)"},
+			},
+			expected: "\tCHECK (id > 0)\n",
+		},
+		{
 			description: "Multiple constraints",
 			cks: []CheckConstraint{
 				{Name: "ck1", Expr: "(id > 0)"},
@@ -1020,7 +1031,7 @@ func TestPrintCheckConstraintTable(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.description, func(t *testing.T) {
-			actual := PrintCheckConstraintTable(tc.cks)
+			actual := FormatCheckConstraints(tc.cks)
 			assert.Equal(t, tc.expected, actual)
 		})
 	}
