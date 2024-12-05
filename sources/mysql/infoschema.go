@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -147,7 +148,7 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 		err := rows.Scan(&count)
 		return count, err
 	}
-	return 0, nil //Check if 0 is ok to return
+	return 0, nil // Check if 0 is ok to return
 }
 
 // GetTables return list of tables in the selected database.
@@ -246,7 +247,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 		return nil, nil, nil, err
 	}
 
-	finalQuery := isi.getQuery(tableExists)
+	finalQuery := isi.getConstraintsDQL(tableExists)
 	rows, err := isi.Db.Query(finalQuery, table.Schema, table.Name)
 	if err != nil {
 		return nil, nil, nil, err
@@ -259,6 +260,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 
 	for rows.Next() {
 		if err := isi.processRow(rows, tableExists, conv, &primaryKeys, &checkKeys, m); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan constrants. error: %v", err))
 			continue
 		}
 	}
@@ -277,8 +279,8 @@ func (isi InfoSchemaImpl) isCheckConstraintsTablePresent() (bool, error) {
 	return tableExistsCount > 0, nil
 }
 
-// getQuery returns the appropriate SQL query based on the existence of CHECK_CONSTRAINTS.
-func (isi InfoSchemaImpl) getQuery(tableExists bool) string {
+// getConstraintsDQL returns the appropriate SQL query based on the existence of CHECK_CONSTRAINTS.
+func (isi InfoSchemaImpl) getConstraintsDQL(tableExists bool) string {
 	if tableExists {
 		return `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
@@ -306,12 +308,12 @@ func (isi InfoSchemaImpl) getQuery(tableExists bool) string {
 // processRow handles scanning and processing of a database row for GetConstraints.
 func (isi InfoSchemaImpl) processRow(
 	rows *sql.Rows, tableExists bool, conv *internal.Conv, primaryKeys *[]string,
-	checkKeys *[]schema.CheckConstraint, m map[string][]string) error {
-
+	checkKeys *[]schema.CheckConstraint, m map[string][]string,
+) error {
 	var col, constraintType, checkClause string
 	err := rows.Scan(&col, &constraintType, &checkClause)
 	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+		conv.Unexpected(fmt.Sprintf("Can't scan constraints. err: %v", err))
 		return err
 	}
 
@@ -324,8 +326,8 @@ func (isi InfoSchemaImpl) processRow(
 	case "PRIMARY KEY":
 		*primaryKeys = append(*primaryKeys, col)
 	case "CHECK":
-		checkClause = strings.ReplaceAll(checkClause, "_utf8mb4\\", "")
-		checkClause = strings.ReplaceAll(checkClause, "\\", "")
+		collationRegex := regexp.MustCompile(constants.DB_COLLATION_REGEX)
+		checkClause = collationRegex.ReplaceAllString(checkClause, "")
 		constraintName := fmt.Sprintf("%s_check", col)
 		*checkKeys = append(*checkKeys, schema.CheckConstraint{Name: constraintName, Expr: checkClause, Id: internal.GenerateCheckConstrainstId()})
 	default:
@@ -430,12 +432,14 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			indexMap[name] = schema.Index{
 				Id:     internal.GenerateIndexesId(),
 				Name:   name,
-				Unique: (nonUnique == "0")}
+				Unique: (nonUnique == "0"),
+			}
 		}
 		index := indexMap[name]
 		index.Keys = append(index.Keys, schema.Key{
 			ColId: colNameIdMap[column],
-			Desc:  (collation.Valid && collation.String == "D")})
+			Desc:  (collation.Valid && collation.String == "D"),
+		})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {
