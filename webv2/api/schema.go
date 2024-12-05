@@ -648,43 +648,9 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheck
 	json.NewEncoder(w).Encode(hasErrorOccurred)
 }
 
-// UpdateCheckConstraint processes the request to update spanner table check constraints, ensuring session and schema validity, and responds with the updated conversion metadata.
-func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
-	tableId := r.FormValue("table")
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-	}
-	sessionState := session.GetSessionState()
-	if sessionState.Conv == nil || sessionState.Driver == "" {
-		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
-		return
-	}
-	sessionState.Conv.ConvLock.Lock()
-	defer sessionState.Conv.ConvLock.Unlock()
-
-	newCKs := []ddl.CheckConstraint{}
-	if err = json.Unmarshal(reqBody, &newCKs); err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-
-	sp := sessionState.Conv.SpSchema[tableId]
-	sp.CheckConstraints = newCKs
-	sessionState.Conv.SpSchema[tableId] = sp
-	session.UpdateSessionFile()
-
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
-}
-
-func doesNameExist(spcks []ddl.CheckConstraint, targetName string) bool {
+func isCheckConstraintsNameExist(spcks []ddl.CheckConstraint, targetName string) bool {
 	for _, spck := range spcks {
-		if strings.Contains(spck.Expr, targetName) {
+		if spck.Expr == targetName {
 			return true
 		}
 	}
@@ -715,7 +681,7 @@ func ValidateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 				if actualType.Name != spType {
 					columnName := sp[src.Id].ColDefs[col.Id].Name
 					spcks := sp[src.Id].CheckConstraints
-					if doesNameExist(spcks, columnName) {
+					if isCheckConstraintsNameExist(spcks, columnName) {
 						flag = false
 						schemaIssue = sessionState.Conv.SchemaIssues[src.Id].ColumnLevelIssues[col.Id]
 						if !utilities.IsSchemaIssuePresent(schemaIssue, internal.TypeMismatch) {
