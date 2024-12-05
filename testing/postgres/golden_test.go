@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -42,7 +43,9 @@ func TestGoldens(t *testing.T) {
 	testCases := commonTesting.GoldenTestCasesFrom(t, GoldenTestsDir)
 	t.Logf("executing %d test cases from %s", len(testCases), GoldenTestsDir)
 
-	schemaToSpanner := common.SchemaToSpannerImpl{}
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		DdlV: &expressions_api.MockDDLVerifier{},
+	}
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
