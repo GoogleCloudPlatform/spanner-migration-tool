@@ -109,7 +109,6 @@ export class DirectConnectionComponent implements OnInit {
 
   async connectToDb() {
     this.data.updateIsConfigSet();
-  
     this.fetch.fetchIsConfigSet().subscribe({
       next: (res: boolean) => {
         this.isConfigSet = res;
