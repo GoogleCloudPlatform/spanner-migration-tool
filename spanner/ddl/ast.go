@@ -180,12 +180,13 @@ func (ty Type) PGPrintColumnDefType() string {
 //	column_def:
 //	  column_name type [NOT NULL] [options_def]
 type ColumnDef struct {
-	Name    string
-	T       Type
-	NotNull bool
-	Comment string
-	Id      string
-	AutoGen AutoGenCol
+	Name         string
+	T            Type
+	NotNull      bool
+	Comment      string
+	Id           string
+	AutoGen      AutoGenCol
+	DefaultValue DefaultValue
 }
 
 // Config controls how AST nodes are printed (aka unparsed).
@@ -241,12 +242,14 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
+		s+= cd.DefaultValue.PGPrintDefaultValue()
 		s += cd.AutoGen.PGPrintAutoGenCol()
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
+		s+= cd.DefaultValue.PrintDefaultValue()
 		s += cd.AutoGen.PrintAutoGenCol()
 	}
 	return s, cd.Comment
@@ -410,12 +413,37 @@ type AutoGenCol struct {
 	GenerationType string
 }
 
+// DefaultValue represents a Default value.
+type DefaultValue struct {
+	IsPresent bool
+	Value     Expression
+}
+
+type Expression struct {
+	ExpressionId string
+	Query        string
+}
+
+func (dv DefaultValue) PrintDefaultValue() string {
+	if !dv.IsPresent {
+		return ""
+	}
+	return " DEFAULT "+ dv.Value.Query
+}
+
+func (dv DefaultValue) PGPrintDefaultValue() string {
+	if !dv.IsPresent {
+		return ""
+	}
+	return " DEFAULT "+ dv.Value.Query
+}
+
 func (agc AutoGenCol) PrintAutoGenCol() string {
 	if agc.Name == constants.UUID && agc.GenerationType == "Pre-defined" {
 		return " DEFAULT (GENERATE_UUID())"
 	}
 	if agc.GenerationType == constants.SEQUENCE {
-		return fmt.Sprintf(" DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE %s)) ", agc.Name)
+		return fmt.Sprintf(" DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE %s))", agc.Name)
 	}
 	return ""
 }
@@ -425,7 +453,7 @@ func (agc AutoGenCol) PGPrintAutoGenCol() string {
 		return " DEFAULT (spanner.generate_uuid())"
 	}
 	if agc.GenerationType == constants.SEQUENCE {
-		return fmt.Sprintf(" DEFAULT NEXTVAL('%s') ", agc.Name)
+		return fmt.Sprintf(" DEFAULT NEXTVAL('%s')", agc.Name)
 	}
 	return ""
 }

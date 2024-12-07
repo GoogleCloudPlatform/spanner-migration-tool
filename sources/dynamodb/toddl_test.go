@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -58,7 +59,9 @@ func TestToSpannerType(t *testing.T) {
 	}
 	conv.SrcSchema[name] = srcSchema
 	conv.Audit = audit
-	schemaToSpanner := common.SchemaToSpannerImpl{}
+	schemaToSpanner := &common.SchemaToSpannerImpl{
+		DdlV: &expressions_api.MockDDLVerifier{},
+	}
 	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
 	actual := conv.SpSchema[name]
 	dropComments(&actual) // Don't test comment.
@@ -119,7 +122,9 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	}
 	conv.SrcSchema["t1"] = srcSchema
 	conv.Audit = audit
-	schemaToSpanner := common.SchemaToSpannerImpl{}
+	schemaToSpanner := &common.SchemaToSpannerImpl{
+		DdlV: &expressions_api.MockDDLVerifier{},
+	}
 	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
 	actual := conv.SpSchema["t1"]
 	dropComments(&actual) // Don't test comment.

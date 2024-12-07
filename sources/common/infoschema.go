@@ -17,6 +17,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	sp "cloud.google.com/go/spanner"
@@ -252,4 +253,15 @@ func (is *InfoSchemaImpl) GetIncludedSrcTablesFromConv(conv *internal.Conv) (sch
 		schemaToTablesMap[srcTable.Schema] = schemaDetails
 	}
 	return schemaToTablesMap, nil
+}
+
+// SanitizeDefaultValue removes extra characters added to Default Value in information schema in MySQL.
+func SanitizeDefaultValue(defaultValue string, ty string, generated bool) string {
+	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", "")
+	defaultValue = strings.ReplaceAll(defaultValue, "\\\\", "\\")
+	defaultValue = strings.ReplaceAll(defaultValue, "\\'", "'")
+	if !generated && (ty == "char" || ty == "varchar" || ty == "text" || ty=="STRING") && !strings.HasPrefix(defaultValue, "'") && !strings.HasSuffix(defaultValue, "'") {
+		defaultValue = "'" + defaultValue + "'"
+	}
+	return defaultValue
 }
