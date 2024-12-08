@@ -48,7 +48,10 @@
    ],
    "ForeignKeys": null,
    "Indexes": null,
-   "ParentTable": {"Id":"","OnDelete":""},
+   "ParentTable": {
+    "Id": "",
+    "OnDelete": ""
+   },
    "Comment": "Spanner schema for source table numbers",
    "Id": "t1"
   }
@@ -56,7 +59,7 @@
  "SyntheticPKeys": {},
  "SrcSchema": {
   "t1": {
-   "Name": "numbers",
+   "Name": "`numbers`",
    "Schema": "default",
    "ColIds": [
     "c1",
@@ -64,7 +67,7 @@
    ],
    "ColDefs": {
     "c1": {
-     "Name": "id",
+     "Name": "`id`",
      "Type": {
       "Name": "int",
       "Mods": [
@@ -81,10 +84,14 @@
       "ForeignKey": false,
       "AutoIncrement": false
      },
-     "Id": "c1"
+     "Id": "c1",
+     "AutoGen": {
+      "Name": "",
+      "GenerationType": ""
+     }
     },
     "c2": {
-     "Name": "value",
+     "Name": "`value`",
      "Type": {
       "Name": "int",
       "Mods": [
@@ -101,7 +108,11 @@
       "ForeignKey": false,
       "AutoIncrement": false
      },
-     "Id": "c2"
+     "Id": "c2",
+     "AutoGen": {
+      "Name": "",
+      "GenerationType": ""
+     }
     }
    },
    "PrimaryKeys": [
@@ -146,5 +157,15 @@
    "ColumnsUsingSeq": null
   }
  },
- "SrcSequences": {}
+ "SrcSequences": {
+  "s1": {
+   "Id": "s1",
+   "Name": "`Seq`",
+   "SequenceKind": "BIT REVERSED POSITIVE",
+   "SkipRangeMin": "",
+   "SkipRangeMax": "",
+   "StartWithCounter": "",
+   "ColumnsUsingSeq": null
+  }
+ }
 }
