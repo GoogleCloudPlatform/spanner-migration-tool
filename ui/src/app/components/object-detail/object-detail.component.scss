@@ -17,6 +17,13 @@
   }
 }
 
+.trimmed-text {
+  width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .title_container {
   display: flex;
   justify-content: space-between;
@@ -211,7 +218,7 @@
     min-width: 100px;
   }
 
-  .mat-column-srcIsNotNull,
+  .mat-column-srcDefaultValue,
   .mat-column-srcDatabase,
   .mat-column-srcIndexOrder {
     border-right: 1px solid #cdcccd;

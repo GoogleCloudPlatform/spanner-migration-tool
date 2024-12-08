@@ -69,8 +69,8 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			args:  []driver.Value{"test", "user"},
 			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
 			rows: [][]driver.Value{
-				{"user_id", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"name", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"user_id", "text", "text", "NO", "uuid()", nil, nil, nil, "DEFAULT_GENERATED"},
+				{"name", "text", "text", "NO", "default_name", nil, nil, nil, nil},
 				{"ref", "bigint", "bigint", "NO", nil, nil, nil, nil, nil}},
 		},
 		// db call to fetch index happens after fetching of column
@@ -233,7 +233,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 		"test": schema.Table{Name: "test", Schema: "test", ColIds: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "dec", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6"}, ColDefs: map[string]schema.Column{
 			"b":   schema.Column{Name: "b", Type: schema.Type{Name: "boolean", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"bl":  schema.Column{Name: "bl", Type: schema.Type{Name: "blob", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"bs":  schema.Column{Name: "bs", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"bs":  schema.Column{Name: "bs", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{IsPresent: true, Value: "nextval('test11_bs_seq'::regclass)"}},
 			"c":   schema.Column{Name: "c", Type: schema.Type{Name: "char", Mods: []int64{1}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"c8":  schema.Column{Name: "c8", Type: schema.Type{Name: "char", Mods: []int64{8}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"d":   schema.Column{Name: "d", Type: schema.Type{Name: "date", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
@@ -245,7 +245,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			"i8":  schema.Column{Name: "i8", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"id":  schema.Column{Name: "id", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"s":   schema.Column{Name: "s", Type: schema.Type{Name: "set", Mods: []int64(nil), ArrayBounds: []int64{-1}}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"si":  schema.Column{Name: "si", Type: schema.Type{Name: "integer", Mods: []int64{32}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"si":  schema.Column{Name: "si", Type: schema.Type{Name: "integer", Mods: []int64{32}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{IsPresent: true, Value: "nextval('test11_s_seq'::regclass)"}},
 			"ts":  schema.Column{Name: "ts", Type: schema.Type{Name: "datetime", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"txt": schema.Column{Name: "txt", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"tz":  schema.Column{Name: "tz", Type: schema.Type{Name: "timestamp", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
@@ -262,9 +262,9 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			ForeignKeys: []schema.ForeignKey(nil),
 			Indexes:     []schema.Index(nil), Id: ""},
 		"user": schema.Table{Name: "user", Schema: "test", ColIds: []string{"user_id", "name", "ref"}, ColDefs: map[string]schema.Column{
-			"name":    schema.Column{Name: "name", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"name":    schema.Column{Name: "name", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{Value: "'default_name'", IsPresent: true}},
 			"ref":     schema.Column{Name: "ref", Type: schema.Type{Name: "bigint", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"user_id": schema.Column{Name: "user_id", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
+			"user_id": schema.Column{Name: "user_id", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{Value: "uuid()", IsPresent: true}}},
 			PrimaryKeys: []schema.Key{schema.Key{ColId: "user_id", Desc: false, Order: 0}},
 			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"id"}, OnUpdate: constants.FK_CASCADE, OnDelete: constants.FK_SET_NULL, Id: ""}},
 			Indexes:     []schema.Index(nil), Id: ""}}
@@ -529,4 +529,29 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 		}
 	}
 	return db
+}
+
+func TestSanitizeDefaultValue(t *testing.T) {
+	tests := []struct {
+		inputString    string
+		ty             string
+		generated      bool
+		expectedString string
+	}{
+		{"a", "char", true, "a"},
+		{"b", "char", false, "'b'"},
+		{"c", "int", true, "c"},
+		{"d", "int", false, "d"},
+		{"_utf8mb4\\'hello world\\'", "char", false, "'hello world'"},
+		{"week(_utf8mb4\\'2024-06-20\\',0)", "char", true, "week('2024-06-20',0)"},
+		{"_utf8mb4\\'This is a message \\\\nwith a newline\\\\rand a carriage return.\\'", "char", false, "'This is a message \\nwith a newline\\rand a carriage return.'"},
+		{"strcmp(_utf8mb4\\'abc\\',_utf8mb4\\'abcd\\')", "char", true, "strcmp('abc','abcd')"},
+		{"_utf8mb4\\'John\\\\\\'s Jack\\'", "char", false, "'John\\'s Jack'"},
+		{"_utf8mb4\\'This product has\tmultiple features.\\'", "char", false, "'This product has\tmultiple features.'"},
+		{"_utf8mb4\\'C:\\\\\\\\Users\\\\\\\\johndoe\\\\\\\\Documents\\\\\\\\myfile.txt\\'", "char", false, "'C:\\\\Users\\\\johndoe\\\\Documents\\\\myfile.txt'"},
+	}
+	for _, test := range tests {
+		result := sanitizeDefaultValue(test.inputString, test.ty, test.generated)
+		assert.Equal(t, test.expectedString, result)
+	}
 }
