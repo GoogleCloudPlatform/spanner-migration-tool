@@ -9,6 +9,7 @@ import (
 
 type SpannerClient interface {
 	Single() ReadOnlyTransaction
+	DatabaseName() string
 }
 
 type ReadOnlyTransaction interface {
@@ -37,6 +38,10 @@ func NewSpannerClientImpl(ctx context.Context, dbURI string) (*SpannerClientImpl
 func (c *SpannerClientImpl) Single() ReadOnlyTransaction {
 	rotxn := c.spannerClient.ReadOnlyTransaction()
 	return &ReadOnlyTransactionImpl{rotxn: rotxn}
+}
+
+func (c *SpannerClientImpl) DatabaseName() string {
+	return c.spannerClient.DatabaseName()
 }
 
 type ReadOnlyTransactionImpl struct {
