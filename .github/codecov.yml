@@ -36,6 +36,7 @@ component_management:
         - "!performance/**"
         - "!proto/**"
         - "!reverse_replication/**"
+        - "!streaming/**"
       statuses: # each component has its own status and corresponding configuration
         - type: project
           informational: true
