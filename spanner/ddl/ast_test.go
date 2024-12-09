@@ -143,6 +143,10 @@ func TestPrintCreateTable(t *testing.T) {
 			},
 			PrimaryKeys: []IndexKey{{ColId: "col1", Desc: true}},
 			ForeignKeys: nil,
+			CheckConstraints: []CheckConstraint{
+				{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
+				{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
+			},
 			Indexes:     nil,
 			ParentTable: InterleavedParent{},
 			Comment:     "",
@@ -156,12 +160,13 @@ func TestPrintCreateTable(t *testing.T) {
 				"col4": {Name: "col4", T: Type{Name: Int64}, NotNull: true},
 				"col5": {Name: "col5", T: Type{Name: String, Len: MaxLength}, NotNull: false},
 			},
-			PrimaryKeys: []IndexKey{{ColId: "col4", Desc: true}},
-			ForeignKeys: nil,
-			Indexes:     nil,
-			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE},
-			Comment:     "",
-			Id:          "t2",
+			PrimaryKeys:      []IndexKey{{ColId: "col4", Desc: true}},
+			ForeignKeys:      nil,
+			Indexes:          nil,
+			CheckConstraints: nil,
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE},
+			Comment:          "",
+			Id:               "t2",
 		},
 		"t3": CreateTable{
 			Name:          "table3",
@@ -170,12 +175,33 @@ func TestPrintCreateTable(t *testing.T) {
 			ColDefs: map[string]ColumnDef{
 				"col6": {Name: "col6", T: Type{Name: Int64}, NotNull: true},
 			},
-			PrimaryKeys: []IndexKey{{ColId: "col6", Desc: true}},
+			PrimaryKeys:      []IndexKey{{ColId: "col6", Desc: true}},
+			ForeignKeys:      nil,
+			Indexes:          nil,
+			CheckConstraints: nil,
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: ""},
+			Comment:          "",
+			Id:               "t3",
+		},
+		"t4": CreateTable{
+			Name:          "table1",
+			ColIds:        []string{"col1", "col2", "col3"},
+			ShardIdColumn: "",
+			ColDefs: map[string]ColumnDef{
+				"col1": {Name: "col1", T: Type{Name: Int64}, NotNull: true},
+				"col2": {Name: "col2", T: Type{Name: String, Len: MaxLength}, NotNull: false},
+				"col3": {Name: "col3", T: Type{Name: Bytes, Len: int64(42)}, NotNull: false},
+			},
+			PrimaryKeys: nil,
 			ForeignKeys: nil,
+			CheckConstraints: []CheckConstraint{
+				{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
+				{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
+			},
 			Indexes:     nil,
-			ParentTable: InterleavedParent{Id: "t1", OnDelete: ""},
+			ParentTable: InterleavedParent{},
 			Comment:     "",
-			Id:          "t3",
+			Id:          "t1",
 		},
 	}
 	tests := []struct {
@@ -192,6 +218,7 @@ func TestPrintCreateTable(t *testing.T) {
 				"	col1 INT64 NOT NULL ,\n" +
 				"	col2 STRING(MAX),\n" +
 				"	col3 BYTES(42),\n" +
+				"\tCONSTRAINT check_1 CHECK (age > 18),\n\tCONSTRAINT check_2 CHECK (age < 99)\n" +
 				") PRIMARY KEY (col1 DESC)",
 		},
 		{
@@ -202,6 +229,7 @@ func TestPrintCreateTable(t *testing.T) {
 				"	`col1` INT64 NOT NULL ,\n" +
 				"	`col2` STRING(MAX),\n" +
 				"	`col3` BYTES(42),\n" +
+				"\tCONSTRAINT check_1 CHECK (age > 18),\n\tCONSTRAINT check_2 CHECK (age < 99)\n" +
 				") PRIMARY KEY (`col1` DESC)",
 		},
 		{
@@ -222,6 +250,17 @@ func TestPrintCreateTable(t *testing.T) {
 				"	col6 INT64 NOT NULL ,\n" +
 				") PRIMARY KEY (col6 DESC),\n" +
 				"INTERLEAVE IN PARENT table1",
+		},
+		{
+			"no quote",
+			false,
+			s["t4"],
+			"CREATE TABLE table1 (\n" +
+				"	col1 INT64 NOT NULL ,\n" +
+				"	col2 STRING(MAX),\n" +
+				"	col3 BYTES(42),\n" +
+				"\tCONSTRAINT check_1 CHECK (age > 18),\n\tCONSTRAINT check_2 CHECK (age < 99)\n" +
+				") ",
 		},
 	}
 	for _, tc := range tests {
@@ -356,7 +395,8 @@ func TestPrintCreateIndex(t *testing.T) {
 			[]IndexKey{{ColId: "c1", Desc: true}, {ColId: "c2"}},
 			"i2",
 			nil,
-		}}
+		},
+	}
 	tests := []struct {
 		name       string
 		protectIds bool
@@ -427,13 +467,13 @@ func TestPrintForeignKey(t *testing.T) {
 
 func TestPrintForeignKeyAlterTable(t *testing.T) {
 	spannerSchema := map[string]CreateTable{
-		"t1": CreateTable{
+		"t1": {
 			Name:   "table1",
 			ColIds: []string{"c1", "c2", "c3"},
 			ColDefs: map[string]ColumnDef{
-				"c1": ColumnDef{Name: "productid", T: Type{Name: String, Len: MaxLength}},
-				"c2": ColumnDef{Name: "userid", T: Type{Name: String, Len: MaxLength}},
-				"c3": ColumnDef{Name: "quantity", T: Type{Name: Int64}},
+				"c1": {Name: "productid", T: Type{Name: String, Len: MaxLength}},
+				"c2": {Name: "userid", T: Type{Name: String, Len: MaxLength}},
+				"c3": {Name: "quantity", T: Type{Name: Int64}},
 			},
 			ForeignKeys: []Foreignkey{
 				{
@@ -466,14 +506,15 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 			},
 		},
 
-		"t2": CreateTable{
+		"t2": {
 			Name:   "table2",
 			ColIds: []string{"c4", "c5"},
 			ColDefs: map[string]ColumnDef{
-				"c4": ColumnDef{Name: "productid", T: Type{Name: String, Len: MaxLength}},
-				"c5": ColumnDef{Name: "userid", T: Type{Name: String, Len: MaxLength}},
+				"c4": {Name: "productid", T: Type{Name: String, Len: MaxLength}},
+				"c5": {Name: "userid", T: Type{Name: String, Len: MaxLength}},
 			},
-		}}
+		},
+	}
 
 	tests := []struct {
 		name       string
@@ -753,7 +794,8 @@ func TestGetDDL(t *testing.T) {
 		StartWithCounter: "7",
 	}
 	e4 := []string{
-		"CREATE SEQUENCE sequence1 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 5, start_with_counter = 7) "}
+		"CREATE SEQUENCE sequence1 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 5, start_with_counter = 7) ",
+	}
 	sequencesOnly := GetDDL(Config{}, Schema{}, sequences)
 	assert.ElementsMatch(t, e4, sequencesOnly)
 }
@@ -865,7 +907,8 @@ func TestGetPGDDL(t *testing.T) {
 		StartWithCounter: "7",
 	}
 	e4 := []string{
-		"CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE SKIP RANGE 0 5 START COUNTER WITH 7"}
+		"CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE SKIP RANGE 0 5 START COUNTER WITH 7",
+	}
 	sequencesOnly := GetDDL(Config{SpDialect: constants.DIALECT_POSTGRESQL}, Schema{}, sequences)
 	assert.ElementsMatch(t, e4, sequencesOnly)
 }
@@ -947,6 +990,49 @@ func TestGetSortedTableIdsBySpName(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			result := GetSortedTableIdsBySpName(tc.schema)
 			assert.ElementsMatch(t, tc.expected, result)
+		})
+	}
+}
+
+func TestFormatCheckConstraints(t *testing.T) {
+	tests := []struct {
+		description string
+		cks         []CheckConstraint
+		expected    string
+	}{
+		{
+			description: "Empty constraints list",
+			cks:         []CheckConstraint{},
+			expected:    "",
+		},
+		{
+			description: "Single constraint",
+			cks: []CheckConstraint{
+				{Name: "ck1", Expr: "(id > 0)"},
+			},
+			expected: "\tCONSTRAINT ck1 CHECK (id > 0)\n",
+		},
+		{
+			description: "Constraint without name",
+			cks: []CheckConstraint{
+				{Name: "", Expr: "(id > 0)"},
+			},
+			expected: "\tCHECK (id > 0)\n",
+		},
+		{
+			description: "Multiple constraints",
+			cks: []CheckConstraint{
+				{Name: "ck1", Expr: "(id > 0)"},
+				{Name: "ck2", Expr: "(name IS NOT NULL)"},
+			},
+			expected: "\tCONSTRAINT ck1 CHECK (id > 0),\n\tCONSTRAINT ck2 CHECK (name IS NOT NULL)\n",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.description, func(t *testing.T) {
+			actual := FormatCheckConstraints(tc.cks)
+			assert.Equal(t, tc.expected, actual)
 		})
 	}
 }
