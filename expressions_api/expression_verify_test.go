@@ -42,6 +42,9 @@ func TestVerifyExpressions(t *testing.T) {
 
 	t.Run("Happy case 1: stagingdb does not exist and expression is successfully verified", func(t *testing.T) {
 		spannerMockClient := spannerclient.SpannerClientMock{
+			RefreshMock: func(ctx context.Context, dbURI string) error {
+				return nil
+			},
 			DatabaseNameMock: func() string {
 				return "projects/spanner-cloud-test/instances/foo/databases/foodb"
 			},
@@ -81,6 +84,9 @@ func TestVerifyExpressions(t *testing.T) {
 
 	t.Run("Happy case 2: Successfully dropped existing stagingDb and verified expressions", func(t *testing.T) {
 		spannerMockClient := spannerclient.SpannerClientMock{
+			RefreshMock: func(ctx context.Context, dbURI string) error {
+				return nil
+			},
 			DatabaseNameMock: func() string {
 				return "projects/spanner-cloud-test/instances/foo/databases/foodb"
 			},
@@ -120,6 +126,9 @@ func TestVerifyExpressions(t *testing.T) {
 
 	t.Run("Error in creating staging database", func(t *testing.T) {
 		spannerMockClient := spannerclient.SpannerClientMock{
+			RefreshMock: func(ctx context.Context, dbURI string) error {
+				return nil
+			},
 			DatabaseNameMock: func() string {
 				return "projects/spanner-cloud-test/instances/foo/databases/foodb"
 			},
@@ -149,6 +158,9 @@ func TestVerifyExpressions(t *testing.T) {
 
 	t.Run("Error in dropping existing database", func(t *testing.T) {
 		spannerMockClient := spannerclient.SpannerClientMock{
+			RefreshMock: func(ctx context.Context, dbURI string) error {
+				return nil
+			},
 			DatabaseNameMock: func() string {
 				return "projects/spanner-cloud-test/instances/foo/databases/foodb"
 			},
@@ -176,6 +188,9 @@ func TestVerifyExpressions(t *testing.T) {
 
 	t.Run("Invalid expression", func(t *testing.T) {
 		spannerMockClient := spannerclient.SpannerClientMock{
+			RefreshMock: func(ctx context.Context, dbURI string) error {
+				return nil
+			},
 			DatabaseNameMock: func() string {
 				return "projects/spanner-cloud-test/instances/foo/databases/foodb"
 			},
