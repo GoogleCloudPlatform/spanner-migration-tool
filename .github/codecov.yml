@@ -27,6 +27,15 @@ component_management:
         - "!webv2/**"
         - "!ui/**"
         - "!cmd/**"
+        - "!sources/dynamodb/**"
+        - "!sources/oracle/**"
+        - "!sources/sqlserver/**"
+        - "!sources/csv/**"
+        - "!common/metrics/**"
+        - "!testing/**"
+        - "!performance/**"
+        - "!proto/**"
+        - "!reverse_replication/**"
       statuses: # each component has its own status and corresponding configuration
         - type: project
           informational: true
@@ -42,6 +51,16 @@ component_management:
       name: frontend # only frontend components
       paths:
         - "ui/**"
+        - "!ui/src/app/components/connection-profile-form/**"
+        - "!ui/src/app/components/dataflow-form/**"
+        - "!ui/src/app/components/end-migration/**"
+        - "!ui/src/app/components/equivalent-gcloud-command/**"
+        - "!ui/src/app/components/prepare-migration/**"
+        - "!ui/src/app/components/sharded-bulk-source-details-form/**"
+        - "!ui/src/app/components/sharded-dataflow-migration-details-form/**"
+        - "!ui/src/app/components/target-details-form/**"
+        - "!ui/src/app/components/tune-datastream-form/**"
+        - "!ui/src/app/components/tune-gcs-form/**"
       statuses: # the core component has its own statuses
         - type: project
           informational: true
