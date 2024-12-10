@@ -56,7 +56,7 @@ export class HeaderComponent implements OnInit {
     })
   }
 
-  showWarning() {
+  showError() {
     return !this.spannerConfig.GCPProjectID && !this.spannerConfig.SpannerInstanceID
   }
   openInstructionSidenav() {
