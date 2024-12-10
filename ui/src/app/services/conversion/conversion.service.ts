@@ -14,6 +14,7 @@ import { ColLength, Dialect, ObjectExplorerNodeType, StorageKeys, autoGenSupport
 import { BehaviorSubject } from 'rxjs'
 import { FetchService } from '../fetch/fetch.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
+import ICcTabData from 'src/app/model/cc-tab-data'
 
 @Injectable({
   providedIn: 'root',
@@ -281,6 +282,39 @@ export class ConversionService {
         parentId: '',
       },
     ]
+  }
+
+  getCheckConstraints(tableId: string, data: IConv): ICcTabData[] {
+    let srcArr = data.SrcSchema[tableId].CheckConstraints || []
+    let spArr = data.SpSchema[tableId].CheckConstraints || []
+    let res: ICcTabData[] = []
+     if (srcArr.length > spArr.length) {
+      for (let i = 0; i < srcArr.length; i++) {
+        res.push({
+          srcSno: `${i + 1}`,
+          srcConstraintName: srcArr[i].Name,
+          srcCondition: srcArr[i].Expr,
+          spSno: spArr[i] ? `${i + 1}` : '',
+          spConstraintName: spArr[i] ? spArr[i].Name : '',
+          spCondition: spArr[i] ? spArr[i].Expr : '',
+          deleteIndex: `cc${i + 1}`,
+        })
+      }
+    } else {
+      for (let i = 0; i < spArr.length; i++) {
+        res.push({
+          srcSno: srcArr[i] ? `${i + 1}` : '',
+          srcConstraintName: srcArr[i] ? srcArr[i].Name : '',
+          srcCondition: srcArr[i] ? srcArr[i].Expr : '',
+          spSno: `${i + 1}`,
+          spConstraintName: spArr[i].Name,
+          spCondition: spArr[i].Expr,
+          deleteIndex: `cc${i + 1}`,
+        })
+      }
+    }
+
+    return res
   }
 
   getColumnMapping(tableId: string, data: IConv): IColumnTabData[] {
