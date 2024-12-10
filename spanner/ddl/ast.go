@@ -103,14 +103,16 @@ var PGSQL_TO_STANDARD_TYPE_TYPEMAP = map[string]string{
 
 // PGDialect keyword list
 // Assumption is that this list PGSQL dialect uses the same keywords
-var PGSQL_RESERVED_KEYWORD_LIST = []string{"ALL", "ANALYSE", "ANALYZE", "AND", "ANY", "ARRAY", "AS", "ASC", "ASYMMETRIC", "AUTHORIZATION", "BETWEEN", "BIGINT", "BINARY", "BIT", "BOOLEAN", "BOTH", "CASE", "CAST",
+var PGSQL_RESERVED_KEYWORD_LIST = []string{
+	"ALL", "ANALYSE", "ANALYZE", "AND", "ANY", "ARRAY", "AS", "ASC", "ASYMMETRIC", "AUTHORIZATION", "BETWEEN", "BIGINT", "BINARY", "BIT", "BOOLEAN", "BOTH", "CASE", "CAST",
 	"CHAR", "CHARACTER", "CHECK", "COALESCE", "COLLATE", "COLLATION", "COLUMN", "CONCURRENTLY", "CONSTRAINT", "CREATE", "CROSS", "CURRENT_CATALOG", "CURRENT_DATE", "CURRENT_ROLE", "CURRENT_SCHEMA",
 	"CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER", "DEC", "DECIMAL", "DEFAULT", "DEFERRABLE", "DESC", "DISTINCT", "DO", "ELSE", "END", "EXCEPT", "EXISTS", "EXTRACT", "FALSE", "FETCH", "FLOAT", "FOR", "FOREIGN",
 	"FREEZE", "FROM", "FULL", "GRANT", "GREATEST", "GROUP", "GROUPING", "HAVING", "ILIKE", "IN", "INITIALLY", "INNER", "INOUT", "INT", "INTEGER", "INTERSECT", "INTERVAL", "INTO", "IS", "ISNULL", "JOIN", "LATERAL", "LEADING",
 	"LEAST", "LEFT", "LIKE", "LIMIT", "LOCALTIME", "LOCALTIMESTAMP", "NATIONAL", "NATURAL", "NCHAR", "NONE", "NORMALIZE", "NOT", "NOTNULL", "NULL", "NULLIF", "NUMERIC", "OFFSET", "ON", "ONLY", "OR", "ORDER", "OUT", "OUTER",
 	"OVERLAPS", "OVERLAY", "PLACING", "POSITION", "PRECISION", "PRIMARY", "REAL", "REFERENCES", "RETURNING", "RIGHT", "ROW", "SELECT", "SESSION_USER", "SETOF", "SIMILAR", "SMALLINT", "SOME", "SUBSTRING", "SYMMETRIC",
 	"TABLE", "TABLESAMPLE", "THEN", "TIME", "TIMESTAMP", "TO", "TRAILING", "TREAT", "TRIM", "TRUE", "UNION", "UNIQUE", "USER", "USING", "VALUES", "VARCHAR", "VARIADIC", "VERBOSE", "WHEN", "WHERE", "WINDOW", "WITH",
-	"XMLATTRIBUTES", "XMLCONCAT", "XMLELEMENT", "XMLEXISTS", "XMLFOREST", "XMLNAMESPACES", "XMLPARSE", "XMLPI", "XMLROOT", "XMLSERIALIZE", "XMLTABLE"}
+	"XMLATTRIBUTES", "XMLCONCAT", "XMLELEMENT", "XMLEXISTS", "XMLFOREST", "XMLNAMESPACES", "XMLPARSE", "XMLPI", "XMLROOT", "XMLSERIALIZE", "XMLTABLE",
+}
 
 // Type represents the type of a column.
 //
@@ -195,7 +197,7 @@ type Config struct {
 	Tables      bool // If true, print tables
 	ForeignKeys bool // If true, print foreign key constraints.
 	SpDialect   string
-	Source      string //SourceDB information for determining case-sensitivity handling for PGSQL
+	Source      string // SourceDB information for determining case-sensitivity handling for PGSQL
 }
 
 func isIdentifierReservedInPG(identifier string) bool {
@@ -264,6 +266,12 @@ type IndexKey struct {
 	Order int
 }
 
+type CheckConstraint struct {
+	Id   string
+	Name string
+	Expr string
+}
+
 // PrintPkOrIndexKey unparses the primary or index keys.
 func (idx IndexKey) PrintPkOrIndexKey(ct CreateTable, c Config) string {
 	col := c.quote(ct.ColDefs[idx.ColId].Name)
@@ -318,16 +326,17 @@ func (k Foreignkey) PrintForeignKey(c Config) string {
 //
 //	create_table: CREATE TABLE table_name ([column_def, ...] ) primary_key [, cluster]
 type CreateTable struct {
-	Name          string
-	ColIds        []string // Provides names and order of columns
-	ShardIdColumn string
-	ColDefs       map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
-	PrimaryKeys   []IndexKey
-	ForeignKeys   []Foreignkey
-	Indexes       []CreateIndex
-	ParentTable   InterleavedParent //if not empty, this table will be interleaved
-	Comment       string
-	Id            string
+	Name             string
+	ColIds           []string // Provides names and order of columns
+	ShardIdColumn    string
+	ColDefs          map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
+	PrimaryKeys      []IndexKey
+	ForeignKeys      []Foreignkey
+	Indexes          []CreateIndex
+	ParentTable      InterleavedParent // if not empty, this table will be interleaved
+	CheckConstraints []CheckConstraint
+	Comment          string
+	Id               string
 }
 
 // PrintCreateTable unparses a CREATE TABLE statement.
@@ -381,13 +390,20 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 		}
 	}
 
+	var checkString string
+	if len(ct.CheckConstraints) > 0 {
+		checkString = FormatCheckConstraints(ct.CheckConstraints)
+	} else {
+		checkString = ""
+	}
+
 	if len(keys) == 0 {
-		return fmt.Sprintf("%sCREATE TABLE %s (\n%s) %s", tableComment, config.quote(ct.Name), cols, interleave)
+		return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s) %s", tableComment, config.quote(ct.Name), cols, checkString, interleave)
 	}
 	if config.SpDialect == constants.DIALECT_POSTGRESQL {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
-	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
+	return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, checkString, strings.Join(keys, ", "), interleave)
 }
 
 // CreateIndex encodes the following DDL definition:
@@ -494,6 +510,27 @@ func (k Foreignkey) PrintForeignKeyAlterTable(spannerSchema Schema, c Config, ta
 	return s
 }
 
+// FormatCheckConstraints formats the check constraints in SQL syntax.
+func FormatCheckConstraints(cks []CheckConstraint) string {
+	var builder strings.Builder
+
+	for _, col := range cks {
+		if col.Name != "" {
+			builder.WriteString(fmt.Sprintf("\tCONSTRAINT %s CHECK %s,\n", col.Name, col.Expr))
+		} else {
+			builder.WriteString(fmt.Sprintf("\tCHECK %s,\n", col.Expr))
+		}
+	}
+
+	if builder.Len() > 0 {
+		// Trim the trailing comma and newline
+		result := builder.String()
+		return result[:len(result)-2] + "\n"
+	}
+
+	return ""
+}
+
 // Schema stores a map of table names and Tables.
 type Schema map[string]CreateTable
 
@@ -508,7 +545,6 @@ func NewSchema() Schema {
 // TODO: Move this method to mapping.go and preserve the table names in sorted
 // order in conv so that we don't need to order the table names multiple times.
 func GetSortedTableIdsBySpName(s Schema) []string {
-
 	var tableNames, sortedTableNames, sortedTableIds []string
 	tableNameIdMap := map[string]string{}
 	for _, t := range s {
