@@ -11,11 +11,11 @@
       color="primary"
       class="split-button-left"
       id='connect-to-database-btn'
-      [routerLink]="'/source/direct-connection'"
+      (click)="connectToDatabase()"
     >
       Connect to database
     </button>
-    <button mat-raised-button color="primary" class="split-button-right" [matMenuTriggerFor]="menu">
+    <button mat-raised-button color="primary"  class="split-button-right" [matMenuTriggerFor]="menu">
       <mat-icon aria-hidden="false" aria-label="More options">expand_more</mat-icon>
     </button>
     <mat-menu #menu="matMenu" xPosition="before">
