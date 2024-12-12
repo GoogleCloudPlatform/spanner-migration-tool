@@ -330,6 +330,8 @@ func (isi InfoSchemaImpl) processRow(
 	switch constraintType {
 	case "PRIMARY KEY":
 		*primaryKeys = append(*primaryKeys, col)
+
+	// Case added to handle check constraints
 	case "CHECK":
 		collationRegex := regexp.MustCompile(constants.DB_COLLATION_REGEX)
 		checkClause = collationRegex.ReplaceAllString(checkClause, "")
