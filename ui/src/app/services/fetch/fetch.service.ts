@@ -214,7 +214,7 @@ export class FetchService {
     return this.http.get(`${this.url}/validateCheckConstraint`)
   }
 
-  updateCC(tableId: string, payload: ICheckConstraints[]): any {
+  updateCheckConstraint(tableId: string, payload: ICheckConstraints[]): any {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/update/cc?table=${tableId}`, payload)
   }
 

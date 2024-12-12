@@ -4,6 +4,6 @@ export default interface ICcTabData {
   srcCondition: string
   spSno: string
   spConstraintName: string
-  spCondition: string
+  spConstraintCondition: string
   deleteIndex: string
 }

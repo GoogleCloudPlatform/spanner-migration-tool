@@ -27,7 +27,7 @@ describe('ObjectDetailComponent', () => {
   let rowData: IColumnTabData[]
 
   beforeEach(async () => {
-    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence', 'updateCC']);
+    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence', 'updateCheckConstraint']);
     dataServiceSpy.updateSequence.and.returnValue(of({}));
     dataServiceSpy.dropSequence.and.returnValue(of(''));
     dialogSpyObj = jasmine.createSpyObj('MatDialog', ['open']);
@@ -56,7 +56,7 @@ describe('ObjectDetailComponent', () => {
       ],
     }).compileComponents()
     dataServiceSpy.conv = of(mockIConv);
-    dataServiceSpy.updateCC.and.returnValue(of(''))
+    dataServiceSpy.updateCheckConstraint.and.returnValue(of(''))
   })
 
   beforeEach(() => {
@@ -206,7 +206,7 @@ describe('ObjectDetailComponent', () => {
         srcCondition: 't',
         spSno: '1',
         spConstraintName: 'test',
-        spCondition: 'test',
+        spConstraintCondition: 'test',
         deleteIndex: 'cc1',
       },
     ]
@@ -228,7 +228,7 @@ describe('ObjectDetailComponent', () => {
         srcCondition: 't',
         spSno: '1',
         spConstraintName: 'test',
-        spCondition: 'test',
+        spConstraintCondition: 'test',
         deleteIndex: 'cc1',
       },
     ]
@@ -248,7 +248,7 @@ describe('ObjectDetailComponent', () => {
         srcCondition: 't',
         spSno: '1',
         spConstraintName: 'test',
-        spCondition: 'test',
+        spConstraintCondition: 'test',
         deleteIndex: 'cc1',
       },
       {
@@ -257,7 +257,7 @@ describe('ObjectDetailComponent', () => {
         srcCondition: 't',
         spSno: '1',
         spConstraintName: 'contraintName',
-        spCondition: 'test',
+        spConstraintCondition: 'test',
         deleteIndex: 'cc1',
       },
     ]
@@ -266,6 +266,25 @@ describe('ObjectDetailComponent', () => {
     component.dropCc({ value: { deleteIndex: 'cc1' } })
 
     expect(component.setCCRows).toHaveBeenCalled()
+  })
+
+  it('should call addCcColumn', () => {
+    component.ccData = [
+      {
+        srcSno: '',
+        srcConstraintName: 'contraintName',
+        srcCondition: 't',
+        spSno: '1',
+        spConstraintName: 'test',
+        spConstraintCondition: 'test',
+        deleteIndex: 'cc1',
+      }
+    ]
+    spyOn(component, 'addCcColumn').and.callThrough()
+
+    component.addCcColumn()
+
+    expect(component.addCcColumn).toHaveBeenCalled()
   })
 
   it('should open dialog if there are duplicate constraints', () => {
@@ -277,7 +296,7 @@ describe('ObjectDetailComponent', () => {
         srcCondition: '',
         spSno: '1',
         spConstraintName: 'check_1',
-        spCondition: 'age > 18',
+        spConstraintCondition: 'age > 18',
         deleteIndex: 'cc1',
       },
       {
@@ -286,7 +305,7 @@ describe('ObjectDetailComponent', () => {
         srcCondition: '',
         spSno: '2',
         spConstraintName: 'check_1',
-        spCondition: 'age >= 18',
+        spConstraintCondition: 'age >= 18',
         deleteIndex: 'cc2',
       },
     ]
@@ -302,7 +321,7 @@ describe('ObjectDetailComponent', () => {
     }));
   });
 
-  it('should call updateCC and handle success response', () => {
+  it('should call updateCheckConstraint and handle success response', () => {
     spyOn(component, 'setCCRows').and.callThrough()
     component.ccData = [
       {
@@ -311,7 +330,7 @@ describe('ObjectDetailComponent', () => {
         srcCondition: '',
         spSno: '1',
         spConstraintName: 'check_1',
-        spCondition: 'age > 18',
+        spConstraintCondition: 'age > 18',
         deleteIndex: 'cc1',
       }
     ]
@@ -320,15 +339,15 @@ describe('ObjectDetailComponent', () => {
 
     component.saveCc();
 
-    expect(dataServiceSpy.updateCC);
+    expect(dataServiceSpy.updateCheckConstraint);
     expect(component.isCcEditMode).toBe(false);
 
   })
 
-  it('should show error dialog if updateCC response is an error', () => {
+  it('should show error dialog if updateCheckConstraint response is an error', () => {
 
     spyOn(component, 'setCCRows').and.callThrough()
-    dataServiceSpy.updateCC.and.returnValue(of('Error message'));
+    dataServiceSpy.updateCheckConstraint.and.returnValue(of('Error message'));
     component.ccData = [
       {
         srcSno: '',
@@ -336,7 +355,7 @@ describe('ObjectDetailComponent', () => {
         srcCondition: '',
         spSno: '1',
         spConstraintName: 'check_1',
-        spCondition: 'age > 18',
+        spConstraintCondition: 'age > 18',
         deleteIndex: 'cc1',
       }
     ]
@@ -350,5 +369,6 @@ describe('ObjectDetailComponent', () => {
     }));
 
   })
+
 
 });

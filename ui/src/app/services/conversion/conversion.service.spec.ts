@@ -155,7 +155,7 @@ describe('ConversionService', () => {
         srcCondition: 'Expr1',
         spSno: '1',
         spConstraintName: 'Name1',
-        spCondition: 'Expr1',
+        spConstraintCondition: 'Expr1',
         deleteIndex: 'cc1',
       },
       {
@@ -164,7 +164,7 @@ describe('ConversionService', () => {
         srcCondition: 'Expr2',
         spSno: '',
         spConstraintName: '',
-        spCondition: '',
+        spConstraintCondition: '',
         deleteIndex: 'cc2',
       },
     ]
@@ -216,7 +216,7 @@ describe('ConversionService', () => {
         srcCondition: 'Expr1',
         spSno: '',
         spConstraintName: '',
-        spCondition: '',
+        spConstraintCondition: '',
         deleteIndex: 'cc1',
       },
       {
@@ -225,7 +225,7 @@ describe('ConversionService', () => {
         srcCondition: 'Expr2',
         spSno: '',
         spConstraintName: '',
-        spCondition: '',
+        spConstraintCondition: '',
         deleteIndex: 'cc2',
       },
     ];
@@ -277,7 +277,7 @@ describe('ConversionService', () => {
         srcCondition: 'Expr1',
         spSno: '1',
         spConstraintName: 'Name1',
-        spCondition: 'Expr1',
+        spConstraintCondition: 'Expr1',
         deleteIndex: 'cc1',
       },
       {
@@ -286,7 +286,7 @@ describe('ConversionService', () => {
         srcCondition: '',
         spSno: '2',
         spConstraintName: 'Name2',
-        spCondition: 'Expr2',
+        spConstraintCondition: 'Expr2',
         deleteIndex: 'cc2',
       },
     ]

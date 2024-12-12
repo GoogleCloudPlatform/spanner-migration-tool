@@ -114,7 +114,7 @@ export class ObjectDetailComponent implements OnInit {
     'srcCondition',
     'spSno',
     'spConstraintName',
-    'spCondition',
+    'spConstraintCondition',
     'dropButton',
   ]
   displayedPkColumns = [
@@ -574,20 +574,20 @@ export class ObjectDetailComponent implements OnInit {
     } else if (this.checkIfCcColumn(colId)) {
       let message = `Column ${spColName} is a part of`;
       const dependencies = [];
-    
+
       if (this.checkIfPkColumn(colId)) {
         dependencies.push(' Primary key');
       }
       if (associatedIndexes.length !== 0) {
         dependencies.push(` Index ${associatedIndexes}`);
       }
-    
+
       // Join dependencies with appropriate punctuation
       if (dependencies.length > 0) {
         message += `${dependencies.join(' ,')} and`;
       }
       message += ' check constraints. Remove the dependencies from respective tabs before dropping the Column.';
-    
+
       this.dialog.open(InfodialogComponent, {
         data: {
           message,
@@ -611,8 +611,8 @@ export class ObjectDetailComponent implements OnInit {
 
   checkIfCcColumn(colId: string): boolean {
     const columnName = this.conv.SpSchema[this.currentObject!.id].ColDefs[colId].Name;
-    
-    return this.conv.SrcSchema[this.currentObject!.id].CheckConstraints.some((cc: ICheckConstraints) => 
+
+    return this.conv.SrcSchema[this.currentObject!.id].CheckConstraints.some((cc: ICheckConstraints) =>
       cc.Expr.includes(columnName)
     );
   }
@@ -805,20 +805,20 @@ export class ObjectDetailComponent implements OnInit {
 
   addCcColumn() {
     const index = this.ccData.length;
-  
+
     this.ccData.push({
       spSno: (index + 1).toString(),
       spConstraintName: `Constraint_name${index + 1}`,
-      spCondition: '',
+      spConstraintCondition: '',
       srcSno: '',
       srcCondition: '',
       srcConstraintName: '',
       deleteIndex: `cc${index + 1}`,
     });
-  
+
     this.setCCRows();
   }
-    
+
   dropCc(element: any) {
     const index = this.ccData.findIndex(item => item.deleteIndex === element.value.deleteIndex);
     if (index !== -1) {
@@ -831,7 +831,7 @@ export class ObjectDetailComponent implements OnInit {
     this.ccArray = this.fb.array([]);
     const srcArr: ICcTabData[] = [];
     const spArr: ICcTabData[] = [];
-  
+
     // Populate srcArr and spArr
     this.ccData.forEach((cc, index) => {
       const baseObject : ICcTabData = {
@@ -840,28 +840,26 @@ export class ObjectDetailComponent implements OnInit {
         srcCondition: cc.srcCondition,
         spSno: `${index + 1}`,
         spConstraintName: cc.spConstraintName,
-        spCondition: cc.spCondition,
+        spConstraintCondition: cc.spConstraintCondition,
         deleteIndex: cc.deleteIndex,
       };
       srcArr.push(baseObject);
-  
+
       if (cc.spConstraintName !== '') {
         spArr.push(baseObject);
       }
     });
-  
+
     const createFormGroup = (data : ICcTabData) => new FormGroup({
       srcSno: new FormControl(data.srcSno || ''),
       srcConstraintName: new FormControl(data.srcConstraintName || ''),
       srcCondition: new FormControl(data.srcCondition || ''),
       spSno: new FormControl(data.spSno || ''),
       spConstraintName: new FormControl(data.spConstraintName || '', [
-        Validators.required,
         Validators.pattern('^[a-zA-Z_][a-zA-Z0-9_]{0,63}$'),
       ]),
-      spCondition: new FormControl(data.spCondition || '', [
+      spConstraintCondition: new FormControl(data.spConstraintCondition || '', [
         Validators.required,
-        this.checkCondition(),
       ]),
       deleteIndex: new FormControl(data.deleteIndex),
     });
@@ -869,7 +867,7 @@ export class ObjectDetailComponent implements OnInit {
     for (let i = 0; i < Math.min(srcArr.length, spArr.length); i++) {
       this.ccArray.push(createFormGroup(srcArr[i]));
     }
-  
+
     for (let i = Math.min(srcArr.length, spArr.length); i < srcArr.length; i++) {
       this.ccArray.push(createFormGroup(srcArr[i]));
     }
@@ -877,26 +875,8 @@ export class ObjectDetailComponent implements OnInit {
     for (let i = Math.min(srcArr.length, spArr.length); i < spArr.length; i++) {
       this.ccArray.push(createFormGroup(spArr[i]));
     }
-  
-    this.ccDataSource = this.ccArray.controls;
-  }
 
-  checkCondition(): ValidatorFn {
-    return (control: AbstractControl): ValidationErrors | null => {
-      const parser = new Parser();
-      const sql = `
-        ALTER TABLE employees
-        ADD CONSTRAINT chk_age4
-        CHECK (${control.value});
-      `;
-  
-      try {
-        const ast = parser.astify(sql);
-        return null;
-      } catch (error) {
-        return { syntaxError: 'Invalid SQL syntax or condition' };
-      }
-    }
+    this.ccDataSource = this.ccArray.controls;
   }
 
   toggleCcEdit() {
@@ -905,26 +885,26 @@ export class ObjectDetailComponent implements OnInit {
     if (this.isCcEditMode) {
       this.setCCRows();
     }
-  
+
     this.isCcEditMode = !this.isCcEditMode;
   }
 
   saveCc() {
     const spCkArr: ICheckConstraints[] = [];
     let isDuplicate = false;
-  
+
     this.ccArray.value.forEach((cc: ICcTabData) => {
-      if (spCkArr.some(item => item.Name === cc.spConstraintName || item.Expr === cc.spCondition)) {
+      if (spCkArr.some(item => item.Name === cc.spConstraintName || item.Expr === cc.spConstraintCondition)) {
         isDuplicate = true;
       } else {
         spCkArr.push({
           Id: cc.spSno,
           Name: cc.spConstraintName,
-          Expr: cc.spCondition,
+          Expr: cc.spConstraintCondition,
         });
       }
     });
-  
+
     if (isDuplicate) {
       this.dialog.open(InfodialogComponent, {
         data: {
@@ -935,8 +915,8 @@ export class ObjectDetailComponent implements OnInit {
       });
       return;
     }
-  
-    this.data.updateCC(this.currentObject!.id, spCkArr).subscribe({
+
+    this.data.updateCheckConstraint(this.currentObject!.id, spCkArr).subscribe({
       next: (res: string) => {
         if (res === '') {
           this.isCcEditMode = false;
