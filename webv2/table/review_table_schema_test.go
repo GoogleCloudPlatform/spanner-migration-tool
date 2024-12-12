@@ -31,7 +31,6 @@ import (
 )
 
 func TestReviewTableSchema(t *testing.T) {
-
 	tc := []struct {
 		name         string
 		tableId      string
@@ -61,7 +60,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:   "t1",
@@ -71,7 +71,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
@@ -91,7 +92,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:   "t1",
@@ -101,7 +103,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -145,7 +148,8 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]ddl.ColumnDef{
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:   "table1",
@@ -188,7 +192,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:   "table1",
@@ -198,7 +203,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -241,7 +247,8 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]ddl.ColumnDef{
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:   "table1",
@@ -292,7 +299,8 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]ddl.ColumnDef{
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:   "table1",
@@ -310,7 +318,8 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]schema.Column{
 							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
 						},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -353,7 +362,8 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]ddl.ColumnDef{
 							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:   "table1",
@@ -405,7 +415,8 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]ddl.ColumnDef{
 							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:   "table1",
@@ -424,7 +435,8 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]schema.Column{
 							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
 						},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -467,7 +479,8 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]ddl.ColumnDef{
 							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:   "table1",
@@ -519,7 +532,8 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]ddl.ColumnDef{
 							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:   "table1",
@@ -538,7 +552,8 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]schema.Column{
 							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
 						},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -581,7 +596,8 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]ddl.ColumnDef{
 							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:   "table1",
@@ -633,7 +649,8 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]ddl.ColumnDef{
 							"c3": {Name: "a", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:   "table1",
@@ -652,7 +669,8 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]schema.Column{
 							"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
 						},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -686,7 +704,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Id: "c2", Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Id:     "t1",
@@ -698,7 +717,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Id: "c3", Name: "c", Type: schema.Type{Name: "varchar", Mods: []int64{}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-					}},
+					},
+				},
 
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
@@ -716,7 +736,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Id: "c3", Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-					}},
+					},
+				},
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Id:     "t1",
@@ -728,7 +749,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Id: "c3", Name: "c", Type: schema.Type{Name: "varchar", Mods: []int64{}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-					}},
+					},
+				},
 
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
@@ -756,7 +778,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -778,7 +801,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {},
 				},
@@ -1345,7 +1369,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}, AutoGen: ddl.AutoGenCol{Name: "seq", GenerationType: constants.SEQUENCE}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -1374,7 +1399,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {},
 				},
@@ -1382,7 +1408,7 @@ func TestReviewTableSchema(t *testing.T) {
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
 				SpSequences: map[string]ddl.Sequence{
-					"s1": ddl.Sequence{
+					"s1": {
 						Id:              "s1",
 						Name:            "seq",
 						ColumnsUsingSeq: map[string][]string{"t1": {}},
@@ -1411,7 +1437,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-					}},
+					},
+				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
@@ -1427,7 +1454,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-					}},
+					},
+				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
@@ -1454,7 +1482,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-					}},
+					},
+				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
@@ -1470,7 +1499,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-					}},
+					},
+				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
@@ -1601,7 +1631,6 @@ func TestReviewTableSchema(t *testing.T) {
 			},
 		},
 		{
-
 			name:    "Test change type success for related foreign key columns",
 			tableId: "t1",
 			payload: `
@@ -1808,7 +1837,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -1843,7 +1873,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -1886,7 +1917,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -1929,7 +1961,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -1980,7 +2013,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -2031,7 +2065,8 @@ func TestReviewTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
-					}},
+					},
+				},
 				SchemaIssues: map[string]internal.TableIssues{
 					"t1": {
 						ColumnLevelIssues: map[string][]internal.SchemaIssue{
@@ -2057,6 +2092,59 @@ func TestReviewTableSchema(t *testing.T) {
 							"t1": {"c1"},
 						},
 					},
+				},
+			},
+		},
+		{
+			name:    "rename constraints column",
+			tableId: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"c1": { "Rename": "aa" }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						CheckConstraints: []ddl.CheckConstraint{{
+							Name: "check1",
+							Expr: "c1 > 0",
+						}},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "aa", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						CheckConstraints: []ddl.CheckConstraint{{
+							Name: "check1",
+							Expr: "aa > 0",
+						}},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
 			},
 		},

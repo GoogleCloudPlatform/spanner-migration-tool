@@ -104,8 +104,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
-			oldName := conv.SrcSchema[tableId].ColDefs[colId].Name
-
+			oldName := conv.SpSchema[tableId].ColDefs[colId].Id
 			// Using a regular expression to match the exact column name
 			re := regexp.MustCompile(`\b` + regexp.QuoteMeta(oldName) + `\b`)
 
