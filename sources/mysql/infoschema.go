@@ -229,12 +229,10 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
 func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, []schema.CheckConstraint, map[string][]string, error) {
-	tableExists, err := isi.isCheckConstraintsTablePresent()
+	finalQuery, err := isi.getConstraintsDQL()
 	if err != nil {
 		return nil, nil, nil, err
 	}
-
-	finalQuery := isi.getConstraintsDQL(tableExists)
 	rows, err := isi.Db.Query(finalQuery, table.Schema, table.Name)
 	if err != nil {
 		return nil, nil, nil, err
@@ -246,7 +244,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 	m := make(map[string][]string)
 
 	for rows.Next() {
-		if err := isi.processRow(rows, tableExists, conv, &primaryKeys, &checkKeys, m); err != nil {
+		if err := isi.processRow(rows, conv, &primaryKeys, &checkKeys, m); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan constrants. error: %v", err))
 			continue
 		}
@@ -267,8 +265,15 @@ func (isi InfoSchemaImpl) isCheckConstraintsTablePresent() (bool, error) {
 }
 
 // getConstraintsDQL returns the appropriate SQL query based on the existence of CHECK_CONSTRAINTS.
-func (isi InfoSchemaImpl) getConstraintsDQL(tableExists bool) string {
-	if tableExists {
+func (isi InfoSchemaImpl) getConstraintsDQL() (string, error) {
+	// check if CHECK_CONSTRAINTS table exists.
+	isconstraintTableExists, err := isi.isCheckConstraintsTablePresent()
+	if err != nil {
+		return "", err
+	}
+
+	// mysql version 8.0.16 and above has CHECK_CONSTRAINTS table.
+	if isconstraintTableExists {
 		return `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
             LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
@@ -279,7 +284,7 @@ func (isi InfoSchemaImpl) getConstraintsDQL(tableExists bool) string {
             ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
             WHERE t.TABLE_SCHEMA = ? 
             AND t.TABLE_NAME = ?
-            ORDER BY k.ORDINAL_POSITION;`
+            ORDER BY k.ORDINAL_POSITION;`, nil
 	}
 	return `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
@@ -289,12 +294,12 @@ func (isi InfoSchemaImpl) getConstraintsDQL(tableExists bool) string {
             AND t.TABLE_NAME = k.TABLE_NAME
             WHERE t.TABLE_SCHEMA = ?
             AND t.TABLE_NAME = ?
-            ORDER BY k.ORDINAL_POSITION;`
+            ORDER BY k.ORDINAL_POSITION;`, nil
 }
 
 // processRow handles scanning and processing of a database row for GetConstraints.
 func (isi InfoSchemaImpl) processRow(
-	rows *sql.Rows, tableExists bool, conv *internal.Conv, primaryKeys *[]string,
+	rows *sql.Rows, conv *internal.Conv, primaryKeys *[]string,
 	checkKeys *[]schema.CheckConstraint, m map[string][]string,
 ) error {
 	var col, constraintType, checkClause string
