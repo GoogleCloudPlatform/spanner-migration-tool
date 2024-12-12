@@ -612,7 +612,7 @@ export class ObjectDetailComponent implements OnInit {
   checkIfCcColumn(colId: string): boolean {
     const columnName = this.conv.SpSchema[this.currentObject!.id].ColDefs[colId].Name;
 
-    return this.conv.SrcSchema[this.currentObject!.id].CheckConstraints.some((cc: ICheckConstraints) =>
+    return this.conv.SpSchema[this.currentObject!.id].CheckConstraints.some((cc: ICheckConstraints) =>
       cc.Expr.includes(columnName)
     );
   }
