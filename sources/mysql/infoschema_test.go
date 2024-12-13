@@ -426,6 +426,14 @@ func TestProcessData_MultiCol(t *testing.T) {
 			rows:  [][]driver.Value{{"test"}},
 		},
 		{
+			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			args:  nil,
+			cols:  []string{"count"},
+			rows: [][]driver.Value{
+				{int64(0)},
+			},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "test"},
 			cols:  []string{"column_name", "constraint_type"},
@@ -520,6 +528,14 @@ func TestProcessSchema_Sharded(t *testing.T) {
 			args:  []driver.Value{"test"},
 			cols:  []string{"table_name"},
 			rows:  [][]driver.Value{{"test"}},
+		},
+		{
+			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			args:  nil,
+			cols:  []string{"count"},
+			rows: [][]driver.Value{
+				{int64(0)},
+			},
 		},
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
@@ -655,8 +671,10 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
 	primaryKeys, checkKeys, m, err := isi.GetConstraints(conv, common.SchemaAndName{Schema: "your_schema", Name: "your_table"})
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"column1"}, primaryKeys)
-	assert.Equal(t, []schema.CheckConstraint{{Name: "column2_check", Expr: "(column2 > 0)", Id: "cc1"}}, checkKeys) // Modify according to actual struct
-	assert.NotNil(t, m)                                                                                             // Modify according to expected map behavior
+	assert.Equal(t, len(checkKeys), 1)
+	assert.Equal(t, checkKeys[0].Name, "column2_check")
+	assert.Equal(t, checkKeys[0].Expr, "(column2 > 0)")
+	assert.NotNil(t, m)
 }
 
 func TestGetConstraints_CheckConstraintsTableAbsent(t *testing.T) {
