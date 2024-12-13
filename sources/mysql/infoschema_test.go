@@ -661,7 +661,7 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"column1"}, primaryKeys)
 	assert.Equal(t, len(checkKeys), 1)
-	assert.Equal(t, checkKeys[0].Name, "column2_check")
+	assert.Equal(t, checkKeys[0].Name, "check_name")
 	assert.Equal(t, checkKeys[0].Expr, "(column2 > 0)")
 	assert.NotNil(t, m)
 }

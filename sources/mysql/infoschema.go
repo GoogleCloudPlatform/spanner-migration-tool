@@ -277,7 +277,7 @@ func (isi InfoSchemaImpl) getConstraintsDQL() (string, error) {
 
 	// mysql version 8.0.16 and above has CHECK_CONSTRAINTS table.
 	if tableExistsCount > 0 {
-		return `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE
+		return `SELECT COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME,t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
             LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
             ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
@@ -305,7 +305,7 @@ func (isi InfoSchemaImpl) processRow(
 	rows *sql.Rows, conv *internal.Conv, primaryKeys *[]string,
 	checkKeys *[]schema.CheckConstraint, m map[string][]string,
 ) error {
-	var col, constraintType, checkClause string
+	var col, constraintType, checkClause, constraintName string
 	var err error
 	cols, err := rows.Columns()
 	if err != nil {
@@ -316,8 +316,8 @@ func (isi InfoSchemaImpl) processRow(
 	switch len(cols) {
 	case 2:
 		err = rows.Scan(&col, &constraintType)
-	case 3:
-		err = rows.Scan(&col, &constraintType, &checkClause)
+	case 4:
+		err = rows.Scan(&col, &constraintName, &constraintType, &checkClause)
 	default:
 		conv.Unexpected(fmt.Sprintf("unexpected number of columns: %d", len(cols)))
 		return fmt.Errorf("unexpected number of columns: %d", len(cols))
@@ -326,7 +326,7 @@ func (isi InfoSchemaImpl) processRow(
 		return err
 	}
 
-	if col == "" || constraintType == "" {
+	if col == "" && constraintType == "" {
 		conv.Unexpected("Got empty column or constraint type")
 		return nil
 	}
@@ -338,7 +338,6 @@ func (isi InfoSchemaImpl) processRow(
 	// Case added to handle check constraints
 	case "CHECK":
 		checkClause = collationRegex.ReplaceAllString(checkClause, "")
-		constraintName := fmt.Sprintf("%s_check", col)
 		*checkKeys = append(*checkKeys, schema.CheckConstraint{Name: constraintName, Expr: checkClause, Id: internal.GenerateCheckConstrainstId()})
 	default:
 		m[col] = append(m[col], constraintType)
