@@ -2118,7 +2118,7 @@ func TestReviewTableSchema(t *testing.T) {
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 						CheckConstraints: []ddl.CheckConstraint{{
 							Name: "check1",
-							Expr: "c1 > 0",
+							Expr: "a > 0",
 						}},
 					},
 				},
