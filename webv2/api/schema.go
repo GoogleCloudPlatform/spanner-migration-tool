@@ -523,6 +523,7 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
+// doesCheckConstraintNameExist checks if the constraint name already exist.
 func doesCheckConstraintNameExist(spcks []ddl.CheckConstraint, targetName string) bool {
 	for _, spck := range spcks {
 		if spck.Expr == targetName {
