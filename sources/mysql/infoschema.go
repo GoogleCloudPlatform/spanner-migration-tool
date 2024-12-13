@@ -253,27 +253,18 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 	return primaryKeys, checkKeys, m, nil
 }
 
-// checkCheckConstraintsTableExists checks if the CHECK_CONSTRAINTS table exists.
-func (isi InfoSchemaImpl) isCheckConstraintsTablePresent() (bool, error) {
-	var tableExistsCount int
-	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
-	err := isi.Db.QueryRow(checkQuery).Scan(&tableExistsCount)
-	if err != nil {
-		return false, err
-	}
-	return tableExistsCount > 0, nil
-}
-
 // getConstraintsDQL returns the appropriate SQL query based on the existence of CHECK_CONSTRAINTS.
 func (isi InfoSchemaImpl) getConstraintsDQL() (string, error) {
+	var tableExistsCount int
 	// check if CHECK_CONSTRAINTS table exists.
-	isconstraintTableExists, err := isi.isCheckConstraintsTablePresent()
+	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
+	err := isi.Db.QueryRow(checkQuery).Scan(&tableExistsCount)
 	if err != nil {
 		return "", err
 	}
 
 	// mysql version 8.0.16 and above has CHECK_CONSTRAINTS table.
-	if isconstraintTableExists {
+	if tableExistsCount > 0 {
 		return `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
             LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
