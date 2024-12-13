@@ -175,10 +175,10 @@ func (ddlv *DDLVerifierImpl) VerifySpannerDDL(conv *internal.Conv, expressionDet
 		Source:               conv.Source,
 		ExpressionDetailList: expressionDetails,
 	}
-	fmt.Print(conv)
-	fmt.Print(expressionDetails)
-	fmt.Print(ddlv.Expressions)
-	fmt.Print(ddlv.Expressions)
+	fmt.Println(conv)
+	fmt.Println(expressionDetails)
+	fmt.Println(ddlv.Expressions)
+	fmt.Println(ddlv.Expressions)
 	verificationResults := ddlv.Expressions.VerifyExpressions(ctx, verifyExpressionsInput)
 
 	return verificationResults, verificationResults.Err

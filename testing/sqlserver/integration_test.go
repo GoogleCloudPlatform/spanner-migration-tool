@@ -50,10 +50,6 @@ func TestMain(m *testing.M) {
 	os.Exit(res)
 }
 
-func generateUniqueDatabaseName(baseName string) string {
-	return fmt.Sprintf("%s-%d", baseName, time.Now().UnixNano())
-}
-
 func initIntegrationTests() (cleanup func()) {
 	projectID = os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID")
 	instanceID = os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID")
@@ -74,11 +70,6 @@ func initIntegrationTests() (cleanup func()) {
 
 	if instanceID == "" {
 		log.Println("Integration tests skipped: SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID is missing")
-		return noop
-	}
-
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		log.Println("Integration tests skipped: SPANNER_EMULATOR_HOST is missing")
 		return noop
 	}
 
@@ -108,7 +99,7 @@ func prepareIntegrationTest(t *testing.T) string {
 	}
 	tmpdir, err := ioutil.TempDir(".", "int-test-")
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	return tmpdir
 }
@@ -131,11 +122,11 @@ func TestIntegration_SQLserver_SchemaAndDataSubcommand(t *testing.T) {
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := generateUniqueDatabaseName("sqlserver-schema-and-data")
+	dbName := "sqlserver-schema-and-data"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, "SqlServer_IntTest.")
 
-	args := fmt.Sprintf("schema-and-data -prefix %s -source=%s  -source-profile='host=localhost,user=sa,dbName=SqlServer_IntTest' -target-profile='instance=%s,dbName=%s'", filePrefix, constants.SQLSERVER, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=%s  -source-profile='host=localhost,user=sa,dbName=SqlServer_IntTest' -target-profile='project=%s,instance=%s,dbName=%s'", filePrefix, constants.SQLSERVER, projectID, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)

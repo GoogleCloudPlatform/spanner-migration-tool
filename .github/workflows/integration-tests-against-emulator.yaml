@@ -183,4 +183,5 @@ jobs:
         env:
           SPANNER_EMULATOR_HOST: localhost:9010
           SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID: emulator-test-project
+          GCPProjectID: emulator-test-project
           SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID: test-instance

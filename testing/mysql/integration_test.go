@@ -122,7 +122,7 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName)
 
 	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDATABASE"), os.Getenv("MYSQLPWD")
-	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='project=%s,instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, projectID, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -134,7 +134,7 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 }
 
 func runSchemaSubcommand(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
-	args := fmt.Sprintf("schema -prefix %s -source=mysql -target-profile='instance=%s,dbName=%s' < %s", filePrefix, instanceID, dbName, dumpFilePath)
+	args := fmt.Sprintf("schema -prefix %s -source=mysql -target-profile='project=%s,instance=%s,dbName=%s' < %s", filePrefix, projectID, instanceID, dbName, dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -142,7 +142,7 @@ func runSchemaSubcommand(t *testing.T, dbName, filePrefix, sessionFile, dumpFile
 }
 
 func runDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFilePath string) {
-	args := fmt.Sprintf("data -source=mysql -prefix %s -session %s -target-profile='instance=%s,dbName=%s' < %s", filePrefix, sessionFile, instanceID, dbName, dumpFilePath)
+	args := fmt.Sprintf("data -source=mysql -prefix %s -session %s -target-profile='project=%s,instance=%s,dbName=%s' < %s", filePrefix, sessionFile, projectID, instanceID, dbName, dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -150,7 +150,7 @@ func runDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dum
 }
 
 func runSchemaAndDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFilePath string) {
-	args := fmt.Sprintf("schema-and-data -source=mysql -prefix %s -target-profile='instance=%s,dbName=%s' < %s", filePrefix, instanceID, dbName, dumpFilePath)
+	args := fmt.Sprintf("schema-and-data -source=mysql -prefix %s -target-profile='project=%s,instance=%s,dbName=%s' < %s", filePrefix, projectID, instanceID, dbName, dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -228,7 +228,7 @@ func TestIntegration_MYSQL_ForeignKeyActionMigration(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName)
 
 	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDB_FKACTION"), os.Getenv("MYSQLPWD")
-	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='project=%s,instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, projectID, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)

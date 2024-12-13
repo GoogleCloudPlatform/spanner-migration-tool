@@ -334,7 +334,7 @@ func TestIntegration_DYNAMODB_Streaming_Command(t *testing.T) {
 	}
 	defer client.Close()
 
-	args := fmt.Sprintf(`schema-and-data -source=%s -prefix=%s -source-profile="enableStreaming=true" -target-profile="instance=%s,dbName=%s"`, constants.DYNAMODB, filePrefix, instanceID, dbName)
+	args := fmt.Sprintf(`schema-and-data -source=%s -prefix=%s -source-profile="enableStreaming=true" -target-profile="project=%s,instance=%s,dbName=%s"`, constants.DYNAMODB, filePrefix, projectID, instanceID, dbName)
 	err = RunStreamingMigration(t, args, projectID, client)
 	if err != nil {
 		t.Fatal(err)
