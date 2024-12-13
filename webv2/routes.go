@@ -75,8 +75,6 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/spannerDefaultTypeMap", api.SpannerDefaultTypeMap).Methods("GET")
 	router.HandleFunc("/autoGenMap", api.GetAutoGenMap).Methods("GET")
 	router.HandleFunc("/getSequenceKind", api.GetSequenceKind).Methods("GET")
-	router.HandleFunc("/validateCheckConstraint", api.ValidateCheckConstraint).Methods("GET")
-
 	router.HandleFunc("/setparent", api.SetParentTable).Methods("GET")
 	router.HandleFunc("/removeParent", api.RemoveParentTable).Methods("POST")
 
