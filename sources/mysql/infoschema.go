@@ -303,9 +303,23 @@ func (isi InfoSchemaImpl) processRow(
 	checkKeys *[]schema.CheckConstraint, m map[string][]string,
 ) error {
 	var col, constraintType, checkClause string
-	err := rows.Scan(&col, &constraintType, &checkClause)
+	var err error
+	cols, err := rows.Columns()
 	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Can't scan constraints. err: %v", err))
+		conv.Unexpected(fmt.Sprintf("Failed to get columns: %v", err))
+		return err
+	}
+
+	switch len(cols) {
+	case 2:
+		err = rows.Scan(&col, &constraintType)
+	case 3:
+		err = rows.Scan(&col, &constraintType, &checkClause)
+	default:
+		conv.Unexpected(fmt.Sprintf("unexpected number of columns: %d", len(cols)))
+		return fmt.Errorf("unexpected number of columns: %d", len(cols))
+	}
+	if err != nil {
 		return err
 	}
 
