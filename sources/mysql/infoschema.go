@@ -18,7 +18,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -325,7 +324,6 @@ func (isi InfoSchemaImpl) processRow(
 
 	// Case added to handle check constraints
 	case "CHECK":
-		collationRegex := regexp.MustCompile(constants.DB_COLLATION_REGEX)
 		checkClause = collationRegex.ReplaceAllString(checkClause, "")
 		constraintName := fmt.Sprintf("%s_check", col)
 		*checkKeys = append(*checkKeys, schema.CheckConstraint{Name: constraintName, Expr: checkClause, Id: internal.GenerateCheckConstrainstId()})
