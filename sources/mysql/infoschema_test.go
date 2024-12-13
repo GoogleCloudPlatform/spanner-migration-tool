@@ -52,6 +52,14 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			},
 		},
 		{
+			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			args:  nil,
+			cols:  []string{"count"},
+			rows: [][]driver.Value{
+				{int64(0)},
+			},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "user"},
 			cols:  []string{"column_name", "constraint_type"},
@@ -83,6 +91,14 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
 			args:  []driver.Value{"test", "user"},
 			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
+		},
+		{
+			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			args:  nil,
+			cols:  []string{"count"},
+			rows: [][]driver.Value{
+				{int64(0)},
+			},
 		},
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
@@ -126,6 +142,14 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			},
 		},
 		{
+			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			args:  nil,
+			cols:  []string{"count"},
+			rows: [][]driver.Value{
+				{int64(0)},
+			},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "product"},
 			cols:  []string{"column_name", "constraint_type"},
@@ -152,6 +176,14 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
 			args:  []driver.Value{"test", "product"},
 			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
+		},
+		{
+			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			args:  nil,
+			cols:  []string{"count"},
+			rows: [][]driver.Value{
+				{int64(0)},
+			},
 		},
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
@@ -200,6 +232,14 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
 			args:  []driver.Value{"test", "test"},
 			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
+		},
+		{
+			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			args:  nil,
+			cols:  []string{"count"},
+			rows: [][]driver.Value{
+				{int64(0)},
+			},
 		},
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
