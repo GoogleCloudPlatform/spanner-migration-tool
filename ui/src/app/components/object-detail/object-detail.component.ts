@@ -551,7 +551,31 @@ export class ObjectDetailComponent implements OnInit {
     let spColName = element.get('spColName').value
 
     let associatedIndexes = this.getAssociatedIndexs(colId)
-    if (this.checkIfPkColumn(colId) || associatedIndexes.length != 0) {
+    if (this.checkIfCcColumn(colId) && this.checkIfPkColumn(colId)) {
+      let message = `Column ${spColName} is a part of`;
+      const dependencies = [];
+
+      if (this.checkIfPkColumn(colId)) {
+        dependencies.push(' Primary key');
+      }
+      if (associatedIndexes.length !== 0) {
+        dependencies.push(` Index ${associatedIndexes}`);
+      }
+
+      // Join dependencies with appropriate punctuation
+      if (dependencies.length > 0) {
+        message += `${dependencies.join(' ,')} and`;
+      }
+      message += ' check constraints. Remove the dependencies from respective tabs before dropping the Column.';
+
+      this.dialog.open(InfodialogComponent, {
+        data: {
+          message,
+          type: 'error',
+        },
+        maxWidth: '500px',
+      });
+    }else if (this.checkIfPkColumn(colId) || associatedIndexes.length != 0) {
       let pkWarning: string = ''
       let indexWaring: string = ''
       let connectingString: string = ''
@@ -613,7 +637,7 @@ export class ObjectDetailComponent implements OnInit {
     const columnName = this.conv.SpSchema[this.currentObject!.id].ColDefs[colId].Name;
 
     return this.conv.SpSchema[this.currentObject!.id].CheckConstraints.some((cc: ICheckConstraints) =>
-      cc.Expr.includes(columnName)
+    new RegExp(`\\b${columnName}\\b`).test(cc.Expr)
     );
   }
 
