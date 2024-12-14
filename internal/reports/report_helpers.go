@@ -436,6 +436,18 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						Description: fmt.Sprintf("%s for table '%s' column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName),
 					}
 					l = append(l, toAppend)
+				case internal.InvalidCondition:
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
+						Description: fmt.Sprintf("Table '%s': Invalid condition in '%s' column affecting check constraints. Verify the conditions compatibility with constraint logic", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[colId].Name),
+					}
+					l = append(l, toAppend)
+				case internal.ColumnNotFound:
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
+						Description: fmt.Sprintf("Table '%s': Column not found which is mention in check constraint condition. Verify the conditions with constraint logic", conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
 
 				default:
 					toAppend := Issue{
