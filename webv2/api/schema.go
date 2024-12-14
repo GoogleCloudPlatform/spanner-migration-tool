@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -521,6 +523,113 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
+}
+
+func findColId(colDefs map[string]ddl.ColumnDef, condition string) string {
+	for _, colDef := range colDefs {
+		if strings.Contains(condition, colDef.Name) {
+			return colDef.Id
+		}
+	}
+	return ""
+}
+
+func removeCheckConstraint(checkConstraints []ddl.CheckConstraint, expId string) []ddl.CheckConstraint {
+	var filteredConstraints []ddl.CheckConstraint
+
+	for _, checkConstraint := range checkConstraints {
+		if checkConstraint.ExprId != expId {
+			filteredConstraints = append(filteredConstraints, checkConstraint)
+		}
+	}
+	return filteredConstraints
+}
+
+func VerifyCheckConstraintExpression(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
+
+	spschema := sessionState.Conv.SpSchema
+
+	hasErrorOccurred := false
+
+	expressionDetailList := []internal.ExpressionDetail{}
+	ctx := context.Background()
+
+	for _, sp := range spschema {
+		for _, cc := range sp.CheckConstraints {
+
+			colId := findColId(sp.ColDefs, cc.Expr)
+			expressionDetail := internal.ExpressionDetail{
+				Expression:       cc.Expr,
+				Type:             "CHECK",
+				ReferenceElement: internal.ReferenceElement{Name: sp.Name},
+				ExpressionId:     cc.ExprId,
+				Metadata:         map[string]string{"tableId": sp.Id, "colId": colId, "checkConstraintName": cc.Name},
+			}
+			expressionDetailList = append(expressionDetailList, expressionDetail)
+		}
+	}
+
+	accessor, err := expressions_api.NewExpressionVerificationAccessorImpl(ctx, session.GetSessionState().SpannerProjectId, session.GetSessionState().SpannerInstanceID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to create ExpressionVerificationAccessorImpl: %v", err), http.StatusNotFound)
+		return
+	}
+	verifyExpressionsInput := internal.VerifyExpressionsInput{
+		Conv:                 sessionState.Conv,
+		Source:               "mysql",
+		ExpressionDetailList: expressionDetailList,
+	}
+
+	result := accessor.VerifyExpressions(ctx, verifyExpressionsInput)
+	if result.ExpressionVerificationOutputList != nil {
+		for _, ev := range result.ExpressionVerificationOutputList {
+			if !ev.Result {
+				hasErrorOccurred = true
+				tableId := ev.ExpressionDetail.Metadata["tableId"]
+				colId := ev.ExpressionDetail.Metadata["colId"]
+
+				spschema := sessionState.Conv.SpSchema[tableId]
+				spschema.CheckConstraints = removeCheckConstraint(spschema.CheckConstraints, ev.ExpressionDetail.ExpressionId)
+				sessionState.Conv.SpSchema[tableId] = spschema
+
+				err := ev.Err.Error()
+				var issueType internal.SchemaIssue
+
+				switch {
+				case strings.Contains(err, "No matching signature for operator"):
+					issueType = internal.TypeMismatch
+				case strings.Contains(err, "Syntax error"):
+					issueType = internal.InvalidCondition
+				case strings.Contains(err, "Unrecognized name"):
+					issueType = internal.ColumnNotFound
+				default:
+					fmt.Println("Unhandled error:", err)
+					return
+				}
+
+				colIssue := sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
+
+				if !utilities.IsSchemaIssuePresent(colIssue, issueType) {
+					colIssue = append(colIssue, issueType)
+				}
+				sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = colIssue
+
+			}
+
+		}
+	}
+
+	session.UpdateSessionFile()
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(hasErrorOccurred)
 }
 
 // renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables

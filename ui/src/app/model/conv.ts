@@ -140,6 +140,7 @@ export interface ICheckConstraints {
   Id: string
   Name: string
   Expr: string
+  ExprId: string
 }
 
 export interface IIndexKey {

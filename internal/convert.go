@@ -133,6 +133,8 @@ const (
 	NumericPKNotSupported
 	TypeMismatch
 	DefaultValueError
+	InvalidCondition
+	ColumnNotFound
 )
 
 const (

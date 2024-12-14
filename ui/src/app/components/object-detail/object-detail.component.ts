@@ -837,11 +837,24 @@ export class ObjectDetailComponent implements OnInit {
       srcSno: '',
       srcCondition: '',
       srcConstraintName: '',
+      spExprId:this.generateId(),
       deleteIndex: `cc${index + 1}`,
     });
 
     this.setCCRows();
   }
+
+   generateId(): string {
+    const min = 0;
+    const max = 999;
+
+    const randomNum = Math.floor(Math.random() * (max - min + 1)) + min;
+
+    const twoDigitNum = randomNum.toString().padStart(2, '0');
+
+    const id = `expr${twoDigitNum}`;
+    return id;
+}
 
   dropCc(element: any) {
     const index = this.ccData.findIndex(item => item.deleteIndex === element.value.deleteIndex);
@@ -865,6 +878,7 @@ export class ObjectDetailComponent implements OnInit {
         spSno: `${index + 1}`,
         spConstraintName: cc.spConstraintName,
         spConstraintCondition: cc.spConstraintCondition,
+        spExprId:cc.spExprId,
         deleteIndex: cc.deleteIndex,
       };
       srcArr.push(baseObject);
@@ -885,6 +899,7 @@ export class ObjectDetailComponent implements OnInit {
       spConstraintCondition: new FormControl(data.spConstraintCondition || '', [
         Validators.required,
       ]),
+      spExprId:new FormControl(data.spExprId),
       deleteIndex: new FormControl(data.deleteIndex),
     });
 
@@ -904,7 +919,13 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   toggleCcEdit() {
-    this.currentTabIndex = 3;
+    if(this.interleaveParentName !== null)
+    {
+      this.currentTabIndex = 4;
+    }
+    else{
+      this.currentTabIndex = 3;
+    }
 
     if (this.isCcEditMode) {
       this.setCCRows();

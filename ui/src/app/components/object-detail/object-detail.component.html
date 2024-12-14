@@ -1109,9 +1109,7 @@
         CANCEL
       </button>
     </div>
-    <div class="save-button" *ngIf="isCcEditMode && ((interleaveStatus.tableInterleaveStatus &&
-    interleaveStatus.tableInterleaveStatus.Possible) ||
-    this.interleaveParentName !== null)? currentTabIndex === 4:currentTabIndex === 3">
+    <div class="save-button" *ngIf="isCcEditMode && (interleaveParentName !== null ? currentTabIndex === 4:currentTabIndex === 3)">
       <button mat-raised-button color="primary" (click)="saveCc()" [disabled]="!ccArray.valid" >
         SAVE & CONVERT
       </button>

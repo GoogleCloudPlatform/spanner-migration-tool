@@ -77,6 +77,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/getSequenceKind", api.GetSequenceKind).Methods("GET")
 	router.HandleFunc("/setparent", api.SetParentTable).Methods("GET")
 	router.HandleFunc("/removeParent", api.RemoveParentTable).Methods("POST")
+	router.HandleFunc("/verifyCheckConstraintExpression", api.VerifyCheckConstraintExpression).Methods("GET")
 
 	// TODO:(searce) take constraint names themselves which are guaranteed to be unique for Spanner.
 	router.HandleFunc("/drop/secondaryindex", api.DropSecondaryIndex).Methods("POST")

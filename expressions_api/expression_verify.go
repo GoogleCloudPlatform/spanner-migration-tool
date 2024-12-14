@@ -160,6 +160,9 @@ func (ev *ExpressionVerificationAccessorImpl) removeExpressions(inputConv *inter
 	//TODO: Implement similar checks for DEFAULT and CHECK constraints as well
 	convCopy.SpSequences = nil
 	for _, table := range convCopy.SpSchema {
+		table.CheckConstraints = []ddl.CheckConstraint{}
+		convCopy.SpSchema[table.Id] = table
+
 		for colName, colDef := range table.ColDefs {
 			colDef.AutoGen = ddl.AutoGenCol{}
 			table.ColDefs[colName] = colDef
