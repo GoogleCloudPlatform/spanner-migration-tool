@@ -648,7 +648,7 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheck
 	json.NewEncoder(w).Encode(hasErrorOccurred)
 }
 
-func isCheckConstraintsNameExist(spcks []ddl.CheckConstraint, targetName string) bool {
+func doesCheckConstraintNameExist(spcks []ddl.CheckConstraint, targetName string) bool {
 	for _, spck := range spcks {
 		if spck.Expr == targetName {
 			return true
