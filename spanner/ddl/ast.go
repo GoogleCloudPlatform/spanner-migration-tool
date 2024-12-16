@@ -430,7 +430,7 @@ func (dv DefaultValue) PrintDefaultValue(ty Type) string {
 	}
 	var value string
 	switch ty.Name {
-	case "FLOAT32", "NUMERIC":
+	case "FLOAT32", "NUMERIC", "BOOL":
 		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Query, ty.Name)
 	default:
 		value = " DEFAULT (" + dv.Value.Query + ")"
@@ -444,7 +444,7 @@ func (dv DefaultValue) PGPrintDefaultValue(ty Type) string {
 	}
 	var value string
 	switch ty.Name {
-	case "FLOAT8", "FLOAT4", "REAL", "NUMERIC", "DECIMAL":
+	case "FLOAT8", "FLOAT4", "REAL", "NUMERIC", "DECIMAL", "BOOL":
 		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Query, ty.Name)
 	default:
 		value = " DEFAULT (" + dv.Value.Query + ")"
