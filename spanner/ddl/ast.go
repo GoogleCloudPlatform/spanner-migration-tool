@@ -242,14 +242,14 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
-		s+= cd.DefaultValue.PGPrintDefaultValue()
+		s += cd.DefaultValue.PGPrintDefaultValue()
 		s += cd.AutoGen.PGPrintAutoGenCol()
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
-		s+= cd.DefaultValue.PrintDefaultValue()
+		s += cd.DefaultValue.PrintDefaultValue()
 		s += cd.AutoGen.PrintAutoGenCol()
 	}
 	return s, cd.Comment
@@ -428,14 +428,14 @@ func (dv DefaultValue) PrintDefaultValue() string {
 	if !dv.IsPresent {
 		return ""
 	}
-	return " DEFAULT "+ dv.Value.Query
+	return " DEFAULT (" + dv.Value.Query + ")"
 }
 
 func (dv DefaultValue) PGPrintDefaultValue() string {
 	if !dv.IsPresent {
 		return ""
 	}
-	return " DEFAULT "+ dv.Value.Query
+	return " DEFAULT (" + dv.Value.Query + ")"
 }
 
 func (agc AutoGenCol) PrintAutoGenCol() string {
