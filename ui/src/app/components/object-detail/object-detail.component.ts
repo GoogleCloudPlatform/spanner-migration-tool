@@ -880,7 +880,7 @@ export class ObjectDetailComponent implements OnInit {
       srcCondition: new FormControl(data.srcCondition || ''),
       spSno: new FormControl(data.spSno || ''),
       spConstraintName: new FormControl(data.spConstraintName || '', [
-        Validators.pattern('^[a-zA-Z_][a-zA-Z0-9_]{0,63}$'),
+        Validators.pattern('^[a-zA-Z][a-zA-Z0-9_]{0,62}$'),
       ]),
       spConstraintCondition: new FormControl(data.spConstraintCondition || '', [
         Validators.required,
