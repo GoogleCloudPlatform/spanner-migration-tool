@@ -236,17 +236,18 @@ func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTableId string, 
 	return spKeys
 }
 
+// cvtCheckConstraint converts check constraints from source to Spanner.
 func cvtCheckConstraint(conv *internal.Conv, srcKeys []schema.CheckConstraint) []ddl.CheckConstraint {
-	var spcks []ddl.CheckConstraint
+	var spcc []ddl.CheckConstraint
 
-	for _, cks := range srcKeys {
-		spcks = append(spcks, ddl.CheckConstraint{
-			Id:   cks.Id,
-			Name: internal.ToSpannerCheckConstraintName(conv, cks.Name),
-			Expr: cks.Expr,
+	for _, cc := range srcKeys {
+		spcc = append(spcc, ddl.CheckConstraint{
+			Id:   cc.Id,
+			Name: internal.ToSpannerCheckConstraintName(conv, cc.Name),
+			Expr: cc.Expr,
 		})
 	}
-	return spcks
+	return spcc
 }
 
 func CvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTableId string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
