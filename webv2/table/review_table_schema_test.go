@@ -2096,14 +2096,9 @@ func TestReviewTableSchema(t *testing.T) {
 			},
 		},
 		{
-			name:    "rename constraints column",
-			tableId: "t1",
-			payload: `
-		{
-		  "UpdateCols":{
-			"c1": { "Rename": "aa" }
-		}
-		}`,
+			name:       "rename constraints column",
+			tableId:    "t1",
+			payload:    `{"UpdateCols":{"c1": { "Rename": "aa" }}}`,
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -2140,6 +2135,54 @@ func TestReviewTableSchema(t *testing.T) {
 						CheckConstraints: []ddl.CheckConstraint{{
 							Name: "check1",
 							Expr: "aa > 0",
+						}},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+		},
+		{
+			name:       "exact match of column name",
+			tableId:    "t1",
+			payload:    `{"UpdateCols":{"c2": { "Rename": "c2" }}}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "c1_1", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c3", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						CheckConstraints: []ddl.CheckConstraint{{
+							Name: "check1",
+							Expr: "c1_1 > 0",
+						}},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c2": {Name: "c2", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c3": {Name: "c3", Id: "c3", T: ddl.Type{Name: ddl.Int64}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						CheckConstraints: []ddl.CheckConstraint{{
+							Name: "check1",
+							Expr: "c2 > 0",
 						}},
 					},
 				},
