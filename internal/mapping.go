@@ -251,10 +251,6 @@ func ToSpannerCheckConstraintName(conv *Conv, srcCheckConstraintName string) str
 	return getSpannerValidName(conv, srcCheckConstraintName)
 }
 
-func GetSpannerValidExpression(cks []ddl.CheckConstraint) []ddl.CheckConstraint {
-	// TODO validate the check constraints data with batch verification then send back
-	return cks
-}
 
 // conv.UsedNames tracks Spanner names that have been used for table names, foreign key constraints
 // and indexes. We use this to ensure we generate unique names when
