@@ -242,14 +242,14 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
-		s += cd.DefaultValue.PGPrintDefaultValue()
+		s += cd.DefaultValue.PGPrintDefaultValue(cd.T)
 		s += cd.AutoGen.PGPrintAutoGenCol()
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
-		s += cd.DefaultValue.PrintDefaultValue()
+		s += cd.DefaultValue.PrintDefaultValue(cd.T)
 		s += cd.AutoGen.PrintAutoGenCol()
 	}
 	return s, cd.Comment
@@ -424,18 +424,32 @@ type Expression struct {
 	Query        string
 }
 
-func (dv DefaultValue) PrintDefaultValue() string {
+func (dv DefaultValue) PrintDefaultValue(ty Type) string {
 	if !dv.IsPresent {
 		return ""
 	}
-	return " DEFAULT (" + dv.Value.Query + ")"
+	var value string
+	switch ty.Name {
+	case "FLOAT32", "NUMERIC":
+		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Query, ty.Name)
+	default:
+		value = " DEFAULT (" + dv.Value.Query + ")"
+	}
+	return value
 }
 
-func (dv DefaultValue) PGPrintDefaultValue() string {
+func (dv DefaultValue) PGPrintDefaultValue(ty Type) string {
 	if !dv.IsPresent {
 		return ""
 	}
-	return " DEFAULT (" + dv.Value.Query + ")"
+	var value string
+	switch ty.Name {
+	case "FLOAT8", "FLOAT4", "REAL", "NUMERIC", "DECIMAL":
+		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Query, ty.Name)
+	default:
+		value = " DEFAULT (" + dv.Value.Query + ")"
+	}
+	return value
 }
 
 func (agc AutoGenCol) PrintAutoGenCol() string {

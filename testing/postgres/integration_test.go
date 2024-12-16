@@ -121,7 +121,7 @@ func TestIntegration_PGDUMP_SchemaAndDataSubcommand(t *testing.T) {
 	dataFilepath := "../../test_data/pg_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)
 
-	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='project=%s,instance=%s,dbName=%s' --project=%s < %s", filePrefix, projectID, instanceID, dbName, projectID, dataFilepath)
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s' < %s", filePrefix, instanceID, dbName, dataFilepath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -148,7 +148,7 @@ func TestIntegration_PGDUMP_SchemaSubcommand(t *testing.T) {
 
 			dataFilepath := "../../test_data/pg_dump.test.out"
 
-			args := fmt.Sprintf("schema -source=pg -target-profile='project=%s,instance=%s,dbName=%s,dialect=%s' < %s", projectID, instanceID, dbName, dialect, dataFilepath)
+			args := fmt.Sprintf("schema -source=pg -target-profile='instance=%s,dbName=%s,dialect=%s' < %s", instanceID, dbName, dialect, dataFilepath)
 			err := common.RunCommand(args, projectID)
 			if err != nil {
 				t.Fatal(err)
@@ -172,7 +172,7 @@ func TestIntegration_POSTGRES_SchemaAndDataSubcommand(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName)
 
-	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='project=%s,instance=%s,dbName=%s'", filePrefix, projectID, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -195,7 +195,7 @@ func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName)
 
-	args := fmt.Sprintf("schema -prefix %s -source=postgres -target-profile='project=%s,instance=%s,dbName=%s'", filePrefix, projectID, instanceID, dbName)
+	args := fmt.Sprintf("schema -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
 	err := common.RunCommand(args, "emulator-test-project")
 	if err != nil {
 		t.Fatal(err)
@@ -219,7 +219,7 @@ func TestIntegration_PGDUMP_ForeignKeyActionMigration(t *testing.T) {
 	dataFilepath := "../../test_data/pg_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)
 
-	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='project=emulator-test-project,instance=test-instance,dbName=%s' < %s", filePrefix, dbName, dataFilepath)
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=test-instance,dbName=%s' < %s", filePrefix, dbName, dataFilepath)
 	err := common.RunCommand(args, "emulator-test-project")
 	if err != nil {
 		t.Fatal(err)
@@ -243,7 +243,7 @@ func TestIntegration_POSTGRES_ForeignKeyActionMigration(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName)
 
-	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='project=%s,instance=%s,dbName=%s'", filePrefix, projectID, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='instance=%s,dbName=%s'", filePrefix, instanceID, dbName)
 	err := common.RunCommand(args, "emulator-test-project")
 	if err != nil {
 		t.Fatal(err)

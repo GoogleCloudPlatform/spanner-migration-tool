@@ -548,6 +548,7 @@ func TestPrintDefaultValue(t *testing.T) {
 	tests := []struct {
 		name     string
 		dv       DefaultValue
+		ty       Type
 		expected string
 	}{
 		{
@@ -556,17 +557,34 @@ func TestPrintDefaultValue(t *testing.T) {
 				IsPresent: true,
 				Value:     Expression{Query: "(`col1` + 1)"},
 			},
+			ty: Type{
+				Name: "INT64",
+			},
 			expected: " DEFAULT ((`col1` + 1))",
 		},
 		{
-			name:     "empty default value",
-			dv:       DefaultValue{},
+			name: "default value present",
+			dv: DefaultValue{
+				IsPresent: true,
+				Value:     Expression{Query: "(`col1` + 1)"},
+			},
+			ty: Type{
+				Name: "NUMERIC",
+			},
+			expected: " DEFAULT (CAST((`col1` + 1) AS NUMERIC))",
+		},
+		{
+			name: "empty default value",
+			dv:   DefaultValue{},
+			ty: Type{
+				Name: "INT64",
+			},
 			expected: "",
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, tc.dv.PrintDefaultValue())
+			assert.Equal(t, tc.expected, tc.dv.PrintDefaultValue(tc.ty))
 		})
 	}
 }
@@ -575,6 +593,7 @@ func TestPGPrintDefaultValue(t *testing.T) {
 	tests := []struct {
 		name     string
 		dv       DefaultValue
+		ty       Type
 		expected string
 	}{
 		{
@@ -583,17 +602,34 @@ func TestPGPrintDefaultValue(t *testing.T) {
 				IsPresent: true,
 				Value:     Expression{Query: "(`col1` + 1)"},
 			},
+			ty: Type{
+				Name: "INT64",
+			},
 			expected: " DEFAULT ((`col1` + 1))",
 		},
 		{
-			name:     "empty default value",
-			dv:       DefaultValue{},
+			name: "default value present",
+			dv: DefaultValue{
+				IsPresent: true,
+				Value:     Expression{Query: "(`col1` + 1)"},
+			},
+			ty: Type{
+				Name: "NUMERIC",
+			},
+			expected: " DEFAULT (CAST((`col1` + 1) AS NUMERIC))",
+		},
+		{
+			name: "empty default value",
+			dv:   DefaultValue{},
+			ty: Type{
+				Name: "INT64",
+			},
 			expected: "",
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, tc.dv.PGPrintDefaultValue())
+			assert.Equal(t, tc.expected, tc.dv.PGPrintDefaultValue(tc.ty))
 		})
 	}
 }
