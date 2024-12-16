@@ -2542,84 +2542,83 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 	}
 
 }
+
 func TestUpdateCheckConstraint(t *testing.T) {
-	sessionState := session.GetSessionState()
-	sessionState.Driver = constants.MYSQL
-	sessionState.Conv = internal.MakeConv()
+    t.Run("ValidCheckConstraints", func(t *testing.T) {
+        sessionState := session.GetSessionState()
+        sessionState.Driver = constants.MYSQL
+        sessionState.Conv = internal.MakeConv()
 
-	tableID := "table1"
+        tableID := "table1"
 
-	expectedCheckConstraint := []ddl.CheckConstraint{
-		{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
-		{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
-	}
+        expectedCheckConstraint := []ddl.CheckConstraint{
+            {Id: "cc1", Name: "check_1", Expr: "(age > 18)"},
+            {Id: "cc2", Name: "check_2", Expr: "(age < 99)"},
+        }
 
-	checkConstraints := []schema.CheckConstraint{
-		{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
-		{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
-	}
+        checkConstraints := []schema.CheckConstraint{
+            {Id: "cc1", Name: "check_1", Expr: "(age > 18)"},
+            {Id: "cc2", Name: "check_2", Expr: "(age < 99)"},
+        }
 
-	body, err := json.Marshal(checkConstraints)
-	assert.NoError(t, err)
+        body, err := json.Marshal(checkConstraints)
+        assert.NoError(t, err)
 
-	req, err := http.NewRequest("POST", "update/cc", bytes.NewBuffer(body))
-	assert.NoError(t, err)
+        req, err := http.NewRequest("POST", "update/cc", bytes.NewBuffer(body))
+        assert.NoError(t, err)
 
-	q := req.URL.Query()
-	q.Add("table", tableID)
-	req.URL.RawQuery = q.Encode()
+        q := req.URL.Query()
+        q.Add("table", tableID)
+        req.URL.RawQuery = q.Encode()
 
-	rr := httptest.NewRecorder()
+        rr := httptest.NewRecorder()
+        handler := http.HandlerFunc(api.UpdateCheckConstraint)
+        handler.ServeHTTP(rr, req)
 
-	handler := http.HandlerFunc(api.UpdateCheckConstraint)
+        assert.Equal(t, http.StatusOK, rr.Code)
 
-	handler.ServeHTTP(rr, req)
+        updatedSp := sessionState.Conv.SpSchema[tableID]
+        assert.Equal(t, expectedCheckConstraint, updatedSp.CheckConstraints)
+    })
 
-	assert.Equal(t, http.StatusOK, rr.Code)
+    t.Run("ParseError", func(t *testing.T) {
+        sessionState := session.GetSessionState()
+        sessionState.Driver = constants.MYSQL
+        sessionState.Conv = internal.MakeConv()
 
-	updatedSp := sessionState.Conv.SpSchema[tableID]
+        invalidJSON := "invalid json body"
 
-	assert.Equal(t, expectedCheckConstraint, updatedSp.CheckConstraints)
-}
+        rr := httptest.NewRecorder()
+        req, err := http.NewRequest("POST", "update/cc", io.NopCloser(strings.NewReader(invalidJSON)))
+        assert.NoError(t, err)
 
-func TestUpdateCheckConstraint_ParseError(t *testing.T) {
-	sessionState := session.GetSessionState()
-	sessionState.Driver = constants.MYSQL
-	sessionState.Conv = internal.MakeConv()
+        handler := http.HandlerFunc(api.UpdateCheckConstraint)
+        handler.ServeHTTP(rr, req)
 
-	invalidJSON := "invalid json body"
+        assert.Equal(t, http.StatusBadRequest, rr.Code)
 
-	rr := httptest.NewRecorder()
-	req, err := http.NewRequest("POST", "update/cc", io.NopCloser(strings.NewReader(invalidJSON)))
-	assert.NoError(t, err)
+        expectedErrorMessage := "Request Body parse error"
+        assert.Contains(t, rr.Body.String(), expectedErrorMessage)
+    })
 
-	handler := http.HandlerFunc(api.UpdateCheckConstraint)
-	handler.ServeHTTP(rr, req)
+    t.Run("ImproperSession", func(t *testing.T) {
+        sessionState := session.GetSessionState()
+        sessionState.Conv = nil // Simulate no conversion
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
+        rr := httptest.NewRecorder()
+        req, err := http.NewRequest("POST", "update/cc", io.NopCloser(errReader{}))
+        assert.NoError(t, err)
 
-	expectedErrorMessage := "Request Body parse error"
-	assert.Contains(t, rr.Body.String(), expectedErrorMessage)
+        handler := http.HandlerFunc(api.UpdateCheckConstraint)
+        handler.ServeHTTP(rr, req)
+
+        assert.Equal(t, http.StatusInternalServerError, rr.Code)
+        assert.Contains(t, rr.Body.String(), "Schema is not converted or Driver is not configured properly")
+    })
 }
 
 type errReader struct{}
 
 func (errReader) Read(p []byte) (n int, err error) {
-	return 0, fmt.Errorf("simulated read error")
-}
-
-func TestUpdateCheckConstraint_ImproperSession(t *testing.T) {
-	sessionState := session.GetSessionState()
-	sessionState.Conv = nil // Simulate no conversion
-
-	rr := httptest.NewRecorder()
-	req, err := http.NewRequest("POST", "update/cc", io.NopCloser(errReader{}))
-	assert.NoError(t, err)
-
-	handler := http.HandlerFunc(api.UpdateCheckConstraint)
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusInternalServerError, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Schema is not converted or Driver is not configured properly")
-
+    return 0, fmt.Errorf("simulated read error")
 }

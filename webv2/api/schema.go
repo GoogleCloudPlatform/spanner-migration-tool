@@ -504,14 +504,14 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
 
-	newCKs := []ddl.CheckConstraint{}
-	if err = json.Unmarshal(reqBody, &newCKs); err != nil {
+	newCc := []ddl.CheckConstraint{}
+	if err = json.Unmarshal(reqBody, &newCc); err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
 
 	sp := sessionState.Conv.SpSchema[tableId]
-	sp.CheckConstraints = newCKs
+	sp.CheckConstraints = newCc
 	sessionState.Conv.SpSchema[tableId] = sp
 	session.UpdateSessionFile()
 
