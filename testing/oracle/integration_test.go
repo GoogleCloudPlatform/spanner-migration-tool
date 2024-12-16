@@ -141,7 +141,7 @@ func TestIntegration_ORACLE_SchemaAndDataSubcommand(t *testing.T) {
 	fmt.Println(dbURI)
 	fmt.Println(projectID)
 
-	args := fmt.Sprintf("schema-and-data -prefix %s -source=%s  -source-profile='host=localhost,user=STI,dbName=xe,password=test1,port=1521' -target-profile='instance=%s,dbName=%s'", filePrefix, constants.ORACLE, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=%s  -source-profile='host=localhost,user=STI,dbName=xe,password=test1,port=1521' -target-profile='project=%s,instance=%s,dbName=%s' --project=%s", filePrefix, constants.ORACLE, projectID, instanceID, dbName, projectID)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)

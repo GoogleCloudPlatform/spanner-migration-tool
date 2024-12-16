@@ -76,12 +76,14 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		srcTable := conv.SrcSchema[tableId]
 		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
-	expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
-	expressions, err := ss.DdlV.VerifySpannerDDL(conv, expressionDetails)
-	if err != nil && !strings.Contains(err.Error(), "expressions either failed verification") {
-		return err
+	if conv.Source == constants.MYSQL {
+		expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
+		expressions, err := ss.DdlV.VerifySpannerDDL(conv, expressionDetails)
+		if err != nil && !strings.Contains(err.Error(), "expressions either failed verification") {
+			return err
+		}
+		spannerSchemaApplyExpressions(conv, expressions)
 	}
-	spannerSchemaApplyExpressions(conv, expressions)
 	internal.ResolveRefs(conv)
 	return nil
 }

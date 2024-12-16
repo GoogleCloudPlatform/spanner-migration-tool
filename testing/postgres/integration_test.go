@@ -124,7 +124,7 @@ func TestIntegration_PGDUMP_SchemaAndDataSubcommand(t *testing.T) {
 	dataFilepath := "../../test_data/pg_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)
 
-	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='project=%s,instance=%s,dbName=%s' < %s", filePrefix, projectID, instanceID, dbName, dataFilepath)
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=postgres -target-profile='project=%s,instance=%s,dbName=%s' --project=%s < %s", filePrefix, projectID, instanceID, dbName, projectID, dataFilepath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
