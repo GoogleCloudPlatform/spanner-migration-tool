@@ -88,7 +88,7 @@ func TestPrintColumnDef(t *testing.T) {
 					Value:     Expression{Query: "(`col2` + 1)"},
 				},
 			},
-			expected: "col1 INT64 DEFAULT (`col2` + 1)",
+			expected: "col1 INT64 DEFAULT ((`col2` + 1))",
 		},
 	}
 	for _, tc := range tests {
@@ -117,7 +117,7 @@ func TestPrintColumnDefPG(t *testing.T) {
 					Value:     Expression{Query: "(`col2` + 1)"},
 				},
 			},
-			expected: "col1 INT8 DEFAULT (`col2` + 1)",
+			expected: "col1 INT8 DEFAULT ((`col2` + 1))",
 		},
 	}
 	for _, tc := range tests {
@@ -556,7 +556,7 @@ func TestPrintDefaultValue(t *testing.T) {
 				IsPresent: true,
 				Value:     Expression{Query: "(`col1` + 1)"},
 			},
-			expected: " DEFAULT (`col1` + 1)",
+			expected: " DEFAULT ((`col1` + 1))",
 		},
 		{
 			name:     "empty default value",
@@ -583,7 +583,7 @@ func TestPGPrintDefaultValue(t *testing.T) {
 				IsPresent: true,
 				Value:     Expression{Query: "(`col1` + 1)"},
 			},
-			expected: " DEFAULT (`col1` + 1)",
+			expected: " DEFAULT ((`col1` + 1))",
 		},
 		{
 			name:     "empty default value",

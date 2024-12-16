@@ -117,9 +117,6 @@ func TestIntegration_PGDUMP_SchemaAndDataSubcommand(t *testing.T) {
 	g := utils.GetUtilInfoImpl{}
 	dbName, _ := g.GetDatabaseName(constants.PGDUMP, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	fmt.Println("######")
-	fmt.Println(dbURI)
-	fmt.Println(projectID)
 
 	dataFilepath := "../../test_data/pg_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName)

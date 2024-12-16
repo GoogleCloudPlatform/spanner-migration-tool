@@ -56,8 +56,6 @@ type DDLVerifierImpl struct {
 }
 
 func NewDDLVerifierImpl(ctx context.Context, project string, instance string) (*DDLVerifierImpl, error) {
-	fmt.Println("#1")
-	fmt.Println(project)
 	expVerifier, err := NewExpressionVerificationAccessorImpl(ctx, project, instance)
 	return &DDLVerifierImpl{
 		Expressions: expVerifier,
@@ -70,8 +68,6 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 		return internal.VerifyExpressionsOutput{Err: err}
 	}
 	dbURI := ev.SpannerAccessor.SpannerClient.DatabaseName()
-	fmt.Println("#2")
-	fmt.Println(dbURI)
 	dbExists, err := ev.SpannerAccessor.CheckExistingDb(ctx, dbURI)
 	if err != nil {
 		return internal.VerifyExpressionsOutput{Err: err}
