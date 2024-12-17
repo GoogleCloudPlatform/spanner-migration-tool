@@ -17,6 +17,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -296,4 +298,185 @@ func ReadSessionFile(conv *internal.Conv, sessionJSON string) error {
 		return err
 	}
 	return nil
+}
+
+func TestVerifySpannerDDL(t *testing.T) {
+	conv := *internal.MakeConv()
+	testCases := []struct {
+		name                 string
+		conv                 internal.Conv
+		expressionDetails    []internal.ExpressionDetail
+		verifyExpressionMock expressions_api.MockExpressionVerificationAccessor
+		errorExpected        bool
+	}{
+		{
+			name:              "no error flow",
+			conv:              conv,
+			expressionDetails: []internal.ExpressionDetail{},
+			verifyExpressionMock: expressions_api.MockExpressionVerificationAccessor{
+				VerifyExpressionsMock: func(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+					return internal.VerifyExpressionsOutput{
+						ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{},
+						Err:                              nil,
+					}
+				},
+			},
+			errorExpected: false,
+		},
+		{
+			name:              "error flow",
+			conv:              conv,
+			expressionDetails: []internal.ExpressionDetail{},
+			verifyExpressionMock: expressions_api.MockExpressionVerificationAccessor{
+				VerifyExpressionsMock: func(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+					return internal.VerifyExpressionsOutput{
+						ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{},
+						Err:                              fmt.Errorf("error"),
+					}
+				},
+			},
+			errorExpected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		ddlV := expressions_api.DDLVerifierImpl{
+			Expressions: &tc.verifyExpressionMock,
+		}
+		_, err := ddlV.VerifySpannerDDL(&tc.conv, tc.expressionDetails)
+		assert.Equal(t, tc.errorExpected, err != nil)
+	}
+}
+
+func TestGetSourceExpressionDetails(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SrcSchema = map[string]schema.Table{
+		"table1": {
+			ColIds: []string{"col1", "col2"},
+			ColDefs: map[string]schema.Column{
+				"col1": {
+					DefaultValue: ddl.DefaultValue{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: "expr1",
+							Query:        "SELECT 1",
+						},
+					},
+				},
+				"col2": {
+					DefaultValue: ddl.DefaultValue{},
+				},
+			},
+		},
+	}
+	conv.SpSchema = ddl.Schema{
+		"table1": {
+			ColDefs: map[string]ddl.ColumnDef{
+				"col1": {
+					T: ddl.Type{
+						Name: "INT64",
+					},
+				},
+			},
+		},
+	}
+
+	testCases := []struct {
+		name            string
+		conv            *internal.Conv
+		tableIds        []string
+		expectedDetails []internal.ExpressionDetail
+	}{
+		{
+			name:     "single table with default value",
+			conv:     conv,
+			tableIds: []string{"table1"},
+			expectedDetails: []internal.ExpressionDetail{
+				{
+					ReferenceElement: internal.ReferenceElement{
+						Name: "INT64",
+					},
+					ExpressionId: "expr1",
+					Expression:   "SELECT 1",
+					Type:         "DEFAULT",
+					Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+				},
+			},
+		},
+		{
+			name:            "no tables",
+			conv:            conv,
+			tableIds:        []string{},
+			expectedDetails: []internal.ExpressionDetail{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ddlv := &expressions_api.DDLVerifierImpl{}
+			actualDetails := ddlv.GetSourceExpressionDetails(tc.conv, tc.tableIds)
+			assert.Equal(t, tc.expectedDetails, actualDetails)
+		})
+	}
+}
+
+func TestGetSpannerExpressionDetails(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SpSchema = ddl.Schema{
+		"table1": {
+			ColIds: []string{"col1", "col2"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"col1": {
+					DefaultValue: ddl.DefaultValue{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: "expr1",
+							Query:        "SELECT 1",
+						},
+					},
+				},
+				"col2": {
+					DefaultValue: ddl.DefaultValue{},
+				},
+			},
+		},
+	}
+
+	testCases := []struct {
+		name            string
+		conv            *internal.Conv
+		tableIds        []string
+		expectedDetails []internal.ExpressionDetail
+	}{
+		{
+			name:     "single table with default value",
+			conv:     conv,
+			tableIds: []string{"table1"},
+			expectedDetails: []internal.ExpressionDetail{
+				{
+					ReferenceElement: internal.ReferenceElement{
+						Name: conv.SpSchema["table1"].ColDefs["col1"].T.Name,
+					},
+					ExpressionId: "expr1",
+					Expression:   "SELECT 1",
+					Type:         "DEFAULT",
+					Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+				},
+			},
+		},
+		{
+			name:            "no tables",
+			conv:            conv,
+			tableIds:        []string{},
+			expectedDetails: []internal.ExpressionDetail{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ddlv := &expressions_api.DDLVerifierImpl{}
+			actualDetails := ddlv.GetSpannerExpressionDetails(tc.conv, tc.tableIds)
+			assert.Equal(t, tc.expectedDetails, actualDetails)
+		})
+	}
 }

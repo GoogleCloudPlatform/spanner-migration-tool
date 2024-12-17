@@ -71,6 +71,9 @@ func GenerateRuleId() string {
 func GenerateSequenceId() string {
 	return GenerateId("s")
 }
+func GenerateExpressionId() string {
+	return GenerateId("i")
+}
 
 func GetSrcColNameIdMap(srcs schema.Table) map[string]string {
 	if len(srcs.ColNameIdMap) > 0 {

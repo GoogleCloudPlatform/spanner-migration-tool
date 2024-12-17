@@ -428,3 +428,112 @@ func Test_SchemaToSpannerSequenceHelper(t *testing.T) {
 		assert.Equal(t, expectedConv, conv)
 	}
 }
+
+func TestSpannerSchemaApplyExpressions(t *testing.T) {
+	makeConv := func() *internal.Conv {
+		conv := internal.MakeConv()
+		conv.SchemaIssues = make(map[string]internal.TableIssues)
+		conv.SchemaIssues["table1"] = internal.TableIssues{
+			ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+		}
+		conv.SpSchema = ddl.Schema{
+			"table1": {
+				ColDefs: map[string]ddl.ColumnDef{
+					"col1": {},
+				},
+			},
+		}
+		return conv
+	}
+
+	makeResultConv := func(SpSchema ddl.Schema, SchemaIssues map[string]internal.TableIssues) *internal.Conv {
+		conv := internal.MakeConv()
+		conv.SpSchema = SpSchema
+		conv.SchemaIssues = SchemaIssues
+		return conv
+	}
+
+	testCases := []struct {
+		name         string
+		conv         *internal.Conv
+		expressions  internal.VerifyExpressionsOutput
+		expectedConv *internal.Conv
+	}{
+		{
+			name: "successful default value application",
+			conv: makeConv(),
+			expressions: internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+					{
+						Result: true,
+						ExpressionDetail: internal.ExpressionDetail{
+							Type:         "DEFAULT",
+							ExpressionId: "expr1",
+							Expression:   "SELECT 1",
+							Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+						},
+					},
+				},
+			},
+			expectedConv: makeResultConv(
+				ddl.Schema{
+					"table1": {
+						ColDefs: map[string]ddl.ColumnDef{
+							"col1": {
+								DefaultValue: ddl.DefaultValue{
+									IsPresent: true,
+									Value: ddl.Expression{
+										ExpressionId: "expr1",
+										Query:        "SELECT 1",
+									},
+								},
+							},
+						},
+					},
+				}, map[string]internal.TableIssues{
+					"table1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+				}),
+		},
+		{
+			name: "failed default value application",
+			conv: makeConv(),
+			expressions: internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+					{
+						Result: false,
+						ExpressionDetail: internal.ExpressionDetail{
+							Type:         "DEFAULT",
+							ExpressionId: "expr1",
+							Expression:   "SELECT 1",
+							Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+						},
+					},
+				},
+			},
+			expectedConv: makeResultConv(
+				ddl.Schema{
+					"table1": {
+						ColDefs: map[string]ddl.ColumnDef{
+							"col1": {},
+						},
+					},
+				},
+				map[string]internal.TableIssues{
+					"table1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"col1": {internal.DefaultValue},
+						},
+					},
+				}),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			spannerSchemaApplyExpressions(tc.conv, tc.expressions)
+			assert.Equal(t, tc.expectedConv, tc.conv)
+		})
+	}
+}

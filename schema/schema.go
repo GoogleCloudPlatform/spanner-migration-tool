@@ -55,6 +55,7 @@ type Column struct {
 	Ignored 	Ignored
 	Id      	string
 	AutoGen		ddl.AutoGenCol
+	DefaultValue ddl.DefaultValue
 }
 
 // ForeignKey represents a foreign key.
