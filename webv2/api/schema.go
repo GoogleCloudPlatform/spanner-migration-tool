@@ -70,6 +70,8 @@ func ConvertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 
 	conv.SpDialect = sessionState.Dialect
 	conv.IsSharded = sessionState.IsSharded
+	conv.SpProjectId = sessionState.SpannerProjectId
+	conv.SpInstanceId = sessionState.SpannerInstanceID
 	var err error
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: sessionState.IsSharded,
@@ -534,6 +536,7 @@ func findColId(colDefs map[string]ddl.ColumnDef, condition string) string {
 	return ""
 }
 
+// removeCheckConstraint this method will remove the constraint which has error
 func removeCheckConstraint(checkConstraints []ddl.CheckConstraint, expId string) []ddl.CheckConstraint {
 	var filteredConstraints []ddl.CheckConstraint
 
@@ -545,6 +548,8 @@ func removeCheckConstraint(checkConstraints []ddl.CheckConstraint, expId string)
 	return filteredConstraints
 }
 
+// VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
+// to suggestion tab and remove the check constraint which has error
 func VerifyCheckConstraintExpression(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {

@@ -30,12 +30,15 @@ While adding new methods or code here
 package common
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"unicode"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -71,8 +74,116 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		srcTable := conv.SrcSchema[tableId]
 		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
+	VerifyExpressions(conv)
 	internal.ResolveRefs(conv)
 	return nil
+}
+
+// findColId based on constraint condition it will return colId.
+func findColId(colDefs map[string]ddl.ColumnDef, condition string) string {
+	for _, colDef := range colDefs {
+		if strings.Contains(condition, colDef.Name) {
+			return colDef.Id
+		}
+	}
+	return ""
+}
+
+// removeCheckConstraint this method will remove the constraint which has error
+func removeCheckConstraint(checkConstraints []ddl.CheckConstraint, expId string) []ddl.CheckConstraint {
+	var filteredConstraints []ddl.CheckConstraint
+
+	for _, checkConstraint := range checkConstraints {
+		if checkConstraint.ExprId != expId {
+			filteredConstraints = append(filteredConstraints, checkConstraint)
+		}
+	}
+	return filteredConstraints
+}
+
+// VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
+// to suggestion tab and remove the check constraint which has error
+func VerifyExpressions(conv *internal.Conv) {
+	expressionDetailList := []internal.ExpressionDetail{}
+	ctx := context.Background()
+
+	spschema := conv.SpSchema
+
+	for _, sp := range spschema {
+		for _, cc := range sp.CheckConstraints {
+
+			colId := findColId(sp.ColDefs, cc.Expr)
+			expressionDetail := internal.ExpressionDetail{
+				Expression:       cc.Expr,
+				Type:             "CHECK",
+				ReferenceElement: internal.ReferenceElement{Name: sp.Name},
+				ExpressionId:     cc.ExprId,
+				Metadata:         map[string]string{"tableId": sp.Id, "colId": colId, "checkConstraintName": cc.Name},
+			}
+			expressionDetailList = append(expressionDetailList, expressionDetail)
+		}
+	}
+
+	accessor, err := expressions_api.NewExpressionVerificationAccessorImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Failed to create ExpressionVerificationAccessorImpl: %v", err))
+		return
+	}
+
+	verifyExpressionsInput := internal.VerifyExpressionsInput{
+		Conv:                 conv,
+		Source:               "mysql",
+		ExpressionDetailList: expressionDetailList,
+	}
+
+	result := accessor.VerifyExpressions(ctx, verifyExpressionsInput)
+	if result.ExpressionVerificationOutputList != nil {
+		for _, ev := range result.ExpressionVerificationOutputList {
+			if !ev.Result {
+				tableId := ev.ExpressionDetail.Metadata["tableId"]
+				colId := ev.ExpressionDetail.Metadata["colId"]
+
+				spschema := conv.SpSchema[tableId]
+				spschema.CheckConstraints = removeCheckConstraint(spschema.CheckConstraints, ev.ExpressionDetail.ExpressionId)
+				conv.SpSchema[tableId] = spschema
+
+				err := ev.Err.Error()
+				var issueType internal.SchemaIssue
+
+				switch {
+				case strings.Contains(err, "No matching signature for operator"):
+					issueType = internal.TypeMismatch
+				case strings.Contains(err, "Syntax error"):
+					issueType = internal.InvalidCondition
+				case strings.Contains(err, "Unrecognized name"):
+					issueType = internal.ColumnNotFound
+				default:
+					conv.Unexpected(fmt.Sprintf("Unhandled error: %v", err))
+					return
+				}
+
+				colIssue := conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
+
+				if !IsSchemaIssuePresent(colIssue, issueType) {
+					colIssue = append(colIssue, issueType)
+				}
+				conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = colIssue
+
+			}
+
+		}
+	}
+}
+
+// IsSchemaIssuePresent checks if issue is present in the given schemaissue list.
+func IsSchemaIssuePresent(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
+
+	for _, s := range schemaissue {
+		if s == issue {
+			return true
+		}
+	}
+	return false
 }
 
 func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error {
@@ -317,6 +428,7 @@ func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Tabl
 			conv.SpSchema[tableId] = spTable
 		}
 	}
+
 	internal.ResolveRefs(conv)
 	return nil
 }
