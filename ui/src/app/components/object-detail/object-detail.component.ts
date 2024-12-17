@@ -918,7 +918,7 @@ export class ObjectDetailComponent implements OnInit {
     let isDuplicate = false;
 
     this.ccArray.value.forEach((cc: ICcTabData) => {
-      if(cc.spConstraintName && cc.spConstraintCondition){
+      if (cc.spConstraintName && cc.spConstraintCondition) {
         if (spCkArr.some(item => item.Name === cc.spConstraintName || item.Expr === cc.spConstraintCondition)) {
           isDuplicate = true;
         } else {
@@ -926,16 +926,28 @@ export class ObjectDetailComponent implements OnInit {
             Id: cc.spSno,
             Name: cc.spConstraintName,
             Expr: cc.spConstraintCondition,
+            ExprId: cc.spExprId
           });
         }
-     }
-     else{
-      spCkArr.push({
-        Id: cc.spSno,
-        Name: cc.spConstraintName,
-        Expr: cc.spConstraintCondition,
-      });
-     }
+      } else if (cc.spConstraintCondition) {
+        if (spCkArr.some(item => item.Expr === cc.spConstraintCondition)) {
+          isDuplicate = true;
+        } else {
+          spCkArr.push({
+            Id: cc.spSno,
+            Name: cc.spConstraintName,
+            Expr: cc.spConstraintCondition,
+            ExprId: cc.spExprId
+          });
+        }
+      } else {
+        spCkArr.push({
+          Id: cc.spSno,
+          Name: cc.spConstraintName,
+          Expr: cc.spConstraintCondition,
+          ExprId: cc.spExprId
+        });
+      }
     });
 
     if (isDuplicate) {
