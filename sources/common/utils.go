@@ -72,6 +72,21 @@ func GetSortedTableIdsBySrcName(srcSchema map[string]schema.Table) []string {
 	return sortedTableIds
 }
 
+func GetSortedTableIdsBySpName(spSchema ddl.Schema) []string {
+	tableNameIdMap := map[string]string{}
+	tableNames := []string{}
+	sortedTableIds := []string{}
+	for id, spTable := range spSchema {
+		tableNames = append(tableNames, spTable.Name)
+		tableNameIdMap[spTable.Name] = id
+	}
+	sort.Strings(tableNames)
+	for _, name := range tableNames {
+		sortedTableIds = append(sortedTableIds, tableNameIdMap[name])
+	}
+	return sortedTableIds
+}
+
 func (uo *UtilsOrderImpl) initPrimaryKeyOrder(conv *internal.Conv) {
 	for k, table := range conv.SrcSchema {
 		for i := range table.PrimaryKeys {

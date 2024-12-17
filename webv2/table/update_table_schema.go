@@ -42,6 +42,7 @@ type updateCol struct {
 	ToType       string         `json:"ToType"`
 	MaxColLength string         `json:"MaxColLength"`
 	AutoGen      ddl.AutoGenCol `json:"AutoGen"`
+	DefaultValue ddl.DefaultValue `json:"DefaultValue"`
 }
 
 type updateTable struct {
@@ -125,6 +126,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if !v.Removed {
 			sequences := UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
 			conv.SpSequences = sequences
+			UpdateDefaultValue(v.DefaultValue, tableId, colId, conv)
 		}
 	}
 

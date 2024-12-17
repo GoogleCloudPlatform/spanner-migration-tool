@@ -268,6 +268,10 @@ export class FetchService {
     return this.http.get<ISpannerConfig>(`${this.url}/GetConfig`)
   }
 
+  fetchIsConfigSet() {
+    return this.http.get<boolean>(`${this.url}/IsConfigSet`);
+  }  
+
   setSpannerConfig(payload: ISpannerConfig) {
     return this.http.post<ISpannerConfig>(`${this.url}/SetSpannerConfig`, payload)
   }

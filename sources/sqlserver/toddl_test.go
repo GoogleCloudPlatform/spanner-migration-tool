@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -173,7 +174,9 @@ func TestToSpannerType(t *testing.T) {
 		PrimaryKeys: []schema.Key{{ColId: "c19"}},
 	}
 	conv.UsedNames = map[string]bool{"ref_table": true, "ref_table2": true}
-	schemaToSpanner := common.SchemaToSpannerImpl{}
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		DdlV: &expressions_api.MockDDLVerifier{},
+	}
 	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
 	actual := conv.SpSchema[tableId]
 	dropComments(&actual) // Don't test comment.
@@ -277,7 +280,9 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		PrimaryKeys: []schema.Key{{ColId: "c19"}},
 	}
 	conv.UsedNames = map[string]bool{"ref_table": true, "ref_table2": true}
-	schemaToSpanner := common.SchemaToSpannerImpl{}
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		DdlV: &expressions_api.MockDDLVerifier{},
+	}
 	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
 	actual := conv.SpSchema[tableId]
 	dropComments(&actual) // Don't test comment.

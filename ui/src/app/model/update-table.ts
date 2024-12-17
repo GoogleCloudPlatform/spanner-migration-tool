@@ -1,3 +1,4 @@
+import { IDefaultValue } from "./conv"
 import { AutoGen } from "./edit-table"
 
 interface IUpdateCol {
@@ -8,6 +9,7 @@ interface IUpdateCol {
   ToType: string | String
   MaxColLength: string | undefined | Number
   AutoGen: AutoGen
+  DefaultValue: IDefaultValue
 }
 export interface ITableColumnChanges {
   ColumnId: string

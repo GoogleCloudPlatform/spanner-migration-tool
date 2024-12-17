@@ -13,6 +13,7 @@ import { MatInputModule } from '@angular/material/input'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { MatSnackBarModule } from '@angular/material/snack-bar'
+import { MatDialog } from '@angular/material/dialog'
 
 const appRoutes: Routes = [{ path: 'workspace', component: WorkspaceComponent }]
 
@@ -35,7 +36,10 @@ describe('DirectConnectionComponent', () => {
         BrowserAnimationsModule,
         MatSnackBarModule,
       ],
-      providers: [SnackbarService],
+      providers: [
+        SnackbarService,
+        { provide: MatDialog, useValue: {} }
+      ],
     }).compileComponents()
   })
 

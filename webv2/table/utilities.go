@@ -16,9 +16,11 @@ package table
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 )
@@ -249,6 +251,40 @@ func UpdateNotNull(notNullChange, tableId, colId string, conv *internal.Conv) {
 		spColDef.NotNull = false
 		sp.ColDefs[colId] = spColDef
 	}
+}
+
+func UpdateDefaultValue(dv ddl.DefaultValue, tableId, colId string, conv *internal.Conv) {
+	col := conv.SpSchema[tableId].ColDefs[colId]
+	if !dv.IsPresent {
+		col.DefaultValue = ddl.DefaultValue{}
+		conv.SpSchema[tableId].ColDefs[colId] = col
+		return
+	}
+
+	var expressionId string
+	if dv.Value.ExpressionId == "" {
+		if _, exists := conv.SrcSchema[tableId]; exists {
+			if column, exists := conv.SrcSchema[tableId].ColDefs[colId]; exists {
+				if column.DefaultValue.Value.ExpressionId!=""{
+					expressionId = column.DefaultValue.Value.ExpressionId
+				}
+			}
+		}
+		if expressionId!=""{
+			expressionId= internal.GenerateExpressionId()
+		}
+	} else {
+		expressionId = dv.Value.ExpressionId
+	}
+	re := regexp.MustCompile(`\([^)]*\)`) 
+	col.DefaultValue = ddl.DefaultValue{
+		Value: ddl.Expression{
+			ExpressionId: expressionId,
+			Query: common.SanitizeDefaultValue(dv.Value.Query, col.T.Name, re.MatchString(dv.Value.Query)),
+		},
+		IsPresent: true,
+	}
+	conv.SpSchema[tableId].ColDefs[colId] = col
 }
 
 func UpdateAutoGenCol(autoGen ddl.AutoGenCol, tableId, colId string, conv *internal.Conv) map[string]ddl.Sequence {
