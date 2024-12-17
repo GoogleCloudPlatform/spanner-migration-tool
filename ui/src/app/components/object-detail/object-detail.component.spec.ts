@@ -207,6 +207,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'test',
         spConstraintCondition: 'test',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       },
     ]
@@ -229,6 +230,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'test',
         spConstraintCondition: 'test',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       },
     ]
@@ -249,6 +251,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'test',
         spConstraintCondition: 'test',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       },
       {
@@ -258,6 +261,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'contraintName',
         spConstraintCondition: 'test',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       },
     ]
@@ -277,6 +281,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'test',
         spConstraintCondition: 'test',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       }
     ]
@@ -297,6 +302,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age > 18',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       },
       {
@@ -306,6 +312,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '2',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age >= 18',
+        spExprId:'expr1',
         deleteIndex: 'cc2',
       },
     ]
@@ -331,6 +338,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age > 18',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       }
     ]
@@ -356,6 +364,7 @@ describe('ObjectDetailComponent', () => {
         spSno: '1',
         spConstraintName: 'check_1',
         spConstraintCondition: 'age > 18',
+        spExprId:'expr1',
         deleteIndex: 'cc1',
       }
     ]

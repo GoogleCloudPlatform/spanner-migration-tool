@@ -25,7 +25,8 @@ import ICreateSequence from 'src/app/model/auto-gen'
   providedIn: 'root',
 })
 export class FetchService {
-  private url: string = window.location.origin
+  // private url: string = window.location.origin
+  private url: string = 'http://localhost:8080'
   constructor(private http: HttpClient) {}
 
   connectTodb(payload: IDbConfig, dialect: string) {
@@ -210,8 +211,9 @@ export class FetchService {
     return this.http.post(`${this.url}/restore/tables`, payload)
   }
 
-  validateCheckConstraint() {
-    return this.http.get(`${this.url}/validateCheckConstraint`)
+  verifyCheckConstraintExpression() {
+    debugger
+    return this.http.get(`${this.url}/verifyCheckConstraintExpression`)
   }
 
   updateCheckConstraint(tableId: string, payload: ICheckConstraints[]): any {
