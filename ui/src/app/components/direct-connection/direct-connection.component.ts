@@ -9,6 +9,8 @@ import { DialectList, InputType, PersistedFormValues, StorageKeys } from 'src/ap
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
+import { MatDialog } from '@angular/material/dialog'
+import { InfodialogComponent } from '../infodialog/infodialog.component'
 
 @Component({
   selector: 'app-direct-connection',
@@ -26,6 +28,8 @@ export class DirectConnectionComponent implements OnInit {
     dbName: new FormControl('', [Validators.required]),
     dialect: new FormControl('', [Validators.required]),
   })
+
+  isOfflineStatus: boolean = false
 
   dbEngineList = [
     { value: 'mysql', displayName: 'MySQL' },
@@ -51,10 +55,16 @@ export class DirectConnectionComponent implements OnInit {
     private data: DataService,
     private loader: LoaderService,
     private snackbarService: SnackbarService,
-    private clickEvent: ClickEventService
+    private clickEvent: ClickEventService,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
+    this.data.isOffline.subscribe({
+      next: (res: boolean) => {
+        this.isOfflineStatus = res
+      },
+    })
     //initialise component with the previously persisted values if present.
     if (localStorage.getItem(PersistedFormValues.DirectConnectForm) != null) {
       this.connectForm.setValue(JSON.parse(localStorage.getItem(PersistedFormValues.DirectConnectForm) as string))
@@ -94,7 +104,7 @@ export class DirectConnectionComponent implements OnInit {
           localStorage.setItem(PersistedFormValues.IsConnectionSuccessful, "true")
           this.clickEvent.closeDatabaseLoader()
         },
-        error: (e) => { 
+        error: (e) => {
           this.isTestConnectionSuccessful = false
           this.snackbarService.openSnackBar(e.error, 'Close')
           localStorage.setItem(PersistedFormValues.IsConnectionSuccessful, "false")
@@ -104,6 +114,13 @@ export class DirectConnectionComponent implements OnInit {
   }
 
   connectToDb() {
+    if(this.isOfflineStatus){
+      this.dialog.open(InfodialogComponent, {
+        data: { message: "Please configure spanner project id and instance id to proceed", type: 'error', title: 'Configure Spanner' },
+        maxWidth: '500px',
+      })
+    }
+    else{
     this.clickEvent.openDatabaseLoader('direct', this.connectForm.value.dbName!)
     window.scroll(0, 0)
     this.data.resetStore()
@@ -135,11 +152,12 @@ export class DirectConnectionComponent implements OnInit {
             this.router.navigate(['/workspace'])
           })
         },
-        error: (e) => { 
+        error: (e) => {
           this.snackbarService.openSnackBar(e.error, 'Close')
           this.clickEvent.closeDatabaseLoader()
         },
       })
+    }
   }
 
   refreshDbSpecifcConnectionOptions() {
