@@ -34,8 +34,8 @@ func TestVerifyExpressions(t *testing.T) {
 	conv := internal.MakeConv()
 	ReadSessionFile(conv, "../../test_data/session_expression_verify.json")
 	input := internal.VerifyExpressionsInput{
-		Conv:     conv,
-		Source:   "mysql",
+		Conv:   conv,
+		Source: "mysql",
 		ExpressionDetailList: []internal.ExpressionDetail{
 			{
 				Expression: "id > 10",

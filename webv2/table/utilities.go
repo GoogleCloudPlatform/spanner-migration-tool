@@ -350,22 +350,22 @@ func UpdateDefaultValue(dv ddl.DefaultValue, tableId, colId string, conv *intern
 	if dv.Value.ExpressionId == "" {
 		if _, exists := conv.SrcSchema[tableId]; exists {
 			if column, exists := conv.SrcSchema[tableId].ColDefs[colId]; exists {
-				if column.DefaultValue.Value.ExpressionId!=""{
+				if column.DefaultValue.Value.ExpressionId != "" {
 					expressionId = column.DefaultValue.Value.ExpressionId
 				}
 			}
 		}
-		if expressionId!=""{
-			expressionId= internal.GenerateExpressionId()
+		if expressionId != "" {
+			expressionId = internal.GenerateExpressionId()
 		}
 	} else {
 		expressionId = dv.Value.ExpressionId
 	}
-	re := regexp.MustCompile(`\([^)]*\)`) 
+	re := regexp.MustCompile(`\([^)]*\)`)
 	col.DefaultValue = ddl.DefaultValue{
 		Value: ddl.Expression{
 			ExpressionId: expressionId,
-			Query: common.SanitizeDefaultValue(dv.Value.Query, col.T.Name, re.MatchString(dv.Value.Query)),
+			Query:        common.SanitizeDefaultValue(dv.Value.Query, col.T.Name, re.MatchString(dv.Value.Query)),
 		},
 		IsPresent: true,
 	}

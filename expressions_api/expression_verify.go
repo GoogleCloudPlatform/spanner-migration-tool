@@ -116,7 +116,6 @@ func (ev *ExpressionVerificationAccessorImpl) RefreshSpannerClient(ctx context.C
 	return nil
 }
 
-
 func (ev *ExpressionVerificationAccessorImpl) verifyExpressionInternal(expressionDetail internal.ExpressionDetail, mutex *sync.Mutex) task.TaskResult[internal.ExpressionVerificationOutput] {
 	var sqlStatement string
 	switch expressionDetail.Type {
@@ -167,7 +166,6 @@ func (ev *ExpressionVerificationAccessorImpl) removeExpressions(inputConv *inter
 	}
 	return convCopy, nil
 }
-
 
 func (ddlv *DDLVerifierImpl) VerifySpannerDDL(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
 	ctx := context.Background()

@@ -260,7 +260,7 @@ func SanitizeDefaultValue(defaultValue string, ty string, generated bool) string
 	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", "")
 	defaultValue = strings.ReplaceAll(defaultValue, "\\\\", "\\")
 	defaultValue = strings.ReplaceAll(defaultValue, "\\'", "'")
-	if !generated && (ty == "char" || ty == "varchar" || ty == "text" || ty=="STRING") && !strings.HasPrefix(defaultValue, "'") && !strings.HasSuffix(defaultValue, "'") {
+	if !generated && (ty == "char" || ty == "varchar" || ty == "text" || ty == "STRING") && !strings.HasPrefix(defaultValue, "'") && !strings.HasSuffix(defaultValue, "'") {
 		defaultValue = "'" + defaultValue + "'"
 	}
 	return defaultValue
