@@ -36,6 +36,7 @@ import (
 var valuesRegexp = regexp.MustCompile("\\((.*?)\\)")
 var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
 var unsupportedRegexp = regexp.MustCompile("function|procedure|trigger")
+var collationRegex = regexp.MustCompile(constants.DB_COLLATION_REGEX)
 
 // MysqlSpatialDataTypes is an array of all MySQL spatial data types.
 var MysqlSpatialDataTypes = []string{"geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"}
