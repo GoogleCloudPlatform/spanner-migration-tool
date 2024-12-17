@@ -637,7 +637,7 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
 			rows:  [][]driver.Value{{1}},
 		},
 		{
-			query: regexp.QuoteMeta(`SELECT COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME,t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE
+			query: regexp.QuoteMeta(`SELECT DISTINCT COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME,t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
             LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
             ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
@@ -646,11 +646,10 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
             LEFT JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS AS c
             ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
             WHERE t.TABLE_SCHEMA = ? 
-            AND t.TABLE_NAME = ?
-            ORDER BY k.ORDINAL_POSITION;`),
+            AND t.TABLE_NAME = ?;`),
 			args: []driver.Value{"test_schema", "test_table"},
 			cols: []string{"COLUMN_NAME", "CONSTRAINT_NAME", "CONSTRAINT_TYPE", "CHECK_CLAUSE"},
-			rows: [][]driver.Value{{"column1","PRIMARY", "PRIMARY KEY", ""}, {"column2", "check_name", "CHECK", "(column2 > 0)"}},
+			rows: [][]driver.Value{{"column1", "PRIMARY", "PRIMARY KEY", ""}, {"column2", "check_name", "CHECK", "(column2 > 0)"}},
 		},
 	}
 	db := mkMockDB(t, ms)
