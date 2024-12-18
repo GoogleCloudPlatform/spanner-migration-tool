@@ -375,6 +375,7 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 	return spIndex
 }
 
+// Applies all valid expressions which can be migrated to spanner conv object
 func spannerSchemaApplyExpressions(conv *internal.Conv, expressions internal.VerifyExpressionsOutput) {
 	for _, expression := range expressions.ExpressionVerificationOutputList {
 		switch expression.ExpressionDetail.Type {
@@ -389,7 +390,7 @@ func spannerSchemaApplyExpressions(conv *internal.Conv, expressions internal.Ver
 						IsPresent: true,
 						Value: ddl.Expression{
 							ExpressionId: expression.ExpressionDetail.ExpressionId,
-							Query:        expression.ExpressionDetail.Expression,
+							Statement:    expression.ExpressionDetail.Expression,
 						},
 					}
 					conv.SpSchema[tableId].ColDefs[columnId] = col

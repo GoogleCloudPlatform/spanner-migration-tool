@@ -338,6 +338,7 @@ func getSequenceId(sequenceName string, spSeq map[string]ddl.Sequence) string {
 	return ""
 }
 
+// Add, deletes and updates default value associated with a column during edit column functionality
 func UpdateDefaultValue(dv ddl.DefaultValue, tableId, colId string, conv *internal.Conv) {
 	col := conv.SpSchema[tableId].ColDefs[colId]
 	if !dv.IsPresent {
@@ -365,7 +366,7 @@ func UpdateDefaultValue(dv ddl.DefaultValue, tableId, colId string, conv *intern
 	col.DefaultValue = ddl.DefaultValue{
 		Value: ddl.Expression{
 			ExpressionId: expressionId,
-			Query:        common.SanitizeDefaultValue(dv.Value.Query, col.T.Name, re.MatchString(dv.Value.Query)),
+			Statement:    common.SanitizeDefaultValue(dv.Value.Statement, col.T.Name, re.MatchString(dv.Value.Statement)),
 		},
 		IsPresent: true,
 	}

@@ -484,7 +484,7 @@ func TestSpannerSchemaApplyExpressions(t *testing.T) {
 									IsPresent: true,
 									Value: ddl.Expression{
 										ExpressionId: "expr1",
-										Query:        "SELECT 1",
+										Statement:    "SELECT 1",
 									},
 								},
 							},

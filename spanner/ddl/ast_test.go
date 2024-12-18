@@ -507,7 +507,7 @@ func TestPrintDefaultValue(t *testing.T) {
 			name: "default value present",
 			dv: DefaultValue{
 				IsPresent: true,
-				Value:     Expression{Query: "(`col1` + 1)"},
+				Value:     Expression{Statement: "(`col1` + 1)"},
 			},
 			ty: Type{
 				Name: "INT64",
@@ -518,7 +518,7 @@ func TestPrintDefaultValue(t *testing.T) {
 			name: "default value present",
 			dv: DefaultValue{
 				IsPresent: true,
-				Value:     Expression{Query: "(`col1` + 1)"},
+				Value:     Expression{Statement: "(`col1` + 1)"},
 			},
 			ty: Type{
 				Name: "NUMERIC",
@@ -552,7 +552,7 @@ func TestPGPrintDefaultValue(t *testing.T) {
 			name: "default value present",
 			dv: DefaultValue{
 				IsPresent: true,
-				Value:     Expression{Query: "(`col1` + 1)"},
+				Value:     Expression{Statement: "(`col1` + 1)"},
 			},
 			ty: Type{
 				Name: "INT64",
@@ -563,7 +563,7 @@ func TestPGPrintDefaultValue(t *testing.T) {
 			name: "default value present",
 			dv: DefaultValue{
 				IsPresent: true,
-				Value:     Expression{Query: "(`col1` + 1)"},
+				Value:     Expression{Statement: "(`col1` + 1)"},
 			},
 			ty: Type{
 				Name: "NUMERIC",

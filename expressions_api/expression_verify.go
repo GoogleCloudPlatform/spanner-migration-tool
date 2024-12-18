@@ -192,7 +192,7 @@ func (ddlv *DDLVerifierImpl) GetSourceExpressionDetails(conv *internal.Conv, tab
 						Name: conv.SpSchema[tableId].ColDefs[srcColId].T.Name,
 					},
 					ExpressionId: srcCol.DefaultValue.Value.ExpressionId,
-					Expression:   srcCol.DefaultValue.Value.Query,
+					Expression:   srcCol.DefaultValue.Value.Statement,
 					Type:         "DEFAULT",
 					Metadata:     map[string]string{"TableId": tableId, "ColId": srcColId},
 				}
@@ -216,7 +216,7 @@ func (ddlv *DDLVerifierImpl) GetSpannerExpressionDetails(conv *internal.Conv, ta
 						Name: conv.SpSchema[tableId].ColDefs[spColId].T.Name,
 					},
 					ExpressionId: spCol.DefaultValue.Value.ExpressionId,
-					Expression:   spCol.DefaultValue.Value.Query,
+					Expression:   spCol.DefaultValue.Value.Statement,
 					Type:         "DEFAULT",
 					Metadata:     map[string]string{"TableId": tableId, "ColId": spColId},
 				}
