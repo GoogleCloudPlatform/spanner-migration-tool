@@ -299,6 +299,12 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 
 	conv := internal.MakeConv()
 	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	ctx := context.Background()
+	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
+		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+		},
+	})
 	processSchema := common.ProcessSchemaImpl{}
 	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: mockAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 
