@@ -25,6 +25,7 @@ import (
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
@@ -53,6 +54,12 @@ func getRoutes() *mux.Router {
 		ValidateResources: validateResourceImpl,
 	}
 
+	expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(ctx, session.GetSessionState().SpannerProjectId, session.GetSessionState().SpannerInstanceID)
+
+	expressionVerificationHandler := api.ExpressionsVerificationHandler{
+		ExpressionVerificationAccessor: expressionVerificationAccessor,
+	}
+
 	router.HandleFunc("/connect", databaseConnection).Methods("POST")
 	router.HandleFunc("/convert/infoschema", api.ConvertSchemaSQL).Methods("GET")
 	router.HandleFunc("/convert/dump", api.ConvertSchemaDump).Methods("POST")
@@ -77,7 +84,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/getSequenceKind", api.GetSequenceKind).Methods("GET")
 	router.HandleFunc("/setparent", api.SetParentTable).Methods("GET")
 	router.HandleFunc("/removeParent", api.RemoveParentTable).Methods("POST")
-	router.HandleFunc("/verifyCheckConstraintExpression", api.VerifyCheckConstraintExpression).Methods("GET")
+	router.HandleFunc("/verifyCheckConstraintExpression", expressionVerificationHandler.VerifyCheckConstraintExpression).Methods("GET")
 
 	// TODO:(searce) take constraint names themselves which are guaranteed to be unique for Spanner.
 	router.HandleFunc("/drop/secondaryindex", api.DropSecondaryIndex).Methods("POST")
