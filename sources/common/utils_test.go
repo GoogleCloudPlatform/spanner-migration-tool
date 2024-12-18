@@ -270,3 +270,33 @@ func TestPrepareValues(t *testing.T) {
 		assert.Equal(t, tc.expectedValues, res)
 	}
 }
+
+func TestGetSortedTableIdsBySpName(t *testing.T) {
+	testCases := []struct {
+		name        string
+		spSchema    ddl.Schema
+		expectedIds []string
+	}{
+		{
+			name: "multiple tables",
+			spSchema: ddl.Schema{
+				"table2": {Name: "TableB"},
+				"table1": {Name: "TableA"},
+				"table3": {Name: "TableC"},
+			},
+			expectedIds: []string{"table1", "table2", "table3"},
+		},
+		{
+			name:        "no tables",
+			spSchema:    ddl.Schema{},
+			expectedIds: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sortedIds := GetSortedTableIdsBySpName(tc.spSchema)
+			assert.Equal(t, tc.expectedIds, sortedIds)
+		})
+	}
+}
