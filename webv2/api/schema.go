@@ -531,6 +531,7 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
+// findColId based on constraint condition it will return colId.
 func findColId(colDefs map[string]ddl.ColumnDef, condition string) string {
 	for _, colDef := range colDefs {
 		if strings.Contains(condition, colDef.Name) {
