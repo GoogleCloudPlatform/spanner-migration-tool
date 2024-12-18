@@ -15,6 +15,10 @@
 package common
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 )
 
@@ -37,7 +41,14 @@ func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump) error
 		utilsOrder := UtilsOrderImpl{}
 		utilsOrder.initPrimaryKeyOrder(conv)
 		utilsOrder.initIndexOrder(conv)
-		schemaToSpanner := SchemaToSpannerImpl{}
+		ctx := context.Background()
+		ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+		if err != nil {
+			return fmt.Errorf("error trying create ddl verifier: %v", err)
+		}
+		schemaToSpanner := SchemaToSpannerImpl{
+			DdlV: ddlVerifier,
+		}
 		schemaToSpanner.SchemaToSpannerDDL(conv, dbDump.GetToDdl())
 		conv.AddPrimaryKeys()
 	}

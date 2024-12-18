@@ -180,12 +180,13 @@ func (ty Type) PGPrintColumnDefType() string {
 //	column_def:
 //	  column_name type [NOT NULL] [options_def]
 type ColumnDef struct {
-	Name    string
-	T       Type
-	NotNull bool
-	Comment string
-	Id      string
-	AutoGen AutoGenCol
+	Name         string
+	T            Type
+	NotNull      bool
+	Comment      string
+	Id           string
+	AutoGen      AutoGenCol
+	DefaultValue DefaultValue
 }
 
 // Config controls how AST nodes are printed (aka unparsed).
@@ -241,12 +242,14 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
+		s += cd.DefaultValue.PGPrintDefaultValue(cd.T)
 		s += cd.AutoGen.PGPrintAutoGenCol()
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
+		s += cd.DefaultValue.PrintDefaultValue(cd.T)
 		s += cd.AutoGen.PrintAutoGenCol()
 	}
 	return s, cd.Comment
@@ -410,12 +413,51 @@ type AutoGenCol struct {
 	GenerationType string
 }
 
+// DefaultValue represents a Default value.
+type DefaultValue struct {
+	IsPresent bool
+	Value     Expression
+}
+
+type Expression struct {
+	ExpressionId string
+	Query        string
+}
+
+func (dv DefaultValue) PrintDefaultValue(ty Type) string {
+	if !dv.IsPresent {
+		return ""
+	}
+	var value string
+	switch ty.Name {
+	case "FLOAT32", "NUMERIC", "BOOL":
+		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Query, ty.Name)
+	default:
+		value = " DEFAULT (" + dv.Value.Query + ")"
+	}
+	return value
+}
+
+func (dv DefaultValue) PGPrintDefaultValue(ty Type) string {
+	if !dv.IsPresent {
+		return ""
+	}
+	var value string
+	switch ty.Name {
+	case "FLOAT8", "FLOAT4", "REAL", "NUMERIC", "DECIMAL", "BOOL":
+		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Query, ty.Name)
+	default:
+		value = " DEFAULT (" + dv.Value.Query + ")"
+	}
+	return value
+}
+
 func (agc AutoGenCol) PrintAutoGenCol() string {
 	if agc.Name == constants.UUID && agc.GenerationType == "Pre-defined" {
 		return " DEFAULT (GENERATE_UUID())"
 	}
 	if agc.GenerationType == constants.SEQUENCE {
-		return fmt.Sprintf(" DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE %s)) ", agc.Name)
+		return fmt.Sprintf(" DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE %s))", agc.Name)
 	}
 	return ""
 }
@@ -425,7 +467,7 @@ func (agc AutoGenCol) PGPrintAutoGenCol() string {
 		return " DEFAULT (spanner.generate_uuid())"
 	}
 	if agc.GenerationType == constants.SEQUENCE {
-		return fmt.Sprintf(" DEFAULT NEXTVAL('%s') ", agc.Name)
+		return fmt.Sprintf(" DEFAULT NEXTVAL('%s')", agc.Name)
 	}
 	return ""
 }
