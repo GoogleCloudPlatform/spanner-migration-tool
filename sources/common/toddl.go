@@ -59,7 +59,9 @@ type SchemaToSpannerInterface interface {
 	SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error
 }
 
-type SchemaToSpannerImpl struct{}
+type SchemaToSpannerImpl struct {
+	ExpressionVerificationAccessor expressions_api.ExpressionVerificationAccessor
+}
 
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
@@ -74,7 +76,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		srcTable := conv.SrcSchema[tableId]
 		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
-	VerifyExpressions(conv)
+	ss.VerifyExpressions(conv)
 	internal.ResolveRefs(conv)
 	return nil
 }
@@ -103,7 +105,7 @@ func removeCheckConstraint(checkConstraints []ddl.CheckConstraint, expId string)
 
 // VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
 // to suggestion tab and remove the check constraint which has error
-func VerifyExpressions(conv *internal.Conv) {
+func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) {
 	expressionDetailList := []internal.ExpressionDetail{}
 	ctx := context.Background()
 
@@ -124,19 +126,13 @@ func VerifyExpressions(conv *internal.Conv) {
 		}
 	}
 
-	accessor, err := expressions_api.NewExpressionVerificationAccessorImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
-	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Failed to create ExpressionVerificationAccessorImpl: %v", err))
-		return
-	}
-
 	verifyExpressionsInput := internal.VerifyExpressionsInput{
 		Conv:                 conv,
 		Source:               "mysql",
 		ExpressionDetailList: expressionDetailList,
 	}
 
-	result := accessor.VerifyExpressions(ctx, verifyExpressionsInput)
+	result := ss.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
 	if result.ExpressionVerificationOutputList != nil {
 		for _, ev := range result.ExpressionVerificationOutputList {
 			if !ev.Result {
