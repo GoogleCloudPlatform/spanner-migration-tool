@@ -76,6 +76,7 @@ func (eh *ExpressionsVerificationHandler) ConvertSchemaSQL(w http.ResponseWriter
 	conv.IsSharded = sessionState.IsSharded
 	conv.SpProjectId = sessionState.SpannerProjectId
 	conv.SpInstanceId = sessionState.SpannerInstanceID
+	conv.Source = sessionState.Driver
 	var err error
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: sessionState.IsSharded,

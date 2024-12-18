@@ -128,7 +128,7 @@ func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) {
 
 	verifyExpressionsInput := internal.VerifyExpressionsInput{
 		Conv:                 conv,
-		Source:               "mysql",
+		Source:               conv.Source,
 		ExpressionDetailList: expressionDetailList,
 	}
 
