@@ -294,7 +294,6 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		Comment:          comment,
 		Id:               srcTable.Id,
 	}
-
 	return nil
 }
 
