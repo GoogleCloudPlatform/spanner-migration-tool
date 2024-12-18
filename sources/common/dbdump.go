@@ -15,6 +15,7 @@
 package common
 
 import (
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 )
 
@@ -22,6 +23,7 @@ import (
 type DbDump interface {
 	GetToDdl() ToDdl
 	ProcessDump(conv *internal.Conv, r *internal.Reader) error
+	GetExpressionVerificationAccessor() expressions_api.ExpressionVerificationAccessor
 }
 
 // ProcessDbDump reads dump data from r and does schema or data conversion,
@@ -37,7 +39,9 @@ func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump) error
 		utilsOrder := UtilsOrderImpl{}
 		utilsOrder.initPrimaryKeyOrder(conv)
 		utilsOrder.initIndexOrder(conv)
-		schemaToSpanner := SchemaToSpannerImpl{}
+		schemaToSpanner := SchemaToSpannerImpl{
+			ExpressionVerificationAccessor: dbDump.GetExpressionVerificationAccessor(),
+		}
 		schemaToSpanner.SchemaToSpannerDDL(conv, dbDump.GetToDdl())
 		conv.AddPrimaryKeys()
 	}

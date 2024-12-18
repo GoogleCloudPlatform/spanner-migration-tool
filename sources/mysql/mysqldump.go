@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -51,7 +52,9 @@ var spatialIndexRegex = regexp.MustCompile("(?i)\\sSPATIAL\\s")
 var spatialSridRegex = regexp.MustCompile("(?i)\\sSRID\\s\\d*")
 
 // DbDumpImpl MySQL specific implementation for DdlDumpImpl.
-type DbDumpImpl struct{}
+type DbDumpImpl struct{
+	ExpressionVerificationAccessor expressions_api.ExpressionVerificationAccessor
+}
 
 // GetToDdl function below implement the common.DbDump interface.
 func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
@@ -61,6 +64,10 @@ func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
 // ProcessDump processes the mysql dump.
 func (ddi DbDumpImpl) ProcessDump(conv *internal.Conv, r *internal.Reader) error {
 	return processMySQLDump(conv, r)
+}
+
+func (ddi DbDumpImpl) GetExpressionVerificationAccessor() expressions_api.ExpressionVerificationAccessor {
+	return ddi.ExpressionVerificationAccessor
 }
 
 // ProcessMySQLDump reads mysqldump data from r and does schema or data conversion,
