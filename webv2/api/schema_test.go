@@ -2,7 +2,6 @@ package api_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2734,20 +2733,9 @@ func TestVerifyCheckConstraintExpressions(t *testing.T) {
 	}
 }
 
-// MockExpressionVerificationAccessor is a mock of ExpressionVerificationAccessor
-type MockExpressionVerificationAccessor struct {
-    mock.Mock
-}
-
-// VerifyExpressions is a mocked method for expression verification
-func (m *MockExpressionVerificationAccessor) VerifyExpressions(ctx context.Context, input internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
-    args := m.Called(ctx, input)
-    return args.Get(0).(internal.VerifyExpressionsOutput)
-}
-
 func TestVerifyCheckConstraintExpression(t *testing.T) {
     // Arrange
-    mockAccessor := new(MockExpressionVerificationAccessor)
+    mockAccessor := new(mocks.MockExpressionVerificationAccessor)
     handler := &api.ExpressionsVerificationHandler{ExpressionVerificationAccessor: mockAccessor}
 
     req, err := http.NewRequest("POST", "/checkConstraint", nil) // Set nil as we'll overwrite it
