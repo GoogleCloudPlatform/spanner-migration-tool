@@ -2,7 +2,6 @@ package api_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +15,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -2629,20 +2629,9 @@ func (errReader) Read(p []byte) (n int, err error) {
 	return 0, fmt.Errorf("simulated read error")
 }
 
-// MockExpressionVerificationAccessor is a mock of ExpressionVerificationAccessor
-type MockExpressionVerificationAccessor struct {
-    mock.Mock
-}
-
-// VerifyExpressions is a mocked method for expression verification
-func (m *MockExpressionVerificationAccessor) VerifyExpressions(ctx context.Context, input internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
-    args := m.Called(ctx, input)
-    return args.Get(0).(internal.VerifyExpressionsOutput)
-}
-
 func TestVerifyCheckConstraintExpression(t *testing.T) {
     // Arrange
-    mockAccessor := new(MockExpressionVerificationAccessor)
+    mockAccessor := new(mocks.MockExpressionVerificationAccessor)
     handler := &api.ExpressionsVerificationHandler{ExpressionVerificationAccessor: mockAccessor}
 
     req, err := http.NewRequest("POST", "/checkConstraint", nil) // Set nil as we'll overwrite it
