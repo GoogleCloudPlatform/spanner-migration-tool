@@ -114,7 +114,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		if srcCol.Ignored.Default {
 			issues = append(issues, internal.DefaultValue)
 		}
-		if srcCol.Ignored.AutoIncrement { //TODO(adibh) - check why this is not there in postgres
+		if srcCol.Ignored.AutoIncrement { // TODO(adibh) - check why this is not there in postgres
 			issues = append(issues, internal.AutoIncrement)
 		}
 		// Set the not null constraint to false for unsupported source datatypes
@@ -167,14 +167,16 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 	}
 	comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
 	conv.SpSchema[srcTable.Id] = ddl.CreateTable{
-		Name:        spTableName,
-		ColIds:      spColIds,
-		ColDefs:     spColDef,
-		PrimaryKeys: cvtPrimaryKeys(srcTable.PrimaryKeys),
-		ForeignKeys: cvtForeignKeys(conv, spTableName, srcTable.Id, srcTable.ForeignKeys, isRestore),
-		Indexes:     cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef),
-		Comment:     comment,
-		Id:          srcTable.Id}
+		Name:             spTableName,
+		ColIds:           spColIds,
+		ColDefs:          spColDef,
+		PrimaryKeys:      cvtPrimaryKeys(srcTable.PrimaryKeys),
+		ForeignKeys:      cvtForeignKeys(conv, spTableName, srcTable.Id, srcTable.ForeignKeys, isRestore),
+		CheckConstraints: cvtCheckConstraint(conv, srcTable.CheckConstraints),
+		Indexes:          cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef),
+		Comment:          comment,
+		Id:               srcTable.Id,
+	}
 	return nil
 }
 
@@ -232,6 +234,20 @@ func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTableId string, 
 		spKeys = append(spKeys, spKey)
 	}
 	return spKeys
+}
+
+// cvtCheckConstraint converts check constraints from source to Spanner.
+func cvtCheckConstraint(conv *internal.Conv, srcKeys []schema.CheckConstraint) []ddl.CheckConstraint {
+	var spcc []ddl.CheckConstraint
+
+	for _, cc := range srcKeys {
+		spcc = append(spcc, ddl.CheckConstraint{
+			Id:   cc.Id,
+			Name: internal.ToSpannerCheckConstraintName(conv, cc.Name),
+			Expr: cc.Expr,
+		})
+	}
+	return spcc
 }
 
 func CvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTableId string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
@@ -330,8 +346,8 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 				isPresent = true
 				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 					if spColDef[v].T.Name == ddl.Numeric {
-						//index on NUMERIC is not supported in PGSQL Dialect currently.
-						//Indexes which contains a NUMERIC column in it will need to be skipped.
+						// index on NUMERIC is not supported in PGSQL Dialect currently.
+						// Indexes which contains a NUMERIC column in it will need to be skipped.
 						return ddl.CreateIndex{}
 					}
 				}
