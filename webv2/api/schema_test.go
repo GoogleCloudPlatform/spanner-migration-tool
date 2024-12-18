@@ -2,9 +2,11 @@ package api_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -21,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 )
 
@@ -771,6 +774,9 @@ func TestRenameIndexes(t *testing.T) {
 					"t1": {
 						Indexes: []ddl.CreateIndex{{Name: "idx_1", Id: "i1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Desc: false}}},
 							{Name: "idx_2", Id: "i2", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Desc: false}}}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", Id: "fkId1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_b"}},
+							{Name: "fk2", Id: "fkId2", ColIds: []string{"c3", "d"}, ReferTableId: "reft2", ReferColumnIds: []string{"ref_c", "ref_d"}}},
+						ParentTable: ddl.InterleavedParent{Id: "", OnDelete: ""},
 					}},
 			},
 		},
@@ -1374,7 +1380,7 @@ func TestRestoreSecondaryIndex(t *testing.T) {
 					"t1": {
 						Name:   "table1",
 						ColIds: []string{"c1", "c2", "c3"},
-						Indexes: []ddl.CreateIndex{
+							Indexes: []ddl.CreateIndex{
 							{Name: "idx2", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}}, Id: "i2"},
 						},
 						Id: "t1",
@@ -2621,4 +2627,79 @@ type errReader struct{}
 
 func (errReader) Read(p []byte) (n int, err error) {
 	return 0, fmt.Errorf("simulated read error")
+}
+
+// MockExpressionVerificationAccessor is a mock of ExpressionVerificationAccessor
+type MockExpressionVerificationAccessor struct {
+    mock.Mock
+}
+
+// VerifyExpressions is a mocked method for expression verification
+func (m *MockExpressionVerificationAccessor) VerifyExpressions(ctx context.Context, input internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
+    args := m.Called(ctx, input)
+    return args.Get(0).(internal.VerifyExpressionsOutput)
+}
+
+func TestVerifyCheckConstraintExpression(t *testing.T) {
+    // Arrange
+    mockAccessor := new(MockExpressionVerificationAccessor)
+    handler := &api.ExpressionsVerificationHandler{ExpressionVerificationAccessor: mockAccessor}
+
+    req, err := http.NewRequest("POST", "/checkConstraint", nil) // Set nil as we'll overwrite it
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    // Simulate context and setup session
+    ctx := req.Context()
+    sessionState := session.GetSessionState()
+	sessionState.Driver = constants.MYSQL
+	sessionState.SpannerInstanceID = "foo"
+	sessionState.SpannerProjectId = "daring-12"
+	sessionState.Conv = internal.MakeConv()
+	sessionState.Conv.SpSchema = map[string]ddl.CreateTable{
+		"t1": {
+			Name:        "table1",
+			Id:          "t1",
+			PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+			CheckConstraints: []ddl.CheckConstraint{
+				{Expr: "col1 > 0", ExprId: "expr1", Name: "check1"},
+			},
+		},
+	}
+
+    // Setup request body
+    expressionDetails := []internal.ExpressionDetail{
+        // Add expression details to verify
+    }
+    body, _ := json.Marshal(expressionDetails)
+    req.Body = ioutil.NopCloser(bytes.NewReader(body))
+
+    // Mock VerifyExpressions 
+    mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
+        ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+            {
+                Result: true,
+            },
+        },
+    })
+
+    // Use httptest to record the response
+    rr := httptest.NewRecorder()
+
+    // Act
+    handler.VerifyCheckConstraintExpression(rr, req)
+
+    // Assert
+    assert.Equal(t, http.StatusOK, rr.Code)
+
+    var response bool
+    err = json.NewDecoder(rr.Body).Decode(&response)
+    if err != nil {
+        t.Fatal(err)
+    }
+    assert.False(t, response) // No errors should have occurred if no invalid expressions
+
+    // Verify if the VerifyExpressions was called
+    mockAccessor.AssertNumberOfCalls(t, "VerifyExpressions", 1)
 }

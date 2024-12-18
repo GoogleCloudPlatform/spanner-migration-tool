@@ -554,7 +554,7 @@ func removeCheckConstraint(checkConstraints []ddl.CheckConstraint, expId string)
 
 // VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
 // to suggestion tab and remove the check constraint which has error
-func (eh *ExpressionsVerificationHandler) VerifyCheckConstraintExpression(w http.ResponseWriter, r *http.Request) {
+func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheckConstraintExpression(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
@@ -591,7 +591,7 @@ func (eh *ExpressionsVerificationHandler) VerifyCheckConstraintExpression(w http
 		ExpressionDetailList: expressionDetailList,
 	}
 
-	result := eh.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
+	result := expressionVerificationHandler.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
 	if result.ExpressionVerificationOutputList != nil {
 		for _, ev := range result.ExpressionVerificationOutputList {
 			if !ev.Result {
