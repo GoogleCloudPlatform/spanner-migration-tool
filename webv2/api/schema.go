@@ -618,6 +618,16 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheck
 					return
 				}
 
+				if sessionState.Conv.SchemaIssues == nil {
+					sessionState.Conv.SchemaIssues = make(map[string]internal.TableIssues)
+				}
+
+				if _, exists := sessionState.Conv.SchemaIssues[tableId]; !exists {
+					sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					}
+				}
+
 				colIssue := sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
 
 				if !utilities.IsSchemaIssuePresent(colIssue, issueType) {

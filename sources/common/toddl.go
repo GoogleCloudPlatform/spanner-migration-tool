@@ -158,6 +158,16 @@ func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) {
 					return
 				}
 
+				if conv.SchemaIssues == nil {
+					conv.SchemaIssues = make(map[string]internal.TableIssues)
+				}
+
+				if _, exists := conv.SchemaIssues[tableId]; !exists {
+					conv.SchemaIssues[tableId] = internal.TableIssues{
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					}
+				}
+
 				colIssue := conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
 
 				if !IsSchemaIssuePresent(colIssue, issueType) {
