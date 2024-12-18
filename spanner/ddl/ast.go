@@ -419,7 +419,7 @@ type DefaultValue struct {
 
 type Expression struct {
 	ExpressionId string
-	Query        string
+	Statement        string
 }
 
 func (agc AutoGenCol) PrintAutoGenCol() string {

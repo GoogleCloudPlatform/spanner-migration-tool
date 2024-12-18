@@ -227,7 +227,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		if colDefault.Valid {
 			defaultVal.Value = ddl.Expression{
 				ExpressionId: internal.GenerateExpressionId(),
-				Query:        common.SanitizeDefaultValue(colDefault.String, dataType, colExtra.String == "DEFAULT_GENERATED"),
+				Statement:        common.SanitizeDefaultValue(colDefault.String, dataType, colExtra.String == constants.DEFAULT_GENERATED),
 			}
 		}
 

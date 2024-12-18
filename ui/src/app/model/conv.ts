@@ -30,7 +30,7 @@ export interface IDefaultValue {
 }
 
 export interface IExpression {
-  Query: string
+  Statement: string
   ExpressionId: string
 }
 

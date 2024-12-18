@@ -75,7 +75,7 @@ const mockIConv: IConv = {
                     },
                     DefaultValue: {
                         Value: {
-                            Query: "",
+                            Statement: "",
                             ExpressionId: ""
                         },
                         IsPresent: false
@@ -215,7 +215,7 @@ export const mockIConv2: IConv = {
                     },
                     DefaultValue: {
                         Value: {
-                            Query: "",
+                            Statement: "",
                             ExpressionId: ""
                         },
                         IsPresent: false

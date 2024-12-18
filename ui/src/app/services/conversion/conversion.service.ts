@@ -331,7 +331,7 @@ export class ConversionService {
           Name: '',
           GenerationType: ''
         },
-        srcDefaultValue: data.SrcSchema[tableId].ColDefs[colId].DefaultValue.Value.Query,
+        srcDefaultValue: data.SrcSchema[tableId].ColDefs[colId].DefaultValue? data.SrcSchema[tableId].ColDefs[colId].DefaultValue.Value.Statement : ''
       }
     })
     if (spColIds) {

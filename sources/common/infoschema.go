@@ -257,10 +257,20 @@ func (is *InfoSchemaImpl) GetIncludedSrcTablesFromConv(conv *internal.Conv) (sch
 
 // SanitizeDefaultValue removes extra characters added to Default Value in information schema in MySQL.
 func SanitizeDefaultValue(defaultValue string, ty string, generated bool) string {
+	types := []string{"char", "varchar", "text", "varbinary", "tinyblob", "tinytext", "text",
+		"blob", "mediumtext", "mediumblob", "longtext", "longblob", "STRING"}
+	// Check if ty exists in the types array
+	stringType := false
+	for _, t := range types {
+		if t == ty {
+			stringType = true
+			break
+		}
+	}
 	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", "")
 	defaultValue = strings.ReplaceAll(defaultValue, "\\\\", "\\")
 	defaultValue = strings.ReplaceAll(defaultValue, "\\'", "'")
-	if !generated && (ty == "char" || ty == "varchar" || ty == "text" || ty=="STRING") && !strings.HasPrefix(defaultValue, "'") && !strings.HasSuffix(defaultValue, "'") {
+	if !generated && stringType && !strings.HasPrefix(defaultValue, "'") && !strings.HasSuffix(defaultValue, "'") {
 		defaultValue = "'" + defaultValue + "'"
 	}
 	return defaultValue
