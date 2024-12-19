@@ -114,7 +114,6 @@ jobs:
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_foreignkeyaction_dump.test.out
 
       - name: Install sqlcmd required for loading .sql files
-      - name: Install sqlcmd required for loading .sql files
         run: |
           curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
           curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
