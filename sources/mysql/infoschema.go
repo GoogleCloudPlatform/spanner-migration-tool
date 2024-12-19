@@ -219,13 +219,26 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		} else {
 			colAutoGen = ddl.AutoGenCol{}
 		}
+
+		defaultVal := ddl.DefaultValue{
+			IsPresent: colDefault.Valid,
+			Value:     ddl.Expression{},
+		}
+		if colDefault.Valid {
+			defaultVal.Value = ddl.Expression{
+				ExpressionId: internal.GenerateExpressionId(),
+				Statement:        common.SanitizeDefaultValue(colDefault.String, dataType, colExtra.String == constants.DEFAULT_GENERATED),
+			}
+		}
+
 		c := schema.Column{
-			Id:      colId,
-			Name:    colName,
-			Type:    toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
-			NotNull: common.ToNotNull(conv, isNullable),
-			Ignored: ignored,
-			AutoGen: colAutoGen,
+			Id:           colId,
+			Name:         colName,
+			Type:         toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
+			NotNull:      common.ToNotNull(conv, isNullable),
+			Ignored:      ignored,
+			AutoGen:      colAutoGen,
+			DefaultValue: defaultVal,
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)
