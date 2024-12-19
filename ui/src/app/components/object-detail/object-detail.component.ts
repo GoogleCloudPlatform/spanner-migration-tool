@@ -30,8 +30,6 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ICreateSequence from 'src/app/model/auto-gen'
 import { autoGenSupportedDbs } from 'src/app/app.constants'
 import ICcTabData from 'src/app/model/cc-tab-data'
-import { Parser } from 'node-sql-parser'
-
 @Component({
   selector: 'app-object-detail',
   templateUrl: './object-detail.component.html',
