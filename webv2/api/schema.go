@@ -64,7 +64,7 @@ func init() {
 
 // ConvertSchemaSQL converts source database to Spanner when using
 // with postgres and mysql driver.
-func (eh *ExpressionsVerificationHandler) ConvertSchemaSQL(w http.ResponseWriter, r *http.Request) {
+func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	if sessionState.SourceDB == nil || sessionState.DbName == "" || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Database is not configured or Database connection is lost. Please set configuration and connect to database."), http.StatusNotFound)
@@ -84,14 +84,14 @@ func (eh *ExpressionsVerificationHandler) ConvertSchemaSQL(w http.ResponseWriter
 	processSchema := common.ProcessSchemaImpl{}
 	switch sessionState.Driver {
 	case constants.MYSQL:
-		err = processSchema.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: eh.ExpressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.POSTGRES:
 		temp := false
-		err = processSchema.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.SQLSERVER:
-		err = processSchema.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.ORACLE:
-		err = processSchema.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
