@@ -38,6 +38,11 @@ type ConfigWithMetadata struct {
 	IsConfigValid       bool
 }
 
+func IsConfigSet(w http.ResponseWriter, r *http.Request) {
+	config := TryInitializeSpannerConfig()
+	json.NewEncoder(w).Encode(config.GCPProjectID != "")
+}
+
 func GetConfig(w http.ResponseWriter, r *http.Request) {
 	content, err := GetSpannerConfig()
 	if err != nil {
