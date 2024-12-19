@@ -22,7 +22,7 @@ on:
 name: integration-tests-against-emulator
 jobs:
   integration-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       # set PostgreSQL related environment variables
       PGHOST: localhost

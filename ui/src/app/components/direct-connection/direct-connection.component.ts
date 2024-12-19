@@ -9,6 +9,8 @@ import { DialectList, InputType, PersistedFormValues, StorageKeys } from 'src/ap
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
+import { MatDialog } from '@angular/material/dialog'
+import { InfodialogComponent } from '../infodialog/infodialog.component'
 
 @Component({
   selector: 'app-direct-connection',
@@ -38,6 +40,7 @@ export class DirectConnectionComponent implements OnInit {
 
   connectRequest: any = null
   getSchemaRequest: any = null
+  isConfigSet: boolean = false
   shardedResponseList = [
     { value: false, displayName: 'No'},
     { value: true, displayName: 'Yes'},
@@ -51,7 +54,8 @@ export class DirectConnectionComponent implements OnInit {
     private data: DataService,
     private loader: LoaderService,
     private snackbarService: SnackbarService,
-    private clickEvent: ClickEventService
+    private clickEvent: ClickEventService,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
@@ -103,43 +107,67 @@ export class DirectConnectionComponent implements OnInit {
       })
   }
 
-  connectToDb() {
-    this.clickEvent.openDatabaseLoader('direct', this.connectForm.value.dbName!)
-    window.scroll(0, 0)
-    this.data.resetStore()
-    localStorage.clear()
-    const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect } = this.connectForm.value
-    localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value))
-    let config: IDbConfig = {
-      dbEngine: dbEngine!,
-      isSharded: isSharded!,
-      hostName: hostName!,
-      port: port!,
-      userName: userName!,
-      password: password!,
-      dbName: dbName!,
-    }
-    this.connectRequest =this.fetch.connectTodb(config, dialect!).subscribe({
-        next: () => {
-          this.getSchemaRequest = this.data.getSchemaConversionFromDb()
-          this.data.conv.subscribe((res) => {
-            localStorage.setItem(
-              StorageKeys.Config,
-              JSON.stringify({ dbEngine, hostName, port, userName, password, dbName })
-            )
-            localStorage.setItem(StorageKeys.Type, InputType.DirectConnect)
-            localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine!))
-            this.clickEvent.closeDatabaseLoader()
-            //after a successful load, remove the persisted values.
-            localStorage.removeItem(PersistedFormValues.DirectConnectForm)
-            this.router.navigate(['/workspace'])
-          })
-        },
-        error: (e) => { 
-          this.snackbarService.openSnackBar(e.error, 'Close')
-          this.clickEvent.closeDatabaseLoader()
-        },
-      })
+  async connectToDb() {
+    this.data.updateIsConfigSet();
+    this.fetch.getIsConfigSet().subscribe({
+      next: (res: boolean) => {
+        this.isConfigSet = res;
+
+        if (!this.isConfigSet) {
+          this.dialog.open(InfodialogComponent, {
+            data: {
+              message: "Please configure spanner project id and instance id to proceed",
+              type: 'error',
+              title: 'Configure Spanner',
+            },
+            maxWidth: '500px',
+          });
+          return;
+        }
+
+        this.clickEvent.openDatabaseLoader('direct', this.connectForm.value.dbName!);
+        window.scroll(0, 0);
+        this.data.resetStore();
+        localStorage.clear();
+        const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect } = this.connectForm.value;
+        localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value));
+
+        let config: IDbConfig = {
+          dbEngine: dbEngine!,
+          isSharded: isSharded!,
+          hostName: hostName!,
+          port: port!,
+          userName: userName!,
+          password: password!,
+          dbName: dbName!,
+        };
+
+        this.connectRequest = this.fetch.connectTodb(config, dialect!).subscribe({
+          next: () => {
+            this.getSchemaRequest = this.data.getSchemaConversionFromDb();
+            this.data.conv.subscribe((res) => {
+              localStorage.setItem(
+                StorageKeys.Config,
+                JSON.stringify({ dbEngine, hostName, port, userName, password, dbName })
+              );
+              localStorage.setItem(StorageKeys.Type, InputType.DirectConnect);
+              localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine!));
+              this.clickEvent.closeDatabaseLoader();
+              // After a successful load, remove the persisted values.
+              localStorage.removeItem(PersistedFormValues.DirectConnectForm);
+              this.router.navigate(['/workspace']);
+            });
+          },
+          error: (e) => {
+            this.snackbarService.openSnackBar(e.error, 'Close');
+            this.clickEvent.closeDatabaseLoader();
+          },
+        });
+      },
+      error: (err) => {
+        console.error('Error fetching configuration:', err);
+      },
+    });
   }
 
   refreshDbSpecifcConnectionOptions() {
