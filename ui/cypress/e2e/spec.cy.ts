@@ -8,6 +8,7 @@ describe('template spec', () => {
     cy.intercept('GET', `${url}/GetSessions`, { statusCode: 200, body: [] }).as('getSessions');
     cy.intercept('GET', `${url}/GetConfig`, { statusCode: 200 }).as('getConfig');
     cy.intercept('GET', `${url}/GetLatestSessionDetails`, { statusCode: 200 }).as('getLatestSessionDetails');
+    cy.intercept('GET', `${url}/IsConfigSet`, { statusCode: 200, body: true }).as('IsConfigSet');
     cy.visit('http://localhost:4200/');
   });
 
