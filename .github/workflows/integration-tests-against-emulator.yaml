@@ -130,11 +130,12 @@ jobs:
           export PATH="$PATH:/opt/mssql-tools/bin"
           sqlcmd -U sa -P ${MSSQL_SA_PASSWORD} -i test_data/sqlserver.test.out
 
-      # sqlplus set up init oracle db.
       - name: Install sqlplus required for loading .sql files
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 rpm2cpio cpio
+          sudo apt-get install -y rpm2cpio cpio
+          curl -O http://archive.ubuntu.com/ubuntu/pool/main/liba/libaio/libaio1_0.3.112-13_amd64.deb
+          sudo dpkg -i libaio1_0.3.112-13_amd64.deb
           curl -O https://download.oracle.com/otn_software/linux/instantclient/2340000/oracle-instantclient-basic-23.4.0.24.05-1.el9.x86_64.rpm
           curl -O https://download.oracle.com/otn_software/linux/instantclient/2340000/oracle-instantclient-sqlplus-23.4.0.24.05-1.el9.x86_64.rpm
           rpm2cpio oracle-instantclient-basic-23.4.0.24.05-1.el9.x86_64.rpm | sudo cpio -idmv
