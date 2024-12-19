@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -48,6 +50,10 @@ var (
 
 var autoGenMap = make(map[string][]types.AutoGen)
 
+type ExpressionsVerificationHandler struct {
+	ExpressionVerificationAccessor expressions_api.ExpressionVerificationAccessor
+}
+
 func init() {
 	sessionState := session.GetSessionState()
 	utilities.InitObjectId()
@@ -58,7 +64,7 @@ func init() {
 
 // ConvertSchemaSQL converts source database to Spanner when using
 // with postgres and mysql driver.
-func ConvertSchemaSQL(w http.ResponseWriter, r *http.Request) {
+func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	if sessionState.SourceDB == nil || sessionState.DbName == "" || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Database is not configured or Database connection is lost. Please set configuration and connect to database."), http.StatusNotFound)
@@ -68,6 +74,9 @@ func ConvertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 
 	conv.SpDialect = sessionState.Dialect
 	conv.IsSharded = sessionState.IsSharded
+	conv.SpProjectId = sessionState.SpannerProjectId
+	conv.SpInstanceId = sessionState.SpannerInstanceID
+	conv.Source = sessionState.Driver
 	var err error
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: sessionState.IsSharded,
@@ -75,14 +84,14 @@ func ConvertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	processSchema := common.ProcessSchemaImpl{}
 	switch sessionState.Driver {
 	case constants.MYSQL:
-		err = processSchema.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.POSTGRES:
 		temp := false
-		err = processSchema.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.SQLSERVER:
-		err = processSchema.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.ORACLE:
-		err = processSchema.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -521,6 +530,122 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
+}
+
+// findColId based on constraint condition it will return colId.
+func findColId(colDefs map[string]ddl.ColumnDef, condition string) string {
+	for _, colDef := range colDefs {
+		if strings.Contains(condition, colDef.Name) {
+			return colDef.Id
+		}
+	}
+	return ""
+}
+
+// removeCheckConstraint this method will remove the constraint which has error
+func removeCheckConstraint(checkConstraints []ddl.CheckConstraint, expId string) []ddl.CheckConstraint {
+	var filteredConstraints []ddl.CheckConstraint
+
+	for _, checkConstraint := range checkConstraints {
+		if checkConstraint.ExprId != expId {
+			filteredConstraints = append(filteredConstraints, checkConstraint)
+		}
+	}
+	return filteredConstraints
+}
+
+// VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
+// to suggestion tab and remove the check constraint which has error
+func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheckConstraintExpression(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
+
+	spschema := sessionState.Conv.SpSchema
+
+	hasErrorOccurred := false
+
+	expressionDetailList := []internal.ExpressionDetail{}
+	ctx := context.Background()
+
+	for _, sp := range spschema {
+		for _, cc := range sp.CheckConstraints {
+
+			colId := findColId(sp.ColDefs, cc.Expr)
+			expressionDetail := internal.ExpressionDetail{
+				Expression:       cc.Expr,
+				Type:             "CHECK",
+				ReferenceElement: internal.ReferenceElement{Name: sp.Name},
+				ExpressionId:     cc.ExprId,
+				Metadata:         map[string]string{"tableId": sp.Id, "colId": colId, "checkConstraintName": cc.Name},
+			}
+			expressionDetailList = append(expressionDetailList, expressionDetail)
+		}
+	}
+
+	verifyExpressionsInput := internal.VerifyExpressionsInput{
+		Conv:                 sessionState.Conv,
+		Source:               "mysql",
+		ExpressionDetailList: expressionDetailList,
+	}
+
+	result := expressionVerificationHandler.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
+	if result.ExpressionVerificationOutputList != nil {
+		for _, ev := range result.ExpressionVerificationOutputList {
+			if !ev.Result {
+				hasErrorOccurred = true
+				tableId := ev.ExpressionDetail.Metadata["tableId"]
+				colId := ev.ExpressionDetail.Metadata["colId"]
+
+				spschema := sessionState.Conv.SpSchema[tableId]
+				spschema.CheckConstraints = removeCheckConstraint(spschema.CheckConstraints, ev.ExpressionDetail.ExpressionId)
+				sessionState.Conv.SpSchema[tableId] = spschema
+
+				err := ev.Err.Error()
+				var issueType internal.SchemaIssue
+
+				switch {
+				case strings.Contains(err, "No matching signature for operator"):
+					issueType = internal.TypeMismatch
+				case strings.Contains(err, "Syntax error"):
+					issueType = internal.InvalidCondition
+				case strings.Contains(err, "Unrecognized name"):
+					issueType = internal.ColumnNotFound
+				default:
+					fmt.Println("Unhandled error:", err)
+					return
+				}
+
+				if sessionState.Conv.SchemaIssues == nil {
+					sessionState.Conv.SchemaIssues = make(map[string]internal.TableIssues)
+				}
+
+				if _, exists := sessionState.Conv.SchemaIssues[tableId]; !exists {
+					sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					}
+				}
+
+				colIssue := sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
+
+				if !utilities.IsSchemaIssuePresent(colIssue, issueType) {
+					colIssue = append(colIssue, issueType)
+				}
+				sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = colIssue
+
+			}
+
+		}
+	}
+
+	session.UpdateSessionFile()
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(hasErrorOccurred)
 }
 
 // renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables
