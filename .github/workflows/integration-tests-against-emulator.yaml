@@ -133,7 +133,7 @@ jobs:
       - name: Install sqlplus required for loading .sql files
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm2cpio cpio wget libaio1
+          sudo apt-get install -y rpm2cpio cpio wget libaio
           curl -O https://download.oracle.com/otn_software/linux/instantclient/2340000/oracle-instantclient-basic-23.4.0.24.05-1.el9.x86_64.rpm
           curl -O https://download.oracle.com/otn_software/linux/instantclient/2340000/oracle-instantclient-sqlplus-23.4.0.24.05-1.el9.x86_64.rpm
           rpm2cpio oracle-instantclient-basic-23.4.0.24.05-1.el9.x86_64.rpm | sudo cpio -idmv
