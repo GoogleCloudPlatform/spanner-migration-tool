@@ -126,8 +126,8 @@ describe('ConversionService', () => {
 
         Indexes: [],
         CheckConstraints: [
-          { Id: '1', Name: 'Name1', Expr: 'Expr1' },
-          { Id: '2', Name: 'Name2', Expr: 'Expr2' },
+          { Id: '1', Name: 'Name1', Expr: 'Expr1',ExprId:'Expr1' },
+          { Id: '2', Name: 'Name2', Expr: 'Expr2',ExprId:'Expr2' },
         ],
       },
     }
@@ -142,7 +142,7 @@ describe('ConversionService', () => {
         ForeignKeys: [],
 
         Indexes: [],
-        CheckConstraints: [{ Id: '1', Name: 'Name1', Expr: 'Expr1' }],
+        CheckConstraints: [{ Id: '1', Name: 'Name1', Expr: 'Expr1',ExprId:'Expr1' }],
         ParentTable: {} as IInterleavedParent,
         Comment: '',
       },
@@ -156,6 +156,7 @@ describe('ConversionService', () => {
         spSno: '1',
         spConstraintName: 'Name1',
         spConstraintCondition: 'Expr1',
+        spExprId:'Expr1',
         deleteIndex: 'cc1',
       },
       {
@@ -165,6 +166,7 @@ describe('ConversionService', () => {
         spSno: '',
         spConstraintName: '',
         spConstraintCondition: '',
+        spExprId:'Expr2',
         deleteIndex: 'cc2',
       },
     ]
@@ -187,8 +189,8 @@ describe('ConversionService', () => {
 
         Indexes: [],
         CheckConstraints: [
-          { Id: '1', Name: 'Name1', Expr: 'Expr1' },
-          { Id: '2', Name: 'Name2', Expr: 'Expr2' },
+          { Id: '1', Name: 'Name1', Expr: '(col > 0)',ExprId:'Expr1' },
+          { Id: '2', Name: 'Name2', Expr: '(col > 0)',ExprId:'Expr2' },
         ],
       },
     }
@@ -213,19 +215,21 @@ describe('ConversionService', () => {
       {
         srcSno: '1',
         srcConstraintName: 'Name1',
-        srcCondition: 'Expr1',
+        srcCondition: '(col > 0)',
         spSno: '',
         spConstraintName: '',
         spConstraintCondition: '',
+        spExprId:'Expr1',
         deleteIndex: 'cc1',
       },
       {
         srcSno: '2',
         srcConstraintName: 'Name2',
-        srcCondition: 'Expr2',
+        srcCondition: '(col > 0)',
         spSno: '',
         spConstraintName: '',
         spConstraintCondition: '',
+        spExprId:'Expr2',
         deleteIndex: 'cc2',
       },
     ];
@@ -247,7 +251,7 @@ describe('ConversionService', () => {
         ForeignKeys: [],
 
         Indexes: [],
-        CheckConstraints: [{ Id: '1', Name: 'Name1', Expr: 'Expr1' }],
+        CheckConstraints: [{ Id: '1', Name: 'Name1', Expr: '(col > 0)', ExprId:'Expr1' }],
       },
     }
     conv.SpSchema = {
@@ -262,8 +266,8 @@ describe('ConversionService', () => {
 
         Indexes: [],
         CheckConstraints: [
-          { Id: '1', Name: 'Name1', Expr: 'Expr1' },
-          { Id: '2', Name: 'Name2', Expr: 'Expr2' },
+          { Id: '1', Name: 'Name1', Expr: '(col > 0)', ExprId:'Expr1' },
+          { Id: '2', Name: 'Name2', Expr: '(col > 0)',ExprId:'Expr2' },
         ],
         ParentTable: {} as IInterleavedParent,
         Comment: '',
@@ -274,10 +278,11 @@ describe('ConversionService', () => {
       {
         srcSno: '1',
         srcConstraintName: 'Name1',
-        srcCondition: 'Expr1',
+        srcCondition: '(col > 0)',
         spSno: '1',
         spConstraintName: 'Name1',
-        spConstraintCondition: 'Expr1',
+        spConstraintCondition: '(col > 0)',
+        spExprId:'Expr1',
         deleteIndex: 'cc1',
       },
       {
@@ -286,7 +291,8 @@ describe('ConversionService', () => {
         srcCondition: '',
         spSno: '2',
         spConstraintName: 'Name2',
-        spConstraintCondition: 'Expr2',
+        spConstraintCondition: '(col > 0)',
+        spExprId:'Expr2',
         deleteIndex: 'cc2',
       },
     ]

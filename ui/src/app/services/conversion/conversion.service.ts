@@ -297,7 +297,7 @@ export class ConversionService {
           spSno: spArr[i] ? `${i + 1}` : '',
           spConstraintName: spArr[i] ? spArr[i].Name : '',
           spConstraintCondition: spArr[i] ? spArr[i].Expr : '',
-          spExprId:spArr[i] ? spArr[i].ExprId : '',
+          spExprId:srcArr[i] ? srcArr[i].ExprId : '',
           deleteIndex: `cc${i + 1}`,
         })
       }

@@ -61,7 +61,7 @@ describe('WorkspaceComponent', () => {
     dialogSpyObj = jasmine.createSpyObj('MatDialog', ['open']);
     clickEventSpyObj = jasmine.createSpyObj('ClickEventService', ['setViewAssesmentData', 'setTabToSpanner']);
     sidenavSpyObj = jasmine.createSpyObj('SidenavService', ['openSidenav', 'setSidenavComponent', 'setSidenavDatabaseName', 'setMiddleColumnComponent']);
-    fetchServiceSpy = jasmine.createSpyObj('FetchService', ['getDStructuredReport', 'getDTextReport', 'getDSpannerDDL', 'getSpannerConfig', 'getIsOffline', 'getLastSessionDetails', 'getTableWithErrors']);
+    fetchServiceSpy = jasmine.createSpyObj('FetchService', ['getDStructuredReport', 'getDTextReport', 'getDSpannerDDL', 'getSpannerConfig', 'getIsOffline', 'getLastSessionDetails', 'getTableWithErrors','verifyCheckConstraintExpression']);
     conversionServiceSpy = jasmine.createSpyObj('ConversionService', [
       'getStandardTypeToPGSQLTypemap',
       'getPGSQLToStandardTypeTypemap',
@@ -330,6 +330,7 @@ describe('WorkspaceComponent', () => {
 
   it('should navigate to prepare-migration', () => {
     fetchServiceSpy.getTableWithErrors.and.returnValue(of([]));
+    fetchServiceSpy.verifyCheckConstraintExpression.and.returnValue(of(false))
     component.isOfflineStatus = false;
     component.conv = { SpSchema: { TableA: {}, TableB: {} } } as any;
     component.prepareMigration();
