@@ -830,7 +830,7 @@ export class ObjectDetailComponent implements OnInit {
 
     this.ccData.push({
       spSno: (index + 1).toString(),
-      spConstraintName: `Constraint_name${index + 1}`,
+      spConstraintName: this.generateCheckConstraintName(),
       spConstraintCondition: '',
       srcSno: '',
       srcCondition: '',
@@ -852,7 +852,19 @@ export class ObjectDetailComponent implements OnInit {
 
     const id = `expr${twoDigitNum}`;
     return id;
-}
+  }
+
+  generateCheckConstraintName(): string {
+    const min = 0;
+    const max = 999;
+
+    const randomNum = Math.floor(Math.random() * (max - min + 1)) + min;
+
+    const twoDigitNum = randomNum.toString().padStart(2, '0');
+
+    const id = `Check_Name${twoDigitNum}`;
+    return id;
+  }
 
   dropCc(element: any) {
     const index = this.ccData.findIndex(item => item.deleteIndex === element.value.deleteIndex);
