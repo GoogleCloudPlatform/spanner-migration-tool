@@ -116,13 +116,23 @@ jobs:
       # init sql server with test_data
       - name: Install sqlcmd required for loading .sql files
         run: |
-          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
-          sudo apt-get update 
-          sudo apt-get install mssql-tools unixodbc-dev
-          echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bash_profile
+          # Download and register the Microsoft signing key
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/microsoft-prod.gpg
+
+          # Add the Microsoft package repository (replace with your Ubuntu version if needed)
+          echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/microsoft-prod.gpg] https://packages.microsoft.com/ubuntu/$(lsb_release -rs)/prod noble main" | sudo tee /etc/apt/sources.list.d/msprod.list
+
+          # Update the package list
+          sudo apt-get update -y
+
+          # Install the necessary packages with the EULA acceptance
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql17 mssql-tools unixodbc-dev
+
+          # Add the sqlcmd directory to the PATH
+          echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bashrc 
+
       - run: sqlcmd -?
-      - run: sqlcmd -U sa -P ${MSSQL_SA_PASSWORD} -i test_data/sqlserver.test.out
+      - run: sqlcmd -U sa -P "${{ secrets.MSSQL_SA_PASSWORD }}" -i test_data/sqlserver.test.out 
 
       # sqlplus set up init oracle db.
       - name: Install sqlplus required for loading .sql files
