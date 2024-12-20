@@ -53,7 +53,7 @@ var spatialIndexRegex = regexp.MustCompile("(?i)\\sSPATIAL\\s")
 var spatialSridRegex = regexp.MustCompile("(?i)\\sSRID\\s\\d*")
 
 // DbDumpImpl MySQL specific implementation for DdlDumpImpl.
-type DbDumpImpl struct{
+type DbDumpImpl struct {
 	ExpressionVerificationAccessor expressions_api.ExpressionVerificationAccessor
 }
 
