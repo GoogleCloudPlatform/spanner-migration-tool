@@ -416,6 +416,12 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					}
 					l = append(l, toAppend)
 
+				case internal.DefaultValueError:
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
+						Description: fmt.Sprintf("%s for table '%s' column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName),
+					}
+					l = append(l, toAppend)
 				default:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
