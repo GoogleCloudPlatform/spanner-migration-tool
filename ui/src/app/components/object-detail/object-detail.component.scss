@@ -211,7 +211,7 @@
     min-width: 100px;
   }
 
-  .mat-column-srcIsNotNull,
+  .mat-column-srcDefaultValue,
   .mat-column-srcDatabase,
   .mat-column-srcIndexOrder {
     border-right: 1px solid #cdcccd;
@@ -314,4 +314,11 @@ tr.mat-mdc-row {
 
 .custom-mat-form-field .mat-select-panel .mat-option {
   white-space: nowrap;
+}
+
+.trimmed-text {
+  width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
