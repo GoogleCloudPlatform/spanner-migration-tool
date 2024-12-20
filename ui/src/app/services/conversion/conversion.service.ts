@@ -331,6 +331,7 @@ export class ConversionService {
           Name: '',
           GenerationType: ''
         },
+        srcDefaultValue: data.SrcSchema[tableId].ColDefs[colId].DefaultValue? data.SrcSchema[tableId].ColDefs[colId].DefaultValue.Value.Statement : ''
       }
     })
     if (spColIds) {
@@ -358,7 +359,8 @@ export class ConversionService {
             srcAutoGen: {
               Name: '',
               GenerationType: ''
-            }
+            },
+            srcDefaultValue: '',
           })
         }
       })
