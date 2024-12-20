@@ -43,7 +43,7 @@ jobs:
       # set DynamoDB related environment variables
       AWS_ACCESS_KEY_ID: dummyId
       AWS_SECRET_ACCESS_KEY: dummyKey
-      AWS_REGION: dummyRegion
+      AWS_REGION: local
       DYNAMODB_ENDPOINT_OVERRIDE: http://localhost:8000
 
       # sql server envs
@@ -75,11 +75,20 @@ jobs:
           - 3306:3306
         # needed because the mysql container does not provide a healthcheck
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      # https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocalHistory.html
+      # Dynamodb 1.17.0 has deprecated java web shell.
       dynamodb_emulator:
-        image: amazon/dynamodb-local:1.16.0
+        image: amazon/dynamodb-local:2.5.3
         ports:
           - 8000:8000
-        options: --workdir /home/dynamodblocal --health-cmd "curl --fail http://127.0.0.1:8000/shell/ || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
+          - 8001:8000
+        env:
+          AWS_ACCESS_KEY_ID: dummyId
+          AWS_SECRET_ACCESS_KEY: dummyKey
+          AWS_REGION: local
+          DYNAMODB_ENDPOINT_OVERRIDE: http://localhost:8000
+        options: --workdir /home/dynamodblocal --health-cmd "dynamodb describe-limits --endpoint-url http://dynamodb-emulator:8000 --region local" --health-interval 10s --health-timeout 5s --health-retries 5
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
