@@ -62,7 +62,7 @@ func getRoutes() *mux.Router {
 
 	router.HandleFunc("/connect", databaseConnection).Methods("POST")
 	router.HandleFunc("/convert/infoschema", expressionVerificationHandler.ConvertSchemaSQL).Methods("GET")
-	router.HandleFunc("/convert/dump", api.ConvertSchemaDump).Methods("POST")
+	router.HandleFunc("/convert/dump", expressionVerificationHandler.ConvertSchemaDump).Methods("POST")
 	router.HandleFunc("/convert/session", loadSession).Methods("POST")
 	router.HandleFunc("/ddl", api.GetDDL).Methods("GET")
 	router.HandleFunc("/seqDdl", api.GetSequenceDDL).Methods("GET")

@@ -53,7 +53,7 @@ var spatialIndexRegex = regexp.MustCompile("(?i)\\sSPATIAL\\s")
 var spatialSridRegex = regexp.MustCompile("(?i)\\sSRID\\s\\d*")
 
 // DbDumpImpl MySQL specific implementation for DdlDumpImpl.
-type DbDumpImpl struct{
+type DbDumpImpl struct {
 	ExpressionVerificationAccessor expressions_api.ExpressionVerificationAccessor
 }
 
@@ -296,14 +296,14 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 	}
 	conv.SchemaStatement(NodeType(stmt))
 	conv.SrcSchema[tableId] = schema.Table{
-		Id:           tableId,
-		Name:         tableName,
-		ColIds:       colIds,
-		ColNameIdMap: colNameIdMap,
-		ColDefs:      colDef,
-		PrimaryKeys:  keys,
-		ForeignKeys:  fkeys,
-		Indexes:      index,
+		Id:               tableId,
+		Name:             tableName,
+		ColIds:           colIds,
+		ColNameIdMap:     colNameIdMap,
+		ColDefs:          colDef,
+		PrimaryKeys:      keys,
+		ForeignKeys:      fkeys,
+		Indexes:          index,
 		CheckConstraints: checkConstraints,
 	}
 	for _, constraint := range stmt.Constraints {
@@ -346,10 +346,10 @@ func getCheckConstraints(constraints []*ast.Constraint) (checkConstraints []sche
 			exp := expressionToString(constraint.Expr)
 			exp = dbcollationRegex.ReplaceAllString(exp, "$1")
 			checkConstraint := schema.CheckConstraint{
-				Name: constraint.Name,
-				Expr: exp,
-				ExprId: internal.GenerateCheckConstrainstExprId (),
-				Id:   internal.GenerateCheckConstrainstId(),
+				Name:   constraint.Name,
+				Expr:   exp,
+				ExprId: internal.GenerateCheckConstrainstExprId(),
+				Id:     internal.GenerateCheckConstrainstId(),
 			}
 			checkConstraints = append(checkConstraints, checkConstraint)
 		}
