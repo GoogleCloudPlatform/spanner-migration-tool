@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -33,6 +34,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 )
+
+var collationRegex = regexp.MustCompile(constants.DB_COLLATION_REGEX)
 
 // InfoSchemaImpl is MySQL specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
