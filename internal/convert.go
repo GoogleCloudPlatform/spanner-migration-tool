@@ -54,6 +54,9 @@ type Conv struct {
 	UI                 bool                    // Flag if UI interface was used for migration. ToDo: Remove flag after resource generation is introduced to UI
 	SpSequences        map[string]ddl.Sequence // Maps Spanner Sequences to Sequence Schema
 	SrcSequences       map[string]ddl.Sequence // Maps source-DB Sequences to Sequence schema information
+	SpProjectId        string                  // Spanner Project Id
+	SpInstanceId       string                  // Spanner Instance Id
+	Source             string                  // Source Database type being migrated
 }
 
 type TableIssues struct {
@@ -129,6 +132,7 @@ const (
 	ForeignKeyActionNotSupported
 	NumericPKNotSupported
 	TypeMismatch
+	DefaultValueError
 )
 
 const (
@@ -292,17 +296,17 @@ type TableDetails struct {
 }
 
 type VerifyExpressionsInput struct {
-	Conv *Conv
-	Source string
+	Conv                 *Conv
+	Source               string
 	ExpressionDetailList []ExpressionDetail
 }
 
 type ExpressionDetail struct {
 	ReferenceElement ReferenceElement
-	ExpressionId string
-	Expression string
-	Type string
-	Metadata map[string]string
+	ExpressionId     string
+	Expression       string
+	Type             string
+	Metadata         map[string]string
 }
 
 type ReferenceElement struct {
@@ -311,13 +315,13 @@ type ReferenceElement struct {
 
 type ExpressionVerificationOutput struct {
 	ExpressionDetail ExpressionDetail
-	Result bool
-	Err error
+	Result           bool
+	Err              error
 }
 
 type VerifyExpressionsOutput struct {
 	ExpressionVerificationOutputList []ExpressionVerificationOutput
-	Err error
+	Err                              error
 }
 
 // MakeConv returns a default-configured Conv.

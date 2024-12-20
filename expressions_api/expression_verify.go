@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
@@ -18,6 +19,7 @@ const THREAD_POOL = 500
 type ExpressionVerificationAccessor interface {
 	//Batch API which parallelizes expression verification calls
 	VerifyExpressions(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput
+	RefreshSpannerClient(ctx context.Context, project string, instance string) error
 }
 
 type ExpressionVerificationAccessorImpl struct {
@@ -25,13 +27,40 @@ type ExpressionVerificationAccessorImpl struct {
 }
 
 func NewExpressionVerificationAccessorImpl(ctx context.Context, project string, instance string) (*ExpressionVerificationAccessorImpl, error) {
-	spannerAccessor, err := spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, "smt-staging-db"))
-	if err != nil {
-		return nil, err
+	var spannerAccessor *spanneraccessor.SpannerAccessorImpl
+	var err error
+	if project != "" && instance != "" {
+		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.TEMP_DB))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImpl(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &ExpressionVerificationAccessorImpl{
 		SpannerAccessor: spannerAccessor,
 	}, nil
+}
+
+// APIs to verify and process Spanner DLL features such as Default Values, Check Constraints
+type DDLVerifier interface {
+	VerifySpannerDDL(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error)
+	GetSourceExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail
+	GetSpannerExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail
+	RefreshSpannerClient(ctx context.Context, project string, instance string) error
+}
+type DDLVerifierImpl struct {
+	Expressions ExpressionVerificationAccessor
+}
+
+func NewDDLVerifierImpl(ctx context.Context, project string, instance string) (*DDLVerifierImpl, error) {
+	expVerifier, err := NewExpressionVerificationAccessorImpl(ctx, project, instance)
+	return &DDLVerifierImpl{
+		Expressions: expVerifier,
+	}, err
 }
 
 func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Context, verifyExpressionsInput internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
@@ -77,6 +106,15 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 
 	}
 	return verifyExpressionsOutput
+}
+
+func (ev *ExpressionVerificationAccessorImpl) RefreshSpannerClient(ctx context.Context, project string, instance string) error {
+	spannerClient, err := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.TEMP_DB))
+	if err != nil {
+		return err
+	}
+	ev.SpannerAccessor.SpannerClient = spannerClient
+	return nil
 }
 
 func (ev *ExpressionVerificationAccessorImpl) verifyExpressionInternal(expressionDetail internal.ExpressionDetail, mutex *sync.Mutex) task.TaskResult[internal.ExpressionVerificationOutput] {
@@ -128,4 +166,68 @@ func (ev *ExpressionVerificationAccessorImpl) removeExpressions(inputConv *inter
 		}
 	}
 	return convCopy, nil
+}
+
+func (ddlv *DDLVerifierImpl) VerifySpannerDDL(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
+	ctx := context.Background()
+	verifyExpressionsInput := internal.VerifyExpressionsInput{
+		Conv:                 conv,
+		Source:               conv.Source,
+		ExpressionDetailList: expressionDetails,
+	}
+	verificationResults := ddlv.Expressions.VerifyExpressions(ctx, verifyExpressionsInput)
+
+	return verificationResults, verificationResults.Err
+}
+
+func (ddlv *DDLVerifierImpl) GetSourceExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail {
+	expressionDetails := []internal.ExpressionDetail{}
+	// Collect default values for verification
+	for _, tableId := range tableIds {
+		srcTable := conv.SrcSchema[tableId]
+		for _, srcColId := range srcTable.ColIds {
+			srcCol := srcTable.ColDefs[srcColId]
+			if srcCol.DefaultValue.IsPresent {
+				defaultValueExp := internal.ExpressionDetail{
+					ReferenceElement: internal.ReferenceElement{
+						Name: conv.SpSchema[tableId].ColDefs[srcColId].T.Name,
+					},
+					ExpressionId: srcCol.DefaultValue.Value.ExpressionId,
+					Expression:   srcCol.DefaultValue.Value.Statement,
+					Type:         "DEFAULT",
+					Metadata:     map[string]string{"TableId": tableId, "ColId": srcColId},
+				}
+				expressionDetails = append(expressionDetails, defaultValueExp)
+			}
+		}
+	}
+	return expressionDetails
+}
+
+func (ddlv *DDLVerifierImpl) GetSpannerExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail {
+	expressionDetails := []internal.ExpressionDetail{}
+	// Collect default values for verification
+	for _, tableId := range tableIds {
+		spTable := conv.SpSchema[tableId]
+		for _, spColId := range spTable.ColIds {
+			spCol := spTable.ColDefs[spColId]
+			if spCol.DefaultValue.IsPresent {
+				defaultValueExp := internal.ExpressionDetail{
+					ReferenceElement: internal.ReferenceElement{
+						Name: conv.SpSchema[tableId].ColDefs[spColId].T.Name,
+					},
+					ExpressionId: spCol.DefaultValue.Value.ExpressionId,
+					Expression:   spCol.DefaultValue.Value.Statement,
+					Type:         "DEFAULT",
+					Metadata:     map[string]string{"TableId": tableId, "ColId": spColId},
+				}
+				expressionDetails = append(expressionDetails, defaultValueExp)
+			}
+		}
+	}
+	return expressionDetails
+}
+
+func (ddlv *DDLVerifierImpl) RefreshSpannerClient(ctx context.Context, project string, instance string) error {
+	return ddlv.Expressions.RefreshSpannerClient(ctx, project, instance)
 }

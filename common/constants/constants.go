@@ -125,6 +125,7 @@ const (
 	// VerifyExpresions API
 	CHECK_EXPRESSION  = "CHECK"
 	DEFAUT_EXPRESSION = "DEFAULT"
+	TEMP_DB           = "smt-staging-db"
 
 	// Regex for matching database collation
 	DB_COLLATION_REGEX = `(_[a-zA-Z0-9]+\\|\\)`

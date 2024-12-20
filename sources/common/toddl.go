@@ -390,3 +390,32 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 	}
 	return spIndex
 }
+
+// Applies all valid expressions which can be migrated to spanner conv object
+func spannerSchemaApplyExpressions(conv *internal.Conv, expressions internal.VerifyExpressionsOutput) {
+	for _, expression := range expressions.ExpressionVerificationOutputList {
+		switch expression.ExpressionDetail.Type {
+		case "DEFAULT":
+			{
+				tableId := expression.ExpressionDetail.Metadata["TableId"]
+				columnId := expression.ExpressionDetail.Metadata["ColId"]
+
+				if expression.Result {
+					col := conv.SpSchema[tableId].ColDefs[columnId]
+					col.DefaultValue = ddl.DefaultValue{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: expression.ExpressionDetail.ExpressionId,
+							Statement:    expression.ExpressionDetail.Expression,
+						},
+					}
+					conv.SpSchema[tableId].ColDefs[columnId] = col
+				} else {
+					colIssues := conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
+					colIssues = append(colIssues, internal.DefaultValue)
+					conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = colIssues
+				}
+			}
+		}
+	}
+}
