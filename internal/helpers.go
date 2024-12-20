@@ -26,7 +26,7 @@ import (
 
 type Counter struct {
 	counterMutex sync.Mutex
-	ObjectId string
+	ObjectId     string
 }
 
 var Cntr Counter

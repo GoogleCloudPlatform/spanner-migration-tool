@@ -419,7 +419,35 @@ type DefaultValue struct {
 
 type Expression struct {
 	ExpressionId string
-	Statement        string
+	Statement    string
+}
+
+func (dv DefaultValue) PrintDefaultValue(ty Type) string {
+	if !dv.IsPresent {
+		return ""
+	}
+	var value string
+	switch ty.Name {
+	case "FLOAT32", "NUMERIC", "BOOL":
+		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Statement, ty.Name)
+	default:
+		value = " DEFAULT (" + dv.Value.Statement + ")"
+	}
+	return value
+}
+
+func (dv DefaultValue) PGPrintDefaultValue(ty Type) string {
+	if !dv.IsPresent {
+		return ""
+	}
+	var value string
+	switch ty.Name {
+	case "FLOAT8", "FLOAT4", "REAL", "NUMERIC", "DECIMAL", "BOOL":
+		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Statement, ty.Name)
+	default:
+		value = " DEFAULT (" + dv.Value.Statement + ")"
+	}
+	return value
 }
 
 func (agc AutoGenCol) PrintAutoGenCol() string {
