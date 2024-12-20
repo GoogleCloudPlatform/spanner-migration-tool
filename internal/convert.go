@@ -133,7 +133,6 @@ const (
 	NumericPKNotSupported
 	TypeMismatch
 	DefaultValueError
-	TypeMismatch
 )
 
 const (
