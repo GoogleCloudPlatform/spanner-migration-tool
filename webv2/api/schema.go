@@ -1611,3 +1611,23 @@ func makeGoogleSqlDialectAutoGenMap(sequences map[string]ddl.Sequence) {
 		}
 	}
 }
+
+func uniqueAndSortTableIdName(tableIdName []types.TableIdAndName) []types.TableIdAndName {
+	uniqueMap := make(map[string]types.TableIdAndName)
+	for _, item := range tableIdName {
+		uniqueMap[item.Name] = item // Use Name as the unique key
+	}
+
+	// Convert the map back to a slice
+	uniqueSlice := make([]types.TableIdAndName, 0, len(uniqueMap))
+	for _, value := range uniqueMap {
+		uniqueSlice = append(uniqueSlice, value)
+	}
+
+	// Sort the slice by Name
+	sort.Slice(uniqueSlice, func(i, j int) bool {
+		return uniqueSlice[i].Name < uniqueSlice[j].Name
+	})
+
+	return uniqueSlice
+}
