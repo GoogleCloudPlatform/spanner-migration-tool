@@ -123,7 +123,8 @@ const (
 	DLQ_GCS     string = "dlq"
 
 	//VerifyExpresions API
-	CHECK_EXPRESSION = "CHECK"
+	CHECK_EXPRESSION  = "CHECK"
 	DEFAUT_EXPRESSION = "DEFAULT"
-
+	DEFAULT_GENERATED = "DEFAULT_GENERATED"
+	TEMP_DB           = "smt-staging-db"
 )
