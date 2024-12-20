@@ -26,7 +26,7 @@ import (
 
 type Counter struct {
 	counterMutex sync.Mutex
-	ObjectId string
+	ObjectId     string
 }
 
 var Cntr Counter
@@ -70,6 +70,9 @@ func GenerateRuleId() string {
 }
 func GenerateSequenceId() string {
 	return GenerateId("s")
+}
+func GenerateExpressionId() string {
+	return GenerateId("e")
 }
 
 func GetSrcColNameIdMap(srcs schema.Table) map[string]string {
