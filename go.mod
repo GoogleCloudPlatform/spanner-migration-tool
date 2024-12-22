@@ -1,6 +1,8 @@
 module github.com/GoogleCloudPlatform/spanner-migration-tool
 
-go 1.19
+go 1.21
+
+toolchain go1.23.4
 
 require (
 	cloud.google.com/go v0.113.0
@@ -37,7 +39,7 @@ require (
 	google.golang.org/api v0.178.0
 	google.golang.org/genproto v0.0.0-20240401170217-c3f982113cda
 	google.golang.org/grpc v1.63.2
-	google.golang.org/protobuf v1.34.2
+	google.golang.org/protobuf v1.36.0
 )
 
 require (
