@@ -352,6 +352,53 @@ describe('ObjectDetailComponent', () => {
 
   })
 
+  it('should Edit the existing record and updateCheckConstraint and handle success response', () => {
+    spyOn(component, 'setCCRows').and.callThrough()
+    component.ccData = [
+      {
+        srcSno: '',
+        srcConstraintName: '',
+        srcCondition: '',
+        spSno: '1',
+        spConstraintName: 'check_1',
+        spConstraintCondition: 'age > 18',
+        spExprId:'expr1',
+        deleteIndex: 'cc1',
+      }
+    ]
+    component.setCCRows()
+    component.ccData[0].srcConstraintName = "check_modify"
+    component.setCCRows()
+    component.currentObject = { id: 't2' } as FlatNode
+
+    component.saveCc();
+
+    expect(dataServiceSpy.updateCheckConstraint);
+    expect(component.isCcEditMode).toBe(false);
+
+  })
+
+  it('should display the check constraints perfectly', () => {
+    spyOn(component, 'setCCRows').and.callThrough()
+    component.ccData = [
+      {
+        srcSno: '',
+        srcConstraintName: '',
+        srcCondition: '',
+        spSno: '1',
+        spConstraintName: 'check_1',
+        spConstraintCondition: 'age > 18',
+        spExprId:'expr1',
+        deleteIndex: 'cc1',
+      }
+    ]
+    fixture.detectChanges()
+    component.setCCRows()
+    expect(component.ccData.length).toBe(1)
+    expect(component.ccDataSource.length).toBe(1);
+
+  })
+
   it('should show error dialog if updateCheckConstraint response is an error', () => {
 
     spyOn(component, 'setCCRows').and.callThrough()
