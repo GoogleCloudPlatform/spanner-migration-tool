@@ -38,7 +38,7 @@ type InfoSchema interface {
 	GetColumns(conv *internal.Conv, table SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error)
 	GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error)
 	GetRowCount(table SchemaAndName) (int64, error)
-	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, map[string][]string, error)
+	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, []schema.CheckConstraint, map[string][]string, error)
 	GetForeignKeys(conv *internal.Conv, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
 	GetIndexes(conv *internal.Conv, table SchemaAndName, colNameIdMp map[string]string) ([]schema.Index, error)
 	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error
@@ -187,7 +187,7 @@ func (is *InfoSchemaImpl) processTable(conv *internal.Conv, table SchemaAndName,
 	var t schema.Table
 	fmt.Println("processing schema for table", table)
 	tblId := internal.GenerateTableId()
-	primaryKeys, constraints, err := infoSchema.GetConstraints(conv, table)
+	primaryKeys, checkConstraints, constraints, err := infoSchema.GetConstraints(conv, table)
 	if err != nil {
 		return t, fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
@@ -217,15 +217,16 @@ func (is *InfoSchemaImpl) processTable(conv *internal.Conv, table SchemaAndName,
 		schemaPKeys = append(schemaPKeys, schema.Key{ColId: colNameIdMap[k]})
 	}
 	t = schema.Table{
-		Id:           tblId,
-		Name:         name,
-		Schema:       table.Schema,
-		ColIds:       colIds,
-		ColNameIdMap: colNameIdMap,
-		ColDefs:      colDefs,
-		PrimaryKeys:  schemaPKeys,
-		Indexes:      indexes,
-		ForeignKeys:  foreignKeys}
+		Id:               tblId,
+		Name:             name,
+		Schema:           table.Schema,
+		ColIds:           colIds,
+		ColNameIdMap:     colNameIdMap,
+		ColDefs:          colDefs,
+		PrimaryKeys:      schemaPKeys,
+		CheckConstraints: checkConstraints,
+		Indexes:          indexes,
+		ForeignKeys:      foreignKeys}
 	return t, nil
 }
 
