@@ -532,28 +532,6 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-// findColId based on constraint condition it will return colId.
-func findColId(colDefs map[string]ddl.ColumnDef, condition string) string {
-	for _, colDef := range colDefs {
-		if strings.Contains(condition, colDef.Name) {
-			return colDef.Id
-		}
-	}
-	return ""
-}
-
-// removeCheckConstraint this method will remove the constraint which has error
-func removeCheckConstraint(checkConstraints []ddl.CheckConstraint, expId string) []ddl.CheckConstraint {
-	var filteredConstraints []ddl.CheckConstraint
-
-	for _, checkConstraint := range checkConstraints {
-		if checkConstraint.ExprId != expId {
-			filteredConstraints = append(filteredConstraints, checkConstraint)
-		}
-	}
-	return filteredConstraints
-}
-
 // VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
 // to suggestion tab and remove the check constraint which has error
 func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheckConstraintExpression(w http.ResponseWriter, r *http.Request) {
@@ -569,77 +547,60 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheck
 
 	hasErrorOccurred := false
 
-	expressionDetailList := []internal.ExpressionDetail{}
 	ctx := context.Background()
-
-	for _, sp := range spschema {
-		for _, cc := range sp.CheckConstraints {
-
-			colId := findColId(sp.ColDefs, cc.Expr)
-			expressionDetail := internal.ExpressionDetail{
-				Expression:       cc.Expr,
-				Type:             "CHECK",
-				ReferenceElement: internal.ReferenceElement{Name: sp.Name},
-				ExpressionId:     cc.ExprId,
-				Metadata:         map[string]string{"tableId": sp.Id, "colId": colId, "checkConstraintName": cc.Name},
-			}
-			expressionDetailList = append(expressionDetailList, expressionDetail)
-		}
-	}
 
 	verifyExpressionsInput := internal.VerifyExpressionsInput{
 		Conv:                 sessionState.Conv,
 		Source:               "mysql",
-		ExpressionDetailList: expressionDetailList,
+		ExpressionDetailList: common.GenerateExpressionDetailList(spschema),
 	}
 
 	result := expressionVerificationHandler.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
-	if result.ExpressionVerificationOutputList != nil {
-		for _, ev := range result.ExpressionVerificationOutputList {
-			if !ev.Result {
-				hasErrorOccurred = true
-				tableId := ev.ExpressionDetail.Metadata["tableId"]
-				colId := ev.ExpressionDetail.Metadata["colId"]
+	if result.ExpressionVerificationOutputList == nil {
+		http.Error(w, fmt.Sprintf("Unhandled error: : %s", result.Err.Error()), http.StatusBadRequest)
+		return
+	}
 
-				spschema := sessionState.Conv.SpSchema[tableId]
-				spschema.CheckConstraints = removeCheckConstraint(spschema.CheckConstraints, ev.ExpressionDetail.ExpressionId)
-				sessionState.Conv.SpSchema[tableId] = spschema
+	exprOutputsByTable := make(map[string][]internal.ExpressionVerificationOutput)
+	for _, ev := range result.ExpressionVerificationOutputList {
+		if !ev.Result {
+			tableId := ev.ExpressionDetail.Metadata["tableId"]
+			exprOutputsByTable[tableId] = append(exprOutputsByTable[tableId], ev)
+		}
+	}
 
-				err := ev.Err.Error()
-				var issueType internal.SchemaIssue
+	for tableId, exprOutputs := range exprOutputsByTable {
+		hasErrorOccurred = true
+		spschema := sessionState.Conv.SpSchema[tableId]
+		spschema.CheckConstraints = common.RemoveCheckConstraints(spschema.CheckConstraints, exprOutputs)
+		sessionState.Conv.SpSchema[tableId] = spschema
 
-				switch {
-				case strings.Contains(err, "No matching signature for operator"):
-					issueType = internal.TypeMismatch
-				case strings.Contains(err, "Syntax error"):
-					issueType = internal.InvalidCondition
-				case strings.Contains(err, "Unrecognized name"):
-					issueType = internal.ColumnNotFound
-				default:
-					fmt.Println("Unhandled error:", err)
-					return
+		for _, ev := range exprOutputs {
+
+			var issueType internal.SchemaIssue
+
+			for key, issue := range common.ErrorTypeMapping {
+				if strings.Contains(ev.Err.Error(), key) {
+					issueType = issue
+					break
 				}
-
-				if sessionState.Conv.SchemaIssues == nil {
-					sessionState.Conv.SchemaIssues = make(map[string]internal.TableIssues)
-				}
-
-				if _, exists := sessionState.Conv.SchemaIssues[tableId]; !exists {
-					sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
-						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
-					}
-				}
-
-				colIssue := sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
-
-				if !utilities.IsSchemaIssuePresent(colIssue, issueType) {
-					colIssue = append(colIssue, issueType)
-				}
-				sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = colIssue
-
 			}
 
+			if _, exists := sessionState.Conv.SchemaIssues[tableId]; !exists {
+				sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
+					TableLevelIssues: []internal.SchemaIssue{},
+				}
+			}
+
+			tableIssue := sessionState.Conv.SchemaIssues[tableId]
+
+			if !utilities.IsSchemaIssuePresent(tableIssue.TableLevelIssues, issueType) {
+				tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issueType)
+			}
+
+			sessionState.Conv.SchemaIssues[tableId] = tableIssue
 		}
+
 	}
 
 	session.UpdateSessionFile()
