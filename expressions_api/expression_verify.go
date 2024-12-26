@@ -29,6 +29,8 @@ type ExpressionVerificationAccessorImpl struct {
 func NewExpressionVerificationAccessorImpl(ctx context.Context, project string, instance string) (*ExpressionVerificationAccessorImpl, error) {
 	var spannerAccessor *spanneraccessor.SpannerAccessorImpl
 	var err error
+	fmt.Printf("#######")
+	fmt.Printf(fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.TEMP_DB))
 	if project != "" && instance != "" {
 		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.TEMP_DB))
 		if err != nil {
@@ -176,6 +178,9 @@ func (ddlv *DDLVerifierImpl) VerifySpannerDDL(conv *internal.Conv, expressionDet
 		Source:               conv.Source,
 		ExpressionDetailList: expressionDetails,
 	}
+	fmt.Println("###########")
+	fmt.Println(conv.SpProjectId, conv.SpInstanceId)
+	ddlv.Expressions.RefreshSpannerClient(context.Background(), conv.SpProjectId, conv.SpInstanceId)
 	verificationResults := ddlv.Expressions.VerifyExpressions(ctx, verifyExpressionsInput)
 
 	return verificationResults, verificationResults.Err
