@@ -42,7 +42,9 @@ type SchemaFromSourceInterface interface {
 	SchemaFromDump(SpProjectId string, SpInstanceId string, driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error)
 }
 
-type SchemaFromSourceImpl struct{}
+type SchemaFromSourceImpl struct {
+	DdlVerifier expressions_api.DDLVerifier
+}
 
 type DataFromSourceInterface interface {
 	dataFromDatabase(ctx context.Context, migrationProjectId string, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, getInfo GetInfoInterface, dataFromDb DataFromDatabaseInterface, snapshotMigration SnapshotMigrationInterface) (*writer.BatchWriter, error)
@@ -100,13 +102,8 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: isSharded,
 	}
-	ctx := context.Background()
-	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
-	if err != nil {
-		return conv, fmt.Errorf("error trying create ddl verifier: %v", err)
-	}
 	schemaToSpanner := common.SchemaToSpannerImpl{
-		DdlV: ddlVerifier,
+		DdlV: sads.DdlVerifier,
 	}
 	return conv, processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 }

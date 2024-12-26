@@ -27,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
@@ -134,7 +135,16 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 			return subcommands.ExitFailure
 		}
 	} else {
-		conv, err = convImpl.SchemaConv(cmd.project, sourceProfile, targetProfile, &ioHelper, &conversion.SchemaFromSourceImpl{})
+		ctx := context.Background()
+		ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("error trying create ddl verifier: %v", err))
+			return subcommands.ExitFailure
+		}
+		sfs := &conversion.SchemaFromSourceImpl{
+			DdlVerifier: ddlVerifier,
+		}
+		conv, err = convImpl.SchemaConv(cmd.project, sourceProfile, targetProfile, &ioHelper, sfs)
 		if err != nil {
 			return subcommands.ExitFailure
 		}
