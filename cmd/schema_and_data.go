@@ -137,7 +137,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		dbURI  string
 	)
 	convImpl := &conversion.ConvImpl{}
-	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, "", "")
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("error trying create ddl verifier: %v", err))
 		return subcommands.ExitFailure

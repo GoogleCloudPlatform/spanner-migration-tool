@@ -136,7 +136,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		}
 	} else {
 		ctx := context.Background()
-		ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+		ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, "", "")
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("error trying create ddl verifier: %v", err))
 			return subcommands.ExitFailure
