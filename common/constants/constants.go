@@ -122,7 +122,7 @@ const (
 	REGULAR_GCS string = "data"
 	DLQ_GCS     string = "dlq"
 
-	//VerifyExpresions API
+	// VerifyExpresions API
 	CHECK_EXPRESSION  = "CHECK"
 	DEFAUT_EXPRESSION = "DEFAULT"
 	DEFAULT_GENERATED = "DEFAULT_GENERATED"
