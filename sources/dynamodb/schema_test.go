@@ -640,7 +640,7 @@ func TestInfoSchemaImpl_GetConstraints(t *testing.T) {
 	dySchema := common.SchemaAndName{Name: "test"}
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{client, nil, 10}
-	primaryKeys, constraints, err := isi.GetConstraints(conv, dySchema)
+	primaryKeys, _, constraints, err := isi.GetConstraints(conv, dySchema)
 	assert.Nil(t, err)
 
 	pKeys := []string{"a", "b"}

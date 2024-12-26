@@ -268,7 +268,7 @@ export class FetchService {
     return this.http.get<ISpannerConfig>(`${this.url}/GetConfig`)
   }
 
-  fetchIsConfigSet() {
+  getIsConfigSet() {
     return this.http.get<boolean>(`${this.url}/IsConfigSet`);
   }  
 

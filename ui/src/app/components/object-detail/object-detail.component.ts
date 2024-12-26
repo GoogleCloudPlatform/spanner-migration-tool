@@ -275,7 +275,7 @@ export class ObjectDetailComponent implements OnInit {
           spColMaxLength: new FormControl(row.spColMaxLength, [
             Validators.required]),
           spAutoGen: new FormControl(row.spAutoGen),
-          spDefaultValue: new FormControl(row.spDefaultValue ? row.spDefaultValue.Value.Query : ''),
+          spDefaultValue: new FormControl(row.spDefaultValue ? row.spDefaultValue.Value.Statement : ''),
         })
         // Disable spDefaultValue if spAutoGen is set
         if (row.spAutoGen.Name !== '') { 
@@ -340,7 +340,7 @@ export class ObjectDetailComponent implements OnInit {
             srcId: new FormControl(col.srcId),
             spColMaxLength: new FormControl(col.spColMaxLength),
             spAutoGen: new FormControl(col.spAutoGen),
-            spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Query : ''),
+            spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
           })
         )
       } else {
@@ -378,7 +378,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsNotNull: new FormControl(col.srcIsNotNull),
             spColMaxLength: new FormControl(droppedColumnSpMaxLength),
             spAutoGen: new FormControl(col.spAutoGen),
-            spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Query : ''),
+            spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
           })
         )
       }
@@ -447,7 +447,7 @@ export class ObjectDetailComponent implements OnInit {
               IsPresent: col.spDefaultValue ? true : false, 
               Value: {
                 ExpressionId: '', 
-                Query: String(col.spDefaultValue)
+                Statement: String(col.spDefaultValue)
               }
             }
           }
@@ -484,7 +484,7 @@ export class ObjectDetailComponent implements OnInit {
           IsPresent: false,
           Value: {
             ExpressionId: '',
-            Query: ''
+            Statement: ''
           }
         }
       }
@@ -648,7 +648,7 @@ export class ObjectDetailComponent implements OnInit {
         col.spDefaultValue = {
           Value: {
             ExpressionId: '',
-            Query: ''
+            Statement: ''
           },
           IsPresent: false
         }

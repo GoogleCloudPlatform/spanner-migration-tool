@@ -320,7 +320,7 @@ export class ConversionService {
         spIsNotNull: spannerColDef && spTableName ? spannerColDef.NotNull : false,
         srcIsNotNull: data.SrcSchema[tableId].ColDefs[colId].NotNull,
         srcId: colId,
-        srcDefaultValue: data.SrcSchema[tableId].ColDefs[colId].DefaultValue.Value.Query,
+        srcDefaultValue: data.SrcSchema[tableId].ColDefs[colId].DefaultValue.Value.Statement,
         spId: spannerColDef ? colId : '',
         spColMaxLength: spannerColDef?.T.Len != 0 ? (spannerColDef?.T.Len != spColMax ? spannerColDef?.T.Len: 'MAX') : '',
         srcColMaxLength: data.SrcSchema[tableId].ColDefs[colId].Type.Mods != null ? data.SrcSchema[tableId].ColDefs[colId].Type.Mods[0] : '',
@@ -336,10 +336,10 @@ export class ConversionService {
           IsPresent: false,
           Value: {
             ExpressionId: '',
-            Query: ''
+            Statement: ''
           }
         },
-      }
+        }
     })
     if (spColIds) {
       spColIds.forEach((colId: string, i: number) => {
@@ -372,7 +372,7 @@ export class ConversionService {
               IsPresent: false,
               Value: {
                 ExpressionId: '',
-                Query: ''
+                Statement: ''
               }
             },
           })

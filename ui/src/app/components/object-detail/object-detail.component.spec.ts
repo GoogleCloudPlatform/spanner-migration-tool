@@ -89,7 +89,7 @@ describe('ObjectDetailComponent', () => {
         spDefaultValue: {
           Value: {
             ExpressionId: '',
-            Query: ''
+            Statement: ''
           },
           IsPresent: false
         },
@@ -121,7 +121,7 @@ describe('ObjectDetailComponent', () => {
         spDefaultValue: {
           Value: {
             ExpressionId: '',
-            Query: ''
+            Statement: ''
           },
           IsPresent: false
         },

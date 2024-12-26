@@ -9,8 +9,8 @@ import { DialectList, InputType, PersistedFormValues, StorageKeys } from 'src/ap
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
-import { InfodialogComponent } from '../infodialog/infodialog.component'
 import { MatDialog } from '@angular/material/dialog'
+import { InfodialogComponent } from '../infodialog/infodialog.component'
 
 @Component({
   selector: 'app-direct-connection',
@@ -40,13 +40,13 @@ export class DirectConnectionComponent implements OnInit {
 
   connectRequest: any = null
   getSchemaRequest: any = null
+  isConfigSet: boolean = false
   shardedResponseList = [
     { value: false, displayName: 'No'},
     { value: true, displayName: 'Yes'},
   ]
 
   dialect = DialectList
-  isConfigSet: boolean = false
 
   constructor(
     private router: Router,
@@ -109,10 +109,10 @@ export class DirectConnectionComponent implements OnInit {
 
   async connectToDb() {
     this.data.updateIsConfigSet();
-    this.fetch.fetchIsConfigSet().subscribe({
+    this.fetch.getIsConfigSet().subscribe({
       next: (res: boolean) => {
         this.isConfigSet = res;
-  
+
         if (!this.isConfigSet) {
           this.dialog.open(InfodialogComponent, {
             data: {
@@ -124,14 +124,12 @@ export class DirectConnectionComponent implements OnInit {
           });
           return;
         }
-  
         this.clickEvent.openDatabaseLoader('direct', this.connectForm.value.dbName!);
         window.scroll(0, 0);
         this.data.resetStore();
         localStorage.clear();
         const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect } = this.connectForm.value;
         localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value));
-  
         let config: IDbConfig = {
           dbEngine: dbEngine!,
           isSharded: isSharded!,
@@ -141,7 +139,6 @@ export class DirectConnectionComponent implements OnInit {
           password: password!,
           dbName: dbName!,
         };
-  
         this.connectRequest = this.fetch.connectTodb(config, dialect!).subscribe({
           next: () => {
             this.getSchemaRequest = this.data.getSchemaConversionFromDb();

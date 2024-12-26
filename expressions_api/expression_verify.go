@@ -30,7 +30,7 @@ func NewExpressionVerificationAccessorImpl(ctx context.Context, project string, 
 	var spannerAccessor *spanneraccessor.SpannerAccessorImpl
 	var err error
 	if project != "" && instance != "" {
-		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, "smt-staging-db"))
+		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.TEMP_DB))
 		if err != nil {
 			return nil, err
 		}
@@ -45,6 +45,7 @@ func NewExpressionVerificationAccessorImpl(ctx context.Context, project string, 
 	}, nil
 }
 
+// APIs to verify and process Spanner DLL features such as Default Values, Check Constraints
 type DDLVerifier interface {
 	VerifySpannerDDL(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error)
 	GetSourceExpressionDetails(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail
@@ -108,7 +109,7 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 }
 
 func (ev *ExpressionVerificationAccessorImpl) RefreshSpannerClient(ctx context.Context, project string, instance string) error {
-	spannerClient, err := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, "smt-staging-db"))
+	spannerClient, err := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.TEMP_DB))
 	if err != nil {
 		return err
 	}
@@ -193,7 +194,7 @@ func (ddlv *DDLVerifierImpl) GetSourceExpressionDetails(conv *internal.Conv, tab
 						Name: conv.SpSchema[tableId].ColDefs[srcColId].T.Name,
 					},
 					ExpressionId: srcCol.DefaultValue.Value.ExpressionId,
-					Expression:   srcCol.DefaultValue.Value.Query,
+					Expression:   srcCol.DefaultValue.Value.Statement,
 					Type:         "DEFAULT",
 					Metadata:     map[string]string{"TableId": tableId, "ColId": srcColId},
 				}
@@ -217,7 +218,7 @@ func (ddlv *DDLVerifierImpl) GetSpannerExpressionDetails(conv *internal.Conv, ta
 						Name: conv.SpSchema[tableId].ColDefs[spColId].T.Name,
 					},
 					ExpressionId: spCol.DefaultValue.Value.ExpressionId,
-					Expression:   spCol.DefaultValue.Value.Query,
+					Expression:   spCol.DefaultValue.Value.Statement,
 					Type:         "DEFAULT",
 					Metadata:     map[string]string{"TableId": tableId, "ColId": spColId},
 				}

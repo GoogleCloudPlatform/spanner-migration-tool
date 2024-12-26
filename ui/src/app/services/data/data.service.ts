@@ -451,11 +451,10 @@ export class DataService {
   }
 
   updateIsConfigSet() {
-    this.fetch.fetchIsConfigSet().subscribe((res: boolean) => {
+    this.fetch.getIsConfigSet().subscribe((res: boolean) => {
       this.isConfigSetSub.next(res)
     })
   }
-  
 
   addColumn(tableId: string,payload: IAddColumn) {
     this.fetch.addColumn(tableId,payload).subscribe({

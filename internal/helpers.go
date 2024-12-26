@@ -65,6 +65,11 @@ func GenerateForeignkeyId() string {
 func GenerateIndexesId() string {
 	return GenerateId("i")
 }
+
+func GenerateCheckConstrainstId() string {
+	return GenerateId("cc")
+}
+
 func GenerateRuleId() string {
 	return GenerateId("r")
 }
@@ -72,7 +77,7 @@ func GenerateSequenceId() string {
 	return GenerateId("s")
 }
 func GenerateExpressionId() string {
-	return GenerateId("i")
+	return GenerateId("e")
 }
 
 func GetSrcColNameIdMap(srcs schema.Table) map[string]string {

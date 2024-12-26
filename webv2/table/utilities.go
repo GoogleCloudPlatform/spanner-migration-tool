@@ -253,40 +253,6 @@ func UpdateNotNull(notNullChange, tableId, colId string, conv *internal.Conv) {
 	}
 }
 
-func UpdateDefaultValue(dv ddl.DefaultValue, tableId, colId string, conv *internal.Conv) {
-	col := conv.SpSchema[tableId].ColDefs[colId]
-	if !dv.IsPresent {
-		col.DefaultValue = ddl.DefaultValue{}
-		conv.SpSchema[tableId].ColDefs[colId] = col
-		return
-	}
-
-	var expressionId string
-	if dv.Value.ExpressionId == "" {
-		if _, exists := conv.SrcSchema[tableId]; exists {
-			if column, exists := conv.SrcSchema[tableId].ColDefs[colId]; exists {
-				if column.DefaultValue.Value.ExpressionId!=""{
-					expressionId = column.DefaultValue.Value.ExpressionId
-				}
-			}
-		}
-		if expressionId!=""{
-			expressionId= internal.GenerateExpressionId()
-		}
-	} else {
-		expressionId = dv.Value.ExpressionId
-	}
-	re := regexp.MustCompile(`\([^)]*\)`) 
-	col.DefaultValue = ddl.DefaultValue{
-		Value: ddl.Expression{
-			ExpressionId: expressionId,
-			Query: common.SanitizeDefaultValue(dv.Value.Query, col.T.Name, re.MatchString(dv.Value.Query)),
-		},
-		IsPresent: true,
-	}
-	conv.SpSchema[tableId].ColDefs[colId] = col
-}
-
 func UpdateAutoGenCol(autoGen ddl.AutoGenCol, tableId, colId string, conv *internal.Conv) map[string]ddl.Sequence {
 	sp := conv.SpSchema[tableId]
 	sequences := conv.SpSequences
@@ -370,4 +336,39 @@ func getSequenceId(sequenceName string, spSeq map[string]ddl.Sequence) string {
 		}
 	}
 	return ""
+}
+
+// Add, deletes and updates default value associated with a column during edit column functionality
+func UpdateDefaultValue(dv ddl.DefaultValue, tableId, colId string, conv *internal.Conv) {
+	col := conv.SpSchema[tableId].ColDefs[colId]
+	if !dv.IsPresent {
+		col.DefaultValue = ddl.DefaultValue{}
+		conv.SpSchema[tableId].ColDefs[colId] = col
+		return
+	}
+
+	var expressionId string
+	if dv.Value.ExpressionId == "" {
+		if _, exists := conv.SrcSchema[tableId]; exists {
+			if column, exists := conv.SrcSchema[tableId].ColDefs[colId]; exists {
+				if column.DefaultValue.Value.ExpressionId != "" {
+					expressionId = column.DefaultValue.Value.ExpressionId
+				}
+			}
+		}
+		if expressionId != "" {
+			expressionId = internal.GenerateExpressionId()
+		}
+	} else {
+		expressionId = dv.Value.ExpressionId
+	}
+	re := regexp.MustCompile(`\([^)]*\)`)
+	col.DefaultValue = ddl.DefaultValue{
+		Value: ddl.Expression{
+			ExpressionId: expressionId,
+			Statement:    common.SanitizeDefaultValue(dv.Value.Statement, col.T.Name, re.MatchString(dv.Value.Statement)),
+		},
+		IsPresent: true,
+	}
+	conv.SpSchema[tableId].ColDefs[colId] = col
 }

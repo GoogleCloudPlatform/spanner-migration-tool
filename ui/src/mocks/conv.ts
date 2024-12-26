@@ -23,7 +23,7 @@ const mockIConv: IConv = {
                     },
                     DefaultValue: {
                         Value: {
-                            Query: "",
+                            Statement: "",
                             ExpressionId: ""
                         },
                         IsPresent: false
@@ -82,11 +82,11 @@ const mockIConv: IConv = {
                     },
                     DefaultValue: {
                         Value: {
-                            ExpressionId: "",
-                            Query: ""
+                            Statement: "",
+                            ExpressionId: ""
                         },
                         IsPresent: false
-                    }
+                    },
                 }
             },
             PrimaryKeys: [],
@@ -222,8 +222,8 @@ export const mockIConv2: IConv = {
                     },
                     DefaultValue: {
                         Value: {
-                            ExpressionId: "",
-                            Query: ""
+                            Statement: "",
+                            ExpressionId: ""
                         },
                         IsPresent: false
                     }

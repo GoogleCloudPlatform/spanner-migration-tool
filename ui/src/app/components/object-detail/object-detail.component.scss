@@ -323,3 +323,10 @@ tr.mat-mdc-row {
 .custom-mat-form-field .mat-select-panel .mat-option {
   white-space: nowrap;
 }
+
+.trimmed-text {
+  width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
