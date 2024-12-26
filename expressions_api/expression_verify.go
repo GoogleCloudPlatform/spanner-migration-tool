@@ -178,8 +178,6 @@ func (ddlv *DDLVerifierImpl) VerifySpannerDDL(conv *internal.Conv, expressionDet
 		Source:               conv.Source,
 		ExpressionDetailList: expressionDetails,
 	}
-	fmt.Println("###########")
-	fmt.Println(conv.SpProjectId, conv.SpInstanceId)
 	ddlv.Expressions.RefreshSpannerClient(context.Background(), conv.SpProjectId, conv.SpInstanceId)
 	verificationResults := ddlv.Expressions.VerifyExpressions(ctx, verifyExpressionsInput)
 
