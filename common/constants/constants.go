@@ -74,22 +74,22 @@ const (
 	AddIndex             = "add_index"
 	EditColumnMaxLength  = "edit_column_max_length"
 	AddShardIdPrimaryKey = "add_shard_id_primary_key"
-	//bulk migration type
+	// bulk migration type
 	BULK_MIGRATION = "bulk"
-	//dataflow migration type
+	// dataflow migration type
 	DATAFLOW_MIGRATION = "dataflow"
-	//DMS migration type
+	// DMS migration type
 	DMS_MIGRATION = "dms"
 
 	SESSION_FILE = "sessionFile"
 
-	//Default shardId
+	// Default shardId
 	DEFAULT_SHARD_ID string = "smt-default"
-	//Metadata database name
+	// Metadata database name
 	METADATA_DB string = "spannermigrationtool_metadata"
-	//Migration types
+	// Migration types
 	MINIMAL_DOWNTIME_MIGRATION = "minimal_downtime"
-	//Job Resource Types
+	// Job Resource Types
 	DATAFLOW_RESOURCE         string = "dataflow"
 	PUBSUB_RESOURCE           string = "pubsub"
 	DLQ_PUBSUB_RESOURCE       string = "dlq_pubsub"
@@ -111,7 +111,7 @@ const (
 	// Default gcs path of the Dataflow template.
 	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner"
 
-	//FK Actions
+	// FK Actions
 	FK_NO_ACTION   string = "NO ACTION"
 	FK_CASCADE     string = "CASCADE"
 	FK_SET_DEFAULT string = "SET DEFAULT"
@@ -122,9 +122,12 @@ const (
 	REGULAR_GCS string = "data"
 	DLQ_GCS     string = "dlq"
 
-	//VerifyExpresions API
+	// VerifyExpresions API
 	CHECK_EXPRESSION  = "CHECK"
 	DEFAUT_EXPRESSION = "DEFAULT"
 	DEFAULT_GENERATED = "DEFAULT_GENERATED"
 	TEMP_DB           = "smt-staging-db"
+
+	// Regex for matching database collation
+	DB_COLLATION_REGEX = `(_[a-zA-Z0-9]+\\|\\)`
 )
