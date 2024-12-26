@@ -569,3 +569,4 @@ func createSequence(conv *internal.Conv) ddl.Sequence {
 	srcSequences[id] = sequence
 	return sequence
 }
+

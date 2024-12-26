@@ -29,13 +29,13 @@ type ExpressionVerificationAccessorImpl struct {
 func NewExpressionVerificationAccessorImpl(ctx context.Context, project string, instance string) (*ExpressionVerificationAccessorImpl, error) {
 	var spannerAccessor *spanneraccessor.SpannerAccessorImpl
 	var err error
-	if project != "" && instance != "" {
-		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.TEMP_DB))
+	if project == "" || instance == "" {
+		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImpl(ctx)
+		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.TEMP_DB))
 		if err != nil {
 			return nil, err
 		}
@@ -162,6 +162,7 @@ func (ev *ExpressionVerificationAccessorImpl) removeExpressions(inputConv *inter
 	for _, table := range convCopy.SpSchema {
 		for colName, colDef := range table.ColDefs {
 			colDef.AutoGen = ddl.AutoGenCol{}
+			colDef.DefaultValue = ddl.DefaultValue{}
 			table.ColDefs[colName] = colDef
 		}
 	}
@@ -175,6 +176,7 @@ func (ddlv *DDLVerifierImpl) VerifySpannerDDL(conv *internal.Conv, expressionDet
 		Source:               conv.Source,
 		ExpressionDetailList: expressionDetails,
 	}
+	ddlv.RefreshSpannerClient(ctx, conv.SpProjectId, conv.SpInstanceId)
 	verificationResults := ddlv.Expressions.VerifyExpressions(ctx, verifyExpressionsInput)
 
 	return verificationResults, verificationResults.Err

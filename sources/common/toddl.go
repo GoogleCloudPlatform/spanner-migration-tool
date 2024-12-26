@@ -33,9 +33,11 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"unicode"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -56,7 +58,9 @@ type SchemaToSpannerInterface interface {
 	SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error
 }
 
-type SchemaToSpannerImpl struct{}
+type SchemaToSpannerImpl struct {
+	DdlV expressions_api.DDLVerifier
+}
 
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
@@ -70,6 +74,14 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 	for _, tableId := range tableIds {
 		srcTable := conv.SrcSchema[tableId]
 		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
+	}
+	if conv.Source == constants.MYSQL && conv.SpProjectId!="" && conv.SpInstanceId!=""{
+		expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
+		expressions, err := ss.DdlV.VerifySpannerDDL(conv, expressionDetails)
+		if err != nil && !strings.Contains(err.Error(), "expressions either failed verification") {
+			return err
+		}
+		spannerSchemaApplyExpressions(conv, expressions)
 	}
 	internal.ResolveRefs(conv)
 	return nil
@@ -300,8 +312,10 @@ func cvtIndexes(conv *internal.Conv, tableId string, srcIndexes []schema.Index, 
 	return spIndexes
 }
 
-func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table) error {
-	schemaToSpanner := SchemaToSpannerImpl{}
+func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, ddlVerifier expressions_api.DDLVerifier) error {
+	schemaToSpanner := SchemaToSpannerImpl{
+		DdlV: ddlVerifier,
+	}
 	err := schemaToSpanner.SchemaToSpannerDDLHelper(conv, toddl, srcTable, true)
 	if err != nil {
 		return err

@@ -124,14 +124,12 @@ export class DirectConnectionComponent implements OnInit {
           });
           return;
         }
-
         this.clickEvent.openDatabaseLoader('direct', this.connectForm.value.dbName!);
         window.scroll(0, 0);
         this.data.resetStore();
         localStorage.clear();
         const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect } = this.connectForm.value;
         localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value));
-
         let config: IDbConfig = {
           dbEngine: dbEngine!,
           isSharded: isSharded!,
@@ -141,7 +139,6 @@ export class DirectConnectionComponent implements OnInit {
           password: password!,
           dbName: dbName!,
         };
-
         this.connectRequest = this.fetch.connectTodb(config, dialect!).subscribe({
           next: () => {
             this.getSchemaRequest = this.data.getSchemaConversionFromDb();
