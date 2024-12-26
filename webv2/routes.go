@@ -116,6 +116,7 @@ func getRoutes() *mux.Router {
 	// Application Configuration
 	router.HandleFunc("/GetConfig", config.GetConfig).Methods("GET")
 	router.HandleFunc("/SetSpannerConfig", config.SetSpannerConfig).Methods("POST")
+	router.HandleFunc("/IsConfigSet", config.IsConfigSet).Methods("GET")
 
 	// Run migration
 	router.HandleFunc("/Migrate", migrate).Methods("POST")
