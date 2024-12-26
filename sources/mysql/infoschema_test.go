@@ -650,7 +650,7 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			cols:  []string{"COUNT(*)"},
 			rows:  [][]driver.Value{{1}},
 		},
@@ -686,7 +686,7 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
 func TestGetConstraints_CheckConstraintsTableAbsent(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA' ) AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			cols:  []string{"COUNT(*)"},
 			rows:  [][]driver.Value{{0}},
 		},

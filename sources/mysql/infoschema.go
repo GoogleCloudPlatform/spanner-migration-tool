@@ -272,7 +272,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 func (isi InfoSchemaImpl) getConstraintsDQL() (string, error) {
 	var tableExistsCount int
 	// check if CHECK_CONSTRAINTS table exists.
-	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
+	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
 	err := isi.Db.QueryRow(checkQuery).Scan(&tableExistsCount)
 	if err != nil {
 		return "", err
