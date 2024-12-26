@@ -74,7 +74,7 @@ func ConvertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	conv.SpProjectId = sessionState.SpannerProjectId
 	conv.SpInstanceId = sessionState.SpannerInstanceID
 	conv.Source = sessionState.Driver
-	fmt.Println("###2")
+	fmt.Println("####4")
 	fmt.Println(conv.SpProjectId)
 	fmt.Println(conv.SpInstanceId)
 	conv.IsSharded = sessionState.IsSharded
@@ -448,7 +448,7 @@ func (tableHandler *TableAPIHandler) GetTableWithErrors(w http.ResponseWriter, r
 	json.NewEncoder(w).Encode(tableIdName)
 }
 
-func RestoreTables(w http.ResponseWriter, r *http.Request) {
+func (tableHandler *TableAPIHandler) RestoreTables(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -462,15 +462,15 @@ func RestoreTables(w http.ResponseWriter, r *http.Request) {
 	}
 	var convm session.ConvWithMetadata
 	for _, tableId := range tables.TableList {
-		convm = restoreTableHelper(w, tableId)
+		convm = tableHandler.restoreTableHelper(w, tableId)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
 
-func RestoreTable(w http.ResponseWriter, r *http.Request) {
+func (tableHandler *TableAPIHandler) RestoreTable(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("table")
-	convm := restoreTableHelper(w, tableId)
+	convm := tableHandler.restoreTableHelper(w, tableId)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
@@ -1092,7 +1092,7 @@ func GetConversionRate(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(rate)
 }
 
-func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
+func (tableHandler *TableAPIHandler) restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
@@ -1122,7 +1122,7 @@ func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithM
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 	}
 
-	err := common.SrcTableToSpannerDDL(conv, toddl, sessionState.Conv.SrcSchema[tableId])
+	err := common.SrcTableToSpannerDDL(conv, toddl, sessionState.Conv.SrcSchema[tableId], tableHandler.DDLVerifier)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Restoring spanner table fail"), http.StatusBadRequest)
 	}

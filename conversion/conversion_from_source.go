@@ -177,7 +177,7 @@ func (sads *DataFromSourceImpl) dataFromCSV(ctx context.Context, sourceProfile p
 	conv.SpProjectId = targetProfile.Conn.Sp.Project
 	conv.SpInstanceId = targetProfile.Conn.Sp.Instance
 	conv.Source = sourceProfile.Driver
-	fmt.Println("###2")
+	fmt.Println("###3")
 	fmt.Println(conv.SpProjectId)
 	fmt.Println(conv.SpInstanceId)
 	dialect, err := targetProfile.FetchTargetDialect(ctx)

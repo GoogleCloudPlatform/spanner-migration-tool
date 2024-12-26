@@ -1692,7 +1692,9 @@ func TestRestoreTable(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
-	handler := http.HandlerFunc(api.RestoreTable)
+	mockDDLVerifier := expressions_api.MockDDLVerifier{}
+	tableHandler := api.TableAPIHandler{DDLVerifier: &mockDDLVerifier}
+	handler := http.HandlerFunc(tableHandler.RestoreTable)
 	handler.ServeHTTP(rr, req)
 
 	res := &internal.Conv{}

@@ -30,7 +30,6 @@ While adding new methods or code here
 package common
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -313,16 +312,11 @@ func cvtIndexes(conv *internal.Conv, tableId string, srcIndexes []schema.Index, 
 	return spIndexes
 }
 
-func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table) error {
-	ctx := context.Background()
-	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
-	if err != nil {
-		return fmt.Errorf("error trying create ddl verifier: %v", err)
-	}
+func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, ddlVerifier expressions_api.DDLVerifier) error {
 	schemaToSpanner := SchemaToSpannerImpl{
 		DdlV: ddlVerifier,
 	}
-	err = schemaToSpanner.SchemaToSpannerDDLHelper(conv, toddl, srcTable, true)
+	err := schemaToSpanner.SchemaToSpannerDDLHelper(conv, toddl, srcTable, true)
 	if err != nil {
 		return err
 	}
