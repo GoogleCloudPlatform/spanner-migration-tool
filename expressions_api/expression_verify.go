@@ -29,15 +29,13 @@ type ExpressionVerificationAccessorImpl struct {
 func NewExpressionVerificationAccessorImpl(ctx context.Context, project string, instance string) (*ExpressionVerificationAccessorImpl, error) {
 	var spannerAccessor *spanneraccessor.SpannerAccessorImpl
 	var err error
-	if project != "" && instance != "" {
-		fmt.Println("###1")
-		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.TEMP_DB))
+	if project == "" || instance == "" {
+		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		fmt.Println("###2")
-		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImpl(ctx)
+		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.TEMP_DB))
 		if err != nil {
 			return nil, err
 		}
