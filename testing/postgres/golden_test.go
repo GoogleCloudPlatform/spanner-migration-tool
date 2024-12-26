@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -53,7 +54,7 @@ func TestGoldens(t *testing.T) {
 			err := common.ProcessDbDump(
 				conv,
 				internal.NewReader(bufio.NewReader(strings.NewReader(tc.Input)), nil),
-				postgres.DbDumpImpl{})
+				postgres.DbDumpImpl{}, &expressions_api.MockDDLVerifier{})
 			if err != nil {
 				t.Fatalf("error when processing dump %s: %s", tc.Input, err)
 			}

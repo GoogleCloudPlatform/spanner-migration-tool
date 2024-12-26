@@ -15,9 +15,6 @@
 package common
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 )
@@ -28,12 +25,19 @@ type DbDump interface {
 	ProcessDump(conv *internal.Conv, r *internal.Reader) error
 }
 
+type ProcessDbDumpInterface interface {
+}
+
+type ExpressionVerificationAccessorImpl struct {
+	DdlVerifier *expressions_api.DDLVerifier
+}
+
 // ProcessDbDump reads dump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
 // In schema mode, this method incrementally builds a schema (updating conv).
 // In data mode, this method uses this schema to convert data and writes it
 // to Spanner, using the data sink specified in conv.
-func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump) error {
+func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump, ddlVerifier expressions_api.DDLVerifier) error {
 	if err := dbDump.ProcessDump(conv, r); err != nil {
 		return err
 	}
@@ -41,11 +45,6 @@ func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump) error
 		utilsOrder := UtilsOrderImpl{}
 		utilsOrder.initPrimaryKeyOrder(conv)
 		utilsOrder.initIndexOrder(conv)
-		ctx := context.Background()
-		ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
-		if err != nil {
-			return fmt.Errorf("error trying create ddl verifier: %v", err)
-		}
 		schemaToSpanner := SchemaToSpannerImpl{
 			DdlV: ddlVerifier,
 		}
