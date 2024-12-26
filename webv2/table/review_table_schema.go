@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -50,7 +51,6 @@ type InterleaveColumn struct {
 
 // ReviewTableSchema review Spanner Table Schema.
 func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
-
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -89,15 +89,11 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 	for colId, v := range t.UpdateCols {
 
 		if v.Add {
-
 			addColumn(tableId, colId, conv)
-
 		}
 
 		if v.Removed {
-
 			RemoveColumn(tableId, colId, conv)
-
 		}
 
 		if v.Rename != "" && v.Rename != conv.SpSchema[tableId].ColDefs[colId].Name {
@@ -108,6 +104,15 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
+			oldName := conv.SpSchema[tableId].ColDefs[colId].Name
+			// Using a regular expression to match the exact column name
+			re := regexp.MustCompile(`\b` + regexp.QuoteMeta(oldName) + `\b`)
+
+			for i := range conv.SpSchema[tableId].CheckConstraints {
+				originalString := conv.SpSchema[tableId].CheckConstraints[i].Expr
+				updatedValue := re.ReplaceAllString(originalString, v.Rename)
+				conv.SpSchema[tableId].CheckConstraints[i].Expr = updatedValue
+			}
 
 			interleaveTableSchema = reviewRenameColumn(v.Rename, tableId, colId, conv, interleaveTableSchema)
 
@@ -117,7 +122,6 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.ToType != "" && found {
 
 			typeChange, err := utilities.IsTypeChanged(v.ToType, tableId, colId, conv)
-
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return

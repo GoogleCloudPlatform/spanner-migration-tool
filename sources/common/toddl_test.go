@@ -432,6 +432,47 @@ func Test_SchemaToSpannerSequenceHelper(t *testing.T) {
 	}
 }
 
+func Test_cvtCheckContraint(t *testing.T) {
+
+	conv := internal.MakeConv()
+	srcSchema := []schema.CheckConstraint{
+		{
+			Id:   "cc1",
+			Name: "check_1",
+			Expr: "age > 0",
+		},
+		{
+			Id:   "cc2",
+			Name: "check_2",
+			Expr: "age < 99",
+		},
+		{
+			Id:   "cc3",
+			Name: "@invalid_name", // incompatabile name
+			Expr: "age != 0",
+		},
+	}
+	spSchema := []ddl.CheckConstraint{
+		{
+			Id:   "cc1",
+			Name: "check_1",
+			Expr: "age > 0",
+		},
+		{
+			Id:   "cc2",
+			Name: "check_2",
+			Expr: "age < 99",
+		},
+		{
+			Id:   "cc3",
+			Name: "Ainvalid_name",
+			Expr: "age != 0",
+		},
+	}
+	result := cvtCheckConstraint(conv, srcSchema)
+	assert.Equal(t, spSchema, result)
+}
+
 func TestSpannerSchemaApplyExpressions(t *testing.T) {
 	makeConv := func() *internal.Conv {
 		conv := internal.MakeConv()

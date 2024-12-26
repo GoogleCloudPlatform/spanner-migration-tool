@@ -131,6 +131,7 @@ const (
 	SequenceCreated
 	ForeignKeyActionNotSupported
 	NumericPKNotSupported
+	TypeMismatch
 	DefaultValueError
 )
 
