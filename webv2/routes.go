@@ -25,6 +25,7 @@ import (
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
@@ -44,6 +45,10 @@ func getRoutes() *mux.Router {
 	}
 
 	ctx := context.Background()
+	ddlVerifier, _ := expressions_api.NewDDLVerifierImpl(ctx, "", "")
+	tableHandler := api.TableAPIHandler{
+		DDLVerifier: ddlVerifier,
+	}
 	spanneraccessor, _ := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	dsClient, _ := ds.NewDatastreamClientImpl(ctx)
 	storageclient, _ := storageclient.NewStorageClientImpl(ctx)
@@ -147,7 +152,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetSourceProfileConfig", getSourceProfileConfig).Methods("GET")
 	router.HandleFunc("/uploadFile", uploadFile).Methods("POST")
 
-	router.HandleFunc("/GetTableWithErrors", api.GetTableWithErrors).Methods("GET")
+	router.HandleFunc("/GetTableWithErrors", tableHandler.GetTableWithErrors).Methods("GET")
 	router.HandleFunc("/ping", getBackendHealth).Methods("GET")
 
 	router.PathPrefix("/").Handler(frontendStatic)

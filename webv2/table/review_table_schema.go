@@ -148,9 +148,10 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if !v.Removed && !v.Add && v.Rename== ""{
+		if !v.Removed && !v.Add && v.Rename == "" {
 			sequences := UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
 			conv.SpSequences = sequences
+			UpdateDefaultValue(v.DefaultValue, tableId, colId, conv)
 		}
 	}
 

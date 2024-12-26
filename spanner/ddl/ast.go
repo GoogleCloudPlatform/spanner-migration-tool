@@ -242,12 +242,14 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
+		s += cd.DefaultValue.PGPrintDefaultValue(cd.T)
 		s += cd.AutoGen.PGPrintAutoGenCol()
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
+		s += cd.DefaultValue.PrintDefaultValue(cd.T)
 		s += cd.AutoGen.PrintAutoGenCol()
 	}
 	return s, cd.Comment
@@ -455,7 +457,7 @@ func (agc AutoGenCol) PrintAutoGenCol() string {
 		return " DEFAULT (GENERATE_UUID())"
 	}
 	if agc.GenerationType == constants.SEQUENCE {
-		return fmt.Sprintf(" DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE %s)) ", agc.Name)
+		return fmt.Sprintf(" DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE %s))", agc.Name)
 	}
 	return ""
 }
@@ -465,7 +467,7 @@ func (agc AutoGenCol) PGPrintAutoGenCol() string {
 		return " DEFAULT (spanner.generate_uuid())"
 	}
 	if agc.GenerationType == constants.SEQUENCE {
-		return fmt.Sprintf(" DEFAULT NEXTVAL('%s') ", agc.Name)
+		return fmt.Sprintf(" DEFAULT NEXTVAL('%s')", agc.Name)
 	}
 	return ""
 }

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -306,6 +307,7 @@ func TestGetTableWithErrors(t *testing.T) {
 		name                string
 		conv                *internal.Conv
 		expectedTableIdName []types.TableIdAndName
+		mockDDLVerifier     *expressions_api.MockDDLVerifier
 		statusCode          int64
 	}{
 		{
@@ -321,9 +323,10 @@ func TestGetTableWithErrors(t *testing.T) {
 						Id:   "t2",
 					},
 				},
-				SchemaIssues: nil,
+				SchemaIssues: map[string]internal.TableIssues{},
 			},
-			expectedTableIdName: nil,
+			mockDDLVerifier:     &expressions_api.MockDDLVerifier{},
+			expectedTableIdName: []types.TableIdAndName{},
 			statusCode:          http.StatusOK,
 		},
 		{
@@ -344,7 +347,8 @@ func TestGetTableWithErrors(t *testing.T) {
 					"t1": {TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete}},
 				},
 			},
-			expectedTableIdName: nil,
+			mockDDLVerifier:     &expressions_api.MockDDLVerifier{},
+			expectedTableIdName: []types.TableIdAndName{},
 			statusCode:          http.StatusOK,
 		},
 		{
@@ -365,34 +369,87 @@ func TestGetTableWithErrors(t *testing.T) {
 					"t2": {TableLevelIssues: []internal.SchemaIssue{internal.RowLimitExceeded, internal.ForeignKeyOnUpdate}},
 				},
 			},
+			mockDDLVerifier: &expressions_api.MockDDLVerifier{},
 			expectedTableIdName: []types.TableIdAndName{
-				types.TableIdAndName{Id: "t1", Name: "table1"},
-				types.TableIdAndName{Id: "t2", Name: "table2"}},
+				{Id: "t1", Name: "table1"},
+				{Id: "t2", Name: "table2"}},
+			statusCode: http.StatusOK,
+		},
+		{
+			name: "Error in VerifySpannerDDL with expressions failing verification",
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name: "table1",
+						Id:   "t1",
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {ColumnLevelIssues: map[string][]internal.SchemaIssue{
+						"c1": {},
+					}},
+				},
+			},
+			mockDDLVerifier: &expressions_api.MockDDLVerifier{
+				VerifySpannerDDLMock: func(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
+					return internal.VerifyExpressionsOutput{
+						ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+							{
+								Result: false,
+								ExpressionDetail: internal.ExpressionDetail{
+									Type:         "DEFAULT",
+									ExpressionId: "expr1",
+									Expression:   "SELECT 1",
+									Metadata:     map[string]string{"TableId": "t1", "ColId": "c1"},
+								},
+							},
+						},
+					}, fmt.Errorf("expressions either failed verification")
+				},
+				GetSpannerExpressionDetailsMock: func(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail {
+					return []internal.ExpressionDetail{
+						{
+							Type:         "DEFAULT",
+							ExpressionId: "expr1",
+							Expression:   "SELECT 1",
+							Metadata:     map[string]string{"TableId": "t1", "ColId": "c1"},
+						},
+					}
+				},
+			},
+			expectedTableIdName: []types.TableIdAndName{
+				{Id: "t1", Name: "table1"},
+			},
 			statusCode: http.StatusOK,
 		},
 	}
 	for _, tc := range tc {
-		sessionState := session.GetSessionState()
-		sessionState.Conv = tc.conv
-		req, err := http.NewRequest("GET", "/GetTableWithErrors", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(api.GetTableWithErrors)
-		handler.ServeHTTP(rr, req)
+		t.Run(tc.name, func(t *testing.T) {
+			sessionState := session.GetSessionState()
+			sessionState.Conv = tc.conv
 
-		var tableIdName []types.TableIdAndName
-		json.Unmarshal(rr.Body.Bytes(), &tableIdName)
+			req, err := http.NewRequest("GET", "/GetTableWithErrors", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			rr := httptest.NewRecorder()
 
-		if status := rr.Code; int64(status) != tc.statusCode {
-			t.Errorf("%s : handler returned wrong status code: got %v want %v",
-				tc.name, status, tc.statusCode)
-		}
-		if tc.statusCode == http.StatusOK {
-			assert.Equal(t, tc.expectedTableIdName, tableIdName)
-		}
+			tableHandler := api.TableAPIHandler{DDLVerifier: tc.mockDDLVerifier}
+			handler := http.HandlerFunc(tableHandler.GetTableWithErrors)
+			handler.ServeHTTP(rr, req)
+
+			var tableIdName []types.TableIdAndName
+			json.Unmarshal(rr.Body.Bytes(), &tableIdName)
+
+			if status := rr.Code; int64(status) != tc.statusCode {
+				t.Errorf("%s : handler returned wrong status code: got %v want %v",
+					tc.name, status, tc.statusCode)
+			}
+			if tc.statusCode == http.StatusOK {
+				assert.Equal(t, tc.expectedTableIdName, tableIdName)
+			}
+		})
 	}
 }
 
