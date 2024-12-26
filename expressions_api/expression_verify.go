@@ -30,11 +30,16 @@ func NewExpressionVerificationAccessorImpl(ctx context.Context, project string, 
 	var spannerAccessor *spanneraccessor.SpannerAccessorImpl
 	var err error
 	if project == "" || instance == "" {
+		fmt.Println("####1")
+		fmt.Println("####"+project+"####")
+		fmt.Println("####"+instance+"####")
 		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 		if err != nil {
 			return nil, err
 		}
 	} else {
+		fmt.Println("####"+project+"####")
+		fmt.Println("####"+instance+"####")
 		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.TEMP_DB))
 		if err != nil {
 			return nil, err
