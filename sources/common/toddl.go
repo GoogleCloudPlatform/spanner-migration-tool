@@ -75,7 +75,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		srcTable := conv.SrcSchema[tableId]
 		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
-	if conv.Source == constants.MYSQL {
+	if conv.Source == constants.MYSQL && conv.SpProjectId!="" && conv.SpInstanceId!=""{
 		expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
 		expressions, err := ss.DdlV.VerifySpannerDDL(conv, expressionDetails)
 		if err != nil && !strings.Contains(err.Error(), "expressions either failed verification") {

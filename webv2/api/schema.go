@@ -74,9 +74,6 @@ func ConvertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	conv.SpProjectId = sessionState.SpannerProjectId
 	conv.SpInstanceId = sessionState.SpannerInstanceID
 	conv.Source = sessionState.Driver
-	fmt.Println("####4")
-	fmt.Println(conv.SpProjectId)
-	fmt.Println(conv.SpInstanceId)
 	conv.IsSharded = sessionState.IsSharded
 	var err error
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{

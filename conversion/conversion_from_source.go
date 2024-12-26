@@ -58,9 +58,6 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	conv.SpProjectId = targetProfile.Conn.Sp.Project
 	conv.SpInstanceId = targetProfile.Conn.Sp.Instance
 	conv.Source = sourceProfile.Driver
-	fmt.Println("###2")
-	fmt.Println(conv.SpProjectId)
-	fmt.Println(conv.SpInstanceId)
 	//handle fetching schema differently for sharded migrations, we only connect to the primary shard to
 	//fetch the schema. We reuse the SourceProfileConnection object for this purpose.
 	var infoSchema common.InfoSchema
@@ -177,9 +174,6 @@ func (sads *DataFromSourceImpl) dataFromCSV(ctx context.Context, sourceProfile p
 	conv.SpProjectId = targetProfile.Conn.Sp.Project
 	conv.SpInstanceId = targetProfile.Conn.Sp.Instance
 	conv.Source = sourceProfile.Driver
-	fmt.Println("###3")
-	fmt.Println(conv.SpProjectId)
-	fmt.Println(conv.SpInstanceId)
 	dialect, err := targetProfile.FetchTargetDialect(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch dialect: %v", err)
