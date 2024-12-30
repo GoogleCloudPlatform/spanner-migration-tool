@@ -172,7 +172,7 @@ func TestIntegration_CSV_Command(t *testing.T) {
 	defer dropDatabase(t, dbURI)
 
 	createSpannerSchema(t, projectID, instanceID, dbName)
-	args := fmt.Sprintf("data -source=csv -source-profile=manifest=%s -target-profile='instance=%s,dbName=%s'", MANIFEST_FILE_NAME, instanceID, dbName)
+	args := fmt.Sprintf("data -source=csv -source-profile=manifest=%s -target-profile='instance=%s,dbName=%s,project=%s'", MANIFEST_FILE_NAME, instanceID, dbName, projectID)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
