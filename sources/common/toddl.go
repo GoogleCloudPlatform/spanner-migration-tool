@@ -110,23 +110,34 @@ func GenerateExpressionDetailList(spschema ddl.Schema) []internal.ExpressionDeta
 	return expressionDetailList
 }
 
-// removeCheckConstraint this method will remove the constraint which has error
-func RemoveCheckConstraints(checkConstraints []ddl.CheckConstraint, exprVerificationOutputs []internal.ExpressionVerificationOutput) []ddl.CheckConstraint {
-	unwantedExprIds := make(map[string]bool)
-	for _, ev := range exprVerificationOutputs {
+func GetIssue(result internal.VerifyExpressionsOutput) map[string][]internal.SchemaIssue {
+	exprOutputsByTable := make(map[string][]internal.ExpressionVerificationOutput)
+	issues := make(map[string][]internal.SchemaIssue)
+	for _, ev := range result.ExpressionVerificationOutputList {
 		if !ev.Result {
-			unwantedExprIds[ev.ExpressionDetail.ExpressionId] = true
+			tableId := ev.ExpressionDetail.Metadata["tableId"]
+			exprOutputsByTable[tableId] = append(exprOutputsByTable[tableId], ev)
 		}
 	}
 
-	outIdx := 0
-	for _, checkConstraint := range checkConstraints {
-		if !unwantedExprIds[checkConstraint.ExprId] {
-			checkConstraints[outIdx] = checkConstraint
-			outIdx++
+	for tableId, exprOutputs := range exprOutputsByTable {
+
+		for _, ev := range exprOutputs {
+
+			for key, issue := range ErrorTypeMapping {
+				if strings.Contains(ev.Err.Error(), key) {
+					issues[tableId] = append(issues[tableId], issue)
+					break
+
+				}
+			}
+
 		}
+
 	}
-	return checkConstraints[:outIdx]
+
+	return issues
+
 }
 
 // VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
@@ -146,44 +157,24 @@ func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) error {
 	if result.ExpressionVerificationOutputList == nil {
 		return result.Err
 	}
+	issueTypes := GetIssue(result)
+	if len(issueTypes) > 0 {
+		for tableId, issues := range issueTypes {
 
-	exprOutputsByTable := make(map[string][]internal.ExpressionVerificationOutput)
-	for _, ev := range result.ExpressionVerificationOutputList {
-		if !ev.Result {
-			tableId := ev.ExpressionDetail.Metadata["tableId"]
-			exprOutputsByTable[tableId] = append(exprOutputsByTable[tableId], ev)
-		}
-	}
-
-	for tableId, exprOutputs := range exprOutputsByTable {
-
-		spschema := conv.SpSchema[tableId]
-		spschema.CheckConstraints = RemoveCheckConstraints(spschema.CheckConstraints, exprOutputs)
-		conv.SpSchema[tableId] = spschema
-
-		for _, ev := range exprOutputs {
-
-			var issueType internal.SchemaIssue
-
-			for key, issue := range ErrorTypeMapping {
-				if strings.Contains(ev.Err.Error(), key) {
-					issueType = issue
-					break
+			for _, issue := range issues {
+				if _, exists := conv.SchemaIssues[tableId]; !exists {
+					conv.SchemaIssues[tableId] = internal.TableIssues{
+						TableLevelIssues: []internal.SchemaIssue{},
+					}
 				}
-			}
 
-			if _, exists := conv.SchemaIssues[tableId]; !exists {
-				conv.SchemaIssues[tableId] = internal.TableIssues{
-					TableLevelIssues: []internal.SchemaIssue{},
+				tableIssue := conv.SchemaIssues[tableId]
+
+				if !IsSchemaIssuePresent(tableIssue.TableLevelIssues, issue) {
+					tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issue)
 				}
+				conv.SchemaIssues[tableId] = tableIssue
 			}
-
-			tableIssue := conv.SchemaIssues[tableId]
-
-			if !IsSchemaIssuePresent(tableIssue.TableLevelIssues, issueType) {
-				tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issueType)
-			}
-			conv.SchemaIssues[tableId] = tableIssue
 		}
 	}
 

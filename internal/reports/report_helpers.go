@@ -112,7 +112,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 		}
 
 		// added if to add table level issue
-		if p.severity == warning && len(tableLevelIssues) != 0 {
+		if p.severity == Errors && len(tableLevelIssues) != 0 {
 			for _, issue := range tableLevelIssues {
 				switch issue {
 				case internal.TypeMismatch:
@@ -434,6 +434,12 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("%s for table '%s' column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName),
+					}
+					l = append(l, toAppend)
+				case internal.TypeMismatch:
+					toAppend := Issue{
+						Category:    IssueDB[i].Category,
+						Description: fmt.Sprintf("Table '%s': Type mismatch in '%s'column affecting check constraints. Verify data type compatibility with constraint logic", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[colId].Name),
 					}
 					l = append(l, toAppend)
 				case internal.InvalidCondition:

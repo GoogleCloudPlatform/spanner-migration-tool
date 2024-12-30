@@ -17,3 +17,8 @@ func (m *MockExpressionVerificationAccessor) VerifyExpressions(ctx context.Conte
     args := m.Called(ctx, input)
     return args.Get(0).(internal.VerifyExpressionsOutput)
 }
+
+func (m *MockExpressionVerificationAccessor) RefreshSpannerClient(ctx context.Context, project, instance string ) error {
+	args := m.Called(ctx, project, instance)
+	return args.Get(0).(error)
+}

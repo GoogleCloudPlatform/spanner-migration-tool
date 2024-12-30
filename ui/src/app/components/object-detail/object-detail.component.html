@@ -169,15 +169,15 @@
             <ng-container matColumnDef="srcDefaultValue" *ngIf="mySqlSource">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Default Value</th>
               <td mat-cell *matCellDef="let element">
-                <div 
-                  class="trimmed-text" 
-                  matTooltip="{{ element.get('srcDefaultValue').value }}" 
+                <div
+                  class="trimmed-text"
+                  matTooltip="{{ element.get('srcDefaultValue').value }}"
                   matTooltipPosition="above">
                   {{ element.get('srcDefaultValue').value }}
                 </div>
               </td>
-            </ng-container>            
- 
+            </ng-container>
+
             <tr mat-header-row *matHeaderRowDef="['srcDatabase']"></tr>
             <tr mat-header-row *matHeaderRowDef="srcDisplayedColumns"></tr>
             <tr mat-row [ngClass]="{ 'scr-column-data-edit-mode': isEditMode }"
@@ -719,6 +719,40 @@
       </div>
     </mat-tab>
 
+    <mat-tab label="INTERLEAVE" *ngIf="
+        ((interleaveStatus.tableInterleaveStatus &&
+          interleaveStatus.tableInterleaveStatus.Possible) ||
+          this.interleaveParentName !== null) &&
+        currentObject.isSpannerNode
+      ">
+      <div class="interleave-tab-container">
+        <button *ngIf="
+            interleaveStatus.tableInterleaveStatus &&
+            interleaveStatus.tableInterleaveStatus.Possible &&
+            this.interleaveParentName === null
+          " mat-raised-button color="primary" (click)="setInterleave()">
+          Convert to Interleave
+        </button>
+        <button *ngIf="
+            (interleaveStatus.tableInterleaveStatus &&
+              !interleaveStatus.tableInterleaveStatus.Possible) ||
+            this.interleaveParentName !== null
+          " mat-raised-button color="primary" (click)="removeInterleave()">
+          Convert Back to Foreign Key
+        </button>
+        <br />
+        <div *ngIf="
+            (interleaveStatus.tableInterleaveStatus &&
+              !interleaveStatus.tableInterleaveStatus.Possible) ||
+            this.interleaveParentName !== null
+          ">
+          This table is interleaved with
+          <span class="interleave-parent-table">{{ interleaveParentName }}</span>. Click on the above button to convert
+          back to foreign key.
+        </div>
+      </div>
+    </mat-tab>
+
     <mat-tab>
       <ng-template mat-tab-label>
         <span>CHECK CONSTRAINTS</span>
@@ -837,40 +871,6 @@
           </button>
         </div>
 
-      </div>
-    </mat-tab>
-
-    <mat-tab label="INTERLEAVE" *ngIf="
-        ((interleaveStatus.tableInterleaveStatus &&
-          interleaveStatus.tableInterleaveStatus.Possible) ||
-          this.interleaveParentName !== null) &&
-        currentObject.isSpannerNode
-      ">
-      <div class="interleave-tab-container">
-        <button *ngIf="
-            interleaveStatus.tableInterleaveStatus &&
-            interleaveStatus.tableInterleaveStatus.Possible &&
-            this.interleaveParentName === null
-          " mat-raised-button color="primary" (click)="setInterleave()">
-          Convert to Interleave
-        </button>
-        <button *ngIf="
-            (interleaveStatus.tableInterleaveStatus &&
-              !interleaveStatus.tableInterleaveStatus.Possible) ||
-            this.interleaveParentName !== null
-          " mat-raised-button color="primary" (click)="removeInterleave()">
-          Convert Back to Foreign Key
-        </button>
-        <br />
-        <div *ngIf="
-            (interleaveStatus.tableInterleaveStatus &&
-              !interleaveStatus.tableInterleaveStatus.Possible) ||
-            this.interleaveParentName !== null
-          ">
-          This table is interleaved with
-          <span class="interleave-parent-table">{{ interleaveParentName }}</span>. Click on the above button to convert
-          back to foreign key.
-        </div>
       </div>
     </mat-tab>
 

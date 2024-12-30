@@ -532,28 +532,6 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-// findColId based on constraint condition it will return colId.
-func findColId(colDefs map[string]ddl.ColumnDef, condition string) string {
-	for _, colDef := range colDefs {
-		if strings.Contains(condition, colDef.Name) {
-			return colDef.Id
-		}
-	}
-	return ""
-}
-
-// removeCheckConstraint this method will remove the constraint which has error
-func removeCheckConstraint(checkConstraints []ddl.CheckConstraint, expId string) []ddl.CheckConstraint {
-	var filteredConstraints []ddl.CheckConstraint
-
-	for _, checkConstraint := range checkConstraints {
-		if checkConstraint.ExprId != expId {
-			filteredConstraints = append(filteredConstraints, checkConstraint)
-		}
-	}
-	return filteredConstraints
-}
-
 // VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
 // to suggestion tab and remove the check constraint which has error
 func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheckConstraintExpression(w http.ResponseWriter, r *http.Request) {
@@ -583,46 +561,26 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheck
 		return
 	}
 
-	exprOutputsByTable := make(map[string][]internal.ExpressionVerificationOutput)
-	for _, ev := range result.ExpressionVerificationOutputList {
-		if !ev.Result {
-			tableId := ev.ExpressionDetail.Metadata["tableId"]
-			exprOutputsByTable[tableId] = append(exprOutputsByTable[tableId], ev)
-		}
-	}
-
-	for tableId, exprOutputs := range exprOutputsByTable {
+	issueTypes := common.GetIssue(result)
+	if len(issueTypes) > 0 {
 		hasErrorOccurred = true
-		spschema := sessionState.Conv.SpSchema[tableId]
-		spschema.CheckConstraints = common.RemoveCheckConstraints(spschema.CheckConstraints, exprOutputs)
-		sessionState.Conv.SpSchema[tableId] = spschema
-
-		for _, ev := range exprOutputs {
-
-			var issueType internal.SchemaIssue
-
-			for key, issue := range common.ErrorTypeMapping {
-				if strings.Contains(ev.Err.Error(), key) {
-					issueType = issue
-					break
+		for tableId, issues := range issueTypes {
+			for _, issue := range issues {
+				if _, exists := sessionState.Conv.SchemaIssues[tableId]; !exists {
+					sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
+						TableLevelIssues: []internal.SchemaIssue{},
+					}
 				}
-			}
 
-			if _, exists := sessionState.Conv.SchemaIssues[tableId]; !exists {
-				sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
-					TableLevelIssues: []internal.SchemaIssue{},
+				tableIssue := sessionState.Conv.SchemaIssues[tableId]
+
+				if !utilities.IsSchemaIssuePresent(tableIssue.TableLevelIssues, issue) {
+					tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issue)
 				}
+
+				sessionState.Conv.SchemaIssues[tableId] = tableIssue
 			}
-
-			tableIssue := sessionState.Conv.SchemaIssues[tableId]
-
-			if !utilities.IsSchemaIssuePresent(tableIssue.TableLevelIssues, issueType) {
-				tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issueType)
-			}
-
-			sessionState.Conv.SchemaIssues[tableId] = tableIssue
 		}
-
 	}
 
 	session.UpdateSessionFile()
