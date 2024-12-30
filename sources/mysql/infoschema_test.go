@@ -15,6 +15,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"regexp"
@@ -22,9 +23,11 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -53,7 +56,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			},
 		},
 		{
-			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			args:  nil,
 			cols:  []string{"count"},
 			rows: [][]driver.Value{
@@ -93,7 +96,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
 		},
 		{
-			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			args:  nil,
 			cols:  []string{"count"},
 			rows: [][]driver.Value{
@@ -142,7 +145,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			},
 		},
 		{
-			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			args:  nil,
 			cols:  []string{"count"},
 			rows: [][]driver.Value{
@@ -178,7 +181,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
 		},
 		{
-			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			args:  nil,
 			cols:  []string{"count"},
 			rows: [][]driver.Value{
@@ -234,7 +237,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
 		},
 		{
-			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			args:  nil,
 			cols:  []string{"count"},
 			rows: [][]driver.Value{
@@ -415,7 +418,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 			rows:  [][]driver.Value{{"test"}},
 		},
 		{
-			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			args:  nil,
 			cols:  []string{"count"},
 			rows: [][]driver.Value{
@@ -461,7 +464,15 @@ func TestProcessData_MultiCol(t *testing.T) {
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
 	processSchema := common.ProcessSchemaImpl{}
-	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	ctx := context.Background()
+	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
+		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+		},
+	})
+
+	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: mockAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"test": {
@@ -519,7 +530,7 @@ func TestProcessSchema_Sharded(t *testing.T) {
 			rows:  [][]driver.Value{{"test"}},
 		},
 		{
-			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			args:  nil,
 			cols:  []string{"count"},
 			rows: [][]driver.Value{
@@ -564,8 +575,15 @@ func TestProcessSchema_Sharded(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
+	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	ctx := context.Background()
+	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
+		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+		},
+	})
 	processSchema := common.ProcessSchemaImpl{}
-	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{IsSharded: true}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	err := processSchema.ProcessSchema(conv, isi, 1, internal.AdditionalSchemaAttributes{IsSharded: true}, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: mockAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"test": {
@@ -632,7 +650,7 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			cols:  []string{"COUNT(*)"},
 			rows:  [][]driver.Value{{1}},
 		},
@@ -668,7 +686,7 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
 func TestGetConstraints_CheckConstraintsTableAbsent(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: `SELECT COUNT\(\*\) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`,
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA' ) AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
 			cols:  []string{"COUNT(*)"},
 			rows:  [][]driver.Value{{0}},
 		},

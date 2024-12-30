@@ -22,12 +22,14 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
+	"github.com/pingcap/tidb/parser/format"
 	"github.com/pingcap/tidb/parser/opcode"
 	"github.com/pingcap/tidb/types"
 	driver "github.com/pingcap/tidb/types/parser_driver"
@@ -36,7 +38,7 @@ import (
 var valuesRegexp = regexp.MustCompile("\\((.*?)\\)")
 var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
 var unsupportedRegexp = regexp.MustCompile("function|procedure|trigger")
-var collationRegex = regexp.MustCompile(constants.DB_COLLATION_REGEX)
+var dbcollationRegex = regexp.MustCompile("_[_A-Za-z0-9]+('([^']*)')")
 
 // MysqlSpatialDataTypes is an array of all MySQL spatial data types.
 var MysqlSpatialDataTypes = []string{"geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"}
@@ -51,7 +53,9 @@ var spatialIndexRegex = regexp.MustCompile("(?i)\\sSPATIAL\\s")
 var spatialSridRegex = regexp.MustCompile("(?i)\\sSRID\\s\\d*")
 
 // DbDumpImpl MySQL specific implementation for DdlDumpImpl.
-type DbDumpImpl struct{}
+type DbDumpImpl struct {
+	ExpressionVerificationAccessor expressions_api.ExpressionVerificationAccessor
+}
 
 // GetToDdl function below implement the common.DbDump interface.
 func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
@@ -61,6 +65,10 @@ func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
 // ProcessDump processes the mysql dump.
 func (ddi DbDumpImpl) ProcessDump(conv *internal.Conv, r *internal.Reader) error {
 	return processMySQLDump(conv, r)
+}
+
+func (ddi DbDumpImpl) GetExpressionVerificationAccessor() expressions_api.ExpressionVerificationAccessor {
+	return ddi.ExpressionVerificationAccessor
 }
 
 // ProcessMySQLDump reads mysqldump data from r and does schema or data conversion,
@@ -247,6 +255,9 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 	var keys []schema.Key
 	var fkeys []schema.ForeignKey
 	var index []schema.Index
+
+	checkConstraints := getCheckConstraints(stmt.Constraints)
+
 	for _, element := range stmt.Cols {
 		_, col, constraint, err := processColumn(conv, tableName, element)
 		if err != nil {
@@ -285,14 +296,16 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 	}
 	conv.SchemaStatement(NodeType(stmt))
 	conv.SrcSchema[tableId] = schema.Table{
-		Id:           tableId,
-		Name:         tableName,
-		ColIds:       colIds,
-		ColNameIdMap: colNameIdMap,
-		ColDefs:      colDef,
-		PrimaryKeys:  keys,
-		ForeignKeys:  fkeys,
-		Indexes:      index}
+		Id:               tableId,
+		Name:             tableName,
+		ColIds:           colIds,
+		ColNameIdMap:     colNameIdMap,
+		ColDefs:          colDef,
+		PrimaryKeys:      keys,
+		ForeignKeys:      fkeys,
+		Indexes:          index,
+		CheckConstraints: checkConstraints,
+	}
 	for _, constraint := range stmt.Constraints {
 		processConstraint(conv, tableId, constraint, "CREATE TABLE", conv.SrcSchema[tableId].ColNameIdMap)
 	}
@@ -324,6 +337,35 @@ func processConstraint(conv *internal.Conv, tableId string, constraint *ast.Cons
 		updateCols(conv, ct, constraint.Keys, st.ColDefs, colNameToIdMap)
 	}
 	conv.SrcSchema[tableId] = st
+}
+
+// method to get check constraints using tiDB parser
+func getCheckConstraints(constraints []*ast.Constraint) (checkConstraints []schema.CheckConstraint) {
+	for _, constraint := range constraints {
+		if constraint.Tp == ast.ConstraintCheck {
+			exp := expressionToString(constraint.Expr)
+			exp = dbcollationRegex.ReplaceAllString(exp, "$1")
+			checkConstraint := schema.CheckConstraint{
+				Name:   constraint.Name,
+				Expr:   exp,
+				ExprId: internal.GenerateCheckConstrainstExprId(),
+				Id:     internal.GenerateCheckConstrainstId(),
+			}
+			checkConstraints = append(checkConstraints, checkConstraint)
+		}
+	}
+	return checkConstraints
+}
+
+// converts an AST expression node to its string representation.
+func expressionToString(expr ast.Node) string {
+	var sb strings.Builder
+	restoreCtx := format.NewRestoreCtx(format.DefaultRestoreFlags, &sb)
+	if err := expr.Restore(restoreCtx); err != nil {
+		fmt.Errorf("Error restoring expression: %v\n", err)
+		return ""
+	}
+	return sb.String()
 }
 
 // toSchemaKeys converts a string list of MySQL keys to schema keys.

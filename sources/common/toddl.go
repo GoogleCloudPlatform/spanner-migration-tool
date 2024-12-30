@@ -30,12 +30,15 @@ While adding new methods or code here
 package common
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"unicode"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -56,7 +59,15 @@ type SchemaToSpannerInterface interface {
 	SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error
 }
 
-type SchemaToSpannerImpl struct{}
+type SchemaToSpannerImpl struct {
+	ExpressionVerificationAccessor expressions_api.ExpressionVerificationAccessor
+}
+
+var ErrorTypeMapping = map[string]internal.SchemaIssue{
+	"No matching signature for operator": internal.TypeMismatch,
+	"Syntax error":                       internal.InvalidCondition,
+	"Unrecognized name":                  internal.ColumnNotFound,
+}
 
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
@@ -71,8 +82,114 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		srcTable := conv.SrcSchema[tableId]
 		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
+	err := ss.VerifyExpressions(conv)
+	if err != nil {
+		return err
+	}
 	internal.ResolveRefs(conv)
 	return nil
+}
+
+// GenerateExpressionDetailList it will generate the expression detail list which is used in verify expression method as a input
+func GenerateExpressionDetailList(spschema ddl.Schema) []internal.ExpressionDetail {
+	expressionDetailList := []internal.ExpressionDetail{}
+	for _, sp := range spschema {
+		for _, cc := range sp.CheckConstraints {
+
+			expressionDetail := internal.ExpressionDetail{
+				Expression:       cc.Expr,
+				Type:             "CHECK",
+				ReferenceElement: internal.ReferenceElement{Name: sp.Name},
+				ExpressionId:     cc.ExprId,
+				Metadata:         map[string]string{"tableId": sp.Id},
+			}
+			expressionDetailList = append(expressionDetailList, expressionDetail)
+		}
+	}
+
+	return expressionDetailList
+}
+
+func GetIssue(result internal.VerifyExpressionsOutput) map[string][]internal.SchemaIssue {
+	exprOutputsByTable := make(map[string][]internal.ExpressionVerificationOutput)
+	issues := make(map[string][]internal.SchemaIssue)
+	for _, ev := range result.ExpressionVerificationOutputList {
+		if !ev.Result {
+			tableId := ev.ExpressionDetail.Metadata["tableId"]
+			exprOutputsByTable[tableId] = append(exprOutputsByTable[tableId], ev)
+		}
+	}
+
+	for tableId, exprOutputs := range exprOutputsByTable {
+
+		for _, ev := range exprOutputs {
+
+			for key, issue := range ErrorTypeMapping {
+				if strings.Contains(ev.Err.Error(), key) {
+					issues[tableId] = append(issues[tableId], issue)
+					break
+
+				}
+			}
+
+		}
+
+	}
+
+	return issues
+
+}
+
+// VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
+// to suggestion tab and remove the check constraint which has error
+func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) error {
+	ctx := context.Background()
+
+	spschema := conv.SpSchema
+
+	verifyExpressionsInput := internal.VerifyExpressionsInput{
+		Conv:                 conv,
+		Source:               conv.Source,
+		ExpressionDetailList: GenerateExpressionDetailList(spschema),
+	}
+
+	result := ss.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
+	if result.ExpressionVerificationOutputList == nil {
+		return result.Err
+	}
+	issueTypes := GetIssue(result)
+	if len(issueTypes) > 0 {
+		for tableId, issues := range issueTypes {
+
+			for _, issue := range issues {
+				if _, exists := conv.SchemaIssues[tableId]; !exists {
+					conv.SchemaIssues[tableId] = internal.TableIssues{
+						TableLevelIssues: []internal.SchemaIssue{},
+					}
+				}
+
+				tableIssue := conv.SchemaIssues[tableId]
+
+				if !IsSchemaIssuePresent(tableIssue.TableLevelIssues, issue) {
+					tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issue)
+				}
+				conv.SchemaIssues[tableId] = tableIssue
+			}
+		}
+	}
+
+	return nil
+}
+
+// IsSchemaIssuePresent checks if issue is present in the given schemaissue list.
+func IsSchemaIssuePresent(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
+
+	for _, s := range schemaissue {
+		if s == issue {
+			return true
+		}
+	}
+	return false
 }
 
 func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error {
@@ -242,9 +359,10 @@ func cvtCheckConstraint(conv *internal.Conv, srcKeys []schema.CheckConstraint) [
 
 	for _, cc := range srcKeys {
 		spcc = append(spcc, ddl.CheckConstraint{
-			Id:   cc.Id,
-			Name: internal.ToSpannerCheckConstraintName(conv, cc.Name),
-			Expr: cc.Expr,
+			Id:     cc.Id,
+			Name:   internal.ToSpannerCheckConstraintName(conv, cc.Name),
+			Expr:   cc.Expr,
+			ExprId: cc.ExprId,
 		})
 	}
 	return spcc
@@ -316,6 +434,7 @@ func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Tabl
 			conv.SpSchema[tableId] = spTable
 		}
 	}
+
 	internal.ResolveRefs(conv)
 	return nil
 }

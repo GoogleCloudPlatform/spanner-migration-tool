@@ -41,6 +41,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/parse"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
@@ -445,7 +446,8 @@ func GetLegacyModeSupportedDrivers() []string {
 func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Client) error {
 	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, SpDialect: conv.SpDialect}
 	processSchema := common.ProcessSchemaImpl{}
-	err := processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+	err := processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	if err != nil {
 		return fmt.Errorf("error trying to read and convert spanner schema: %v", err)
 	}

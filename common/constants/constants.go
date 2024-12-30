@@ -127,7 +127,7 @@ const (
 	DEFAUT_EXPRESSION = "DEFAULT"
 	DEFAULT_GENERATED = "DEFAULT_GENERATED"
 	TEMP_DB           = "smt-staging-db"
-
+	
 	// Regex for matching database collation
 	DB_COLLATION_REGEX = `(_[a-zA-Z0-9]+\\|\\)`
 )

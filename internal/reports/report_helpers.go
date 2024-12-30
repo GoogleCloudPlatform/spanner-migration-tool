@@ -111,6 +111,32 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 
 		}
 
+		// added if to add table level issue
+		if p.severity == Errors && len(tableLevelIssues) != 0 {
+			for _, issue := range tableLevelIssues {
+				switch issue {
+				case internal.TypeMismatch:
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': Type mismatch in table affecting check constraints. Verify data type compatibility with constraint logic", conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
+				case internal.InvalidCondition:
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': Invalid condition in table affecting check constraints. Verify the conditions compatibility with constraint logic", conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
+				case internal.ColumnNotFound:
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': Column not found which is mention in check constraint condition. Verify the conditions with constraint logic", conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
+				}
+			}
+		}
+
 		if p.severity == warning {
 			flag := false
 			for _, spFk := range conv.SpSchema[tableId].ForeignKeys {
@@ -403,16 +429,11 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						Description: fmt.Sprintf("UNIQUE constraint on column(s) '%s' replaced with primary key since table '%s' didn't have one. Spanner requires a primary key for every table", strings.Join(uniquePK, ", "), conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
+
 				case internal.DefaultValueError:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("%s for table '%s' column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName),
-					}
-					l = append(l, toAppend)
-				case internal.TypeMismatch:
-					toAppend := Issue{
-						Category:    IssueDB[i].Category,
-						Description: fmt.Sprintf("Table '%s': Type mismatch in '%s'column affecting check constraints. Verify data type compatibility with constraint logic", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[colId].Name),
 					}
 					l = append(l, toAppend)
 
@@ -528,6 +549,9 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	CategoryDescription string
 }{
 	internal.DefaultValue:          {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
+	internal.TypeMismatch:          {Brief: "Type mismatch in check constraint mention in table", Severity: warning, Category: "TYPE_MISMATCH"},
+	internal.InvalidCondition:      {Brief: "Invalid condition in check constraint mention in table", Severity: warning, Category: "INVALID_CONDITION"},
+	internal.ColumnNotFound:        {Brief: "Column not found in check constraint mention in the table", Severity: warning, Category: "COLUMN_NOT_FOUND"},
 	internal.ForeignKey:            {Brief: "Spanner does not support foreign keys", Severity: warning, Category: "FOREIGN_KEY_USES"},
 	internal.MultiDimensionalArray: {Brief: "Spanner doesn't support multi-dimensional arrays", Severity: warning, Category: "MULTI_DIMENSIONAL_ARRAY_USES"},
 	internal.NoGoodType: {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", Severity: warning, Category: "INAPPROPRIATE_TYPE",
