@@ -190,9 +190,13 @@ func (ddlv *DDLVerifierImpl) GetSourceExpressionDetails(conv *internal.Conv, tab
 		for _, srcColId := range srcTable.ColIds {
 			srcCol := srcTable.ColDefs[srcColId]
 			if srcCol.DefaultValue.IsPresent {
+				tyName := conv.SpSchema[tableId].ColDefs[srcColId].T.Name
+				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+					tyName = ddl.GetPGType(conv.SpSchema[tableId].ColDefs[srcColId].T)
+				}
 				defaultValueExp := internal.ExpressionDetail{
 					ReferenceElement: internal.ReferenceElement{
-						Name: ddl.GetPGType(conv.SpSchema[tableId].ColDefs[srcColId].T),
+						Name: tyName,
 					},
 					ExpressionId: srcCol.DefaultValue.Value.ExpressionId,
 					Expression:   srcCol.DefaultValue.Value.Statement,
@@ -214,9 +218,13 @@ func (ddlv *DDLVerifierImpl) GetSpannerExpressionDetails(conv *internal.Conv, ta
 		for _, spColId := range spTable.ColIds {
 			spCol := spTable.ColDefs[spColId]
 			if spCol.DefaultValue.IsPresent {
+				tyName := conv.SpSchema[tableId].ColDefs[spColId].T.Name
+				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+					tyName = ddl.GetPGType(conv.SpSchema[tableId].ColDefs[spColId].T)
+				}
 				defaultValueExp := internal.ExpressionDetail{
 					ReferenceElement: internal.ReferenceElement{
-						Name: ddl.GetPGType(conv.SpSchema[tableId].ColDefs[spColId].T),
+						Name: tyName,
 					},
 					ExpressionId: spCol.DefaultValue.Value.ExpressionId,
 					Expression:   spCol.DefaultValue.Value.Statement,
