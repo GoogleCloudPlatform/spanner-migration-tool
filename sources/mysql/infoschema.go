@@ -215,9 +215,13 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			Value:     ddl.Expression{},
 		}
 		if colDefault.Valid {
+			ty := dataType
+			if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+				ty = ddl.GetPGType(ddl.Type{Name: ty})
+			}
 			defaultVal.Value = ddl.Expression{
 				ExpressionId: internal.GenerateExpressionId(),
-				Statement:    common.SanitizeDefaultValue(colDefault.String, dataType, colExtra.String == constants.DEFAULT_GENERATED),
+				Statement:    common.SanitizeDefaultValue(colDefault.String, ty, colExtra.String == constants.DEFAULT_GENERATED),
 			}
 		}
 

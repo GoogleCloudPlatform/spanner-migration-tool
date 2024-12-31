@@ -18,13 +18,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
-
 
 func TestSchemaFromDatabase(t *testing.T) {
 	targetProfile := profiles.TargetProfile{
@@ -65,88 +65,88 @@ func TestSchemaFromDatabase(t *testing.T) {
 	sourceProfileCloudDefault := profiles.SourceProfile{}
 	// Avoid getting/setting env variables in the unit tests.
 	testCases := []struct {
-		name          				string
-		sourceProfile 				profiles.SourceProfile
-		getInfoError				error
-		processSchemaError			error
-		errorExpected 				bool
+		name               string
+		sourceProfile      profiles.SourceProfile
+		getInfoError       error
+		processSchemaError error
+		errorExpected      bool
 	}{
 		{
-			name: "successful source profile config for bulk migration",
-			sourceProfile: sourceProfileConfigBulk,
-			getInfoError: nil,
+			name:               "successful source profile config for bulk migration",
+			sourceProfile:      sourceProfileConfigBulk,
+			getInfoError:       nil,
 			processSchemaError: nil,
-			errorExpected: false,
+			errorExpected:      false,
 		},
 		{
-			name: "source profile config for bulk migration: get info error",
-			sourceProfile: sourceProfileConfigBulk,
-			getInfoError: fmt.Errorf("error"),
+			name:               "source profile config for bulk migration: get info error",
+			sourceProfile:      sourceProfileConfigBulk,
+			getInfoError:       fmt.Errorf("error"),
 			processSchemaError: nil,
-			errorExpected: true,
+			errorExpected:      true,
 		},
 		{
-			name: "source profile config for bulk migration: process schema error",
-			sourceProfile: sourceProfileConfigBulk,
-			getInfoError: nil,
+			name:               "source profile config for bulk migration: process schema error",
+			sourceProfile:      sourceProfileConfigBulk,
+			getInfoError:       nil,
 			processSchemaError: fmt.Errorf("error"),
-			errorExpected: true,
+			errorExpected:      true,
 		},
 		{
-			name: "successful source profile config for dataflow migration",
-			sourceProfile: sourceProfileConfigDataflow,
-			getInfoError: nil,
+			name:               "successful source profile config for dataflow migration",
+			sourceProfile:      sourceProfileConfigDataflow,
+			getInfoError:       nil,
 			processSchemaError: nil,
-			errorExpected: false,
+			errorExpected:      false,
 		},
 		{
-			name: "source profile config for dataflow migration: get info error",
-			sourceProfile: sourceProfileConfigDataflow,
-			getInfoError: fmt.Errorf("error"),
+			name:               "source profile config for dataflow migration: get info error",
+			sourceProfile:      sourceProfileConfigDataflow,
+			getInfoError:       fmt.Errorf("error"),
 			processSchemaError: nil,
-			errorExpected: true,
+			errorExpected:      true,
 		},
 		{
-			name: "source profile config for dms migration",
-			sourceProfile: sourceProfileConfigDms,
-			getInfoError: nil,
+			name:               "source profile config for dms migration",
+			sourceProfile:      sourceProfileConfigDms,
+			getInfoError:       nil,
 			processSchemaError: nil,
-			errorExpected: true,
+			errorExpected:      true,
 		},
 		{
-			name: "invalid source profile config",
-			sourceProfile: sourceProfileConfigInvalid,
-			getInfoError: nil,
+			name:               "invalid source profile config",
+			sourceProfile:      sourceProfileConfigInvalid,
+			getInfoError:       nil,
 			processSchemaError: nil,
-			errorExpected: true,
+			errorExpected:      true,
 		},
 		{
-			name: "successful source profile cloud sql",
-			sourceProfile: sourceProfileCloudSql,
-			getInfoError: nil,
+			name:               "successful source profile cloud sql",
+			sourceProfile:      sourceProfileCloudSql,
+			getInfoError:       nil,
 			processSchemaError: nil,
-			errorExpected: false,
+			errorExpected:      false,
 		},
 		{
-			name: "source profile cloud sql: get info error",
-			sourceProfile: sourceProfileCloudSql,
-			getInfoError: fmt.Errorf("error"),
+			name:               "source profile cloud sql: get info error",
+			sourceProfile:      sourceProfileCloudSql,
+			getInfoError:       fmt.Errorf("error"),
 			processSchemaError: nil,
-			errorExpected: true,
+			errorExpected:      true,
 		},
 		{
-			name: "successful source profile default",
-			sourceProfile: sourceProfileCloudDefault,
-			getInfoError: nil,
+			name:               "successful source profile default",
+			sourceProfile:      sourceProfileCloudDefault,
+			getInfoError:       nil,
 			processSchemaError: nil,
-			errorExpected: false,
+			errorExpected:      false,
 		},
 		{
-			name: "source profile default: get info error",
-			sourceProfile: sourceProfileCloudDefault,
-			getInfoError: fmt.Errorf("error"),
+			name:               "source profile default: get info error",
+			sourceProfile:      sourceProfileCloudDefault,
+			getInfoError:       fmt.Errorf("error"),
 			processSchemaError: nil,
-			errorExpected: true,
+			errorExpected:      true,
 		},
 	}
 
@@ -159,7 +159,9 @@ func TestSchemaFromDatabase(t *testing.T) {
 		gim.On("GetInfoSchema", "migration-project-id", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mysql.InfoSchemaImpl{}, tc.getInfoError)
 		ps.On("ProcessSchema", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tc.processSchemaError)
 
-		s := SchemaFromSourceImpl{}
+		s := SchemaFromSourceImpl{
+			DdlVerifier: &expressions_api.MockDDLVerifier{},
+		}
 		_, err := s.schemaFromDatabase("migration-project-id", tc.sourceProfile, targetProfile, &gim, &ps)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 	}

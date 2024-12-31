@@ -25,6 +25,7 @@ import (
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
@@ -42,8 +43,11 @@ func getRoutes() *mux.Router {
 	reportAPIHandler := api.ReportAPIHandler{
 		Report: &conversion.ReportImpl{},
 	}
-
 	ctx := context.Background()
+	ddlVerifier, _ := expressions_api.NewDDLVerifierImpl(ctx, "", "")
+	tableHandler := api.TableAPIHandler{
+		DDLVerifier: ddlVerifier,
+	}
 	spanneraccessor, _ := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	dsClient, _ := ds.NewDatastreamClientImpl(ctx)
 	storageclient, _ := storageclient.NewStorageClientImpl(ctx)
@@ -82,8 +86,8 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/drop/secondaryindex", api.DropSecondaryIndex).Methods("POST")
 	router.HandleFunc("/restore/secondaryIndex", api.RestoreSecondaryIndex).Methods("POST")
 
-	router.HandleFunc("/restore/table", api.RestoreTable).Methods("POST")
-	router.HandleFunc("/restore/tables", api.RestoreTables).Methods("POST")
+	router.HandleFunc("/restore/table", tableHandler.RestoreTable).Methods("POST")
+	router.HandleFunc("/restore/tables", tableHandler.RestoreTables).Methods("POST")
 	router.HandleFunc("/drop/table", api.DropTable).Methods("POST")
 	router.HandleFunc("/drop/tables", api.DropTables).Methods("POST")
 
@@ -117,7 +121,6 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetConfig", config.GetConfig).Methods("GET")
 	router.HandleFunc("/SetSpannerConfig", config.SetSpannerConfig).Methods("POST")
 	router.HandleFunc("/IsConfigSet", config.IsConfigSet).Methods("GET")
-
 	// Run migration
 	router.HandleFunc("/Migrate", migrate).Methods("POST")
 
@@ -147,7 +150,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetSourceProfileConfig", getSourceProfileConfig).Methods("GET")
 	router.HandleFunc("/uploadFile", uploadFile).Methods("POST")
 
-	router.HandleFunc("/GetTableWithErrors", api.GetTableWithErrors).Methods("GET")
+	router.HandleFunc("/GetTableWithErrors", tableHandler.GetTableWithErrors).Methods("GET")
 	router.HandleFunc("/ping", getBackendHealth).Methods("GET")
 
 	router.PathPrefix("/").Handler(frontendStatic)
