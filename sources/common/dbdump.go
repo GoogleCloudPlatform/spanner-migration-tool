@@ -25,13 +25,6 @@ type DbDump interface {
 	ProcessDump(conv *internal.Conv, r *internal.Reader) error
 }
 
-type ProcessDbDumpInterface interface {
-}
-
-type ExpressionVerificationAccessorImpl struct {
-	DdlVerifier *expressions_api.DDLVerifier
-}
-
 // ProcessDbDump reads dump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
 // In schema mode, this method incrementally builds a schema (updating conv).

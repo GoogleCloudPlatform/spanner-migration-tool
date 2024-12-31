@@ -35,7 +35,7 @@ func NewExpressionVerificationAccessorImpl(ctx context.Context, project string, 
 			return nil, err
 		}
 	} else {
-		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.TEMP_DB))
+		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf(constants.DB_URI, project, instance, constants.TEMP_DB))
 		if err != nil {
 			return nil, err
 		}
@@ -109,7 +109,7 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 }
 
 func (ev *ExpressionVerificationAccessorImpl) RefreshSpannerClient(ctx context.Context, project string, instance string) error {
-	spannerClient, err := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, constants.TEMP_DB))
+	spannerClient, err := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf(constants.DB_URI, project, instance, constants.TEMP_DB))
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (ev *ExpressionVerificationAccessorImpl) verifyExpressionInternal(expressio
 	switch expressionDetail.Type {
 	case constants.CHECK_EXPRESSION:
 		sqlStatement = fmt.Sprintf("SELECT 1 from %s where %s;", expressionDetail.ReferenceElement.Name, expressionDetail.Expression)
-	case constants.DEFAUT_EXPRESSION:
+	case constants.DEFAULT_EXPRESSION:
 		sqlStatement = fmt.Sprintf("SELECT CAST(%s as %s)", expressionDetail.Expression, expressionDetail.ReferenceElement.Name)
 	default:
 		return task.TaskResult[internal.ExpressionVerificationOutput]{Result: internal.ExpressionVerificationOutput{Result: false, Err: fmt.Errorf("invalid expression type requested")}, Err: nil}
@@ -192,11 +192,11 @@ func (ddlv *DDLVerifierImpl) GetSourceExpressionDetails(conv *internal.Conv, tab
 			if srcCol.DefaultValue.IsPresent {
 				defaultValueExp := internal.ExpressionDetail{
 					ReferenceElement: internal.ReferenceElement{
-						Name: conv.SpSchema[tableId].ColDefs[srcColId].T.Name,
+						Name: ddl.GetPGType(conv.SpSchema[tableId].ColDefs[srcColId].T),
 					},
 					ExpressionId: srcCol.DefaultValue.Value.ExpressionId,
 					Expression:   srcCol.DefaultValue.Value.Statement,
-					Type:         "DEFAULT",
+					Type:         constants.DEFAULT_EXPRESSION,
 					Metadata:     map[string]string{"TableId": tableId, "ColId": srcColId},
 				}
 				expressionDetails = append(expressionDetails, defaultValueExp)
@@ -216,11 +216,11 @@ func (ddlv *DDLVerifierImpl) GetSpannerExpressionDetails(conv *internal.Conv, ta
 			if spCol.DefaultValue.IsPresent {
 				defaultValueExp := internal.ExpressionDetail{
 					ReferenceElement: internal.ReferenceElement{
-						Name: conv.SpSchema[tableId].ColDefs[spColId].T.Name,
+						Name: ddl.GetPGType(conv.SpSchema[tableId].ColDefs[spColId].T),
 					},
 					ExpressionId: spCol.DefaultValue.Value.ExpressionId,
 					Expression:   spCol.DefaultValue.Value.Statement,
-					Type:         "DEFAULT",
+					Type:         constants.DEFAULT_EXPRESSION,
 					Metadata:     map[string]string{"TableId": tableId, "ColId": spColId},
 				}
 				expressionDetails = append(expressionDetails, defaultValueExp)
