@@ -67,6 +67,8 @@ var ErrorTypeMapping = map[string]internal.SchemaIssue{
 	"No matching signature for operator": internal.TypeMismatch,
 	"Syntax error":                       internal.InvalidCondition,
 	"Unrecognized name":                  internal.ColumnNotFound,
+	"Function not found":                 internal.FunctionNotFound,
+	"unhandled error":                    internal.GenericError,
 }
 
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
@@ -110,6 +112,22 @@ func GenerateExpressionDetailList(spschema ddl.Schema) []internal.ExpressionDeta
 	return expressionDetailList
 }
 
+// RemoveError it will reset the table issue before re-populating
+func RemoveError(tableIssues map[string]internal.TableIssues) map[string]internal.TableIssues {
+
+	for tableId, TableIssues := range tableIssues {
+		for _, issue := range ErrorTypeMapping {
+			removedIssue := removeSchemaIssue(TableIssues.TableLevelIssues, issue)
+			TableIssues.TableLevelIssues = removedIssue
+			tableIssues[tableId] = TableIssues
+		}
+
+	}
+	return tableIssues
+
+}
+
+// GetIssue it will collect all the error and return it
 func GetIssue(result internal.VerifyExpressionsOutput) map[string][]internal.SchemaIssue {
 	exprOutputsByTable := make(map[string][]internal.ExpressionVerificationOutput)
 	issues := make(map[string][]internal.SchemaIssue)
@@ -123,14 +141,21 @@ func GetIssue(result internal.VerifyExpressionsOutput) map[string][]internal.Sch
 	for tableId, exprOutputs := range exprOutputsByTable {
 
 		for _, ev := range exprOutputs {
+			var issue internal.SchemaIssue
 
-			for key, issue := range ErrorTypeMapping {
-				if strings.Contains(ev.Err.Error(), key) {
-					issues[tableId] = append(issues[tableId], issue)
-					break
-
-				}
+			switch {
+			case strings.Contains(ev.Err.Error(), "No matching signature for operator"):
+				issue = internal.TypeMismatch
+			case strings.Contains(ev.Err.Error(), "Syntax error"):
+				issue = internal.InvalidCondition
+			case strings.Contains(ev.Err.Error(), "Unrecognized name"):
+				issue = internal.ColumnNotFound
+			case strings.Contains(ev.Err.Error(), "Function not found"):
+				issue = internal.FunctionNotFound
+			default:
+				issue = internal.GenericError
 			}
+			issues[tableId] = append(issues[tableId], issue)
 
 		}
 

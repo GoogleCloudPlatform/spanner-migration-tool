@@ -118,19 +118,32 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				case internal.TypeMismatch:
 					toAppend := Issue{
 						Category:    IssueDB[issue].Category,
-						Description: fmt.Sprintf("Table '%s': Type mismatch in table affecting check constraints. Verify data type compatibility with constraint logic", conv.SpSchema[tableId].Name),
+						Description: fmt.Sprintf("Table '%s': Type mismatch in check constraint. Verify that the column type matches the constraint logic.", conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
 				case internal.InvalidCondition:
 					toAppend := Issue{
 						Category:    IssueDB[issue].Category,
-						Description: fmt.Sprintf("Table '%s': Invalid condition in table affecting check constraints. Verify the conditions compatibility with constraint logic", conv.SpSchema[tableId].Name),
+						Description: fmt.Sprintf("Table '%s': Invalid condition in check constraint. Ensure the condition is compatible with the constraint logic.", conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
 				case internal.ColumnNotFound:
 					toAppend := Issue{
 						Category:    IssueDB[issue].Category,
-						Description: fmt.Sprintf("Table '%s': Column not found which is mention in check constraint condition. Verify the conditions with constraint logic", conv.SpSchema[tableId].Name),
+						Description: fmt.Sprintf("Table '%s': Column not found in check constraint. Verify that all referenced columns exist.", conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
+
+				case internal.FunctionNotFound:
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': Function not found in check constraint. Ensure all functions used in the condition are valid.", conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
+				case internal.GenericError:
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': Something went wrong in check constraint. Verify the conditions and constraint logic.", conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
 				}
@@ -552,6 +565,8 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.TypeMismatch:          {Brief: "Type mismatch in check constraint mention in table", Severity: warning, Category: "TYPE_MISMATCH"},
 	internal.InvalidCondition:      {Brief: "Invalid condition in check constraint mention in table", Severity: warning, Category: "INVALID_CONDITION"},
 	internal.ColumnNotFound:        {Brief: "Column not found in check constraint mention in the table", Severity: warning, Category: "COLUMN_NOT_FOUND"},
+	internal.FunctionNotFound:      {Brief: "Function not found in check constraint mention in the table", Severity: warning, Category: "FUNCTION_NOT_FOUND"},
+	internal.GenericError:          {Brief: "Something went wrong", Severity: warning, Category: "UNHANDLE_ERROR"},
 	internal.ForeignKey:            {Brief: "Spanner does not support foreign keys", Severity: warning, Category: "FOREIGN_KEY_USES"},
 	internal.MultiDimensionalArray: {Brief: "Spanner doesn't support multi-dimensional arrays", Severity: warning, Category: "MULTI_DIMENSIONAL_ARRAY_USES"},
 	internal.NoGoodType: {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", Severity: warning, Category: "INAPPROPRIATE_TYPE",

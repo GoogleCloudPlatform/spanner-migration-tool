@@ -554,7 +554,7 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheck
 		Source:               "mysql",
 		ExpressionDetailList: common.GenerateExpressionDetailList(spschema),
 	}
-
+	sessionState.Conv.SchemaIssues = common.RemoveError(sessionState.Conv.SchemaIssues)
 	result := expressionVerificationHandler.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
 	if result.ExpressionVerificationOutputList == nil {
 		http.Error(w, fmt.Sprintf("Unhandled error: : %s", result.Err.Error()), http.StatusBadRequest)

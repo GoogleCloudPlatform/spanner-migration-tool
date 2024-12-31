@@ -135,6 +135,8 @@ const (
 	DefaultValueError
 	InvalidCondition
 	ColumnNotFound
+	FunctionNotFound
+	GenericError
 )
 
 const (

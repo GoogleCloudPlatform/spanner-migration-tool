@@ -2700,6 +2700,30 @@ func TestVerifyCheckConstraintExpressions(t *testing.T) {
 			},
 			expectedResponse: true,
 		},
+		{
+			name: "FunctionError",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+				{Result: false, Err: errors.New("Function not found"), ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 18)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check2"}, ExpressionId: "expr2"}},
+			},
+			expectedResponse: true,
+		},
+		{
+			name: "GenericError",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+				{Result: false, Err: errors.New("Unhandle error"), ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 18)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check2"}, ExpressionId: "expr2"}},
+			},
+			expectedResponse: true,
+		},
 	}
 
 	for _, tc := range tests {
