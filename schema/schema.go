@@ -80,9 +80,10 @@ type ForeignKey struct {
 
 // CheckConstraints represents a check constraint defined in the schema.
 type CheckConstraint struct {
-	Name string
-	Expr string
-	Id   string
+	Name   string
+	Expr   string
+	ExprId string
+	Id     string
 }
 
 // Key respresents a primary key or index key.

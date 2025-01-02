@@ -102,8 +102,12 @@ func (sads *SchemaFromSourceImpl) schemaFromDatabase(migrationProjectId string, 
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: isSharded,
 	}
+
+	ctx := context.Background()
+	expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
 	schemaToSpanner := common.SchemaToSpannerImpl{
-		DdlV: sads.DdlVerifier,
+		DdlV:                           sads.DdlVerifier,
+		ExpressionVerificationAccessor: expressionVerificationAccessor,
 	}
 	return conv, processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 }
@@ -118,6 +122,7 @@ func (sads *SchemaFromSourceImpl) SchemaFromDump(SpProjectId string, SpInstanceI
 	ioHelper.BytesRead = n
 	conv := internal.MakeConv()
 	conv.SpDialect = spDialect
+	conv.Source = driver
 	p := internal.NewProgress(n, "Generating schema", internal.Verbose(), false, int(internal.SchemaCreationInProgress))
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in dump.
