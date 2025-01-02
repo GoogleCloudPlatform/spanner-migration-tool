@@ -69,7 +69,7 @@ func TestReport(t *testing.T) {
 			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
 		},
 	})
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{ExpressionVerificationAccessor: mockAccessor}, &expressions_api.MockDDLVerifier{})
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{}, &expressions_api.MockDDLVerifier{}, mockAccessor)
 	conv.SetDataMode()
 
 	badSchemaTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "bad_schema")

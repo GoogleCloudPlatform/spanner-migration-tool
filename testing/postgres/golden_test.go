@@ -62,7 +62,7 @@ func TestGoldens(t *testing.T) {
 			err := common.ProcessDbDump(
 				conv,
 				internal.NewReader(bufio.NewReader(strings.NewReader(tc.Input)), nil),
-				postgres.DbDumpImpl{ExpressionVerificationAccessor: mockAccessor}, &expressions_api.MockDDLVerifier{})
+				postgres.DbDumpImpl{}, &expressions_api.MockDDLVerifier{}, mockAccessor)
 			if err != nil {
 				t.Fatalf("error when processing dump %s: %s", tc.Input, err)
 			}

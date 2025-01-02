@@ -939,16 +939,14 @@ func runProcessMySQLDump(s string) (*internal.Conv, []spannerData) {
 			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
 		},
 	})
-	mysqlDbDump := DbDumpImpl{
-		ExpressionVerificationAccessor: mockAccessor,
-	}
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), mysqlDbDump, &expressions_api.MockDDLVerifier{})
+	mysqlDbDump := DbDumpImpl{}
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), mysqlDbDump, &expressions_api.MockDDLVerifier{}, mockAccessor)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {
 		rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 	})
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), mysqlDbDump, &expressions_api.MockDDLVerifier{})
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), mysqlDbDump, &expressions_api.MockDDLVerifier{}, mockAccessor)
 	return conv, rows
 }
 

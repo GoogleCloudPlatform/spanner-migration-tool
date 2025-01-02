@@ -23,7 +23,6 @@ import (
 type DbDump interface {
 	GetToDdl() ToDdl
 	ProcessDump(conv *internal.Conv, r *internal.Reader) error
-	GetExpressionVerificationAccessor() expressions_api.ExpressionVerificationAccessor
 }
 
 // ProcessDbDump reads dump data from r and does schema or data conversion,
@@ -31,7 +30,7 @@ type DbDump interface {
 // In schema mode, this method incrementally builds a schema (updating conv).
 // In data mode, this method uses this schema to convert data and writes it
 // to Spanner, using the data sink specified in conv.
-func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump, ddlVerifier expressions_api.DDLVerifier) error {
+func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump, ddlVerifier expressions_api.DDLVerifier, exprVerifier expressions_api.ExpressionVerificationAccessor) error {
 	if err := dbDump.ProcessDump(conv, r); err != nil {
 		return err
 	}
@@ -40,7 +39,7 @@ func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump, ddlVe
 		utilsOrder.initPrimaryKeyOrder(conv)
 		utilsOrder.initIndexOrder(conv)
 		schemaToSpanner := SchemaToSpannerImpl{
-			ExpressionVerificationAccessor: dbDump.GetExpressionVerificationAccessor(),
+			ExpressionVerificationAccessor: exprVerifier,
 			DdlV:                           ddlVerifier,
 		}
 		schemaToSpanner.SchemaToSpannerDDL(conv, dbDump.GetToDdl())

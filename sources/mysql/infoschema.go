@@ -344,7 +344,7 @@ func (isi InfoSchemaImpl) processRow(
 	// Case added to handle check constraints
 	case "CHECK":
 		checkClause = collationRegex.ReplaceAllString(checkClause, "")
-		*checkKeys = append(*checkKeys, schema.CheckConstraint{Name: constraintName, Expr: checkClause, ExprId: internal.GenerateCheckConstrainstExprId(), Id: internal.GenerateCheckConstrainstId()})
+		*checkKeys = append(*checkKeys, schema.CheckConstraint{Name: constraintName, Expr: checkClause, ExprId: internal.GenerateExpressionId(), Id: internal.GenerateCheckConstrainstId()})
 	default:
 		m[col] = append(m[col], constraintType)
 	}

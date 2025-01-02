@@ -70,10 +70,6 @@ func GenerateCheckConstrainstId() string {
 	return GenerateId("cc")
 }
 
-func GenerateCheckConstrainstExprId() string {
-	return GenerateId("expr")
-}
-
 func GenerateRuleId() string {
 	return GenerateId("r")
 }

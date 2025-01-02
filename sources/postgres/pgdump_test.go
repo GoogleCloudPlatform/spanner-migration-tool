@@ -1515,7 +1515,14 @@ func TestProcessPgDump_WithUnparsableContent(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
-	err := common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{}, &expressions_api.MockDDLVerifier{})
+	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	ctx := context.Background()
+	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
+		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+		},
+	})
+	err := common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{}, &expressions_api.MockDDLVerifier{}, mockAccessor)
 	if err == nil {
 		t.Fatalf("Expect an error, but got nil")
 	}
@@ -1535,17 +1542,15 @@ func runProcessPgDump(s string) (*internal.Conv, []spannerData) {
 			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
 		},
 	})
-	pgDump := DbDumpImpl{
-		ExpressionVerificationAccessor: mockAccessor,
-	}
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{})
+	pgDump := DbDumpImpl{}
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{}, mockAccessor)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{})
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{}, mockAccessor)
 	return conv, rows
 }
 
@@ -1561,17 +1566,15 @@ func runProcessPgDumpPGTarget(s string) (*internal.Conv, []spannerData) {
 			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
 		},
 	})
-	pgDump := DbDumpImpl{
-		ExpressionVerificationAccessor: mockAccessor,
-	}
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{})
+	pgDump := DbDumpImpl{}
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{}, mockAccessor)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{})
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump, &expressions_api.MockDDLVerifier{}, mockAccessor)
 	return conv, rows
 }
 

@@ -24,7 +24,6 @@ import (
 	pg_query "github.com/pganalyze/pg_query_go/v5"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -32,8 +31,7 @@ import (
 )
 
 // DbDumpImpl Postgres specific implementation for DdlDumpImpl.
-type DbDumpImpl struct{
-	ExpressionVerificationAccessor expressions_api.ExpressionVerificationAccessor
+type DbDumpImpl struct {
 }
 
 type copyOrInsert struct {
@@ -58,11 +56,6 @@ func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
 // ProcessDump calls processPgDump to read a Postgres dump file
 func (ddi DbDumpImpl) ProcessDump(conv *internal.Conv, r *internal.Reader) error {
 	return processPgDump(conv, r)
-}
-
-// GetExpressionVerificationAccessor returns the expression verification accessor
-func (ddi DbDumpImpl) GetExpressionVerificationAccessor() expressions_api.ExpressionVerificationAccessor {
-	return ddi.ExpressionVerificationAccessor
 }
 
 // processPgDump reads pg_dump data from r and does schema or data conversion,
