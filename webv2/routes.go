@@ -57,9 +57,15 @@ func getRoutes() *mux.Router {
 		ValidateResources: validateResourceImpl,
 	}
 
+	expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(ctx, session.GetSessionState().SpannerProjectId, session.GetSessionState().SpannerInstanceID)
+
+	expressionVerificationHandler := api.ExpressionsVerificationHandler{
+		ExpressionVerificationAccessor: expressionVerificationAccessor,
+	}
+
 	router.HandleFunc("/connect", databaseConnection).Methods("POST")
-	router.HandleFunc("/convert/infoschema", api.ConvertSchemaSQL).Methods("GET")
-	router.HandleFunc("/convert/dump", api.ConvertSchemaDump).Methods("POST")
+	router.HandleFunc("/convert/infoschema", expressionVerificationHandler.ConvertSchemaSQL).Methods("GET")
+	router.HandleFunc("/convert/dump", expressionVerificationHandler.ConvertSchemaDump).Methods("POST")
 	router.HandleFunc("/convert/session", loadSession).Methods("POST")
 	router.HandleFunc("/ddl", api.GetDDL).Methods("GET")
 	router.HandleFunc("/seqDdl", api.GetSequenceDDL).Methods("GET")
@@ -81,6 +87,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/getSequenceKind", api.GetSequenceKind).Methods("GET")
 	router.HandleFunc("/setparent", api.SetParentTable).Methods("GET")
 	router.HandleFunc("/removeParent", api.RemoveParentTable).Methods("POST")
+	router.HandleFunc("/verifyCheckConstraintExpression", expressionVerificationHandler.VerifyCheckConstraintExpression).Methods("GET")
 
 	// TODO:(searce) take constraint names themselves which are guaranteed to be unique for Spanner.
 	router.HandleFunc("/drop/secondaryindex", api.DropSecondaryIndex).Methods("POST")

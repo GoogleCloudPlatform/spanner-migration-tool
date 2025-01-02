@@ -30,6 +30,7 @@ While adding new methods or code here
 package common
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -59,7 +60,16 @@ type SchemaToSpannerInterface interface {
 }
 
 type SchemaToSpannerImpl struct {
-	DdlV expressions_api.DDLVerifier
+	ExpressionVerificationAccessor expressions_api.ExpressionVerificationAccessor
+	DdlV                           expressions_api.DDLVerifier
+}
+
+var ErrorTypeMapping = map[string]internal.SchemaIssue{
+	"No matching signature for operator": internal.TypeMismatch,
+	"Syntax error":                       internal.InvalidCondition,
+	"Unrecognized name":                  internal.ColumnNotFound,
+	"Function not found":                 internal.CheckConstraintFunctionNotFound,
+	"unhandled error":                    internal.GenericError,
 }
 
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
@@ -75,7 +85,17 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		srcTable := conv.SrcSchema[tableId]
 		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
-	if conv.Source == constants.MYSQL && conv.SpProjectId!="" && conv.SpInstanceId!=""{
+
+	if (conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP) && conv.SpProjectId != "" && conv.SpInstanceId != "" {
+		// Process and verify Check constraints for MySQL and MySQLDump flow only
+		err := ss.VerifyExpressions(conv)
+		if err != nil {
+			return err
+		}
+	}
+
+	if conv.Source == constants.MYSQL && conv.SpProjectId != "" && conv.SpInstanceId != "" {
+		// Process and verify Spanner DDL expressions for MYSQL
 		expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
 		expressions, err := ss.DdlV.VerifySpannerDDL(conv, expressionDetails)
 		if err != nil && !strings.Contains(err.Error(), "expressions either failed verification") {
@@ -85,6 +105,131 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 	}
 	internal.ResolveRefs(conv)
 	return nil
+}
+
+// GenerateExpressionDetailList it will generate the expression detail list which is used in verify expression method as a input
+func GenerateExpressionDetailList(spschema ddl.Schema) []internal.ExpressionDetail {
+	expressionDetailList := []internal.ExpressionDetail{}
+	for _, sp := range spschema {
+		for _, cc := range sp.CheckConstraints {
+
+			expressionDetail := internal.ExpressionDetail{
+				Expression:       cc.Expr,
+				Type:             "CHECK",
+				ReferenceElement: internal.ReferenceElement{Name: sp.Name},
+				ExpressionId:     cc.ExprId,
+				Metadata:         map[string]string{"tableId": sp.Id},
+			}
+			expressionDetailList = append(expressionDetailList, expressionDetail)
+		}
+	}
+
+	return expressionDetailList
+}
+
+// RemoveError it will reset the table issue before re-populating
+func RemoveError(tableIssues map[string]internal.TableIssues) map[string]internal.TableIssues {
+
+	for tableId, TableIssues := range tableIssues {
+		for _, issue := range ErrorTypeMapping {
+			removedIssue := removeSchemaIssue(TableIssues.TableLevelIssues, issue)
+			TableIssues.TableLevelIssues = removedIssue
+			tableIssues[tableId] = TableIssues
+		}
+
+	}
+	return tableIssues
+
+}
+
+// GetIssue it will collect all the error and return it
+func GetIssue(result internal.VerifyExpressionsOutput) map[string][]internal.SchemaIssue {
+	exprOutputsByTable := make(map[string][]internal.ExpressionVerificationOutput)
+	issues := make(map[string][]internal.SchemaIssue)
+	for _, ev := range result.ExpressionVerificationOutputList {
+		if !ev.Result {
+			tableId := ev.ExpressionDetail.Metadata["tableId"]
+			exprOutputsByTable[tableId] = append(exprOutputsByTable[tableId], ev)
+		}
+	}
+
+	for tableId, exprOutputs := range exprOutputsByTable {
+
+		for _, ev := range exprOutputs {
+			var issue internal.SchemaIssue
+
+			switch {
+			case strings.Contains(ev.Err.Error(), "No matching signature for operator"):
+				issue = internal.TypeMismatch
+			case strings.Contains(ev.Err.Error(), "Syntax error"):
+				issue = internal.InvalidCondition
+			case strings.Contains(ev.Err.Error(), "Unrecognized name"):
+				issue = internal.ColumnNotFound
+			case strings.Contains(ev.Err.Error(), "Function not found"):
+				issue = internal.CheckConstraintFunctionNotFound
+			default:
+				issue = internal.GenericError
+			}
+			issues[tableId] = append(issues[tableId], issue)
+
+		}
+
+	}
+
+	return issues
+
+}
+
+// VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
+// to suggestion tab and remove the check constraint which has error
+func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) error {
+	ctx := context.Background()
+
+	spschema := conv.SpSchema
+
+	verifyExpressionsInput := internal.VerifyExpressionsInput{
+		Conv:                 conv,
+		Source:               conv.Source,
+		ExpressionDetailList: GenerateExpressionDetailList(spschema),
+	}
+
+	result := ss.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
+	if result.ExpressionVerificationOutputList == nil {
+		return result.Err
+	}
+	issueTypes := GetIssue(result)
+	if len(issueTypes) > 0 {
+		for tableId, issues := range issueTypes {
+
+			for _, issue := range issues {
+				if _, exists := conv.SchemaIssues[tableId]; !exists {
+					conv.SchemaIssues[tableId] = internal.TableIssues{
+						TableLevelIssues: []internal.SchemaIssue{},
+					}
+				}
+
+				tableIssue := conv.SchemaIssues[tableId]
+
+				if !IsSchemaIssuePresent(tableIssue.TableLevelIssues, issue) {
+					tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issue)
+				}
+				conv.SchemaIssues[tableId] = tableIssue
+			}
+		}
+	}
+
+	return nil
+}
+
+// IsSchemaIssuePresent checks if issue is present in the given schemaissue list.
+func IsSchemaIssuePresent(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
+
+	for _, s := range schemaissue {
+		if s == issue {
+			return true
+		}
+	}
+	return false
 }
 
 func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error {
@@ -254,9 +399,10 @@ func cvtCheckConstraint(conv *internal.Conv, srcKeys []schema.CheckConstraint) [
 
 	for _, cc := range srcKeys {
 		spcc = append(spcc, ddl.CheckConstraint{
-			Id:   cc.Id,
-			Name: internal.ToSpannerCheckConstraintName(conv, cc.Name),
-			Expr: cc.Expr,
+			Id:     cc.Id,
+			Name:   internal.ToSpannerCheckConstraintName(conv, cc.Name),
+			Expr:   cc.Expr,
+			ExprId: cc.ExprId,
 		})
 	}
 	return spcc
@@ -330,6 +476,7 @@ func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Tabl
 			conv.SpSchema[tableId] = spTable
 		}
 	}
+
 	internal.ResolveRefs(conv)
 	return nil
 }

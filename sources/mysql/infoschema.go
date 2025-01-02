@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -33,6 +34,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 )
+
+var collationRegex = regexp.MustCompile(constants.DB_COLLATION_REGEX)
 
 // InfoSchemaImpl is MySQL specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
@@ -273,7 +276,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 func (isi InfoSchemaImpl) getConstraintsDQL() (string, error) {
 	var tableExistsCount int
 	// check if CHECK_CONSTRAINTS table exists.
-	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
+	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
 	err := isi.Db.QueryRow(checkQuery).Scan(&tableExistsCount)
 	if err != nil {
 		return "", err
@@ -341,7 +344,7 @@ func (isi InfoSchemaImpl) processRow(
 	// Case added to handle check constraints
 	case "CHECK":
 		checkClause = collationRegex.ReplaceAllString(checkClause, "")
-		*checkKeys = append(*checkKeys, schema.CheckConstraint{Name: constraintName, Expr: checkClause, Id: internal.GenerateCheckConstrainstId()})
+		*checkKeys = append(*checkKeys, schema.CheckConstraint{Name: constraintName, Expr: checkClause, ExprId: internal.GenerateExpressionId(), Id: internal.GenerateCheckConstrainstId()})
 	default:
 		m[col] = append(m[col], constraintType)
 	}

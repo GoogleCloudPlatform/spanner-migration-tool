@@ -133,6 +133,10 @@ const (
 	NumericPKNotSupported
 	TypeMismatch
 	DefaultValueError
+	InvalidCondition
+	ColumnNotFound
+	CheckConstraintFunctionNotFound
+	GenericError
 )
 
 const (
