@@ -295,8 +295,8 @@ export class ObjectDetailComponent implements OnInit {
           spDefaultValue: new FormControl(row.spDefaultValue ? row.spDefaultValue.Value.Statement : ''),
         })
         // Disable spDefaultValue if spAutoGen is set
-        if (row.spAutoGen.Name !== '') { 
-          fb.get('spDefaultValue')?.disable(); 
+        if (row.spAutoGen.Name !== '') {
+          fb.get('spDefaultValue')?.disable();
         }
         // Subscribe to changes in spAutoGen
         fb.get('spAutoGen')?.valueChanges.subscribe((autoGen: AutoGen | null) => { // Allow null value
@@ -460,10 +460,10 @@ export class ObjectDetailComponent implements OnInit {
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
             MaxColLength: col.spColMaxLength,
             AutoGen: col.spAutoGen,
-            DefaultValue: { 
-              IsPresent: col.spDefaultValue ? true : false, 
+            DefaultValue: {
+              IsPresent: col.spDefaultValue ? true : false,
               Value: {
-                ExpressionId: '', 
+                ExpressionId: '',
                 Statement: String(col.spDefaultValue)
               }
             }
@@ -630,17 +630,6 @@ export class ObjectDetailComponent implements OnInit {
       })
     } else if (this.checkIfCcColumn(colId)) {
       let message = `Column ${spColName} is a part of`;
-      const dependencies = [];
-      if (this.checkIfPkColumn(colId)) {
-        dependencies.push(' Primary key');
-      }
-      if (associatedIndexes.length !== 0) {
-        dependencies.push(` Index ${associatedIndexes}`);
-      }
-      // Join dependencies with appropriate punctuation
-      if (dependencies.length > 0) {
-        message += `${dependencies.join(' ,')} and`;
-      }
       message += ' check constraints. Remove the dependencies from respective tabs before dropping the Column.';
       this.dialog.open(InfodialogComponent, {
         data: {
@@ -878,14 +867,14 @@ export class ObjectDetailComponent implements OnInit {
       srcSno: '',
       srcCondition: '',
       srcConstraintName: '',
-      spExprId:this.generateId(),
+      spExprId:this.generateExpressionId(),
       deleteIndex: `cc${index + 1}`,
     });
 
     this.setCCRows();
   }
 
-   generateId(): string {
+   generateExpressionId(): string {
     const min = 0;
     const max = 999;
 
@@ -893,7 +882,7 @@ export class ObjectDetailComponent implements OnInit {
 
     const twoDigitNum = randomNum.toString().padStart(2, '0');
 
-    const id = `expr${twoDigitNum}`;
+    const id = `e${twoDigitNum}`;
     return id;
   }
 
