@@ -1,3 +1,5 @@
+import { IDefaultValue } from "./conv"
+
 export default interface IColumnTabData {
   spOrder: number | string
   srcOrder: number | string
@@ -10,11 +12,13 @@ export default interface IColumnTabData {
   srcIsPk: boolean
   spIsNotNull: boolean
   srcIsNotNull: boolean
+  srcDefaultValue: string
   srcId: string
   spId: string
   srcColMaxLength: Number | string | undefined
   spColMaxLength: Number | string | undefined
   srcAutoGen: AutoGen
+  spDefaultValue: IDefaultValue
 }
 
 export interface AutoGen {

@@ -20,6 +20,13 @@ const mockIConv: IConv = {
                     AutoGen: {
                         Name: "",
                         GenerationType: ""
+                    },
+                    DefaultValue: {
+                        Value: {
+                            Statement: "",
+                            ExpressionId: ""
+                        },
+                        IsPresent: false
                     }
                 }
             },
@@ -72,6 +79,13 @@ const mockIConv: IConv = {
                     AutoGen: {
                         Name: "",
                         GenerationType: ""
+                    },
+                    DefaultValue: {
+                        Value: {
+                            Statement: "",
+                            ExpressionId: ""
+                        },
+                        IsPresent: false
                     },
                 }
             },
@@ -206,6 +220,13 @@ export const mockIConv2: IConv = {
                         Name: "",
                         GenerationType: ""
                     },
+                    DefaultValue: {
+                        Value: {
+                            Statement: "",
+                            ExpressionId: ""
+                        },
+                        IsPresent: false
+                    }
                 }
             },
             PrimaryKeys: [],

@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	sp "cloud.google.com/go/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -53,7 +54,7 @@ func (msads *MockSchemaFromSource) schemaFromDatabase(migrationProjectId string,
 	args := msads.Called(migrationProjectId, sourceProfile, targetProfile, getInfo, processSchema)
 	return args.Get(0).(*internal.Conv), args.Error(1)
 }
-func (msads *MockSchemaFromSource) SchemaFromDump(driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
+func (msads *MockSchemaFromSource) SchemaFromDump(SpProjectId string, SpInstanceId string, driver string, spDialect string, ioHelper *utils.IOStreams, processDump ProcessDumpByDialectInterface) (*internal.Conv, error) {
 	args := msads.Called(driver, spDialect, ioHelper, processDump)
 	return args.Get(0).(*internal.Conv), args.Error(1)
 }
@@ -96,9 +97,9 @@ func (mrg *MockResourceGeneration) GetConnectionProfilesForResources(ctx context
 	args := mrg.Called(ctx, projectId, sourceProfile, region, validateOnly)
 	return args.Get(0).([]*ConnectionProfileReq), args.Get(1).([]*ConnectionProfileReq), args.Error(2)
 }
-func (mrg *MockResourceGeneration) PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) common.TaskResult[*ConnectionProfileReq] {
+func (mrg *MockResourceGeneration) PrepareMinimalDowntimeResources(createResourceData *ConnectionProfileReq, mutex *sync.Mutex) task.TaskResult[*ConnectionProfileReq] {
 	args := mrg.Called(createResourceData, mutex)
-	return args.Get(0).(common.TaskResult[*ConnectionProfileReq])
+	return args.Get(0).(task.TaskResult[*ConnectionProfileReq])
 }
 
 type MockValidateResources struct {

@@ -35,26 +35,28 @@ import (
 
 // Table represents a database table.
 type Table struct {
-	Name         string
-	Schema       string
-	ColIds       []string          // List of column Ids (for predictable iteration order e.g. printing).
-	ColDefs      map[string]Column // Details of columns.
-	ColNameIdMap map[string]string `json:"-"` // Computed every time just after conv is generated or after any column renaming
-	PrimaryKeys  []Key
-	ForeignKeys  []ForeignKey
-	Indexes      []Index
-	Id           string
+	Name             string
+	Schema           string
+	ColIds           []string          // List of column Ids (for predictable iteration order e.g. printing).
+	ColDefs          map[string]Column // Details of columns.
+	ColNameIdMap     map[string]string `json:"-"` // Computed every time just after conv is generated or after any column renaming
+	PrimaryKeys      []Key
+	ForeignKeys      []ForeignKey
+	CheckConstraints []CheckConstraint
+	Indexes          []Index
+	Id               string
 }
 
 // Column represents a database column.
 // TODO: add support for foreign keys.
 type Column struct {
-	Name    	string
-	Type    	Type
-	NotNull 	bool
-	Ignored 	Ignored
-	Id      	string
-	AutoGen		ddl.AutoGenCol
+	Name         string
+	Type         Type
+	NotNull      bool
+	Ignored      Ignored
+	Id           string
+	AutoGen      ddl.AutoGenCol
+	DefaultValue ddl.DefaultValue
 }
 
 // ForeignKey represents a foreign key.
@@ -74,6 +76,13 @@ type ForeignKey struct {
 	OnDelete         string
 	OnUpdate         string
 	Id               string
+}
+
+// CheckConstraints represents a check constraint defined in the schema.
+type CheckConstraint struct {
+	Name string
+	Expr string
+	Id   string
 }
 
 // Key respresents a primary key or index key.

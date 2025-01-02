@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -32,15 +34,21 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 )
 
+type TableAPIHandler struct {
+	DDLVerifier expressions_api.DDLVerifier
+}
+
 var mysqlDefaultTypeMap = make(map[string]ddl.Type)
 var postgresDefaultTypeMap = make(map[string]ddl.Type)
 var sqlserverDefaultTypeMap = make(map[string]ddl.Type)
 var oracleDefaultTypeMap = make(map[string]ddl.Type)
 
-var mysqlTypeMap = make(map[string][]types.TypeIssue)
-var postgresTypeMap = make(map[string][]types.TypeIssue)
-var sqlserverTypeMap = make(map[string][]types.TypeIssue)
-var oracleTypeMap = make(map[string][]types.TypeIssue)
+var (
+	mysqlTypeMap     = make(map[string][]types.TypeIssue)
+	postgresTypeMap  = make(map[string][]types.TypeIssue)
+	sqlserverTypeMap = make(map[string][]types.TypeIssue)
+	oracleTypeMap    = make(map[string][]types.TypeIssue)
+)
 
 var autoGenMap = make(map[string][]types.AutoGen)
 
@@ -63,22 +71,34 @@ func ConvertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 
 	conv.SpDialect = sessionState.Dialect
+	conv.SpProjectId = sessionState.SpannerProjectId
+	conv.SpInstanceId = sessionState.SpannerInstanceID
+	conv.Source = sessionState.Driver
 	conv.IsSharded = sessionState.IsSharded
 	var err error
 	additionalSchemaAttributes := internal.AdditionalSchemaAttributes{
 		IsSharded: sessionState.IsSharded,
 	}
 	processSchema := common.ProcessSchemaImpl{}
+	ctx := context.Background()
+	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
+		return
+	}
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		DdlV: ddlVerifier,
+	}
 	switch sessionState.Driver {
 	case constants.MYSQL:
-		err = processSchema.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.POSTGRES:
 		temp := false
-		err = processSchema.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.SQLSERVER:
-		err = processSchema.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.ORACLE:
-		err = processSchema.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -156,7 +176,10 @@ func ConvertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver, &n)
 	sourceProfile.Driver = dc.Config.Driver
 	schemaFromSource := conversion.SchemaFromSourceImpl{}
-	conv, err := schemaFromSource.SchemaFromDump(sourceProfile.Driver, dc.SpannerDetails.Dialect, &utils.IOStreams{In: f, Out: os.Stdout}, &conversion.ProcessDumpByDialectImpl{})
+	sessionState := session.GetSessionState()
+	SpProjectId := sessionState.SpannerProjectId
+	SpInstanceId := sessionState.SpannerInstanceID
+	conv, err := schemaFromSource.SchemaFromDump(SpProjectId, SpInstanceId, sourceProfile.Driver, dc.SpannerDetails.Dialect, &utils.IOStreams{In: f, Out: os.Stdout}, &conversion.ProcessDumpByDialectImpl{})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
@@ -169,7 +192,6 @@ func ConvertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		Dialect:      dc.SpannerDetails.Dialect,
 	}
 
-	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
 	sessionState.Conv = conv
@@ -330,7 +352,6 @@ func GetTypeMap(w http.ResponseWriter, r *http.Request) {
 			} else {
 				filteredTypeMap[key][i].DisplayT = filteredTypeMap[key][i].T
 			}
-
 		}
 	}
 	w.WriteHeader(http.StatusOK)
@@ -338,7 +359,6 @@ func GetTypeMap(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAutoGenMap(w http.ResponseWriter, r *http.Request) {
-
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
@@ -356,9 +376,46 @@ func GetAutoGenMap(w http.ResponseWriter, r *http.Request) {
 
 // GetTableWithErrors checks the errors in the spanner schema
 // and returns a list of tables with errors
-func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
+func (tableHandler *TableAPIHandler) GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.RLock()
+
+	tableIds := common.GetSortedTableIdsBySpName(sessionState.Conv.SpSchema)
+	tableHandler.DDLVerifier.RefreshSpannerClient(context.Background(), sessionState.Conv.SpProjectId, sessionState.Conv.SpInstanceId)
+
+	expressionDetails := tableHandler.DDLVerifier.GetSpannerExpressionDetails(sessionState.Conv, tableIds)
+	expressions, err := tableHandler.DDLVerifier.VerifySpannerDDL(sessionState.Conv, expressionDetails)
+	if err != nil && strings.Contains(err.Error(), "expressions either failed verification") {
+		for _, exp := range expressions.ExpressionVerificationOutputList {
+			switch exp.ExpressionDetail.Type {
+			case "DEFAULT":
+				{
+					if !exp.Result {
+						tableId := exp.ExpressionDetail.Metadata["TableId"]
+						columnId := exp.ExpressionDetail.Metadata["ColId"]
+						issues := sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
+						issues = append(issues, internal.DefaultValueError)
+						sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = issues
+					}
+				}
+			}
+		}
+	} else if err != nil {
+		for _, tableId := range tableIds {
+			srcTable := sessionState.Conv.SrcSchema[tableId]
+			for _, srcColId := range srcTable.ColIds {
+				srcCol := srcTable.ColDefs[srcColId]
+				if srcCol.DefaultValue.IsPresent {
+					issues := sessionState.Conv.SchemaIssues[tableId]
+					sessionState.Conv.SchemaIssues[tableId] = issues
+				}
+			}
+		}
+	}
+
+	if sessionState.Conv.SpProjectId != "" {
+		session.UpdateSessionFile()
+	}
 	defer sessionState.Conv.ConvLock.RUnlock()
 	var tableIdName []types.TableIdAndName
 	for id, issues := range sessionState.Conv.SchemaIssues {
@@ -371,15 +428,24 @@ func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 				tableIdName = append(tableIdName, t)
 			}
 		}
+		for _, columnIssues := range issues.ColumnLevelIssues {
+			for _, issue := range columnIssues {
+				if reports.IssueDB[issue].Severity == reports.Errors {
+					t := types.TableIdAndName{
+						Id:   id,
+						Name: sessionState.Conv.SpSchema[id].Name,
+					}
+					tableIdName = append(tableIdName, t)
+				}
+			}
+		}
 	}
-	sort.Slice(tableIdName, func(i, j int) bool {
-		return tableIdName[i].Name < tableIdName[j].Name
-	})
+	tableIdName = uniqueAndSortTableIdName(tableIdName)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tableIdName)
 }
 
-func RestoreTables(w http.ResponseWriter, r *http.Request) {
+func (tableHandler *TableAPIHandler) RestoreTables(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -393,15 +459,15 @@ func RestoreTables(w http.ResponseWriter, r *http.Request) {
 	}
 	var convm session.ConvWithMetadata
 	for _, tableId := range tables.TableList {
-		convm = restoreTableHelper(w, tableId)
+		convm = tableHandler.restoreTableHelper(w, tableId)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
 
-func RestoreTable(w http.ResponseWriter, r *http.Request) {
+func (tableHandler *TableAPIHandler) RestoreTable(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("table")
-	convm := restoreTableHelper(w, tableId)
+	convm := tableHandler.restoreTableHelper(w, tableId)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
@@ -485,7 +551,91 @@ func RestoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
+}
 
+// UpdateCheckConstraint processes the request to update spanner table check constraints, ensuring session and schema validity, and responds with the updated conversion metadata.
+func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("table")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
+
+	newCc := []ddl.CheckConstraint{}
+	if err = json.Unmarshal(reqBody, &newCc); err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	sp := sessionState.Conv.SpSchema[tableId]
+	sp.CheckConstraints = newCc
+	sessionState.Conv.SpSchema[tableId] = sp
+	session.UpdateSessionFile()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
+func doesNameExist(spcks []ddl.CheckConstraint, targetName string) bool {
+	for _, spck := range spcks {
+		if strings.Contains(spck.Expr, targetName) {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidateCheckConstraint verifies if the type of a database column has been altered and add an error if a change is detected.
+func ValidateCheckConstraint(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	sessionState.Conv.ConvLock.Lock()
+	defer sessionState.Conv.ConvLock.Unlock()
+
+	sp := sessionState.Conv.SpSchema
+	srcschema := sessionState.Conv.SrcSchema
+	flag := true
+	var schemaIssue []internal.SchemaIssue
+
+	for _, src := range srcschema {
+		for _, col := range sp[src.Id].ColDefs {
+			if len(sp[src.Id].CheckConstraints) > 0 {
+				spType := col.T.Name
+				srcType := srcschema[src.Id].ColDefs[col.Id].Type
+				actualType := mysqlDefaultTypeMap[srcType.Name]
+				if actualType.Name != spType {
+					columnName := sp[src.Id].ColDefs[col.Id].Name
+					spcks := sp[src.Id].CheckConstraints
+					if doesNameExist(spcks, columnName) {
+						flag = false
+						schemaIssue = sessionState.Conv.SchemaIssues[src.Id].ColumnLevelIssues[col.Id]
+						if !utilities.IsSchemaIssuePresent(schemaIssue, internal.TypeMismatch) {
+							schemaIssue = append(schemaIssue, internal.TypeMismatch)
+						}
+						sessionState.Conv.SchemaIssues[src.Id].ColumnLevelIssues[col.Id] = schemaIssue
+						break
+					}
+				}
+			}
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(flag)
 }
 
 // renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables
@@ -717,7 +867,8 @@ func SetParentTable(w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"tableInterleaveStatus": tableInterleaveStatus,
-			"sessionState":          convm})
+			"sessionState":          convm,
+		})
 	} else {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"tableInterleaveStatus": tableInterleaveStatus,
@@ -801,7 +952,6 @@ func RemoveParentTable(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
-
 }
 
 func UpdateIndexes(w http.ResponseWriter, r *http.Request) {
@@ -837,7 +987,6 @@ func UpdateIndexes(w http.ResponseWriter, r *http.Request) {
 	st := sessionState.Conv.SrcSchema[table]
 
 	for i, ind := range sp.Indexes {
-
 		if ind.TableId == newIndexes[0].TableId && ind.Id == newIndexes[0].Id {
 
 			index.RemoveIndexIssues(table, sp.Indexes[i])
@@ -940,7 +1089,7 @@ func GetConversionRate(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(rate)
 }
 
-func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
+func (tableHandler *TableAPIHandler) restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
@@ -970,7 +1119,7 @@ func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithM
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 	}
 
-	err := common.SrcTableToSpannerDDL(conv, toddl, sessionState.Conv.SrcSchema[tableId])
+	err := common.SrcTableToSpannerDDL(conv, toddl, sessionState.Conv.SrcSchema[tableId], tableHandler.DDLVerifier)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Restoring spanner table fail"), http.StatusBadRequest)
 	}
@@ -1090,11 +1239,8 @@ func checkPrimaryKeyOrder(tableId string, refTableId string, fk ddl.Foreignkey) 
 	childTable := sessionState.Conv.SpSchema[tableId]
 	parentTable := sessionState.Conv.SpSchema[refTableId]
 	for i := 0; i < len(parentPks); i++ {
-
 		for j := 0; j < len(childPks); j++ {
-
 			for k := 0; k < len(fk.ReferColumnIds); k++ {
-
 				if childTable.ColDefs[fk.ColIds[k]].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name &&
 					parentTable.ColDefs[parentPks[i].ColId].Name == childTable.ColDefs[childPks[j].ColId].Name &&
 					parentTable.ColDefs[parentPks[i].ColId].T.Name == childTable.ColDefs[childPks[j].ColId].T.Name &&
@@ -1106,15 +1252,12 @@ func checkPrimaryKeyOrder(tableId string, refTableId string, fk ddl.Foreignkey) 
 					}
 				}
 			}
-
 		}
-
 	}
 	return ""
 }
 
 func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey, tableInterleaveStatus *types.TableInterleaveStatus) bool {
-
 	sessionState := session.GetSessionState()
 	childTable := sessionState.Conv.SpSchema[tableId]
 	parentTable := sessionState.Conv.SpSchema[refTableId]
@@ -1151,11 +1294,8 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 	interleaved := []ddl.IndexKey{}
 
 	for i := 0; i < len(parentPks); i++ {
-
 		for j := 0; j < len(childPks); j++ {
-
 			for k := 0; k < len(fk.ReferColumnIds); k++ {
-
 				if childTable.ColDefs[fk.ColIds[k]].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name &&
 					parentTable.ColDefs[parentPks[i].ColId].Name == childTable.ColDefs[childPks[j].ColId].Name &&
 					parentTable.ColDefs[parentPks[i].ColId].T.Name == childTable.ColDefs[childPks[j].ColId].T.Name &&
@@ -1166,9 +1306,7 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 					interleaved = append(interleaved, parentPks[i])
 				}
 			}
-
 		}
-
 	}
 
 	if len(interleaved) == len(parentPks) {
@@ -1178,18 +1316,13 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 	diff := []ddl.IndexKey{}
 
 	if len(interleaved) == 0 {
-
 		for i := 0; i < len(parentPks); i++ {
-
 			for j := 0; j < len(childPks); j++ {
-
 				if parentTable.ColDefs[parentPks[i].ColId].Name != childTable.ColDefs[childPks[j].ColId].Name || parentTable.ColDefs[parentPks[i].ColId].T.Len != childTable.ColDefs[childPks[j].ColId].T.Len {
 					diff = append(diff, parentPks[i])
 				}
-
 			}
 		}
-
 	}
 
 	canInterleavedOnAdd := []string{}
@@ -1220,7 +1353,6 @@ func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey,
 			} else {
 				canInterleavedOnRename = append(canInterleavedOnRename, fk.ColIds[parentColIndex])
 			}
-
 		}
 	}
 
@@ -1326,7 +1458,7 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 	issues := sessionState.Conv.SchemaIssues
 	syntheticPkey := sessionState.Conv.SyntheticPKeys
 
-	//remove deleted name from usedName
+	// remove deleted name from usedName
 	usedNames := sessionState.Conv.UsedNames
 	delete(usedNames, strings.ToLower(sessionState.Conv.SpSchema[tableId].Name))
 	for _, index := range sessionState.Conv.SpSchema[tableId].Indexes {
@@ -1343,7 +1475,7 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 	}
 	delete(syntheticPkey, tableId)
 
-	//drop reference foreign key
+	// drop reference foreign key
 	for tableName, spTable := range spSchema {
 		fks := []ddl.Foreignkey{}
 		for _, fk := range spTable.ForeignKeys {
@@ -1352,13 +1484,12 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 			} else {
 				delete(usedNames, fk.Name)
 			}
-
 		}
 		spTable.ForeignKeys = fks
 		spSchema[tableName] = spTable
 	}
 
-	//remove interleave that are interleaved on the drop table as parent
+	// remove interleave that are interleaved on the drop table as parent
 	for id, spTable := range spSchema {
 		if spTable.ParentTable.Id == tableId {
 			spTable.ParentTable.Id = ""
@@ -1367,7 +1498,7 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 		}
 	}
 
-	//remove interleavable suggestion on droping the parent table
+	// remove interleavable suggestion on droping the parent table
 	for tableName, tableIssues := range issues {
 		for colName, colIssues := range tableIssues.ColumnLevelIssues {
 			updatedColIssues := []internal.SchemaIssue{}
@@ -1610,4 +1741,24 @@ func makeGoogleSqlDialectAutoGenMap(sequences map[string]ddl.Sequence) {
 				})
 		}
 	}
+}
+
+func uniqueAndSortTableIdName(tableIdName []types.TableIdAndName) []types.TableIdAndName {
+	uniqueMap := make(map[string]types.TableIdAndName)
+	for _, item := range tableIdName {
+		uniqueMap[item.Name] = item // Use Name as the unique key
+	}
+
+	// Convert the map back to a slice
+	uniqueSlice := make([]types.TableIdAndName, 0, len(uniqueMap))
+	for _, value := range uniqueMap {
+		uniqueSlice = append(uniqueSlice, value)
+	}
+
+	// Sort the slice by Name
+	sort.Slice(uniqueSlice, func(i, j int) bool {
+		return uniqueSlice[i].Name < uniqueSlice[j].Name
+	})
+
+	return uniqueSlice
 }

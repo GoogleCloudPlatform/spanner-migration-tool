@@ -27,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
@@ -45,6 +46,7 @@ type SchemaCmd struct {
 	logLevel      string
 	dryRun        bool
 	validate      bool
+	sessionJSON   string
 }
 
 // Name returns the name of operation.
@@ -79,6 +81,7 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
+	f.StringVar(&cmd.sessionJSON, "session", "", "Optional. Specifies the file we restore session state from.")
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -123,12 +126,35 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	schemaConversionStartTime := time.Now()
 	var conv *internal.Conv
 	convImpl := &conversion.ConvImpl{}
-	conv, err = convImpl.SchemaConv(cmd.project, sourceProfile, targetProfile, &ioHelper, &conversion.SchemaFromSourceImpl{})
-	if err != nil {
+	if cmd.sessionJSON != "" {
+		logger.Log.Info("Loading the conversion context from session file."+
+			" The source profile will not be used for the schema conversion.", zap.String("sessionFile", cmd.sessionJSON))
+		conv = internal.MakeConv()
+		err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
+		if err != nil {
+			return subcommands.ExitFailure
+		}
+	} else {
+		ctx := context.Background()
+		ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, "", "")
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("error trying create ddl verifier: %v", err))
+			return subcommands.ExitFailure
+		}
+		sfs := &conversion.SchemaFromSourceImpl{
+			DdlVerifier: ddlVerifier,
+		}
+		conv, err = convImpl.SchemaConv(cmd.project, sourceProfile, targetProfile, &ioHelper, sfs)
+		if err != nil {
+			return subcommands.ExitFailure
+		}
+	}
+	if conv == nil {
+		logger.Log.Error("Could not initialize conversion context from")
 		return subcommands.ExitFailure
 	}
-
 	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out, sourceProfile.Driver)
+	// We always write the session file to accommodate for a re-run that might change anything.
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 
 	// Populate migration request id and migration type in conv object.

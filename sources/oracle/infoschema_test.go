@@ -23,6 +23,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -162,7 +163,10 @@ func TestProcessSchemaOracle(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	processSchema := common.ProcessSchemaImpl{}
-	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		DdlV: &expressions_api.MockDDLVerifier{},
+	}
+	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}, 1, internal.AdditionalSchemaAttributes{}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"USER": {

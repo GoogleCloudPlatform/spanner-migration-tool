@@ -4,7 +4,7 @@ import IUpdateTable from '../../model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
-import IColumnTabData, { IIndexData, ISequenceData } from '../../model/edit-table'
+import IColumnTabData, { AutoGen, IIndexData, ISequenceData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import { ColLength, Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, SourceDbNames, StorageKeys, dialogConfigAddSequence, dialogConfigDropComponent} from 'src/app/app.constants'
@@ -71,7 +71,7 @@ export class ObjectDetailComponent implements OnInit {
   isPostgreSQLDialect: boolean = false
   processedAutoGenMap: GroupedAutoGens = {};
   sequenceKinds: string[] = []
-  autoGenSupported: boolean = false
+  mySqlSource: boolean = false
   foreignKeyActionsSupported: boolean = false
 
   ngOnInit(): void {
@@ -84,7 +84,7 @@ export class ObjectDetailComponent implements OnInit {
     if (this.conv.DatabaseType) {
       this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
     }
-    this.autoGenSupported = autoGenSupportedDbs.includes(this.srcDbName)
+    this.mySqlSource = autoGenSupportedDbs.includes(this.srcDbName)
     if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres){
           this.foreignKeyActionsSupported = true
         }
@@ -208,8 +208,10 @@ export class ObjectDetailComponent implements OnInit {
       this.displayedPkColumns.splice(8, 0, "spAutoGen");
       this.srcDisplayedColumns.splice(2, 0, "srcAutoGen");
       this.displayedPkColumns.splice(2, 0, "srcAutoGen");
-      this.spColspan++;
-      this.srcColspan++;
+      this.srcDisplayedColumns.push("srcDefaultValue");;
+      this.spDisplayedColumns.splice(4, 0,"spDefaultValue");
+      this.spColspan+=2;
+      this.srcColspan+=2;
     }
     if (this.foreignKeyActionsSupported && !this.displayedFkColumns.includes('srcOnDelete') ) {
       this.displayedFkColumns.splice(4, 0, 'srcOnDelete', 'srcOnUpdate');
@@ -258,6 +260,7 @@ export class ObjectDetailComponent implements OnInit {
           srcDataType: new FormControl(row.srcDataType),
           srcIsPk: new FormControl(row.srcIsPk),
           srcIsNotNull: new FormControl(row.srcIsNotNull),
+          srcDefaultValue: new FormControl(row.srcDefaultValue),
           srcColMaxLength: new FormControl(row.srcColMaxLength),
           srcAutoGen: new FormControl(row.srcAutoGen),
           spOrder: new FormControl(row.srcOrder),
@@ -272,7 +275,20 @@ export class ObjectDetailComponent implements OnInit {
           spColMaxLength: new FormControl(row.spColMaxLength, [
             Validators.required]),
           spAutoGen: new FormControl(row.spAutoGen),
+          spDefaultValue: new FormControl(row.spDefaultValue ? row.spDefaultValue.Value.Statement : ''),
         })
+        // Disable spDefaultValue if spAutoGen is set
+        if (row.spAutoGen.Name !== '') { 
+          fb.get('spDefaultValue')?.disable(); 
+        }
+        // Subscribe to changes in spAutoGen
+        fb.get('spAutoGen')?.valueChanges.subscribe((autoGen: AutoGen | null) => { // Allow null value
+          if (autoGen && autoGen.Name !== '') {
+            fb.get('spDefaultValue')?.disable();
+          } else {
+            fb.get('spDefaultValue')?.enable();
+          }
+        });
         if (this.dataTypesWithColLen.indexOf(row.spDataType.toString()) > -1) {
           fb.get('spColMaxLength')?.setValidators([Validators.required, Validators.pattern('([1-9][0-9]*|MAX)')])
           if (row.spColMaxLength === undefined) {
@@ -287,6 +303,9 @@ export class ObjectDetailComponent implements OnInit {
           }
         } else {
           fb.controls['spColMaxLength'].clearValidators()
+        }
+        if (row.spAutoGen?.Name !== '') {
+          fb.get('spDefaultValue')?.setValue('');
         }
         fb.controls['spColMaxLength'].updateValueAndValidity()
         this.spRowArray.push(
@@ -309,6 +328,7 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(col.srcDataType),
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
+            srcDefaultValue: new FormControl(col.srcDefaultValue),
             srcColMaxLength: new FormControl(col.srcColMaxLength),
             srcAutoGen: new FormControl(col.srcAutoGen),
             spOrder: new FormControl(col.spOrder),
@@ -320,6 +340,7 @@ export class ObjectDetailComponent implements OnInit {
             srcId: new FormControl(col.srcId),
             spColMaxLength: new FormControl(col.spColMaxLength),
             spAutoGen: new FormControl(col.spAutoGen),
+            spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
           })
         )
       } else {
@@ -345,6 +366,7 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(col.srcDataType),
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
+            srcDefaultValue: new FormControl(col.srcDefaultValue),
             srcColMaxLength: new FormControl(col.srcColMaxLength),
             srcAutoGen: new FormControl(col.srcAutoGen),
             spOrder: new FormControl(col.srcOrder),
@@ -355,7 +377,8 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
             spColMaxLength: new FormControl(droppedColumnSpMaxLength),
-            spAutoGen: new FormControl(col.spAutoGen)
+            spAutoGen: new FormControl(col.spAutoGen),
+            spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
           })
         )
       }
@@ -419,7 +442,14 @@ export class ObjectDetailComponent implements OnInit {
             Removed: false,
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
             MaxColLength: col.spColMaxLength,
-            AutoGen: col.spAutoGen
+            AutoGen: col.spAutoGen,
+            DefaultValue: { 
+              IsPresent: col.spDefaultValue ? true : false, 
+              Value: {
+                ExpressionId: '', 
+                Statement: String(col.spDefaultValue)
+              }
+            }
           }
           break
         }
@@ -431,7 +461,8 @@ export class ObjectDetailComponent implements OnInit {
             Removed: false,
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
             MaxColLength: col.spColMaxLength,
-            AutoGen: col.spAutoGen
+            AutoGen: col.spAutoGen,
+            DefaultValue: col.spDefaultValue,
           }
         }
       }
@@ -448,6 +479,13 @@ export class ObjectDetailComponent implements OnInit {
         AutoGen: {
           Name : '',
           GenerationType : ''
+        },
+        DefaultValue: {
+          IsPresent: false,
+          Value: {
+            ExpressionId: '',
+            Statement: ''
+          }
         }
       }
     })
@@ -508,6 +546,7 @@ export class ObjectDetailComponent implements OnInit {
     this.localTableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
     this.localTableData[index].spColMaxLength = this.droppedColumns[addedRowIndex].spColMaxLength
     this.localTableData[index].spAutoGen = this.droppedColumns[addedRowIndex].spAutoGen
+    this.localTableData[index].spDefaultValue = this.droppedColumns[addedRowIndex].spDefaultValue
     let ind = this.droppedColumns
       .map((col: IColumnTabData) => col.spColName)
       .indexOf(this.addedColumnName)
@@ -605,6 +644,13 @@ export class ObjectDetailComponent implements OnInit {
         col.spAutoGen = {
           Name : '',
           GenerationType : ''
+        },
+        col.spDefaultValue = {
+          Value: {
+            ExpressionId: '',
+            Statement: ''
+          },
+          IsPresent: false
         }
       }
     })
@@ -664,7 +710,8 @@ export class ObjectDetailComponent implements OnInit {
           spIsPk: row.spIsPk,
           spOrder: row.spOrder,
           spId: row.spId,
-          spAutoGen: row.spAutoGen
+          spAutoGen: row.spAutoGen,
+          spDefaultValue: row.spDefaultValue
         })
       }
     })
@@ -692,6 +739,7 @@ export class ObjectDetailComponent implements OnInit {
           spIsNotNull: new FormControl(spArr[i].spIsNotNull),
           spId: new FormControl(spArr[i].spId),
           spAutoGen: new FormControl(spArr[i].spAutoGen),
+          spDefaultValue: new FormControl(spArr[i].spDefaultValue),
         })
       )
     }
@@ -713,6 +761,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsNotNull: new FormControl(false),
             spId: new FormControl(''),
             spAutoGen: new FormControl(spArr[i].spAutoGen),
+            spDefaultValue: new FormControl(spArr[i].spDefaultValue),
           })
         )
       }
@@ -736,7 +785,8 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(spArr[i].spIsPk),
             spIsNotNull: new FormControl(spArr[i].spIsNotNull),
             spId: new FormControl(spArr[i].spId),
-            spAutoGen: new FormControl(spArr[i].spAutoGen)
+            spAutoGen: new FormControl(spArr[i].spAutoGen),
+            spDefaultValue: new FormControl(spArr[i].spDefaultValue),
           })
         )
       }

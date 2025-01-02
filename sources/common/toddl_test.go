@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -423,8 +424,160 @@ func Test_SchemaToSpannerSequenceHelper(t *testing.T) {
 
 	for _, tt := range tc {
 		conv := internal.MakeConv()
-		ss := SchemaToSpannerImpl{}
+		ss := SchemaToSpannerImpl{
+			DdlV: &expressions_api.MockDDLVerifier{},
+		}
 		ss.SchemaToSpannerSequenceHelper(conv, tt.srcSequence)
 		assert.Equal(t, expectedConv, conv)
+	}
+}
+
+func Test_cvtCheckContraint(t *testing.T) {
+
+	conv := internal.MakeConv()
+	srcSchema := []schema.CheckConstraint{
+		{
+			Id:   "cc1",
+			Name: "check_1",
+			Expr: "age > 0",
+		},
+		{
+			Id:   "cc2",
+			Name: "check_2",
+			Expr: "age < 99",
+		},
+		{
+			Id:   "cc3",
+			Name: "@invalid_name", // incompatabile name
+			Expr: "age != 0",
+		},
+	}
+	spSchema := []ddl.CheckConstraint{
+		{
+			Id:   "cc1",
+			Name: "check_1",
+			Expr: "age > 0",
+		},
+		{
+			Id:   "cc2",
+			Name: "check_2",
+			Expr: "age < 99",
+		},
+		{
+			Id:   "cc3",
+			Name: "Ainvalid_name",
+			Expr: "age != 0",
+		},
+	}
+	result := cvtCheckConstraint(conv, srcSchema)
+	assert.Equal(t, spSchema, result)
+}
+
+func TestSpannerSchemaApplyExpressions(t *testing.T) {
+	makeConv := func() *internal.Conv {
+		conv := internal.MakeConv()
+		conv.SchemaIssues = make(map[string]internal.TableIssues)
+		conv.SchemaIssues["table1"] = internal.TableIssues{
+			ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+		}
+		conv.SpSchema = ddl.Schema{
+			"table1": {
+				ColDefs: map[string]ddl.ColumnDef{
+					"col1": {},
+				},
+			},
+		}
+		return conv
+	}
+
+	makeResultConv := func(SpSchema ddl.Schema, SchemaIssues map[string]internal.TableIssues) *internal.Conv {
+		conv := internal.MakeConv()
+		conv.SpSchema = SpSchema
+		conv.SchemaIssues = SchemaIssues
+		return conv
+	}
+
+	testCases := []struct {
+		name         string
+		conv         *internal.Conv
+		expressions  internal.VerifyExpressionsOutput
+		expectedConv *internal.Conv
+	}{
+		{
+			name: "successful default value application",
+			conv: makeConv(),
+			expressions: internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+					{
+						Result: true,
+						ExpressionDetail: internal.ExpressionDetail{
+							Type:         "DEFAULT",
+							ExpressionId: "expr1",
+							Expression:   "SELECT 1",
+							Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+						},
+					},
+				},
+			},
+			expectedConv: makeResultConv(
+				ddl.Schema{
+					"table1": {
+						ColDefs: map[string]ddl.ColumnDef{
+							"col1": {
+								DefaultValue: ddl.DefaultValue{
+									IsPresent: true,
+									Value: ddl.Expression{
+										ExpressionId: "expr1",
+										Statement:    "SELECT 1",
+									},
+								},
+							},
+						},
+					},
+				}, map[string]internal.TableIssues{
+					"table1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+				}),
+		},
+		{
+			name: "failed default value application",
+			conv: makeConv(),
+			expressions: internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+					{
+						Result: false,
+						ExpressionDetail: internal.ExpressionDetail{
+							Type:         "DEFAULT",
+							ExpressionId: "expr1",
+							Expression:   "SELECT 1",
+							Metadata:     map[string]string{"TableId": "table1", "ColId": "col1"},
+						},
+					},
+				},
+			},
+			expectedConv: makeResultConv(
+				ddl.Schema{
+					"table1": {
+						ColDefs: map[string]ddl.ColumnDef{
+							"col1": {},
+						},
+					},
+				},
+				map[string]internal.TableIssues{
+					"table1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"col1": {internal.DefaultValue},
+						},
+					},
+				}),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			spannerSchemaApplyExpressions(tc.conv, tc.expressions)
+			assert.Equal(t, tc.expectedConv, tc.conv)
+		})
 	}
 }

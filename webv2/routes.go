@@ -20,12 +20,12 @@ import (
 	"net/http"
 
 	ds "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
-	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
@@ -43,12 +43,15 @@ func getRoutes() *mux.Router {
 	reportAPIHandler := api.ReportAPIHandler{
 		Report: &conversion.ReportImpl{},
 	}
-
 	ctx := context.Background()
-	spClient, _:= spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+	ddlVerifier, _ := expressions_api.NewDDLVerifierImpl(ctx, "", "")
+	tableHandler := api.TableAPIHandler{
+		DDLVerifier: ddlVerifier,
+	}
+	spanneraccessor, _ := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	dsClient, _ := ds.NewDatastreamClientImpl(ctx)
 	storageclient, _ := storageclient.NewStorageClientImpl(ctx)
-	validateResourceImpl := conversion.NewValidateResourcesImpl(&spanneraccessor.SpannerAccessorImpl{}, spClient, &datastream_accessor.DatastreamAccessorImpl{},
+	validateResourceImpl := conversion.NewValidateResourcesImpl(spanneraccessor, &datastream_accessor.DatastreamAccessorImpl{},
 		dsClient, &storageaccessor.StorageAccessorImpl{}, storageclient)
 	profileAPIHandler := profile.ProfileAPIHandler{
 		ValidateResources: validateResourceImpl,
@@ -76,7 +79,6 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/spannerDefaultTypeMap", api.SpannerDefaultTypeMap).Methods("GET")
 	router.HandleFunc("/autoGenMap", api.GetAutoGenMap).Methods("GET")
 	router.HandleFunc("/getSequenceKind", api.GetSequenceKind).Methods("GET")
-
 	router.HandleFunc("/setparent", api.SetParentTable).Methods("GET")
 	router.HandleFunc("/removeParent", api.RemoveParentTable).Methods("POST")
 
@@ -84,8 +86,8 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/drop/secondaryindex", api.DropSecondaryIndex).Methods("POST")
 	router.HandleFunc("/restore/secondaryIndex", api.RestoreSecondaryIndex).Methods("POST")
 
-	router.HandleFunc("/restore/table", api.RestoreTable).Methods("POST")
-	router.HandleFunc("/restore/tables", api.RestoreTables).Methods("POST")
+	router.HandleFunc("/restore/table", tableHandler.RestoreTable).Methods("POST")
+	router.HandleFunc("/restore/tables", tableHandler.RestoreTables).Methods("POST")
 	router.HandleFunc("/drop/table", api.DropTable).Methods("POST")
 	router.HandleFunc("/drop/tables", api.DropTables).Methods("POST")
 
@@ -93,6 +95,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/UpdateSequence", api.UpdateSequence).Methods("POST")
 
 	router.HandleFunc("/update/fks", api.UpdateForeignKeys).Methods("POST")
+	router.HandleFunc("/update/cc", api.UpdateCheckConstraint).Methods("POST")
 	router.HandleFunc("/update/indexes", api.UpdateIndexes).Methods("POST")
 
 	// Session Management
@@ -117,7 +120,7 @@ func getRoutes() *mux.Router {
 	// Application Configuration
 	router.HandleFunc("/GetConfig", config.GetConfig).Methods("GET")
 	router.HandleFunc("/SetSpannerConfig", config.SetSpannerConfig).Methods("POST")
-
+	router.HandleFunc("/IsConfigSet", config.IsConfigSet).Methods("GET")
 	// Run migration
 	router.HandleFunc("/Migrate", migrate).Methods("POST")
 
@@ -147,7 +150,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetSourceProfileConfig", getSourceProfileConfig).Methods("GET")
 	router.HandleFunc("/uploadFile", uploadFile).Methods("POST")
 
-	router.HandleFunc("/GetTableWithErrors", api.GetTableWithErrors).Methods("GET")
+	router.HandleFunc("/GetTableWithErrors", tableHandler.GetTableWithErrors).Methods("GET")
 	router.HandleFunc("/ping", getBackendHealth).Methods("GET")
 
 	router.PathPrefix("/").Handler(frontendStatic)

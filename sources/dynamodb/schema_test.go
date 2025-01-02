@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -189,7 +190,10 @@ func TestProcessSchema(t *testing.T) {
 
 	conv := internal.MakeConv()
 	processSchema := common.ProcessSchemaImpl{}
-	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	schemaToSpanner := &common.SchemaToSpannerImpl{
+		DdlV: &expressions_api.MockDDLVerifier{},
+	}
+	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -290,7 +294,10 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 
 	conv := internal.MakeConv()
 	processSchema := common.ProcessSchemaImpl{}
-	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	schemaToSpanner := &common.SchemaToSpannerImpl{
+		DdlV: &expressions_api.MockDDLVerifier{},
+	}
+	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -633,7 +640,7 @@ func TestInfoSchemaImpl_GetConstraints(t *testing.T) {
 	dySchema := common.SchemaAndName{Name: "test"}
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{client, nil, 10}
-	primaryKeys, constraints, err := isi.GetConstraints(conv, dySchema)
+	primaryKeys, _, constraints, err := isi.GetConstraints(conv, dySchema)
 	assert.Nil(t, err)
 
 	pKeys := []string{"a", "b"}
@@ -705,7 +712,7 @@ func TestInfoSchemaImpl_GetColumns(t *testing.T) {
 	client := &mockDynamoClient{
 		scanOutputs: scanOutputs,
 	}
-	dySchema := common.SchemaAndName{Name: "test", Id:  "t1"}
+	dySchema := common.SchemaAndName{Name: "test", Id: "t1"}
 
 	isi := InfoSchemaImpl{client, nil, 10}
 

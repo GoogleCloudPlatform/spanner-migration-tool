@@ -15,12 +15,8 @@
 package common
 
 import (
-	"fmt"
-	"math/rand"
 	"reflect"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -122,21 +118,6 @@ func TestGetColsAndSchemas(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestWorkerPool(t *testing.T) {
-	input := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-
-	f := func(i int, mutex *sync.Mutex) TaskResult[int] {
-		sleepTime := time.Duration(rand.Intn(1000 * 1000))
-		time.Sleep(sleepTime)
-		res := TaskResult[int]{Result: i, Err: nil}
-		return res
-	}
-
-	r := RunParallelTasksImpl[int, int]{}
-	out, _ := r.RunParallelTasks(input, 5, f, false)
-	assert.Equal(t, len(input), len(out), fmt.Sprintln("jobs not processed"))
 }
 
 func TestPrepareColumns(t *testing.T) {
@@ -287,5 +268,35 @@ func TestPrepareValues(t *testing.T) {
 		res, err := PrepareValues(tc.conv, tc.tableId, tc.srcColNameToIdMap, tc.commonId, tc.srcCols, tc.values)
 		assert.Equal(t, nil, err)
 		assert.Equal(t, tc.expectedValues, res)
+	}
+}
+
+func TestGetSortedTableIdsBySpName(t *testing.T) {
+	testCases := []struct {
+		name        string
+		spSchema    ddl.Schema
+		expectedIds []string
+	}{
+		{
+			name: "multiple tables",
+			spSchema: ddl.Schema{
+				"table2": {Name: "TableB"},
+				"table1": {Name: "TableA"},
+				"table3": {Name: "TableC"},
+			},
+			expectedIds: []string{"table1", "table2", "table3"},
+		},
+		{
+			name:        "no tables",
+			spSchema:    ddl.Schema{},
+			expectedIds: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sortedIds := GetSortedTableIdsBySpName(tc.spSchema)
+			assert.Equal(t, tc.expectedIds, sortedIds)
+		})
 	}
 }

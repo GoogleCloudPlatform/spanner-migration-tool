@@ -15,6 +15,7 @@
 package common
 
 import (
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 )
 
@@ -29,7 +30,7 @@ type DbDump interface {
 // In schema mode, this method incrementally builds a schema (updating conv).
 // In data mode, this method uses this schema to convert data and writes it
 // to Spanner, using the data sink specified in conv.
-func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump) error {
+func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump, ddlVerifier expressions_api.DDLVerifier) error {
 	if err := dbDump.ProcessDump(conv, r); err != nil {
 		return err
 	}
@@ -37,7 +38,9 @@ func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump) error
 		utilsOrder := UtilsOrderImpl{}
 		utilsOrder.initPrimaryKeyOrder(conv)
 		utilsOrder.initIndexOrder(conv)
-		schemaToSpanner := SchemaToSpannerImpl{}
+		schemaToSpanner := SchemaToSpannerImpl{
+			DdlV: ddlVerifier,
+		}
 		schemaToSpanner.SchemaToSpannerDDL(conv, dbDump.GetToDdl())
 		conv.AddPrimaryKeys()
 	}

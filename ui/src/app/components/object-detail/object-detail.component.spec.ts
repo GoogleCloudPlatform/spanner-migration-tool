@@ -85,6 +85,14 @@ describe('ObjectDetailComponent', () => {
           Name: '',
           GenerationType: ''
         },
+        srcDefaultValue: '',
+        spDefaultValue: {
+          Value: {
+            ExpressionId: '',
+            Statement: ''
+          },
+          IsPresent: false
+        },
       },
       {
         spOrder: 2,
@@ -108,6 +116,14 @@ describe('ObjectDetailComponent', () => {
         srcAutoGen: {
           Name: '',
           GenerationType: ''
+        },
+        srcDefaultValue: '',
+        spDefaultValue: {
+          Value: {
+            ExpressionId: '',
+            Statement: ''
+          },
+          IsPresent: false
         },
       },
     ]

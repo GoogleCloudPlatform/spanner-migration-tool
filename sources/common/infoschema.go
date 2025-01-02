@@ -17,10 +17,12 @@ package common
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	sp "cloud.google.com/go/spanner"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -36,7 +38,7 @@ type InfoSchema interface {
 	GetColumns(conv *internal.Conv, table SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error)
 	GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error)
 	GetRowCount(table SchemaAndName) (int64, error)
-	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, map[string][]string, error)
+	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, []schema.CheckConstraint, map[string][]string, error)
 	GetForeignKeys(conv *internal.Conv, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
 	GetIndexes(conv *internal.Conv, table SchemaAndName, colNameIdMp map[string]string) ([]schema.Index, error)
 	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, additionalAttributes internal.AdditionalDataAttributes) error
@@ -111,16 +113,16 @@ func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema Info
 		numWorkers = DefaultWorkers
 	}
 
-	asyncProcessTable := func(t SchemaAndName, mutex *sync.Mutex) TaskResult[SchemaAndName] {
+	asyncProcessTable := func(t SchemaAndName, mutex *sync.Mutex) task.TaskResult[SchemaAndName] {
 		table, e := is.processTable(conv, t, infoSchema)
 		mutex.Lock()
 		conv.SrcSchema[table.Id] = table
 		mutex.Unlock()
-		res := TaskResult[SchemaAndName]{t, e}
+		res := task.TaskResult[SchemaAndName]{t, e}
 		return res
 	}
 
-	r := RunParallelTasksImpl[SchemaAndName, SchemaAndName]{}
+	r := task.RunParallelTasksImpl[SchemaAndName, SchemaAndName]{}
 	res, e := r.RunParallelTasks(tables, numWorkers, asyncProcessTable, false)
 	if e != nil {
 		fmt.Printf("exiting due to error: %s , while processing schema for table %s\n", e, res)
@@ -185,7 +187,7 @@ func (is *InfoSchemaImpl) processTable(conv *internal.Conv, table SchemaAndName,
 	var t schema.Table
 	fmt.Println("processing schema for table", table)
 	tblId := internal.GenerateTableId()
-	primaryKeys, constraints, err := infoSchema.GetConstraints(conv, table)
+	primaryKeys, checkConstraints, constraints, err := infoSchema.GetConstraints(conv, table)
 	if err != nil {
 		return t, fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
@@ -215,15 +217,16 @@ func (is *InfoSchemaImpl) processTable(conv *internal.Conv, table SchemaAndName,
 		schemaPKeys = append(schemaPKeys, schema.Key{ColId: colNameIdMap[k]})
 	}
 	t = schema.Table{
-		Id:           tblId,
-		Name:         name,
-		Schema:       table.Schema,
-		ColIds:       colIds,
-		ColNameIdMap: colNameIdMap,
-		ColDefs:      colDefs,
-		PrimaryKeys:  schemaPKeys,
-		Indexes:      indexes,
-		ForeignKeys:  foreignKeys}
+		Id:               tblId,
+		Name:             name,
+		Schema:           table.Schema,
+		ColIds:           colIds,
+		ColNameIdMap:     colNameIdMap,
+		ColDefs:          colDefs,
+		PrimaryKeys:      schemaPKeys,
+		CheckConstraints: checkConstraints,
+		Indexes:          indexes,
+		ForeignKeys:      foreignKeys}
 	return t, nil
 }
 
@@ -251,4 +254,25 @@ func (is *InfoSchemaImpl) GetIncludedSrcTablesFromConv(conv *internal.Conv) (sch
 		schemaToTablesMap[srcTable.Schema] = schemaDetails
 	}
 	return schemaToTablesMap, nil
+}
+
+// SanitizeDefaultValue removes extra characters added to Default Value in information schema in MySQL.
+func SanitizeDefaultValue(defaultValue string, ty string, generated bool) string {
+	types := []string{"char", "varchar", "text", "varbinary", "tinyblob", "tinytext", "text",
+		"blob", "mediumtext", "mediumblob", "longtext", "longblob", "STRING"}
+	// Check if ty exists in the types array
+	stringType := false
+	for _, t := range types {
+		if t == ty {
+			stringType = true
+			break
+		}
+	}
+	defaultValue = strings.ReplaceAll(defaultValue, "_utf8mb4", "")
+	defaultValue = strings.ReplaceAll(defaultValue, "\\\\", "\\")
+	defaultValue = strings.ReplaceAll(defaultValue, "\\'", "'")
+	if !generated && stringType && !strings.HasPrefix(defaultValue, "'") && !strings.HasSuffix(defaultValue, "'") {
+		defaultValue = "'" + defaultValue + "'"
+	}
+	return defaultValue
 }

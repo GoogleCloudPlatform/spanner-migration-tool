@@ -147,7 +147,7 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 		err := rows.Scan(&count)
 		return count, err
 	}
-	return 0, nil //Check if 0 is ok to return
+	return 0, nil // Check if 0 is ok to return
 }
 
 // GetTables return list of tables in the selected database.
@@ -194,16 +194,6 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			continue
 		}
 		ignored := schema.Ignored{}
-		for _, c := range constraints[colName] {
-			// c can be UNIQUE, PRIMARY KEY, FOREIGN KEY or CHECK
-			// We've already filtered out PRIMARY KEY.
-			switch c {
-			case "CHECK":
-				ignored.Check = true
-			case "FOREIGN KEY", "PRIMARY KEY", "UNIQUE":
-				// Nothing to do here -- these are all handled elsewhere.
-			}
-		}
 		ignored.Default = colDefault.Valid
 		colId := internal.GenerateColumnId()
 		if colExtra.String == "auto_increment" {
@@ -219,13 +209,30 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		} else {
 			colAutoGen = ddl.AutoGenCol{}
 		}
+
+		defaultVal := ddl.DefaultValue{
+			IsPresent: colDefault.Valid,
+			Value:     ddl.Expression{},
+		}
+		if colDefault.Valid {
+			ty := dataType
+			if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+				ty = ddl.GetPGType(ddl.Type{Name: ty})
+			}
+			defaultVal.Value = ddl.Expression{
+				ExpressionId: internal.GenerateExpressionId(),
+				Statement:    common.SanitizeDefaultValue(colDefault.String, ty, colExtra.String == constants.DEFAULT_GENERATED),
+			}
+		}
+
 		c := schema.Column{
-			Id:      colId,
-			Name:    colName,
-			Type:    toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
-			NotNull: common.ToNotNull(conv, isNullable),
-			Ignored: ignored,
-			AutoGen: colAutoGen,
+			Id:           colId,
+			Name:         colName,
+			Type:         toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
+			NotNull:      common.ToNotNull(conv, isNullable),
+			Ignored:      ignored,
+			AutoGen:      colAutoGen,
+			DefaultValue: defaultVal,
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)
@@ -237,38 +244,108 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
-func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, map[string][]string, error) {
-	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
-              FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
-                INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
-                  ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND t.TABLE_NAME=k.TABLE_NAME
-              WHERE k.TABLE_SCHEMA = ? AND k.TABLE_NAME = ? ORDER BY k.ordinal_position;`
-	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, []schema.CheckConstraint, map[string][]string, error) {
+	finalQuery, err := isi.getConstraintsDQL()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
+	}
+	rows, err := isi.Db.Query(finalQuery, table.Schema, table.Name)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 	defer rows.Close()
+
 	var primaryKeys []string
-	var col, constraint string
+	var checkKeys []schema.CheckConstraint
 	m := make(map[string][]string)
+
 	for rows.Next() {
-		err := rows.Scan(&col, &constraint)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+		if err := isi.processRow(rows, conv, &primaryKeys, &checkKeys, m); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan constrants. error: %v", err))
 			continue
-		}
-		if col == "" || constraint == "" {
-			conv.Unexpected(fmt.Sprintf("Got empty col or constraint"))
-			continue
-		}
-		switch constraint {
-		case "PRIMARY KEY":
-			primaryKeys = append(primaryKeys, col)
-		default:
-			m[col] = append(m[col], constraint)
 		}
 	}
-	return primaryKeys, m, nil
+
+	return primaryKeys, checkKeys, m, nil
+}
+
+// getConstraintsDQL returns the appropriate SQL query based on the existence of CHECK_CONSTRAINTS.
+func (isi InfoSchemaImpl) getConstraintsDQL() (string, error) {
+	var tableExistsCount int
+	// check if CHECK_CONSTRAINTS table exists.
+	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
+	err := isi.Db.QueryRow(checkQuery).Scan(&tableExistsCount)
+	if err != nil {
+		return "", err
+	}
+
+	// mysql version 8.0.16 and above has CHECK_CONSTRAINTS table.
+	if tableExistsCount > 0 {
+		return `SELECT DISTINCT COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME,t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
+            LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+            ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
+            AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
+            AND t.TABLE_NAME = k.TABLE_NAME
+            LEFT JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS AS c
+            ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
+            WHERE t.TABLE_SCHEMA = ? 
+            AND t.TABLE_NAME = ?;`, nil
+	}
+	return `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
+            INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
+            ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
+            AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
+            AND t.TABLE_NAME = k.TABLE_NAME
+            WHERE t.TABLE_SCHEMA = ?
+            AND t.TABLE_NAME = ?
+            ORDER BY k.ORDINAL_POSITION;`, nil
+}
+
+// processRow handles scanning and processing of a database row for GetConstraints.
+func (isi InfoSchemaImpl) processRow(
+	rows *sql.Rows, conv *internal.Conv, primaryKeys *[]string,
+	checkKeys *[]schema.CheckConstraint, m map[string][]string,
+) error {
+	var col, constraintType, checkClause, constraintName string
+	var err error
+	cols, err := rows.Columns()
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Failed to get columns: %v", err))
+		return err
+	}
+
+	switch len(cols) {
+	case 2:
+		err = rows.Scan(&col, &constraintType)
+	case 4:
+		err = rows.Scan(&col, &constraintName, &constraintType, &checkClause)
+	default:
+		conv.Unexpected(fmt.Sprintf("unexpected number of columns: %d", len(cols)))
+		return fmt.Errorf("unexpected number of columns: %d", len(cols))
+	}
+	if err != nil {
+		return err
+	}
+
+	if col == "" && constraintType == "" {
+		conv.Unexpected("Got empty column or constraint type")
+		return nil
+	}
+
+	switch constraintType {
+	case "PRIMARY KEY":
+		*primaryKeys = append(*primaryKeys, col)
+
+	// Case added to handle check constraints
+	case "CHECK":
+		checkClause = collationRegex.ReplaceAllString(checkClause, "")
+		*checkKeys = append(*checkKeys, schema.CheckConstraint{Name: constraintName, Expr: checkClause, Id: internal.GenerateCheckConstrainstId()})
+	default:
+		m[col] = append(m[col], constraintType)
+	}
+	return nil
 }
 
 // GetForeignKeys return list all the foreign keys constraints.
@@ -367,12 +444,14 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			indexMap[name] = schema.Index{
 				Id:     internal.GenerateIndexesId(),
 				Name:   name,
-				Unique: (nonUnique == "0")}
+				Unique: (nonUnique == "0"),
+			}
 		}
 		index := indexMap[name]
 		index.Keys = append(index.Keys, schema.Key{
 			ColId: colNameIdMap[column],
-			Desc:  (collation.Valid && collation.String == "D")})
+			Desc:  (collation.Valid && collation.String == "D"),
+		})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {

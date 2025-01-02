@@ -22,14 +22,14 @@ import (
 
 	"cloud.google.com/go/datastream/apiv1/datastreampb"
 	sp "cloud.google.com/go/spanner"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
-	spinstanceadmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/instanceadmin"
+	datastreamclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/datastream"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	datastream_accessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/datastream"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -61,12 +61,11 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDMSMigration() (*writer.Batch
 func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationProjectId string, targetProfile profiles.TargetProfile, ctx context.Context, sourceProfile profiles.SourceProfile, conv *internal.Conv, is common.InfoSchemaInterface) (*writer.BatchWriter, error) {
 	// Fetch Spanner Region
 	if conv.SpRegion == "" {
-		spInstanceAdmin, err := spinstanceadmin.NewInstanceAdminClientImpl(ctx)
+		spAcc, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("unable to fetch Spanner Region for resource creation: %v", err)
 		}
-		spAcc := spanneraccessor.SpannerAccessorImpl{}
-		spannerRegion, err := spAcc.GetSpannerLeaderLocation(ctx, spInstanceAdmin, "projects/"+targetProfile.Conn.Sp.Project+"/instances/"+targetProfile.Conn.Sp.Instance)
+		spannerRegion, err := spAcc.GetSpannerLeaderLocation(ctx, "projects/"+targetProfile.Conn.Sp.Project+"/instances/"+targetProfile.Conn.Sp.Instance)
 		if err != nil {
 			return nil, fmt.Errorf("unable to fetch Spanner Region for resource creation: %v", err)
 		}
@@ -116,7 +115,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationPr
 	if err != nil {
 		logger.Log.Info(fmt.Sprintf("Error storing job details in SMT metadata store...the migration job will still continue as intended. %v", err))
 	}
-	asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) common.TaskResult[*profiles.DataShard] {
+	asyncProcessShards := func(p *profiles.DataShard, mutex *sync.Mutex) task.TaskResult[*profiles.DataShard] {
 		dbNameToShardIdMap := make(map[string]string)
 		for _, l := range p.LogicalShards {
 			dbNameToShardIdMap[l.DbName] = l.LogicalShardId
@@ -125,7 +124,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationPr
 			dataShardId, err := utils.GenerateName("smt-datashard")
 			dataShardId = strings.Replace(dataShardId, "_", "-", -1)
 			if err != nil {
-				return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+				return task.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 			}
 			p.DataShardId = dataShardId
 			fmt.Printf("Data shard id generated: %v\n", p.DataShardId)
@@ -134,27 +133,27 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationPr
 		err := streaming.VerifyAndUpdateCfg(&streamingCfg, targetProfile.Conn.Sp.Dbname, schemaDetails)
 		if err != nil {
 			err = fmt.Errorf("failed to process shard: %s, there seems to be an error in the sharding configuration, error: %v", p.DataShardId, err)
-			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+			return task.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		fmt.Printf("Initiating migration for shard: %v\n", p.DataShardId)
 		pubsubCfg, err := streaming.CreatePubsubResources(ctx, migrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, targetProfile.Conn.Sp.Dbname, constants.REGULAR_GCS)
 		if err != nil {
-			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+			return task.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		streamingCfg.PubsubCfg = *pubsubCfg
 		dlqPubsubCfg, err := streaming.CreatePubsubResources(ctx, migrationProjectId, streamingCfg.DatastreamCfg.DestinationConnectionConfig, targetProfile.Conn.Sp.Dbname, constants.DLQ_GCS)
 		if err != nil {
-			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+			return task.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		streamingCfg.DlqPubsubCfg = *dlqPubsubCfg
 		err = streaming.LaunchStream(ctx, sourceProfile, p.LogicalShards, migrationProjectId, streamingCfg.DatastreamCfg)
 		if err != nil {
-			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+			return task.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		streamingCfg.DataflowCfg.DbNameToShardIdMap = dbNameToShardIdMap
 		dfOutput, err := streaming.StartDataflow(ctx, migrationProjectId, targetProfile, streamingCfg, conv)
 		if err != nil {
-			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+			return task.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		// store the generated resources locally in conv, this is used as source of truth for persistence and the UI (should change to persisted values)
 
@@ -170,7 +169,7 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationPr
 		gcsConfig := streamingCfg.GcsCfg
 		sc, err := storageclient.NewStorageClientImpl(ctx)
 		if err != nil {
-			return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+			return task.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 		}
 		sa := storageaccessor.StorageAccessorImpl{}
 		if gcsConfig.TtlInDaysSet {
@@ -214,9 +213,9 @@ func (dd *DataFromDatabaseImpl) dataFromDatabaseForDataflowMigration(migrationPr
 		if err != nil {
 			fmt.Printf("Error storing generated resources in SMT metadata store for dataShardId: %s...the migration job will still continue as intended, error: %v\n", p.DataShardId, err)
 		}
-		return common.TaskResult[*profiles.DataShard]{Result: p, Err: err}
+		return task.TaskResult[*profiles.DataShard]{Result: p, Err: err}
 	}
-	r := common.RunParallelTasksImpl[*profiles.DataShard, *profiles.DataShard]{}
+	r := task.RunParallelTasksImpl[*profiles.DataShard, *profiles.DataShard]{}
 	_, err = r.RunParallelTasks(sourceProfile.Config.ShardConfigurationDataflow.DataShards, 20, asyncProcessShards, false)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start minimal downtime migrations: %v", err)

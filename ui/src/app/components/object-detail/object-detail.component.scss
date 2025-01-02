@@ -17,6 +17,13 @@
   }
 }
 
+.trimmed-text {
+  width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .title_container {
   display: flex;
   justify-content: space-between;
@@ -194,6 +201,7 @@
   .mat-column-srcDataType,
   .mat-column-spDataType,
   .mat-column-spAutoGen,
+  .mat-column-spDefaultValue,
   .mat-column-spIndexColName,
   .mat-column-srcIndexColName,
   .mat-column-spSeqName,
@@ -211,7 +219,7 @@
     min-width: 100px;
   }
 
-  .mat-column-srcIsNotNull,
+  .mat-column-srcDefaultValue,
   .mat-column-srcDatabase,
   .mat-column-srcIndexOrder {
     border-right: 1px solid #cdcccd;
@@ -314,4 +322,11 @@ tr.mat-mdc-row {
 
 .custom-mat-form-field .mat-select-panel .mat-option {
   white-space: nowrap;
+}
+
+.trimmed-text {
+  width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

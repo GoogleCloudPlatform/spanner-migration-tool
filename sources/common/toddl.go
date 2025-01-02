@@ -33,9 +33,11 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"unicode"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -56,7 +58,9 @@ type SchemaToSpannerInterface interface {
 	SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error
 }
 
-type SchemaToSpannerImpl struct{}
+type SchemaToSpannerImpl struct {
+	DdlV expressions_api.DDLVerifier
+}
 
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
@@ -70,6 +74,14 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 	for _, tableId := range tableIds {
 		srcTable := conv.SrcSchema[tableId]
 		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
+	}
+	if conv.Source == constants.MYSQL && conv.SpProjectId!="" && conv.SpInstanceId!=""{
+		expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
+		expressions, err := ss.DdlV.VerifySpannerDDL(conv, expressionDetails)
+		if err != nil && !strings.Contains(err.Error(), "expressions either failed verification") {
+			return err
+		}
+		spannerSchemaApplyExpressions(conv, expressions)
 	}
 	internal.ResolveRefs(conv)
 	return nil
@@ -114,7 +126,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		if srcCol.Ignored.Default {
 			issues = append(issues, internal.DefaultValue)
 		}
-		if srcCol.Ignored.AutoIncrement { //TODO(adibh) - check why this is not there in postgres
+		if srcCol.Ignored.AutoIncrement { // TODO(adibh) - check why this is not there in postgres
 			issues = append(issues, internal.AutoIncrement)
 		}
 		// Set the not null constraint to false for unsupported source datatypes
@@ -167,14 +179,16 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 	}
 	comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
 	conv.SpSchema[srcTable.Id] = ddl.CreateTable{
-		Name:        spTableName,
-		ColIds:      spColIds,
-		ColDefs:     spColDef,
-		PrimaryKeys: cvtPrimaryKeys(srcTable.PrimaryKeys),
-		ForeignKeys: cvtForeignKeys(conv, spTableName, srcTable.Id, srcTable.ForeignKeys, isRestore),
-		Indexes:     cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef),
-		Comment:     comment,
-		Id:          srcTable.Id}
+		Name:             spTableName,
+		ColIds:           spColIds,
+		ColDefs:          spColDef,
+		PrimaryKeys:      cvtPrimaryKeys(srcTable.PrimaryKeys),
+		ForeignKeys:      cvtForeignKeys(conv, spTableName, srcTable.Id, srcTable.ForeignKeys, isRestore),
+		CheckConstraints: cvtCheckConstraint(conv, srcTable.CheckConstraints),
+		Indexes:          cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds, spColDef),
+		Comment:          comment,
+		Id:               srcTable.Id,
+	}
 	return nil
 }
 
@@ -234,6 +248,20 @@ func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTableId string, 
 	return spKeys
 }
 
+// cvtCheckConstraint converts check constraints from source to Spanner.
+func cvtCheckConstraint(conv *internal.Conv, srcKeys []schema.CheckConstraint) []ddl.CheckConstraint {
+	var spcc []ddl.CheckConstraint
+
+	for _, cc := range srcKeys {
+		spcc = append(spcc, ddl.CheckConstraint{
+			Id:   cc.Id,
+			Name: internal.ToSpannerCheckConstraintName(conv, cc.Name),
+			Expr: cc.Expr,
+		})
+	}
+	return spcc
+}
+
 func CvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTableId string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
 	if len(srcKey.ColIds) != len(srcKey.ReferColumnIds) {
 		conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: ColIds and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source tableId: %s, referenced table: %s", len(srcKey.ColIds), len(srcKey.ReferColumnIds), srcTableId, srcKey.ReferTableId))
@@ -284,8 +312,10 @@ func cvtIndexes(conv *internal.Conv, tableId string, srcIndexes []schema.Index, 
 	return spIndexes
 }
 
-func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table) error {
-	schemaToSpanner := SchemaToSpannerImpl{}
+func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, ddlVerifier expressions_api.DDLVerifier) error {
+	schemaToSpanner := SchemaToSpannerImpl{
+		DdlV: ddlVerifier,
+	}
 	err := schemaToSpanner.SchemaToSpannerDDLHelper(conv, toddl, srcTable, true)
 	if err != nil {
 		return err
@@ -330,8 +360,8 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 				isPresent = true
 				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
 					if spColDef[v].T.Name == ddl.Numeric {
-						//index on NUMERIC is not supported in PGSQL Dialect currently.
-						//Indexes which contains a NUMERIC column in it will need to be skipped.
+						// index on NUMERIC is not supported in PGSQL Dialect currently.
+						// Indexes which contains a NUMERIC column in it will need to be skipped.
 						return ddl.CreateIndex{}
 					}
 				}
@@ -373,4 +403,33 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 		Id:              srcIndex.Id,
 	}
 	return spIndex
+}
+
+// Applies all valid expressions which can be migrated to spanner conv object
+func spannerSchemaApplyExpressions(conv *internal.Conv, expressions internal.VerifyExpressionsOutput) {
+	for _, expression := range expressions.ExpressionVerificationOutputList {
+		switch expression.ExpressionDetail.Type {
+		case "DEFAULT":
+			{
+				tableId := expression.ExpressionDetail.Metadata["TableId"]
+				columnId := expression.ExpressionDetail.Metadata["ColId"]
+
+				if expression.Result {
+					col := conv.SpSchema[tableId].ColDefs[columnId]
+					col.DefaultValue = ddl.DefaultValue{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: expression.ExpressionDetail.ExpressionId,
+							Statement:    expression.ExpressionDetail.Expression,
+						},
+					}
+					conv.SpSchema[tableId].ColDefs[columnId] = col
+				} else {
+					colIssues := conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
+					colIssues = append(colIssues, internal.DefaultValue)
+					conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = colIssues
+				}
+			}
+		}
+	}
 }
