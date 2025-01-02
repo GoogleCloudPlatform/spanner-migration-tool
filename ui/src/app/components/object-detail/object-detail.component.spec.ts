@@ -88,6 +88,13 @@ describe('ObjectDetailComponent', () => {
           GenerationType: ''
         },
         srcDefaultValue: '',
+        spDefaultValue: {
+          Value: {
+            ExpressionId: '',
+            Statement: ''
+          },
+          IsPresent: false
+        },
       },
       {
         spOrder: 2,
@@ -113,6 +120,13 @@ describe('ObjectDetailComponent', () => {
           GenerationType: ''
         },
         srcDefaultValue: '',
+        spDefaultValue: {
+          Value: {
+            ExpressionId: '',
+            Statement: ''
+          },
+          IsPresent: false
+        },
       },
     ]
     component.fkData = [

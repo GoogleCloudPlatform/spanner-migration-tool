@@ -242,12 +242,14 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
+		s += cd.DefaultValue.PGPrintDefaultValue(cd.T)
 		s += cd.AutoGen.PGPrintAutoGenCol()
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
+		s += cd.DefaultValue.PrintDefaultValue(cd.T)
 		s += cd.AutoGen.PrintAutoGenCol()
 	}
 	return s, cd.Comment
@@ -455,9 +457,9 @@ func (dv DefaultValue) PGPrintDefaultValue(ty Type) string {
 		return ""
 	}
 	var value string
-	switch ty.Name {
+	switch GetPGType(ty) {
 	case "FLOAT8", "FLOAT4", "REAL", "NUMERIC", "DECIMAL", "BOOL":
-		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Statement, ty.Name)
+		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Statement, GetPGType(ty))
 	default:
 		value = " DEFAULT (" + dv.Value.Statement + ")"
 	}
@@ -469,7 +471,7 @@ func (agc AutoGenCol) PrintAutoGenCol() string {
 		return " DEFAULT (GENERATE_UUID())"
 	}
 	if agc.GenerationType == constants.SEQUENCE {
-		return fmt.Sprintf(" DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE %s)) ", agc.Name)
+		return fmt.Sprintf(" DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE %s))", agc.Name)
 	}
 	return ""
 }
@@ -479,7 +481,7 @@ func (agc AutoGenCol) PGPrintAutoGenCol() string {
 		return " DEFAULT (spanner.generate_uuid())"
 	}
 	if agc.GenerationType == constants.SEQUENCE {
-		return fmt.Sprintf(" DEFAULT NEXTVAL('%s') ", agc.Name)
+		return fmt.Sprintf(" DEFAULT NEXTVAL('%s')", agc.Name)
 	}
 	return ""
 }

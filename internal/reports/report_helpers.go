@@ -415,7 +415,6 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						Description: fmt.Sprintf("Table '%s': Type mismatch in '%s'column affecting check constraints. Verify data type compatibility with constraint logic", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[colId].Name),
 					}
 					l = append(l, toAppend)
-
 				default:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,

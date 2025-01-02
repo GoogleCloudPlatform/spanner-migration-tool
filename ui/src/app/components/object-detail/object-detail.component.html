@@ -308,6 +308,22 @@
               </td>
             </ng-container>
 
+            <ng-container matColumnDef="spDefaultValue" *ngIf="mySqlSource">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Default Value</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="!isEditMode" class="trimmed-text"
+                     matTooltip="{{ element.get('spDefaultValue').value }}" matTooltipPosition="above">
+                  {{ element.get('spDefaultValue').value }} 
+                </div>
+            
+                <div *ngIf="isEditMode">
+                  <input matInput class="name_input" type="text" 
+                         [formControl]="element.get('spDefaultValue')" 
+                         matTooltip="Specify the default value"/> 
+                </div>
+              </td>
+            </ng-container>
+
             <ng-container matColumnDef="spIsPk">
               <th class="table_header" mat-header-cell *matHeaderCellDef>Pk</th>
               <td mat-cell *matCellDef="let element">

@@ -20,6 +20,13 @@ const mockIConv: IConv = {
                     AutoGen: {
                         Name: "",
                         GenerationType: ""
+                    },
+                    DefaultValue: {
+                        Value: {
+                            Statement: "",
+                            ExpressionId: ""
+                        },
+                        IsPresent: false
                     }
                 }
             },

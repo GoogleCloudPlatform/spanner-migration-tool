@@ -17,6 +17,13 @@
   }
 }
 
+.trimmed-text {
+  width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .title_container {
   display: flex;
   justify-content: space-between;
@@ -196,6 +203,7 @@
   .mat-column-srcDataType,
   .mat-column-spDataType,
   .mat-column-spAutoGen,
+  .mat-column-spDefaultValue,
   .mat-column-spIndexColName,
   .mat-column-srcIndexColName,
   .mat-column-spSeqName,

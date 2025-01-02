@@ -162,6 +162,7 @@ export interface IColumnDef {
   NotNull: boolean
   Comment: string
   AutoGen: IAutoGen
+  DefaultValue: IDefaultValue
 }
 
 export interface IType {
