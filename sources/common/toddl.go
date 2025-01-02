@@ -68,7 +68,7 @@ var ErrorTypeMapping = map[string]internal.SchemaIssue{
 	"No matching signature for operator": internal.TypeMismatch,
 	"Syntax error":                       internal.InvalidCondition,
 	"Unrecognized name":                  internal.ColumnNotFound,
-	"Function not found":                 internal.FunctionNotFound,
+	"Function not found":                 internal.CheckConstraintFunctionNotFound,
 	"unhandled error":                    internal.GenericError,
 }
 
@@ -85,9 +85,11 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		srcTable := conv.SrcSchema[tableId]
 		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
-	err := ss.VerifyExpressions(conv)
-	if err != nil {
-		return err
+	if conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP { //only mysql check constraints are checked
+		err := ss.VerifyExpressions(conv)
+		if err != nil {
+			return err
+		}
 	}
 
 	if conv.Source == constants.MYSQL && conv.SpProjectId != "" && conv.SpInstanceId != "" {
@@ -161,7 +163,7 @@ func GetIssue(result internal.VerifyExpressionsOutput) map[string][]internal.Sch
 			case strings.Contains(ev.Err.Error(), "Unrecognized name"):
 				issue = internal.ColumnNotFound
 			case strings.Contains(ev.Err.Error(), "Function not found"):
-				issue = internal.FunctionNotFound
+				issue = internal.CheckConstraintFunctionNotFound
 			default:
 				issue = internal.GenericError
 			}

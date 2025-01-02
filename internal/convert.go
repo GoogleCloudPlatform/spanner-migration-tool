@@ -135,7 +135,7 @@ const (
 	DefaultValueError
 	InvalidCondition
 	ColumnNotFound
-	FunctionNotFound
+	CheckConstraintFunctionNotFound
 	GenericError
 )
 

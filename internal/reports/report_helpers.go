@@ -134,7 +134,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					}
 					l = append(l, toAppend)
 
-				case internal.FunctionNotFound:
+				case internal.CheckConstraintFunctionNotFound:
 					toAppend := Issue{
 						Category:    IssueDB[issue].Category,
 						Description: fmt.Sprintf("Table '%s': Function not found in check constraint. Ensure all functions used in the condition are valid.", conv.SpSchema[tableId].Name),
@@ -560,14 +560,14 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	Category            string // Standarized issue type
 	CategoryDescription string
 }{
-	internal.DefaultValue:          {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
-	internal.TypeMismatch:          {Brief: "Type mismatch in check constraint mention in table", Severity: warning, Category: "TYPE_MISMATCH"},
-	internal.InvalidCondition:      {Brief: "Invalid condition in check constraint mention in table", Severity: warning, Category: "INVALID_CONDITION"},
-	internal.ColumnNotFound:        {Brief: "Column not found in check constraint mention in the table", Severity: warning, Category: "COLUMN_NOT_FOUND"},
-	internal.FunctionNotFound:      {Brief: "Function not found in check constraint mention in the table", Severity: warning, Category: "FUNCTION_NOT_FOUND"},
-	internal.GenericError:          {Brief: "Something went wrong", Severity: warning, Category: "UNHANDLE_ERROR"},
-	internal.ForeignKey:            {Brief: "Spanner does not support foreign keys", Severity: warning, Category: "FOREIGN_KEY_USES"},
-	internal.MultiDimensionalArray: {Brief: "Spanner doesn't support multi-dimensional arrays", Severity: warning, Category: "MULTI_DIMENSIONAL_ARRAY_USES"},
+	internal.DefaultValue:                    {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
+	internal.TypeMismatch:                    {Brief: "Type mismatch in check constraint mention in table", Severity: warning, Category: "TYPE_MISMATCH"},
+	internal.InvalidCondition:                {Brief: "Invalid condition in check constraint mention in table", Severity: warning, Category: "INVALID_CONDITION"},
+	internal.ColumnNotFound:                  {Brief: "Column not found in check constraint mention in the table", Severity: warning, Category: "COLUMN_NOT_FOUND"},
+	internal.CheckConstraintFunctionNotFound: {Brief: "Function not found in check constraint mention in the table", Severity: warning, Category: "FUNCTION_NOT_FOUND"},
+	internal.GenericError:                    {Brief: "Something went wrong", Severity: warning, Category: "UNHANDLE_ERROR"},
+	internal.ForeignKey:                      {Brief: "Spanner does not support foreign keys", Severity: warning, Category: "FOREIGN_KEY_USES"},
+	internal.MultiDimensionalArray:           {Brief: "Spanner doesn't support multi-dimensional arrays", Severity: warning, Category: "MULTI_DIMENSIONAL_ARRAY_USES"},
 	internal.NoGoodType: {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", Severity: warning, Category: "INAPPROPRIATE_TYPE",
 		CategoryDescription: "No appropriate Spanner type"},
 	internal.Numeric:              {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", Severity: warning, Category: "NUMERIC_USES"},
