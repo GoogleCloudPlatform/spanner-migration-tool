@@ -320,6 +320,9 @@ func TestVerifySpannerDDL(t *testing.T) {
 						Err:                              nil,
 					}
 				},
+				RefreshSpannerClientMock: func(ctx context.Context, project string, instance string) error {
+					return nil
+				},
 			},
 			errorExpected: false,
 		},
@@ -333,6 +336,9 @@ func TestVerifySpannerDDL(t *testing.T) {
 						ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{},
 						Err:                              fmt.Errorf("error"),
 					}
+				},
+				RefreshSpannerClientMock: func(ctx context.Context, project string, instance string) error {
+					return nil
 				},
 			},
 			errorExpected: true,

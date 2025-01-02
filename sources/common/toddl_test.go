@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -427,7 +428,9 @@ func Test_SchemaToSpannerSequenceHelper(t *testing.T) {
 
 	for _, tt := range tc {
 		conv := internal.MakeConv()
-		ss := SchemaToSpannerImpl{}
+		ss := SchemaToSpannerImpl{
+			DdlV: &expressions_api.MockDDLVerifier{},
+		}
 		ss.SchemaToSpannerSequenceHelper(conv, tt.srcSequence)
 		assert.Equal(t, expectedConv, conv)
 	}

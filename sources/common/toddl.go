@@ -61,6 +61,7 @@ type SchemaToSpannerInterface interface {
 
 type SchemaToSpannerImpl struct {
 	ExpressionVerificationAccessor expressions_api.ExpressionVerificationAccessor
+	DdlV                           expressions_api.DDLVerifier
 }
 
 var ErrorTypeMapping = map[string]internal.SchemaIssue{
@@ -87,6 +88,15 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 	err := ss.VerifyExpressions(conv)
 	if err != nil {
 		return err
+	}
+
+	if conv.Source == constants.MYSQL && conv.SpProjectId != "" && conv.SpInstanceId != "" {
+		expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
+		expressions, err := ss.DdlV.VerifySpannerDDL(conv, expressionDetails)
+		if err != nil && !strings.Contains(err.Error(), "expressions either failed verification") {
+			return err
+		}
+		spannerSchemaApplyExpressions(conv, expressions)
 	}
 	internal.ResolveRefs(conv)
 	return nil
@@ -443,8 +453,10 @@ func cvtIndexes(conv *internal.Conv, tableId string, srcIndexes []schema.Index, 
 	return spIndexes
 }
 
-func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table) error {
-	schemaToSpanner := SchemaToSpannerImpl{}
+func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, ddlVerifier expressions_api.DDLVerifier) error {
+	schemaToSpanner := SchemaToSpannerImpl{
+		DdlV: ddlVerifier,
+	}
 	err := schemaToSpanner.SchemaToSpannerDDLHelper(conv, toddl, srcTable, true)
 	if err != nil {
 		return err

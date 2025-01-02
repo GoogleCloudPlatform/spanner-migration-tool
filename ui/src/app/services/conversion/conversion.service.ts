@@ -320,6 +320,7 @@ export class ConversionService {
         spIsNotNull: spannerColDef && spTableName ? spannerColDef.NotNull : false,
         srcIsNotNull: data.SrcSchema[tableId].ColDefs[colId].NotNull,
         srcId: colId,
+        srcDefaultValue: data.SrcSchema[tableId].ColDefs[colId].DefaultValue.Value.Statement,
         spId: spannerColDef ? colId : '',
         spColMaxLength: spannerColDef?.T.Len != 0 ? (spannerColDef?.T.Len != spColMax ? spannerColDef?.T.Len: 'MAX') : '',
         srcColMaxLength: data.SrcSchema[tableId].ColDefs[colId].Type.Mods != null ? data.SrcSchema[tableId].ColDefs[colId].Type.Mods[0] : '',
@@ -331,8 +332,14 @@ export class ConversionService {
           Name: '',
           GenerationType: ''
         },
-        srcDefaultValue: data.SrcSchema[tableId].ColDefs[colId].DefaultValue? data.SrcSchema[tableId].ColDefs[colId].DefaultValue.Value.Statement : ''
-      }
+        spDefaultValue: spannerColDef?.DefaultValue != null ? spannerColDef?.DefaultValue : {
+          IsPresent: false,
+          Value: {
+            ExpressionId: '',
+            Statement: ''
+          }
+        },
+        }
     })
     if (spColIds) {
       spColIds.forEach((colId: string, i: number) => {
@@ -352,6 +359,7 @@ export class ConversionService {
             spIsNotNull: spColumn.NotNull,
             srcIsNotNull: false,
             srcId: '',
+            srcDefaultValue: '',
             spId: colId,
             srcColMaxLength: '',
             spColMaxLength: spannerColDef?.T.Len,
@@ -360,7 +368,13 @@ export class ConversionService {
               Name: '',
               GenerationType: ''
             },
-            srcDefaultValue: '',
+            spDefaultValue: spannerColDef?.DefaultValue != null ? spannerColDef?.DefaultValue : {
+              IsPresent: false,
+              Value: {
+                ExpressionId: '',
+                Statement: ''
+              }
+            },
           })
         }
       })

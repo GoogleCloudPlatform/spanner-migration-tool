@@ -447,7 +447,15 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, SpDialect: conv.SpDialect}
 	processSchema := common.ProcessSchemaImpl{}
 	expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
-	err := processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+	if err != nil {
+		return fmt.Errorf("error trying create ddl verifier: %v", err)
+	}
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		DdlV:                           ddlVerifier,
+		ExpressionVerificationAccessor: expressionVerificationAccessor,
+	}
+	err = processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	if err != nil {
 		return fmt.Errorf("error trying to read and convert spanner schema: %v", err)
 	}

@@ -34,12 +34,14 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 )
 
-var (
-	mysqlDefaultTypeMap     = make(map[string]ddl.Type)
-	postgresDefaultTypeMap  = make(map[string]ddl.Type)
-	sqlserverDefaultTypeMap = make(map[string]ddl.Type)
-	oracleDefaultTypeMap    = make(map[string]ddl.Type)
-)
+type TableAPIHandler struct {
+	DDLVerifier expressions_api.DDLVerifier
+}
+
+var mysqlDefaultTypeMap = make(map[string]ddl.Type)
+var postgresDefaultTypeMap = make(map[string]ddl.Type)
+var sqlserverDefaultTypeMap = make(map[string]ddl.Type)
+var oracleDefaultTypeMap = make(map[string]ddl.Type)
 
 var (
 	mysqlTypeMap     = make(map[string][]types.TypeIssue)
@@ -73,6 +75,9 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 	conv := internal.MakeConv()
 
 	conv.SpDialect = sessionState.Dialect
+	conv.SpProjectId = sessionState.SpannerProjectId
+	conv.SpInstanceId = sessionState.SpannerInstanceID
+	conv.Source = sessionState.Driver
 	conv.IsSharded = sessionState.IsSharded
 	conv.SpProjectId = sessionState.SpannerProjectId
 	conv.SpInstanceId = sessionState.SpannerInstanceID
@@ -82,16 +87,26 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 		IsSharded: sessionState.IsSharded,
 	}
 	processSchema := common.ProcessSchemaImpl{}
+	ctx := context.Background()
+	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
+		return
+	}
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor,
+		DdlV:                           ddlVerifier,
+	}
 	switch sessionState.Driver {
 	case constants.MYSQL:
-		err = processSchema.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.POSTGRES:
 		temp := false
-		err = processSchema.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.SourceDB, IsSchemaUnique: &temp}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.SQLSERVER:
-		err = processSchema.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.ORACLE:
-		err = processSchema.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &common.SchemaToSpannerImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+		err = processSchema.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -169,7 +184,10 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Config.Driver, &n)
 	sourceProfile.Driver = dc.Config.Driver
 	schemaFromSource := conversion.SchemaFromSourceImpl{}
-	conv, err := schemaFromSource.SchemaFromDump(sourceProfile.Driver, dc.SpannerDetails.Dialect, &utils.IOStreams{In: f, Out: os.Stdout}, &conversion.ProcessDumpByDialectImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor})
+	sessionState := session.GetSessionState()
+	SpProjectId := sessionState.SpannerProjectId
+	SpInstanceId := sessionState.SpannerInstanceID
+	conv, err := schemaFromSource.SchemaFromDump(SpProjectId, SpInstanceId, sourceProfile.Driver, dc.SpannerDetails.Dialect, &utils.IOStreams{In: f, Out: os.Stdout}, &conversion.ProcessDumpByDialectImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
@@ -182,7 +200,6 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 		Dialect:      dc.SpannerDetails.Dialect,
 	}
 
-	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
 	sessionState.Conv = conv
@@ -367,9 +384,46 @@ func GetAutoGenMap(w http.ResponseWriter, r *http.Request) {
 
 // GetTableWithErrors checks the errors in the spanner schema
 // and returns a list of tables with errors
-func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
+func (tableHandler *TableAPIHandler) GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.RLock()
+
+	tableIds := common.GetSortedTableIdsBySpName(sessionState.Conv.SpSchema)
+	tableHandler.DDLVerifier.RefreshSpannerClient(context.Background(), sessionState.Conv.SpProjectId, sessionState.Conv.SpInstanceId)
+
+	expressionDetails := tableHandler.DDLVerifier.GetSpannerExpressionDetails(sessionState.Conv, tableIds)
+	expressions, err := tableHandler.DDLVerifier.VerifySpannerDDL(sessionState.Conv, expressionDetails)
+	if err != nil && strings.Contains(err.Error(), "expressions either failed verification") {
+		for _, exp := range expressions.ExpressionVerificationOutputList {
+			switch exp.ExpressionDetail.Type {
+			case "DEFAULT":
+				{
+					if !exp.Result {
+						tableId := exp.ExpressionDetail.Metadata["TableId"]
+						columnId := exp.ExpressionDetail.Metadata["ColId"]
+						issues := sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
+						issues = append(issues, internal.DefaultValueError)
+						sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = issues
+					}
+				}
+			}
+		}
+	} else if err != nil {
+		for _, tableId := range tableIds {
+			srcTable := sessionState.Conv.SrcSchema[tableId]
+			for _, srcColId := range srcTable.ColIds {
+				srcCol := srcTable.ColDefs[srcColId]
+				if srcCol.DefaultValue.IsPresent {
+					issues := sessionState.Conv.SchemaIssues[tableId]
+					sessionState.Conv.SchemaIssues[tableId] = issues
+				}
+			}
+		}
+	}
+
+	if sessionState.Conv.SpProjectId != "" {
+		session.UpdateSessionFile()
+	}
 	defer sessionState.Conv.ConvLock.RUnlock()
 	var tableIdName []types.TableIdAndName
 	for id, issues := range sessionState.Conv.SchemaIssues {
@@ -382,15 +436,24 @@ func GetTableWithErrors(w http.ResponseWriter, r *http.Request) {
 				tableIdName = append(tableIdName, t)
 			}
 		}
+		for _, columnIssues := range issues.ColumnLevelIssues {
+			for _, issue := range columnIssues {
+				if reports.IssueDB[issue].Severity == reports.Errors {
+					t := types.TableIdAndName{
+						Id:   id,
+						Name: sessionState.Conv.SpSchema[id].Name,
+					}
+					tableIdName = append(tableIdName, t)
+				}
+			}
+		}
 	}
-	sort.Slice(tableIdName, func(i, j int) bool {
-		return tableIdName[i].Name < tableIdName[j].Name
-	})
+	tableIdName = uniqueAndSortTableIdName(tableIdName)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tableIdName)
 }
 
-func RestoreTables(w http.ResponseWriter, r *http.Request) {
+func (tableHandler *TableAPIHandler) RestoreTables(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -404,15 +467,15 @@ func RestoreTables(w http.ResponseWriter, r *http.Request) {
 	}
 	var convm session.ConvWithMetadata
 	for _, tableId := range tables.TableList {
-		convm = restoreTableHelper(w, tableId)
+		convm = tableHandler.restoreTableHelper(w, tableId)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
 
-func RestoreTable(w http.ResponseWriter, r *http.Request) {
+func (tableHandler *TableAPIHandler) RestoreTable(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("table")
-	convm := restoreTableHelper(w, tableId)
+	convm := tableHandler.restoreTableHelper(w, tableId)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
@@ -1040,7 +1103,7 @@ func GetConversionRate(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(rate)
 }
 
-func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
+func (tableHandler *TableAPIHandler) restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMetadata {
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
@@ -1070,7 +1133,7 @@ func restoreTableHelper(w http.ResponseWriter, tableId string) session.ConvWithM
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 	}
 
-	err := common.SrcTableToSpannerDDL(conv, toddl, sessionState.Conv.SrcSchema[tableId])
+	err := common.SrcTableToSpannerDDL(conv, toddl, sessionState.Conv.SrcSchema[tableId], tableHandler.DDLVerifier)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Restoring spanner table fail"), http.StatusBadRequest)
 	}

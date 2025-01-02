@@ -157,7 +157,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				if err != nil {
 					continue
 				}
-				if srcFk.OnDelete == "" && srcFk.OnUpdate == "" && flag == false {
+				if srcFk.OnDelete == "" && srcFk.OnUpdate == "" && !flag {
 					flag = true
 					issue := internal.ForeignKeyActionNotSupported
 					toAppend := Issue{
@@ -449,7 +449,6 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						Description: fmt.Sprintf("%s for table '%s' column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName),
 					}
 					l = append(l, toAppend)
-
 				default:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
