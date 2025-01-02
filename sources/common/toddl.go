@@ -85,7 +85,9 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		srcTable := conv.SrcSchema[tableId]
 		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
-	if conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP { //only mysql check constraints are checked
+
+	if (conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP) && conv.SpProjectId != "" && conv.SpInstanceId != "" {
+		// Process and verify Check constraints for MySQL and MySQLDump flow only
 		err := ss.VerifyExpressions(conv)
 		if err != nil {
 			return err
@@ -93,6 +95,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 	}
 
 	if conv.Source == constants.MYSQL && conv.SpProjectId != "" && conv.SpInstanceId != "" {
+		// Process and verify Spanner DDL expressions for MYSQL
 		expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
 		expressions, err := ss.DdlV.VerifySpannerDDL(conv, expressionDetails)
 		if err != nil && !strings.Contains(err.Error(), "expressions either failed verification") {
