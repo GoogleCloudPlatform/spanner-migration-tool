@@ -16,6 +16,7 @@ package postgres_test
 
 import (
 	"bufio"
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -24,11 +25,13 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	commonTesting "github.com/GoogleCloudPlatform/spanner-migration-tool/testing/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 )
 
@@ -43,7 +46,12 @@ func TestGoldens(t *testing.T) {
 	testCases := commonTesting.GoldenTestCasesFrom(t, GoldenTestsDir)
 	t.Logf("executing %d test cases from %s", len(testCases), GoldenTestsDir)
 
-	schemaToSpanner := common.SchemaToSpannerImpl{}
+	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	ctx := context.Background()
+	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
+		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{{Result: true}},
+	}, nil)
+	schemaToSpanner := common.SchemaToSpannerImpl{ExpressionVerificationAccessor: mockAccessor}
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -54,7 +62,7 @@ func TestGoldens(t *testing.T) {
 			err := common.ProcessDbDump(
 				conv,
 				internal.NewReader(bufio.NewReader(strings.NewReader(tc.Input)), nil),
-				postgres.DbDumpImpl{}, &expressions_api.MockDDLVerifier{})
+				postgres.DbDumpImpl{}, &expressions_api.MockDDLVerifier{}, mockAccessor)
 			if err != nil {
 				t.Fatalf("error when processing dump %s: %s", tc.Input, err)
 			}
@@ -72,7 +80,6 @@ func TestGoldens(t *testing.T) {
 			config.SpDialect = constants.DIALECT_POSTGRESQL
 			actual = ddl.GetDDL(config, conv.SpSchema, conv.SpSequences)
 			assert.Equal(t, tc.PSQLWant, formatDdl(actual))
-
 		})
 	}
 }

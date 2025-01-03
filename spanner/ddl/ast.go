@@ -268,9 +268,10 @@ type IndexKey struct {
 }
 
 type CheckConstraint struct {
-	Id   string
-	Name string
-	Expr string
+	Id     string
+	Name   string
+	Expr   string
+	ExprId string
 }
 
 // PrintPkOrIndexKey unparses the primary or index keys.

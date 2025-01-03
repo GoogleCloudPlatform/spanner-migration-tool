@@ -31,7 +31,8 @@ import (
 )
 
 // DbDumpImpl Postgres specific implementation for DdlDumpImpl.
-type DbDumpImpl struct{}
+type DbDumpImpl struct {
+}
 
 type copyOrInsert struct {
 	stmt  stmtType

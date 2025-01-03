@@ -47,7 +47,8 @@ type ProcessDumpByDialectInterface interface {
 }
 
 type ProcessDumpByDialectImpl struct {
-	DdlVerifier expressions_api.DDLVerifier
+	ExpressionVerificationAccessor expressions_api.ExpressionVerificationAccessor
+	DdlVerifier                    expressions_api.DDLVerifier
 }
 
 type PopulateDataConvInterface interface {
@@ -92,9 +93,9 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 func (pdd *ProcessDumpByDialectImpl) ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	switch driver {
 	case constants.MYSQLDUMP:
-		return common.ProcessDbDump(conv, r, mysql.DbDumpImpl{}, pdd.DdlVerifier)
+		return common.ProcessDbDump(conv, r, mysql.DbDumpImpl{}, pdd.DdlVerifier, pdd.ExpressionVerificationAccessor)
 	case constants.PGDUMP:
-		return common.ProcessDbDump(conv, r, postgres.DbDumpImpl{}, pdd.DdlVerifier)
+		return common.ProcessDbDump(conv, r, postgres.DbDumpImpl{}, pdd.DdlVerifier, pdd.ExpressionVerificationAccessor)
 	default:
 		return fmt.Errorf("process dump for driver %s not supported", driver)
 	}

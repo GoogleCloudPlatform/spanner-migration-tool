@@ -446,12 +446,14 @@ func GetLegacyModeSupportedDrivers() []string {
 func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Client) error {
 	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, SpDialect: conv.SpDialect}
 	processSchema := common.ProcessSchemaImpl{}
+	expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
 	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
 	if err != nil {
 		return fmt.Errorf("error trying create ddl verifier: %v", err)
 	}
 	schemaToSpanner := common.SchemaToSpannerImpl{
-		DdlV: ddlVerifier,
+		DdlV:                           ddlVerifier,
+		ExpressionVerificationAccessor: expressionVerificationAccessor,
 	}
 	err = processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	if err != nil {

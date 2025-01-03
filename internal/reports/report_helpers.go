@@ -111,6 +111,45 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 
 		}
 
+		// added if to add table level issue
+		if p.severity == Errors && len(tableLevelIssues) != 0 {
+			for _, issue := range tableLevelIssues {
+				switch issue {
+				case internal.TypeMismatch:
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': Type mismatch in check constraint. Verify that the column type matches the constraint logic.", conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
+				case internal.InvalidCondition:
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': Invalid condition in check constraint. Ensure the condition is compatible with the constraint logic.", conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
+				case internal.ColumnNotFound:
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': Column not found in check constraint. Verify that all referenced columns exist.", conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
+
+				case internal.CheckConstraintFunctionNotFound:
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': Function not found in check constraint. Ensure all functions used in the condition are valid.", conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
+				case internal.GenericError:
+					toAppend := Issue{
+						Category:    IssueDB[issue].Category,
+						Description: fmt.Sprintf("Table '%s': Something went wrong in check constraint. Verify the conditions and constraint logic.", conv.SpSchema[tableId].Name),
+					}
+					l = append(l, toAppend)
+				}
+			}
+		}
+
 		if p.severity == warning {
 			flag := false
 			for _, spFk := range conv.SpSchema[tableId].ForeignKeys {
@@ -118,7 +157,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				if err != nil {
 					continue
 				}
-				if srcFk.OnDelete == "" && srcFk.OnUpdate == "" && flag == false {
+				if srcFk.OnDelete == "" && srcFk.OnUpdate == "" && !flag {
 					flag = true
 					issue := internal.ForeignKeyActionNotSupported
 					toAppend := Issue{
@@ -403,16 +442,11 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						Description: fmt.Sprintf("UNIQUE constraint on column(s) '%s' replaced with primary key since table '%s' didn't have one. Spanner requires a primary key for every table", strings.Join(uniquePK, ", "), conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
+
 				case internal.DefaultValueError:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("%s for table '%s' column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName),
-					}
-					l = append(l, toAppend)
-				case internal.TypeMismatch:
-					toAppend := Issue{
-						Category:    IssueDB[i].Category,
-						Description: fmt.Sprintf("Table '%s': Type mismatch in '%s'column affecting check constraints. Verify data type compatibility with constraint logic", conv.SpSchema[tableId].Name, conv.SpSchema[tableId].ColDefs[colId].Name),
 					}
 					l = append(l, toAppend)
 				default:
@@ -526,9 +560,14 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	Category            string // Standarized issue type
 	CategoryDescription string
 }{
-	internal.DefaultValue:          {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
-	internal.ForeignKey:            {Brief: "Spanner does not support foreign keys", Severity: warning, Category: "FOREIGN_KEY_USES"},
-	internal.MultiDimensionalArray: {Brief: "Spanner doesn't support multi-dimensional arrays", Severity: warning, Category: "MULTI_DIMENSIONAL_ARRAY_USES"},
+	internal.DefaultValue:                    {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
+	internal.TypeMismatch:                    {Brief: "Type mismatch in check constraint mention in table", Severity: warning, Category: "TYPE_MISMATCH"},
+	internal.InvalidCondition:                {Brief: "Invalid condition in check constraint mention in table", Severity: warning, Category: "INVALID_CONDITION"},
+	internal.ColumnNotFound:                  {Brief: "Column not found in check constraint mention in the table", Severity: warning, Category: "COLUMN_NOT_FOUND"},
+	internal.CheckConstraintFunctionNotFound: {Brief: "Function not found in check constraint mention in the table", Severity: warning, Category: "FUNCTION_NOT_FOUND"},
+	internal.GenericError:                    {Brief: "Something went wrong", Severity: warning, Category: "UNHANDLE_ERROR"},
+	internal.ForeignKey:                      {Brief: "Spanner does not support foreign keys", Severity: warning, Category: "FOREIGN_KEY_USES"},
+	internal.MultiDimensionalArray:           {Brief: "Spanner doesn't support multi-dimensional arrays", Severity: warning, Category: "MULTI_DIMENSIONAL_ARRAY_USES"},
 	internal.NoGoodType: {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", Severity: warning, Category: "INAPPROPRIATE_TYPE",
 		CategoryDescription: "No appropriate Spanner type"},
 	internal.Numeric:              {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", Severity: warning, Category: "NUMERIC_USES"},
