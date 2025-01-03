@@ -142,6 +142,11 @@ and `ON UPDATE` actions, we drop them.
 While Spanner supports default values, Spanner migration tool currently does not support translating source `DEFAULT` constraints to Spanner `DEFAULT` constraints. We drop the `DEFAULT` MySQL constraint during conversion.
 It can be manually added to the DDL via an `ALTER TABLE` command.
 
+## Check Constraints
+
+While spanner supports check constraints, Spanner migration tool currently migrate all existing mysql check constraint to spanner. The non supported constraints can be drop manually.
+Note: This feature is only available for MySQL versions 8.0.16 and above. For versions below this, users can manually add check constraints using the Spanner migration tool (SMT).
+
 ## Secondary Indexes
 
 The tool maps MySQL secondary indexes to Spanner secondary indexes, and preserves
