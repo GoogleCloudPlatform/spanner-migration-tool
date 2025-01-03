@@ -19,6 +19,7 @@ In the configure schema page, the user can view details of the source database a
         1. Primary Key
         1. Foreign Key
         1. Interleave
+        1. Check Constraints
         1. SQL
     1. Index details
     1. Sequence Details (Only for Source DB MySql)
