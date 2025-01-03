@@ -98,7 +98,7 @@ export class DirectConnectionComponent implements OnInit {
           localStorage.setItem(PersistedFormValues.IsConnectionSuccessful, "true")
           this.clickEvent.closeDatabaseLoader()
         },
-        error: (e) => { 
+        error: (e) => {
           this.isTestConnectionSuccessful = false
           this.snackbarService.openSnackBar(e.error, 'Close')
           localStorage.setItem(PersistedFormValues.IsConnectionSuccessful, "false")

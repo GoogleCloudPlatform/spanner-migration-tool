@@ -9,6 +9,7 @@ import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http'
 import { FormsModule } from '@angular/forms'
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner'
 import { MatChipsModule } from '@angular/material/chips'
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AppComponent } from './app.component'
 import { HeaderComponent } from './components/header/header.component'
@@ -113,7 +114,8 @@ import { AddNewSequenceComponent } from './components/add-new-sequence/add-new-s
     MatRadioModule,
     ClipboardModule,
     MatProgressSpinnerModule,
-    MatChipsModule
+    MatChipsModule,
+    MatTooltipModule,
   ],
   providers: [
     {
