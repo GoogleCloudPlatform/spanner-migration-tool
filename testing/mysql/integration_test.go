@@ -337,17 +337,19 @@ func checkCheckConstraints(ctx context.Context, t *testing.T, dbURI string) {
 		Name STRING(MAX),
 		EnumValue STRING(MAX),
 		BooleanValue INT64,
-		CONSTRAINT chk_PositiveValue CHECK (Value >= 0),
 		CONSTRAINT chk_NullValue CHECK (Value IS NOT NULL),
+		CONSTRAINT chk_range CHECK ( Value > 10 AND Value < 1000 ),
 		CONSTRAINT chk_StringLength CHECK (LENGTH(Name) > 5),
 		CONSTRAINT chk_Enum CHECK (EnumValue IN ('OptionA', 'OptionB', 'OptionC')),
 		CONSTRAINT chk_Boolean CHECK (BooleanValue IN (0, 1)),
+		CONSTRAINT chk_bitwise CHECK ((Value & 2) = 0),
+		CONSTRAINT chk_DateRange CHECK (Date BETWEEN '2000-01-01 00:00:00' AND '2100-12-31 23:59:59')
 	) PRIMARY KEY (ID)`)
 
-	// Test Case 1: Valid Insert for chk_PositiveValue
+	// Test Case 1: Valid Insert for chk_range/chk_DateRange
 	err = insertOrUpdateData(map[string]interface{}{
 		"ID":           1,
-		"Value":        5,
+		"Value":        12,
 		"Flag":         false,
 		"Date":         time.Now(),
 		"Name":         "ValidName",
@@ -355,89 +357,128 @@ func checkCheckConstraints(ctx context.Context, t *testing.T, dbURI string) {
 		"BooleanValue": 1,
 	})
 	if err != nil {
-		t.Fatalf("Failed to insert valid data for chk_PositiveValue: %v", err)
+		t.Fatalf("Failed to insert valid data for chk_range/chk_DateRange: %v", err)
 	}
 
-	// Test Case 2: Invalid Insert for chk_PositiveValue (Negative Value)
-	checkConstraintViolation(map[string]interface{}{
+	// Test Case 2: Valid Insert for chk_bitwise
+	err = insertOrUpdateData(map[string]interface{}{
 		"ID":    2,
+		"Name":  "ValidName",
+		"Flag":  false,
+		"Value": 12, // valid value
+	})
+
+	if err != nil {
+		t.Fatalf("Failed to insert valid data for chk_bitwise: %v", err)
+	}
+
+	// Test Case 3: Invalid Insert for chk_bitwise (Negative Value)
+	checkConstraintViolation(map[string]interface{}{
+		"ID":    3,
 		"Value": -1, // Value < 0
 		"Flag":  false,
-	}, "chk_PositiveValue")
+	}, "chk_bitwise")
 
-	// Test Case 7: Valid Insert for chk_NullValue (Value is not NULL)
+	// Test Case 4: Invalid Insert for chk_DateRange (Negative Value)
+	checkConstraintViolation(map[string]interface{}{
+		"ID":    4,
+		"Value": 12,
+		"Date":  time.Date(1999, 12, 31, 23, 59, 59, 0, time.UTC),
+		"Flag":  false,
+	}, "chk_DateRange")
+
+	// Test Case 5: Valid Insert for chk_NullValue (Value is not NULL)
 	err = insertOrUpdateData(map[string]interface{}{
-		"ID":    7,
-		"Value": 10, // Value is not NULL
+		"ID":    5,
+		"Value": 12, // Value is not NULL
 		"Flag":  false,
 	})
 	if err != nil {
 		t.Fatalf("Failed to insert valid data for chk_NullValue: %v", err)
 	}
 
-	// Test Case 8: Invalid Insert for chk_NullValue (NULL Value)
+	// Test Case 6: Invalid Insert for chk_NullValue (NULL Value)
 	checkConstraintViolation(map[string]interface{}{
-		"ID":    8,
+		"ID":    6,
 		"Value": nil, // NULL Value is not allowed
 		"Flag":  false,
 	}, "chk_NullValue")
 
-	// Test Case 9: Valid Insert for chk_StringLength (Name length > 5)
+	// Test Case 7: Valid Insert for chk_StringLength (Name length > 5)
 	err = insertOrUpdateData(map[string]interface{}{
-		"ID":    9,
+		"ID":    7,
 		"Name":  "ValidName", // Name length > 5
 		"Flag":  false,
-		"Value": 10,
+		"Value": 12,
 	})
 	if err != nil {
 		t.Fatalf("Failed to insert valid data for chk_StringLength: %v", err)
 	}
 
-	// Test Case 10: Invalid Insert for chk_StringLength (Name length <= 5)
+	// Test Case 8: Invalid Insert for chk_StringLength (Name length <= 5)
 	checkConstraintViolation(map[string]interface{}{
-		"ID":    10,
+		"ID":    8,
 		"Name":  "Test", // Name length <= 5
 		"Flag":  false,
-		"Value": 10,
+		"Value": 12,
 	}, "chk_StringLength")
 
-	// Test Case 11: Valid Insert for chk_Enum (Valid Enum)
+	// Test Case 9: Valid Insert for chk_Enum (Valid Enum)
 	err = insertOrUpdateData(map[string]interface{}{
-		"ID":        11,
+		"ID":        9,
 		"EnumValue": "OptionB", // Valid enum value
 		"Flag":      false,
-		"Value":     10,
+		"Value":     12,
 	})
 	if err != nil {
 		t.Fatalf("Failed to insert valid data for chk_Enum: %v", err)
 	}
 
-	// Test Case 12: Invalid Insert for chk_Enum (Invalid Enum)
+	// Test Case 10: Invalid Insert for chk_Enum (Invalid Enum)
 	checkConstraintViolation(map[string]interface{}{
-		"ID":        12,
+		"ID":        10,
 		"EnumValue": "InvalidOption", // Invalid enum value
 		"Flag":      false,
-		"Value":     10,
+		"Value":     12,
 	}, "chk_Enum")
 
-	// Test Case 13: Valid Insert for chk_Boolean (Valid boolean 0 or 1)
+	// Test Case 11: Valid Insert for chk_Boolean (Valid boolean 0 or 1)
 	err = insertOrUpdateData(map[string]interface{}{
-		"ID":           13,
-		"Value":        1, // Valid boolean value
+		"ID":           11,
+		"Value":        12,
 		"Flag":         false,
-		"BooleanValue": 1,
+		"BooleanValue": 1, // Valid boolean value
 	})
 	if err != nil {
 		t.Fatalf("Failed to insert valid data for chk_Boolean: %v", err)
 	}
 
-	// Test Case 14: Invalid Insert for chk_Boolean (Invalid boolean value)
+	// Test Case 12: Invalid Insert for chk_Boolean (Invalid boolean value)
 	checkConstraintViolation(map[string]interface{}{
-		"ID":           14,
-		"Value":        2,
+		"ID":           12,
+		"Value":        12,
 		"Flag":         false,
 		"BooleanValue": 2, // Invalid boolean representation
 	}, "chk_Boolean")
+
+	// Test Case 13: Valid Insert for chk_range (Valid value between 10 and 1000)
+	err = insertOrUpdateData(map[string]interface{}{
+		"ID":           13,
+		"Value":        12, // Valid value
+		"Flag":         false,
+		"BooleanValue": 1,
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert valid data for chk_range: %v", err)
+	}
+
+	// Test Case 14: Invalid Insert for chk_range (Invalid value)
+	checkConstraintViolation(map[string]interface{}{
+		"ID":           14,
+		"Value":        5, // Invalid Value
+		"Flag":         false,
+		"BooleanValue": 1,
+	}, "chk_range")
 
 }
 

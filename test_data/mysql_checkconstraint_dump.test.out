@@ -39,11 +39,13 @@ CREATE TABLE `TestTable` (
   `EnumValue` enum('OptionA','OptionB','OptionC') DEFAULT NULL,
   `BooleanValue` tinyint DEFAULT NULL,
   PRIMARY KEY (`ID`),
+  CONSTRAINT `chk_bitwise` CHECK (((`Value` & 2) = 0)),
   CONSTRAINT `chk_Boolean` CHECK ((`BooleanValue` in (0,1))),
+  CONSTRAINT `chk_DateRange` CHECK ((`Date` between _utf8mb4'2000-01-01 00:00:00' and _utf8mb4'2100-12-31 23:59:59')),
   CONSTRAINT `chk_Enum` CHECK ((`EnumValue` in (_utf8mb4'OptionA',_utf8mb4'OptionB',_utf8mb4'OptionC'))),
   CONSTRAINT `chk_NullValue` CHECK ((`Value` is not null)),
-  CONSTRAINT `chk_PositiveValue` CHECK ((`Value` >= 0)),
-  CONSTRAINT `chk_StringLength` CHECK ((char_length(`Name`) > 5)),
+  CONSTRAINT `chk_range` CHECK (((`Value` > 10) and (`Value` < 1000))),
+  CONSTRAINT `chk_StringLength` CHECK ((char_length(`Name`) > 5))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -53,7 +55,6 @@ CREATE TABLE `TestTable` (
 
 LOCK TABLES `TestTable` WRITE;
 /*!40000 ALTER TABLE `TestTable` DISABLE KEYS */;
-INSERT INTO `TestTable` VALUES (1, 12, 0,'Mr. Smith', 'OptionA', 1);
 /*!40000 ALTER TABLE `TestTable` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -66,4 +67,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2024-12-27 11:20:12
+-- Dump completed on 2025-01-03 17:40:48
