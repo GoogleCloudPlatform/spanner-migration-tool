@@ -298,20 +298,6 @@ func checkCheckConstraints(ctx context.Context, t *testing.T, dbURI string) {
 	}
 	defer client.Close()
 
-	// Execute DDL statements
-	executeDDL := func(ddl string) {
-		op, err := databaseAdmin.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{
-			Database:   dbURI,
-			Statements: []string{ddl},
-		})
-		if err != nil {
-			t.Fatalf("Failed to execute DDL: %v", err)
-		}
-		if err := op.Wait(ctx); err != nil {
-			t.Fatalf("Failed to complete DDL operation: %v", err)
-		}
-	}
-
 	// Insert or update data
 	insertOrUpdateData := func(data map[string]interface{}) error {
 		_, err := client.Apply(ctx, []*spanner.Mutation{
@@ -327,24 +313,6 @@ func checkCheckConstraints(ctx context.Context, t *testing.T, dbURI string) {
 			t.Fatalf("Expected constraint violation for '%s' but got none or wrong error: %v", expectedErr, err)
 		}
 	}
-
-	// Create table in spanner with various check constraints
-	executeDDL(`CREATE TABLE IF NOT EXISTS TestTable (
-		ID INT64 NOT NULL,
-		Value INT64,
-		Flag BOOL,
-		Date TIMESTAMP,
-		Name STRING(MAX),
-		EnumValue STRING(MAX),
-		BooleanValue INT64,
-		CONSTRAINT chk_NullValue CHECK (Value IS NOT NULL),
-		CONSTRAINT chk_range CHECK ( Value > 10 AND Value < 1000 ),
-		CONSTRAINT chk_StringLength CHECK (LENGTH(Name) > 5),
-		CONSTRAINT chk_Enum CHECK (EnumValue IN ('OptionA', 'OptionB', 'OptionC')),
-		CONSTRAINT chk_Boolean CHECK (BooleanValue IN (0, 1)),
-		CONSTRAINT chk_bitwise CHECK ((Value & 2) = 0),
-		CONSTRAINT chk_DateRange CHECK (Date BETWEEN '2000-01-01 00:00:00' AND '2100-12-31 23:59:59')
-	) PRIMARY KEY (ID)`)
 
 	// Test Case 1: Valid Insert for chk_range/chk_DateRange
 	err = insertOrUpdateData(map[string]interface{}{
