@@ -144,11 +144,11 @@ It can be manually added to the DDL via an `ALTER TABLE` command.
 
 ## Check Constraints
 
-While spanner supports check constraints, Spanner migration tool currently migrate all existing check constraint from mysql to spanner.  
+While Spanner supports check constraints, the Spanner migration tool currently migrates all valid check constraints from MySQL to Spanner.
 
-If any unsupported check constraints exists during prepare migration phase, errors should be displayed on the Issues & Suggestions tab, and these check constraints can be dropped manually.  
+During the prepare migration phase, if any invalid or unsupported check constraints are identified, the migration process will be halted and will not commence. This is to ensure the integrity and accuracy of the migration. Any identified issues will be clearly displayed in the Issues & Suggestions tab. This allows the user to review all errors in detail. The user will then have the opportunity to manually address these errors by either correcting the invalid check constraints or removing them altogether. This step is crucial to ensure that all constraints are compatible with the target system, thereby preventing potential issues during or after the migration process. Once the necessary corrections have been made, the user can proceed to re-initiate the migration process without any unsupported constraints.  
 
-> Note: This feature is only available for MySQL versions 8.0.16 and above. For versions below this, users can manually add check constraints using the Spanner migration tool (SMT).
+> Note: As check constraints were introduced with MySQL version 8.0.16, the Spanner migration tool will automatically include these constraints in the Spanner draft for databases using this version or later. For MySQL versions prior to 8.0.16, where check constraints are not supported, users will need to manually incorporate any required check constraints into the Spanner draft. This approach ensures that all necessary constraints are accurately represented in the Spanner environment, tailored to the specific needs of the database.
 
 ## Secondary Indexes
 

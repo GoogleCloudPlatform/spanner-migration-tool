@@ -34,6 +34,9 @@ Spanner migration tool scans through the generated spanner schema and notifies t
 - Detection of unsupported check constraints in spanner.
 - Data type mismatch of referenced column in check constraints.
 - Referenced column in check constraints not found.
+- Function referenced in check constraints is not found. 
+
+![](https://services.google.com/fh/files/misc/cc5.png)
 
 ## Suggestions
 
