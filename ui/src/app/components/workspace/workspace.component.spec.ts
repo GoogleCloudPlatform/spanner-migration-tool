@@ -61,7 +61,7 @@ describe('WorkspaceComponent', () => {
     dialogSpyObj = jasmine.createSpyObj('MatDialog', ['open']);
     clickEventSpyObj = jasmine.createSpyObj('ClickEventService', ['setViewAssesmentData', 'setTabToSpanner']);
     sidenavSpyObj = jasmine.createSpyObj('SidenavService', ['openSidenav', 'setSidenavComponent', 'setSidenavDatabaseName', 'setMiddleColumnComponent']);
-    fetchServiceSpy = jasmine.createSpyObj('FetchService', ['getDStructuredReport', 'getDTextReport', 'getDSpannerDDL', 'getSpannerConfig', 'getIsOffline', 'getLastSessionDetails', 'getTableWithErrors']);
+    fetchServiceSpy = jasmine.createSpyObj('FetchService', ['getDStructuredReport', 'getDTextReport', 'getDSpannerDDL', 'getSpannerConfig', 'getIsOffline', 'getLastSessionDetails', 'getTableWithErrors','verifyCheckConstraintExpression']);
     conversionServiceSpy = jasmine.createSpyObj('ConversionService', [
       'getStandardTypeToPGSQLTypemap',
       'getPGSQLToStandardTypeTypemap',
@@ -70,7 +70,8 @@ describe('WorkspaceComponent', () => {
       'getColumnMapping',
       'getIndexMapping',
       'createTreeNode',
-      'createTreeNodeForSource'
+      'createTreeNodeForSource',
+      'getCheckConstraints'
     ]);
     dataServiceSpy = jasmine.createSpyObj('DataService', [
       'getRateTypemapAndSummary',
@@ -329,6 +330,7 @@ describe('WorkspaceComponent', () => {
 
   it('should navigate to prepare-migration', () => {
     fetchServiceSpy.getTableWithErrors.and.returnValue(of([]));
+    fetchServiceSpy.verifyCheckConstraintExpression.and.returnValue(of(false))
     component.isOfflineStatus = false;
     component.conv = { SpSchema: { TableA: {}, TableB: {} } } as any;
     component.prepareMigration();
@@ -444,10 +446,12 @@ describe('WorkspaceComponent', () => {
       isDeleted: false,
       parent: ''
     };
+    conversionServiceSpy.getCheckConstraints.withArgs(jasmine.any(String), jasmine.objectContaining<IConv>({})).and.returnValue([])
     conversionServiceSpy.getIndexMapping.withArgs(jasmine.any(String),jasmine.objectContaining<IConv>({}),jasmine.any(String)).and.returnValue([]);
     component.changeCurrentObject(indexNode);
     expect(component.currentObject).toEqual(indexNode);
     expect(component.indexData).toEqual([]);
+    expect(component.ccData).toEqual([])
   });
 
   it('should set currentObject to null when type is neither Table nor Index', () => {

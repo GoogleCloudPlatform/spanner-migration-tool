@@ -33,6 +33,7 @@ const mockIConv: IConv = {
             ShardIdColumn: "",
             PrimaryKeys: [],
             ForeignKeys: [],
+            CheckConstraints: [],
             Indexes: [
                 {
                     Name: "index1",
@@ -91,6 +92,7 @@ const mockIConv: IConv = {
             },
             PrimaryKeys: [],
             ForeignKeys: [],
+            CheckConstraints:[],
             Indexes: [
                 {
                     Name: "index1",
@@ -177,6 +179,7 @@ export const mockIConv2: IConv = {
                 },
             ],
             ParentTable: {Id: "", OnDelete: ""},
+            CheckConstraints:[],
             Comment: ""
         },
         "t2": {
@@ -189,6 +192,7 @@ export const mockIConv2: IConv = {
             ForeignKeys: [],
             Indexes: [],
             ParentTable: {Id: "", OnDelete: ""},
+            CheckConstraints:[],
             Comment: ""
         }
     },
@@ -229,6 +233,7 @@ export const mockIConv2: IConv = {
                     }
                 }
             },
+            CheckConstraints:[],
             PrimaryKeys: [],
             ForeignKeys: [],
             Indexes: [
