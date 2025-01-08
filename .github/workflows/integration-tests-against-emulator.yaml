@@ -113,6 +113,7 @@ jobs:
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot test < test_data/mysqldump.test.out
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_interleave_dump.test.out
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_foreignkeyaction_dump.test.out
+      - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_checkconstraint_dump.test.out
 
       # init sql server with test_data
       # since we use ubuntu-latest container, we should ensure that the path matches the latest from  https://packages.microsoft.com/config/ubuntu/
