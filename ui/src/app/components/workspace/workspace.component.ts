@@ -20,6 +20,7 @@ import { InfodialogComponent } from '../infodialog/infodialog.component'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import IStructuredReport from '../../model/structured-report'
 import * as JSZip from 'jszip'
+import ICcTabData from 'src/app/model/cc-tab-data'
 
 @Component({
   selector: 'app-workspace',
@@ -61,6 +62,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   currentDatabase: string = 'spanner'
   dialect: string = ''
   structuredReport!: IStructuredReport
+  ccData: ICcTabData[] = []
   constructor(
     private data: DataService,
     private conversion: ConversionService,
@@ -130,6 +132,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
         this.objectExplorerInitiallyRender = true
       }
       if (this.currentObject && this.currentObject.type === ObjectExplorerNodeType.Table) {
+        this.ccData = this.currentObject
+          ? this.conversion.getCheckConstraints(this.currentObject.id, data)
+          : []
+
         this.fkData = this.currentObject
           ? this.conversion.getFkMapping(this.currentObject.id, data)
           : []
@@ -220,6 +226,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     if (object.type === ObjectExplorerNodeType.Table) {
       this.currentObject = object
       this.tableData = this.conversion.getColumnMapping(this.currentObject.id, this.conv)
+      this.ccData = this.conversion.getCheckConstraints(this.currentObject.id, this.conv)
 
       this.fkData = []
       this.fkData =  this.conversion.getFkMapping(this.currentObject.id, this.conv)
@@ -287,21 +294,21 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   downloadSession() {
     downloadSession(this.conv)
   }
-  
+
   downloadArtifacts(){
     let zip = new JSZip()
     let fileNameHeader = `${this.conv.DatabaseName}`
-    this.fetch.getDStructuredReport().subscribe({ 
+    this.fetch.getDStructuredReport().subscribe({
       next: (resStructured: IStructuredReport) => {
         let resJson = JSON.stringify(resStructured).replace(/9223372036854776000/g, '9223372036854775807')
         let fileName = fileNameHeader + '_migration_structuredReport.json'
         // add structured report to zip file
         zip.file(fileName, resJson)
-        this.fetch.getDTextReport().subscribe({  
+        this.fetch.getDTextReport().subscribe({
           next: (resText: string) => {
             // add text report to zip file
             zip.file(fileNameHeader + '_migration_textReport.txt', resText)
-            this.fetch.getDSpannerDDL().subscribe({  
+            this.fetch.getDSpannerDDL().subscribe({
               next: (resDDL: string) => {
                 // add spanner DDL to zip file
                 zip.file(fileNameHeader + '_spannerDDL.txt', resDDL)
@@ -328,7 +335,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   // downloads structured report of the migration in JSON format
   downloadStructuredReport(){
     var a = document.createElement('a')
-    this.fetch.getDStructuredReport().subscribe({ 
+    this.fetch.getDStructuredReport().subscribe({
       next: (res: IStructuredReport) => {
         let resJson = JSON.stringify(res).replace(/9223372036854776000/g, '9223372036854775807')
         a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
@@ -341,7 +348,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   // downloads text report of the migration in text format in more human readable form
   downloadTextReport(){
     var a = document.createElement('a')
-    this.fetch.getDTextReport().subscribe({  
+    this.fetch.getDTextReport().subscribe({
       next: (res: string) => {
         a.href = 'data:text;charset=utf-8,' + encodeURIComponent(res)
         a.download = `${this.conv.DatabaseName}_migration_textReport.txt`
@@ -355,7 +362,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 	// legal Cloud Spanner DDL (Cloud Spanner doesn't currently support comments).
   downloadDDL(){
     var a = document.createElement('a')
-    this.fetch.getDSpannerDDL().subscribe({  
+    this.fetch.getDSpannerDDL().subscribe({
       next: (res: string) => {
         a.href = 'data:text;charset=utf-8,' + encodeURIComponent(res)
         a.download = `${this.conv.DatabaseName}_spannerDDL.txt`
@@ -418,10 +425,20 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
             maxWidth: '500px',
           })
         } else {
-          this.router.navigate(['/prepare-migration'])
+          this.fetch.verifyCheckConstraintExpression().subscribe((res:any)=>{
+            if(!res){
+              this.router.navigate(['/prepare-migration'])
+            }
+            else{
+              this.data.getSummary()
+              window.location.reload()
+            }
+
+          })
+
         }
       }
-    }) 
+    })
   }
   spannerTab() {
     this.clickEvent.setTabToSpanner()
