@@ -359,6 +359,7 @@ func checkCheckConstraints(ctx context.Context, t *testing.T, dbURI string) {
 	err = insertOrUpdateData(map[string]interface{}{
 		"ID":    5,
 		"Value": 12, // Value is not NULL
+		"Name":  "ValidName",
 		"Flag":  false,
 	})
 	if err != nil {
@@ -395,6 +396,7 @@ func checkCheckConstraints(ctx context.Context, t *testing.T, dbURI string) {
 	err = insertOrUpdateData(map[string]interface{}{
 		"ID":        9,
 		"EnumValue": "OptionB", // Valid enum value
+		"Name":      "ValidName",
 		"Flag":      false,
 		"Value":     12,
 	})
@@ -415,6 +417,7 @@ func checkCheckConstraints(ctx context.Context, t *testing.T, dbURI string) {
 		"ID":           11,
 		"Value":        12,
 		"Flag":         false,
+		"Name":         "ValidName",
 		"BooleanValue": 1, // Valid boolean value
 	})
 	if err != nil {
@@ -434,6 +437,7 @@ func checkCheckConstraints(ctx context.Context, t *testing.T, dbURI string) {
 		"ID":           13,
 		"Value":        12, // Valid value
 		"Flag":         false,
+		"Name":         "ValidName",
 		"BooleanValue": 1,
 	})
 	if err != nil {
