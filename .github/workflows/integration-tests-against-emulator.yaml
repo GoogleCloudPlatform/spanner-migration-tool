@@ -38,7 +38,7 @@ jobs:
       MYSQLUSER: root
       MYSQLDATABASE: test_interleave_table_data
       MYSQLDB_FKACTION: test_foreign_key_action_data
-      MYSQLDB_CHECKCONSTRAINTACTION: test_mysql_checkconstraint_actions
+      MYSQLDB_CHECK_CONSTRAINT: test_mysql_checkconstraint
       MYSQLPWD: root
 
       # set DynamoDB related environment variables

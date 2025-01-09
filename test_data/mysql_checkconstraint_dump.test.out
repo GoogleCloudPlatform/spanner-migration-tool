@@ -1,6 +1,6 @@
 -- MySQL dump 10.13  Distrib 8.3.0, for macos13.6 (arm64)
 --
--- Host: 127.0.0.1    Database: test_mysql_checkconstraint_actions
+-- Host: 127.0.0.1    Database: test_mysql_checkconstraint
 -- ------------------------------------------------------
 -- Server version	8.0.40
 
@@ -16,12 +16,12 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Current Database: `test_mysql_checkconstraint_actions`
+-- Current Database: `test_mysql_checkconstraint`
 --
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test_mysql_checkconstraint_actions` /*!40100 DEFAULT CHARACTER SET utf8mb4 */ /*!80016 DEFAULT ENCRYPTION='N' */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test_mysql_checkconstraint` /*!40100 DEFAULT CHARACTER SET utf8mb4 */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
-USE `test_mysql_checkconstraint_actions`;
+USE `test_mysql_checkconstraint`;
 
 --
 -- Table structure for table `TestTable`

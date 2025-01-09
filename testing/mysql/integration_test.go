@@ -280,7 +280,7 @@ func TestIntegration_MYSQL_CheckConstraintsActionMigration(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName)
 
-	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDB_CHECKCONSTRAINTACTION"), os.Getenv("MYSQLPWD")
+	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDB_CHECK_CONSTRAINT"), os.Getenv("MYSQLPWD")
 	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s,project=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName, projectID)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
