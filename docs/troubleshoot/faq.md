@@ -25,7 +25,7 @@ To bring up the Spanner Migration Tool UI, please follow the steps mentioned [he
 
 ### Can Spanner Migration Tool be used without connecting to the spanner instance?
 
-Yes, Spanner Migration Tool can be used for schema assessment and modifications without connecting to the spanner instance
+No, Spanner Migration Tool is not suitable for schema assessment and modification because support for default values and check constraints has been added. This feature requires validation of DML, which means the Spanner instance must be up and running.
 
 ### When is a table interleavable?
 
