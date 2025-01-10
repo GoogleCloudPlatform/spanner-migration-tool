@@ -139,8 +139,8 @@ and `ON UPDATE` actions, we drop them.
 
 ## Default Values
 
-While Spanner supports default values, Spanner migration tool currently does not support translating source `DEFAULT` constraints to Spanner `DEFAULT` constraints. We drop the `DEFAULT` MySQL constraint during conversion.
-It can be manually added to the DDL via an `ALTER TABLE` command.
+Spanner Migration Tool will migrate all valid `DEFAULT` values from MySQL source automatically
+to Spanner and drop invalid `DEFAULT` constraints.
 
 ## Check Constraints
 

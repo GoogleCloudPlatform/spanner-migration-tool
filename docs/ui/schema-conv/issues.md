@@ -32,6 +32,7 @@ Spanner migration tool scans through the generated spanner schema and notifies t
 ## Errors
 
 - Detection of unsupported check constraints in spanner.
+- Detection of unsupported default values in spanner.
 - Data type mismatch of referenced column in check constraints.
 - Referenced column in check constraints not found.
 - Function referenced in check constraints is not found. 
