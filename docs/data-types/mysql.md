@@ -139,8 +139,10 @@ and `ON UPDATE` actions, we drop them.
 
 ## Default Values
 
-Spanner Migration Tool will migrate all valid `DEFAULT` values from MySQL source automatically
-to Spanner and drop invalid `DEFAULT` constraints.
+The Spanner Migration Tool automatically migrates all `DEFAULT` values from a MySQL source
+to a GoogleSQL destination, provided they can be mapped without modification.
+Any `DEFAULT` constraints that cannot be mapped are dropped, and a warning is issued. 
+Users can then modify the column to update these dropped `DEFAULT` constraints.
 
 ## Check Constraints
 
