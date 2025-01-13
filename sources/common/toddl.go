@@ -192,28 +192,29 @@ func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) error {
 		Source:               conv.Source,
 		ExpressionDetailList: GenerateExpressionDetailList(spschema),
 	}
+	if len(verifyExpressionsInput.ExpressionDetailList) != 0 {
+		result := ss.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
+		if result.ExpressionVerificationOutputList == nil {
+			return result.Err
+		}
+		issueTypes := GetIssue(result)
+		if len(issueTypes) > 0 {
+			for tableId, issues := range issueTypes {
 
-	result := ss.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
-	if result.ExpressionVerificationOutputList == nil {
-		return result.Err
-	}
-	issueTypes := GetIssue(result)
-	if len(issueTypes) > 0 {
-		for tableId, issues := range issueTypes {
-
-			for _, issue := range issues {
-				if _, exists := conv.SchemaIssues[tableId]; !exists {
-					conv.SchemaIssues[tableId] = internal.TableIssues{
-						TableLevelIssues: []internal.SchemaIssue{},
+				for _, issue := range issues {
+					if _, exists := conv.SchemaIssues[tableId]; !exists {
+						conv.SchemaIssues[tableId] = internal.TableIssues{
+							TableLevelIssues: []internal.SchemaIssue{},
+						}
 					}
-				}
 
-				tableIssue := conv.SchemaIssues[tableId]
+					tableIssue := conv.SchemaIssues[tableId]
 
-				if !IsSchemaIssuePresent(tableIssue.TableLevelIssues, issue) {
-					tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issue)
+					if !IsSchemaIssuePresent(tableIssue.TableLevelIssues, issue) {
+						tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issue)
+					}
+					conv.SchemaIssues[tableId] = tableIssue
 				}
-				conv.SchemaIssues[tableId] = tableIssue
 			}
 		}
 	}

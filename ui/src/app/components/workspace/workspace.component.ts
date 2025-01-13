@@ -425,6 +425,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
             maxWidth: '500px',
           })
         } else {
+          if(!this.ccData) {
           this.fetch.verifyCheckConstraintExpression().subscribe((res:any)=>{
             if(!res){
               this.router.navigate(['/prepare-migration'])
@@ -433,9 +434,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
               this.data.getSummary()
               window.location.reload()
             }
-
           })
-
+        } else {
+            this.router.navigate(['/prepare-migration'])
+          }
         }
       }
     })
