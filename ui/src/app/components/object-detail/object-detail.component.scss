@@ -88,6 +88,7 @@
   }
 }
 .add-pk-column,
+.add-cc-column,
 .add-column {
   margin-left: 50%;
   padding: 10px;
@@ -106,6 +107,7 @@
 .column-tab-container,
 .fk-tab-container,
 .pk-tab-container,
+.cc-tab-container,
 .index-tab-container,
 .sequence-tab-container {
   height: 84%;
@@ -209,7 +211,7 @@
   .mat-column-srcColMaxLength {
     min-width: 100px;
   }
-  
+
   .mat-column-spSequenceKind{
     min-width: 250px;
   }
@@ -329,4 +331,11 @@ tr.mat-mdc-row {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.overflow-cell {
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
 }
