@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -42,6 +43,7 @@ type updateCol struct {
 	ToType       string         `json:"ToType"`
 	MaxColLength string         `json:"MaxColLength"`
 	AutoGen      ddl.AutoGenCol `json:"AutoGen"`
+	DefaultValue ddl.DefaultValue `json:"DefaultValue"`
 }
 
 type updateTable struct {
@@ -55,8 +57,8 @@ type updateTable struct {
 // (3) Rename column.
 // (4) Add or Remove NotNull constraint.
 // (5) Update Spanner type.
+// (6) Update Check constraints Name.
 func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
-
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -83,18 +85,25 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 	for colId, v := range t.UpdateCols {
 
 		if v.Add {
-
 			addColumn(tableId, colId, conv)
-
 		}
 
 		if v.Removed {
-
 			RemoveColumn(tableId, colId, conv)
-
 		}
 
 		if v.Rename != "" && v.Rename != conv.SpSchema[tableId].ColDefs[colId].Name {
+
+			oldName := conv.SrcSchema[tableId].ColDefs[colId].Name
+
+			// Use a regular expression to match the exact column name
+			re := regexp.MustCompile(`\b` + regexp.QuoteMeta(oldName) + `\b`)
+
+			for i := range conv.SpSchema[tableId].CheckConstraints {
+				originalString := conv.SpSchema[tableId].CheckConstraints[i].Expr
+				updatedValue := re.ReplaceAllString(originalString, v.Rename)
+				conv.SpSchema[tableId].CheckConstraints[i].Expr = updatedValue
+			}
 
 			renameColumn(v.Rename, tableId, colId, conv)
 		}
@@ -103,16 +112,13 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.ToType != "" && found {
 
 			typeChange, err := utilities.IsTypeChanged(v.ToType, tableId, colId, conv)
-
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
 			if typeChange {
-
 				UpdateColumnType(v.ToType, tableId, colId, conv, w)
-
 			}
 		}
 
@@ -125,6 +131,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if !v.Removed {
 			sequences := UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
 			conv.SpSequences = sequences
+			UpdateDefaultValue(v.DefaultValue, tableId, colId, conv)
 		}
 	}
 

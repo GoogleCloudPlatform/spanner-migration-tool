@@ -109,9 +109,10 @@ func TestIntegration_SQLserver_SchemaSubcommand(t *testing.T) {
 	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
+	dbName := "sqlserver-schema-and-data"
 	filePrefix := filepath.Join(tmpdir, "SqlServer_IntTest.")
 
-	args := fmt.Sprintf("schema -prefix %s -source=sqlserver -source-profile='host=localhost,user=sa,dbName=SqlServer_IntTest'", filePrefix)
+	args := fmt.Sprintf("schema -prefix %s -source=sqlserver -source-profile='host=localhost,user=sa,dbName=SqlServer_IntTest' -target-profile='instance=%s,dbName=%s,project=%s'", filePrefix, instanceID, dbName, projectID)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -126,7 +127,7 @@ func TestIntegration_SQLserver_SchemaAndDataSubcommand(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, "SqlServer_IntTest.")
 
-	args := fmt.Sprintf("schema-and-data -prefix %s -source=%s  -source-profile='host=localhost,user=sa,dbName=SqlServer_IntTest' -target-profile='instance=%s,dbName=%s'", filePrefix, constants.SQLSERVER, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=%s  -source-profile='host=localhost,user=sa,dbName=SqlServer_IntTest' -target-profile='instance=%s,dbName=%s,project=%s'", filePrefix, constants.SQLSERVER, instanceID, dbName, projectID)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)

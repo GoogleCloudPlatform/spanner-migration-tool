@@ -26,10 +26,13 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -186,10 +189,21 @@ func TestProcessSchema(t *testing.T) {
 		scanOutputs:          scanOutputs,
 	}
 	sampleSize := int64(10000)
+	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	ctx := context.Background()
+	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
+		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+		},
+	})
 
 	conv := internal.MakeConv()
 	processSchema := common.ProcessSchemaImpl{}
-	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	schemaToSpanner := &common.SchemaToSpannerImpl{
+		ExpressionVerificationAccessor: mockAccessor,
+		DdlV:                           &expressions_api.MockDDLVerifier{},
+	}
+	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -289,8 +303,19 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
+	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	ctx := context.Background()
+	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
+		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+		},
+	})
 	processSchema := common.ProcessSchemaImpl{}
-	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	schemaToSpanner := &common.SchemaToSpannerImpl{
+		ExpressionVerificationAccessor: mockAccessor,
+		DdlV:                           &expressions_api.MockDDLVerifier{},
+	}
+	err := processSchema.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize}, 1, internal.AdditionalSchemaAttributes{}, schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -633,7 +658,7 @@ func TestInfoSchemaImpl_GetConstraints(t *testing.T) {
 	dySchema := common.SchemaAndName{Name: "test"}
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{client, nil, 10}
-	primaryKeys, constraints, err := isi.GetConstraints(conv, dySchema)
+	primaryKeys, _, constraints, err := isi.GetConstraints(conv, dySchema)
 	assert.Nil(t, err)
 
 	pKeys := []string{"a", "b"}
@@ -656,7 +681,7 @@ func TestInfoSchemaImpl_GetTables(t *testing.T) {
 	isi := InfoSchemaImpl{client, nil, 10}
 	tables, err := isi.GetTables()
 	assert.Nil(t, err)
-	assert.Equal(t, []common.SchemaAndName{{Schema: "", Name: "table-a", Id: ""}, {"", "table-b", ""}}, tables)
+	assert.Equal(t, []common.SchemaAndName{{Schema: "", Name: "table-a", Id: ""}, {Schema: "", Name: "table-b", Id: ""}}, tables)
 }
 
 func TestInfoSchemaImpl_GetTableName(t *testing.T) {
@@ -705,7 +730,7 @@ func TestInfoSchemaImpl_GetColumns(t *testing.T) {
 	client := &mockDynamoClient{
 		scanOutputs: scanOutputs,
 	}
-	dySchema := common.SchemaAndName{Name: "test", Id:  "t1"}
+	dySchema := common.SchemaAndName{Name: "test", Id: "t1"}
 
 	isi := InfoSchemaImpl{client, nil, 10}
 

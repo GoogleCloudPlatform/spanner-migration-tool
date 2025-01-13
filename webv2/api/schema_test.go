@@ -3,16 +3,20 @@ package api_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
@@ -20,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 )
 
@@ -305,6 +310,7 @@ func TestGetTableWithErrors(t *testing.T) {
 	tc := []struct {
 		name                string
 		conv                *internal.Conv
+		mockDDLVerifier     *expressions_api.MockDDLVerifier
 		expectedTableIdName []types.TableIdAndName
 		statusCode          int64
 	}{
@@ -321,9 +327,10 @@ func TestGetTableWithErrors(t *testing.T) {
 						Id:   "t2",
 					},
 				},
-				SchemaIssues: nil,
+				SchemaIssues: map[string]internal.TableIssues{},
 			},
-			expectedTableIdName: nil,
+			mockDDLVerifier:     &expressions_api.MockDDLVerifier{},
+			expectedTableIdName: []types.TableIdAndName{},
 			statusCode:          http.StatusOK,
 		},
 		{
@@ -344,7 +351,8 @@ func TestGetTableWithErrors(t *testing.T) {
 					"t1": {TableLevelIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete}},
 				},
 			},
-			expectedTableIdName: nil,
+			mockDDLVerifier:     &expressions_api.MockDDLVerifier{},
+			expectedTableIdName: []types.TableIdAndName{},
 			statusCode:          http.StatusOK,
 		},
 		{
@@ -365,34 +373,88 @@ func TestGetTableWithErrors(t *testing.T) {
 					"t2": {TableLevelIssues: []internal.SchemaIssue{internal.RowLimitExceeded, internal.ForeignKeyOnUpdate}},
 				},
 			},
+			mockDDLVerifier: &expressions_api.MockDDLVerifier{},
 			expectedTableIdName: []types.TableIdAndName{
-				types.TableIdAndName{Id: "t1", Name: "table1"},
-				types.TableIdAndName{Id: "t2", Name: "table2"}},
+				{Id: "t1", Name: "table1"},
+				{Id: "t2", Name: "table2"}},
+			statusCode: http.StatusOK,
+		},
+		{
+			name: "Error in VerifySpannerDDL with expressions failing verification",
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name: "table1",
+						Id:   "t1",
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {ColumnLevelIssues: map[string][]internal.SchemaIssue{
+						"c1": {},
+					}},
+				},
+			},
+			mockDDLVerifier: &expressions_api.MockDDLVerifier{
+				VerifySpannerDDLMock: func(conv *internal.Conv, expressionDetails []internal.ExpressionDetail) (internal.VerifyExpressionsOutput, error) {
+					return internal.VerifyExpressionsOutput{
+						ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+							{
+								Result: false,
+								ExpressionDetail: internal.ExpressionDetail{
+									Type:         "DEFAULT",
+									ExpressionId: "expr1",
+									Expression:   "SELECT 1",
+									Metadata:     map[string]string{"TableId": "t1", "ColId": "c1"},
+								},
+							},
+						},
+					}, fmt.Errorf("expressions either failed verification")
+				},
+				GetSpannerExpressionDetailsMock: func(conv *internal.Conv, tableIds []string) []internal.ExpressionDetail {
+					return []internal.ExpressionDetail{
+						{
+							Type:         "DEFAULT",
+							ExpressionId: "expr1",
+							Expression:   "SELECT 1",
+							Metadata:     map[string]string{"TableId": "t1", "ColId": "c1"},
+						},
+					}
+				},
+			},
+			expectedTableIdName: []types.TableIdAndName{
+				{Id: "t1", Name: "table1"},
+			},
 			statusCode: http.StatusOK,
 		},
 	}
+
 	for _, tc := range tc {
-		sessionState := session.GetSessionState()
-		sessionState.Conv = tc.conv
-		req, err := http.NewRequest("GET", "/GetTableWithErrors", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(api.GetTableWithErrors)
-		handler.ServeHTTP(rr, req)
+		t.Run(tc.name, func(t *testing.T) {
+			sessionState := session.GetSessionState()
+			sessionState.Conv = tc.conv
 
-		var tableIdName []types.TableIdAndName
-		json.Unmarshal(rr.Body.Bytes(), &tableIdName)
+			req, err := http.NewRequest("GET", "/GetTableWithErrors", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			rr := httptest.NewRecorder()
 
-		if status := rr.Code; int64(status) != tc.statusCode {
-			t.Errorf("%s : handler returned wrong status code: got %v want %v",
-				tc.name, status, tc.statusCode)
-		}
-		if tc.statusCode == http.StatusOK {
-			assert.Equal(t, tc.expectedTableIdName, tableIdName)
-		}
+			tableHandler := api.TableAPIHandler{DDLVerifier: tc.mockDDLVerifier}
+			handler := http.HandlerFunc(tableHandler.GetTableWithErrors)
+			handler.ServeHTTP(rr, req)
+
+			var tableIdName []types.TableIdAndName
+			json.Unmarshal(rr.Body.Bytes(), &tableIdName)
+
+			if status := rr.Code; int64(status) != tc.statusCode {
+				t.Errorf("%s : handler returned wrong status code: got %v want %v",
+					tc.name, status, tc.statusCode)
+			}
+			if tc.statusCode == http.StatusOK {
+				assert.Equal(t, tc.expectedTableIdName, tableIdName)
+			}
+		})
 	}
 }
 
@@ -770,6 +832,9 @@ func TestRenameIndexes(t *testing.T) {
 					"t1": {
 						Indexes: []ddl.CreateIndex{{Name: "idx_1", Id: "i1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Desc: false}}},
 							{Name: "idx_2", Id: "i2", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Desc: false}}}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", Id: "fkId1", ColIds: []string{"c2"}, ReferTableId: "reft1", ReferColumnIds: []string{"ref_b"}},
+							{Name: "fk2", Id: "fkId2", ColIds: []string{"c3", "d"}, ReferTableId: "reft2", ReferColumnIds: []string{"ref_c", "ref_d"}}},
+						ParentTable: ddl.InterleavedParent{Id: "", OnDelete: ""},
 					}},
 			},
 		},
@@ -1633,7 +1698,9 @@ func TestRestoreTable(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
-	handler := http.HandlerFunc(api.RestoreTable)
+	mockDDLVerifier := expressions_api.MockDDLVerifier{}
+	tableHandler := api.TableAPIHandler{DDLVerifier: &mockDDLVerifier}
+	handler := http.HandlerFunc(tableHandler.RestoreTable)
 	handler.ServeHTTP(rr, req)
 
 	res := &internal.Conv{}
@@ -2540,4 +2607,229 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		assert.Equal(t, tc.expectedAutoGenMap, autoGenMap, tc.dialect)
 	}
 
+}
+
+func TestUpdateCheckConstraint(t *testing.T) {
+	t.Run("ValidCheckConstraints", func(t *testing.T) {
+		sessionState := session.GetSessionState()
+		sessionState.Driver = constants.MYSQL
+		sessionState.Conv = internal.MakeConv()
+
+		tableID := "table1"
+
+		expectedCheckConstraint := []ddl.CheckConstraint{
+			{Id: "cc1", Name: "check_1", Expr: "(age > 18)"},
+			{Id: "cc2", Name: "check_2", Expr: "(age < 99)"},
+		}
+
+		checkConstraints := []schema.CheckConstraint{
+			{Id: "cc1", Name: "check_1", Expr: "(age > 18)"},
+			{Id: "cc2", Name: "check_2", Expr: "(age < 99)"},
+		}
+
+		body, err := json.Marshal(checkConstraints)
+		assert.NoError(t, err)
+
+		req, err := http.NewRequest("POST", "update/cc", bytes.NewBuffer(body))
+		assert.NoError(t, err)
+
+		q := req.URL.Query()
+		q.Add("table", tableID)
+		req.URL.RawQuery = q.Encode()
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(api.UpdateCheckConstraint)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		updatedSp := sessionState.Conv.SpSchema[tableID]
+		assert.Equal(t, expectedCheckConstraint, updatedSp.CheckConstraints)
+	})
+
+	t.Run("ParseError", func(t *testing.T) {
+		sessionState := session.GetSessionState()
+		sessionState.Driver = constants.MYSQL
+		sessionState.Conv = internal.MakeConv()
+
+		invalidJSON := "invalid json body"
+
+		rr := httptest.NewRecorder()
+		req, err := http.NewRequest("POST", "update/cc", io.NopCloser(strings.NewReader(invalidJSON)))
+		assert.NoError(t, err)
+
+		handler := http.HandlerFunc(api.UpdateCheckConstraint)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+
+		expectedErrorMessage := "Request Body parse error"
+		assert.Contains(t, rr.Body.String(), expectedErrorMessage)
+	})
+
+	t.Run("ImproperSession", func(t *testing.T) {
+		sessionState := session.GetSessionState()
+		sessionState.Conv = nil // Simulate no conversion
+
+		rr := httptest.NewRecorder()
+		req, err := http.NewRequest("POST", "update/cc", io.NopCloser(errReader{}))
+		assert.NoError(t, err)
+
+		handler := http.HandlerFunc(api.UpdateCheckConstraint)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusInternalServerError, rr.Code)
+		assert.Contains(t, rr.Body.String(), "Schema is not converted or Driver is not configured properly")
+	})
+}
+
+type errReader struct{}
+
+func (errReader) Read(p []byte) (n int, err error) {
+	return 0, fmt.Errorf("simulated read error")
+}
+
+func TestVerifyCheckConstraintExpressions(t *testing.T) {
+	tests := []struct {
+		name             string
+		expressions      []ddl.CheckConstraint
+		expectedResults  []internal.ExpressionVerificationOutput
+		expectedResponse bool
+	}{
+		{
+			name: "AllValidExpressions",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+				{Expr: "(((col1 > 0) and (col2 like 'A%') and (col4 between 5 and 100)) or (col5 in ('Alpha', 'Beta', 'Gamma')) )", ExprId: "expr2", Name: "complex_check"},
+				{Expr: "(col1 > 10)", ExprId: "expr3", Name: "conflict_check1"},
+				{Expr: "(col1 < 40)", ExprId: "expr4", Name: "conflict_check2"},
+				{Expr: "(col1 > 0)", ExprId: "expr5", Name: "auto_increment_check"},
+				{Expr: "(price >= 0.01 AND price <= 10000.00)", ExprId: "expr6", Name: "numeric_check"},
+				{Expr: "username <> 'invalid'", ExprId: "expr7", Name: "character_check"},
+				{Expr: "(status IN ('Pending', 'In Progress', 'Completed', 'Cancelled'))", ExprId: "expr8", Name: "enumerate_check"},
+				{Expr: "((col2 & 8) = 0)", ExprId: "expr9", Name: "bitwise_check"},
+				{Expr: "featureA IN (0, 1)", ExprId: "expr10", Name: "boolean_check"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(((col1 > 0) and (col2 like 'A%') and (col4 between 5 and 100)) or (col5 in ('Alpha', 'Beta', 'Gamma')) )", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c2", "checkConstraintName": "complex_check"}, ExpressionId: "expr2"}},
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 10)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c3", "checkConstraintName": "conflict_check1"}, ExpressionId: "expr3"}},
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 < 40)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c4", "checkConstraintName": "conflict_check2"}, ExpressionId: "expr4"}},
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col3 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c5", "checkConstraintName": "auto_increment_check"}, ExpressionId: "expr5"}},
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(price >= 0.01 AND price <= 10000.00)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c6", "checkConstraintName": "numeric_check"}, ExpressionId: "expr6"}},
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "username <> 'invalid'", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c7", "checkConstraintName": "character_check"}, ExpressionId: "expr7"}},
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(status IN ('Pending', 'In Progress', 'Completed', 'Cancelled'))", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c8", "checkConstraintName": "enumerate_check"}, ExpressionId: "expr8"}},
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "((col2 & 8) = 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c9", "checkConstraintName": "bitwise_check"}, ExpressionId: "expr9"}},
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "featureA IN (0, 1)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c10", "checkConstraintName": "boolean_check"}, ExpressionId: "expr10"}},
+			},
+			expectedResponse: false,
+		},
+		{
+			name: "InvalidSyntaxError",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+				{Expr: "(col1 > 18", ExprId: "expr2", Name: "check2"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+				{Result: false, Err: errors.New("Syntax error ..."), ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 18", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check2"}, ExpressionId: "expr2"}},
+			},
+			expectedResponse: true,
+		},
+		{
+			name: "NameError",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+				{Result: false, Err: errors.New("Unrecognized name ..."), ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 18)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check2"}, ExpressionId: "expr2"}},
+			},
+			expectedResponse: true,
+		},
+		{
+			name: "TypeError",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+				{Result: false, Err: errors.New("No matching signature for operator"), ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 18)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check2"}, ExpressionId: "expr2"}},
+			},
+			expectedResponse: true,
+		},
+		{
+			name: "FunctionError",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+				{Result: false, Err: errors.New("Function not found"), ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 18)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check2"}, ExpressionId: "expr2"}},
+			},
+			expectedResponse: true,
+		},
+		{
+			name: "GenericError",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+				{Result: false, Err: errors.New("Unhandle error"), ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 18)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check2"}, ExpressionId: "expr2"}},
+			},
+			expectedResponse: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+			handler := &api.ExpressionsVerificationHandler{ExpressionVerificationAccessor: mockAccessor}
+
+			req, err := http.NewRequest("POST", "/verifyCheckConstraintExpression", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ctx := req.Context()
+			sessionState := session.GetSessionState()
+			sessionState.Driver = constants.MYSQL
+			sessionState.SpannerInstanceID = "foo"
+			sessionState.SpannerProjectId = "daring-12"
+			sessionState.Conv = internal.MakeConv()
+			sessionState.Conv.SpSchema = map[string]ddl.CreateTable{
+				"t1": {
+					Name:        "table1",
+					Id:          "t1",
+					PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					ColIds:      []string{"c1"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"c1": {Name: "col1", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+					},
+					CheckConstraints: tc.expressions,
+				},
+			}
+
+			mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: tc.expectedResults,
+			})
+
+			rr := httptest.NewRecorder()
+			handler.VerifyCheckConstraintExpression(rr, req)
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+
+			var response bool
+			err = json.NewDecoder(rr.Body).Decode(&response)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, tc.expectedResponse, response)
+		})
+	}
 }

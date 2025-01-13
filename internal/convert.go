@@ -131,7 +131,12 @@ const (
 	SequenceCreated
 	ForeignKeyActionNotSupported
 	NumericPKNotSupported
+	TypeMismatch
 	DefaultValueError
+	InvalidCondition
+	ColumnNotFound
+	CheckConstraintFunctionNotFound
+	GenericError
 )
 
 const (
