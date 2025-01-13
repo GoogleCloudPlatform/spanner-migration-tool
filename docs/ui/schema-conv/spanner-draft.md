@@ -86,6 +86,22 @@ To interleave a `child table` within a `parent table`, the following conditions 
 
 4. Use the modified session file in the [SMT commands](../../cli/cli.md) or it can be imported via [SMT UI](../connect-source.md#load-session-file) and proceed further.
 
+### Check Constraints
+Users have the ability to view and modify check constraints of a table via the check constraints tab. They can alter the check constraint's name, condition, and even remove the check constraint entirely. Once these changes are made the [session file](../ui.md/#termsterminology) is updated.
+
+![](https://services.google.com/fh/files/misc/cc3.png)
+
+#### Add or Edit Constraint
+Besides modifying the existing check constraint in the Spanner draft mapped from the source database, users can also add new constraints to the selected table.
+
+![](https://services.google.com/fh/files/misc/cc2.png)
+
+![](https://services.google.com/fh/files/misc/cc1.png)
+
+#### Remove Constraint
+In addition to adding check constraints, users can also remove the check constraints in the spanner draft for the selected table.
+
+![](https://services.google.com/fh/files/misc/cc4.png)
 
 ### SQL
 

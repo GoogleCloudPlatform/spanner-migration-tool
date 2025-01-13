@@ -9,7 +9,7 @@ nav_order: 3
 # Issues and Suggestions
 {: .no_toc }
 
-Spanner migration tool scans through the generated spanner schema and notifies the user of any warnings encountered. It also makes intelligent suggestions to the user which would help them utilize the spanner capabilities to the fullest.
+Spanner migration tool scans through the generated spanner schema and notifies the user of any warnings or errors encountered. It also makes intelligent suggestions to the user which would help them utilize the spanner capabilities to the fullest.
 
 <details open markdown="block">
   <summary>
@@ -28,6 +28,15 @@ Spanner migration tool scans through the generated spanner schema and notifies t
 - Addition of [synthetic primary key](../ui.md/#termsterminology) - synth_id
 - [Hotspotting](https://cloud.google.com/spanner/docs/schema-design) due to timestamp or auto-increment keys
 - Auto Increment has been converted to Sequence, set Ignore Range or Start with Counter to avoid duplicate value errors
+
+## Errors
+
+- Detection of unsupported check constraints in spanner.
+- Data type mismatch of referenced column in check constraints.
+- Referenced column in check constraints not found.
+- Function referenced in check constraints is not found. 
+
+![](https://services.google.com/fh/files/misc/cc5.png)
 
 ## Suggestions
 
