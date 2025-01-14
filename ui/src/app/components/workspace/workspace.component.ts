@@ -226,6 +226,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     if (object.type === ObjectExplorerNodeType.Table) {
       this.currentObject = object
       this.tableData = this.conversion.getColumnMapping(this.currentObject.id, this.conv)
+
       this.ccData = this.conversion.getCheckConstraints(this.currentObject.id, this.conv)
 
       this.fkData = []
@@ -425,7 +426,6 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
             maxWidth: '500px',
           })
         } else {
-          if(!this.ccData) {
           this.fetch.verifyCheckConstraintExpression().subscribe((res:any)=>{
             if(!res){
               this.router.navigate(['/prepare-migration'])
@@ -435,9 +435,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
               window.location.reload()
             }
           })
-        } else {
-            this.router.navigate(['/prepare-migration'])
-          }
+
         }
       }
     })
