@@ -226,6 +226,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     if (object.type === ObjectExplorerNodeType.Table) {
       this.currentObject = object
       this.tableData = this.conversion.getColumnMapping(this.currentObject.id, this.conv)
+
       this.ccData = this.conversion.getCheckConstraints(this.currentObject.id, this.conv)
 
       this.fkData = []
@@ -433,7 +434,6 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
               this.data.getSummary()
               window.location.reload()
             }
-
           })
 
         }

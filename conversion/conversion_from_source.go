@@ -123,6 +123,8 @@ func (sads *SchemaFromSourceImpl) SchemaFromDump(SpProjectId string, SpInstanceI
 	conv := internal.MakeConv()
 	conv.SpDialect = spDialect
 	conv.Source = driver
+	conv.SpProjectId = SpProjectId
+	conv.SpInstanceId = SpInstanceId
 	p := internal.NewProgress(n, "Generating schema", internal.Verbose(), false, int(internal.SchemaCreationInProgress))
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in dump.

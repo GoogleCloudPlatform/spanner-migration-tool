@@ -607,47 +607,49 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheck
 	defer sessionState.Conv.ConvLock.Unlock()
 
 	spschema := sessionState.Conv.SpSchema
-
+	expressionDetailList := common.GenerateExpressionDetailList(spschema)
 	hasErrorOccurred := false
+	if len(expressionDetailList) != 0 {
 
-	ctx := context.Background()
+		ctx := context.Background()
 
-	verifyExpressionsInput := internal.VerifyExpressionsInput{
-		Conv:                 sessionState.Conv,
-		Source:               "mysql",
-		ExpressionDetailList: common.GenerateExpressionDetailList(spschema),
-	}
-	sessionState.Conv.SchemaIssues = common.RemoveError(sessionState.Conv.SchemaIssues)
-	result := expressionVerificationHandler.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
-	if result.ExpressionVerificationOutputList == nil {
-		http.Error(w, fmt.Sprintf("Unhandled error: : %s", result.Err.Error()), http.StatusBadRequest)
-		return
-	}
+		verifyExpressionsInput := internal.VerifyExpressionsInput{
+			Conv:                 sessionState.Conv,
+			Source:               "mysql",
+			ExpressionDetailList: expressionDetailList,
+		}
 
-	issueTypes := common.GetIssue(result)
-	if len(issueTypes) > 0 {
-		hasErrorOccurred = true
-		for tableId, issues := range issueTypes {
-			for _, issue := range issues {
-				if _, exists := sessionState.Conv.SchemaIssues[tableId]; !exists {
-					sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
-						TableLevelIssues: []internal.SchemaIssue{},
+		sessionState.Conv.SchemaIssues = common.RemoveError(sessionState.Conv.SchemaIssues)
+		result := expressionVerificationHandler.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
+		if result.ExpressionVerificationOutputList == nil {
+			http.Error(w, fmt.Sprintf("Unhandled error: : %s", result.Err.Error()), http.StatusBadRequest)
+			return
+		}
+
+		issueTypes := common.GetIssue(result)
+		if len(issueTypes) > 0 {
+			hasErrorOccurred = true
+			for tableId, issues := range issueTypes {
+				for _, issue := range issues {
+					if _, exists := sessionState.Conv.SchemaIssues[tableId]; !exists {
+						sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
+							TableLevelIssues: []internal.SchemaIssue{},
+						}
 					}
+
+					tableIssue := sessionState.Conv.SchemaIssues[tableId]
+
+					if !utilities.IsSchemaIssuePresent(tableIssue.TableLevelIssues, issue) {
+						tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issue)
+					}
+
+					sessionState.Conv.SchemaIssues[tableId] = tableIssue
 				}
-
-				tableIssue := sessionState.Conv.SchemaIssues[tableId]
-
-				if !utilities.IsSchemaIssuePresent(tableIssue.TableLevelIssues, issue) {
-					tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issue)
-				}
-
-				sessionState.Conv.SchemaIssues[tableId] = tableIssue
 			}
 		}
+
+		session.UpdateSessionFile()
 	}
-
-	session.UpdateSessionFile()
-
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(hasErrorOccurred)
 }
