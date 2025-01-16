@@ -144,7 +144,9 @@ Spanner doesn't support `ON DELETE` and `ON UPDATE` actions, so we drop these.
 The Spanner Migration Tool automatically migrates all `DEFAULT` values from a MySQL source
 to a PostgreSQL destination, provided they can be mapped without modification.
 Any `DEFAULT` constraints that cannot be mapped are dropped, and a warning is issued. 
-Users can then modify the column to update these dropped `DEFAULT` constraints.
+Users can edit the column to change the `DEFAULT` constraints. The validity of the `DEFAULT`
+constraints will be verified when users try to move to the Prepare Migration page. In case
+of any errors users will not be able to proceed until all `DEFAULT` constraints are valid.
 
 ## Secondary Indexes
 

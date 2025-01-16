@@ -34,9 +34,9 @@ Column tab provides information on the columns that are a part of the selected t
 
 In addition to editing the existing columns in the Spanner draft mapped from the source database, users can also add new columns to the selected table.
 
-![](https://services.google.com/fh/files/misc/add_column.png)
+![](https://services.google.com/fh/files/misc/dv4.png)
 ![](https://services.google.com/fh/files/misc/add_column_form.png)
-![](https://services.google.com/fh/files/misc/new_column.png)
+![](https://services.google.com/fh/files/misc/dvv3.png)
 
 To specify custom transformation logic in the dataflow pipeline to populate these columns, please refer to the [Custom Transformation](../../transformations/CustomTransformation.md) section.
 
