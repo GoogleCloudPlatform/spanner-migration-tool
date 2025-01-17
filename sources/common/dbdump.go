@@ -42,7 +42,7 @@ func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump, ddlVe
 			ExpressionVerificationAccessor: exprVerifier,
 			DdlV:                           ddlVerifier,
 		}
-		schemaToSpanner.SchemaToSpannerDDL(conv, dbDump.GetToDdl())
+		schemaToSpanner.SchemaToSpannerDDL(conv, dbDump.GetToDdl(), internal.AdditionalSchemaAttributes{})
 		conv.AddPrimaryKeys()
 	}
 	return nil
