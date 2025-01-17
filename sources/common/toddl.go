@@ -54,7 +54,7 @@ type ToDdl interface {
 }
 
 type SchemaToSpannerInterface interface {
-	SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error
+	SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl, attributes internal.AdditionalSchemaAttributes) error
 	SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error
 	SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error
 }
@@ -75,7 +75,7 @@ var ErrorTypeMapping = map[string]internal.SchemaIssue{
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
-func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
+func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl, attributes internal.AdditionalSchemaAttributes) error {
 	srcSequences := conv.SrcSequences
 	for _, srcSequence := range srcSequences {
 		ss.SchemaToSpannerSequenceHelper(conv, srcSequence)
@@ -84,6 +84,11 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 	for _, tableId := range tableIds {
 		srcTable := conv.SrcSchema[tableId]
 		ss.SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
+	}
+
+	conv.AddPrimaryKeys()
+	if attributes.IsSharded {
+		conv.AddShardIdColumn()
 	}
 
 	if (conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP) && conv.SpProjectId != "" && conv.SpInstanceId != "" {
