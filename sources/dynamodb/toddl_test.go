@@ -74,7 +74,7 @@ func TestToSpannerType(t *testing.T) {
 		ExpressionVerificationAccessor: mockAccessor,
 		DdlV:                           &expressions_api.MockDDLVerifier{},
 	}
-	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
+	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}, internal.AdditionalSchemaAttributes{}))
 	actual := conv.SpSchema[name]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
@@ -146,7 +146,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		ExpressionVerificationAccessor: mockAccessor,
 		DdlV:                           &expressions_api.MockDDLVerifier{},
 	}
-	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
+	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}, internal.AdditionalSchemaAttributes{}))
 	actual := conv.SpSchema["t1"]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{

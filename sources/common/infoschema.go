@@ -89,14 +89,10 @@ func (ps *ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoS
 	}
 	uo.initPrimaryKeyOrder(conv)
 	uo.initIndexOrder(conv)
-	s.SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
+	s.SchemaToSpannerDDL(conv, infoSchema.GetToDdl(), attributes)
 	if tableCount != len(conv.SpSchema) {
 		fmt.Printf("Failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.\n", tableCount, len(conv.SpSchema))
 		return fmt.Errorf("failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.", tableCount, len(conv.SpSchema))
-	}
-	conv.AddPrimaryKeys()
-	if attributes.IsSharded {
-		conv.AddShardIdColumn()
 	}
 	fmt.Println("loaded schema")
 	return nil
