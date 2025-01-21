@@ -339,6 +339,7 @@ func getCheckConstraints(constraints []*ast.Constraint) (checkConstraints []sche
 		if constraint.Tp == ast.ConstraintCheck {
 			exp := expressionToString(constraint.Expr)
 			exp = dbcollationRegex.ReplaceAllString(exp, "$1")
+			exp = checkAndAddParentheses(exp)
 			checkConstraint := schema.CheckConstraint{
 				Name:   constraint.Name,
 				Expr:   exp,
