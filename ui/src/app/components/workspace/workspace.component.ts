@@ -432,7 +432,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
             }
             else{
               this.data.getSummary()
-              window.location.reload()
+              this.router.navigate(['/workspace'])
             }
           })
 
