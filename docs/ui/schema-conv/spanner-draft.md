@@ -26,17 +26,17 @@ Users can view detailed information for a table by selecting it from the **Spann
 
 ### Column
 
-Column tab provides information on the columns that are a part of the selected table. It also provides the option to edit the column wherein a user can modify a column name, delete a column, change the data type of the column, add auto-generation to the column or modify the null property of the column. Once the user is done with required modifications, they can click on **SAVE & CONVERT **and the update would reflect in the session file and across all the components in the database.
+Column tab provides information on the columns that are a part of the selected table. It also provides the option to edit the column wherein a user can modify a column name, delete a column, change the data type of the column, add auto-generation to the column, modify the default value or modify the null property of the column. Once the user is done with required modifications, they can click on **SAVE & CONVERT **and the update would reflect in the session file and across all the components in the database.
 
-![](https://services.google.com/fh/files/misc/column-info-edit.png)
+![](https://services.google.com/fh/files/misc/dv1.png)
 
 #### Add Column
 
 In addition to editing the existing columns in the Spanner draft mapped from the source database, users can also add new columns to the selected table.
 
-![](https://services.google.com/fh/files/misc/add_column.png)
+![](https://services.google.com/fh/files/misc/dv4.png)
 ![](https://services.google.com/fh/files/misc/add_column_form.png)
-![](https://services.google.com/fh/files/misc/new_column.png)
+![](https://services.google.com/fh/files/misc/dvv3.png)
 
 To specify custom transformation logic in the dataflow pipeline to populate these columns, please refer to the [Custom Transformation](../../transformations/CustomTransformation.md) section.
 
