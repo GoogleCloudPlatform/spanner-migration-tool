@@ -582,6 +582,10 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for i := range newCc {
+		newCc[i].Expr = checkAndAddParentheses(newCc[i].Expr)
+	}
+
 	sp := sessionState.Conv.SpSchema[tableId]
 	sp.CheckConstraints = newCc
 	sessionState.Conv.SpSchema[tableId] = sp
@@ -593,6 +597,20 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
+}
+
+// checkAndAddParentheses this method will check parentheses  if found it will return same string
+// or add the parentheses then return the string
+func checkAndAddParentheses(checkClause string) string {
+	if strings.HasPrefix(checkClause, "(") && strings.HasSuffix(checkClause, ")") {
+		return checkClause
+	} else if strings.HasPrefix(checkClause, "(") {
+		return checkClause + `)`
+	} else if strings.HasSuffix(checkClause, ")") {
+		return `(` + checkClause
+	} else {
+		return `(` + checkClause + `)`
+	}
 }
 
 // VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
