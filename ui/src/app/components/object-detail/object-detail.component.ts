@@ -479,7 +479,13 @@ export class ObjectDetailComponent implements OnInit {
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
             MaxColLength: col.spColMaxLength,
             AutoGen: col.spAutoGen,
-            DefaultValue: col.spDefaultValue,
+            DefaultValue: {
+              IsPresent: col.spDefaultValue ? true : false,
+              Value: {
+                ExpressionId: '',
+                Statement: String(col.spDefaultValue)
+              }
+            }
           }
         }
       }
@@ -653,11 +659,16 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   checkIfCcColumn(colId: string): boolean {
+    let isCcColumn = false
     const columnName = this.conv.SpSchema[this.currentObject!.id].ColDefs[colId].Name;
-
-    return this.conv.SpSchema[this.currentObject!.id].CheckConstraints.some((cc: ICheckConstraints) =>
-    new RegExp(`\\b${columnName}\\b`).test(cc.Expr)
-    );
+    if(
+      this.conv.SpSchema[this.currentObject!.id].CheckConstraints != null &&
+      this.conv.SpSchema[this.currentObject!.id].CheckConstraints.some((cc: ICheckConstraints) =>
+      new RegExp(`\\b${columnName}\\b`).test(cc.Expr))
+    ) {
+      isCcColumn = true
+    }
+    return isCcColumn
   }
 
   checkIfPkColumn(colId: string) {
