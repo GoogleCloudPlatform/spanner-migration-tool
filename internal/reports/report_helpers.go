@@ -112,38 +112,38 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 		}
 
 		// added if to add table level issue
-		if p.severity == Errors && len(tableLevelIssues) != 0 {
+		if p.severity == warning && len(tableLevelIssues) != 0 {
 			for _, issue := range tableLevelIssues {
 				switch issue {
 				case internal.TypeMismatch:
 					toAppend := Issue{
 						Category:    IssueDB[issue].Category,
-						Description: fmt.Sprintf("Table '%s': Type mismatch in check constraint. Verify that the column type matches the constraint logic.", conv.SpSchema[tableId].Name),
+						Description: fmt.Sprintf("Table '%s': Type mismatch in check constraint. Verify that the column type matches the constraint logic. The check constraint was not applied and has been removed.", conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
 				case internal.InvalidCondition:
 					toAppend := Issue{
 						Category:    IssueDB[issue].Category,
-						Description: fmt.Sprintf("Table '%s': Invalid condition in check constraint. Ensure the condition is compatible with the constraint logic.", conv.SpSchema[tableId].Name),
+						Description: fmt.Sprintf("Table '%s': Invalid condition in check constraint. Ensure the condition is compatible with the constraint logic. The check constraint was not applied and has been removed.", conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
 				case internal.ColumnNotFound:
 					toAppend := Issue{
 						Category:    IssueDB[issue].Category,
-						Description: fmt.Sprintf("Table '%s': Column not found in check constraint. Verify that all referenced columns exist.", conv.SpSchema[tableId].Name),
+						Description: fmt.Sprintf("Table '%s': Column not found in check constraint. Verify that all referenced columns exist. The check constraint was not applied and has been removed.", conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
 
 				case internal.CheckConstraintFunctionNotFound:
 					toAppend := Issue{
 						Category:    IssueDB[issue].Category,
-						Description: fmt.Sprintf("Table '%s': Function not found in check constraint. Ensure all functions used in the condition are valid.", conv.SpSchema[tableId].Name),
+						Description: fmt.Sprintf("Table '%s': Function not found in check constraint. Ensure all functions used in the condition are valid. The check constraint was not applied and has been removed.", conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
 				case internal.GenericError:
 					toAppend := Issue{
 						Category:    IssueDB[issue].Category,
-						Description: fmt.Sprintf("Table '%s': Something went wrong in check constraint. Verify the conditions and constraint logic.", conv.SpSchema[tableId].Name),
+						Description: fmt.Sprintf("Table '%s': Something went wrong in check constraint. Verify the conditions and constraint logic. The check constraint was not applied and has been removed.", conv.SpSchema[tableId].Name),
 					}
 					l = append(l, toAppend)
 				}
