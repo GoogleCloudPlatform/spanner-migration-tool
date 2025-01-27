@@ -2647,6 +2647,43 @@ func TestUpdateCheckConstraint(t *testing.T) {
 		assert.Equal(t, expectedCheckConstraint, updatedSp.CheckConstraints)
 	})
 
+	t.Run("Check Constraints without parentheses", func(t *testing.T) {
+		sessionState := session.GetSessionState()
+		sessionState.Driver = constants.MYSQL
+		sessionState.Conv = internal.MakeConv()
+
+		tableID := "table1"
+
+		expectedCheckConstraint := []ddl.CheckConstraint{
+			{Id: "cc1", Name: "check_1", Expr: "(age > 18)", ExprId: "expr1"},
+			{Id: "cc2", Name: "check_2", Expr: "(age < 99)", ExprId: "expr2"},
+		}
+
+		checkConstraints := []schema.CheckConstraint{
+			{Id: "cc1", Name: "check_1", Expr: "age > 18", ExprId: "expr1"},
+			{Id: "cc2", Name: "check_2", Expr: "age < 99", ExprId: "expr2"},
+		}
+
+		body, err := json.Marshal(checkConstraints)
+		assert.NoError(t, err)
+
+		req, err := http.NewRequest("POST", "update/cc", bytes.NewBuffer(body))
+		assert.NoError(t, err)
+
+		q := req.URL.Query()
+		q.Add("table", tableID)
+		req.URL.RawQuery = q.Encode()
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(api.UpdateCheckConstraint)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		updatedSp := sessionState.Conv.SpSchema[tableID]
+		assert.Equal(t, expectedCheckConstraint, updatedSp.CheckConstraints)
+	})
+
 	t.Run("ParseError", func(t *testing.T) {
 		sessionState := session.GetSessionState()
 		sessionState.Driver = constants.MYSQL
