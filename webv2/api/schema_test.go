@@ -2657,11 +2657,13 @@ func TestUpdateCheckConstraint(t *testing.T) {
 		expectedCheckConstraint := []ddl.CheckConstraint{
 			{Id: "cc1", Name: "check_1", Expr: "(age > 18)", ExprId: "expr1"},
 			{Id: "cc2", Name: "check_2", Expr: "(age < 99)", ExprId: "expr2"},
+			{Id: "cc3", Name: "check_3", Expr: "(age < 150)", ExprId: "expr3"},
 		}
 
 		checkConstraints := []schema.CheckConstraint{
 			{Id: "cc1", Name: "check_1", Expr: "age > 18", ExprId: "expr1"},
-			{Id: "cc2", Name: "check_2", Expr: "age < 99", ExprId: "expr2"},
+			{Id: "cc2", Name: "check_2", Expr: "(age < 99", ExprId: "expr2"},
+			{Id: "cc3", Name: "check_3", Expr: "age < 150)", ExprId: "expr3"},
 		}
 
 		body, err := json.Marshal(checkConstraints)
