@@ -203,7 +203,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 }
 
 // validateExistingDb validates that the existing spanner schema is in accordance with the one specified in the session file.
-func validateExistingDb(ctx context.Context, spDialect, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, conv *internal.Conv) error {	
+func validateExistingDb(ctx context.Context, spDialect, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, conv *internal.Conv) error {
 	spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		return err

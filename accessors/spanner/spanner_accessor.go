@@ -74,6 +74,8 @@ type SpannerAccessor interface {
 	ValidateDDL(ctx context.Context, dbURI string) error
 	// UpdateDDLForeignKeys updates the Spanner database with foreign key constraints using ALTER TABLE statements.
 	UpdateDDLForeignKeys(ctx context.Context, dbURI string, conv *internal.Conv, driver string, migrationType string)
+	// UpdateDDLIndexes updates the Spanner database with indexes using CREATE INDEX statements.
+	UpdateDDLIndexes(ctx context.Context, dbURI string, conv *internal.Conv, driver string, migrationType string)
 	// Deletes a database.
 	DropDatabase(ctx context.Context, dbURI string) error
 	//Runs a query against the provided spanner database and returns if the executed DML is validate or not
@@ -287,12 +289,7 @@ func (sp *SpannerAccessorImpl) CreateDatabase(ctx context.Context, dbURI string,
 		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
 	} else {
 		req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
-		if migrationType == constants.DATAFLOW_MIGRATION {
-			req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences)
-		} else {
-			req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences)
-		}
-
+		req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, Indexes: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences)
 	}
 
 	op, err := sp.AdminClient.CreateDatabase(ctx, req)
@@ -316,7 +313,7 @@ func (sp *SpannerAccessorImpl) UpdateDatabase(ctx context.Context, dbURI string,
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
 	// Foreign Keys are set to false since we create them post data migration.
-	schema := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences)
+	schema := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, Indexes: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences)
 	req := &adminpb.UpdateDatabaseDdlRequest{
 		Database:   dbURI,
 		Statements: schema,
@@ -383,35 +380,8 @@ func (sp *SpannerAccessorImpl) ValidateDDL(ctx context.Context, dbURI string) er
 	return nil
 }
 
-// UpdateDDLForeignKeys updates the Spanner database with foreign key
-// constraints using ALTER TABLE statements.
-func (sp *SpannerAccessorImpl) UpdateDDLForeignKeys(ctx context.Context, dbURI string, conv *internal.Conv, driver string, migrationType string) {
-
-	if conv.SpDialect != constants.DIALECT_POSTGRESQL && migrationType == constants.DATAFLOW_MIGRATION {
-		//foreign keys were applied as part of CreateDatabase
-		return
-	}
-
-	// The schema we send to Spanner excludes comments (since Cloud
-	// Spanner DDL doesn't accept them), and protects table and col names
-	// using backticks (to avoid any issues with Spanner reserved words).
-	// Sequences will not be passed as they have already been created.
-	fkStmts := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, make(map[string]ddl.Sequence))
-	if len(fkStmts) == 0 {
-		return
-	}
-	if len(fkStmts) > 50 {
-		logger.Log.Warn(`
-			Warning: Large number of foreign keys detected. Spanner can take a long amount of 
-			time to create foreign keys (over 5 mins per batch of Foreign Keys even with no data). 
-			Spanner migration tool does not have control over a single foreign key creation time. The number 
-			of concurrent Foreign Key Creation Requests sent to spanner can be increased by 
-			tweaking the MaxWorkers variable (https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/conversion/conversion.go#L89).
-			However, setting it to a very high value might lead to exceeding the admin quota limit. Spanner migration tool tries to stay under the
-			admin quota limit by spreading the FK creation requests over time.`)
-	}
-	msg := fmt.Sprintf("Updating schema of database %s with foreign key constraints ...", dbURI)
-	conv.Audit.Progress = *internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose(), true, int(internal.ForeignKeyUpdateInProgress))
+func (sp *SpannerAccessorImpl) updateForeignKeyAndIndexes(stmts []string, conv *internal.Conv, msg string, ctx context.Context, dbURI string, progressTracker, completionTracker int) {
+	conv.Audit.Progress = *internal.NewProgress(int64(len(stmts)), msg, internal.Verbose(), true, progressTracker)
 
 	workers := make(chan int, MaxWorkers)
 	for i := 1; i <= MaxWorkers; i++ {
@@ -420,13 +390,13 @@ func (sp *SpannerAccessorImpl) UpdateDDLForeignKeys(ctx context.Context, dbURI s
 	var progressMutex sync.Mutex
 	progress := int64(0)
 
-	// We dispatch parallel foreign key create requests to ensure the backfill runs in parallel to reduce overall time.
+	// We dispatch parallel requests to ensure the backfill runs in parallel to reduce overall time.
 	// This cuts down the time taken to a third (approx) compared to Serial and Batched creation. We also do not want to create
 	// too many requests and get throttled due to network or hitting catalog memory limits.
 	// Ensure atmost `MaxWorkers` go routines run in parallel that each update the ddl with one foreign key statement.
-	for _, fkStmt := range fkStmts {
+	for _, stmt := range stmts {
 		workerID := <-workers
-		go func(fkStmt string, workerID int) {
+		go func(stmt string, workerID int) {
 			defer func() {
 				// Locking the progress reporting otherwise progress results displayed could be in random order.
 				progressMutex.Lock()
@@ -435,35 +405,88 @@ func (sp *SpannerAccessorImpl) UpdateDDLForeignKeys(ctx context.Context, dbURI s
 				progressMutex.Unlock()
 				workers <- workerID
 			}()
-			internal.VerbosePrintf("Submitting new FK create request: %s\n", fkStmt)
-			logger.Log.Debug("Submitting new FK create request", zap.String("fkStmt", fkStmt))
+			internal.VerbosePrintf("Submitting new DDL request: %s\n", stmt)
+			logger.Log.Debug("Submitting new DDL request", zap.String("stmt", stmt))
 
 			op, err := sp.AdminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 				Database:   dbURI,
-				Statements: []string{fkStmt},
+				Statements: []string{stmt},
 			})
 			if err != nil {
-				logger.Log.Debug("Can't add foreign key with statement:" + fkStmt + "\n due to error:" + err.Error() + " Skipping this foreign key...\n")
-				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
+				logger.Log.Debug("Can't update schema with statement:" + stmt + "\n due to error:" + err.Error() + " Skipping this request...\n")
+				conv.Unexpected(fmt.Sprintf("Can't update schema with statement %s: %s", stmt, err))
 				return
 			}
 			if err := op.Wait(ctx); err != nil {
-				logger.Log.Debug("Can't add foreign key with statement:" + fkStmt + "\n due to error:" + err.Error() + " Skipping this foreign key...\n")
-				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
+				logger.Log.Debug("Can't update schema with statement:" + stmt + "\n due to error:" + err.Error() + " Skipping this request...\n")
+				conv.Unexpected(fmt.Sprintf("Can't update schema with statement %s: %s", stmt, err))
 				return
 			}
-			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
-			logger.Log.Debug("Updated schema with statement", zap.String("fkStmt", fkStmt))
-		}(fkStmt, workerID)
-		// Send out an FK creation request every second, with total of maxWorkers request being present in a batch.
+			internal.VerbosePrintln("Updated schema with statement: " + stmt)
+			logger.Log.Debug("Updated schema with statement", zap.String("stmt", stmt))
+		}(stmt, workerID)
+		// Send out a request every second, with total of maxWorkers request being present in a batch.
 		time.Sleep(time.Second)
 	}
 	// Wait for all the goroutines to finish.
 	for i := 1; i <= MaxWorkers; i++ {
 		<-workers
 	}
-	conv.Audit.Progress.UpdateProgress("Foreign key update complete.", 100, internal.ForeignKeyUpdateComplete)
+	conv.Audit.Progress.UpdateProgress("Update complete.", 100, internal.ProgressStatus(completionTracker))
 	conv.Audit.Progress.Done()
+}
+
+// UpdateDDLForeignKeys updates the Spanner database with foreign key
+// constraints using ALTER TABLE statements.
+func (sp *SpannerAccessorImpl) UpdateDDLForeignKeys(ctx context.Context, dbURI string, conv *internal.Conv, driver string, migrationType string) {
+
+	// The schema we send to Spanner excludes comments (since Cloud
+	// Spanner DDL doesn't accept them), and protects table and col names
+	// using backticks (to avoid any issues with Spanner reserved words).
+	// Sequences will not be passed as they have already been created.
+	fkStmts := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true, Indexes: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, make(map[string]ddl.Sequence))
+	if len(fkStmts) == 0 {
+		return
+	}
+	if len(fkStmts) > 50 {
+		logger.Log.Warn(`
+			Warning: Large number of foreign keys detected. Spanner can take a long amount of 
+			time to create foreign keys (over 5 mins per batch of Foreign Keys even with no data). 
+			Spanner migration tool does not have control over a single foreign key creation time. The number 
+			of concurrent requests sent to spanner can be increased by 
+			tweaking the MaxWorkers variable (https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/conversion/conversion.go#L89).
+			However, setting it to a very high value might lead to exceeding the admin quota limit. Spanner migration tool tries to stay under the
+			admin quota limit by spreading the requests over time.`)
+	}
+	msg := fmt.Sprintf("Updating schema of database %s with foreign key constraints ...", dbURI)
+	sp.updateForeignKeyAndIndexes(fkStmts, conv, msg, ctx, dbURI, int(internal.ForeignKeyUpdateInProgress), int(internal.ForeignKeyUpdateComplete))
+
+}
+
+// UpdateDDLIndexes updates the Spanner database with indexes using CREATE INDEX statements.
+func (sp *SpannerAccessorImpl) UpdateDDLIndexes(ctx context.Context, dbURI string, conv *internal.Conv, driver string, migrationType string) {
+
+	// The schema we send to Spanner excludes comments (since Cloud
+	// Spanner DDL doesn't accept them), and protects table and col names
+	// using backticks (to avoid any issues with Spanner reserved words).
+	// Sequences will not be passed as they have already been created.
+	indexStmts := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: false, Indexes: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, make(map[string]ddl.Sequence))
+	if len(indexStmts) == 0 {
+		return
+	}
+	if len(indexStmts) > 50 {
+		logger.Log.Warn(`
+			Warning: Large number of indexes detected. Spanner can take a long amount of 
+			time to create indexes. 
+			Spanner migration tool does not have control over a single index creation time. The number 
+			of concurrent requests sent to spanner can be increased by 
+			tweaking the MaxWorkers variable (https://github.com/GoogleCloudPlatform/spanner-migration-tool/blob/master/conversion/conversion.go#L89).
+			However, setting it to a very high value might lead to exceeding the admin quota limit. Spanner migration tool tries to stay under the
+			admin quota limit by spreading the requests over time.`)
+	}
+	msg := fmt.Sprintf("Updating schema of database %s with indexes ...", dbURI)
+	sp.updateForeignKeyAndIndexes(indexStmts, conv, msg, ctx, dbURI, int(internal.IndexUpdateInProgress), int(internal.IndexUpdateComplete))
+
 }
 
 func (sp *SpannerAccessorImpl) DropDatabase(ctx context.Context, dbURI string) error {
@@ -490,6 +513,6 @@ func (sp *SpannerAccessorImpl) ValidateDML(ctx context.Context, query string) (b
 	}
 }
 
-func (sp *SpannerAccessorImpl) Refresh(ctx context.Context, dbURI string) () {
+func (sp *SpannerAccessorImpl) Refresh(ctx context.Context, dbURI string) {
 	sp.SpannerClient.Refresh(ctx, dbURI)
 }

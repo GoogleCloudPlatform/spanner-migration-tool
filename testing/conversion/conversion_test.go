@@ -36,9 +36,9 @@ import (
 	"go.uber.org/zap"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
-	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 var (

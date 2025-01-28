@@ -37,16 +37,18 @@ import (
 
 // SchemaCmd struct with flags.
 type SchemaCmd struct {
-	source        string
-	sourceProfile string
-	target        string
-	targetProfile string
-	filePrefix    string // TODO: move filePrefix to global flags
-	project       string
-	logLevel      string
-	dryRun        bool
-	validate      bool
-	sessionJSON   string
+	source          string
+	sourceProfile   string
+	target          string
+	targetProfile   string
+	filePrefix      string // TODO: move filePrefix to global flags
+	project         string
+	logLevel        string
+	dryRun          bool
+	validate        bool
+	sessionJSON     string
+	SkipForeignKeys bool
+	SkipIndexes     bool
 }
 
 // Name returns the name of operation.
@@ -82,6 +84,8 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
 	f.StringVar(&cmd.sessionJSON, "session", "", "Optional. Specifies the file we restore session state from.")
+	f.BoolVar(&cmd.SkipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after schema migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
+	f.BoolVar(&cmd.SkipIndexes, "skip-indexes", false, "Skip creating indexes as a part of the schema migration (ddl statements for indexes can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {

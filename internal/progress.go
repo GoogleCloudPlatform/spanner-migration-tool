@@ -50,6 +50,8 @@ const (
 	DataWriteInProgress
 	ForeignKeyUpdateInProgress
 	ForeignKeyUpdateComplete
+	IndexUpdateInProgress
+	IndexUpdateComplete
 )
 
 // NewProgress creates and returns a Progress instance.

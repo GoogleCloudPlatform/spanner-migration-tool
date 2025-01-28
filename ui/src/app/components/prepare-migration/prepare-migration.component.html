@@ -64,11 +64,20 @@
         <mat-icon class="configure" [matTooltip]="migrationTypesHelpText.get(selectedMigrationType)!">info</mat-icon>
         <br />
     </div>
-    <div *ngIf="!(selectedMigrationMode === 'Schema' || selectedMigrationType === 'lowdt')">
+    <div *ngIf="!(selectedMigrationMode === 'Data')">
         <mat-form-field appearance="outline">
             <mat-label>Skip Foreign Key Creation:</mat-label>
             <mat-select [(ngModel)]="isForeignKeySkipped">
-                <mat-option *ngFor="let element of skipForeignKeyResponseList" [value]="element.value">
+                <mat-option *ngFor="let element of skipSchemaUpdateResponseList" [value]="element.value">
+                    {{ element.displayName }}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+        <br/>
+        <mat-form-field appearance="outline">
+            <mat-label>Skip Index Creation:</mat-label>
+            <mat-select [(ngModel)]="isIndexSkipped">
+                <mat-option *ngFor="let element of skipSchemaUpdateResponseList" [value]="element.value">
                     {{ element.displayName }}
                 </mat-option>
             </mat-select>
@@ -353,6 +362,11 @@
         <br>
         <mat-progress-bar mode="determinate" [value]="dataMigrationProgress"></mat-progress-bar>
         <span> {{this.dataProgressMessage}}</span>
+    </div>
+    <div *ngIf="hasIndexUpdateStarted" class="progress_bar">
+        <br>
+        <mat-progress-bar mode="determinate" [value]="indexUpdateProgress"></mat-progress-bar>
+        <span> {{this.indexProgressMessage}}</span>
     </div>
     <div *ngIf="hasForeignKeyUpdateStarted" class="progress_bar">
         <br>

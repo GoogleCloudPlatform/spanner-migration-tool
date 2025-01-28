@@ -6,44 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
 )
 
 type ReportAPIHandler struct {
 	Report          conversion.ReportInterface
 	ReportGenerator reports.ReportInterface
-}
-
-// getReportFile generates report file and returns file path.
-func (reportHandler *ReportAPIHandler) GetReportFile(w http.ResponseWriter, r *http.Request) {
-	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
-	var err error
-	now := time.Now()
-	filePrefix, err := utilities.GetFilePrefix(now)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
-	}
-	reportFileName := "frontend/" + filePrefix
-	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.Lock()
-	defer sessionState.Conv.ConvLock.Unlock()
-	reportHandler.Report.GenerateReport(sessionState.Driver, nil, ioHelper.BytesRead, "", sessionState.Conv, reportFileName, sessionState.DbName, ioHelper.Out)
-	reportAbsPath, err := filepath.Abs(reportFileName)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), http.StatusInternalServerError)
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(reportAbsPath))
 }
 
 // generates a downloadable structured report and send it as a JSON response
@@ -85,7 +59,7 @@ func GetDSpannerDDL(w http.ResponseWriter, r *http.Request) {
 	defer sessionState.Conv.ConvLock.RUnlock()
 	conv := sessionState.Conv
 	now := time.Now()
-	spDDL := ddl.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: sessionState.Driver}, conv.SpSchema, conv.SpSequences)
+	spDDL := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: false, Tables: true, ForeignKeys: true, Indexes: true, SpDialect: conv.SpDialect, Source: sessionState.Driver}, conv.SpSchema, conv.SpSequences)
 	if len(spDDL) == 0 {
 		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
 	}

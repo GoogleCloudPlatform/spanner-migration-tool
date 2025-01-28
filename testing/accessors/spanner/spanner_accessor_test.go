@@ -107,7 +107,7 @@ func TestCheckExistingDb(t *testing.T) {
 		t.Fatal(err)
 	}
 	spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, "check-db-exists") 
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, "check-db-exists")
 	err = spA.CreateDatabase(ctx, dbURI, internal.MakeConv(), "", constants.BULK_MIGRATION)
 	if err != nil {
 		t.Fatal(err)

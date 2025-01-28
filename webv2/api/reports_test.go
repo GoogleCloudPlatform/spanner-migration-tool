@@ -32,23 +32,6 @@ func (r *GenerateReportMock) GenerateStructuredReport(driverName string, dbName 
 	}
 }
 
-func TestGetReportFile(t *testing.T) {
-	reportAPIHandler := api.ReportAPIHandler{
-		Report: &ReportMock{},
-	}
-	req, err := http.NewRequest("POST", "/report", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(reportAPIHandler.GetReportFile)
-	handler.ServeHTTP(rr, req)
-	//API generates a report file and returns a file path
-	reportFilePath := string(rr.Body.String())
-	assert.Contains(t, reportFilePath, "frontend")
-}
-
 func TestGetDStructuredReport(t *testing.T) {
 	reportAPIHandler := api.ReportAPIHandler{
 		ReportGenerator: &GenerateReportMock{},

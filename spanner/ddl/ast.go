@@ -195,6 +195,7 @@ type Config struct {
 	ProtectIds  bool // If true, table and col names are quoted using backticks (avoids reserved-word issue).
 	Tables      bool // If true, print tables
 	ForeignKeys bool // If true, print foreign key constraints.
+	Indexes     bool // If true, print indexes.
 	SpDialect   string
 	Source      string // SourceDB information for determining case-sensitivity handling for PGSQL
 }
@@ -647,6 +648,11 @@ func GetDDL(c Config, tableSchema Schema, sequenceSchema map[string]Sequence) []
 	if c.Tables {
 		for _, tableId := range tableIds {
 			ddl = append(ddl, tableSchema[tableId].PrintCreateTable(tableSchema, c))
+		}
+	}
+
+	if c.Indexes {
+		for _, tableId := range tableIds {
 			for _, index := range tableSchema[tableId].Indexes {
 				ddl = append(ddl, index.PrintCreateIndex(tableSchema[tableId], c))
 			}

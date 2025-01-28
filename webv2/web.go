@@ -30,7 +30,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
@@ -479,29 +478,6 @@ func fetchLastLoadedSessionDetails(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-// getSchemaFile generates schema file and returns file path.
-func getSchemaFile(w http.ResponseWriter, r *http.Request) {
-	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
-	var err error
-	now := time.Now()
-	filePrefix, err := utilities.GetFilePrefix(now)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
-	}
-	schemaFileName := "frontend/" + filePrefix + "schema.txt"
-
-	sessionState := session.GetSessionState()
-	sessionState.Conv.ConvLock.RLock()
-	defer sessionState.Conv.ConvLock.RUnlock()
-	conversion.WriteSchemaFile(sessionState.Conv, now, schemaFileName, ioHelper.Out, sessionState.Driver)
-	schemaAbsPath, err := filepath.Abs(schemaFileName)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), http.StatusInternalServerError)
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(schemaAbsPath))
-}
-
 // getIssueDescription maps IssueDB's Category to corresponding CategoryDescription(if present),
 // or to the Brief if not present and pass the map to frontend to be used in assessment report UI
 func getIssueDescription(w http.ResponseWriter, r *http.Request) {
@@ -648,13 +624,16 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	// Set env variable SKIP_METRICS_POPULATION to true in case of dev testing
 	sessionState.Conv.Audit.SkipMetricsPopulation = os.Getenv("SKIP_METRICS_POPULATION") == "true"
 	if details.MigrationMode == helpers.SCHEMA_ONLY {
+		schemaCmd := &cmd.SchemaCmd{
+			SkipForeignKeys: details.SkipForeignKeys,
+			SkipIndexes:     details.SkipIndexes,
+		}
 		log.Println("Starting schema only migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
-		go cmd.MigrateDatabase(ctx, migrationProjectId, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
+		go cmd.MigrateDatabase(ctx, migrationProjectId, targetProfile, sourceProfile, dbName, &ioHelper, schemaCmd, sessionState.Conv, &sessionState.Error)
 	} else if details.MigrationMode == helpers.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
-			SkipForeignKeys: details.SkipForeignKeys,
-			WriteLimit:      cmd.DefaultWritersLimit,
+			WriteLimit: cmd.DefaultWritersLimit,
 		}
 		log.Println("Starting data only migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
@@ -663,6 +642,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
 			SkipForeignKeys: details.SkipForeignKeys,
 			WriteLimit:      cmd.DefaultWritersLimit,
+			SkipIndexes:     details.SkipIndexes,
 		}
 		log.Println("Starting schema and data migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()

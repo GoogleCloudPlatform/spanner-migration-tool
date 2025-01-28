@@ -23,7 +23,7 @@ import { IShardSessionDetails } from 'src/app/model/db-config'
 import { ShardedDataflowMigrationDetailsFormComponent } from '../sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { downloadSession } from 'src/app/utils/utils'
-import {MatPaginator} from '@angular/material/paginator';
+import { MatPaginator } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table'
 import { GcsMetadataDetailsFormComponent } from '../gcs-metadata-details-form/gcs-metadata-details-form.component'
 @Component({
@@ -55,12 +55,14 @@ export class PrepareMigrationComponent implements OnInit {
   isSourceDetailsSet: boolean = false
   isTargetDetailSet: boolean = false
   isForeignKeySkipped: boolean = false
+  isIndexSkipped: boolean = false
   isMigrationDetailSet: boolean = false
   isStreamingSupported: boolean = false
   isGcsMetadataDetailSet: boolean = false
   hasDataMigrationStarted: boolean = false
   hasSchemaMigrationStarted: boolean = false
   hasForeignKeyUpdateStarted: boolean = false
+  hasIndexUpdateStarted: boolean = false
   selectedMigrationMode: string = MigrationModes.schemaAndData
   connectionType: string = InputType.DirectConnect
   selectedMigrationType: string = MigrationTypes.lowDowntimeMigration
@@ -72,9 +74,11 @@ export class PrepareMigrationComponent implements OnInit {
   schemaProgressMessage: string = 'Schema migration in progress...'
   dataProgressMessage: string = 'Data migration in progress...'
   foreignKeyProgressMessage: string = 'Foreign key update in progress...'
+  indexProgressMessage: string = 'Index update in progress...'
   dataMigrationProgress: number = 0
   schemaMigrationProgress: number = 0
   foreignKeyUpdateProgress: number = 0
+  indexUpdateProgress: number = 0
   sourceDatabaseName: string = ''
   sourceDatabaseType: string = ''
   resourcesGenerated: IGeneratedResources = {
@@ -95,18 +99,18 @@ export class PrepareMigrationComponent implements OnInit {
     DlqPubsubTopicUrl: '',
     DlqPubsubSubscriptionName: '',
     DlqPubsubSubscriptionUrl: '',
-    MonitoringDashboardName:'',
-    MonitoringDashboardUrl:'',
-    AggMonitoringDashboardName:'',
-    AggMonitoringDashboardUrl:'',
+    MonitoringDashboardName: '',
+    MonitoringDashboardUrl: '',
+    AggMonitoringDashboardName: '',
+    AggMonitoringDashboardUrl: '',
     DataflowGcloudCmd: '',
     ShardToShardResourcesMap: new Map<string, ResourceDetails[]>(),
   }
   generatedResourcesColumns = ['shardId', 'resourceType', 'resourceName', 'resourceUrl']
-  
+
   @ViewChild(MatPaginator)
   paginator!: MatPaginator
-  
+
   displayedResources: ResourceDetails[] = []
   displayedResourcesDataSource: MatTableDataSource<ResourceDetails> = new MatTableDataSource<ResourceDetails>(this.displayedResources)
   configuredMigrationProfile!: IMigrationProfile
@@ -140,7 +144,7 @@ export class PrepareMigrationComponent implements OnInit {
     ttlInDays: localStorage.getItem(Gcs.TtlInDays) as string,
     ttlInDaysSet: (localStorage.getItem(Gcs.TtlInDaysSet) as string === 'true')
   }
-  
+
   dataflowConfig: IDataflowConfig = {
     network: localStorage.getItem(Dataflow.Network) as string,
     subnetwork: localStorage.getItem(Dataflow.Subnetwork) as string,
@@ -164,7 +168,7 @@ export class PrepareMigrationComponent implements OnInit {
     IsMetadataDbCreated: false,
     IsConfigValid: false
   }
-  skipForeignKeyResponseList = [
+  skipSchemaUpdateResponseList = [
     { value: false, displayName: 'No' },
     { value: true, displayName: 'Yes' },
   ]
@@ -312,6 +316,9 @@ export class PrepareMigrationComponent implements OnInit {
     if (localStorage.getItem(MigrationDetails.isForeignKeySkipped) != null) {
       this.isForeignKeySkipped = localStorage.getItem(MigrationDetails.isForeignKeySkipped) === 'true'
     }
+    if (localStorage.getItem(MigrationDetails.isIndexSkipped) != null) {
+      this.isIndexSkipped = localStorage.getItem(MigrationDetails.isIndexSkipped) === 'true'
+    }
     if (localStorage.getItem(MigrationDetails.IsMigrationInProgress) != null) {
       this.isMigrationInProgress =
         (localStorage.getItem(MigrationDetails.IsMigrationInProgress) as string) === 'true'
@@ -391,6 +398,20 @@ export class PrepareMigrationComponent implements OnInit {
       this.hasForeignKeyUpdateStarted =
         (localStorage.getItem(MigrationDetails.HasForeignKeyUpdateStarted) as string) === 'true'
     }
+    if (localStorage.getItem(MigrationDetails.HasIndexUpdateStarted) != null) {
+      this.hasIndexUpdateStarted =
+        (localStorage.getItem(MigrationDetails.HasIndexUpdateStarted) as string) === 'true'
+    }
+    if (localStorage.getItem(MigrationDetails.IndexProgressMessage) != null) {
+      this.indexProgressMessage = localStorage.getItem(
+        MigrationDetails.IndexProgressMessage
+      ) as string
+    }
+    if (localStorage.getItem(MigrationDetails.IndexUpdateProgress) != null) {
+      this.indexUpdateProgress = parseInt(
+        localStorage.getItem(MigrationDetails.IndexUpdateProgress) as string
+      )
+    }
     if (localStorage.getItem(MigrationDetails.GeneratingResources) != null) {
       this.generatingResources =
         (localStorage.getItem(MigrationDetails.GeneratingResources) as string) === 'true'
@@ -409,6 +430,7 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.IsTargetDetailSet)
     localStorage.removeItem(MigrationDetails.IsGcsMetadataPathSet)
     localStorage.removeItem(MigrationDetails.isForeignKeySkipped)
+    localStorage.removeItem(MigrationDetails.isIndexSkipped)
     localStorage.removeItem(MigrationDetails.IsSourceConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsTargetConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsSourceDetailsSet)
@@ -441,11 +463,14 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.ForeignKeyProgressMessage)
     localStorage.removeItem(MigrationDetails.ForeignKeyUpdateProgress)
     localStorage.removeItem(MigrationDetails.HasForeignKeyUpdateStarted)
+    localStorage.removeItem(MigrationDetails.HasIndexUpdateStarted)
+    localStorage.removeItem(MigrationDetails.IndexProgressMessage)
+    localStorage.removeItem(MigrationDetails.IndexUpdateProgress)
     localStorage.removeItem(MigrationDetails.GeneratingResources)
     localStorage.removeItem(MigrationDetails.NumberOfShards)
     localStorage.removeItem(MigrationDetails.NumberOfInstances)
   }
-  
+
   openConnectionProfileForm(isSource: boolean) {
     let payload: ISetUpConnectionProfile = {
       IsSource: isSource,
@@ -530,21 +555,21 @@ export class PrepareMigrationComponent implements OnInit {
     )
   }
 
-  openGcloudPopup(cmd: string){
+  openGcloudPopup(cmd: string) {
     let dialogRef = this.dialog.open(EquivalentGcloudCommandComponent, {
-          width: '30vw',
-          minWidth: '400px',
-          maxWidth: '500px',
-          data: cmd,
-        })
+      width: '30vw',
+      minWidth: '400px',
+      maxWidth: '500px',
+      data: cmd,
+    })
   }
 
-  openTuneDatastreamForm(){
+  openTuneDatastreamForm() {
     let dialogRef = this.dialog.open(TuneDatastreamFormComponent, {
       width: '4000px',
       minWidth: '400px',
       maxWidth: '500px',
-      data: { sourceType : this.sourceDatabaseType },
+      data: { sourceType: this.sourceDatabaseType },
     })
     dialogRef.afterClosed().subscribe(() => {
       this.datastreamConfig = {
@@ -567,7 +592,7 @@ export class PrepareMigrationComponent implements OnInit {
     )
   }
 
-  openTuneGcsForm(){
+  openTuneGcsForm() {
     let dialogRef = this.dialog.open(TuneGcsFormComponent, {
       width: '4000px',
       minWidth: '400px',
@@ -576,7 +601,7 @@ export class PrepareMigrationComponent implements OnInit {
     dialogRef.afterClosed().subscribe(() => {
       this.gcsConfig = {
         ttlInDays: localStorage.getItem(Gcs.TtlInDays) as string,
-        ttlInDaysSet: (localStorage.getItem(Gcs.TtlInDaysSet) as string === 'true')    
+        ttlInDaysSet: (localStorage.getItem(Gcs.TtlInDaysSet) as string === 'true')
       }
       this.isGcsConfigurationSet = localStorage.getItem(Gcs.IsGcsConfigSet) as string === 'true'
       // We only call setGcsDetailsForShardedMigrations for sharded flows which is fetched later to create sharding configs for the shards. 
@@ -766,7 +791,8 @@ export class PrepareMigrationComponent implements OnInit {
       IsSharded: this.isSharded,
       MigrationType: this.selectedMigrationType,
       MigrationMode: this.selectedMigrationMode,
-      skipForeignKeys: this.isForeignKeySkipped
+      skipForeignKeys: this.isForeignKeySkipped,
+      skipIndexes: this.isIndexSkipped
     }
     this.fetch.migrate(payload).subscribe({
       next: () => {
@@ -805,135 +831,295 @@ export class PrepareMigrationComponent implements OnInit {
     })
   }
 
+  // subscribeMigrationProgress() {
+  //   var displayStreamingMsg = false
+  //   this.subscription = interval(5000).subscribe((x) => {
+  //     this.fetch.getProgress().subscribe({
+  //       next: (res: IProgress) => {
+  //         if (res.ErrorMessage == '') {
+  //           // Checking for completion of schema migration
+  //           if (res.ProgressStatus == ProgressStatus.SchemaMigrationComplete) {
+  //             localStorage.setItem(MigrationDetails.SchemaMigrationProgress, '100')
+  //             this.schemaMigrationProgress = parseInt(
+  //               localStorage.getItem(MigrationDetails.SchemaMigrationProgress) as string
+  //             )
+  //             if (this.isForeignKeySkipped && this.isIndexSkipped) {
+  //               if (this.selectedMigrationMode == MigrationModes.schemaOnly) {
+  //                 this.markMigrationComplete()
+  //               } else if (this.selectedMigrationType == MigrationTypes.lowDowntimeMigration) {
+  //                 this.markSchemaMigrationComplete()
+  //                 this.generatingResources = true
+  //                 localStorage.setItem(
+  //                   MigrationDetails.GeneratingResources,
+  //                   this.generatingResources.toString()
+  //                 )
+  //                 if (!displayStreamingMsg) {
+  //                   this.snack.openSnackBar('Setting up dataflow and datastream jobs', 'Close')
+  //                   displayStreamingMsg = true
+  //                 }
+  //               }
+  //             } else {
+  //               if (!this.isIndexSkipped) {
+
+  //               } else if (!this.isForeignKeySkipped) {
+
+  //               } else {
+  //                 this.markSchemaMigrationComplete()
+  //                 this.hasDataMigrationStarted = true
+  //                 localStorage.setItem(
+  //                   MigrationDetails.HasDataMigrationStarted,
+  //                   this.hasDataMigrationStarted.toString()
+  //                 )
+  //               }
+  //             }
+  //           } else if (res.ProgressStatus == ProgressStatus.DataMigrationComplete) {
+  //             if (this.selectedMigrationType != MigrationTypes.lowDowntimeMigration) {
+  //               this.hasDataMigrationStarted = true
+  //               localStorage.setItem(
+  //                 MigrationDetails.HasDataMigrationStarted,
+  //                 this.hasDataMigrationStarted.toString()
+  //               )
+  //             }
+  //             this.generatingResources = false
+  //             localStorage.setItem(
+  //               MigrationDetails.GeneratingResources,
+  //               this.generatingResources.toString()
+  //             )
+  //             this.markMigrationComplete()
+  //           }
+  //           // Checking for data migration in progress
+  //           else if (res.ProgressStatus == ProgressStatus.DataWriteInProgress) {
+  //             this.markSchemaMigrationComplete()
+  //             this.hasDataMigrationStarted = true
+  //             localStorage.setItem(
+  //               MigrationDetails.HasDataMigrationStarted,
+  //               this.hasDataMigrationStarted.toString()
+  //             )
+  //             localStorage.setItem(MigrationDetails.DataMigrationProgress, res.Progress.toString())
+  //             this.dataMigrationProgress = parseInt(
+  //               localStorage.getItem(MigrationDetails.DataMigrationProgress) as string
+  //             )
+  //           } else if (res.ProgressStatus == ProgressStatus.ForeignKeyUpdateComplete) {
+  //             this.markMigrationComplete()
+  //           }
+  //           // Checking for foreign key update in progress
+  //           else if (res.ProgressStatus == ProgressStatus.ForeignKeyUpdateInProgress) {
+  //             this.markSchemaMigrationComplete()
+  //             if (this.selectedMigrationType == MigrationTypes.bulkMigration) {
+  //               this.hasDataMigrationStarted = true
+  //               localStorage.setItem(
+  //                 MigrationDetails.HasDataMigrationStarted,
+  //                 this.hasDataMigrationStarted.toString()
+  //               )
+  //             }
+  //             this.markForeignKeyUpdateInitiation()
+  //             this.dataMigrationProgress = 100
+  //             localStorage.setItem(
+  //               MigrationDetails.DataMigrationProgress,
+  //               this.dataMigrationProgress.toString()
+  //             )
+  //             localStorage.setItem(
+  //               MigrationDetails.ForeignKeyUpdateProgress,
+  //               res.Progress.toString()
+  //             )
+  //             this.foreignKeyUpdateProgress = parseInt(
+  //               localStorage.getItem(MigrationDetails.ForeignKeyUpdateProgress) as string
+  //             )
+  //             this.generatingResources = false
+  //             localStorage.setItem(
+  //               MigrationDetails.GeneratingResources,
+  //               this.generatingResources.toString()
+  //             )
+  //             this.fetchGeneratedResources()
+  //           }
+  //         } else {
+  //           this.errorMessage = res.ErrorMessage
+  //           this.subscription.unsubscribe()
+  //           this.isMigrationInProgress = !this.isMigrationInProgress
+  //           this.snack.openSnackBarWithoutTimeout(this.errorMessage, 'Close')
+  //           this.schemaProgressMessage = 'Schema migration cancelled!'
+  //           this.dataProgressMessage = 'Data migration cancelled!'
+  //           this.foreignKeyProgressMessage = 'Foreign key update cancelled!'
+  //           this.generatingResources = false
+  //           this.isLowDtMigrationRunning = false
+  //           this.clearLocalStorage()
+  //         }
+  //       },
+  //       error: (err: any) => {
+  //         this.snack.openSnackBar(err.error, 'Close')
+  //         this.isMigrationInProgress = !this.isMigrationInProgress
+  //         this.clearLocalStorage()
+  //       },
+  //     })
+  //   })
+  // }
+
   subscribeMigrationProgress() {
-    var displayStreamingMsg = false
-    this.subscription = interval(5000).subscribe((x) => {
+    let displayStreamingMsg = false;
+    this.subscription = interval(5000).subscribe(() => {
       this.fetch.getProgress().subscribe({
         next: (res: IProgress) => {
-          if (res.ErrorMessage == '') {
-            // Checking for completion of schema migration
-            if (res.ProgressStatus == ProgressStatus.SchemaMigrationComplete) {
-              localStorage.setItem(MigrationDetails.SchemaMigrationProgress, '100')
-              this.schemaMigrationProgress = parseInt(
-                localStorage.getItem(MigrationDetails.SchemaMigrationProgress) as string
-              )
-              if (this.selectedMigrationMode == MigrationModes.schemaOnly) {
-                this.markMigrationComplete()
-              } else if (this.selectedMigrationType == MigrationTypes.lowDowntimeMigration) {
-                this.markSchemaMigrationComplete()
-                this.generatingResources = true
-                localStorage.setItem(
-                  MigrationDetails.GeneratingResources,
-                  this.generatingResources.toString()
-                )
-                if (!displayStreamingMsg) {
-                  this.snack.openSnackBar('Setting up dataflow and datastream jobs', 'Close')
-                  displayStreamingMsg = true
-                }
-              } else {
-                this.markSchemaMigrationComplete()
-                this.hasDataMigrationStarted = true
-                localStorage.setItem(
-                  MigrationDetails.HasDataMigrationStarted,
-                  this.hasDataMigrationStarted.toString()
-                )
-              }
-            } else if (res.ProgressStatus == ProgressStatus.DataMigrationComplete) {
-              if (this.selectedMigrationType != MigrationTypes.lowDowntimeMigration) {
-                this.hasDataMigrationStarted = true
-                localStorage.setItem(
-                  MigrationDetails.HasDataMigrationStarted,
-                  this.hasDataMigrationStarted.toString()
-                )
-              }
-              this.generatingResources = false
-              localStorage.setItem(
-                MigrationDetails.GeneratingResources,
-                this.generatingResources.toString()
-              )
-              this.markMigrationComplete()
-            }
-            // Checking for data migration in progress
-            else if (res.ProgressStatus == ProgressStatus.DataWriteInProgress) {
-              this.markSchemaMigrationComplete()
-              this.hasDataMigrationStarted = true
-              localStorage.setItem(
-                MigrationDetails.HasDataMigrationStarted,
-                this.hasDataMigrationStarted.toString()
-              )
-              localStorage.setItem(MigrationDetails.DataMigrationProgress, res.Progress.toString())
-              this.dataMigrationProgress = parseInt(
-                localStorage.getItem(MigrationDetails.DataMigrationProgress) as string
-              )
-            } else if (res.ProgressStatus == ProgressStatus.ForeignKeyUpdateComplete) {
-              this.markMigrationComplete()
-            }
-            // Checking for foreign key update in progress
-            else if (res.ProgressStatus == ProgressStatus.ForeignKeyUpdateInProgress) {
-              this.markSchemaMigrationComplete()
-              if (this.selectedMigrationType == MigrationTypes.bulkMigration) {
-                this.hasDataMigrationStarted = true
-                localStorage.setItem(
-                  MigrationDetails.HasDataMigrationStarted,
-                  this.hasDataMigrationStarted.toString()
-                )
-              }
-              this.markForeignKeyUpdateInitiation()
-              this.dataMigrationProgress = 100
-              localStorage.setItem(
-                MigrationDetails.DataMigrationProgress,
-                this.dataMigrationProgress.toString()
-              )
-              localStorage.setItem(
-                MigrationDetails.ForeignKeyUpdateProgress,
-                res.Progress.toString()
-              )
-              this.foreignKeyUpdateProgress = parseInt(
-                localStorage.getItem(MigrationDetails.ForeignKeyUpdateProgress) as string
-              )
-              this.generatingResources = false
-              localStorage.setItem(
-                MigrationDetails.GeneratingResources,
-                this.generatingResources.toString()
-              )
-              this.fetchGeneratedResources()
+          if (res.ErrorMessage === '') {
+            switch (res.ProgressStatus) {
+              case ProgressStatus.SchemaMigrationComplete:
+                this.handleSchemaMigrationComplete();
+                break;
+  
+              case ProgressStatus.IndexUpdateComplete:
+                this.handleIndexCreationComplete();
+                break;
+  
+              case ProgressStatus.ForeignKeyUpdateComplete:
+                this.handleForeignKeyUpdateComplete();
+                break;
+  
+              case ProgressStatus.DataMigrationComplete:
+                this.handleDataMigrationComplete();
+                break;
+  
+              case ProgressStatus.DataWriteInProgress:
+                this.updateDataMigrationProgress(res.Progress);
+                break;
+  
+              case ProgressStatus.IndexUpdateInProgress:
+                this.updateIndexProgress(res.Progress);
+                break;
+  
+              case ProgressStatus.ForeignKeyUpdateInProgress:
+                this.updateForeignKeyProgress(res.Progress);
+                break;
+  
+              default:
+                break;
             }
           } else {
-            this.errorMessage = res.ErrorMessage
-            this.subscription.unsubscribe()
-            this.isMigrationInProgress = !this.isMigrationInProgress
-            this.snack.openSnackBarWithoutTimeout(this.errorMessage, 'Close')
-            this.schemaProgressMessage = 'Schema migration cancelled!'
-            this.dataProgressMessage = 'Data migration cancelled!'
-            this.foreignKeyProgressMessage = 'Foreign key update cancelled!'
-            this.generatingResources = false
-            this.isLowDtMigrationRunning = false
-            this.clearLocalStorage()
+            this.handleMigrationError(res.ErrorMessage);
           }
         },
         error: (err: any) => {
-          this.snack.openSnackBar(err.error, 'Close')
-          this.isMigrationInProgress = !this.isMigrationInProgress
-          this.clearLocalStorage()
+          this.snack.openSnackBar(err.error, 'Close');
+          this.isMigrationInProgress = false;
+          this.clearLocalStorage();
         },
-      })
-    })
+      });
+    });
   }
+  
+  private handleSchemaMigrationComplete() {
+    localStorage.setItem(MigrationDetails.SchemaMigrationProgress, '100');
+    this.schemaMigrationProgress = 100;
+    this.markSchemaMigrationComplete();
+  
+    if (this.isIndexSkipped && this.isForeignKeySkipped) {
+      // If both are skipped proceed to data migration
+      this.startDataMigration();
+    } else if (!this.isIndexSkipped) {
+      this.markIndexUpdateInitiation();
+    } else if (!this.isForeignKeySkipped) {
+      this.markForeignKeyUpdateInitiation();
+    } 
+  }
+  
+  private handleIndexCreationComplete() {
+    this.markSchemaMigrationComplete()
+    this.markIndexCreationComplete();
+    if (this.isForeignKeySkipped) {
+      this.startDataMigration();
+    } else {
+      this.markForeignKeyUpdateInitiation();
+    }
+  }
+  
+  private handleForeignKeyUpdateComplete() {
+    this.markSchemaMigrationComplete()
+    this.markIndexCreationComplete();
+    this.markForeignKeyUpdateComplete();
+    this.startDataMigration();
+  }
+  
+  private handleDataMigrationComplete() {
+    this.generatingResources = false;
+    localStorage.setItem(MigrationDetails.GeneratingResources, 'false');
+    this.markMigrationComplete();
+  }
+  
+  private updateDataMigrationProgress(progress: number) {
+    this.hasDataMigrationStarted = true;
+    localStorage.setItem(MigrationDetails.HasDataMigrationStarted, 'true');
+    localStorage.setItem(MigrationDetails.DataMigrationProgress, progress.toString());
+    this.dataMigrationProgress = progress;
+  }
+  
+  private updateIndexProgress(progress: number) {
+    this.markSchemaMigrationComplete()
+    this.markIndexUpdateInitiation()
+    localStorage.setItem(MigrationDetails.IndexUpdateProgress, progress.toString());
+    this.indexUpdateProgress = progress;
+  }
+  
+  private updateForeignKeyProgress(progress: number) {
+    this.markSchemaMigrationComplete()
+    this.markIndexCreationComplete()
+    this.markForeignKeyUpdateInitiation()
+    localStorage.setItem(MigrationDetails.ForeignKeyUpdateProgress, progress.toString());
+    this.foreignKeyUpdateProgress = progress;
+  }
+  
+  private startDataFlowSetup() {
+    this.generatingResources = true;
+    localStorage.setItem(MigrationDetails.GeneratingResources, 'true');
+    this.snack.openSnackBar('Setting up dataflow and datastream jobs', 'Close');
+  }
+  
+  private startDataMigration() {
+    if (this.selectedMigrationMode === MigrationModes.schemaOnly) {
+      this.markMigrationComplete();
+    } else if (this.selectedMigrationType === MigrationTypes.lowDowntimeMigration) {
+      this.startDataFlowSetup();
+    } else {
+      this.hasDataMigrationStarted = true;
+      localStorage.setItem(MigrationDetails.HasDataMigrationStarted, 'true');
+    }
+  }
+  
+  private handleMigrationError(errorMessage: string) {
+    this.errorMessage = errorMessage;
+    this.subscription.unsubscribe();
+    this.isMigrationInProgress = false;
+  
+    this.snack.openSnackBarWithoutTimeout(this.errorMessage, 'Close');
+    this.schemaProgressMessage = 'Schema migration cancelled!';
+    this.dataProgressMessage = 'Data migration cancelled!';
+    this.foreignKeyProgressMessage = 'Foreign key update cancelled!';
+    this.generatingResources = false;
+    this.isLowDtMigrationRunning = false;
+    this.clearLocalStorage();
+  }
+  
 
   markForeignKeyUpdateInitiation() {
-    this.dataMigrationProgress = 100
-    this.dataProgressMessage = 'Data migration completed successfully!'
-    localStorage.setItem(
-      MigrationDetails.DataMigrationProgress,
-      this.dataMigrationProgress.toString()
-    )
-    localStorage.setItem(
-      MigrationDetails.DataMigrationProgress,
-      this.dataMigrationProgress.toString()
-    )
     this.hasForeignKeyUpdateStarted = true
     this.foreignKeyUpdateProgress = parseInt(
       localStorage.getItem(MigrationDetails.ForeignKeyUpdateProgress) as string
+    )
+  }
+  markIndexUpdateInitiation() {
+    this.hasIndexUpdateStarted = true
+    this.indexUpdateProgress = parseInt(
+      localStorage.getItem(MigrationDetails.IndexUpdateProgress) as string
+    )
+  }
+
+  markForeignKeyUpdateComplete() {
+    this.foreignKeyUpdateProgress = 100
+    this.foreignKeyProgressMessage = 'Foreign key updated successfully!'
+    localStorage.setItem(
+      MigrationDetails.ForeignKeyUpdateProgress,
+      this.foreignKeyUpdateProgress.toString()
+    )
+    localStorage.setItem(
+      MigrationDetails.ForeignKeyProgressMessage,
+      this.foreignKeyProgressMessage.toString()
     )
   }
   markSchemaMigrationComplete() {
@@ -944,6 +1130,16 @@ export class PrepareMigrationComponent implements OnInit {
       this.schemaMigrationProgress.toString()
     )
     localStorage.setItem(MigrationDetails.SchemaProgressMessage, this.schemaProgressMessage)
+  }
+
+  markIndexCreationComplete() {
+    this.indexUpdateProgress = 100
+    this.indexProgressMessage = 'Index update completed successfully!'
+    localStorage.setItem(
+      MigrationDetails.IndexUpdateProgress,
+      this.indexUpdateProgress.toString()
+    )
+    localStorage.setItem(MigrationDetails.IndexProgressMessage, this.indexProgressMessage)
   }
 
   downloadConfiguration() {
@@ -1028,10 +1224,10 @@ export class PrepareMigrationComponent implements OnInit {
       DlqPubsubTopicUrl: '',
       DlqPubsubSubscriptionName: '',
       DlqPubsubSubscriptionUrl: '',
-      MonitoringDashboardName:'',
-      MonitoringDashboardUrl:'',
-      AggMonitoringDashboardName:'',
-      AggMonitoringDashboardUrl:'',
+      MonitoringDashboardName: '',
+      MonitoringDashboardUrl: '',
+      AggMonitoringDashboardName: '',
+      AggMonitoringDashboardUrl: '',
       DataflowGcloudCmd: '',
       ShardToShardResourcesMap: new Map<string, ResourceDetails[]>(),
     }
@@ -1041,6 +1237,7 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.setItem(MigrationDetails.MigrationMode, this.selectedMigrationMode)
     localStorage.setItem(MigrationDetails.MigrationType, this.selectedMigrationType)
     localStorage.setItem(MigrationDetails.isForeignKeySkipped, this.isForeignKeySkipped.toString())
+    localStorage.setItem(MigrationDetails.isIndexSkipped, this.isIndexSkipped.toString())
     localStorage.setItem(
       MigrationDetails.IsMigrationInProgress,
       this.isMigrationInProgress.toString()
@@ -1088,10 +1285,10 @@ export class PrepareMigrationComponent implements OnInit {
 
   prepareGeneratedResourcesTableData(resourcesGenerated: IGeneratedResources) {
     for (let [shardId, resourceList] of resourcesGenerated.ShardToShardResourcesMap) {
-     for (let resource of resourceList) {
-       resource.DataShardId = shardId
-     }
-     this.displayedResources.push(...resourceList) 
+      for (let resource of resourceList) {
+        resource.DataShardId = shardId
+      }
+      this.displayedResources.push(...resourceList)
     }
     this.displayedResourcesDataSource = new MatTableDataSource(this.displayedResources)
     this.displayedResourcesDataSource.paginator = this.paginator
