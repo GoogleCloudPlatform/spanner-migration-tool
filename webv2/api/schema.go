@@ -425,6 +425,7 @@ func (tableHandler *TableAPIHandler) GetTableWithErrors(w http.ResponseWriter, r
 		session.UpdateSessionFile()
 	}
 	defer sessionState.Conv.ConvLock.RUnlock()
+	sessionState.Conv.SchemaIssues = common.RemoveError(sessionState.Conv.SchemaIssues)
 	var tableIdName []types.TableIdAndName
 	for id, issues := range sessionState.Conv.SchemaIssues {
 		for _, issue := range issues.TableLevelIssues {
@@ -626,10 +627,21 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheck
 			return
 		}
 
-		issueTypes, invalidExpIds := common.GetIssue(result)
+		issueTypes := common.GetErroredIssue(result)
 		if len(issueTypes) > 0 {
 			hasErrorOccurred = true
 			for tableId, issues := range issueTypes {
+
+				if sessionState.Conv.InvalidCheckExp == nil {
+					sessionState.Conv.InvalidCheckExp = map[string][]internal.InvalidCheckExp{}
+					sessionState.Conv.InvalidCheckExp[tableId] = []internal.InvalidCheckExp{}
+				}
+
+				sessionState.Conv.InvalidCheckExp[tableId] = []internal.InvalidCheckExp{}
+				invalidCheckExp := sessionState.Conv.InvalidCheckExp[tableId]
+				invalidCheckExp = append(invalidCheckExp, issues...)
+				sessionState.Conv.InvalidCheckExp[tableId] = invalidCheckExp
+
 				for _, issue := range issues {
 					if _, exists := sessionState.Conv.SchemaIssues[tableId]; !exists {
 						sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
@@ -639,21 +651,11 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheck
 
 					tableIssue := sessionState.Conv.SchemaIssues[tableId]
 
-					if !utilities.IsSchemaIssuePresent(tableIssue.TableLevelIssues, issue) {
-						tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issue)
+					if !utilities.IsSchemaIssuePresent(tableIssue.TableLevelIssues, issue.IssueType) {
+						tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issue.IssueType)
 					}
 
 					sessionState.Conv.SchemaIssues[tableId] = tableIssue
-				}
-			}
-		}
-
-		if len(invalidExpIds) > 0 {
-			for tableId, expressionIdList := range invalidExpIds {
-				for _, expId := range expressionIdList {
-					spschema := sessionState.Conv.SpSchema[tableId]
-					spschema.CheckConstraints = common.RemoveCheckConstraint(spschema.CheckConstraints, expId)
-					sessionState.Conv.SpSchema[tableId] = spschema
 				}
 			}
 		}
