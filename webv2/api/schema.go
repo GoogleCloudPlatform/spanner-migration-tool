@@ -602,15 +602,20 @@ func UpdateCheckConstraint(w http.ResponseWriter, r *http.Request) {
 // checkAndAddParentheses this method will check parentheses  if found it will return same string
 // or add the parentheses then return the string
 func checkAndAddParentheses(checkClause string) string {
-	if strings.HasPrefix(checkClause, "(") && strings.HasSuffix(checkClause, ")") {
-		return checkClause
-	} else if strings.HasPrefix(checkClause, "(") {
-		return checkClause + `)`
-	} else if strings.HasSuffix(checkClause, ")") {
-		return `(` + checkClause
-	} else {
-		return `(` + checkClause + `)`
+	trimmedCheckClause := strings.TrimSpace(checkClause)
+	openCount := strings.Count(trimmedCheckClause, "(")
+	closeCount := strings.Count(trimmedCheckClause, ")")
+
+	if openCount > closeCount {
+		trimmedCheckClause += strings.Repeat(")", openCount-closeCount)
+	} else if closeCount > openCount {
+		trimmedCheckClause = strings.Repeat("(", closeCount-openCount) + trimmedCheckClause
 	}
+
+	if !strings.HasPrefix(trimmedCheckClause, "(") || !strings.HasSuffix(trimmedCheckClause, ")") {
+		trimmedCheckClause = "(" + trimmedCheckClause + ")"
+	}
+	return trimmedCheckClause
 }
 
 // VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error

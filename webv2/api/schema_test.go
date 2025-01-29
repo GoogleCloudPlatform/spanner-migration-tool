@@ -2658,12 +2658,22 @@ func TestUpdateCheckConstraint(t *testing.T) {
 			{Id: "cc1", Name: "check_1", Expr: "(age > 18)", ExprId: "expr1"},
 			{Id: "cc2", Name: "check_2", Expr: "(age < 99)", ExprId: "expr2"},
 			{Id: "cc3", Name: "check_3", Expr: "(age < 150)", ExprId: "expr3"},
+			{Id: "cc4", Name: "check_4", Expr: "((age < 150))", ExprId: "expr4"},
+			{Id: "cc5", Name: "check_5", Expr: "((age < 150))", ExprId: "expr5"},
+			{Id: "cc6", Name: "check_6", Expr: "((age < 150))", ExprId: "expr6"},
+			{Id: "cc7", Name: "check_7", Expr: "((age < 150))", ExprId: "expr7"},
+			{Id: "cc8", Name: "check_8", Expr: "(age < (150))", ExprId: "expr8"},
 		}
 
 		checkConstraints := []schema.CheckConstraint{
 			{Id: "cc1", Name: "check_1", Expr: "age > 18", ExprId: "expr1"},
 			{Id: "cc2", Name: "check_2", Expr: "(age < 99", ExprId: "expr2"},
 			{Id: "cc3", Name: "check_3", Expr: "age < 150)", ExprId: "expr3"},
+			{Id: "cc4", Name: "check_4", Expr: "age < 150))", ExprId: "expr4"},
+			{Id: "cc5", Name: "check_5", Expr: "((age < 150", ExprId: "expr5"},
+			{Id: "cc6", Name: "check_6", Expr: "((age < 150)", ExprId: "expr6"},
+			{Id: "cc7", Name: "check_7", Expr: "(age < 150))", ExprId: "expr7"},
+			{Id: "cc8", Name: "check_8", Expr: "(age < (150)", ExprId: "expr8"},
 		}
 
 		body, err := json.Marshal(checkConstraints)
