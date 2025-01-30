@@ -29,13 +29,22 @@ Spanner migration tool scans through the generated spanner schema and notifies t
 - [Hotspotting](https://cloud.google.com/spanner/docs/schema-design) due to timestamp or auto-increment keys
 - Auto Increment has been converted to Sequence, set Ignore Range or Start with Counter to avoid duplicate value errors
 - Dropping unsupported default values during schema migration.
-- Detection of unsupported check constraints in spanner.
 - Detection of invalid default values in spanner added during column modification.
+- Dropping of unsupported check constraints in spanner.
+- Dropping check constraints if there is a data type mismatch in the referenced column.
+- Dropping check constraints if there is referenced column in check constraints not found.
+- Dropping check constraints if there is function referenced in check constraints is not found.
+
+![](https://services.google.com/fh/files/misc/cc7.png)
+
+## Errors
+
+- Detection of unsupported check constraints in spanner.
 - Data type mismatch of referenced column in check constraints.
 - Referenced column in check constraints not found.
 - Function referenced in check constraints is not found.
 
-![](https://services.google.com/fh/files/misc/cc6.png)
+![](https://services.google.com/fh/files/misc/cc8.png)
 
 ## Suggestions
 

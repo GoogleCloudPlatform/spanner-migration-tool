@@ -31,6 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/google/subcommands"
 	"go.uber.org/zap"
 )
@@ -131,6 +132,15 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 			" The source profile will not be used for the schema conversion.", zap.String("sessionFile", cmd.sessionJSON))
 		conv = internal.MakeConv()
 		err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
+		if err != nil {
+			return subcommands.ExitFailure
+		}
+		expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(context.Background(), targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
+		schemaToSpanner := common.SchemaToSpannerImpl{
+			ExpressionVerificationAccessor: expressionVerificationAccessor,
+		}
+		err := schemaToSpanner.VerifyExpressions(conv)
+
 		if err != nil {
 			return subcommands.ExitFailure
 		}
