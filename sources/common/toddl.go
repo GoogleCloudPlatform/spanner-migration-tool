@@ -174,7 +174,7 @@ func GetIssue(result internal.VerifyExpressionsOutput) (map[string][]internal.In
 			case strings.Contains(ev.Err.Error(), "Function not found"):
 				issue = internal.CheckConstraintFunctionNotFound
 			default:
-				issue = internal.GenericError
+				issue = internal.GenericWarning
 			}
 			issues[tableId] = append(issues[tableId], internal.InvalidCheckExp{
 				IssueType:  issue,

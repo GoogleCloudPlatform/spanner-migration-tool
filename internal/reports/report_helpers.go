@@ -141,7 +141,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 						Description: fmt.Sprintf("Table '%s': The check constraint %s could not be applied due to the use of an unsupported function. As a result, the check constraint has been removed.", conv.SpSchema[tableId].Name, invalidExp.Expression),
 					}
 					l = append(l, toAppend)
-				case internal.GenericError:
+				case internal.GenericWarning:
 					toAppend := Issue{
 						Category:    IssueDB[invalidExp.IssueType].Category,
 						Description: fmt.Sprintf("Table '%s': An error occurred in the check constraint %s. Please verify the conditions and ensure the constraint logic is valid. As a result, the check constraint has been removed.", conv.SpSchema[tableId].Name, invalidExp.Expression),
@@ -610,7 +610,8 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.ColumnNotFoundError:                  {Brief: "Column not found in check constraint mention in the table", Severity: Errors, Category: "COLUMN_NOT_FOUND_ERROR"},
 	internal.CheckConstraintFunctionNotFound:      {Brief: "Function not found in check constraint mention in the table", Severity: warning, Category: "FUNCTION_NOT_FOUND"},
 	internal.CheckConstraintFunctionNotFoundError: {Brief: "Function not found in check constraint mention in the table", Severity: warning, Category: "FUNCTION_NOT_FOUND_ERROR"},
-	internal.GenericError:                         {Brief: "Something went wrong", Severity: warning, Category: "UNHANDLE_ERROR"},
+	internal.GenericError:                         {Brief: "Something went wrong", Severity: Errors, Category: "UNHANDLE_ERROR"},
+	internal.GenericWarning:                       {Brief: "Something went wrong", Severity: warning, Category: "UNHANDLE_ERROR"},
 	internal.ForeignKey:                           {Brief: "Spanner does not support foreign keys", Severity: warning, Category: "FOREIGN_KEY_USES"},
 	internal.MultiDimensionalArray:                {Brief: "Spanner doesn't support multi-dimensional arrays", Severity: warning, Category: "MULTI_DIMENSIONAL_ARRAY_USES"},
 	internal.NoGoodType: {Brief: "No appropriate Spanner type. The column will be made nullable in Spanner", Severity: warning, Category: "INAPPROPRIATE_TYPE",

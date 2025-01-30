@@ -147,6 +147,7 @@ const (
 	CheckConstraintFunctionNotFound
 	CheckConstraintFunctionNotFoundError
 	GenericError
+	GenericWarning
 )
 
 const (
