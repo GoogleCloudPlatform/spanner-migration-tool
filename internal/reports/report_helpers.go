@@ -118,32 +118,32 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				case internal.TypeMismatch:
 					toAppend := Issue{
 						Category:    IssueDB[invalidExp.IssueType].Category,
-						Description: fmt.Sprintf("Table '%s': The check constraint %s could not be applied. Please ensure the column type aligns with the constraint logic. As a result, the check constraint has not been applied and has been removed", conv.SpSchema[tableId].Name, invalidExp.Expression),
+						Description: fmt.Sprintf("Table '%s': The check constraint %s could not be applied. Please ensure the column type aligns with the constraint logic. As a result, the check constraint has not been applied and has been dropped", conv.SpSchema[tableId].Name, invalidExp.Expression),
 					}
 					l = append(l, toAppend)
 				case internal.InvalidCondition:
 					toAppend := Issue{
 						Category:    IssueDB[invalidExp.IssueType].Category,
-						Description: fmt.Sprintf("Table '%s': The check constraint %s contains an invalid condition that is incompatible with constraint logic. As a result, the check constraint has not been applied and has been removed", conv.SpSchema[tableId].Name, invalidExp.Expression),
+						Description: fmt.Sprintf("Table '%s': The check constraint %s contains an invalid condition that is incompatible with constraint logic. As a result, the check constraint has not been applied and has been dropped", conv.SpSchema[tableId].Name, invalidExp.Expression),
 					}
 					l = append(l, toAppend)
 				case internal.ColumnNotFound:
 					toAppend := Issue{
 						Category:    IssueDB[invalidExp.IssueType].Category,
-						Description: fmt.Sprintf("Table '%s': The check constraint %s references a column that was not found. Please verify that all referenced columns exist. As a result, the check constraint has not been applied and has been removed", conv.SpSchema[tableId].Name, invalidExp.Expression),
+						Description: fmt.Sprintf("Table '%s': The check constraint %s references a column that was not found. Please verify that all referenced columns exist. As a result, the check constraint has not been applied and has been dropped", conv.SpSchema[tableId].Name, invalidExp.Expression),
 					}
 					l = append(l, toAppend)
 
 				case internal.CheckConstraintFunctionNotFound:
 					toAppend := Issue{
 						Category:    IssueDB[invalidExp.IssueType].Category,
-						Description: fmt.Sprintf("Table '%s': The check constraint %s could not be applied due to the use of an unsupported function. As a result, the check constraint has not been applied and has been removed", conv.SpSchema[tableId].Name, invalidExp.Expression),
+						Description: fmt.Sprintf("Table '%s': The check constraint %s could not be applied due to the use of an unsupported function. As a result, the check constraint has not been applied and has been dropped", conv.SpSchema[tableId].Name, invalidExp.Expression),
 					}
 					l = append(l, toAppend)
 				case internal.GenericWarning:
 					toAppend := Issue{
 						Category:    IssueDB[invalidExp.IssueType].Category,
-						Description: fmt.Sprintf("Table '%s': An error occurred in the check constraint %s. Please verify the conditions and ensure the constraint logic is valid. As a result, the check constraint has not been applied and has been removed", conv.SpSchema[tableId].Name, invalidExp.Expression),
+						Description: fmt.Sprintf("Table '%s': An error occurred in the check constraint %s. Please verify the conditions and ensure the constraint logic is valid. As a result, the check constraint has not been applied and has been dropped", conv.SpSchema[tableId].Name, invalidExp.Expression),
 					}
 					l = append(l, toAppend)
 				}
