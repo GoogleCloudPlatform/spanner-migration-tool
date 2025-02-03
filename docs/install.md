@@ -93,7 +93,7 @@ Building from source is only supported for MacOS and Linux based platforms.
 1. Install Go ([download](https://golang.org/doc/install)) on your development machine if it is not already installed, configure the [GOPATH](https://pkg.go.dev/cmd/go@master#hdr-GOPATH_environment_variable) environment variable if it is not already configured, and [test your installation](https://golang.org/doc/install#testing). <br/>
     Required go version: 1.19+
 2. Install nodejs ([download](https://nodejs.org/en/download)). <br/>
-    Required node version: v18.20.6
+    Required node version: v18.20.6+
 
 3. Run the following commands to clone the repository and build it from source:
 
