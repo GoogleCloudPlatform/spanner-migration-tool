@@ -67,6 +67,7 @@ Alternatively, can also install additional gcloud CLI components using the apt o
 sudo apt-get install google-cloud-sdk-spanner-migration-tool
 ```
 
+{: .note }
 > If you encounter error `E: Unable to locate package google-cloud-sdk-spanner-migration-tool`, Run the following command:
 > ```sh
 > curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && sudo apt-get update
