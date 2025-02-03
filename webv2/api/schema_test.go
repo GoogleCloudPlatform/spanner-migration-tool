@@ -2875,12 +2875,17 @@ func TestVerifyCheckConstraintExpressions(t *testing.T) {
 
 			assert.Equal(t, http.StatusOK, rr.Code)
 
-			var response bool
+			type verifyCheckConstraintResponse struct {
+				HasErrorOccurred bool           `json:"hasErrorOccurred"`
+				SessionState     *internal.Conv `json:"sessionState"`
+			}
+
+			var response verifyCheckConstraintResponse
 			err = json.NewDecoder(rr.Body).Decode(&response)
 			if err != nil {
 				t.Fatal(err)
 			}
-			assert.Equal(t, tc.expectedResponse, response)
+			assert.Equal(t, tc.expectedResponse, response.HasErrorOccurred)
 		})
 	}
 }

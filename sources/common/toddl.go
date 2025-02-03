@@ -65,10 +65,10 @@ type SchemaToSpannerImpl struct {
 }
 
 var ErrorTypeMapping = map[string]internal.SchemaIssue{
-	"No matching signature for operator": internal.TypeMismatch,
-	"Syntax error":                       internal.InvalidCondition,
-	"Unrecognized name":                  internal.ColumnNotFound,
-	"Function not found":                 internal.CheckConstraintFunctionNotFound,
+	"No matching signature for operator": internal.TypeMismatchError,
+	"Syntax error":                       internal.InvalidConditionError,
+	"Unrecognized name":                  internal.ColumnNotFoundError,
+	"Function not found":                 internal.CheckConstraintFunctionNotFoundError,
 	"unhandled error":                    internal.GenericError,
 }
 
@@ -148,9 +148,10 @@ func RemoveError(tableIssues map[string]internal.TableIssues) map[string]interna
 }
 
 // GetIssue it will collect all the error and return it
-func GetIssue(result internal.VerifyExpressionsOutput) map[string][]internal.SchemaIssue {
+func GetIssue(result internal.VerifyExpressionsOutput) (map[string][]internal.InvalidCheckExp, map[string][]string) {
 	exprOutputsByTable := make(map[string][]internal.ExpressionVerificationOutput)
-	issues := make(map[string][]internal.SchemaIssue)
+	issues := make(map[string][]internal.InvalidCheckExp)
+	invalidExpIds := make(map[string][]string)
 	for _, ev := range result.ExpressionVerificationOutputList {
 		if !ev.Result {
 			tableId := ev.ExpressionDetail.Metadata["tableId"]
@@ -173,9 +174,54 @@ func GetIssue(result internal.VerifyExpressionsOutput) map[string][]internal.Sch
 			case strings.Contains(ev.Err.Error(), "Function not found"):
 				issue = internal.CheckConstraintFunctionNotFound
 			default:
+				issue = internal.GenericWarning
+			}
+			issues[tableId] = append(issues[tableId], internal.InvalidCheckExp{
+				IssueType:  issue,
+				Expression: ev.ExpressionDetail.Expression,
+			})
+			invalidExpIds[tableId] = append(invalidExpIds[tableId], ev.ExpressionDetail.ExpressionId)
+
+		}
+
+	}
+
+	return issues, invalidExpIds
+
+}
+
+// GetErroredIssue it will collect all the error and return it
+func GetErroredIssue(result internal.VerifyExpressionsOutput) map[string][]internal.InvalidCheckExp {
+	exprOutputsByTable := make(map[string][]internal.ExpressionVerificationOutput)
+	issues := make(map[string][]internal.InvalidCheckExp)
+	for _, ev := range result.ExpressionVerificationOutputList {
+		if !ev.Result {
+			tableId := ev.ExpressionDetail.Metadata["tableId"]
+			exprOutputsByTable[tableId] = append(exprOutputsByTable[tableId], ev)
+		}
+	}
+
+	for tableId, exprOutputs := range exprOutputsByTable {
+
+		for _, ev := range exprOutputs {
+			var issue internal.SchemaIssue
+
+			switch {
+			case strings.Contains(ev.Err.Error(), "No matching signature for operator"):
+				issue = internal.TypeMismatchError
+			case strings.Contains(ev.Err.Error(), "Syntax error"):
+				issue = internal.InvalidConditionError
+			case strings.Contains(ev.Err.Error(), "Unrecognized name"):
+				issue = internal.ColumnNotFoundError
+			case strings.Contains(ev.Err.Error(), "Function not found"):
+				issue = internal.CheckConstraintFunctionNotFoundError
+			default:
 				issue = internal.GenericError
 			}
-			issues[tableId] = append(issues[tableId], issue)
+			issues[tableId] = append(issues[tableId], internal.InvalidCheckExp{
+				IssueType:  issue,
+				Expression: ev.ExpressionDetail.Expression,
+			})
 
 		}
 
@@ -183,6 +229,18 @@ func GetIssue(result internal.VerifyExpressionsOutput) map[string][]internal.Sch
 
 	return issues
 
+}
+
+// RemoveCheckConstraint this method will remove the constraint which has error
+func RemoveCheckConstraint(checkConstraints []ddl.CheckConstraint, expId string) []ddl.CheckConstraint {
+	var filteredConstraints []ddl.CheckConstraint
+
+	for _, checkConstraint := range checkConstraints {
+		if checkConstraint.ExprId != expId {
+			filteredConstraints = append(filteredConstraints, checkConstraint)
+		}
+	}
+	return filteredConstraints
 }
 
 // VerifyExpression this function will use expression_api to validate check constraint expressions and add the relevant error
@@ -202,9 +260,18 @@ func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) error {
 		if result.ExpressionVerificationOutputList == nil {
 			return result.Err
 		}
-		issueTypes := GetIssue(result)
+		issueTypes, invalidExpIds := GetIssue(result)
 		if len(issueTypes) > 0 {
 			for tableId, issues := range issueTypes {
+
+				if conv.InvalidCheckExp == nil {
+					conv.InvalidCheckExp = map[string][]internal.InvalidCheckExp{}
+					conv.InvalidCheckExp[tableId] = []internal.InvalidCheckExp{}
+				}
+
+				invalidCheckExp := conv.InvalidCheckExp[tableId]
+				invalidCheckExp = append(invalidCheckExp, issues...)
+				conv.InvalidCheckExp[tableId] = invalidCheckExp
 
 				for _, issue := range issues {
 					if _, exists := conv.SchemaIssues[tableId]; !exists {
@@ -215,10 +282,20 @@ func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) error {
 
 					tableIssue := conv.SchemaIssues[tableId]
 
-					if !IsSchemaIssuePresent(tableIssue.TableLevelIssues, issue) {
-						tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issue)
+					if !IsSchemaIssuePresent(tableIssue.TableLevelIssues, issue.IssueType) {
+						tableIssue.TableLevelIssues = append(tableIssue.TableLevelIssues, issue.IssueType)
 					}
 					conv.SchemaIssues[tableId] = tableIssue
+				}
+			}
+		}
+
+		if len(invalidExpIds) > 0 {
+			for tableId, expressionIdList := range invalidExpIds {
+				for _, expId := range expressionIdList {
+					spschema := conv.SpSchema[tableId]
+					spschema.CheckConstraints = RemoveCheckConstraint(spschema.CheckConstraints, expId)
+					conv.SpSchema[tableId] = spschema
 				}
 			}
 		}
