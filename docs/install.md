@@ -68,11 +68,11 @@ sudo apt-get install google-cloud-sdk-spanner-migration-tool
 ```
 
 {: .note }
-> If you encounter error `E: Unable to locate package google-cloud-sdk-spanner-migration-tool`, Run the following command:
+> If you encounter error `E: Unable to locate package google-cloud-sdk-spanner-migration-tool`, It means the gcloud CLI distribution URI is not added as a package source. Run the following command:
 > ```sh
 > curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && sudo apt-get update
 > ```
-> This will add the gcloud CLI distribution URI as a package source. Now run the above install command.
+> This will add the gcloud CLI distribution URI as a package source. Now run the install command.
 
 Once installed, the Spanner migration tool commands will be available under the `gcloud alpha spanner migration` surface. For example, to start the Spanner migration tool UI, run the following command:
 
