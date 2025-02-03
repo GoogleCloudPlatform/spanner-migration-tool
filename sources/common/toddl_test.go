@@ -625,7 +625,6 @@ func TestVerifyCheckConstraintExpressions(t *testing.T) {
 			},
 			expectedCheckConstraint: []ddl.CheckConstraint{
 				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
-				{Expr: "(col1 > 18", ExprId: "expr2", Name: "check2"},
 			},
 			expectedResponse: true,
 		},
@@ -641,7 +640,6 @@ func TestVerifyCheckConstraintExpressions(t *testing.T) {
 			},
 			expectedCheckConstraint: []ddl.CheckConstraint{
 				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
-				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
 			},
 			expectedResponse: true,
 		},
@@ -657,7 +655,6 @@ func TestVerifyCheckConstraintExpressions(t *testing.T) {
 			},
 			expectedCheckConstraint: []ddl.CheckConstraint{
 				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
-				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
 			},
 			expectedResponse: true,
 		},
@@ -673,7 +670,6 @@ func TestVerifyCheckConstraintExpressions(t *testing.T) {
 			},
 			expectedCheckConstraint: []ddl.CheckConstraint{
 				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
-				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
 			},
 			expectedResponse: true,
 		},
@@ -689,7 +685,6 @@ func TestVerifyCheckConstraintExpressions(t *testing.T) {
 			},
 			expectedCheckConstraint: []ddl.CheckConstraint{
 				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
-				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
 			},
 			expectedResponse: true,
 		},
