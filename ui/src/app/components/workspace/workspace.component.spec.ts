@@ -75,6 +75,7 @@ describe('WorkspaceComponent', () => {
     ]);
     dataServiceSpy = jasmine.createSpyObj('DataService', [
       'getRateTypemapAndSummary',
+      'verifyCheckConstraintExpression'
     ]);
     routerSpy = jasmine.createSpyObj('Router', ['navigate']);
 
@@ -331,6 +332,8 @@ describe('WorkspaceComponent', () => {
   it('should navigate to prepare-migration', () => {
     fetchServiceSpy.getTableWithErrors.and.returnValue(of([]));
     fetchServiceSpy.verifyCheckConstraintExpression.and.returnValue(of(false))
+    const mockObservable = of(false);
+    dataServiceSpy.verifyCheckConstraintExpression.and.returnValue(mockObservable)
     component.isOfflineStatus = false;
     component.conv = { SpSchema: { TableA: {}, TableB: {} } } as any;
     component.prepareMigration();

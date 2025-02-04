@@ -400,18 +400,37 @@ export class DataService {
 
   updateCheckConstraint(tableId: string, updatedCC: ICheckConstraints[]): Observable<string> {
     return this.fetch.updateCheckConstraint(tableId, updatedCC).pipe(
-      catchError((error: any) => {
-        console.error('Error updating check constraints:', error);
-        return of(`Error: ${error.message || 'Unknown error'}`);
+      catchError((e: any) => {
+        return of({ error: e.error })
       }),
       tap(response => console.log('Update Response:', response)),
       map((response: any) => {
         if (response.error) {
+          this.snackbar.openSnackBar(response.error, 'Close')
           return response.error;
         } else {
           this.convSubject.next(response);
           this.getDdl();
           return '';
+        }
+      })
+    );
+  }
+
+  verifyCheckConstraintExpression(): Observable<boolean> {
+    return this.fetch.verifyCheckConstraintExpression().pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(response => console.log('Update Response:', response)),
+      map((response: any) => {
+        if (response.error) {
+          this.snackbar.openSnackBar(response.error, 'Close')
+          return response.error
+        } else {
+          this.convSubject.next(response.sessionState);
+          this.getDdl();
+          return response.hasErrorOccurred;
         }
       })
     );
