@@ -483,7 +483,7 @@ export class ObjectDetailComponent implements OnInit {
               IsPresent: col.spDefaultValue ? true : false,
               Value: {
                 ExpressionId: '',
-                Statement: String(col.spDefaultValue)
+                Statement:  col.spDefaultValue? col.spDefaultValue.Value.Statement: ''
               }
             }
           }
