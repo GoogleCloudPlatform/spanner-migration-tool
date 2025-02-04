@@ -672,7 +672,7 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
             AND t.TABLE_NAME = k.TABLE_NAME
             LEFT JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS AS c
             ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
-			AND AND t.TABLE_SCHEMA = c.CONSTRAINT_SCHEMA
+			AND t.TABLE_SCHEMA = c.CONSTRAINT_SCHEMA
             WHERE t.TABLE_SCHEMA = ? 
             AND t.TABLE_NAME = ?;`),
 			args: []driver.Value{"test_schema", "test_table"},
