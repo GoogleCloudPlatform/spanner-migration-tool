@@ -44,6 +44,7 @@ type SchemaAndDataCmd struct {
 	target           string
 	targetProfile    string
 	SkipForeignKeys  bool
+	SkipIndexes      bool
 	filePrefix       string // TODO: move filePrefix to global flags
 	project          string
 	WriteLimit       int64
@@ -80,7 +81,8 @@ func (cmd *SchemaAndDataCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.sourceProfile, "source-profile", "", "Flag for specifying connection profile for source database e.g., \"file=<path>,format=dump\"")
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
-	f.BoolVar(&cmd.SkipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
+	f.BoolVar(&cmd.SkipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after schema migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
+	f.BoolVar(&cmd.SkipIndexes, "skip-indexes", false, "Skip creating indexes as a part of the schema migration (ddl statements for indexes can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 	f.StringVar(&cmd.project, "project", "", "Flag spcifying default project id for all the generated resources for the migration")
 	f.Int64Var(&cmd.WriteLimit, "write-limit", DefaultWritersLimit, "Write limit for writes to spanner")

@@ -145,7 +145,7 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 	defer client.Close()
 	switch v := cmd.(type) {
 	case *SchemaCmd:
-		err = migrateSchema(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient)
+		err = migrateSchema(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, v)
 	case *DataCmd:
 		bw, err = migrateData(ctx, migrationProjectId, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
 	case *SchemaAndDataCmd:
@@ -159,7 +159,7 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 }
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
-	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient) error {
+	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, cmd *SchemaCmd) error {
 	spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		return err
@@ -171,6 +171,12 @@ func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, so
 	}
 	metricsPopulation(ctx, sourceProfile.Driver, conv)
 	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
+	if !cmd.SkipIndexes {
+		spA.UpdateDDLIndexes(ctx, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
+	}
+	if !cmd.SkipForeignKeys {
+		spA.UpdateDDLForeignKeys(ctx, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
+	}
 	return nil
 }
 
@@ -206,11 +212,7 @@ func migrateData(ctx context.Context, migrationProjectId string, targetProfile p
 	}
 	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	if !cmd.SkipForeignKeys {
-		spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
-		if err != nil {
-			return bw, err
-		}
-		spA.UpdateDDLForeignKeys(ctx, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
+		fmt.Printf("skip-foreign-keys flag has been deprecated from the data migration mode and foreign keys will not be created as a part of data migration. Please use schema or schem-and-data subcommand for foreign key creation.")
 	}
 	return bw, nil
 }
@@ -229,6 +231,13 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 	metricsPopulation(ctx, sourceProfile.Driver, conv)
 	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
 
+	if !cmd.SkipIndexes {
+		spA.UpdateDDLIndexes(ctx, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
+	}
+	if !cmd.SkipForeignKeys {
+		spA.UpdateDDLForeignKeys(ctx, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
+	}
+
 	// If migration type is Minimal Downtime, validate if required resources can be generated
 	if !conv.UI && sourceProfile.Driver == constants.MYSQL && sourceProfile.Ty == profiles.SourceProfileTypeConfig && sourceProfile.Config.ConfigType == constants.DATAFLOW_MIGRATION {
 		err := ValidateResourceGenerationHelper(ctx, migrationProjectId, targetProfile.Conn.Sp.Instance, sourceProfile, conv)
@@ -246,9 +255,6 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 	}
 
 	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
-	if !cmd.SkipForeignKeys {
-		spA.UpdateDDLForeignKeys(ctx, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
-	}
 	return bw, nil
 }
 

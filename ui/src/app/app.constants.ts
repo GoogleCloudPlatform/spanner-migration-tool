@@ -68,12 +68,16 @@ export enum MigrationDetails {
   DataMigrationProgress = 'dataMigrationProgress',
   SchemaMigrationProgress = 'schemaMigrationProgress',
   HasForeignKeyUpdateStarted = 'hasForeignKeyUpdateStarted',
+  HasIndexUpdateStarted = 'hasIndexUpdateStarted',
   ForeignKeyProgressMessage = 'foreignKeyProgressMessage',
   ForeignKeyUpdateProgress = 'foreignKeyUpdateProgress',
+  IndexProgressMessage = 'indexProgressMessage',
+  IndexUpdateProgress = 'indexUpdateProgress',
   GeneratingResources = 'generatingResources',
   NumberOfShards = 'numberOfShards',
   NumberOfInstances = 'numberOfInstances',
   isForeignKeySkipped = 'isForeignKeySkipped',
+  isIndexSkipped = 'isIndexSkipped',
   IsGcsMetadataPathSet = 'isGcsMetadataPathSet'
 }
 
@@ -106,7 +110,9 @@ export enum ProgressStatus {
 	DataMigrationComplete = 3,
 	DataWriteInProgress = 4,
 	ForeignKeyUpdateInProgress = 5,
-  ForeignKeyUpdateComplete = 6
+  ForeignKeyUpdateComplete = 6,
+  IndexUpdateInProgress = 5,
+  IndexUpdateComplete = 6
 }
 
 export const DialectList = [
