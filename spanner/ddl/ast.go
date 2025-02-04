@@ -394,7 +394,7 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 
 	var checkString string
 	if len(ct.CheckConstraints) > 0 {
-		checkString = FormatCheckConstraints(ct.CheckConstraints)
+		checkString = FormatCheckConstraints(ct.CheckConstraints, config.SpDialect)
 	} else {
 		checkString = ""
 	}
@@ -403,7 +403,7 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s) %s", tableComment, config.quote(ct.Name), cols, checkString, interleave)
 	}
 	if config.SpDialect == constants.DIALECT_POSTGRESQL {
-		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
+		return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, checkString, strings.Join(keys, ", "), interleave)
 	}
 	return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, checkString, strings.Join(keys, ", "), interleave)
 }
@@ -552,7 +552,7 @@ func (k Foreignkey) PrintForeignKeyAlterTable(spannerSchema Schema, c Config, ta
 }
 
 // FormatCheckConstraints formats the check constraints in SQL syntax.
-func FormatCheckConstraints(cks []CheckConstraint) string {
+func FormatCheckConstraints(cks []CheckConstraint, dailect string) string {
 	var builder strings.Builder
 
 	for _, col := range cks {
@@ -566,7 +566,11 @@ func FormatCheckConstraints(cks []CheckConstraint) string {
 	if builder.Len() > 0 {
 		// Trim the trailing comma and newline
 		result := builder.String()
-		return result[:len(result)-2] + "\n"
+		if dailect == constants.DIALECT_GOOGLESQL {
+			return result[:len(result)-2] + "\n"
+		} else {
+			return result[:len(result)-2] + ",\n"
+		}
 	}
 
 	return ""
