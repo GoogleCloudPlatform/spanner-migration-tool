@@ -445,7 +445,7 @@ func (dv DefaultValue) PrintDefaultValue(ty Type) string {
 	}
 	var value string
 	switch ty.Name {
-	case "FLOAT32", "NUMERIC", "BOOL":
+	case "FLOAT32", "NUMERIC", "BOOL", "BYTES":
 		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Statement, ty.Name)
 	default:
 		value = " DEFAULT (" + dv.Value.Statement + ")"
@@ -459,7 +459,7 @@ func (dv DefaultValue) PGPrintDefaultValue(ty Type) string {
 	}
 	var value string
 	switch GetPGType(ty) {
-	case "FLOAT8", "FLOAT4", "REAL", "NUMERIC", "DECIMAL", "BOOL":
+	case "FLOAT8", "FLOAT4", "REAL", "NUMERIC", "DECIMAL", "BOOL", "BYTEA":
 		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Statement, GetPGType(ty))
 	default:
 		value = " DEFAULT (" + dv.Value.Statement + ")"
