@@ -91,14 +91,6 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		conv.AddShardIdColumn()
 	}
 
-	if (conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP) && conv.SpProjectId != "" && conv.SpInstanceId != "" {
-		// Process and verify Check constraints for MySQL and MySQLDump flow only
-		err := ss.VerifyExpressions(conv)
-		if err != nil {
-			return err
-		}
-	}
-
 	if conv.Source == constants.MYSQL && conv.SpProjectId != "" && conv.SpInstanceId != "" {
 		// Process and verify Spanner DDL expressions for MYSQL
 		expressionDetails := ss.DdlV.GetSourceExpressionDetails(conv, tableIds)
@@ -108,6 +100,15 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 		}
 		spannerSchemaApplyExpressions(conv, expressions)
 	}
+
+	if (conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP) && conv.SpProjectId != "" && conv.SpInstanceId != "" {
+		// Process and verify Check constraints for MySQL and MySQLDump flow only
+		err := ss.VerifyExpressions(conv)
+		if err != nil {
+			return err
+		}
+	}
+
 	internal.ResolveRefs(conv)
 	return nil
 }
