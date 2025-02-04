@@ -715,7 +715,7 @@ func TestVerifyCheckConstraintExpressions(t *testing.T) {
 			mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
 				ExpressionVerificationOutputList: tc.expectedResults,
 			})
-			mockAccessor.On("RefreshSpannerClient", ctx, mock.Anything, mock.Anything).Return()
+			mockAccessor.On("RefreshSpannerClient", ctx, mock.Anything, mock.Anything)
 			handler.VerifyExpressions(conv)
 			assert.Equal(t, conv.SpSchema["t1"].CheckConstraints, tc.expectedCheckConstraint)
 
