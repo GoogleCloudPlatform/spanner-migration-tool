@@ -2870,6 +2870,8 @@ func TestVerifyCheckConstraintExpressions(t *testing.T) {
 				ExpressionVerificationOutputList: tc.expectedResults,
 			})
 
+			mockAccessor.On("RefreshSpannerClient", ctx, mock.Anything, mock.Anything).Return(nil)
+
 			rr := httptest.NewRecorder()
 			handler.VerifyCheckConstraintExpression(rr, req)
 
