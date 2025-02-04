@@ -168,7 +168,7 @@ func GetIssue(result internal.VerifyExpressionsOutput) (map[string][]internal.In
 			switch {
 			case strings.Contains(ev.Err.Error(), "No matching signature for operator"):
 				issue = internal.TypeMismatch
-			case strings.Contains(ev.Err.Error(), "Syntax error"):
+			case strings.Contains(ev.Err.Error(), "Syntax error") || strings.Contains(ev.Err.Error(), "syntax error at or near"):
 				issue = internal.InvalidCondition
 			case strings.Contains(ev.Err.Error(), "Unrecognized name"):
 				issue = internal.ColumnNotFound
@@ -210,7 +210,7 @@ func GetErroredIssue(result internal.VerifyExpressionsOutput) map[string][]inter
 			switch {
 			case strings.Contains(ev.Err.Error(), "No matching signature for operator"):
 				issue = internal.TypeMismatchError
-			case strings.Contains(ev.Err.Error(), "Syntax error"):
+			case strings.Contains(ev.Err.Error(), "Syntax error") || strings.Contains(ev.Err.Error(), "syntax error at or near"):
 				issue = internal.InvalidConditionError
 			case strings.Contains(ev.Err.Error(), "Unrecognized name"):
 				issue = internal.ColumnNotFoundError
