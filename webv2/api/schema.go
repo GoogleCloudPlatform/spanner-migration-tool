@@ -644,6 +644,7 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) VerifyCheck
 		}
 
 		sessionState.Conv.SchemaIssues = common.RemoveError(sessionState.Conv.SchemaIssues)
+		expressionVerificationHandler.ExpressionVerificationAccessor.RefreshSpannerClient(ctx, sessionState.Conv.SpProjectId, sessionState.Conv.SpInstanceId)
 		result := expressionVerificationHandler.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
 		if result.ExpressionVerificationOutputList == nil {
 			http.Error(w, fmt.Sprintf("Unhandled error: : %s", result.Err.Error()), http.StatusInternalServerError)
