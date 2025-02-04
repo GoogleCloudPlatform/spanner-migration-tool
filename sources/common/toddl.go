@@ -256,6 +256,7 @@ func (ss *SchemaToSpannerImpl) VerifyExpressions(conv *internal.Conv) error {
 		Source:               conv.Source,
 		ExpressionDetailList: GenerateExpressionDetailList(spschema),
 	}
+	ss.ExpressionVerificationAccessor.RefreshSpannerClient(ctx, conv.SpProjectId, conv.SpInstanceId)
 	if len(verifyExpressionsInput.ExpressionDetailList) != 0 {
 		result := ss.ExpressionVerificationAccessor.VerifyExpressions(ctx, verifyExpressionsInput)
 		if result.ExpressionVerificationOutputList == nil {
