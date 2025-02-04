@@ -292,6 +292,7 @@ func (isi InfoSchemaImpl) getConstraintsDQL() (string, error) {
             AND t.TABLE_NAME = k.TABLE_NAME
             LEFT JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS AS c
             ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
+			AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA
             WHERE t.TABLE_SCHEMA = ? 
             AND t.TABLE_NAME = ?;`, nil
 	}
