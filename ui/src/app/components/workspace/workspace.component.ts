@@ -431,6 +431,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
               this.router.navigate(['/prepare-migration'])
             }
             else{
+              this.dialog.open(InfodialogComponent, {
+                data: { message: "Some of the Check constraints added or modified are invalid. Please fix to proceed", type: 'error', title: 'Modify Check Constraints' },
+                maxWidth: '500px',
+              })
               this.data.getSummary()
             }
           })
