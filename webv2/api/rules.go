@@ -396,7 +396,7 @@ func revertShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
 				pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: pk.ColId, Order: pk.Order - decrement, Desc: pk.Desc})
 			}
 		}
-		primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+		primarykey.UpdatePrimaryKey(pkRequest)
 	}
 }
 

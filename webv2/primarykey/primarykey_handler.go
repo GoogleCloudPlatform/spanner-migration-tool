@@ -100,7 +100,7 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	UpdatePrimaryKeyAndSessionFile(pkRequest)
+	UpdatePrimaryKey(pkRequest)
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -113,7 +113,7 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	log.Println("request completed", "traceid", id.String(), "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
 }
 
-func UpdatePrimaryKeyAndSessionFile(pkRequest PrimaryKeyRequest) {
+func UpdatePrimaryKey(pkRequest PrimaryKeyRequest) {
 
 	sessionState := session.GetSessionState()
 	spannerTable, _ := getSpannerTable(sessionState, pkRequest)
@@ -150,6 +150,5 @@ func UpdatePrimaryKeyAndSessionFile(pkRequest PrimaryKeyRequest) {
 	}
 	common.ComputeNonKeyColumnSize(sessionState.Conv, pkRequest.TableId)
 	RemoveInterleave(sessionState.Conv, spannerTable)
-	session.UpdateSessionFile()
 
 }
