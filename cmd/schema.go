@@ -142,6 +142,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		err := schemaToSpanner.VerifyExpressions(conv)
 
 		if err != nil {
+			logger.Log.Error(fmt.Sprintf("Error while verifying the expressions %v", err))
 			return subcommands.ExitFailure
 		}
 	} else {
