@@ -1194,6 +1194,7 @@ func (tableHandler *TableAPIHandler) restoreTableHelper(w http.ResponseWriter, t
 			setShardIdColumnAsPrimaryKeyPerTable(isAddedAtFirst, table)
 			addShardIdToForeignKeyPerTable(isAddedAtFirst, table)
 			addShardIdToReferencedTableFks(tableId, isAddedAtFirst)
+			session.UpdateSessionFile()
 		}
 	}
 	sessionState.Conv = conv
@@ -1712,7 +1713,7 @@ func setShardIdColumnAsPrimaryKeyPerTable(isAddedAtFirst bool, table ddl.CreateT
 		size := len(table.PrimaryKeys)
 		pkRequest.Columns = append(pkRequest.Columns, ddl.IndexKey{ColId: table.ShardIdColumn, Order: size + 1})
 	}
-	primarykey.UpdatePrimaryKeyAndSessionFile(pkRequest)
+	primarykey.UpdatePrimaryKey(pkRequest)
 }
 
 func addShardIdColumnToForeignKeys(isAddedAtFirst bool) {
