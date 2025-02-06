@@ -20,12 +20,40 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
+	"sync"
 )
 
-var configFilePath string = "./webv2/config.json"
+var configFilePath string
+var configFilePathMutex sync.Mutex
 
+func getConfigFilePath() (string, error) {
+	dirPath := "spanner_migration_tool_output/config"
+	configFileName := "config.json"
+	configFilePathMutex.Lock()         // Acquire the lock
+	defer configFilePathMutex.Unlock() // Release the lock when done
+
+	if configFilePath == "" {
+
+		if _, err := os.Stat(dirPath); err != nil {
+			err := os.MkdirAll(dirPath, os.ModePerm)
+			if err != nil {
+				log.Printf("Can't create directory %s: %v\n", dirPath, err)
+				return "", err
+			}
+		}
+		configFilePath = filepath.Join(dirPath, configFileName)
+	}
+	return configFilePath, nil
+}
 func GetSpannerConfig() (Config, error) {
 	var c Config
+	configFilePath, err := getConfigFilePath()
+	if err != nil {
+		log.Println(err)
+		return c, err
+	}
+
 	content, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
 		log.Println(err)
@@ -41,6 +69,11 @@ func GetSpannerConfig() (Config, error) {
 }
 
 func SaveSpannerConfig(config Config) {
+	configFilePath, err := getConfigFilePath()
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	f, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		log.Println(err)
