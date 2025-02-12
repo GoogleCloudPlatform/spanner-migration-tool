@@ -92,7 +92,7 @@ func embedTextsFromFile(project, location, filePath, outputPath string) error {
 
 // Sample Usage
 func main() {
-	if err := embedTextsFromFile("span-cloud-testing", "us-central1", "/usr/local/google/home/gauravpurohit/ai/app-migration-poc/concept_examples.json", "output.json"); err != nil {
+	if err := embedTextsFromFile("span-cloud-testing", "us-central1", "concept_examples.json", "output.json"); err != nil {
 		fmt.Println("Error:", err)
 	}
 }
