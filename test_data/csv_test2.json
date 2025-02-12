@@ -1,0 +1,12 @@
+[
+  {
+    "table_name": "table2",
+    "file_patterns": [
+      "/usr/local/google/home/rohitwali/dump1/tabletest.txt"
+    ],
+    "columns": [
+      {"column_name": "c3", "type_name": "INT64"},
+      {"column_name": "c4", "type_name": "STRING"}
+    ]
+  }
+]
