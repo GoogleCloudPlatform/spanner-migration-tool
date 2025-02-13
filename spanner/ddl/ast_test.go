@@ -262,7 +262,7 @@ func TestPrintCreateTable(t *testing.T) {
 				"	col4 INT64 NOT NULL ,\n" +
 				"	col5 STRING(MAX),\n" +
 				") PRIMARY KEY (col4 DESC),\n" +
-				"INTERLEAVE IN table1 ON DELETE CASCADE",
+				"INTERLEAVE IN table1",
 		},
 		{
 			"interleaved without on delete support",
@@ -382,7 +382,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 				"	col4 INT8 NOT NULL ,\n" +
 				"	col5 VARCHAR(2621440),\n" +
 				"	PRIMARY KEY (col4 DESC)\n" +
-				") INTERLEAVE IN table1 ON DELETE CASCADE",
+				") INTERLEAVE IN table1",
 		},
 		{
 			"interleaved without on delete support",
