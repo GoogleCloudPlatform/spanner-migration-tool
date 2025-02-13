@@ -262,7 +262,7 @@ func TestPrintCreateTable(t *testing.T) {
 				"	col4 INT64 NOT NULL ,\n" +
 				"	col5 STRING(MAX),\n" +
 				") PRIMARY KEY (col4 DESC),\n" +
-				"INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+				"INTERLEAVE IN table1 ON DELETE CASCADE",
 		},
 		{
 			"interleaved without on delete support",
@@ -271,7 +271,7 @@ func TestPrintCreateTable(t *testing.T) {
 			"CREATE TABLE table3 (\n" +
 				"	col6 INT64 NOT NULL ,\n" +
 				") PRIMARY KEY (col6 DESC),\n" +
-				"INTERLEAVE IN PARENT table1",
+				"INTERLEAVE IN table1",
 		},
 		{
 			"no quote",
@@ -382,7 +382,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 				"	col4 INT8 NOT NULL ,\n" +
 				"	col5 VARCHAR(2621440),\n" +
 				"	PRIMARY KEY (col4 DESC)\n" +
-				") INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+				") INTERLEAVE IN table1 ON DELETE CASCADE",
 		},
 		{
 			"interleaved without on delete support",
@@ -391,7 +391,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 			"CREATE TABLE table3 (\n" +
 				"	col6 INT8 NOT NULL ,\n" +
 				"	PRIMARY KEY (col6 DESC)\n" +
-				") INTERLEAVE IN PARENT table1",
+				") INTERLEAVE IN table1",
 		},
 	}
 	for _, tc := range tests {
@@ -869,7 +869,7 @@ func TestGetDDL(t *testing.T) {
 			"	b INT64,\n" +
 			"	c INT64,\n" +
 			") PRIMARY KEY (a, b),\n" +
-			"INTERLEAVE IN PARENT table1 ON DELETE NO ACTION",
+			"INTERLEAVE IN table1 ON DELETE NO ACTION",
 	}
 	assert.ElementsMatch(t, e, tablesOnly)
 
@@ -898,7 +898,7 @@ func TestGetDDL(t *testing.T) {
 			"	b INT64,\n" +
 			"	c INT64,\n" +
 			") PRIMARY KEY (a, b),\n" +
-			"INTERLEAVE IN PARENT table1 ON DELETE NO ACTION",
+			"INTERLEAVE IN table1 ON DELETE NO ACTION",
 		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
@@ -980,7 +980,7 @@ func TestGetPGDDL(t *testing.T) {
 			"	b INT8,\n" +
 			"	c INT8,\n" +
 			"	PRIMARY KEY (a, b)\n" +
-			") INTERLEAVE IN PARENT table1 ON DELETE NO ACTION",
+			") INTERLEAVE IN table1 ON DELETE NO ACTION",
 	}
 	assert.ElementsMatch(t, e, tablesOnly)
 
@@ -1011,7 +1011,7 @@ func TestGetPGDDL(t *testing.T) {
 			"	b INT8,\n" +
 			"	c INT8,\n" +
 			"	PRIMARY KEY (a, b)\n" +
-			") INTERLEAVE IN PARENT table1 ON DELETE NO ACTION",
+			") INTERLEAVE IN table1 ON DELETE NO ACTION",
 		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
