@@ -158,10 +158,11 @@ func (db *ExampleDb) Search(searchTerms []string, project, location string, dist
 	output := make(map[string]map[string]interface{})
 	for i := 0; i < topK && i < len(results); i++ {
 		record := db.data[results[i].ID]
+		b, _ := json.MarshalIndent(record.Rewrite, "", "")
 		output[record.ID] = map[string]interface{}{
 			"distance": 1 - results[i].Similarity,
 			"example":  record.Example,
-			"rewrite":  record.Rewrite,
+			"rewrite":  string(b),
 		}
 	}
 	return output
