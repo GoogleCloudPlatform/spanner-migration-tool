@@ -1,3 +1,5 @@
+//go:build ignore
+
 /*
 	Copyright 2025 Google LLC
 
@@ -253,7 +255,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, 
 	}
 
 	var response string
-	if m.dependencyAnalyzer.IsDAOClass(filepath, content) {
+	if m.dependencyAnalyzer.IsDAO(filepath, content) {
 		prompt := getPromptForDAOClass(content, filepath, &methodChanges, &oldSchema, &newSchema)
 		response, err = m.MigrationCodeConversionInvoke(ctx, prompt, content, oldSchema, newSchema, "analyze-dao-class-"+filepath)
 	} else {
