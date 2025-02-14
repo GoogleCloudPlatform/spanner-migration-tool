@@ -31,7 +31,7 @@
   },
   {
     "id": "300",
-    "example": "How to identify rows using a UUID in Spanner?",
+    "example": "How to use bit reverse sequence in spanner when moving from AUTO_INCREMENT?",
     "rewrite": {
       "theory": "Spanner fully supports automatic ID generation using sequences. These sequences generate random (bit-reversed) integers, not sequential integers.",
       "options": [

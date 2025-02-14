@@ -31,6 +31,8 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
+const EmbeddingModel = "text-embedding-preview-0815"
+
 type ExampleRecord struct {
 	ID      string `json:"id"`
 	Example string `json:"example"`
@@ -87,8 +89,7 @@ func embedTexts(project, location string, texts []string) ([][]float32, error) {
 	}
 	defer client.Close()
 
-	model := "text-embedding-preview-0815"
-	endpoint := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", project, location, model)
+	endpoint := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", project, location, EmbeddingModel)
 
 	instances := make([]*structpb.Value, len(texts))
 	for i, text := range texts {
@@ -170,7 +171,7 @@ func (db *ExampleDb) Search(searchTerms []string, project, location string, dist
 
 // Sample Usage
 func main() {
-	db, err := NewExampleDb("/usr/local/google/home/gauravpurohit/pocgo/output.json")
+	db, err := NewExampleDb("output.json")
 	if err != nil {
 		log.Fatalf("Failed to load database: %v", err)
 	}

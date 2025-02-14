@@ -25,7 +25,7 @@ import (
 // DependencyAnalyzer defines the interface for dependency analysis
 type DependencyAnalyzer interface {
 	GetDependencyGraph(directory string) map[string]map[string]struct{}
-	IsDAOClass(filePath string, fileContent string) bool
+	IsDAO(filePath string, fileContent string) bool
 	GetExecutionOrder(projectDir string) (map[string]map[string]struct{}, [][]string)
 }
 
@@ -39,7 +39,6 @@ type GoDependencyAnalyzer struct {
 
 func (g *GoDependencyAnalyzer) GetDependencyGraph(directory string) map[string]map[string]struct{} {
 
-	fmt.Println(directory)
 	cfg := &packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
 		Dir:  (directory),
@@ -98,6 +97,7 @@ func (g *GoDependencyAnalyzer) GetDependencyGraph(directory string) map[string]m
 	fmt.Println("\nDependency Graph:")
 	for file, dependencies := range dependencyGraph {
 		fmt.Printf("%s depends on:\n", strings.TrimPrefix(file, directory))
+		//ToDo:Better way to show dependencies
 		for dep := range dependencies {
 			fmt.Printf("\t- %s\n", strings.TrimPrefix(dep, directory))
 		}
@@ -106,7 +106,7 @@ func (g *GoDependencyAnalyzer) GetDependencyGraph(directory string) map[string]m
 	return dependencyGraph
 }
 
-func (g *GoDependencyAnalyzer) IsDAOClass(filePath string, fileContent string) bool {
+func (g *GoDependencyAnalyzer) IsDAO(filePath string, fileContent string) bool {
 	filePath = strings.ToLower(filePath)
 	if strings.Contains(filePath, "/dao/") {
 		return true
@@ -270,7 +270,6 @@ func groupTasksOptimized(sortedTasks []string, G map[string]map[string]struct{})
 }
 
 func main() {
-	fmt.Println("Dependency Analyzer in Go")
 
 	projectDir := "/usr/local/google/home/gauravpurohit/migration/spanner-migration-tool/" // Change this to your actual project directory
 	language := "go"                                                                       // Change this to "java" for Java projects
