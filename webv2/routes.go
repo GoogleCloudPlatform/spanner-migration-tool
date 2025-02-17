@@ -26,6 +26,7 @@ import (
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
@@ -41,7 +42,8 @@ func getRoutes() *mux.Router {
 	frontendRoot, _ := fs.Sub(FrontendDir, "ui/dist/ui")
 	frontendStatic := http.FileServer(http.FS(frontendRoot))
 	reportAPIHandler := api.ReportAPIHandler{
-		Report: &conversion.ReportImpl{},
+		Report:          &conversion.ReportImpl{},
+		ReportGenerator: &reports.ReportImpl{},
 	}
 	ctx := context.Background()
 	ddlVerifier, _ := expressions_api.NewDDLVerifierImpl(ctx, "", "")
