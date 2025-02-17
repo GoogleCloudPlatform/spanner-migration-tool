@@ -10,6 +10,7 @@ export default interface IMigrationDetails {
     MigrationMode: string
     IsSharded: boolean
     skipForeignKeys: boolean
+    skipIndexes: boolean
 }
 
 export interface IProgress {

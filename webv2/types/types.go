@@ -66,6 +66,7 @@ type MigrationDetails struct {
 	MigrationType    string                    `json:"MigrationType"`
 	IsSharded        bool                      `json:"IsSharded"`
 	SkipForeignKeys  bool                      `json:"skipForeignKeys"`
+	SkipIndexes      bool                      `json:"skipIndexes"`
 }
 
 type TargetDetails struct {
