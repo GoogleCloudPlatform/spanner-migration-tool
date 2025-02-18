@@ -555,7 +555,7 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 		fk         Foreignkey
 	}{
 		{"no quote", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
-		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (productid, userid) REFERENCES `table2` (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (`productid`, `userid`) REFERENCES `table2` (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
 		{"no constraint name", "t1", false, "", "ALTER TABLE table1 ADD FOREIGN KEY (productid) REFERENCES table2 (productid) ON DELETE NO ACTION", spannerSchema["t1"].ForeignKeys[1]},
 		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
 		{"foreign key constraints not supported i.e. dont print ON DELETE", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test2 FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[2]},
