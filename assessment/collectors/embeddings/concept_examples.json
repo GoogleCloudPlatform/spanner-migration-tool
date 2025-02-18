@@ -1,0 +1,71 @@
+[
+  {
+    "id": "100",
+    "example": "How to migrate from `AUTO_INCREMENT` in MySQL to Spanner?",
+    "rewrite": {
+      "theory": "Cloud Spanner doesn't support auto-incrementing columns like traditional relational databases. To handle this, you can use one of two methods: 1. Using UUIDs: Define a primary key as a STRING(36) column with GENERATE_UUID() as the default value. 2. Using Sequences: Create a sequence with the bit_reversed_positive kind and use GET_NEXT_SEQUENCE_VALUE() for the primary key.",
+      "options": [
+        {
+          "mysql_code": "CREATE TABLE Singers (SingerId INT AUTO_INCREMENT PRIMARY KEY, Name VARCHAR(255), Rank INT);",
+          "spanner_code": "CREATE SEQUENCE SingerIdSequence OPTIONS (sequence_kind='bit_reversed_positive');\nCREATE TABLE Singers (SingerId INT64 DEFAULT (NEXT VALUE FOR SingerIdSequence), Name STRING(255), Rank INT64);"
+        },
+        {
+          "mysql_code": "CREATE TABLE Singers (SingerId INT AUTO_INCREMENT PRIMARY KEY, Name VARCHAR(255), Rank INT);",
+          "spanner_code": "CREATE TABLE Singers (SingerId STRING(36) DEFAULT (GENERATE_UUID()), Name STRING(255), Rank INT64);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "200",
+    "example": "In MySQL, `LAST_INSERT_ID()` returns the auto-increment value of the last inserted row. How can we achieve the same functionality in Spanner?",
+    "rewrite": {
+      "theory": "While Spanner doesn't have a direct equivalent to MySQL's `LAST_INSERT_ID()` function, it offers a more efficient and versatile solution through its **DML Returning** feature. This allows you to retrieve data, including auto-generated keys, directly from your `INSERT` statement.",
+      "options": [
+        {
+          "mysql_code": "res, err := db.Exec(\"INSERT INTO Customer (Name, Address) VALUES (?, ?)\", name, address)\nif err != nil {\n    log.Fatal(err)\n}\nid, err := res.LastInsertId()\nif err != nil {\n    log.Fatal(err)\n}\nfmt.Println(\"Inserted ID:\", id)",
+          "spanner_code": "stmt := spanner.Statement{SQL: \"INSERT INTO Customer (Name, Address) VALUES (@name, @address) THEN RETURN CustomerId\", Params: map[string]interface{}{\"name\": name, \"address\": address}}\niter := client.Single().Query(ctx, stmt)\ndefer iter.Stop()\nvar customerId int64\nif err := iter.Next(&customerId); err != nil {\n    log.Fatal(err)\n}\nfmt.Println(\"Inserted ID:\", customerId)"
+        }
+      ]
+    }
+  },
+  {
+    "id": "300",
+    "example": "How to use bit reverse sequence in spanner when moving from AUTO_INCREMENT?",
+    "rewrite": {
+      "theory": "Spanner fully supports automatic ID generation using sequences. These sequences generate random (bit-reversed) integers, not sequential integers.",
+      "options": [
+        {
+          "mysql_code": "CREATE TABLE Users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255));",
+          "spanner_code": "CREATE SEQUENCE user_id_seq OPTIONS (sequence_kind='bit_reversed_positive');\nCREATE TABLE Users (id INT64 DEFAULT (NEXT VALUE FOR user_id_seq), name STRING(255));"
+        }
+      ]
+    }
+  },
+  {
+    "id": "400",
+    "example": "How to handle transactions and autocommit in Spanner?",
+    "rewrite": {
+      "theory": "Spanner fully supports and encourages the use of transactions. Autocommit should be turned off except for code that is deliberately executing single-statement transactions.",
+      "options": [
+        {
+          "mysql_code": "tx, err := db.Begin()\nif err != nil {\n    log.Fatal(err)\n}\ndefer tx.Commit()",
+          "spanner_code": "ctx := context.Background()\ntx := client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {\n    // Perform operations\n    return nil\n})\nif err := tx; err != nil {\n    log.Fatal(err)\n}"
+        }
+      ]
+    }
+  },
+  {
+    "id": "500",
+    "example": "What is the recommended approach for performing DML operations in Spanner, especially for performance-sensitive scenarios?",
+    "rewrite": {
+      "theory": "While DML is suitable for most DML operations in Spanner, for performance-sensitive transactions that only involve INSERT operations and don't read any data, consider using Mutations for improved latency.",
+      "options": [
+        {
+          "mysql_code": "stmt, err := db.Prepare(\"INSERT INTO MyTable (Col1, Col2) VALUES (?, ?)\")",
+          "spanner_code": "m := []*spanner.Mutation{spanner.Insert(\"MyTable\", []string{\"Col1\", \"Col2\"}, []interface{}{\"value1\", \"value2\"})}\nif err := client.Apply(ctx, m); err != nil {\n    log.Fatal(err)\n}"
+        }
+      ]
+    }
+  }
+]
