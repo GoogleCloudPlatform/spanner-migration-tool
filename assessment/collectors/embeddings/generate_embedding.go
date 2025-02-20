@@ -1,5 +1,3 @@
-//go:build ignore
-
 /*
 	Copyright 2025 Google LLC
 
@@ -30,7 +28,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-type ExampleData struct {
+type MySqlMigrationConcept struct {
 	ID      string `json:"id"`
 	Example string `json:"example"`
 	Rewrite struct {
@@ -43,33 +41,33 @@ type ExampleData struct {
 	Embedding []float32 `json:"embedding,omitempty"`
 }
 
-func embedTextsFromFile(project, location, filePath, outputPath string) error {
+func createEmbededTextsFromFile(project, location, filePath, outputPath string) ([]MySqlMigrationConcept, error) {
 	ctx := context.Background()
 	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
 	model := "text-embedding-preview-0815"
 
 	client, err := aiplatform.NewPredictionClient(ctx, option.WithEndpoint(apiEndpoint))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer client.Close()
 
 	// Read the JSON file
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	var examples []ExampleData
-	if err := json.Unmarshal(data, &examples); err != nil {
-		return err
+	var mysqlMigrationConcepts []MySqlMigrationConcept
+	if err := json.Unmarshal(data, &mysqlMigrationConcepts); err != nil {
+		return nil, err
 	}
 
-	instances := make([]*structpb.Value, len(examples))
-	for i, example := range examples {
+	instances := make([]*structpb.Value, len(mysqlMigrationConcepts))
+	for i, concept := range mysqlMigrationConcepts {
 		instances[i] = structpb.NewStructValue(&structpb.Struct{
 			Fields: map[string]*structpb.Value{
-				"content":   structpb.NewStringValue(example.Example),
+				"content":   structpb.NewStringValue(concept.Example),
 				"task_type": structpb.NewStringValue("SEMANTIC_SIMILARITY"),
 			},
 		})
@@ -82,7 +80,7 @@ func embedTextsFromFile(project, location, filePath, outputPath string) error {
 
 	resp, err := client.Predict(ctx, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for i, prediction := range resp.Predictions {
@@ -91,11 +89,19 @@ func embedTextsFromFile(project, location, filePath, outputPath string) error {
 		for j, value := range values {
 			embeddings[j] = float32(value.GetNumberValue())
 		}
-		examples[i].Embedding = embeddings
+		mysqlMigrationConcepts[i].Embedding = embeddings
+	}
+	return mysqlMigrationConcepts, nil
+}
+
+func embedTextsFromFile(project, location, inputPath, outputPath string) error {
+	mysqlMigrationConcepts, err := createEmbededTextsFromFile(project, location, inputPath, outputPath)
+	if err != nil {
+		return err
 	}
 
 	// Save updated data to a new JSON file
-	outputData, err := json.MarshalIndent(examples, "", "  ")
+	outputData, err := json.MarshalIndent(mysqlMigrationConcepts, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -109,8 +115,8 @@ func embedTextsFromFile(project, location, filePath, outputPath string) error {
 }
 
 // Sample Usage
-//func main() {
-//	if err := embedTextsFromFile("span-cloud-testing", "us-central1", "concept_examples.json", "output.json"); err != nil {
-//		fmt.Println("Error:", err)
-//	}
-//}
+func main() {
+	if err := embedTextsFromFile("span-cloud-testing", "us-central1", "concept_examples.json", "outaput.json"); err != nil {
+		fmt.Println("Error:", err)
+	}
+}

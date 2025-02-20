@@ -1,5 +1,3 @@
-//go:build ignore
-
 /*
 	Copyright 2025 Google LLC
 
@@ -16,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 */
-package main
+package assessment
 
 import (
 	"bufio"
@@ -364,10 +362,10 @@ func main() {
 	location := "us-central1"
 	apiKey := "<API_KEY>"
 	conceptExamplePath := "embeddings/output.json"
-	filePath := "/usr/local/google/home/gauravpurohit/ai/sample/goEcommerceBackend/service/order/store.go"
+	filePath := "/Users/pratick/IdeaProjects/GoLang-Gin-CRUD-App-using-MySQL/app/repositories/user_repository.go"
 
-	mysqlSchemaPath := "/usr/local/google/home/gauravpurohit/ai/sample/goEcommerceBackend/mysql.sql"
-	spannerSchemaPath := "/usr/local/google/home/gauravpurohit/ai/sample/goEcommerceBackend/spanner.sql"
+	mysqlSchemaPath := "/Users/pratick/IdeaProjects/GoLang-Gin-CRUD-App-using-MySQL/my_queries.sql"
+	spannerSchemaPath := "/Users/pratick/IdeaProjects/GoLang-Gin-CRUD-App-using-MySQL/spanner.sql"
 	mysqlSchema, err := readFile(mysqlSchemaPath)
 	if err != nil {
 		fmt.Println("Error reading MySQL schema file:", err)
