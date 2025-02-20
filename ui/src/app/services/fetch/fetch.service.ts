@@ -131,6 +131,10 @@ export class FetchService {
     return this.http.get<string>(`${this.url}/downloadDDL`)
   }
 
+  getSpannerDDLWoComments(){
+    return this.http.get<string>(`${this.url}/downloadDDLWoComments`)
+  }
+
   getIssueDescription(){
     return this.http.get<{[key: string]: string}>(`${this.url}/issueDescription`)
   }
