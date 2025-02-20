@@ -499,18 +499,19 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 	spannerSchema := map[string]CreateTable{
 		"t1": {
 			Name:   "table1",
-			ColIds: []string{"c1", "c2", "c3"},
+			ColIds: []string{"c1", "c2", "c3", "c4"},
 			ColDefs: map[string]ColumnDef{
 				"c1": {Name: "productid", T: Type{Name: String, Len: MaxLength}},
 				"c2": {Name: "userid", T: Type{Name: String, Len: MaxLength}},
 				"c3": {Name: "quantity", T: Type{Name: Int64}},
+				"c4": {Name: "from", T: Type{Name: String, Len: MaxLength}},
 			},
 			ForeignKeys: []Foreignkey{
 				{
 					"fk_test",
-					[]string{"c1", "c2"},
+					[]string{"c1", "c2", "c4"},
 					"t2",
-					[]string{"c4", "c5"},
+					[]string{"c5", "c6", "c7"},
 					"f1",
 					constants.FK_CASCADE,
 					constants.FK_NO_ACTION,
@@ -519,7 +520,7 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 					"",
 					[]string{"c1"},
 					"t2",
-					[]string{"c4"},
+					[]string{"c5"},
 					"f2",
 					constants.FK_NO_ACTION,
 					constants.FK_NO_ACTION,
@@ -528,7 +529,7 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 					"fk_test2",
 					[]string{"c1", "c2"},
 					"t2",
-					[]string{"c4", "c5"},
+					[]string{"c5", "c6"},
 					"f1",
 					"",
 					"",
@@ -540,8 +541,9 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 			Name:   "table2",
 			ColIds: []string{"c4", "c5"},
 			ColDefs: map[string]ColumnDef{
-				"c4": {Name: "productid", T: Type{Name: String, Len: MaxLength}},
-				"c5": {Name: "userid", T: Type{Name: String, Len: MaxLength}},
+				"c5": {Name: "productid", T: Type{Name: String, Len: MaxLength}},
+				"c6": {Name: "userid", T: Type{Name: String, Len: MaxLength}},
+				"c7": {Name: "from", T: Type{Name: String, Len: MaxLength}},
 			},
 		},
 	}
@@ -554,10 +556,10 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 		expected   string
 		fk         Foreignkey
 	}{
-		{"no quote", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
-		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (`productid`, `userid`) REFERENCES `table2` (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"no quote", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid, from) REFERENCES table2 (productid, userid, from) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (`productid`, `userid`, `from`) REFERENCES `table2` (`productid`, `userid`, `from`) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
 		{"no constraint name", "t1", false, "", "ALTER TABLE table1 ADD FOREIGN KEY (productid) REFERENCES table2 (productid) ON DELETE NO ACTION", spannerSchema["t1"].ForeignKeys[1]},
-		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid, \"from\") REFERENCES table2 (productid, userid, \"from\") ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
 		{"foreign key constraints not supported i.e. dont print ON DELETE", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test2 FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[2]},
 	}
 	for _, tc := range tests {

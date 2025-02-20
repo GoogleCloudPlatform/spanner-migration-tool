@@ -538,7 +538,7 @@ func (k Foreignkey) PrintForeignKeyAlterTable(spannerSchema Schema, c Config, ta
 	var cols, referCols []string
 	for i, col := range k.ColIds {
 		cols = append(cols, c.quote(spannerSchema[tableId].ColDefs[col].Name))
-		referCols = append(referCols, spannerSchema[k.ReferTableId].ColDefs[k.ReferColumnIds[i]].Name)
+		referCols = append(referCols, c.quote(spannerSchema[k.ReferTableId].ColDefs[k.ReferColumnIds[i]].Name))
 	}
 	var s string
 	if k.Name != "" {
