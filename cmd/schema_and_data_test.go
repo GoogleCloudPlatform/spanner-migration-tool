@@ -15,112 +15,109 @@
 package cmd
 
 import (
-	"flag"
-	"testing"
+        "flag"
+        "testing"
 
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/stretchr/testify/assert"
+        "github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+        "github.com/stretchr/testify/assert"
 )
 
-func TestSchemaAndDataSetFlags(t *testing.T) {
-	testCases:=struct {
-		testName       string
-		flagArgs      string
-		expectedValues SchemaAndDataCmd
-	}{
-		{
-			testName: "Default Values",
-			expectedValues: SchemaAndDataCmd{
-				source:           "",
-				sourceProfile:    "",
-				target:           "Spanner",
-				targetProfile:    "",
-				filePrefix:       "",
-				WriteLimit:       DefaultWritersLimit,
-				dryRun:           false,
-				logLevel:         "DEBUG",
-				SkipForeignKeys:  false,
-				validate:         false,
-				dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
-			},
-		},
-		{
-			testName: "Non-Default Values",
-			flagArgs:string{
-				"-source=MySQL",
-				"-source-profile=file=test.sql",
-				"-target=Spanner",
-				"-target-profile=instance=test-instance",
-				"-prefix=test-prefix",
-				"-write-limit=1000",
-				"-dry-run",
-				"-log-level=INFO",
-				"-skip-foreign-keys",
-				"-validate",
-			},
-			expectedValues: SchemaAndDataCmd{
-				source:           "MySQL",
-				sourceProfile:    "file=test.sql",
-				target:           "Spanner",
-				targetProfile:    "instance=test-instance",
-				filePrefix:       "test-prefix",
-				WriteLimit:       1000,
-				dryRun:           true,
-				logLevel:         "INFO",
-				SkipForeignKeys:  true,
-				validate:         true,
-				dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
-			},
-		},
-		{
-			testName: "Invalid Log Level",
-			flagArgs:string{
-				"-log-level=INVALID",
-			},
-			expectedValues: SchemaAndDataCmd{
-				source:           "",
-				sourceProfile:    "",
-				target:           "Spanner",
-				targetProfile:    "",
-				filePrefix:       "",
-				WriteLimit:       DefaultWritersLimit,
-				dryRun:           false,
-				logLevel:         "DEBUG",
-				SkipForeignKeys:  false,
-				validate:         false,
-				dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
-			},
-		},
-		{
-			testName: "Empty Source Profile",
-			flagArgs:string{
-				"-source=MySQL",
-				"-source-profile=",
-			},
-			expectedValues: SchemaAndDataCmd{
-				source:           "MySQL",
-				sourceProfile:    "",
-				target:           "Spanner",
-				targetProfile:    "",
-				filePrefix:       "",
-				WriteLimit:       DefaultWritersLimit,
-				dryRun:           false,
-				logLevel:         "DEBUG",
-				SkipForeignKeys:  false,
-				validate:         false,
-				dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
-			},
-		},
-	}
+func TestSchemaAndDataCmd_SetFlags_DefaultValues(t *testing.T) {
+        expectedValues:= SchemaAndDataCmd{
+                source:           "",
+                sourceProfile:    "",
+                target:           "Spanner",
+                targetProfile:    "",
+                filePrefix:       "",
+                WriteLimit:       DefaultWritersLimit,
+                dryRun:           false,
+                logLevel:         "DEBUG",
+                SkipForeignKeys:  false,
+                validate:         false,
+                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+        }
 
-	for _, tc:= range testCases {
-		t.Run(tc.testName, func(t *testing.T) {
-			fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
-			fs.Parse(tc.flagArgs)
+        schemaAndDataCmd:= SchemaAndDataCmd{}
+        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
+        schemaAndDataCmd.SetFlags(fs)
+        assert.Equal(t, expectedValues, schemaAndDataCmd, "Default Values")
+}
 
-			schemaAndDataCmd:= SchemaAndDataCmd{}
-			schemaAndDataCmd.SetFlags(fs)
-			assert.Equal(t, tc.expectedValues, schemaAndDataCmd, tc.testName)
-		})
-	}
+func TestSchemaAndDataCmd_SetFlags_NonDefaultValues(t *testing.T) {
+        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
+        fs.String("source", "MySQL", "")
+        fs.String("source-profile", "file=test.sql", "")
+        fs.String("target", "Spanner", "")
+        fs.String("target-profile", "instance=test-instance", "")
+        fs.String("prefix", "test-prefix", "")
+        fs.Int64("write-limit", 1000, "")
+        fs.Bool("dry-run", true, "")
+        fs.String("log-level", "INFO", "")
+        fs.Bool("skip-foreign-keys", true, "")
+        fs.Bool("validate", true, "")
+
+        expectedValues:= SchemaAndDataCmd{
+                source:           "MySQL",
+                sourceProfile:    "file=test.sql",
+                target:           "Spanner",
+                targetProfile:    "instance=test-instance",
+                filePrefix:       "test-prefix",
+                WriteLimit:       1000,
+                dryRun:           true,
+                logLevel:         "INFO",
+                SkipForeignKeys:  true,
+                validate:         true,
+                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+        }
+
+        schemaAndDataCmd:= SchemaAndDataCmd{}
+        schemaAndDataCmd.SetFlags(fs)
+        assert.Equal(t, expectedValues, schemaAndDataCmd, "Non-Default Values")
+}
+
+func TestSchemaAndDataCmd_SetFlags_InvalidLogLevel(t *testing.T) {
+        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
+        fs.String("log-level", "INVALID", "")
+
+        expectedValues:= SchemaAndDataCmd{
+                source:           "",
+                sourceProfile:    "",
+                target:           "Spanner",
+                targetProfile:    "",
+                filePrefix:       "",
+                WriteLimit:       DefaultWritersLimit,
+                dryRun:           false,
+                logLevel:         "DEBUG",
+                SkipForeignKeys:  false,
+                validate:         false,
+                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+        }
+
+        schemaAndDataCmd:= SchemaAndDataCmd{}
+        schemaAndDataCmd.SetFlags(fs)
+        assert.Equal(t, expectedValues, schemaAndDataCmd, "Invalid Log Level")
+}
+
+func TestSchemaAndDataCmd_SetFlags_EmptySourceProfile(t *testing.T) {
+        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
+        fs.String("source", "MySQL", "")
+        fs.String("source-profile", "", "")
+
+        expectedValues:= SchemaAndDataCmd{
+                source:           "MySQL",
+                sourceProfile:    "",
+                target:           "Spanner",
+                targetProfile:    "",
+                filePrefix:       "",
+                WriteLimit:       DefaultWritersLimit,
+                dryRun:           false,
+                logLevel:         "DEBUG",
+                SkipForeignKeys:  false,
+                validate:         false,
+                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+        }
+
+        schemaAndDataCmd:= SchemaAndDataCmd{}
+        schemaAndDataCmd.SetFlags(fs)
+        assert.Equal(t, expectedValues, schemaAndDataCmd, "Empty Source Profile")
 }
