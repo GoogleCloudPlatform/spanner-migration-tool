@@ -44,6 +44,7 @@ func TestSchemaAndDataCmd_SetFlags_DefaultValues(t *testing.T) {
 }
 
 func TestSchemaAndDataCmd_SetFlags_NonDefaultValues(t *testing.T) {
+        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
         fs.String("source", "MySQL", "")
         fs.String("source-profile", "file=test.sql", "")
         fs.String("target", "Spanner", "")
@@ -70,12 +71,12 @@ func TestSchemaAndDataCmd_SetFlags_NonDefaultValues(t *testing.T) {
         }
 
         schemaAndDataCmd:= SchemaAndDataCmd{}
-        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
         schemaAndDataCmd.SetFlags(fs)
         assert.Equal(t, expectedValues, schemaAndDataCmd, "Non-Default Values")
 }
 
 func TestSchemaAndDataCmd_SetFlags_InvalidLogLevel(t *testing.T) {
+        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
         fs.String("log-level", "INVALID", "")
 
         expectedValues:= SchemaAndDataCmd{
@@ -93,12 +94,12 @@ func TestSchemaAndDataCmd_SetFlags_InvalidLogLevel(t *testing.T) {
         }
 
         schemaAndDataCmd:= SchemaAndDataCmd{}
-        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
         schemaAndDataCmd.SetFlags(fs)
         assert.Equal(t, expectedValues, schemaAndDataCmd, "Invalid Log Level")
 }
 
 func TestSchemaAndDataCmd_SetFlags_EmptySourceProfile(t *testing.T) {
+        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
         fs.String("source", "MySQL", "")
         fs.String("source-profile", "", "")
 
@@ -117,7 +118,6 @@ func TestSchemaAndDataCmd_SetFlags_EmptySourceProfile(t *testing.T) {
         }
 
         schemaAndDataCmd:= SchemaAndDataCmd{}
-        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
         schemaAndDataCmd.SetFlags(fs)
         assert.Equal(t, expectedValues, schemaAndDataCmd, "Empty Source Profile")
 }
