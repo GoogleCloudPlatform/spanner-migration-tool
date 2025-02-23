@@ -44,7 +44,7 @@ func TestSchemaAndDataCmd_SetFlags_DefaultValues(t *testing.T) {
 }
 
 func TestSchemaAndDataCmd_SetFlags_NonDefaultValues(t *testing.T) {
-        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
+        fs:= flag.NewFlagSet("testSetFlagsnondefault", flag.ContinueOnError)
         fs.String("source", "MySQL", "")
         fs.String("source-profile", "file=test.sql", "")
         fs.String("target", "Spanner", "")
@@ -76,7 +76,7 @@ func TestSchemaAndDataCmd_SetFlags_NonDefaultValues(t *testing.T) {
 }
 
 func TestSchemaAndDataCmd_SetFlags_InvalidLogLevel(t *testing.T) {
-        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
+        fs:= flag.NewFlagSet("testSetFlagsinvalidlog", flag.ContinueOnError)
         fs.String("log-level", "INVALID", "")
 
         expectedValues:= SchemaAndDataCmd{
@@ -99,7 +99,7 @@ func TestSchemaAndDataCmd_SetFlags_InvalidLogLevel(t *testing.T) {
 }
 
 func TestSchemaAndDataCmd_SetFlags_EmptySourceProfile(t *testing.T) {
-        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
+        fs:= flag.NewFlagSet("testSetFlagsemptysource", flag.ContinueOnError)
         fs.String("source", "MySQL", "")
         fs.String("source-profile", "", "")
 
