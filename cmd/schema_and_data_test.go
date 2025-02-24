@@ -10,7 +10,7 @@ import (
 func TestSchemaAndDataSetFlags(t *testing.T) {
         testCases:=[]struct {
                 testName       string
-                flagArgs      string
+                flagArgs      []string
                 expectedValues SchemaAndDataCmd
         }{
                 {
