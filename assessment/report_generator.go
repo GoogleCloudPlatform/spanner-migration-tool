@@ -17,10 +17,11 @@ package assessment
 import (
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
-func GenerateReport(assessmentOutput AssessmentOutput) {
+func GenerateReport(assessmentOutput utils.AssessmentOutput) {
 	//pull data from assessment output
 	//Write to report in require format
 	//publish report locally/on GCS
