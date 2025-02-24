@@ -15,7 +15,7 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
         }{
                 {
                         testName: "Default Values",
-                        flagArgs: string{},
+                        flagArgs: []string{},
                         expectedValues: SchemaAndDataCmd{
                                 source:           "",
                                 sourceProfile:    "",
@@ -32,17 +32,17 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
                 },
                 {
                         testName: "Non-Default Values",
-                        flagArgs:string{
-                                "-source=MySQL",
-                                "-source-profile=file=test.sql",
-                                "-target=Spanner",
-                                "-target-profile=instance=test-instance",
-                                "-prefix=test-prefix",
-                                "-write-limit=1000",
-                                "-dry-run",
-                                "-log-level=INFO",
-                                "-skip-foreign-keys",
-                                "-validate",
+                        flagArgs:[]string{
+                            "-source=MySQL",
+                            "-source-profile=file=test.sql",
+                            "-target=Spanner",
+                            "-target-profile=instance=test-instance",
+                            "-prefix=test-prefix",
+                            "-write-limit=1000",
+                            "-dry-run",
+                            "-log-level=INFO",
+                            "-skip-foreign-keys",
+                            "-validate",
                         },
                         expectedValues: SchemaAndDataCmd{
                                 source:           "MySQL",
