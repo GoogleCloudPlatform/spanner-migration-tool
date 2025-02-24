@@ -28,8 +28,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 )
 
-// This is sample implementation to bootstrap.
-// Once the collectors are implemented, this can be deleted
 type InfoSchemaCollector struct {
 	tables           []utils.TableAssessment
 	indexes          []utils.IndexAssessment
