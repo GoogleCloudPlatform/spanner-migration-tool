@@ -3,19 +3,19 @@ package cmd
 import (
         "flag"
         "testing"
-
         "github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
         "github.com/stretchr/testify/assert"
 )
 
 func TestSchemaAndDataSetFlags(t *testing.T) {
-        testCases:=struct {
+        testCases:=[]struct {
                 testName       string
                 flagArgs      string
                 expectedValues SchemaAndDataCmd
         }{
                 {
                         testName: "Default Values",
+                        flagArgs: string{},
                         expectedValues: SchemaAndDataCmd{
                                 source:           "",
                                 sourceProfile:    "",
