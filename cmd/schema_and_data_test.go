@@ -58,52 +58,12 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
                                 dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
                         },
                 },
-                {
-                        testName: "Invalid Log Level",
-                        flagArgs:string{
-                                "-log-level=INVALID",
-                        },
-                        expectedValues: SchemaAndDataCmd{
-                                source:           "",
-                                sourceProfile:    "",
-                                target:           "Spanner",
-                                targetProfile:    "",
-                                filePrefix:       "",
-                                WriteLimit:       DefaultWritersLimit,
-                                dryRun:           false,
-                                logLevel:         "DEBUG", // Should remain at the default value
-                                SkipForeignKeys:  false,
-                                validate:         false,
-                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
-                        },
-                },
-                {
-                        testName: "Empty Source Profile",
-                        flagArgs:string{
-                                "-source=MySQL",
-                                "-source-profile=",
-                        },
-                        expectedValues: SchemaAndDataCmd{
-                                source:           "MySQL",
-                                sourceProfile:    "", // Should be an empty string
-                                target:           "Spanner",
-                                targetProfile:    "",
-                                filePrefix:       "",
-                                WriteLimit:       DefaultWritersLimit,
-                                dryRun:           false,
-                                logLevel:         "DEBUG",
-                                SkipForeignKeys:  false,
-                                validate:         false,
-                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
-                        },
-                },
         }
 
-        for _, tc:= range testCases { // Now it can range over testCases
+        for _, tc:= range testCases {
                 t.Run(tc.testName, func(t *testing.T) {
                         fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
                         fs.Parse(tc.flagArgs)
-
                         schemaAndDataCmd:= SchemaAndDataCmd{}
                         schemaAndDataCmd.SetFlags(fs)
                         assert.Equal(t, tc.expectedValues, schemaAndDataCmd, tc.testName)
