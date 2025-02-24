@@ -32,7 +32,7 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
                 },
                 {
                         testName: "Non-Default Values",
-                        flagArgs:[]string{
+                        flagArgs:string{
                             "-source=MySQL",
                             "-source-profile=file=test.sql",
                             "-target=Spanner",
