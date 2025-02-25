@@ -23,14 +23,14 @@ import (
 )
 
 func TestSchemaAndDataSetFlags(t *testing.T) {
-        testCases := []struct {
+        testCases:=[]struct {
                 testName       string
                 flagArgs      []string
                 expectedValues SchemaAndDataCmd
         }{
                 {
                         testName: "Default Values",
-                        flagArgs: []string{},
+                        flagArgs:[]string{},
                         expectedValues: SchemaAndDataCmd{
                                 source:           "",
                                 sourceProfile:    "",
@@ -183,7 +183,6 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
                         fs := flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
                         schemaAndDataCmd := SchemaAndDataCmd{}
                         schemaAndDataCmd.SetFlags(fs)
-                        err := fs.Parse(tc.flagArgs)
                         assert.Equal(t, tc.expectedValues, schemaAndDataCmd, tc.testName)
                 })
         }

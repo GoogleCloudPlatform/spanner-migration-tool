@@ -23,7 +23,7 @@ import (
 )
 
 func TestDataSetFlags(t *testing.T) {
-        testCases := []struct {
+        testCases:=[]struct {
                 testName       string
                 flagArgs      []string
                 expectedValues DataCmd
@@ -47,7 +47,7 @@ func TestDataSetFlags(t *testing.T) {
                 },
                 {
                         testName: "Source and Target",
-                        flagArgs: []string{"--source=PostgreSQL", "--target=Spanner"},
+                        flagArgs:[]string{"--source=PostgreSQL", "--target=Spanner"},
                         expectedValues: DataCmd{
                                 source:           "PostgreSQL",
                                 sourceProfile:    "",
@@ -183,7 +183,6 @@ func TestDataSetFlags(t *testing.T) {
                         fs := flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
                         dataCmd := DataCmd{}
                         dataCmd.SetFlags(fs)
-                        err := fs.Parse(tc.flagArgs)
                         assert.Equal(t, tc.expectedValues, dataCmd, tc.testName)
                 })
         }
