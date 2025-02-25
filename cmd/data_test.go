@@ -81,7 +81,7 @@ func TestDataSetFlags(t *testing.T) {
                 },
                 {
                         testName: "File Prefix and Write Limit",
-                        flagArgs: []string{"--file-prefix=test", "--write-limit=100"},
+                        flagArgs: []string{"--prefix=test", "--write-limit=100"},
                         expectedValues: DataCmd{
                                 source:           "",
                                 sourceProfile:    "",
@@ -154,7 +154,7 @@ func TestDataSetFlags(t *testing.T) {
                                 "--source-profile=mysql.json",
                                 "--target=Spanner",
                                 "--target-profile=spanner.json",
-                                "--file-prefix=output",
+                                "--prefix=output",
                                 "--write-limit=50",
                                 "--dry-run",
                                 "--log-level=WARN",
