@@ -15,31 +15,44 @@
 package cmd
 
 import (
-	"flag"
-	"testing"
-
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/stretchr/testify/assert"
+        "flag"
+        "testing"
+        "github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+        "github.com/stretchr/testify/assert"
 )
 
 func TestSchemaAndDataSetFlags(t *testing.T) {
-	testName := "Default Values"
-	expectedValues := SchemaAndDataCmd{
-		source:           "",
-		sourceProfile:    "",
-		target:           "Spanner",
-		targetProfile:    "",
-		filePrefix:       "",
-		WriteLimit:       DefaultWritersLimit,
-		dryRun:           false,
-		logLevel:         "DEBUG",
-		SkipForeignKeys:  false,
-		validate:         false,
-		dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
-	}
+        testCases:=[]struct {
+                testName       string
+                flagArgs      []string
+                expectedValues SchemaAndDataCmd
+        }{
+                {
+                        testName: "Default Values",
+                        flagArgs: []string{},
+                        expectedValues: SchemaAndDataCmd{
+                                source:           "",
+                                sourceProfile:    "",
+                                target:           "Spanner",
+                                targetProfile:    "",
+                                filePrefix:       "",
+                                WriteLimit:       DefaultWritersLimit,
+                                dryRun:           false,
+                                logLevel:         "DEBUG",
+                                SkipForeignKeys:  false,
+                                validate:         false,
+                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+                        },
+                },
+        }
 
-	schemaAndDataCmd := SchemaAndDataCmd{}
-	fs := flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
-	schemaAndDataCmd.SetFlags(fs)
-	assert.Equal(t, expectedValues, schemaAndDataCmd, testName)
+        for _, tc:= range testCases {
+                t.Run(tc.testName, func(t *testing.T) {
+                        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
+                        fs.Parse(tc.flagArgs)
+                        schemaAndDataCmd:= SchemaAndDataCmd{}
+                        schemaAndDataCmd.SetFlags(fs)
+                        assert.Equal(t, tc.expectedValues, schemaAndDataCmd, tc.testName)
+                })
+        }
 }
