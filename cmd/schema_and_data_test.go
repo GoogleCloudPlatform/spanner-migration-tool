@@ -17,12 +17,13 @@ package cmd
 import (
         "flag"
         "testing"
+
         "github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
         "github.com/stretchr/testify/assert"
 )
 
 func TestSchemaAndDataSetFlags(t *testing.T) {
-        testCases:=[]struct {
+        testCases := []struct {
                 testName       string
                 flagArgs      []string
                 expectedValues SchemaAndDataCmd
@@ -44,14 +45,145 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
                                 dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
                         },
                 },
+                {
+                        testName: "Source and Target",
+                        flagArgs: []string{"--source=PostgreSQL", "--target=Spanner"},
+                        expectedValues: SchemaAndDataCmd{
+                                source:           "PostgreSQL",
+                                sourceProfile:    "",
+                                target:           "Spanner",
+                                targetProfile:    "",
+                                filePrefix:       "",
+                                WriteLimit:       DefaultWritersLimit,
+                                dryRun:           false,
+                                logLevel:         "DEBUG",
+                                SkipForeignKeys:  false,
+                                validate:         false,
+                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+                        },
+                },
+                {
+                        testName: "Source and Target Profiles",
+                        flagArgs: []string{"--source-profile=source.json", "--target-profile=target.json"},
+                        expectedValues: SchemaAndDataCmd{
+                                source:           "",
+                                sourceProfile:    "source.json",
+                                target:           "Spanner",
+                                targetProfile:    "target.json",
+                                filePrefix:       "",
+                                WriteLimit:       DefaultWritersLimit,
+                                dryRun:           false,
+                                logLevel:         "DEBUG",
+                                SkipForeignKeys:  false,
+                                validate:         false,
+                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+                        },
+                },
+                {
+                        testName: "File Prefix and Write Limit",
+                        flagArgs: []string{"--file-prefix=test", "--write-limit=100"},
+                        expectedValues: SchemaAndDataCmd{
+                                source:           "",
+                                sourceProfile:    "",
+                                target:           "Spanner",
+                                targetProfile:    "",
+                                filePrefix:       "test",
+                                WriteLimit:       100,
+                                dryRun:           false,
+                                logLevel:         "DEBUG",
+                                SkipForeignKeys:  false,
+                                validate:         false,
+                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+                        },
+                },
+                {
+                        testName: "Dry Run and Log Level",
+                        flagArgs: []string{"--dry-run", "--log-level=INFO"},
+                        expectedValues: SchemaAndDataCmd{
+                                source:           "",
+                                sourceProfile:    "",
+                                target:           "Spanner",
+                                targetProfile:    "",
+                                filePrefix:       "",
+                                WriteLimit:       DefaultWritersLimit,
+                                dryRun:           true,
+                                logLevel:         "INFO",
+                                SkipForeignKeys:  false,
+                                validate:         false,
+                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+                        },
+                },
+                {
+                        testName: "Skip Foreign Keys and Validate",
+                        flagArgs: []string{"--skip-foreign-keys", "--validate"},
+                        expectedValues: SchemaAndDataCmd{
+                                source:           "",
+                                sourceProfile:    "",
+                                target:           "Spanner",
+                                targetProfile:    "",
+                                filePrefix:       "",
+                                WriteLimit:       DefaultWritersLimit,
+                                dryRun:           false,
+                                logLevel:         "DEBUG",
+                                SkipForeignKeys:  true,
+                                validate:         true,
+                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+                        },
+                },
+                {
+                        testName: "Custom Dataflow Template",
+                        flagArgs: []string{"--dataflow-template=gs://my-bucket/my-template"},
+                        expectedValues: SchemaAndDataCmd{
+                                source:           "",
+                                sourceProfile:    "",
+                                target:           "Spanner",
+                                targetProfile:    "",
+                                filePrefix:       "",
+                                WriteLimit:       DefaultWritersLimit,
+                                dryRun:           false,
+                                logLevel:         "DEBUG",
+                                SkipForeignKeys:  false,
+                                validate:         false,
+                                dataflowTemplate: "gs://my-bucket/my-template",
+                        },
+                },
+                {
+                        testName: "All Flags Combined",
+                        flagArgs: []string{
+                                "--source=MySQL",
+                                "--source-profile=mysql.json",
+                                "--target=Spanner",
+                                "--target-profile=spanner.json",
+                                "--file-prefix=output",
+                                "--write-limit=50",
+                                "--dry-run",
+                                "--log-level=WARN",
+                                "--skip-foreign-keys",
+                                "--validate",
+                                "--dataflow-template=gs://custom/template",
+                        },
+                        expectedValues: SchemaAndDataCmd{
+                                source:           "MySQL",
+                                sourceProfile:    "mysql.json",
+                                target:           "Spanner",
+                                targetProfile:    "spanner.json",
+                                filePrefix:       "output",
+                                WriteLimit:       50,
+                                dryRun:           true,
+                                logLevel:         "WARN",
+                                SkipForeignKeys:  true,
+                                validate:         true,
+                                dataflowTemplate: "gs://custom/template",
+                        },
+                },
         }
 
-        for _, tc:= range testCases {
+        for _, tc := range testCases {
                 t.Run(tc.testName, func(t *testing.T) {
-                        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
-                        fs.Parse(tc.flagArgs)
-                        schemaAndDataCmd:= SchemaAndDataCmd{}
+                        fs := flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
+                        schemaAndDataCmd := SchemaAndDataCmd{}
                         schemaAndDataCmd.SetFlags(fs)
+                        err := fs.Parse(tc.flagArgs)
                         assert.Equal(t, tc.expectedValues, schemaAndDataCmd, tc.testName)
                 })
         }
