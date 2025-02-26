@@ -18,15 +18,21 @@ package assessment
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/aiplatform/apiv1/aiplatformpb"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"go.uber.org/zap"
 	"google.golang.org/api/option"
 	"google.golang.org/protobuf/types/known/structpb"
 )
+
+//go:embed concept_examples.json
+var mysql_migration_concept []byte
 
 type MySqlMigrationConcept struct {
 	ID      string `json:"id"`
@@ -41,7 +47,7 @@ type MySqlMigrationConcept struct {
 	Embedding []float32 `json:"embedding,omitempty"`
 }
 
-func createEmbededTextsFromFile(project, location, filePath, outputPath string) ([]MySqlMigrationConcept, error) {
+func createEmbededTextsFromFile(project, location string) ([]MySqlMigrationConcept, error) {
 	ctx := context.Background()
 	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
 	model := "text-embedding-preview-0815"
@@ -53,7 +59,7 @@ func createEmbededTextsFromFile(project, location, filePath, outputPath string) 
 	defer client.Close()
 
 	// Read the JSON file
-	data, err := ioutil.ReadFile(filePath)
+	var data = mysql_migration_concept
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +101,7 @@ func createEmbededTextsFromFile(project, location, filePath, outputPath string) 
 }
 
 func embedTextsFromFile(project, location, inputPath, outputPath string) error {
-	mysqlMigrationConcepts, err := createEmbededTextsFromFile(project, location, inputPath, outputPath)
+	mysqlMigrationConcepts, err := createEmbededTextsFromFile(project, location)
 	if err != nil {
 		return err
 	}
@@ -110,13 +116,13 @@ func embedTextsFromFile(project, location, inputPath, outputPath string) error {
 		return err
 	}
 
-	fmt.Println("Embeddings saved to", outputPath)
+	logger.Log.Debug("Embeddings saved to", zap.String("fkStmt", outputPath))
 	return nil
 }
 
 // Sample Usage
-func main() {
-	if err := embedTextsFromFile("span-cloud-testing", "us-central1", "concept_examples.json", "outaput.json"); err != nil {
-		fmt.Println("Error:", err)
-	}
-}
+// func main() {
+// 	if err := embedTextsFromFile("span-cloud-testing", "us-central1", "concept_examples.json", "output.json"); err != nil {
+// 		fmt.Println("Error:", err)
+// 	}
+// }

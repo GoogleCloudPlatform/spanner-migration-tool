@@ -33,35 +33,35 @@ import (
 
 const EmbeddingModel = "text-embedding-preview-0815"
 
-type ExampleRecord struct {
-	ID      string `json:"id"`
-	Example string `json:"example"`
-	Rewrite struct {
-		Theory  string `json:"theory"`
-		Options []struct {
-			MySQLCode   string `json:"mysql_code"`
-			SpannerCode string `json:"spanner_code"`
-		} `json:"options"`
-	} `json:"rewrite"`
-	ExampleEmbedding []float32 `json:"embedding,omitempty"`
+type MysqlConceptDb struct {
+	data map[string]MySqlMigrationConcept
 }
 
-type ExampleDb struct {
-	data map[string]ExampleRecord
+func NewMysqlConceptDb(projectId, location string) (*MysqlConceptDb, error) {
+	mysqlMigrationConcepts, err := createEmbededTextsFromFile(projectId, location)
+	if err != nil {
+		return nil, err
+	}
+
+	db := &MysqlConceptDb{data: make(map[string]MySqlMigrationConcept)}
+	for _, concept := range mysqlMigrationConcepts {
+		db.data[concept.ID] = concept
+	}
+	return db, nil
 }
 
-func NewExampleDb(filePath string) (*ExampleDb, error) {
+func NewExampleDb(filePath string) (*MysqlConceptDb, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	var records []ExampleRecord
+	var records []MySqlMigrationConcept
 	if err := json.NewDecoder(file).Decode(&records); err != nil {
 		return nil, err
 	}
-	db := &ExampleDb{data: make(map[string]ExampleRecord)}
+	db := &MysqlConceptDb{data: make(map[string]MySqlMigrationConcept)}
 	for _, record := range records {
 		db.data[record.ID] = record
 	}
@@ -124,7 +124,7 @@ func embedTexts(project, location string, texts []string) ([][]float32, error) {
 	return embeddings, nil
 }
 
-func (db *ExampleDb) Search(searchTerms []string, project, location string, distance float32, topK int) map[string]map[string]interface{} {
+func (db *MysqlConceptDb) Search(searchTerms []string, project, location string, distance float32, topK int) map[string]map[string]interface{} {
 	if len(searchTerms) == 0 {
 		return nil
 	}
@@ -142,7 +142,7 @@ func (db *ExampleDb) Search(searchTerms []string, project, location string, dist
 
 	for _, record := range db.data {
 		for _, searchEmbedding := range searchEmbeddings {
-			similarity := cosineSimilarity(searchEmbedding, record.ExampleEmbedding)
+			similarity := cosineSimilarity(searchEmbedding, record.Embedding)
 			if similarity >= targetSimilarity {
 				results = append(results, struct {
 					Similarity float32
@@ -170,16 +170,16 @@ func (db *ExampleDb) Search(searchTerms []string, project, location string, dist
 }
 
 // Sample Usage
-func main() {
-	db, err := NewExampleDb("output.json")
-	if err != nil {
-		log.Fatalf("Failed to load database: %v", err)
-	}
+// func main() {
+// 	db, err := NewExampleDb("output.json")
+// 	if err != nil {
+// 		log.Fatalf("Failed to load database: %v", err)
+// 	}
 
-	searchResults := db.Search([]string{
-		"How to migrate from `AUTO_INCREMENT` in PG to Spanner?",
-	}, "span-cloud-testing", "us-central1", 0.25, 3)
+// 	searchResults := db.Search([]string{
+// 		"How to migrate from `AUTO_INCREMENT` in PG to Spanner?",
+// 	}, "span-cloud-testing", "us-central1", 0.25, 3)
 
-	resultJSON, _ := json.MarshalIndent(searchResults, "", "  ")
-	fmt.Println(string(resultJSON))
-}
+// 	resultJSON, _ := json.MarshalIndent(searchResults, "", "  ")
+// 	fmt.Println(string(resultJSON))
+// }

@@ -28,6 +28,8 @@ import (
 	"cloud.google.com/go/vertexai/genai"
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/embeddings"
 	dependencyAnalyzer "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/project_analyzer"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"go.uber.org/zap"
 )
 
 // MigrationSummarizer holds the LLM models and example databases
@@ -37,8 +39,10 @@ type MigrationSummarizer struct {
 	client             *genai.Client
 	modelPro           *genai.GenerativeModel
 	modelFlash         *genai.GenerativeModel
-	conceptExampleDB   *assessment.ExampleDb
+	conceptExampleDB   *assessment.MysqlConceptDb
 	dependencyAnalyzer dependencyAnalyzer.DependencyAnalyzer
+	sourceSchema       string
+	targetSchema       string
 }
 
 type AskQuestionsOutput struct {
@@ -46,7 +50,7 @@ type AskQuestionsOutput struct {
 }
 
 // NewMigrationSummarizer initializes a new MigrationSummarizer
-func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *string, projectID, location, conceptExamplePath string) (*MigrationSummarizer, error) {
+func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *string, projectID, location, sourceSchema, targetSchema string) (*MigrationSummarizer, error) {
 	if googleGenerativeAIAPIKey != nil {
 		os.Setenv("GOOGLE_API_KEY", *googleGenerativeAIAPIKey)
 	}
@@ -56,7 +60,7 @@ func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *strin
 		return nil, fmt.Errorf("failed to create Vertex AI client: %w", err)
 	}
 
-	conceptExampleDB, err := assessment.NewExampleDb(conceptExamplePath)
+	conceptExampleDB, err := assessment.NewMysqlConceptDb(projectID, location)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load code example DB: %w", err)
 	}
@@ -68,6 +72,8 @@ func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *strin
 		modelFlash:         client.GenerativeModel("gemini-1.5-flash-001"),
 		conceptExampleDB:   conceptExampleDB,
 		dependencyAnalyzer: dependencyAnalyzer.AnalyzerFactory("go"),
+		sourceSchema:       sourceSchema,
+		targetSchema:       targetSchema,
 	}, nil
 }
 
@@ -130,7 +136,7 @@ func (m *MigrationSummarizer) MigrationCodeConversionInvoke(
 	var output AskQuestionsOutput
 	err = json.Unmarshal([]byte(response), &output) // Convert JSON string to struct
 	if err != nil {
-		fmt.Println("Error converting to struct:", err)
+		logger.Log.Debug("Error converting to struct: " + err.Error())
 	}
 
 	finalPrompt := originalPrompt
@@ -146,7 +152,7 @@ func (m *MigrationSummarizer) MigrationCodeConversionInvoke(
 					if rewrite, ok := record["rewrite"].(string); ok {
 						conceptSearchResults[i] = append(conceptSearchResults[i], rewrite)
 					} else {
-						fmt.Println("Error: 'rewrite' field is not a string")
+						logger.Log.Debug("Error: 'rewrite' field is not a string")
 					}
 				}
 			}
@@ -158,14 +164,17 @@ func (m *MigrationSummarizer) MigrationCodeConversionInvoke(
 		}
 	}
 
-	fmt.Println(finalPrompt)
+	logger.Log.Debug("Final Prompt: " + finalPrompt)
 
 	resp, err = m.modelPro.GenerateContent(ctx, genai.Text(finalPrompt))
+	if err != nil {
+		return "", err
+	}
 	if p, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
 		response = string(p)
 	}
 
-	fmt.Println(response)
+	logger.Log.Debug("Final Response: " + response)
 
 	response = ParseJSONWithRetries(m.modelPro, finalPrompt, response, 2, identifier)
 
@@ -224,15 +233,15 @@ func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, o
 			return response
 		}
 
-		errMessage := fmt.Sprintf("JSON parsing error: %v", err)
+		errMessage := fmt.Sprintf("Error: %v", err)
+		logger.Log.Debug("Received error while parsing: " + errMessage)
 
 		newPrompt := fmt.Sprintf(promptTemplate, originalPrompt, originalResponse, errMessage)
 
-		fmt.Println("Received error while parsing: " + string(errMessage))
-		fmt.Println(response)
+		logger.Log.Debug(response)
 		resp, err := model.GenerateContent(context.Background(), genai.Text(newPrompt))
 		if err != nil {
-			log.Fatalf("Failed to get response from model: %v", err)
+			logger.Log.Fatal("Failed to get response from model: " + fmt.Sprintf("Error: %v", err))
 		}
 		if p, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
 			originalResponse = string(p)
@@ -241,27 +250,30 @@ func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, o
 	return ""
 }
 
-func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, methodChanges, oldSchema, newSchema string) string {
+func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, methodChanges string) (*CodeAssessment, string) {
 	var content string
 	var err error
+	var codeAssessment *CodeAssessment
 
 	// Read file content if not provided
 	content, err = readFile(filepath)
 	if err != nil {
-		fmt.Println("Reading File Error:", err)
-		return ""
+		logger.Log.Fatal("Failed read file: " + fmt.Sprintf("Error: %v", err))
+		return codeAssessment, ""
 	}
 
 	var response string
+	var isDao bool
 	if m.dependencyAnalyzer.IsDAO(filepath, content) {
-		prompt := getPromptForDAOClass(content, filepath, &methodChanges, &oldSchema, &newSchema)
-		response, err = m.MigrationCodeConversionInvoke(ctx, prompt, content, oldSchema, newSchema, "analyze-dao-class-"+filepath)
+		prompt := getPromptForDAOClass(content, filepath, &methodChanges, &m.sourceSchema, &m.targetSchema)
+		response, err = m.MigrationCodeConversionInvoke(ctx, prompt, content, m.sourceSchema, m.targetSchema, "analyze-dao-class-"+filepath)
+		isDao = true
 	} else {
 		prompt := getPromptForNonDAOClass(content, filepath, &methodChanges)
 		res, err := m.modelFlash.GenerateContent(ctx, genai.Text(prompt))
 
 		if err != nil {
-			return ""
+			return codeAssessment, ""
 		}
 
 		if p, ok := res.Candidates[0].Content.Parts[0].(genai.Text); ok {
@@ -269,9 +281,17 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, 
 		}
 
 		response = ParseJSONWithRetries(m.modelFlash, prompt, response, 2, "analyze-dao-class-"+filepath)
+		isDao = false
+	}
+	logger.Log.Debug("Analyze File Response: " + response)
+
+	codeAssessment, error := ParseFileAnalyzerResponse(filepath, response, isDao)
+
+	if error != nil {
+		return codeAssessment, ""
 	}
 
-	return response
+	return codeAssessment, response
 }
 
 func getPromptForNonDAOClass(content, filepath string, methodChanges *string) string {
@@ -292,11 +312,14 @@ func getPromptForNonDAOClass(content, filepath string, methodChanges *string) st
 		@@@json
 		[
 		{
-				"code_sample": "<piece of code to update>",
+				"original_method_signature": "<original method signature where the change is required>",
+				"new_method_signature": "<modified method signature>",
+				"code_sample": : ["Line1", "Line2", ... ],
 				"start_line": <starting line number of the affected code>,
 				"end_line": <ending line number of the affected code>,
-				"suggested_change": "<example modification to the file>",
+				"suggested_change": ["Line1", "Line2", ... ],
 				"description": "<human-readable description of the required change>",
+				"number_of_affected_lines": <number_of_lines_impacted>,
 				"complexity": "<SIMPLE|MODERATE|COMPLEX>",
 				"warnings": [
 				"<thing to be aware of>",
@@ -357,11 +380,11 @@ func readFile(filepath string) (string, error) {
 }
 
 func main() {
+	logger.Log = zap.NewNop()
 	ctx := context.Background()
 	projectID := "span-cloud-testing"
 	location := "us-central1"
 	apiKey := "<API_KEY>"
-	conceptExamplePath := "embeddings/output.json"
 	filePath := "/Users/pratick/IdeaProjects/GoLang-Gin-CRUD-App-using-MySQL/app/repositories/user_repository.go"
 
 	mysqlSchemaPath := "/Users/pratick/IdeaProjects/GoLang-Gin-CRUD-App-using-MySQL/my_queries.sql"
@@ -377,12 +400,30 @@ func main() {
 		fmt.Println("Error reading Spanner schema file:", err)
 		return
 	}
-	summarizer, err := NewMigrationSummarizer(ctx, &apiKey, projectID, location, conceptExamplePath)
+	summarizer, err := NewMigrationSummarizer(ctx, &apiKey, projectID, location, mysqlSchema, spannerSchema)
 	if err != nil {
 		log.Fatalf("Error initializing summarizer: %v", err)
 	}
 
-	result := summarizer.AnalyzeFile(ctx, filePath, "", mysqlSchema, spannerSchema)
+	_, result := summarizer.AnalyzeFile(ctx, filePath, "")
+
+	fmt.Println(result)
+
+	var firstResult map[string]interface{}
+	err = json.Unmarshal([]byte(result), &firstResult)
+	if err != nil {
+		fmt.Println("Error parsing result:", err)
+		return
+	}
+
+	publicMethod, erra := json.MarshalIndent(firstResult["public_method_changes"], "", "  ")
+	if erra != nil {
+		fmt.Println("Error converting to struct:", erra)
+	}
+	fmt.Println(publicMethod)
+
+	secondFilePath := "/Users/pratick/IdeaProjects/GoLang-Gin-CRUD-App-using-MySQL/app/controllers/user_controller.go"
+	_, result = summarizer.AnalyzeFile(ctx, secondFilePath, string(publicMethod))
 
 	fmt.Println(result)
 }
@@ -403,6 +444,8 @@ func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, ne
             "schema_impact": [
 									{
 											"schema_change": "Exact change in schema",
+											"table": "Name of the affected table",
+											"column": "Name of the affected column",
 											"number_of_affected_lines": <number_of_lines_impacted>,
 											"existing_code_lines": ["Line1", "Line2", ... ],
 											"new_code_lines": ["Line1", "Line2", ... ]
@@ -413,6 +456,8 @@ func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, ne
 									{
 											"original_signature": "<original method signature>",
 											"new_signature": "<modified method signature>",
+											"complexity": "<SIMPLE|MODERATE|COMPLEX>",
+											"number_of_affected_lines": <number_of_lines_impacted>,
 											"explanation": "<description of why the change is needed and how to update the code>"
 									},
 									...
