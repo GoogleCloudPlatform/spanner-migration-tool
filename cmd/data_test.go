@@ -17,19 +17,20 @@ package cmd
 import (
         "flag"
         "testing"
+
         "github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
         "github.com/stretchr/testify/assert"
 )
 
 func TestDataSetFlags(t *testing.T) {
-        testCases:=[]struct {
+        testCases := []struct {
                 testName       string
                 flagArgs      []string
                 expectedValues DataCmd
         }{
                 {
                         testName: "Default Values",
-                        flagArgs:[]string{},
+                        flagArgs: []string{},
                         expectedValues: DataCmd{
                                 source:           "",
                                 sourceProfile:    "",
@@ -44,14 +45,148 @@ func TestDataSetFlags(t *testing.T) {
                                 dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
                         },
                 },
+                {
+                        testName: "Source and Target",
+                        flagArgs: []string{"--source=PostgreSQL", "--target=Spanner"},
+                        expectedValues: DataCmd{
+                                source:           "PostgreSQL",
+                                sourceProfile:    "",
+                                target:           "Spanner",
+                                targetProfile:    "",
+                                filePrefix:       "",
+                                WriteLimit:       DefaultWritersLimit,
+                                dryRun:           false,
+                                logLevel:         "DEBUG",
+                                SkipForeignKeys:  false,
+                                validate:         false,
+                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+                        },
+                },
+                {
+                        testName: "Source and Target Profiles",
+                        flagArgs: []string{"--source-profile=source.json", "--target-profile=target.json"},
+                        expectedValues: DataCmd{
+                                source:           "",
+                                sourceProfile:    "source.json",
+                                target:           "Spanner",
+                                targetProfile:    "target.json",
+                                filePrefix:       "",
+                                WriteLimit:       DefaultWritersLimit,
+                                dryRun:           false,
+                                logLevel:         "DEBUG",
+                                SkipForeignKeys:  false,
+                                validate:         false,
+                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+                        },
+                },
+                {
+                        testName: "File Prefix and Write Limit",
+                        flagArgs: []string{"--prefix=test", "--write-limit=100"},
+                        expectedValues: DataCmd{
+                                source:           "",
+                                sourceProfile:    "",
+                                target:           "Spanner",
+                                targetProfile:    "",
+                                filePrefix:       "test",
+                                WriteLimit:       100,
+                                dryRun:           false,
+                                logLevel:         "DEBUG",
+                                SkipForeignKeys:  false,
+                                validate:         false,
+                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+                        },
+                },
+                {
+                        testName: "Dry Run and Log Level",
+                        flagArgs: []string{"--dry-run", "--log-level=INFO"},
+                        expectedValues: DataCmd{
+                                source:           "",
+                                sourceProfile:    "",
+                                target:           "Spanner",
+                                targetProfile:    "",
+                                filePrefix:       "",
+                                WriteLimit:       DefaultWritersLimit,
+                                dryRun:           true,
+                                logLevel:         "INFO",
+                                SkipForeignKeys:  false,
+                                validate:         false,
+                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+                        },
+                },
+                {
+                        testName: "Skip Foreign Keys and Validate",
+                        flagArgs: []string{"--skip-foreign-keys", "--validate"},
+                        expectedValues: DataCmd{
+                                source:           "",
+                                sourceProfile:    "",
+                                target:           "Spanner",
+                                targetProfile:    "",
+                                filePrefix:       "",
+                                WriteLimit:       DefaultWritersLimit,
+                                dryRun:           false,
+                                logLevel:         "DEBUG",
+                                SkipForeignKeys:  true,
+                                validate:         true,
+                                dataflowTemplate: constants.DEFAULT_TEMPLATE_PATH,
+                        },
+                },
+                {
+                        testName: "Custom Dataflow Template",
+                        flagArgs: []string{"--dataflow-template=gs://my-bucket/my-template"},
+                        expectedValues: DataCmd{
+                                source:           "",
+                                sourceProfile:    "",
+                                target:           "Spanner",
+                                targetProfile:    "",
+                                filePrefix:       "",
+                                WriteLimit:       DefaultWritersLimit,
+                                dryRun:           false,
+                                logLevel:         "DEBUG",
+                                SkipForeignKeys:  false,
+                                validate:         false,
+                                dataflowTemplate: "gs://my-bucket/my-template",
+                        },
+                },
+                {
+                        testName: "All Flags Combined",
+                        flagArgs: []string{
+                                "--source=MySQL",
+                                "--source-profile=mysql.json",
+                                "--target=Spanner",
+                                "--target-profile=spanner.json",
+                                "--prefix=output",
+                                "--write-limit=50",
+                                "--dry-run",
+                                "--log-level=WARN",
+                                "--skip-foreign-keys",
+                                "--validate",
+                                "--dataflow-template=gs://custom/template",
+                        },
+                        expectedValues: DataCmd{
+                                source:           "MySQL",
+                                sourceProfile:    "mysql.json",
+                                target:           "Spanner",
+                                targetProfile:    "spanner.json",
+                                filePrefix:       "output",
+                                WriteLimit:       50,
+                                dryRun:           true,
+                                logLevel:         "WARN",
+                                SkipForeignKeys:  true,
+                                validate:         true,
+                                dataflowTemplate: "gs://custom/template",
+                        },
+                },
         }
 
-        for _, tc:= range testCases {
+        for _, tc := range testCases {
                 t.Run(tc.testName, func(t *testing.T) {
-                        fs:= flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
-                        fs.Parse(tc.flagArgs)
-                        dataCmd:= DataCmd{}
+                        fs := flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
+                        dataCmd := DataCmd{}
                         dataCmd.SetFlags(fs)
+                        err := fs.Parse(tc.flagArgs)
+                        if err != nil {
+                                t.Fatalf("Failed to parse flags: %v", err)
+                        }
                         assert.Equal(t, tc.expectedValues, dataCmd, tc.testName)
                 })
         }
