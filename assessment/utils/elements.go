@@ -14,7 +14,9 @@
 
 package utils
 
-import "github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+import (
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+)
 
 // All the elements that will be a part of the assessment
 // If this file becomes too big, or if type specific methods get added, consider splitting this file
