@@ -180,7 +180,7 @@ func (db *MysqlConceptDb) Search(searchTerms []string, project, location string,
 
 // 	searchResults := db.Search([]string{
 // 		"How to migrate from `AUTO_INCREMENT` in PG to Spanner?",
-// 	}, "span-cloud-testing", "us-central1", 0.25, 3)
+// 	}, "", "", 0.25, 3)
 
 // 	resultJSON, _ := json.MarshalIndent(searchResults, "", "  ")
 // 	fmt.Println(string(resultJSON))

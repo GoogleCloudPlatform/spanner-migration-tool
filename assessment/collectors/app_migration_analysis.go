@@ -82,6 +82,7 @@ func (m *MigrationSummarizer) MigrationCodeConversionInvoke(
 	ctx context.Context,
 	originalPrompt, sourceCode, olderSchema, newSchema, identifier string,
 ) (string, error) {
+	//TODO: Move prompts to promt file.
 	prompt := fmt.Sprintf(`
 		You are a Cloud Spanner expert tasked with migrating an application from MySQL go-sql-mysql to Spanner go-sql-spanner.
 
@@ -183,6 +184,7 @@ func (m *MigrationSummarizer) MigrationCodeConversionInvoke(
 }
 
 func formatQuestionsAndResults(questions []string, searchResults [][]string) string {
+	//TODO: Move prompts to promt file.
 	formattedString := "Use the following questions and their answers required for the code conversions\n**Questions and Search Results:**\n\n"
 
 	for i, question := range questions {
@@ -198,6 +200,7 @@ func formatQuestionsAndResults(questions []string, searchResults [][]string) str
 }
 
 func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, originalResponse string, retries int, identifier string) string {
+	//TODO: Move prompts to promt file.
 	promptTemplate := `
 		The following generated JSON value failed to parse, it contained the following
 		error. Please return corrected string as a valid JSON in the dictionary format. All strings should be
@@ -296,6 +299,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, 
 }
 
 func getPromptForNonDAOClass(content, filepath string, methodChanges *string) string {
+	//TODO: Move prompts to promt file.
 	return fmt.Sprintf(`
 		You are tasked with adapting a Java class to function correctly within an application that has migrated its persistence layer to Cloud Spanner.
 
@@ -426,6 +430,7 @@ func readFile(filepath string) (string, error) {
 // }
 
 func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, newSchema *string) string {
+	//TODO: Move prompts to promt file.
 	return fmt.Sprintf(`
         You are a Cloud Spanner expert tasked with migrating a DAO class from MySQL go-sql-mysql to Spanner go-sql-spanner.
 

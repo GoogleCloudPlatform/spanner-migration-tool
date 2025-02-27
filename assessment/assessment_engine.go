@@ -15,7 +15,7 @@
 package assessment
 
 import (
-	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/parser"
+	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
