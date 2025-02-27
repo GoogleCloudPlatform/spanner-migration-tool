@@ -68,32 +68,23 @@ type QueryAssessment struct {
 	tablesAffected []string
 }
 
-type CodeSchemaImpact struct {
-	tableName             string
-	columnName            string
-	schemaChange          string
-	numberOfAffectedLines string
-	complexity            string
-	sourceCodeSnippet     []string
-	suggestedCodeSnippet  []string
-	explanation           string
-}
-
-type CodeImpact struct {
-	sourceMethodSignature    string // will be empty if code impact is outside method.
-	suggestedMethodSignature string // will be empty if code impact is outside method.
+type Snippet struct {
+	tableName                string // will be empty if snippet is not a schema update
+	columnName               string // will be empty if snippet is not a schema update
+	schemaChange             string // will be empty if snippet is not a schema update
+	numberOfAffectedLines    string
+	complexity               string
 	sourceCodeSnippet        []string
 	suggestedCodeSnippet     []string
-	complexity               string
-	numberOfAffectedLines    string
+	sourceMethodSignature    string // will be empty if code impact is outside method.
+	suggestedMethodSignature string // will be empty if code impact is outside method.
 	explanation              string
+	fileName                 string
+	isDao                    bool
 }
 
 // Information relevant to assessment of queries
 type CodeAssessment struct {
-	fileName         string
-	isDao            bool
-	codeSchemaImpact []CodeSchemaImpact
-	codeImpact       []CodeImpact
-	general_warnings []string
+	snippets        []Snippet
+	generalWarnings []string
 }

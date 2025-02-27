@@ -1,5 +1,3 @@
-//go:build ignore
-
 /*
 	Copyright 2025 Google LLC
 
@@ -23,15 +21,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
 	"cloud.google.com/go/vertexai/genai"
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/embeddings"
+	parser "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/parser"
 	dependencyAnalyzer "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/project_analyzer"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
-	"go.uber.org/zap"
 )
 
 // MigrationSummarizer holds the LLM models and example databases
@@ -287,7 +284,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, 
 	}
 	logger.Log.Debug("Analyze File Response: " + response)
 
-	codeAssessment, error := ParseFileAnalyzerResponse(filepath, response, isDao)
+	codeAssessment, error := parser.ParseFileAnalyzerResponse(filepath, response, isDao)
 
 	if error != nil {
 		return codeAssessment, ""
@@ -381,54 +378,50 @@ func readFile(filepath string) (string, error) {
 	return content, nil
 }
 
-func main() {
-	logger.Log = zap.NewNop()
-	ctx := context.Background()
-	projectID := "span-cloud-testing"
-	location := "us-central1"
-	apiKey := "<API_KEY>"
-	filePath := "/Users/pratick/IdeaProjects/GoLang-Gin-CRUD-App-using-MySQL/app/repositories/user_repository.go"
+// func main() {
+// 	logger.Log = zap.NewNop()
+// 	ctx := context.Background()
+// 	projectID := ""
+// 	location := ""
+// 	apiKey := "<API_KEY>"
+// 	filePath := ""
 
-	mysqlSchemaPath := "/Users/pratick/IdeaProjects/GoLang-Gin-CRUD-App-using-MySQL/my_queries.sql"
-	spannerSchemaPath := "/Users/pratick/IdeaProjects/GoLang-Gin-CRUD-App-using-MySQL/spanner.sql"
-	mysqlSchema, err := readFile(mysqlSchemaPath)
-	if err != nil {
-		fmt.Println("Error reading MySQL schema file:", err)
-		return
-	}
+// 	mysqlSchemaPath := ""
+// 	spannerSchemaPath := ""
+// 	mysqlSchema, err := readFile(mysqlSchemaPath)
+// 	if err != nil {
+// 		fmt.Println("Error reading MySQL schema file:", err)
+// 		return
+// 	}
 
-	spannerSchema, err := readFile(spannerSchemaPath)
-	if err != nil {
-		fmt.Println("Error reading Spanner schema file:", err)
-		return
-	}
-	summarizer, err := NewMigrationSummarizer(ctx, &apiKey, projectID, location, mysqlSchema, spannerSchema)
-	if err != nil {
-		log.Fatalf("Error initializing summarizer: %v", err)
-	}
+// 	spannerSchema, err := readFile(spannerSchemaPath)
+// 	if err != nil {
+// 		fmt.Println("Error reading Spanner schema file:", err)
+// 		return
+// 	}
+// 	summarizer, err := NewMigrationSummarizer(ctx, &apiKey, projectID, location, mysqlSchema, spannerSchema)
+// 	if err != nil {
+// 		log.Fatalf("Error initializing summarizer: %v", err)
+// 	}
 
-	_, result := summarizer.AnalyzeFile(ctx, filePath, "")
+// 	codeAssessment, result := summarizer.AnalyzeFile(ctx, filePath, "")
 
-	fmt.Println(result)
+// 	var firstResult map[string]interface{}
+// 	err = json.Unmarshal([]byte(result), &firstResult)
+// 	if err != nil {
+// 		logger.Log.Debug("Error converting to struct: " + err.Error())
+// 		return
+// 	}
 
-	var firstResult map[string]interface{}
-	err = json.Unmarshal([]byte(result), &firstResult)
-	if err != nil {
-		fmt.Println("Error parsing result:", err)
-		return
-	}
+// 	publicMethod, err1 := json.MarshalIndent(firstResult["public_method_changes"], "", "  ")
+// 	if err1 != nil {
+// 		logger.Log.Debug("Error converting to struct: " + err.Error())
+// 		return
+// 	}
 
-	publicMethod, erra := json.MarshalIndent(firstResult["public_method_changes"], "", "  ")
-	if erra != nil {
-		fmt.Println("Error converting to struct:", erra)
-	}
-	fmt.Println(publicMethod)
-
-	secondFilePath := "/Users/pratick/IdeaProjects/GoLang-Gin-CRUD-App-using-MySQL/app/controllers/user_controller.go"
-	_, result = summarizer.AnalyzeFile(ctx, secondFilePath, string(publicMethod))
-
-	fmt.Println(result)
-}
+// 	secondFilePath := ""
+// 	codeAssessment, result = summarizer.AnalyzeFile(ctx, secondFilePath, string(publicMethod))
+// }
 
 func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, newSchema *string) string {
 	return fmt.Sprintf(`
