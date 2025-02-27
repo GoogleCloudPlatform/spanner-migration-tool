@@ -45,41 +45,22 @@ func (c InfoSchemaCollector) IsEmpty() bool {
 
 func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile) (InfoSchemaCollector, error) {
 	logger.Log.Info("initializing infoschema collector")
-	dbIdentifier := utils.DbIdentifier{}
-	if sourceProfile.Conn.Ty == profiles.SourceProfileConnectionTypeMySQL {
-		dbIdentifier.DatabaseName = sourceProfile.Conn.Mysql.Db
-	}
-	tb := []utils.TableAssessment{}
 	var errString string
-	for _, table := range conv.SrcSchema {
-		columnAssessments := []utils.ColumnAssessment[any]{}
-		for _, column := range table.ColDefs {
-			columnAssessments = append(columnAssessments, utils.ColumnAssessment[any]{
-				Db:        dbIdentifier,
-				Name:      column.Name,
-				TableName: table.Name,
-				ColumnDef: column,
-			})
-		}
-		tb = append(tb, utils.TableAssessment{Name: table.Name, TableDef: table, ColumnAssessments: columnAssessments, Db: dbIdentifier})
-	}
 	infoSchema, err := getInfoSchema(sourceProfile)
 	if err != nil {
 		return InfoSchemaCollector{}, err
 	}
-	indCollector := []utils.IndexAssessment{}
-	for _, table := range conv.SrcSchema {
-		index, err := infoSchema.GetIndexInfo(dbIdentifier.DatabaseName, table.Name)
-		if err != nil {
-			errString = errString + fmt.Sprintf("\nError while scanning indexes: %v", err)
-		}
-		indCollector = append(indCollector, index...)
+	tb := infoSchema.GetTableInfo(conv)
+	indCollector, err := getIndexes(infoSchema, conv)
+	if err != nil {
+		errString = errString + fmt.Sprintf("\nError while scanning indexes: %v", err)
 	}
-	triggers, err := infoSchema.GetTriggerInfo(dbIdentifier.DatabaseName)
+
+	triggers, err := infoSchema.GetTriggerInfo()
 	if err != nil {
 		errString = errString + fmt.Sprintf("\nError while scanning triggers: %v", err)
 	}
-	sps, err := infoSchema.GetStoredProcedureInfo(dbIdentifier.DatabaseName)
+	sps, err := infoSchema.GetStoredProcedureInfo()
 	if err != nil {
 		errString = errString + fmt.Sprintf("\nError while scanning stored procedures: %v", err)
 	}
@@ -96,6 +77,18 @@ func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.Sourc
 	}, err
 }
 
+func getIndexes(infoSchema common.InfoSchema, conv *internal.Conv) ([]utils.IndexAssessment, error) {
+	indCollector := []utils.IndexAssessment{}
+	for _, table := range conv.SrcSchema {
+		index, err := infoSchema.GetIndexInfo(table.Name)
+		if err != nil {
+			return nil, err
+		}
+		indCollector = append(indCollector, index...)
+	}
+	return indCollector, nil
+}
+
 func getInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, error) {
 	connectionConfig, err := conversion.ConnectionConfig(sourceProfile)
 	if err != nil {
@@ -109,7 +102,8 @@ func getInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 			return nil, err
 		}
 		return mysql.InfoSchemaImpl{
-			Db: db,
+			Db:     db,
+			DbName: sourceProfile.Conn.Mysql.Db,
 		}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
@@ -192,4 +186,15 @@ func (c InfoSchemaCollector) ListColumnDetails() map[string]utils.ColumnDetails 
 
 	}
 	return columnDetails
+}
+
+func (c InfoSchemaCollector) ListStoredProcedures() []utils.StoredProcedureAssessmentOutput {
+	var storedProcedureAssessmentOutput []utils.StoredProcedureAssessmentOutput
+	for _, storedProcedure := range c.storedProcedures {
+		storedProcedureAssessmentOutput = append(storedProcedureAssessmentOutput, utils.StoredProcedureAssessmentOutput{
+			Name:       storedProcedure.Name,
+			Definition: storedProcedure.Definition,
+		})
+	}
+	return storedProcedureAssessmentOutput
 }

@@ -14,12 +14,16 @@
 
 package common
 
-import "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
+import (
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+)
 
 type InfoSchema interface {
-	GetIndexInfo(dbName, table string) ([]utils.IndexAssessment, error)
-	GetTriggerInfo(dbName string) ([]utils.TriggerAssessment, error)
-	GetStoredProcedureInfo(dbName string) ([]utils.StoredProcedureAssessment, error)
+	GetIndexInfo(table string) ([]utils.IndexAssessment, error)
+	GetTriggerInfo() ([]utils.TriggerAssessment, error)
+	GetStoredProcedureInfo() ([]utils.StoredProcedureAssessment, error)
+	GetTableInfo(conv *internal.Conv) []utils.TableAssessment
 }
 
 type InfoSchemaImpl struct{}

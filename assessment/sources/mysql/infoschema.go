@@ -24,17 +24,40 @@ import (
 )
 
 type InfoSchemaImpl struct {
-	Db *sql.DB
+	Db     *sql.DB
+	DbName string
+}
+
+func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) []utils.TableAssessment {
+	tb := []utils.TableAssessment{}
+	dbIdentifier := utils.DbIdentifier{
+		DatabaseName: isi.DbName,
+	}
+	for _, table := range conv.SrcSchema {
+		columnAssessments := []utils.ColumnAssessment[any]{}
+		for _, column := range table.ColDefs {
+			columnAssessments = append(columnAssessments, utils.ColumnAssessment[any]{
+				Db: utils.DbIdentifier{
+					DatabaseName: isi.DbName,
+				},
+				Name:      column.Name,
+				TableName: table.Name,
+				ColumnDef: column,
+			})
+		}
+		tb = append(tb, utils.TableAssessment{Name: table.Name, TableDef: table, ColumnAssessments: columnAssessments, Db: dbIdentifier})
+	}
+	return tb
 }
 
 // GetIndexes return a list of all indexes for the specified table.
-func (isi InfoSchemaImpl) GetIndexInfo(dbName, table string) ([]utils.IndexAssessment, error) {
+func (isi InfoSchemaImpl) GetIndexInfo(table string) ([]utils.IndexAssessment, error) {
 	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE,INDEX_TYPE
 		FROM INFORMATION_SCHEMA.STATISTICS 
 		WHERE TABLE_SCHEMA = ?
 			AND TABLE_NAME = ?
 		ORDER BY INDEX_NAME, SEQ_IN_INDEX;`
-	rows, err := isi.Db.Query(q, dbName, table)
+	rows, err := isi.Db.Query(q, isi.DbName, table)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +80,7 @@ func (isi InfoSchemaImpl) GetIndexInfo(dbName, table string) ([]utils.IndexAsses
 				Name:      name,
 				TableName: table,
 				Db: utils.DbIdentifier{
-					DatabaseName: dbName,
+					DatabaseName: isi.DbName,
 				},
 				IndexDef: schema.Index{
 					Id:     internal.GenerateIndexesId(),
@@ -80,11 +103,11 @@ func (isi InfoSchemaImpl) GetIndexInfo(dbName, table string) ([]utils.IndexAsses
 	return indexes, nil
 }
 
-func (isi InfoSchemaImpl) GetTriggerInfo(dbName string) ([]utils.TriggerAssessment, error) {
+func (isi InfoSchemaImpl) GetTriggerInfo() ([]utils.TriggerAssessment, error) {
 	q := `SELECT DISTINCT TRIGGER_NAME,EVENT_OBJECT_TABLE,ACTION_STATEMENT,ACTION_TIMING,EVENT_MANIPULATION
 	FROM INFORMATION_SCHEMA.TRIGGERS 
 	WHERE EVENT_OBJECT_SCHEMA = ?`
-	rows, err := isi.Db.Query(q, dbName)
+	rows, err := isi.Db.Query(q, isi.DbName)
 	if err != nil {
 		return nil, err
 	}
@@ -104,18 +127,18 @@ func (isi InfoSchemaImpl) GetTriggerInfo(dbName string) ([]utils.TriggerAssessme
 			ActionTiming:      actionTiming,
 			EventManipulation: eventManipulation,
 			Db: utils.DbIdentifier{
-				DatabaseName: dbName,
+				DatabaseName: isi.DbName,
 			},
 		})
 	}
 	return triggers, nil
 }
 
-func (isi InfoSchemaImpl) GetStoredProcedureInfo(dbName string) ([]utils.StoredProcedureAssessment, error) {
+func (isi InfoSchemaImpl) GetStoredProcedureInfo() ([]utils.StoredProcedureAssessment, error) {
 	q := `SELECT DISTINCT ROUTINE_NAME,ROUTINE_DEFINITION,IS_DETERMINISTIC
 	FROM INFORMATION_SCHEMA.ROUTINES 
 	WHERE ROUTINE_TYPE='PROCEDURE' AND ROUTINE_SCHEMA = ?`
-	rows, err := isi.Db.Query(q, dbName)
+	rows, err := isi.Db.Query(q, isi.DbName)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +156,7 @@ func (isi InfoSchemaImpl) GetStoredProcedureInfo(dbName string) ([]utils.StoredP
 			Definition:      defintion,
 			IsDeterministic: isDeterministic == "YES",
 			Db: utils.DbIdentifier{
-				DatabaseName: dbName,
+				DatabaseName: isi.DbName,
 			},
 		})
 	}

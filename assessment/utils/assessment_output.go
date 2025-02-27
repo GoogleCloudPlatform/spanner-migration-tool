@@ -31,17 +31,24 @@ type CostAssessmentOutput struct {
 }
 
 type SchemaAssessmentOutput struct {
-	TableNames             []string
-	ColumnNames            map[string][]string
-	IndexNameAndType       map[string]string
-	Triggers               []TriggerAssessmentOutput
-	ColumnAssessmentOutput map[string]ColumnDetails
+	TableNames                      []string
+	ColumnNames                     map[string][]string
+	IndexNameAndType                map[string]string
+	Triggers                        []TriggerAssessmentOutput
+	ColumnAssessmentOutput          map[string]ColumnDetails
+	StoredProcedureAssessmentOutput []StoredProcedureAssessmentOutput
 }
 
 type TriggerAssessmentOutput struct {
 	Name        string
 	Operation   string
 	TargetTable string
+}
+
+type StoredProcedureAssessmentOutput struct {
+	Name           string
+	Definition     string
+	TablesAffected []string // TODO(khajanchi): Add parsing logic to extract table names from SP definition.
 }
 
 type ColumnDetails struct {
