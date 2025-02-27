@@ -269,28 +269,28 @@ func groupTasksOptimized(sortedTasks []string, G map[string]map[string]struct{})
 	return taskLevels
 }
 
-func main() {
+// func main() {
 
-	projectDir := "/usr/local/google/home/gauravpurohit/migration/spanner-migration-tool/" // Change this to your actual project directory
-	language := "go"                                                                       // Change this to "java" for Java projects
+// 	projectDir := "/usr/local/google/home/gauravpurohit/migration/spanner-migration-tool/" // Change this to your actual project directory
+// 	language := "go"                                                                       // Change this to "java" for Java projects
 
-	// Create analyzer instance using factory
-	analyzer := AnalyzerFactory(language)
+// 	// Create analyzer instance using factory
+// 	analyzer := AnalyzerFactory(language)
 
-	// Run execution order analysis
-	G, groupedTasks := analyzer.GetExecutionOrder(projectDir)
+// 	// Run execution order analysis
+// 	G, groupedTasks := analyzer.GetExecutionOrder(projectDir)
 
-	fmt.Println("\nDependency Graph:")
-	for file, dependencies := range G {
-		fmt.Printf("%s depends on:\n", strings.TrimPrefix(file, projectDir))
-		for dep := range dependencies {
-			fmt.Printf("\t- %s\n", strings.TrimPrefix(dep, projectDir))
-		}
-	}
+// 	fmt.Println("\nDependency Graph:")
+// 	for file, dependencies := range G {
+// 		fmt.Printf("%s depends on:\n", strings.TrimPrefix(file, projectDir))
+// 		for dep := range dependencies {
+// 			fmt.Printf("\t- %s\n", strings.TrimPrefix(dep, projectDir))
+// 		}
+// 	}
 
-	// Print results
-	fmt.Println("Execution Order Groups:")
-	for i, group := range groupedTasks {
-		fmt.Printf("Level %d: %v\n", i+1, group)
-	}
+// 	// Print results
+// 	fmt.Println("Execution Order Groups:")
+// 	for i, group := range groupedTasks {
+// 		fmt.Printf("Level %d: %v\n", i+1, group)
+// 	}
 }

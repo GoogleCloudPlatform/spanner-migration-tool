@@ -18,7 +18,6 @@ package assessment
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 func ParseStringArrayInterface(input []any) []string {
@@ -31,8 +30,6 @@ func ParseStringArrayInterface(input []any) []string {
 }
 
 func ParseSchemaImpact(schemaImpactResponse map[string]any, filePath string) (*Snippet, error) {
-	fmt.Printf("%+v\n", schemaImpactResponse)
-
 	return &Snippet{
 		schemaChange:          schemaImpactResponse["schema_change"].(string),
 		tableName:             schemaImpactResponse["table"].(string),
@@ -95,7 +92,6 @@ func ParseDaoFileChanges(fileAnalyzerResponse string, filePath string) ([]Snippe
 		if err != nil {
 			return nil, nil, err
 		}
-		fmt.Printf("%+v\n", *codeSchemaImpact)
 		snippets = append(snippets, *codeSchemaImpact)
 	}
 	generalWarnings := []string{}
@@ -120,7 +116,6 @@ func ParseFileAnalyzerResponse(filePath, fileAnalyzerResponse string, isDao bool
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(len(snippets))
 	return &CodeAssessment{
 		snippets:        snippets,
 		generalWarnings: generalWarnings,
