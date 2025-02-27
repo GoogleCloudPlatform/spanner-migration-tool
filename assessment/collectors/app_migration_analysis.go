@@ -430,7 +430,6 @@ func readFile(filepath string) (string, error) {
 // }
 
 func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, newSchema *string) string {
-	//TODO: Move prompts to promt file.
 	return fmt.Sprintf(`
         You are a Cloud Spanner expert tasked with migrating a DAO class from MySQL go-sql-mysql to Spanner go-sql-spanner.
 
