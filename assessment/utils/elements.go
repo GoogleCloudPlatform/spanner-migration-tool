@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.*/
 
-package assessment
+package utils
 
 import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -23,41 +23,56 @@ import (
 
 // Idenitification of the database which can be referred to in the assessment
 type DbIdentifier struct {
-	databaseName string
-	namespace    string
+	DatabaseName string
+	Namespace    string
 }
 
 // Information relevant to assessment of tables
 type TableAssessment struct {
-	db                DbIdentifier
-	name              string
-	tableDef          schema.Table
-	columnAssessments []ColumnAssessment[any]
+	Db                DbIdentifier
+	Name              string
+	TableDef          schema.Table
+	ColumnAssessments []ColumnAssessment[any]
 }
 
 // Information relevant to assessment of columns
 type ColumnAssessment[T any] struct {
-	db       DbIdentifier
-	tableDef schema.Table
-	maxValue T
-	minValue T
+	Db        DbIdentifier
+	Name      string
+	TableName string
+	ColumnDef schema.Column
+	MaxValue  T
+	MinValue  T
+}
+
+// Information relevant to assessment of indexes
+type IndexAssessment struct {
+	Db        DbIdentifier
+	Name      string
+	TableName string
+	Ty        string
+	IndexDef  schema.Index
 }
 
 // Information relevant to assessment of stored procedures
 type StoredProcedureAssessment struct {
-	db              DbIdentifier
-	name            string
-	linesOfCode     int
-	tablesAffected  []string
-	referecesInCode int
+	Db               DbIdentifier
+	Name             string
+	LinesOfCode      int
+	TablesAffected   []string
+	ReferencesInCode int
+	Definition       string
+	IsDeterministic  bool
 }
 
 // Information relevant to assessment of triggers
 type TriggerAssessment struct {
-	db           DbIdentifier
-	name         string
-	operation    string
-	targetTables []string
+	Db                DbIdentifier
+	Name              string
+	Operation         string
+	TargetTable       string
+	ActionTiming      string // Whether the trigger activates before or after the triggering event. The value is BEFORE or AFTER.
+	EventManipulation string // This is the type of operation on the associated table for which the trigger activates. The value is INSERT , DELETE , or UPDATE.
 }
 
 // Information relevant to assessment of queries
