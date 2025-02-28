@@ -537,8 +537,8 @@ func isStoredColumnKeyPartOfPrimaryKey(ct CreateTable, colId string) bool {
 func (k Foreignkey) PrintForeignKeyAlterTable(spannerSchema Schema, c Config, tableId string) string {
 	var cols, referCols []string
 	for i, col := range k.ColIds {
-		cols = append(cols, spannerSchema[tableId].ColDefs[col].Name)
-		referCols = append(referCols, spannerSchema[k.ReferTableId].ColDefs[k.ReferColumnIds[i]].Name)
+		cols = append(cols, c.quote(spannerSchema[tableId].ColDefs[col].Name))
+		referCols = append(referCols, c.quote(spannerSchema[k.ReferTableId].ColDefs[k.ReferColumnIds[i]].Name))
 	}
 	var s string
 	if k.Name != "" {
