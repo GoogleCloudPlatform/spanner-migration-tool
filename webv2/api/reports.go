@@ -97,3 +97,23 @@ func GetDSpannerDDL(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(strings.Join(l, ""))
 }
+
+// generates a downloadable DDL(spanner) without comments and send it as a JSON response
+func GetSpannerDDLWoComments(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	sessionState.Conv.ConvLock.RLock()
+	defer sessionState.Conv.ConvLock.RUnlock()
+	conv := sessionState.Conv
+	now := time.Now()
+	spDDL := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: sessionState.Driver}, conv.SpSchema, conv.SpSequences)
+	if len(spDDL) == 0 {
+		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
+	}
+	l := []string{
+		fmt.Sprintf("-- Schema generated %s\n", now.Format("2006-01-02 15:04:05")),
+		strings.Join(spDDL, ";\n\n"),
+		"\n",
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(strings.Join(l, ""))
+}
