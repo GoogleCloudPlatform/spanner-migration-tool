@@ -72,5 +72,6 @@ func performSchemaAssessment(collectors assessmentCollectors) (utils.SchemaAsses
 	schemaOut.IndexNameAndType = collectors.infoSchemaCollector.ListIndexesAndTypes()
 	schemaOut.Triggers = collectors.infoSchemaCollector.ListTriggers()
 	schemaOut.ColumnAssessmentOutput = collectors.infoSchemaCollector.ListColumnDetails()
+	schemaOut.StoredProcedureAssessmentOutput = collectors.infoSchemaCollector.ListStoredProcedures()
 	return schemaOut, nil
 }
