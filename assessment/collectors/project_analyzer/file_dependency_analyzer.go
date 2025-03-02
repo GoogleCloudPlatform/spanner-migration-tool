@@ -271,8 +271,8 @@ func groupTasksOptimized(sortedTasks []string, G map[string]map[string]struct{})
 
 // func main() {
 
-// 	projectDir := "/usr/local/google/home/gauravpurohit/migration/spanner-migration-tool/" // Change this to your actual project directory
-// 	language := "go"                                                                       // Change this to "java" for Java projects
+// 	projectDir := "" // Change this to your actual project directory
+// 	language := "go" // Change this to "java" for Java projects
 
 // 	// Create analyzer instance using factory
 // 	analyzer := AnalyzerFactory(language)
@@ -293,4 +293,4 @@ func groupTasksOptimized(sortedTasks []string, G map[string]map[string]struct{})
 // 	for i, group := range groupedTasks {
 // 		fmt.Printf("Level %d: %v\n", i+1, group)
 // 	}
-}
+// }
