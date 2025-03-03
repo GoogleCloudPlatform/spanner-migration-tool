@@ -396,13 +396,13 @@ func readFile(filepath string) (string, error) {
 // 	spannerSchemaPath := ""
 // 	mysqlSchema, err := readFile(mysqlSchemaPath)
 // 	if err != nil {
-// 		fmt.Println("Error reading MySQL schema file:", err)
+// 		logger.Log.Debug("Error reading MySQL schema file:", err)
 // 		return
 // 	}
 
 // 	spannerSchema, err := readFile(spannerSchemaPath)
 // 	if err != nil {
-// 		fmt.Println("Error reading Spanner schema file:", err)
+// 		logger.Log.Debug("Error reading Spanner schema file:", err)
 // 		return
 // 	}
 // 	summarizer, err := NewMigrationSummarizer(ctx, &apiKey, projectID, location, mysqlSchema, spannerSchema)
