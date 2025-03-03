@@ -16,9 +16,9 @@ package assessment
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -44,13 +44,13 @@ func (g *GoDependencyAnalyzer) GetDependencyGraph(directory string) map[string]m
 		Dir:  (directory),
 	}
 
-	fmt.Println(directory)
+	logger.Log.Debug(directory)
 
 	pkgs, err := packages.Load(cfg, "./...")
 
-	fmt.Println(directory)
+	logger.Log.Debug(directory)
 	if err != nil {
-		log.Fatalf("Error loading packages: %v", err)
+		logger.Log.Fatalf("Error loading packages: %v", err)
 	}
 
 	// Dependency graph: key = file, value = list of files it depends on
@@ -94,12 +94,12 @@ func (g *GoDependencyAnalyzer) GetDependencyGraph(directory string) map[string]m
 	}
 
 	// Print the dependency graph
-	fmt.Println("\nDependency Graph:")
+	logger.Log.Debug("\nDependency Graph:")
 	for file, dependencies := range dependencyGraph {
-		fmt.Printf("%s depends on:\n", strings.TrimPrefix(file, directory))
+		logger.Log.Debug("%s depends on:\n", strings.TrimPrefix(file, directory))
 		//ToDo:Better way to show dependencies
 		for dep := range dependencies {
-			fmt.Printf("\t- %s\n", strings.TrimPrefix(dep, directory))
+			logger.Log.Debug("\t- %s\n", strings.TrimPrefix(dep, directory))
 		}
 	}
 
@@ -132,14 +132,14 @@ func (g *GoDependencyAnalyzer) GetExecutionOrder(projectDir string) (map[string]
 
 	sortedTasks, err := topologicalSort(G)
 	if err != nil {
-		fmt.Println("Graph still has cycles after relaxation. Sorting not possible.")
+		logger.Log.Debug("Graph still has cycles after relaxation. Sorting not possible.")
 		return nil, nil
 	}
 
-	fmt.Println(sortedTasks)
+	logger.Log.Debug(sortedTasks)
 	groupedTasks := groupTasksOptimized(sortedTasks, G)
 
-	fmt.Println("Execution order determined successfully.")
+	logger.Log.Debug("Execution order determined successfully.")
 	return G, groupedTasks
 }
 
@@ -201,7 +201,7 @@ func detectAndRemoveCycles(G map[string]map[string]struct{}) {
 	// Remove the detected edges from the graph
 	for _, edge := range edgesToRemove {
 		delete(G[edge.from], edge.to)
-		fmt.Printf("Removed edge: %s -> %s\n", edge.from, edge.to)
+		logger.Log.Debug("Removed edge: %s -> %s\n", edge.from, edge.to)
 	}
 }
 
@@ -280,17 +280,17 @@ func groupTasksOptimized(sortedTasks []string, G map[string]map[string]struct{})
 // 	// Run execution order analysis
 // 	G, groupedTasks := analyzer.GetExecutionOrder(projectDir)
 
-// 	fmt.Println("\nDependency Graph:")
+// 	logger.Log.Debug("\nDependency Graph:")
 // 	for file, dependencies := range G {
-// 		fmt.Printf("%s depends on:\n", strings.TrimPrefix(file, projectDir))
+// 		logger.Log.Debug("%s depends on:\n", strings.TrimPrefix(file, projectDir))
 // 		for dep := range dependencies {
-// 			fmt.Printf("\t- %s\n", strings.TrimPrefix(dep, projectDir))
+// 			logger.Log.Debug("\t- %s\n", strings.TrimPrefix(dep, projectDir))
 // 		}
 // 	}
 
 // 	// Print results
-// 	fmt.Println("Execution Order Groups:")
+// 	logger.Log.Debug("Execution Order Groups:")
 // 	for i, group := range groupedTasks {
-// 		fmt.Printf("Level %d: %v\n", i+1, group)
+// 		logger.Log.Debug("Level %d: %v\n", i+1, group)
 // 	}
 // }
