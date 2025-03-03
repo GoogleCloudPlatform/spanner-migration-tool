@@ -18,7 +18,8 @@ package assessment
 
 import (
 	"encoding/json"
-	"fmt"
+
+	. "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 )
 
 func ParseStringArrayInterface(input []any) []string {
@@ -31,32 +32,30 @@ func ParseStringArrayInterface(input []any) []string {
 }
 
 func ParseSchemaImpact(schemaImpactResponse map[string]any, filePath string) (*Snippet, error) {
-	fmt.Printf("%+v\n", schemaImpactResponse)
-
 	return &Snippet{
-		schemaChange:          schemaImpactResponse["schema_change"].(string),
-		tableName:             schemaImpactResponse["table"].(string),
-		columnName:            schemaImpactResponse["column"].(string),
-		numberOfAffectedLines: schemaImpactResponse["number_of_affected_lines"].(string),
-		sourceCodeSnippet:     ParseStringArrayInterface(schemaImpactResponse["existing_code_lines"].([]any)),
-		suggestedCodeSnippet:  ParseStringArrayInterface(schemaImpactResponse["new_code_lines"].([]any)),
-		fileName:              filePath,
-		isDao:                 true,
+		SchemaChange:          schemaImpactResponse["schema_change"].(string),
+		TableName:             schemaImpactResponse["table"].(string),
+		ColumnName:            schemaImpactResponse["column"].(string),
+		NumberOfAffectedLines: schemaImpactResponse["number_of_affected_lines"].(string),
+		SourceCodeSnippet:     ParseStringArrayInterface(schemaImpactResponse["existing_code_lines"].([]any)),
+		SuggestedCodeSnippet:  ParseStringArrayInterface(schemaImpactResponse["new_code_lines"].([]any)),
+		FileName:              filePath,
+		IsDao:                 true,
 	}, nil
 }
 
 func ParseCodeImpact(codeImpactResponse map[string]any, filePath string) (*Snippet, error) {
 
 	return &Snippet{
-		sourceMethodSignature:    codeImpactResponse["original_method_signature"].(string),
-		suggestedMethodSignature: codeImpactResponse["new_method_signature"].(string),
-		sourceCodeSnippet:        ParseStringArrayInterface(codeImpactResponse["code_sample"].([]any)),
-		suggestedCodeSnippet:     ParseStringArrayInterface(codeImpactResponse["suggested_change"].([]any)),
-		numberOfAffectedLines:    codeImpactResponse["number_of_affected_lines"].(string),
-		complexity:               codeImpactResponse["complexity"].(string),
-		explanation:              codeImpactResponse["description"].(string),
-		fileName:                 filePath,
-		isDao:                    false,
+		SourceMethodSignature:    codeImpactResponse["original_method_signature"].(string),
+		SuggestedMethodSignature: codeImpactResponse["new_method_signature"].(string),
+		SourceCodeSnippet:        ParseStringArrayInterface(codeImpactResponse["code_sample"].([]any)),
+		SuggestedCodeSnippet:     ParseStringArrayInterface(codeImpactResponse["suggested_change"].([]any)),
+		NumberOfAffectedLines:    codeImpactResponse["number_of_affected_lines"].(string),
+		Complexity:               codeImpactResponse["complexity"].(string),
+		Explanation:              codeImpactResponse["description"].(string),
+		FileName:                 filePath,
+		IsDao:                    false,
 	}, nil
 }
 
@@ -95,7 +94,6 @@ func ParseDaoFileChanges(fileAnalyzerResponse string, filePath string) ([]Snippe
 		if err != nil {
 			return nil, nil, err
 		}
-		fmt.Printf("%+v\n", *codeSchemaImpact)
 		snippets = append(snippets, *codeSchemaImpact)
 	}
 	generalWarnings := []string{}
@@ -120,9 +118,8 @@ func ParseFileAnalyzerResponse(filePath, fileAnalyzerResponse string, isDao bool
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(len(snippets))
 	return &CodeAssessment{
-		snippets:        snippets,
-		generalWarnings: generalWarnings,
+		Snippets:        snippets,
+		GeneralWarnings: generalWarnings,
 	}, nil
 }
