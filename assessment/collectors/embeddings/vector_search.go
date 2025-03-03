@@ -183,5 +183,5 @@ func (db *MysqlConceptDb) Search(searchTerms []string, project, location string,
 // 	}, "", "", 0.25, 3)
 
 // 	resultJSON, _ := json.MarshalIndent(searchResults, "", "  ")
-// 	fmt.Println(string(resultJSON))
+// 	logger.Log.Debug(string(resultJSON))
 // }

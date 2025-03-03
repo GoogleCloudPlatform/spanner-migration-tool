@@ -125,6 +125,6 @@ func embedTextsFromFile(project, location, inputPath, outputPath string) error {
 // Sample Usage
 // func main() {
 // 	if err := embedTextsFromFile("", "", "concept_examples.json", "output.json"); err != nil {
-// 		fmt.Println("Error:", err)
+// 		logger.Log.Debug("Error:", err)
 // 	}
 // }
