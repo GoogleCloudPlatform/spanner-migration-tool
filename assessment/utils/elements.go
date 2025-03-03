@@ -81,10 +81,23 @@ type QueryAssessment struct {
 	tablesAffected []string
 }
 
+type Snippet struct {
+	TableName                string // will be empty if snippet is not a schema update
+	ColumnName               string // will be empty if snippet is not a schema update
+	SchemaChange             string // will be empty if snippet is not a schema update
+	NumberOfAffectedLines    string
+	Complexity               string
+	SourceCodeSnippet        []string
+	SuggestedCodeSnippet     []string
+	SourceMethodSignature    string // will be empty if code impact is outside method.
+	SuggestedMethodSignature string // will be empty if code impact is outside method.
+	Explanation              string
+	FileName                 string
+	IsDao                    bool
+}
+
 // Information relevant to assessment of queries
 type CodeAssessment struct {
-	fileName          string
-	methodName        string
-	linesOfChange     string
-	relatedDbElements []any //We might need to break this into multiple fields
+	Snippets        []Snippet
+	GeneralWarnings []string
 }
