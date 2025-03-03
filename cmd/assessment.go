@@ -28,6 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/google/subcommands"
 	"go.uber.org/zap"
@@ -74,7 +75,7 @@ func (cmd *AssessmentCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.sourceProfile, "source-profile", "", "Flag for specifying connection profile for source database e.g., \"file=<path>,format=dump\"")
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
-	f.StringVar(&cmd.assessmentProfile, "assessment-profile", "", "File for specifying configuration to tbe used during assessment. e.g. \"app-code-location=\"<a/b/c>")
+	f.StringVar(&cmd.assessmentProfile, "assessment-profile", "", "File for specifying configuration to be used during assessment. e.g. \"app-code-location=\"<a/b/c>")
 	f.StringVar(&cmd.project, "project", "", "Flag spcifying default project id for all the generated resources for the migration")
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
@@ -106,12 +107,12 @@ func (cmd *AssessmentCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...int
 		return subcommands.ExitSuccess
 	}
 
-	conv, exitStatus := generateConv(cmd)
+	conv, sourceProfile, exitStatus := generateConv(cmd)
 	if conv == nil {
 		return exitStatus
 	}
 
-	assessmentOutput, err := assessment.PerformAssessment(conv)
+	assessmentOutput, err := assessment.PerformAssessment(conv, sourceProfile)
 	if err != nil {
 		logger.Log.Fatal("could not complete assessment", zap.Error(err))
 		return subcommands.ExitFailure
@@ -124,11 +125,11 @@ func (cmd *AssessmentCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...int
 	return subcommands.ExitSuccess
 }
 
-func generateConv(cmd *AssessmentCmd) (*internal.Conv, subcommands.ExitStatus) {
+func generateConv(cmd *AssessmentCmd) (*internal.Conv, profiles.SourceProfile, subcommands.ExitStatus) {
 	sourceProfile, targetProfile, ioHelper, _, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {
 		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
-		return nil, subcommands.ExitUsageError
+		return nil, profiles.SourceProfile{}, subcommands.ExitUsageError
 	}
 
 	var conv *internal.Conv
@@ -139,7 +140,7 @@ func generateConv(cmd *AssessmentCmd) (*internal.Conv, subcommands.ExitStatus) {
 		conv = internal.MakeConv()
 		err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
 		if err != nil {
-			return nil, subcommands.ExitFailure
+			return nil, profiles.SourceProfile{}, subcommands.ExitFailure
 		}
 		expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(context.Background(), targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
 		schemaToSpanner := common.SchemaToSpannerImpl{
@@ -148,28 +149,28 @@ func generateConv(cmd *AssessmentCmd) (*internal.Conv, subcommands.ExitStatus) {
 		err := schemaToSpanner.VerifyExpressions(conv)
 
 		if err != nil {
-			return nil, subcommands.ExitFailure
+			return nil, profiles.SourceProfile{}, subcommands.ExitFailure
 		}
 	} else {
 		ctx := context.Background()
 		ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, "", "")
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("error trying create ddl verifier: %v", err))
-			return nil, subcommands.ExitFailure
+			return nil, profiles.SourceProfile{}, subcommands.ExitFailure
 		}
 		sfs := &conversion.SchemaFromSourceImpl{
 			DdlVerifier: ddlVerifier,
 		}
 		conv, err = convImpl.SchemaConv(cmd.project, sourceProfile, targetProfile, &ioHelper, sfs)
 		if err != nil {
-			return nil, subcommands.ExitFailure
+			return nil, profiles.SourceProfile{}, subcommands.ExitFailure
 		}
 	}
 	if conv == nil {
 		logger.Log.Error("Could not initialize conversion context")
-		return nil, subcommands.ExitFailure
+		return nil, profiles.SourceProfile{}, subcommands.ExitFailure
 	}
 
 	logger.Log.Info("completed creation on source and spanner schema")
-	return conv, 0
+	return conv, sourceProfile, 0
 }

@@ -16,52 +16,26 @@ package assessment
 
 import (
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 )
 
-type AssessmentOutput struct {
-	costAssessment        CostAssessmentOutput
-	schemaAssessment      SchemaAssessmentOutput
-	appCodeAssessment     AppCodeAssessmentOutput
-	queryAssessment       QueryAssessmentOutput
-	performanceAssessment PerformanceAssessmentOutput
-}
-
-type CostAssessmentOutput struct {
-	//TBD
-}
-
-type SchemaAssessmentOutput struct {
-	//TBD
-	tableNames []string
-}
-
-type AppCodeAssessmentOutput struct {
-	//TBD
-}
-
-type QueryAssessmentOutput struct {
-	//TBD
-}
-
-type PerformanceAssessmentOutput struct {
-	//TBD
-}
-
 type assessmentCollectors struct {
-	sampleCollector assessment.SampleCollector
+	sampleCollector     assessment.SampleCollector
+	infoSchemaCollector assessment.InfoSchemaCollector
 }
 
-func PerformAssessment(conv *internal.Conv) (AssessmentOutput, error) {
+func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile) (utils.AssessmentOutput, error) {
 
 	logger.Log.Info("performing assessment")
 
-	output := AssessmentOutput{}
+	output := utils.AssessmentOutput{}
 	// Initialize collectors
-	c, err := initializeCollectors()
+	c, err := initializeCollectors(conv, sourceProfile)
 	if err != nil {
-		logger.Log.Fatal("unable to initiliaze collectors")
+		logger.Log.Error("unable to initialize collectors")
 		return output, err
 	}
 
@@ -71,24 +45,33 @@ func PerformAssessment(conv *internal.Conv) (AssessmentOutput, error) {
 	// Select the highest confidence output for each attribute
 	// Populate assessment struct
 
-	output.schemaAssessment, err = performSchemaAssessment(c)
-	return output, nil
+	output.SchemaAssessment, err = performSchemaAssessment(c)
+	return output, err
 }
 
 // Initilize collectors. Take a decision here on which collectors are mandatory and which are optional
-func initializeCollectors() (assessmentCollectors, error) {
+func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProfile) (assessmentCollectors, error) {
 	c := assessmentCollectors{}
 	sampleCollector, err := assessment.CreateSampleCollector()
 	if err != nil {
 		return c, err
 	}
 	c.sampleCollector = sampleCollector
-	return c, nil
+	infoSchemaCollector, err := assessment.CreateInfoSchemaCollector(conv, sourceProfile)
+	if infoSchemaCollector.IsEmpty() {
+		return c, err
+	}
+	c.infoSchemaCollector = infoSchemaCollector
+	return c, err
 }
 
-func performSchemaAssessment(collectors assessmentCollectors) (SchemaAssessmentOutput, error) {
-	schemaOut := SchemaAssessmentOutput{}
-	tables := collectors.sampleCollector.ListTables()
-	schemaOut.tableNames = tables
+func performSchemaAssessment(collectors assessmentCollectors) (utils.SchemaAssessmentOutput, error) {
+	schemaOut := utils.SchemaAssessmentOutput{}
+	schemaOut.TableNames = collectors.infoSchemaCollector.ListTables()
+	schemaOut.ColumnNames = collectors.infoSchemaCollector.ListColumns()
+	schemaOut.IndexNameAndType = collectors.infoSchemaCollector.ListIndexesAndTypes()
+	schemaOut.Triggers = collectors.infoSchemaCollector.ListTriggers()
+	schemaOut.ColumnAssessmentOutput = collectors.infoSchemaCollector.ListColumnDetails()
+	schemaOut.StoredProcedureAssessmentOutput = collectors.infoSchemaCollector.ListStoredProcedures()
 	return schemaOut, nil
 }
