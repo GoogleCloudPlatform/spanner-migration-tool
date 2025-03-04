@@ -271,7 +271,6 @@ func TestIntegration_MySQLDUMP_CheckConstraintMigration(t *testing.T) {
 
 func TestIntegration_MYSQL_CheckConstraintsActionMigration(t *testing.T) {
 	onlyRunForEmulatorTest(t)
-	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
