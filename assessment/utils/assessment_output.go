@@ -31,14 +31,14 @@ type CostAssessmentOutput struct {
 }
 
 type SchemaAssessmentOutput struct {
-	SourceTableDefs                 map[string]TableDetails
-	SpannerTableDefs                map[string]TableDetails
-	SourceColDefs                   map[string]SrcColumnDetails
-	SpannerColDefs                  map[string]SpColumnDetails
-	SourceIndexDef                  map[string]SrcIndexDetails
-	SpannerIndexDef                 map[string]SpIndexDetails
-	Triggers                        map[string]TriggerAssessmentOutput
-	StoredProcedureAssessmentOutput map[string]StoredProcedureAssessmentOutput
+	SourceTableDefs                 map[string]TableDetails                    // Maps table id to source table definition.
+	SpannerTableDefs                map[string]TableDetails                    // Maps table id to spanner table definition.
+	SourceColDefs                   map[string]SrcColumnDetails                // Maps column id to source column definition.
+	SpannerColDefs                  map[string]SpColumnDetails                 // Maps column id to spanner column definition
+	SourceIndexDef                  map[string]SrcIndexDetails                 // Maps index id to source index definition.
+	SpannerIndexDef                 map[string]SpIndexDetails                  // Maps index id to spanner table definition.
+	Triggers                        map[string]TriggerAssessmentOutput         // Maps trigger id to source trigger definition.
+	StoredProcedureAssessmentOutput map[string]StoredProcedureAssessmentOutput // Maps stored procedure id to stored procedure(source) definition.
 }
 
 type TriggerAssessmentOutput struct {
@@ -82,6 +82,7 @@ type SpIndexDetails struct {
 
 type SrcColumnDetails struct {
 	Id              string
+	Name            string
 	TableId         string
 	TableName       string
 	Datatype        string
@@ -96,6 +97,7 @@ type SrcColumnDetails struct {
 
 type SpColumnDetails struct {
 	Id              string
+	Name            string
 	TableId         string
 	TableName       string
 	Datatype        string

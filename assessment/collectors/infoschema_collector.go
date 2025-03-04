@@ -128,18 +128,6 @@ func (c InfoSchemaCollector) ListTables() (map[string]utils.TableDetails, map[st
 	return srcTable, spTable
 }
 
-func (c InfoSchemaCollector) ListColumns() map[string][]string {
-	columnNames := make(map[string][]string)
-	for i := range c.tables {
-		var columnArray []string
-		for j := range c.tables[i].ColumnAssessments {
-			columnArray = append(columnArray, c.tables[i].ColumnAssessments[j].Name)
-		}
-		columnNames[c.tables[i].Name] = columnArray
-	}
-	return columnNames
-}
-
 func (c InfoSchemaCollector) ListIndexes() (map[string]utils.SrcIndexDetails, map[string]utils.SpIndexDetails) {
 	srcIndexes := make(map[string]utils.SrcIndexDetails)
 	spIndexes := make(map[string]utils.SpIndexDetails)
@@ -179,7 +167,7 @@ func (c InfoSchemaCollector) ListTriggers() map[string]utils.TriggerAssessmentOu
 	return triggersAssessmentOutput
 }
 
-func (c InfoSchemaCollector) ListColumnDetails() (map[string]utils.SrcColumnDetails, map[string]utils.SpColumnDetails) {
+func (c InfoSchemaCollector) ListColumnDefinitions() (map[string]utils.SrcColumnDetails, map[string]utils.SpColumnDetails) {
 	srcColumnDetails := make(map[string]utils.SrcColumnDetails)
 	spColumnDetails := make(map[string]utils.SpColumnDetails)
 	for _, table := range c.conv.SrcSchema {
@@ -201,6 +189,9 @@ func (c InfoSchemaCollector) ListColumnDetails() (map[string]utils.SrcColumnDeta
 				}
 			}
 			srcColumnDetails[column.Id] = utils.SrcColumnDetails{
+				Id:              column.Id,
+				Name:            column.Name,
+				TableId:         table.Id,
 				TableName:       table.Name,
 				Datatype:        column.Type.Name,
 				IsNull:          !column.NotNull,
@@ -232,6 +223,9 @@ func (c InfoSchemaCollector) ListColumnDetails() (map[string]utils.SrcColumnDeta
 				}
 			}
 			spColumnDetails[column.Id] = utils.SpColumnDetails{
+				Id:              column.Id,
+				Name:            column.Name,
+				TableId:         table.Id,
 				TableName:       table.Name,
 				Datatype:        column.T.Name,
 				IsNull:          !column.NotNull,

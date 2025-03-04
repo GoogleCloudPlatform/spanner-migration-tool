@@ -70,7 +70,7 @@ func performSchemaAssessment(collectors assessmentCollectors) (utils.SchemaAsses
 	schemaOut.SourceTableDefs, schemaOut.SpannerTableDefs = collectors.infoSchemaCollector.ListTables()
 	schemaOut.SourceIndexDef, schemaOut.SpannerIndexDef = collectors.infoSchemaCollector.ListIndexes()
 	schemaOut.Triggers = collectors.infoSchemaCollector.ListTriggers()
-	schemaOut.SourceColDefs, schemaOut.SpannerColDefs = collectors.infoSchemaCollector.ListColumnDetails()
+	schemaOut.SourceColDefs, schemaOut.SpannerColDefs = collectors.infoSchemaCollector.ListColumnDefinitions()
 	schemaOut.StoredProcedureAssessmentOutput = collectors.infoSchemaCollector.ListStoredProcedures()
 	return schemaOut, nil
 }
