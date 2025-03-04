@@ -65,13 +65,9 @@ func GenerateReport(dbName string, assessmentOutput utils.AssessmentOutput) {
 func generateSchemaReport(assessmentOutput utils.AssessmentOutput) [][]string {
 	var records [][]string
 
-	headerMap := getSchemaKeyVsHeader()
+	headers := getHeaders()
 
-	var header []string
-	for _, v := range headerMap {
-		header = append(header, v)
-	}
-	records = append(records, header)
+	records = append(records, headers)
 
 	schemaReportRows := convertToSchemaReportRows(assessmentOutput)
 	for _, schemaRow := range schemaReportRows {
@@ -94,23 +90,23 @@ func generateSchemaReport(assessmentOutput utils.AssessmentOutput) [][]string {
 	return records
 }
 
-func getSchemaKeyVsHeader() map[string]string {
-	headerMap := map[string]string{
-		"element":           "Element",
-		"element_type":      "Element Type",
-		"source_definition": "Source Definition",
-		"target_name":       "Target Name",
-		"target_definition": "Target Definition",
+func getHeaders() []string {
+	headers := []string{
+		"Element",
+		"Element Type",
+		"Source Definition",
+		"Target Name",
+		"Target Definition",
 		//DB
-		"db_change_type":   "DB Change Type",
-		"db_change_effort": "DB Change Effort",
+		"DB Change Type",
+		"DB Change Effort",
 		//CODE
-		"code_change_type":    "Code Change Type",
-		"code_change_effort":  "Code Change Effort",
-		"code_impacted_files": "Impacted Files",
-		"code_snippets":       "Related Code Snippets",
+		"Code Change Type",
+		"Code Change Effort",
+		"Impacted Files",
+		"Related Code Snippets",
 	}
-	return headerMap
+	return headers
 }
 
 func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []SchemaReportRow {
@@ -134,11 +130,11 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 	}
 
 	//Populate column info
-	for _, columnNames := range assessmentOutput.SchemaAssessment.ColumnNames {
+	for tableName, columnNames := range assessmentOutput.SchemaAssessment.ColumnNames {
 		for _, columnName := range columnNames {
 			row := SchemaReportRow{}
 			columnDefinition := assessmentOutput.SchemaAssessment.ColumnAssessmentOutput[columnName]
-			row.element = columnName
+			row.element = tableName + "." + columnName
 			row.elementType = "Column"
 			row.targetDefinition = columnDefinitionToString(columnDefinition)
 
