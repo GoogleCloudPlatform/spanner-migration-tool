@@ -31,27 +31,43 @@ type CostAssessmentOutput struct {
 }
 
 type SchemaAssessmentOutput struct {
-	TableNames                      []string
-	ColumnNames                     map[string][]string
-	IndexNameAndType                map[string]string
+	//Source structs
+	TableNames                      []string            // To be changed to TableDetails
+	ColumnNames                     map[string][]string // To be removed
+	IndexNameAndType                map[string]string   // check if this needs to be converted to struct
 	Triggers                        []TriggerAssessmentOutput
-	ColumnAssessmentOutput          map[string]ColumnDetails
+	ColumnAssessmentOutput          map[string]ColumnDetails //Map can cause clashes in names
 	StoredProcedureAssessmentOutput []StoredProcedureAssessmentOutput
+	SourceTableDefs                 []TableDetails
+
+	SpannerTableDefs  []TableDetails
+	SpannerColumnDefs []ColumnDetails
 }
 
 type TriggerAssessmentOutput struct {
+	Id          string
 	Name        string
 	Operation   string
 	TargetTable string
 }
 
 type StoredProcedureAssessmentOutput struct {
+	Id             string
 	Name           string
 	Definition     string
 	TablesAffected []string // TODO(khajanchi): Add parsing logic to extract table names from SP definition.
 }
 
+type TableDetails struct {
+	Id         string
+	TableName  string
+	Charset    string
+	Properties map[string]string //any other table level properties
+}
+
 type ColumnDetails struct {
+	Id              string
+	TableId         string
 	TableName       string
 	Datatype        string
 	IsArray         bool
