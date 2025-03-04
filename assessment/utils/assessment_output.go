@@ -31,31 +31,76 @@ type CostAssessmentOutput struct {
 }
 
 type SchemaAssessmentOutput struct {
-	TableNames                      []string
-	ColumnNames                     map[string][]string
-	IndexNameAndType                map[string]string
-	Triggers                        []TriggerAssessmentOutput
-	ColumnAssessmentOutput          map[string]ColumnDetails
-	StoredProcedureAssessmentOutput []StoredProcedureAssessmentOutput
+	SourceTableDefs                 map[string]TableDetails
+	SpannerTableDefs                map[string]TableDetails
+	SourceColDefs                   map[string]SrcColumnDetails
+	SpannerColDefs                  map[string]SpColumnDetails
+	SourceIndexDef                  map[string]SrcIndexDetails
+	SpannerIndexDef                 map[string]SpIndexDetails
+	Triggers                        map[string]TriggerAssessmentOutput
+	StoredProcedureAssessmentOutput map[string]StoredProcedureAssessmentOutput
 }
 
 type TriggerAssessmentOutput struct {
-	Name        string
-	Operation   string
-	TargetTable string
+	Id            string
+	Name          string
+	Operation     string
+	TargetTable   string
+	TargetTableId string
 }
 
 type StoredProcedureAssessmentOutput struct {
+	Id             string
 	Name           string
 	Definition     string
 	TablesAffected []string // TODO(khajanchi): Add parsing logic to extract table names from SP definition.
 }
 
-type ColumnDetails struct {
+type TableDetails struct {
+	Id         string
+	Name       string
+	Charset    string
+	Properties map[string]string //any other table level properties
+}
+
+type SrcIndexDetails struct {
+	Id        string
+	Name      string
+	TableId   string
+	TableName string
+	Type      string
+	IsUnique  bool
+}
+
+type SpIndexDetails struct {
+	Id        string
+	Name      string
+	TableId   string
+	TableName string
+	IsUnique  bool
+}
+
+type SrcColumnDetails struct {
+	Id              string
+	TableId         string
+	TableName       string
+	Datatype        string
+	ArrayBounds     []int64
+	Mods            []int64
+	IsNull          bool
+	PrimaryKeyOrder int
+	ForeignKey      []string
+	AutoGen         ddl.AutoGenCol
+	DefaultValue    ddl.DefaultValue
+}
+
+type SpColumnDetails struct {
+	Id              string
+	TableId         string
 	TableName       string
 	Datatype        string
 	IsArray         bool
-	Size            int64
+	Len             int64
 	IsNull          bool
 	PrimaryKeyOrder int
 	ForeignKey      []string

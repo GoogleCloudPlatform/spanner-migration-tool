@@ -20,7 +20,7 @@ import (
 )
 
 type InfoSchema interface {
-	GetIndexInfo(table string) ([]utils.IndexAssessment, error)
+	GetIndexInfo(table string, conv *internal.Conv) ([]utils.IndexAssessment, error)
 	GetTriggerInfo() ([]utils.TriggerAssessment, error)
 	GetStoredProcedureInfo() ([]utils.StoredProcedureAssessment, error)
 	GetTableInfo(conv *internal.Conv) []utils.TableAssessment
