@@ -36,6 +36,20 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+const TablePerDbError = "can't create/update database: can't create database: can't build CreateDatabaseRequest: rpc error: code = FailedPrecondition desc = Cannot add table table_999: too many tables (limit 5000)."
+const ColumnPerTableError = "can't create/update database: can't create database: can't build CreateDatabaseRequest: rpc error: code = FailedPrecondition desc = Table LargeTable has too many columns; the limit is 1024."
+const InterleaveDepthError = "can't create/update database: can't create database: can't build CreateDatabaseRequest: rpc error: code = FailedPrecondition desc = Table level8 is too deeply nested; the limit is 8 tables."
+const ColumnKeyPerTableError = "can't create/update database: can't create database: can't build CreateDatabaseRequest: rpc error: code = InvalidArgument desc = Table cart_extended has too many keys (17); the limit is 16."
+const TableNameError = "can't create/update database: can't create database: can't build CreateDatabaseRequest: rpc error: code = InvalidArgument desc = table name not valid: CustomerOrderTransactionHistoryRecords2023ForAnalysisAndArchivingIncludingSensitiveDataAndSecureProcessingProceduressrdfgdnhydbtsfvfs."
+const ColumnNameError = "can't create/update database: can't create database: can't build CreateDatabaseRequest: rpc error: code = InvalidArgument desc = Column name not valid: large_column.CustomerOrderTransactionHistoryRecords2023ForAnalysisAndArchivingIncludingSensitiveDataAndSecureProcessingProceduressrdfgdnhydbtsfvfs."
+
+const TablePerDbExpectError = "can't build CreateDatabaseRequest: can't create/update database: can't create database: can't build CreateDatabaseRequest: rpc error: code = FailedPrecondition desc = Cannot add table table_999: too many tables (limit 5000)."
+const ColumnPerTableExpectError = "can't build CreateDatabaseRequest: can't create/update database: can't create database: can't build CreateDatabaseRequest: rpc error: code = FailedPrecondition desc = Table LargeTable has too many columns; the limit is 1024."
+const InterleaveDepthExpectError = "can't build CreateDatabaseRequest: can't create/update database: can't create database: can't build CreateDatabaseRequest: rpc error: code = FailedPrecondition desc = Table level8 is too deeply nested; the limit is 8 tables."
+const ColumnKeyPerTableExpectError = "can't build CreateDatabaseRequest: can't create/update database: can't create database: can't build CreateDatabaseRequest: rpc error: code = InvalidArgument desc = Table cart_extended has too many keys (17); the limit is 16."
+const TableNameExpectError = "can't build CreateDatabaseRequest: can't create/update database: can't create database: can't build CreateDatabaseRequest: rpc error: code = InvalidArgument desc = table name not valid: CustomerOrderTransactionHistoryRecords2023ForAnalysisAndArchivingIncludingSensitiveDataAndSecureProcessingProceduressrdfgdnhydbtsfvfs."
+const ColumnNameExpectError = "can't build CreateDatabaseRequest: can't create/update database: can't create database: can't build CreateDatabaseRequest: rpc error: code = InvalidArgument desc = Column name not valid: large_column.CustomerOrderTransactionHistoryRecords2023ForAnalysisAndArchivingIncludingSensitiveDataAndSecureProcessingProceduressrdfgdnhydbtsfvfs."
+
 func init() {
 	logger.Log = zap.NewNop()
 }
@@ -480,10 +494,10 @@ func TestSpannerAccessorImpl_CreateDatabase_exceeds_and_hit_limits(t *testing.T)
 			name: "GoogleSql with table more than 5000",
 			acm: spanneradmin.AdminClientMock{
 				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
-					return nil, fmt.Errorf(utils.TablePerDbError)
+					return nil, fmt.Errorf(TablePerDbError)
 				},
 			},
-			expectedErrorMsg: utils.TablePerDbExpectError,
+			expectedErrorMsg: TablePerDbExpectError,
 			expectError:      true,
 			dialect:          "google_standard_sql",
 			SpSchema:         utils.GenerateTables(5005),
@@ -508,10 +522,10 @@ func TestSpannerAccessorImpl_CreateDatabase_exceeds_and_hit_limits(t *testing.T)
 			name: "GoogleSql with table has more than 1024 columns",
 			acm: spanneradmin.AdminClientMock{
 				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
-					return nil, fmt.Errorf(utils.ColumnPerTableError)
+					return nil, fmt.Errorf(ColumnPerTableError)
 				},
 			},
-			expectedErrorMsg: utils.ColumnPerTableExpectError,
+			expectedErrorMsg: ColumnPerTableExpectError,
 			expectError:      true,
 			dialect:          "google_standard_sql",
 			SpSchema: map[string]ddl.CreateTable{
@@ -567,10 +581,10 @@ func TestSpannerAccessorImpl_CreateDatabase_exceeds_and_hit_limits(t *testing.T)
 			name: "GoogleSql with table interleaving depth is more than 7",
 			acm: spanneradmin.AdminClientMock{
 				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
-					return nil, fmt.Errorf(utils.InterleaveDepthError)
+					return nil, fmt.Errorf(InterleaveDepthError)
 				},
 			},
-			expectedErrorMsg: utils.InterleaveDepthExpectError,
+			expectedErrorMsg: InterleaveDepthExpectError,
 			expectError:      true,
 			dialect:          "google_standard_sql",
 			SpSchema:         utils.GenerateSpSchema(8),
@@ -603,10 +617,10 @@ func TestSpannerAccessorImpl_CreateDatabase_exceeds_and_hit_limits(t *testing.T)
 			name: "GoogleSql with table has more than 16 columns as key",
 			acm: spanneradmin.AdminClientMock{
 				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
-					return nil, fmt.Errorf(utils.ColumnKeyPerTableError)
+					return nil, fmt.Errorf(ColumnKeyPerTableError)
 				},
 			},
-			expectedErrorMsg: utils.ColumnKeyPerTableExpectError,
+			expectedErrorMsg: ColumnKeyPerTableExpectError,
 			expectError:      true,
 			dialect:          "google_standard_sql",
 			SpSchema: map[string]ddl.CreateTable{
@@ -625,10 +639,10 @@ func TestSpannerAccessorImpl_CreateDatabase_exceeds_and_hit_limits(t *testing.T)
 			name: "GoogleSql with table name more than 128 character",
 			acm: spanneradmin.AdminClientMock{
 				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
-					return nil, fmt.Errorf(utils.TableNameError)
+					return nil, fmt.Errorf(TableNameError)
 				},
 			},
-			expectedErrorMsg: utils.TableNameExpectError,
+			expectedErrorMsg: TableNameExpectError,
 			expectError:      true,
 			dialect:          "google_standard_sql",
 			SpSchema: map[string]ddl.CreateTable{
@@ -673,10 +687,10 @@ func TestSpannerAccessorImpl_CreateDatabase_exceeds_and_hit_limits(t *testing.T)
 			name: "GoogleSql with column name more than 128 character",
 			acm: spanneradmin.AdminClientMock{
 				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
-					return nil, fmt.Errorf(utils.ColumnNameError)
+					return nil, fmt.Errorf(ColumnNameError)
 				},
 			},
-			expectedErrorMsg: utils.ColumnNameExpectError,
+			expectedErrorMsg: ColumnNameExpectError,
 			expectError:      true,
 			dialect:          "google_standard_sql",
 			SpSchema: map[string]ddl.CreateTable{
