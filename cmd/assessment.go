@@ -21,9 +21,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -117,7 +119,15 @@ func (cmd *AssessmentCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...int
 		logger.Log.Fatal("could not complete assessment", zap.Error(err))
 		return subcommands.ExitFailure
 	}
-	assessment.GenerateReport(assessmentOutput)
+
+	getInfo := utils.GetUtilInfoImpl{}
+	dbName, err := getInfo.GetDatabaseName(sourceProfile.Driver, time.Now())
+	if err != nil {
+		err = fmt.Errorf("can't generate database name for prefix: %v", err)
+		return subcommands.ExitFailure
+	}
+
+	assessment.GenerateReport(dbName, assessmentOutput)
 
 	// Follow up if required - save assessment report
 	// Cleanup smt tmp data directory.
