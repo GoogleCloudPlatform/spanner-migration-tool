@@ -136,7 +136,11 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 			columnDefinition := assessmentOutput.SchemaAssessment.ColumnAssessmentOutput[columnName]
 			row.element = tableName + "." + columnName
 			row.elementType = "Column"
-			row.targetDefinition = columnDefinitionToString(columnDefinition)
+			row.sourceDefinition = columnDefinitionToString(columnDefinition)
+			row.targetDefinition = "N/A"
+
+			row.dbChangeEffort = "Automatic"
+			row.dbChangeType = "None"
 
 			rows = append(rows, row)
 		}
@@ -150,7 +154,7 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 func columnDefinitionToString(columnDefinition utils.ColumnDetails) string {
 	s := columnDefinition.Datatype
 
-	if columnDefinition.IsArray {
+	if columnDefinition.Size > 0 {
 		s += " (" + fmt.Sprint(columnDefinition.Size) + ")"
 	}
 
