@@ -81,7 +81,6 @@ func generateSchemaReport(assessmentOutput utils.AssessmentOutput) [][]string {
 		row = append(row, schemaRow.targetName)
 		row = append(row, schemaRow.targetDefinition)
 		row = append(row, schemaRow.dbChangeEffort)
-		row = append(row, schemaRow.dbChangeType)
 		row = append(row, schemaRow.dbChanges)
 		row = append(row, schemaRow.dbImpact)
 		row = append(row, schemaRow.codeChangeEffort)
@@ -103,7 +102,6 @@ func getHeaders() []string {
 		"Target Name",
 		"Target Definition",
 		//DB
-		"DB Change Type",
 		"DB Change Effort",
 		"DB Changes",
 		"DB Impact",
@@ -121,18 +119,17 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 
 	//Populate table info
 	for id, table := range assessmentOutput.SchemaAssessment.SourceTableDefs {
+		spTable := assessmentOutput.SchemaAssessment.SpannerTableDefs[id]
 		row := SchemaReportRow{}
 		row.element = table.Name
 		row.elementType = "Table"
-		row.sourceDefinition = "N/A" //Todo - get table definition
+		row.sourceDefinition = tableDefinitionToString(table)
 
-		row.targetName = assessmentOutput.SchemaAssessment.SpannerTableDefs[id].Name
-		row.targetDefinition = "N/A" // Get from spanner table def
+		row.targetName = spTable.Name
+		row.targetDefinition = tableDefinitionToString(spTable)
 
 		row.dbChangeEffort = "Automatic"
-		row.dbChangeType = "None"
-		row.dbChanges = "N/A"
-		row.dbImpact = "N/A"
+		row.dbChanges, row.dbImpact = calculateTableDbChangesAndImpact(table, spTable)
 
 		//Populate code info
 		rows = append(rows, row)
@@ -140,17 +137,16 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 
 	//Populate column info
 	for id, column := range assessmentOutput.SchemaAssessment.SourceColDefs {
+		spColumn := assessmentOutput.SchemaAssessment.SpannerColDefs[id]
 		row := SchemaReportRow{}
 		row.element = column.TableName + "." + column.Name
 		row.elementType = "Column"
 		row.sourceDefinition = sourceColumnDefinitionToString(column)
-		row.targetName = assessmentOutput.SchemaAssessment.SpannerColDefs[id].TableName + "." + assessmentOutput.SchemaAssessment.SpannerColDefs[id].Name
-		row.targetDefinition = spannerColumnDefinitionToString(assessmentOutput.SchemaAssessment.SpannerColDefs[id])
+		row.targetName = spColumn.TableName + "." + spColumn.Name
+		row.targetDefinition = spannerColumnDefinitionToString(spColumn)
 
 		row.dbChangeEffort = "Automatic"
-		row.dbChangeType = "None"
-		row.dbChanges = "N/A"
-		row.dbImpact = "N/A"
+		row.dbChanges, row.dbImpact = calculateColumnDbChangesAndImpact(column, spColumn)
 
 		rows = append(rows, row)
 
@@ -158,6 +154,17 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 	}
 
 	return rows
+}
+
+func tableDefinitionToString(srcTable utils.TableDetails) string {
+	sourceDefinition := ""
+	if strings.Contains(srcTable.Charset, "utf") {
+		sourceDefinition += "CHARSET=" + srcTable.Charset + " "
+	}
+	for k, v := range srcTable.Properties {
+		sourceDefinition += k + "=" + v + " "
+	}
+	return sourceDefinition
 }
 
 func spannerColumnDefinitionToString(columnDefinition utils.SpColumnDetails) string {
@@ -188,4 +195,107 @@ func sourceColumnDefinitionToString(columnDefinition utils.SrcColumnDetails) str
 		s += " NOT NULL"
 	}
 	return s
+}
+
+// TODO move calculation logic to assessment engine
+func calculateTableDbChangesAndImpact(srcTable utils.TableDetails, spTable utils.TableDetails) (string, string) {
+	changes := []string{}
+	impact := []string{}
+	if !strings.Contains(srcTable.Charset, "utf8") { // TODO add charset level comparisons - per source
+		changes = append(changes, "charset")
+		impact = append(impact, "storage increase")
+	}
+	if len(changes) == 0 {
+		changes = append(changes, "None")
+	}
+	return strings.Join(changes, ","), strings.Join(impact, ",")
+}
+
+// TODO move calculation logic to assessment engine
+func calculateColumnDbChangesAndImpact(srcCol utils.SrcColumnDetails, spCol utils.SpColumnDetails) (string, string) {
+	changes := []string{}
+	impact := []string{}
+	if srcCol.Datatype != spCol.Datatype { // TODO type specific checks on size
+		changes = append(changes, "type")
+
+		if getSrcColSizeBytesMySQL(srcCol) < getSpColSizeBytes(spCol) {
+			impact = append(impact, "storage increase")
+		}
+	}
+
+	//TODO Add check for unsigned
+	//TODO add check for not null to null scenarios
+	//TODO add check for size overflow
+	//TODO add diffs in modifiers and features - generated cols, auto inc, default etc
+
+	if len(changes) == 0 {
+		changes = append(changes, "None")
+	}
+	if len(impact) == 0 {
+		impact = append(impact, "None")
+	}
+	return strings.Join(changes, ","), strings.Join(impact, ",")
+}
+
+// TODO - move to source specific interfaces - also account for charsets
+func getSrcColSizeBytesMySQL(srcCol utils.SrcColumnDetails) int64 {
+	switch strings.ToLower(srcCol.Datatype) {
+	case "date":
+		return 4
+	case "timestamp":
+		return 4
+	case "bit":
+		return srcCol.Mods[0] / 8
+	case "int":
+		return 4
+	case "integer":
+		return 4
+	case "float":
+		return 4 // Add precision pspecific handling
+	case "text":
+		return 2 ^ 16
+	case "mediumtext":
+		return 2 ^ 24
+	case "longtext":
+		return 2 ^ 32
+	default:
+		//TODO - add all types
+		return 4
+	}
+}
+
+// TODO - move to source specific interfaces - also account for charsets
+func getSpColSizeBytes(spCol utils.SpColumnDetails) int64 {
+	var size int64
+	switch strings.ToUpper(spCol.Datatype) {
+	case "ARRAY":
+		size = spCol.Len
+	case "BOOL":
+		size = 1
+	case "BYTES":
+		size = spCol.Len
+	case "DATE":
+		size = 4
+	case "FLOAT32":
+		size = 4
+	case "FLOAT64":
+		size = 8
+	case "INT64":
+		size = 8
+	case "JSON":
+		size = spCol.Len
+	case "NUMERIC":
+		size = 22 //TODO - calculate based on precision
+	case "STRING":
+		size = spCol.Len
+
+	case "STRUCT":
+		return 8 // TODO - get sum of parts
+	case "TIMESTAMP":
+		return 12
+	default:
+		//TODO - add all types
+		return 8
+	}
+	return 8 + size //Overhead per col plus size
 }
