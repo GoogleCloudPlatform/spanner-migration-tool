@@ -31,24 +31,22 @@ type CostAssessmentOutput struct {
 }
 
 type SchemaAssessmentOutput struct {
-	//Source structs
-	TableNames                      []string            // To be changed to TableDetails
-	ColumnNames                     map[string][]string // To be removed
-	IndexNameAndType                map[string]string   // check if this needs to be converted to struct
-	Triggers                        []TriggerAssessmentOutput
-	ColumnAssessmentOutput          map[string]ColumnDetails //Map can cause clashes in names
-	StoredProcedureAssessmentOutput []StoredProcedureAssessmentOutput
-	SourceTableDefs                 []TableDetails
-
-	SpannerTableDefs  []TableDetails
-	SpannerColumnDefs []ColumnDetails
+	SourceTableDefs                 map[string]TableDetails                    // Maps table id to source table definition.
+	SpannerTableDefs                map[string]TableDetails                    // Maps table id to spanner table definition.
+	SourceColDefs                   map[string]SrcColumnDetails                // Maps column id to source column definition.
+	SpannerColDefs                  map[string]SpColumnDetails                 // Maps column id to spanner column definition
+	SourceIndexDef                  map[string]SrcIndexDetails                 // Maps index id to source index definition.
+	SpannerIndexDef                 map[string]SpIndexDetails                  // Maps index id to spanner table definition.
+	Triggers                        map[string]TriggerAssessmentOutput         // Maps trigger id to source trigger definition.
+	StoredProcedureAssessmentOutput map[string]StoredProcedureAssessmentOutput // Maps stored procedure id to stored procedure(source) definition.
 }
 
 type TriggerAssessmentOutput struct {
-	Id          string
-	Name        string
-	Operation   string
-	TargetTable string
+	Id            string
+	Name          string
+	Operation     string
+	TargetTable   string
+	TargetTableId string
 }
 
 type StoredProcedureAssessmentOutput struct {
@@ -60,18 +58,51 @@ type StoredProcedureAssessmentOutput struct {
 
 type TableDetails struct {
 	Id         string
-	TableName  string
+	Name       string
 	Charset    string
 	Properties map[string]string //any other table level properties
 }
 
-type ColumnDetails struct {
+type SrcIndexDetails struct {
+	Id        string
+	Name      string
+	TableId   string
+	TableName string
+	Type      string
+	IsUnique  bool
+}
+
+type SpIndexDetails struct {
+	Id        string
+	Name      string
+	TableId   string
+	TableName string
+	IsUnique  bool
+}
+
+type SrcColumnDetails struct {
 	Id              string
+	Name            string
+	TableId         string
+	TableName       string
+	Datatype        string
+	ArrayBounds     []int64
+	Mods            []int64
+	IsNull          bool
+	PrimaryKeyOrder int
+	ForeignKey      []string
+	AutoGen         ddl.AutoGenCol
+	DefaultValue    ddl.DefaultValue
+}
+
+type SpColumnDetails struct {
+	Id              string
+	Name            string
 	TableId         string
 	TableName       string
 	Datatype        string
 	IsArray         bool
-	Size            int64
+	Len             int64
 	IsNull          bool
 	PrimaryKeyOrder int
 	ForeignKey      []string

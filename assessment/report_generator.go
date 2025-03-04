@@ -18,6 +18,8 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -118,13 +120,13 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 	rows := []SchemaReportRow{}
 
 	//Populate table info
-	for _, tableName := range assessmentOutput.SchemaAssessment.TableNames {
+	for id, table := range assessmentOutput.SchemaAssessment.SourceTableDefs {
 		row := SchemaReportRow{}
-		row.element = tableName
+		row.element = table.Name
 		row.elementType = "Table"
 		row.sourceDefinition = "N/A" //Todo - get table definition
 
-		row.targetName = "N/A"       // Get from spanner table def
+		row.targetName = assessmentOutput.SchemaAssessment.SpannerTableDefs[id].Name
 		row.targetDefinition = "N/A" // Get from spanner table def
 
 		row.dbChangeEffort = "Automatic"
@@ -137,22 +139,20 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 	}
 
 	//Populate column info
-	for tableName, columnNames := range assessmentOutput.SchemaAssessment.ColumnNames {
-		for _, columnName := range columnNames {
-			row := SchemaReportRow{}
-			columnDefinition := assessmentOutput.SchemaAssessment.ColumnAssessmentOutput[columnName]
-			row.element = tableName + "." + columnName
-			row.elementType = "Column"
-			row.sourceDefinition = columnDefinitionToString(columnDefinition)
-			row.targetDefinition = "N/A"
+	for id, column := range assessmentOutput.SchemaAssessment.SourceColDefs {
+		row := SchemaReportRow{}
+		row.element = column.TableName + "." + column.Name
+		row.elementType = "Column"
+		row.sourceDefinition = sourceColumnDefinitionToString(column)
+		row.targetName = assessmentOutput.SchemaAssessment.SpannerColDefs[id].TableName + "." + assessmentOutput.SchemaAssessment.SpannerColDefs[id].Name
+		row.targetDefinition = spannerColumnDefinitionToString(assessmentOutput.SchemaAssessment.SpannerColDefs[id])
 
-			row.dbChangeEffort = "Automatic"
-			row.dbChangeType = "None"
-			row.dbChanges = "N/A"
-			row.dbImpact = "N/A"
+		row.dbChangeEffort = "Automatic"
+		row.dbChangeType = "None"
+		row.dbChanges = "N/A"
+		row.dbImpact = "N/A"
 
-			rows = append(rows, row)
-		}
+		rows = append(rows, row)
 
 		//Populate code info
 	}
@@ -160,11 +160,28 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 	return rows
 }
 
-func columnDefinitionToString(columnDefinition utils.ColumnDetails) string {
+func spannerColumnDefinitionToString(columnDefinition utils.SpColumnDetails) string {
 	s := columnDefinition.Datatype
 
-	if columnDefinition.Size > 0 {
-		s += " (" + fmt.Sprint(columnDefinition.Size) + ")"
+	if columnDefinition.Len > 0 {
+		s += "(" + fmt.Sprint(columnDefinition.Len) + ")"
+	}
+
+	if !columnDefinition.IsNull {
+		s += " NOT NULL"
+	}
+	return s
+}
+
+func sourceColumnDefinitionToString(columnDefinition utils.SrcColumnDetails) string {
+	s := columnDefinition.Datatype
+
+	if len(columnDefinition.Mods) > 0 {
+		var l []string
+		for _, x := range columnDefinition.Mods {
+			l = append(l, strconv.FormatInt(x, 10))
+		}
+		s = fmt.Sprintf("%s(%s)", s, strings.Join(l, ","))
 	}
 
 	if !columnDefinition.IsNull {
