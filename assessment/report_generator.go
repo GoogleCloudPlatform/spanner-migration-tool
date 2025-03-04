@@ -32,6 +32,7 @@ type SchemaReportRow struct {
 	//DB
 	dbChangeType   string
 	dbChangeEffort string
+	dbChanges      string
 	dbImpact       string
 	//Code
 	codeChangeType    string // consider enum ?
@@ -79,6 +80,8 @@ func generateSchemaReport(assessmentOutput utils.AssessmentOutput) [][]string {
 		row = append(row, schemaRow.targetDefinition)
 		row = append(row, schemaRow.dbChangeEffort)
 		row = append(row, schemaRow.dbChangeType)
+		row = append(row, schemaRow.dbChanges)
+		row = append(row, schemaRow.dbImpact)
 		row = append(row, schemaRow.codeChangeEffort)
 		row = append(row, schemaRow.codeChangeType)
 		row = append(row, schemaRow.codeImpactedFiles)
@@ -100,6 +103,8 @@ func getHeaders() []string {
 		//DB
 		"DB Change Type",
 		"DB Change Effort",
+		"DB Changes",
+		"DB Impact",
 		//CODE
 		"Code Change Type",
 		"Code Change Effort",
@@ -124,6 +129,8 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 
 		row.dbChangeEffort = "Automatic"
 		row.dbChangeType = "None"
+		row.dbChanges = "N/A"
+		row.dbImpact = "N/A"
 
 		//Populate code info
 		rows = append(rows, row)
@@ -141,6 +148,8 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 
 			row.dbChangeEffort = "Automatic"
 			row.dbChangeType = "None"
+			row.dbChanges = "N/A"
+			row.dbImpact = "N/A"
 
 			rows = append(rows, row)
 		}
