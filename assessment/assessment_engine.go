@@ -74,11 +74,3 @@ func performSchemaAssessment(collectors assessmentCollectors) (utils.SchemaAsses
 	schemaOut.StoredProcedureAssessmentOutput = collectors.infoSchemaCollector.ListStoredProcedures()
 	return schemaOut, nil
 }
-
-func calculateTableChanges(srcTable utils.TableDetails, spTable utils.TableDetails) []string {
-	changes := []string{}
-	if srcTable.Charset != "utf8" { // TODO add charset level comparisons
-		changes = append(changes, "charset change")
-	}
-	return changes
-}
