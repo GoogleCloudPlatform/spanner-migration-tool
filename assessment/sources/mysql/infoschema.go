@@ -29,13 +29,13 @@ type InfoSchemaImpl struct {
 	DbName string
 }
 
-func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) ([]utils.TableAssessment, error) {
-	tb := []utils.TableAssessment{}
+func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.TableAssessment, error) {
+	tb := make(map[string]utils.TableAssessment)
 	dbIdentifier := utils.DbIdentifier{
 		DatabaseName: isi.DbName,
 	}
 	for _, table := range conv.SrcSchema {
-		columnAssessments := []utils.ColumnAssessment[any]{}
+		columnAssessments := make(map[string]utils.ColumnAssessment[any])
 		for _, column := range table.ColDefs {
 			q := `SELECT c.column_type
               FROM information_schema.COLUMNS c
@@ -53,7 +53,7 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) ([]utils.TableAssess
 					continue
 				}
 			}
-			columnAssessments = append(columnAssessments, utils.ColumnAssessment[any]{
+			columnAssessments[column.Id] = utils.ColumnAssessment[any]{
 				Db: utils.DbIdentifier{
 					DatabaseName: isi.DbName,
 				},
@@ -61,9 +61,9 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) ([]utils.TableAssess
 				TableName:  table.Name,
 				ColumnDef:  column,
 				IsUnsigned: strings.Contains(strings.ToLower(columnType), " unsigned"),
-			})
+			}
 		}
-		tb = append(tb, utils.TableAssessment{Name: table.Name, TableDef: table, ColumnAssessments: columnAssessments, Db: dbIdentifier})
+		tb[table.Id] = utils.TableAssessment{Name: table.Name, TableDef: table, ColumnAssessments: columnAssessments, Db: dbIdentifier}
 	}
 	return tb, nil
 }

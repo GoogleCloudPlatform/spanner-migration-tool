@@ -29,7 +29,7 @@ import (
 )
 
 type InfoSchemaCollector struct {
-	tables           []utils.TableAssessment
+	tables           map[string]utils.TableAssessment
 	indexes          []utils.IndexAssessment
 	triggers         []utils.TriggerAssessment
 	storedProcedures []utils.StoredProcedureAssessment
@@ -117,8 +117,7 @@ func (c InfoSchemaCollector) ListTables() (map[string]utils.TableDetails, map[st
 	srcTable := make(map[string]utils.TableDetails)
 	spTable := make(map[string]utils.TableDetails)
 
-	for i := range c.tables {
-		tableId := c.tables[i].TableDef.Id
+	for tableId := range c.tables {
 		srcTable[tableId] = utils.TableDetails{
 			Id:   tableId,
 			Name: c.conv.SrcSchema[tableId].Name,
@@ -204,6 +203,7 @@ func (c InfoSchemaCollector) ListColumnDefinitions() (map[string]utils.SrcColumn
 				DefaultValue:    column.DefaultValue,
 				PrimaryKeyOrder: pkOrder,
 				ForeignKey:      foreignKeys,
+				IsUnsigned:      c.tables[table.Id].ColumnAssessments[column.Id].IsUnsigned,
 			}
 		}
 	}

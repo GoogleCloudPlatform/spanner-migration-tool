@@ -93,6 +93,7 @@ type SrcColumnDetails struct {
 	ForeignKey      []string
 	AutoGen         ddl.AutoGenCol
 	DefaultValue    ddl.DefaultValue
+	IsUnsigned      bool
 	//TODO - add modifiers like unsigned
 }
 

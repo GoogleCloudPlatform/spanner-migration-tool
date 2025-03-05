@@ -30,7 +30,7 @@ type TableAssessment struct {
 	Db                DbIdentifier
 	Name              string
 	TableDef          schema.Table
-	ColumnAssessments []ColumnAssessment[any]
+	ColumnAssessments map[string]ColumnAssessment[any]
 }
 
 // Information relevant to assessment of columns

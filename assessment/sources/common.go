@@ -23,7 +23,7 @@ type InfoSchema interface {
 	GetIndexInfo(table string, conv *internal.Conv) ([]utils.IndexAssessment, error)
 	GetTriggerInfo() ([]utils.TriggerAssessment, error)
 	GetStoredProcedureInfo() ([]utils.StoredProcedureAssessment, error)
-	GetTableInfo(conv *internal.Conv) ([]utils.TableAssessment, error)
+	GetTableInfo(conv *internal.Conv) (map[string]utils.TableAssessment, error)
 }
 
 type InfoSchemaImpl struct{}
