@@ -69,7 +69,7 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) ([]utils.TableAssess
 }
 
 // GetIndexes return a list of all indexes for the specified table.
-func (isi InfoSchemaImpl) GetIndexInfo(table string) ([]utils.IndexAssessment, error) {
+func (isi InfoSchemaImpl) GetIndexInfo(table string, conv *internal.Conv) ([]utils.IndexAssessment, error) {
 	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE,INDEX_TYPE
 		FROM INFORMATION_SCHEMA.STATISTICS 
 		WHERE TABLE_SCHEMA = ?
@@ -92,11 +92,12 @@ func (isi InfoSchemaImpl) GetIndexInfo(table string) ([]utils.IndexAssessment, e
 			continue
 		}
 		if _, found := indexMap[name]; !found {
+			tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, table)
 			indexNames = append(indexNames, name)
 			indexMap[name] = utils.IndexAssessment{
-				Ty:        indexType,
-				Name:      name,
-				TableName: table,
+				Ty:      indexType,
+				Name:    name,
+				TableId: tableId,
 				Db: utils.DbIdentifier{
 					DatabaseName: isi.DbName,
 				},

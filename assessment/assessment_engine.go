@@ -67,11 +67,10 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 
 func performSchemaAssessment(collectors assessmentCollectors) (utils.SchemaAssessmentOutput, error) {
 	schemaOut := utils.SchemaAssessmentOutput{}
-	schemaOut.TableNames = collectors.infoSchemaCollector.ListTables()
-	schemaOut.ColumnNames = collectors.infoSchemaCollector.ListColumns()
-	schemaOut.IndexNameAndType = collectors.infoSchemaCollector.ListIndexesAndTypes()
+	schemaOut.SourceTableDefs, schemaOut.SpannerTableDefs = collectors.infoSchemaCollector.ListTables()
+	schemaOut.SourceIndexDef, schemaOut.SpannerIndexDef = collectors.infoSchemaCollector.ListIndexes()
 	schemaOut.Triggers = collectors.infoSchemaCollector.ListTriggers()
-	schemaOut.ColumnAssessmentOutput = collectors.infoSchemaCollector.ListColumnDetails()
+	schemaOut.SourceColDefs, schemaOut.SpannerColDefs = collectors.infoSchemaCollector.ListColumnDefinitions()
 	schemaOut.StoredProcedureAssessmentOutput = collectors.infoSchemaCollector.ListStoredProcedures()
 	return schemaOut, nil
 }
