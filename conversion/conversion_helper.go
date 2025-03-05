@@ -134,7 +134,7 @@ func (pdc *PopulateDataConvImpl) populateDataConv(conv *internal.Conv, config wr
 	return batchWriter
 }
 
-func connectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error) {
+func ConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error) {
 	switch sourceProfile.Driver {
 	// For PG and MYSQL, When called as part of the subcommand flow, host/user/db etc will
 	// never be empty as we error out right during source profile creation. If any of them
