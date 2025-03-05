@@ -17,6 +17,7 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -28,7 +29,7 @@ type InfoSchemaImpl struct {
 	DbName string
 }
 
-func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) []utils.TableAssessment {
+func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) ([]utils.TableAssessment, error) {
 	tb := []utils.TableAssessment{}
 	dbIdentifier := utils.DbIdentifier{
 		DatabaseName: isi.DbName,
@@ -36,18 +37,35 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) []utils.TableAssessm
 	for _, table := range conv.SrcSchema {
 		columnAssessments := []utils.ColumnAssessment[any]{}
 		for _, column := range table.ColDefs {
+			q := `SELECT c.column_type
+              FROM information_schema.COLUMNS c
+              where table_schema = ? and table_name = ? and column_name = ? ORDER BY c.ordinal_position;`
+			cols, err := isi.Db.Query(q, isi.DbName, table.Name, column.Name)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't get schema for column %s.%s: %s", table.Name, column.Name, err)
+			}
+			defer cols.Close()
+			var columnType string
+			for cols.Next() {
+				err := cols.Scan(&columnType)
+				if err != nil {
+					conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+					continue
+				}
+			}
 			columnAssessments = append(columnAssessments, utils.ColumnAssessment[any]{
 				Db: utils.DbIdentifier{
 					DatabaseName: isi.DbName,
 				},
-				Name:      column.Name,
-				TableName: table.Name,
-				ColumnDef: column,
+				Name:       column.Name,
+				TableName:  table.Name,
+				ColumnDef:  column,
+				IsUnsigned: strings.Contains(strings.ToLower(columnType), " unsigned"),
 			})
 		}
 		tb = append(tb, utils.TableAssessment{Name: table.Name, TableDef: table, ColumnAssessments: columnAssessments, Db: dbIdentifier})
 	}
-	return tb
+	return tb, nil
 }
 
 // GetIndexes return a list of all indexes for the specified table.

@@ -50,7 +50,10 @@ func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.Sourc
 	if err != nil {
 		return InfoSchemaCollector{}, err
 	}
-	tb := infoSchema.GetTableInfo(conv)
+	tb, err := infoSchema.GetTableInfo(conv)
+	if err != nil {
+		errString = errString + fmt.Sprintf("\nError while scanning tables: %v", err)
+	}
 	indCollector, err := getIndexes(infoSchema, conv)
 	if err != nil {
 		errString = errString + fmt.Sprintf("\nError while scanning indexes: %v", err)

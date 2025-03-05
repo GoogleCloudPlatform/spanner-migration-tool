@@ -35,12 +35,13 @@ type TableAssessment struct {
 
 // Information relevant to assessment of columns
 type ColumnAssessment[T any] struct {
-	Db        DbIdentifier
-	Name      string
-	TableName string
-	ColumnDef schema.Column
-	MaxValue  T
-	MinValue  T
+	Db         DbIdentifier
+	Name       string
+	TableName  string
+	ColumnDef  schema.Column
+	MaxValue   T
+	MinValue   T
+	IsUnsigned bool
 }
 
 // Information relevant to assessment of indexes
