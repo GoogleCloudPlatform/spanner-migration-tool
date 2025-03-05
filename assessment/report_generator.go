@@ -273,7 +273,7 @@ func getSpColSizeBytes(spCol utils.SpColumnDetails) int64 {
 	var size int64
 	switch strings.ToUpper(spCol.Datatype) {
 	case "ARRAY":
-		size = spCol.Len
+		size = spCol.Len //TODO correct this based on underlying type
 	case "BOOL":
 		size = 1
 	case "BYTES":
