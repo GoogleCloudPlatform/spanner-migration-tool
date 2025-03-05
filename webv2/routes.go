@@ -77,6 +77,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/downloadStructuredReport", reportAPIHandler.GetDStructuredReport).Methods("GET")
 	router.HandleFunc("/downloadTextReport", reportAPIHandler.GetDTextReport).Methods("GET")
 	router.HandleFunc("/downloadDDL", api.GetDSpannerDDL).Methods("GET")
+	router.HandleFunc("/downloadDDLWoComments", api.GetSpannerDDLWoComments).Methods("GET")
 	router.HandleFunc("/schema", getSchemaFile).Methods("GET")
 	router.HandleFunc("/applyrule", api.ApplyRule).Methods("POST")
 	router.HandleFunc("/dropRule", api.DropRule).Methods("POST")

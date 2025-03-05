@@ -1,6 +1,6 @@
 module github.com/GoogleCloudPlatform/spanner-migration-tool
 
-go 1.19
+go 1.22.7
 
 require (
 	cloud.google.com/go v0.113.0
@@ -34,6 +34,7 @@ require (
 	golang.org/x/crypto v0.31.0
 	golang.org/x/exp v0.0.0-20221023144134-a1e5550cf13e
 	golang.org/x/net v0.33.0
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d
 	google.golang.org/api v0.178.0
 	google.golang.org/genproto v0.0.0-20240401170217-c3f982113cda
 	google.golang.org/grpc v1.63.2
@@ -57,6 +58,7 @@ require (
 	go.opentelemetry.io/otel v1.24.0 // indirect
 	go.opentelemetry.io/otel/metric v1.24.0 // indirect
 	go.opentelemetry.io/otel/trace v1.24.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 )
 
