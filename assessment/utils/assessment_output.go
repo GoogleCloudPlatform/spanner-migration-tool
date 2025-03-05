@@ -94,7 +94,6 @@ type SrcColumnDetails struct {
 	AutoGen         ddl.AutoGenCol
 	DefaultValue    ddl.DefaultValue
 	IsUnsigned      bool
-	//TODO - add modifiers like unsigned
 }
 
 type SpColumnDetails struct {
