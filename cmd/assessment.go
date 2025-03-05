@@ -1,4 +1,4 @@
-/* Copyright 2020 Google LLC
+/* Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,63 +21,63 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/google/subcommands"
 	"go.uber.org/zap"
 )
 
-// SchemaCmd struct with flags.
-type SchemaCmd struct {
-	source        string
-	sourceProfile string
-	target        string
-	targetProfile string
-	filePrefix    string // TODO: move filePrefix to global flags
-	project       string
-	logLevel      string
-	dryRun        bool
-	validate      bool
-	sessionJSON   string
+// AssessmentCmd struct with flags.
+type AssessmentCmd struct {
+	source            string
+	sourceProfile     string
+	target            string
+	targetProfile     string
+	assessmentProfile string
+	project           string
+	logLevel          string
+	dryRun            bool
+	validate          bool
+	sessionJSON       string
 }
 
 // Name returns the name of operation.
-func (cmd *SchemaCmd) Name() string {
-	return "schema"
+func (cmd *AssessmentCmd) Name() string {
+	return "assessment"
 }
 
 // Synopsis returns summary of operation.
-func (cmd *SchemaCmd) Synopsis() string {
-	return "generate schema for target db from source db schema"
+func (cmd *AssessmentCmd) Synopsis() string {
+	return "generate assessment for migration of the current database to Spanner"
 }
 
 // Usage returns usage info of the command.
-func (cmd *SchemaCmd) Usage() string {
-	return fmt.Sprintf(`%v schema -source=[source] -source-profile="key1=value1,key2=value2" ...
+func (cmd *AssessmentCmd) Usage() string {
+	return fmt.Sprintf(`%v assessment -source=[source] -source-profile="key1=value1,key2=value2" -assessment-profile="key1=value1" ...
 
-Convert schema for source db specified by source and source-profile. Source db
-dump file can be specified by either file param in source-profile or piped to
-stdin. Connection profile for source database in direct connect mode can be
-specified by setting appropriate params in source-profile. The schema flags are:
+Run an assessment on the existing source db and create a report on the complexity of 
+performing a migration to Spanner. The configuration of the assessment collectors is
+provided in the assessment-profile
+The assessment flags are:
 `, path.Base(os.Args[0]))
 }
 
 // SetFlags sets the flags.
-func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
+func (cmd *AssessmentCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.source, "source", "", "Flag for specifying source DB, (e.g., `PostgreSQL`, `MySQL`, `DynamoDB`)")
 	f.StringVar(&cmd.sourceProfile, "source-profile", "", "Flag for specifying connection profile for source database e.g., \"file=<path>,format=dump\"")
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
-	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
+	f.StringVar(&cmd.assessmentProfile, "assessment-profile", "", "File for specifying configuration to be used during assessment. e.g. \"app-code-location=\"<a/b/c>")
 	f.StringVar(&cmd.project, "project", "", "Flag spcifying default project id for all the generated resources for the migration")
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
@@ -85,7 +85,7 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.sessionJSON, "session", "", "Optional. Specifies the file we restore session state from.")
 }
 
-func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+func (cmd *AssessmentCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	// Cleanup smt tmp data directory in case residuals remain from prev runs.
 	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))
 	var err error
@@ -100,31 +100,48 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		return subcommands.ExitFailure
 	}
 	defer logger.Log.Sync()
-	// validate and parse source-profile, target-profile and source
-	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
-	if err != nil {
-		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
-		return subcommands.ExitUsageError
-	}
-	if cmd.project == "" {
-		getInfo := &utils.GetUtilInfoImpl{}
-		cmd.project, err = getInfo.GetProject()
-		if err != nil {
-			logger.Log.Error("Could not get project id from gcloud environment or --project flag. Either pass the projectId in the --project flag or configure in gcloud CLI using gcloud config set", zap.Error(err))
-			return subcommands.ExitUsageError
-		}
-	}
+	// Generate source and spanner schema
+	// Initialize collectors based on assessment profile
+	// Initialize the assessment engine with the collectors and schema
+	// Generate assessment report
 
 	if cmd.validate {
 		return subcommands.ExitSuccess
 	}
 
-	// If filePrefix not explicitly set, use generated dbName.
-	if cmd.filePrefix == "" {
-		cmd.filePrefix = dbName
+	conv, sourceProfile, exitStatus := generateConv(cmd)
+	if conv == nil {
+		return exitStatus
 	}
 
-	schemaConversionStartTime := time.Now()
+	assessmentOutput, err := assessment.PerformAssessment(conv, sourceProfile)
+	if err != nil {
+		logger.Log.Fatal("could not complete assessment", zap.Error(err))
+		return subcommands.ExitFailure
+	}
+
+	getInfo := utils.GetUtilInfoImpl{}
+	dbName, err := getInfo.GetDatabaseName(sourceProfile.Driver, time.Now())
+	if err != nil {
+		err = fmt.Errorf("can't generate database name for prefix: %v", err)
+		return subcommands.ExitFailure
+	}
+
+	assessment.GenerateReport(dbName, assessmentOutput)
+
+	// Follow up if required - save assessment report
+	// Cleanup smt tmp data directory.
+	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))
+	return subcommands.ExitSuccess
+}
+
+func generateConv(cmd *AssessmentCmd) (*internal.Conv, profiles.SourceProfile, subcommands.ExitStatus) {
+	sourceProfile, targetProfile, ioHelper, _, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
+	if err != nil {
+		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
+		return nil, profiles.SourceProfile{}, subcommands.ExitUsageError
+	}
+
 	var conv *internal.Conv
 	convImpl := &conversion.ConvImpl{}
 	if cmd.sessionJSON != "" {
@@ -133,7 +150,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		conv = internal.MakeConv()
 		err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
 		if err != nil {
-			return subcommands.ExitFailure
+			return nil, profiles.SourceProfile{}, subcommands.ExitFailure
 		}
 		expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(context.Background(), targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
 		schemaToSpanner := common.SchemaToSpannerImpl{
@@ -142,51 +159,28 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		err := schemaToSpanner.VerifyExpressions(conv)
 
 		if err != nil {
-			logger.Log.Error(fmt.Sprintf("Error while verifying the expressions %v", err))
-			return subcommands.ExitFailure
+			return nil, profiles.SourceProfile{}, subcommands.ExitFailure
 		}
 	} else {
 		ctx := context.Background()
 		ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, "", "")
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("error trying create ddl verifier: %v", err))
-			return subcommands.ExitFailure
+			return nil, profiles.SourceProfile{}, subcommands.ExitFailure
 		}
 		sfs := &conversion.SchemaFromSourceImpl{
 			DdlVerifier: ddlVerifier,
 		}
 		conv, err = convImpl.SchemaConv(cmd.project, sourceProfile, targetProfile, &ioHelper, sfs)
 		if err != nil {
-			return subcommands.ExitFailure
+			return nil, profiles.SourceProfile{}, subcommands.ExitFailure
 		}
 	}
 	if conv == nil {
-		logger.Log.Error("Could not initialize conversion context from")
-		return subcommands.ExitFailure
-	}
-	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out, sourceProfile.Driver)
-	// We always write the session file to accommodate for a re-run that might change anything.
-	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
-
-	// Populate migration request id and migration type in conv object.
-	conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
-	conv.Audit.MigrationRequestId = strings.Replace(conv.Audit.MigrationRequestId, "_", "-", -1)
-	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
-	conv.Audit.SkipMetricsPopulation = os.Getenv("SKIP_METRICS_POPULATION") == "true"
-	if !cmd.dryRun {
-		_, err = MigrateDatabase(ctx, cmd.project, targetProfile, sourceProfile, dbName, &ioHelper, cmd, conv, nil)
-		if err != nil {
-			err = fmt.Errorf("can't finish database migration for db %s: %v", dbName, err)
-			return subcommands.ExitFailure
-		}
+		logger.Log.Error("Could not initialize conversion context")
+		return nil, profiles.SourceProfile{}, subcommands.ExitFailure
 	}
 
-	schemaCoversionEndTime := time.Now()
-	conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
-	banner := utils.GetBanner(schemaConversionStartTime, dbName)
-	reportImpl := conversion.ReportImpl{}
-	reportImpl.GenerateReport(sourceProfile.Driver, nil, ioHelper.BytesRead, banner, conv, cmd.filePrefix, dbName, ioHelper.Out)
-	// Cleanup smt tmp data directory.
-	os.RemoveAll(filepath.Join(os.TempDir(), constants.SMT_TMP_DIR))
-	return subcommands.ExitSuccess
+	logger.Log.Info("completed creation on source and spanner schema")
+	return conv, sourceProfile, 0
 }

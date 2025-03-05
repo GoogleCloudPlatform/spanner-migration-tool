@@ -9,16 +9,19 @@ import (
 
 // MockExpressionVerificationAccessor is a mock of ExpressionVerificationAccessor
 type MockExpressionVerificationAccessor struct {
-    mock.Mock
+	mock.Mock
 }
 
 // VerifyExpressions is a mocked method for expression verification
 func (m *MockExpressionVerificationAccessor) VerifyExpressions(ctx context.Context, input internal.VerifyExpressionsInput) internal.VerifyExpressionsOutput {
-    args := m.Called(ctx, input)
-    return args.Get(0).(internal.VerifyExpressionsOutput)
+	args := m.Called(ctx, input)
+	return args.Get(0).(internal.VerifyExpressionsOutput)
 }
 
-func (m *MockExpressionVerificationAccessor) RefreshSpannerClient(ctx context.Context, project, instance string ) error {
+func (m *MockExpressionVerificationAccessor) RefreshSpannerClient(ctx context.Context, project, instance string) error {
 	args := m.Called(ctx, project, instance)
+	if args.Get(0) == nil {
+		return nil
+	}
 	return args.Get(0).(error)
 }

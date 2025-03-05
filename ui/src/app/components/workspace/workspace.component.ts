@@ -372,6 +372,18 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     })
   }
 
+  // downloads text file of Spanner's DDL of the schema without comments.
+  downloadDDLWoComments(){
+    var a = document.createElement('a')
+    this.fetch.getSpannerDDLWoComments().subscribe({
+      next: (res: string) => {
+        a.href = 'data:text;charset=utf-8,' + encodeURIComponent(res)
+        a.download = `${this.conv.DatabaseName}_spannerDDL.ddl.txt`
+        a.click()
+      }
+    })
+  }
+
   updateSpannerTable(data: IUpdateTableArgument) {
     this.spannerTree = this.conversion.createTreeNode(
       this.conv,
@@ -431,6 +443,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
               this.router.navigate(['/prepare-migration'])
             }
             else{
+              this.dialog.open(InfodialogComponent, {
+                data: { message: "Some of the Check constraints added or modified are invalid. Please fix to proceed", type: 'error', title: 'Modify Check Constraints' },
+                maxWidth: '500px',
+              })
               this.data.getSummary()
             }
           })
