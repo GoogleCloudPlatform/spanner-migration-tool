@@ -189,19 +189,13 @@ func FormatCheckConstraints(cks []schema.CheckConstraint) string {
 
 	for _, col := range cks {
 		if col.Name != "" {
-			builder.WriteString(fmt.Sprintf("CONSTRAINT %s CHECK (%s),", quote(col.Name), col.Expr))
+			builder.WriteString(fmt.Sprintf(", CONSTRAINT %s CHECK (%s)", quote(col.Name), col.Expr))
 		} else {
-			builder.WriteString(fmt.Sprintf("CHECK (%s),", col.Expr))
+			builder.WriteString(fmt.Sprintf(", CHECK (%s)", col.Expr))
 		}
 	}
 
-	if builder.Len() > 0 {
-		// Trim the trailing comma
-		result := builder.String()
-		return result[:len(result)-1]
-	}
-
-	return ""
+	return builder.String()
 }
 
 // GetDDL returns the string representation of MySQL schema represented by schema.Table struct.
