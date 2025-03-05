@@ -17,6 +17,7 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -28,30 +29,39 @@ type InfoSchemaImpl struct {
 	DbName string
 }
 
-func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) []utils.TableAssessment {
-	tb := []utils.TableAssessment{}
+func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.TableAssessment, error) {
+	tb := make(map[string]utils.TableAssessment)
 	dbIdentifier := utils.DbIdentifier{
 		DatabaseName: isi.DbName,
 	}
 	for _, table := range conv.SrcSchema {
-		columnAssessments := []utils.ColumnAssessment[any]{}
+		columnAssessments := make(map[string]utils.ColumnAssessment[any])
 		for _, column := range table.ColDefs {
-			columnAssessments = append(columnAssessments, utils.ColumnAssessment[any]{
+			q := `SELECT c.column_type
+              FROM information_schema.COLUMNS c
+              where table_schema = ? and table_name = ? and column_name = ? ORDER BY c.ordinal_position;`
+			var columnType string
+			err := isi.Db.QueryRow(q, isi.DbName, table.Name, column.Name).Scan(&columnType)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't get schema for column %s.%s: %s", table.Name, column.Name, err)
+			}
+			columnAssessments[column.Id] = utils.ColumnAssessment[any]{
 				Db: utils.DbIdentifier{
 					DatabaseName: isi.DbName,
 				},
-				Name:      column.Name,
-				TableName: table.Name,
-				ColumnDef: column,
-			})
+				Name:       column.Name,
+				TableName:  table.Name,
+				ColumnDef:  column,
+				IsUnsigned: strings.Contains(strings.ToLower(columnType), " unsigned"),
+			}
 		}
-		tb = append(tb, utils.TableAssessment{Name: table.Name, TableDef: table, ColumnAssessments: columnAssessments, Db: dbIdentifier})
+		tb[table.Id] = utils.TableAssessment{Name: table.Name, TableDef: table, ColumnAssessments: columnAssessments, Db: dbIdentifier}
 	}
-	return tb
+	return tb, nil
 }
 
 // GetIndexes return a list of all indexes for the specified table.
-func (isi InfoSchemaImpl) GetIndexInfo(table string) ([]utils.IndexAssessment, error) {
+func (isi InfoSchemaImpl) GetIndexInfo(table string, conv *internal.Conv) ([]utils.IndexAssessment, error) {
 	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE,INDEX_TYPE
 		FROM INFORMATION_SCHEMA.STATISTICS 
 		WHERE TABLE_SCHEMA = ?
@@ -74,11 +84,12 @@ func (isi InfoSchemaImpl) GetIndexInfo(table string) ([]utils.IndexAssessment, e
 			continue
 		}
 		if _, found := indexMap[name]; !found {
+			tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, table)
 			indexNames = append(indexNames, name)
 			indexMap[name] = utils.IndexAssessment{
-				Ty:        indexType,
-				Name:      name,
-				TableName: table,
+				Ty:      indexType,
+				Name:    name,
+				TableId: tableId,
 				Db: utils.DbIdentifier{
 					DatabaseName: isi.DbName,
 				},
