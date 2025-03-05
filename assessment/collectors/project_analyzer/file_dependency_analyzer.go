@@ -15,7 +15,6 @@
 package assessment
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -234,35 +233,19 @@ func topologicalSort(G map[string]map[string]struct{}) ([][]string, error) {
 
 func (g *GoDependencyAnalyzer) LogDependencyGraph(dependencyGraph map[string]map[string]struct{}, projectDir string) {
 
-	logger.Log.Debug("\nDependency Graph:")
+	logger.Log.Debug("Dependency Graph:")
 	for file, dependencies := range dependencyGraph {
-		fmt.Println("depends on: ", strings.TrimPrefix(file, projectDir))
+		logger.Log.Debug("depends on: ", zap.String("filepath: ", strings.TrimPrefix(file, projectDir)))
 		for dep := range dependencies {
-			fmt.Println("\t: ", strings.TrimPrefix(dep, projectDir))
+			logger.Log.Debug("Dependency: ", zap.String("filepath", strings.TrimPrefix(dep, projectDir)))
 		}
 	}
 }
 
 func (g *GoDependencyAnalyzer) LogExecutionOrder(groupedTasks [][]string) {
 
-	// Print results
 	logger.Log.Debug("Execution Order Groups:")
 	for i, group := range groupedTasks {
 		logger.Log.Debug("Level: ", zap.Int("level", i), zap.String("group", strings.Join(group, ", ")))
 	}
 }
-
-// func main() {
-// 	logger.Log, _ = zap.NewDevelopment()
-
-// 	projectDir := "" // Change this to your actual project directory
-// 	language := "go" // Change this to "java" for Java projects
-
-// 	// Create analyzer instance using factory
-// 	analyzer := AnalyzerFactory(language)
-
-// 	// Run execution order analysis
-// 	G, groupedTasks := analyzer.GetExecutionOrder(projectDir)
-// 	analyzer.LogDependencyGraph(G, projectDir)
-// 	analyzer.LogExecutionOrder(groupedTasks)
-// }
