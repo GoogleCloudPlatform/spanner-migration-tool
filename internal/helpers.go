@@ -79,6 +79,12 @@ func GenerateSequenceId() string {
 func GenerateExpressionId() string {
 	return GenerateId("e")
 }
+func GenerateStoredProcedureId() string {
+	return GenerateId("sp")
+}
+func GenerateTriggerId() string {
+	return GenerateId("tr")
+}
 
 func GetSrcColNameIdMap(srcs schema.Table) map[string]string {
 	if len(srcs.ColNameIdMap) > 0 {
