@@ -17,6 +17,7 @@ package assessment
 import (
 	"encoding/csv"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -208,6 +209,9 @@ func calculateTableDbChangesAndImpact(srcTable utils.TableDetails, spTable utils
 	if len(changes) == 0 {
 		changes = append(changes, "None")
 	}
+	if len(impact) == 0 {
+		impact = append(impact, "None")
+	}
 	return strings.Join(changes, ","), strings.Join(impact, ",")
 }
 
@@ -245,7 +249,7 @@ func getSrcColSizeBytesMySQL(srcCol utils.SrcColumnDetails) int64 {
 	case "timestamp":
 		return 4
 	case "bit":
-		return srcCol.Mods[0] / 8
+		return int64(math.Ceil(float64(srcCol.Mods[0]+7) / 8))
 	case "int":
 		return 4
 	case "integer":
@@ -253,7 +257,7 @@ func getSrcColSizeBytesMySQL(srcCol utils.SrcColumnDetails) int64 {
 	case "float":
 		return 4 // Add precision pspecific handling
 	case "text":
-		return 2 ^ 16
+		return 2 ^ 16 //TODO Check for actual storage used and update here
 	case "mediumtext":
 		return 2 ^ 24
 	case "longtext":
