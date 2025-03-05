@@ -93,7 +93,7 @@ type SrcColumnDetails struct {
 	ForeignKey      []string
 	AutoGen         ddl.AutoGenCol
 	DefaultValue    ddl.DefaultValue
-	//TODO - add modifiers like unsigned
+	IsUnsigned      bool
 }
 
 type SpColumnDetails struct {
