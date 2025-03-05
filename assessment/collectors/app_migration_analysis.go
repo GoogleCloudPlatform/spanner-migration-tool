@@ -276,7 +276,11 @@ func (m *MigrationSummarizer) fetchFileContent(filepath string) (string, error) 
 }
 
 func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, methodChanges, content string) (*CodeAssessment, []any) {
-	var codeAssessment *CodeAssessment
+	emptyAssessment := &CodeAssessment{
+		Snippets:        make([]Snippet, 0),
+		GeneralWarnings: make([]string, 0),
+	}
+	codeAssessment := emptyAssessment
 
 	var response string
 	var isDao bool
@@ -327,7 +331,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, 
 	codeAssessment, error := parser.ParseFileAnalyzerResponse(filepath, response, isDao)
 
 	if error != nil {
-		return codeAssessment, methodSignatureChanges
+		return emptyAssessment, methodSignatureChanges
 	}
 
 	return codeAssessment, methodSignatureChanges
