@@ -94,7 +94,6 @@ type Key struct {
 }
 
 // Index represents a database index.
-// Index represents a database index.
 // The only way we represent unique constraints is via indexes. All source database
 // unique constraints will be transformed into this representation, including:
 // i) A column level constraint (as part of a CREATE TABLE statement)

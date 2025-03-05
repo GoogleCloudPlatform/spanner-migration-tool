@@ -152,17 +152,18 @@ func GetSequenceDDL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
+	conv := sessionState.Conv
 
 	seqDDL := make(map[string]string)
 	for seqName, seq := range sessionState.Conv.SpSequences {
-		var ddl string
+		var sDdl string
 		switch sessionState.Dialect {
 		case constants.POSTGRES:
-			ddl = seq.PGPrintSequence()
+			sDdl = seq.PGPrintSequence(ddl.Config{ProtectIds: false, SpDialect: conv.SpDialect})
 		default:
-			ddl = seq.PrintSequence()
+			sDdl = seq.PrintSequence(ddl.Config{ProtectIds: false, SpDialect: conv.SpDialect})
 		}
-		seqDDL[seqName] = ddl
+		seqDDL[seqName] = sDdl
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(seqDDL)

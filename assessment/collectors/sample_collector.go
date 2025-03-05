@@ -15,20 +15,21 @@
 package assessment
 
 import (
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 )
 
 // This is sample implementation to bootstrap.
 // Once the collectors are implemented, this can be deleted
 type SampleCollector struct {
-	tables []TableAssessment
+	tables []utils.TableAssessment
 }
 
 func CreateSampleCollector() (SampleCollector, error) {
 	logger.Log.Info("initializing sample collector")
-	tb := []TableAssessment{
-		{name: "t1"},
-		{name: "t2"},
+	tb := []utils.TableAssessment{
+		{Name: "t1"},
+		{Name: "t2"},
 	}
 	return SampleCollector{
 		tables: tb,
@@ -39,7 +40,7 @@ func (c SampleCollector) ListTables() []string {
 	var tableArray []string = []string{}
 
 	for i := range c.tables {
-		tableArray = append(tableArray, c.tables[i].name)
+		tableArray = append(tableArray, c.tables[i].Name)
 	}
 	return tableArray
 }
