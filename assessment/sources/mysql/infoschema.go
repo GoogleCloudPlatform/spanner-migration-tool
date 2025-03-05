@@ -40,18 +40,10 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
 			q := `SELECT c.column_type
               FROM information_schema.COLUMNS c
               where table_schema = ? and table_name = ? and column_name = ? ORDER BY c.ordinal_position;`
-			cols, err := isi.Db.Query(q, isi.DbName, table.Name, column.Name)
+			var columnType string
+			err := isi.Db.QueryRow(q, isi.DbName, table.Name, column.Name).Scan(&columnType)
 			if err != nil {
 				return nil, fmt.Errorf("couldn't get schema for column %s.%s: %s", table.Name, column.Name, err)
-			}
-			defer cols.Close()
-			var columnType string
-			for cols.Next() {
-				err := cols.Scan(&columnType)
-				if err != nil {
-					conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
-					continue
-				}
 			}
 			columnAssessments[column.Id] = utils.ColumnAssessment[any]{
 				Db: utils.DbIdentifier{
