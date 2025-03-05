@@ -45,11 +45,11 @@ type ColumnAssessment[T any] struct {
 
 // Information relevant to assessment of indexes
 type IndexAssessment struct {
-	Db        DbIdentifier
-	Name      string
-	TableName string
-	Ty        string
-	IndexDef  schema.Index
+	Db       DbIdentifier
+	Name     string
+	TableId  string
+	Ty       string
+	IndexDef schema.Index
 }
 
 // Information relevant to assessment of stored procedures
