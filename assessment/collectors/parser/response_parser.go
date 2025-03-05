@@ -18,8 +18,11 @@ package assessment
 
 import (
 	"encoding/json"
+	"fmt"
 
 	. "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"go.uber.org/zap"
 )
 
 func ParseStringArrayInterface(input []any) []string {
@@ -31,12 +34,17 @@ func ParseStringArrayInterface(input []any) []string {
 	return parsedStringArray
 }
 
+func parseAnyToString(anyType any) string {
+	return fmt.Sprintf("%v", anyType)
+}
+
 func ParseSchemaImpact(schemaImpactResponse map[string]any, filePath string) (*Snippet, error) {
+	logger.Log.Debug("schemaImpactResponse:", zap.Any("sec: ", schemaImpactResponse))
 	return &Snippet{
-		SchemaChange:          schemaImpactResponse["schema_change"].(string),
-		TableName:             schemaImpactResponse["table"].(string),
-		ColumnName:            schemaImpactResponse["column"].(string),
-		NumberOfAffectedLines: schemaImpactResponse["number_of_affected_lines"].(string),
+		SchemaChange:          parseAnyToString(schemaImpactResponse["schema_change"]),
+		TableName:             parseAnyToString(schemaImpactResponse["table"]),
+		ColumnName:            parseAnyToString(schemaImpactResponse["column"]),
+		NumberOfAffectedLines: parseAnyToString(schemaImpactResponse["number_of_affected_lines"]),
 		SourceCodeSnippet:     ParseStringArrayInterface(schemaImpactResponse["existing_code_lines"].([]any)),
 		SuggestedCodeSnippet:  ParseStringArrayInterface(schemaImpactResponse["new_code_lines"].([]any)),
 		FileName:              filePath,
@@ -47,13 +55,13 @@ func ParseSchemaImpact(schemaImpactResponse map[string]any, filePath string) (*S
 func ParseCodeImpact(codeImpactResponse map[string]any, filePath string) (*Snippet, error) {
 
 	return &Snippet{
-		SourceMethodSignature:    codeImpactResponse["original_method_signature"].(string),
-		SuggestedMethodSignature: codeImpactResponse["new_method_signature"].(string),
+		SourceMethodSignature:    parseAnyToString(codeImpactResponse["original_method_signature"]),
+		SuggestedMethodSignature: parseAnyToString(codeImpactResponse["new_method_signature"]),
 		SourceCodeSnippet:        ParseStringArrayInterface(codeImpactResponse["code_sample"].([]any)),
 		SuggestedCodeSnippet:     ParseStringArrayInterface(codeImpactResponse["suggested_change"].([]any)),
-		NumberOfAffectedLines:    codeImpactResponse["number_of_affected_lines"].(string),
-		Complexity:               codeImpactResponse["complexity"].(string),
-		Explanation:              codeImpactResponse["description"].(string),
+		NumberOfAffectedLines:    parseAnyToString(codeImpactResponse["number_of_affected_lines"]),
+		Complexity:               parseAnyToString(codeImpactResponse["complexity"]),
+		Explanation:              parseAnyToString(codeImpactResponse["description"]),
 		FileName:                 filePath,
 		IsDao:                    false,
 	}, nil

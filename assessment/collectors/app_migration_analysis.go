@@ -276,7 +276,11 @@ func (m *MigrationSummarizer) fetchFileContent(filepath string) (string, error) 
 }
 
 func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, methodChanges, content string) (*CodeAssessment, []any) {
-	var codeAssessment *CodeAssessment
+	emptyAssessment := &CodeAssessment{
+		Snippets:        make([]Snippet, 0),
+		GeneralWarnings: make([]string, 0),
+	}
+	codeAssessment := emptyAssessment
 
 	var response string
 	var isDao bool
@@ -313,6 +317,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, 
 
 		response = ParseJSONWithRetries(m.modelFlash, prompt, response, 2, "analyze-dao-class-"+filepath)
 		isDao = false
+		logger.Log.Debug("Parsed response:", zap.String("response", response))
 
 		methodSignatureChangesResponse, err := m.fetchMethodSignature(response)
 		if err != nil {
@@ -326,7 +331,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, 
 	codeAssessment, error := parser.ParseFileAnalyzerResponse(filepath, response, isDao)
 
 	if error != nil {
-		return codeAssessment, methodSignatureChanges
+		return emptyAssessment, methodSignatureChanges
 	}
 
 	return codeAssessment, methodSignatureChanges
@@ -350,6 +355,8 @@ func (m *MigrationSummarizer) fetchPublicMethodSignature(fileAnalyzerResponse st
 }
 
 func (m *MigrationSummarizer) fetchMethodSignature(fileAnalyzerResponse string) ([]any, error) {
+
+	logger.Log.Debug("Analyze File Response: ", zap.String("", fileAnalyzerResponse))
 
 	var responseMapStructure map[string]any
 	err := json.Unmarshal([]byte(fileAnalyzerResponse), &responseMapStructure)
