@@ -313,6 +313,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, 
 
 		response = ParseJSONWithRetries(m.modelFlash, prompt, response, 2, "analyze-dao-class-"+filepath)
 		isDao = false
+		logger.Log.Debug("Parsed response", zap.String("response", response))
 
 		methodSignatureChangesResponse, err := m.fetchMethodSignature(response)
 		if err != nil {
@@ -350,6 +351,8 @@ func (m *MigrationSummarizer) fetchPublicMethodSignature(fileAnalyzerResponse st
 }
 
 func (m *MigrationSummarizer) fetchMethodSignature(fileAnalyzerResponse string) ([]any, error) {
+
+	logger.Log.Debug("Analyze File Response: ", zap.String("", fileAnalyzerResponse))
 
 	var responseMapStructure map[string]any
 	err := json.Unmarshal([]byte(fileAnalyzerResponse), &responseMapStructure)
