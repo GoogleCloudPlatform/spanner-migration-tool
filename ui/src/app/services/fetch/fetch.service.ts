@@ -4,6 +4,7 @@ import IDbConfig, { IDbConfigs } from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
 import IUpdateTable, { IAddColumn, IReviewUpdateTable } from '../../model/update-table'
 import IConv, {
+  ICheckConstraints,
   ICreateIndex,
   IForeignKey,
   IInterleaveStatus,
@@ -130,6 +131,10 @@ export class FetchService {
     return this.http.get<string>(`${this.url}/downloadDDL`)
   }
 
+  getSpannerDDLWoComments(){
+    return this.http.get<string>(`${this.url}/downloadDDLWoComments`)
+  }
+
   getIssueDescription(){
     return this.http.get<{[key: string]: string}>(`${this.url}/issueDescription`)
   }
@@ -209,13 +214,21 @@ export class FetchService {
     return this.http.post(`${this.url}/restore/tables`, payload)
   }
 
+  verifyCheckConstraintExpression() {
+    return this.http.get(`${this.url}/verifyCheckConstraintExpression`)
+  }
+
+  updateCheckConstraint(tableId: string, payload: ICheckConstraints[]): any {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/update/cc?table=${tableId}`, payload)
+  }
+
   restoreTable(tableId: string) {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?table=${tableId}`, {})
   }
   dropTable(tableId: string) {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/table?table=${tableId}`, {})
   }
-  
+
   dropTables(payload: ITables) {
     return this.http.post(`${this.url}/drop/tables`, payload)
   }

@@ -27,9 +27,11 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/google/subcommands"
 	"go.uber.org/zap"
 )
@@ -133,8 +135,27 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		if err != nil {
 			return subcommands.ExitFailure
 		}
+		expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(context.Background(), targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
+		schemaToSpanner := common.SchemaToSpannerImpl{
+			ExpressionVerificationAccessor: expressionVerificationAccessor,
+		}
+		err := schemaToSpanner.VerifyExpressions(conv)
+
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("Error while verifying the expressions %v", err))
+			return subcommands.ExitFailure
+		}
 	} else {
-		conv, err = convImpl.SchemaConv(cmd.project, sourceProfile, targetProfile, &ioHelper, &conversion.SchemaFromSourceImpl{})
+		ctx := context.Background()
+		ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, "", "")
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("error trying create ddl verifier: %v", err))
+			return subcommands.ExitFailure
+		}
+		sfs := &conversion.SchemaFromSourceImpl{
+			DdlVerifier: ddlVerifier,
+		}
+		conv, err = convImpl.SchemaConv(cmd.project, sourceProfile, targetProfile, &ioHelper, sfs)
 		if err != nil {
 			return subcommands.ExitFailure
 		}

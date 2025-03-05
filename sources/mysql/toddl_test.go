@@ -15,14 +15,18 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestToSpannerTypeInternal(t *testing.T) {
@@ -177,8 +181,18 @@ func TestToSpannerType(t *testing.T) {
 		PrimaryKeys: []schema.Key{{ColId: "c14"}},
 	}
 	conv.UsedNames = map[string]bool{"ref_table": true, "ref_table2": true}
-	schemaToSpanner := common.SchemaToSpannerImpl{}
-	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
+	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	ctx := context.Background()
+	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
+		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+		},
+	})
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		ExpressionVerificationAccessor: mockAccessor,
+		DdlV:                           &expressions_api.MockDDLVerifier{},
+	}
+	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}, internal.AdditionalSchemaAttributes{}))
 	actual := conv.SpSchema[tableId]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
@@ -271,8 +285,18 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 		PrimaryKeys: []schema.Key{{ColId: "c14"}},
 	}
 	conv.UsedNames = map[string]bool{"ref_table": true, "ref_table2": true}
-	schemaToSpanner := common.SchemaToSpannerImpl{}
-	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}))
+	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	ctx := context.Background()
+	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
+		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+		},
+	})
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		ExpressionVerificationAccessor: mockAccessor,
+		DdlV:                           &expressions_api.MockDDLVerifier{},
+	}
+	assert.Nil(t, schemaToSpanner.SchemaToSpannerDDL(conv, ToDdlImpl{}, internal.AdditionalSchemaAttributes{}))
 	actual := conv.SpSchema[tableId]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{

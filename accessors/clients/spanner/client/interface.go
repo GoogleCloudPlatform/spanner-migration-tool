@@ -46,7 +46,7 @@ func (c *SpannerClientImpl) Refresh(ctx context.Context, dbURI string) error {
 }
 
 func (c *SpannerClientImpl) Single() ReadOnlyTransaction {
-	rotxn := c.spannerClient.ReadOnlyTransaction()
+	rotxn := c.spannerClient.Single()
 	return &ReadOnlyTransactionImpl{rotxn: rotxn}
 }
 

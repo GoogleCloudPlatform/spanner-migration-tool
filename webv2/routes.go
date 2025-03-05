@@ -25,6 +25,8 @@ import (
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/config"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/primarykey"
@@ -40,10 +42,14 @@ func getRoutes() *mux.Router {
 	frontendRoot, _ := fs.Sub(FrontendDir, "ui/dist/ui")
 	frontendStatic := http.FileServer(http.FS(frontendRoot))
 	reportAPIHandler := api.ReportAPIHandler{
-		Report: &conversion.ReportImpl{},
+		Report:          &conversion.ReportImpl{},
+		ReportGenerator: &reports.ReportImpl{},
 	}
-
 	ctx := context.Background()
+	ddlVerifier, _ := expressions_api.NewDDLVerifierImpl(ctx, "", "")
+	tableHandler := api.TableAPIHandler{
+		DDLVerifier: ddlVerifier,
+	}
 	spanneraccessor, _ := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	dsClient, _ := ds.NewDatastreamClientImpl(ctx)
 	storageclient, _ := storageclient.NewStorageClientImpl(ctx)
@@ -53,9 +59,15 @@ func getRoutes() *mux.Router {
 		ValidateResources: validateResourceImpl,
 	}
 
+	expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(ctx, session.GetSessionState().SpannerProjectId, session.GetSessionState().SpannerInstanceID)
+
+	expressionVerificationHandler := api.ExpressionsVerificationHandler{
+		ExpressionVerificationAccessor: expressionVerificationAccessor,
+	}
+
 	router.HandleFunc("/connect", databaseConnection).Methods("POST")
-	router.HandleFunc("/convert/infoschema", api.ConvertSchemaSQL).Methods("GET")
-	router.HandleFunc("/convert/dump", api.ConvertSchemaDump).Methods("POST")
+	router.HandleFunc("/convert/infoschema", expressionVerificationHandler.ConvertSchemaSQL).Methods("GET")
+	router.HandleFunc("/convert/dump", expressionVerificationHandler.ConvertSchemaDump).Methods("POST")
 	router.HandleFunc("/convert/session", loadSession).Methods("POST")
 	router.HandleFunc("/ddl", api.GetDDL).Methods("GET")
 	router.HandleFunc("/seqDdl", api.GetSequenceDDL).Methods("GET")
@@ -65,6 +77,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/downloadStructuredReport", reportAPIHandler.GetDStructuredReport).Methods("GET")
 	router.HandleFunc("/downloadTextReport", reportAPIHandler.GetDTextReport).Methods("GET")
 	router.HandleFunc("/downloadDDL", api.GetDSpannerDDL).Methods("GET")
+	router.HandleFunc("/downloadDDLWoComments", api.GetSpannerDDLWoComments).Methods("GET")
 	router.HandleFunc("/schema", getSchemaFile).Methods("GET")
 	router.HandleFunc("/applyrule", api.ApplyRule).Methods("POST")
 	router.HandleFunc("/dropRule", api.DropRule).Methods("POST")
@@ -75,16 +88,16 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/spannerDefaultTypeMap", api.SpannerDefaultTypeMap).Methods("GET")
 	router.HandleFunc("/autoGenMap", api.GetAutoGenMap).Methods("GET")
 	router.HandleFunc("/getSequenceKind", api.GetSequenceKind).Methods("GET")
-
 	router.HandleFunc("/setparent", api.SetParentTable).Methods("GET")
 	router.HandleFunc("/removeParent", api.RemoveParentTable).Methods("POST")
+	router.HandleFunc("/verifyCheckConstraintExpression", expressionVerificationHandler.VerifyCheckConstraintExpression).Methods("GET")
 
 	// TODO:(searce) take constraint names themselves which are guaranteed to be unique for Spanner.
 	router.HandleFunc("/drop/secondaryindex", api.DropSecondaryIndex).Methods("POST")
 	router.HandleFunc("/restore/secondaryIndex", api.RestoreSecondaryIndex).Methods("POST")
 
-	router.HandleFunc("/restore/table", api.RestoreTable).Methods("POST")
-	router.HandleFunc("/restore/tables", api.RestoreTables).Methods("POST")
+	router.HandleFunc("/restore/table", tableHandler.RestoreTable).Methods("POST")
+	router.HandleFunc("/restore/tables", tableHandler.RestoreTables).Methods("POST")
 	router.HandleFunc("/drop/table", api.DropTable).Methods("POST")
 	router.HandleFunc("/drop/tables", api.DropTables).Methods("POST")
 
@@ -92,6 +105,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/UpdateSequence", api.UpdateSequence).Methods("POST")
 
 	router.HandleFunc("/update/fks", api.UpdateForeignKeys).Methods("POST")
+	router.HandleFunc("/update/cc", api.UpdateCheckConstraint).Methods("POST")
 	router.HandleFunc("/update/indexes", api.UpdateIndexes).Methods("POST")
 
 	// Session Management
@@ -117,7 +131,6 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetConfig", config.GetConfig).Methods("GET")
 	router.HandleFunc("/SetSpannerConfig", config.SetSpannerConfig).Methods("POST")
 	router.HandleFunc("/IsConfigSet", config.IsConfigSet).Methods("GET")
-
 	// Run migration
 	router.HandleFunc("/Migrate", migrate).Methods("POST")
 
@@ -147,7 +160,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetSourceProfileConfig", getSourceProfileConfig).Methods("GET")
 	router.HandleFunc("/uploadFile", uploadFile).Methods("POST")
 
-	router.HandleFunc("/GetTableWithErrors", api.GetTableWithErrors).Methods("GET")
+	router.HandleFunc("/GetTableWithErrors", tableHandler.GetTableWithErrors).Methods("GET")
 	router.HandleFunc("/ping", getBackendHealth).Methods("GET")
 
 	router.PathPrefix("/").Handler(frontendStatic)

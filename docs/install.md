@@ -61,11 +61,18 @@ You can directly run Spanner migration tool from the gCloud CLI instead of build
 gcloud components install spanner-migration-tool
 ```
 
-If you installed the gcloud CLI through the apt or yum package managers, you can also install additional gcloud CLI components using those same package managers. For example, to install with `apt`, run the following:
+Alternatively, can also install additional gcloud CLI components using the apt or yum package managers. For example, to install with `apt`, run the following:
 
 ```sh
 sudo apt-get install google-cloud-sdk-spanner-migration-tool
 ```
+
+{: .note }
+> If you encounter error `E: Unable to locate package google-cloud-sdk-spanner-migration-tool`, It means the gcloud CLI distribution URI is not added as a package source. Run the following command:
+> ```sh
+> curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && sudo apt-get update
+> ```
+> This will add the gcloud CLI distribution URI as a package source. Now run the install command.
 
 Once installed, the Spanner migration tool commands will be available under the `gcloud alpha spanner migration` surface. For example, to start the Spanner migration tool UI, run the following command:
 
@@ -83,12 +90,12 @@ Detailed instructions on how to install a new component in gCloud can be found [
 {: .highlight }
 Building from source is only supported for MacOS and Linux based platforms.
 
-1. Install Go ([download](https://golang.org/doc/install)) on your development machine if it is not already installed, configure the [GOPATH](https://pkg.go.dev/cmd/go@master#hdr-GOPATH_environment_variable) environment variable if it is not already configured, and [test your installation](https://golang.org/doc/install#testing).
+1. Install Go ([download](https://golang.org/doc/install)) on your development machine if it is not already installed, configure the [GOPATH](https://pkg.go.dev/cmd/go@master#hdr-GOPATH_environment_variable) environment variable if it is not already configured, and [test your installation](https://golang.org/doc/install#testing). <br/>
+    Required go version: 1.22.7+
+2. Install nodejs ([download](https://nodejs.org/en/download)). <br/>
+    Required node version: v18.20.6+
 
-{: .note }
-Starting Go 1.9, `GOPATH` is already set with a default value. To set a custom GOPATH, follow the instructions [here](https://github.com/golang/go/wiki/SettingGOPATH).
-
-2. Run the following commands to clone the repository and build it from source:
+3. Run the following commands to clone the repository and build it from source:
 
 ```sh
 git clone https://github.com/GoogleCloudPlatform/spanner-migration-tool
