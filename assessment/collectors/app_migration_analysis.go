@@ -317,7 +317,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, 
 
 		response = ParseJSONWithRetries(m.modelFlash, prompt, response, 2, "analyze-dao-class-"+filepath)
 		isDao = false
-		logger.Log.Debug("Parsed response", zap.String("response", response))
+		logger.Log.Debug("Parsed response:", zap.String("response", response))
 
 		methodSignatureChangesResponse, err := m.fetchMethodSignature(response)
 		if err != nil {
