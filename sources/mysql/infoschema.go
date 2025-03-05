@@ -386,8 +386,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 			AND k.TABLE_NAME = ?
 		ORDER BY
 			k.REFERENCED_TABLE_NAME,
-			k.COLUMN_NAME,
-			k.ORDINAL_POSITION;`
+			k.ORDINAL_POSITION;` //TODO(khajanchi): Add a UT for the change of removing column name from order by clause
 	rows, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, err
