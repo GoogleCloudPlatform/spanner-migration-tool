@@ -386,7 +386,6 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 			AND k.TABLE_NAME = ?
 		ORDER BY
 			k.REFERENCED_TABLE_NAME,
-			k.COLUMN_NAME,
 			k.ORDINAL_POSITION;`
 	rows, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
