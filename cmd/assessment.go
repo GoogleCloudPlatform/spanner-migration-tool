@@ -78,7 +78,7 @@ func (cmd *AssessmentCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
 	f.StringVar(&cmd.assessmentProfile, "assessment-profile", "", "File for specifying configuration to be used during assessment. e.g. \"app-code-location=\"<a/b/c>")
-	f.StringVar(&cmd.project, "project", "", "Flag spcifying default project id for all the generated resources for the migration")
+	f.StringVar(&cmd.project, "project", "", "Flag specifying default project id for all the generated resources for the migration")
 	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
@@ -114,7 +114,13 @@ func (cmd *AssessmentCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...int
 		return exitStatus
 	}
 
-	assessmentOutput, err := assessment.PerformAssessment(conv, sourceProfile)
+	assessmentConfigMap, err := profiles.ParseMap(cmd.assessmentProfile)
+	if err != nil {
+		logger.Log.Fatal("could not parse assessment profile", zap.Error(err))
+		return subcommands.ExitFailure
+	}
+
+	assessmentOutput, err := assessment.PerformAssessment(conv, sourceProfile, assessmentConfigMap, cmd.project)
 	if err != nil {
 		logger.Log.Fatal("could not complete assessment", zap.Error(err))
 		return subcommands.ExitFailure

@@ -17,7 +17,6 @@
 package assessment
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -28,6 +27,7 @@ import (
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/embeddings"
 	parser "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/parser"
 	dependencyAnalyzer "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/project_analyzer"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	. "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"go.uber.org/zap"
@@ -266,7 +266,7 @@ func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, o
 func (m *MigrationSummarizer) fetchFileContent(filepath string) (string, error) {
 
 	// Read file content if not provided
-	content, err := readFile(filepath)
+	content, err := utils.ReadFile(filepath)
 	if err != nil {
 		logger.Log.Fatal("Failed read file: ", zap.Error(err))
 		return "", err
@@ -515,24 +515,6 @@ func getPromptForNonDAOClass(content, filepath string, methodChanges *string) st
 		%s
 		Method Changes:
 		%s`, filepath, content, *methodChanges)
-}
-
-func readFile(filepath string) (string, error) {
-	file, err := os.Open(filepath)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	var content string
-	for scanner.Scan() {
-		content += scanner.Text() + "\n"
-	}
-	if err := scanner.Err(); err != nil {
-		return "", err
-	}
-	return content, nil
 }
 
 func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, newSchema *string) string {
