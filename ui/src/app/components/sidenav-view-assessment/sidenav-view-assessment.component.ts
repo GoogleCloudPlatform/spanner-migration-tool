@@ -74,7 +74,7 @@ export class SidenavViewAssessmentComponent implements OnInit {
         this.setRateCountDataSource(tableCount)
       }
       this.fetch.getDStructuredReport().subscribe({
-        next: (structuredReport) => {
+        next: (structuredReport: IStructuredReport) => {
           this.summaryText = structuredReport.summary.text
         }
       })
@@ -179,14 +179,9 @@ export class SidenavViewAssessmentComponent implements OnInit {
         for (var fetchedTableReport of fetchedTableReports) {
           let allIssues = fetchedTableReport.issues
 
-          // If this function is called again and if the number of issues in that session is zero, 
-          // it will skip the for loop below. Therefore, we are setting the issueTableData to null here
+          // If the conversion is clean, then allIssues will be null.
           if (allIssues == null) {
-            this.issueTableData_Errors = []
-            this.issueTableData_Warnings = []
-            this.issueTableData_Suggestions = []
-            this.issueTableData_Notes = []
-            return
+            continue
           }
 
           // iterate each issue

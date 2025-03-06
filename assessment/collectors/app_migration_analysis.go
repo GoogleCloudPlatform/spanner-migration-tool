@@ -1,5 +1,3 @@
-//go:build ignore
-
 /*
 	Copyright 2025 Google LLC
 
@@ -19,7 +17,6 @@
 package assessment
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -30,20 +27,31 @@ import (
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/embeddings"
 	parser "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/parser"
 	dependencyAnalyzer "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/project_analyzer"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
+	. "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"go.uber.org/zap"
 )
 
 // MigrationSummarizer holds the LLM models and example databases
 type MigrationSummarizer struct {
-	projectID          string
-	location           string
-	client             *genai.Client
-	modelPro           *genai.GenerativeModel
-	modelFlash         *genai.GenerativeModel
-	conceptExampleDB   *assessment.MysqlConceptDb
-	dependencyAnalyzer dependencyAnalyzer.DependencyAnalyzer
-	sourceSchema       string
-	targetSchema       string
+	projectID                     string
+	location                      string
+	client                        *genai.Client
+	modelPro                      *genai.GenerativeModel
+	modelFlash                    *genai.GenerativeModel
+	conceptExampleDB              *assessment.MysqlConceptDb
+	dependencyAnalyzer            dependencyAnalyzer.DependencyAnalyzer
+	sourceSchema                  string
+	targetSchema                  string
+	projectPath                   string
+	dependencyGraph               map[string]map[string]struct{}
+	fileDependencyAnalysisDataMap map[string]FileDependencyAnalysisData
+}
+
+type FileDependencyAnalysisData struct {
+	publicSignatures []any
+	isDaoDependent   bool
 }
 
 type AskQuestionsOutput struct {
@@ -51,7 +59,7 @@ type AskQuestionsOutput struct {
 }
 
 // NewMigrationSummarizer initializes a new MigrationSummarizer
-func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *string, projectID, location, sourceSchema, targetSchema string) (*MigrationSummarizer, error) {
+func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *string, projectID, location, sourceSchema, targetSchema string, projectPath string) (*MigrationSummarizer, error) {
 	if googleGenerativeAIAPIKey != nil {
 		os.Setenv("GOOGLE_API_KEY", *googleGenerativeAIAPIKey)
 	}
@@ -66,15 +74,18 @@ func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *strin
 		return nil, fmt.Errorf("failed to load code example DB: %w", err)
 	}
 	return &MigrationSummarizer{
-		projectID:          projectID,
-		location:           location,
-		client:             client,
-		modelPro:           client.GenerativeModel("gemini-1.5-pro-001"),
-		modelFlash:         client.GenerativeModel("gemini-1.5-flash-001"),
-		conceptExampleDB:   conceptExampleDB,
-		dependencyAnalyzer: dependencyAnalyzer.AnalyzerFactory("go"),
-		sourceSchema:       sourceSchema,
-		targetSchema:       targetSchema,
+		projectID:                     projectID,
+		location:                      location,
+		client:                        client,
+		modelPro:                      client.GenerativeModel("gemini-1.5-pro-001"),
+		modelFlash:                    client.GenerativeModel("gemini-1.5-flash-001"),
+		conceptExampleDB:              conceptExampleDB,
+		dependencyAnalyzer:            dependencyAnalyzer.AnalyzerFactory("go"),
+		sourceSchema:                  sourceSchema,
+		targetSchema:                  targetSchema,
+		projectPath:                   projectPath,
+		dependencyGraph:               make(map[string]map[string]struct{}),
+		fileDependencyAnalysisDataMap: make(map[string]FileDependencyAnalysisData),
 	}, nil
 }
 
@@ -166,8 +177,6 @@ func (m *MigrationSummarizer) MigrationCodeConversionInvoke(
 		}
 	}
 
-	logger.Log.Debug("Final Prompt: " + finalPrompt)
-
 	resp, err = m.modelPro.GenerateContent(ctx, genai.Text(finalPrompt))
 	if err != nil {
 		return "", err
@@ -254,30 +263,52 @@ func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, o
 	return ""
 }
 
-func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, methodChanges string) (*CodeAssessment, string) {
-	var content string
-	var err error
-	var codeAssessment *CodeAssessment
+func (m *MigrationSummarizer) fetchFileContent(filepath string) (string, error) {
 
 	// Read file content if not provided
-	content, err = readFile(filepath)
+	content, err := utils.ReadFile(filepath)
 	if err != nil {
-		logger.Log.Fatal("Failed read file: " + fmt.Sprintf("Error: %v", err))
-		return codeAssessment, ""
+		logger.Log.Fatal("Failed read file: ", zap.Error(err))
+		return "", err
 	}
+
+	return content, nil
+}
+
+func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, methodChanges, content string) (*CodeAssessment, []any) {
+	emptyAssessment := &CodeAssessment{
+		Snippets:        make([]Snippet, 0),
+		GeneralWarnings: make([]string, 0),
+	}
+	codeAssessment := emptyAssessment
 
 	var response string
 	var isDao bool
+	methodSignatureChanges := make([]any, 0)
 	if m.dependencyAnalyzer.IsDAO(filepath, content) {
+		logger.Log.Debug("Analyze File: "+filepath, zap.Bool("isDao", true))
+		var err error
 		prompt := getPromptForDAOClass(content, filepath, &methodChanges, &m.sourceSchema, &m.targetSchema)
 		response, err = m.MigrationCodeConversionInvoke(ctx, prompt, content, m.sourceSchema, m.targetSchema, "analyze-dao-class-"+filepath)
 		isDao = true
+		if err != nil {
+			return codeAssessment, methodSignatureChanges
+		}
+
+		publicMethodSignatures, err := m.fetchPublicMethodSignature(response)
+		if err != nil {
+			logger.Log.Error("Error fetching public method signature: ", zap.Error(err))
+		} else {
+			methodSignatureChanges = publicMethodSignatures
+		}
+
 	} else {
+		logger.Log.Debug("Analyze File: "+filepath, zap.Bool("isDao", false))
 		prompt := getPromptForNonDAOClass(content, filepath, &methodChanges)
 		res, err := m.modelFlash.GenerateContent(ctx, genai.Text(prompt))
 
 		if err != nil {
-			return codeAssessment, ""
+			return codeAssessment, methodSignatureChanges
 		}
 
 		if p, ok := res.Candidates[0].Content.Parts[0].(genai.Text); ok {
@@ -286,16 +317,136 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, 
 
 		response = ParseJSONWithRetries(m.modelFlash, prompt, response, 2, "analyze-dao-class-"+filepath)
 		isDao = false
+		logger.Log.Debug("Parsed response:", zap.String("response", response))
+
+		methodSignatureChangesResponse, err := m.fetchMethodSignature(response)
+		if err != nil {
+			logger.Log.Error("Error fetching public method signature: ", zap.Error(err))
+		} else {
+			methodSignatureChanges = methodSignatureChangesResponse
+		}
 	}
 	logger.Log.Debug("Analyze File Response: " + response)
 
 	codeAssessment, error := parser.ParseFileAnalyzerResponse(filepath, response, isDao)
 
 	if error != nil {
-		return codeAssessment, ""
+		return emptyAssessment, methodSignatureChanges
 	}
 
-	return codeAssessment, response
+	return codeAssessment, methodSignatureChanges
+}
+
+func (m *MigrationSummarizer) fetchPublicMethodSignature(fileAnalyzerResponse string) ([]any, error) {
+
+	var responseMapStructure map[string]any
+	err := json.Unmarshal([]byte(fileAnalyzerResponse), &responseMapStructure)
+	if err != nil {
+		logger.Log.Error("Error parsing file analyzer response: ", zap.Error(err))
+		return nil, err
+	}
+
+	publicMethodChanges, ok := responseMapStructure["public_method_changes"].([]any)
+	if !ok {
+		return nil, fmt.Errorf("public_method_changes not found or not a list")
+	}
+
+	return publicMethodChanges, nil
+}
+
+func (m *MigrationSummarizer) fetchMethodSignature(fileAnalyzerResponse string) ([]any, error) {
+
+	logger.Log.Debug("Analyze File Response: ", zap.String("", fileAnalyzerResponse))
+
+	var responseMapStructure map[string]any
+	err := json.Unmarshal([]byte(fileAnalyzerResponse), &responseMapStructure)
+	if err != nil {
+		logger.Log.Error("Error parsing file analyzer response: ", zap.Error(err))
+		return nil, err
+	}
+
+	publicMethodChanges, ok := responseMapStructure["method_signature_changes"].([]any)
+	if !ok {
+		return nil, fmt.Errorf("method_signature_changes not found or not a list")
+	}
+
+	return publicMethodChanges, nil
+}
+
+func (m *MigrationSummarizer) fetchDependentMethodSignatureChange(filePath string) string {
+	publicMethodSignatures := make([]any, 0, 10)
+	for dependency := range m.dependencyGraph[filePath] {
+		if fileDependencyAnalysisData, ok := m.fileDependencyAnalysisDataMap[dependency]; ok {
+			publicMethodSignatures = append(publicMethodSignatures, fileDependencyAnalysisData.publicSignatures...)
+		}
+	}
+
+	publicMethodSignatureString, err := json.MarshalIndent(publicMethodSignatures, "", "  ")
+	if err != nil {
+		logger.Log.Error("Error fetching dependent method signature: ", zap.Error(err))
+		return ""
+	}
+	return string(publicMethodSignatureString)
+}
+
+func (m *MigrationSummarizer) analyzeFileDependencies(filePath, fileContent string) (bool, string) {
+	if m.dependencyAnalyzer.IsDAO(filePath, fileContent) {
+		return true, m.fetchDependentMethodSignatureChange(filePath)
+	}
+
+	isDaoDependent := false
+	for dependency := range m.dependencyGraph[filePath] {
+		if m.fileDependencyAnalysisDataMap[dependency].isDaoDependent {
+			isDaoDependent = true
+			break
+		}
+	}
+
+	if isDaoDependent {
+		return true, m.fetchDependentMethodSignatureChange(filePath)
+	}
+
+	return false, ""
+}
+
+func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessment, error) {
+	dependencyGraph, executionOrder := m.dependencyAnalyzer.GetExecutionOrder(m.projectPath)
+	m.dependencyAnalyzer.LogDependencyGraph(dependencyGraph, m.projectPath)
+	m.dependencyAnalyzer.LogExecutionOrder(executionOrder)
+
+	m.dependencyGraph = dependencyGraph
+
+	codeAssessment := &CodeAssessment{
+		Snippets:        make([]Snippet, 0, 10),
+		GeneralWarnings: make([]string, 0, 10),
+	}
+
+	for _, singleOrder := range executionOrder {
+		for _, filePath := range singleOrder {
+			content, err := m.fetchFileContent(filePath)
+			if err != nil {
+				logger.Log.Error("Error fetching file content: ", zap.Error(err))
+				return nil, err
+			}
+
+			isDaoDepndent, methodChanges := m.analyzeFileDependencies(filePath, content)
+			if !isDaoDepndent {
+				continue
+			}
+
+			fileCodeAssessment, methodSignatureChanges := m.AnalyzeFile(ctx, filePath, methodChanges, content)
+			logger.Log.Debug("File Code Assessment: ", zap.Any("fileCodeAssessment", fileCodeAssessment), zap.Any("filePath", filePath))
+
+			codeAssessment.Snippets = append(codeAssessment.Snippets, fileCodeAssessment.Snippets...)
+			codeAssessment.GeneralWarnings = append(codeAssessment.GeneralWarnings, fileCodeAssessment.GeneralWarnings...)
+
+			m.fileDependencyAnalysisDataMap[filePath] = FileDependencyAnalysisData{
+				publicSignatures: methodSignatureChanges,
+				isDaoDependent:   true,
+			}
+		}
+	}
+	return codeAssessment, nil
 }
 
 func getPromptForNonDAOClass(content, filepath string, methodChanges *string) string {
@@ -365,69 +516,6 @@ func getPromptForNonDAOClass(content, filepath string, methodChanges *string) st
 		Method Changes:
 		%s`, filepath, content, *methodChanges)
 }
-
-func readFile(filepath string) (string, error) {
-	file, err := os.Open(filepath)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	var content string
-	for scanner.Scan() {
-		content += scanner.Text() + "\n"
-	}
-	if err := scanner.Err(); err != nil {
-		return "", err
-	}
-	return content, nil
-}
-
-// func main() {
-// 	logger.Log = zap.NewNop()
-// 	ctx := context.Background()
-// 	projectID := ""
-// 	location := ""
-// 	apiKey := "<API_KEY>"
-// 	filePath := ""
-
-// 	mysqlSchemaPath := ""
-// 	spannerSchemaPath := ""
-// 	mysqlSchema, err := readFile(mysqlSchemaPath)
-// 	if err != nil {
-// 		logger.Log.Debug("Error reading MySQL schema file:", err)
-// 		return
-// 	}
-
-// 	spannerSchema, err := readFile(spannerSchemaPath)
-// 	if err != nil {
-// 		logger.Log.Debug("Error reading Spanner schema file:", err)
-// 		return
-// 	}
-// 	summarizer, err := NewMigrationSummarizer(ctx, &apiKey, projectID, location, mysqlSchema, spannerSchema)
-// 	if err != nil {
-// 		log.Fatalf("Error initializing summarizer: %v", err)
-// 	}
-
-// 	codeAssessment, result := summarizer.AnalyzeFile(ctx, filePath, "")
-
-// 	var firstResult map[string]interface{}
-// 	err = json.Unmarshal([]byte(result), &firstResult)
-// 	if err != nil {
-// 		logger.Log.Debug("Error converting to struct: " + err.Error())
-// 		return
-// 	}
-
-// 	publicMethod, err1 := json.MarshalIndent(firstResult["public_method_changes"], "", "  ")
-// 	if err1 != nil {
-// 		logger.Log.Debug("Error converting to struct: " + err.Error())
-// 		return
-// 	}
-
-// 	secondFilePath := ""
-// 	codeAssessment, result = summarizer.AnalyzeFile(ctx, secondFilePath, string(publicMethod))
-// }
 
 func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, newSchema *string) string {
 	//TODO: Move prompts to promt file.

@@ -1,5 +1,3 @@
-//go:build ignore
-
 /* Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,14 +19,18 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/dominikbraun/graph"
+	"go.uber.org/zap"
 	"golang.org/x/tools/go/packages"
 )
 
 // DependencyAnalyzer defines the interface for dependency analysis
 type DependencyAnalyzer interface {
-	GetDependencyGraph(directory string) map[string]map[string]struct{}
+	getDependencyGraph(directory string) map[string]map[string]struct{}
 	IsDAO(filePath string, fileContent string) bool
 	GetExecutionOrder(projectDir string) (map[string]map[string]struct{}, [][]string)
+	LogDependencyGraph(dependencyGraphmap map[string]map[string]struct{}, projectDir string)
+	LogExecutionOrder(groupedTasks [][]string)
 }
 
 // BaseAnalyzer provides default implementation for execution order
@@ -39,24 +41,24 @@ type GoDependencyAnalyzer struct {
 	BaseAnalyzer
 }
 
-func (g *GoDependencyAnalyzer) GetDependencyGraph(directory string) map[string]map[string]struct{} {
+func (g *GoDependencyAnalyzer) getDependencyGraph(directory string) map[string]map[string]struct{} {
 
 	cfg := &packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
 		Dir:  (directory),
 	}
 
-	logger.Log.Debug(directory)
-
+	logger.Log.Debug(fmt.Sprintf("loading packages from directory: %s", directory))
 	pkgs, err := packages.Load(cfg, "./...")
 
-	logger.Log.Debug(directory)
 	if err != nil {
-		logger.Log.Fatalf("Error loading packages: %v", err)
+		logger.Log.Fatal("Error loading packages: ", zap.Error(err))
 	}
 
 	// Dependency graph: key = file, value = list of files it depends on
 	dependencyGraph := make(map[string]map[string]struct{})
+
+	dependencyGraphCycleCheck := graph.New(graph.StringHash, graph.Directed(), graph.PreventCycles())
 
 	// Iterate through all packages and process their files
 	for _, pkg := range pkgs {
@@ -79,14 +81,17 @@ func (g *GoDependencyAnalyzer) GetDependencyGraph(directory string) map[string]m
 						// Initialize the map for the useFile if not present
 						if _, ok := dependencyGraph[useFile]; !ok {
 							dependencyGraph[useFile] = make(map[string]struct{})
+							dependencyGraphCycleCheck.AddVertex(useFile)
 						}
 
 						if _, ok := dependencyGraph[defFile]; !ok {
 							dependencyGraph[defFile] = make(map[string]struct{})
+							dependencyGraphCycleCheck.AddVertex(defFile)
 						}
 
-						// Add the dependency edge only if it doesn't already exist
-						if _, exists := dependencyGraph[useFile][defFile]; !exists {
+						if dependencyGraphCycleCheck.AddEdge(useFile, defFile) != nil {
+							logger.Log.Debug("Cycle detected: ", zap.String("useFile", useFile), zap.String("defFile", defFile))
+						} else if _, exists := dependencyGraph[useFile][defFile]; !exists {
 							dependencyGraph[useFile][defFile] = struct{}{}
 						}
 					}
@@ -98,10 +103,10 @@ func (g *GoDependencyAnalyzer) GetDependencyGraph(directory string) map[string]m
 	// Print the dependency graph
 	logger.Log.Debug("\nDependency Graph:")
 	for file, dependencies := range dependencyGraph {
-		logger.Log.Debug("%s depends on:\n", strings.TrimPrefix(file, directory))
+		logger.Log.Debug("Source file:", zap.String("file", file))
 		//ToDo:Better way to show dependencies
 		for dep := range dependencies {
-			logger.Log.Debug("\t- %s\n", strings.TrimPrefix(dep, directory))
+			logger.Log.Debug("Depends on:", zap.String("dep", dep))
 		}
 	}
 
@@ -126,23 +131,16 @@ func (g *GoDependencyAnalyzer) IsDAO(filePath string, fileContent string) bool {
 }
 
 func (g *GoDependencyAnalyzer) GetExecutionOrder(projectDir string) (map[string]map[string]struct{}, [][]string) {
-	G := g.GetDependencyGraph(projectDir)
-
-	// Detect and relax cycles in the dependency graph
-	// Remove cycles before sorting
-	detectAndRemoveCycles(G)
+	G := g.getDependencyGraph(projectDir)
 
 	sortedTasks, err := topologicalSort(G)
 	if err != nil {
-		logger.Log.Debug("Graph still has cycles after relaxation. Sorting not possible.")
+		logger.Log.Debug("Graph still has cycles after relaxation. Sorting not possible: ", zap.Error(err))
 		return nil, nil
 	}
 
-	logger.Log.Debug(sortedTasks)
-	groupedTasks := groupTasksOptimized(sortedTasks, G)
-
 	logger.Log.Debug("Execution order determined successfully.")
-	return G, groupedTasks
+	return G, sortedTasks
 }
 
 // AnalyzerFactory creates DependencyAnalyzer instances
@@ -203,96 +201,51 @@ func detectAndRemoveCycles(G map[string]map[string]struct{}) {
 	// Remove the detected edges from the graph
 	for _, edge := range edgesToRemove {
 		delete(G[edge.from], edge.to)
-		logger.Log.Debug("Removed edge: %s -> %s\n", edge.from, edge.to)
+		logger.Log.Debug("Removed edge: ", zap.String("from", edge.from), zap.String("to", edge.to))
 	}
 }
 
-func topologicalSort(G map[string]map[string]struct{}) ([]string, error) {
+func topologicalSort(G map[string]map[string]struct{}) ([][]string, error) {
 	inDegree := make(map[string]int)
 	for node := range G {
 		inDegree[node] = 0
 	}
+	var maxDegree int
+
 	for node := range G {
 		for neighbor := range G[node] {
 			inDegree[neighbor]++
+			if inDegree[neighbor] > maxDegree {
+				maxDegree = inDegree[neighbor]
+			}
 		}
 	}
 
-	// Collect nodes with 0 in-degree
-	queue := []string{}
+	taskLevels := make([][]string, maxDegree+1)
+
 	for node, degree := range inDegree {
-		if degree == 0 {
-			queue = append(queue, node)
-		}
+		degree = maxDegree - degree
+		taskLevels[degree] = append(taskLevels[degree], node)
 	}
 
-	order := []string{}
-	for len(queue) > 0 {
-		node := queue[0]
-		queue = queue[1:]
-		order = append(order, node)
-
-		// Reduce in-degree for neighbors
-		for neighbor := range G[node] {
-			inDegree[neighbor]--
-			if inDegree[neighbor] == 0 {
-				queue = append(queue, neighbor)
-			}
-		}
-	}
-
-	// If we didn't process all nodes, there is still a cycle
-	if len(order) != len(G) {
-		return nil, fmt.Errorf("graph has a cycle, topological sorting is not possible")
-	}
-
-	return order, nil
+	return taskLevels, nil
 }
 
-// groupTasksOptimized groups tasks with the same execution level.
-func groupTasksOptimized(sortedTasks []string, G map[string]map[string]struct{}) [][]string {
-	taskLevels := [][]string{}
-	taskSet := make(map[string]int)
+func (g *GoDependencyAnalyzer) LogDependencyGraph(dependencyGraph map[string]map[string]struct{}, projectDir string) {
 
-	for _, task := range sortedTasks {
-		maxLevel := 0
-		for dep := range G[task] {
-			if level, exists := taskSet[dep]; exists && level+1 > maxLevel {
-				maxLevel = level + 1
-			}
+	logger.Log.Debug("Dependency Graph:")
+	for file, dependencies := range dependencyGraph {
+		logger.Log.Debug("depends on: ", zap.String("filepath: ", strings.TrimPrefix(file, projectDir)))
+		for dep := range dependencies {
+			logger.Log.Debug("Dependency: ", zap.String("filepath", strings.TrimPrefix(dep, projectDir)))
 		}
-		if maxLevel >= len(taskLevels) {
-			taskLevels = append(taskLevels, []string{})
-		}
-		taskLevels[maxLevel] = append(taskLevels[maxLevel], task)
-		taskSet[task] = maxLevel
 	}
-
-	return taskLevels
 }
 
-// func main() {
+func (g *GoDependencyAnalyzer) LogExecutionOrder(groupedTasks [][]string) {
 
-// 	projectDir := "" // Change this to your actual project directory
-// 	language := "go" // Change this to "java" for Java projects
-
-// 	// Create analyzer instance using factory
-// 	analyzer := AnalyzerFactory(language)
-
-// 	// Run execution order analysis
-// 	G, groupedTasks := analyzer.GetExecutionOrder(projectDir)
-
-// 	logger.Log.Debug("\nDependency Graph:")
-// 	for file, dependencies := range G {
-// 		logger.Log.Debug("%s depends on:\n", strings.TrimPrefix(file, projectDir))
-// 		for dep := range dependencies {
-// 			logger.Log.Debug("\t- %s\n", strings.TrimPrefix(dep, projectDir))
-// 		}
-// 	}
-
-// 	// Print results
-// 	logger.Log.Debug("Execution Order Groups:")
-// 	for i, group := range groupedTasks {
-// 		logger.Log.Debug("Level %d: %v\n", i+1, group)
-// 	}
-// }
+	logger.Log.Debug("Execution Order Groups:")
+	for i, group := range groupedTasks {
+		logger.Log.Debug("Level: ", zap.Int("level", i), zap.String("group", strings.Join(group, ", ")))
+	}
+}
