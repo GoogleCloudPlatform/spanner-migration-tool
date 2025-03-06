@@ -83,6 +83,7 @@ type QueryAssessment struct {
 }
 
 type Snippet struct {
+	Id                       string // generated id
 	TableName                string // will be empty if snippet is not a schema update
 	ColumnName               string // will be empty if snippet is not a schema update
 	SchemaChange             string // will be empty if snippet is not a schema update
