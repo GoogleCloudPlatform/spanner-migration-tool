@@ -116,7 +116,7 @@ func (cmd *AssessmentCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...int
 
 	assessmentConfigMap, err := profiles.ParseMap(cmd.assessmentProfile)
 	if err != nil {
-		logger.Log.Fatal("could not completeparse assessment profile", zap.Error(err))
+		logger.Log.Fatal("could not parse assessment profile", zap.Error(err))
 		return subcommands.ExitFailure
 	}
 

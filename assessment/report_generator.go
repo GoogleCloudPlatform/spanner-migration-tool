@@ -151,10 +151,33 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 		row.dbChangeEffort = "Automatic"
 		row.dbChanges, row.dbImpact = calculateColumnDbChangesAndImpact(column, spColumn)
 
-		rows = append(rows, row)
-
 		//Populate code info
+		//logger.Log.Info(fmt.Sprintf("%s.%s", column.TableName, column.Name))
 		populateColumnCodeImpact(column, spColumn, assessmentOutput.SchemaAssessment.CodeSnippets, &row)
+
+		rows = append(rows, row)
+	}
+
+	//Populate stored procedure and trigger info
+	for _, sproc := range assessmentOutput.SchemaAssessment.StoredProcedureAssessmentOutput {
+		row := SchemaReportRow{}
+		row.element = sproc.Name
+		row.elementType = "Stored Procedure"
+		row.sourceDefinition = sproc.Definition
+
+		row.targetName = "Not supported"
+		row.targetDefinition = "N/A"
+
+		row.dbChangeEffort = "Not Supported"
+		row.dbChanges = "Drop"
+		row.dbImpact = "Less Compute"
+
+		row.codeChangeEffort = "Rewrite"
+		row.codeChangeType = "Manual"
+		row.codeImpactedFiles = "TBD"
+		row.codeSnippets = ""
+
+		rows = append(rows, row)
 	}
 
 	return rows
@@ -395,6 +418,8 @@ func isDataTypeCodeCompatible(srcColumnDef utils.SrcColumnDetails, spColumnDef u
 	case "BOOL":
 		switch srcColumnDef.Datatype {
 		case "tinyint":
+			return true
+		case "bit":
 			return true
 		default:
 			return false
