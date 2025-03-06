@@ -17,7 +17,6 @@
 package assessment
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -28,6 +27,7 @@ import (
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/embeddings"
 	parser "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/parser"
 	dependencyAnalyzer "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/project_analyzer"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	. "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"go.uber.org/zap"
@@ -266,7 +266,7 @@ func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, o
 func (m *MigrationSummarizer) fetchFileContent(filepath string) (string, error) {
 
 	// Read file content if not provided
-	content, err := readFile(filepath)
+	content, err := utils.ReadFile(filepath)
 	if err != nil {
 		logger.Log.Fatal("Failed read file: ", zap.Error(err))
 		return "", err
@@ -276,7 +276,11 @@ func (m *MigrationSummarizer) fetchFileContent(filepath string) (string, error) 
 }
 
 func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, methodChanges, content string) (*CodeAssessment, []any) {
-	var codeAssessment *CodeAssessment
+	emptyAssessment := &CodeAssessment{
+		Snippets:        make([]Snippet, 0),
+		GeneralWarnings: make([]string, 0),
+	}
+	codeAssessment := emptyAssessment
 
 	var response string
 	var isDao bool
@@ -313,6 +317,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, 
 
 		response = ParseJSONWithRetries(m.modelFlash, prompt, response, 2, "analyze-dao-class-"+filepath)
 		isDao = false
+		logger.Log.Debug("Parsed response:", zap.String("response", response))
 
 		methodSignatureChangesResponse, err := m.fetchMethodSignature(response)
 		if err != nil {
@@ -326,7 +331,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, 
 	codeAssessment, error := parser.ParseFileAnalyzerResponse(filepath, response, isDao)
 
 	if error != nil {
-		return codeAssessment, methodSignatureChanges
+		return emptyAssessment, methodSignatureChanges
 	}
 
 	return codeAssessment, methodSignatureChanges
@@ -350,6 +355,8 @@ func (m *MigrationSummarizer) fetchPublicMethodSignature(fileAnalyzerResponse st
 }
 
 func (m *MigrationSummarizer) fetchMethodSignature(fileAnalyzerResponse string) ([]any, error) {
+
+	logger.Log.Debug("Analyze File Response: ", zap.String("", fileAnalyzerResponse))
 
 	var responseMapStructure map[string]any
 	err := json.Unmarshal([]byte(fileAnalyzerResponse), &responseMapStructure)
@@ -508,24 +515,6 @@ func getPromptForNonDAOClass(content, filepath string, methodChanges *string) st
 		%s
 		Method Changes:
 		%s`, filepath, content, *methodChanges)
-}
-
-func readFile(filepath string) (string, error) {
-	file, err := os.Open(filepath)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	var content string
-	for scanner.Scan() {
-		content += scanner.Text() + "\n"
-	}
-	if err := scanner.Err(); err != nil {
-		return "", err
-	}
-	return content, nil
 }
 
 func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, newSchema *string) string {

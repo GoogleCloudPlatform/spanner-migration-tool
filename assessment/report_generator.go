@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -48,7 +49,7 @@ func GenerateReport(dbName string, assessmentOutput utils.AssessmentOutput) {
 	//pull data from assessment output
 	//Write to report in require format
 	//publish report locally/on GCS
-	logger.Log.Info(fmt.Sprintf("%+v", assessmentOutput))
+	//logger.Log.Info(fmt.Sprintf("%+v", assessmentOutput))
 
 	f, err := os.Create(dbName + "_schema.txt")
 	if err != nil {
@@ -133,6 +134,7 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 		row.dbChanges, row.dbImpact = calculateTableDbChangesAndImpact(table, spTable)
 
 		//Populate code info
+		populateTableCodeImpact(table, spTable, assessmentOutput.SchemaAssessment.CodeSnippets, &row)
 		rows = append(rows, row)
 	}
 
@@ -149,9 +151,33 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 		row.dbChangeEffort = "Automatic"
 		row.dbChanges, row.dbImpact = calculateColumnDbChangesAndImpact(column, spColumn)
 
-		rows = append(rows, row)
-
 		//Populate code info
+		//logger.Log.Info(fmt.Sprintf("%s.%s", column.TableName, column.Name))
+		populateColumnCodeImpact(column, spColumn, assessmentOutput.SchemaAssessment.CodeSnippets, &row)
+
+		rows = append(rows, row)
+	}
+
+	//Populate stored procedure and trigger info
+	for _, sproc := range assessmentOutput.SchemaAssessment.StoredProcedureAssessmentOutput {
+		row := SchemaReportRow{}
+		row.element = sproc.Name
+		row.elementType = "Stored Procedure"
+		row.sourceDefinition = sproc.Definition
+
+		row.targetName = "Not supported"
+		row.targetDefinition = "N/A"
+
+		row.dbChangeEffort = "Not Supported"
+		row.dbChanges = "Drop"
+		row.dbImpact = "Less Compute"
+
+		row.codeChangeEffort = "Rewrite"
+		row.codeChangeType = "Manual"
+		row.codeImpactedFiles = "TBD"
+		row.codeSnippets = ""
+
+		rows = append(rows, row)
 	}
 
 	return rows
@@ -302,4 +328,190 @@ func getSpColSizeBytes(spCol utils.SpColumnDetails) int64 {
 		return 8
 	}
 	return 8 + size //Overhead per col plus size
+}
+
+func populateTableCodeImpact(srcTableDef utils.TableDetails, spTableDef utils.TableDetails, codeSnippets *[]utils.Snippet, row *SchemaReportRow) {
+	if srcTableDef.Name == spTableDef.Name {
+		row.codeChangeType = "None"
+		row.codeChangeEffort = "None"
+		row.codeImpactedFiles = "None"
+		row.codeSnippets = "None"
+		return
+	}
+
+	if codeSnippets == nil {
+		row.codeChangeType = "Unavailable"
+		row.codeChangeEffort = "Unavailable"
+		row.codeImpactedFiles = "Unavailable"
+		row.codeSnippets = "Unavailable"
+		return
+	}
+
+	impactedFiles := []string{}
+	relatedSnippets := []string{}
+	for _, snippet := range *codeSnippets {
+		if srcTableDef.Name == snippet.TableName { //TODO add check that column is empty here
+			if !slices.Contains(impactedFiles, snippet.FileName) {
+				impactedFiles = append(impactedFiles, snippet.FileName)
+			}
+			relatedSnippets = append(relatedSnippets, snippet.Id)
+		}
+	}
+	if len(impactedFiles) == 0 {
+		row.codeImpactedFiles = "None"
+		row.codeChangeType = "None"
+		row.codeChangeEffort = "None"
+		row.codeSnippets = ""
+	} else {
+		row.codeImpactedFiles = strings.Join(impactedFiles, ",")
+		row.codeChangeType = "Suggested"
+		row.codeChangeEffort = "Non Zero"
+		row.codeSnippets = strings.Join(relatedSnippets, ",")
+	}
+
+}
+
+func populateColumnCodeImpact(srcColumnDef utils.SrcColumnDetails, spColumnDef utils.SpColumnDetails, codeSnippets *[]utils.Snippet, row *SchemaReportRow) {
+	if isDataTypeCodeCompatible(srcColumnDef, spColumnDef) {
+		row.codeChangeType = "None"
+		row.codeChangeEffort = "None"
+		row.codeImpactedFiles = "None"
+		row.codeSnippets = "None"
+		return
+	}
+
+	if codeSnippets == nil {
+		row.codeChangeType = "Unavailable"
+		row.codeChangeEffort = "Unavailable"
+		row.codeImpactedFiles = "Unavailable"
+		row.codeSnippets = "Unavailable"
+		return
+	}
+
+	impactedFiles := []string{}
+	relatedSnippets := []string{}
+	for _, snippet := range *codeSnippets {
+		if srcColumnDef.TableName == snippet.TableName && srcColumnDef.Name == snippet.ColumnName {
+			if !slices.Contains(impactedFiles, snippet.FileName) {
+				impactedFiles = append(impactedFiles, snippet.FileName)
+			}
+			relatedSnippets = append(relatedSnippets, snippet.Id)
+		}
+	}
+	if len(impactedFiles) == 0 {
+		row.codeImpactedFiles = "None"
+		row.codeChangeType = "None"
+		row.codeChangeEffort = "None"
+		row.codeSnippets = ""
+	} else {
+		row.codeImpactedFiles = strings.Join(impactedFiles, ",")
+		row.codeChangeType = "Suggested"
+		row.codeChangeEffort = "Non Zero"
+		row.codeSnippets = strings.Join(relatedSnippets, ",")
+	}
+}
+
+// TODO - move to assessment engine. Store in a more scalable structure - maybe a static map
+func isDataTypeCodeCompatible(srcColumnDef utils.SrcColumnDetails, spColumnDef utils.SpColumnDetails) bool {
+
+	switch strings.ToUpper(spColumnDef.Datatype) {
+	case "BOOL":
+		switch srcColumnDef.Datatype {
+		case "tinyint":
+			return true
+		case "bit":
+			return true
+		default:
+			return false
+		}
+	case "BYTES":
+		switch srcColumnDef.Datatype {
+		case "binary":
+			return true
+		case "varbinary":
+			return true
+		case "blob":
+			return true
+		default:
+			return false
+		}
+	case "DATE":
+		switch srcColumnDef.Datatype {
+		case "date":
+			return true
+		default:
+			return false
+		}
+	case "FLOAT32":
+		switch srcColumnDef.Datatype {
+		case "float":
+			return true
+		case "double":
+			return true
+		default:
+			return false
+		}
+	case "FLOAT64":
+		switch srcColumnDef.Datatype {
+		case "float":
+			return true
+		case "double":
+			return true
+		default:
+			return false
+		}
+	case "INT64":
+		switch srcColumnDef.Datatype {
+		case "int":
+			return true
+		case "bigint":
+			return true
+		default:
+			return false
+		}
+	case "JSON":
+		switch srcColumnDef.Datatype {
+		case "json":
+			return true
+		case "varchar":
+			return true
+		default:
+			return false
+		}
+	case "NUMERIC":
+		switch srcColumnDef.Datatype {
+		case "float":
+			return true
+		case "double":
+			return true
+		default:
+			return false
+		}
+	case "STRING":
+		switch srcColumnDef.Datatype {
+		case "varchar":
+			return true
+		case "text":
+			return true
+		case "mediumtext":
+			return true
+		case "longtext":
+			return true
+		default:
+			return false
+		}
+	case "TIMESTAMP":
+		switch srcColumnDef.Datatype {
+		case "timestamp":
+			return true
+		case "datetime":
+			return true
+		default:
+			return false
+		}
+	default:
+		//TODO - add all types
+		return false
+	}
+
 }

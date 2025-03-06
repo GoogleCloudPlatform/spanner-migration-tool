@@ -15,6 +15,7 @@
 package assessment
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -47,8 +48,7 @@ func (g *GoDependencyAnalyzer) getDependencyGraph(directory string) map[string]m
 		Dir:  (directory),
 	}
 
-	logger.Log.Debug(directory)
-
+	logger.Log.Debug(fmt.Sprintf("loading packages from directory: %s", directory))
 	pkgs, err := packages.Load(cfg, "./...")
 
 	if err != nil {
