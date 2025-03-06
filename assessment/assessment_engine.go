@@ -15,25 +15,34 @@
 package assessment
 
 import (
+	"context"
+	"fmt"
+
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"go.uber.org/zap"
 )
 
 type assessmentCollectors struct {
-	sampleCollector     assessment.SampleCollector
-	infoSchemaCollector assessment.InfoSchemaCollector
+	sampleCollector        *assessment.SampleCollector
+	infoSchemaCollector    *assessment.InfoSchemaCollector
+	appAssessmentCollector *assessment.MigrationSummarizer
 }
 
-func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile) (utils.AssessmentOutput, error) {
+func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile, assessmentConfig map[string]string, projectId string) (utils.AssessmentOutput, error) {
 
 	logger.Log.Info("performing assessment")
+	logger.Log.Info(fmt.Sprintf("assessment config %+v", assessmentConfig))
+	logger.Log.Info(fmt.Sprintf("project id %+v", projectId))
+
+	ctx := context.Background()
 
 	output := utils.AssessmentOutput{}
 	// Initialize collectors
-	c, err := initializeCollectors(conv, sourceProfile)
+	c, err := initializeCollectors(conv, sourceProfile, assessmentConfig, projectId, ctx)
 	if err != nil {
 		logger.Log.Error("unable to initialize collectors")
 		return output, err
@@ -45,32 +54,86 @@ func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile
 	// Select the highest confidence output for each attribute
 	// Populate assessment struct
 
-	output.SchemaAssessment, err = performSchemaAssessment(c)
+	output.SchemaAssessment, err = performSchemaAssessment(ctx, c)
+
 	return output, err
 }
 
 // Initilize collectors. Take a decision here on which collectors are mandatory and which are optional
-func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProfile) (assessmentCollectors, error) {
+func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProfile, assessmentConfig map[string]string, projectId string, ctx context.Context) (assessmentCollectors, error) {
 	c := assessmentCollectors{}
 	sampleCollector, err := assessment.CreateSampleCollector()
 	if err != nil {
 		return c, err
 	}
-	c.sampleCollector = sampleCollector
+	c.sampleCollector = &sampleCollector
 	infoSchemaCollector, err := assessment.CreateInfoSchemaCollector(conv, sourceProfile)
 	if infoSchemaCollector.IsEmpty() {
 		return c, err
 	}
-	c.infoSchemaCollector = infoSchemaCollector
+	c.infoSchemaCollector = &infoSchemaCollector
+
+	//Initiialize App Assessment Collector
+
+	codeDirectory, exists := assessmentConfig["codeDirectory"]
+	if exists {
+		logger.Log.Info("initializing app collector")
+
+		mysqlSchema := ""   // TODO fetch from conv
+		spannerSchema := "" // TODO fetch from conv
+		mysqlSchemaPath, exists := assessmentConfig["mysqlSchemaPath"]
+		if exists {
+			logger.Log.Info(fmt.Sprintf("overriding mysql schema from file %s", mysqlSchemaPath))
+			mysqlSchema, err := utils.ReadFile(mysqlSchemaPath)
+			if err != nil {
+				logger.Log.Debug("error reading MySQL schema file:", zap.Error(err))
+			}
+			logger.Log.Debug(mysqlSchema)
+		}
+
+		spannerSchemaPath, exists := assessmentConfig["spannerSchemaPath"]
+		if exists {
+			logger.Log.Info(fmt.Sprintf("overriding spanner schema from file %s", spannerSchemaPath))
+			spannerSchema, err := utils.ReadFile(spannerSchemaPath)
+			if err != nil {
+				logger.Log.Debug("error reading Spanner schema file:", zap.Error(err))
+			}
+			logger.Log.Info(spannerSchema)
+		}
+
+		summarizer, err := assessment.NewMigrationSummarizer(ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory)
+		if err != nil {
+			logger.Log.Error("error initiating migration summarizer")
+			return c, err
+		}
+		c.appAssessmentCollector = summarizer
+		logger.Log.Info("initialized app collector")
+	} else {
+		logger.Log.Info("app code info unavailable")
+	}
+
 	return c, err
 }
 
-func performSchemaAssessment(collectors assessmentCollectors) (utils.SchemaAssessmentOutput, error) {
+func performSchemaAssessment(ctx context.Context, collectors assessmentCollectors) (utils.SchemaAssessmentOutput, error) {
 	schemaOut := utils.SchemaAssessmentOutput{}
 	schemaOut.SourceTableDefs, schemaOut.SpannerTableDefs = collectors.infoSchemaCollector.ListTables()
 	schemaOut.SourceIndexDef, schemaOut.SpannerIndexDef = collectors.infoSchemaCollector.ListIndexes()
 	schemaOut.Triggers = collectors.infoSchemaCollector.ListTriggers()
 	schemaOut.SourceColDefs, schemaOut.SpannerColDefs = collectors.infoSchemaCollector.ListColumnDefinitions()
 	schemaOut.StoredProcedureAssessmentOutput = collectors.infoSchemaCollector.ListStoredProcedures()
+
+	if collectors.appAssessmentCollector != nil {
+		logger.Log.Info("adding app assessment details")
+		codeAssessment, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
+
+		if err != nil {
+			logger.Log.Error("error analyzing project", zap.Error(err))
+			return schemaOut, err
+		}
+
+		logger.Log.Info(fmt.Sprintf("snippets %+v", codeAssessment.Snippets))
+		schemaOut.CodeSnippets = &codeAssessment.Snippets
+	}
 	return schemaOut, nil
 }
