@@ -39,6 +39,7 @@ type SchemaAssessmentOutput struct {
 	SpannerIndexDef                 map[string]SpIndexDetails                  // Maps index id to spanner table definition.
 	Triggers                        map[string]TriggerAssessmentOutput         // Maps trigger id to source trigger definition.
 	StoredProcedureAssessmentOutput map[string]StoredProcedureAssessmentOutput // Maps stored procedure id to stored procedure(source) definition.
+	CodeSnippets                    *[]Snippet                                 // Affected code snippets
 }
 
 type TriggerAssessmentOutput struct {
