@@ -16,6 +16,7 @@ package assessment
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -41,7 +42,22 @@ type GoDependencyAnalyzer struct {
 	BaseAnalyzer
 }
 
+func validateGoroot() error {
+
+	goroot := os.Getenv("GOROOT")
+	if len(goroot) == 0 {
+		return fmt.Errorf("GOROOT environment variable not set")
+	}
+	return nil
+}
+
 func (g *GoDependencyAnalyzer) getDependencyGraph(directory string) map[string]map[string]struct{} {
+
+	err := validateGoroot()
+	if err != nil {
+		logger.Log.Fatal("Error validating GOROOT: ", zap.Error(err))
+		os.Exit(2)
+	}
 
 	cfg := &packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,

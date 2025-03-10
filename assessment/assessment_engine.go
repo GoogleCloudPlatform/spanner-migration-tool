@@ -17,12 +17,14 @@ package assessment
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"go.uber.org/zap"
 )
 
@@ -78,28 +80,10 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 	codeDirectory, exists := assessmentConfig["codeDirectory"]
 	if exists {
 		logger.Log.Info("initializing app collector")
-
-		mysqlSchema := ""   // TODO fetch from conv
-		spannerSchema := "" // TODO fetch from conv
-		mysqlSchemaPath, exists := assessmentConfig["mysqlSchemaPath"]
-		if exists {
-			logger.Log.Info(fmt.Sprintf("overriding mysql schema from file %s", mysqlSchemaPath))
-			mysqlSchema, err := utils.ReadFile(mysqlSchemaPath)
-			if err != nil {
-				logger.Log.Debug("error reading MySQL schema file:", zap.Error(err))
-			}
-			logger.Log.Debug(mysqlSchema)
-		}
-
-		spannerSchemaPath, exists := assessmentConfig["spannerSchemaPath"]
-		if exists {
-			logger.Log.Info(fmt.Sprintf("overriding spanner schema from file %s", spannerSchemaPath))
-			spannerSchema, err := utils.ReadFile(spannerSchemaPath)
-			if err != nil {
-				logger.Log.Debug("error reading Spanner schema file:", zap.Error(err))
-			}
-			logger.Log.Info(spannerSchema)
-		}
+		logger.Log.Info("initializing app collector")
+		mysqlSchema := GetDDL(conv.SrcSchema)
+		spannerSchemaArray := ddl.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"}, conv.SpSchema, conv.SpSequences)
+		spannerSchema := strings.Join(spannerSchemaArray, "\n")
 
 		summarizer, err := assessment.NewMigrationSummarizer(ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory)
 		if err != nil {
