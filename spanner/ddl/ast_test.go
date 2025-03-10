@@ -904,7 +904,7 @@ func TestGetDDL(t *testing.T) {
 			"	b INT64,\n" +
 			"	c INT64,\n" +
 			") PRIMARY KEY (a, b),\n" +
-			"INTERLEAVE IN table1 ON DELETE NO ACTION",
+			"INTERLEAVE IN table1",
 	}
 	assert.ElementsMatch(t, e, tablesOnly)
 
@@ -933,7 +933,7 @@ func TestGetDDL(t *testing.T) {
 			"	b INT64,\n" +
 			"	c INT64,\n" +
 			") PRIMARY KEY (a, b),\n" +
-			"INTERLEAVE IN table1 ON DELETE NO ACTION",
+			"INTERLEAVE IN table1",
 		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
@@ -1015,7 +1015,7 @@ func TestGetPGDDL(t *testing.T) {
 			"	b INT8,\n" +
 			"	c INT8,\n" +
 			"	PRIMARY KEY (a, b)\n" +
-			") INTERLEAVE IN table1 ON DELETE NO ACTION",
+			") INTERLEAVE IN table1",
 	}
 	assert.ElementsMatch(t, e, tablesOnly)
 
@@ -1046,7 +1046,7 @@ func TestGetPGDDL(t *testing.T) {
 			"	b INT8,\n" +
 			"	c INT8,\n" +
 			"	PRIMARY KEY (a, b)\n" +
-			") INTERLEAVE IN table1 ON DELETE NO ACTION",
+			") INTERLEAVE IN table1",
 		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
