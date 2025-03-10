@@ -80,10 +80,13 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 	codeDirectory, exists := assessmentConfig["codeDirectory"]
 	if exists {
 		logger.Log.Info("initializing app collector")
-		logger.Log.Info("initializing app collector")
 		mysqlSchema := GetDDL(conv.SrcSchema)
-		spannerSchemaArray := ddl.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"}, conv.SpSchema, conv.SpSequences)
-		spannerSchema := strings.Join(spannerSchemaArray, "\n")
+		spannerSchema := strings.Join(
+			ddl.GetDDL(
+				ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"},
+				conv.SpSchema,
+				conv.SpSequences),
+			"\n")
 
 		summarizer, err := assessment.NewMigrationSummarizer(ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory)
 		if err != nil {
