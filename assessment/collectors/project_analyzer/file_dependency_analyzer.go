@@ -46,7 +46,7 @@ func validateGoroot() error {
 
 	goroot := os.Getenv("GOROOT")
 	if len(goroot) == 0 {
-		return fmt.Errorf("GOROOT environment variable not set")
+		return fmt.Errorf("please set GOROOT path to GO version 1.22.7 or higher to ensure that app assessment works")
 	}
 	return nil
 }
@@ -56,7 +56,6 @@ func (g *GoDependencyAnalyzer) getDependencyGraph(directory string) map[string]m
 	err := validateGoroot()
 	if err != nil {
 		logger.Log.Fatal("Error validating GOROOT: ", zap.Error(err))
-		os.Exit(2)
 	}
 
 	cfg := &packages.Config{
