@@ -170,6 +170,7 @@ jobs:
         run: |
           cd ui
           npm install
+          npm run build
 
       - name: Start Local Server
         run:  |
