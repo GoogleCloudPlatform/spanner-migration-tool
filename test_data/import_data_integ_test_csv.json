@@ -2,7 +2,7 @@
   {
     "table_name": "table2",
     "file_patterns": [
-      "/usr/local/google/home/rohitwali/dump1/tabletest.txt"
+      "../../test_data/basic_csv.csv"
     ],
     "columns": [
       {"column_name": "c3", "type_name": "INT64"},

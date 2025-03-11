@@ -34,8 +34,6 @@ type ImportDataCmd struct {
 	project           string
 }
 
-// https://source.corp.google.com/piper///depot/google3/third_party/py/googlecloudsdk/surface/
-
 func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 	set.StringVar(&cmd.instanceId, "instance-id", "", "Spanner instance Id")
 	set.StringVar(&cmd.dbName, "db-name", "", "Spanner database name")

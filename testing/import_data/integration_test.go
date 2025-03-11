@@ -54,13 +54,12 @@ func initIntegrationTests() (cleanup func()) {
 
 func TestLocalCSVFile(t *testing.T) {
 	// configure the database client
-	projectID := "span-cloud-testing"
-	instanceID := "rohitwali-1"
-	os.Setenv("GCPProjectID", projectID)
-	os.Setenv("SpannerInstanceID", instanceID)
+	projectID := os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID")
+	instanceID := os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID")
 
 	// clean up the table
 	dbName := "versionone"
+	tableName := "table2"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	client, err := spanner.NewClient(ctx, dbURI)
 	if err != nil {
@@ -69,7 +68,7 @@ func TestLocalCSVFile(t *testing.T) {
 	defer client.Close()
 
 	_, err = client.ReadWriteTransaction(ctx, func(ctx context.Context, tx *spanner.ReadWriteTransaction) error {
-		_, _ = tx.Update(ctx, spanner.NewStatement("DELETE FROM table2 WHERE 1=1"))
+		_, _ = tx.Update(ctx, spanner.NewStatement("DELETE FROM "+tableName+" WHERE 1=1"))
 		return nil
 	})
 	if err != nil {
@@ -79,33 +78,6 @@ func TestLocalCSVFile(t *testing.T) {
 	// write new csv data to spanner
 	// just trigger the csv command
 	MANIFEST_FILE_NAME := "../../test_data/csv_test2.json"
-	// instance id - ok
-	// database name - ok
-	// table name
-	// source uri
-	// format - ok
-	// schema uri
-	// csv line delimiter
-	// csv field delimiter
-
-	/*
-		MANIFESTFILE
-		[
-		  {
-		    "table_name": "table2",
-		    "file_patterns": [
-		      "/usr/local/google/home/rohitwali/dump1/tabletest.txt"
-		    ],
-		    "columns": [
-		      {"column_name": "c3", "type_name": "INT64"},
-		      {"column_name": "c4", "type_name": "STRING"}
-		    ]
-		  }
-		]
-
-	*/
-
-	// project id  -  need to find out from gcloud and pass
 	args := fmt.Sprintf("data -source=csv -source-profile=manifest=%s -target-profile='instance=%s,dbName=%s,project=%s'", MANIFEST_FILE_NAME, instanceID, dbName, projectID)
 	err = common.RunCommand(args, projectID)
 	if err != nil {
