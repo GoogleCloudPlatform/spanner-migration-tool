@@ -29,10 +29,10 @@ import (
 )
 
 type InfoSchemaCollector struct {
-	tables           map[string]utils.TableAssessment
-	indexes          []utils.IndexAssessment
-	triggers         []utils.TriggerAssessment
-	storedProcedures []utils.StoredProcedureAssessment
+	tables           map[string]utils.TableAssessmentInfo
+	indexes          []utils.IndexAssessmentInfo
+	triggers         []utils.TriggerAssessmentInfo
+	storedProcedures []utils.StoredProcedureAssessmentInfo
 	conv             *internal.Conv
 }
 
@@ -80,8 +80,8 @@ func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.Sourc
 	}, err
 }
 
-func getIndexes(infoSchema common.InfoSchema, conv *internal.Conv) ([]utils.IndexAssessment, error) {
-	indCollector := []utils.IndexAssessment{}
+func getIndexes(infoSchema common.InfoSchema, conv *internal.Conv) ([]utils.IndexAssessmentInfo, error) {
+	indCollector := []utils.IndexAssessmentInfo{}
 	for _, table := range conv.SrcSchema {
 		index, err := infoSchema.GetIndexInfo(table.Name, conv)
 		if err != nil {
@@ -203,7 +203,8 @@ func (c InfoSchemaCollector) ListColumnDefinitions() (map[string]utils.SrcColumn
 				DefaultValue:    column.DefaultValue,
 				PrimaryKeyOrder: pkOrder,
 				ForeignKey:      foreignKeys,
-				IsUnsigned:      c.tables[table.Id].ColumnAssessments[column.Id].IsUnsigned,
+				IsUnsigned:      c.tables[table.Id].ColumnAssessmentInfos[column.Id].IsUnsigned,
+				MaxColumnSize:   c.tables[table.Id].ColumnAssessmentInfos[column.Id].MaxColumnSize,
 			}
 		}
 	}
