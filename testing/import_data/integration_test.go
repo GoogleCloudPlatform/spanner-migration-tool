@@ -84,17 +84,16 @@ func onlyRunForEmulatorTest(t *testing.T) {
 func TestLocalCSVFile(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
-	// explicitly setting for test
-	log.Printf("projectID %s, instanceID %s", projectID, instanceID)
+	// explicitly setting for test.
 	projectID := os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID")
 	instanceID := os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID")
 	log.Printf("projectID %s, instanceID %s", projectID, instanceID)
+
 	// configure the database client
 	dbName := "versionone"
 	tableName := "table2"
-	dbURI := fmt.Sprintf("projects/#{projectID}/instances/#{instanceID}/databases/#{dbName}")
-	dbURI1 := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	log.Printf("dbURI %s, dbURI1 %s", dbURI, dbURI1)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	log.Printf("dbURI %s", dbURI)
 	client, err := spanner.NewClient(ctx, dbURI)
 	if err != nil {
 		log.Fatal(err)
