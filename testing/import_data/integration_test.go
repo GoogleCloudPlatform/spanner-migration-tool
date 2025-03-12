@@ -93,6 +93,8 @@ func TestLocalCSVFile(t *testing.T) {
 	dbName := "versionone"
 	tableName := "table2"
 	dbURI := fmt.Sprintf("projects/#{projectID}/instances/#{instanceID}/databases/#{dbName}")
+	dbURI1 := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	log.Printf("dbURI %s, dbURI1 %s", dbURI, dbURI1)
 	client, err := spanner.NewClient(ctx, dbURI)
 	if err != nil {
 		log.Fatal(err)
