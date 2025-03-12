@@ -123,9 +123,9 @@ func createSpannerDatabase(t *testing.T, project, instance, dbName string) {
 	}
 	op, err := databaseAdmin.CreateDatabase(ctx, req)
 	if err != nil {
-		t.Fatalf("can't build CreateDatabaseRequest for %s", dbURI)
+		t.Fatalf("can't build CreateDatabaseRequest for %s: %v", dbURI, err)
 	}
 	if _, err := op.Wait(ctx); err != nil {
-		t.Fatalf("createDatabase call failed for %s", dbURI)
+		t.Fatalf("createDatabase call failed for %s: %v", dbURI, err)
 	}
 }
