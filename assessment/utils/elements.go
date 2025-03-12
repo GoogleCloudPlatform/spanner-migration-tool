@@ -26,26 +26,27 @@ type DbIdentifier struct {
 }
 
 // Information relevant to assessment of tables
-type TableAssessment struct {
-	Db                DbIdentifier
-	Name              string
-	TableDef          schema.Table
-	ColumnAssessments map[string]ColumnAssessment[any]
+type TableAssessmentInfo struct {
+	Db                    DbIdentifier
+	Name                  string
+	TableDef              schema.Table
+	ColumnAssessmentInfos map[string]ColumnAssessmentInfo[any]
 }
 
 // Information relevant to assessment of columns
-type ColumnAssessment[T any] struct {
-	Db         DbIdentifier
-	Name       string
-	TableName  string
-	ColumnDef  schema.Column
-	MaxValue   T
-	MinValue   T
-	IsUnsigned bool
+type ColumnAssessmentInfo[T any] struct {
+	Db            DbIdentifier
+	Name          string
+	TableName     string
+	ColumnDef     schema.Column
+	MaxValue      T
+	MinValue      T
+	IsUnsigned    bool
+	MaxColumnSize int64
 }
 
 // Information relevant to assessment of indexes
-type IndexAssessment struct {
+type IndexAssessmentInfo struct {
 	Db       DbIdentifier
 	Name     string
 	TableId  string
@@ -54,7 +55,7 @@ type IndexAssessment struct {
 }
 
 // Information relevant to assessment of stored procedures
-type StoredProcedureAssessment struct {
+type StoredProcedureAssessmentInfo struct {
 	Db               DbIdentifier
 	Name             string
 	LinesOfCode      int
@@ -65,7 +66,7 @@ type StoredProcedureAssessment struct {
 }
 
 // Information relevant to assessment of triggers
-type TriggerAssessment struct {
+type TriggerAssessmentInfo struct {
 	Db                DbIdentifier
 	Name              string
 	Operation         string
@@ -75,7 +76,7 @@ type TriggerAssessment struct {
 }
 
 // Information relevant to assessment of queries
-type QueryAssessment struct {
+type QueryAssessmentInfo struct {
 	db             DbIdentifier
 	name           string
 	lengthOfQuery  string
