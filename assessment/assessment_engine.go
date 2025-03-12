@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -137,7 +138,7 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 				//Column not of current table
 				continue
 			}
-			isTypeCompatible := isDataTypeCodeCompatible(srcColumn, spColumn)
+			isTypeCompatible := mysql.SourceSpecificComparisonImpl{}.IsDataTypeCodeCompatible(srcColumn, spColumn) // Make generic when more sources added
 			sizeIncreaseInBytes := getSpColSizeBytes(spColumn) - srcColumn.MaxColumnSize
 			colAssessment := utils.ColumnAssessment{SourceColDef: &srcColumn, SpannerColDef: &spColumn, CompatibleDataType: isTypeCompatible, SizeIncreaseInBytes: int(sizeIncreaseInBytes)}
 			columnAssessments = append(columnAssessments, colAssessment)

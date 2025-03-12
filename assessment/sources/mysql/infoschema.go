@@ -30,6 +30,8 @@ type InfoSchemaImpl struct {
 	DbName string
 }
 
+type SourceSpecificComparisonImpl struct{}
+
 func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.TableAssessmentInfo, error) {
 	tb := make(map[string]utils.TableAssessmentInfo)
 	dbIdentifier := utils.DbIdentifier{
@@ -201,4 +203,108 @@ func getColumnMaxSize(dataType string, mods []int64) int64 {
 		//TODO - add all types
 		return 4
 	}
+}
+
+func (ssa SourceSpecificComparisonImpl) IsDataTypeCodeCompatible(srcColumnDef utils.SrcColumnDetails, spColumnDef utils.SpColumnDetails) bool {
+
+	switch strings.ToUpper(spColumnDef.Datatype) {
+	case "BOOL":
+		switch srcColumnDef.Datatype {
+		case "tinyint":
+			return true
+		case "bit":
+			return true
+		default:
+			return false
+		}
+	case "BYTES":
+		switch srcColumnDef.Datatype {
+		case "binary":
+			return true
+		case "varbinary":
+			return true
+		case "blob":
+			return true
+		default:
+			return false
+		}
+	case "DATE":
+		switch srcColumnDef.Datatype {
+		case "date":
+			return true
+		default:
+			return false
+		}
+	case "FLOAT32":
+		switch srcColumnDef.Datatype {
+		case "float":
+			return true
+		case "double":
+			return true
+		default:
+			return false
+		}
+	case "FLOAT64":
+		switch srcColumnDef.Datatype {
+		case "float":
+			return true
+		case "double":
+			return true
+		default:
+			return false
+		}
+	case "INT64":
+		switch srcColumnDef.Datatype {
+		case "int":
+			return true
+		case "bigint":
+			return true
+		default:
+			return false
+		}
+	case "JSON":
+		switch srcColumnDef.Datatype {
+		case "json":
+			return true
+		case "varchar":
+			return true
+		default:
+			return false
+		}
+	case "NUMERIC":
+		switch srcColumnDef.Datatype {
+		case "float":
+			return true
+		case "double":
+			return true
+		default:
+			return false
+		}
+	case "STRING":
+		switch srcColumnDef.Datatype {
+		case "varchar":
+			return true
+		case "text":
+			return true
+		case "mediumtext":
+			return true
+		case "longtext":
+			return true
+		default:
+			return false
+		}
+	case "TIMESTAMP":
+		switch srcColumnDef.Datatype {
+		case "timestamp":
+			return true
+		case "datetime":
+			return true
+		default:
+			return false
+		}
+	default:
+		//TODO - add all types
+		return false
+	}
+
 }

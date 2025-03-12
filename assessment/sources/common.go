@@ -28,3 +28,9 @@ type InfoSchema interface {
 }
 
 type InfoSchemaImpl struct{}
+
+type SourceSpecificComparison interface {
+	IsDataTypeCodeCompatible(srcColumnDef utils.SrcColumnDetails, spColumnDef utils.SpColumnDetails) bool
+}
+
+type SourceSpecificComparisonImpl struct{}
