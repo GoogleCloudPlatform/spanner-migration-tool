@@ -22,9 +22,9 @@ import (
 	"os"
 	"testing"
 
-	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/testing/common"
+	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 var (
@@ -91,33 +91,41 @@ func TestLocalCSVFile(t *testing.T) {
 
 	// configure the database client
 	dbName := "versionone"
-	tableName := "table2"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	log.Printf("dbURI %s", dbURI)
-	client, err := spanner.NewClient(ctx, dbURI)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer client.Close()
 
-	// clean up the table
-	_, err = client.ReadWriteTransaction(ctx, func(ctx context.Context, tx *spanner.ReadWriteTransaction) error {
-		_, _ = tx.Update(ctx, spanner.NewStatement("DELETE FROM "+tableName+" WHERE 1=1"))
-		return nil
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
+	createSpannerDatabase(t, projectID, instanceID, dbName)
 
 	// write new csv data to spanner
 	// just trigger the csv command
-	manifestFileName := "../../test_data/csv_test2.json"
+	manifestFileName := "../../test_data/import_data_integ_test_csv.json"
 	args := fmt.Sprintf("data -source=csv -source-profile=manifest=%s -target-profile='instance=%s,dbName=%s,project=%s'", manifestFileName, instanceID, dbName, projectID)
-	err = common.RunCommand(args, projectID)
+	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// validate the data
 
+}
+
+func createSpannerDatabase(t *testing.T, project, instance, dbName string) {
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+	req := &databasepb.CreateDatabaseRequest{
+		Parent: fmt.Sprintf("projects/%s/instances/%s", project, instance),
+	}
+
+	req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
+	req.ExtraStatements = []string{"CREATE TABLE table2 (" +
+		"c3 INT64," +
+		"c4 STRING" +
+		") PRIMARY KEY(c3)",
+	}
+	op, err := databaseAdmin.CreateDatabase(ctx, req)
+	if err != nil {
+		t.Fatalf("can't build CreateDatabaseRequest for %s", dbURI)
+	}
+	if _, err := op.Wait(ctx); err != nil {
+		t.Fatalf("createDatabase call failed for %s", dbURI)
+	}
 }
