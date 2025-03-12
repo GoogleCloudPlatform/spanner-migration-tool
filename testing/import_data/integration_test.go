@@ -16,6 +16,7 @@ package import_data_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -27,6 +28,8 @@ import (
 )
 
 var (
+	projectID     string
+	instanceID    string
 	ctx           context.Context
 	databaseAdmin *database.DatabaseAdminClient
 )
@@ -39,7 +42,27 @@ func TestMain(m *testing.M) {
 }
 
 func initIntegrationTests() (cleanup func()) {
+	projectID := os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID")
+	instanceID := os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID")
+
 	ctx = context.Background()
+	flag.Parse() // Needed for calling testing.Short().
+
+	noop := func() {}
+	if testing.Short() {
+		log.Println("Integration tests skipped in -short mode.")
+		return noop
+	}
+
+	if projectID == "" {
+		log.Println("Integration tests skipped: SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID is missing")
+		return noop
+	}
+
+	if instanceID == "" {
+		log.Println("Integration tests skipped: SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID is missing")
+		return noop
+	}
 
 	var err error
 	databaseAdmin, err = database.NewDatabaseAdminClient(ctx)
@@ -52,12 +75,17 @@ func initIntegrationTests() (cleanup func()) {
 	}
 }
 
-func TestLocalCSVFile(t *testing.T) {
-	// configure the database client
-	projectID := os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID")
-	instanceID := os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID")
+func onlyRunForEmulatorTest(t *testing.T) {
+	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		t.Skip("Skipping tests only running against the emulator.")
+	}
+}
 
-	// clean up the table
+func TestLocalCSVFile(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+
+	// configure the database client
 	dbName := "versionone"
 	tableName := "table2"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
@@ -67,6 +95,7 @@ func TestLocalCSVFile(t *testing.T) {
 	}
 	defer client.Close()
 
+	// clean up the table
 	_, err = client.ReadWriteTransaction(ctx, func(ctx context.Context, tx *spanner.ReadWriteTransaction) error {
 		_, _ = tx.Update(ctx, spanner.NewStatement("DELETE FROM "+tableName+" WHERE 1=1"))
 		return nil
@@ -77,8 +106,8 @@ func TestLocalCSVFile(t *testing.T) {
 
 	// write new csv data to spanner
 	// just trigger the csv command
-	MANIFEST_FILE_NAME := "../../test_data/csv_test2.json"
-	args := fmt.Sprintf("data -source=csv -source-profile=manifest=%s -target-profile='instance=%s,dbName=%s,project=%s'", MANIFEST_FILE_NAME, instanceID, dbName, projectID)
+	manifestFileName := "../../test_data/csv_test2.json"
+	args := fmt.Sprintf("data -source=csv -source-profile=manifest=%s -target-profile='instance=%s,dbName=%s,project=%s'", manifestFileName, instanceID, dbName, projectID)
 	err = common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
