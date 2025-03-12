@@ -12,6 +12,8 @@ spanner_migration_tool_output/
 # angular ui development
 ui/.angular
 ui/node_modules
+ui/dist
+ui/package-lock.json
 
 # webv2 config
 webv2/config.json

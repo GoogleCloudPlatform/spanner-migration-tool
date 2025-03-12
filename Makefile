@@ -9,6 +9,7 @@ build:
 	go build -o spanner-migration-tool
 # Build a static binary
 build-static:
+	cd ui/ && npm install && ng build
 	go build -a -tags osusergo,netgo -ldflags '-w -extldflags "-static"' -o spanner-migration-tool main.go
 # Create a new release for Spanner migration tool.
 release:
@@ -24,10 +25,10 @@ update-vendor:
 	git commit -m "Update Vendor files" --no-edit
 # Run unit tests
 test:
+	cd ui/ && npm install && ng build && npm test -- --browsers=ChromeHeadless --watch=false
 	go test -v ./...
-	cd ui/ && npm test -- --browsers=ChromeHeadless --watch=false
 # Run code coverage with unit tests
 test-coverage:
+	cd ui/ && npm install && ng build && npm test -- --browsers=ChromeHeadless --watch=false
 	go test ./... -coverprofile coverage.out -covermode count
 	go tool cover -func coverage.out
-	cd ui/ && npm test -- --browsers=ChromeHeadless --watch=false
