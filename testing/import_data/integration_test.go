@@ -118,7 +118,7 @@ func createSpannerDatabase(t *testing.T, project, instance, dbName string) {
 	req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
 	req.ExtraStatements = []string{"CREATE TABLE table2 (" +
 		"c3 INT64," +
-		"c4 STRING" +
+		"c4 STRING(100)" +
 		") PRIMARY KEY(c3)",
 	}
 	op, err := databaseAdmin.CreateDatabase(ctx, req)
