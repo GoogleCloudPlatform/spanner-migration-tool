@@ -26,7 +26,7 @@ func TestBasicCsvImport(t *testing.T) {
 	fs := flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
 	importDataCmd.SetFlags(fs)
 
-	importDataCmd.instanceId = "rohitwali-1"
+	importDataCmd.instanceId = ""
 	importDataCmd.dbName = "versionone"
 	importDataCmd.tableName = "table2"
 	importDataCmd.sourceUri = "../test_data/basic_csv.csv"
@@ -34,7 +34,7 @@ func TestBasicCsvImport(t *testing.T) {
 	importDataCmd.schemaUri = "../test_data/basic_csv_schema.csv"
 	importDataCmd.csvLineDelimiter = "\n"
 	importDataCmd.csvFieldDelimiter = ","
-	importDataCmd.project = "span-cloud-testing"
+	importDataCmd.project = ""
 	importDataCmd.Execute(context.Background(), fs)
 
 }
