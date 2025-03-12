@@ -31,15 +31,27 @@ type CostAssessmentOutput struct {
 }
 
 type SchemaAssessmentOutput struct {
-	SourceTableDefs                 map[string]TableDetails                    // Maps table id to source table definition.
-	SpannerTableDefs                map[string]TableDetails                    // Maps table id to spanner table definition.
-	SourceColDefs                   map[string]SrcColumnDetails                // Maps column id to source column definition.
-	SpannerColDefs                  map[string]SpColumnDetails                 // Maps column id to spanner column definition
-	SourceIndexDef                  map[string]SrcIndexDetails                 // Maps index id to source index definition.
-	SpannerIndexDef                 map[string]SpIndexDetails                  // Maps index id to spanner table definition.
+	TableAssessment                 []TableAssessment                          //List of Table assessments - Entry per table which is converted + Tables only at source + Tables only at Spanner
 	Triggers                        map[string]TriggerAssessmentOutput         // Maps trigger id to source trigger definition.
 	StoredProcedureAssessmentOutput map[string]StoredProcedureAssessmentOutput // Maps stored procedure id to stored procedure(source) definition.
 	CodeSnippets                    *[]Snippet                                 // Affected code snippets
+}
+
+type TableAssessment struct {
+	SourceTableDef      *TableDetails
+	SpannerTableDef     *TableDetails
+	Columns             []ColumnAssessment //List of columns of current table
+	SourceIndexDef      []SrcIndexDetails  // Index name to index details
+	SpannerIndexDef     []SpIndexDetails   // Index name to index details
+	CompatibleCharset   bool               //Is the charset compatible
+	SizeIncreaseInBytes int                //Increase in table size on spanner
+}
+
+type ColumnAssessment struct {
+	SourceColDef        *SrcColumnDetails
+	SpannerColDef       *SpColumnDetails
+	CompatibleDataType  bool // Is the data type compatible with spanner
+	SizeIncreaseInBytes int  // Increase in column size on spanner - can be negative is size is smaller
 }
 
 type TriggerAssessmentOutput struct {
@@ -95,6 +107,7 @@ type SrcColumnDetails struct {
 	AutoGen         ddl.AutoGenCol
 	DefaultValue    ddl.DefaultValue
 	IsUnsigned      bool
+	MaxColumnSize   int64
 }
 
 type SpColumnDetails struct {
