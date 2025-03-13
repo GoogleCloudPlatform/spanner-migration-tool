@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -106,10 +107,61 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 
 func performSchemaAssessment(ctx context.Context, collectors assessmentCollectors) (utils.SchemaAssessmentOutput, error) {
 	schemaOut := utils.SchemaAssessmentOutput{}
-	schemaOut.SourceTableDefs, schemaOut.SpannerTableDefs = collectors.infoSchemaCollector.ListTables()
-	schemaOut.SourceIndexDef, schemaOut.SpannerIndexDef = collectors.infoSchemaCollector.ListIndexes()
+
+	srcTableDefs, spTableDefs := collectors.infoSchemaCollector.ListTables()
+	srcColDefs, spColDefs := collectors.infoSchemaCollector.ListColumnDefinitions() // TODO - move this inside the table info.
+	srcIndexes, spIndexes := collectors.infoSchemaCollector.ListIndexes()
+
+	tableAssessments := []utils.TableAssessment{}
+	for tableId, srcTableDef := range srcTableDefs {
+		spTableDef := spTableDefs[tableId]
+		tableSizeDiff := tableSizeDiffBytes(&srcTableDef, &spTableDef)
+
+		columnAssessments := []utils.ColumnAssessment{}
+
+		//Populate column info
+		for id, srcColumn := range srcColDefs {
+			spColumn := spColDefs[id]
+			if srcColumn.TableId != tableId {
+				//Column not of current table
+				continue
+			}
+			isTypeCompatible := mysql.SourceSpecificComparisonImpl{}.IsDataTypeCodeCompatible(srcColumn, spColumn) // Make generic when more sources added
+			sizeIncreaseInBytes := getSpColSizeBytes(spColumn) - srcColumn.MaxColumnSize
+			colAssessment := utils.ColumnAssessment{SourceColDef: &srcColumn, SpannerColDef: &spColumn, CompatibleDataType: isTypeCompatible, SizeIncreaseInBytes: int(sizeIncreaseInBytes)}
+			columnAssessments = append(columnAssessments, colAssessment)
+		}
+
+		//Populate indexes
+		tableSrcIndexes := []utils.SrcIndexDetails{}
+		for _, srcIndex := range srcIndexes {
+			if srcIndex.TableId == tableId {
+				tableSrcIndexes = append(tableSrcIndexes, srcIndex)
+			}
+		}
+
+		tableSpIndexes := []utils.SpIndexDetails{}
+		for _, spIndex := range spIndexes {
+			if spIndex.TableId == tableId {
+				tableSpIndexes = append(tableSpIndexes, spIndex)
+			}
+		}
+
+		tableAssessment := utils.TableAssessment{
+			SourceTableDef:      &srcTableDef,
+			SpannerTableDef:     &spTableDef,
+			Columns:             columnAssessments,
+			SourceIndexDef:      tableSrcIndexes,
+			SpannerIndexDef:     tableSpIndexes,
+			CompatibleCharset:   isCharsetCompatible(srcTableDef.Charset),
+			SizeIncreaseInBytes: tableSizeDiff,
+		}
+
+		tableAssessments = append(tableAssessments, tableAssessment)
+	}
+	schemaOut.TableAssessment = tableAssessments
+
 	schemaOut.Triggers = collectors.infoSchemaCollector.ListTriggers()
-	schemaOut.SourceColDefs, schemaOut.SpannerColDefs = collectors.infoSchemaCollector.ListColumnDefinitions()
 	schemaOut.StoredProcedureAssessmentOutput = collectors.infoSchemaCollector.ListStoredProcedures()
 
 	if collectors.appAssessmentCollector != nil {
@@ -125,4 +177,157 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 		schemaOut.CodeSnippets = &codeAssessment.Snippets
 	}
 	return schemaOut, nil
+}
+
+func isCharsetCompatible(srcCharset string) bool {
+	if !strings.Contains(srcCharset, "utf8") { // TODO add charset level comparisons - per source
+		return true
+	}
+	return false
+}
+
+func tableSizeDiffBytes(srcTableDef *utils.TableDetails, spTableDef *utils.TableDetails) int {
+	// TODO - if no spanner table exists - return nil
+	return 1 //TODO - currently dummy implementation assuming spanner will always be bigger - to calculate based on charset and column size differences
+}
+
+// TODO - move to spanner interface?
+func getSpColSizeBytes(spCol utils.SpColumnDetails) int64 {
+	var size int64
+	switch strings.ToUpper(spCol.Datatype) {
+	case "ARRAY":
+		size = spCol.Len //TODO correct this based on underlying type
+	case "BOOL":
+		size = 1
+	case "BYTES":
+		size = spCol.Len
+	case "DATE":
+		size = 4
+	case "FLOAT32":
+		size = 4
+	case "FLOAT64":
+		size = 8
+	case "INT64":
+		size = 8
+	case "JSON":
+		size = spCol.Len
+	case "NUMERIC":
+		size = 22 //TODO - calculate based on precision
+	case "STRING":
+		size = spCol.Len
+
+	case "STRUCT":
+		return 8 // TODO - get sum of parts
+	case "TIMESTAMP":
+		return 12
+	default:
+		//TODO - add all types
+		return 8
+	}
+	return 8 + size //Overhead per col plus size
+}
+
+// TODO - move to source specific interface. Store in a more scalable structure - maybe a static map
+func isDataTypeCodeCompatible(srcColumnDef utils.SrcColumnDetails, spColumnDef utils.SpColumnDetails) bool {
+
+	switch strings.ToUpper(spColumnDef.Datatype) {
+	case "BOOL":
+		switch srcColumnDef.Datatype {
+		case "tinyint":
+			return true
+		case "bit":
+			return true
+		default:
+			return false
+		}
+	case "BYTES":
+		switch srcColumnDef.Datatype {
+		case "binary":
+			return true
+		case "varbinary":
+			return true
+		case "blob":
+			return true
+		default:
+			return false
+		}
+	case "DATE":
+		switch srcColumnDef.Datatype {
+		case "date":
+			return true
+		default:
+			return false
+		}
+	case "FLOAT32":
+		switch srcColumnDef.Datatype {
+		case "float":
+			return true
+		case "double":
+			return true
+		default:
+			return false
+		}
+	case "FLOAT64":
+		switch srcColumnDef.Datatype {
+		case "float":
+			return true
+		case "double":
+			return true
+		default:
+			return false
+		}
+	case "INT64":
+		switch srcColumnDef.Datatype {
+		case "int":
+			return true
+		case "bigint":
+			return true
+		default:
+			return false
+		}
+	case "JSON":
+		switch srcColumnDef.Datatype {
+		case "json":
+			return true
+		case "varchar":
+			return true
+		default:
+			return false
+		}
+	case "NUMERIC":
+		switch srcColumnDef.Datatype {
+		case "float":
+			return true
+		case "double":
+			return true
+		default:
+			return false
+		}
+	case "STRING":
+		switch srcColumnDef.Datatype {
+		case "varchar":
+			return true
+		case "text":
+			return true
+		case "mediumtext":
+			return true
+		case "longtext":
+			return true
+		default:
+			return false
+		}
+	case "TIMESTAMP":
+		switch srcColumnDef.Datatype {
+		case "timestamp":
+			return true
+		case "datetime":
+			return true
+		default:
+			return false
+		}
+	default:
+		//TODO - add all types
+		return false
+	}
+
 }

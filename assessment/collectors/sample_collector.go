@@ -22,12 +22,12 @@ import (
 // This is sample implementation to bootstrap.
 // Once the collectors are implemented, this can be deleted
 type SampleCollector struct {
-	tables []utils.TableAssessment
+	tables []utils.TableAssessmentInfo
 }
 
 func CreateSampleCollector() (SampleCollector, error) {
 	logger.Log.Info("initializing sample collector")
-	tb := []utils.TableAssessment{
+	tb := []utils.TableAssessmentInfo{
 		{Name: "t1"},
 		{Name: "t2"},
 	}

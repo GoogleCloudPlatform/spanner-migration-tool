@@ -17,7 +17,6 @@ package assessment
 import (
 	"encoding/csv"
 	"fmt"
-	"math"
 	"os"
 	"slices"
 	"strconv"
@@ -120,42 +119,43 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 	rows := []SchemaReportRow{}
 
 	//Populate table info
-	for id, table := range assessmentOutput.SchemaAssessment.SourceTableDefs {
-		spTable := assessmentOutput.SchemaAssessment.SpannerTableDefs[id]
+	for _, tableAssessment := range assessmentOutput.SchemaAssessment.TableAssessment {
+		spTable := tableAssessment.SpannerTableDef
 		row := SchemaReportRow{}
-		row.element = table.Name
+		row.element = tableAssessment.SourceTableDef.Name
 		row.elementType = "Table"
-		row.sourceDefinition = tableDefinitionToString(table)
+		row.sourceDefinition = tableDefinitionToString(*tableAssessment.SourceTableDef)
 
 		row.targetName = spTable.Name
-		row.targetDefinition = tableDefinitionToString(spTable)
+		row.targetDefinition = tableDefinitionToString(*tableAssessment.SpannerTableDef)
 
 		row.dbChangeEffort = "Automatic"
-		row.dbChanges, row.dbImpact = calculateTableDbChangesAndImpact(table, spTable)
+		row.dbChanges, row.dbImpact = calculateTableDbChangesAndImpact(tableAssessment)
 
 		//Populate code info
-		populateTableCodeImpact(table, spTable, assessmentOutput.SchemaAssessment.CodeSnippets, &row)
+		populateTableCodeImpact(*tableAssessment.SpannerTableDef, *tableAssessment.SpannerTableDef, assessmentOutput.SchemaAssessment.CodeSnippets, &row)
 		rows = append(rows, row)
-	}
 
-	//Populate column info
-	for id, column := range assessmentOutput.SchemaAssessment.SourceColDefs {
-		spColumn := assessmentOutput.SchemaAssessment.SpannerColDefs[id]
-		row := SchemaReportRow{}
-		row.element = column.TableName + "." + column.Name
-		row.elementType = "Column"
-		row.sourceDefinition = sourceColumnDefinitionToString(column)
-		row.targetName = spColumn.TableName + "." + spColumn.Name
-		row.targetDefinition = spannerColumnDefinitionToString(spColumn)
+		//Populate column info
+		for _, columnAssessment := range tableAssessment.Columns {
+			spColumn := columnAssessment.SpannerColDef
+			column := columnAssessment.SourceColDef
+			row := SchemaReportRow{}
+			row.element = column.TableName + "." + column.Name
+			row.elementType = "Column"
+			row.sourceDefinition = sourceColumnDefinitionToString(*column)
+			row.targetName = spColumn.TableName + "." + spColumn.Name
+			row.targetDefinition = spannerColumnDefinitionToString(*spColumn)
 
-		row.dbChangeEffort = "Automatic"
-		row.dbChanges, row.dbImpact = calculateColumnDbChangesAndImpact(column, spColumn)
+			row.dbChangeEffort = "Automatic"
+			row.dbChanges, row.dbImpact = calculateColumnDbChangesAndImpact(columnAssessment)
 
-		//Populate code info
-		//logger.Log.Info(fmt.Sprintf("%s.%s", column.TableName, column.Name))
-		populateColumnCodeImpact(column, spColumn, assessmentOutput.SchemaAssessment.CodeSnippets, &row)
+			//Populate code info
+			//logger.Log.Info(fmt.Sprintf("%s.%s", column.TableName, column.Name))
+			populateColumnCodeImpact(*column, *spColumn, assessmentOutput.SchemaAssessment.CodeSnippets, &row)
 
-		rows = append(rows, row)
+			rows = append(rows, row)
+		}
 	}
 
 	//Populate stored procedure and trigger info
@@ -225,13 +225,19 @@ func sourceColumnDefinitionToString(columnDefinition utils.SrcColumnDetails) str
 }
 
 // TODO move calculation logic to assessment engine
-func calculateTableDbChangesAndImpact(srcTable utils.TableDetails, spTable utils.TableDetails) (string, string) {
+func calculateTableDbChangesAndImpact(tableAssessment utils.TableAssessment) (string, string) {
 	changes := []string{}
 	impact := []string{}
-	if !strings.Contains(srcTable.Charset, "utf8") { // TODO add charset level comparisons - per source
+	if !tableAssessment.CompatibleCharset {
 		changes = append(changes, "charset")
-		impact = append(impact, "storage increase")
 	}
+
+	if tableAssessment.SizeIncreaseInBytes > 0 {
+		impact = append(impact, "storage increase")
+	} else if tableAssessment.SizeIncreaseInBytes < 0 {
+		impact = append(impact, "storage decrease")
+	}
+
 	if len(changes) == 0 {
 		changes = append(changes, "None")
 	}
@@ -241,16 +247,17 @@ func calculateTableDbChangesAndImpact(srcTable utils.TableDetails, spTable utils
 	return strings.Join(changes, ","), strings.Join(impact, ",")
 }
 
-// TODO move calculation logic to assessment engine
-func calculateColumnDbChangesAndImpact(srcCol utils.SrcColumnDetails, spCol utils.SpColumnDetails) (string, string) {
+func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) (string, string) {
 	changes := []string{}
 	impact := []string{}
-	if srcCol.Datatype != spCol.Datatype { // TODO type specific checks on size
+	if !columnAssessment.CompatibleDataType { // TODO type specific checks on size
 		changes = append(changes, "type")
+	}
 
-		if getSrcColSizeBytesMySQL(srcCol) < getSpColSizeBytes(spCol) {
-			impact = append(impact, "storage increase")
-		}
+	if columnAssessment.SizeIncreaseInBytes > 0 {
+		impact = append(impact, "storage increase")
+	} else if columnAssessment.SizeIncreaseInBytes < 0 {
+		impact = append(impact, "storage decrease")
 	}
 
 	//TODO Add check for unsigned
@@ -265,69 +272,6 @@ func calculateColumnDbChangesAndImpact(srcCol utils.SrcColumnDetails, spCol util
 		impact = append(impact, "None")
 	}
 	return strings.Join(changes, ","), strings.Join(impact, ",")
-}
-
-// TODO - move to source specific interfaces - also account for charsets
-func getSrcColSizeBytesMySQL(srcCol utils.SrcColumnDetails) int64 {
-	switch strings.ToLower(srcCol.Datatype) {
-	case "date":
-		return 4
-	case "timestamp":
-		return 4
-	case "bit":
-		return int64(math.Ceil(float64(srcCol.Mods[0]+7) / 8))
-	case "int":
-		return 4
-	case "integer":
-		return 4
-	case "float":
-		return 4 // Add precision pspecific handling
-	case "text":
-		return 2 ^ 16 //TODO Check for actual storage used and update here
-	case "mediumtext":
-		return 2 ^ 24
-	case "longtext":
-		return 2 ^ 32
-	default:
-		//TODO - add all types
-		return 4
-	}
-}
-
-// TODO - move to source specific interfaces - also account for charsets
-func getSpColSizeBytes(spCol utils.SpColumnDetails) int64 {
-	var size int64
-	switch strings.ToUpper(spCol.Datatype) {
-	case "ARRAY":
-		size = spCol.Len //TODO correct this based on underlying type
-	case "BOOL":
-		size = 1
-	case "BYTES":
-		size = spCol.Len
-	case "DATE":
-		size = 4
-	case "FLOAT32":
-		size = 4
-	case "FLOAT64":
-		size = 8
-	case "INT64":
-		size = 8
-	case "JSON":
-		size = spCol.Len
-	case "NUMERIC":
-		size = 22 //TODO - calculate based on precision
-	case "STRING":
-		size = spCol.Len
-
-	case "STRUCT":
-		return 8 // TODO - get sum of parts
-	case "TIMESTAMP":
-		return 12
-	default:
-		//TODO - add all types
-		return 8
-	}
-	return 8 + size //Overhead per col plus size
 }
 
 func populateTableCodeImpact(srcTableDef utils.TableDetails, spTableDef utils.TableDetails, codeSnippets *[]utils.Snippet, row *SchemaReportRow) {
@@ -409,109 +353,4 @@ func populateColumnCodeImpact(srcColumnDef utils.SrcColumnDetails, spColumnDef u
 		row.codeChangeEffort = "Non Zero"
 		row.codeSnippets = strings.Join(relatedSnippets, ",")
 	}
-}
-
-// TODO - move to assessment engine. Store in a more scalable structure - maybe a static map
-func isDataTypeCodeCompatible(srcColumnDef utils.SrcColumnDetails, spColumnDef utils.SpColumnDetails) bool {
-
-	switch strings.ToUpper(spColumnDef.Datatype) {
-	case "BOOL":
-		switch srcColumnDef.Datatype {
-		case "tinyint":
-			return true
-		case "bit":
-			return true
-		default:
-			return false
-		}
-	case "BYTES":
-		switch srcColumnDef.Datatype {
-		case "binary":
-			return true
-		case "varbinary":
-			return true
-		case "blob":
-			return true
-		default:
-			return false
-		}
-	case "DATE":
-		switch srcColumnDef.Datatype {
-		case "date":
-			return true
-		default:
-			return false
-		}
-	case "FLOAT32":
-		switch srcColumnDef.Datatype {
-		case "float":
-			return true
-		case "double":
-			return true
-		default:
-			return false
-		}
-	case "FLOAT64":
-		switch srcColumnDef.Datatype {
-		case "float":
-			return true
-		case "double":
-			return true
-		default:
-			return false
-		}
-	case "INT64":
-		switch srcColumnDef.Datatype {
-		case "int":
-			return true
-		case "bigint":
-			return true
-		default:
-			return false
-		}
-	case "JSON":
-		switch srcColumnDef.Datatype {
-		case "json":
-			return true
-		case "varchar":
-			return true
-		default:
-			return false
-		}
-	case "NUMERIC":
-		switch srcColumnDef.Datatype {
-		case "float":
-			return true
-		case "double":
-			return true
-		default:
-			return false
-		}
-	case "STRING":
-		switch srcColumnDef.Datatype {
-		case "varchar":
-			return true
-		case "text":
-			return true
-		case "mediumtext":
-			return true
-		case "longtext":
-			return true
-		default:
-			return false
-		}
-	case "TIMESTAMP":
-		switch srcColumnDef.Datatype {
-		case "timestamp":
-			return true
-		case "datetime":
-			return true
-		default:
-			return false
-		}
-	default:
-		//TODO - add all types
-		return false
-	}
-
 }
