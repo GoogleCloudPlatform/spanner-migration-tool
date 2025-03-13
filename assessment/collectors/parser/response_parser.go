@@ -67,7 +67,7 @@ func ParseCodeImpact(codeImpactResponse map[string]any, filePath string) (*Snipp
 	}, nil
 }
 
-func ParseNonDaoFileChanges(fileAnalyzerResponse string, filePath string) ([]Snippet, []string, error) {
+func ParseNonDaoFileChanges(fileAnalyzerResponse string, filePath string, codeSnippetIndex *int) ([]Snippet, []string, error) {
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(fileAnalyzerResponse), &result)
@@ -75,15 +75,14 @@ func ParseNonDaoFileChanges(fileAnalyzerResponse string, filePath string) ([]Sni
 		return nil, nil, err
 	}
 	snippets := []Snippet{}
-	index := 0
-	for _, schemaImpactResponse := range result["schema_impact"].([]any) {
-		codeSchemaImpact, err := ParseSchemaImpact(schemaImpactResponse.(map[string]any), filePath)
+	for _, codeImpactResponse := range result["file_modifications"].([]any) {
+		codeImpact, err := ParseCodeImpact(codeImpactResponse.(map[string]any), filePath)
 		if err != nil {
 			return nil, nil, err
 		}
-		codeSchemaImpact.Id = fmt.Sprintf("spippet_%d", index)
-		snippets = append(snippets, *codeSchemaImpact)
-		index++
+		codeImpact.Id = fmt.Sprintf("spippet_%d", *codeSnippetIndex)
+		snippets = append(snippets, *codeImpact)
+		*codeSnippetIndex++
 	}
 	generalWarnings := []string{}
 	if result["general_warnings"] != nil {
@@ -92,7 +91,7 @@ func ParseNonDaoFileChanges(fileAnalyzerResponse string, filePath string) ([]Sni
 	return snippets, generalWarnings, nil
 }
 
-func ParseDaoFileChanges(fileAnalyzerResponse string, filePath string) ([]Snippet, []string, error) {
+func ParseDaoFileChanges(fileAnalyzerResponse string, filePath string, codeSnippetIndex *int) ([]Snippet, []string, error) {
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(fileAnalyzerResponse), &result)
@@ -105,7 +104,9 @@ func ParseDaoFileChanges(fileAnalyzerResponse string, filePath string) ([]Snippe
 		if err != nil {
 			return nil, nil, err
 		}
+		codeSchemaImpact.Id = fmt.Sprintf("spippet_%d", *codeSnippetIndex)
 		snippets = append(snippets, *codeSchemaImpact)
+		*codeSnippetIndex++
 	}
 	generalWarnings := []string{}
 	if result["general_warnings"] != nil {
@@ -118,10 +119,11 @@ func ParseFileAnalyzerResponse(filePath, fileAnalyzerResponse string, isDao bool
 	var snippets []Snippet
 	var err error
 	var generalWarnings []string
+	codeSnippetIndex := 0
 	if isDao {
-		snippets, generalWarnings, err = ParseDaoFileChanges(fileAnalyzerResponse, filePath)
+		snippets, generalWarnings, err = ParseDaoFileChanges(fileAnalyzerResponse, filePath, &codeSnippetIndex)
 	} else {
-		snippets, generalWarnings, err = ParseNonDaoFileChanges(fileAnalyzerResponse, filePath)
+		snippets, generalWarnings, err = ParseNonDaoFileChanges(fileAnalyzerResponse, filePath, &codeSnippetIndex)
 		if err != nil {
 			return nil, err
 		}
