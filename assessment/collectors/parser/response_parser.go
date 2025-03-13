@@ -25,13 +25,33 @@ import (
 	"go.uber.org/zap"
 )
 
-func ParseStringArrayInterface(input []any) []string {
-
-	parsedStringArray := make([]string, len(input))
-	for _, codeLines := range input {
-		parsedStringArray = append(parsedStringArray, codeLines.(string))
+func ParseStringArrayInterface(input any) []string {
+	switch input := input.(type) {
+	case []string:
+		return input
+	case string:
+		return []string{input}
+	case []any:
+		parsedStringArray := make([]string, len(input))
+		for _, codeLines := range input {
+			if codeLines == nil {
+				logger.Log.Error("Error in parsing string array:", zap.Any("any", input))
+				continue
+			}
+			switch codeLines := codeLines.(type) {
+			case string:
+				parsedStringArray = append(parsedStringArray, codeLines)
+			default:
+				logger.Log.Error("Error in parsing string array:", zap.Any("any", input))
+				continue
+			}
+			return parsedStringArray
+		}
+	default:
+		logger.Log.Error("Error in parsing string array:", zap.Any("any", input))
+		return []string{}
 	}
-	return parsedStringArray
+	return []string{}
 }
 
 func parseAnyToString(anyType any) string {
