@@ -97,12 +97,15 @@ func ParseDaoFileChanges(fileAnalyzerResponse string, filePath string) ([]Snippe
 		return nil, nil, err
 	}
 	snippets := []Snippet{}
+	index := 0
 	for _, schemaImpactResponse := range result["schema_impact"].([]any) {
 		codeSchemaImpact, err := ParseSchemaImpact(schemaImpactResponse.(map[string]any), filePath)
 		if err != nil {
 			return nil, nil, err
 		}
+		codeSchemaImpact.Id = fmt.Sprintf("spippet_%d", index)
 		snippets = append(snippets, *codeSchemaImpact)
+		index++
 	}
 	generalWarnings := []string{}
 	if result["general_warnings"] != nil {

@@ -142,6 +142,10 @@ func (g *GoDependencyAnalyzer) IsDAO(filePath string, fileContent string) bool {
 		return true
 	}
 
+	if strings.Contains(fileContent, "`gorm:\"") {
+		return true
+	}
+
 	return false
 }
 

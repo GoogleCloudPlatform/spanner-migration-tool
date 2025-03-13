@@ -88,6 +88,8 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 				conv.SpSequences),
 			"\n")
 
+		logger.Log.Debug("mysqlSchema", zap.String("schema", mysqlSchema))
+		logger.Log.Debug("spannerSchema", zap.String("schema", spannerSchema))
 		summarizer, err := assessment.NewMigrationSummarizer(ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory)
 		if err != nil {
 			logger.Log.Error("error initiating migration summarizer")
