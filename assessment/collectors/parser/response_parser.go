@@ -75,12 +75,15 @@ func ParseNonDaoFileChanges(fileAnalyzerResponse string, filePath string) ([]Sni
 		return nil, nil, err
 	}
 	snippets := []Snippet{}
-	for _, codeImpactResponse := range result["file_modifications"].([]any) {
-		codeImpact, err := ParseCodeImpact(codeImpactResponse.(map[string]any), filePath)
+	index := 0
+	for _, schemaImpactResponse := range result["schema_impact"].([]any) {
+		codeSchemaImpact, err := ParseSchemaImpact(schemaImpactResponse.(map[string]any), filePath)
 		if err != nil {
 			return nil, nil, err
 		}
-		snippets = append(snippets, *codeImpact)
+		codeSchemaImpact.Id = fmt.Sprintf("spippet_%d", index)
+		snippets = append(snippets, *codeSchemaImpact)
+		index++
 	}
 	generalWarnings := []string{}
 	if result["general_warnings"] != nil {
