@@ -33,6 +33,8 @@ type InfoSchemaCollector struct {
 	indexes          []utils.IndexAssessmentInfo
 	triggers         []utils.TriggerAssessmentInfo
 	storedProcedures []utils.StoredProcedureAssessmentInfo
+	functions        []utils.FunctionAssessmentInfo
+	views            []utils.ViewAssessmentInfo
 	conv             *internal.Conv
 }
 
@@ -67,6 +69,14 @@ func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.Sourc
 	if err != nil {
 		errString = errString + fmt.Sprintf("\nError while scanning stored procedures: %v", err)
 	}
+	functions, err := infoSchema.GetFunctionInfo()
+	if err != nil {
+		errString = errString + fmt.Sprintf("\nError while scanning functions: %v", err)
+	}
+	views, err := infoSchema.GetViewInfo()
+	if err != nil {
+		errString = errString + fmt.Sprintf("\nError while scanning views: %v", err)
+	}
 	err = nil
 	if errString != "" {
 		err = fmt.Errorf(errString, "")
@@ -77,6 +87,8 @@ func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.Sourc
 		triggers:         triggers,
 		conv:             conv,
 		storedProcedures: sps,
+		functions:        functions,
+		views:            views,
 	}, err
 }
 
@@ -118,9 +130,13 @@ func (c InfoSchemaCollector) ListTables() (map[string]utils.TableDetails, map[st
 	spTable := make(map[string]utils.TableDetails)
 
 	for tableId := range c.tables {
+		properties := make(map[string]string)
+		properties["COLLATION"] = c.tables[tableId].Collation
 		srcTable[tableId] = utils.TableDetails{
-			Id:   tableId,
-			Name: c.conv.SrcSchema[tableId].Name,
+			Id:         tableId,
+			Name:       c.conv.SrcSchema[tableId].Name,
+			Charset:    c.tables[tableId].Charset,
+			Properties: properties,
 		}
 		spTable[tableId] = utils.TableDetails{
 			Id:   tableId,
@@ -153,12 +169,12 @@ func (c InfoSchemaCollector) ListIndexes() (map[string]utils.SrcIndexDetails, ma
 	return srcIndexes, spIndexes
 }
 
-func (c InfoSchemaCollector) ListTriggers() map[string]utils.TriggerAssessmentOutput {
-	triggersAssessmentOutput := make(map[string]utils.TriggerAssessmentOutput)
+func (c InfoSchemaCollector) ListTriggers() map[string]utils.TriggerAssessment {
+	triggersAssessmentOutput := make(map[string]utils.TriggerAssessment)
 	for _, trigger := range c.triggers {
 		tableId, _ := internal.GetTableIdFromSrcName(c.conv.SrcSchema, trigger.TargetTable)
 		triggerId := internal.GenerateTriggerId()
-		triggersAssessmentOutput[triggerId] = utils.TriggerAssessmentOutput{
+		triggersAssessmentOutput[triggerId] = utils.TriggerAssessment{
 			Id:            triggerId,
 			Name:          trigger.Name,
 			Operation:     trigger.Operation,
@@ -167,6 +183,33 @@ func (c InfoSchemaCollector) ListTriggers() map[string]utils.TriggerAssessmentOu
 		}
 	}
 	return triggersAssessmentOutput
+}
+
+func (c InfoSchemaCollector) ListFunctions() map[string]utils.FunctionAssessment {
+	functionAssessmentOutput := make(map[string]utils.FunctionAssessment)
+	for _, function := range c.functions {
+		fnId := internal.GenerateFunctionId()
+		functionAssessmentOutput[fnId] = utils.FunctionAssessment{
+			Id:         fnId,
+			Name:       function.Name,
+			Definition: function.Definition,
+		}
+	}
+	return functionAssessmentOutput
+}
+
+func (c InfoSchemaCollector) ListViews() map[string]utils.ViewAssessment {
+	viewAssessmentOutput := make(map[string]utils.ViewAssessment)
+	for _, view := range c.views {
+		viewId := internal.GenerateViewId()
+		viewAssessmentOutput[viewId] = utils.ViewAssessment{
+			Id:            viewId,
+			SrcName:       view.Name,
+			SrcDefinition: view.Definition,
+			SpName:        internal.GetSpannerValidName(c.conv, view.Name),
+		}
+	}
+	return viewAssessmentOutput
 }
 
 func (c InfoSchemaCollector) ListColumnDefinitions() (map[string]utils.SrcColumnDetails, map[string]utils.SpColumnDetails) {
@@ -191,20 +234,22 @@ func (c InfoSchemaCollector) ListColumnDefinitions() (map[string]utils.SrcColumn
 				}
 			}
 			srcColumnDetails[column.Id] = utils.SrcColumnDetails{
-				Id:              column.Id,
-				Name:            column.Name,
-				TableId:         table.Id,
-				TableName:       table.Name,
-				Datatype:        column.Type.Name,
-				IsNull:          !column.NotNull,
-				Mods:            column.Type.Mods,
-				ArrayBounds:     column.Type.ArrayBounds,
-				AutoGen:         column.AutoGen,
-				DefaultValue:    column.DefaultValue,
-				PrimaryKeyOrder: pkOrder,
-				ForeignKey:      foreignKeys,
-				IsUnsigned:      c.tables[table.Id].ColumnAssessmentInfos[column.Id].IsUnsigned,
-				MaxColumnSize:   c.tables[table.Id].ColumnAssessmentInfos[column.Id].MaxColumnSize,
+				Id:                     column.Id,
+				Name:                   column.Name,
+				TableId:                table.Id,
+				TableName:              table.Name,
+				Datatype:               column.Type.Name,
+				IsNull:                 !column.NotNull,
+				Mods:                   column.Type.Mods,
+				ArrayBounds:            column.Type.ArrayBounds,
+				AutoGen:                column.AutoGen,
+				DefaultValue:           column.DefaultValue,
+				PrimaryKeyOrder:        pkOrder,
+				ForeignKey:             foreignKeys,
+				IsUnsigned:             c.tables[table.Id].ColumnAssessmentInfos[column.Id].IsUnsigned,
+				MaxColumnSize:          c.tables[table.Id].ColumnAssessmentInfos[column.Id].MaxColumnSize,
+				GeneratedColumn:        c.tables[table.Id].ColumnAssessmentInfos[column.Id].GeneratedColumn,
+				IsOnUpdateTimestampSet: c.tables[table.Id].ColumnAssessmentInfos[column.Id].IsOnUpdateTimestampSet,
 			}
 		}
 	}
@@ -245,11 +290,11 @@ func (c InfoSchemaCollector) ListColumnDefinitions() (map[string]utils.SrcColumn
 	return srcColumnDetails, spColumnDetails
 }
 
-func (c InfoSchemaCollector) ListStoredProcedures() map[string]utils.StoredProcedureAssessmentOutput {
-	storedProcedureAssessmentOutput := make(map[string]utils.StoredProcedureAssessmentOutput)
+func (c InfoSchemaCollector) ListStoredProcedures() map[string]utils.StoredProcedureAssessment {
+	storedProcedureAssessmentOutput := make(map[string]utils.StoredProcedureAssessment)
 	for _, storedProcedure := range c.storedProcedures {
 		spId := internal.GenerateStoredProcedureId()
-		storedProcedureAssessmentOutput[spId] = utils.StoredProcedureAssessmentOutput{
+		storedProcedureAssessmentOutput[spId] = utils.StoredProcedureAssessment{
 			Id:         spId,
 			Name:       storedProcedure.Name,
 			Definition: storedProcedure.Definition,

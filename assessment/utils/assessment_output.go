@@ -31,10 +31,12 @@ type CostAssessmentOutput struct {
 }
 
 type SchemaAssessmentOutput struct {
-	TableAssessment                 []TableAssessment                          //List of Table assessments - Entry per table which is converted + Tables only at source + Tables only at Spanner
-	Triggers                        map[string]TriggerAssessmentOutput         // Maps trigger id to source trigger definition.
-	StoredProcedureAssessmentOutput map[string]StoredProcedureAssessmentOutput // Maps stored procedure id to stored procedure(source) definition.
-	CodeSnippets                    *[]Snippet                                 // Affected code snippets
+	TableAssessmentOutput           []TableAssessment                    //List of Table assessments - Entry per table which is converted + Tables only at source + Tables only at Spanner
+	TriggerAssessmentOutput         map[string]TriggerAssessment         // Maps trigger id to source trigger definition.
+	StoredProcedureAssessmentOutput map[string]StoredProcedureAssessment // Maps stored procedure id to stored procedure(source) definition.
+	FunctionAssessmentOutput        map[string]FunctionAssessment        // Maps function id to function(source) definition
+	ViewAssessmentOutput            map[string]ViewAssessment            // Maps view id to view details- source name and definition and spanner name
+	CodeSnippets                    *[]Snippet                           // Affected code snippets
 }
 
 type TableAssessment struct {
@@ -54,7 +56,7 @@ type ColumnAssessment struct {
 	SizeIncreaseInBytes int  // Increase in column size on spanner - can be negative is size is smaller
 }
 
-type TriggerAssessmentOutput struct {
+type TriggerAssessment struct {
 	Id            string
 	Name          string
 	Operation     string
@@ -62,11 +64,25 @@ type TriggerAssessmentOutput struct {
 	TargetTableId string
 }
 
-type StoredProcedureAssessmentOutput struct {
+type StoredProcedureAssessment struct {
 	Id             string
 	Name           string
 	Definition     string
 	TablesAffected []string // TODO(khajanchi): Add parsing logic to extract table names from SP definition.
+}
+
+type FunctionAssessment struct {
+	Id             string
+	Name           string
+	Definition     string
+	TablesAffected []string // TODO(khajanchi): Add parsing logic to extract table names from function definition.
+}
+
+type ViewAssessment struct {
+	Id            string
+	SrcName       string
+	SrcDefinition string
+	SpName        string
 }
 
 type TableDetails struct {
@@ -94,20 +110,22 @@ type SpIndexDetails struct {
 }
 
 type SrcColumnDetails struct {
-	Id              string
-	Name            string
-	TableId         string
-	TableName       string
-	Datatype        string
-	ArrayBounds     []int64
-	Mods            []int64
-	IsNull          bool
-	PrimaryKeyOrder int
-	ForeignKey      []string
-	AutoGen         ddl.AutoGenCol
-	DefaultValue    ddl.DefaultValue
-	IsUnsigned      bool
-	MaxColumnSize   int64
+	Id                     string
+	Name                   string
+	TableId                string
+	TableName              string
+	Datatype               string
+	ArrayBounds            []int64
+	Mods                   []int64
+	IsNull                 bool
+	PrimaryKeyOrder        int
+	ForeignKey             []string
+	AutoGen                ddl.AutoGenCol
+	DefaultValue           ddl.DefaultValue
+	GeneratedColumn        ddl.Expression
+	IsOnUpdateTimestampSet bool
+	IsUnsigned             bool
+	MaxColumnSize          int64
 }
 
 type SpColumnDetails struct {

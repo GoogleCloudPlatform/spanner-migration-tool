@@ -14,7 +14,10 @@
 
 package utils
 
-import "github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+import (
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+)
 
 // All the elements that will be a part of the assessment
 // If this file becomes too big, or if type specific methods get added, consider splitting this file
@@ -30,19 +33,23 @@ type TableAssessmentInfo struct {
 	Db                    DbIdentifier
 	Name                  string
 	TableDef              schema.Table
+	Charset               string
+	Collation             string
 	ColumnAssessmentInfos map[string]ColumnAssessmentInfo[any]
 }
 
 // Information relevant to assessment of columns
 type ColumnAssessmentInfo[T any] struct {
-	Db            DbIdentifier
-	Name          string
-	TableName     string
-	ColumnDef     schema.Column
-	MaxValue      T
-	MinValue      T
-	IsUnsigned    bool
-	MaxColumnSize int64
+	Db                     DbIdentifier
+	Name                   string
+	TableName              string
+	ColumnDef              schema.Column
+	MaxValue               T
+	MinValue               T
+	IsUnsigned             bool
+	IsOnUpdateTimestampSet bool
+	GeneratedColumn        ddl.Expression
+	MaxColumnSize          int64
 }
 
 // Information relevant to assessment of indexes
@@ -73,6 +80,27 @@ type TriggerAssessmentInfo struct {
 	TargetTable       string
 	ActionTiming      string // Whether the trigger activates before or after the triggering event. The value is BEFORE or AFTER.
 	EventManipulation string // This is the type of operation on the associated table for which the trigger activates. The value is INSERT , DELETE , or UPDATE.
+}
+
+// Information relevant to assessment of functions
+type FunctionAssessmentInfo struct {
+	Db               DbIdentifier
+	Name             string
+	LinesOfCode      int
+	TablesAffected   []string
+	ReferencesInCode int
+	Definition       string
+	IsDeterministic  bool
+	Datatype         string
+}
+
+// Information relevant to assessment of views
+type ViewAssessmentInfo struct {
+	Db          DbIdentifier
+	Name        string
+	Definition  string
+	CheckOption string // Determines how INSERT and UPDATE statements are handled when they affect a view. The value is one of NONE, CASCADE, or LOCAL.
+	IsUpdatable bool
 }
 
 // Information relevant to assessment of queries

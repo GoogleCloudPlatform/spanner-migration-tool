@@ -25,6 +25,8 @@ type InfoSchema interface {
 	GetTriggerInfo() ([]utils.TriggerAssessmentInfo, error)
 	GetStoredProcedureInfo() ([]utils.StoredProcedureAssessmentInfo, error)
 	GetTableInfo(conv *internal.Conv) (map[string]utils.TableAssessmentInfo, error)
+	GetFunctionInfo() ([]utils.FunctionAssessmentInfo, error)
+	GetViewInfo() ([]utils.ViewAssessmentInfo, error)
 }
 
 type InfoSchemaImpl struct{}
