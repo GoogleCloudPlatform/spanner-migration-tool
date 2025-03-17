@@ -26,6 +26,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 type InfoSchemaCollector struct {
@@ -125,22 +127,32 @@ func getInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 	}
 }
 
-func (c InfoSchemaCollector) ListTables() (map[string]utils.TableDetails, map[string]utils.TableDetails) {
-	srcTable := make(map[string]utils.TableDetails)
-	spTable := make(map[string]utils.TableDetails)
+func (c InfoSchemaCollector) ListTables() (map[string]utils.SrcTableDetails, map[string]utils.SpTableDetails) {
+	srcTable := make(map[string]utils.SrcTableDetails)
+	spTable := make(map[string]utils.SpTableDetails)
 
 	for tableId := range c.tables {
 		properties := make(map[string]string)
 		properties["COLLATION"] = c.tables[tableId].Collation
-		srcTable[tableId] = utils.TableDetails{
-			Id:         tableId,
-			Name:       c.conv.SrcSchema[tableId].Name,
-			Charset:    c.tables[tableId].Charset,
-			Properties: properties,
+		srcCheckConstraints := make(map[string]schema.CheckConstraint)
+		for _, ck := range c.conv.SrcSchema[tableId].CheckConstraints {
+			srcCheckConstraints[ck.Id] = ck
 		}
-		spTable[tableId] = utils.TableDetails{
-			Id:   tableId,
-			Name: c.conv.SpSchema[tableId].Name,
+		spCheckConstraints := make(map[string]ddl.CheckConstraint)
+		for _, ck := range c.conv.SpSchema[tableId].CheckConstraints {
+			spCheckConstraints[ck.Id] = ck
+		}
+		srcTable[tableId] = utils.SrcTableDetails{
+			Id:               tableId,
+			Name:             c.conv.SrcSchema[tableId].Name,
+			Charset:          c.tables[tableId].Charset,
+			Properties:       properties,
+			CheckConstraints: srcCheckConstraints,
+		}
+		spTable[tableId] = utils.SpTableDetails{
+			Id:               tableId,
+			Name:             c.conv.SpSchema[tableId].Name,
+			CheckConstraints: spCheckConstraints,
 		}
 	}
 	return srcTable, spTable
@@ -301,4 +313,8 @@ func (c InfoSchemaCollector) ListStoredProcedures() map[string]utils.StoredProce
 		}
 	}
 	return storedProcedureAssessmentOutput
+}
+
+func (c InfoSchemaCollector) ListSpannerSequences() map[string]ddl.Sequence {
+	return c.conv.SpSequences
 }

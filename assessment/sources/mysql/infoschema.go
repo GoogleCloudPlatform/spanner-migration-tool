@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 type InfoSchemaImpl struct {
@@ -54,18 +53,22 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
               where table_schema = ? and table_name = ? and column_name = ? ORDER BY c.ordinal_position;`
 			var columnType string
 			var colExtra, colGeneratedExp sql.NullString
-			var isOnUpdateTimestampSet bool
-			var generatedColumn ddl.Expression
+			var isOnUpdateTimestampSet, isVirtual bool
+			var generatedColumn utils.GeneratedColumnInfo
 			err := isi.Db.QueryRow(q, isi.DbName, table.Name, column.Name).Scan(&columnType, &colExtra, &colGeneratedExp)
 			if err != nil {
 				return nil, fmt.Errorf("couldn't get schema for column %s.%s: %s", table.Name, column.Name, err)
 			}
 			if colExtra.String == "on update CURRENT_TIMESTAMP" {
 				isOnUpdateTimestampSet = true
+			} else if colExtra.String == "VIRTUAL GENERATED" {
+				isVirtual = true
 			}
 			if colGeneratedExp.Valid {
-				generatedColumn = ddl.Expression{
+				generatedColumn = utils.GeneratedColumnInfo{
 					Statement: colGeneratedExp.String,
+					IsPresent: true,
+					IsVirtual: isVirtual,
 				}
 			}
 			columnAssessments[column.Id] = utils.ColumnAssessmentInfo[any]{

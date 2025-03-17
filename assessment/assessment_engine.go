@@ -166,6 +166,7 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 	schemaOut.StoredProcedureAssessmentOutput = collectors.infoSchemaCollector.ListStoredProcedures()
 	schemaOut.FunctionAssessmentOutput = collectors.infoSchemaCollector.ListFunctions()
 	schemaOut.ViewAssessmentOutput = collectors.infoSchemaCollector.ListViews()
+	schemaOut.SpSequences = collectors.infoSchemaCollector.ListSpannerSequences()
 
 	if collectors.appAssessmentCollector != nil {
 		logger.Log.Info("adding app assessment details")
@@ -189,7 +190,7 @@ func isCharsetCompatible(srcCharset string) bool {
 	return false
 }
 
-func tableSizeDiffBytes(srcTableDef *utils.TableDetails, spTableDef *utils.TableDetails) int {
+func tableSizeDiffBytes(srcTableDef *utils.SrcTableDetails, spTableDef *utils.SpTableDetails) int {
 	// TODO - if no spanner table exists - return nil
 	return 1 //TODO - currently dummy implementation assuming spanner will always be bigger - to calculate based on charset and column size differences
 }

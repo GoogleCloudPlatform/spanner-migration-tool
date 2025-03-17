@@ -16,7 +16,6 @@ package utils
 
 import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 // All the elements that will be a part of the assessment
@@ -48,8 +47,14 @@ type ColumnAssessmentInfo[T any] struct {
 	MinValue               T
 	IsUnsigned             bool
 	IsOnUpdateTimestampSet bool
-	GeneratedColumn        ddl.Expression
+	GeneratedColumn        GeneratedColumnInfo
 	MaxColumnSize          int64
+}
+
+type GeneratedColumnInfo struct {
+	IsPresent bool
+	Statement string
+	IsVirtual bool
 }
 
 // Information relevant to assessment of indexes

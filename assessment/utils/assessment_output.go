@@ -16,7 +16,10 @@
 */
 package utils
 
-import "github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+import (
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+)
 
 type AssessmentOutput struct {
 	CostAssessment        CostAssessmentOutput
@@ -36,12 +39,13 @@ type SchemaAssessmentOutput struct {
 	StoredProcedureAssessmentOutput map[string]StoredProcedureAssessment // Maps stored procedure id to stored procedure(source) definition.
 	FunctionAssessmentOutput        map[string]FunctionAssessment        // Maps function id to function(source) definition
 	ViewAssessmentOutput            map[string]ViewAssessment            // Maps view id to view details- source name and definition and spanner name
-	CodeSnippets                    *[]Snippet                           // Affected code snippets
+	SpSequences                     map[string]ddl.Sequence
+	CodeSnippets                    *[]Snippet // Affected code snippets
 }
 
 type TableAssessment struct {
-	SourceTableDef      *TableDetails
-	SpannerTableDef     *TableDetails
+	SourceTableDef      *SrcTableDetails
+	SpannerTableDef     *SpTableDetails
 	Columns             []ColumnAssessment //List of columns of current table
 	SourceIndexDef      []SrcIndexDetails  // Index name to index details
 	SpannerIndexDef     []SpIndexDetails   // Index name to index details
@@ -85,11 +89,18 @@ type ViewAssessment struct {
 	SpName        string
 }
 
-type TableDetails struct {
-	Id         string
-	Name       string
-	Charset    string
-	Properties map[string]string //any other table level properties
+type SrcTableDetails struct {
+	Id               string
+	Name             string
+	Charset          string
+	Properties       map[string]string //any other table level properties
+	CheckConstraints map[string]schema.CheckConstraint
+}
+
+type SpTableDetails struct {
+	Id               string
+	Name             string
+	CheckConstraints map[string]ddl.CheckConstraint
 }
 
 type SrcIndexDetails struct {
@@ -122,7 +133,7 @@ type SrcColumnDetails struct {
 	ForeignKey             []string
 	AutoGen                ddl.AutoGenCol
 	DefaultValue           ddl.DefaultValue
-	GeneratedColumn        ddl.Expression
+	GeneratedColumn        GeneratedColumnInfo
 	IsOnUpdateTimestampSet bool
 	IsUnsigned             bool
 	MaxColumnSize          int64
