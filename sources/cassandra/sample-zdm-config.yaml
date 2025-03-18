@@ -7,7 +7,7 @@ target_password: cassandra
 proxy_listen_address: 0.0.0.0
 proxy_topology_addresses: 127.0.0.1
 proxy_topology_index: 0
-proxy_request_timeout_ms: 30000
-proxy_max_client_connections: 30000
-proxy_max_stream_ids: 30000
-log_level: WARN
+#proxy_request_timeout_ms: 30000
+#proxy_max_client_connections: 30000
+#proxy_max_stream_ids: 30000
+#log_level: INFO
