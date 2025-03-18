@@ -3,6 +3,7 @@
 # Start processes and store their PIDs
 /cassandra-spanner-proxy --database-uri="projects/$SPANNER_PROJECT/instances/$SPANNER_INSTANCE/databases/$SPANNER_DATABASE" &
 cass_pid=$!
+sleep 5
 /zdm-proxy --config="$ZDM_CONFIG" &
 zdm_pid=$!
 
