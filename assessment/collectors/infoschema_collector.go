@@ -142,17 +142,27 @@ func (c InfoSchemaCollector) ListTables() (map[string]utils.SrcTableDetails, map
 		for _, ck := range c.conv.SpSchema[tableId].CheckConstraints {
 			spCheckConstraints[ck.Id] = ck
 		}
+		srcFks := make(map[string]schema.ForeignKey)
+		for _, fk := range c.conv.SrcSchema[tableId].ForeignKeys {
+			srcFks[fk.Id] = fk
+		}
+		spFks := make(map[string]ddl.Foreignkey)
+		for _, fk := range c.conv.SpSchema[tableId].ForeignKeys {
+			spFks[fk.Id] = fk
+		}
 		srcTable[tableId] = utils.SrcTableDetails{
 			Id:               tableId,
 			Name:             c.conv.SrcSchema[tableId].Name,
 			Charset:          c.tables[tableId].Charset,
 			Properties:       properties,
 			CheckConstraints: srcCheckConstraints,
+			SourceForeignKey: srcFks,
 		}
 		spTable[tableId] = utils.SpTableDetails{
-			Id:               tableId,
-			Name:             c.conv.SpSchema[tableId].Name,
-			CheckConstraints: spCheckConstraints,
+			Id:                tableId,
+			Name:              c.conv.SpSchema[tableId].Name,
+			CheckConstraints:  spCheckConstraints,
+			SpannerForeignKey: spFks,
 		}
 	}
 	return srcTable, spTable
@@ -218,6 +228,7 @@ func (c InfoSchemaCollector) ListViews() map[string]utils.ViewAssessment {
 			Id:            viewId,
 			SrcName:       view.Name,
 			SrcDefinition: view.Definition,
+			SrcViewType:   "NON-MATERIALIZED", // Views are always non-materialized in MySQL
 			SpName:        internal.GetSpannerValidName(c.conv, view.Name),
 		}
 	}

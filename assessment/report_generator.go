@@ -144,13 +144,12 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 			column := columnAssessment.SourceColDef
 			row := SchemaReportRow{}
 			row.element = column.TableName + "." + column.Name
-			row.elementType = "Column"
+			row.elementType = getElementTypeForColumn(*column)
 			row.sourceDefinition = sourceColumnDefinitionToString(*column)
 			row.targetName = spColumn.TableName + "." + spColumn.Name
 			row.targetDefinition = spannerColumnDefinitionToString(*spColumn)
 
-			row.dbChangeEffort = "Automatic"
-			row.dbChanges, row.dbImpact = calculateColumnDbChangesAndImpact(columnAssessment)
+			row.dbChanges, row.dbImpact, row.dbChangeEffort = calculateColumnDbChangesAndImpact(columnAssessment)
 
 			//Populate code info
 			//logger.Log.Info(fmt.Sprintf("%s.%s", column.TableName, column.Name))
@@ -158,40 +157,8 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 
 			rows = append(rows, row)
 		}
-
-		for id, srcConstraint := range tableAssessment.SourceTableDef.CheckConstraints {
-			row := SchemaReportRow{}
-			row.element = srcConstraint.Name
-			row.elementType = "Check Constraint"
-			row.sourceDefinition = srcConstraint.Expr
-			if _, found := tableAssessment.SpannerTableDef.CheckConstraints[id]; !found {
-				row.targetName = "N/A"
-				row.targetDefinition = "N/A"
-
-				row.dbChangeEffort = "Manual"
-				row.dbChanges = "Non Zero"
-				row.dbImpact = ""
-
-				row.codeChangeEffort = "Rewrite"
-				row.codeChangeType = "Manual"
-				row.codeImpactedFiles = "TBD"
-				row.codeSnippets = ""
-			} else {
-				row.targetName = tableAssessment.SpannerTableDef.CheckConstraints[id].Name
-				row.targetDefinition = tableAssessment.SpannerTableDef.CheckConstraints[id].Expr
-
-				row.dbChangeEffort = "Automatic"
-				row.dbChanges = "None"
-				row.dbImpact = "None"
-
-				row.codeChangeEffort = "None"
-				row.codeChangeType = "None"
-				row.codeImpactedFiles = "None"
-				row.codeSnippets = "None"
-			}
-
-			rows = append(rows, row)
-		}
+		populateCheckConstraints(tableAssessment, spTable.Name, &rows)
+		populateForeignKeys(tableAssessment, spTable.Name, &rows)
 
 	}
 
@@ -202,6 +169,63 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 	populateSequenceInfo(assessmentOutput.SchemaAssessment.SpSequences, &rows)
 
 	return rows
+}
+
+func populateCheckConstraints(tableAssessment utils.TableAssessment, spTableName string, rows *[]SchemaReportRow) {
+	for id, srcConstraint := range tableAssessment.SourceTableDef.CheckConstraints {
+		row := SchemaReportRow{}
+		row.element = tableAssessment.SourceTableDef.Name + "." + srcConstraint.Name
+		row.elementType = "Check Constraint"
+		row.sourceDefinition = srcConstraint.Expr
+		if _, found := tableAssessment.SpannerTableDef.CheckConstraints[id]; !found {
+			row.targetName = "N/A"
+			row.targetDefinition = "N/A"
+
+			row.dbChangeEffort = "Manual"
+			row.dbChanges = "Non Zero"
+			row.dbImpact = ""
+
+			row.codeChangeEffort = "Rewrite"
+			row.codeChangeType = "Manual"
+			row.codeImpactedFiles = "TBD"
+			row.codeSnippets = ""
+		} else {
+			row.targetName = spTableName + "." + tableAssessment.SpannerTableDef.CheckConstraints[id].Name
+			row.targetDefinition = tableAssessment.SpannerTableDef.CheckConstraints[id].Expr
+
+			row.dbChangeEffort = "Automatic"
+			row.dbChanges = "None"
+			row.dbImpact = "None"
+
+			row.codeChangeEffort = "None"
+			row.codeChangeType = "None"
+			row.codeImpactedFiles = "None"
+			row.codeSnippets = "None"
+		}
+		*rows = append(*rows, row)
+	}
+}
+
+func populateForeignKeys(tableAssessment utils.TableAssessment, spTableName string, rows *[]SchemaReportRow) {
+	for id, fk := range tableAssessment.SourceTableDef.SourceForeignKey {
+		row := SchemaReportRow{}
+		row.element = tableAssessment.SourceTableDef.Name + "." + fk.Name
+		row.elementType = "Foreign Key"
+		//row.sourceDefinition = PrintForeignKeyAlterTable(fk)
+		row.targetName = spTableName + "." + tableAssessment.SpannerTableDef.SpannerForeignKey[id].Name
+		row.targetDefinition = tableAssessment.SpannerTableDef.SpannerForeignKey[id].PrintForeignKey(ddl.Config{})
+
+		row.dbChangeEffort = "Automatic"
+		row.dbChanges = "None"
+		row.dbImpact = "None"
+
+		row.codeChangeEffort = "None"
+		row.codeChangeType = "None"
+		row.codeImpactedFiles = "None"
+		row.codeSnippets = "None"
+
+		*rows = append(*rows, row)
+	}
 }
 
 func tableDefinitionToString(srcTable utils.SrcTableDetails) string {
@@ -216,20 +240,26 @@ func tableDefinitionToString(srcTable utils.SrcTableDetails) string {
 }
 
 func spannerColumnDefinitionToString(columnDefinition utils.SpColumnDetails) string {
-	s := columnDefinition.Datatype
-
-	if columnDefinition.Len > 0 {
-		s += "(" + fmt.Sprint(columnDefinition.Len) + ")"
+	columnDef := ddl.ColumnDef{
+		Name:         columnDefinition.Name,
+		DefaultValue: columnDefinition.DefaultValue,
+		AutoGen:      columnDefinition.AutoGen,
+		T: ddl.Type{
+			Name:    columnDefinition.Datatype,
+			Len:     columnDefinition.Len,
+			IsArray: columnDefinition.IsArray,
+		},
+		NotNull: !columnDefinition.IsNull,
 	}
-
-	if !columnDefinition.IsNull {
-		s += " NOT NULL"
-	}
-
-	if columnDefinition.DefaultValue.IsPresent {
-		s += " DEFAULT " + columnDefinition.DefaultValue.Value.Statement
-	}
+	s, _ := columnDef.PrintColumnDef(ddl.Config{})
 	return s
+}
+
+func getElementTypeForColumn(columnDefinition utils.SrcColumnDetails) string {
+	if columnDefinition.GeneratedColumn.IsPresent {
+		return "Generated Column"
+	}
+	return "Column"
 }
 
 func sourceColumnDefinitionToString(columnDefinition utils.SrcColumnDetails) string {
@@ -243,19 +273,19 @@ func sourceColumnDefinitionToString(columnDefinition utils.SrcColumnDetails) str
 		s = fmt.Sprintf("%s(%s)", s, strings.Join(l, ","))
 	}
 
+	if columnDefinition.IsUnsigned {
+		s += " UNSIGNED"
+	}
 	if columnDefinition.GeneratedColumn.IsPresent {
-		s += "GENERATED ALWAYS AS " + columnDefinition.GeneratedColumn.Statement
+		s += " GENERATED ALWAYS AS " + columnDefinition.GeneratedColumn.Statement
 		if columnDefinition.GeneratedColumn.IsVirtual {
 			s += " VIRTUAL"
 		} else {
 			s += " STORED"
 		}
 	}
-	if columnDefinition.IsUnsigned {
-		s += " UNSIGNED"
-	}
 	if columnDefinition.DefaultValue.IsPresent {
-		s += " DEFAULT (" + columnDefinition.DefaultValue.Value.Statement + ")"
+		s += " DEFAULT " + columnDefinition.DefaultValue.Value.Statement
 	}
 	if !columnDefinition.IsNull {
 		s += " NOT NULL"
@@ -263,6 +293,10 @@ func sourceColumnDefinitionToString(columnDefinition utils.SrcColumnDetails) str
 
 	if columnDefinition.IsOnUpdateTimestampSet {
 		s += " ON UPDATE CURRENT_TIMESTAMP"
+	}
+
+	if columnDefinition.AutoGen.Name != "" && columnDefinition.AutoGen.GenerationType == constants.AUTO_INCREMENT {
+		s += " AUTOINCREMENT"
 	}
 
 	return s
@@ -291,18 +325,21 @@ func calculateTableDbChangesAndImpact(tableAssessment utils.TableAssessment) (st
 	return strings.Join(changes, ","), strings.Join(impact, ",")
 }
 
-func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) (string, string) {
+func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) (string, string, string) {
 	changes := []string{}
 	impact := []string{}
+	changeEffort := "Automatic"
 	if !columnAssessment.CompatibleDataType { // TODO type specific checks on size
 		changes = append(changes, "type")
 	}
 	if columnAssessment.SourceColDef.IsOnUpdateTimestampSet {
 		changes = append(changes, "feature")
+		changeEffort = "Partial"
 	}
 
 	if columnAssessment.SourceColDef.DefaultValue.IsPresent && !columnAssessment.SpannerColDef.DefaultValue.IsPresent {
 		changes = append(changes, "feature")
+		changeEffort = "Partial"
 	}
 
 	if columnAssessment.SizeIncreaseInBytes > 0 {
@@ -318,6 +355,9 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 	if columnAssessment.SourceColDef.AutoGen.Name != "" && columnAssessment.SourceColDef.AutoGen.GenerationType == constants.AUTO_INCREMENT {
 		changes = append(changes, "feature")
 	}
+	if columnAssessment.SourceColDef.GeneratedColumn.IsPresent {
+		changeEffort = "Partial"
+	}
 
 	//TODO add check for not null to null scenarios
 	//TODO add diffs in modifiers and features - generated cols
@@ -328,7 +368,7 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 	if len(impact) == 0 {
 		impact = append(impact, "None")
 	}
-	return strings.Join(changes, ","), strings.Join(impact, ",")
+	return strings.Join(changes, ","), strings.Join(impact, ","), changeEffort
 }
 
 func populateTableCodeImpact(srcTableDef utils.SrcTableDetails, spTableDef utils.SpTableDetails, codeSnippets *[]utils.Snippet, row *SchemaReportRow) {
@@ -463,12 +503,12 @@ func populateViewInfo(viewAssessmentOutput map[string]utils.ViewAssessment, rows
 		row := SchemaReportRow{}
 		row.element = view.SrcName
 		row.elementType = "View"
-		row.sourceDefinition = view.SrcDefinition
+		row.sourceDefinition = view.SrcViewType
 		row.targetName = view.SpName
 		row.targetDefinition = "N/A"
 
 		row.dbChangeEffort = "Manual"
-		row.dbChanges = "Non Zero"
+		row.dbChanges = "Unknown"
 		row.dbImpact = ""
 
 		row.codeChangeEffort = "Rewrite"
@@ -501,10 +541,10 @@ func populateSequenceInfo(sequenceAssessmentOutput map[string]ddl.Sequence, rows
 		row.elementType = "Sequence"
 		row.sourceDefinition = "N/A"
 		row.targetName = sequence.Name
-		row.targetDefinition = "N/A"
+		row.targetDefinition = sequence.PrintSequence(ddl.Config{})
 
 		row.dbChangeEffort = "Automatic"
-		row.dbChanges = "Addition"
+		row.dbChanges = "None"
 		row.dbImpact = "N/A"
 
 		row.codeChangeEffort = "Modify"

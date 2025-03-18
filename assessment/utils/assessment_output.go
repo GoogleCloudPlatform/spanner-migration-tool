@@ -64,7 +64,7 @@ type TriggerAssessment struct {
 	Id            string
 	Name          string
 	Operation     string
-	TargetTable   string
+	TargetTable   string // Name of the target table on which trigger is created
 	TargetTableId string
 }
 
@@ -86,6 +86,7 @@ type ViewAssessment struct {
 	Id            string
 	SrcName       string
 	SrcDefinition string
+	SrcViewType   string
 	SpName        string
 }
 
@@ -95,12 +96,14 @@ type SrcTableDetails struct {
 	Charset          string
 	Properties       map[string]string //any other table level properties
 	CheckConstraints map[string]schema.CheckConstraint
+	SourceForeignKey map[string]schema.ForeignKey
 }
 
 type SpTableDetails struct {
-	Id               string
-	Name             string
-	CheckConstraints map[string]ddl.CheckConstraint
+	Id                string
+	Name              string
+	CheckConstraints  map[string]ddl.CheckConstraint
+	SpannerForeignKey map[string]ddl.Foreignkey
 }
 
 type SrcIndexDetails struct {

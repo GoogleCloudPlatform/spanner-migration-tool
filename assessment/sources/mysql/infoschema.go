@@ -53,7 +53,7 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
               where table_schema = ? and table_name = ? and column_name = ? ORDER BY c.ordinal_position;`
 			var columnType string
 			var colExtra, colGeneratedExp sql.NullString
-			var isOnUpdateTimestampSet, isVirtual bool
+			var isOnUpdateTimestampSet, isVirtual, isPresent bool
 			var generatedColumn utils.GeneratedColumnInfo
 			err := isi.Db.QueryRow(q, isi.DbName, table.Name, column.Name).Scan(&columnType, &colExtra, &colGeneratedExp)
 			if err != nil {
@@ -63,11 +63,14 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
 				isOnUpdateTimestampSet = true
 			} else if colExtra.String == "VIRTUAL GENERATED" {
 				isVirtual = true
+				isPresent = true
+			} else if colExtra.String == "STORED GENERATED" {
+				isPresent = true
 			}
 			if colGeneratedExp.Valid {
 				generatedColumn = utils.GeneratedColumnInfo{
 					Statement: colGeneratedExp.String,
-					IsPresent: true,
+					IsPresent: isPresent,
 					IsVirtual: isVirtual,
 				}
 			}
