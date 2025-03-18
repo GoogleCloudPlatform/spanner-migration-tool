@@ -48,12 +48,6 @@ func (rpt *RunParallelTasksImpl[I, O]) RunParallelTasks(input []I, numWorkers in
 	outputChannel := make(chan TaskResult[O], len(input))
 
 	wg := &sync.WaitGroup{}
-	defer func() {
-		for range inputChannel {
-			logger.Log.Debug(fmt.Sprint("clearing out pending tasks"))
-		}
-		wg.Wait()
-	}()
 
 	mutex := &sync.Mutex{}
 	logger.Log.Debug(fmt.Sprint("Number of configured workers are ", numWorkers))
@@ -79,15 +73,14 @@ func (rpt *RunParallelTasksImpl[I, O]) RunParallelTasks(input []I, numWorkers in
 		}
 		out = append(out, res)
 	}
+	wg.Wait()
 	logger.Log.Debug(fmt.Sprintf("completed processing of %d tasks", len(out)))
 	return out, nil
 }
 
 func processAsync[I any, O any](f func(i I, mutex *sync.Mutex) TaskResult[O], in chan I,
 	out chan TaskResult[O], mutex *sync.Mutex, wg *sync.WaitGroup) {
-	mutex.Lock()
 	wg.Add(1)
-	mutex.Unlock()
 	for i := range in {
 		logger.Log.Debug(fmt.Sprint("processing task for input", i))
 		out <- f(i, mutex)
