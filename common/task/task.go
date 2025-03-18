@@ -85,7 +85,9 @@ func (rpt *RunParallelTasksImpl[I, O]) RunParallelTasks(input []I, numWorkers in
 
 func processAsync[I any, O any](f func(i I, mutex *sync.Mutex) TaskResult[O], in chan I,
 	out chan TaskResult[O], mutex *sync.Mutex, wg *sync.WaitGroup) {
+	mutex.Lock()
 	wg.Add(1)
+	mutex.Unlock()
 	for i := range in {
 		logger.Log.Debug(fmt.Sprint("processing task for input", i))
 		out <- f(i, mutex)
