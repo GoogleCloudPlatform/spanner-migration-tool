@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"go.uber.org/zap"
 )
 
@@ -80,28 +81,16 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 	codeDirectory, exists := assessmentConfig["codeDirectory"]
 	if exists {
 		logger.Log.Info("initializing app collector")
+		mysqlSchema := GetDDL(conv.SrcSchema)
+		spannerSchema := strings.Join(
+			ddl.GetDDL(
+				ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"},
+				conv.SpSchema,
+				conv.SpSequences),
+			"\n")
 
-		mysqlSchema := ""   // TODO fetch from conv
-		spannerSchema := "" // TODO fetch from conv
-		mysqlSchemaPath, exists := assessmentConfig["mysqlSchemaPath"]
-		if exists {
-			logger.Log.Info(fmt.Sprintf("overriding mysql schema from file %s", mysqlSchemaPath))
-			mysqlSchema, err := utils.ReadFile(mysqlSchemaPath)
-			if err != nil {
-				logger.Log.Debug("error reading MySQL schema file:", zap.Error(err))
-			}
-			logger.Log.Debug(mysqlSchema)
-		}
-
-		spannerSchemaPath, exists := assessmentConfig["spannerSchemaPath"]
-		if exists {
-			logger.Log.Info(fmt.Sprintf("overriding spanner schema from file %s", spannerSchemaPath))
-			spannerSchema, err := utils.ReadFile(spannerSchemaPath)
-			if err != nil {
-				logger.Log.Debug("error reading Spanner schema file:", zap.Error(err))
-			}
-			logger.Log.Info(spannerSchema)
-		}
+		logger.Log.Debug("mysqlSchema", zap.String("schema", mysqlSchema))
+		logger.Log.Debug("spannerSchema", zap.String("schema", spannerSchema))
 
 		summarizer, err := assessment.NewMigrationSummarizer(ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory)
 		if err != nil {
@@ -185,7 +174,7 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 			return schemaOut, err
 		}
 
-		logger.Log.Info(fmt.Sprintf("snippets %+v", codeAssessment.Snippets))
+		logger.Log.Info("snippets: ", zap.Any("codeAssessment.Snippets", codeAssessment.Snippets))
 		schemaOut.CodeSnippets = &codeAssessment.Snippets
 	}
 	return schemaOut, nil

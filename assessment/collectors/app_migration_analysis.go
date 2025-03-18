@@ -275,7 +275,7 @@ func (m *MigrationSummarizer) fetchFileContent(filepath string) (string, error) 
 	return content, nil
 }
 
-func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, methodChanges, content string) (*CodeAssessment, []any) {
+func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodChanges, content string, fileIndex int) (*CodeAssessment, []any) {
 	emptyAssessment := &CodeAssessment{
 		Snippets:        make([]Snippet, 0),
 		GeneralWarnings: make([]string, 0),
@@ -328,9 +328,9 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath string, 
 	}
 	logger.Log.Debug("Analyze File Response: " + response)
 
-	codeAssessment, error := parser.ParseFileAnalyzerResponse(filepath, response, isDao)
+	codeAssessment, err := parser.ParseFileAnalyzerResponse(filepath, response, isDao, fileIndex)
 
-	if error != nil {
+	if err != nil {
 		return emptyAssessment, methodSignatureChanges
 	}
 
@@ -421,12 +421,15 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 		GeneralWarnings: make([]string, 0, 10),
 	}
 
+	fileIndex := 0
+
 	for _, singleOrder := range executionOrder {
 		for _, filePath := range singleOrder {
+			fileIndex++
 			content, err := m.fetchFileContent(filePath)
 			if err != nil {
 				logger.Log.Error("Error fetching file content: ", zap.Error(err))
-				return nil, err
+				continue
 			}
 
 			isDaoDepndent, methodChanges := m.analyzeFileDependencies(filePath, content)
@@ -434,7 +437,7 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 				continue
 			}
 
-			fileCodeAssessment, methodSignatureChanges := m.AnalyzeFile(ctx, filePath, methodChanges, content)
+			fileCodeAssessment, methodSignatureChanges := m.AnalyzeFile(ctx, filePath, methodChanges, content, fileIndex)
 			logger.Log.Debug("File Code Assessment: ", zap.Any("fileCodeAssessment", fileCodeAssessment), zap.Any("filePath", filePath))
 
 			codeAssessment.Snippets = append(codeAssessment.Snippets, fileCodeAssessment.Snippets...)
