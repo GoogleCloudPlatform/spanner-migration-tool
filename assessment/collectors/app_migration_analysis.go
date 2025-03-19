@@ -22,12 +22,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"cloud.google.com/go/vertexai/genai"
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/embeddings"
 	parser "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/parser"
 	dependencyAnalyzer "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/project_analyzer"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	. "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"go.uber.org/zap"
@@ -54,9 +54,17 @@ type FileDependencyAnalysisData struct {
 	isDaoDependent   bool
 }
 
+type AnalyzeFileResponse struct {
+	codeAssessment  *CodeAssessment
+	methodSignature []any
+	filePath        string
+}
+
 type AskQuestionsOutput struct {
 	Questions []string `json:"questions"`
 }
+
+const JsonParserRetry = 3
 
 // NewMigrationSummarizer initializes a new MigrationSummarizer
 func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *string, projectID, location, sourceSchema, targetSchema string, projectPath string) (*MigrationSummarizer, error) {
@@ -73,12 +81,12 @@ func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to load code example DB: %w", err)
 	}
-	return &MigrationSummarizer{
+	m := &MigrationSummarizer{
 		projectID:                     projectID,
 		location:                      location,
 		client:                        client,
-		modelPro:                      client.GenerativeModel("gemini-1.5-pro-001"),
-		modelFlash:                    client.GenerativeModel("gemini-1.5-flash-001"),
+		modelPro:                      client.GenerativeModel("gemini-1.5-pro-002"),
+		modelFlash:                    client.GenerativeModel("gemini-2.0-flash-001"),
 		conceptExampleDB:              conceptExampleDB,
 		dependencyAnalyzer:            dependencyAnalyzer.AnalyzerFactory("go"),
 		sourceSchema:                  sourceSchema,
@@ -86,7 +94,11 @@ func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *strin
 		projectPath:                   projectPath,
 		dependencyGraph:               make(map[string]map[string]struct{}),
 		fileDependencyAnalysisDataMap: make(map[string]FileDependencyAnalysisData),
-	}, nil
+	}
+	m.modelFlash.ResponseMIMEType = "application/json"
+	m.modelPro.ResponseMIMEType = "application/json"
+
+	return m, nil
 }
 
 func (m *MigrationSummarizer) MigrationCodeConversionInvoke(
@@ -113,6 +125,7 @@ func (m *MigrationSummarizer) MigrationCodeConversionInvoke(
 		* Keep your questions general and focused on Spanner functionality, avoiding application-specific details.
 		* Also ask questions on performance optimizations and recommended approaches to work with spanner.
 		* Ensure each question is unique and hasn't been asked before.
+		* Ensure that the ouput follows strict JSON parsable format
 
 		**Example questions:**
 		* "MySQL handles X this way... how can we achieve the same result in Spanner?"
@@ -138,13 +151,17 @@ func (m *MigrationSummarizer) MigrationCodeConversionInvoke(
 	if err != nil {
 		return "", err
 	}
+	logger.Log.Debug("Token: ",
+		zap.Int32("Prompt Token:", resp.UsageMetadata.PromptTokenCount),
+		zap.Int32("Candidate Token:", resp.UsageMetadata.CandidatesTokenCount),
+		zap.Int32("Total Token:", resp.UsageMetadata.TotalTokenCount))
 
 	var response string
 	if p, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
 		response = string(p)
 	}
 
-	response = ParseJSONWithRetries(m.modelPro, prompt, response, 2, identifier)
+	response = ParseJSONWithRetries(m.modelFlash, prompt, response, identifier)
 
 	var output AskQuestionsOutput
 	err = json.Unmarshal([]byte(response), &output) // Convert JSON string to struct
@@ -179,15 +196,20 @@ func (m *MigrationSummarizer) MigrationCodeConversionInvoke(
 
 	resp, err = m.modelPro.GenerateContent(ctx, genai.Text(finalPrompt))
 	if err != nil {
+		logger.Log.Error("Error generating content:", zap.Error(err))
 		return "", err
 	}
+	logger.Log.Debug("Token: ",
+		zap.Int32("Prompt Token:", resp.UsageMetadata.PromptTokenCount),
+		zap.Int32("Candidate Token:", resp.UsageMetadata.CandidatesTokenCount),
+		zap.Int32("Total Token:", resp.UsageMetadata.TotalTokenCount))
 	if p, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
 		response = string(p)
 	}
 
 	logger.Log.Debug("Final Response: " + response)
 
-	response = ParseJSONWithRetries(m.modelPro, finalPrompt, response, 2, identifier)
+	response = ParseJSONWithRetries(m.modelFlash, finalPrompt, response, identifier)
 
 	return response, nil
 }
@@ -208,25 +230,19 @@ func formatQuestionsAndResults(questions []string, searchResults [][]string) str
 	return formattedString
 }
 
-func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, originalResponse string, retries int, identifier string) string {
+func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, originalResponse string, identifier string) string {
 	//TODO: Move prompts to promt file.
 	promptTemplate := `
-		The following generated JSON value failed to parse, it contained the following
-		error. Please return corrected string as a valid JSON in the dictionary format. All strings should be
-		single-line strings.
-
-		The original prompt was:
+		You are a JSON parser expert tasked with fixing parsing errors in JSON string. Golang's json.Unmarshal library is 
+		being used for parsing the json string. The following JSON string is currently failing with error message: %s.  
+		Ensure that all the parsing errors are resolved and output string is parsable by json.Unmarshal library. Also, 
+		ensure that the output only contain JSON string.
+		
 		%s
+		`
 
-		And the generated JSON is:
-
-		@@@json
-		%s
-		@@@
-
-		Error: %s `
-
-	for i := 0; i < retries; i++ {
+	for i := 0; i < JsonParserRetry; i++ {
+		logger.Log.Debug("ParseJSONWithRetries original response: " + originalResponse)
 		response := strings.TrimSpace(originalResponse)
 
 		if response == "" {
@@ -240,22 +256,26 @@ func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, o
 		response = strings.ReplaceAll(response, "\t", "")
 		response = strings.TrimSpace(response)
 
-		var result map[string]interface{}
+		var result map[string]any
 		err := json.Unmarshal([]byte(response), &result)
 		if err == nil {
+			logger.Log.Debug("Parsed response: " + response)
 			return response
 		}
 
-		errMessage := fmt.Sprintf("Error: %v", err)
-		logger.Log.Debug("Received error while parsing: " + errMessage)
+		logger.Log.Debug("Received error while parsing: ", zap.Error(err))
 
-		newPrompt := fmt.Sprintf(promptTemplate, originalPrompt, originalResponse, errMessage)
+		newPrompt := fmt.Sprintf(promptTemplate, err.Error(), response)
 
-		logger.Log.Debug(response)
+		logger.Log.Debug("Json retry Prompt: " + newPrompt)
 		resp, err := model.GenerateContent(context.Background(), genai.Text(newPrompt))
 		if err != nil {
 			logger.Log.Fatal("Failed to get response from model: " + fmt.Sprintf("Error: %v", err))
 		}
+		logger.Log.Debug("Token: ",
+			zap.Int32("Prompt Token:", resp.UsageMetadata.PromptTokenCount),
+			zap.Int32("Candidate Token:", resp.UsageMetadata.CandidatesTokenCount),
+			zap.Int32("Total Token:", resp.UsageMetadata.TotalTokenCount))
 		if p, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
 			originalResponse = string(p)
 		}
@@ -266,7 +286,7 @@ func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, o
 func (m *MigrationSummarizer) fetchFileContent(filepath string) (string, error) {
 
 	// Read file content if not provided
-	content, err := utils.ReadFile(filepath)
+	content, err := ReadFile(filepath)
 	if err != nil {
 		logger.Log.Fatal("Failed read file: ", zap.Error(err))
 		return "", err
@@ -275,7 +295,13 @@ func (m *MigrationSummarizer) fetchFileContent(filepath string) (string, error) 
 	return content, nil
 }
 
-func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodChanges, content string, fileIndex int) (*CodeAssessment, []any) {
+func (m *MigrationSummarizer) AnalyzeFileChannel(ctx context.Context, filepath, methodChanges, content string, fileIndex int, bufferedChannel chan *AnalyzeFileResponse, wg *sync.WaitGroup) {
+	defer wg.Done()
+	bufferedChannel <- m.AnalyzeFile(ctx, filepath, methodChanges, content, fileIndex)
+
+}
+
+func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodChanges, content string, fileIndex int) *AnalyzeFileResponse {
 	emptyAssessment := &CodeAssessment{
 		Snippets:        make([]Snippet, 0),
 		GeneralWarnings: make([]string, 0),
@@ -292,7 +318,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodC
 		response, err = m.MigrationCodeConversionInvoke(ctx, prompt, content, m.sourceSchema, m.targetSchema, "analyze-dao-class-"+filepath)
 		isDao = true
 		if err != nil {
-			return codeAssessment, methodSignatureChanges
+			return &AnalyzeFileResponse{codeAssessment, methodSignatureChanges, filepath}
 		}
 
 		publicMethodSignatures, err := m.fetchPublicMethodSignature(response)
@@ -308,16 +334,19 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodC
 		res, err := m.modelFlash.GenerateContent(ctx, genai.Text(prompt))
 
 		if err != nil {
-			return codeAssessment, methodSignatureChanges
+			return &AnalyzeFileResponse{codeAssessment, methodSignatureChanges, filepath}
 		}
+		logger.Log.Debug("Token: ",
+			zap.Int32("Prompt Token:", res.UsageMetadata.PromptTokenCount),
+			zap.Int32("Candidate Token:", res.UsageMetadata.CandidatesTokenCount),
+			zap.Int32("Total Token:", res.UsageMetadata.TotalTokenCount))
 
 		if p, ok := res.Candidates[0].Content.Parts[0].(genai.Text); ok {
 			response = string(p)
 		}
 
-		response = ParseJSONWithRetries(m.modelFlash, prompt, response, 2, "analyze-dao-class-"+filepath)
+		response = ParseJSONWithRetries(m.modelFlash, prompt, response, "analyze-dao-class-"+filepath)
 		isDao = false
-		logger.Log.Debug("Parsed response:", zap.String("response", response))
 
 		methodSignatureChangesResponse, err := m.fetchMethodSignature(response)
 		if err != nil {
@@ -331,10 +360,10 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodC
 	codeAssessment, err := parser.ParseFileAnalyzerResponse(filepath, response, isDao, fileIndex)
 
 	if err != nil {
-		return emptyAssessment, methodSignatureChanges
+		return &AnalyzeFileResponse{emptyAssessment, methodSignatureChanges, filepath}
 	}
 
-	return codeAssessment, methodSignatureChanges
+	return &AnalyzeFileResponse{codeAssessment, methodSignatureChanges, filepath}
 }
 
 func (m *MigrationSummarizer) fetchPublicMethodSignature(fileAnalyzerResponse string) ([]any, error) {
@@ -355,8 +384,6 @@ func (m *MigrationSummarizer) fetchPublicMethodSignature(fileAnalyzerResponse st
 }
 
 func (m *MigrationSummarizer) fetchMethodSignature(fileAnalyzerResponse string) ([]any, error) {
-
-	logger.Log.Debug("Analyze File Response: ", zap.String("", fileAnalyzerResponse))
 
 	var responseMapStructure map[string]any
 	err := json.Unmarshal([]byte(fileAnalyzerResponse), &responseMapStructure)
@@ -424,6 +451,8 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 	fileIndex := 0
 
 	for _, singleOrder := range executionOrder {
+		bufferedChannel := make(chan *AnalyzeFileResponse, len(singleOrder))
+		wg := sync.WaitGroup{}
 		for _, filePath := range singleOrder {
 			fileIndex++
 			content, err := m.fetchFileContent(filePath)
@@ -437,16 +466,23 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 				continue
 			}
 
-			fileCodeAssessment, methodSignatureChanges := m.AnalyzeFile(ctx, filePath, methodChanges, content, fileIndex)
-			logger.Log.Debug("File Code Assessment: ", zap.Any("fileCodeAssessment", fileCodeAssessment), zap.Any("filePath", filePath))
+			wg.Add(1)
+			go m.AnalyzeFileChannel(ctx, filePath, methodChanges, content, fileIndex, bufferedChannel, &wg)
+		}
+		wg.Wait()
+		close(bufferedChannel)
+		for analyzeFileResponse := range bufferedChannel {
+			logger.Log.Debug("File Code Assessment: ",
+				zap.Any("fileCodeAssessment", analyzeFileResponse.codeAssessment), zap.Any("filePath", analyzeFileResponse.filePath))
 
-			codeAssessment.Snippets = append(codeAssessment.Snippets, fileCodeAssessment.Snippets...)
-			codeAssessment.GeneralWarnings = append(codeAssessment.GeneralWarnings, fileCodeAssessment.GeneralWarnings...)
+			codeAssessment.Snippets = append(codeAssessment.Snippets, analyzeFileResponse.codeAssessment.Snippets...)
+			codeAssessment.GeneralWarnings = append(codeAssessment.GeneralWarnings, analyzeFileResponse.codeAssessment.GeneralWarnings...)
 
-			m.fileDependencyAnalysisDataMap[filePath] = FileDependencyAnalysisData{
-				publicSignatures: methodSignatureChanges,
+			m.fileDependencyAnalysisDataMap[analyzeFileResponse.filePath] = FileDependencyAnalysisData{
+				publicSignatures: analyzeFileResponse.methodSignature,
 				isDaoDependent:   true,
 			}
+
 		}
 	}
 	return codeAssessment, nil
@@ -461,11 +497,12 @@ func getPromptForNonDAOClass(content, filepath string, methodChanges *string) st
 		Analyze the provided Java code and identify the necessary modifications for compatibility with the updated application architecture.
 
     **Output:**
-		Return your analysis in JSON format with the following keys:
+		Return your analysis in JSON format with the following keys and ensure strict JSON parsable format:
 
 		*   **file_modifications**: A list of required code changes.
 		*   **method_signature_changes**: A list of required public method signature changes for callers (excluding parameter name changes).
 		*   **general_warnings**: A list of general warnings or considerations for the migration, especially regarding Spanner-specific limitations and best practices.
+		*	**pagination**: Information about the pagination of the response.
 
 		**Format for "file_modifications"**:
 		@@@json
@@ -485,7 +522,7 @@ func getPromptForNonDAOClass(content, filepath string, methodChanges *string) st
 				"<another thing to be aware of>",
 				...]
 		},
-		...]
+		...],
 		@@@
 
 		**Format for method_signature_changes**
@@ -496,7 +533,23 @@ func getPromptForNonDAOClass(content, filepath string, methodChanges *string) st
 				"new_signature": "<modified method signature>",
 				"explanation": "<description of why the change is needed and how to update the code>"
 		},
-		...]
+		...],
+		@@@
+
+		**Format for general_warnings**
+		@@@json
+		[
+			"Warning 1",
+			"Warning 2",
+		...],
+		@@@
+
+		**Format for pagination**
+		@@@json
+		{
+				"total_page": "Total number of pages that the response has",
+				"current_page": "Current page number of the response"
+		}
 		@@@
 
     **Instructions:**
@@ -507,9 +560,11 @@ func getPromptForNonDAOClass(content, filepath string, methodChanges *string) st
 						b. If it's a POJO, analyze if any changes in data types or structures are required due to the Spanner migration.
 						c. If it's a utility class, determine if any of its functionalities are affected by the new persistence layer.
 		4. Consider potential impacts on business logic or data flow due to changes in the underlying architecture.
-		5. Ensure the returned JSON is valid and parsable.
+		5. Ensure that the output returned JSON is valid and parsable.
 		6. Capture larger code snippets for modification and provide cumulative descriptions instead of line-by-line changes.
 		7. Classify complexity as SIMPLE, MODERATE, or COMPLEX based on implementation difficulty, required expertise, and clarity of requirements.
+		8. Please paginate your output if the token limit is getting reached. Do ensure that the json string is complete and parsable.
+
 
 
 		**INPUT:**
@@ -531,7 +586,7 @@ func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, ne
 				**Schema Changes:**
 				First, analyze the schema changes between the provided MySQL schema and the new Spanner schema. These changes may include column definitions, indexes, constraints, etc. Each schema change could potentially impact the DAO class code, particularly the SQL queries or method signatures.
 
-				**Output Format: Please strictly follow the following format:**
+				**Output Format: Please strictly follow the following format and ensure strict JSON parsable format:**
 				@@@json
 				{
             "schema_impact": [
@@ -544,7 +599,7 @@ func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, ne
 											"new_code_lines": ["Line1", "Line2", ... ]
 									},
 									...
-								]
+								],
             "public_method_changes:[
 									{
 											"original_signature": "<original method signature>",
@@ -554,16 +609,21 @@ func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, ne
 											"explanation": "<description of why the change is needed and how to update the code>"
 									},
 									...
-                ]
+                ],
+				"pagination": {
+					"total_page": "Total number of pages that the response has",
+					"current_page": "Current page number of the response"
+				}
 
         }
 				@@@
 
         **Instructions:**
         1. Ensure consistency between schema_impact and method_signature_changes.
-        2. Output should strictly be in given json format.
+        2. Output should strictly be in given json format and ensure strict JSON parsable format.
         3. All generated result values should be single-line strings. Avoid hallucinations and suggest only relevant changes.
         4. Pay close attention to SQL queries within the DAO code. Identify any queries that are incompatible with Spanner and suggest appropriate modifications.
+		5. Please paginate your output if the token limit is getting reached. Do ensure that the json string is complete and parsable.
 
         **INPUT**
         **Older MySQL Schema**

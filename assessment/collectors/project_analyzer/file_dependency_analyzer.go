@@ -51,6 +51,10 @@ func validateGoroot() error {
 	return nil
 }
 
+func packagesLoadLogger(format string, args ...interface{}) {
+	logger.Log.Debug(fmt.Sprintf(format, args...))
+}
+
 func (g *GoDependencyAnalyzer) getDependencyGraph(directory string) map[string]map[string]struct{} {
 
 	err := validateGoroot()
@@ -60,6 +64,7 @@ func (g *GoDependencyAnalyzer) getDependencyGraph(directory string) map[string]m
 	cfg := &packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
 		Dir:  (directory),
+		Logf: packagesLoadLogger,
 	}
 
 	logger.Log.Debug(fmt.Sprintf("loading packages from directory: %s", directory))
