@@ -142,9 +142,12 @@ func (c InfoSchemaCollector) ListTables() (map[string]utils.SrcTableDetails, map
 		for _, ck := range c.conv.SpSchema[tableId].CheckConstraints {
 			spCheckConstraints[ck.Id] = ck
 		}
-		srcFks := make(map[string]schema.ForeignKey)
+		srcFks := make(map[string]utils.SourceForeignKey)
 		for _, fk := range c.conv.SrcSchema[tableId].ForeignKeys {
-			srcFks[fk.Id] = fk
+			srcFks[fk.Id] = utils.SourceForeignKey{
+				Definition: fk,
+				Ddl:        utils.PrintForeignKeyAlterTable(fk, tableId, c.conv.SrcSchema),
+			}
 		}
 		spFks := make(map[string]ddl.Foreignkey)
 		for _, fk := range c.conv.SpSchema[tableId].ForeignKeys {

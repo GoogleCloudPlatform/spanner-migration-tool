@@ -96,7 +96,12 @@ type SrcTableDetails struct {
 	Charset          string
 	Properties       map[string]string //any other table level properties
 	CheckConstraints map[string]schema.CheckConstraint
-	SourceForeignKey map[string]schema.ForeignKey
+	SourceForeignKey map[string]SourceForeignKey
+}
+
+type SourceForeignKey struct {
+	Definition schema.ForeignKey
+	Ddl        string
 }
 
 type SpTableDetails struct {

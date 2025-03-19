@@ -110,7 +110,7 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 	schemaOut := utils.SchemaAssessmentOutput{}
 
 	srcTableDefs, spTableDefs := collectors.infoSchemaCollector.ListTables()
-	srcColDefs, spColDefs := collectors.infoSchemaCollector.ListColumnDefinitions() // TODO - move this inside the table info.
+	srcColDefs, spColDefs := collectors.infoSchemaCollector.ListColumnDefinitions()
 	srcIndexes, spIndexes := collectors.infoSchemaCollector.ListIndexes()
 
 	tableAssessments := []utils.TableAssessment{}
@@ -201,7 +201,7 @@ func getSpColSizeBytes(spCol utils.SpColumnDetails) int64 {
 
 	switch strings.ToUpper(spCol.Datatype) {
 	case "ARRAY":
-		size = spCol.Len //TODO correct this based on underlying type
+		return 10 * 1024 * 1024
 	case "BOOL":
 		size = 1
 	case "BYTES":
@@ -215,17 +215,18 @@ func getSpColSizeBytes(spCol utils.SpColumnDetails) int64 {
 	case "INT64":
 		size = 8
 	case "JSON":
-		size = spCol.Len
+		return 10 * 1024 * 1024
 	case "NUMERIC":
-		size = 22 //TODO - calculate based on precision
+		size = 22
+	case "PROTO":
+		size = spCol.Len
 	case "STRING":
 		size = spCol.Len
 	case "STRUCT":
-		return 8 // TODO - get sum of parts
+		return 10 * 1024 * 1024
 	case "TIMESTAMP":
 		return 12
 	default:
-		//TODO - add all types
 		return 8
 	}
 	return 8 + size //Overhead per col plus size

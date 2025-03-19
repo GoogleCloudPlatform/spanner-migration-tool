@@ -158,7 +158,7 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 			rows = append(rows, row)
 		}
 		populateCheckConstraints(tableAssessment, spTable.Name, &rows)
-		populateForeignKeys(tableAssessment, spTable.Name, &rows)
+		populateForeignKeys(tableAssessment, spTable.Name, &rows, tableAssessment.SourceTableDef.Id, assessmentOutput.SchemaAssessment.TableAssessmentOutput)
 
 	}
 
@@ -182,7 +182,7 @@ func populateCheckConstraints(tableAssessment utils.TableAssessment, spTableName
 			row.targetDefinition = "N/A"
 
 			row.dbChangeEffort = "Manual"
-			row.dbChanges = "Non Zero"
+			row.dbChanges = "Unknown"
 			row.dbImpact = ""
 
 			row.codeChangeEffort = "Rewrite"
@@ -206,23 +206,35 @@ func populateCheckConstraints(tableAssessment utils.TableAssessment, spTableName
 	}
 }
 
-func populateForeignKeys(tableAssessment utils.TableAssessment, spTableName string, rows *[]SchemaReportRow) {
+func populateForeignKeys(tableAssessment utils.TableAssessment, spTableName string, rows *[]SchemaReportRow, tableId string, tableAssessmentOutput []utils.TableAssessment) {
 	for id, fk := range tableAssessment.SourceTableDef.SourceForeignKey {
+		spFk := tableAssessment.SpannerTableDef.SpannerForeignKey[id]
 		row := SchemaReportRow{}
-		row.element = tableAssessment.SourceTableDef.Name + "." + fk.Name
+		row.element = tableAssessment.SourceTableDef.Name + "." + fk.Definition.Name
 		row.elementType = "Foreign Key"
-		//row.sourceDefinition = PrintForeignKeyAlterTable(fk)
-		row.targetName = spTableName + "." + tableAssessment.SpannerTableDef.SpannerForeignKey[id].Name
-		row.targetDefinition = tableAssessment.SpannerTableDef.SpannerForeignKey[id].PrintForeignKey(ddl.Config{})
+		row.sourceDefinition = fk.Ddl
+		row.targetName = spTableName + "." + spFk.Name
+		row.targetDefinition = spFk.PrintForeignKey(ddl.Config{})
 
-		row.dbChangeEffort = "Automatic"
-		row.dbChanges = "None"
-		row.dbImpact = "None"
+		if fk.Definition.OnDelete != spFk.OnDelete || fk.Definition.OnUpdate != spFk.OnUpdate {
+			row.dbChangeEffort = "Automatic"
+			row.dbChanges = "reference_option"
+			row.dbImpact = "None"
 
-		row.codeChangeEffort = "None"
-		row.codeChangeType = "None"
-		row.codeImpactedFiles = "None"
-		row.codeSnippets = "None"
+			row.codeChangeEffort = "Modify"
+			row.codeChangeType = "Manual"
+			row.codeImpactedFiles = "TBD"
+			row.codeSnippets = ""
+		} else {
+			row.dbChangeEffort = "Automatic"
+			row.dbChanges = "None"
+			row.dbImpact = "None"
+
+			row.codeChangeEffort = "None"
+			row.codeChangeType = "None"
+			row.codeImpactedFiles = "None"
+			row.codeSnippets = "None"
+		}
 
 		*rows = append(*rows, row)
 	}
@@ -360,7 +372,6 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 	}
 
 	//TODO add check for not null to null scenarios
-	//TODO add diffs in modifiers and features - generated cols
 
 	if len(changes) == 0 {
 		changes = append(changes, "None")

@@ -432,7 +432,6 @@ func (ssa SourceSpecificComparisonImpl) IsDataTypeCodeCompatible(srcColumnDef ut
 			return false
 		}
 	default:
-		//TODO - add all types
 		return false
 	}
 
