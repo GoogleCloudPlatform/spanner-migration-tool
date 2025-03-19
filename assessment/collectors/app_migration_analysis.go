@@ -48,7 +48,6 @@ type MigrationSummarizer struct {
 	projectPath                   string
 	dependencyGraph               map[string]map[string]struct{}
 	fileDependencyAnalysisDataMap map[string]FileDependencyAnalysisData
-	RunParallel                   task.RunParallelTasksInterface[*AnalyzeFileInput, *AnalyzeFileResponse]
 }
 
 type FileDependencyAnalysisData struct {
@@ -106,7 +105,6 @@ func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *strin
 		projectPath:                   projectPath,
 		dependencyGraph:               make(map[string]map[string]struct{}),
 		fileDependencyAnalysisDataMap: make(map[string]FileDependencyAnalysisData),
-		RunParallel:                   &task.RunParallelTasksImpl[*AnalyzeFileInput, *AnalyzeFileResponse]{},
 	}
 	m.modelFlash.ResponseMIMEType = "application/json"
 	m.modelPro.ResponseMIMEType = "application/json"
@@ -179,7 +177,7 @@ func (m *MigrationSummarizer) MigrationCodeConversionInvoke(
 	var output AskQuestionsOutput
 	err = json.Unmarshal([]byte(response), &output) // Convert JSON string to struct
 	if err != nil {
-		logger.Log.Debug("Error converting to struct: " + err.Error())
+		logger.Log.Debug("Error converting to struct: ", zap.Error(err))
 	}
 
 	finalPrompt := originalPrompt
@@ -220,7 +218,7 @@ func (m *MigrationSummarizer) MigrationCodeConversionInvoke(
 		response = string(p)
 	}
 
-	logger.Log.Debug("Final Response: " + response)
+	logger.Log.Debug("Final Response: ", zap.String("response", response))
 
 	response = ParseJSONWithRetries(m.modelFlash, finalPrompt, response, identifier)
 
@@ -255,7 +253,7 @@ func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, o
 		`
 
 	for i := 0; i < JsonParserRetry; i++ {
-		logger.Log.Debug("ParseJSONWithRetries original response: " + originalResponse)
+		logger.Log.Debug("ParseJSONWithRetries original response: ", zap.String("response", originalResponse))
 		response := strings.TrimSpace(originalResponse)
 
 		if response == "" {
@@ -272,7 +270,7 @@ func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, o
 		var result map[string]any
 		err := json.Unmarshal([]byte(response), &result)
 		if err == nil {
-			logger.Log.Debug("Parsed response: " + response)
+			logger.Log.Debug("Parsed response: ", zap.String("response", response))
 			return response
 		}
 
@@ -280,7 +278,7 @@ func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, o
 
 		newPrompt := fmt.Sprintf(promptTemplate, err.Error(), response)
 
-		logger.Log.Debug("Json retry Prompt: " + newPrompt)
+		logger.Log.Debug("Json retry Prompt: ", zap.String("prompt", newPrompt))
 		resp, err := model.GenerateContent(context.Background(), genai.Text(newPrompt))
 		if err != nil {
 			logger.Log.Fatal("Failed to get response from model: " + fmt.Sprintf("Error: %v", err))
@@ -465,6 +463,7 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 		GeneralWarnings: make([]string, 0, 10),
 	}
 
+	runParallel := &task.RunParallelTasksImpl[*AnalyzeFileInput, *AnalyzeFileResponse]{}
 	fileIndex := 0
 
 	for _, singleOrder := range executionOrder {
@@ -492,7 +491,7 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 		if len(analyzeFileInputs) == 0 {
 			continue
 		}
-		taskResults, err := m.RunParallel.RunParallelTasks(analyzeFileInputs, 20, m.AnalyzeFileTask, false)
+		taskResults, err := runParallel.RunParallelTasks(analyzeFileInputs, 20, m.AnalyzeFileTask, false)
 		if err != nil {
 			logger.Log.Error("Error running parallel analyze files: ", zap.Error(err))
 		} else {
