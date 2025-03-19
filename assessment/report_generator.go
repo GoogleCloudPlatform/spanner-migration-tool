@@ -159,6 +159,7 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 		}
 		populateCheckConstraints(tableAssessment, spTable.Name, &rows)
 		populateForeignKeys(tableAssessment, spTable.Name, &rows)
+		populateIndexes(tableAssessment, spTable.Name, &rows)
 
 	}
 
@@ -169,6 +170,29 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 	populateSequenceInfo(assessmentOutput.SchemaAssessment.SpSequences, &rows)
 
 	return rows
+}
+
+func populateIndexes(tableAssessment utils.TableAssessment, spTableName string, rows *[]SchemaReportRow) {
+	for id := range tableAssessment.SourceIndexDef {
+		srcIndex := tableAssessment.SourceIndexDef[id]
+		row := SchemaReportRow{}
+		row.element = tableAssessment.SourceTableDef.Name + "." + srcIndex.Name
+		row.elementType = "Index"
+		// TODO : Right now we migrate all mysql indexes to spanner, we need to do it based on index type and then modify the fields here for unsupported index types
+		row.sourceDefinition = srcIndex.Ddl
+		row.targetName = spTableName + "." + tableAssessment.SpannerIndexDef[id].Name
+		row.targetDefinition = tableAssessment.SpannerIndexDef[id].Ddl
+
+		row.dbChangeEffort = "Automatic"
+		row.dbChanges = "None"
+		row.dbImpact = "None"
+
+		row.codeChangeEffort = "None"
+		row.codeChangeType = "None"
+		row.codeImpactedFiles = "None"
+		row.codeSnippets = "None"
+		*rows = append(*rows, row)
+	}
 }
 
 func populateCheckConstraints(tableAssessment utils.TableAssessment, spTableName string, rows *[]SchemaReportRow) {
@@ -208,27 +232,39 @@ func populateForeignKeys(tableAssessment utils.TableAssessment, spTableName stri
 		row.element = tableAssessment.SourceTableDef.Name + "." + fk.Definition.Name
 		row.elementType = "Foreign Key"
 		row.sourceDefinition = fk.Ddl[strings.Index(fk.Ddl, "CONSTRAINT"):]
-		row.targetName = spTableName + "." + spFk.Name
-		row.targetDefinition = spFk.PrintForeignKey(ddl.Config{})
-
-		if fk.Definition.OnDelete != spFk.OnDelete || fk.Definition.OnUpdate != spFk.OnUpdate {
+		row.targetName = spTableName + "." + spFk.Definition.Name
+		if spFk.IsInterleavable {
+			row.targetDefinition = "INTERLEAVE IN " + spFk.ParentTableName
 			row.dbChangeEffort = "Automatic"
-			row.dbChanges = "reference_option"
-			row.dbImpact = "None"
-
-			row.codeChangeEffort = "Modify"
-			row.codeChangeType = "Manual"
-			row.codeImpactedFiles = "TBD"
-			row.codeSnippets = ""
-		} else {
-			row.dbChangeEffort = "Automatic"
-			row.dbChanges = "None"
-			row.dbImpact = "None"
+			row.dbChanges = "feature"
+			row.dbImpact = "better performance"
 
 			row.codeChangeEffort = "None"
 			row.codeChangeType = "None"
 			row.codeImpactedFiles = "None"
 			row.codeSnippets = "None"
+		} else {
+			row.targetDefinition = spFk.Ddl[strings.Index(spFk.Ddl, "CONSTRAINT"):]
+
+			if fk.Definition.OnDelete != spFk.Definition.OnDelete || fk.Definition.OnUpdate != spFk.Definition.OnUpdate {
+				row.dbChangeEffort = "Automatic"
+				row.dbChanges = "reference_option"
+				row.dbImpact = "None"
+
+				row.codeChangeEffort = "Modify"
+				row.codeChangeType = "Manual"
+				row.codeImpactedFiles = "TBD"
+				row.codeSnippets = ""
+			} else {
+				row.dbChangeEffort = "Automatic"
+				row.dbChanges = "None"
+				row.dbImpact = "None"
+
+				row.codeChangeEffort = "None"
+				row.codeChangeType = "None"
+				row.codeImpactedFiles = "None"
+				row.codeSnippets = "None"
+			}
 		}
 
 		*rows = append(*rows, row)
@@ -339,12 +375,7 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 	if !columnAssessment.CompatibleDataType { // TODO type specific checks on size
 		changes = append(changes, "type")
 	}
-	if columnAssessment.SourceColDef.IsOnUpdateTimestampSet {
-		changes = append(changes, "feature")
-		changeEffort = "Partial"
-	}
-
-	if columnAssessment.SourceColDef.DefaultValue.IsPresent && !columnAssessment.SpannerColDef.DefaultValue.IsPresent {
+	if columnAssessment.SourceColDef.IsOnUpdateTimestampSet || (columnAssessment.SourceColDef.DefaultValue.IsPresent && !columnAssessment.SpannerColDef.DefaultValue.IsPresent) {
 		changes = append(changes, "feature")
 		changeEffort = "Partial"
 	}

@@ -17,6 +17,7 @@ package assessment
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 
 	common "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/mysql"
@@ -97,11 +98,14 @@ func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.Sourc
 func getIndexes(infoSchema common.InfoSchema, conv *internal.Conv) ([]utils.IndexAssessmentInfo, error) {
 	indCollector := []utils.IndexAssessmentInfo{}
 	for _, table := range conv.SrcSchema {
-		index, err := infoSchema.GetIndexInfo(table.Name, conv)
-		if err != nil {
-			return nil, err
+		for id := range table.Indexes {
+			index, err := infoSchema.GetIndexInfo(table.Name, table.Indexes[id])
+			if err != nil {
+				return nil, err
+			}
+			index.TableId = table.Id
+			indCollector = append(indCollector, index)
 		}
-		indCollector = append(indCollector, index...)
 	}
 	return indCollector, nil
 }
@@ -144,12 +148,18 @@ func (c InfoSchemaCollector) ListTables() (map[string]utils.SrcTableDetails, map
 		for _, fk := range c.conv.SrcSchema[tableId].ForeignKeys {
 			srcFks[fk.Id] = utils.SourceForeignKey{
 				Definition: fk,
-				Ddl:        utils.PrintForeignKeyAlterTable(fk, tableId, c.conv.SrcSchema),
+				// TODO : Move all print methods to source specific classes
+				Ddl: utils.PrintForeignKeyAlterTable(fk, tableId, c.conv.SrcSchema),
 			}
 		}
-		spFks := make(map[string]ddl.Foreignkey)
+		spFks := make(map[string]utils.SpannerForeignKey)
 		for _, fk := range c.conv.SpSchema[tableId].ForeignKeys {
-			spFks[fk.Id] = fk
+			spFks[fk.Id] = utils.SpannerForeignKey{
+				Definition:      fk,
+				IsInterleavable: canInterleaveWithFK(c.conv.SpSchema, tableId, fk.ReferTableId, &fk),
+				ParentTableName: c.conv.SpSchema[fk.ReferTableId].Name,
+				Ddl:             fk.PrintForeignKeyAlterTable(c.conv.SpSchema, ddl.Config{}, tableId),
+			}
 		}
 		srcTable[tableId] = utils.SrcTableDetails{
 			Id:               tableId,
@@ -169,9 +179,56 @@ func (c InfoSchemaCollector) ListTables() (map[string]utils.SrcTableDetails, map
 	return srcTable, spTable
 }
 
+func canInterleaveWithFK(tableSchemaMap map[string]ddl.CreateTable, childTableId string, parentTableId string, fk *ddl.Foreignkey) bool {
+	// Check if both tables exist
+	childTable, childOk := tableSchemaMap[childTableId]
+	parentTable, parentOk := tableSchemaMap[parentTableId]
+	if !childOk || !parentOk {
+		return false
+	}
+
+	// Check if parent key is a prefix of child key
+	if len(parentTable.PrimaryKeys) > len(childTable.PrimaryKeys) {
+		return false
+	}
+
+	sortedParentKeys := sortPrimaryKeys(parentTable.PrimaryKeys)
+	sortedChildKeys := sortPrimaryKeys(childTable.PrimaryKeys)
+
+	for i, parentKey := range sortedParentKeys {
+		childKey := childTable.PrimaryKeys[i]
+		if tableSchemaMap[parentTableId].ColDefs[parentKey.ColId].Name != tableSchemaMap[childTableId].ColDefs[childKey.ColId].Name {
+			return false // Parent key columns must be a prefix of child key columns in the same order
+		}
+	}
+
+	// Check if foreign key columns match the parent key
+	if len(parentTable.PrimaryKeys) != len(fk.ReferColumnIds) {
+		return false // Foreign key columns must match the parent primary key columns in number.
+	}
+	for i, parentKeyCol := range sortedParentKeys {
+		if parentKeyCol.ColId != fk.ReferColumnIds[i] {
+			return false // Foreign key columns must match the parent primary key columns in order.
+		}
+		if fk.ColIds[i] != sortedChildKeys[i].ColId {
+			return false // Foreign key columns must match child primary key prefix in order.
+		}
+	}
+
+	return true
+}
+
+func sortPrimaryKeys(keys []ddl.IndexKey) []ddl.IndexKey {
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i].Order < keys[j].Order
+	})
+	return keys
+}
+
 func (c InfoSchemaCollector) ListIndexes() (map[string]utils.SrcIndexDetails, map[string]utils.SpIndexDetails) {
 	srcIndexes := make(map[string]utils.SrcIndexDetails)
 	spIndexes := make(map[string]utils.SpIndexDetails)
+
 	for i := range c.indexes {
 		srcIndexes[c.indexes[i].IndexDef.Id] = utils.SrcIndexDetails{
 			Id:        c.indexes[i].IndexDef.Id,
@@ -180,6 +237,7 @@ func (c InfoSchemaCollector) ListIndexes() (map[string]utils.SrcIndexDetails, ma
 			Type:      c.indexes[i].Ty,
 			TableName: c.conv.SrcSchema[c.indexes[i].TableId].Name,
 			IsUnique:  c.indexes[i].IndexDef.Unique,
+			Ddl:       utils.PrintCreateIndex(c.indexes[i].IndexDef, c.conv.SrcSchema[c.indexes[i].TableId]),
 		}
 		spIndexes[c.indexes[i].IndexDef.Id] = utils.SpIndexDetails{
 			Id:        c.indexes[i].IndexDef.Id,
@@ -187,9 +245,19 @@ func (c InfoSchemaCollector) ListIndexes() (map[string]utils.SrcIndexDetails, ma
 			TableId:   c.indexes[i].TableId,
 			IsUnique:  c.indexes[i].IndexDef.Unique,
 			TableName: c.conv.SpSchema[c.indexes[i].TableId].Name,
+			Ddl:       getSpannerIndex(c.indexes[i].IndexDef.Id, c.conv.SpSchema[c.indexes[i].TableId]).PrintCreateIndex(c.conv.SpSchema[c.indexes[i].TableId], ddl.Config{}),
 		}
 	}
 	return srcIndexes, spIndexes
+}
+
+func getSpannerIndex(indexId string, spSchema ddl.CreateTable) ddl.CreateIndex {
+	for id := range spSchema.Indexes {
+		if spSchema.Indexes[id].Id == indexId {
+			return spSchema.Indexes[id]
+		}
+	}
+	return ddl.CreateIndex{}
 }
 
 func (c InfoSchemaCollector) ListTriggers() map[string]utils.TriggerAssessment {
@@ -257,6 +325,10 @@ func (c InfoSchemaCollector) ListColumnDefinitions() (map[string]utils.SrcColumn
 					}
 				}
 			}
+			onInsertTimestampSet := false
+			if column.DefaultValue.IsPresent && column.DefaultValue.Value.Statement == "CURRENT_TIMESTAMP" {
+				onInsertTimestampSet = true
+			}
 			srcColumnDetails[column.Id] = utils.SrcColumnDetails{
 				Id:                     column.Id,
 				Name:                   column.Name,
@@ -274,6 +346,7 @@ func (c InfoSchemaCollector) ListColumnDefinitions() (map[string]utils.SrcColumn
 				MaxColumnSize:          c.tables[table.Id].ColumnAssessmentInfos[column.Id].MaxColumnSize,
 				GeneratedColumn:        c.tables[table.Id].ColumnAssessmentInfos[column.Id].GeneratedColumn,
 				IsOnUpdateTimestampSet: c.tables[table.Id].ColumnAssessmentInfos[column.Id].IsOnUpdateTimestampSet,
+				IsOnInsertTimestampSet: onInsertTimestampSet,
 			}
 		}
 	}

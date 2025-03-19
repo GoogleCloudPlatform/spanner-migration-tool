@@ -132,7 +132,6 @@ func PrintCreateIndex(index schema.Index, ct schema.Table) string {
 	}
 
 	createIndex.WriteString(");")
-	createIndex.WriteString(";")
 
 	return createIndex.String()
 }

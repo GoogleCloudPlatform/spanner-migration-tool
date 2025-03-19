@@ -81,7 +81,7 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 	codeDirectory, exists := assessmentConfig["codeDirectory"]
 	if exists {
 		logger.Log.Info("initializing app collector")
-		mysqlSchema := GetDDL(conv.SrcSchema)
+		mysqlSchema := utils.GetDDL(conv.SrcSchema)
 		spannerSchema := strings.Join(
 			ddl.GetDDL(
 				ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"},

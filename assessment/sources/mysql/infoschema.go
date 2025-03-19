@@ -59,12 +59,12 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
 			if err != nil {
 				return nil, fmt.Errorf("couldn't get schema for column %s.%s: %s", table.Name, column.Name, err)
 			}
-			if colExtra.String == "on update CURRENT_TIMESTAMP" {
+			if strings.Contains(colExtra.String, "on update CURRENT_TIMESTAMP") {
 				isOnUpdateTimestampSet = true
-			} else if colExtra.String == "VIRTUAL GENERATED" {
+			} else if strings.Contains(colExtra.String, "VIRTUAL GENERATED") {
 				isVirtual = true
 				isPresent = true
-			} else if colExtra.String == "STORED GENERATED" {
+			} else if strings.Contains(colExtra.String, "STORED GENERATED") {
 				isPresent = true
 			}
 			if colGeneratedExp.Valid {
@@ -93,57 +93,29 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
 }
 
 // GetIndexes return a list of all indexes for the specified table.
-func (isi InfoSchemaImpl) GetIndexInfo(table string, conv *internal.Conv) ([]utils.IndexAssessmentInfo, error) {
+func (isi InfoSchemaImpl) GetIndexInfo(table string, index schema.Index) (utils.IndexAssessmentInfo, error) {
 	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE,INDEX_TYPE
 		FROM INFORMATION_SCHEMA.STATISTICS 
 		WHERE TABLE_SCHEMA = ?
 			AND TABLE_NAME = ?
+			AND INDEX_NAME = ?
 		ORDER BY INDEX_NAME, SEQ_IN_INDEX;`
-	rows, err := isi.Db.Query(q, isi.DbName, table)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+
 	var name, column, sequence, nonUnique, indexType string
 	var collation sql.NullString
-	indexMap := make(map[string]utils.IndexAssessmentInfo)
-	var indexNames []string
-	var indexes []utils.IndexAssessmentInfo
-	var errString string
-	for rows.Next() {
-		if err := rows.Scan(&name, &column, &sequence, &collation, &nonUnique, &indexType); err != nil {
-			errString = errString + fmt.Sprintf("Can't scan: %v", err)
-			continue
-		}
-		if _, found := indexMap[name]; !found {
-			tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, table)
-			indexNames = append(indexNames, name)
-			indexMap[name] = utils.IndexAssessmentInfo{
-				Ty:      indexType,
-				Name:    name,
-				TableId: tableId,
-				Db: utils.DbIdentifier{
-					DatabaseName: isi.DbName,
-				},
-				IndexDef: schema.Index{
-					Id:     internal.GenerateIndexesId(),
-					Name:   name,
-					Unique: (nonUnique == "0"),
-				},
-			}
+	err := isi.Db.QueryRow(q, isi.DbName, table, index.Name).Scan(&name, &column, &sequence, &collation, &nonUnique, &indexType)
+	if err != nil {
+		return utils.IndexAssessmentInfo{}, fmt.Errorf("couldn't get index for index name %s.%s: %s", table, index.Name, err)
+	}
+	return utils.IndexAssessmentInfo{
+		Ty:   indexType,
+		Name: name,
+		Db: utils.DbIdentifier{
+			DatabaseName: isi.DbName,
+		},
+		IndexDef: index,
+	}, nil
 
-		}
-		index := indexMap[name]
-		index.IndexDef.Keys = append(index.IndexDef.Keys, schema.Key{
-			ColId: column,
-			Desc:  (collation.Valid && collation.String == "D"),
-		})
-		indexMap[name] = index
-	}
-	for _, k := range indexNames {
-		indexes = append(indexes, indexMap[k])
-	}
-	return indexes, nil
 }
 
 func (isi InfoSchemaImpl) GetTriggerInfo() ([]utils.TriggerAssessmentInfo, error) {

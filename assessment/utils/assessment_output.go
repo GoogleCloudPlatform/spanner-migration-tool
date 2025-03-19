@@ -109,7 +109,14 @@ type SpTableDetails struct {
 	Id                string
 	Name              string
 	CheckConstraints  map[string]ddl.CheckConstraint
-	SpannerForeignKey map[string]ddl.Foreignkey
+	SpannerForeignKey map[string]SpannerForeignKey
+}
+
+type SpannerForeignKey struct {
+	Definition      ddl.Foreignkey
+	Ddl             string
+	IsInterleavable bool
+	ParentTableName string // Applicable incase of interleaving
 }
 
 type SrcIndexDetails struct {
@@ -119,6 +126,7 @@ type SrcIndexDetails struct {
 	TableName string
 	Type      string
 	IsUnique  bool
+	Ddl       string
 }
 
 type SpIndexDetails struct {
@@ -127,6 +135,7 @@ type SpIndexDetails struct {
 	TableId   string
 	TableName string
 	IsUnique  bool
+	Ddl       string
 }
 
 type SrcColumnDetails struct {
@@ -144,6 +153,7 @@ type SrcColumnDetails struct {
 	DefaultValue           ddl.DefaultValue
 	GeneratedColumn        GeneratedColumnInfo
 	IsOnUpdateTimestampSet bool
+	IsOnInsertTimestampSet bool
 	IsUnsigned             bool
 	MaxColumnSize          int64
 }
