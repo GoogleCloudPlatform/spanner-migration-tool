@@ -560,7 +560,7 @@ func getPromptForNonDAOClass(content, filepath string, methodChanges *string) st
 						b. If it's a POJO, analyze if any changes in data types or structures are required due to the Spanner migration.
 						c. If it's a utility class, determine if any of its functionalities are affected by the new persistence layer.
 		4. Consider potential impacts on business logic or data flow due to changes in the underlying architecture.
-		5. Ensure that the output returned JSON is valid and parsable.
+		5. Ensure that the output is a valid JSON string and parsable.
 		6. Capture larger code snippets for modification and provide cumulative descriptions instead of line-by-line changes.
 		7. Classify complexity as SIMPLE, MODERATE, or COMPLEX based on implementation difficulty, required expertise, and clarity of requirements.
 		8. Please paginate your output if the token limit is getting reached. Do ensure that the json string is complete and parsable.
