@@ -132,8 +132,6 @@ func (c InfoSchemaCollector) ListTables() (map[string]utils.SrcTableDetails, map
 	spTable := make(map[string]utils.SpTableDetails)
 
 	for tableId := range c.tables {
-		properties := make(map[string]string)
-		properties["COLLATION"] = c.tables[tableId].Collation
 		srcCheckConstraints := make(map[string]schema.CheckConstraint)
 		for _, ck := range c.conv.SrcSchema[tableId].CheckConstraints {
 			srcCheckConstraints[ck.Id] = ck
@@ -157,7 +155,7 @@ func (c InfoSchemaCollector) ListTables() (map[string]utils.SrcTableDetails, map
 			Id:               tableId,
 			Name:             c.conv.SrcSchema[tableId].Name,
 			Charset:          c.tables[tableId].Charset,
-			Properties:       properties,
+			Collation:        c.tables[tableId].Collation,
 			CheckConstraints: srcCheckConstraints,
 			SourceForeignKey: srcFks,
 		}

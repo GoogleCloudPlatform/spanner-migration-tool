@@ -94,6 +94,7 @@ type SrcTableDetails struct {
 	Id               string
 	Name             string
 	Charset          string
+	Collation        string
 	Properties       map[string]string //any other table level properties
 	CheckConstraints map[string]schema.CheckConstraint
 	SourceForeignKey map[string]SourceForeignKey

@@ -100,6 +100,7 @@ type FunctionAssessmentInfo struct {
 }
 
 // Information relevant to assessment of views
+// TODO : Capture information about view permissions
 type ViewAssessmentInfo struct {
 	Db          DbIdentifier
 	Name        string

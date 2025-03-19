@@ -158,7 +158,7 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 			rows = append(rows, row)
 		}
 		populateCheckConstraints(tableAssessment, spTable.Name, &rows)
-		populateForeignKeys(tableAssessment, spTable.Name, &rows, tableAssessment.SourceTableDef.Id, assessmentOutput.SchemaAssessment.TableAssessmentOutput)
+		populateForeignKeys(tableAssessment, spTable.Name, &rows)
 
 	}
 
@@ -185,10 +185,6 @@ func populateCheckConstraints(tableAssessment utils.TableAssessment, spTableName
 			row.dbChanges = "Unknown"
 			row.dbImpact = ""
 
-			row.codeChangeEffort = "Rewrite"
-			row.codeChangeType = "Manual"
-			row.codeImpactedFiles = "TBD"
-			row.codeSnippets = ""
 		} else {
 			row.targetName = spTableName + "." + tableAssessment.SpannerTableDef.CheckConstraints[id].Name
 			row.targetDefinition = tableAssessment.SpannerTableDef.CheckConstraints[id].Expr
@@ -196,23 +192,22 @@ func populateCheckConstraints(tableAssessment utils.TableAssessment, spTableName
 			row.dbChangeEffort = "Automatic"
 			row.dbChanges = "None"
 			row.dbImpact = "None"
-
-			row.codeChangeEffort = "None"
-			row.codeChangeType = "None"
-			row.codeImpactedFiles = "None"
-			row.codeSnippets = "None"
 		}
+		row.codeChangeEffort = "None"
+		row.codeChangeType = "None"
+		row.codeImpactedFiles = "None"
+		row.codeSnippets = "None"
 		*rows = append(*rows, row)
 	}
 }
 
-func populateForeignKeys(tableAssessment utils.TableAssessment, spTableName string, rows *[]SchemaReportRow, tableId string, tableAssessmentOutput []utils.TableAssessment) {
+func populateForeignKeys(tableAssessment utils.TableAssessment, spTableName string, rows *[]SchemaReportRow) {
 	for id, fk := range tableAssessment.SourceTableDef.SourceForeignKey {
 		spFk := tableAssessment.SpannerTableDef.SpannerForeignKey[id]
 		row := SchemaReportRow{}
 		row.element = tableAssessment.SourceTableDef.Name + "." + fk.Definition.Name
 		row.elementType = "Foreign Key"
-		row.sourceDefinition = fk.Ddl
+		row.sourceDefinition = fk.Ddl[strings.Index(fk.Ddl, "CONSTRAINT"):]
 		row.targetName = spTableName + "." + spFk.Name
 		row.targetDefinition = spFk.PrintForeignKey(ddl.Config{})
 
@@ -308,7 +303,7 @@ func sourceColumnDefinitionToString(columnDefinition utils.SrcColumnDetails) str
 	}
 
 	if columnDefinition.AutoGen.Name != "" && columnDefinition.AutoGen.GenerationType == constants.AUTO_INCREMENT {
-		s += " AUTOINCREMENT"
+		s += " AUTO_INCREMENT"
 	}
 
 	return s
@@ -360,6 +355,7 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 		impact = append(impact, "storage decrease")
 	}
 
+	// TODO: fetch it from maxValue field in column definition
 	if columnAssessment.SourceColDef.Datatype == "bigint" && columnAssessment.SourceColDef.IsUnsigned {
 		impact = append(impact, "potential overflow")
 	}
@@ -516,15 +512,15 @@ func populateViewInfo(viewAssessmentOutput map[string]utils.ViewAssessment, rows
 		row.elementType = "View"
 		row.sourceDefinition = view.SrcViewType
 		row.targetName = view.SpName
-		row.targetDefinition = "N/A"
+		row.targetDefinition = "Unknown"
 
 		row.dbChangeEffort = "Manual"
 		row.dbChanges = "Unknown"
-		row.dbImpact = ""
+		row.dbImpact = "None"
 
-		row.codeChangeEffort = "Rewrite"
+		row.codeChangeEffort = "Unknown"
 		row.codeChangeType = "Manual"
-		row.codeImpactedFiles = "TBD"
+		row.codeImpactedFiles = "Unknown"
 		row.codeSnippets = ""
 
 		*rows = append(*rows, row)
