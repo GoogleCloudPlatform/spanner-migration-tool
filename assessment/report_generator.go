@@ -16,6 +16,7 @@ package assessment
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -46,7 +47,7 @@ type SchemaReportRow struct {
 	codeSnippets      string
 }
 
-func GenerateReport(dbName string, assessmentOutput utils.AssessmentOutput) {
+func generateAndDumpSchemaReport(dbName string, assessmentOutput utils.AssessmentOutput) {
 	//pull data from assessment output
 	//Write to report in require format
 	//publish report locally/on GCS
@@ -66,6 +67,100 @@ func GenerateReport(dbName string, assessmentOutput utils.AssessmentOutput) {
 	w.WriteAll(generateSchemaReport(assessmentOutput))
 
 	logger.Log.Info("completed publishing sample report")
+}
+
+func writeNonSchemaChanges(dbName string, nonSchemaChanges [][]string) {
+	f, err := os.Create(dbName + "_non_schema_changes.txt")
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Can't create schema file %s: %v", dbName, err))
+		return
+	}
+	defer f.Close()
+
+	w := csv.NewWriter(f)
+	w.Comma = '|'
+	w.UseCRLF = true
+
+	w.WriteAll(nonSchemaChanges)
+	logger.Log.Info("completed publishing non schema changes report")
+}
+
+func writeRawChanges(dbName string, snippets []utils.Snippet) {
+	f, err := os.Create(dbName + "_raw_snippets.txt")
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Can't create schema file %s: %v", dbName, err))
+		return
+	}
+	defer f.Close()
+
+	jsonWriter := json.NewEncoder(f)
+	jsonWriter.Encode(snippets)
+	logger.Log.Info("completed publishing non schema changes report")
+}
+
+func generateCodeReport(dbName string, assessmentOutput utils.AssessmentOutput) {
+	//pull data from assessment output
+	//Write to report in require format
+	//publish report locally/on GCS
+	filteredRawSnippet, nonSchemaChanges := filterSnippetsWithCodeChanges(*assessmentOutput.SchemaAssessment.CodeSnippets)
+
+	writeNonSchemaChanges(dbName, nonSchemaChanges)
+	writeRawChanges(dbName, filteredRawSnippet)
+}
+
+func filterSnippetsWithCodeChanges(snippets []utils.Snippet) ([]utils.Snippet, [][]string) {
+	var filteredRawSnippet []utils.Snippet
+	var nonSchemaChanges [][]string
+
+	nonSchemaChanges = append(nonSchemaChanges, getNonSchemaChangeHeaders())
+	for _, snippet := range snippets {
+		if strings.Compare(snippet.SourceMethodSignature, snippet.SuggestedMethodSignature) != 0 {
+			filteredRawSnippet = append(filteredRawSnippet, snippet)
+			nonSchemaChanges = append(nonSchemaChanges, convertNonSchemaSnippetsToRow(&snippet))
+			continue
+		}
+
+		numberOfAffectedLines, err := strconv.Atoi(snippet.NumberOfAffectedLines)
+		if err == nil && numberOfAffectedLines > 0 {
+			filteredRawSnippet = append(filteredRawSnippet, snippet)
+			continue
+		}
+
+		if len(snippet.SuggestedCodeSnippet) > 0 {
+			filteredRawSnippet = append(filteredRawSnippet, snippet)
+			continue
+		}
+	}
+	return filteredRawSnippet, nonSchemaChanges
+}
+
+func convertNonSchemaSnippetsToRow(snippet *utils.Snippet) []string {
+
+	var row []string
+	row = append(row, snippet.FileName)
+	row = append(row, snippet.SourceMethodSignature)
+	row = append(row, snippet.SuggestedMethodSignature)
+	row = append(row, snippet.NumberOfAffectedLines)
+	row = append(row, snippet.Explanation)
+	row = append(row, snippet.Id)
+	return row
+}
+
+func getNonSchemaChangeHeaders() []string {
+	headers := []string{
+		"File",
+		"Source Method Definition",
+		"Suggested Method Definition",
+		"Number of Lines Affected",
+		"Explanation",
+		"Snippet Id",
+	}
+	return headers
+}
+
+func GenerateReport(dbName string, assessmentOutput utils.AssessmentOutput) {
+	generateAndDumpSchemaReport(dbName, assessmentOutput)
+	generateCodeReport(dbName, assessmentOutput)
 }
 
 func generateSchemaReport(assessmentOutput utils.AssessmentOutput) [][]string {

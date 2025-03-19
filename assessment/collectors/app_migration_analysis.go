@@ -17,6 +17,7 @@
 package assessment
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -297,9 +298,9 @@ func ParseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, o
 func (m *MigrationSummarizer) fetchFileContent(filepath string) (string, error) {
 
 	// Read file content if not provided
-	content, err := ReadFile(filepath)
+	content, err := ReadFileWithExplicitBuffer(filepath, bufio.MaxScanTokenSize*10)
 	if err != nil {
-		logger.Log.Fatal("Failed read file: ", zap.Error(err))
+		logger.Log.Fatal("Failed read file: ", zap.Error(err), zap.String("filepath", filepath))
 		return "", err
 	}
 
@@ -333,12 +334,13 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodC
 		response, err = m.MigrationCodeConversionInvoke(ctx, prompt, content, m.sourceSchema, m.targetSchema, "analyze-dao-class-"+filepath)
 		isDao = true
 		if err != nil {
+			logger.Log.Error("Error analyzing DAO class: ", zap.Error(err))
 			return &AnalyzeFileResponse{codeAssessment, methodSignatureChanges, filepath}
 		}
 
 		publicMethodSignatures, err := m.fetchPublicMethodSignature(response)
 		if err != nil {
-			logger.Log.Error("Error fetching public method signature: ", zap.Error(err))
+			logger.Log.Error("Error analyzing DAO class(public method signature): ", zap.Error(err))
 		} else {
 			methodSignatureChanges = publicMethodSignatures
 		}
@@ -365,7 +367,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodC
 
 		methodSignatureChangesResponse, err := m.fetchMethodSignature(response)
 		if err != nil {
-			logger.Log.Error("Error fetching public method signature: ", zap.Error(err))
+			logger.Log.Error("Error analyzing Non-DAO class(public method signature): ", zap.Error(err))
 		} else {
 			methodSignatureChanges = methodSignatureChangesResponse
 		}
