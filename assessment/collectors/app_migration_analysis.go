@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"os"
 	"strings"
 	"sync"
@@ -47,6 +48,7 @@ type MigrationSummarizer struct {
 	projectPath                   string
 	dependencyGraph               map[string]map[string]struct{}
 	fileDependencyAnalysisDataMap map[string]FileDependencyAnalysisData
+	RunParallel                   task.RunParallelTasksInterface[*AnalyzeFileInput, *AnalyzeFileResponse]
 }
 
 type FileDependencyAnalysisData struct {
@@ -54,10 +56,20 @@ type FileDependencyAnalysisData struct {
 	isDaoDependent   bool
 }
 
+// AnalyzeFileResponse response from analyzing single file.
 type AnalyzeFileResponse struct {
 	codeAssessment  *CodeAssessment
 	methodSignature []any
 	filePath        string
+}
+
+// AnalyzeFileInput input for analyzing file.
+type AnalyzeFileInput struct {
+	ctx           context.Context
+	filepath      string
+	methodChanges string
+	content       string
+	fileIndex     int
 }
 
 type AskQuestionsOutput struct {
@@ -94,6 +106,7 @@ func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *strin
 		projectPath:                   projectPath,
 		dependencyGraph:               make(map[string]map[string]struct{}),
 		fileDependencyAnalysisDataMap: make(map[string]FileDependencyAnalysisData),
+		RunParallel:                   &task.RunParallelTasksImpl[*AnalyzeFileInput, *AnalyzeFileResponse]{},
 	}
 	m.modelFlash.ResponseMIMEType = "application/json"
 	m.modelPro.ResponseMIMEType = "application/json"
@@ -295,10 +308,14 @@ func (m *MigrationSummarizer) fetchFileContent(filepath string) (string, error) 
 	return content, nil
 }
 
-func (m *MigrationSummarizer) AnalyzeFileChannel(ctx context.Context, filepath, methodChanges, content string, fileIndex int, bufferedChannel chan *AnalyzeFileResponse, wg *sync.WaitGroup) {
-	defer wg.Done()
-	bufferedChannel <- m.AnalyzeFile(ctx, filepath, methodChanges, content, fileIndex)
-
+func (m *MigrationSummarizer) AnalyzeFileTask(analyzeFileInput *AnalyzeFileInput, mutex *sync.Mutex) task.TaskResult[*AnalyzeFileResponse] {
+	analyzeFileResponse := m.AnalyzeFile(
+		analyzeFileInput.ctx,
+		analyzeFileInput.filepath,
+		analyzeFileInput.methodChanges,
+		analyzeFileInput.content,
+		analyzeFileInput.fileIndex)
+	return task.TaskResult[*AnalyzeFileResponse]{Result: analyzeFileResponse, Err: nil}
 }
 
 func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodChanges, content string, fileIndex int) *AnalyzeFileResponse {
@@ -451,8 +468,7 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 	fileIndex := 0
 
 	for _, singleOrder := range executionOrder {
-		bufferedChannel := make(chan *AnalyzeFileResponse, len(singleOrder))
-		wg := sync.WaitGroup{}
+		analyzeFileInputs := make([]*AnalyzeFileInput, 0, len(singleOrder))
 		for _, filePath := range singleOrder {
 			fileIndex++
 			content, err := m.fetchFileContent(filePath)
@@ -465,24 +481,35 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 			if !isDaoDepndent {
 				continue
 			}
-
-			wg.Add(1)
-			go m.AnalyzeFileChannel(ctx, filePath, methodChanges, content, fileIndex, bufferedChannel, &wg)
+			analyzeFileInputs = append(analyzeFileInputs, &AnalyzeFileInput{
+				ctx:           ctx,
+				filepath:      filePath,
+				methodChanges: methodChanges,
+				content:       content,
+				fileIndex:     fileIndex,
+			})
 		}
-		wg.Wait()
-		close(bufferedChannel)
-		for analyzeFileResponse := range bufferedChannel {
-			logger.Log.Debug("File Code Assessment: ",
-				zap.Any("fileCodeAssessment", analyzeFileResponse.codeAssessment), zap.Any("filePath", analyzeFileResponse.filePath))
+		if len(analyzeFileInputs) == 0 {
+			continue
+		}
+		taskResults, err := m.RunParallel.RunParallelTasks(analyzeFileInputs, 20, m.AnalyzeFileTask, false)
+		if err != nil {
+			logger.Log.Error("Error running parallel analyze files: ", zap.Error(err))
+		} else {
+			for _, analyzeFileResponse := range taskResults {
+				analyzeFileResponse := analyzeFileResponse.Result
+				logger.Log.Debug("File Code Assessment: ",
+					zap.Any("fileCodeAssessment", analyzeFileResponse.codeAssessment), zap.Any("filePath", analyzeFileResponse.filePath))
 
-			codeAssessment.Snippets = append(codeAssessment.Snippets, analyzeFileResponse.codeAssessment.Snippets...)
-			codeAssessment.GeneralWarnings = append(codeAssessment.GeneralWarnings, analyzeFileResponse.codeAssessment.GeneralWarnings...)
+				codeAssessment.Snippets = append(codeAssessment.Snippets, analyzeFileResponse.codeAssessment.Snippets...)
+				codeAssessment.GeneralWarnings = append(codeAssessment.GeneralWarnings, analyzeFileResponse.codeAssessment.GeneralWarnings...)
 
-			m.fileDependencyAnalysisDataMap[analyzeFileResponse.filePath] = FileDependencyAnalysisData{
-				publicSignatures: analyzeFileResponse.methodSignature,
-				isDaoDependent:   true,
+				m.fileDependencyAnalysisDataMap[analyzeFileResponse.filePath] = FileDependencyAnalysisData{
+					publicSignatures: analyzeFileResponse.methodSignature,
+					isDaoDependent:   true,
+				}
+
 			}
-
 		}
 	}
 	return codeAssessment, nil

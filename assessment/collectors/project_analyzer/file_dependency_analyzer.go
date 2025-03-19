@@ -51,6 +51,7 @@ func validateGoroot() error {
 	return nil
 }
 
+// packagesLoadLogger: debug logger for packages.Load function
 func packagesLoadLogger(format string, args ...interface{}) {
 	logger.Log.Debug(fmt.Sprintf(format, args...))
 }
