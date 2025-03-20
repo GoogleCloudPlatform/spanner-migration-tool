@@ -508,7 +508,7 @@ func TestGetSpannerID(t *testing.T) {
 		{"Bad name with different case collision", "IN\tDex", "IN_Dex_13"},
 	}
 	for _, tc := range basicTests {
-		spKeyName := getSpannerValidName(conv, tc.srcKeyName)
+		spKeyName := GetSpannerValidName(conv, tc.srcKeyName)
 		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
 	}
 }

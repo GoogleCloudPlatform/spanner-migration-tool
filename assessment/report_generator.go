@@ -23,7 +23,9 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 type SchemaReportRow struct {
@@ -119,7 +121,7 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 	rows := []SchemaReportRow{}
 
 	//Populate table info
-	for _, tableAssessment := range assessmentOutput.SchemaAssessment.TableAssessment {
+	for _, tableAssessment := range assessmentOutput.SchemaAssessment.TableAssessmentOutput {
 		spTable := tableAssessment.SpannerTableDef
 		row := SchemaReportRow{}
 		row.element = tableAssessment.SourceTableDef.Name
@@ -127,13 +129,13 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 		row.sourceDefinition = tableDefinitionToString(*tableAssessment.SourceTableDef)
 
 		row.targetName = spTable.Name
-		row.targetDefinition = tableDefinitionToString(*tableAssessment.SpannerTableDef)
+		row.targetDefinition = "N/A"
 
 		row.dbChangeEffort = "Automatic"
 		row.dbChanges, row.dbImpact = calculateTableDbChangesAndImpact(tableAssessment)
 
 		//Populate code info
-		populateTableCodeImpact(*tableAssessment.SpannerTableDef, *tableAssessment.SpannerTableDef, assessmentOutput.SchemaAssessment.CodeSnippets, &row)
+		populateTableCodeImpact(*tableAssessment.SourceTableDef, *tableAssessment.SpannerTableDef, assessmentOutput.SchemaAssessment.CodeSnippets, &row)
 		rows = append(rows, row)
 
 		//Populate column info
@@ -142,48 +144,122 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 			column := columnAssessment.SourceColDef
 			row := SchemaReportRow{}
 			row.element = column.TableName + "." + column.Name
-			row.elementType = "Column"
+			row.elementType = getElementTypeForColumn(*column)
 			row.sourceDefinition = sourceColumnDefinitionToString(*column)
 			row.targetName = spColumn.TableName + "." + spColumn.Name
 			row.targetDefinition = spannerColumnDefinitionToString(*spColumn)
 
-			row.dbChangeEffort = "Automatic"
-			row.dbChanges, row.dbImpact = calculateColumnDbChangesAndImpact(columnAssessment)
+			row.dbChanges, row.dbImpact, row.dbChangeEffort = calculateColumnDbChangesAndImpact(columnAssessment)
 
 			//Populate code info
 			//logger.Log.Info(fmt.Sprintf("%s.%s", column.TableName, column.Name))
-			populateColumnCodeImpact(*column, *spColumn, assessmentOutput.SchemaAssessment.CodeSnippets, &row)
+			populateColumnCodeImpact(*column, *spColumn, assessmentOutput.SchemaAssessment.CodeSnippets, &row, columnAssessment)
 
 			rows = append(rows, row)
 		}
+		populateCheckConstraints(tableAssessment, spTable.Name, &rows)
+		populateForeignKeys(tableAssessment, spTable.Name, &rows)
+		populateIndexes(tableAssessment, spTable.Name, &rows)
+
 	}
 
-	//Populate stored procedure and trigger info
-	for _, sproc := range assessmentOutput.SchemaAssessment.StoredProcedureAssessmentOutput {
-		row := SchemaReportRow{}
-		row.element = sproc.Name
-		row.elementType = "Stored Procedure"
-		row.sourceDefinition = sproc.Definition
-
-		row.targetName = "Not supported"
-		row.targetDefinition = "N/A"
-
-		row.dbChangeEffort = "Not Supported"
-		row.dbChanges = "Drop"
-		row.dbImpact = "Less Compute"
-
-		row.codeChangeEffort = "Rewrite"
-		row.codeChangeType = "Manual"
-		row.codeImpactedFiles = "TBD"
-		row.codeSnippets = ""
-
-		rows = append(rows, row)
-	}
+	populateStoredProcedureInfo(assessmentOutput.SchemaAssessment.StoredProcedureAssessmentOutput, &rows)
+	populateTriggerInfo(assessmentOutput.SchemaAssessment.TriggerAssessmentOutput, &rows)
+	populateFunctionInfo(assessmentOutput.SchemaAssessment.FunctionAssessmentOutput, &rows)
+	populateViewInfo(assessmentOutput.SchemaAssessment.ViewAssessmentOutput, &rows)
+	populateSequenceInfo(assessmentOutput.SchemaAssessment.SpSequences, &rows)
 
 	return rows
 }
 
-func tableDefinitionToString(srcTable utils.TableDetails) string {
+func populateIndexes(tableAssessment utils.TableAssessment, spTableName string, rows *[]SchemaReportRow) {
+	for id := range tableAssessment.SourceIndexDef {
+		srcIndex := tableAssessment.SourceIndexDef[id]
+		row := SchemaReportRow{}
+		row.element = tableAssessment.SourceTableDef.Name + "." + srcIndex.Name
+		row.elementType = "Index"
+		// TODO : Right now we migrate all mysql indexes to spanner, we need to do it based on index type and then modify the fields here for unsupported index types
+		row.sourceDefinition = srcIndex.Ddl
+		row.targetName = spTableName + "." + tableAssessment.SpannerIndexDef[id].Name
+		row.targetDefinition = tableAssessment.SpannerIndexDef[id].Ddl
+
+		row.dbChangeEffort = "Automatic"
+		row.dbChanges = "None"
+		row.dbImpact = "None"
+
+		row.codeChangeEffort = "None"
+		row.codeChangeType = "None"
+		row.codeImpactedFiles = "None"
+		row.codeSnippets = "None"
+		*rows = append(*rows, row)
+	}
+}
+
+func populateCheckConstraints(tableAssessment utils.TableAssessment, spTableName string, rows *[]SchemaReportRow) {
+	for id, srcConstraint := range tableAssessment.SourceTableDef.CheckConstraints {
+		row := SchemaReportRow{}
+		row.element = tableAssessment.SourceTableDef.Name + "." + srcConstraint.Name
+		row.elementType = "Check Constraint"
+		row.sourceDefinition = srcConstraint.Expr
+		if _, found := tableAssessment.SpannerTableDef.CheckConstraints[id]; !found {
+			row.targetName = "N/A"
+			row.targetDefinition = "N/A"
+
+			row.dbChangeEffort = "Manual"
+			row.dbChanges = "Unknown"
+			row.dbImpact = ""
+
+		} else {
+			row.targetName = spTableName + "." + tableAssessment.SpannerTableDef.CheckConstraints[id].Name
+			row.targetDefinition = tableAssessment.SpannerTableDef.CheckConstraints[id].Expr
+
+			row.dbChangeEffort = "Automatic"
+			row.dbChanges = "None"
+			row.dbImpact = "None"
+		}
+		row.codeChangeEffort = "None"
+		row.codeChangeType = "None"
+		row.codeImpactedFiles = "None"
+		row.codeSnippets = "None"
+		*rows = append(*rows, row)
+	}
+}
+
+func populateForeignKeys(tableAssessment utils.TableAssessment, spTableName string, rows *[]SchemaReportRow) {
+	for id, fk := range tableAssessment.SourceTableDef.SourceForeignKey {
+		spFk := tableAssessment.SpannerTableDef.SpannerForeignKey[id]
+		row := SchemaReportRow{}
+		row.element = tableAssessment.SourceTableDef.Name + "." + fk.Definition.Name
+		row.elementType = "Foreign Key"
+		row.sourceDefinition = fk.Ddl[strings.Index(fk.Ddl, "CONSTRAINT"):]
+		row.targetName = spTableName + "." + spFk.Definition.Name
+		row.targetDefinition = spFk.Ddl[strings.Index(spFk.Ddl, "CONSTRAINT"):]
+
+		if fk.Definition.OnDelete != spFk.Definition.OnDelete || fk.Definition.OnUpdate != spFk.Definition.OnUpdate {
+			row.dbChangeEffort = "Automatic"
+			row.dbChanges = "reference_option"
+			row.dbImpact = "None"
+
+			row.codeChangeEffort = "Modify"
+			row.codeChangeType = "Manual"
+			row.codeImpactedFiles = "TBD"
+			row.codeSnippets = ""
+		} else {
+			row.dbChangeEffort = "Automatic"
+			row.dbChanges = "None"
+			row.dbImpact = "None"
+
+			row.codeChangeEffort = "None"
+			row.codeChangeType = "None"
+			row.codeImpactedFiles = "None"
+			row.codeSnippets = "None"
+		}
+
+		*rows = append(*rows, row)
+	}
+}
+
+func tableDefinitionToString(srcTable utils.SrcTableDetails) string {
 	sourceDefinition := ""
 	if strings.Contains(srcTable.Charset, "utf") {
 		sourceDefinition += "CHARSET=" + srcTable.Charset + " "
@@ -195,16 +271,26 @@ func tableDefinitionToString(srcTable utils.TableDetails) string {
 }
 
 func spannerColumnDefinitionToString(columnDefinition utils.SpColumnDetails) string {
-	s := columnDefinition.Datatype
-
-	if columnDefinition.Len > 0 {
-		s += "(" + fmt.Sprint(columnDefinition.Len) + ")"
+	columnDef := ddl.ColumnDef{
+		Name:         columnDefinition.Name,
+		DefaultValue: columnDefinition.DefaultValue,
+		AutoGen:      columnDefinition.AutoGen,
+		T: ddl.Type{
+			Name:    columnDefinition.Datatype,
+			Len:     columnDefinition.Len,
+			IsArray: columnDefinition.IsArray,
+		},
+		NotNull: !columnDefinition.IsNull,
 	}
-
-	if !columnDefinition.IsNull {
-		s += " NOT NULL"
-	}
+	s, _ := columnDef.PrintColumnDef(ddl.Config{})
 	return s
+}
+
+func getElementTypeForColumn(columnDefinition utils.SrcColumnDetails) string {
+	if columnDefinition.GeneratedColumn.IsPresent {
+		return "Generated Column"
+	}
+	return "Column"
 }
 
 func sourceColumnDefinitionToString(columnDefinition utils.SrcColumnDetails) string {
@@ -218,9 +304,32 @@ func sourceColumnDefinitionToString(columnDefinition utils.SrcColumnDetails) str
 		s = fmt.Sprintf("%s(%s)", s, strings.Join(l, ","))
 	}
 
+	if columnDefinition.IsUnsigned {
+		s += " UNSIGNED"
+	}
+	if columnDefinition.GeneratedColumn.IsPresent {
+		s += " GENERATED ALWAYS AS " + columnDefinition.GeneratedColumn.Statement
+		if columnDefinition.GeneratedColumn.IsVirtual {
+			s += " VIRTUAL"
+		} else {
+			s += " STORED"
+		}
+	}
+	if columnDefinition.DefaultValue.IsPresent {
+		s += " DEFAULT " + columnDefinition.DefaultValue.Value.Statement
+	}
 	if !columnDefinition.IsNull {
 		s += " NOT NULL"
 	}
+
+	if columnDefinition.IsOnUpdateTimestampSet {
+		s += " ON UPDATE CURRENT_TIMESTAMP"
+	}
+
+	if columnDefinition.AutoGen.Name != "" && columnDefinition.AutoGen.GenerationType == constants.AUTO_INCREMENT {
+		s += " AUTO_INCREMENT"
+	}
+
 	return s
 }
 
@@ -247,11 +356,16 @@ func calculateTableDbChangesAndImpact(tableAssessment utils.TableAssessment) (st
 	return strings.Join(changes, ","), strings.Join(impact, ",")
 }
 
-func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) (string, string) {
+func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) (string, string, string) {
 	changes := []string{}
 	impact := []string{}
+	changeEffort := "Automatic"
 	if !columnAssessment.CompatibleDataType { // TODO type specific checks on size
 		changes = append(changes, "type")
+	}
+	if columnAssessment.SourceColDef.IsOnUpdateTimestampSet || (columnAssessment.SourceColDef.DefaultValue.IsPresent && !columnAssessment.SpannerColDef.DefaultValue.IsPresent) {
+		changes = append(changes, "feature")
+		changeEffort = "Partial"
 	}
 
 	if columnAssessment.SizeIncreaseInBytes > 0 {
@@ -260,10 +374,19 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 		impact = append(impact, "storage decrease")
 	}
 
-	//TODO Add check for unsigned
+	// TODO: fetch it from maxValue field in column definition
+	if columnAssessment.SourceColDef.Datatype == "bigint" && columnAssessment.SourceColDef.IsUnsigned {
+		impact = append(impact, "potential overflow")
+	}
+
+	if columnAssessment.SourceColDef.AutoGen.Name != "" && columnAssessment.SourceColDef.AutoGen.GenerationType == constants.AUTO_INCREMENT {
+		changes = append(changes, "feature")
+	}
+	if columnAssessment.SourceColDef.GeneratedColumn.IsPresent {
+		changeEffort = "Partial"
+	}
+
 	//TODO add check for not null to null scenarios
-	//TODO add check for size overflow
-	//TODO add diffs in modifiers and features - generated cols, auto inc, default etc
 
 	if len(changes) == 0 {
 		changes = append(changes, "None")
@@ -271,10 +394,10 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 	if len(impact) == 0 {
 		impact = append(impact, "None")
 	}
-	return strings.Join(changes, ","), strings.Join(impact, ",")
+	return strings.Join(changes, ","), strings.Join(impact, ","), changeEffort
 }
 
-func populateTableCodeImpact(srcTableDef utils.TableDetails, spTableDef utils.TableDetails, codeSnippets *[]utils.Snippet, row *SchemaReportRow) {
+func populateTableCodeImpact(srcTableDef utils.SrcTableDetails, spTableDef utils.SpTableDetails, codeSnippets *[]utils.Snippet, row *SchemaReportRow) {
 	if srcTableDef.Name == spTableDef.Name {
 		row.codeChangeType = "None"
 		row.codeChangeEffort = "None"
@@ -315,8 +438,15 @@ func populateTableCodeImpact(srcTableDef utils.TableDetails, spTableDef utils.Ta
 
 }
 
-func populateColumnCodeImpact(srcColumnDef utils.SrcColumnDetails, spColumnDef utils.SpColumnDetails, codeSnippets *[]utils.Snippet, row *SchemaReportRow) {
-	if isDataTypeCodeCompatible(srcColumnDef, spColumnDef) {
+func populateColumnCodeImpact(srcColumnDef utils.SrcColumnDetails, spColumnDef utils.SpColumnDetails, codeSnippets *[]utils.Snippet, row *SchemaReportRow, columnAssessment utils.ColumnAssessment) {
+	if srcColumnDef.IsOnUpdateTimestampSet {
+		row.codeChangeEffort = "Rewrite"
+		row.codeChangeType = "Manual"
+		row.codeImpactedFiles = "TBD"
+		row.codeSnippets = ""
+		return
+	}
+	if columnAssessment.CompatibleDataType {
 		row.codeChangeType = "None"
 		row.codeChangeEffort = "None"
 		row.codeImpactedFiles = "None"
@@ -352,5 +482,102 @@ func populateColumnCodeImpact(srcColumnDef utils.SrcColumnDetails, spColumnDef u
 		row.codeChangeType = "Suggested"
 		row.codeChangeEffort = "Non Zero"
 		row.codeSnippets = strings.Join(relatedSnippets, ",")
+	}
+}
+
+func populateStoredProcedureInfo(storedProcedureAssessmentOutput map[string]utils.StoredProcedureAssessment, rows *[]SchemaReportRow) {
+	for _, sproc := range storedProcedureAssessmentOutput {
+		row := SchemaReportRow{}
+		row.element = sproc.Name
+		row.elementType = "Stored Procedure"
+		row.sourceDefinition = sproc.Definition
+
+		populateChangesForUnsupportedElements(&row)
+
+		*rows = append(*rows, row)
+	}
+}
+
+func populateTriggerInfo(triggerAssessmentOutput map[string]utils.TriggerAssessment, rows *[]SchemaReportRow) {
+	for _, trigger := range triggerAssessmentOutput {
+		row := SchemaReportRow{}
+		row.element = trigger.Name
+		row.elementType = "Trigger"
+		row.sourceDefinition = trigger.Operation
+
+		populateChangesForUnsupportedElements(&row)
+
+		*rows = append(*rows, row)
+	}
+}
+
+func populateFunctionInfo(functionAssessmentOutput map[string]utils.FunctionAssessment, rows *[]SchemaReportRow) {
+	for _, function := range functionAssessmentOutput {
+		row := SchemaReportRow{}
+		row.element = function.Name
+		row.elementType = "Function"
+		row.sourceDefinition = function.Definition
+
+		populateChangesForUnsupportedElements(&row)
+
+		*rows = append(*rows, row)
+	}
+}
+
+func populateViewInfo(viewAssessmentOutput map[string]utils.ViewAssessment, rows *[]SchemaReportRow) {
+	for _, view := range viewAssessmentOutput {
+		row := SchemaReportRow{}
+		row.element = view.SrcName
+		row.elementType = "View"
+		row.sourceDefinition = view.SrcViewType
+		row.targetName = view.SpName
+		row.targetDefinition = "Unknown"
+
+		row.dbChangeEffort = "Manual"
+		row.dbChanges = "Unknown"
+		row.dbImpact = "None"
+
+		row.codeChangeEffort = "Unknown"
+		row.codeChangeType = "Manual"
+		row.codeImpactedFiles = "Unknown"
+		row.codeSnippets = ""
+
+		*rows = append(*rows, row)
+	}
+}
+
+func populateChangesForUnsupportedElements(row *SchemaReportRow) {
+	row.targetName = "Not supported"
+	row.targetDefinition = "N/A"
+
+	row.dbChangeEffort = "Not Supported"
+	row.dbChanges = "Drop"
+	row.dbImpact = "Less Compute"
+
+	row.codeChangeEffort = "Rewrite"
+	row.codeChangeType = "Manual"
+	row.codeImpactedFiles = "TBD"
+	row.codeSnippets = ""
+}
+
+func populateSequenceInfo(sequenceAssessmentOutput map[string]ddl.Sequence, rows *[]SchemaReportRow) {
+	for _, sequence := range sequenceAssessmentOutput {
+		row := SchemaReportRow{}
+		row.element = "N/A"
+		row.elementType = "Sequence"
+		row.sourceDefinition = "N/A"
+		row.targetName = sequence.Name
+		row.targetDefinition = sequence.PrintSequence(ddl.Config{})
+
+		row.dbChangeEffort = "Automatic"
+		row.dbChanges = "None"
+		row.dbImpact = "N/A"
+
+		row.codeChangeEffort = "Modify"
+		row.codeChangeType = "Manual"
+		row.codeImpactedFiles = "TBD"
+		row.codeSnippets = ""
+
+		*rows = append(*rows, row)
 	}
 }
