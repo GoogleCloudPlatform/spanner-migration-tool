@@ -72,7 +72,7 @@ func generateAndDumpSchemaReport(dbName string, assessmentOutput utils.Assessmen
 func writeNonSchemaChanges(dbName string, nonSchemaChanges [][]string) {
 	f, err := os.Create(dbName + "_non_schema_changes.txt")
 	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Can't create schema file %s: %v", dbName, err))
+		logger.Log.Error(fmt.Sprintf("Can't create non schema changes file %s: %v", dbName, err))
 		return
 	}
 	defer f.Close()
@@ -85,53 +85,39 @@ func writeNonSchemaChanges(dbName string, nonSchemaChanges [][]string) {
 	logger.Log.Info("completed publishing non schema changes report")
 }
 
-func writeRawChanges(dbName string, snippets []utils.Snippet) {
+func writeRawSnippets(dbName string, snippets []utils.Snippet) {
 	f, err := os.Create(dbName + "_raw_snippets.txt")
 	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Can't create schema file %s: %v", dbName, err))
+		logger.Log.Error(fmt.Sprintf("Can't create raw snippets file %s: %v", dbName, err))
 		return
 	}
 	defer f.Close()
 
 	jsonWriter := json.NewEncoder(f)
 	jsonWriter.Encode(snippets)
-	logger.Log.Info("completed publishing non schema changes report")
+	logger.Log.Info("completed publishing raw snippets")
 }
 
 func generateCodeReport(dbName string, assessmentOutput utils.AssessmentOutput) {
 	//pull data from assessment output
 	//Write to report in require format
 	//publish report locally/on GCS
-	filteredRawSnippet, nonSchemaChanges := filterSnippetsWithCodeChanges(*assessmentOutput.SchemaAssessment.CodeSnippets)
+	nonSchemaChanges := fetchNonSchemaChanges(*assessmentOutput.SchemaAssessment.CodeSnippets)
 
 	writeNonSchemaChanges(dbName, nonSchemaChanges)
-	writeRawChanges(dbName, filteredRawSnippet)
+	writeRawSnippets(dbName, *assessmentOutput.SchemaAssessment.CodeSnippets)
 }
 
-func filterSnippetsWithCodeChanges(snippets []utils.Snippet) ([]utils.Snippet, [][]string) {
-	var filteredRawSnippet []utils.Snippet
+func fetchNonSchemaChanges(snippets []utils.Snippet) [][]string {
 	var nonSchemaChanges [][]string
 
 	nonSchemaChanges = append(nonSchemaChanges, getNonSchemaChangeHeaders())
 	for _, snippet := range snippets {
 		if strings.Compare(snippet.SourceMethodSignature, snippet.SuggestedMethodSignature) != 0 {
-			filteredRawSnippet = append(filteredRawSnippet, snippet)
 			nonSchemaChanges = append(nonSchemaChanges, convertNonSchemaSnippetsToRow(&snippet))
-			continue
-		}
-
-		numberOfAffectedLines, err := strconv.Atoi(snippet.NumberOfAffectedLines)
-		if err == nil && numberOfAffectedLines > 0 {
-			filteredRawSnippet = append(filteredRawSnippet, snippet)
-			continue
-		}
-
-		if len(snippet.SuggestedCodeSnippet) > 0 {
-			filteredRawSnippet = append(filteredRawSnippet, snippet)
-			continue
 		}
 	}
-	return filteredRawSnippet, nonSchemaChanges
+	return nonSchemaChanges
 }
 
 func convertNonSchemaSnippetsToRow(snippet *utils.Snippet) []string {

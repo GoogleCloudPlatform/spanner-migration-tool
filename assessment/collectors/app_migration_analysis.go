@@ -21,10 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 
 	"cloud.google.com/go/vertexai/genai"
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/embeddings"
@@ -340,7 +341,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodC
 
 		publicMethodSignatures, err := m.fetchPublicMethodSignature(response)
 		if err != nil {
-			logger.Log.Error("Error analyzing DAO class(public method signature): ", zap.Error(err))
+			logger.Log.Error("Error analyzing DAO class(public method signature)")
 		} else {
 			methodSignatureChanges = publicMethodSignatures
 		}
