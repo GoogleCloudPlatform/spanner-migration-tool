@@ -60,7 +60,10 @@ func (rpt *RunParallelTasksImpl[I, O]) RunParallelTasks(input []I, numWorkers in
 	outputChannel := make(chan TaskResult[O], len(input))
 
 	wg := &sync.WaitGroup{}
-	defer wg.Wait()
+	defer func () {
+		logger.Log.Debug("waiting for all tasks to complete via wg.Wait()")
+		wg.Wait()
+	}()
 	wg.Add(len(input))
 	mutex := &sync.Mutex{}
 	logger.Log.Debug(fmt.Sprint("Number of configured workers are ", numWorkers))
