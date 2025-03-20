@@ -47,15 +47,10 @@ type SchemaReportRow struct {
 	codeSnippets      string
 }
 
-func generateAndDumpSchemaReport(dbName string, assessmentOutput utils.AssessmentOutput) {
-	//pull data from assessment output
-	//Write to report in require format
-	//publish report locally/on GCS
-	//logger.Log.Info(fmt.Sprintf("%+v", assessmentOutput))
-
-	f, err := os.Create(dbName + "_schema.txt")
+func dumpCsvReport(fileName string, records [][]string) {
+	f, err := os.Create(fileName)
 	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Can't create schema file %s: %v", dbName, err))
+		logger.Log.Error(fmt.Sprintf("Can't create schema file %s: %v", fileName, err))
 		return
 	}
 	defer f.Close()
@@ -64,25 +59,7 @@ func generateAndDumpSchemaReport(dbName string, assessmentOutput utils.Assessmen
 	w.Comma = '|'
 	w.UseCRLF = true
 
-	w.WriteAll(generateSchemaReport(assessmentOutput))
-
-	logger.Log.Info("completed publishing sample report")
-}
-
-func writeNonSchemaChanges(dbName string, nonSchemaChanges [][]string) {
-	f, err := os.Create(dbName + "_non_schema_changes.txt")
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Can't create non schema changes file %s: %v", dbName, err))
-		return
-	}
-	defer f.Close()
-
-	w := csv.NewWriter(f)
-	w.Comma = '|'
-	w.UseCRLF = true
-
-	w.WriteAll(nonSchemaChanges)
-	logger.Log.Info("completed publishing non schema changes report")
+	w.WriteAll(records)
 }
 
 func writeRawSnippets(dbName string, snippets []utils.Snippet) {
@@ -102,9 +79,9 @@ func generateCodeReport(dbName string, assessmentOutput utils.AssessmentOutput) 
 	//pull data from assessment output
 	//Write to report in require format
 	//publish report locally/on GCS
-	nonSchemaChanges := fetchNonSchemaChanges(*assessmentOutput.SchemaAssessment.CodeSnippets)
 
-	writeNonSchemaChanges(dbName, nonSchemaChanges)
+	dumpCsvReport(dbName+"_non_schema_changes.txt", fetchNonSchemaChanges(*assessmentOutput.SchemaAssessment.CodeSnippets))
+	logger.Log.Info("completed publishing non schema changes report")
 	writeRawSnippets(dbName, *assessmentOutput.SchemaAssessment.CodeSnippets)
 }
 
@@ -145,7 +122,10 @@ func getNonSchemaChangeHeaders() []string {
 }
 
 func GenerateReport(dbName string, assessmentOutput utils.AssessmentOutput) {
-	generateAndDumpSchemaReport(dbName, assessmentOutput)
+
+	dumpCsvReport(dbName+"_schema.txt", generateSchemaReport(assessmentOutput))
+	logger.Log.Info("completed publishing schema report")
+
 	generateCodeReport(dbName, assessmentOutput)
 }
 
