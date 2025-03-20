@@ -50,7 +50,7 @@ type SchemaReportRow struct {
 func dumpCsvReport(fileName string, records [][]string) {
 	f, err := os.Create(fileName)
 	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Can't create schema file %s: %v", fileName, err))
+		logger.Log.Error(fmt.Sprintf("Can't create csv file %s: %v", fileName, err))
 		return
 	}
 	defer f.Close()
