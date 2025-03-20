@@ -72,6 +72,7 @@ type StoredProcedureAssessment struct {
 	Id             string
 	Name           string
 	Definition     string
+	LinesOfCode    int
 	TablesAffected []string // TODO(khajanchi): Add parsing logic to extract table names from SP definition.
 }
 
@@ -79,6 +80,7 @@ type FunctionAssessment struct {
 	Id             string
 	Name           string
 	Definition     string
+	LinesOfCode    int
 	TablesAffected []string // TODO(khajanchi): Add parsing logic to extract table names from function definition.
 }
 

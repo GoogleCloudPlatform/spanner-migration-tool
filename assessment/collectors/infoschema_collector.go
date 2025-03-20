@@ -18,6 +18,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"strings"
 
 	common "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/mysql"
@@ -179,6 +180,7 @@ func (c InfoSchemaCollector) ListTables() (map[string]utils.SrcTableDetails, map
 	return srcTable, spTable
 }
 
+// TODO: move this method to assessment_engine
 func canInterleaveWithFK(tableSchemaMap map[string]ddl.CreateTable, childTableId string, parentTableId string, fk *ddl.Foreignkey) bool {
 	// Check if both tables exist
 	childTable, childOk := tableSchemaMap[childTableId]
@@ -281,9 +283,10 @@ func (c InfoSchemaCollector) ListFunctions() map[string]utils.FunctionAssessment
 	for _, function := range c.functions {
 		fnId := internal.GenerateFunctionId()
 		functionAssessmentOutput[fnId] = utils.FunctionAssessment{
-			Id:         fnId,
-			Name:       function.Name,
-			Definition: function.Definition,
+			Id:          fnId,
+			Name:        function.Name,
+			Definition:  function.Definition,
+			LinesOfCode: strings.Count(function.Definition, ";"),
 		}
 	}
 	return functionAssessmentOutput
@@ -392,9 +395,10 @@ func (c InfoSchemaCollector) ListStoredProcedures() map[string]utils.StoredProce
 	for _, storedProcedure := range c.storedProcedures {
 		spId := internal.GenerateStoredProcedureId()
 		storedProcedureAssessmentOutput[spId] = utils.StoredProcedureAssessment{
-			Id:         spId,
-			Name:       storedProcedure.Name,
-			Definition: storedProcedure.Definition,
+			Id:          spId,
+			Name:        storedProcedure.Name,
+			Definition:  storedProcedure.Definition,
+			LinesOfCode: strings.Count(storedProcedure.Definition, ";"),
 		}
 	}
 	return storedProcedureAssessmentOutput

@@ -233,38 +233,26 @@ func populateForeignKeys(tableAssessment utils.TableAssessment, spTableName stri
 		row.elementType = "Foreign Key"
 		row.sourceDefinition = fk.Ddl[strings.Index(fk.Ddl, "CONSTRAINT"):]
 		row.targetName = spTableName + "." + spFk.Definition.Name
-		if spFk.IsInterleavable {
-			row.targetDefinition = "INTERLEAVE IN " + spFk.ParentTableName
+		row.targetDefinition = spFk.Ddl[strings.Index(spFk.Ddl, "CONSTRAINT"):]
+
+		if fk.Definition.OnDelete != spFk.Definition.OnDelete || fk.Definition.OnUpdate != spFk.Definition.OnUpdate {
 			row.dbChangeEffort = "Automatic"
-			row.dbChanges = "feature"
-			row.dbImpact = "better performance"
+			row.dbChanges = "reference_option"
+			row.dbImpact = "None"
+
+			row.codeChangeEffort = "Modify"
+			row.codeChangeType = "Manual"
+			row.codeImpactedFiles = "TBD"
+			row.codeSnippets = ""
+		} else {
+			row.dbChangeEffort = "Automatic"
+			row.dbChanges = "None"
+			row.dbImpact = "None"
 
 			row.codeChangeEffort = "None"
 			row.codeChangeType = "None"
 			row.codeImpactedFiles = "None"
 			row.codeSnippets = "None"
-		} else {
-			row.targetDefinition = spFk.Ddl[strings.Index(spFk.Ddl, "CONSTRAINT"):]
-
-			if fk.Definition.OnDelete != spFk.Definition.OnDelete || fk.Definition.OnUpdate != spFk.Definition.OnUpdate {
-				row.dbChangeEffort = "Automatic"
-				row.dbChanges = "reference_option"
-				row.dbImpact = "None"
-
-				row.codeChangeEffort = "Modify"
-				row.codeChangeType = "Manual"
-				row.codeImpactedFiles = "TBD"
-				row.codeSnippets = ""
-			} else {
-				row.dbChangeEffort = "Automatic"
-				row.dbChanges = "None"
-				row.dbImpact = "None"
-
-				row.codeChangeEffort = "None"
-				row.codeChangeType = "None"
-				row.codeImpactedFiles = "None"
-				row.codeSnippets = "None"
-			}
 		}
 
 		*rows = append(*rows, row)
