@@ -58,6 +58,11 @@ func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile
 	// Populate assessment struct
 
 	output.SchemaAssessment, err = performSchemaAssessment(ctx, c)
+	if err != nil {
+		logger.Log.Info(fmt.Sprintf("could not complete schema assessment: %s", err))
+		return output, err
+	}
+	output.AppCodeAssessment, err = performAppAssessment(ctx, c)
 
 	return output, err
 }
@@ -175,19 +180,33 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 	schemaOut.ViewAssessmentOutput = collectors.infoSchemaCollector.ListViews()
 	schemaOut.SpSequences = collectors.infoSchemaCollector.ListSpannerSequences()
 
-	if collectors.appAssessmentCollector != nil {
-		logger.Log.Info("adding app assessment details")
-		codeAssessment, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
-
-		if err != nil {
-			logger.Log.Error("error analyzing project", zap.Error(err))
-			return schemaOut, err
-		}
-
-		logger.Log.Debug("snippets: ", zap.Any("codeAssessment.Snippets", codeAssessment.Snippets))
-		schemaOut.CodeSnippets = codeAssessment.Snippets
-	}
 	return schemaOut, nil
+}
+
+func performAppAssessment(ctx context.Context, collectors assessmentCollectors) (*utils.AppCodeAssessmentOutput, error) {
+
+	if collectors.appAssessmentCollector == nil {
+		logger.Log.Info("not proceeding with app assessment as app collector was not initialized")
+		return nil, nil
+	}
+
+	logger.Log.Info("adding app assessment details")
+	codeAssessment, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
+
+	if err != nil {
+		logger.Log.Error("error analyzing project", zap.Error(err))
+		return nil, err
+	}
+
+	logger.Log.Debug("snippets: ", zap.Any("codeAssessment.Snippets", codeAssessment.Snippets))
+
+	return &utils.AppCodeAssessmentOutput{
+		Language:     codeAssessment.Language,
+		Framework:    codeAssessment.Framework,
+		TotalLoc:     codeAssessment.TotalLoc,
+		TotalFiles:   codeAssessment.TotalFiles,
+		CodeSnippets: codeAssessment.Snippets,
+	}, nil
 }
 
 func isCharsetCompatible(srcCharset string) bool {

@@ -87,12 +87,19 @@ func writeRawSnippets(assessmentsFolder string, snippets []utils.Snippet) {
 	logger.Log.Info("completed publishing raw snippets")
 }
 
-func generateCodeSummary(snippets *[]utils.Snippet) [][]string {
+func generateCodeSummary(appAssessment *utils.AppCodeAssessmentOutput) [][]string {
+
+	//Add codebase details
 
 	var rows [][]string
+	rows = append(rows, []string{"Language", appAssessment.Language})
+	rows = append(rows, []string{"Framework", appAssessment.Framework})
+	rows = append(rows, []string{"App Code Files", fmt.Sprint(appAssessment.TotalFiles)})
+	rows = append(rows, []string{"Lines of code", fmt.Sprint(appAssessment.TotalLoc)})
+
 	rows = append(rows, getNonSchemaChangeHeaders())
 
-	codeReportRows := convertToCodeReportRows(snippets)
+	codeReportRows := convertToCodeReportRows(appAssessment.CodeSnippets)
 	for _, codeReportRow := range codeReportRows {
 		var row []string
 		row = append(row, sanitizeCsvRow(&codeReportRow.snippetId))
@@ -181,14 +188,14 @@ func GenerateReport(dbName string, assessmentOutput utils.AssessmentOutput) {
 	dumpCsvReport(schemaFile, generateSchemaReport(assessmentOutput))
 	logger.Log.Info("completed publishing schema report at: " + schemaFile)
 
-	if assessmentOutput.SchemaAssessment.CodeSnippets != nil {
+	if assessmentOutput.AppCodeAssessment != nil && assessmentOutput.AppCodeAssessment.TotalFiles > 0 {
 		codeChangesFile := folderPath + "code_changes.csv"
-		dumpCsvReport(codeChangesFile, generateCodeSummary(assessmentOutput.SchemaAssessment.CodeSnippets))
+		dumpCsvReport(codeChangesFile, generateCodeSummary(assessmentOutput.AppCodeAssessment))
 		logger.Log.Info("completed publishing code changes report: " + codeChangesFile)
-		writeRawSnippets(folderPath, *assessmentOutput.SchemaAssessment.CodeSnippets)
+		writeRawSnippets(folderPath, *assessmentOutput.AppCodeAssessment.CodeSnippets)
 		logger.Log.Info("completed publishing code changes report")
 	} else {
-		logger.Log.Info("not performing application assessment as code is not provided")
+		logger.Log.Info("not performing application assessment as code is not detected")
 	}
 	logger.Log.Info("assessment complete!")
 }
@@ -279,7 +286,7 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 		row.dbChanges, row.dbImpact = calculateTableDbChangesAndImpact(tableAssessment)
 
 		//Populate code info
-		populateTableCodeImpact(*tableAssessment.SourceTableDef, *tableAssessment.SpannerTableDef, assessmentOutput.SchemaAssessment.CodeSnippets, &row)
+		populateTableCodeImpact(*tableAssessment.SourceTableDef, *tableAssessment.SpannerTableDef, assessmentOutput.AppCodeAssessment.CodeSnippets, &row)
 		rows = append(rows, row)
 
 		//Populate column info
@@ -300,7 +307,7 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 
 			//Populate code info
 			//logger.Log.Info(fmt.Sprintf("%s.%s", column.TableName, column.Name))
-			populateColumnCodeImpact(*column, *spColumn, assessmentOutput.SchemaAssessment.CodeSnippets, &row, columnAssessment)
+			populateColumnCodeImpact(*column, *spColumn, assessmentOutput.AppCodeAssessment.CodeSnippets, &row, columnAssessment)
 
 			rows = append(rows, row)
 		}
@@ -314,7 +321,7 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 	populateTriggerInfo(assessmentOutput.SchemaAssessment.TriggerAssessmentOutput, &rows)
 	populateFunctionInfo(assessmentOutput.SchemaAssessment.FunctionAssessmentOutput, &rows)
 	populateViewInfo(assessmentOutput.SchemaAssessment.ViewAssessmentOutput, &rows)
-	populateSequenceInfo(assessmentOutput.SchemaAssessment.SpSequences, assessmentOutput.SchemaAssessment.TableAssessmentOutput, assessmentOutput.SchemaAssessment.CodeSnippets, &rows)
+	populateSequenceInfo(assessmentOutput.SchemaAssessment.SpSequences, assessmentOutput.SchemaAssessment.TableAssessmentOutput, assessmentOutput.AppCodeAssessment.CodeSnippets, &rows)
 
 	return rows
 }
@@ -518,9 +525,21 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 	if !columnAssessment.CompatibleDataType { // TODO type specific checks on size
 		changes = append(changes, "type")
 	}
-	if columnAssessment.SourceColDef.IsOnUpdateTimestampSet || (columnAssessment.SourceColDef.DefaultValue.IsPresent && !columnAssessment.SpannerColDef.DefaultValue.IsPresent) {
+	if columnAssessment.SourceColDef.IsOnUpdateTimestampSet {
 		changes = append(changes, "feature")
 		changeEffort = "Partial"
+	}
+
+	if columnAssessment.SourceColDef.DefaultValue.IsPresent && !columnAssessment.SpannerColDef.DefaultValue.IsPresent {
+		switch columnAssessment.SourceColDef.DefaultValue.Value.Statement {
+		case "NULL":
+			//Nothing to do - equivalent
+		case "'NULL'":
+			//Nothing to do - equivalent
+		default:
+			changes = append(changes, "feature")
+			changeEffort = "Partial"
+		}
 	}
 
 	if columnAssessment.SizeIncreaseInBytes > 0 {
