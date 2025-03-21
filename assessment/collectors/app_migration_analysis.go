@@ -61,12 +61,14 @@ type FileDependencyAnalysisData struct {
 type AnalyzeFileResponse struct {
 	codeAssessment  *CodeAssessment
 	methodSignature []any
+	projectPath     string
 	filePath        string
 }
 
 // AnalyzeFileInput input for analyzing file.
 type AnalyzeFileInput struct {
 	ctx           context.Context
+	projectPath   string
 	filepath      string
 	methodChanges string
 	content       string
@@ -311,6 +313,7 @@ func (m *MigrationSummarizer) fetchFileContent(filepath string) (string, error) 
 func (m *MigrationSummarizer) AnalyzeFileTask(analyzeFileInput *AnalyzeFileInput, mutex *sync.Mutex) task.TaskResult[*AnalyzeFileResponse] {
 	analyzeFileResponse := m.AnalyzeFile(
 		analyzeFileInput.ctx,
+		analyzeFileInput.projectPath,
 		analyzeFileInput.filepath,
 		analyzeFileInput.methodChanges,
 		analyzeFileInput.content,
@@ -318,11 +321,13 @@ func (m *MigrationSummarizer) AnalyzeFileTask(analyzeFileInput *AnalyzeFileInput
 	return task.TaskResult[*AnalyzeFileResponse]{Result: analyzeFileResponse, Err: nil}
 }
 
-func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodChanges, content string, fileIndex int) *AnalyzeFileResponse {
+func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, projectPath, filepath, methodChanges, content string, fileIndex int) *AnalyzeFileResponse {
+	snippetsArr := make([]Snippet, 0)
 	emptyAssessment := &CodeAssessment{
-		Snippets:        make([]Snippet, 0),
+		Snippets:        &snippetsArr,
 		GeneralWarnings: make([]string, 0),
 	}
+
 	codeAssessment := emptyAssessment
 
 	var response string
@@ -336,7 +341,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodC
 		isDao = true
 		if err != nil {
 			logger.Log.Error("Error analyzing DAO class: ", zap.Error(err))
-			return &AnalyzeFileResponse{codeAssessment, methodSignatureChanges, filepath}
+			return &AnalyzeFileResponse{codeAssessment, methodSignatureChanges, projectPath, filepath}
 		}
 
 		publicMethodSignatures, err := m.fetchPublicMethodSignature(response)
@@ -352,7 +357,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodC
 		res, err := m.modelFlash.GenerateContent(ctx, genai.Text(prompt))
 
 		if err != nil {
-			return &AnalyzeFileResponse{codeAssessment, methodSignatureChanges, filepath}
+			return &AnalyzeFileResponse{codeAssessment, methodSignatureChanges, projectPath, filepath}
 		}
 		logger.Log.Debug("Token: ",
 			zap.Int32("Prompt Token:", res.UsageMetadata.PromptTokenCount),
@@ -375,13 +380,13 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, filepath, methodC
 	}
 	logger.Log.Debug("Analyze File Response: " + response)
 
-	codeAssessment, err := parser.ParseFileAnalyzerResponse(filepath, response, isDao, fileIndex)
+	codeAssessment, err := parser.ParseFileAnalyzerResponse(projectPath, filepath, response, isDao, fileIndex)
 
 	if err != nil {
-		return &AnalyzeFileResponse{emptyAssessment, methodSignatureChanges, filepath}
+		return &AnalyzeFileResponse{emptyAssessment, methodSignatureChanges, projectPath, filepath}
 	}
 
-	return &AnalyzeFileResponse{codeAssessment, methodSignatureChanges, filepath}
+	return &AnalyzeFileResponse{codeAssessment, methodSignatureChanges, projectPath, filepath}
 }
 
 func (m *MigrationSummarizer) fetchPublicMethodSignature(fileAnalyzerResponse string) ([]any, error) {
@@ -455,14 +460,17 @@ func (m *MigrationSummarizer) analyzeFileDependencies(filePath, fileContent stri
 }
 
 func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessment, error) {
+	logger.Log.Info(fmt.Sprintf("analyzing project: %s", m.projectPath))
 	dependencyGraph, executionOrder := m.dependencyAnalyzer.GetExecutionOrder(m.projectPath)
 	m.dependencyAnalyzer.LogDependencyGraph(dependencyGraph, m.projectPath)
 	m.dependencyAnalyzer.LogExecutionOrder(executionOrder)
 
 	m.dependencyGraph = dependencyGraph
 
+	snippetsArr := make([]Snippet, 0, 10)
 	codeAssessment := &CodeAssessment{
-		Snippets:        make([]Snippet, 0, 10),
+		ProjectPath:     m.projectPath,
+		Snippets:        &snippetsArr,
 		GeneralWarnings: make([]string, 0, 10),
 	}
 
@@ -485,6 +493,7 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 			}
 			analyzeFileInputs = append(analyzeFileInputs, &AnalyzeFileInput{
 				ctx:           ctx,
+				projectPath:   m.projectPath,
 				filepath:      filePath,
 				methodChanges: methodChanges,
 				content:       content,
@@ -494,6 +503,7 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 		if len(analyzeFileInputs) == 0 {
 			continue
 		}
+		logger.Log.Info("initiating file scanning this may take a few minutes")
 		taskResults, err := runParallel.RunParallelTasks(analyzeFileInputs, 20, m.AnalyzeFileTask, false)
 		if err != nil {
 			logger.Log.Error("Error running parallel analyze files: ", zap.Error(err))
@@ -503,7 +513,7 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 				logger.Log.Debug("File Code Assessment: ",
 					zap.Any("fileCodeAssessment", analyzeFileResponse.codeAssessment), zap.Any("filePath", analyzeFileResponse.filePath))
 
-				codeAssessment.Snippets = append(codeAssessment.Snippets, analyzeFileResponse.codeAssessment.Snippets...)
+				*codeAssessment.Snippets = append(*codeAssessment.Snippets, *analyzeFileResponse.codeAssessment.Snippets...)
 				codeAssessment.GeneralWarnings = append(codeAssessment.GeneralWarnings, analyzeFileResponse.codeAssessment.GeneralWarnings...)
 
 				m.fileDependencyAnalysisDataMap[analyzeFileResponse.filePath] = FileDependencyAnalysisData{

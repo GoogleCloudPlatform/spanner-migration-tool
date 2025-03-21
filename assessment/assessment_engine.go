@@ -178,7 +178,7 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 		}
 
 		logger.Log.Info("snippets: ", zap.Any("codeAssessment.Snippets", codeAssessment.Snippets))
-		schemaOut.CodeSnippets = &codeAssessment.Snippets
+		schemaOut.CodeSnippets = codeAssessment.Snippets
 	}
 	return schemaOut, nil
 }

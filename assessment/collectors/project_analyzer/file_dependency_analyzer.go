@@ -60,7 +60,7 @@ func (g *GoDependencyAnalyzer) getDependencyGraph(directory string) map[string]m
 
 	err := validateGoroot()
 	if err != nil {
-		logger.Log.Fatal("Error validating GOROOT: ", zap.Error(err))
+		logger.Log.Warn("Error validating GOROOT: ", zap.Error(err))
 	}
 	cfg := &packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,

@@ -129,12 +129,14 @@ type Snippet struct {
 	SourceMethodSignature    string // will be empty if code impact is outside method.
 	SuggestedMethodSignature string // will be empty if code impact is outside method.
 	Explanation              string
-	FileName                 string
+	RelativeFilePath         string
+	FilePath                 string
 	IsDao                    bool
 }
 
 // Information relevant to assessment of queries
 type CodeAssessment struct {
-	Snippets        []Snippet
+	ProjectPath     string
+	Snippets        *[]Snippet
 	GeneralWarnings []string
 }

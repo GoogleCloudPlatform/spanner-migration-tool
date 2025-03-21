@@ -105,7 +105,7 @@ func convertNonSchemaSnippetsToRow(snippet *utils.Snippet) []string {
 
 	var row []string
 	row = append(row, sanitizeCsvRow(&snippet.Id))
-	row = append(row, sanitizeCsvRow(&snippet.FilePath))
+	row = append(row, sanitizeCsvRow(&snippet.RelativeFilePath))
 	row = append(row, sanitizeCsvRow(&snippet.SourceMethodSignature))
 	row = append(row, sanitizeCsvRow(&snippet.SuggestedMethodSignature))
 	row = append(row, sanitizeCsvRow(&snippet.NumberOfAffectedLines))
@@ -512,8 +512,8 @@ func populateTableCodeImpact(srcTableDef utils.SrcTableDetails, spTableDef utils
 	relatedSnippets := []string{}
 	for _, snippet := range *codeSnippets {
 		if srcTableDef.Name == snippet.TableName { //TODO add check that column is empty here
-			if !slices.Contains(impactedFiles, snippet.FileName) {
-				impactedFiles = append(impactedFiles, snippet.FileName)
+			if !slices.Contains(impactedFiles, snippet.RelativeFilePath) {
+				impactedFiles = append(impactedFiles, snippet.RelativeFilePath)
 			}
 			relatedSnippets = append(relatedSnippets, snippet.Id)
 		}
@@ -561,8 +561,8 @@ func populateColumnCodeImpact(srcColumnDef utils.SrcColumnDetails, spColumnDef u
 	relatedSnippets := []string{}
 	for _, snippet := range *codeSnippets {
 		if srcColumnDef.TableName == snippet.TableName && srcColumnDef.Name == snippet.ColumnName {
-			if !slices.Contains(impactedFiles, snippet.FileName) {
-				impactedFiles = append(impactedFiles, snippet.FileName)
+			if !slices.Contains(impactedFiles, snippet.RelativeFilePath) {
+				impactedFiles = append(impactedFiles, snippet.RelativeFilePath)
 			}
 			relatedSnippets = append(relatedSnippets, snippet.Id)
 		}
@@ -712,4 +712,11 @@ func populateSequenceInfo(sequenceAssessmentOutput map[string]ddl.Sequence, tabl
 
 		*rows = append(*rows, row)
 	}
+}
+
+func getRelativePath(projectPath string, filePath string) string {
+	if strings.HasPrefix(filePath, projectPath) {
+		return strings.Replace(filePath, projectPath, "", 1)
+	}
+	return filePath
 }
