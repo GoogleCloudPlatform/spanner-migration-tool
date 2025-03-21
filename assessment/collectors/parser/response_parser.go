@@ -19,6 +19,8 @@ package assessment
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 
 	. "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -60,36 +62,56 @@ func parseAnyToString(anyType any) string {
 	return fmt.Sprintf("%v", anyType)
 }
 
-func ParseSchemaImpact(schemaImpactResponse map[string]any, filePath string) (*Snippet, error) {
+func parseAnyToInteger(anyType any) int {
+	str := parseAnyToString(anyType)
+	i, err := strconv.Atoi(str)
+	if err != nil {
+		logger.Log.Debug("could not parse string to int" + str)
+		return 0
+	}
+	return i
+}
+
+func ParseSchemaImpact(schemaImpactResponse map[string]any, projectPath, filePath string) (*Snippet, error) {
 	logger.Log.Debug("schemaImpactResponse:", zap.Any("sec: ", schemaImpactResponse))
 	return &Snippet{
 		SchemaChange:          parseAnyToString(schemaImpactResponse["schema_change"]),
 		TableName:             parseAnyToString(schemaImpactResponse["table"]),
 		ColumnName:            parseAnyToString(schemaImpactResponse["column"]),
-		NumberOfAffectedLines: parseAnyToString(schemaImpactResponse["number_of_affected_lines"]),
+		NumberOfAffectedLines: parseAnyToInteger(schemaImpactResponse["number_of_affected_lines"]),
 		SourceCodeSnippet:     ParseStringArrayInterface(schemaImpactResponse["existing_code_lines"]),
 		SuggestedCodeSnippet:  ParseStringArrayInterface(schemaImpactResponse["new_code_lines"]),
-		FileName:              filePath,
+		RelativeFilePath:      getRelativeFilePath(projectPath, filePath),
+		FilePath:              filePath,
 		IsDao:                 true,
 	}, nil
 }
 
-func ParseCodeImpact(codeImpactResponse map[string]any, filePath string) (*Snippet, error) {
-
+func ParseCodeImpact(codeImpactResponse map[string]any, projectPath, filePath string) (*Snippet, error) {
+	//To check if it is mandatory for the response to contain these methods
 	return &Snippet{
 		SourceMethodSignature:    parseAnyToString(codeImpactResponse["original_method_signature"]),
 		SuggestedMethodSignature: parseAnyToString(codeImpactResponse["new_method_signature"]),
 		SourceCodeSnippet:        ParseStringArrayInterface(codeImpactResponse["code_sample"]),
 		SuggestedCodeSnippet:     ParseStringArrayInterface(codeImpactResponse["suggested_change"]),
-		NumberOfAffectedLines:    parseAnyToString(codeImpactResponse["number_of_affected_lines"]),
+		NumberOfAffectedLines:    parseAnyToInteger(codeImpactResponse["number_of_affected_lines"]),
 		Complexity:               parseAnyToString(codeImpactResponse["complexity"]),
 		Explanation:              parseAnyToString(codeImpactResponse["description"]),
-		FileName:                 filePath,
+		RelativeFilePath:         getRelativeFilePath(projectPath, filePath),
+		FilePath:                 filePath,
 		IsDao:                    false,
 	}, nil
 }
 
-func ParseNonDaoFileChanges(fileAnalyzerResponse string, filePath string, fileIndex int) ([]Snippet, []string, error) {
+func getRelativeFilePath(projectPath, filePath string) string {
+	relativeFilePath := filePath
+	if strings.HasPrefix(filePath, projectPath) {
+		relativeFilePath = strings.Replace(filePath, projectPath, "", 1)
+	}
+	return relativeFilePath
+}
+
+func ParseNonDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath string, fileIndex int) ([]Snippet, []string, error) {
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(fileAnalyzerResponse), &result)
@@ -99,11 +121,11 @@ func ParseNonDaoFileChanges(fileAnalyzerResponse string, filePath string, fileIn
 	snippets := []Snippet{}
 	codeSnippetIndex := 0
 	for _, codeImpactResponse := range result["file_modifications"].([]any) {
-		codeImpact, err := ParseCodeImpact(codeImpactResponse.(map[string]any), filePath)
+		codeImpact, err := ParseCodeImpact(codeImpactResponse.(map[string]any), projectPath, filePath)
 		if err != nil {
 			return nil, nil, err
 		}
-		codeImpact.Id = fmt.Sprintf("spippet_%d_%d", fileIndex, codeSnippetIndex)
+		codeImpact.Id = fmt.Sprintf("snippet_%d_%d", fileIndex, codeSnippetIndex)
 		snippets = append(snippets, *codeImpact)
 		codeSnippetIndex++
 	}
@@ -114,7 +136,7 @@ func ParseNonDaoFileChanges(fileAnalyzerResponse string, filePath string, fileIn
 	return snippets, generalWarnings, nil
 }
 
-func ParseDaoFileChanges(fileAnalyzerResponse string, filePath string, fileIndex int) ([]Snippet, []string, error) {
+func ParseDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath string, fileIndex int) ([]Snippet, []string, error) {
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(fileAnalyzerResponse), &result)
@@ -124,11 +146,11 @@ func ParseDaoFileChanges(fileAnalyzerResponse string, filePath string, fileIndex
 	snippets := []Snippet{}
 	codeSnippetIndex := 0
 	for _, schemaImpactResponse := range result["schema_impact"].([]any) {
-		codeSchemaImpact, err := ParseSchemaImpact(schemaImpactResponse.(map[string]any), filePath)
+		codeSchemaImpact, err := ParseSchemaImpact(schemaImpactResponse.(map[string]any), projectPath, filePath)
 		if err != nil {
 			return nil, nil, err
 		}
-		codeSchemaImpact.Id = fmt.Sprintf("spippet_%d_%d", fileIndex, codeSnippetIndex)
+		codeSchemaImpact.Id = fmt.Sprintf("snippet_%d_%d", fileIndex, codeSnippetIndex)
 		snippets = append(snippets, *codeSchemaImpact)
 		codeSnippetIndex++
 	}
@@ -139,14 +161,15 @@ func ParseDaoFileChanges(fileAnalyzerResponse string, filePath string, fileIndex
 	return snippets, generalWarnings, nil
 }
 
-func ParseFileAnalyzerResponse(filePath, fileAnalyzerResponse string, isDao bool, fileIndex int) (*CodeAssessment, error) {
+func ParseFileAnalyzerResponse(projectPath, filePath, fileAnalyzerResponse string, isDao bool, fileIndex int) (*CodeAssessment, error) {
 	var snippets []Snippet
 	var err error
 	var generalWarnings []string
 	if isDao {
-		snippets, generalWarnings, err = ParseDaoFileChanges(fileAnalyzerResponse, filePath, fileIndex)
+		//This logic is incorrect - the dependent files need to show up as schema impact
+		snippets, generalWarnings, err = ParseDaoFileChanges(fileAnalyzerResponse, projectPath, filePath, fileIndex)
 	} else {
-		snippets, generalWarnings, err = ParseNonDaoFileChanges(fileAnalyzerResponse, filePath, fileIndex)
+		snippets, generalWarnings, err = ParseNonDaoFileChanges(fileAnalyzerResponse, projectPath, filePath, fileIndex)
 		if err != nil {
 			return nil, err
 		}
@@ -155,7 +178,7 @@ func ParseFileAnalyzerResponse(filePath, fileAnalyzerResponse string, isDao bool
 		return nil, err
 	}
 	return &CodeAssessment{
-		Snippets:        snippets,
+		Snippets:        &snippets,
 		GeneralWarnings: generalWarnings,
 	}, nil
 }

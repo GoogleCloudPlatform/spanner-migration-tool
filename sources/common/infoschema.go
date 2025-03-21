@@ -24,6 +24,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
@@ -184,7 +185,7 @@ func (is *InfoSchemaImpl) SetRowStats(conv *internal.Conv, infoSchema InfoSchema
 
 func (is *InfoSchemaImpl) processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error) {
 	var t schema.Table
-	fmt.Println("processing schema for table", table)
+	logger.Log.Info(fmt.Sprintf("processing schema for table %s", table))
 	tblId := internal.GenerateTableId()
 	primaryKeys, checkConstraints, constraints, err := infoSchema.GetConstraints(conv, table)
 	if err != nil {
