@@ -49,6 +49,16 @@ type SchemaReportRow struct {
 	codeSnippets      string
 }
 
+type CodeReportRow struct {
+	snippetId           string
+	relativeFilePath    string
+	sourceDefinition    string
+	suggestedDefinition string
+	loc                 int
+	schemaRelated       string
+	explanation         string
+}
+
 func dumpCsvReport(fileName string, records [][]string) {
 	f, err := os.Create(fileName)
 	if err != nil {
@@ -64,10 +74,10 @@ func dumpCsvReport(fileName string, records [][]string) {
 	w.WriteAll(records)
 }
 
-func writeRawSnippets(dbName string, snippets []utils.Snippet) {
-	f, err := os.Create(dbName + "_raw_snippets.txt")
+func writeRawSnippets(assessmentsFolder string, snippets []utils.Snippet) {
+	f, err := os.Create(assessmentsFolder + "raw_snippets.txt")
 	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Can't create raw snippets file %s: %v", dbName, err))
+		logger.Log.Error(fmt.Sprintf("Can't create raw snippets file %s: %v", assessmentsFolder, err))
 		return
 	}
 	defer f.Close()
@@ -77,49 +87,81 @@ func writeRawSnippets(dbName string, snippets []utils.Snippet) {
 	logger.Log.Info("completed publishing raw snippets")
 }
 
-func generateCodeReport(dbName string, assessmentOutput utils.AssessmentOutput) {
-	//pull data from assessment output
-	//Write to report in require format
-	//publish report locally/on GCS
+func generateCodeSummary(snippets *[]utils.Snippet) [][]string {
 
-	if assessmentOutput.SchemaAssessment.CodeSnippets != nil {
-		dumpCsvReport(dbName+"_non_schema_changes.txt", fetchNonSchemaChanges(assessmentOutput.SchemaAssessment.CodeSnippets))
-		logger.Log.Info("completed publishing non schema changes report")
-		writeRawSnippets(dbName, *assessmentOutput.SchemaAssessment.CodeSnippets)
+	var rows [][]string
+	rows = append(rows, getNonSchemaChangeHeaders())
+
+	codeReportRows := convertToCodeReportRows(snippets)
+	for _, codeReportRow := range codeReportRows {
+		var row []string
+		row = append(row, sanitizeCsvRow(&codeReportRow.snippetId))
+		row = append(row, sanitizeCsvRow(&codeReportRow.relativeFilePath))
+		row = append(row, sanitizeCsvRow(&codeReportRow.sourceDefinition))
+		row = append(row, sanitizeCsvRow(&codeReportRow.suggestedDefinition))
+		row = append(row, fmt.Sprint(codeReportRow.loc))
+		row = append(row, sanitizeCsvRow(&codeReportRow.schemaRelated))
+		row = append(row, sanitizeCsvRow(&codeReportRow.explanation))
+		rows = append(rows, row)
 	}
+
+	return rows
 }
 
-func fetchNonSchemaChanges(snippets *[]utils.Snippet) [][]string {
-	var nonSchemaChanges [][]string
+func convertToCodeReportRows(snippets *[]utils.Snippet) []CodeReportRow {
+	rows := []CodeReportRow{}
 
-	nonSchemaChanges = append(nonSchemaChanges, getNonSchemaChangeHeaders())
 	for _, snippet := range *snippets {
-		if strings.Compare(snippet.SourceMethodSignature, snippet.SuggestedMethodSignature) != 0 {
-			nonSchemaChanges = append(nonSchemaChanges, convertNonSchemaSnippetsToRow(&snippet))
+		row := CodeReportRow{}
+
+		row.snippetId = snippet.Id
+		row.relativeFilePath = snippet.RelativeFilePath
+
+		if strings.TrimSpace(snippet.SourceMethodSignature) == "" {
+			row.sourceDefinition = strings.Join(snippet.SourceCodeSnippet, "\n")
+			row.suggestedDefinition = strings.Join(snippet.SuggestedCodeSnippet, "\n")
+		} else {
+			row.sourceDefinition = snippet.SourceMethodSignature
+			row.suggestedDefinition = snippet.SuggestedMethodSignature
+		}
+
+		if snippet.NumberOfAffectedLines > 0 {
+			row.loc = snippet.NumberOfAffectedLines
+		} else {
+			row.loc = len(snippet.SourceCodeSnippet)
+		}
+
+		if strings.TrimSpace(snippet.SchemaChange) == "" {
+			row.schemaRelated = "No"
+		} else {
+			row.schemaRelated = "Yes"
+		}
+
+		if strings.TrimSpace(snippet.Explanation) == "" {
+			if strings.TrimSpace(snippet.TableName) == "" {
+				row.explanation = ""
+			} else {
+				row.explanation = "changes to " + snippet.TableName
+			}
+		} else {
+			row.explanation = snippet.Explanation
+		}
+
+		if row.loc > 0 {
+			rows = append(rows, row)
 		}
 	}
-	return nonSchemaChanges
-}
-
-func convertNonSchemaSnippetsToRow(snippet *utils.Snippet) []string {
-
-	var row []string
-	row = append(row, sanitizeCsvRow(&snippet.Id))
-	row = append(row, sanitizeCsvRow(&snippet.RelativeFilePath))
-	row = append(row, sanitizeCsvRow(&snippet.SourceMethodSignature))
-	row = append(row, sanitizeCsvRow(&snippet.SuggestedMethodSignature))
-	row = append(row, sanitizeCsvRow(&snippet.NumberOfAffectedLines))
-	row = append(row, sanitizeCsvRow(&snippet.Explanation))
-	return row
+	return rows
 }
 
 func getNonSchemaChangeHeaders() []string {
 	headers := []string{
 		"Snippet Id",
 		"File",
-		"Source Method Definition",
-		"Suggested Method Definition",
+		"Source Definition",
+		"Suggested Definition",
 		"Number of Lines Affected",
+		"Related to schema change",
 		"Explanation",
 	}
 	return headers
@@ -127,10 +169,28 @@ func getNonSchemaChangeHeaders() []string {
 
 func GenerateReport(dbName string, assessmentOutput utils.AssessmentOutput) {
 
-	dumpCsvReport(dbName+"_schema.txt", generateSchemaReport(assessmentOutput))
-	logger.Log.Info("completed publishing schema report")
+	folderPath := "assessment_" + dbName + "/"
+	err := os.Mkdir(folderPath, 0755)
+	if err != nil {
+		logger.Log.Warn("unable to create directory to dump assessment report")
+		return
+	}
 
-	generateCodeReport(dbName, assessmentOutput)
+	logger.Log.Info("assessment reports will be saved in folder: " + folderPath)
+	schemaFile := folderPath + "schema.csv"
+	dumpCsvReport(schemaFile, generateSchemaReport(assessmentOutput))
+	logger.Log.Info("completed publishing schema report at: " + schemaFile)
+
+	if assessmentOutput.SchemaAssessment.CodeSnippets != nil {
+		codeChangesFile := folderPath + "code_changes.csv"
+		dumpCsvReport(codeChangesFile, generateCodeSummary(assessmentOutput.SchemaAssessment.CodeSnippets))
+		logger.Log.Info("completed publishing code changes report: " + codeChangesFile)
+		writeRawSnippets(folderPath, *assessmentOutput.SchemaAssessment.CodeSnippets)
+		logger.Log.Info("completed publishing code changes report")
+	} else {
+		logger.Log.Info("not performing application assessment as code is not provided")
+	}
+	logger.Log.Info("assessment complete!")
 }
 
 func generateSchemaReport(assessmentOutput utils.AssessmentOutput) [][]string {
@@ -172,6 +232,7 @@ func sanitizeCsvRow(s *string) string {
 	}
 	*s = strings.ReplaceAll(*s, "\t", " ")
 	*s = strings.ReplaceAll(*s, "\n", " ")
+
 	return *s
 }
 
@@ -712,11 +773,4 @@ func populateSequenceInfo(sequenceAssessmentOutput map[string]ddl.Sequence, tabl
 
 		*rows = append(*rows, row)
 	}
-}
-
-func getRelativePath(projectPath string, filePath string) string {
-	if strings.HasPrefix(filePath, projectPath) {
-		return strings.Replace(filePath, projectPath, "", 1)
-	}
-	return filePath
 }

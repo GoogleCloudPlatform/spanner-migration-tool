@@ -122,7 +122,7 @@ type Snippet struct {
 	TableName                string // will be empty if snippet is not a schema update
 	ColumnName               string // will be empty if snippet is not a schema update
 	SchemaChange             string // will be empty if snippet is not a schema update
-	NumberOfAffectedLines    string
+	NumberOfAffectedLines    int
 	Complexity               string
 	SourceCodeSnippet        []string
 	SuggestedCodeSnippet     []string

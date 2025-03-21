@@ -19,6 +19,7 @@ package assessment
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	. "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
@@ -61,13 +62,23 @@ func parseAnyToString(anyType any) string {
 	return fmt.Sprintf("%v", anyType)
 }
 
+func parseAnyToInteger(anyType any) int {
+	str := parseAnyToString(anyType)
+	i, err := strconv.Atoi(str)
+	if err != nil {
+		logger.Log.Debug("could not parse string to int" + str)
+		return 0
+	}
+	return i
+}
+
 func ParseSchemaImpact(schemaImpactResponse map[string]any, projectPath, filePath string) (*Snippet, error) {
 	logger.Log.Debug("schemaImpactResponse:", zap.Any("sec: ", schemaImpactResponse))
 	return &Snippet{
 		SchemaChange:          parseAnyToString(schemaImpactResponse["schema_change"]),
 		TableName:             parseAnyToString(schemaImpactResponse["table"]),
 		ColumnName:            parseAnyToString(schemaImpactResponse["column"]),
-		NumberOfAffectedLines: parseAnyToString(schemaImpactResponse["number_of_affected_lines"]),
+		NumberOfAffectedLines: parseAnyToInteger(schemaImpactResponse["number_of_affected_lines"]),
 		SourceCodeSnippet:     ParseStringArrayInterface(schemaImpactResponse["existing_code_lines"]),
 		SuggestedCodeSnippet:  ParseStringArrayInterface(schemaImpactResponse["new_code_lines"]),
 		RelativeFilePath:      getRelativeFilePath(projectPath, filePath),
@@ -77,12 +88,13 @@ func ParseSchemaImpact(schemaImpactResponse map[string]any, projectPath, filePat
 }
 
 func ParseCodeImpact(codeImpactResponse map[string]any, projectPath, filePath string) (*Snippet, error) {
+	//To check if it is mandatory for the response to contain these methods
 	return &Snippet{
 		SourceMethodSignature:    parseAnyToString(codeImpactResponse["original_method_signature"]),
 		SuggestedMethodSignature: parseAnyToString(codeImpactResponse["new_method_signature"]),
 		SourceCodeSnippet:        ParseStringArrayInterface(codeImpactResponse["code_sample"]),
 		SuggestedCodeSnippet:     ParseStringArrayInterface(codeImpactResponse["suggested_change"]),
-		NumberOfAffectedLines:    parseAnyToString(codeImpactResponse["number_of_affected_lines"]),
+		NumberOfAffectedLines:    parseAnyToInteger(codeImpactResponse["number_of_affected_lines"]),
 		Complexity:               parseAnyToString(codeImpactResponse["complexity"]),
 		Explanation:              parseAnyToString(codeImpactResponse["description"]),
 		RelativeFilePath:         getRelativeFilePath(projectPath, filePath),
@@ -113,7 +125,7 @@ func ParseNonDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath s
 		if err != nil {
 			return nil, nil, err
 		}
-		codeImpact.Id = fmt.Sprintf("spippet_%d_%d", fileIndex, codeSnippetIndex)
+		codeImpact.Id = fmt.Sprintf("snippet_%d_%d", fileIndex, codeSnippetIndex)
 		snippets = append(snippets, *codeImpact)
 		codeSnippetIndex++
 	}
@@ -138,7 +150,7 @@ func ParseDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath stri
 		if err != nil {
 			return nil, nil, err
 		}
-		codeSchemaImpact.Id = fmt.Sprintf("spippet_%d_%d", fileIndex, codeSnippetIndex)
+		codeSchemaImpact.Id = fmt.Sprintf("snippet_%d_%d", fileIndex, codeSnippetIndex)
 		snippets = append(snippets, *codeSchemaImpact)
 		codeSnippetIndex++
 	}

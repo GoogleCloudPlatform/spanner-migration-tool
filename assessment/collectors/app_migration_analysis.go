@@ -477,6 +477,7 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 	runParallel := &task.RunParallelTasksImpl[*AnalyzeFileInput, *AnalyzeFileResponse]{}
 	fileIndex := 0
 
+	logger.Log.Info("initiating file scanning. this may take a few minutes")
 	for _, singleOrder := range executionOrder {
 		analyzeFileInputs := make([]*AnalyzeFileInput, 0, len(singleOrder))
 		for _, filePath := range singleOrder {
@@ -503,7 +504,6 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 		if len(analyzeFileInputs) == 0 {
 			continue
 		}
-		logger.Log.Info("initiating file scanning this may take a few minutes")
 		taskResults, err := runParallel.RunParallelTasks(analyzeFileInputs, 20, m.AnalyzeFileTask, false)
 		if err != nil {
 			logger.Log.Error("Error running parallel analyze files: ", zap.Error(err))
