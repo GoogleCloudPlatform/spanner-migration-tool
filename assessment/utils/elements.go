@@ -137,6 +137,10 @@ type Snippet struct {
 // Information relevant to assessment of queries
 type CodeAssessment struct {
 	ProjectPath     string
+	Language        string
+	Framework       string
+	TotalLoc        int
+	TotalFiles      int
 	Snippets        *[]Snippet
 	GeneralWarnings []string
 }
