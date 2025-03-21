@@ -476,17 +476,27 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 
 	runParallel := &task.RunParallelTasksImpl[*AnalyzeFileInput, *AnalyzeFileResponse]{}
 	fileIndex := 0
+	totalLoc := 0
+	language := ""
+	framework := ""
 
 	logger.Log.Info("initiating file scanning. this may take a few minutes")
 	for _, singleOrder := range executionOrder {
 		analyzeFileInputs := make([]*AnalyzeFileInput, 0, len(singleOrder))
 		for _, filePath := range singleOrder {
 			fileIndex++
+			if language == "" {
+				language = getLanguage(filePath)
+			}
 			content, err := m.fetchFileContent(filePath)
 			if err != nil {
 				logger.Log.Error("Error fetching file content: ", zap.Error(err))
 				continue
 			}
+			if framework == "" {
+				framework = getFramework(content)
+			}
+			totalLoc += strings.Count(content, "\n")
 
 			isDaoDepndent, methodChanges := m.analyzeFileDependencies(filePath, content)
 			if !isDaoDepndent {
@@ -524,7 +534,36 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 			}
 		}
 	}
+	codeAssessment.Language = language
+	codeAssessment.Framework = framework
+	codeAssessment.TotalLoc = totalLoc
+	codeAssessment.TotalFiles = fileIndex
 	return codeAssessment, nil
+}
+
+func getFramework(fileContent string) string {
+	//TODO - move into language specific implementations
+	if strings.Contains(fileContent, "database/sql") || strings.Contains(fileContent, "github.com/go-sql-driver/mysql") {
+		return "database/sql"
+	}
+
+	if strings.Contains(fileContent, "*sql.DB") || strings.Contains(fileContent, "*sql.Tx") {
+		return "database/sql"
+	}
+
+	if strings.Contains(fileContent, "`gorm:\"") {
+		return "gorm"
+	}
+
+	return ""
+}
+
+func getLanguage(filePath string) string {
+	//TODO - move into language specific implementations
+	if strings.HasSuffix(filePath, ".go") {
+		return "golang"
+	}
+	return ""
 }
 
 func getPromptForNonDAOClass(content, filepath string, methodChanges *string) string {
