@@ -16,6 +16,7 @@ package assessment
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -41,11 +42,30 @@ type GoDependencyAnalyzer struct {
 	BaseAnalyzer
 }
 
+func validateGoroot() error {
+
+	goroot := os.Getenv("GOROOT")
+	if len(goroot) == 0 {
+		return fmt.Errorf("please set GOROOT path to GO version 1.22.7 or higher to ensure that app assessment works")
+	}
+	return nil
+}
+
+// packagesLoadLogger: debug logger for packages.Load function
+func packagesLoadLogger(format string, args ...interface{}) {
+	logger.Log.Debug(fmt.Sprintf(format, args...))
+}
+
 func (g *GoDependencyAnalyzer) getDependencyGraph(directory string) map[string]map[string]struct{} {
 
+	err := validateGoroot()
+	if err != nil {
+		logger.Log.Warn("Error validating GOROOT: ", zap.Error(err))
+	}
 	cfg := &packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
 		Dir:  (directory),
+		Logf: packagesLoadLogger,
 	}
 
 	logger.Log.Debug(fmt.Sprintf("loading packages from directory: %s", directory))
@@ -124,6 +144,10 @@ func (g *GoDependencyAnalyzer) IsDAO(filePath string, fileContent string) bool {
 	}
 
 	if strings.Contains(fileContent, "*sql.DB") || strings.Contains(fileContent, "*sql.Tx") {
+		return true
+	}
+
+	if strings.Contains(fileContent, "`gorm:\"") {
 		return true
 	}
 

@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"go.uber.org/zap"
 )
 
@@ -80,28 +81,16 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 	codeDirectory, exists := assessmentConfig["codeDirectory"]
 	if exists {
 		logger.Log.Info("initializing app collector")
+		mysqlSchema := utils.GetDDL(conv.SrcSchema)
+		spannerSchema := strings.Join(
+			ddl.GetDDL(
+				ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"},
+				conv.SpSchema,
+				conv.SpSequences),
+			"\n")
 
-		mysqlSchema := ""   // TODO fetch from conv
-		spannerSchema := "" // TODO fetch from conv
-		mysqlSchemaPath, exists := assessmentConfig["mysqlSchemaPath"]
-		if exists {
-			logger.Log.Info(fmt.Sprintf("overriding mysql schema from file %s", mysqlSchemaPath))
-			mysqlSchema, err := utils.ReadFile(mysqlSchemaPath)
-			if err != nil {
-				logger.Log.Debug("error reading MySQL schema file:", zap.Error(err))
-			}
-			logger.Log.Debug(mysqlSchema)
-		}
-
-		spannerSchemaPath, exists := assessmentConfig["spannerSchemaPath"]
-		if exists {
-			logger.Log.Info(fmt.Sprintf("overriding spanner schema from file %s", spannerSchemaPath))
-			spannerSchema, err := utils.ReadFile(spannerSchemaPath)
-			if err != nil {
-				logger.Log.Debug("error reading Spanner schema file:", zap.Error(err))
-			}
-			logger.Log.Info(spannerSchema)
-		}
+		logger.Log.Debug("mysqlSchema", zap.String("schema", mysqlSchema))
+		logger.Log.Debug("spannerSchema", zap.String("schema", spannerSchema))
 
 		summarizer, err := assessment.NewMigrationSummarizer(ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory)
 		if err != nil {
@@ -121,7 +110,7 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 	schemaOut := utils.SchemaAssessmentOutput{}
 
 	srcTableDefs, spTableDefs := collectors.infoSchemaCollector.ListTables()
-	srcColDefs, spColDefs := collectors.infoSchemaCollector.ListColumnDefinitions() // TODO - move this inside the table info.
+	srcColDefs, spColDefs := collectors.infoSchemaCollector.ListColumnDefinitions()
 	srcIndexes, spIndexes := collectors.infoSchemaCollector.ListIndexes()
 
 	tableAssessments := []utils.TableAssessment{}
@@ -171,10 +160,13 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 
 		tableAssessments = append(tableAssessments, tableAssessment)
 	}
-	schemaOut.TableAssessment = tableAssessments
+	schemaOut.TableAssessmentOutput = tableAssessments
 
-	schemaOut.Triggers = collectors.infoSchemaCollector.ListTriggers()
+	schemaOut.TriggerAssessmentOutput = collectors.infoSchemaCollector.ListTriggers()
 	schemaOut.StoredProcedureAssessmentOutput = collectors.infoSchemaCollector.ListStoredProcedures()
+	schemaOut.FunctionAssessmentOutput = collectors.infoSchemaCollector.ListFunctions()
+	schemaOut.ViewAssessmentOutput = collectors.infoSchemaCollector.ListViews()
+	schemaOut.SpSequences = collectors.infoSchemaCollector.ListSpannerSequences()
 
 	if collectors.appAssessmentCollector != nil {
 		logger.Log.Info("adding app assessment details")
@@ -185,8 +177,8 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 			return schemaOut, err
 		}
 
-		logger.Log.Info(fmt.Sprintf("snippets %+v", codeAssessment.Snippets))
-		schemaOut.CodeSnippets = &codeAssessment.Snippets
+		logger.Log.Debug("snippets: ", zap.Any("codeAssessment.Snippets", codeAssessment.Snippets))
+		schemaOut.CodeSnippets = codeAssessment.Snippets
 	}
 	return schemaOut, nil
 }
@@ -198,7 +190,7 @@ func isCharsetCompatible(srcCharset string) bool {
 	return false
 }
 
-func tableSizeDiffBytes(srcTableDef *utils.TableDetails, spTableDef *utils.TableDetails) int {
+func tableSizeDiffBytes(srcTableDef *utils.SrcTableDetails, spTableDef *utils.SpTableDetails) int {
 	// TODO - if no spanner table exists - return nil
 	return 1 //TODO - currently dummy implementation assuming spanner will always be bigger - to calculate based on charset and column size differences
 }
@@ -206,9 +198,10 @@ func tableSizeDiffBytes(srcTableDef *utils.TableDetails, spTableDef *utils.Table
 // TODO - move to spanner interface?
 func getSpColSizeBytes(spCol utils.SpColumnDetails) int64 {
 	var size int64
+
 	switch strings.ToUpper(spCol.Datatype) {
 	case "ARRAY":
-		size = spCol.Len //TODO correct this based on underlying type
+		return 10 * 1024 * 1024
 	case "BOOL":
 		size = 1
 	case "BYTES":
@@ -222,124 +215,19 @@ func getSpColSizeBytes(spCol utils.SpColumnDetails) int64 {
 	case "INT64":
 		size = 8
 	case "JSON":
-		size = spCol.Len
+		return 10 * 1024 * 1024
 	case "NUMERIC":
-		size = 22 //TODO - calculate based on precision
+		size = 22
+	case "PROTO":
+		size = spCol.Len
 	case "STRING":
 		size = spCol.Len
-
 	case "STRUCT":
-		return 8 // TODO - get sum of parts
+		return 10 * 1024 * 1024
 	case "TIMESTAMP":
 		return 12
 	default:
-		//TODO - add all types
 		return 8
 	}
 	return 8 + size //Overhead per col plus size
-}
-
-// TODO - move to source specific interface. Store in a more scalable structure - maybe a static map
-func isDataTypeCodeCompatible(srcColumnDef utils.SrcColumnDetails, spColumnDef utils.SpColumnDetails) bool {
-
-	switch strings.ToUpper(spColumnDef.Datatype) {
-	case "BOOL":
-		switch srcColumnDef.Datatype {
-		case "tinyint":
-			return true
-		case "bit":
-			return true
-		default:
-			return false
-		}
-	case "BYTES":
-		switch srcColumnDef.Datatype {
-		case "binary":
-			return true
-		case "varbinary":
-			return true
-		case "blob":
-			return true
-		default:
-			return false
-		}
-	case "DATE":
-		switch srcColumnDef.Datatype {
-		case "date":
-			return true
-		default:
-			return false
-		}
-	case "FLOAT32":
-		switch srcColumnDef.Datatype {
-		case "float":
-			return true
-		case "double":
-			return true
-		default:
-			return false
-		}
-	case "FLOAT64":
-		switch srcColumnDef.Datatype {
-		case "float":
-			return true
-		case "double":
-			return true
-		default:
-			return false
-		}
-	case "INT64":
-		switch srcColumnDef.Datatype {
-		case "int":
-			return true
-		case "bigint":
-			return true
-		default:
-			return false
-		}
-	case "JSON":
-		switch srcColumnDef.Datatype {
-		case "json":
-			return true
-		case "varchar":
-			return true
-		default:
-			return false
-		}
-	case "NUMERIC":
-		switch srcColumnDef.Datatype {
-		case "float":
-			return true
-		case "double":
-			return true
-		default:
-			return false
-		}
-	case "STRING":
-		switch srcColumnDef.Datatype {
-		case "varchar":
-			return true
-		case "text":
-			return true
-		case "mediumtext":
-			return true
-		case "longtext":
-			return true
-		default:
-			return false
-		}
-	case "TIMESTAMP":
-		switch srcColumnDef.Datatype {
-		case "timestamp":
-			return true
-		case "datetime":
-			return true
-		default:
-			return false
-		}
-	default:
-		//TODO - add all types
-		return false
-	}
-
 }
