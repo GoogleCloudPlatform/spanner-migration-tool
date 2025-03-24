@@ -7,7 +7,7 @@ common_params = {
   instance_count       = "10"
   instance_name_prefix = "node-10-zdm"
   network              = "default"
-  machine_type         = "n2-standard-8"
+  machine_type         = "c2-standard-30"
   service_account_key  = "path/to/local/key/file"
 }
 zdm_config = {
