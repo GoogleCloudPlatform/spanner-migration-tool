@@ -18,7 +18,19 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"sync/atomic"
 
+	sp "cloud.google.com/go/spanner"
+	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/parse"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
+	//"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/google/subcommands"
 )
 
@@ -47,14 +59,143 @@ func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 }
 
 func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
-	//TODO implement me
-	fmt.Printf("executing dummy import data\n")
 	fmt.Printf("instanceId %s, dbName %s, schemaUri %s\n", cmd.instanceId, cmd.dbName, cmd.schemaUri)
+
+	switch cmd.sourceFormat {
+	case constants.CSV:
+		importCsv(ctx, cmd, &csv.CsvImpl{})
+	default:
+		fmt.Printf("format %s not supported yet", cmd.sourceFormat)
+	}
+
 	return 0
 }
 
+func importCsv(ctx context.Context, cmd *ImportDataCmd, csv csv.CsvInterface) subcommands.ExitStatus {
+	// TODO: start with single table imports
+
+	// get connection to spanner
+	adminClient, client, err := GetSpannerClient(ctx, cmd.project, cmd.instanceId, cmd.dbName)
+	if err != nil {
+		err = fmt.Errorf("can't create database client: %v", err)
+		return subcommands.ExitFailure
+	}
+	defer adminClient.Close()
+	defer client.Close()
+
+	//TODO: uncomment and implement
+	// createSchema(cmd.schemaUri)
+
+	// TODO: Response code -  error /success contract between gcloud and SMT
+
+	// TODO: get CSV locally. start with unchunked and later figure out chunking for larger sizes
+
+	conv := getConvObject(cmd)
+	batchWriter := getBatchWriterWithConfig(client, conv)
+	columnNames := []string{}
+	colDefs := map[string]ddl.ColumnDef{}
+
+	err = utils.ReadSpannerSchema(ctx, conv, client)
+	//infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, SpDialect: conv.SpDialect}
+	//tables, err := infoSchema.GetTables()
+	//
+
+	tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, cmd.tableName)
+	if err != nil {
+		fmt.Errorf("table Id not found for spanner table %v", cmd.tableName)
+		return subcommands.ExitFailure
+	}
+
+	for _, v := range conv.SpSchema[tableId].ColIds {
+		columnNames = append(columnNames, conv.SpSchema[tableId].ColDefs[v].Name)
+	}
+	colDefs = conv.SpSchema[tableId].ColDefs
+
+	err = csv.ProcessSingleCSV(conv, cmd.tableName, columnNames, colDefs, cmd.sourceUri, "", rune(cmd.csvFieldDelimiter[0]))
+	if err != nil {
+		return subcommands.ExitFailure
+	}
+	batchWriter.Flush()
+
+	return subcommands.ExitSuccess
+}
+
+func createSchema(schemaUri string) {
+	// TODO: create table, find a place for it. create table if not exists, validate schema matches
+	parseSchema()
+	//TODO: implement me
+
+}
+
+func getConvObject(cmd *ImportDataCmd) *internal.Conv {
+	conv := internal.MakeConv()
+	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
+	conv.Audit.SkipMetricsPopulation = true
+	conv.Audit.DryRun = false
+
+	conv.SpDialect = constants.DIALECT_GOOGLESQL //TODO: handle POSTGRESQL
+	conv.SpProjectId = cmd.project
+	conv.SpInstanceId = cmd.instanceId
+	//conv.Source = sourceProfile.Driver
+
+	return conv
+}
+
+func parseSchema() map[string]ddl.ColumnDef {
+	// TODO: implement me
+	return make(map[string]ddl.ColumnDef)
+}
+
+func getBatchWriterWithConfig(client *sp.Client, conv *internal.Conv) *writer.BatchWriter {
+	// TODO: review these limits
+	config := writer.BatchWriterConfig{
+		BytesLimit: 100 * 1000 * 1000,
+		WriteLimit: 2000,
+		RetryLimit: 1000,
+		Verbose:    internal.Verbose(),
+	}
+
+	rows := int64(0)
+	config.Write = func(m []*sp.Mutation) error {
+		ctx := context.Background()
+		_, err := client.Apply(ctx, m)
+		if err != nil {
+			return err
+		}
+		atomic.AddInt64(&rows, int64(len(m)))
+		return nil
+	}
+	batchWriter := writer.NewBatchWriter(config)
+	conv.SetDataMode()
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			batchWriter.AddRow(table, cols, vals)
+		})
+	conv.DataFlush = func() {
+		batchWriter.Flush()
+	}
+	return batchWriter
+}
+
+func GetSpannerClient(ctx context.Context, project string, instance string,
+	dbName string) (*database.DatabaseAdminClient, *sp.Client, error) {
+
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+	adminClient, err := utils.NewDatabaseAdminClient(ctx)
+	if err != nil {
+		err = fmt.Errorf("can't create admin client: %v", parse.AnalyzeError(err, dbURI))
+		return nil, nil, err
+	}
+	client, err := utils.GetClient(ctx, dbURI)
+	if err != nil {
+		err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
+		return adminClient, nil, err
+	}
+	return adminClient, client, nil
+}
+
 func (cmd *ImportDataCmd) Name() string {
-	return "Import Data"
+	return "import"
 }
 
 // Synopsis returns summary of operation.
