@@ -26,9 +26,11 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/parse"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
-	//"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
+	"go.uber.org/zap"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/google/subcommands"
@@ -92,26 +94,24 @@ func importCsv(ctx context.Context, cmd *ImportDataCmd, csv csv.CsvInterface) su
 
 	conv := getConvObject(cmd)
 	batchWriter := getBatchWriterWithConfig(client, conv)
-	columnNames := []string{}
-	colDefs := map[string]ddl.ColumnDef{}
-
 	err = utils.ReadSpannerSchema(ctx, conv, client)
-	//infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, SpDialect: conv.SpDialect}
-	//tables, err := infoSchema.GetTables()
-	//
-
-	tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, cmd.tableName)
 	if err != nil {
-		fmt.Errorf("table Id not found for spanner table %v", cmd.tableName)
+		fmt.Errorf("Unable to read Spanner schema %v", err)
 		return subcommands.ExitFailure
 	}
 
+	tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, cmd.tableName)
+	if err != nil {
+		fmt.Errorf("Table %s not found in Spanner", cmd.tableName)
+		return subcommands.ExitFailure
+	}
+	columnNames := []string{}
 	for _, v := range conv.SpSchema[tableId].ColIds {
 		columnNames = append(columnNames, conv.SpSchema[tableId].ColDefs[v].Name)
 	}
-	colDefs = conv.SpSchema[tableId].ColDefs
 
-	err = csv.ProcessSingleCSV(conv, cmd.tableName, columnNames, colDefs, cmd.sourceUri, "", rune(cmd.csvFieldDelimiter[0]))
+	err = csv.ProcessSingleCSV(conv, cmd.tableName, columnNames,
+		conv.SpSchema[tableId].ColDefs, cmd.sourceUri, "", rune(cmd.csvFieldDelimiter[0]))
 	if err != nil {
 		return subcommands.ExitFailure
 	}
@@ -127,6 +127,9 @@ func createSchema(schemaUri string) {
 
 }
 
+func init() {
+	logger.Log = zap.NewNop()
+}
 func getConvObject(cmd *ImportDataCmd) *internal.Conv {
 	conv := internal.MakeConv()
 	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
@@ -136,7 +139,6 @@ func getConvObject(cmd *ImportDataCmd) *internal.Conv {
 	conv.SpDialect = constants.DIALECT_GOOGLESQL //TODO: handle POSTGRESQL
 	conv.SpProjectId = cmd.project
 	conv.SpInstanceId = cmd.instanceId
-	//conv.Source = sourceProfile.Driver
 
 	return conv
 }
