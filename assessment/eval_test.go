@@ -148,16 +148,6 @@ func TestAccuracy(t *testing.T) {
 			}
 		}
 
-		// Generate report
-		//reportFile := filepath.Join(fmt.Sprintf("testcase_%d.go", i+1))
-		//reportContent := fmt.Sprintf("%s\n\n// Ground Truth:\n%s\n\n// Predicted Lines:\n%s\n",
-		//	tc.CodeContent,
-		//	strings.Join(tc.GroundTruth, "\n// "),
-		//	strings.Join(predictedLines, "\n// "),
-		//)
-		//if err := os.WriteFile(reportFile, []byte(reportContent), 0644); err != nil {
-		//	fmt.Printf("Failed to write report: %v\n", err)
-		//}
 	}
 
 	// Calculate overall metrics
