@@ -103,7 +103,7 @@ func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *strin
 		modelPro:                      client.GenerativeModel("gemini-1.5-pro-002"),
 		modelFlash:                    client.GenerativeModel("gemini-2.0-flash-001"),
 		conceptExampleDB:              conceptExampleDB,
-		dependencyAnalyzer:            dependencyAnalyzer.AnalyzerFactory("go"),
+		dependencyAnalyzer:            dependencyAnalyzer.AnalyzerFactory("go", ctx),
 		sourceSchema:                  sourceSchema,
 		targetSchema:                  targetSchema,
 		projectPath:                   projectPath,
