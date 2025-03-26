@@ -150,15 +150,39 @@ func ParseDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath stri
 		if err != nil {
 			return nil, nil, err
 		}
-		codeSchemaImpact.Id = fmt.Sprintf("snippet_%d_%d", fileIndex, codeSnippetIndex)
-		snippets = append(snippets, *codeSchemaImpact)
-		codeSnippetIndex++
+		if isCodeEqual(&codeSchemaImpact.SourceCodeSnippet, &codeSchemaImpact.SuggestedCodeSnippet) {
+			logger.Log.Debug("not emmitting as code snippets are equal")
+		} else {
+			codeSchemaImpact.Id = fmt.Sprintf("snippet_%d_%d", fileIndex, codeSnippetIndex)
+			snippets = append(snippets, *codeSchemaImpact)
+			codeSnippetIndex++
+		}
 	}
 	generalWarnings := []string{}
 	if result["general_warnings"] != nil {
 		generalWarnings = ParseStringArrayInterface(result["general_warnings"].([]any))
 	}
 	return snippets, generalWarnings, nil
+}
+
+func isCodeEqual(sourceCode *[]string, suggestedCode *[]string) bool {
+	if *sourceCode == nil && *suggestedCode == nil {
+		return true
+	} else if *sourceCode == nil || suggestedCode == nil {
+		return false
+	}
+
+	srcCode := ""
+	for _, codeLine := range *sourceCode {
+		srcCode += strings.TrimSpace(codeLine)
+	}
+
+	sugCode := ""
+	for _, codeLine := range *suggestedCode {
+		sugCode += strings.TrimSpace(codeLine)
+	}
+
+	return srcCode == sugCode
 }
 
 func ParseFileAnalyzerResponse(projectPath, filePath, fileAnalyzerResponse string, isDao bool, fileIndex int) (*CodeAssessment, error) {
