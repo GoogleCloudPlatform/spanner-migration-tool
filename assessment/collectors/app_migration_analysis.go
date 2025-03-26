@@ -82,7 +82,7 @@ type AskQuestionsOutput struct {
 const JsonParserRetry = 3
 
 // NewMigrationSummarizer initializes a new MigrationSummarizer
-func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *string, projectID, location, sourceSchema, targetSchema string, projectPath string) (*MigrationSummarizer, error) {
+func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *string, projectID, location, sourceSchema, targetSchema, projectPath, language string) (*MigrationSummarizer, error) {
 	if googleGenerativeAIAPIKey != nil {
 		os.Setenv("GOOGLE_API_KEY", *googleGenerativeAIAPIKey)
 	}
@@ -103,7 +103,7 @@ func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *strin
 		modelPro:                      client.GenerativeModel("gemini-1.5-pro-002"),
 		modelFlash:                    client.GenerativeModel("gemini-2.0-flash-001"),
 		conceptExampleDB:              conceptExampleDB,
-		dependencyAnalyzer:            dependencyAnalyzer.AnalyzerFactory("go", ctx),
+		dependencyAnalyzer:            dependencyAnalyzer.AnalyzerFactory(language, ctx),
 		sourceSchema:                  sourceSchema,
 		targetSchema:                  targetSchema,
 		projectPath:                   projectPath,

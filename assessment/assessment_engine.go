@@ -78,6 +78,12 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 
 	//Initiialize App Assessment Collector
 
+	language, exists := assessmentConfig["language"]
+	if !exists {
+		// defaulting to Golang
+		language = "go"
+	}
+
 	codeDirectory, exists := assessmentConfig["codeDirectory"]
 	if exists {
 		logger.Log.Info("initializing app collector")
@@ -92,7 +98,8 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 		logger.Log.Debug("mysqlSchema", zap.String("schema", mysqlSchema))
 		logger.Log.Debug("spannerSchema", zap.String("schema", spannerSchema))
 
-		summarizer, err := assessment.NewMigrationSummarizer(ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory)
+		summarizer, err := assessment.NewMigrationSummarizer(
+			ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory, language)
 		if err != nil {
 			logger.Log.Error("error initiating migration summarizer")
 			return c, err
