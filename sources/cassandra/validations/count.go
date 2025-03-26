@@ -79,7 +79,7 @@ func main() {
 	fmt.Printf("Found %d tables in keyspace %s\n", len(tables), *keyspace)
 
 	// Get token ranges for the cluster
-	// TODO: Consider generating custom token ranges based on partitions instead of relying on cassandra partitions.
+	// TODO: Consider generating custom token ranges based on size estimates instead of relying on cassandra partitions.
 	tokenRanges, err := getClusterTokenRanges(cassSession)
 	if err != nil {
 		fmt.Printf("Error fetching token ranges: %v\n", err)
