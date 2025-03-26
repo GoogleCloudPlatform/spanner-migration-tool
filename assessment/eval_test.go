@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -90,13 +91,12 @@ func mapLinesToNumbers(content string) map[string]string {
 }
 
 func TestAccuracy(t *testing.T) {
+	// Skipping the test for now, as it's used to assess the accuracy of Application Code Assessment
+	t.Skip("Test skipped for now; currently evaluating accuracy of Application Code Assessment")
 	ctx := context.Background()
-	projectID, location := "span-cloud-testing", "us-central1"
 
-	summarizer, err := assessment.NewMigrationSummarizer(ctx, nil, projectID, location, "", "", "")
-	if err != nil {
-		t.Fatal("Failed to initialize migration summarizer: ", err)
-	}
+	projectID := os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID")
+	location := os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_LOCATION_ID")
 
 	jsonData, err := os.ReadFile("eval_data.json")
 	if err != nil {
@@ -111,7 +111,13 @@ func TestAccuracy(t *testing.T) {
 	var totalTruePositives, totalFalsePositives, totalFalseNegatives int
 
 	for i, tc := range testCases {
-		response := summarizer.AnalyzeFile(ctx, tc.FilePath, tc.FilePath, "", tc.CodeContent, tc.SourceSchema, tc.TargetSchema, i)
+		summarizer, err := assessment.NewMigrationSummarizer(ctx, nil, projectID, location, tc.SourceSchema, tc.TargetSchema, tc.FilePath)
+
+		if err != nil {
+			t.Fatal("Failed to initialize migration summarizer: ", err)
+		}
+
+		response := summarizer.AnalyzeFile(ctx, tc.FilePath, tc.FilePath, "", tc.CodeContent, i)
 		lineMap := mapLinesToNumbers(tc.CodeContent)
 
 		// Extract predicted lines
@@ -159,10 +165,5 @@ func TestAccuracy(t *testing.T) {
 }
 
 func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, item)
 }

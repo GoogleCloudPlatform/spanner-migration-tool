@@ -317,13 +317,11 @@ func (m *MigrationSummarizer) AnalyzeFileTask(analyzeFileInput *AnalyzeFileInput
 		analyzeFileInput.filepath,
 		analyzeFileInput.methodChanges,
 		analyzeFileInput.content,
-		m.sourceSchema,
-		m.targetSchema,
 		analyzeFileInput.fileIndex)
 	return task.TaskResult[*AnalyzeFileResponse]{Result: analyzeFileResponse, Err: nil}
 }
 
-func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, projectPath, filepath, methodChanges, content, sourceSchema, targetSchema string, fileIndex int) *AnalyzeFileResponse {
+func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, projectPath, filepath, methodChanges, content string, fileIndex int) *AnalyzeFileResponse {
 	snippetsArr := make([]Snippet, 0)
 	emptyAssessment := &CodeAssessment{
 		Snippets:        &snippetsArr,
@@ -338,8 +336,8 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, projectPath, file
 	if m.dependencyAnalyzer.IsDAO(filepath, content) {
 		logger.Log.Debug("Analyze File: "+filepath, zap.Bool("isDao", true))
 		var err error
-		prompt := getPromptForDAOClass(content, filepath, &methodChanges, &sourceSchema, &targetSchema)
-		response, err = m.MigrationCodeConversionInvoke(ctx, prompt, content, sourceSchema, targetSchema, "analyze-dao-class-"+filepath)
+		prompt := getPromptForDAOClass(content, filepath, &methodChanges, &m.sourceSchema, &m.targetSchema)
+		response, err = m.MigrationCodeConversionInvoke(ctx, prompt, content, m.sourceSchema, m.targetSchema, "analyze-dao-class-"+filepath)
 		isDao = true
 		if err != nil {
 			logger.Log.Error("Error analyzing DAO class: ", zap.Error(err))
