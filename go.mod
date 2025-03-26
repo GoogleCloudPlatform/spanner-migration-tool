@@ -20,6 +20,7 @@ require (
 	github.com/denisenkom/go-mssqldb v0.11.0
 	github.com/dominikbraun/graph v0.23.0
 	github.com/go-sql-driver/mysql v1.7.1
+	github.com/gocql/gocql v1.7.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/subcommands v1.2.0
 	github.com/google/uuid v1.6.0
@@ -53,6 +54,8 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.25.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/golang/snappy v0.0.4 // indirect
+	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
@@ -68,6 +71,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.29.0 // indirect
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
+	gopkg.in/inf.v0 v0.9.1 // indirect
 )
 
 require (
