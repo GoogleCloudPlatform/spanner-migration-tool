@@ -59,7 +59,7 @@ type FileDependencyAnalysisData struct {
 
 // AnalyzeFileResponse response from analyzing single file.
 type AnalyzeFileResponse struct {
-	codeAssessment  *CodeAssessment
+	CodeAssessment  *CodeAssessment
 	methodSignature []any
 	projectPath     string
 	filePath        string
@@ -511,10 +511,10 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 			for _, analyzeFileResponse := range taskResults {
 				analyzeFileResponse := analyzeFileResponse.Result
 				logger.Log.Debug("File Code Assessment: ",
-					zap.Any("fileCodeAssessment", analyzeFileResponse.codeAssessment), zap.Any("filePath", analyzeFileResponse.filePath))
+					zap.Any("fileCodeAssessment", analyzeFileResponse.CodeAssessment), zap.Any("filePath", analyzeFileResponse.filePath))
 
-				*codeAssessment.Snippets = append(*codeAssessment.Snippets, *analyzeFileResponse.codeAssessment.Snippets...)
-				codeAssessment.GeneralWarnings = append(codeAssessment.GeneralWarnings, analyzeFileResponse.codeAssessment.GeneralWarnings...)
+				*codeAssessment.Snippets = append(*codeAssessment.Snippets, *analyzeFileResponse.CodeAssessment.Snippets...)
+				codeAssessment.GeneralWarnings = append(codeAssessment.GeneralWarnings, analyzeFileResponse.CodeAssessment.GeneralWarnings...)
 
 				m.fileDependencyAnalysisDataMap[analyzeFileResponse.filePath] = FileDependencyAnalysisData{
 					publicSignatures: analyzeFileResponse.methodSignature,
@@ -662,7 +662,7 @@ func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, ne
         2. Output should strictly be in given json format and ensure strict JSON parsable format.
         3. All generated result values should be single-line strings. Avoid hallucinations and suggest only relevant changes.
         4. Pay close attention to SQL queries within the DAO code. Identify any queries that are incompatible with Spanner and suggest appropriate modifications.
-		5. Please paginate your output if the token limit is getting reached. Do ensure that the json string is complete and parsable.
+		    5. Please paginate your output if the token limit is getting reached. Do ensure that the json string is complete and parsable.
 
         **INPUT**
         **Older MySQL Schema**
