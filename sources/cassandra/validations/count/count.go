@@ -28,7 +28,7 @@ func main() {
 	keyspace := flag.String("keyspace", "", "Keyspace name")
 	username := flag.String("username", "", "Cassandra username")
 	password := flag.String("password", "", "Cassandra password")
-	table := flag.String("table", "", "Table name (empty for all tables)")
+	table := flag.String("table", "", "Table name (empty for all tables, or comma-separated list of tables)")
 	workers := flag.Int("workers", 8, "Number of parallel workers")
 	spannerURI := flag.String("spanner-uri", "", "Spanner database URI (projects/PROJECT_ID/instances/INSTANCE_ID/databases/DATABASE_ID)")
 	flag.Parse()
@@ -62,21 +62,43 @@ func main() {
 
 	tables := []string{}
 	if *table != "" {
-		tables = append(tables, *table)
-	} else {
-		// Query all tables in the keyspace
-		iter := cassSession.Query(`SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?`, *keyspace).Iter()
-		var tableName string
-		for iter.Scan(&tableName) {
-			tables = append(tables, tableName)
+		tables = strings.Split(*table, ",")
+		for i, t := range tables {
+			tables[i] = strings.TrimSpace(t)
 		}
-		if err := iter.Close(); err != nil {
-			fmt.Printf("Error fetching tables: %v\n", err)
+	} else {
+		cassandraTables, err := getCassandraTables(cassSession, *keyspace)
+		if err != nil {
+			fmt.Printf("Error fetching Cassandra tables: %v\n", err)
 			os.Exit(1)
+		}
+		fmt.Printf("Found %d tables in Cassandra: %v\n", len(cassandraTables), cassandraTables)
+
+		spannerTables, err := getSpannerTables(ctx, spannerClient)
+		if err != nil {
+			fmt.Printf("Error fetching Spanner tables: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Found %d tables in Spanner: %v\n", len(spannerTables), spannerTables)
+
+		spannerTableSet := make(map[string]struct{}, len(spannerTables))
+		for _, t := range spannerTables {
+			spannerTableSet[t] = struct{}{}
+		}
+
+		for _, cassTable := range cassandraTables {
+			if _, found := spannerTableSet[cassTable]; found {
+				tables = append(tables, cassTable)
+			}
+		}
+
+		if len(tables) == 0 {
+			fmt.Println("No common tables found between Cassandra and Spanner.")
+			os.Exit(0)
 		}
 	}
 
-	fmt.Printf("Found %d tables in keyspace %s\n", len(tables), *keyspace)
+	fmt.Printf("Getting counts for tables: %v\n", tables)
 
 	// Get token ranges for the cluster
 	// TODO: Consider generating custom token ranges based on size estimates instead of relying on cassandra partitions.
@@ -109,6 +131,44 @@ func main() {
 		}
 		fmt.Printf("----------------------------------------\n")
 	}
+}
+
+// getCassandraTables fetches all user table names from the specified keyspace in Cassandra.
+func getCassandraTables(session *gocql.Session, keyspace string) ([]string, error) {
+	var tables []string
+	iter := session.Query(`SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?`, keyspace).Iter()
+	var tableName string
+	for iter.Scan(&tableName) {
+		tables = append(tables, tableName)
+	}
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("querying system_schema.tables failed: %w", err)
+	}
+	return tables, nil
+}
+
+// getSpannerTables fetches all user table names from the connected Spanner database.
+func getSpannerTables(ctx context.Context, client *spanner.Client) ([]string, error) {
+	var tables []string
+	stmt := spanner.Statement{SQL: `SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE table_catalog = '' AND table_schema = ''`}
+	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("querying INFORMATION_SCHEMA.TABLES failed: %w", err)
+		}
+		var tableName string
+		if err := row.Columns(&tableName); err != nil {
+			return nil, fmt.Errorf("reading table name from Spanner result failed: %w", err)
+		}
+		tables = append(tables, tableName)
+	}
+	return tables, nil
 }
 
 // TokenRange represents a Cassandra token range

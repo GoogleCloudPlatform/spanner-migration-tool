@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -62,7 +63,6 @@ func main() {
 	if *table == "" {
 		log.Fatal("The --table flag is mandatory.")
 	}
-
 	if *keyspace == "" {
 		log.Fatal("The --keyspace flag is mandatory.")
 	}
@@ -82,6 +82,7 @@ func main() {
 	}
 	defer sourceSession.Close()
 
+	// TODO: use the endpoint client to directly connect to Spanner.
 	targetCluster := gocql.NewCluster(*targetHost)
 	targetCluster.Port = *targetPort
 	targetCluster.Keyspace = *keyspace
@@ -94,6 +95,13 @@ func main() {
 		log.Fatalf("Error creating target session: %v", err)
 	}
 	defer targetSession.Close()
+
+	// TODO: Verify table exists on target once system query is fixed.
+	err = verifyTableExists(sourceSession, *keyspace, *table)
+	if err != nil {
+		log.Fatalf("Source table '%s.%s' does not exist: %v", *keyspace, *table, err)
+		os.Exit(1)
+	}
 
 	pkColumns, partitionKeyCount, err := getPrimaryKeyColumns(sourceSession)
 	if err != nil {
@@ -137,6 +145,18 @@ type MismatchDetail struct {
 	SourceRow       map[string]interface{}
 	TargetRow       map[string]interface{}
 	MissingInTarget bool
+}
+
+func verifyTableExists(session *gocql.Session, keyspace string, table string) error {
+	query := "SELECT table_name FROM system_schema.tables WHERE keyspace_name = ? AND table_name = ?"
+	var tableName string
+	if err := session.Query(query, keyspace, table).Scan(&tableName); err != nil {
+		if err == gocql.ErrNotFound {
+			return fmt.Errorf("table %s does not exist in keyspace %s", table, keyspace)
+		}
+		return fmt.Errorf("error checking if table exists: %v", err)
+	}
+	return nil
 }
 
 // getPrimaryKeyColumns retrieves both partition key and clustering columns for a table.
@@ -324,10 +344,10 @@ func processBatch(rows []map[string]interface{}, targetQuery string, targetSessi
 	totalMissingFound += missing
 	totalErrorsDuringMatching += errors
 
-	log.Printf("Processed: %d more rows, found %d errors, %d mismatches, %d missing\n",
-		len(rows), mismatches, missing, errors)
+	log.Printf("Processed: %d more rows, found %d errors, %d missing, %d mismatches\n",
+		len(rows), errors, missing, mismatches)
 	log.Printf("Total rows processed: %d, Total errors: %d, Total missing: %d, Total mismatches: %d\n",
-		totalRowsProcessed, totalMismatchesFound, totalMissingFound, totalErrorsDuringMatching)
+		totalRowsProcessed, totalErrorsDuringMatching, totalMissingFound, totalMismatchesFound)
 }
 
 // validateRows performs parallel validation of source rows against target cluster.

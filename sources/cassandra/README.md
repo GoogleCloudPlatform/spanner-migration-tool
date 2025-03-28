@@ -71,11 +71,9 @@ This guide helps you set up a single instance of the proxy for development or te
 
 Before you begin, ensure you have:
 - Docker installed on your system
-- Network connectivity between:
-  - Your VM/local machine
-  - Source Cassandra cluster
-  - Target Spanner instance
-  - Your application
+- Network connectivity configured so that you can access the following from the machine running the proxy: 
+  - Source Cassandra cluster (Test quickly via telnet/cqlsh)
+  - Target Spanner instance (Test quickly via `gcloud spanner databases execute-sql`)
 - A Google Cloud Service Account key file with permissions to:
   - Write to Spanner instance
   - Create and manage databases
