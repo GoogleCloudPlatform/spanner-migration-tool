@@ -31,6 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
@@ -232,8 +233,8 @@ func (c *CsvImpl) ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, 
 }
 
 func (c *CsvImpl) ProcessSingleCSV(conv *internal.Conv, tableName string,
-		columnNames []string, colDefs map[string]ddl.ColumnDef, filePath string,
-		nullStr string, delimiter rune) error {
+	columnNames []string, colDefs map[string]ddl.ColumnDef, filePath string,
+	nullStr string, delimiter rune) error {
 
 	csvFile, err := os.Open(filePath)
 	if err != nil {
@@ -244,7 +245,7 @@ func (c *CsvImpl) ProcessSingleCSV(conv *internal.Conv, tableName string,
 
 	srcCols, err := r.Read()
 	if err == io.EOF {
-		conv.Unexpected(fmt.Sprintf("error processing table %s: file %s is empty.", tableName, filePath))
+		logger.Log.Error(fmt.Sprintf("error processing table %s: file %s is empty.", tableName, filePath))
 		return err
 	}
 	if err != nil {
@@ -273,22 +274,20 @@ func (c *CsvImpl) ProcessSingleCSV(conv *internal.Conv, tableName string,
 
 // processDataRow converts a row into go data types as per the client libs.
 func processDataRow(conv *internal.Conv, nullStr, tableName string,
-		srcCols []string, colDefs map[string]ddl.ColumnDef, values []string) {
+	srcCols []string, colDefs map[string]ddl.ColumnDef, values []string) {
 	// Pass nullStr from source-profile.
-	cvtCols, cvtVals, err := convertData(conv, nullStr, tableName, srcCols, colDefs, values)
+	cvtCols, cvtVals, err := convertData(conv.SpDialect, nullStr, srcCols, colDefs, values)
 	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
-		conv.StatsAddBadRow(tableName, conv.DataMode())
-		conv.CollectBadRow(tableName, srcCols, values)
+		logger.Log.Error(fmt.Sprintf("Error while converting data: %s\n", err))
 	} else {
 		conv.WriteRow(tableName, tableName, cvtCols, cvtVals)
 	}
 }
 
 // convertData currently only supports scalar data types.
-func convertData(conv *internal.Conv, nullStr, tableName string,
-		srcCols []string, colDefs map[string]ddl.ColumnDef, values []string) (
-		[]string, []interface{}, error) {
+func convertData(dialect, nullStr string, srcCols []string,
+	colDefs map[string]ddl.ColumnDef, values []string) (
+	[]string, []interface{}, error) {
 	var v []interface{}
 	var cvtCols []string
 
@@ -299,7 +298,7 @@ func convertData(conv *internal.Conv, nullStr, tableName string,
 		colName := srcCols[i]
 		colId, err := internal.GetColIdFromSpName(colDefs, colName)
 		if err != nil {
-			return cvtCols, v, fmt.Errorf("column Id not found for spanner table %v column %v", tableName, colName)
+			return cvtCols, v, err
 		}
 		spColDef := colDefs[colId]
 
@@ -307,7 +306,7 @@ func convertData(conv *internal.Conv, nullStr, tableName string,
 		if spColDef.T.IsArray {
 			x, err = convArray(spColDef.T, val)
 		} else {
-			x, err = convScalar(conv, spColDef.T, val)
+			x, err = convScalar(dialect, spColDef.T, val)
 		}
 		if err != nil {
 			return nil, nil, err
@@ -498,7 +497,7 @@ func convArray(spannerType ddl.Type, val string) (interface{}, error) {
 	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type []%v", spannerType.Name)
 }
 
-func convScalar(conv *internal.Conv, spannerType ddl.Type, val string) (interface{}, error) {
+func convScalar(dialect string, spannerType ddl.Type, val string) (interface{}, error) {
 	switch spannerType.Name {
 	case ddl.Bool:
 		return convBool(val)
@@ -513,7 +512,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, val string) (interfac
 	case ddl.Int64:
 		return convInt64(val)
 	case ddl.Numeric:
-		if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+		if dialect == constants.DIALECT_POSTGRESQL {
 			return spanner.PGNumeric{Numeric: val, Valid: true}, nil
 		}
 		return convNumeric(val)

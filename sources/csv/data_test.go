@@ -224,7 +224,7 @@ func TestConvertData(t *testing.T) {
 			Id:      "t1",
 			ColDefs: colDefs,
 		}})
-		_, av, err := convertData(conv, "", tableName, []string{col}, colDefs, []string{tc.in})
+		_, av, err := convertData(conv.SpDialect, "", []string{col}, colDefs, []string{tc.in})
 		// NULL scenario.
 		if tc.ev == nil {
 			var empty []interface{}
@@ -265,7 +265,7 @@ func TestConvertData(t *testing.T) {
 	}
 	for _, tc := range errorTests {
 		conv := buildConv([]ddl.CreateTable{spTable})
-		_, _, err := convertData(conv, "", tableName, cols, colDefs, tc.vals)
+		_, _, err := convertData(conv.SpDialect, "", cols, colDefs, tc.vals)
 		assert.NotNil(t, err, tc.name)
 	}
 }
