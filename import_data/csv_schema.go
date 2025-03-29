@@ -19,7 +19,7 @@ import (
 )
 
 type CsvSchema interface {
-	CreateSchema(ctx context.Context) subcommands.ExitStatus
+	CreateSchema(ctx context.Context, dialect string, sp *spanneraccessor.SpannerAccessorImpl) subcommands.ExitStatus
 }
 
 type CsvSchemaImpl struct {
@@ -44,15 +44,9 @@ type PrimaryKey struct {
 	PkOrder int // defines the order in the PK for the table, 0 means absence.
 }
 
-func (source *CsvSchemaImpl) CreateSchema(ctx context.Context, dialect string) error {
+func (source *CsvSchemaImpl) CreateSchema(ctx context.Context, dialect string, sp *spanneraccessor.SpannerAccessorImpl) error {
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", source.ProjectId, source.InstanceId, source.DbName)
-	sp, err := spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, dbURI)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
-		return err
-	}
-
 	colDef, err := parseSchema(source.SchemaUri, rune(source.CsvFieldDelimiter[0]))
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Unable to parse schema URI %v", err))

@@ -18,7 +18,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"time"
 
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_data"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -79,6 +81,14 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.Inf
 	//TODO: handle POSTGRESQL
 	dialect := constants.DIALECT_GOOGLESQL
 
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.dbName)
+	sp, err := spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, dbURI)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
+		return err
+	}
+
+	startTime := time.Now()
 	csvSchema := import_data.CsvSchemaImpl{}
 	csvSchema.ProjectId = cmd.project
 	csvSchema.InstanceId = cmd.instanceId
@@ -86,7 +96,11 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.Inf
 	csvSchema.DbName = cmd.dbName
 	csvSchema.SchemaUri = cmd.schemaUri
 	csvSchema.CsvFieldDelimiter = cmd.csvFieldDelimiter
-	err := csvSchema.CreateSchema(ctx, dialect)
+	err = csvSchema.CreateSchema(ctx, dialect, sp)
+
+	endTime1 := time.Now()
+	elapsedTime := endTime1.Sub(startTime)
+	fmt.Println("Schema creation took ", elapsedTime.Seconds(), "  secs")
 	if err != nil {
 		return err
 	}
@@ -98,7 +112,12 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.Inf
 	csvData.DbName = cmd.dbName
 	csvData.SourceUri = cmd.sourceUri
 	csvData.CsvFieldDelimiter = cmd.csvFieldDelimiter
-	return csvData.ImportData(ctx, infoSchema, dialect)
+	err = csvData.ImportData(ctx, infoSchema, dialect)
+
+	endTime2 := time.Now()
+	elapsedTime = endTime2.Sub(endTime1)
+	fmt.Println("Data import took ", elapsedTime.Seconds(), "  secs")
+	return err
 
 }
 
