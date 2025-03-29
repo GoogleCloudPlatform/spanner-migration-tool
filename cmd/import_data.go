@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_data"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
 	"github.com/google/subcommands"
 	"go.uber.org/zap"
 )
@@ -53,21 +54,52 @@ func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
 	logger.Log.Debug(fmt.Sprintf("instanceId %s, dbName %s, schemaUri %s\n", cmd.instanceId, cmd.dbName, cmd.schemaUri))
 
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.dbName)
+	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, constants.DIALECT_GOOGLESQL)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Unable to read Spanner schema %v", err))
+		return subcommands.ExitFailure
+	}
+
 	switch cmd.sourceFormat {
 	case constants.CSV:
-		sourceCsv := import_data.SourceCsvImpl{}
-		sourceCsv.ProjectId = cmd.project
-		sourceCsv.InstanceId = cmd.instanceId
-		sourceCsv.TableName = cmd.tableName
-		sourceCsv.DbName = cmd.dbName
-		sourceCsv.SourceUri = cmd.sourceUri
-		sourceCsv.CsvFieldDelimiter = cmd.csvFieldDelimiter
-		return sourceCsv.Import(ctx)
+		err := cmd.handleCsv(ctx, infoSchema)
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("Unable to handle Csv %v", err))
+			return subcommands.ExitFailure
+		}
+		return subcommands.ExitSuccess
 	default:
 		logger.Log.Warn(fmt.Sprintf("format %s not supported yet", cmd.sourceFormat))
 	}
-
 	return subcommands.ExitFailure
+}
+
+func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.InfoSchemaImpl) error {
+	//TODO: handle POSTGRESQL
+	dialect := constants.DIALECT_GOOGLESQL
+
+	csvSchema := import_data.CsvSchemaImpl{}
+	csvSchema.ProjectId = cmd.project
+	csvSchema.InstanceId = cmd.instanceId
+	csvSchema.TableName = cmd.tableName
+	csvSchema.DbName = cmd.dbName
+	csvSchema.SchemaUri = cmd.schemaUri
+	csvSchema.CsvFieldDelimiter = cmd.csvFieldDelimiter
+	err := csvSchema.CreateSchema(ctx, dialect)
+	if err != nil {
+		return err
+	}
+
+	csvData := import_data.CsvDataImpl{}
+	csvData.ProjectId = cmd.project
+	csvData.InstanceId = cmd.instanceId
+	csvData.TableName = cmd.tableName
+	csvData.DbName = cmd.dbName
+	csvData.SourceUri = cmd.sourceUri
+	csvData.CsvFieldDelimiter = cmd.csvFieldDelimiter
+	return csvData.ImportData(ctx, infoSchema, dialect)
+
 }
 
 func init() {

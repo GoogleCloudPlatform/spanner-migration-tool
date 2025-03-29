@@ -7,24 +7,20 @@ import (
 
 	sp "cloud.google.com/go/spanner"
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
-	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
-	"github.com/google/subcommands"
 	"go.uber.org/zap"
 )
 
-type SourceCsv interface {
-	Import(ctx context.Context) subcommands.ExitStatus
+type CsvData interface {
+	ImportData(ctx context.Context, infoSchema *spanner.InfoSchemaImpl, dialect string) error
 }
 
-type SourceCsvImpl struct {
+type CsvDataImpl struct {
 	ProjectId         string
 	InstanceId        string
 	DbName            string
@@ -33,31 +29,26 @@ type SourceCsvImpl struct {
 	CsvFieldDelimiter string
 }
 
-func (source *SourceCsvImpl) Import(ctx context.Context) subcommands.ExitStatus {
+func (source *CsvDataImpl) ImportData(ctx context.Context, infoSchema *spanner.InfoSchemaImpl, dialect string) error {
 	// TODO: start with single table imports
-
-	//TODO: uncomment and implement
-	// createSchema(cmd.schemaUri)
 
 	// TODO: Response code -  error /success contract between gcloud and SMT
 
 	// TODO: get CSV locally. start with unchunked and later figure out chunking for larger sizes
 
-	conv := getConvObject(source.ProjectId, source.InstanceId)
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", source.ProjectId, source.InstanceId, source.DbName)
-	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, constants.DIALECT_GOOGLESQL)
+	conv := getConvObject(source.ProjectId, source.InstanceId, dialect)
 	batchWriter := getBatchWriterWithConfig(infoSchema.SpannerClient, conv)
 
-	err = infoSchema.PopulateSpannerSchema(ctx, conv)
+	err := infoSchema.PopulateSpannerSchema(ctx, conv)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Unable to read Spanner schema %v", err))
-		return subcommands.ExitFailure
+		return err
 	}
 
 	tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, source.TableName)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Table %s not found in Spanner", source.TableName))
-		return subcommands.ExitFailure
+		return err
 	}
 	columnNames := []string{}
 	for _, v := range conv.SpSchema[tableId].ColIds {
@@ -68,23 +59,21 @@ func (source *SourceCsvImpl) Import(ctx context.Context) subcommands.ExitStatus 
 	err = csv.ProcessSingleCSV(conv, source.TableName, columnNames,
 		conv.SpSchema[tableId].ColDefs, source.SourceUri, "", rune(source.CsvFieldDelimiter[0]))
 	if err != nil {
-		return subcommands.ExitFailure
+		return err
 	}
 	batchWriter.Flush()
-
-	return subcommands.ExitSuccess
+	return err
 }
 
-func getConvObject(projectId, instanceId string) *internal.Conv {
+func getConvObject(projectId, instanceId, dialect string) *internal.Conv {
 	conv := internal.MakeConv()
 	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 	conv.Audit.SkipMetricsPopulation = true
 	conv.Audit.DryRun = false
 
-	conv.SpDialect = constants.DIALECT_GOOGLESQL //TODO: handle POSTGRESQL
+	conv.SpDialect = dialect
 	conv.SpProjectId = projectId
 	conv.SpInstanceId = instanceId
-
 	return conv
 }
 
@@ -119,24 +108,6 @@ func getBatchWriterWithConfig(spannerClient spannerclient.SpannerClient, conv *i
 	return batchWriter
 }
 
-func createSchema(schemaUri string) {
-	// TODO: create table, find a place for it. create table if not exists, validate schema matches
-	//parseSchema()
-	// parse schema from schemaURI
-
-	//TODO: implement me
-	// check if table exists
-	//dbExists, err = sp.CheckExistingDb(ctx, dbURI)
-	// if exists, verify table schema is same as passed
-
-	// if not exists create table with passed schema
-}
-
 func init() {
 	logger.Log = zap.NewNop()
-}
-
-func parseSchema(spAccess *spanneraccessor.SpannerAccessorImpl) map[string]ddl.ColumnDef {
-	// TODO: implement me
-	return make(map[string]ddl.ColumnDef)
 }

@@ -25,7 +25,7 @@ type RowIterator interface {
 
 // This implements the SpannerClient interface. This is the primary implementation that should be used in all places other than tests.
 type SpannerClientImpl struct {
-	spannerClient *spanner.Client
+	SpannerClient *spanner.Client
 }
 
 func NewSpannerClientImpl(ctx context.Context, dbURI string) (*SpannerClientImpl, error) {
@@ -33,12 +33,12 @@ func NewSpannerClientImpl(ctx context.Context, dbURI string) (*SpannerClientImpl
 	if err != nil {
 		return nil, err
 	}
-	return &SpannerClientImpl{spannerClient: c}, nil
+	return &SpannerClientImpl{SpannerClient: c}, nil
 }
 
 func (c *SpannerClientImpl) Refresh(ctx context.Context, dbURI string) error {
 	var err error
-	c.spannerClient, err = CreateClient(ctx, dbURI)
+	c.SpannerClient, err = CreateClient(ctx, dbURI)
 	if err != nil {
 		return err
 	}
@@ -46,16 +46,16 @@ func (c *SpannerClientImpl) Refresh(ctx context.Context, dbURI string) error {
 }
 
 func (c *SpannerClientImpl) Single() ReadOnlyTransaction {
-	rotxn := c.spannerClient.Single()
+	rotxn := c.SpannerClient.Single()
 	return &ReadOnlyTransactionImpl{rotxn: rotxn}
 }
 
 func (c *SpannerClientImpl) DatabaseName() string {
-	return c.spannerClient.DatabaseName()
+	return c.SpannerClient.DatabaseName()
 }
 
 func (c *SpannerClientImpl) Apply(ctx context.Context, ms []*spanner.Mutation, opts ...spanner.ApplyOption) (commitTimestamp time.Time, err error) {
-	return c.spannerClient.Apply(ctx, ms, opts...)
+	return c.SpannerClient.Apply(ctx, ms, opts...)
 }
 
 type ReadOnlyTransactionImpl struct {

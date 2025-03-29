@@ -48,7 +48,7 @@ func NewInfoSchemaImplWithSpannerClient(ctx context.Context, dbURI string, spDia
 	if err != nil {
 		return nil, err
 	}
-	return &InfoSchemaImpl{SpannerClient: spannerClient, Ctx: ctx, SpDialect: spDialect}, nil
+	return &InfoSchemaImpl{SpannerClient: spannerClient, Client: spannerClient.SpannerClient, Ctx: ctx, SpDialect: spDialect}, nil
 }
 
 // GetToDdl function below implement the common.InfoSchema interface.
