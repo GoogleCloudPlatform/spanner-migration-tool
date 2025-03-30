@@ -48,7 +48,7 @@ func NewInfoSchemaImplWithSpannerClient(ctx context.Context, dbURI string, spDia
 	if err != nil {
 		return nil, err
 	}
-	return &InfoSchemaImpl{SpannerClient: spannerClient, Client: spannerClient.SpannerClient, Ctx: ctx, SpDialect: spDialect}, nil
+	return &InfoSchemaImpl{SpannerClient: spannerClient, Ctx: ctx, SpDialect: spDialect}, nil
 }
 
 // GetToDdl function below implement the common.InfoSchema interface.
@@ -117,7 +117,13 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	WHERE table_type = 'BASE TABLE' AND table_schema = 'public'`
 	}
 	stmt := spanner.Statement{SQL: q}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
+
+	var iter spannerclient.RowIterator
+	if isi.SpannerClient != nil {
+		iter = isi.SpannerClient.Single().Query(isi.Ctx, stmt)
+	} else {
+		iter = isi.Client.Single().Query(isi.Ctx, stmt)
+	}
 	defer iter.Stop()
 
 	var tableSchema, tableName string
@@ -190,7 +196,12 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			"p1": table.Name,
 		},
 	}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
+	var iter spannerclient.RowIterator
+	if isi.SpannerClient != nil {
+		iter = isi.SpannerClient.Single().Query(isi.Ctx, stmt)
+	} else {
+		iter = isi.Client.Single().Query(isi.Ctx, stmt)
+	}
 	defer iter.Stop()
 
 	colDefs := make(map[string]schema.Column)
@@ -253,7 +264,13 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 			"p1": table.Name,
 		},
 	}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
+
+	var iter spannerclient.RowIterator
+	if isi.SpannerClient != nil {
+		iter = isi.SpannerClient.Single().Query(isi.Ctx, stmt)
+	} else {
+		iter = isi.Client.Single().Query(isi.Ctx, stmt)
+	}
 	defer iter.Stop()
 
 	var primaryKeys []string
@@ -307,7 +324,12 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 			"p1": table.Name,
 		},
 	}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
+	var iter spannerclient.RowIterator
+	if isi.SpannerClient != nil {
+		iter = isi.SpannerClient.Single().Query(isi.Ctx, stmt)
+	} else {
+		iter = isi.Client.Single().Query(isi.Ctx, stmt)
+	}
 	defer iter.Stop()
 
 	var col, refCol, fKeyName, refTable string
@@ -377,7 +399,12 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			"p1": table.Name,
 		},
 	}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
+	var iter spannerclient.RowIterator
+	if isi.SpannerClient != nil {
+		iter = isi.SpannerClient.Single().Query(isi.Ctx, stmt)
+	} else {
+		iter = isi.Client.Single().Query(isi.Ctx, stmt)
+	}
 	defer iter.Stop()
 	var name, column, ordering string
 	var isUnique bool
@@ -439,7 +466,14 @@ func (isi InfoSchemaImpl) GetInterleaveTables(spSchema ddl.Schema) (map[string]d
 		WHERE interleave_type = 'IN PARENT' AND table_type = 'BASE TABLE' AND table_schema = 'public'`
 	}
 	stmt := spanner.Statement{SQL: q}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
+
+	var iter spannerclient.RowIterator
+	if isi.SpannerClient != nil {
+		iter = isi.SpannerClient.Single().Query(isi.Ctx, stmt)
+	} else {
+		iter = isi.Client.Single().Query(isi.Ctx, stmt)
+	}
+
 	defer iter.Stop()
 
 	var tableName, parentTableName, onDelete string

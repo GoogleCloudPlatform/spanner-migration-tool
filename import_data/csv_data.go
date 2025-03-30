@@ -31,9 +31,7 @@ type CsvDataImpl struct {
 
 func (source *CsvDataImpl) ImportData(ctx context.Context, infoSchema *spanner.InfoSchemaImpl, dialect string) error {
 	// TODO: start with single table imports
-
 	// TODO: Response code -  error /success contract between gcloud and SMT
-
 	// TODO: get CSV locally. start with unchunked and later figure out chunking for larger sizes
 
 	conv := getConvObject(source.ProjectId, source.InstanceId, dialect)
