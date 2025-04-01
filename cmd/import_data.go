@@ -89,13 +89,8 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.Inf
 	}
 
 	startTime := time.Now()
-	csvSchema := import_data.CsvSchemaImpl{}
-	csvSchema.ProjectId = cmd.project
-	csvSchema.InstanceId = cmd.instanceId
-	csvSchema.TableName = cmd.tableName
-	csvSchema.DbName = cmd.dbName
-	csvSchema.SchemaUri = cmd.schemaUri
-	csvSchema.CsvFieldDelimiter = cmd.csvFieldDelimiter
+	csvSchema := import_data.CsvSchemaImpl{ProjectId: cmd.project, InstanceId: cmd.instanceId,
+		TableName: cmd.tableName, DbName: cmd.dbName, SchemaUri: cmd.schemaUri, CsvFieldDelimiter: cmd.csvFieldDelimiter}
 	err = csvSchema.CreateSchema(ctx, dialect, sp)
 
 	endTime1 := time.Now()
@@ -105,13 +100,8 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.Inf
 		return err
 	}
 
-	csvData := import_data.CsvDataImpl{}
-	csvData.ProjectId = cmd.project
-	csvData.InstanceId = cmd.instanceId
-	csvData.TableName = cmd.tableName
-	csvData.DbName = cmd.dbName
-	csvData.SourceUri = cmd.sourceUri
-	csvData.CsvFieldDelimiter = cmd.csvFieldDelimiter
+	csvData := import_data.CsvDataImpl{ProjectId: cmd.project, InstanceId: cmd.instanceId,
+		TableName: cmd.tableName, DbName: cmd.dbName, SourceUri: cmd.sourceUri, CsvFieldDelimiter: cmd.csvFieldDelimiter}
 	err = csvData.ImportData(ctx, infoSchema, dialect)
 
 	endTime2 := time.Now()
