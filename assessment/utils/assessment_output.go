@@ -24,7 +24,7 @@ import (
 type AssessmentOutput struct {
 	CostAssessment        CostAssessmentOutput
 	SchemaAssessment      SchemaAssessmentOutput
-	AppCodeAssessment     AppCodeAssessmentOutput
+	AppCodeAssessment     *AppCodeAssessmentOutput
 	QueryAssessment       QueryAssessmentOutput
 	PerformanceAssessment PerformanceAssessmentOutput
 }
@@ -40,7 +40,7 @@ type SchemaAssessmentOutput struct {
 	FunctionAssessmentOutput        map[string]FunctionAssessment        // Maps function id to function(source) definition
 	ViewAssessmentOutput            map[string]ViewAssessment            // Maps view id to view details- source name and definition and spanner name
 	SpSequences                     map[string]ddl.Sequence
-	CodeSnippets                    *[]Snippet // Affected code snippets
+	//CodeSnippets                    *[]Snippet // Affected code snippets TODO - move to AppCodeAssessment
 }
 
 type TableAssessment struct {
@@ -176,7 +176,11 @@ type SpColumnDetails struct {
 }
 
 type AppCodeAssessmentOutput struct {
-	//TBD
+	Language     string
+	Framework    string
+	TotalLoc     int
+	TotalFiles   int
+	CodeSnippets *[]Snippet // Affected code snippets
 }
 
 type QueryAssessmentOutput struct {

@@ -47,6 +47,9 @@ type SchemaReportRow struct {
 	codeChangeEffort  string
 	codeImpactedFiles string
 	codeSnippets      string
+
+	//Action Item
+	actionItems *[]string
 }
 
 type CodeReportRow struct {
@@ -87,21 +90,28 @@ func writeRawSnippets(assessmentsFolder string, snippets []utils.Snippet) {
 	logger.Log.Info("completed publishing raw snippets")
 }
 
-func generateCodeSummary(snippets *[]utils.Snippet) [][]string {
+func generateCodeSummary(appAssessment *utils.AppCodeAssessmentOutput) [][]string {
+
+	//Add codebase details
 
 	var rows [][]string
+	rows = append(rows, []string{"Language", appAssessment.Language})
+	rows = append(rows, []string{"Framework", appAssessment.Framework})
+	rows = append(rows, []string{"App Code Files", fmt.Sprint(appAssessment.TotalFiles)})
+	rows = append(rows, []string{"Lines of code", fmt.Sprint(appAssessment.TotalLoc)})
+
 	rows = append(rows, getNonSchemaChangeHeaders())
 
-	codeReportRows := convertToCodeReportRows(snippets)
+	codeReportRows := convertToCodeReportRows(appAssessment.CodeSnippets)
 	for _, codeReportRow := range codeReportRows {
 		var row []string
-		row = append(row, sanitizeCsvRow(&codeReportRow.snippetId))
-		row = append(row, sanitizeCsvRow(&codeReportRow.relativeFilePath))
-		row = append(row, sanitizeCsvRow(&codeReportRow.sourceDefinition))
-		row = append(row, sanitizeCsvRow(&codeReportRow.suggestedDefinition))
+		row = append(row, utils.SanitizeCsvRow(&codeReportRow.snippetId))
+		row = append(row, utils.SanitizeCsvRow(&codeReportRow.relativeFilePath))
+		row = append(row, utils.SanitizeCsvRow(&codeReportRow.sourceDefinition))
+		row = append(row, utils.SanitizeCsvRow(&codeReportRow.suggestedDefinition))
 		row = append(row, fmt.Sprint(codeReportRow.loc))
-		row = append(row, sanitizeCsvRow(&codeReportRow.schemaRelated))
-		row = append(row, sanitizeCsvRow(&codeReportRow.explanation))
+		row = append(row, utils.SanitizeCsvRow(&codeReportRow.schemaRelated))
+		row = append(row, utils.SanitizeCsvRow(&codeReportRow.explanation))
 		rows = append(rows, row)
 	}
 
@@ -181,14 +191,14 @@ func GenerateReport(dbName string, assessmentOutput utils.AssessmentOutput) {
 	dumpCsvReport(schemaFile, generateSchemaReport(assessmentOutput))
 	logger.Log.Info("completed publishing schema report at: " + schemaFile)
 
-	if assessmentOutput.SchemaAssessment.CodeSnippets != nil {
+	if assessmentOutput.AppCodeAssessment != nil && assessmentOutput.AppCodeAssessment.TotalFiles > 0 {
 		codeChangesFile := folderPath + "code_changes.csv"
-		dumpCsvReport(codeChangesFile, generateCodeSummary(assessmentOutput.SchemaAssessment.CodeSnippets))
+		dumpCsvReport(codeChangesFile, generateCodeSummary(assessmentOutput.AppCodeAssessment))
 		logger.Log.Info("completed publishing code changes report: " + codeChangesFile)
-		writeRawSnippets(folderPath, *assessmentOutput.SchemaAssessment.CodeSnippets)
+		writeRawSnippets(folderPath, *assessmentOutput.AppCodeAssessment.CodeSnippets)
 		logger.Log.Info("completed publishing code changes report")
 	} else {
-		logger.Log.Info("not performing application assessment as code is not provided")
+		logger.Log.Info("not performing application assessment as code is not detected")
 	}
 	logger.Log.Info("assessment complete!")
 }
@@ -204,36 +214,28 @@ func generateSchemaReport(assessmentOutput utils.AssessmentOutput) [][]string {
 	for _, schemaRow := range schemaReportRows {
 		var row []string
 		//row = append(row, schemaRow.element)
-		row = append(row, sanitizeCsvRow(&schemaRow.elementType))
-		row = append(row, sanitizeCsvRow(&schemaRow.sourceTableName))
-		row = append(row, sanitizeCsvRow(&schemaRow.sourceName))
-		row = append(row, sanitizeCsvRow(&schemaRow.sourceDefinition))
-		row = append(row, sanitizeCsvRow(&schemaRow.targetName))
-		row = append(row, sanitizeCsvRow(&schemaRow.targetDefinition))
+		row = append(row, utils.SanitizeCsvRow(&schemaRow.elementType))
+		row = append(row, utils.SanitizeCsvRow(&schemaRow.sourceTableName))
+		row = append(row, utils.SanitizeCsvRow(&schemaRow.sourceName))
+		row = append(row, utils.SanitizeCsvRow(&schemaRow.sourceDefinition))
+		row = append(row, utils.SanitizeCsvRow(&schemaRow.targetName))
+		row = append(row, utils.SanitizeCsvRow(&schemaRow.targetDefinition))
 		// DB
-		row = append(row, sanitizeCsvRow(&schemaRow.dbChangeEffort))
-		row = append(row, sanitizeCsvRow(&schemaRow.dbChanges))
-		row = append(row, sanitizeCsvRow(&schemaRow.dbImpact))
+		row = append(row, utils.SanitizeCsvRow(&schemaRow.dbChangeEffort))
+		row = append(row, utils.SanitizeCsvRow(&schemaRow.dbChanges))
+		row = append(row, utils.SanitizeCsvRow(&schemaRow.dbImpact))
 		// CODE
-		//row = append(row, sanitizeCsvRow(schemaRow.codeChangeEffort)
-		row = append(row, sanitizeCsvRow(&schemaRow.codeChangeType))
-		row = append(row, sanitizeCsvRow(&schemaRow.codeImpactedFiles))
-		row = append(row, sanitizeCsvRow(&schemaRow.codeSnippets))
+		//row = append(row, utils.SanitizeCsvRow(schemaRow.codeChangeEffort)
+		row = append(row, utils.SanitizeCsvRow(&schemaRow.codeChangeType))
+		row = append(row, utils.SanitizeCsvRow(&schemaRow.codeImpactedFiles))
+		row = append(row, utils.SanitizeCsvRow(&schemaRow.codeSnippets))
 
+		actionItemsStr := utils.JoinString(schemaRow.actionItems, "None")
+		row = append(row, utils.SanitizeCsvRow(&actionItemsStr))
 		records = append(records, row)
 	}
 
 	return records
-}
-
-func sanitizeCsvRow(s *string) string {
-	if s == nil {
-		return ""
-	}
-	*s = strings.ReplaceAll(*s, "\t", " ")
-	*s = strings.ReplaceAll(*s, "\n", " ")
-
-	return *s
 }
 
 func getSchemaHeaders() []string {
@@ -253,7 +255,8 @@ func getSchemaHeaders() []string {
 		"Code Change Type",
 		//"Code Change Effort",
 		"Impacted Files",
-		"Related Code Snippets",
+		"Code Snippet References",
+		"Action Items",
 	}
 	return headers
 }
@@ -279,7 +282,8 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 		row.dbChanges, row.dbImpact = calculateTableDbChangesAndImpact(tableAssessment)
 
 		//Populate code info
-		populateTableCodeImpact(*tableAssessment.SourceTableDef, *tableAssessment.SpannerTableDef, assessmentOutput.SchemaAssessment.CodeSnippets, &row)
+		populateTableCodeImpact(*tableAssessment.SourceTableDef, *tableAssessment.SpannerTableDef, assessmentOutput.AppCodeAssessment.CodeSnippets, &row)
+
 		rows = append(rows, row)
 
 		//Populate column info
@@ -296,11 +300,11 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 			row.targetName = spColumn.TableName + "." + spColumn.Name
 			row.targetDefinition = spannerColumnDefinitionToString(*spColumn)
 
-			row.dbChanges, row.dbImpact, row.dbChangeEffort = calculateColumnDbChangesAndImpact(columnAssessment)
+			row.dbChanges, row.dbImpact, row.dbChangeEffort, row.actionItems = calculateColumnDbChangesAndImpact(columnAssessment)
 
 			//Populate code info
 			//logger.Log.Info(fmt.Sprintf("%s.%s", column.TableName, column.Name))
-			populateColumnCodeImpact(*column, *spColumn, assessmentOutput.SchemaAssessment.CodeSnippets, &row, columnAssessment)
+			populateColumnCodeImpact(*column, *spColumn, assessmentOutput.AppCodeAssessment.CodeSnippets, &row, columnAssessment)
 
 			rows = append(rows, row)
 		}
@@ -314,7 +318,7 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 	populateTriggerInfo(assessmentOutput.SchemaAssessment.TriggerAssessmentOutput, &rows)
 	populateFunctionInfo(assessmentOutput.SchemaAssessment.FunctionAssessmentOutput, &rows)
 	populateViewInfo(assessmentOutput.SchemaAssessment.ViewAssessmentOutput, &rows)
-	populateSequenceInfo(assessmentOutput.SchemaAssessment.SpSequences, assessmentOutput.SchemaAssessment.TableAssessmentOutput, assessmentOutput.SchemaAssessment.CodeSnippets, &rows)
+	populateSequenceInfo(assessmentOutput.SchemaAssessment.SpSequences, assessmentOutput.SchemaAssessment.TableAssessmentOutput, assessmentOutput.AppCodeAssessment.CodeSnippets, &rows)
 
 	return rows
 }
@@ -340,6 +344,7 @@ func populateIndexes(tableAssessment utils.TableAssessment, spTableName string, 
 		row.codeChangeType = "None"
 		row.codeImpactedFiles = "None"
 		row.codeSnippets = "None"
+
 		*rows = append(*rows, row)
 	}
 }
@@ -357,9 +362,10 @@ func populateCheckConstraints(tableAssessment utils.TableAssessment, spTableName
 			row.targetName = "N/A"
 			row.targetDefinition = "N/A"
 
-			row.dbChangeEffort = "Manual"
+			row.dbChangeEffort = "Small"
 			row.dbChanges = "Unknown"
 			row.dbImpact = ""
+			row.actionItems = &[]string{"Alter column to apply check constraint"}
 
 		} else {
 			row.targetName = spTableName + "." + tableAssessment.SpannerTableDef.CheckConstraints[id].Name
@@ -395,10 +401,11 @@ func populateForeignKeys(tableAssessment utils.TableAssessment, spTableName stri
 			row.dbChanges = "reference_option"
 			row.dbImpact = "None"
 
-			row.codeChangeEffort = "Modify"
+			row.codeChangeEffort = "Modify" //TODO Check number of references in queries and modify
 			row.codeChangeType = "Manual"
 			row.codeImpactedFiles = "Unknown"
 			row.codeSnippets = "None"
+
 		} else {
 			row.dbChangeEffort = "Automatic"
 			row.dbChanges = "None"
@@ -409,7 +416,6 @@ func populateForeignKeys(tableAssessment utils.TableAssessment, spTableName stri
 			row.codeImpactedFiles = "None"
 			row.codeSnippets = "None"
 		}
-
 		*rows = append(*rows, row)
 	}
 }
@@ -511,16 +517,31 @@ func calculateTableDbChangesAndImpact(tableAssessment utils.TableAssessment) (st
 	return strings.Join(changes, ","), strings.Join(impact, ",")
 }
 
-func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) (string, string, string) {
+func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) (string, string, string, *[]string) {
 	changes := []string{}
 	impact := []string{}
 	changeEffort := "Automatic"
+	actionItems := []string{}
 	if !columnAssessment.CompatibleDataType { // TODO type specific checks on size
 		changes = append(changes, "type")
 	}
-	if columnAssessment.SourceColDef.IsOnUpdateTimestampSet || (columnAssessment.SourceColDef.DefaultValue.IsPresent && !columnAssessment.SpannerColDef.DefaultValue.IsPresent) {
+	if columnAssessment.SourceColDef.IsOnUpdateTimestampSet { //TODO Add Code change effort for this
 		changes = append(changes, "feature")
-		changeEffort = "Partial"
+		changeEffort = "None"
+		actionItems = append(actionItems, "Update queries to include PENDING_COMMIT_TIMESTAMP")
+	}
+
+	if columnAssessment.SourceColDef.DefaultValue.IsPresent && !columnAssessment.SpannerColDef.DefaultValue.IsPresent {
+		switch columnAssessment.SourceColDef.DefaultValue.Value.Statement {
+		case "NULL":
+			//Nothing to do - equivalent
+		case "'NULL'":
+			//Nothing to do - equivalent
+		default:
+			changes = append(changes, "feature")
+			changeEffort = "Small"
+			actionItems = append(actionItems, "Alter column to apply default value")
+		}
 	}
 
 	if columnAssessment.SizeIncreaseInBytes > 0 {
@@ -538,7 +559,8 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 		changes = append(changes, "feature")
 	}
 	if columnAssessment.SourceColDef.GeneratedColumn.IsPresent {
-		changeEffort = "Partial"
+		changeEffort = "Small"
+		actionItems = append(actionItems, "Update schema to add generated column")
 	}
 
 	//TODO add check for not null to null scenarios
@@ -549,7 +571,8 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 	if len(impact) == 0 {
 		impact = append(impact, "None")
 	}
-	return strings.Join(changes, ","), strings.Join(impact, ","), changeEffort
+
+	return strings.Join(changes, ","), strings.Join(impact, ","), changeEffort, &actionItems
 }
 
 func populateTableCodeImpact(srcTableDef utils.SrcTableDetails, spTableDef utils.SpTableDetails, codeSnippets *[]utils.Snippet, row *SchemaReportRow) {
@@ -611,7 +634,7 @@ func populateColumnCodeImpact(srcColumnDef utils.SrcColumnDetails, spColumnDef u
 	}
 
 	if srcColumnDef.IsOnUpdateTimestampSet {
-		row.codeChangeEffort = "Rewrite"
+		row.codeChangeEffort = "Large"
 		row.codeChangeType = "Manual"
 		row.codeImpactedFiles = "TBD" //not implemented yet
 		row.codeSnippets = ""
@@ -701,7 +724,7 @@ func populateViewInfo(viewAssessmentOutput map[string]utils.ViewAssessment, rows
 		row.targetName = view.SpName
 		row.targetDefinition = "Unknown"
 
-		row.dbChangeEffort = "Manual"
+		row.dbChangeEffort = "Small"
 		row.dbChanges = "Unknown"
 		row.dbImpact = "None"
 
@@ -709,6 +732,8 @@ func populateViewInfo(viewAssessmentOutput map[string]utils.ViewAssessment, rows
 		row.codeChangeType = "Manual"
 		row.codeImpactedFiles = "Unknown"
 		row.codeSnippets = ""
+
+		row.actionItems = &[]string{"Create view manually"}
 
 		*rows = append(*rows, row)
 	}
@@ -726,6 +751,8 @@ func populateChangesForUnsupportedElements(row *SchemaReportRow) {
 	row.codeChangeType = "Manual"
 	row.codeImpactedFiles = "Unknown"
 	row.codeSnippets = ""
+
+	row.actionItems = &[]string{"Rewrite in application code"}
 }
 
 func populateSequenceInfo(sequenceAssessmentOutput map[string]ddl.Sequence, tableAssessments []utils.TableAssessment, codeSnippets *[]utils.Snippet, rows *[]SchemaReportRow) {
