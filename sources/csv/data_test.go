@@ -218,11 +218,13 @@ func TestConvertData(t *testing.T) {
 	for _, tc := range singleColTests {
 		col := "a"
 		colId := "c1"
+		colDefs := map[string]ddl.ColumnDef{colId: ddl.ColumnDef{Name: col, Id: colId, T: tc.ty}}
 		conv := buildConv([]ddl.CreateTable{{
 			Name:    tableName,
 			Id:      "t1",
-			ColDefs: map[string]ddl.ColumnDef{colId: ddl.ColumnDef{Name: col, Id: colId, T: tc.ty}}}})
-		_, av, err := convertData(conv, "", tableName, []string{col}, []string{tc.in})
+			ColDefs: colDefs,
+		}})
+		_, av, err := convertData(conv.SpDialect, "", []string{col}, colDefs, []string{tc.in})
 		// NULL scenario.
 		if tc.ev == nil {
 			var empty []interface{}
@@ -234,13 +236,15 @@ func TestConvertData(t *testing.T) {
 	}
 
 	cols := []string{"a", "b", "c"}
+	colDefs := map[string]ddl.ColumnDef{
+		"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+		"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+		"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
+	}
 	spTable := ddl.CreateTable{
-		Name: tableName,
-		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
-		}}
+		Name:    tableName,
+		ColDefs: colDefs,
+	}
 	errorTests := []struct {
 		name string
 		cols []string // Input columns.
@@ -261,7 +265,7 @@ func TestConvertData(t *testing.T) {
 	}
 	for _, tc := range errorTests {
 		conv := buildConv([]ddl.CreateTable{spTable})
-		_, _, err := convertData(conv, "", tableName, cols, tc.vals)
+		_, _, err := convertData(conv.SpDialect, "", cols, colDefs, tc.vals)
 		assert.NotNil(t, err, tc.name)
 	}
 }

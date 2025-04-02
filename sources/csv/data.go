@@ -31,6 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
@@ -39,6 +40,7 @@ type CsvInterface interface {
 	GetCSVFiles(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tables []utils.ManifestTable, err error)
 	SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter rune) error
 	ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr string, delimiter rune) error
+	ProcessSingleCSV(conv *internal.Conv, tableName string, columnNames []string, colDefs map[string]ddl.ColumnDef, filePath string, nullStr string, delimiter rune) error
 }
 
 type CsvImpl struct{}
@@ -205,13 +207,6 @@ func (c *CsvImpl) ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, 
 
 	for _, table := range orderedTables {
 		for _, filePath := range table.File_patterns {
-			csvFile, err := os.Open(filePath)
-			if err != nil {
-				return fmt.Errorf(fmt.Sprintf("can't read csv file: %s due to: %v\n", filePath, err))
-			}
-			r := csvReader.NewReader(csvFile)
-			r.Comma = delimiter
-
 			// Default column order is same as in Spanner schema.
 			tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, table.Table_name)
 			if err != nil {
@@ -222,32 +217,12 @@ func (c *CsvImpl) ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, 
 			for _, v := range conv.SpSchema[tableId].ColIds {
 				colNames = append(colNames, conv.SpSchema[tableId].ColDefs[v].Name)
 			}
+			colDefs := conv.SpSchema[tableId].ColDefs
 
-			srcCols, err := r.Read()
-			if err == io.EOF {
-				conv.Unexpected(fmt.Sprintf("error processing table %s: file %s is empty.", table.Table_name, filePath))
-				continue
-			}
+			err = c.ProcessSingleCSV(conv, table.Table_name, colNames, colDefs,
+				filePath, nullStr, delimiter)
 			if err != nil {
-				return fmt.Errorf("can't read row for %s due to: %v", filePath, err)
-			}
-			// If first row is some permutation of Spanner schema columns, we assume the first row is headers.
-			if utils.CheckEqualSets(srcCols, colNames) {
-				colNames = srcCols
-			} else {
-				// Write the first row since it was not a column header.
-				processDataRow(conv, nullStr, table.Table_name, colNames, srcCols)
-			}
-
-			for {
-				values, err := r.Read()
-				if err == io.EOF {
-					break
-				}
-				if err != nil {
-					return fmt.Errorf("can't read row for %s due to: %v", filePath, err)
-				}
-				processDataRow(conv, nullStr, table.Table_name, colNames, values)
+				return err
 			}
 		}
 		if conv.DataFlush != nil {
@@ -257,38 +232,73 @@ func (c *CsvImpl) ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, 
 	return nil
 }
 
-// processDataRow converts a row into go data types as per the client libs.
-func processDataRow(conv *internal.Conv, nullStr, tableName string, srcCols []string, values []string) {
-	// Pass nullStr from source-profile.
-	cvtCols, cvtVals, err := convertData(conv, nullStr, tableName, srcCols, values)
+func (c *CsvImpl) ProcessSingleCSV(conv *internal.Conv, tableName string,
+	columnNames []string, colDefs map[string]ddl.ColumnDef, filePath string,
+	nullStr string, delimiter rune) error {
+
+	csvFile, err := os.Open(filePath)
 	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
-		conv.StatsAddBadRow(tableName, conv.DataMode())
-		conv.CollectBadRow(tableName, srcCols, values)
+		return fmt.Errorf(fmt.Sprintf("can't read csv file: %s due to: %v\n", filePath, err))
+	}
+	r := csvReader.NewReader(csvFile)
+	r.Comma = delimiter
+
+	srcCols, err := r.Read()
+	if err == io.EOF {
+		logger.Log.Error(fmt.Sprintf("error processing table %s: file %s is empty.", tableName, filePath))
+		return err
+	}
+	if err != nil {
+		return fmt.Errorf("can't read row for %s due to: %v", filePath, err)
+	}
+	// If first row is some permutation of Spanner schema columns, we assume the first row is headers.
+	if utils.CheckEqualSets(srcCols, columnNames) {
+		columnNames = srcCols
+	} else {
+		// Write the first row since it was not a column header.
+		processDataRow(conv, nullStr, tableName, columnNames, colDefs, srcCols)
+	}
+
+	for {
+		values, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("can't read row for %s due to: %v", filePath, err)
+		}
+		processDataRow(conv, nullStr, tableName, columnNames, colDefs, values)
+	}
+	return nil
+}
+
+// processDataRow converts a row into go data types as per the client libs.
+func processDataRow(conv *internal.Conv, nullStr, tableName string,
+	srcCols []string, colDefs map[string]ddl.ColumnDef, values []string) {
+	// Pass nullStr from source-profile.
+	cvtCols, cvtVals, err := convertData(conv.SpDialect, nullStr, srcCols, colDefs, values)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Error while converting data: %s\n", err))
 	} else {
 		conv.WriteRow(tableName, tableName, cvtCols, cvtVals)
 	}
 }
 
 // convertData currently only supports scalar data types.
-func convertData(conv *internal.Conv, nullStr, tableName string, srcCols []string, values []string) ([]string, []interface{}, error) {
+func convertData(dialect, nullStr string, srcCols []string,
+	colDefs map[string]ddl.ColumnDef, values []string) (
+	[]string, []interface{}, error) {
 	var v []interface{}
 	var cvtCols []string
 
-	tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, tableName)
-	if err != nil {
-		return cvtCols, v, fmt.Errorf("table Id not found for spanner table %v", tableName)
-	}
-
-	colDefs := conv.SpSchema[tableId].ColDefs
 	for i, val := range values {
 		if val == nullStr {
 			continue
 		}
 		colName := srcCols[i]
-		colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
+		colId, err := internal.GetColIdFromSpName(colDefs, colName)
 		if err != nil {
-			return cvtCols, v, fmt.Errorf("column Id not found for spanner table %v column %v", tableName, colName)
+			return cvtCols, v, err
 		}
 		spColDef := colDefs[colId]
 
@@ -296,7 +306,7 @@ func convertData(conv *internal.Conv, nullStr, tableName string, srcCols []strin
 		if spColDef.T.IsArray {
 			x, err = convArray(spColDef.T, val)
 		} else {
-			x, err = convScalar(conv, spColDef.T, val)
+			x, err = convScalar(dialect, spColDef.T, val)
 		}
 		if err != nil {
 			return nil, nil, err
@@ -487,7 +497,7 @@ func convArray(spannerType ddl.Type, val string) (interface{}, error) {
 	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type []%v", spannerType.Name)
 }
 
-func convScalar(conv *internal.Conv, spannerType ddl.Type, val string) (interface{}, error) {
+func convScalar(dialect string, spannerType ddl.Type, val string) (interface{}, error) {
 	switch spannerType.Name {
 	case ddl.Bool:
 		return convBool(val)
@@ -502,7 +512,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, val string) (interfac
 	case ddl.Int64:
 		return convInt64(val)
 	case ddl.Numeric:
-		if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+		if dialect == constants.DIALECT_POSTGRESQL {
 			return spanner.PGNumeric{Numeric: val, Valid: true}, nil
 		}
 		return convNumeric(val)
