@@ -36,5 +36,4 @@ func TestBasicCsvImport(t *testing.T) {
 	importDataCmd.csvFieldDelimiter = ","
 	importDataCmd.project = ""
 	importDataCmd.Execute(context.Background(), fs)
-
 }

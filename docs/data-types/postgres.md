@@ -137,7 +137,7 @@ The tool maps PostgreSQL foreign key constraints into Spanner foreign key constr
 preserves constraint names where possible. Note that Spanner requires foreign key
 constraint names to be globally unique (within a database), but in postgres they only
 have to be unique for a table, so we add a uniqueness suffix to a name if needed.
-Spanner doesn't support `ON DELETE` and `ON UPDATE` actions, so we drop these.
+Spanner doesn't support `ON UPDATE` action, so we drop it.
 
 ## Default Values
 

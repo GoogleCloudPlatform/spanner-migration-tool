@@ -79,7 +79,7 @@ func (cmd *AssessmentCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
 	f.StringVar(&cmd.assessmentProfile, "assessment-profile", "", "File for specifying configuration to be used during assessment. e.g. \"app-code-location=\"<a/b/c>")
 	f.StringVar(&cmd.project, "project", "", "Flag specifying default project id for all the generated resources for the migration")
-	f.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
+	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
 	f.StringVar(&cmd.sessionJSON, "session", "", "Optional. Specifies the file we restore session state from.")

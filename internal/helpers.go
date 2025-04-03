@@ -85,6 +85,12 @@ func GenerateStoredProcedureId() string {
 func GenerateTriggerId() string {
 	return GenerateId("tr")
 }
+func GenerateFunctionId() string {
+	return GenerateId("fn")
+}
+func GenerateViewId() string {
+	return GenerateId("vw")
+}
 
 func GetSrcColNameIdMap(srcs schema.Table) map[string]string {
 	if len(srcs.ColNameIdMap) > 0 {

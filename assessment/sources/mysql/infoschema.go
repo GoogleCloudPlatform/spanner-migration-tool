@@ -39,83 +39,83 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
 	}
 	for _, table := range conv.SrcSchema {
 		columnAssessments := make(map[string]utils.ColumnAssessmentInfo[any])
+		var collation, charset string
+		q := `SELECT TABLE_COLLATION, SUBSTRING_INDEX(TABLE_COLLATION, '_', 1) as CHARACTER_SET
+		FROM INFORMATION_SCHEMA.TABLES
+		WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?;`
+		err := isi.Db.QueryRow(q, isi.DbName, table.Name).Scan(&collation, &charset)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't get schema for table %s: %s", table.Name, err)
+		}
 		for _, column := range table.ColDefs {
-			q := `SELECT c.column_type
+			q = `SELECT c.column_type, c.extra, c.generation_expression
               FROM information_schema.COLUMNS c
               where table_schema = ? and table_name = ? and column_name = ? ORDER BY c.ordinal_position;`
 			var columnType string
-			err := isi.Db.QueryRow(q, isi.DbName, table.Name, column.Name).Scan(&columnType)
+			var colExtra, colGeneratedExp sql.NullString
+			var isOnUpdateTimestampSet, isVirtual, isPresent bool
+			var generatedColumn utils.GeneratedColumnInfo
+			err := isi.Db.QueryRow(q, isi.DbName, table.Name, column.Name).Scan(&columnType, &colExtra, &colGeneratedExp)
 			if err != nil {
 				return nil, fmt.Errorf("couldn't get schema for column %s.%s: %s", table.Name, column.Name, err)
+			}
+			if strings.Contains(colExtra.String, "on update CURRENT_TIMESTAMP") {
+				isOnUpdateTimestampSet = true
+			} else if strings.Contains(colExtra.String, "VIRTUAL GENERATED") {
+				isVirtual = true
+				isPresent = true
+			} else if strings.Contains(colExtra.String, "STORED GENERATED") {
+				isPresent = true
+			}
+			if colGeneratedExp.Valid {
+				generatedColumn = utils.GeneratedColumnInfo{
+					Statement: colGeneratedExp.String,
+					IsPresent: isPresent,
+					IsVirtual: isVirtual,
+				}
 			}
 			columnAssessments[column.Id] = utils.ColumnAssessmentInfo[any]{
 				Db: utils.DbIdentifier{
 					DatabaseName: isi.DbName,
 				},
-				Name:          column.Name,
-				TableName:     table.Name,
-				ColumnDef:     column,
-				IsUnsigned:    strings.Contains(strings.ToLower(columnType), " unsigned"),
-				MaxColumnSize: getColumnMaxSize(column.Type.Name, column.Type.Mods),
+				Name:                   column.Name,
+				TableName:              table.Name,
+				ColumnDef:              column,
+				IsUnsigned:             strings.Contains(strings.ToLower(columnType), " unsigned"),
+				MaxColumnSize:          getColumnMaxSize(column.Type.Name, column.Type.Mods),
+				IsOnUpdateTimestampSet: isOnUpdateTimestampSet,
+				GeneratedColumn:        generatedColumn,
 			}
 		}
-		tb[table.Id] = utils.TableAssessmentInfo{Name: table.Name, TableDef: table, ColumnAssessmentInfos: columnAssessments, Db: dbIdentifier}
+		tb[table.Id] = utils.TableAssessmentInfo{Name: table.Name, TableDef: table, ColumnAssessmentInfos: columnAssessments, Db: dbIdentifier, Charset: charset, Collation: collation}
 	}
 	return tb, nil
 }
 
 // GetIndexes return a list of all indexes for the specified table.
-func (isi InfoSchemaImpl) GetIndexInfo(table string, conv *internal.Conv) ([]utils.IndexAssessmentInfo, error) {
+func (isi InfoSchemaImpl) GetIndexInfo(table string, index schema.Index) (utils.IndexAssessmentInfo, error) {
 	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE,INDEX_TYPE
 		FROM INFORMATION_SCHEMA.STATISTICS 
 		WHERE TABLE_SCHEMA = ?
 			AND TABLE_NAME = ?
+			AND INDEX_NAME = ?
 		ORDER BY INDEX_NAME, SEQ_IN_INDEX;`
-	rows, err := isi.Db.Query(q, isi.DbName, table)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+
 	var name, column, sequence, nonUnique, indexType string
 	var collation sql.NullString
-	indexMap := make(map[string]utils.IndexAssessmentInfo)
-	var indexNames []string
-	var indexes []utils.IndexAssessmentInfo
-	var errString string
-	for rows.Next() {
-		if err := rows.Scan(&name, &column, &sequence, &collation, &nonUnique, &indexType); err != nil {
-			errString = errString + fmt.Sprintf("Can't scan: %v", err)
-			continue
-		}
-		if _, found := indexMap[name]; !found {
-			tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, table)
-			indexNames = append(indexNames, name)
-			indexMap[name] = utils.IndexAssessmentInfo{
-				Ty:      indexType,
-				Name:    name,
-				TableId: tableId,
-				Db: utils.DbIdentifier{
-					DatabaseName: isi.DbName,
-				},
-				IndexDef: schema.Index{
-					Id:     internal.GenerateIndexesId(),
-					Name:   name,
-					Unique: (nonUnique == "0"),
-				},
-			}
+	err := isi.Db.QueryRow(q, isi.DbName, table, index.Name).Scan(&name, &column, &sequence, &collation, &nonUnique, &indexType)
+	if err != nil {
+		return utils.IndexAssessmentInfo{}, fmt.Errorf("couldn't get index for index name %s.%s: %s", table, index.Name, err)
+	}
+	return utils.IndexAssessmentInfo{
+		Ty:   indexType,
+		Name: name,
+		Db: utils.DbIdentifier{
+			DatabaseName: isi.DbName,
+		},
+		IndexDef: index,
+	}, nil
 
-		}
-		index := indexMap[name]
-		index.IndexDef.Keys = append(index.IndexDef.Keys, schema.Key{
-			ColId: column,
-			Desc:  (collation.Valid && collation.String == "D"),
-		})
-		indexMap[name] = index
-	}
-	for _, k := range indexNames {
-		indexes = append(indexes, indexMap[k])
-	}
-	return indexes, nil
 }
 
 func (isi InfoSchemaImpl) GetTriggerInfo() ([]utils.TriggerAssessmentInfo, error) {
@@ -178,30 +178,131 @@ func (isi InfoSchemaImpl) GetStoredProcedureInfo() ([]utils.StoredProcedureAsses
 	return storedProcedures, nil
 }
 
+func (isi InfoSchemaImpl) GetFunctionInfo() ([]utils.FunctionAssessmentInfo, error) {
+	q := `SELECT DISTINCT ROUTINE_NAME,ROUTINE_DEFINITION,IS_DETERMINISTIC, DTD_IDENTIFIER
+	FROM INFORMATION_SCHEMA.ROUTINES 
+	WHERE ROUTINE_TYPE='FUNCTION' AND ROUTINE_SCHEMA = ?`
+	rows, err := isi.Db.Query(q, isi.DbName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var name, defintion, isDeterministic, datatype string
+	var functions []utils.FunctionAssessmentInfo
+	var errString string
+	for rows.Next() {
+		if err := rows.Scan(&name, &defintion, &isDeterministic, &datatype); err != nil {
+			errString = errString + fmt.Sprintf("Can't scan: %v", err)
+			continue
+		}
+		functions = append(functions, utils.FunctionAssessmentInfo{
+			Name:            name,
+			Definition:      defintion,
+			IsDeterministic: isDeterministic == "YES",
+			Db: utils.DbIdentifier{
+				DatabaseName: isi.DbName,
+			},
+			Datatype: datatype,
+		})
+	}
+	return functions, nil
+}
+
+func (isi InfoSchemaImpl) GetViewInfo() ([]utils.ViewAssessmentInfo, error) {
+	q := `SELECT DISTINCT TABLE_NAME,VIEW_DEFINITION,CHECK_OPTION, IS_UPDATABLE
+	FROM INFORMATION_SCHEMA.VIEWS 
+	WHERE TABLE_SCHEMA = ?`
+	rows, err := isi.Db.Query(q, isi.DbName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var name, defintion, checkOption, isUpdatable string
+	var views []utils.ViewAssessmentInfo
+	var errString string
+	for rows.Next() {
+		if err := rows.Scan(&name, &defintion, &checkOption, &isUpdatable); err != nil {
+			errString = errString + fmt.Sprintf("Can't scan: %v", err)
+			continue
+		}
+		views = append(views, utils.ViewAssessmentInfo{
+			Name:        name,
+			Definition:  defintion,
+			CheckOption: checkOption,
+			IsUpdatable: isUpdatable == "YES",
+			Db: utils.DbIdentifier{
+				DatabaseName: isi.DbName,
+			},
+		})
+	}
+	return views, nil
+}
+
 // TODO - also account for charsets
 func getColumnMaxSize(dataType string, mods []int64) int64 {
-	switch strings.ToLower(dataType) {
+	dataTypeLower := strings.ToLower(dataType)
+
+	switch dataTypeLower {
 	case "date":
 		return 4
-	case "timestamp":
-		return 4
+	case "timestamp", "datetime":
+		return 8 // MySQL datetime and timestamp use 8 bytes
 	case "bit":
-		return int64(math.Ceil(float64(mods[0]+7) / 8))
-	case "int":
+		if len(mods) > 0 {
+			return int64(math.Ceil(float64(mods[0]+7) / 8))
+		}
+		return 1 // Default to 1 byte if no length specified
+	case "tinyint":
+		return 1
+	case "smallint":
+		return 2
+	case "mediumint":
+		return 3
+	case "int", "integer":
 		return 4
-	case "integer":
-		return 4
+	case "bigint":
+		return 8
 	case "float":
-		return 4 // Add precision pspecific handling
-	case "text":
-		return 2 ^ 16 //TODO Check for actual storage used and update here
-	case "mediumtext":
-		return 2 ^ 24
-	case "longtext":
-		return 2 ^ 32
-	default:
-		//TODO - add all types
 		return 4
+	case "double", "real":
+		return 8
+	case "decimal", "numeric":
+		if len(mods) > 0 {
+			precision := mods[0]
+			scale := int64(0)
+			if len(mods) > 1 {
+				scale = mods[1]
+			}
+			// Calculate storage based on precision and scale
+			intDigits := precision - scale
+			intBytes := (intDigits + 8) / 9
+			fracBytes := (scale + 8) / 9
+
+			return intBytes + fracBytes // Total size
+		}
+		return 8 // Default size if no precision/scale provided
+	case "char", "varchar":
+		if len(mods) > 0 {
+			return mods[0] // Max length specified
+		}
+		return 255 // Default max length
+	case "binary", "varbinary":
+		if len(mods) > 0 {
+			return mods[0] // Max length specified
+		}
+		return 255 // Default max length
+	case "tinyblob", "tinytext":
+		return 255
+	case "blob", "text":
+		return 65535 // 2^16 - 1
+	case "mediumblob", "mediumtext":
+		return 16777215 // 2^24 - 1
+	case "longblob", "longtext":
+		return 4294967295 // 2^32 - 1
+	case "json":
+		return 4294967295 // Maximum size
+	default:
+		return 4 // Default size for unknown types
 	}
 }
 
@@ -303,7 +404,6 @@ func (ssa SourceSpecificComparisonImpl) IsDataTypeCodeCompatible(srcColumnDef ut
 			return false
 		}
 	default:
-		//TODO - add all types
 		return false
 	}
 

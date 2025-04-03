@@ -20,6 +20,11 @@ import (
 )
 
 func ReadFile(filepath string) (string, error) {
+	return ReadFileWithExplicitBuffer(filepath, 0)
+}
+
+// ReadFileWithExplicitBuffer if bufferSize is greater than 0, then explicit buffer is used.
+func ReadFileWithExplicitBuffer(filepath string, bufferSize int) (string, error) {
 	file, err := os.Open(filepath)
 	if err != nil {
 		return "", err
@@ -27,6 +32,9 @@ func ReadFile(filepath string) (string, error) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+	if bufferSize > 0 {
+		scanner.Buffer(make([]byte, bufferSize), bufferSize)
+	}
 	var content string
 	for scanner.Scan() {
 		content += scanner.Text() + "\n"
