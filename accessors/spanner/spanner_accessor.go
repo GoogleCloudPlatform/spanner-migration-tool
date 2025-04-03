@@ -78,6 +78,8 @@ type SpannerAccessor interface {
 	DropDatabase(ctx context.Context, dbURI string) error
 	//Runs a query against the provided spanner database and returns if the executed DML is validate or not
 	ValidateDML(ctx context.Context, query string) (bool, error)
+
+	TableExists(ctx context.Context, tableName string) (bool, error)
 }
 
 // This implements the SpannerAccessor interface. This is the primary implementation that should be used in all places other than tests.
@@ -310,6 +312,22 @@ func (sp *SpannerAccessorImpl) CreateDatabase(ctx context.Context, dbURI string,
 	return nil
 }
 
+func (sp *SpannerAccessorImpl) TableExists(ctx context.Context, tableName string) (bool, error) {
+	query := fmt.Sprintf("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '%s'", tableName)
+	iter := sp.SpannerClient.Single().Query(ctx, spanner.Statement{SQL: query})
+	defer iter.Stop()
+
+	_, err := iter.Next()
+	if err == iterator.Done {
+		return false, nil // Table does not exist
+	}
+	if err != nil {
+		return false, fmt.Errorf("error checking table existence: %v", err)
+	}
+
+	return true, nil // Table exists
+}
+
 // UpdateDatabase updates an existing spanner database.
 func (sp *SpannerAccessorImpl) UpdateDatabase(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
 	// The schema we send to Spanner excludes comments (since Cloud
@@ -490,6 +508,6 @@ func (sp *SpannerAccessorImpl) ValidateDML(ctx context.Context, query string) (b
 	}
 }
 
-func (sp *SpannerAccessorImpl) Refresh(ctx context.Context, dbURI string) () {
+func (sp *SpannerAccessorImpl) Refresh(ctx context.Context, dbURI string) {
 	sp.SpannerClient.Refresh(ctx, dbURI)
 }
