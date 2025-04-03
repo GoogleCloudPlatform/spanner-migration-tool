@@ -13,7 +13,6 @@ spanner_migration_tool_output/
 ui/.angular
 ui/node_modules
 ui/dist
-ui/package-lock.json
 
 # webv2 config
 webv2/config.json
