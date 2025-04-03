@@ -58,6 +58,11 @@ func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile
 	// Populate assessment struct
 
 	output.SchemaAssessment, err = performSchemaAssessment(ctx, c)
+	if err != nil {
+		logger.Log.Info(fmt.Sprintf("could not complete schema assessment: %s", err))
+		return output, err
+	}
+	output.AppCodeAssessment, err = performAppAssessment(ctx, c)
 
 	return output, err
 }
@@ -78,10 +83,16 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 
 	//Initiialize App Assessment Collector
 
+	language, exists := assessmentConfig["language"]
+	if !exists {
+		// defaulting to Golang
+		language = "go"
+	}
+
 	codeDirectory, exists := assessmentConfig["codeDirectory"]
 	if exists {
 		logger.Log.Info("initializing app collector")
-		mysqlSchema := GetDDL(conv.SrcSchema)
+		mysqlSchema := utils.GetDDL(conv.SrcSchema)
 		spannerSchema := strings.Join(
 			ddl.GetDDL(
 				ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"},
@@ -92,7 +103,8 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 		logger.Log.Debug("mysqlSchema", zap.String("schema", mysqlSchema))
 		logger.Log.Debug("spannerSchema", zap.String("schema", spannerSchema))
 
-		summarizer, err := assessment.NewMigrationSummarizer(ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory)
+		summarizer, err := assessment.NewMigrationSummarizer(
+			ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory, language)
 		if err != nil {
 			logger.Log.Error("error initiating migration summarizer")
 			return c, err
@@ -110,7 +122,7 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 	schemaOut := utils.SchemaAssessmentOutput{}
 
 	srcTableDefs, spTableDefs := collectors.infoSchemaCollector.ListTables()
-	srcColDefs, spColDefs := collectors.infoSchemaCollector.ListColumnDefinitions() // TODO - move this inside the table info.
+	srcColDefs, spColDefs := collectors.infoSchemaCollector.ListColumnDefinitions()
 	srcIndexes, spIndexes := collectors.infoSchemaCollector.ListIndexes()
 
 	tableAssessments := []utils.TableAssessment{}
@@ -160,24 +172,41 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 
 		tableAssessments = append(tableAssessments, tableAssessment)
 	}
-	schemaOut.TableAssessment = tableAssessments
+	schemaOut.TableAssessmentOutput = tableAssessments
 
-	schemaOut.Triggers = collectors.infoSchemaCollector.ListTriggers()
+	schemaOut.TriggerAssessmentOutput = collectors.infoSchemaCollector.ListTriggers()
 	schemaOut.StoredProcedureAssessmentOutput = collectors.infoSchemaCollector.ListStoredProcedures()
+	schemaOut.FunctionAssessmentOutput = collectors.infoSchemaCollector.ListFunctions()
+	schemaOut.ViewAssessmentOutput = collectors.infoSchemaCollector.ListViews()
+	schemaOut.SpSequences = collectors.infoSchemaCollector.ListSpannerSequences()
 
-	if collectors.appAssessmentCollector != nil {
-		logger.Log.Info("adding app assessment details")
-		codeAssessment, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
-
-		if err != nil {
-			logger.Log.Error("error analyzing project", zap.Error(err))
-			return schemaOut, err
-		}
-
-		logger.Log.Info("snippets: ", zap.Any("codeAssessment.Snippets", codeAssessment.Snippets))
-		schemaOut.CodeSnippets = &codeAssessment.Snippets
-	}
 	return schemaOut, nil
+}
+
+func performAppAssessment(ctx context.Context, collectors assessmentCollectors) (*utils.AppCodeAssessmentOutput, error) {
+
+	if collectors.appAssessmentCollector == nil {
+		logger.Log.Info("not proceeding with app assessment as app collector was not initialized")
+		return nil, nil
+	}
+
+	logger.Log.Info("adding app assessment details")
+	codeAssessment, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
+
+	if err != nil {
+		logger.Log.Error("error analyzing project", zap.Error(err))
+		return nil, err
+	}
+
+	logger.Log.Debug("snippets: ", zap.Any("codeAssessment.Snippets", codeAssessment.Snippets))
+
+	return &utils.AppCodeAssessmentOutput{
+		Language:     codeAssessment.Language,
+		Framework:    codeAssessment.Framework,
+		TotalLoc:     codeAssessment.TotalLoc,
+		TotalFiles:   codeAssessment.TotalFiles,
+		CodeSnippets: codeAssessment.Snippets,
+	}, nil
 }
 
 func isCharsetCompatible(srcCharset string) bool {
@@ -187,7 +216,7 @@ func isCharsetCompatible(srcCharset string) bool {
 	return false
 }
 
-func tableSizeDiffBytes(srcTableDef *utils.TableDetails, spTableDef *utils.TableDetails) int {
+func tableSizeDiffBytes(srcTableDef *utils.SrcTableDetails, spTableDef *utils.SpTableDetails) int {
 	// TODO - if no spanner table exists - return nil
 	return 1 //TODO - currently dummy implementation assuming spanner will always be bigger - to calculate based on charset and column size differences
 }
@@ -195,9 +224,10 @@ func tableSizeDiffBytes(srcTableDef *utils.TableDetails, spTableDef *utils.Table
 // TODO - move to spanner interface?
 func getSpColSizeBytes(spCol utils.SpColumnDetails) int64 {
 	var size int64
+
 	switch strings.ToUpper(spCol.Datatype) {
 	case "ARRAY":
-		size = spCol.Len //TODO correct this based on underlying type
+		return 10 * 1024 * 1024
 	case "BOOL":
 		size = 1
 	case "BYTES":
@@ -211,124 +241,19 @@ func getSpColSizeBytes(spCol utils.SpColumnDetails) int64 {
 	case "INT64":
 		size = 8
 	case "JSON":
-		size = spCol.Len
+		return 10 * 1024 * 1024
 	case "NUMERIC":
-		size = 22 //TODO - calculate based on precision
+		size = 22
+	case "PROTO":
+		size = spCol.Len
 	case "STRING":
 		size = spCol.Len
-
 	case "STRUCT":
-		return 8 // TODO - get sum of parts
+		return 10 * 1024 * 1024
 	case "TIMESTAMP":
 		return 12
 	default:
-		//TODO - add all types
 		return 8
 	}
 	return 8 + size //Overhead per col plus size
-}
-
-// TODO - move to source specific interface. Store in a more scalable structure - maybe a static map
-func isDataTypeCodeCompatible(srcColumnDef utils.SrcColumnDetails, spColumnDef utils.SpColumnDetails) bool {
-
-	switch strings.ToUpper(spColumnDef.Datatype) {
-	case "BOOL":
-		switch srcColumnDef.Datatype {
-		case "tinyint":
-			return true
-		case "bit":
-			return true
-		default:
-			return false
-		}
-	case "BYTES":
-		switch srcColumnDef.Datatype {
-		case "binary":
-			return true
-		case "varbinary":
-			return true
-		case "blob":
-			return true
-		default:
-			return false
-		}
-	case "DATE":
-		switch srcColumnDef.Datatype {
-		case "date":
-			return true
-		default:
-			return false
-		}
-	case "FLOAT32":
-		switch srcColumnDef.Datatype {
-		case "float":
-			return true
-		case "double":
-			return true
-		default:
-			return false
-		}
-	case "FLOAT64":
-		switch srcColumnDef.Datatype {
-		case "float":
-			return true
-		case "double":
-			return true
-		default:
-			return false
-		}
-	case "INT64":
-		switch srcColumnDef.Datatype {
-		case "int":
-			return true
-		case "bigint":
-			return true
-		default:
-			return false
-		}
-	case "JSON":
-		switch srcColumnDef.Datatype {
-		case "json":
-			return true
-		case "varchar":
-			return true
-		default:
-			return false
-		}
-	case "NUMERIC":
-		switch srcColumnDef.Datatype {
-		case "float":
-			return true
-		case "double":
-			return true
-		default:
-			return false
-		}
-	case "STRING":
-		switch srcColumnDef.Datatype {
-		case "varchar":
-			return true
-		case "text":
-			return true
-		case "mediumtext":
-			return true
-		case "longtext":
-			return true
-		default:
-			return false
-		}
-	case "TIMESTAMP":
-		switch srcColumnDef.Datatype {
-		case "timestamp":
-			return true
-		case "datetime":
-			return true
-		default:
-			return false
-		}
-	default:
-		//TODO - add all types
-		return false
-	}
-
 }

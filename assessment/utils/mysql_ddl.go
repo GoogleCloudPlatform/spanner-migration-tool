@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package assessment
+package utils
 
 import (
 	"fmt"
@@ -132,7 +132,6 @@ func PrintCreateIndex(index schema.Index, ct schema.Table) string {
 	}
 
 	createIndex.WriteString(");")
-	createIndex.WriteString(";")
 
 	return createIndex.String()
 }

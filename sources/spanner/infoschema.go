@@ -23,6 +23,8 @@ import (
 	"strings"
 
 	"cloud.google.com/go/spanner"
+	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	_ "github.com/lib/pq" // we will use database/sql package instead of using this package directly
 	"google.golang.org/api/iterator"
 
@@ -35,9 +37,18 @@ import (
 
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
-	Client    *spanner.Client
-	Ctx       context.Context
-	SpDialect string
+	Client        *spanner.Client
+	SpannerClient spannerclient.SpannerClient
+	Ctx           context.Context
+	SpDialect     string
+}
+
+func NewInfoSchemaImplWithSpannerClient(ctx context.Context, dbURI string, spDialect string) (*InfoSchemaImpl, error) {
+	spannerClient, err := spannerclient.NewSpannerClientImpl(ctx, dbURI)
+	if err != nil {
+		return nil, err
+	}
+	return &InfoSchemaImpl{SpannerClient: spannerClient, Ctx: ctx, SpDialect: spDialect}, nil
 }
 
 // GetToDdl function below implement the common.InfoSchema interface.
@@ -106,7 +117,13 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	WHERE table_type = 'BASE TABLE' AND table_schema = 'public'`
 	}
 	stmt := spanner.Statement{SQL: q}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
+
+	var iter spannerclient.RowIterator
+	if isi.SpannerClient != nil {
+		iter = isi.SpannerClient.Single().Query(isi.Ctx, stmt)
+	} else {
+		iter = isi.Client.Single().Query(isi.Ctx, stmt)
+	}
 	defer iter.Stop()
 
 	var tableSchema, tableName string
@@ -128,6 +145,39 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	return tables, nil
 }
 
+func (sp *InfoSchemaImpl) PopulateSpannerSchema(ctx context.Context, conv *internal.Conv) error {
+	processSchema := common.ProcessSchemaImpl{}
+	expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+	if err != nil {
+		return fmt.Errorf("error trying create ddl verifier: %v", err)
+	}
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		DdlV:                           ddlVerifier,
+		ExpressionVerificationAccessor: expressionVerificationAccessor,
+	}
+	err = processSchema.ProcessSchema(conv, sp, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	if err != nil {
+		return fmt.Errorf("error trying to read and convert spanner schema: %v", err)
+	}
+	parentTables, err := sp.GetInterleaveTables(conv.SpSchema)
+	if err != nil {
+		// We should ideally throw an error here as it could potentially cause a lot of failed writes.
+		// We raise an unexpected error for now to make it compatible with the integration tests.
+		// In the emulator, the interleave_type column in not supported hence the query fails.
+		conv.Unexpected(fmt.Sprintf("error trying to fetch interleave table info from schema: %v", err))
+	}
+	// Assign parents if any.
+	for tableName, parentTable := range parentTables {
+		tableId, _ := internal.GetTableIdFromSpName(conv.SpSchema, tableName)
+		spTable := conv.SpSchema[tableId]
+		spTable.ParentTable.Id = parentTable.Id
+		spTable.ParentTable.OnDelete = parentTable.OnDelete
+		conv.SpSchema[tableId] = spTable
+	}
+	return nil
+}
+
 // GetColumns returns a list of Column objects and names
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
 	q := `SELECT column_name, spanner_type, is_nullable 
@@ -146,7 +196,12 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			"p1": table.Name,
 		},
 	}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
+	var iter spannerclient.RowIterator
+	if isi.SpannerClient != nil {
+		iter = isi.SpannerClient.Single().Query(isi.Ctx, stmt)
+	} else {
+		iter = isi.Client.Single().Query(isi.Ctx, stmt)
+	}
 	defer iter.Stop()
 
 	colDefs := make(map[string]schema.Column)
@@ -209,7 +264,13 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 			"p1": table.Name,
 		},
 	}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
+
+	var iter spannerclient.RowIterator
+	if isi.SpannerClient != nil {
+		iter = isi.SpannerClient.Single().Query(isi.Ctx, stmt)
+	} else {
+		iter = isi.Client.Single().Query(isi.Ctx, stmt)
+	}
 	defer iter.Stop()
 
 	var primaryKeys []string
@@ -263,7 +324,12 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 			"p1": table.Name,
 		},
 	}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
+	var iter spannerclient.RowIterator
+	if isi.SpannerClient != nil {
+		iter = isi.SpannerClient.Single().Query(isi.Ctx, stmt)
+	} else {
+		iter = isi.Client.Single().Query(isi.Ctx, stmt)
+	}
 	defer iter.Stop()
 
 	var col, refCol, fKeyName, refTable string
@@ -333,7 +399,12 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			"p1": table.Name,
 		},
 	}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
+	var iter spannerclient.RowIterator
+	if isi.SpannerClient != nil {
+		iter = isi.SpannerClient.Single().Query(isi.Ctx, stmt)
+	} else {
+		iter = isi.Client.Single().Query(isi.Ctx, stmt)
+	}
 	defer iter.Stop()
 	var name, column, ordering string
 	var isUnique bool
@@ -395,7 +466,14 @@ func (isi InfoSchemaImpl) GetInterleaveTables(spSchema ddl.Schema) (map[string]d
 		WHERE interleave_type = 'IN PARENT' AND table_type = 'BASE TABLE' AND table_schema = 'public'`
 	}
 	stmt := spanner.Statement{SQL: q}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
+
+	var iter spannerclient.RowIterator
+	if isi.SpannerClient != nil {
+		iter = isi.SpannerClient.Single().Query(isi.Ctx, stmt)
+	} else {
+		iter = isi.Client.Single().Query(isi.Ctx, stmt)
+	}
+
 	defer iter.Stop()
 
 	var tableName, parentTableName, onDelete string
