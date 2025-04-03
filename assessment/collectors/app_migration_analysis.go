@@ -59,7 +59,7 @@ type FileDependencyAnalysisData struct {
 
 // AnalyzeFileResponse response from analyzing single file.
 type AnalyzeFileResponse struct {
-	codeAssessment  *CodeAssessment
+	CodeAssessment  *CodeAssessment
 	methodSignature []any
 	projectPath     string
 	filePath        string
@@ -82,7 +82,7 @@ type AskQuestionsOutput struct {
 const JsonParserRetry = 3
 
 // NewMigrationSummarizer initializes a new MigrationSummarizer
-func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *string, projectID, location, sourceSchema, targetSchema string, projectPath string) (*MigrationSummarizer, error) {
+func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *string, projectID, location, sourceSchema, targetSchema, projectPath, language string) (*MigrationSummarizer, error) {
 	if googleGenerativeAIAPIKey != nil {
 		os.Setenv("GOOGLE_API_KEY", *googleGenerativeAIAPIKey)
 	}
@@ -103,7 +103,7 @@ func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *strin
 		modelPro:                      client.GenerativeModel("gemini-1.5-pro-002"),
 		modelFlash:                    client.GenerativeModel("gemini-2.0-flash-001"),
 		conceptExampleDB:              conceptExampleDB,
-		dependencyAnalyzer:            dependencyAnalyzer.AnalyzerFactory("go"),
+		dependencyAnalyzer:            dependencyAnalyzer.AnalyzerFactory(language, ctx),
 		sourceSchema:                  sourceSchema,
 		targetSchema:                  targetSchema,
 		projectPath:                   projectPath,
@@ -476,17 +476,27 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 
 	runParallel := &task.RunParallelTasksImpl[*AnalyzeFileInput, *AnalyzeFileResponse]{}
 	fileIndex := 0
+	totalLoc := 0
+	language := ""
+	framework := ""
 
 	logger.Log.Info("initiating file scanning. this may take a few minutes")
 	for _, singleOrder := range executionOrder {
 		analyzeFileInputs := make([]*AnalyzeFileInput, 0, len(singleOrder))
 		for _, filePath := range singleOrder {
 			fileIndex++
+			if language == "" {
+				language = getLanguage(filePath)
+			}
 			content, err := m.fetchFileContent(filePath)
 			if err != nil {
 				logger.Log.Error("Error fetching file content: ", zap.Error(err))
 				continue
 			}
+			if framework == "" {
+				framework = getFramework(content)
+			}
+			totalLoc += strings.Count(content, "\n")
 
 			isDaoDepndent, methodChanges := m.analyzeFileDependencies(filePath, content)
 			if !isDaoDepndent {
@@ -511,10 +521,10 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 			for _, analyzeFileResponse := range taskResults {
 				analyzeFileResponse := analyzeFileResponse.Result
 				logger.Log.Debug("File Code Assessment: ",
-					zap.Any("fileCodeAssessment", analyzeFileResponse.codeAssessment), zap.Any("filePath", analyzeFileResponse.filePath))
+					zap.Any("fileCodeAssessment", analyzeFileResponse.CodeAssessment), zap.Any("filePath", analyzeFileResponse.filePath))
 
-				*codeAssessment.Snippets = append(*codeAssessment.Snippets, *analyzeFileResponse.codeAssessment.Snippets...)
-				codeAssessment.GeneralWarnings = append(codeAssessment.GeneralWarnings, analyzeFileResponse.codeAssessment.GeneralWarnings...)
+				*codeAssessment.Snippets = append(*codeAssessment.Snippets, *analyzeFileResponse.CodeAssessment.Snippets...)
+				codeAssessment.GeneralWarnings = append(codeAssessment.GeneralWarnings, analyzeFileResponse.CodeAssessment.GeneralWarnings...)
 
 				m.fileDependencyAnalysisDataMap[analyzeFileResponse.filePath] = FileDependencyAnalysisData{
 					publicSignatures: analyzeFileResponse.methodSignature,
@@ -524,7 +534,36 @@ func (m *MigrationSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessme
 			}
 		}
 	}
+	codeAssessment.Language = language
+	codeAssessment.Framework = framework
+	codeAssessment.TotalLoc = totalLoc
+	codeAssessment.TotalFiles = fileIndex
 	return codeAssessment, nil
+}
+
+func getFramework(fileContent string) string {
+	//TODO - move into language specific implementations
+	if strings.Contains(fileContent, "database/sql") || strings.Contains(fileContent, "github.com/go-sql-driver/mysql") {
+		return "database/sql"
+	}
+
+	if strings.Contains(fileContent, "*sql.DB") || strings.Contains(fileContent, "*sql.Tx") {
+		return "database/sql"
+	}
+
+	if strings.Contains(fileContent, "`gorm:\"") {
+		return "gorm"
+	}
+
+	return ""
+}
+
+func getLanguage(filePath string) string {
+	//TODO - move into language specific implementations
+	if strings.HasSuffix(filePath, ".go") {
+		return "golang"
+	}
+	return ""
 }
 
 func getPromptForNonDAOClass(content, filepath string, methodChanges *string) string {
@@ -662,7 +701,7 @@ func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, ne
         2. Output should strictly be in given json format and ensure strict JSON parsable format.
         3. All generated result values should be single-line strings. Avoid hallucinations and suggest only relevant changes.
         4. Pay close attention to SQL queries within the DAO code. Identify any queries that are incompatible with Spanner and suggest appropriate modifications.
-		5. Please paginate your output if the token limit is getting reached. Do ensure that the json string is complete and parsable.
+		    5. Please paginate your output if the token limit is getting reached. Do ensure that the json string is complete and parsable.
 
         **INPUT**
         **Older MySQL Schema**

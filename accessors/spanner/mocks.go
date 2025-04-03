@@ -36,7 +36,8 @@ type SpannerAccessorMock struct {
 	ValidateDDLMock                 func(ctx context.Context, dbURI string) error
 	UpdateDDLForeignKeysMock        func(ctx context.Context, dbURI string, conv *internal.Conv, driver string, migrationType string)
 	DropDatabaseMock                func(ctx context.Context, dbURI string) error
-	ValidateDMLMock					func(ctx context.Context, query string) (bool, error)
+	ValidateDMLMock                 func(ctx context.Context, query string) (bool, error)
+	TableExistsMock                 func(ctx context.Context, tableName string) (bool, error)
 }
 
 func (sam *SpannerAccessorMock) GetDatabaseDialect(ctx context.Context, dbURI string) (string, error) {
@@ -84,11 +85,17 @@ func (sam *SpannerAccessorMock) ValidateDDL(ctx context.Context, dbURI string) e
 }
 func (sam *SpannerAccessorMock) UpdateDDLForeignKeys(ctx context.Context, dbURI string, conv *internal.Conv, driver string, migrationType string) {
 }
+
 // DropDatabase implements SpannerAccessor.
 func (sam *SpannerAccessorMock) DropDatabase(ctx context.Context, dbURI string) error {
 	return sam.DropDatabaseMock(ctx, dbURI)
 }
+
 // ValidateDML implements SpannerAccessor.
 func (sam *SpannerAccessorMock) ValidateDML(ctx context.Context, query string) (bool, error) {
 	return sam.ValidateDMLMock(ctx, query)
+}
+
+func (sam *SpannerAccessorMock) TableExists(ctx context.Context, tableName string) (bool, error) {
+	return sam.TableExistsMock(ctx, tableName)
 }
