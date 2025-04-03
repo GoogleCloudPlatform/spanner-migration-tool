@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	cloud.google.com/go v0.118.3
 	cloud.google.com/go/aiplatform v1.74.0
-	cloud.google.com/go/dataflow v0.10.3
+	cloud.google.com/go/dataflow v0.10.5
 	cloud.google.com/go/datastream v1.13.0
 	cloud.google.com/go/monitoring v1.24.0
 	cloud.google.com/go/pubsub v1.47.0
@@ -147,7 +147,7 @@ require (
 	golang.org/x/term v0.30.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250303144028-a0af3efb3deb // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250227231956-55c901821b1e // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
