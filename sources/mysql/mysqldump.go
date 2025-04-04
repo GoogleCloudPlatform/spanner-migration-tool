@@ -35,6 +35,7 @@ import (
 )
 
 var valuesRegexp = regexp.MustCompile("\\((.*?)\\)")
+var insertValuesRegexp = regexp.MustCompile("\\((.*?)\\)[,;]")
 var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
 var unsupportedRegexp = regexp.MustCompile("function|procedure|trigger")
 var dbcollationRegex = regexp.MustCompile("_[_A-Za-z0-9]+('([^']*)')")
@@ -48,6 +49,7 @@ var spatialRegexps = func() []*regexp.Regexp {
 	}
 	return l
 }()
+
 var spatialIndexRegex = regexp.MustCompile("(?i)\\sSPATIAL\\s")
 var spatialSridRegex = regexp.MustCompile("(?i)\\sSRID\\s\\d*")
 
@@ -681,13 +683,13 @@ func handleParseError(conv *internal.Conv, chunk string, err error, l [][]byte) 
 // at a time, ensuring no size issue and skipping only invalid entries.
 func handleInsertStatement(conv *internal.Conv, chunk, insertStmtPrefix string) ([]ast.StmtNode, bool) {
 	var stmts []ast.StmtNode
-	values := valuesRegexp.FindAllString(chunk, -1)
+	values := insertValuesRegexp.FindAllString(chunk, -1)
 
 	if len(values) == 0 {
 		return nil, false
 	}
 	for _, value := range values {
-		chunk = insertStmtPrefix + value + ";"
+		chunk = insertStmtPrefix + value[:len(value)-1] + ";"
 		newTree, _, err := parser.New().Parse(chunk, "", "")
 		if err != nil {
 			if conv.SchemaMode() {
