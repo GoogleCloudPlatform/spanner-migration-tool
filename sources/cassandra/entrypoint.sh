@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Start processes and store their PIDs
-/cassandra-spanner-proxy --database-uri="projects/$SPANNER_PROJECT/instances/$SPANNER_INSTANCE/databases/$SPANNER_DATABASE" --num-grpc-channels=500 &
+/cassandra-spanner-proxy --db="projects/$SPANNER_PROJECT/instances/$SPANNER_INSTANCE/databases/$SPANNER_DATABASE" --grpc-channels=500 --tcp="0.0.0.0:9042" &
 cass_pid=$!
 sleep 5
 /zdm-proxy --config="$ZDM_CONFIG" &
