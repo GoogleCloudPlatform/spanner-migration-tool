@@ -1,0 +1,59 @@
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: check-package-lock-file
+on:
+  push:
+    branches:
+      - master
+      - test-workflow
+  pull_request:
+    types: [opened, synchronize, edited]
+jobs:
+  check_lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check PR description for override
+        env:
+          PR_DESC: ${{ github.event.pull_request.body }}
+        id: check_override
+        run: |
+          set -x;
+          override_found=$(echo "\'$PR_DESC\'" | grep -c 'NO-LOCKFILE-CHECK' || true)
+          set +x;
+          echo "override_found=$override_found" >> $GITHUB_OUTPUT
+          echo "override_found=$override_found"
+
+      - name: Check for file in ./ui/
+        id: check_file
+        if: steps.check_override.outputs.override_found == '0'
+        run: |
+          if [ ! -f ./ui/package-lock.json ]; then
+            echo "::error::package-lock.json does not exist in the ./ui/ directory and override was not provided."
+            exit 1
+          else
+            echo "package_lock_exists=true" >> $GITHUB_OUTPUT
+            echo "package-lock.json exists in ./ui/."
+          fi
+      - name: Check for package-lock.json changes
+        id: check_changes
+        if: steps.check_override.outputs.override_found == '0' && steps.check_file.outputs.package_lock_exists == 'true'
+        run: |
+          if git diff --name-only ${{ github.event.before }}..${{ github.event.pull_request.head.sha }} package.json | grep -q 'package.json'; then
+            if ! git diff --name-only ${{ github.event.before }}..${{ github.event.pull_request.head.sha }} package-lock.json | grep -q 'package-lock.json'; then
+              echo "::warning::package.json was modified but package-lock.json was not. Please update the lock file or include 'NO-LOCKFILE-CHECK' in the pull request description to bypass this check."
+              exit 1
+            fi
+          fi
