@@ -24,6 +24,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
@@ -89,14 +90,13 @@ func (ps *ProcessSchemaImpl) ProcessSchema(conv *internal.Conv, infoSchema InfoS
 	}
 	uo.initPrimaryKeyOrder(conv)
 	uo.initIndexOrder(conv)
-	s.SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
+	err = s.SchemaToSpannerDDL(conv, infoSchema.GetToDdl(), attributes)
+	if err != nil {
+		return err
+	}
 	if tableCount != len(conv.SpSchema) {
 		fmt.Printf("Failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.\n", tableCount, len(conv.SpSchema))
 		return fmt.Errorf("failed to load all the source tables, source table count: %v, processed tables:%v. Please retry connecting to the source database to load tables.", tableCount, len(conv.SpSchema))
-	}
-	conv.AddPrimaryKeys()
-	if attributes.IsSharded {
-		conv.AddShardIdColumn()
 	}
 	fmt.Println("loaded schema")
 	return nil
@@ -185,7 +185,7 @@ func (is *InfoSchemaImpl) SetRowStats(conv *internal.Conv, infoSchema InfoSchema
 
 func (is *InfoSchemaImpl) processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error) {
 	var t schema.Table
-	fmt.Println("processing schema for table", table)
+	logger.Log.Info(fmt.Sprintf("processing schema for table %s", table))
 	tblId := internal.GenerateTableId()
 	primaryKeys, checkConstraints, constraints, err := infoSchema.GetConstraints(conv, table)
 	if err != nil {

@@ -2,15 +2,16 @@ package spannerclient
 
 import (
 	"context"
+	"time"
 
 	"cloud.google.com/go/spanner"
 )
-
 
 type SpannerClient interface {
 	Single() ReadOnlyTransaction
 	DatabaseName() string
 	Refresh(ctx context.Context, dbURI string) error
+	Apply(ctx context.Context, ms []*spanner.Mutation, opts ...spanner.ApplyOption) (commitTimestamp time.Time, err error)
 }
 
 type ReadOnlyTransaction interface {
@@ -21,7 +22,6 @@ type RowIterator interface {
 	Next() (*spanner.Row, error)
 	Stop()
 }
-
 
 // This implements the SpannerClient interface. This is the primary implementation that should be used in all places other than tests.
 type SpannerClientImpl struct {
@@ -46,12 +46,16 @@ func (c *SpannerClientImpl) Refresh(ctx context.Context, dbURI string) error {
 }
 
 func (c *SpannerClientImpl) Single() ReadOnlyTransaction {
-	rotxn := c.spannerClient.ReadOnlyTransaction()
+	rotxn := c.spannerClient.Single()
 	return &ReadOnlyTransactionImpl{rotxn: rotxn}
 }
 
 func (c *SpannerClientImpl) DatabaseName() string {
 	return c.spannerClient.DatabaseName()
+}
+
+func (c *SpannerClientImpl) Apply(ctx context.Context, ms []*spanner.Mutation, opts ...spanner.ApplyOption) (commitTimestamp time.Time, err error) {
+	return c.spannerClient.Apply(ctx, ms, opts...)
 }
 
 type ReadOnlyTransactionImpl struct {

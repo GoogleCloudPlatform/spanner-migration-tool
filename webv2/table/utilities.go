@@ -356,7 +356,7 @@ func UpdateDefaultValue(dv ddl.DefaultValue, tableId, colId string, conv *intern
 				}
 			}
 		}
-		if expressionId != "" {
+		if expressionId == "" {
 			expressionId = internal.GenerateExpressionId()
 		}
 	} else {

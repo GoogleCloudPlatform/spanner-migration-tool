@@ -62,6 +62,7 @@ export interface ITable {
   ColDefs: Record<string, IColumn>
   PrimaryKeys: ISrcIndexKey[]
   ForeignKeys: IForeignKey[]
+  CheckConstraints: ICheckConstraints[]
   Indexes: IIndex[]
 }
 
@@ -110,6 +111,7 @@ export interface ICreateTable {
   ColDefs: Record<string, IColumnDef>
   PrimaryKeys: IIndexKey[]
   ForeignKeys: IForeignKey[]
+  CheckConstraints: ICheckConstraints[]
   Indexes: ICreateIndex[]
   ParentTable: IInterleavedParent
   Comment: string
@@ -134,6 +136,13 @@ export interface IForeignKey {
   Id: string|undefined
 }
 
+export interface ICheckConstraints {
+  Id: string
+  Name: string
+  Expr: string
+  ExprId: string
+}
+
 export interface IIndexKey {
   ColId: string
   Desc: boolean
@@ -153,6 +162,7 @@ export interface IColumnDef {
   NotNull: boolean
   Comment: string
   AutoGen: IAutoGen
+  DefaultValue: IDefaultValue
 }
 
 export interface IType {

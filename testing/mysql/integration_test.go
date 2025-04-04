@@ -122,7 +122,7 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName)
 
 	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDATABASE"), os.Getenv("MYSQLPWD")
-	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s,project=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName, projectID)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -134,7 +134,7 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 }
 
 func runSchemaSubcommand(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
-	args := fmt.Sprintf("schema -prefix %s -source=mysql -target-profile='instance=%s,dbName=%s' < %s", filePrefix, instanceID, dbName, dumpFilePath)
+	args := fmt.Sprintf("schema -prefix %s -source=mysql -target-profile='instance=%s,dbName=%s,project=%s' < %s", filePrefix, instanceID, dbName, projectID, dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -142,7 +142,7 @@ func runSchemaSubcommand(t *testing.T, dbName, filePrefix, sessionFile, dumpFile
 }
 
 func runDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFilePath string) {
-	args := fmt.Sprintf("data -source=mysql -prefix %s -session %s -target-profile='instance=%s,dbName=%s' < %s", filePrefix, sessionFile, instanceID, dbName, dumpFilePath)
+	args := fmt.Sprintf("data -source=mysql -prefix %s -session %s -target-profile='instance=%s,dbName=%s,project=%s' < %s", filePrefix, sessionFile, instanceID, dbName, projectID, dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -150,7 +150,7 @@ func runDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dum
 }
 
 func runSchemaAndDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFilePath string) {
-	args := fmt.Sprintf("schema-and-data -source=mysql -prefix %s -target-profile='instance=%s,dbName=%s' < %s", filePrefix, instanceID, dbName, dumpFilePath)
+	args := fmt.Sprintf("schema-and-data -source=mysql -prefix %s -target-profile='instance=%s,dbName=%s,project=%s' < %s", filePrefix, instanceID, dbName, projectID, dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -228,7 +228,7 @@ func TestIntegration_MYSQL_ForeignKeyActionMigration(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName)
 
 	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDB_FKACTION"), os.Getenv("MYSQLPWD")
-	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s,project=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName, projectID)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -252,6 +252,205 @@ func TestIntegration_MySQLDUMP_ForeignKeyActionMigration(t *testing.T) {
 
 	defer dropDatabase(t, dbURI)
 	checkForeignKeyActions(ctx, t, dbURI)
+}
+
+func TestIntegration_MySQLDUMP_CheckConstraintMigration(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-check-constraint"
+	dumpFilePath := "../../test_data/mysql_checkconstraint_dump.test.out"
+	filePrefix := filepath.Join(tmpdir, dbName)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
+
+	defer dropDatabase(t, dbURI)
+	checkCheckConstraints(ctx, t, dbURI)
+}
+
+func TestIntegration_MYSQL_CheckConstraintsActionMigration(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "mysql-checkconstraints-actions"
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	filePrefix := filepath.Join(tmpdir, dbName)
+
+	host, user, srcDb, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDB_CHECK_CONSTRAINT"), os.Getenv("MYSQLPWD")
+	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,dbName=%s,password=%s' -target-profile='instance=%s,dbName=%s,project=%s'", constants.MYSQL, filePrefix, host, user, srcDb, password, instanceID, dbName, projectID)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dropDatabase(t, dbURI)
+
+	checkCheckConstraints(ctx, t, dbURI)
+}
+
+func checkCheckConstraints(ctx context.Context, t *testing.T, dbURI string) {
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
+	defer client.Close()
+
+	// Insert or update data
+	insertOrUpdateData := func(data map[string]interface{}) error {
+		_, err := client.Apply(ctx, []*spanner.Mutation{
+			spanner.InsertOrUpdateMap("TestTable", data),
+		})
+		return err
+	}
+
+	// Check if a constraint violation occurs
+	checkConstraintViolation := func(data map[string]interface{}, expectedErr string) {
+		err := insertOrUpdateData(data)
+		if err == nil || !strings.Contains(err.Error(), expectedErr) {
+			t.Fatalf("Expected constraint violation for '%s' but got none or wrong error: %v", expectedErr, err)
+		}
+	}
+
+	// Test Case 1: Valid Insert for chk_range/chk_DateRange
+	err = insertOrUpdateData(map[string]interface{}{
+		"ID":           1,
+		"Value":        12,
+		"Flag":         false,
+		"Date":         time.Now(),
+		"Name":         "ValidName",
+		"EnumValue":    "OptionA",
+		"BooleanValue": 1,
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert valid data for chk_range/chk_DateRange: %v", err)
+	}
+
+	// Test Case 2: Valid Insert for chk_bitwise
+	err = insertOrUpdateData(map[string]interface{}{
+		"ID":    2,
+		"Name":  "ValidName",
+		"Flag":  false,
+		"Value": 12, // valid value
+	})
+
+	if err != nil {
+		t.Fatalf("Failed to insert valid data for chk_bitwise: %v", err)
+	}
+
+	// Test Case 3: Invalid Insert for chk_bitwise (Negative Value)
+	checkConstraintViolation(map[string]interface{}{
+		"ID":    3,
+		"Value": -1, // Value < 0
+		"Flag":  false,
+	}, "chk_bitwise")
+
+	// Test Case 4: Invalid Insert for chk_DateRange (Negative Value)
+	checkConstraintViolation(map[string]interface{}{
+		"ID":    4,
+		"Value": 12,
+		"Date":  time.Date(1999, 12, 31, 23, 59, 59, 0, time.UTC),
+		"Flag":  false,
+	}, "chk_DateRange")
+
+	// Test Case 5: Valid Insert for chk_NullValue (Value is not NULL)
+	err = insertOrUpdateData(map[string]interface{}{
+		"ID":    5,
+		"Value": 12, // Value is not NULL
+		"Name":  "ValidName",
+		"Flag":  false,
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert valid data for chk_NullValue: %v", err)
+	}
+
+	// Test Case 6: Invalid Insert for chk_NullValue (NULL Value)
+	checkConstraintViolation(map[string]interface{}{
+		"ID":    6,
+		"Value": nil, // NULL Value is not allowed
+		"Flag":  false,
+	}, "chk_NullValue")
+
+	// Test Case 7: Valid Insert for chk_StringLength (Name length > 5)
+	err = insertOrUpdateData(map[string]interface{}{
+		"ID":    7,
+		"Name":  "ValidName", // Name length > 5
+		"Flag":  false,
+		"Value": 12,
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert valid data for chk_StringLength: %v", err)
+	}
+
+	// Test Case 8: Invalid Insert for chk_StringLength (Name length <= 5)
+	checkConstraintViolation(map[string]interface{}{
+		"ID":    8,
+		"Name":  "Test", // Name length <= 5
+		"Flag":  false,
+		"Value": 12,
+	}, "chk_StringLength")
+
+	// Test Case 9: Valid Insert for chk_Enum (Valid Enum)
+	err = insertOrUpdateData(map[string]interface{}{
+		"ID":        9,
+		"EnumValue": "OptionB", // Valid enum value
+		"Name":      "ValidName",
+		"Flag":      false,
+		"Value":     12,
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert valid data for chk_Enum: %v", err)
+	}
+
+	// Test Case 10: Invalid Insert for chk_Enum (Invalid Enum)
+	checkConstraintViolation(map[string]interface{}{
+		"ID":        10,
+		"EnumValue": "InvalidOption", // Invalid enum value
+		"Flag":      false,
+		"Value":     12,
+	}, "chk_Enum")
+
+	// Test Case 11: Valid Insert for chk_Boolean (Valid boolean 0 or 1)
+	err = insertOrUpdateData(map[string]interface{}{
+		"ID":           11,
+		"Value":        12,
+		"Flag":         false,
+		"Name":         "ValidName",
+		"BooleanValue": 1, // Valid boolean value
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert valid data for chk_Boolean: %v", err)
+	}
+
+	// Test Case 12: Invalid Insert for chk_Boolean (Invalid boolean value)
+	checkConstraintViolation(map[string]interface{}{
+		"ID":           12,
+		"Value":        12,
+		"Flag":         false,
+		"BooleanValue": 2, // Invalid boolean representation
+	}, "chk_Boolean")
+
+	// Test Case 13: Valid Insert for chk_range (Valid value between 10 and 1000)
+	err = insertOrUpdateData(map[string]interface{}{
+		"ID":           13,
+		"Value":        12, // Valid value
+		"Flag":         false,
+		"Name":         "ValidName",
+		"BooleanValue": 1,
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert valid data for chk_range: %v", err)
+	}
+
+	// Test Case 14: Invalid Insert for chk_range (Invalid value)
+	checkConstraintViolation(map[string]interface{}{
+		"ID":           14,
+		"Value":        5, // Invalid Value
+		"Flag":         false,
+		"BooleanValue": 1,
+	}, "chk_range")
+
 }
 
 func checkResults(t *testing.T, dbURI string, skipJson bool) {

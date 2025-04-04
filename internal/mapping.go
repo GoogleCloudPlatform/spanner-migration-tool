@@ -46,7 +46,7 @@ func GetSpannerTable(conv *Conv, tableId string) (string, error) {
 		return sp.Name, nil
 	}
 	srcTableName := conv.SrcSchema[tableId].Name
-	spTableName := getSpannerValidName(conv, srcTableName)
+	spTableName := GetSpannerValidName(conv, srcTableName)
 	if spTableName != srcTableName {
 		VerbosePrintf("Mapping source DB table %s to Spanner table %s\n", srcTableName, spTableName)
 		logger.Log.Debug(fmt.Sprintf("Mapping source DB table %s to Spanner table %s\n", srcTableName, spTableName))
@@ -140,7 +140,7 @@ func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
 	if srcFkName == "" {
 		return ""
 	}
-	return getSpannerValidName(conv, srcFkName)
+	return GetSpannerValidName(conv, srcFkName)
 }
 
 // ToSpannerOnDelete maps the source ON DELETE action
@@ -240,7 +240,7 @@ func ToSpannerOnUpdate(conv *Conv, srcTableId string, srcUpdateRule string) stri
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
 func ToSpannerIndexName(conv *Conv, srcIndexName string) string {
-	return getSpannerValidName(conv, srcIndexName)
+	return GetSpannerValidName(conv, srcIndexName)
 }
 
 // Note that the check constraints names in spanner have to be globally unique
@@ -248,14 +248,14 @@ func ToSpannerIndexName(conv *Conv, srcIndexName string) string {
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
 func ToSpannerCheckConstraintName(conv *Conv, srcCheckConstraintName string) string {
-	return getSpannerValidName(conv, srcCheckConstraintName)
+	return GetSpannerValidName(conv, srcCheckConstraintName)
 }
 
 // conv.UsedNames tracks Spanner names that have been used for table names, foreign key constraints
 // and indexes. We use this to ensure we generate unique names when
 // we map from source dbs to Spanner since Spanner requires all these names to be
 // distinct and should not differ only in case.
-func getSpannerValidName(conv *Conv, srcName string) string {
+func GetSpannerValidName(conv *Conv, srcName string) string {
 	spKeyName, _ := FixName(srcName)
 	if _, found := conv.UsedNames[strings.ToLower(spKeyName)]; found {
 		// spKeyName has been used before.
