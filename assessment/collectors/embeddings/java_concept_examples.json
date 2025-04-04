@@ -1,0 +1,195 @@
+[
+  {
+    "id": "100",
+    "example": "How to migrate from `AUTO_INCREMENT` in MySQL to Spanner?",
+    "rewrite": {
+      "theory": "Cloud Spanner doesn't support auto-incrementing columns like traditional relational databases. To handle this, you can use one of two methods: 1. Using UUIDs: Define a primary key as a STRING(36) column with GENERATE_UUID() as the default value. 2. Using Sequences: Create a sequence with the bit_reversed_positive kind and use GET_NEXT_SEQUENCE_VALUE() for the primary key.",
+      "options": [
+        {
+          "mysql_code": "CREATE TABLE Singers (SingerId INT AUTO_INCREMENT PRIMARY KEY, Name VARCHAR(255), Rank INT);",
+          "spanner_code": "CREATE SEQUENCE SingerIdSequence OPTIONS (sequence_kind='bit_reversed_positive');\nCREATE TABLE Singers (SingerId INT64 DEFAULT (NEXT VALUE FOR SingerIdSequence), Name STRING(255), Rank INT64);"
+        },
+        {
+          "mysql_code": "CREATE TABLE Singers (SingerId INT AUTO_INCREMENT PRIMARY KEY, Name VARCHAR(255), Rank INT);",
+          "spanner_code": "CREATE TABLE Singers (SingerId STRING(36) DEFAULT (GENERATE_UUID()), Name STRING(255), Rank INT64);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "200",
+    "example": "In MySQL, `LAST_INSERT_ID()` returns the auto-increment value of the last inserted row. How can we achieve the same functionality in Spanner?",
+    "rewrite": {
+      "theory": "While Spanner doesn't have a direct equivalent to MySQL's `LAST_INSERT_ID()` function, it offers a more efficient and versatile solution through its **DML Returning** feature. This allows you to retrieve data, including auto-generated keys, directly from your `INSERT` statement.",
+      "options": [
+        {
+          "mysql_code": "try (Connection connection = DriverManager.getConnection(this.connectionUrl)) {\n    connection.setAutoCommit(false);\n    PreparedStatement ps = connection.prepareStatement(\"INSERT INTO Customer\n(Name, Address)\nVALUES\n(?, ?)\");\n    ps.setString(1, name);\n    ps.setString(2, address);\n    ps.executeUpdate();\n\n    Statement last_id = connection.createStatement();\n    last_id.executeQuery(\"SELECT LAST_INSERT_ID()\");\n    ResultSet rs = last_id.getResultSet();\n    rs.next();\n    customerId = rs.getInt(1);\n    connection.commit();\n} catch (SQLException e) {\n    e.printStackTrace();\n    throw Status.fromThrowable(e).asException();\n}",
+          "spanner_code": "try (Connection connection = DriverManager.getConnection(\n        \"jdbc:cloudspanner:/projects/<project>/instances/<instance>/databases/<database>\",\n        \"<username>\",\n        \"<password>\")) {\n    Statement statement = connection.createStatement();\n    String sql = \"INSERT INTO MyTable (Col1, Col2) VALUES ('value1', 'value2') THEN RETURN MyTableId\"; \n    try (ResultSet resultSet = statement.executeQuery(sql)) { \n        if (resultSet.next()) {\n            long id = resultSet.getLong(\"MyTableId\"); // Get the generated ID\n            System.out.println(\"Generated ID: \" + id);\n            // Use the inserted ID in another query\n            String selectSql = \"SELECT * FROM AnotherTable WHERE related_id = \" + id;\n            ResultSet selectRs = statement.executeQuery(selectSql);\n            // Process the result set\n        }\n    }\n} catch (SQLException e) {\n    System.err.println(\"Error: \" + e.getMessage());\n}"
+        }
+      ]
+    }
+  },
+  {
+    "id": "300",
+    "example": "How to identify rows using a UUID in Spanner?",
+    "rewrite": {
+      "theory": "Spanner fully supports automatic ID generation using sequences. These sequences generate random (bit-reversed) integers, not sequential integers.",
+      "options": [
+        {
+          "mysql_code": "CREATE TABLE Users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255));",
+          "spanner_code": "CREATE SEQUENCE user_id_seq OPTIONS (sequence_kind='bit_reversed_positive');\nCREATE TABLE Users (id INT64 DEFAULT (NEXT VALUE FOR user_id_seq), name STRING(255));"
+        }
+      ]
+    }
+  },
+  {
+    "id": "400",
+    "example": "How to handle transactions and autocommit in Spanner?",
+    "rewrite": {
+      "theory": "Spanner fully supports and encourages the use of transactions. Autocommit should be turned off except for code that is deliberately executing single-statement transactions.",
+      "options": [
+        {
+          "mysql_code": "Connection conn = DriverManager.getConnection(url, user, password);\nconn.setAutoCommit(false);\n// ... perform operations ...\nconn.commit();",
+          "spanner_code": "Connection conn = DriverManager.getConnection(url, user, password);\nconn.setAutoCommit(false);\n// ... perform operations ...\nconn.commit();"
+        }
+      ]
+    }
+  },
+  {
+    "id": "500",
+    "example": "How can we efficiently handle large-scale deletes/updates in Spanner with performance optimization?",
+    "rewrite": {
+      "theory": "To efficiently handle large-scale deletes and updates in Google Cloud Spanner, use Partitioned DML for high throughput and low latency. This method should be applied to bulk updates only and not for pointed updates where a WHERE clause involves specific variables or IDs with an equality condition. Ensure your operations meet the following conditions: they must be single table operations, idempotent (not dependent on existing row values), and avoid nested queries.",
+      "options": [
+        {
+          "mysql_code": "/* MySQL doesn't have a direct equivalent to Partitioned DML */",
+          "spanner_code": "try (Connection connection = DriverManager.getConnection(connectionString)) {\n    // Enable Partitioned DML\n    connection.createStatement().execute(\"SET AUTOCOMMIT_DML_MODE='PARTITIONED_NON_ATOMIC'\");\n\n    // Example Partitioned DML Update\n    String sql = \"UPDATE Users SET status = 'inactive' WHERE last_login < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 YEAR)\";\n    try (PreparedStatement statement = connection.prepareStatement(sql)) {\n        int affectedRows = statement.executeUpdate();\n        System.out.println(\"Updated rows: \" + affectedRows);\n    }\n} catch (SQLException e) {\n    e.printStackTrace();\n}"
+        }
+      ]
+    }
+  },
+  {
+    "id": "600",
+    "example": "What is the recommended approach for performing DML operations in Spanner, especially for performance-sensitive scenarios?",
+    "rewrite": {
+      "theory": "While DML is suitable for most DML operations in Spanner, for performance-sensitive transactions that only involve INSERT operations and don't read any data, consider using Mutations for improved latency.",
+      "options": [
+        {
+          "mysql_code": "PreparedStatement stmt = conn.prepareStatement(\"INSERT INTO MyTable (Col1, Col2) VALUES (?, ?)\");",
+          "spanner_code": "CloudSpannerJdbcConnection cloudSpannerJdbcConnection = connection.unwrap(CloudSpannerJdbcConnection.class);\nList<Mutation> mutations = new ArrayList<>();\nmutations.add(Mutation.newInsertBuilder(\"MyTable\")\n        .set(\"Col1\").to(\"value1\")\n        .set(\"Col2\").to(\"value2\")\n        .build());\ncloudSpannerJdbcConnection.write(mutations);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "700",
+    "example": "What is the recommended approach for performing INSERT operations in Spanner, especially for performance-sensitive scenarios?",
+    "rewrite": {
+      "theory": "While DML is suitable for most INSERT operations in Spanner, for performance-sensitive transactions that only involve INSERT operations and don't read any data, consider using Mutations for improved latency.",
+      "options": [
+        {
+          "mysql_code": "PreparedStatement stmt = conn.prepareStatement(\"INSERT INTO MyTable (Col1, Col2) VALUES (?, ?)\");",
+          "spanner_code": "CloudSpannerJdbcConnection cloudSpannerJdbcConnection = connection.unwrap(CloudSpannerJdbcConnection.class);\nList<Mutation> mutations = new ArrayList<>();\nmutations.add(Mutation.newInsertBuilder(\"MyTable\")\n        .set(\"Col1\").to(\"value1\")\n        .set(\"Col2\").to(\"value2\")\n        .build());\ncloudSpannerJdbcConnection.write(mutations);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "800",
+    "example": "How can I add timestamps to records in Spanner?",
+    "rewrite": {
+      "theory": "To add the current timestamp to a record in Spanner, you can use the `CURRENT_TIMESTAMP()` SQL function.",
+      "options": [
+        {
+          "mysql_code": "INSERT INTO MyTable (Col1, Col2, created_at) VALUES (?, ?, NOW());",
+          "spanner_code": "PreparedStatement stmt = conn.prepareStatement(\"INSERT INTO MyTable (Col1, Col2, created_at) VALUES (?, ?, CURRENT_TIMESTAMP())\");\nstmt.setString(1, \"value1\");\nstmt.setString(2, \"value2\");\nstmt.executeUpdate();"
+        }
+      ]
+    }
+  },
+  {
+    "id": "900",
+    "example": "How can I improve the performance of my database queries in Spanner?",
+    "rewrite": {
+      "theory": "Using prepared statements can significantly improve the performance of your database queries in Spanner, especially for frequently executed queries with varying parameters. Prepared statements are precompiled by the database, leading to faster execution and reduced parsing overhead.",
+      "options": [
+        {
+          "mysql_code": "Statement stmt = conn.createStatement();\nstmt.execute(\"SELECT * FROM my_table WHERE name = 'John'\");",
+          "spanner_code": "PreparedStatement pstmt = conn.prepareStatement(\"SELECT * FROM my_table WHERE name = ?\");\npstmt.setString(1, \"John\");\npstmt.executeQuery();"
+        }
+      ]
+    }
+  },
+  {
+    "id": "1000",
+    "example": "How can I optimize read performance in Spanner for non-critical data?",
+    "rewrite": {
+      "theory": "To optimize read performance for non-critical data in Spanner, you can leverage read staleness. By setting a read staleness duration, you allow Spanner to return slightly stale data, which can significantly improve query performance.",
+      "options": [
+        {
+          "mysql_code": "Statement stmt = conn.createStatement();\nstmt.executeQuery(\"SELECT * FROM analytics WHERE date = CURDATE()\");",
+          "spanner_code": "Statement stmt = conn.createStatement();\nstmt.setReadStaleness(Duration.of(10, ChronoUnit.SECONDS));\nstmt.executeQuery(\"SELECT * FROM analytics WHERE date = CURDATE()\");"
+        }
+      ]
+    }
+  },
+  {
+    "id": "1100",
+    "example": "How can I optimize the performance of ad-hoc queries in Spanner?",
+    "rewrite": {
+      "theory": "To optimize the performance of ad-hoc queries in Spanner, consider using auto-commit mode for single, independent queries that don't require transactions. This can save a round trip to the database and reduce overhead. MySQL also supports auto-commit mode, which can be enabled or disabled using the `setAutoCommit()` method.",
+      "options": [
+        {
+          "mysql_code": "Connection conn = DriverManager.getConnection(url, user, password);\nconn.setAutoCommit(true);\nStatement stmt = conn.createStatement();\nstmt.executeQuery(\"SELECT * FROM my_table\");",
+          "spanner_code": "Connection conn = DriverManager.getConnection(url, user, password);\nconn.setAutoCommit(true);\nStatement stmt = conn.createStatement();\nstmt.executeQuery(\"SELECT * FROM my_table\");"
+        }
+      ]
+    }
+  },
+  {
+    "id": "1300",
+    "example":"How can I improve the performance of concurrent database operations in Spanner, especially when fetching multiple related datasets?",
+    "rewrite":{
+      "theory":"To improve the performance of concurrent database operations in Spanner, especially when fetching multiple related datasets, consider using asynchronous operations and CompletableFuture. This allows you to fetch data concurrently, potentially reducing overall execution time.",
+      "options":[
+        {
+          "mysql_code":"try(Connection conn=DriverManager.getConnection(\"jdbc:mysql://localhost:3306/mydatabase\",\"user\",\"password\");Statement stmt=conn.createStatement();ResultSet rs=stmt.executeQuery(\"SELECT * FROM products WHERE id = 1\")){\n            rs.next();\n            String productName=rs.getString(\"name\");\n            double productPrice=rs.getDouble(\"price\");\n\n            ResultSet reviewsRs=stmt.executeQuery(\"SELECT * FROM reviews WHERE product_id = 1\");\n            List<String> reviews=new ArrayList<>();\n            while(reviewsRs.next()){\n                reviews.add(reviewsRs.getString(\"comment\"));\n            }\n\n            // Display the data\n            System.out.println(\"Product: \"+productName+\" - Price: $\"+productPrice);\n            System.out.println(\"Reviews:\");\n            for(String review:reviews){\n                System.out.println(\"- \"+review);\n            }\n\n        }catch(Exception e){\n            e.printStackTrace();\n        }",
+          "spanner_code":"CompletableFuture<Product> productFuture=CompletableFuture.supplyAsync(()->{\n                        try(Connection conn=DriverManager.getConnection(\"jdbc:cloudspanner:/projects/<project>/instances/<instance>/databases/<database>\",\"<username>\",\"<password>\");Statement stmt=conn.createStatement();ResultSet rs=stmt.executeQuery(\"SELECT * FROM products WHERE id = 1\")){\n                            rs.next();\n                            return new Product(rs.getInt(\"id\"),rs.getString(\"name\"),rs.getDouble(\"price\"));\n                        }catch(Exception e){\n                            throw new RuntimeException(e);\n                        }\n                    });\n\n                    CompletableFuture<List<String>> reviewsFuture=CompletableFuture.supplyAsync(()->{\n                        try(Connection conn=DriverManager.getConnection(\"jdbc:cloudspanner:/projects/<project>/instances/<instance>/databases/<database>\",\"<username>\",\"<password>\");Statement stmt=conn.createStatement();ResultSet rs=stmt.executeQuery(\"SELECT * FROM reviews WHERE product_id = 1\")){\n                            List<String> reviews=new ArrayList<>();\n                            while(rs.next()){\n                                reviews.add(rs.getString(\"comment\"));\n                            }\n                            return reviews;\n                        }catch(Exception e){\n                            throw new RuntimeException(e);\n                        }\n                    });\n\n                    // Combine the results\n                    productFuture.thenCombine(reviewsFuture,(product,reviews)->{\n                        System.out.println(\"Product: \"+product.name+\" - Price: $\"+product.price);\n                        System.out.println(\"Reviews:\");\n                        for(String review:reviews){\n                            System.out.println(\"- \"+review);\n                        }\n                        return null; // You can return a combined result if needed\n                    }).join(); // Wait for both futures to complete"
+        }
+      ]
+    }
+  },
+  {
+    "id": "1500",
+    "example": "How to optimize connection management in Spanner?",
+    "rewrite": {
+      "theory": "To optimize connection management in Spanner, use the built-in session pooling provided by the Spanner JDBC driver. This can significantly improve performance by reusing connections and reducing the overhead of creating new connections.",
+      "options": [
+        {
+          "mysql_code": "Connection conn = DriverManager.getConnection(\"jdbc:mysql://localhost:3306/mydb\", \"user\", \"password\");",
+          "spanner_code": "Properties props = new Properties();\nprops.setProperty(\"url\", \"jdbc:cloudspanner://[PROJECT_ID]/[INSTANCE_ID]/[DATABASE_ID]\");\nprops.setProperty(\"autocommit\", \"false\");\nprops.setProperty(\"minSessions\", \"10\");\nprops.setProperty(\"maxSessions\", \"100\");\nprops.setProperty(\"numChannels\", \"4\");\nConnection conn = DriverManager.getConnection(props.getProperty(\"url\"), props);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "1600",
+    "example": "How to handle data type conversions when migrating from MySQL to Spanner?",
+    "rewrite": {
+      "theory": "When migrating from MySQL to Spanner, consider the following data type conversions and potential implications:\n* **INT to INT64:** Ensure your application can handle the increased range of values.\n* **DATETIME, TIMESTAMP to TIMESTAMP:** Be mindful of timezone differences and potential conversion requirements.\n* **DECIMAL to NUMERIC:** Ensure appropriate precision and scale settings in Spanner schema and application code.\n* **ENUM to STRING or custom proto enum:** Adjust code to handle string values or custom enum types.\n* **Other data types:** Refer to the Spanner documentation for specific conversion guidelines."
+    }
+  },
+  {
+    "id": "1700",
+    "example": "How can I improve the performance of database operations in Spanner?",
+    "rewrite": {
+      "theory": "One effective way to optimize database performance in Spanner is by batching multiple SQL statements together. This reduces the number of round trips to the database, leading to significant performance improvements, especially for a large number of small operations.",
+      "options": [
+        {
+          "mysql_code": "stmt.executeUpdate(\"INSERT INTO my_table VALUES (1, 'data')\"); stmt.executeUpdate(\"INSERT INTO my_table VALUES (2, 'data')\");",
+          "spanner_code": "conn.setAutoCommit(false);\nstmt.addBatch(\"INSERT INTO my_table VALUES (1, 'data')\");\nstmt.addBatch(\"INSERT INTO my_table VALUES (2, 'data')\");\nstmt.executeBatch(); conn.commit();"
+        }
+      ]
+    }
+  }
+]

@@ -19,6 +19,7 @@ package assessment
 import (
 	"bufio"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -36,6 +37,15 @@ import (
 	"go.uber.org/zap"
 )
 
+//go:embed prompts/analyze-code-prompt.txt
+var AnalyzeCodePromptTemplate string
+
+//go:embed prompts/dao-migration-prompt.txt
+var DAOMigrationPromptTemplate string
+
+//go:embed prompts/non-dao-migration-prompt.txt
+var NonDAOMigrationPromptTemplate string
+
 // MigrationSummarizer holds the LLM models and example databases
 type MigrationSummarizer struct {
 	projectID                     string
@@ -44,6 +54,8 @@ type MigrationSummarizer struct {
 	modelPro                      *genai.GenerativeModel
 	modelFlash                    *genai.GenerativeModel
 	conceptExampleDB              *assessment.MysqlConceptDb
+	sourceFramework               string
+	targetFramework               string
 	dependencyAnalyzer            dependencyAnalyzer.DependencyAnalyzer
 	sourceSchema                  string
 	targetSchema                  string
@@ -92,10 +104,24 @@ func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *strin
 		return nil, fmt.Errorf("failed to create Vertex AI client: %w", err)
 	}
 
-	conceptExampleDB, err := assessment.NewMysqlConceptDb(projectID, location)
+	conceptExampleDB, err := assessment.NewMysqlConceptDb(projectID, location, language)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load code example DB: %w", err)
 	}
+
+	var sourceFramework, targetFramework string
+
+	switch language {
+	case "go":
+		sourceFramework = "go-sql-mysql"
+		targetFramework = "go-sql-spanner"
+	case "java":
+		sourceFramework = "JDBC"
+		targetFramework = "JDBC"
+	default:
+		panic("unsupported language")
+	}
+
 	m := &MigrationSummarizer{
 		projectID:                     projectID,
 		location:                      location,
@@ -105,6 +131,8 @@ func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *strin
 		conceptExampleDB:              conceptExampleDB,
 		dependencyAnalyzer:            dependencyAnalyzer.AnalyzerFactory(language, ctx),
 		sourceSchema:                  sourceSchema,
+		sourceFramework:               sourceFramework,
+		targetFramework:               targetFramework,
 		targetSchema:                  targetSchema,
 		projectPath:                   projectPath,
 		dependencyGraph:               make(map[string]map[string]struct{}),
@@ -120,47 +148,12 @@ func (m *MigrationSummarizer) MigrationCodeConversionInvoke(
 	ctx context.Context,
 	originalPrompt, sourceCode, olderSchema, newSchema, identifier string,
 ) (string, error) {
-	//TODO: Move prompts to promt file.
-	prompt := fmt.Sprintf(`
-		You are a Cloud Spanner expert tasked with migrating an application from MySQL go-sql-mysql to Spanner go-sql-spanner.
-
-		Analyze the provided code, old MySQL schema, and new Spanner schema. The schemas may be extensive as they represent the full database,
-		so focus your analysis on the DDL statements relevant to the provided code snippet. Identify areas where the application logic needs to be adapted
-		for Spanner and formulate specific questions requiring human expertise.
-
-		Only ask crisp and concise questions where you need actual guidance, human input, or assistance with complex functionalities. Focus on practical challenges and
-		differences between MySQL and Spanner go-sql-spanner, such as:
-		* How specific MySQL features or queries can be replicated in Spanner.
-		* Workarounds for unsupported MySQL features in Spanner.
-		* Necessary code changes due to schema differences.
-		* Check for performance improvements and ask performance optimizations related questions as well.
-
-
-		**Instructions**
-		* Keep your questions general and focused on Spanner functionality, avoiding application-specific details.
-		* Also ask questions on performance optimizations and recommended approaches to work with spanner.
-		* Ensure each question is unique and hasn't been asked before.
-		* Ensure that the ouput follows strict JSON parsable format
-
-		**Example questions:**
-		* "MySQL handles X this way... how can we achieve the same result in Spanner?"
-		* "Feature Y is not supported in Spanner... what are the alternative approaches?"
-
-    **Input:**
-    * Source_code: %s
-    * Older_schema: %s
-    * Newer_schema: %s
-
-    **Output:**
-    @@@json
-    {
-        "questions": [
-            "Question 1",
-            "Question 2"
-        ]
-    }
-    @@@
-    `, sourceCode, olderSchema, newSchema)
+	prompt := AnalyzeCodePromptTemplate
+	prompt = strings.ReplaceAll(prompt, "{{SOURCE_FRAMEWORK}}", m.sourceFramework)
+	prompt = strings.ReplaceAll(prompt, "{{TARGET_FRAMEWORK}}", m.targetFramework)
+	prompt = strings.ReplaceAll(prompt, "{{SOURCE_CODE}}", sourceCode)
+	prompt = strings.ReplaceAll(prompt, "{{OLDER_SCHEMA}}", olderSchema)
+	prompt = strings.ReplaceAll(prompt, "{{NEW_SCHEMA}}", newSchema)
 
 	resp, err := m.modelFlash.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
@@ -336,7 +329,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, projectPath, file
 	if m.dependencyAnalyzer.IsDAO(filepath, content) {
 		logger.Log.Debug("Analyze File: "+filepath, zap.Bool("isDao", true))
 		var err error
-		prompt := getPromptForDAOClass(content, filepath, &methodChanges, &m.sourceSchema, &m.targetSchema)
+		prompt := m.getPromptForDAOClass(content, filepath, &methodChanges, &m.sourceSchema, &m.targetSchema)
 		response, err = m.MigrationCodeConversionInvoke(ctx, prompt, content, m.sourceSchema, m.targetSchema, "analyze-dao-class-"+filepath)
 		isDao = true
 		if err != nil {
@@ -353,7 +346,7 @@ func (m *MigrationSummarizer) AnalyzeFile(ctx context.Context, projectPath, file
 
 	} else {
 		logger.Log.Debug("Analyze File: "+filepath, zap.Bool("isDao", false))
-		prompt := getPromptForNonDAOClass(content, filepath, &methodChanges)
+		prompt := m.getPromptForNonDAOClass(content, filepath, &methodChanges)
 		res, err := m.modelFlash.GenerateContent(ctx, genai.Text(prompt))
 
 		if err != nil {
@@ -566,163 +559,28 @@ func getLanguage(filePath string) string {
 	return ""
 }
 
-func getPromptForNonDAOClass(content, filepath string, methodChanges *string) string {
-	//TODO: Move prompts to promt file.
-	return fmt.Sprintf(`
-		You are tasked with adapting a Java class to function correctly within an application that has migrated its persistence layer to Cloud Spanner.
+func (m *MigrationSummarizer) getPromptForNonDAOClass(content, filepath string, methodChanges *string) string {
+	var prompt = NonDAOMigrationPromptTemplate
 
-		**Objective:**
-		Analyze the provided Java code and identify the necessary modifications for compatibility with the updated application architecture.
+	prompt = strings.ReplaceAll(prompt, "{{FILEPATH}}", filepath)
+	prompt = strings.ReplaceAll(prompt, "{{CONTENT}}", content)
+	prompt = strings.ReplaceAll(prompt, "{{METHOD_CHANGES}}", *methodChanges)
+	prompt = strings.ReplaceAll(prompt, "{{SOURCE_FRAMEWORK}}", m.sourceFramework)
+	prompt = strings.ReplaceAll(prompt, "{{TARGET_FRAMEWORK}}", m.targetFramework)
 
-    **Output:**
-		Return your analysis in JSON format with the following keys and ensure strict JSON parsable format:
-
-		*   **file_modifications**: A list of required code changes.
-		*   **method_signature_changes**: A list of required public method signature changes for callers (excluding parameter name changes).
-		*   **general_warnings**: A list of general warnings or considerations for the migration, especially regarding Spanner-specific limitations and best practices.
-		*	**pagination**: Information about the pagination of the response.
-
-		**Format for "file_modifications"**:
-		@@@json
-		[
-		{
-				"original_method_signature": "<original method signature where the change is required>",
-				"new_method_signature": "<modified method signature>",
-				"code_sample": : ["Line1", "Line2", ... ],
-				"start_line": <starting line number of the affected code>,
-				"end_line": <ending line number of the affected code>,
-				"suggested_change": ["Line1", "Line2", ... ],
-				"description": "<human-readable description of the required change>",
-				"number_of_affected_lines": <number_of_lines_impacted>,
-				"complexity": "<SIMPLE|MODERATE|COMPLEX>",
-				"warnings": [
-				"<thing to be aware of>",
-				"<another thing to be aware of>",
-				...]
-		},
-		...],
-		@@@
-
-		**Format for method_signature_changes**
-		@@@json
-		[
-		{
-				"original_signature": "<original method signature>",
-				"new_signature": "<modified method signature>",
-				"explanation": "<description of why the change is needed and how to update the code>"
-		},
-		...],
-		@@@
-
-		**Format for general_warnings**
-		@@@json
-		[
-			"Warning 1",
-			"Warning 2",
-		...],
-		@@@
-
-		**Format for pagination**
-		@@@json
-		{
-				"total_page": "Total number of pages that the response has",
-				"current_page": "Current page number of the response"
-		}
-		@@@
-
-    **Instructions:**
-		1. Line numbers in file_modifications must be accurate and include all lines in the original code.
-		2. All generated result values should be single-line strings. Avoid hallucinations and suggest only relevant changes.
-		3. Consider the class's role within the application.
-						a. If it interacts with a service layer, identify any calls to service methods that have changed due to the underlying DAO updates and suggest appropriate modifications.
-						b. If it's a POJO, analyze if any changes in data types or structures are required due to the Spanner migration.
-						c. If it's a utility class, determine if any of its functionalities are affected by the new persistence layer.
-		4. Consider potential impacts on business logic or data flow due to changes in the underlying architecture.
-		5. Ensure that the output is a valid JSON string and parsable.
-		6. Capture larger code snippets for modification and provide cumulative descriptions instead of line-by-line changes.
-		7. Classify complexity as SIMPLE, MODERATE, or COMPLEX based on implementation difficulty, required expertise, and clarity of requirements.
-		8. Please paginate your output if the token limit is getting reached. Do ensure that the json string is complete and parsable.
-
-
-
-		**INPUT:**
-		File Path: %s
-		File Content:
-		%s
-		Method Changes:
-		%s`, filepath, content, *methodChanges)
+	return prompt
 }
 
-func getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, newSchema *string) string {
-	//TODO: Move prompts to promt file.
-	return fmt.Sprintf(`
-        You are a Cloud Spanner expert tasked with migrating a DAO class from MySQL go-sql-mysql to Spanner go-sql-spanner.
+func (m *MigrationSummarizer) getPromptForDAOClass(content, filepath string, methodChanges, oldSchema, newSchema *string) string {
+	var prompt = DAOMigrationPromptTemplate
 
-				**Objective:**
-				Analyze the provided DAO code and identify the necessary modifications for compatibility with Cloud Spanner. The code may include comments, blank lines, and other non-executable elements. Use function documentation and comments to understand the code's purpose, particularly how it interacts with the database.
+	prompt = strings.ReplaceAll(prompt, "{{OLDER_SCHEMA}}", *oldSchema)
+	prompt = strings.ReplaceAll(prompt, "{{NEW_SCHEMA}}", *newSchema)
+	prompt = strings.ReplaceAll(prompt, "{{FILEPATH}}", filepath)
+	prompt = strings.ReplaceAll(prompt, "{{CONTENT}}", content)
+	prompt = strings.ReplaceAll(prompt, "{{METHOD_CHANGES}}", *methodChanges)
+	prompt = strings.ReplaceAll(prompt, "{{SOURCE_FRAMEWORK}}", m.sourceFramework)
+	prompt = strings.ReplaceAll(prompt, "{{TARGET_FRAMEWORK}}", m.targetFramework)
 
-				**Schema Changes:**
-				First, analyze the schema changes between the provided MySQL schema and the new Spanner schema. These changes may include column definitions, indexes, constraints, etc. Each schema change could potentially impact the DAO class code, particularly the SQL queries or method signatures.
-
-				**Output Format: Please strictly follow the following format and ensure strict JSON parsable format:**
-				@@@json
-				{
-            "schema_impact": [
-									{
-											"schema_change": "Exact change in schema",
-											"table": "Name of the affected table",
-											"column": "Name of the affected column",
-											"number_of_affected_lines": <number_of_lines_impacted>,
-											"existing_code_lines": ["Line1", "Line2", ... ],
-											"new_code_lines": ["Line1", "Line2", ... ]
-									},
-									...
-								],
-            "public_method_changes:[
-									{
-											"original_signature": "<original method signature>",
-											"new_signature": "<modified method signature>",
-											"complexity": "<SIMPLE|MODERATE|COMPLEX>",
-											"number_of_affected_lines": <number_of_lines_impacted>,
-											"explanation": "<description of why the change is needed and how to update the code>"
-									},
-									...
-                ],
-				"pagination": {
-					"total_page": "Total number of pages that the response has",
-					"current_page": "Current page number of the response"
-				}
-
-        }
-				@@@
-
-        **Instructions:**
-        1. Ensure consistency between schema_impact and method_signature_changes.
-        2. Output should strictly be in given json format and ensure strict JSON parsable format.
-        3. All generated result values should be single-line strings. Avoid hallucinations and suggest only relevant changes.
-        4. Pay close attention to SQL queries within the DAO code. Identify any queries that are incompatible with Spanner and suggest appropriate modifications.
-		    5. Please paginate your output if the token limit is getting reached. Do ensure that the json string is complete and parsable.
-
-        **INPUT**
-        **Older MySQL Schema**
-        @@@
-        %s
-        @@@
-        **New Spanner Schema**
-        @@@
-        %s
-        @@@
-
-        Please analyze the following file:
-        %s
-
-        @@@
-        %s
-        @@@
-
-        **Dependent File Method Changes:**
-        Consider the impact of method changes in dependent files on the DAO code being analyzed.
-        @@@
-        %s
-        @@@`, *oldSchema, *newSchema, filepath, content, *methodChanges)
+	return prompt
 }
