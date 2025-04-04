@@ -25,6 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          # Need at least two commits to compare. By default, gh seems to clone only fetch depth of 1.
+          fetch-depth: 2
       - name: Check PR description for override
         env:
           PR_DESC: ${{ github.event.pull_request.body }}
@@ -51,8 +54,8 @@ jobs:
         id: check_changes
         if: steps.check_override.outputs.override_found == '0' && steps.check_file.outputs.package_lock_exists == 'true'
         run: |
-          if git diff --name-only ${{ github.event.before }}..${{ github.event.pull_request.head.sha }} package.json | grep -q 'package.json'; then
-            if ! git diff --name-only ${{ github.event.before }}..${{ github.event.pull_request.head.sha }} package-lock.json | grep -q 'package-lock.json'; then
+          if git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} -- ui/package.json | grep -q 'package.json'; then
+            if ! git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} -- ui/package-lock.json | grep -q 'package-lock.json'; then
               echo "::warning::package.json was modified but package-lock.json was not. Please update the lock file or include 'NO-LOCKFILE-CHECK' in the pull request description to bypass this check."
               exit 1
             fi
