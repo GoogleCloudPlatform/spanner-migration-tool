@@ -77,7 +77,7 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	}()
 	err = logger.InitializeLogger(cmd.logLevel)
 	if err != nil {
-		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
+		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO]", err)
 		return subcommands.ExitFailure
 	}
 	defer logger.Log.Sync()
