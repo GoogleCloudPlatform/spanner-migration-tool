@@ -31,8 +31,11 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-//go:embed concept_examples.json
-var mysql_migration_concept []byte
+//go:embed go_concept_examples.json
+var goMysqlMigrationConcept []byte
+
+//go:embed java_concept_examples.json
+var javaMysqlMigrationConcept []byte
 
 type MySqlMigrationConcept struct {
 	ID      string `json:"id"`
@@ -47,7 +50,7 @@ type MySqlMigrationConcept struct {
 	Embedding []float32 `json:"embedding,omitempty"`
 }
 
-func createEmbededTextsFromFile(project, location string) ([]MySqlMigrationConcept, error) {
+func createEmbededTextsFromFile(project, location, language string) ([]MySqlMigrationConcept, error) {
 	ctx := context.Background()
 	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
 	model := "text-embedding-preview-0815"
@@ -59,9 +62,14 @@ func createEmbededTextsFromFile(project, location string) ([]MySqlMigrationConce
 	defer client.Close()
 
 	// Read the JSON file
-	var data = mysql_migration_concept
-	if err != nil {
-		return nil, err
+	var data []byte
+	switch language {
+	case "go":
+		data = goMysqlMigrationConcept
+	case "java":
+		data = javaMysqlMigrationConcept
+	default:
+		panic("Unsupported language")
 	}
 
 	var mysqlMigrationConcepts []MySqlMigrationConcept
@@ -101,7 +109,7 @@ func createEmbededTextsFromFile(project, location string) ([]MySqlMigrationConce
 }
 
 func embedTextsFromFile(project, location, inputPath, outputPath string) error {
-	mysqlMigrationConcepts, err := createEmbededTextsFromFile(project, location)
+	mysqlMigrationConcepts, err := createEmbededTextsFromFile(project, location, "java")
 	if err != nil {
 		return err
 	}
@@ -122,7 +130,7 @@ func embedTextsFromFile(project, location, inputPath, outputPath string) error {
 
 // Sample Usage
 // func main() {
-// 	if err := embedTextsFromFile("", "", "concept_examples.json", "output.json"); err != nil {
+// 	if err := embedTextsFromFile("", "", "go_concept_examples.json", "output.json"); err != nil {
 // 		logger.Log.Debug("Error:", err)
 // 	}
 // }
