@@ -111,6 +111,7 @@ func NewMigrationSummarizer(ctx context.Context, googleGenerativeAIAPIKey *strin
 
 	var sourceFramework, targetFramework string
 
+	//Todo: Either derive it or take it as input
 	switch language {
 	case "go":
 		sourceFramework = "go-sql-mysql"
