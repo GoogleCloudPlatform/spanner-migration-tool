@@ -16,11 +16,11 @@ WORKDIR /app/zdm-proxy/proxy
 RUN go build -o zdm-proxy
 
 # --- Cassandra-to-Spanner CQL Proxy ---
-WORKDIR /app/Go-client
+WORKDIR /app
 
-# TODO: Clone directly from open source repo once officially release. For now, the files will be copied
-# from local directory.
-COPY . .
+RUN git clone "https://github.com/googleapis/go-spanner-cassandra.git"
+
+WORKDIR /app/go-spanner-cassandra
 
 # Build CQL Proxy
 RUN go build -o cassandra-spanner-proxy
@@ -37,7 +37,7 @@ EXPOSE 9042 14002
 
 # Copy in the binaries
 COPY --from=builder /app/zdm-proxy/proxy/zdm-proxy .
-COPY --from=builder /app/Go-client/cassandra-spanner-proxy .
+COPY --from=builder /app/go-spanner-cassandra/cassandra-spanner-proxy .
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
