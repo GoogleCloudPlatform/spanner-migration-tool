@@ -37,8 +37,8 @@ type MysqlConceptDb struct {
 	data map[string]MySqlMigrationConcept
 }
 
-func NewMysqlConceptDb(projectId, location string) (*MysqlConceptDb, error) {
-	mysqlMigrationConcepts, err := createEmbededTextsFromFile(projectId, location)
+func NewMysqlConceptDb(projectId, location, language string) (*MysqlConceptDb, error) {
+	mysqlMigrationConcepts, err := createEmbededTextsFromFile(projectId, location, language)
 	if err != nil {
 		return nil, err
 	}
