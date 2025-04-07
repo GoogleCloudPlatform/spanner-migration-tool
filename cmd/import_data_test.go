@@ -17,6 +17,7 @@ package cmd
 import (
 	"context"
 	"flag"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -36,4 +37,33 @@ func TestBasicCsvImport(t *testing.T) {
 	importDataCmd.csvFieldDelimiter = ","
 	importDataCmd.project = ""
 	importDataCmd.Execute(context.Background(), fs)
+}
+
+func TestMysqlImportArgs(t *testing.T) {
+	flagArgs := []string{
+		"-instance-id=test-instance",
+		"-project=test-project",
+		"-db-name=test-db",
+		"--source-uri=test-uri",
+		"-format=mysqldump",
+		"--log-level=INFO",
+	}
+
+	expectedValues := ImportDataCmd{
+		instanceId:   "test-instance",
+		project:      "test-project",
+		dbName:       "test-db",
+		sourceUri:    "test-uri",
+		sourceFormat: "mysqldump",
+		logLevel:     "INFO",
+	}
+
+	fs := flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
+	importDataCmd := ImportDataCmd{}
+	importDataCmd.SetFlags(fs)
+	err := fs.Parse(flagArgs)
+	if err != nil {
+		t.Fatalf("Failed to parse flags: %v", err)
+	}
+	assert.Equal(t, expectedValues, importDataCmd, "TestMysqlImportArgs")
 }

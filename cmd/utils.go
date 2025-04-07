@@ -149,7 +149,10 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 	case *DataCmd:
 		bw, err = migrateData(ctx, migrationProjectId, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
 	case *SchemaAndDataCmd:
-		bw, err = migrateSchemaAndData(ctx, migrationProjectId, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
+		bw, err = migrateSchemaAndData(ctx, migrationProjectId, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v.WriteLimit, v.SkipForeignKeys)
+	case *ImportDataCmd:
+		bw, err = migrateSchemaAndData(ctx, migrationProjectId, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v.WriteLimit, v.SkipForeignKeys)
+
 	}
 	if err != nil {
 		err = fmt.Errorf("can't migrate database: %v", err)
@@ -216,7 +219,7 @@ func migrateData(ctx context.Context, migrationProjectId string, targetProfile p
 }
 
 func migrateSchemaAndData(ctx context.Context, migrationProjectId string, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
-	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *SchemaAndDataCmd) (*writer.BatchWriter, error) {
+	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, writeLimit int64, skipForeignKeys bool) (*writer.BatchWriter, error) {
 	spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		return nil, err
@@ -238,7 +241,7 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 	}
 
 	convImpl := &conversion.ConvImpl{}
-	bw, err := convImpl.DataConv(ctx, migrationProjectId, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
+	bw, err := convImpl.DataConv(ctx, migrationProjectId, sourceProfile, targetProfile, ioHelper, client, conv, true, writeLimit, &conversion.DataFromSourceImpl{})
 
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
@@ -246,7 +249,7 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 	}
 
 	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
-	if !cmd.SkipForeignKeys {
+	if !skipForeignKeys {
 		spA.UpdateDDLForeignKeys(ctx, dbURI, conv, sourceProfile.Driver, sourceProfile.Config.ConfigType)
 	}
 	return bw, nil
