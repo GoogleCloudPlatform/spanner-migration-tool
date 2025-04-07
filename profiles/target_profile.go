@@ -160,3 +160,16 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 	conn := TargetProfileConnection{Ty: TargetProfileConnectionTypeSpanner, Sp: sp}
 	return TargetProfile{Ty: TargetProfileTypeConnection, Conn: conn}, nil
 }
+
+func NewTargetProfileWithParams(endpoint, project, instance, dbName, dialect string) (TargetProfile, error) {
+	sp := TargetProfileConnectionSpanner{
+		Endpoint: endpoint,
+		Project:  project,
+		Instance: instance,
+		Dbname:   dbName,
+		Dialect:  dialect,
+	}
+	conn := TargetProfileConnection{Ty: TargetProfileConnectionTypeSpanner, Sp: sp}
+	return TargetProfile{Ty: TargetProfileTypeConnection, Conn: conn}, nil
+
+}

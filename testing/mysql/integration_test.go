@@ -149,6 +149,14 @@ func runDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dum
 	}
 }
 
+func runImportSubcommand(t *testing.T, dbName, dumpFilePath string) {
+	args := fmt.Sprintf("import -format=mysqldump -instance-id=%s -db-name=%s -project=%s -source-uri=%s", instanceID, dbName, projectID, dumpFilePath)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func runSchemaAndDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFilePath string) {
 	args := fmt.Sprintf("schema-and-data -source=mysql -prefix %s -target-profile='instance=%s,dbName=%s,project=%s' < %s", filePrefix, instanceID, dbName, projectID, dumpFilePath)
 	err := common.RunCommand(args, projectID)
@@ -216,6 +224,21 @@ func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
 	checkResults(t, dbURI, false)
 }
 
+func TestIntegration_MySQLDUMP_ImportDataCommand(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-import-data"
+	dumpFilePath := "../../test_data/mysqldump.test.out"
+
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	runImportSubcommand(t, dbName, dumpFilePath)
+	defer dropDatabase(t, dbURI)
+	checkResults(t, dbURI, false)
+}
+
 func TestIntegration_MYSQL_ForeignKeyActionMigration(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
@@ -254,6 +277,23 @@ func TestIntegration_MySQLDUMP_ForeignKeyActionMigration(t *testing.T) {
 	checkForeignKeyActions(ctx, t, dbURI)
 }
 
+func TestIntegration_MySQLDUMP_IMPORT_ForeignKeyActionMigration(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-import-foreign-key-action"
+	dumpFilePath := "../../test_data/mysql_foreignkeyaction_dump.test.out"
+
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	runImportSubcommand(t, dbName, dumpFilePath)
+
+	defer dropDatabase(t, dbURI)
+	checkResults(t, dbURI, true)
+	checkForeignKeyActions(ctx, t, dbURI)
+}
+
 func TestIntegration_MySQLDUMP_CheckConstraintMigration(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	tmpdir := prepareIntegrationTest(t)
@@ -264,6 +304,22 @@ func TestIntegration_MySQLDUMP_CheckConstraintMigration(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
+
+	defer dropDatabase(t, dbURI)
+	checkCheckConstraints(ctx, t, dbURI)
+}
+
+func TestIntegration_MySQLDUMP_IMPORT_CheckConstraintMigration(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-import-check-constraint"
+	dumpFilePath := "../../test_data/mysql_checkconstraint_dump.test.out"
+
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	runImportSubcommand(t, dbName, dumpFilePath)
 
 	defer dropDatabase(t, dbURI)
 	checkCheckConstraints(ctx, t, dbURI)

@@ -18,6 +18,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
+	"go.uber.org/zap"
+	"os"
+	"strings"
 	"time"
 
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
@@ -26,7 +36,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
 	"github.com/google/subcommands"
-	"go.uber.org/zap"
 )
 
 type ImportDataCmd struct {
@@ -39,35 +48,61 @@ type ImportDataCmd struct {
 	csvLineDelimiter  string
 	csvFieldDelimiter string
 	project           string
+	dryRun            bool
+	WriteLimit        int64
+	SkipForeignKeys   bool
+	logLevel          string
 }
 
 func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 	set.StringVar(&cmd.instanceId, "instance-id", "", "Spanner instance Id")
+	set.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion without creating a spanner database")
 	set.StringVar(&cmd.dbName, "db-name", "", "Spanner database name")
 	set.StringVar(&cmd.tableName, "table-name", "", "Spanner table name")
 	set.StringVar(&cmd.sourceUri, "source-uri", "", "URI of the file to import")
-	set.StringVar(&cmd.sourceFormat, "format", "", "Format of the file to import. Valid values {csv}")
+	set.StringVar(&cmd.sourceFormat, "format", "", "Format of the file to import. Valid values {csv, mysqldump}")
 	set.StringVar(&cmd.schemaUri, "schema-uri", "", "URI of the file with schema for the csv to import. Only used for csv format.")
 	set.StringVar(&cmd.csvLineDelimiter, "csv-line-delimiter", "", "Token to be used as line delimiter for csv format. Defaults to '\\n'. Only used for csv format.")
 	set.StringVar(&cmd.csvFieldDelimiter, "csv-field-delimiter", "", "Token to be used as field delimiter for csv format. Defaults to ','. Only used for csv format.")
 	set.StringVar(&cmd.project, "project", "", "Project id for all resources related to this import")
+	set.StringVar(&cmd.logLevel, "log-level", "DEBUG", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 }
 
 func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
-	logger.Log.Debug(fmt.Sprintf("instanceId %s, dbName %s, schemaUri %s\n", cmd.instanceId, cmd.dbName, cmd.schemaUri))
-
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.dbName)
-	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, constants.DIALECT_GOOGLESQL)
+	var err error
+	defer func() {
+		if err != nil {
+			logger.Log.Fatal("FATAL error", zap.Error(err))
+		}
+	}()
+	err = logger.InitializeLogger(cmd.logLevel)
 	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Unable to read Spanner schema %v", err))
+		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
 		return subcommands.ExitFailure
 	}
+	defer logger.Log.Sync()
+	logger.Log.Debug(fmt.Sprintf("instanceId %s, dbName %s, schemaUri %s\n", cmd.instanceId, cmd.dbName, cmd.schemaUri))
+	cmd.WriteLimit = DefaultWritersLimit
+	cmd.SkipForeignKeys = false
 
 	switch cmd.sourceFormat {
 	case constants.CSV:
-		err := cmd.handleCsv(ctx, infoSchema)
+		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.dbName)
+		infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, constants.DIALECT_GOOGLESQL)
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("Unable to read Spanner schema %v", err))
+			return subcommands.ExitFailure
+		}
+		err = cmd.handleCsv(ctx, infoSchema)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle Csv %v", err))
+			return subcommands.ExitFailure
+		}
+		return subcommands.ExitSuccess
+	case constants.MYSQLDUMP:
+		err := cmd.handleMysqlDump(ctx)
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("Unable to handle Mysql Dump %v", err))
 			return subcommands.ExitFailure
 		}
 		return subcommands.ExitSuccess
@@ -111,8 +146,113 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.Inf
 
 }
 
-func init() {
-	logger.Log = zap.NewNop()
+func (cmd *ImportDataCmd) handleMysqlDump(ctx context.Context) error {
+	err := cmd.validateMysqlDump()
+	if err != nil {
+		return err
+	}
+	startTime := time.Now()
+
+	var (
+		conv   *internal.Conv
+		bw     *writer.BatchWriter
+		banner string
+		dbURI  string
+	)
+	dialect := constants.DIALECT_GOOGLESQL
+
+	dbURI = fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.dbName)
+
+	schemaConversionStartTime := time.Now()
+
+	convImpl := &conversion.ConvImpl{}
+	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, "", "")
+	if err != nil {
+		return err
+	}
+	sfs := &conversion.SchemaFromSourceImpl{
+		DdlVerifier: ddlVerifier,
+	}
+
+	sourceProfile := profiles.SourceProfile{
+		Driver: constants.MYSQLDUMP,
+		Ty:     profiles.SourceProfileTypeFile,
+		File: profiles.SourceProfileFile{
+			Path:   cmd.sourceUri,
+			Format: "dump",
+		},
+	}
+	targetProfile, err := profiles.NewTargetProfileWithParams("", cmd.project, cmd.instanceId, cmd.dbName, dialect)
+
+	ioHelper := utils.NewIOStreams(sourceProfile.Driver, cmd.sourceUri)
+	if ioHelper.SeekableIn != nil {
+		defer ioHelper.In.Close()
+	}
+	conv, err = convImpl.SchemaConv(cmd.project, sourceProfile, targetProfile, &ioHelper, sfs)
+	if err != nil {
+		panic(err)
+	}
+	schemaConversionEndTime := time.Now()
+	conv.Audit.SchemaConversionDuration = schemaConversionEndTime.Sub(schemaConversionStartTime)
+
+	// Populate migration request id and migration type in conv object.
+	conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")
+	conv.Audit.MigrationRequestId = strings.Replace(conv.Audit.MigrationRequestId, "_", "-", -1)
+	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
+
+	conv.Audit.SkipMetricsPopulation = os.Getenv("SKIP_METRICS_POPULATION") == "true"
+
+	getInfo := utils.GetUtilInfoImpl{}
+	dbName, err := getInfo.GetDatabaseName(sourceProfile.Driver, time.Now())
+	if err != nil {
+		return err
+	}
+	if !cmd.dryRun {
+		bw, err = MigrateDatabase(ctx, cmd.project, targetProfile, sourceProfile, dbName, &ioHelper, cmd, conv, nil)
+		if err != nil {
+			return err
+		}
+		dataConversionEndTime := time.Now()
+		conv.Audit.DataConversionDuration = dataConversionEndTime.Sub(schemaConversionEndTime)
+		banner = utils.GetBanner(schemaConversionStartTime, dbURI)
+
+	} else {
+		conv.Audit.DryRun = true
+		schemaConversionEndTime := time.Now()
+		conv.Audit.SchemaConversionDuration = schemaConversionEndTime.Sub(schemaConversionStartTime)
+
+		bw, err = convImpl.DataConv(ctx, cmd.project, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.WriteLimit, &conversion.DataFromSourceImpl{})
+		if err != nil {
+			return err
+		}
+		dataConversionEndTime := time.Now()
+		conv.Audit.DataConversionDuration = dataConversionEndTime.Sub(schemaConversionEndTime)
+		banner = utils.GetBanner(schemaConversionStartTime, dbName)
+	}
+	conversion.WriteBadData(bw, conv, banner, cmd.dbName+badDataFile, ioHelper.Out)
+
+	endTime1 := time.Now()
+	elapsedTime := endTime1.Sub(startTime)
+	fmt.Println("Schema creation took ", elapsedTime.Seconds(), "  secs")
+
+	return err
+
+}
+
+func (cmd *ImportDataCmd) validateMysqlDump() error {
+	if cmd.project == "" {
+		return fmt.Errorf("project is required")
+	}
+	if cmd.instanceId == "" {
+		return fmt.Errorf("instance-id is required")
+	}
+	if cmd.dbName == "" {
+		return fmt.Errorf("db-name is required")
+	}
+	if cmd.sourceUri == "" {
+		return fmt.Errorf("source-uri is required")
+	}
+	return nil
 }
 
 func (cmd *ImportDataCmd) Name() string {
