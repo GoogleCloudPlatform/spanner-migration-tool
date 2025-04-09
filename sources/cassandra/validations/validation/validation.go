@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
+	spanner "github.com/googleapis/go-spanner-cassandra/cassandra/gocql"
 )
 
 var (
@@ -18,10 +19,7 @@ var (
 	sourcePort     = flag.Int("source-port", 9042, "Source Cassandra port")
 	sourceUsername = flag.String("source-username", "", "Source Cassandra username")
 	sourcePassword = flag.String("source-password", "", "Source Cassandra password")
-	targetHost     = flag.String("target-host", "localhost", "Target Cassandra host")
-	targetPort     = flag.Int("target-port", 9042, "Target Cassandra port")
-	targetUsername = flag.String("target-username", "", "Target Cassandra username")
-	targetPassword = flag.String("target-password", "", "Target Cassandra password")
+	spannerURI     = flag.String("spanner-uri", "", "Spanner database URI (projects/PROJECT_ID/instances/INSTANCE_ID/databases/DATABASE_ID)")
 	keyspace       = flag.String("keyspace", "", "Keyspace to validate")
 	table          = flag.String("table", "", "Table to validate (mandatory)")
 	batchSize      = flag.Int("batch-size", 100000, "Specifies how many rows to read and validate at a time. For sampling mode, it reads the specified number of rows during each sample.")
@@ -46,7 +44,7 @@ Sample usage:
 
 	go run validation.go \
 	  --source-host localhost --source-port 9042 --source-username user1 --source-password pass1 \
-	  --target-host remote-host --target-port 9042 --target-username user2 --target-password pass2 \
+	  --spanner-uri projects/PROJECT_ID/instances/INSTANCE_ID/databases/DATABASE_ID \
 	  --keyspace my_keyspace --table my_table \
 	  --batch-size 100000 --workers 4
 
@@ -82,14 +80,12 @@ func main() {
 	}
 	defer sourceSession.Close()
 
-	// TODO: use the endpoint client to directly connect to Spanner.
-	targetCluster := gocql.NewCluster(*targetHost)
-	targetCluster.Port = *targetPort
-	targetCluster.Keyspace = *keyspace
-	targetCluster.NumConns = *workers
-	if *targetUsername != "" {
-		targetCluster.Authenticator = gocql.PasswordAuthenticator{Username: *targetUsername, Password: *targetPassword}
+	opts := &spanner.Options{
+		DatabaseUri: *spannerURI,
 	}
+	targetCluster := spanner.NewCluster(opts)
+	// Important to close the adapter's resources
+	defer spanner.CloseCluster(targetCluster)
 	targetSession, err := targetCluster.CreateSession()
 	if err != nil {
 		log.Fatalf("Error creating target session: %v", err)
