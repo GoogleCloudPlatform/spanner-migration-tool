@@ -119,7 +119,7 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, sp *spann
 
 }
 
-func (cmd *ImportDataCmd) handleDump(ctx context.Context, dbUri, dialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
+func (cmd *ImportDataCmd) handleDump(ctx context.Context, dbUri, dialect string, spannerAccessor *spanneraccessor.SpannerAccessorImpl) error {
 	// TODO: handle POSTGRESQL
 	driver := constants.MYSQLDUMP
 
