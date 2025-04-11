@@ -6,9 +6,10 @@ import { Dataflow } from 'src/app/app.constants';
 import ISpannerConfig from 'src/app/model/spanner-config';
 
 @Component({
-  selector: 'app-dataflow-form',
-  templateUrl: './dataflow-form.component.html',
-  styleUrls: ['./dataflow-form.component.scss']
+    selector: 'app-dataflow-form',
+    templateUrl: './dataflow-form.component.html',
+    styleUrls: ['./dataflow-form.component.scss'],
+    standalone: false
 })
 export class DataflowFormComponent implements OnInit {
   // This group contains the fields which are tunable by default. 

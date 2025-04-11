@@ -2,9 +2,10 @@ import { Component, OnInit } from '@angular/core'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 
 @Component({
-  selector: 'app-source-selection',
-  templateUrl: './source-selection.component.html',
-  styleUrls: ['./source-selection.component.scss'],
+    selector: 'app-source-selection',
+    templateUrl: './source-selection.component.html',
+    styleUrls: ['./source-selection.component.scss'],
+    standalone: false
 })
 export class SourceSelectionComponent implements OnInit {
   isDatabaseLoading: boolean = false

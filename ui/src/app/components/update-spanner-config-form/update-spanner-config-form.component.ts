@@ -7,9 +7,10 @@ import ISpannerConfig from '../../model/spanner-config'
 import { DataService } from 'src/app/services/data/data.service'
 
 @Component({
-  selector: 'app-update-spanner-config-form',
-  templateUrl: './update-spanner-config-form.component.html',
-  styleUrls: ['./update-spanner-config-form.component.scss'],
+    selector: 'app-update-spanner-config-form',
+    templateUrl: './update-spanner-config-form.component.html',
+    styleUrls: ['./update-spanner-config-form.component.scss'],
+    standalone: false
 })
 export class UpdateSpannerConfigFormComponent implements OnInit {
   errMessage: string = ''

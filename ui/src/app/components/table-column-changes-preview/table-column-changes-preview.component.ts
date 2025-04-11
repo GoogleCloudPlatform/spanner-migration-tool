@@ -2,9 +2,10 @@ import { Component, Input, OnInit, SimpleChanges } from '@angular/core'
 import { IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
 
 @Component({
-  selector: 'app-table-column-changes-preview',
-  templateUrl: './table-column-changes-preview.component.html',
-  styleUrls: ['./table-column-changes-preview.component.scss'],
+    selector: 'app-table-column-changes-preview',
+    templateUrl: './table-column-changes-preview.component.html',
+    styleUrls: ['./table-column-changes-preview.component.scss'],
+    standalone: false
 })
 export class TableColumnChangesPreviewComponent implements OnInit {
   @Input() tableChange: IReviewInterleaveTableChanges = { InterleaveColumnChanges: [], Table: '' }

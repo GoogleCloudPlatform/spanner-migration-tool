@@ -3,9 +3,10 @@ import { Router } from '@angular/router'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 
 @Component({
-  selector: 'app-database-loader',
-  templateUrl: './database-loader.component.html',
-  styleUrls: ['./database-loader.component.scss'],
+    selector: 'app-database-loader',
+    templateUrl: './database-loader.component.html',
+    styleUrls: ['./database-loader.component.scss'],
+    standalone: false
 })
 export class DatabaseLoaderComponent implements OnInit {
   @Input() loaderType: string = ''

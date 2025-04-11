@@ -4,9 +4,10 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 import { ObjectDetailNodeType } from 'src/app/app.constants'
 
 @Component({
-  selector: 'app-drop-index-dialog',
-  templateUrl: './drop-object-detail-dialog.component.html',
-  styleUrls: ['./drop-object-detail-dialog.component.scss'],
+    selector: 'app-drop-index-dialog',
+    templateUrl: './drop-object-detail-dialog.component.html',
+    styleUrls: ['./drop-object-detail-dialog.component.scss'],
+    standalone: false
 })
 export class DropObjectDetailDialogComponent implements OnInit {
   ObjectDetailNodeType = ObjectDetailNodeType

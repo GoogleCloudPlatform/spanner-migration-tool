@@ -4,9 +4,10 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ITableState } from 'src/app/model/migrate';
 
 @Component({
-  selector: 'app-bulk-drop-restore-table-dialog',
-  templateUrl: './bulk-drop-restore-table-dialog.component.html',
-  styleUrls: ['./bulk-drop-restore-table-dialog.component.scss']
+    selector: 'app-bulk-drop-restore-table-dialog',
+    templateUrl: './bulk-drop-restore-table-dialog.component.html',
+    styleUrls: ['./bulk-drop-restore-table-dialog.component.scss'],
+    standalone: false
 })
 export class BulkDropRestoreTableDialogComponent implements OnInit {
 

@@ -8,9 +8,10 @@ import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 
 @Component({
-  selector: 'app-load-session',
-  templateUrl: './load-session.component.html',
-  styleUrls: ['./load-session.component.scss'],
+    selector: 'app-load-session',
+    templateUrl: './load-session.component.html',
+    styleUrls: ['./load-session.component.scss'],
+    standalone: false
 })
 export class LoadSessionComponent implements OnInit {
   constructor(

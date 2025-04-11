@@ -15,9 +15,10 @@ interface IConvSourceType {
 }
 
 @Component({
-  selector: 'app-edit-global-datatype-form',
-  templateUrl: './edit-global-datatype-form.component.html',
-  styleUrls: ['./edit-global-datatype-form.component.scss'],
+    selector: 'app-edit-global-datatype-form',
+    templateUrl: './edit-global-datatype-form.component.html',
+    styleUrls: ['./edit-global-datatype-form.component.scss'],
+    standalone: false
 })
 export class EditGlobalDatatypeFormComponent implements OnInit {
   @Input() ruleNameValid: boolean = false
