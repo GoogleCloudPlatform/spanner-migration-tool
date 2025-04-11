@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS `cart`;
+CREATE TABLE `cart` (
+  `user_id` varchar(20) NOT NULL,
+  `product_id` varchar(20) NOT NULL,
+  `quantity` bigint(20) DEFAULT NULL,
+  `last_modified` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`,`product_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE INDEX idx ON `cart` (`quantity`);
+INSERT INTO `cart` VALUES ('901e-a6cfc2b502dc','abc-123',1,'2020-07-20 05:10:26');

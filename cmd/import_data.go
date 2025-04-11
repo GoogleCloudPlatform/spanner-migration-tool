@@ -119,7 +119,7 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, sp *spann
 
 }
 
-func (cmd *ImportDataCmd) handleDump(ctx context.Context, dbUri, dialect string, spannerAccessor *spanneraccessor.SpannerAccessorImpl) error {
+func (cmd *ImportDataCmd) handleDump(ctx context.Context, dbUri, dialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
 	// TODO: handle POSTGRESQL
 	driver := constants.MYSQLDUMP
 
@@ -171,7 +171,7 @@ func (cmd *ImportDataCmd) handleDump(ctx context.Context, dbUri, dialect string,
 		return err
 	}
 
-	err = importDump.ImportData(conv, processDump, spannerAccessor.SpannerClient)
+	err = importDump.ImportData(conv, processDump, spannerAccessor.GetSpannerClient())
 
 	endTime2 := time.Now()
 	elapsedTime = endTime2.Sub(endTime1)
