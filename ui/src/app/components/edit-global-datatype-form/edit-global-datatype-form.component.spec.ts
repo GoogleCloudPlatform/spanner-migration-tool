@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
@@ -14,9 +14,10 @@ describe('EditGlobalDatatypeFormComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ EditGlobalDatatypeFormComponent ],
-      imports: [ ReactiveFormsModule, HttpClientModule, MatSnackBarModule, MatSelectModule, MatInputModule, BrowserAnimationsModule ]
-    })
+    declarations: [EditGlobalDatatypeFormComponent],
+    imports: [ReactiveFormsModule, MatSnackBarModule, MatSelectModule, MatInputModule, BrowserAnimationsModule],
+    providers: [provideHttpClient(withInterceptorsFromDi())]
+})
     .compileComponents();
   });
 

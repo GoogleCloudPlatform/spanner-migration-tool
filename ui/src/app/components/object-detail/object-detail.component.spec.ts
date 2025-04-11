@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { MatDialog, MatDialogModule } from '@angular/material/dialog'
 import { By } from '@angular/platform-browser'
@@ -33,28 +33,26 @@ describe('ObjectDetailComponent', () => {
     dialogSpyObj = jasmine.createSpyObj('MatDialog', ['open']);
 
     await TestBed.configureTestingModule({
-      declarations: [ObjectDetailComponent],
-      providers: [
-        MatSnackBar,
-        {
-          provide: DataService,
-          useValue: dataServiceSpy
-        },
-        {
-          provide: MatDialog,
-          useValue: dialogSpyObj
-        }
-      ],
-      imports: [
-        HttpClientModule,
-        MatDialogModule,
+    declarations: [ObjectDetailComponent],
+    imports: [MatDialogModule,
         MatTableModule,
         MatTabsModule,
         BrowserAnimationsModule,
         MatDividerModule,
-        MatIconModule,
-      ],
-    }).compileComponents()
+        MatIconModule],
+    providers: [
+        MatSnackBar,
+        {
+            provide: DataService,
+            useValue: dataServiceSpy
+        },
+        {
+            provide: MatDialog,
+            useValue: dialogSpyObj
+        },
+        provideHttpClient(withInterceptorsFromDi())
+    ]
+}).compileComponents()
     dataServiceSpy.conv = of(mockIConv);
     dataServiceSpy.updateCheckConstraint.and.returnValue(of(''))
   })

@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
@@ -15,22 +15,22 @@ describe('ConnectionProfileFormComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ ConnectionProfileFormComponent ],
-      imports: [HttpClientModule, MatSnackBarModule, ReactiveFormsModule, MatRadioModule, MatInputModule, BrowserAnimationsModule],
-      providers: [
+    declarations: [ConnectionProfileFormComponent],
+    imports: [MatSnackBarModule, ReactiveFormsModule, MatRadioModule, MatInputModule, BrowserAnimationsModule],
+    providers: [
         {
-          provide: MatDialogRef,
-          useValue: {
-            close: () => {},
-          },
+            provide: MatDialogRef,
+            useValue: {
+                close: () => { },
+            },
         },
         {
-          provide: MAT_DIALOG_DATA,
-          useValue: {
-          }
-        }
-      ],
-    })
+            provide: MAT_DIALOG_DATA,
+            useValue: {}
+        },
+        provideHttpClient(withInterceptorsFromDi())
+    ]
+})
     .compileComponents();
   });
 
