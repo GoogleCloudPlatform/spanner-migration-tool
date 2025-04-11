@@ -10,9 +10,10 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service';
 import data from 'src/data';
 
 @Component({
-  selector: 'app-edit-column-max-length',
-  templateUrl: './edit-column-max-length.component.html',
-  styleUrls: ['./edit-column-max-length.component.scss']
+    selector: 'app-edit-column-max-length',
+    templateUrl: './edit-column-max-length.component.html',
+    styleUrls: ['./edit-column-max-length.component.scss'],
+    standalone: false
 })
 export class EditColumnMaxLengthComponent implements OnInit {
   @Input() ruleNameValid: boolean = false
