@@ -15,6 +15,7 @@
 package common
 
 import (
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"sync"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
@@ -82,4 +83,41 @@ func (mrpt *MockRunParallelTasks[I, O]) RunParallelTasks(input []I, numWorkers i
 	fastExit bool) ([]task.TaskResult[O], error) {
 	args := mrpt.Called(input, numWorkers, f, fastExit)
 	return args.Get(0).([]task.TaskResult[O]), args.Error(1)
+}
+
+// MockDbDump is a mock implementation of the DbDump interface.
+type MockDbDump struct {
+	mock.Mock
+}
+
+// GetToDdl provides a mock implementation for GetToDdl.
+func (m *MockDbDump) GetToDdl() ToDdl {
+	args := m.Called()
+	return args.Get(0).(ToDdl)
+}
+
+// ProcessDump provides a mock implementation for ProcessDump.
+func (m *MockDbDump) ProcessDump(conv *internal.Conv, r *internal.Reader) error {
+	args := m.Called(conv, r)
+	return args.Error(0)
+}
+
+// MockToDdl is a mock implementation of the ToDdl interface.
+type MockToDdl struct {
+	mock.Mock
+}
+
+// ToSpannerType provides a mock implementation for ToSpannerType.
+func (m *MockToDdl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type, isPk bool) (ddl.Type, []internal.SchemaIssue) {
+	args := m.Called(conv, spType, srcType, isPk)
+	return args.Get(0).(ddl.Type), args.Get(1).([]internal.SchemaIssue)
+}
+
+// GetColumnAutoGen provides a mock implementation for GetColumnAutoGen.
+func (m *MockToDdl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
+	args := m.Called(conv, autoGenCol, colId, tableId)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*ddl.AutoGenCol), args.Error(1)
 }
