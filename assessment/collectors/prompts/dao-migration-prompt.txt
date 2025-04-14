@@ -20,7 +20,7 @@ First, analyze the schema changes between the provided MySQL schema and the new 
         },
         ...
     ],
-    "public_method_changes": [
+    "method_signature_changes": [
         {
             "original_signature": "<original method signature>",
             "new_signature": "<modified method signature>",
