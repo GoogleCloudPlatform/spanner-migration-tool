@@ -52,7 +52,7 @@ type MigrationCodeSummarizer struct {
 	aiClient                  *genai.Client
 	geminiProModel            *genai.GenerativeModel
 	geminiFlashModel          *genai.GenerativeModel
-	codeExampleDatabase       *assessment.MysqlConceptDb
+	conceptExampleDatabase    *assessment.MysqlConceptDb
 	sourceDatabaseFramework   string
 	targetDatabaseFramework   string
 	projectDependencyAnalyzer dependencyAnalyzer.DependencyAnalyzer
@@ -134,7 +134,7 @@ func NewMigrationCodeSummarizer(
 		aiClient:                  client,
 		geminiProModel:            client.GenerativeModel("gemini-1.5-pro-002"),
 		geminiFlashModel:          client.GenerativeModel("gemini-2.0-flash-001"),
-		codeExampleDatabase:       conceptExampleDB,
+		conceptExampleDatabase:    conceptExampleDB,
 		projectDependencyAnalyzer: dependencyAnalyzer.AnalyzerFactory(language, ctx),
 		sourceDatabaseSchema:      sourceSchema,
 		sourceDatabaseFramework:   sourceFramework,
@@ -190,7 +190,7 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 		answersPresent := false
 
 		for i, question := range questionOutput.Questions {
-			relevantRecords := m.codeExampleDatabase.Search([]string{question}, m.gcpProjectID, m.gcpLocation, 0.25, 2)
+			relevantRecords := m.conceptExampleDatabase.Search([]string{question}, m.gcpProjectID, m.gcpLocation, 0.25, 2)
 			if len(relevantRecords) > 0 {
 				answersPresent = true
 				for _, record := range relevantRecords {
