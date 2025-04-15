@@ -4,12 +4,14 @@ ifndef $(GOPATH)
     export GOPATH
 endif
 # Build the default binary
-build:
-	cd ui/ && npm install && ng build
+build: ui/package-lock.json
+	cd ui/ && ng build
 	go build -o spanner-migration-tool
+ui/package-lock.json: ui/package.json
+	cd ui/ && npm install
 # Build a static binary
-build-static:
-	cd ui/ && npm install && ng build
+build-static: ui/package-lock.json
+	cd ui/ && ng build
 	go build -a -tags osusergo,netgo -ldflags '-w -extldflags "-static"' -o spanner-migration-tool main.go
 # Create a new release for Spanner migration tool.
 release:
