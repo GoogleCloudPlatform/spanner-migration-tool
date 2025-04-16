@@ -1,5 +1,5 @@
 import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing'
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 
 import { WorkspaceComponent } from './workspace.component'
 import { MatDialog } from '@angular/material/dialog'
@@ -80,18 +80,19 @@ describe('WorkspaceComponent', () => {
     routerSpy = jasmine.createSpyObj('Router', ['navigate']);
 
     await TestBed.configureTestingModule({
-      declarations: [WorkspaceComponent],
-      imports: [HttpClientModule, MatSnackBarModule, MatMenuModule, MatTabsModule, BrowserAnimationsModule],
-      providers: [
+    declarations: [WorkspaceComponent],
+    imports: [MatSnackBarModule, MatMenuModule, MatTabsModule, BrowserAnimationsModule],
+    providers: [
         { provide: MatDialog, useValue: dialogSpyObj },
         { provide: ClickEventService, useValue: clickEventSpyObj },
         { provide: SidenavService, useValue: sidenavSpyObj },
         { provide: FetchService, useValue: fetchServiceSpy },
         { provide: ConversionService, useValue: conversionServiceSpy },
         { provide: DataService, useValue: dataServiceSpy },
-        { provide: Router, useValue: routerSpy }
-      ],
-    }).compileComponents()
+        { provide: Router, useValue: routerSpy },
+        provideHttpClient(withInterceptorsFromDi())
+    ]
+}).compileComponents()
 
     dataServiceSpy.typeMap = of({});
     dataServiceSpy.defaultTypeMap = of({});

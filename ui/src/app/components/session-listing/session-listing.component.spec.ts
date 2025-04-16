@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { RouterModule, Routes } from '@angular/router'
 import { SessionListingComponent } from './session-listing.component'
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { WorkspaceComponent } from '../workspace/workspace.component'
 import { MatSnackBarModule } from '@angular/material/snack-bar'
 
@@ -12,9 +12,10 @@ describe('SessionListingComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [SessionListingComponent],
-      imports: [HttpClientModule, RouterModule.forRoot(appRoutes), MatSnackBarModule],
-    }).compileComponents()
+    declarations: [SessionListingComponent],
+    imports: [RouterModule.forRoot(appRoutes), MatSnackBarModule],
+    providers: [provideHttpClient(withInterceptorsFromDi())]
+}).compileComponents()
   })
 
   beforeEach(() => {

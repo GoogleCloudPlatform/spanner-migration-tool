@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormArray, FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -38,15 +38,16 @@ describe('AddIndexFormComponent', () => {
     ]);
 
     await TestBed.configureTestingModule({
-      declarations: [AddIndexFormComponent],
-      imports: [ReactiveFormsModule, HttpClientModule, MatSnackBarModule, MatSelectModule, BrowserAnimationsModule, MatFormFieldModule, MatInputModule],
-      providers: [
+    declarations: [AddIndexFormComponent],
+    imports: [ReactiveFormsModule, MatSnackBarModule, MatSelectModule, BrowserAnimationsModule, MatFormFieldModule, MatInputModule],
+    providers: [
         FormBuilder,
         { provide: DataService, useValue: dataServiceSpy },
         { provide: SidenavService, useValue: sidenavServiceSpy },
         { provide: ConversionService, useValue: conversionServiceSpy },
-      ],
-    })
+        provideHttpClient(withInterceptorsFromDi()),
+    ]
+})
       .compileComponents();
 
     fb = TestBed.inject(FormBuilder);

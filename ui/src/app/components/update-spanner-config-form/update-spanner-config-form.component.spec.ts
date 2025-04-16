@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 
 import { UpdateSpannerConfigFormComponent } from './update-spanner-config-form.component'
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { MatSnackBarModule } from '@angular/material/snack-bar'
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 import { throwError } from 'rxjs'
@@ -23,16 +23,17 @@ describe('UpdateSpannerConfigFormComponent', () => {
     dataServiceSpy = jasmine.createSpyObj('DataService', ['updateIsOffline', 'updateConfig', 'getAllSessions']);
     fetchServiceSpy = jasmine.createSpyObj('FetchService', ['setSpannerConfig']);
     await TestBed.configureTestingModule({
-      declarations: [UpdateSpannerConfigFormComponent],
-      imports: [HttpClientModule, MatSnackBarModule],
-      providers: [
+    declarations: [UpdateSpannerConfigFormComponent],
+    imports: [MatSnackBarModule],
+    providers: [
         { provide: MAT_DIALOG_DATA, useValue: {} },
         { provide: MatDialogRef, useValue: dialogRefSpy },
         { provide: SnackbarService, useValue: snackSpy },
         { provide: DataService, useValue: dataServiceSpy },
         { provide: FetchService, useValue: fetchServiceSpy },
-      ],
-    }).compileComponents()
+        provideHttpClient(withInterceptorsFromDi()),
+    ]
+}).compileComponents()
   })
 
   beforeEach(() => {

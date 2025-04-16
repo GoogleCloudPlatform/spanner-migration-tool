@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { MatSnackBarModule } from '@angular/material/snack-bar'
 
@@ -10,9 +10,10 @@ describe('SidenavReviewChangesComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [SidenavReviewChangesComponent],
-      imports: [ HttpClientModule, MatSnackBarModule ]
-    }).compileComponents()
+    declarations: [SidenavReviewChangesComponent],
+    imports: [MatSnackBarModule],
+    providers: [provideHttpClient(withInterceptorsFromDi())]
+}).compileComponents()
   })
 
   beforeEach(() => {

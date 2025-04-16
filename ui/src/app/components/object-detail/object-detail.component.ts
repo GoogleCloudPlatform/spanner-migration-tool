@@ -31,9 +31,10 @@ import ICreateSequence from 'src/app/model/auto-gen'
 import { autoGenSupportedDbs } from 'src/app/app.constants'
 import ICcTabData from 'src/app/model/cc-tab-data'
 @Component({
-  selector: 'app-object-detail',
-  templateUrl: './object-detail.component.html',
-  styleUrls: ['./object-detail.component.scss'],
+    selector: 'app-object-detail',
+    templateUrl: './object-detail.component.html',
+    styleUrls: ['./object-detail.component.scss'],
+    standalone: false
 })
 export class ObjectDetailComponent implements OnInit {
   userAddressValidations!: FormGroup

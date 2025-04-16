@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { DebugElement } from '@angular/core'
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { ReactiveFormsModule } from '@angular/forms'
@@ -22,10 +22,8 @@ describe('LoadSessionComponent', () => {
   let btn: DebugElement
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [LoadSessionComponent],
-      imports: [
-        RouterModule.forRoot(appRoutes),
-        HttpClientModule,
+    declarations: [LoadSessionComponent],
+    imports: [RouterModule.forRoot(appRoutes),
         ReactiveFormsModule,
         MatCardModule,
         MatSelectModule,
@@ -33,9 +31,9 @@ describe('LoadSessionComponent', () => {
         MatFormFieldModule,
         MatInputModule,
         BrowserAnimationsModule,
-        MatSnackBarModule
-      ],
-    }).compileComponents()
+        MatSnackBarModule],
+    providers: [provideHttpClient(withInterceptorsFromDi())]
+}).compileComponents()
   })
 
   beforeEach(() => {

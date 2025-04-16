@@ -5,7 +5,7 @@ import { ClickEventService } from 'src/app/services/click-event/click-event.serv
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import IStructuredReport, {IIssue, ITableReport} from '../../model/structured-report'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
-import * as JSZip from 'jszip'
+import JSZip from 'jszip'
 import IIssueReport, { TablesInformation } from 'src/app/model/issue-report'
 
 export interface tableContent {
@@ -16,9 +16,10 @@ export interface tableContent {
 }
 
 @Component({
-  selector: 'app-sidenav-view-assessment',
-  templateUrl: './sidenav-view-assessment.component.html',
-  styleUrls: ['./sidenav-view-assessment.component.scss'],
+    selector: 'app-sidenav-view-assessment',
+    templateUrl: './sidenav-view-assessment.component.html',
+    styleUrls: ['./sidenav-view-assessment.component.scss'],
+    standalone: false
 })
 
 export class SidenavViewAssessmentComponent implements OnInit {

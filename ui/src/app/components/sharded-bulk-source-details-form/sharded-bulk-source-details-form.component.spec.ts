@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
@@ -11,22 +11,22 @@ describe('ShardedBulkSourceDetailsFormComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ ShardedBulkSourceDetailsFormComponent ],
-      imports: [ HttpClientModule, MatSnackBarModule ],
-      providers: [
+    declarations: [ShardedBulkSourceDetailsFormComponent],
+    imports: [MatSnackBarModule],
+    providers: [
         {
-          provide: MatDialogRef,
-          useValue: {
-            close: () => {},
-          },
+            provide: MatDialogRef,
+            useValue: {
+                close: () => { },
+            },
         },
         {
-          provide: MAT_DIALOG_DATA,
-          useValue: {
-          }
-        }
-      ],
-    })
+            provide: MAT_DIALOG_DATA,
+            useValue: {}
+        },
+        provideHttpClient(withInterceptorsFromDi())
+    ]
+})
     .compileComponents();
   });
 

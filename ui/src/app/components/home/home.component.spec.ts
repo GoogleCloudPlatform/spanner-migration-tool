@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 import { MatMenuModule } from '@angular/material/menu'
@@ -13,22 +13,22 @@ describe('HomeComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [HomeComponent],
-      imports: [MatMenuModule, MatDialogModule, RouterModule.forRoot(appRoutes), HttpClientModule],
-      providers: [
+    declarations: [HomeComponent],
+    imports: [MatMenuModule, MatDialogModule, RouterModule.forRoot(appRoutes)],
+    providers: [
         {
-          provide: MatDialogRef,
-          useValue: {
-            close: () => {},
-          },
+            provide: MatDialogRef,
+            useValue: {
+                close: () => { },
+            },
         },
         {
-          provide: MAT_DIALOG_DATA,
-          useValue: {
-          }
-        }
-      ],
-    }).compileComponents()
+            provide: MAT_DIALOG_DATA,
+            useValue: {}
+        },
+        provideHttpClient(withInterceptorsFromDi())
+    ]
+}).compileComponents()
   })
 
   beforeEach(() => {

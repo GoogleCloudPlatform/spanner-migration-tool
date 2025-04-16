@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
@@ -19,21 +19,22 @@ describe('DataflowFormComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ DataflowFormComponent ],
-      imports: [ReactiveFormsModule,HttpClientModule],
-      providers: [
+    declarations: [DataflowFormComponent],
+    imports: [ReactiveFormsModule],
+    providers: [
         {
-          provide: MAT_DIALOG_DATA,
-          useValue: mockData
+            provide: MAT_DIALOG_DATA,
+            useValue: mockData
         },
         {
-          provide: MatDialogRef,
-          useValue: {
-            close: jasmine.createSpy('close'),
-          },
-        }
-      ],
-    })
+            provide: MatDialogRef,
+            useValue: {
+                close: jasmine.createSpy('close'),
+            },
+        },
+        provideHttpClient(withInterceptorsFromDi())
+    ]
+})
     .compileComponents();
   });
 
