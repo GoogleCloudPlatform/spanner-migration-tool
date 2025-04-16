@@ -19,7 +19,7 @@ import IDbConfig from 'src/app/model/db-config'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import IStructuredReport from '../../model/structured-report'
-import * as JSZip from 'jszip'
+import JSZip from 'jszip'
 import ICcTabData from 'src/app/model/cc-tab-data'
 
 @Component({
