@@ -32,7 +32,7 @@ import (
 type assessmentCollectors struct {
 	sampleCollector        *assessment.SampleCollector
 	infoSchemaCollector    *assessment.InfoSchemaCollector
-	appAssessmentCollector *assessment.MigrationSummarizer
+	appAssessmentCollector *assessment.MigrationCodeSummarizer
 }
 
 func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile, assessmentConfig map[string]string, projectId string) (utils.AssessmentOutput, error) {
@@ -103,7 +103,7 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 		logger.Log.Debug("mysqlSchema", zap.String("schema", mysqlSchema))
 		logger.Log.Debug("spannerSchema", zap.String("schema", spannerSchema))
 
-		summarizer, err := assessment.NewMigrationSummarizer(
+		summarizer, err := assessment.NewMigrationCodeSummarizer(
 			ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory, language)
 		if err != nil {
 			logger.Log.Error("error initiating migration summarizer")
