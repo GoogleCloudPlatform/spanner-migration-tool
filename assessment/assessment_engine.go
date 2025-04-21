@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/mysql"
@@ -57,12 +58,38 @@ func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile
 	// Select the highest confidence output for each attribute
 	// Populate assessment struct
 
-	output.SchemaAssessment, err = performSchemaAssessment(ctx, c)
-	if err != nil {
-		logger.Log.Info(fmt.Sprintf("could not complete schema assessment: %s", err))
-		return output, err
-	}
-	output.AppCodeAssessment, err = performAppAssessment(ctx, c)
+	var wg sync.WaitGroup          // To wait for both goroutines to complete
+	errChan := make(chan error, 2) // Buffered channel to collect errors
+
+	// Launch performSchemaAssessment asynchronously
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		result, err := performSchemaAssessment(ctx, c)
+		if err != nil {
+			logger.Log.Error("could not complete schema assessment: ", zap.Error(err))
+			errChan <- err
+			return
+		}
+		output.SchemaAssessment = result
+	}()
+
+	// Launch performAppAssessment asynchronously
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		result, err := performAppAssessment(ctx, c)
+		if err != nil {
+			logger.Log.Error("could not complete app assessment: ", zap.Error(err))
+			errChan <- err
+			return
+		}
+		output.AppCodeAssessment = result
+	}()
+
+	// Wait for both goroutines to finish
+	wg.Wait()
+	close(errChan) // Close the error channel after all goroutines are done
 
 	return output, err
 }
@@ -119,6 +146,7 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 }
 
 func performSchemaAssessment(ctx context.Context, collectors assessmentCollectors) (utils.SchemaAssessmentOutput, error) {
+	logger.Log.Info("starting schema assessment...")
 	schemaOut := utils.SchemaAssessmentOutput{}
 
 	srcTableDefs, spTableDefs := collectors.infoSchemaCollector.ListTables()
@@ -180,6 +208,7 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 	schemaOut.ViewAssessmentOutput = collectors.infoSchemaCollector.ListViews()
 	schemaOut.SpSequences = collectors.infoSchemaCollector.ListSpannerSequences()
 
+	logger.Log.Info("schema assessment completed successfully.")
 	return schemaOut, nil
 }
 
@@ -190,7 +219,7 @@ func performAppAssessment(ctx context.Context, collectors assessmentCollectors) 
 		return nil, nil
 	}
 
-	logger.Log.Info("adding app assessment details")
+	logger.Log.Info("starting app assessment...")
 	codeAssessment, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
 
 	if err != nil {
@@ -200,6 +229,7 @@ func performAppAssessment(ctx context.Context, collectors assessmentCollectors) 
 
 	logger.Log.Debug("snippets: ", zap.Any("codeAssessment.Snippets", codeAssessment.Snippets))
 
+	logger.Log.Info("app assessment completed successfully.")
 	return &utils.AppCodeAssessmentOutput{
 		Language:     codeAssessment.Language,
 		Framework:    codeAssessment.Framework,
