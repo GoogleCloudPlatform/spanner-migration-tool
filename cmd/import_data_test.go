@@ -27,7 +27,7 @@ func TestBasicCsvImport(t *testing.T) {
 	importDataCmd.SetFlags(fs)
 
 	importDataCmd.instanceId = ""
-	importDataCmd.dbName = "versionone"
+	importDataCmd.databaseName = "versionone"
 	importDataCmd.tableName = "table2"
 	importDataCmd.sourceUri = "../test_data/basic_csv.csv"
 	importDataCmd.sourceFormat = "csv"
