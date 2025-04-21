@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
@@ -18,21 +18,22 @@ describe('AddNewSequenceComponent', () => {
   beforeEach(async () => {
     dataServiceSpy = jasmine.createSpyObj('DataService', ['addSequence']);
     await TestBed.configureTestingModule({
-      declarations: [AddNewSequenceComponent],
-      imports: [ReactiveFormsModule, HttpClientModule, MatSnackBarModule, MatDialogModule, MatSelectModule, MatInputModule, BrowserAnimationsModule],
-      providers: [
+    declarations: [AddNewSequenceComponent],
+    imports: [ReactiveFormsModule, MatSnackBarModule, MatDialogModule, MatSelectModule, MatInputModule, BrowserAnimationsModule],
+    providers: [
         {
-          provide: MatDialogRef,
-          useValue: {
-            close: () => { },
-          },
+            provide: MatDialogRef,
+            useValue: {
+                close: () => { },
+            },
         },
         {
-          provide: DataService,
-          useValue: dataServiceSpy
-        }
-      ],
-    })
+            provide: DataService,
+            useValue: dataServiceSpy
+        },
+        provideHttpClient(withInterceptorsFromDi())
+    ]
+})
       .compileComponents();
   });
 
