@@ -166,7 +166,7 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 	if err != nil {
 		return "", err
 	}
-	logger.Log.Debug("LLM Token Usage (Initial Conversion): ",
+	logger.Log.Info("LLM Token Usage (Initial Conversion): ",
 		zap.Int32("Prompt Tokens", response.UsageMetadata.PromptTokenCount),
 		zap.Int32("Candidate Tokens", response.UsageMetadata.CandidatesTokenCount),
 		zap.Int32("Total Tokens", response.UsageMetadata.TotalTokenCount))
@@ -461,7 +461,7 @@ func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*CodeAsse
 	detectedLanguage := ""
 	detectedFramework := ""
 
-	logger.Log.Info("Initiating file scanning and analysis. This may take a few minutes.")
+	logger.Log.Info("initiating file scanning and analysis. this may take a few minutes.")
 	for _, fileBatch := range processingOrder {
 		analysisInputs := make([]*FileAnalysisInput, 0, len(fileBatch))
 		for _, filePath := range fileBatch {
