@@ -112,7 +112,7 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.Inf
 }
 
 func init() {
-	logger.Log = zap.NewNop()
+	logger.Log, _ = zap.NewDevelopment()
 }
 
 func (cmd *ImportDataCmd) Name() string {
