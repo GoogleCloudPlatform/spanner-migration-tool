@@ -115,7 +115,7 @@ func TestAccuracy(t *testing.T) {
 		if strings.HasSuffix(tc.FilePath, "java") {
 			language = "java"
 		}
-		summarizer, err := assessment.NewMigrationSummarizer(ctx, nil, projectID, location, tc.SourceSchema, tc.TargetSchema, tc.FilePath, language)
+		summarizer, err := assessment.NewMigrationCodeSummarizer(ctx, nil, projectID, location, tc.SourceSchema, tc.TargetSchema, tc.FilePath, language)
 
 		if err != nil {
 			t.Fatal("Failed to initialize migration summarizer: ", err)
