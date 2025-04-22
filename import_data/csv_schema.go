@@ -112,7 +112,7 @@ func parseSchema(schemaUri string, delimiter rune) ([]ColumnDefinition, error) {
 		pkOrder, err := strconv.Atoi(strings.TrimSpace(record[3]))
 
 		if err != nil {
-			fmt.Println("Error parsing schmea file", err)
+			fmt.Println("Error parsing schema file", err)
 			return colDefs, err
 		}
 
