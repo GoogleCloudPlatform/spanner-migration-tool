@@ -108,12 +108,24 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 	}
 	c.infoSchemaCollector = &infoSchemaCollector
 
-	//Initiialize App Assessment Collector
-
+	//Initialize App Assessment Collector
 	language, exists := assessmentConfig["language"]
 	if !exists {
-		// defaulting to Golang
-		language = "go"
+		logger.Log.Error("source code programming language info unavailable")
+		logger.Log.Info("supported programming language: ", zap.Any("supported_languages", assessment.SupportedProgrammingLanguages))
+		return c, err
+	}
+
+	sourceFramework, exists := assessmentConfig["sourceFramework"]
+	if !exists {
+		logger.Log.Error("source code db framework info unavailable")
+		return c, err
+	}
+
+	targetFramework, exists := assessmentConfig["targetFramework"]
+	if !exists {
+		logger.Log.Error("target spanner framework info unavailable")
+		return c, err
 	}
 
 	codeDirectory, exists := assessmentConfig["codeDirectory"]
@@ -131,7 +143,7 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 		logger.Log.Debug("spannerSchema", zap.String("schema", spannerSchema))
 
 		summarizer, err := assessment.NewMigrationCodeSummarizer(
-			ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory, language)
+			ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory, language, sourceFramework, targetFramework)
 		if err != nil {
 			logger.Log.Error("error initiating migration summarizer")
 			return c, err
