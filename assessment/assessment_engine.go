@@ -110,23 +110,8 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 
 	//Initialize App Assessment Collector
 	language, exists := assessmentConfig["language"]
-	if !exists {
-		logger.Log.Error("source code programming language info unavailable")
-		logger.Log.Info("supported programming language: ", zap.Any("supported_languages", assessment.SupportedProgrammingLanguages))
-		return c, err
-	}
-
 	sourceFramework, exists := assessmentConfig["sourceFramework"]
-	if !exists {
-		logger.Log.Error("source code db framework info unavailable")
-		return c, err
-	}
-
 	targetFramework, exists := assessmentConfig["targetFramework"]
-	if !exists {
-		logger.Log.Error("target spanner framework info unavailable")
-		return c, err
-	}
 
 	codeDirectory, exists := assessmentConfig["codeDirectory"]
 	if exists {

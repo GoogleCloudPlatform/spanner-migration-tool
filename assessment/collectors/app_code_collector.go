@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -117,8 +118,27 @@ func NewMigrationCodeSummarizer(
 	projectID, location, sourceSchema, targetSchema, projectPath, language, sourceFramework, targetFramework string,
 ) (*MigrationCodeSummarizer, error) {
 
+	if language == "" {
+		logger.Log.Info("source code programming language info missing. detecting from source code...")
+		language = detectProgrammingLanguage(projectPath)
+		logger.Log.Info("detected programming language: " + language)
+	}
+
 	if isProgrammingLanguageSupported(language, SupportedProgrammingLanguages) == false {
 		return nil, fmt.Errorf("programming language '%s' not supported. Supported languages are: %v", language, SupportedProgrammingLanguages)
+	}
+
+	projectDependencyAnalyzer := dependencyAnalyzer.AnalyzerFactory(language, ctx)
+
+	if sourceFramework == "" {
+		logger.Log.Info("source code framework info missing. detecting from source code...")
+		sourceFramework = GetDatabaseSourceFramework(projectPath, language, projectDependencyAnalyzer)
+		logger.Log.Info("detected source framework: " + sourceFramework)
+	}
+
+	if targetFramework == "" {
+		logger.Log.Info("target framework is not specified. assuming source framework as target framework")
+		targetFramework = sourceFramework
 	}
 
 	if isFrameworkCombinationSupported(sourceFramework, targetFramework, SupportedFrameworkCombinations) == false {
@@ -146,10 +166,10 @@ func NewMigrationCodeSummarizer(
 		geminiProModel:             client.GenerativeModel("gemini-1.5-pro-002"),
 		geminiFlashModel:           client.GenerativeModel("gemini-2.0-flash-001"),
 		conceptExampleDatabase:     conceptExampleDB,
-		projectDependencyAnalyzer:  dependencyAnalyzer.AnalyzerFactory(language, ctx),
+		projectDependencyAnalyzer:  projectDependencyAnalyzer,
 		sourceDatabaseSchema:       sourceSchema,
-		sourceDatabaseFramework:    sourceFramework,
-		targetDatabaseFramework:    targetFramework,
+		sourceDatabaseFramework:    strings.ToUpper(sourceFramework),
+		targetDatabaseFramework:    strings.ToUpper(targetFramework),
 		targetDatabaseSchema:       targetSchema,
 		projectRootPath:            projectPath,
 		projectProgrammingLanguage: language,
@@ -471,7 +491,7 @@ func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*CodeAsse
 	fileIndex := 0
 	totalLinesOfCode := 0
 	projectProgrammingLanguage := m.projectProgrammingLanguage
-	detectedFramework := ""
+	detectedFramework := m.sourceDatabaseFramework
 
 	logger.Log.Info("initiating file scanning and analysis. this may take a few minutes.")
 	for _, fileBatch := range processingOrder {
@@ -482,9 +502,6 @@ func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*CodeAsse
 			if err != nil {
 				logger.Log.Error("Error fetching file content: ", zap.Error(err))
 				continue
-			}
-			if detectedFramework == "" {
-				detectedFramework = getFrameworkFromFileContent(fileContent)
 			}
 			totalLinesOfCode += strings.Count(fileContent, "\n")
 
@@ -548,18 +565,77 @@ func isFrameworkCombinationSupported(sourceFramework, targetFramework string, su
 	return exists
 }
 
-func getFrameworkFromFileContent(fileContent string) string {
-	// TODO: Move into language-specific implementations
-	if strings.Contains(fileContent, "database/sql") || strings.Contains(fileContent, "github.com/go-sql-driver/mysql") {
-		return "database/sql"
+func detectProgrammingLanguage(projectPath string) string {
+	languageCounts := make(map[string]int)
+
+	err := filepath.Walk(projectPath, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			if strings.HasSuffix(filePath, ".go") {
+				languageCounts["go"]++
+			} else if strings.HasSuffix(filePath, ".py") {
+				languageCounts["python"]++
+			} else if strings.HasSuffix(filePath, ".java") {
+				languageCounts["java"]++
+			} else if strings.HasSuffix(filePath, ".js") || strings.HasSuffix(filePath, ".jsx") {
+				languageCounts["javascript"]++
+			}
+			// Add more language-specific checks as needed
+		}
+		return nil
+	})
+
+	if err != nil {
+		fmt.Println("Error walking the path:", err)
+		return ""
 	}
-	if strings.Contains(fileContent, "*sql.DB") || strings.Contains(fileContent, "*sql.Tx") {
-		return "database/sql"
+
+	var dominantLanguage string
+	maxCount := 0
+	for lang, count := range languageCounts {
+		if count > maxCount {
+			maxCount = count
+			dominantLanguage = lang
+		}
 	}
-	if strings.Contains(fileContent, "`gorm:\"") {
-		return "gorm"
+	return dominantLanguage
+}
+
+// Generic function to get the dominant database framework using a FrameworkDetector.
+func GetDatabaseSourceFramework(projectRoot string, language string, projectDependencyAnalyzer dependencyAnalyzer.DependencyAnalyzer) string {
+	frameworkCounts := make(map[string]int)
+	fileExtension := language
+
+	filepath.Walk(projectRoot, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(strings.ToLower(filePath), fileExtension) {
+			contentBytes, err := os.ReadFile(filePath)
+			if err != nil {
+				return err
+			}
+			fileContent := string(contentBytes)
+			framework := projectDependencyAnalyzer.GetFrameworkFromFileContent(fileContent)
+			if framework != "" {
+				frameworkCounts[framework]++
+			}
+		}
+		return nil
+	})
+
+	var dominantFramework string
+	maxCount := 0
+	for framework, count := range frameworkCounts {
+		if count > maxCount {
+			maxCount = count
+			dominantFramework = framework
+		}
 	}
-	return ""
+
+	return dominantFramework
 }
 
 func (m *MigrationCodeSummarizer) getPromptForNonDAOClass(content, filepath string, methodChanges *string) string {
