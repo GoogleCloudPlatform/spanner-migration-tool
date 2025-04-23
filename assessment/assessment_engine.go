@@ -23,6 +23,7 @@ import (
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -34,6 +35,11 @@ type assessmentCollectors struct {
 	sampleCollector        *assessment.SampleCollector
 	infoSchemaCollector    *assessment.InfoSchemaCollector
 	appAssessmentCollector *assessment.MigrationCodeSummarizer
+}
+
+type assessmentTaskInput struct {
+	taskName string
+	taskFunc func(ctx context.Context, c assessmentCollectors) (utils.AssessmentOutput, error)
 }
 
 func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile, assessmentConfig map[string]string, projectId string) (utils.AssessmentOutput, error) {
@@ -57,41 +63,48 @@ func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile
 	// Iterate over assessment rules and order output by confidence of each element. Merge outputs where required
 	// Select the highest confidence output for each attribute
 	// Populate assessment struct
+	parallelTaskRunner := &task.RunParallelTasksImpl[assessmentTaskInput, utils.AssessmentOutput]{}
 
-	var wg sync.WaitGroup          // To wait for both goroutines to complete
-	errChan := make(chan error, 2) // Buffered channel to collect errors
+	assessmentTasksInput := []assessmentTaskInput{
+		{
+			taskName: "schemaAssessment",
+			taskFunc: func(ctx context.Context, c assessmentCollectors) (utils.AssessmentOutput, error) {
+				result, err := performSchemaAssessment(ctx, c)
+				return utils.AssessmentOutput{SchemaAssessment: result}, err
+			},
+		},
+		{
+			taskName: "appAssessment",
+			taskFunc: func(ctx context.Context, c assessmentCollectors) (utils.AssessmentOutput, error) {
+				result, err := performAppAssessment(ctx, c)
+				return utils.AssessmentOutput{AppCodeAssessment: result}, err
+			},
+		},
+	}
 
-	// Launch performSchemaAssessment asynchronously
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		result, err := performSchemaAssessment(ctx, c)
+	assessmentResults, err := parallelTaskRunner.RunParallelTasks(assessmentTasksInput, 2, func(input assessmentTaskInput, mutex *sync.Mutex) task.TaskResult[utils.AssessmentOutput] {
+		result, err := input.taskFunc(ctx, c)
 		if err != nil {
-			logger.Log.Error("could not complete schema assessment: ", zap.Error(err))
-			errChan <- err
-			return
+			logger.Log.Error(fmt.Sprintf("could not complete %s: ", input.taskName), zap.Error(err))
 		}
-		output.SchemaAssessment = result
-	}()
+		return task.TaskResult[utils.AssessmentOutput]{Result: result, Err: err}
+	}, false)
 
-	// Launch performAppAssessment asynchronously
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		result, err := performAppAssessment(ctx, c)
-		if err != nil {
-			logger.Log.Error("could not complete app assessment: ", zap.Error(err))
-			errChan <- err
-			return
+	if err != nil {
+		// Handle any error from the parallel task runner itself
+		return output, err
+	}
+
+	for _, result := range assessmentResults {
+		if result.Result.SchemaAssessment != nil {
+			output.SchemaAssessment = result.Result.SchemaAssessment
 		}
-		output.AppCodeAssessment = result
-	}()
+		if result.Result.AppCodeAssessment != nil {
+			output.AppCodeAssessment = result.Result.AppCodeAssessment
+		}
+	}
 
-	// Wait for both goroutines to finish
-	wg.Wait()
-	close(errChan) // Close the error channel after all goroutines are done
-
-	return output, err
+	return output, nil
 }
 
 // Initilize collectors. Take a decision here on which collectors are mandatory and which are optional
@@ -142,9 +155,9 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 	return c, err
 }
 
-func performSchemaAssessment(ctx context.Context, collectors assessmentCollectors) (utils.SchemaAssessmentOutput, error) {
+func performSchemaAssessment(ctx context.Context, collectors assessmentCollectors) (*utils.SchemaAssessmentOutput, error) {
 	logger.Log.Info("starting schema assessment...")
-	schemaOut := utils.SchemaAssessmentOutput{}
+	schemaOut := &utils.SchemaAssessmentOutput{}
 
 	srcTableDefs, spTableDefs := collectors.infoSchemaCollector.ListTables()
 	srcColDefs, spColDefs := collectors.infoSchemaCollector.ListColumnDefinitions()
