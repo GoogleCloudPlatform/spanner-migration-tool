@@ -23,6 +23,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -47,20 +49,21 @@ var nonDAOMigrationPromptTemplate string
 
 // MigrationCodeSummarizer holds the LLM models and configurations for code migration assessment.
 type MigrationCodeSummarizer struct {
-	gcpProjectID              string
-	gcpLocation               string
-	aiClient                  *genai.Client
-	geminiProModel            *genai.GenerativeModel
-	geminiFlashModel          *genai.GenerativeModel
-	conceptExampleDatabase    *assessment.MysqlConceptDb
-	sourceDatabaseFramework   string
-	targetDatabaseFramework   string
-	projectDependencyAnalyzer dependencyAnalyzer.DependencyAnalyzer
-	sourceDatabaseSchema      string
-	targetDatabaseSchema      string
-	projectRootPath           string
-	dependencyGraph           map[string]map[string]struct{}
-	fileDependencyAnalysis    map[string]FileDependencyInfo
+	gcpProjectID               string
+	gcpLocation                string
+	aiClient                   *genai.Client
+	geminiProModel             *genai.GenerativeModel
+	geminiFlashModel           *genai.GenerativeModel
+	conceptExampleDatabase     *assessment.MysqlConceptDb
+	sourceDatabaseFramework    string
+	targetDatabaseFramework    string
+	projectDependencyAnalyzer  dependencyAnalyzer.DependencyAnalyzer
+	projectProgrammingLanguage string
+	sourceDatabaseSchema       string
+	targetDatabaseSchema       string
+	projectRootPath            string
+	dependencyGraph            map[string]map[string]struct{}
+	fileDependencyAnalysis     map[string]FileDependencyInfo
 }
 
 // FileDependencyInfo stores dependency analysis data for a single file.
@@ -91,15 +94,58 @@ type FileAnalysisInput struct {
 type LLMQuestionOutput struct {
 	Questions []string `json:"questions"`
 }
+type FrameworkPair struct {
+	Source string
+	Target string
+}
 
 const jsonParserRetryAttempts = 3
+
+var SupportedProgrammingLanguages = map[string]bool{
+	"go":   true,
+	"java": true,
+}
+
+var SupportedFrameworkCombinations = map[FrameworkPair]bool{
+	{Source: "jdbc", Target: "jdbc"}:                   true,
+	{Source: "go-sql-mysql", Target: "go-sql-spanner"}: true,
+	// Add more allowed combinations here
+}
 
 // NewMigrationCodeSummarizer initializes a new MigrationCodeSummarizer.
 func NewMigrationCodeSummarizer(
 	ctx context.Context,
 	googleGenerativeAIAPIKey *string,
-	projectID, location, sourceSchema, targetSchema, projectPath, language string,
+	projectID, location, sourceSchema, targetSchema, projectPath, language, sourceFramework, targetFramework string,
 ) (*MigrationCodeSummarizer, error) {
+
+	if language == "" {
+		logger.Log.Info("source code programming language info missing. detecting from source code...")
+		language = detectProgrammingLanguage(projectPath)
+		logger.Log.Info("detected programming language: " + language)
+	}
+
+	if isProgrammingLanguageSupported(language, SupportedProgrammingLanguages) == false {
+		return nil, fmt.Errorf("programming language '%s' not supported. Supported languages are: %v", language, SupportedProgrammingLanguages)
+	}
+
+	projectDependencyAnalyzer := dependencyAnalyzer.AnalyzerFactory(language, ctx)
+
+	if sourceFramework == "" {
+		logger.Log.Info("source code framework info missing. detecting from source code...")
+		sourceFramework = GetDatabaseSourceFramework(projectPath, language, projectDependencyAnalyzer)
+		logger.Log.Info("detected source framework: " + sourceFramework)
+	}
+
+	if targetFramework == "" {
+		logger.Log.Info("target framework is not specified. assuming source framework as target framework")
+		targetFramework = sourceFramework
+	}
+
+	if isFrameworkCombinationSupported(sourceFramework, targetFramework, SupportedFrameworkCombinations) == false {
+		return nil, fmt.Errorf("source-target framework '%s'-'%s' combination not supported. Supported frameworks are: %v", sourceFramework, targetFramework, SupportedFrameworkCombinations)
+	}
+
 	if googleGenerativeAIAPIKey != nil {
 		os.Setenv("GOOGLE_API_KEY", *googleGenerativeAIAPIKey)
 	}
@@ -114,35 +160,22 @@ func NewMigrationCodeSummarizer(
 		return nil, fmt.Errorf("failed to load code example DB: %w", err)
 	}
 
-	var sourceFramework, targetFramework string
-
-	// TODO: Either derive it or take it as input
-	switch language {
-	case "go":
-		sourceFramework = "go-sql-mysql"
-		targetFramework = "go-sql-spanner"
-	case "java":
-		sourceFramework = "JDBC"
-		targetFramework = "JDBC"
-	default:
-		panic("unsupported language")
-	}
-
 	summarizer := &MigrationCodeSummarizer{
-		gcpProjectID:              projectID,
-		gcpLocation:               location,
-		aiClient:                  client,
-		geminiProModel:            client.GenerativeModel("gemini-1.5-pro-002"),
-		geminiFlashModel:          client.GenerativeModel("gemini-2.0-flash-001"),
-		conceptExampleDatabase:    conceptExampleDB,
-		projectDependencyAnalyzer: dependencyAnalyzer.AnalyzerFactory(language, ctx),
-		sourceDatabaseSchema:      sourceSchema,
-		sourceDatabaseFramework:   sourceFramework,
-		targetDatabaseFramework:   targetFramework,
-		targetDatabaseSchema:      targetSchema,
-		projectRootPath:           projectPath,
-		dependencyGraph:           make(map[string]map[string]struct{}),
-		fileDependencyAnalysis:    make(map[string]FileDependencyInfo),
+		gcpProjectID:               projectID,
+		gcpLocation:                location,
+		aiClient:                   client,
+		geminiProModel:             client.GenerativeModel("gemini-1.5-pro-002"),
+		geminiFlashModel:           client.GenerativeModel("gemini-2.0-flash-001"),
+		conceptExampleDatabase:     conceptExampleDB,
+		projectDependencyAnalyzer:  projectDependencyAnalyzer,
+		sourceDatabaseSchema:       sourceSchema,
+		sourceDatabaseFramework:    strings.ToUpper(sourceFramework),
+		targetDatabaseFramework:    strings.ToUpper(targetFramework),
+		targetDatabaseSchema:       targetSchema,
+		projectRootPath:            projectPath,
+		projectProgrammingLanguage: language,
+		dependencyGraph:            make(map[string]map[string]struct{}),
+		fileDependencyAnalysis:     make(map[string]FileDependencyInfo),
 	}
 	summarizer.geminiFlashModel.ResponseMIMEType = "application/json"
 	summarizer.geminiProModel.ResponseMIMEType = "application/json"
@@ -458,24 +491,18 @@ func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*CodeAsse
 	parallelTaskRunner := &task.RunParallelTasksImpl[*FileAnalysisInput, *FileAnalysisResponse]{}
 	fileIndex := 0
 	totalLinesOfCode := 0
-	detectedLanguage := ""
-	detectedFramework := ""
+	projectProgrammingLanguage := m.projectProgrammingLanguage
+	detectedFramework := m.sourceDatabaseFramework
 
 	logger.Log.Info("initiating file scanning and analysis. this may take a few minutes.")
 	for _, fileBatch := range processingOrder {
 		analysisInputs := make([]*FileAnalysisInput, 0, len(fileBatch))
 		for _, filePath := range fileBatch {
 			fileIndex++
-			if detectedLanguage == "" {
-				detectedLanguage = getLanguageFromFilePath(filePath)
-			}
 			fileContent, err := m.fetchFileContent(filePath)
 			if err != nil {
 				logger.Log.Error("Error fetching file content: ", zap.Error(err))
 				continue
-			}
-			if detectedFramework == "" {
-				detectedFramework = getFrameworkFromFileContent(fileContent)
 			}
 			totalLinesOfCode += strings.Count(fileContent, "\n")
 
@@ -518,33 +545,107 @@ func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*CodeAsse
 		}
 	}
 
-	projectCodeAssessment.Language = detectedLanguage
+	projectCodeAssessment.Language = projectProgrammingLanguage
 	projectCodeAssessment.Framework = detectedFramework
 	projectCodeAssessment.TotalLoc = totalLinesOfCode
 	projectCodeAssessment.TotalFiles = fileIndex
 	return projectCodeAssessment, nil
 }
 
-func getFrameworkFromFileContent(fileContent string) string {
-	// TODO: Move into language-specific implementations
-	if strings.Contains(fileContent, "database/sql") || strings.Contains(fileContent, "github.com/go-sql-driver/mysql") {
-		return "database/sql"
-	}
-	if strings.Contains(fileContent, "*sql.DB") || strings.Contains(fileContent, "*sql.Tx") {
-		return "database/sql"
-	}
-	if strings.Contains(fileContent, "`gorm:\"") {
-		return "gorm"
-	}
-	return ""
+func isProgrammingLanguageSupported(programmingLanguage string, supportedProgrammingLanguages map[string]bool) bool {
+	_, exists := supportedProgrammingLanguages[strings.ToLower(programmingLanguage)]
+	return exists
 }
 
-func getLanguageFromFilePath(filePath string) string {
-	// TODO: Move into language-specific implementations
-	if strings.HasSuffix(filePath, ".go") {
-		return "go"
+func isFrameworkCombinationSupported(sourceFramework, targetFramework string, supportedCombinations map[FrameworkPair]bool) bool {
+	pair := FrameworkPair{
+		Source: strings.ToLower(sourceFramework),
+		Target: strings.ToLower(targetFramework),
 	}
-	return ""
+	_, exists := supportedCombinations[pair]
+	return exists
+}
+
+func detectProgrammingLanguage(projectPath string) string {
+	languageCounts := make(map[string]int)
+
+	err := filepath.Walk(projectPath, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			if strings.HasSuffix(filePath, ".go") {
+				languageCounts["go"]++
+			} else if strings.HasSuffix(filePath, ".py") {
+				languageCounts["python"]++
+			} else if strings.HasSuffix(filePath, ".java") {
+				languageCounts["java"]++
+			} else if strings.HasSuffix(filePath, ".js") || strings.HasSuffix(filePath, ".jsx") {
+				languageCounts["javascript"]++
+			}
+			// Add more language-specific checks as needed
+		}
+		return nil
+	})
+
+	if err != nil {
+		logger.Log.Error("Error walking the path: ", zap.Error(err))
+		return ""
+	}
+
+	if len(languageCounts) > 0 {
+		languages := make([]string, 0, len(languageCounts))
+		for lang := range languageCounts {
+			languages = append(languages, lang)
+		}
+		sort.Strings(languages)
+		logger.Log.Info("repository  is using following programming languages: " + strings.Join(languages, ", "))
+	}
+
+	var dominantLanguage string
+	maxCount := 0
+	for lang, count := range languageCounts {
+		if count > maxCount {
+			maxCount = count
+			dominantLanguage = lang
+		}
+	}
+	return dominantLanguage
+}
+
+// Generic function to get the dominant database framework using a FrameworkDetector.
+func GetDatabaseSourceFramework(projectRoot string, language string, projectDependencyAnalyzer dependencyAnalyzer.DependencyAnalyzer) string {
+	frameworkCounts := make(map[string]int)
+	fileExtension := language
+
+	filepath.Walk(projectRoot, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(strings.ToLower(filePath), fileExtension) {
+			contentBytes, err := os.ReadFile(filePath)
+			if err != nil {
+				return err
+			}
+			fileContent := string(contentBytes)
+			framework := projectDependencyAnalyzer.GetFrameworkFromFileContent(fileContent)
+			if framework != "" {
+				frameworkCounts[framework]++
+			}
+		}
+		return nil
+	})
+
+	var dominantFramework string
+	maxCount := 0
+	for framework, count := range frameworkCounts {
+		if count > maxCount {
+			maxCount = count
+			dominantFramework = framework
+		}
+	}
+
+	return dominantFramework
 }
 
 func (m *MigrationCodeSummarizer) getPromptForNonDAOClass(content, filepath string, methodChanges *string) string {
