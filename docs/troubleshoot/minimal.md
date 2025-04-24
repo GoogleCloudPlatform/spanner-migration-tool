@@ -48,40 +48,57 @@ Note there can be exceptions like invalid arguments to the Dataflow pipeline - t
 
 Migration progress can be tracked by monitoring the Dataflow job and following custom metrics are exposed:
 
-### Metrics for regular run
+### Metrics for Regular Run
 
-| Metric Name                                   | Description                                                                                                                      |
-|-----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
-| Successful events                             | Total number of events successfully processed and applied to Spanner database                                                    |
-| Retryable errors                              | The count of events that were errored out but will be retried                                                                    |
-| Total permanent errors                        | The number of events that are errored out with non-retriable errors in addition to the number of errors after exhausting retries |
-| Conversion errors                             | Number of events that could not be converted to Spanner. This is a permanent error category.                                      |
-| Skipped events                                | The events that are skipped from migration since the table was dropped from migration                                            |
-| Other permanent errors                        | The remaining permanent errors.                                                                                                  |
-| Transformed events                            | The number of events that were successfully transformed, including retries and permanent errors.                                 |
-| Filtered events                               | The number of events that were were filtered as a part of custom transformation.                                                 |
-| Custom Transformation Exceptions              | The number of events that were errored out due to some exception in custom transformation jar.                                   |
-| Total events processed                        | The number of events that were tried for forward migration, including retries and permanent errors.                              |
-| apply_custom_transformation_impl_latency_ms   | Latency of applying custom transformation to the event.                                                                          |
-| elementsReconsumedFromDeadLetterQueue         | The total number of events consumed from DLQ for retry.                                                                          |
+| Metric Name                                   | Description                                                                                                                            |
+|-----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| Successful events                             | Total number of events successfully processed and applied to Spanner database                                                          |
+| Retryable errors                              | The count of events that were errored out but will be retried                                                                          |
+| Total permanent errors                        | The number of events that are errored out with non-retriable errors in addition to the number of errors after exhausting retries       |
+| Conversion errors                             | Number of events that could not be converted to Spanner. This is a permanent error category.                                            |
+| Skipped events                                | Number of events skipped from being written to spanner because the events were stale.                                                  |
+| Other permanent errors                        | The remaining permanent errors.                                                                                                        |
+| Transformed events                            | The number of events that were successfully transformed, including retries and permanent errors.                                       |
+| Filtered events                               | The number of events that were filtered as a part of custom transformation.                                                          |
+| Custom Transformation Exceptions              | The number of events that were errored out due to some exception in custom transformation jar.                                         |
+| Total events processed                        | The number of events that were tried for forward migration, including retries and permanent errors.                                    |
+| `apply_custom_transformation_impl_latency_ms` | Latency of applying custom transformation to the event.                                                                              |
+| `elementsReconsumedFromDeadLetterQueue`       | The total number of events consumed from DLQ for retry.                                                                                |
+| Replication lag system latency                | Time taken from events being read by Datastream to being written to Cloud Spanner. Time duration between `datastream_read_timestamp` and `write_timestamp` |
+| Replication lag dataflow latency              | Time taken for events to get processed by the Dataflow pipeline. Time duration between `dataflow_read_timestamp` and `write_timestamp`.     |
+| Replication lag total latency                 | Time duration between `source_timestamp` and `write_timestamp`.                                                                        |
+| Invalid events                                | Number of events that were dropped because they have a schema incompatible with the spanner schema.                                  |
+| Successful event retries                      | Number of events that were successfully read from dlq/retry and written to spanner.                                                    |
+| Event retries                                 | Distribution of retries done for any event.                                                                                            |
+| `spanner_writer_latency_ms`                   | Latency of creating and writing mutations from change events to spanner.                                                               |
+| `transformation_latency_ms`                   | Latency of applying transformation to the events.                                                                                      |
+| Dropped table exceptions                      | The events that were skipped from migration since the table was dropped from migration.                                                 |
 
 
 ### Metrics for retryDLQ run
 
-| Metric Name                                   | Description                                                                                         |
-|-----------------------------------------------|-----------------------------------------------------------------------------------------------------|
-| Successful events                             | Total number of events successfully processed and applied to Spanner database                       |
-| elementsReconsumedFromDeadLetterQueue         | The total number of events consumed from DLQ for retry                                              |
-| Elements requeued for retry                   | The total number of events that were re queued for retry                                            |
-| Conversion errors                             | Number of events that could not be converted to Spanner.This is a permanent error category.         |
-| Skipped events                                | The events that are skipped from migration since the table was dropped from migration               |
-| Other permanent errors                        | The remaining permanent errors.                                                                     |
-| Total events processed                        | The number of events that were tried for forward migration, including retries and permanent errors. |
-| Transformed events                            | The number of events that were successfully transformed, including retries and permanent errors.    |
-| Filtered events                               | The number of events that were were filtered as a part of custom transformation.                    |
-| Custom Transformation Exceptions              | The number of events that were errored out due to some exception in custom transformation jar.      |
-| Total events processed                        | The number of events that were tried for forward migration, including retries and permanent errors. |
-| apply_custom_transformation_impl_latency_ms   | Latency of applying custom transformation to the event.                                             |
+| Metric Name                                   | Description                                                                                                                            |
+|-----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| Successful events                             | Total number of events successfully processed and applied to Spanner database                                                          |
+| `elementsReconsumedFromDeadLetterQueue`       | The total number of events consumed from DLQ for retry                                                                                 |
+| Elements requeued for retry                   | The total number of events that were re-queued for retry                                                                               |
+| Conversion errors                             | Number of events that could not be converted to Spanner. This is a permanent error category.                                           |
+| Skipped events                                | Number of events skipped from being written to spanner because the events were stale.                                                  |
+| Other permanent errors                        | The remaining permanent errors.                                                                                                        |
+| Transformed events                            | The number of events that were successfully transformed, including retries and permanent errors.                                       |
+| Filtered events                               | The number of events that were filtered as a part of custom transformation.                                                          |
+| Custom Transformation Exceptions              | The number of events that were errored out due to some exception in custom transformation jar.                                         |
+| Total events processed                        | The number of events that were tried for forward migration, including retries and permanent errors.                                    |
+| `apply_custom_transformation_impl_latency_ms` | Latency of applying custom transformation to the event.                                                                              |
+| Replication lag system latency                | Time taken from events being read by Datastream to being written to Cloud Spanner. Time duration between `datastream_read_timestamp` and `write_timestamp` |
+| Replication lag dataflow latency              | Time taken for events to get processed by the Dataflow pipeline. Time duration between `dataflow_read_timestamp` and `write_timestamp`.     |
+| Replication lag total latency                 | Time duration between `source_timestamp` and `write_timestamp`.                                                                        |
+| Invalid events                                | Number of events that were dropped because they have a schema incompatible with the spanner schema.                                  |
+| Successful event retries                      | Number of events that were successfully read from dlq/retry and written to spanner.                                                    |
+| Event retries                                 | Distribution of retries done for any event.                                                                                            |
+| `spanner_writer_latency_ms`                   | Latency of creating and writing mutations from change events to spanner.                                                               |
+| `transformation_latency_ms`                   | Latency of applying transformation to the events.                                                                                      |
+| Dropped table exceptions                      | The events that were skipped from migration since the table was dropped from migration.                                                 |
 
 It can happen that in retryDLQ mode, there are still permanent errors. To identify that all the retryable errors have been processed and only permanent errors remain for reprocessing - one can look at the ‘Successful events' count - it would remain constant after every retry iteration. Each retry iteration, the ‘elementsReconsumedFromDeadLetterQueue' would increment.
 

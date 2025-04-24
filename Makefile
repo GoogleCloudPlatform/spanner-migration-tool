@@ -1,3 +1,4 @@
+include ui.mk
 # Set GOPATH env variable if not set
 ifndef $(GOPATH)
     GOPATH=$(shell go env GOPATH)
@@ -7,8 +8,6 @@ endif
 build: ui/package-lock.json
 	cd ui/ && ng build
 	go build -o spanner-migration-tool
-ui/package-lock.json: ui/package.json
-	cd ui/ && npm install
 # Build a static binary
 build-static: ui/package-lock.json
 	cd ui/ && ng build
@@ -17,7 +16,7 @@ build-static: ui/package-lock.json
 release:
 	./release.sh ${VERSION}
 # Update vendor dependencies
-update-vendor:
+update-vendor: ui/package-lock.json
 	go mod tidy
 	go mod vendor
 # 	vendor non-go files

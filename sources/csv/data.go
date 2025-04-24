@@ -298,7 +298,7 @@ func convertData(dialect, nullStr string, srcCols []string,
 		colName := srcCols[i]
 		colId, err := internal.GetColIdFromSpName(colDefs, colName)
 		if err != nil {
-			return cvtCols, v, err
+			return cvtCols, v, fmt.Errorf("Unable to get colId from SpName for column %s ", colName)
 		}
 		spColDef := colDefs[colId]
 
