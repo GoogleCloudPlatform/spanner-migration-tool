@@ -71,6 +71,7 @@ Migration progress can be tracked by monitoring the Dataflow job and following c
 | Successful event retries                      | Number of events that were successfully read from dlq/retry and written to spanner.                                                    |
 | Event retries                                 | Distribution of retries done for any event.                                                                                            |
 | `spanner_writer_latency_ms`                   | Latency of creating and writing mutations from change events to spanner.                                                               |
+| `transformation_latency_ms`                   | Latency of applying transformation to the events.                                                                                      |
 | Dropped table exceptions                      | The events that were skipped from migration since the table was dropped from migration.                                                 |
 
 
@@ -96,6 +97,7 @@ Migration progress can be tracked by monitoring the Dataflow job and following c
 | Successful event retries                      | Number of events that were successfully read from dlq/retry and written to spanner.                                                    |
 | Event retries                                 | Distribution of retries done for any event.                                                                                            |
 | `spanner_writer_latency_ms`                   | Latency of creating and writing mutations from change events to spanner.                                                               |
+| `transformation_latency_ms`                   | Latency of applying transformation to the events.                                                                                      |
 | Dropped table exceptions                      | The events that were skipped from migration since the table was dropped from migration.                                                 |
 
 It can happen that in retryDLQ mode, there are still permanent errors. To identify that all the retryable errors have been processed and only permanent errors remain for reprocessing - one can look at the ‘Successful events' count - it would remain constant after every retry iteration. Each retry iteration, the ‘elementsReconsumedFromDeadLetterQueue' would increment.
