@@ -49,13 +49,28 @@ func (c InfoSchemaCollector) IsEmpty() bool {
 	return false
 }
 
-func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile) (InfoSchemaCollector, error) {
+func CreateNewInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile) (InfoSchemaCollector, error) {
+	return CreateInfoSchemaCollector(conv, sourceProfile, SQLDBConnector{}, DefaultConnectionConfigProvider{})
+}
+
+func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile, dbConnector DBConnector, configProvider ConnectionConfigProvider) (InfoSchemaCollector, error) {
 	logger.Log.Info("initializing infoschema collector")
 	var errString string
-	infoSchema, err := getInfoSchema(sourceProfile)
+	connectionConfig, err := configProvider.GetConnectionConfig(sourceProfile)
 	if err != nil {
 		return InfoSchemaCollector{}, err
 	}
+
+	db, err := dbConnector.Connect(sourceProfile.Driver, connectionConfig)
+	if err != nil {
+		return InfoSchemaCollector{}, err
+	}
+
+	infoSchema, err := getInfoSchema(db, sourceProfile)
+	if err != nil {
+		return InfoSchemaCollector{}, fmt.Errorf("error getting info schema: %v", err)
+	}
+
 	tb, err := infoSchema.GetTableInfo(conv)
 	if err != nil {
 		errString = errString + fmt.Sprintf("\nError while scanning tables: %v", err)
@@ -111,18 +126,10 @@ func getIndexes(infoSchema common.InfoSchema, conv *internal.Conv) ([]utils.Inde
 	return indCollector, nil
 }
 
-func getInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, error) {
-	connectionConfig, err := conversion.ConnectionConfig(sourceProfile)
-	if err != nil {
-		return nil, err
-	}
+func getInfoSchema(db *sql.DB, sourceProfile profiles.SourceProfile) (common.InfoSchema, error) {
 	driver := sourceProfile.Driver
 	switch driver {
 	case constants.MYSQL:
-		db, err := sql.Open(driver, connectionConfig.(string))
-		if err != nil {
-			return nil, err
-		}
 		return mysql.InfoSchemaImpl{
 			Db:     db,
 			DbName: sourceProfile.Conn.Mysql.Db,
@@ -406,4 +413,28 @@ func (c InfoSchemaCollector) ListStoredProcedures() map[string]utils.StoredProce
 
 func (c InfoSchemaCollector) ListSpannerSequences() map[string]ddl.Sequence {
 	return c.conv.SpSequences
+}
+
+type ConnectionConfigProvider interface {
+	GetConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
+}
+
+type DefaultConnectionConfigProvider struct{}
+
+func (d DefaultConnectionConfigProvider) GetConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error) {
+	return conversion.ConnectionConfig(sourceProfile)
+}
+
+type DBConnector interface {
+	Connect(driver string, connectionConfig interface{}) (*sql.DB, error)
+}
+
+type SQLDBConnector struct{}
+
+func (d SQLDBConnector) Connect(driver string, connectionConfig interface{}) (*sql.DB, error) {
+	db, err := sql.Open(driver, connectionConfig.(string))
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
 }
