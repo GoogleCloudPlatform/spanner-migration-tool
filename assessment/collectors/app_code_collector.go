@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -588,8 +589,17 @@ func detectProgrammingLanguage(projectPath string) string {
 	})
 
 	if err != nil {
-		fmt.Println("Error walking the path:", err)
+		logger.Log.Error("Error walking the path: ", zap.Error(err))
 		return ""
+	}
+
+	if len(languageCounts) > 0 {
+		languages := make([]string, 0, len(languageCounts))
+		for lang := range languageCounts {
+			languages = append(languages, lang)
+		}
+		sort.Strings(languages)
+		logger.Log.Info("repository  is using following programming languages: " + strings.Join(languages, ", "))
 	}
 
 	var dominantLanguage string
