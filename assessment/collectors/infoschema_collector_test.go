@@ -32,36 +32,6 @@ func init() {
 	logger.Log = zap.NewNop()
 }
 
-func (m MockInfoSchema) GetTableInfo(conv *internal.Conv) (map[string]utils.TableAssessmentInfo, error) {
-	return m.tables, m.err
-}
-
-func (m MockInfoSchema) GetIndexInfo(tableName string, indexName string) (utils.IndexAssessmentInfo, error) {
-	if m.err != nil {
-		return utils.IndexAssessmentInfo{}, m.err
-	}
-	for _, index := range m.indexes {
-		if index.IndexDef.Name == indexName && index.Name == tableName {
-			return index, nil
-		}
-	}
-	return utils.IndexAssessmentInfo{}, fmt.Errorf("index %s not found", indexName)
-}
-
-func (m MockInfoSchema) GetTriggerInfo() ([]utils.TriggerAssessmentInfo, error) {
-	return m.triggers, m.err
-}
-
-func (m MockInfoSchema) GetStoredProcedureInfo() ([]utils.StoredProcedureAssessmentInfo, error) {
-	return m.storedProcedures, m.err
-}
-func (m MockInfoSchema) GetFunctionInfo() ([]utils.FunctionAssessmentInfo, error) {
-	return m.functions, m.err
-}
-func (m MockInfoSchema) GetViewInfo() ([]utils.ViewAssessmentInfo, error) {
-	return m.views, m.err
-}
-
 type MockConnectionConfigProvider struct {
 	config interface{}
 	err    error
@@ -96,31 +66,30 @@ func TestCreateInfoSchemaCollector(t *testing.T) {
 	functionName := "function1"
 	viewName := "view1"
 
-	// Mock the query for table info
 	mock.ExpectQuery(`SELECT TABLE_COLLATION, SUBSTRING_INDEX\(TABLE_COLLATION, '_', 1\) as CHARACTER_SET\s+FROM INFORMATION_SCHEMA.TABLES\s+WHERE TABLE_SCHEMA = \? AND TABLE_NAME = \?`).
 		WithArgs(dbName, tableName).
 		WillReturnRows(sqlmock.NewRows([]string{"TABLE_COLLATION", "CHARACTER_SET"}).AddRow("utf8_general_ci", "utf8"))
-	// Mock the query for column info
+
 	mock.ExpectQuery(`SELECT c.column_type, c.extra, c.generation_expression\s+FROM information_schema.COLUMNS c\s+where table_schema = \? and table_name = \? and column_name = \? ORDER BY c.ordinal_position`).
 		WithArgs(dbName, tableName, columnName).
 		WillReturnRows(sqlmock.NewRows([]string{"column_type", "extra", "generation_expression"}).AddRow("INT", "auto_increment", ""))
-		// Mock the query for index info
+
 	mock.ExpectQuery(`SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE,INDEX_TYPE\s+FROM INFORMATION_SCHEMA.STATISTICS\s+WHERE TABLE_SCHEMA = \?\s+AND TABLE_NAME = \?\s+AND INDEX_NAME = \?\s+ORDER BY INDEX_NAME, SEQ_IN_INDEX`).
 		WithArgs(dbName, tableName, indexName).
 		WillReturnRows(sqlmock.NewRows([]string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE", "INDEX_TYPE"}).AddRow(indexName, columnName, 1, "utf8_general_ci", 1, "BTREE"))
-	// Mock the query for triggers info
+
 	mock.ExpectQuery(`SELECT DISTINCT TRIGGER_NAME,EVENT_OBJECT_TABLE,ACTION_STATEMENT,ACTION_TIMING,EVENT_MANIPULATION\s+FROM INFORMATION_SCHEMA.TRIGGERS\s+WHERE EVENT_OBJECT_SCHEMA = \?`).
 		WithArgs(dbName).
 		WillReturnRows(sqlmock.NewRows([]string{"TRIGGER_NAME", "EVENT_OBJECT_TABLE", "ACTION_STATEMENT", "ACTION_TIMING", "EVENT_MANIPULATION"}).AddRow(triggerName, tableName, "INSERT", "BEFORE", "INSERT"))
-		// Mock the query for stored procedures info
+
 	mock.ExpectQuery(`SELECT DISTINCT ROUTINE_NAME,ROUTINE_DEFINITION,IS_DETERMINISTIC\s+FROM INFORMATION_SCHEMA.ROUTINES\s+WHERE ROUTINE_TYPE='PROCEDURE' AND ROUTINE_SCHEMA = \?`).
 		WithArgs(dbName).
 		WillReturnRows(sqlmock.NewRows([]string{"ROUTINE_NAME", "ROUTINE_DEFINITION", "IS_DETERMINISTIC"}).AddRow(procedureName, "CREATE PROCEDURE procedure1() BEGIN END", "YES"))
-	// Mock the query for functions info
+
 	mock.ExpectQuery(`SELECT DISTINCT ROUTINE_NAME,ROUTINE_DEFINITION,IS_DETERMINISTIC, DTD_IDENTIFIER\s+FROM INFORMATION_SCHEMA.ROUTINES\s+WHERE ROUTINE_TYPE='FUNCTION' AND ROUTINE_SCHEMA = \?`).
 		WithArgs(dbName).
 		WillReturnRows(sqlmock.NewRows([]string{"ROUTINE_NAME", "ROUTINE_DEFINITION", "IS_DETERMINISTIC", "DTD_IDENTIFIER"}).AddRow(functionName, "CREATE FUNCTION function1() RETURNS INT RETURN 1", "NO", "INT"))
-	// Mock the query for views info
+
 	mock.ExpectQuery(`SELECT DISTINCT TABLE_NAME,VIEW_DEFINITION,CHECK_OPTION, IS_UPDATABLE\s+FROM INFORMATION_SCHEMA.VIEWS\s+WHERE TABLE_SCHEMA = \?`).
 		WithArgs(dbName).
 		WillReturnRows(sqlmock.NewRows([]string{"TABLE_NAME", "VIEW_DEFINITION", "CHECK_OPTION", "IS_UPDATABLE"}).AddRow(viewName, "SELECT * FROM table1", "NONE", "NO"))
@@ -172,7 +141,6 @@ func TestCreateInfoSchemaCollector(t *testing.T) {
 		t.Errorf("there were unfulfilled expectations: %s", err)
 	}
 
-	//assertions
 	assert.NotNil(t, collector.tables, "tables map should not be nil")
 	assert.Len(t, collector.tables, 1, "should have 1 table")
 	tableInfo, ok := collector.tables[tableName]
