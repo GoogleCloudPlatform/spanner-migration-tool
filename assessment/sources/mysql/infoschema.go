@@ -82,7 +82,7 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
 				TableName:              table.Name,
 				ColumnDef:              column,
 				IsUnsigned:             strings.Contains(strings.ToLower(columnType), " unsigned"),
-				MaxColumnSize:          getColumnMaxSize(column.Type.Name, column.Type.Mods),
+				MaxColumnSize:          getColumnMaxSize(column.Type.Name, column.Type.Mods, charset),
 				IsOnUpdateTimestampSet: isOnUpdateTimestampSet,
 				GeneratedColumn:        generatedColumn,
 			}
@@ -238,20 +238,25 @@ func (isi InfoSchemaImpl) GetViewInfo() ([]utils.ViewAssessmentInfo, error) {
 	return views, nil
 }
 
-// TODO - also account for charsets
-func getColumnMaxSize(dataType string, mods []int64) int64 {
+func getColumnMaxSize(dataType string, mods []int64, mysqlCharset string) int64 {
 	dataTypeLower := strings.ToLower(dataType)
+	bytesPerChar := int64(1) // Default for binary types or non-char types
+
+	switch dataTypeLower {
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+		bytesPerChar = getMaxBytesPerChar(mysqlCharset)
+	}
 
 	switch dataTypeLower {
 	case "date":
 		return 4
 	case "timestamp", "datetime":
-		return 8 // MySQL datetime and timestamp use 8 bytes
+		return 8
 	case "bit":
 		if len(mods) > 0 {
-			return int64(math.Ceil(float64(mods[0]+7) / 8))
+			return int64(math.Ceil(float64(mods[0]) / 8.0))
 		}
-		return 1 // Default to 1 byte if no length specified
+		return 1
 	case "tinyint":
 		return 1
 	case "smallint":
@@ -281,28 +286,69 @@ func getColumnMaxSize(dataType string, mods []int64) int64 {
 			return intBytes + fracBytes // Total size
 		}
 		return 8 // Default size if no precision/scale provided
-	case "char", "varchar":
+
+	case "char":
+		maxChars := int64(1) // Default for CHAR is CHAR(1)
 		if len(mods) > 0 {
-			return mods[0] // Max length specified
+			maxChars = mods[0]
 		}
-		return 255 // Default max length
+		return maxChars * bytesPerChar
+	case "varchar":
+		maxChars := int64(0)
+		if len(mods) > 0 {
+			maxChars = mods[0]
+		} else {
+			maxChars = 255
+		}
+		return maxChars * bytesPerChar
+
 	case "binary", "varbinary":
 		if len(mods) > 0 {
-			return mods[0] // Max length specified
+			return mods[0]
 		}
-		return 255 // Default max length
-	case "tinyblob", "tinytext":
 		return 255
-	case "blob", "text":
-		return 65535 // 2^16 - 1
-	case "mediumblob", "mediumtext":
-		return 16777215 // 2^24 - 1
-	case "longblob", "longtext":
-		return 4294967295 // 2^32 - 1
+	case "tinyblob":
+		return 255
+	case "blob":
+		return 65535
+	case "mediumblob":
+		return 16777215
+	case "longblob":
+		return 4294967295
+
+	// TEXT types store character strings.
+	case "tinytext":
+		return 255 * bytesPerChar
+	case "text":
+		return 65535 * bytesPerChar
+	case "mediumtext":
+		return 16777215 * bytesPerChar
+	case "longtext":
+		return 4294967295 * bytesPerChar
+
 	case "json":
-		return 4294967295 // Maximum size
+		return 4294967295
 	default:
-		return 4 // Default size for unknown types
+		return 4
+	}
+}
+
+func getMaxBytesPerChar(charset string) int64 {
+	charsetLower := strings.ToLower(charset)
+	switch charsetLower {
+	case "binary", "latin1", "ascii", "cp850", "dec8", "hp8", "koi8r", "latin2", "swe7",
+		"armscii8", "cp1250", "cp1251", "cp1256", "cp1257", "cp852", "cp866",
+		"geostd8", "greek", "hebrew", "keybcs2", "koi8u", "latin5", "latin7", "macce", "macroman":
+		return 1
+	case "big5", "gb2312", "gbk", "sjis", "ujis", "eucjpms", "euckr", "ucs2":
+		return 2
+	case "utf8", "utf8mb3":
+		return 3
+	case "utf8mb4", "utf16", "utf32", "gb18030":
+		return 4
+	default:
+		// Default to a common multi-byte max if unknown.
+		return 4
 	}
 }
 
