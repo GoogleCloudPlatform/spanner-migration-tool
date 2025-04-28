@@ -88,7 +88,7 @@ A few prerequisites must be considered before starting with reverse replication.
 6. Ensure that gcloud authentication is done,refer [here](https://cloud.google.com/spanner/docs/getting-started/set-up#set_up_authentication_and_authorization).
 7. Ensure that the target Spanner instance is ready.
 8. Ensure that that [session file](https://googlecloudplatform.github.io/spanner-migration-tool/reports.html#session-file-ending-in-sessionjson) is uploaded to GCS (this requires a schema conversion to be done).
-9. [Source shards file](./RunnigReverseReplication.md#sample-sourceshards-file) already uploaded to GCS.
+9. [Source shards file](./ReverseReplicationUserGuide.md#sample-sourceshards-file) already uploaded to GCS.
 10. Resources needed for reverse replication incur cost. Make sure to read [cost](#cost).
 11. Reverse replication uses shard identifier column per table to route the Spanner records to a given source shard.The column identified as the sharding column needs to be selected via Spanner Migration Tool when performing migration.The value of this column should be the logicalShardId value specified in the [source shard file](#sample-source-shards-file).In the event that the shard identifier column is not an existing column,the application code needs to be changed to populate this shard identifier column when writing to Spanner. Or use a custom shard identifier plugin to supply the shard identifier.
 12. The reverse replication pipeline uses GCS for dead letter queue handling. Ensure that the DLQ directory exists in GCS.
@@ -406,6 +406,30 @@ Steps to perfrom customization:
 3. Invoke the reverse replication flow by passing the custom jar path and custom class path.
 4. If any custom parameters are needed in the custom shard identification logic, they can be passed via the *shardingCustomParameters* input to the runner. These parameters will be passed to the *init* method of the custom class. The *init* method is invoked once per worker setup.
 
+## Sample sourceShards File
+This file contains meta data regarding the source MYSQL shards, which is used to connect to them. This should be present even if there is a single source database shard.
+The database user password should be kept in [Secret Manager](#https://cloud.google.com/security/products/secret-manager) and it's URI needs to be specified in the file.
+The file should be a list of JSONs as:
+```
+[
+    {
+    "logicalShardId": "shard1",
+    "host": "10.11.12.13",
+    "user": "root",
+    "secretManagerUri":"projects/123/secrets/rev-cmek-cred-shard1/versions/latest",
+    "port": "3306",
+    "dbName": "db1"
+    },
+    {
+    "logicalShardId": "shard2",
+    "host": "10.11.12.14",
+    "user": "root",
+    "secretManagerUri":"projects/123/secrets/rev-cmek-cred-shard2/versions/latest",
+    "port": "3306",
+    "dbName": "db2"
+    }
+]
+```
 
 ## Cost
 
