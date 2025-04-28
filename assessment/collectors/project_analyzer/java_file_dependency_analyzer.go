@@ -3,13 +3,14 @@ package assessment
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/java"
 	"go.uber.org/zap"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 // JavaDependencyAnalyzer implements DependencyAnalyzer for Go projects
@@ -37,6 +38,22 @@ func (g *JavaDependencyAnalyzer) IsDAO(filePath string, fileContent string) bool
 	}
 
 	return false
+}
+
+func (g *JavaDependencyAnalyzer) GetFrameworkFromFileContent(fileContent string) string {
+	if strings.Contains(fileContent, "org.hibernate") {
+		return "Hibernate"
+	}
+	if strings.Contains(fileContent, "org.apache.ibatis") {
+		return "MyBatis"
+	}
+	if strings.Contains(fileContent, "java.sql.DriverManager") || strings.Contains(fileContent, "javax.sql.DataSource") {
+		return "JDBC"
+	}
+	if strings.Contains(fileContent, "org.springframework.data.jpa") {
+		return "Spring Data JPA"
+	}
+	return ""
 }
 
 func (j *JavaDependencyAnalyzer) GetExecutionOrder(projectDir string) (map[string]map[string]struct{}, [][]string) {

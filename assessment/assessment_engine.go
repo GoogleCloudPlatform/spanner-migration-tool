@@ -18,10 +18,12 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -32,7 +34,12 @@ import (
 type assessmentCollectors struct {
 	sampleCollector        *assessment.SampleCollector
 	infoSchemaCollector    *assessment.InfoSchemaCollector
-	appAssessmentCollector *assessment.MigrationSummarizer
+	appAssessmentCollector *assessment.MigrationCodeSummarizer
+}
+
+type assessmentTaskInput struct {
+	taskName string
+	taskFunc func(ctx context.Context, c assessmentCollectors) (utils.AssessmentOutput, error)
 }
 
 func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile, assessmentConfig map[string]string, projectId string) (utils.AssessmentOutput, error) {
@@ -56,15 +63,48 @@ func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile
 	// Iterate over assessment rules and order output by confidence of each element. Merge outputs where required
 	// Select the highest confidence output for each attribute
 	// Populate assessment struct
+	parallelTaskRunner := &task.RunParallelTasksImpl[assessmentTaskInput, utils.AssessmentOutput]{}
 
-	output.SchemaAssessment, err = performSchemaAssessment(ctx, c)
+	assessmentTasksInput := []assessmentTaskInput{
+		{
+			taskName: "schemaAssessment",
+			taskFunc: func(ctx context.Context, c assessmentCollectors) (utils.AssessmentOutput, error) {
+				result, err := performSchemaAssessment(ctx, c)
+				return utils.AssessmentOutput{SchemaAssessment: result}, err
+			},
+		},
+		{
+			taskName: "appAssessment",
+			taskFunc: func(ctx context.Context, c assessmentCollectors) (utils.AssessmentOutput, error) {
+				result, err := performAppAssessment(ctx, c)
+				return utils.AssessmentOutput{AppCodeAssessment: result}, err
+			},
+		},
+	}
+
+	assessmentResults, err := parallelTaskRunner.RunParallelTasks(assessmentTasksInput, 2, func(input assessmentTaskInput, mutex *sync.Mutex) task.TaskResult[utils.AssessmentOutput] {
+		result, err := input.taskFunc(ctx, c)
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("could not complete %s: ", input.taskName), zap.Error(err))
+		}
+		return task.TaskResult[utils.AssessmentOutput]{Result: result, Err: err}
+	}, false)
+
 	if err != nil {
-		logger.Log.Info(fmt.Sprintf("could not complete schema assessment: %s", err))
+		// Handle any error from the parallel task runner itself
 		return output, err
 	}
-	output.AppCodeAssessment, err = performAppAssessment(ctx, c)
 
-	return output, err
+	for _, result := range assessmentResults {
+		if result.Result.SchemaAssessment != nil {
+			output.SchemaAssessment = result.Result.SchemaAssessment
+		}
+		if result.Result.AppCodeAssessment != nil {
+			output.AppCodeAssessment = result.Result.AppCodeAssessment
+		}
+	}
+
+	return output, nil
 }
 
 // Initilize collectors. Take a decision here on which collectors are mandatory and which are optional
@@ -81,13 +121,10 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 	}
 	c.infoSchemaCollector = &infoSchemaCollector
 
-	//Initiialize App Assessment Collector
-
+	//Initialize App Assessment Collector
 	language, exists := assessmentConfig["language"]
-	if !exists {
-		// defaulting to Golang
-		language = "go"
-	}
+	sourceFramework, exists := assessmentConfig["sourceFramework"]
+	targetFramework, exists := assessmentConfig["targetFramework"]
 
 	codeDirectory, exists := assessmentConfig["codeDirectory"]
 	if exists {
@@ -103,8 +140,8 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 		logger.Log.Debug("mysqlSchema", zap.String("schema", mysqlSchema))
 		logger.Log.Debug("spannerSchema", zap.String("schema", spannerSchema))
 
-		summarizer, err := assessment.NewMigrationSummarizer(
-			ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory, language)
+		summarizer, err := assessment.NewMigrationCodeSummarizer(
+			ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory, language, sourceFramework, targetFramework)
 		if err != nil {
 			logger.Log.Error("error initiating migration summarizer")
 			return c, err
@@ -118,8 +155,9 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 	return c, err
 }
 
-func performSchemaAssessment(ctx context.Context, collectors assessmentCollectors) (utils.SchemaAssessmentOutput, error) {
-	schemaOut := utils.SchemaAssessmentOutput{}
+func performSchemaAssessment(ctx context.Context, collectors assessmentCollectors) (*utils.SchemaAssessmentOutput, error) {
+	logger.Log.Info("starting schema assessment...")
+	schemaOut := &utils.SchemaAssessmentOutput{}
 
 	srcTableDefs, spTableDefs := collectors.infoSchemaCollector.ListTables()
 	srcColDefs, spColDefs := collectors.infoSchemaCollector.ListColumnDefinitions()
@@ -180,6 +218,7 @@ func performSchemaAssessment(ctx context.Context, collectors assessmentCollector
 	schemaOut.ViewAssessmentOutput = collectors.infoSchemaCollector.ListViews()
 	schemaOut.SpSequences = collectors.infoSchemaCollector.ListSpannerSequences()
 
+	logger.Log.Info("schema assessment completed successfully.")
 	return schemaOut, nil
 }
 
@@ -190,7 +229,7 @@ func performAppAssessment(ctx context.Context, collectors assessmentCollectors) 
 		return nil, nil
 	}
 
-	logger.Log.Info("adding app assessment details")
+	logger.Log.Info("starting app assessment...")
 	codeAssessment, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
 
 	if err != nil {
@@ -200,6 +239,7 @@ func performAppAssessment(ctx context.Context, collectors assessmentCollectors) 
 
 	logger.Log.Debug("snippets: ", zap.Any("codeAssessment.Snippets", codeAssessment.Snippets))
 
+	logger.Log.Info("app assessment completed successfully.")
 	return &utils.AppCodeAssessmentOutput{
 		Language:     codeAssessment.Language,
 		Framework:    codeAssessment.Framework,
