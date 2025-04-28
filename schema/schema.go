@@ -80,9 +80,10 @@ type ForeignKey struct {
 
 // CheckConstraints represents a check constraint defined in the schema.
 type CheckConstraint struct {
-	Name string
-	Expr string
-	Id   string
+	Name   string
+	Expr   string
+	ExprId string
+	Id     string
 }
 
 // Key respresents a primary key or index key.
@@ -92,7 +93,6 @@ type Key struct {
 	Order int
 }
 
-// Index represents a database index.
 // Index represents a database index.
 // The only way we represent unique constraints is via indexes. All source database
 // unique constraints will be transformed into this representation, including:

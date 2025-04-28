@@ -41,6 +41,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/parse"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
@@ -381,15 +382,6 @@ func NewDatabaseAdminClient(ctx context.Context) (*database.DatabaseAdminClient,
 	return database.NewDatabaseAdminClient(ctx)
 }
 
-// NewInstanceAdminClient returns a new instance-admin client.
-// It respects SPANNER_API_ENDPOINT.
-func NewInstanceAdminClient(ctx context.Context) (*instance.InstanceAdminClient, error) {
-	if endpoint := os.Getenv("SPANNER_API_ENDPOINT"); endpoint != "" {
-		return instance.NewInstanceAdminClient(ctx, option.WithEndpoint(endpoint))
-	}
-	return instance.NewInstanceAdminClient(ctx)
-}
-
 func SumMapValues(m map[string]int64) int64 {
 	n := int64(0)
 	for _, c := range m {
@@ -403,49 +395,20 @@ func GetBanner(now time.Time, db string) string {
 	return fmt.Sprintf("Generated at %s for db %s\n\n", now.Format("2006-01-02 15:04:05"), db)
 }
 
-func IsValidDriver(driver string) bool {
-	d := strings.ToLower(driver)
-	for _, vd := range GetValidDrivers() {
-		if d == vd {
-			return true
-		}
-	}
-	return false
-}
-
-func GetValidDrivers() []string {
-	//First 5 drivers support legacy mode. Rest dont.
-	return []string{
-		constants.POSTGRES,
-		constants.PGDUMP,
-		constants.MYSQL,
-		constants.MYSQLDUMP,
-		constants.DYNAMODB,
-
-		constants.SQLSERVER,
-	}
-}
-
-func IsLegacyModeSupportedDriver(driver string) bool {
-	d := strings.ToLower(driver)
-	lds := GetLegacyModeSupportedDrivers()
-	for _, ld := range lds {
-		if d == ld {
-			return true
-		}
-	}
-	return false
-}
-
-func GetLegacyModeSupportedDrivers() []string {
-	return GetValidDrivers()[:5]
-}
-
 // ReadSpannerSchema fills conv by querying Spanner infoschema treating Spanner as both the source and dest.
 func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Client) error {
 	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, SpDialect: conv.SpDialect}
 	processSchema := common.ProcessSchemaImpl{}
-	err := processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &common.SchemaToSpannerImpl{}, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
+	if err != nil {
+		return fmt.Errorf("error trying create ddl verifier: %v", err)
+	}
+	schemaToSpanner := common.SchemaToSpannerImpl{
+		DdlV:                           ddlVerifier,
+		ExpressionVerificationAccessor: expressionVerificationAccessor,
+	}
+	err = processSchema.ProcessSchema(conv, infoSchema, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	if err != nil {
 		return fmt.Errorf("error trying to read and convert spanner schema: %v", err)
 	}
@@ -542,13 +505,6 @@ func CompareSchema(sessionFileConv, actualSpannerConv *internal.Conv) error {
 		}
 	}
 	return nil
-}
-
-func TargetDbToDialect(targetDb string) string {
-	if targetDb == constants.TargetExperimentalPostgres {
-		return constants.DIALECT_POSTGRESQL
-	}
-	return constants.DIALECT_GOOGLESQL
 }
 
 func sortKeysByOrder(pks []ddl.IndexKey) {

@@ -14,6 +14,7 @@ import { ColLength, Dialect, ObjectExplorerNodeType, StorageKeys, autoGenSupport
 import { BehaviorSubject } from 'rxjs'
 import { FetchService } from '../fetch/fetch.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
+import ICcTabData from 'src/app/model/cc-tab-data'
 
 @Injectable({
   providedIn: 'root',
@@ -283,6 +284,41 @@ export class ConversionService {
     ]
   }
 
+  getCheckConstraints(tableId: string, data: IConv): ICcTabData[] {
+    let srcArr = data.SrcSchema[tableId].CheckConstraints || []
+    let spArr = data.SpSchema[tableId].CheckConstraints || []
+    let res: ICcTabData[] = []
+     if (srcArr.length > spArr.length) {
+      for (let i = 0; i < srcArr.length; i++) {
+        res.push({
+          srcSno: `${i + 1}`,
+          srcConstraintName: srcArr[i].Name,
+          srcCondition: srcArr[i].Expr,
+          spSno: spArr[i] ? `${i + 1}` : '',
+          spConstraintName: spArr[i] ? spArr[i].Name : '',
+          spConstraintCondition: spArr[i] ? spArr[i].Expr : '',
+          spExprId:srcArr[i] ? srcArr[i].ExprId : '',
+          deleteIndex: `cc${i + 1}`,
+        })
+      }
+    } else {
+      for (let i = 0; i < spArr.length; i++) {
+        res.push({
+          srcSno: srcArr[i] ? `${i + 1}` : '',
+          srcConstraintName: srcArr[i] ? srcArr[i].Name : '',
+          srcCondition: srcArr[i] ? srcArr[i].Expr : '',
+          spSno: `${i + 1}`,
+          spConstraintName: spArr[i].Name,
+          spConstraintCondition: spArr[i].Expr,
+          spExprId: spArr[i].ExprId,
+          deleteIndex: `cc${i + 1}`,
+        })
+      }
+    }
+
+    return res
+  }
+
   getColumnMapping(tableId: string, data: IConv): IColumnTabData[] {
     let spTableName = this.getSpannerTableNameFromId(tableId, data)
     let srcColIds = data.SrcSchema[tableId].ColIds
@@ -320,6 +356,7 @@ export class ConversionService {
         spIsNotNull: spannerColDef && spTableName ? spannerColDef.NotNull : false,
         srcIsNotNull: data.SrcSchema[tableId].ColDefs[colId].NotNull,
         srcId: colId,
+        srcDefaultValue: data.SrcSchema[tableId].ColDefs[colId].DefaultValue.Value.Statement,
         spId: spannerColDef ? colId : '',
         spColMaxLength: spannerColDef?.T.Len != 0 ? (spannerColDef?.T.Len != spColMax ? spannerColDef?.T.Len: 'MAX') : '',
         srcColMaxLength: data.SrcSchema[tableId].ColDefs[colId].Type.Mods != null ? data.SrcSchema[tableId].ColDefs[colId].Type.Mods[0] : '',
@@ -331,8 +368,14 @@ export class ConversionService {
           Name: '',
           GenerationType: ''
         },
-        srcDefaultValue: data.SrcSchema[tableId].ColDefs[colId].DefaultValue? data.SrcSchema[tableId].ColDefs[colId].DefaultValue.Value.Statement : ''
-      }
+        spDefaultValue: spannerColDef?.DefaultValue != null ? spannerColDef?.DefaultValue : {
+          IsPresent: false,
+          Value: {
+            ExpressionId: '',
+            Statement: ''
+          }
+        },
+        }
     })
     if (spColIds) {
       spColIds.forEach((colId: string, i: number) => {
@@ -352,6 +395,7 @@ export class ConversionService {
             spIsNotNull: spColumn.NotNull,
             srcIsNotNull: false,
             srcId: '',
+            srcDefaultValue: '',
             spId: colId,
             srcColMaxLength: '',
             spColMaxLength: spannerColDef?.T.Len,
@@ -360,7 +404,13 @@ export class ConversionService {
               Name: '',
               GenerationType: ''
             },
-            srcDefaultValue: '',
+            spDefaultValue: spannerColDef?.DefaultValue != null ? spannerColDef?.DefaultValue : {
+              IsPresent: false,
+              Value: {
+                ExpressionId: '',
+                Statement: ''
+              }
+            },
           })
         }
       })

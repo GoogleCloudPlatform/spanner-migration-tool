@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -33,6 +34,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/streaming"
 )
+
+var collationRegex = regexp.MustCompile(constants.DB_COLLATION_REGEX)
 
 // InfoSchemaImpl is MySQL specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
@@ -215,9 +218,13 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			Value:     ddl.Expression{},
 		}
 		if colDefault.Valid {
+			ty := dataType
+			if conv.SpDialect == constants.DIALECT_POSTGRESQL {
+				ty = ddl.GetPGType(ddl.Type{Name: ty})
+			}
 			defaultVal.Value = ddl.Expression{
 				ExpressionId: internal.GenerateExpressionId(),
-				Statement:    common.SanitizeDefaultValue(colDefault.String, dataType, colExtra.String == constants.DEFAULT_GENERATED),
+				Statement:    common.SanitizeDefaultValue(colDefault.String, ty, colExtra.String == constants.DEFAULT_GENERATED),
 			}
 		}
 
@@ -269,7 +276,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 func (isi InfoSchemaImpl) getConstraintsDQL() (string, error) {
 	var tableExistsCount int
 	// check if CHECK_CONSTRAINTS table exists.
-	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA' AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
+	checkQuery := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`
 	err := isi.Db.QueryRow(checkQuery).Scan(&tableExistsCount)
 	if err != nil {
 		return "", err
@@ -285,6 +292,7 @@ func (isi InfoSchemaImpl) getConstraintsDQL() (string, error) {
             AND t.TABLE_NAME = k.TABLE_NAME
             LEFT JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS AS c
             ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
+	    AND t.TABLE_SCHEMA = c.CONSTRAINT_SCHEMA
             WHERE t.TABLE_SCHEMA = ? 
             AND t.TABLE_NAME = ?;`, nil
 	}
@@ -337,11 +345,22 @@ func (isi InfoSchemaImpl) processRow(
 	// Case added to handle check constraints
 	case "CHECK":
 		checkClause = collationRegex.ReplaceAllString(checkClause, "")
-		*checkKeys = append(*checkKeys, schema.CheckConstraint{Name: constraintName, Expr: checkClause, Id: internal.GenerateCheckConstrainstId()})
+		checkClause = checkAndAddParentheses(checkClause)
+		*checkKeys = append(*checkKeys, schema.CheckConstraint{Name: constraintName, Expr: checkClause, ExprId: internal.GenerateExpressionId(), Id: internal.GenerateCheckConstrainstId()})
 	default:
 		m[col] = append(m[col], constraintType)
 	}
 	return nil
+}
+
+// checkAndAddParentheses this method will check parentheses  if found it will return same string
+// or add the parentheses then return the string
+func checkAndAddParentheses(checkClause string) string {
+	if strings.HasPrefix(checkClause, "(") && strings.HasSuffix(checkClause, ")") {
+		return checkClause
+	} else {
+		return `(` + checkClause + `)`
+	}
 }
 
 // GetForeignKeys return list all the foreign keys constraints.
@@ -367,8 +386,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 			AND k.TABLE_NAME = ?
 		ORDER BY
 			k.REFERENCED_TABLE_NAME,
-			k.COLUMN_NAME,
-			k.ORDINAL_POSITION;`
+			k.ORDINAL_POSITION;` //TODO(khajanchi): Add a UT for the change of removing column name from order by clause
 	rows, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, err

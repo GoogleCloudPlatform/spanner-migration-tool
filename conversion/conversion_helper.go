@@ -29,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/metrics"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -41,17 +42,21 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type ProcessDumpByDialectInterface interface{
+type ProcessDumpByDialectInterface interface {
 	ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error
 }
 
-type ProcessDumpByDialectImpl struct{}
+type ProcessDumpByDialectImpl struct {
+	ExpressionVerificationAccessor expressions_api.ExpressionVerificationAccessor
+	DdlVerifier                    expressions_api.DDLVerifier
+}
 
-type PopulateDataConvInterface interface{
+type PopulateDataConvInterface interface {
 	populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client) *writer.BatchWriter
 }
 
 type PopulateDataConvImpl struct{}
+
 // getSeekable returns a seekable file (with same content as f) and the size of the content (in bytes).
 func getSeekable(f *os.File) (*os.File, int64, error) {
 	_, err := f.Seek(0, 0)
@@ -88,14 +93,13 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 func (pdd *ProcessDumpByDialectImpl) ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	switch driver {
 	case constants.MYSQLDUMP:
-		return common.ProcessDbDump(conv, r, mysql.DbDumpImpl{})
+		return common.ProcessDbDump(conv, r, mysql.DbDumpImpl{}, pdd.DdlVerifier, pdd.ExpressionVerificationAccessor)
 	case constants.PGDUMP:
-		return common.ProcessDbDump(conv, r, postgres.DbDumpImpl{})
+		return common.ProcessDbDump(conv, r, postgres.DbDumpImpl{}, pdd.DdlVerifier, pdd.ExpressionVerificationAccessor)
 	default:
 		return fmt.Errorf("process dump for driver %s not supported", driver)
 	}
 }
-
 
 func (pdc *PopulateDataConvImpl) populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client) *writer.BatchWriter {
 	rows := int64(0)
@@ -130,8 +134,7 @@ func (pdc *PopulateDataConvImpl) populateDataConv(conv *internal.Conv, config wr
 	return batchWriter
 }
 
-
-func connectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error) {
+func ConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error) {
 	switch sourceProfile.Driver {
 	// For PG and MYSQL, When called as part of the subcommand flow, host/user/db etc will
 	// never be empty as we error out right during source profile creation. If any of them

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
-import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
+import IConv, { ICheckConstraints, ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
 import IRule from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of, Subject } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
@@ -396,6 +396,44 @@ export class DataService {
         }
       })
     )
+  }
+
+  updateCheckConstraint(tableId: string, updatedCC: ICheckConstraints[]): Observable<string> {
+    return this.fetch.updateCheckConstraint(tableId, updatedCC).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(response => console.log('Update Response:', response)),
+      map((response: any) => {
+        if (response.error) {
+          this.snackbar.openSnackBar(response.error, 'Close')
+          return response.error;
+        } else {
+          this.convSubject.next(response);
+          this.getDdl();
+          return '';
+        }
+      })
+    );
+  }
+
+  verifyCheckConstraintExpression(): Observable<boolean> {
+    return this.fetch.verifyCheckConstraintExpression().pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(response => console.log('Update Response:', response)),
+      map((response: any) => {
+        if (response.error) {
+          this.snackbar.openSnackBar(response.error, 'Close')
+          return response.error
+        } else {
+          this.convSubject.next(response.sessionState);
+          this.getDdl();
+          return response.hasErrorOccurred;
+        }
+      })
+    );
   }
 
   updateFkNames(tableId: string, updatedFk: IForeignKey[]): Observable<string> {

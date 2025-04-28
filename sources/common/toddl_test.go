@@ -15,14 +15,19 @@
 package common
 
 import (
+	"context"
+	"errors"
 	"reflect"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func Test_quoteIfNeeded(t *testing.T) {
@@ -423,7 +428,9 @@ func Test_SchemaToSpannerSequenceHelper(t *testing.T) {
 
 	for _, tt := range tc {
 		conv := internal.MakeConv()
-		ss := SchemaToSpannerImpl{}
+		ss := SchemaToSpannerImpl{
+			DdlV: &expressions_api.MockDDLVerifier{},
+		}
 		ss.SchemaToSpannerSequenceHelper(conv, tt.srcSequence)
 		assert.Equal(t, expectedConv, conv)
 	}
@@ -434,36 +441,42 @@ func Test_cvtCheckContraint(t *testing.T) {
 	conv := internal.MakeConv()
 	srcSchema := []schema.CheckConstraint{
 		{
-			Id:   "cc1",
-			Name: "check_1",
-			Expr: "age > 0",
+			Id:     "cc1",
+			Name:   "check_1",
+			Expr:   "age > 0",
+			ExprId: "expr1",
 		},
 		{
-			Id:   "cc2",
-			Name: "check_2",
-			Expr: "age < 99",
+			Id:     "cc2",
+			Name:   "check_2",
+			Expr:   "age < 99",
+			ExprId: "expr2",
 		},
 		{
-			Id:   "cc3",
-			Name: "@invalid_name", // incompatabile name
-			Expr: "age != 0",
+			Id:     "cc3",
+			Name:   "@invalid_name", // incompatabile name
+			Expr:   "age != 0",
+			ExprId: "expr3",
 		},
 	}
 	spSchema := []ddl.CheckConstraint{
 		{
-			Id:   "cc1",
-			Name: "check_1",
-			Expr: "age > 0",
+			Id:     "cc1",
+			Name:   "check_1",
+			Expr:   "age > 0",
+			ExprId: "expr1",
 		},
 		{
-			Id:   "cc2",
-			Name: "check_2",
-			Expr: "age < 99",
+			Id:     "cc2",
+			Name:   "check_2",
+			Expr:   "age < 99",
+			ExprId: "expr2",
 		},
 		{
-			Id:   "cc3",
-			Name: "Ainvalid_name",
-			Expr: "age != 0",
+			Id:     "cc3",
+			Name:   "Ainvalid_name",
+			Expr:   "age != 0",
+			ExprId: "expr3",
 		},
 	}
 	result := cvtCheckConstraint(conv, srcSchema)
@@ -575,6 +588,137 @@ func TestSpannerSchemaApplyExpressions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			spannerSchemaApplyExpressions(tc.conv, tc.expressions)
 			assert.Equal(t, tc.expectedConv, tc.conv)
+		})
+	}
+}
+
+func TestVerifyCheckConstraintExpressions(t *testing.T) {
+	tests := []struct {
+		name                    string
+		expressions             []ddl.CheckConstraint
+		expectedResults         []internal.ExpressionVerificationOutput
+		expectedCheckConstraint []ddl.CheckConstraint
+		expectedResponse        bool
+	}{
+		{
+			name: "AllValidExpressions",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1"}, ExpressionId: "expr1"}},
+			},
+			expectedCheckConstraint: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+			},
+			expectedResponse: false,
+		},
+		{
+			name: "InvalidSyntaxError",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+				{Expr: "(col1 > 18", ExprId: "expr2", Name: "check2"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1"}, ExpressionId: "expr1"}},
+				{Result: false, Err: errors.New("Syntax error ..."), ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 18", Type: "CHECK", Metadata: map[string]string{"tableId": "t1"}, ExpressionId: "expr2"}},
+			},
+			expectedCheckConstraint: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+			},
+			expectedResponse: true,
+		},
+		{
+			name: "NameError",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1"}, ExpressionId: "expr1"}},
+				{Result: false, Err: errors.New("Unrecognized name ..."), ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 18)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1"}, ExpressionId: "expr2"}},
+			},
+			expectedCheckConstraint: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+			},
+			expectedResponse: true,
+		},
+		{
+			name: "TypeError",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1"}, ExpressionId: "expr1"}},
+				{Result: false, Err: errors.New("No matching signature for operator"), ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 18)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1"}, ExpressionId: "expr2"}},
+			},
+			expectedCheckConstraint: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+			},
+			expectedResponse: true,
+		},
+		{
+			name: "FunctionError",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1"}, ExpressionId: "expr1"}},
+				{Result: false, Err: errors.New("Function not found"), ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 18)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1"}, ExpressionId: "expr2"}},
+			},
+			expectedCheckConstraint: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+			},
+			expectedResponse: true,
+		},
+		{
+			name: "GenericError",
+			expressions: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+				{Expr: "(col1 > 18)", ExprId: "expr2", Name: "check2"},
+			},
+			expectedResults: []internal.ExpressionVerificationOutput{
+				{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1"}, ExpressionId: "expr1"}},
+				{Result: false, Err: errors.New("Unhandle error"), ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 18)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1"}, ExpressionId: "expr2"}},
+			},
+			expectedCheckConstraint: []ddl.CheckConstraint{
+				{Expr: "(col1 > 0)", ExprId: "expr1", Name: "check1"},
+			},
+			expectedResponse: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+			handler := &SchemaToSpannerImpl{ExpressionVerificationAccessor: mockAccessor}
+
+			conv := internal.MakeConv()
+
+			ctx := context.Background()
+
+			conv.SpSchema = map[string]ddl.CreateTable{
+				"t1": {
+					Name:        "table1",
+					Id:          "t1",
+					PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					ColIds:      []string{"c1"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"c1": {Name: "col1", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+					},
+					CheckConstraints: tc.expressions,
+				},
+			}
+
+			mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
+				ExpressionVerificationOutputList: tc.expectedResults,
+			})
+			mockAccessor.On("RefreshSpannerClient", ctx, mock.Anything, mock.Anything).Return(nil)
+			handler.VerifyExpressions(conv)
+			assert.Equal(t, conv.SpSchema["t1"].CheckConstraints, tc.expectedCheckConstraint)
+
 		})
 	}
 }

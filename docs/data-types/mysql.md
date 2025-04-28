@@ -134,13 +134,24 @@ MySQL will be mapped to Spanner columns that are both primary keys and `NOT NULL
 ## Foreign Keys
 
 The tool maps MySQL foreign key constraints into Spanner foreign key constraints, and
-preserves constraint names where possible. Since Spanner doesn't support `ON DELETE`
-and `ON UPDATE` actions, we drop them.
+preserves constraint names where possible. Since Spanner doesn't support `ON UPDATE` action, we drop it.
 
 ## Default Values
 
-While Spanner supports default values, Spanner migration tool currently does not support translating source `DEFAULT` constraints to Spanner `DEFAULT` constraints. We drop the `DEFAULT` MySQL constraint during conversion.
-It can be manually added to the DDL via an `ALTER TABLE` command.
+The Spanner Migration Tool automatically migrates all `DEFAULT` values from a MySQL source
+to a GoogleSQL destination, provided they can be mapped without modification.
+Any `DEFAULT` constraints that cannot be mapped are dropped, and a warning is issued. 
+Users can edit the column to change the `DEFAULT` constraints. The validity of the `DEFAULT`
+constraints will be verified when users try to move to the Prepare Migration page. In case
+of any errors users will not be able to proceed until all `DEFAULT` constraints are valid.
+
+## Check Constraints
+
+While Spanner supports check constraints, the Spanner migration tool currently migrates all valid check constraints from MySQL to Spanner.
+
+During schema conversion, invalid check constraints are dropped, and warnings are logged in the Issues & Suggestions tab. If users add invalid constraints in the Spanner draft and proceed to the prepare migration phase, these constraints are retained but logged as errors for correction. The migration proceeds only after errors are resolved, ensuring a smooth and compatible process.  
+
+> Note: As check constraints were introduced with MySQL version 8.0.16, the Spanner migration tool will automatically include these constraints in the Spanner draft for databases using this version or later. For MySQL versions prior to 8.0.16, where check constraints are not supported, users will need to manually incorporate any required check constraints into the Spanner draft. This approach ensures that all necessary constraints are accurately represented in the Spanner environment, tailored to the specific needs of the database.
 
 ## Secondary Indexes
 

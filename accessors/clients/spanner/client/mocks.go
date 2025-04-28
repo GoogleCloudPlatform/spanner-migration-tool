@@ -2,14 +2,16 @@ package spannerclient
 
 import (
 	"context"
+	"time"
 
 	"cloud.google.com/go/spanner"
 )
 
 type SpannerClientMock struct {
-	SingleMock func() ReadOnlyTransaction
+	SingleMock       func() ReadOnlyTransaction
 	DatabaseNameMock func() string
-	RefreshMock func(ctx context.Context, dbURI string) error
+	RefreshMock      func(ctx context.Context, dbURI string) error
+	ApplyMock        func(ctx context.Context, ms []*spanner.Mutation, opts ...spanner.ApplyOption) (commitTimestamp time.Time, err error)
 }
 
 func (scm SpannerClientMock) Refresh(ctx context.Context, dbURI string) error {
@@ -31,6 +33,10 @@ func (scm SpannerClientMock) Single() ReadOnlyTransaction {
 
 func (scm SpannerClientMock) DatabaseName() string {
 	return scm.DatabaseNameMock()
+}
+
+func (scm SpannerClientMock) Apply(ctx context.Context, ms []*spanner.Mutation, opts ...spanner.ApplyOption) (commitTimestamp time.Time, err error) {
+	return scm.ApplyMock(ctx, ms, opts...)
 }
 
 func (rom ReadOnlyTransactionMock) Query(ctx context.Context, stmt spanner.Statement) RowIterator {

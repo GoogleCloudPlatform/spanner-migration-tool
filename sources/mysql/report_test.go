@@ -17,6 +17,7 @@ package mysql
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"path/filepath"
@@ -24,11 +25,14 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/mocks"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestReport(t *testing.T) {
@@ -58,7 +62,14 @@ func TestReport(t *testing.T) {
       c text);`
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
-	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{})
+	mockAccessor := new(mocks.MockExpressionVerificationAccessor)
+	ctx := context.Background()
+	mockAccessor.On("VerifyExpressions", ctx, mock.Anything).Return(internal.VerifyExpressionsOutput{
+		ExpressionVerificationOutputList: []internal.ExpressionVerificationOutput{
+			{Result: true, Err: nil, ExpressionDetail: internal.ExpressionDetail{Expression: "(col1 > 0)", Type: "CHECK", Metadata: map[string]string{"tableId": "t1", "colId": "c1", "checkConstraintName": "check1"}, ExpressionId: "expr1"}},
+		},
+	})
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{}, &expressions_api.MockDDLVerifier{}, mockAccessor)
 	conv.SetDataMode()
 
 	badSchemaTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "bad_schema")

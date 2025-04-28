@@ -242,12 +242,14 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
+		s += cd.DefaultValue.PGPrintDefaultValue(cd.T)
 		s += cd.AutoGen.PGPrintAutoGenCol()
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
+		s += cd.DefaultValue.PrintDefaultValue(cd.T)
 		s += cd.AutoGen.PrintAutoGenCol()
 	}
 	return s, cd.Comment
@@ -266,9 +268,10 @@ type IndexKey struct {
 }
 
 type CheckConstraint struct {
-	Id   string
-	Name string
-	Expr string
+	Id     string
+	Name   string
+	Expr   string
+	ExprId string
 }
 
 // PrintPkOrIndexKey unparses the primary or index keys.
@@ -391,7 +394,7 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 
 	var checkString string
 	if len(ct.CheckConstraints) > 0 {
-		checkString = FormatCheckConstraints(ct.CheckConstraints)
+		checkString = FormatCheckConstraints(ct.CheckConstraints, config.SpDialect)
 	} else {
 		checkString = ""
 	}
@@ -400,7 +403,7 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s) %s", tableComment, config.quote(ct.Name), cols, checkString, interleave)
 	}
 	if config.SpDialect == constants.DIALECT_POSTGRESQL {
-		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
+		return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, checkString, strings.Join(keys, ", "), interleave)
 	}
 	return fmt.Sprintf("%sCREATE TABLE %s (\n%s%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, checkString, strings.Join(keys, ", "), interleave)
 }
@@ -442,7 +445,7 @@ func (dv DefaultValue) PrintDefaultValue(ty Type) string {
 	}
 	var value string
 	switch ty.Name {
-	case "FLOAT32", "NUMERIC", "BOOL":
+	case "FLOAT32", "NUMERIC", "BOOL", "BYTES":
 		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Statement, ty.Name)
 	default:
 		value = " DEFAULT (" + dv.Value.Statement + ")"
@@ -455,9 +458,9 @@ func (dv DefaultValue) PGPrintDefaultValue(ty Type) string {
 		return ""
 	}
 	var value string
-	switch ty.Name {
-	case "FLOAT8", "FLOAT4", "REAL", "NUMERIC", "DECIMAL", "BOOL":
-		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Statement, ty.Name)
+	switch GetPGType(ty) {
+	case "FLOAT8", "FLOAT4", "REAL", "NUMERIC", "DECIMAL", "BOOL", "BYTEA":
+		value = fmt.Sprintf(" DEFAULT (CAST(%s AS %s))", dv.Value.Statement, GetPGType(ty))
 	default:
 		value = " DEFAULT (" + dv.Value.Statement + ")"
 	}
@@ -469,7 +472,7 @@ func (agc AutoGenCol) PrintAutoGenCol() string {
 		return " DEFAULT (GENERATE_UUID())"
 	}
 	if agc.GenerationType == constants.SEQUENCE {
-		return fmt.Sprintf(" DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE %s)) ", agc.Name)
+		return fmt.Sprintf(" DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE %s))", agc.Name)
 	}
 	return ""
 }
@@ -479,7 +482,7 @@ func (agc AutoGenCol) PGPrintAutoGenCol() string {
 		return " DEFAULT (spanner.generate_uuid())"
 	}
 	if agc.GenerationType == constants.SEQUENCE {
-		return fmt.Sprintf(" DEFAULT NEXTVAL('%s') ", agc.Name)
+		return fmt.Sprintf(" DEFAULT NEXTVAL('%s')", agc.Name)
 	}
 	return ""
 }
@@ -534,8 +537,8 @@ func isStoredColumnKeyPartOfPrimaryKey(ct CreateTable, colId string) bool {
 func (k Foreignkey) PrintForeignKeyAlterTable(spannerSchema Schema, c Config, tableId string) string {
 	var cols, referCols []string
 	for i, col := range k.ColIds {
-		cols = append(cols, spannerSchema[tableId].ColDefs[col].Name)
-		referCols = append(referCols, spannerSchema[k.ReferTableId].ColDefs[k.ReferColumnIds[i]].Name)
+		cols = append(cols, c.quote(spannerSchema[tableId].ColDefs[col].Name))
+		referCols = append(referCols, c.quote(spannerSchema[k.ReferTableId].ColDefs[k.ReferColumnIds[i]].Name))
 	}
 	var s string
 	if k.Name != "" {
@@ -549,7 +552,7 @@ func (k Foreignkey) PrintForeignKeyAlterTable(spannerSchema Schema, c Config, ta
 }
 
 // FormatCheckConstraints formats the check constraints in SQL syntax.
-func FormatCheckConstraints(cks []CheckConstraint) string {
+func FormatCheckConstraints(cks []CheckConstraint, dailect string) string {
 	var builder strings.Builder
 
 	for _, col := range cks {
@@ -563,7 +566,11 @@ func FormatCheckConstraints(cks []CheckConstraint) string {
 	if builder.Len() > 0 {
 		// Trim the trailing comma and newline
 		result := builder.String()
-		return result[:len(result)-2] + "\n"
+		if dailect == constants.DIALECT_GOOGLESQL {
+			return result[:len(result)-2] + "\n"
+		} else {
+			return result[:len(result)-2] + ",\n"
+		}
 	}
 
 	return ""
@@ -633,9 +640,9 @@ func GetDDL(c Config, tableSchema Schema, sequenceSchema map[string]Sequence) []
 
 	for _, seq := range sequenceSchema {
 		if c.SpDialect == constants.DIALECT_POSTGRESQL {
-			ddl = append(ddl, seq.PGPrintSequence())
+			ddl = append(ddl, seq.PGPrintSequence(c))
 		} else {
-			ddl = append(ddl, seq.PrintSequence())
+			ddl = append(ddl, seq.PrintSequence(c))
 		}
 	}
 
@@ -696,7 +703,7 @@ type Sequence struct {
 	ColumnsUsingSeq  map[string][]string
 }
 
-func (seq Sequence) PrintSequence() string {
+func (seq Sequence) PrintSequence(c Config) string {
 	var options []string
 	if seq.SequenceKind != "" {
 		if seq.SequenceKind == "BIT REVERSED POSITIVE" {
@@ -713,7 +720,7 @@ func (seq Sequence) PrintSequence() string {
 		options = append(options, fmt.Sprintf("start_with_counter = %s", seq.StartWithCounter))
 	}
 
-	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", seq.Name)
+	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", c.quote(seq.Name))
 	if len(options) > 0 {
 		seqDDL += " OPTIONS (" + strings.Join(options, ", ") + ") "
 	}
@@ -721,7 +728,7 @@ func (seq Sequence) PrintSequence() string {
 	return seqDDL
 }
 
-func (seq Sequence) PGPrintSequence() string {
+func (seq Sequence) PGPrintSequence(c Config) string {
 	var options []string
 	if seq.SequenceKind != "" {
 		if seq.SequenceKind == "BIT REVERSED POSITIVE" {
@@ -735,7 +742,7 @@ func (seq Sequence) PGPrintSequence() string {
 		options = append(options, fmt.Sprintf("START COUNTER WITH %s", seq.StartWithCounter))
 	}
 
-	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", seq.Name)
+	seqDDL := fmt.Sprintf("CREATE SEQUENCE %s", c.quote(seq.Name))
 	if len(options) > 0 {
 		seqDDL += strings.Join(options, " ")
 	}

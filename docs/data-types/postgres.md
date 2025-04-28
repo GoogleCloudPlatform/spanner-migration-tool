@@ -137,12 +137,16 @@ The tool maps PostgreSQL foreign key constraints into Spanner foreign key constr
 preserves constraint names where possible. Note that Spanner requires foreign key
 constraint names to be globally unique (within a database), but in postgres they only
 have to be unique for a table, so we add a uniqueness suffix to a name if needed.
-Spanner doesn't support `ON DELETE` and `ON UPDATE` actions, so we drop these.
+Spanner doesn't support `ON UPDATE` action, so we drop it.
 
 ## Default Values
 
-While Spanner supports default values, Spanner migration tool currently does not support translating source `DEFAULT` constraints to Spanner `DEFAULT` constraints. We drop the `DEFAULT` MySQL constraint during conversion.
-It can be manually added to the DDL via an `ALTER TABLE` command.
+The Spanner Migration Tool automatically migrates all `DEFAULT` values from a MySQL source
+to a PostgreSQL destination, provided they can be mapped without modification.
+Any `DEFAULT` constraints that cannot be mapped are dropped, and a warning is issued. 
+Users can edit the column to change the `DEFAULT` constraints. The validity of the `DEFAULT`
+constraints will be verified when users try to move to the Prepare Migration page. In case
+of any errors users will not be able to proceed until all `DEFAULT` constraints are valid.
 
 ## Secondary Indexes
 

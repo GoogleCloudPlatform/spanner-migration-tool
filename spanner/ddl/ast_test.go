@@ -79,6 +79,17 @@ func TestPrintColumnDef(t *testing.T) {
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT64 NOT NULL "},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 ARRAY<INT64> NOT NULL "},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "`col1` INT64"},
+		{
+			in: ColumnDef{
+				Name: "col1",
+				T:    Type{Name: Int64},
+				DefaultValue: DefaultValue{
+					IsPresent: true,
+					Value:     Expression{Statement: "(`col2` + 1)"},
+				},
+			},
+			expected: "col1 INT64 DEFAULT ((`col2` + 1))",
+		},
 	}
 	for _, tc := range tests {
 		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds})
@@ -97,6 +108,17 @@ func TestPrintColumnDefPG(t *testing.T) {
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT8 NOT NULL "},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 VARCHAR(2621440) NOT NULL "},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "col1 INT8"},
+		{
+			in: ColumnDef{
+				Name: "col1",
+				T:    Type{Name: Int64},
+				DefaultValue: DefaultValue{
+					IsPresent: true,
+					Value:     Expression{Statement: "(`col2` + 1)"},
+				},
+			},
+			expected: "col1 INT8 DEFAULT ((`col2` + 1))",
+		},
 	}
 	for _, tc := range tests {
 		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds, SpDialect: constants.DIALECT_POSTGRESQL})
@@ -264,7 +286,7 @@ func TestPrintCreateTable(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.ct.PrintCreateTable(s, Config{ProtectIds: tc.protectIds}))
+		assert.Equal(t, tc.expected, tc.ct.PrintCreateTable(s, Config{ProtectIds: tc.protectIds, SpDialect: constants.DIALECT_GOOGLESQL}))
 	}
 }
 
@@ -281,6 +303,10 @@ func TestPrintCreateTablePG(t *testing.T) {
 			},
 			PrimaryKeys: []IndexKey{{ColId: "col1", Desc: true}},
 			ForeignKeys: nil,
+			CheckConstraints: []CheckConstraint{
+				{Id: "ck1", Name: "check_1", Expr: "(age > 18)"},
+				{Id: "ck2", Name: "check_2", Expr: "(age < 99)"},
+			},
 			Indexes:     nil,
 			ParentTable: InterleavedParent{},
 			Comment:     "",
@@ -294,12 +320,13 @@ func TestPrintCreateTablePG(t *testing.T) {
 				"col4": {Name: "col4", T: Type{Name: Int64}, NotNull: true},
 				"col5": {Name: "col5", T: Type{Name: String, Len: MaxLength}, NotNull: false},
 			},
-			PrimaryKeys: []IndexKey{{ColId: "col4", Desc: true}},
-			ForeignKeys: nil,
-			Indexes:     nil,
-			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE},
-			Comment:     "",
-			Id:          "t2",
+			PrimaryKeys:      []IndexKey{{ColId: "col4", Desc: true}},
+			ForeignKeys:      nil,
+			Indexes:          nil,
+			CheckConstraints: nil,
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE},
+			Comment:          "",
+			Id:               "t2",
 		},
 		"t3": CreateTable{
 			Name:          "table3",
@@ -308,12 +335,13 @@ func TestPrintCreateTablePG(t *testing.T) {
 			ColDefs: map[string]ColumnDef{
 				"col6": {Name: "col6", T: Type{Name: Int64}, NotNull: true},
 			},
-			PrimaryKeys: []IndexKey{{ColId: "col6", Desc: true}},
-			ForeignKeys: nil,
-			Indexes:     nil,
-			ParentTable: InterleavedParent{Id: "t1", OnDelete: ""},
-			Comment:     "",
-			Id:          "t3",
+			PrimaryKeys:      []IndexKey{{ColId: "col6", Desc: true}},
+			ForeignKeys:      nil,
+			Indexes:          nil,
+			CheckConstraints: nil,
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: ""},
+			Comment:          "",
+			Id:               "t3",
 		},
 	}
 	tests := []struct {
@@ -330,6 +358,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 				"	col1 INT8 NOT NULL ,\n" +
 				"	col2 VARCHAR(2621440),\n" +
 				"	col3 BYTEA,\n" +
+				"\tCONSTRAINT check_1 CHECK (age > 18),\n\tCONSTRAINT check_2 CHECK (age < 99),\n" +
 				"	PRIMARY KEY (col1 DESC)\n" +
 				")",
 		},
@@ -341,6 +370,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 				"	col1 INT8 NOT NULL ,\n" +
 				"	col2 VARCHAR(2621440),\n" +
 				"	col3 BYTEA,\n" +
+				"\tCONSTRAINT check_1 CHECK (age > 18),\n\tCONSTRAINT check_2 CHECK (age < 99),\n" +
 				"	PRIMARY KEY (col1 DESC)\n" +
 				")",
 		},
@@ -469,18 +499,19 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 	spannerSchema := map[string]CreateTable{
 		"t1": {
 			Name:   "table1",
-			ColIds: []string{"c1", "c2", "c3"},
+			ColIds: []string{"c1", "c2", "c3", "c4"},
 			ColDefs: map[string]ColumnDef{
 				"c1": {Name: "productid", T: Type{Name: String, Len: MaxLength}},
 				"c2": {Name: "userid", T: Type{Name: String, Len: MaxLength}},
 				"c3": {Name: "quantity", T: Type{Name: Int64}},
+				"c4": {Name: "from", T: Type{Name: String, Len: MaxLength}},
 			},
 			ForeignKeys: []Foreignkey{
 				{
 					"fk_test",
-					[]string{"c1", "c2"},
+					[]string{"c1", "c2", "c4"},
 					"t2",
-					[]string{"c4", "c5"},
+					[]string{"c5", "c6", "c7"},
 					"f1",
 					constants.FK_CASCADE,
 					constants.FK_NO_ACTION,
@@ -489,7 +520,7 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 					"",
 					[]string{"c1"},
 					"t2",
-					[]string{"c4"},
+					[]string{"c5"},
 					"f2",
 					constants.FK_NO_ACTION,
 					constants.FK_NO_ACTION,
@@ -498,7 +529,7 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 					"fk_test2",
 					[]string{"c1", "c2"},
 					"t2",
-					[]string{"c4", "c5"},
+					[]string{"c5", "c6"},
 					"f1",
 					"",
 					"",
@@ -510,8 +541,9 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 			Name:   "table2",
 			ColIds: []string{"c4", "c5"},
 			ColDefs: map[string]ColumnDef{
-				"c4": {Name: "productid", T: Type{Name: String, Len: MaxLength}},
-				"c5": {Name: "userid", T: Type{Name: String, Len: MaxLength}},
+				"c5": {Name: "productid", T: Type{Name: String, Len: MaxLength}},
+				"c6": {Name: "userid", T: Type{Name: String, Len: MaxLength}},
+				"c7": {Name: "from", T: Type{Name: String, Len: MaxLength}},
 			},
 		},
 	}
@@ -524,10 +556,10 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 		expected   string
 		fk         Foreignkey
 	}{
-		{"no quote", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
-		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (productid, userid) REFERENCES `table2` (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"no quote", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid, from) REFERENCES table2 (productid, userid, from) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (`productid`, `userid`, `from`) REFERENCES `table2` (`productid`, `userid`, `from`) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
 		{"no constraint name", "t1", false, "", "ALTER TABLE table1 ADD FOREIGN KEY (productid) REFERENCES table2 (productid) ON DELETE NO ACTION", spannerSchema["t1"].ForeignKeys[1]},
-		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid) ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
+		{"quote PG", "t1", true, constants.DIALECT_POSTGRESQL, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid, \"from\") REFERENCES table2 (productid, userid, \"from\") ON DELETE CASCADE", spannerSchema["t1"].ForeignKeys[0]},
 		{"foreign key constraints not supported i.e. dont print ON DELETE", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test2 FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[2]},
 	}
 	for _, tc := range tests {
@@ -687,33 +719,44 @@ func TestPrintSequence(t *testing.T) {
 		StartWithCounter: "7",
 	}
 	tests := []struct {
-		name     string
-		sequence Sequence
-		expected string
+		name       string
+		sequence   Sequence
+		protectIds bool
+		spDialect  string
+		expected   string
 	}{
 		{
-			name:     "no optional values set",
-			sequence: s1,
-			expected: "CREATE SEQUENCE sequence1 OPTIONS (sequence_kind='bit_reversed_positive') ",
+			name:       "no optional values set",
+			sequence:   s1,
+			protectIds: true,
+			spDialect:  constants.DIALECT_GOOGLESQL,
+			expected:   "CREATE SEQUENCE `sequence1` OPTIONS (sequence_kind='bit_reversed_positive') ",
 		},
 		{
-			name:     "min and max skip range set",
-			sequence: s2,
-			expected: "CREATE SEQUENCE sequence2 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 1) ",
+			name:       "min and max skip range set",
+			sequence:   s2,
+			protectIds: false,
+			spDialect:  constants.DIALECT_GOOGLESQL,
+			expected:   "CREATE SEQUENCE sequence2 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 1) ",
 		},
 		{
-			name:     "start with counter set",
-			sequence: s3,
-			expected: "CREATE SEQUENCE sequence3 OPTIONS (sequence_kind='bit_reversed_positive', start_with_counter = 7) ",
+			name:       "start with counter set",
+			sequence:   s3,
+			protectIds: false,
+			spDialect:  constants.DIALECT_GOOGLESQL,
+			expected:   "CREATE SEQUENCE sequence3 OPTIONS (sequence_kind='bit_reversed_positive', start_with_counter = 7) ",
 		},
 		{
-			name:     "all optional values set",
-			sequence: s4,
-			expected: "CREATE SEQUENCE sequence4 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 1, start_with_counter = 7) ",
+			name:       "all optional values set",
+			sequence:   s4,
+			protectIds: false,
+			spDialect:  constants.DIALECT_GOOGLESQL,
+			expected:   "CREATE SEQUENCE sequence4 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 1, start_with_counter = 7) ",
 		},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.sequence.PrintSequence())
+		assert.Equal(t, tc.expected, tc.sequence.PrintSequence(
+			Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}))
 	}
 }
 
@@ -750,34 +793,56 @@ func TestPGPrintSequence(t *testing.T) {
 		SkipRangeMax:     "1",
 		StartWithCounter: "7",
 	}
+	s5 := Sequence{
+		Id:           "s5",
+		Name:         "from",
+		SequenceKind: "BIT REVERSED POSITIVE",
+	}
 	tests := []struct {
-		name     string
-		sequence Sequence
-		expected string
+		name       string
+		sequence   Sequence
+		protectIds bool
+		spDialect  string
+		expected   string
 	}{
 		{
-			name:     "no optional values set",
-			sequence: s1,
-			expected: "CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE",
+			name:       "no optional values set",
+			sequence:   s1,
+			protectIds: true,
+			spDialect:  constants.DIALECT_POSTGRESQL,
+			expected:   "CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE",
 		},
 		{
-			name:     "min and max skip range set",
-			sequence: s2,
-			expected: "CREATE SEQUENCE sequence2 BIT_REVERSED_POSITIVE SKIP RANGE 0 1",
+			name:       "min and max skip range set",
+			sequence:   s2,
+			protectIds: false,
+			spDialect:  constants.DIALECT_POSTGRESQL,
+			expected:   "CREATE SEQUENCE sequence2 BIT_REVERSED_POSITIVE SKIP RANGE 0 1",
 		},
 		{
-			name:     "start with counter set",
-			sequence: s3,
-			expected: "CREATE SEQUENCE sequence3 BIT_REVERSED_POSITIVE START COUNTER WITH 7",
+			name:       "start with counter set",
+			sequence:   s3,
+			protectIds: false,
+			spDialect:  constants.DIALECT_POSTGRESQL,
+			expected:   "CREATE SEQUENCE sequence3 BIT_REVERSED_POSITIVE START COUNTER WITH 7",
 		},
 		{
-			name:     "all optional values set",
-			sequence: s4,
-			expected: "CREATE SEQUENCE sequence4 BIT_REVERSED_POSITIVE SKIP RANGE 0 1 START COUNTER WITH 7",
+			name:       "all optional values set",
+			sequence:   s4,
+			protectIds: false,
+			spDialect:  constants.DIALECT_POSTGRESQL,
+			expected:   "CREATE SEQUENCE sequence4 BIT_REVERSED_POSITIVE SKIP RANGE 0 1 START COUNTER WITH 7",
+		},
+		{
+			name:       "no optional values set with protected squence name",
+			sequence:   s5,
+			protectIds: true,
+			spDialect:  constants.DIALECT_POSTGRESQL,
+			expected:   "CREATE SEQUENCE \"from\" BIT_REVERSED_POSITIVE",
 		},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.sequence.PGPrintSequence())
+		assert.Equal(t, tc.expected, tc.sequence.PGPrintSequence(Config{ProtectIds: tc.protectIds, SpDialect: tc.spDialect}))
 	}
 }
 
@@ -1121,7 +1186,50 @@ func TestFormatCheckConstraints(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.description, func(t *testing.T) {
-			actual := FormatCheckConstraints(tc.cks)
+			actual := FormatCheckConstraints(tc.cks, constants.DIALECT_GOOGLESQL)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestFormatCheckConstraintsPG(t *testing.T) {
+	tests := []struct {
+		description string
+		cks         []CheckConstraint
+		expected    string
+	}{
+		{
+			description: "Empty constraints list",
+			cks:         []CheckConstraint{},
+			expected:    "",
+		},
+		{
+			description: "Single constraint",
+			cks: []CheckConstraint{
+				{Name: "ck1", Expr: "(id > 0)"},
+			},
+			expected: "\tCONSTRAINT ck1 CHECK (id > 0),\n",
+		},
+		{
+			description: "Constraint without name",
+			cks: []CheckConstraint{
+				{Name: "", Expr: "(id > 0)"},
+			},
+			expected: "\tCHECK (id > 0),\n",
+		},
+		{
+			description: "Multiple constraints",
+			cks: []CheckConstraint{
+				{Name: "ck1", Expr: "(id > 0)"},
+				{Name: "ck2", Expr: "(name IS NOT NULL)"},
+			},
+			expected: "\tCONSTRAINT ck1 CHECK (id > 0),\n\tCONSTRAINT ck2 CHECK (name IS NOT NULL),\n",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.description, func(t *testing.T) {
+			actual := FormatCheckConstraints(tc.cks, constants.DIALECT_POSTGRESQL)
 			assert.Equal(t, tc.expected, actual)
 		})
 	}

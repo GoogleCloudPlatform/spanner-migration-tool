@@ -1,0 +1,1303 @@
+{
+    "SessionName": "test_session",
+    "EditorName": "session_flow",
+    "DatabaseType": "mysql",
+    "DatabaseName": "test_smt",
+    "Dialect": "Google Standard SQL",
+    "Notes": [
+        "save filer"
+    ],
+    "Tags": null,
+    "SpSchema": {
+        "t1": {
+            "Name": "Assignments",
+            "ColIds": [
+                "c4",
+                "c5",
+                "c6",
+                "c7",
+                "c8"
+            ],
+            "ShardIdColumn": "",
+            "ColDefs": {
+                "c4": {
+                    "Name": "AssignmentID",
+                    "T": {
+                        "Name": "INT64",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": true,
+                    "Comment": "From: AssignmentID int(11)",
+                    "Id": "c4",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c5": {
+                    "Name": "EmployeeID",
+                    "T": {
+                        "Name": "INT64",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: EmployeeID int(11)",
+                    "Id": "c5",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c6": {
+                    "Name": "ProjectID",
+                    "T": {
+                        "Name": "INT64",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: ProjectID int(11)",
+                    "Id": "c6",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c7": {
+                    "Name": "Role",
+                    "T": {
+                        "Name": "STRING",
+                        "Len": 50,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: Role varchar(50)",
+                    "Id": "c7",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c8": {
+                    "Name": "HoursAssigned",
+                    "T": {
+                        "Name": "INT64",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: HoursAssigned int(11)",
+                    "Id": "c8",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                }
+            },
+            "PrimaryKeys": [
+                {
+                    "ColId": "c4",
+                    "Desc": false,
+                    "Order": 1
+                }
+            ],
+            "ForeignKeys": [
+                {
+                    "Name": "assignments_ibfk_1",
+                    "ColIds": [
+                        "c5"
+                    ],
+                    "ReferTableId": "t20",
+                    "ReferColumnIds": [
+                        "c27"
+                    ],
+                    "Id": "f11",
+                    "OnDelete": "NO ACTION",
+                    "OnUpdate": "NO ACTION"
+                },
+                {
+                    "Name": "assignments_ibfk_2",
+                    "ColIds": [
+                        "c6"
+                    ],
+                    "ReferTableId": "t34",
+                    "ReferColumnIds": [
+                        "c39"
+                    ],
+                    "Id": "f12",
+                    "OnDelete": "NO ACTION",
+                    "OnUpdate": "NO ACTION"
+                }
+            ],
+            "Indexes": [
+                {
+                    "Name": "EmployeeID",
+                    "TableId": "t1",
+                    "Unique": false,
+                    "Keys": [
+                        {
+                            "ColId": "c5",
+                            "Desc": false,
+                            "Order": 1
+                        }
+                    ],
+                    "Id": "i9",
+                    "StoredColumnIds": null
+                },
+                {
+                    "Name": "ProjectID",
+                    "TableId": "t1",
+                    "Unique": false,
+                    "Keys": [
+                        {
+                            "ColId": "c6",
+                            "Desc": false,
+                            "Order": 1
+                        }
+                    ],
+                    "Id": "i10",
+                    "StoredColumnIds": null
+                }
+            ],
+            "ParentTable": {
+                "Id": "",
+                "OnDelete": ""
+            },
+            "CheckConstraints": [
+                {
+                    "Id": "cc3",
+                    "Name": "assignments_chk_1",
+                    "Expr": "(`HoursAssigned`\u003e=0)",
+                    "ExprId": "expr2"
+                }
+            ],
+            "Comment": "Spanner schema for source table Assignments",
+            "Id": "t1"
+        },
+        "t13": {
+            "Name": "Departments",
+            "ColIds": [
+                "c16",
+                "c17",
+                "c18",
+                "c19"
+            ],
+            "ShardIdColumn": "",
+            "ColDefs": {
+                "c16": {
+                    "Name": "DepartmentID",
+                    "T": {
+                        "Name": "INT64",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": true,
+                    "Comment": "From: DepartmentID int(11)",
+                    "Id": "c16",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c17": {
+                    "Name": "DepartmentName",
+                    "T": {
+                        "Name": "STRING",
+                        "Len": 100,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: DepartmentName varchar(100)",
+                    "Id": "c17",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c18": {
+                    "Name": "Location",
+                    "T": {
+                        "Name": "STRING",
+                        "Len": 100,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: Location varchar(100)",
+                    "Id": "c18",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c19": {
+                    "Name": "Budget",
+                    "T": {
+                        "Name": "NUMERIC",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: Budget decimal(12,2)",
+                    "Id": "c19",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                }
+            },
+            "PrimaryKeys": [
+                {
+                    "ColId": "c16",
+                    "Desc": false,
+                    "Order": 1
+                }
+            ],
+            "ForeignKeys": null,
+            "Indexes": null,
+            "ParentTable": {
+                "Id": "",
+                "OnDelete": ""
+            },
+            "CheckConstraints": [
+                {
+                    "Id": "cc15",
+                    "Name": "departments_chk_1",
+                    "Expr": "(`Budget`\u003e=0)",
+                    "ExprId": "expr14"
+                }
+            ],
+            "Comment": "Spanner schema for source table Departments",
+            "Id": "t13"
+        },
+        "t20": {
+            "Name": "Employees",
+            "ColIds": [
+                "c27",
+                "c28",
+                "c29",
+                "c30",
+                "c31",
+                "c32",
+                "c33"
+            ],
+            "ShardIdColumn": "",
+            "ColDefs": {
+                "c27": {
+                    "Name": "EmployeeID",
+                    "T": {
+                        "Name": "INT64",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": true,
+                    "Comment": "From: EmployeeID int(11)",
+                    "Id": "c27",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c28": {
+                    "Name": "FirstName",
+                    "T": {
+                        "Name": "STRING",
+                        "Len": 50,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: FirstName varchar(50)",
+                    "Id": "c28",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c29": {
+                    "Name": "LastName",
+                    "T": {
+                        "Name": "STRING",
+                        "Len": 50,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: LastName varchar(50)",
+                    "Id": "c29",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c30": {
+                    "Name": "BirthDate",
+                    "T": {
+                        "Name": "DATE",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: BirthDate date",
+                    "Id": "c30",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c31": {
+                    "Name": "HireDate",
+                    "T": {
+                        "Name": "DATE",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: HireDate date",
+                    "Id": "c31",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c32": {
+                    "Name": "Salary",
+                    "T": {
+                        "Name": "NUMERIC",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: Salary decimal(10,2)",
+                    "Id": "c32",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c33": {
+                    "Name": "Gender",
+                    "T": {
+                        "Name": "STRING",
+                        "Len": 1,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: Gender char(1)",
+                    "Id": "c33",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                }
+            },
+            "PrimaryKeys": [
+                {
+                    "ColId": "c27",
+                    "Desc": false,
+                    "Order": 1
+                }
+            ],
+            "ForeignKeys": null,
+            "Indexes": null,
+            "ParentTable": {
+                "Id": "",
+                "OnDelete": ""
+            },
+            "CheckConstraints": [
+                {
+                    "Id": "cc22",
+                    "Name": "employees_chk_1",
+                    "Expr": "(`HireDate`\u003e=`BirthDate`)",
+                    "ExprId": "expr21"
+                },
+                {
+                    "Id": "cc24",
+                    "Name": "employees_chk_2",
+                    "Expr": "(`Salary`\u003e0)",
+                    "ExprId": "expr23"
+                },
+                {
+                    "Id": "cc26",
+                    "Name": "employees_chk_3",
+                    "Expr": "(`Gender` IN ('M','F'))",
+                    "ExprId": "expr25"
+                }
+            ],
+            "Comment": "Spanner schema for source table Employees",
+            "Id": "t20"
+        },
+        "t34": {
+            "Name": "Projects",
+            "ColIds": [
+                "c39",
+                "c40",
+                "c41",
+                "c42",
+                "c43"
+            ],
+            "ShardIdColumn": "",
+            "ColDefs": {
+                "c39": {
+                    "Name": "ProjectID",
+                    "T": {
+                        "Name": "INT64",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": true,
+                    "Comment": "From: ProjectID int(11)",
+                    "Id": "c39",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c40": {
+                    "Name": "ProjectName",
+                    "T": {
+                        "Name": "STRING",
+                        "Len": 100,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: ProjectName varchar(100)",
+                    "Id": "c40",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c41": {
+                    "Name": "StartDate",
+                    "T": {
+                        "Name": "DATE",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: StartDate date",
+                    "Id": "c41",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c42": {
+                    "Name": "EndDate",
+                    "T": {
+                        "Name": "DATE",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: EndDate date",
+                    "Id": "c42",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c43": {
+                    "Name": "Budget",
+                    "T": {
+                        "Name": "NUMERIC",
+                        "Len": 0,
+                        "IsArray": false
+                    },
+                    "NotNull": false,
+                    "Comment": "From: Budget decimal(12,2)",
+                    "Id": "c43",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                }
+            },
+            "PrimaryKeys": [
+                {
+                    "ColId": "c39",
+                    "Desc": false,
+                    "Order": 1
+                }
+            ],
+            "ForeignKeys": null,
+            "Indexes": null,
+            "ParentTable": {
+                "Id": "",
+                "OnDelete": ""
+            },
+            "CheckConstraints": [
+                {
+                    "Id": "cc36",
+                    "Name": "projects_chk_1",
+                    "Expr": "(`StartDate`\u003c=`EndDate`)",
+                    "ExprId": "expr35"
+                },
+                {
+                    "Id": "cc38",
+                    "Name": "projects_chk_2",
+                    "Expr": "(`Budget`\u003e=0)",
+                    "ExprId": "expr37"
+                }
+            ],
+            "Comment": "Spanner schema for source table Projects",
+            "Id": "t34"
+        }
+    },
+    "SyntheticPKeys": {},
+    "SrcSchema": {
+        "t1": {
+            "Name": "Assignments",
+            "Schema": "",
+            "ColIds": [
+                "c4",
+                "c5",
+                "c6",
+                "c7",
+                "c8"
+            ],
+            "ColDefs": {
+                "c4": {
+                    "Name": "AssignmentID",
+                    "Type": {
+                        "Name": "int",
+                        "Mods": [
+                            11
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": true,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c4",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c5": {
+                    "Name": "EmployeeID",
+                    "Type": {
+                        "Name": "int",
+                        "Mods": [
+                            11
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c5",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c6": {
+                    "Name": "ProjectID",
+                    "Type": {
+                        "Name": "int",
+                        "Mods": [
+                            11
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c6",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c7": {
+                    "Name": "Role",
+                    "Type": {
+                        "Name": "varchar",
+                        "Mods": [
+                            50
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c7",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c8": {
+                    "Name": "HoursAssigned",
+                    "Type": {
+                        "Name": "int",
+                        "Mods": [
+                            11
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c8",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                }
+            },
+            "PrimaryKeys": [
+                {
+                    "ColId": "c4",
+                    "Desc": false,
+                    "Order": 1
+                }
+            ],
+            "ForeignKeys": [
+                {
+                    "Name": "assignments_ibfk_1",
+                    "ColIds": [
+                        "c5"
+                    ],
+                    "ReferTableId": "t20",
+                    "ReferColumnIds": [
+                        "c27"
+                    ],
+                    "OnDelete": "NO ACTION",
+                    "OnUpdate": "NO ACTION",
+                    "Id": "f11"
+                },
+                {
+                    "Name": "assignments_ibfk_2",
+                    "ColIds": [
+                        "c6"
+                    ],
+                    "ReferTableId": "t34",
+                    "ReferColumnIds": [
+                        "c39"
+                    ],
+                    "OnDelete": "NO ACTION",
+                    "OnUpdate": "NO ACTION",
+                    "Id": "f12"
+                }
+            ],
+            "CheckConstraints": [
+                {
+                    "Name": "assignments_chk_1",
+                    "Expr": "(`HoursAssigned`\u003e=0)",
+                    "ExprId": "expr2",
+                    "Id": "cc3"
+                }
+            ],
+            "Indexes": [
+                {
+                    "Name": "EmployeeID",
+                    "Unique": false,
+                    "Keys": [
+                        {
+                            "ColId": "c5",
+                            "Desc": false,
+                            "Order": 1
+                        }
+                    ],
+                    "Id": "i9",
+                    "StoredColumnIds": null
+                },
+                {
+                    "Name": "ProjectID",
+                    "Unique": false,
+                    "Keys": [
+                        {
+                            "ColId": "c6",
+                            "Desc": false,
+                            "Order": 1
+                        }
+                    ],
+                    "Id": "i10",
+                    "StoredColumnIds": null
+                }
+            ],
+            "Id": "t1"
+        },
+        "t13": {
+            "Name": "Departments",
+            "Schema": "",
+            "ColIds": [
+                "c16",
+                "c17",
+                "c18",
+                "c19"
+            ],
+            "ColDefs": {
+                "c16": {
+                    "Name": "DepartmentID",
+                    "Type": {
+                        "Name": "int",
+                        "Mods": [
+                            11
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": true,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c16",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c17": {
+                    "Name": "DepartmentName",
+                    "Type": {
+                        "Name": "varchar",
+                        "Mods": [
+                            100
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c17",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c18": {
+                    "Name": "Location",
+                    "Type": {
+                        "Name": "varchar",
+                        "Mods": [
+                            100
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c18",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c19": {
+                    "Name": "Budget",
+                    "Type": {
+                        "Name": "decimal",
+                        "Mods": [
+                            12,
+                            2
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c19",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                }
+            },
+            "PrimaryKeys": [
+                {
+                    "ColId": "c16",
+                    "Desc": false,
+                    "Order": 1
+                }
+            ],
+            "ForeignKeys": null,
+            "CheckConstraints": [
+                {
+                    "Name": "departments_chk_1",
+                    "Expr": "(`Budget`\u003e=0)",
+                    "ExprId": "expr14",
+                    "Id": "cc15"
+                }
+            ],
+            "Indexes": null,
+            "Id": "t13"
+        },
+        "t20": {
+            "Name": "Employees",
+            "Schema": "",
+            "ColIds": [
+                "c27",
+                "c28",
+                "c29",
+                "c30",
+                "c31",
+                "c32",
+                "c33"
+            ],
+            "ColDefs": {
+                "c27": {
+                    "Name": "EmployeeID",
+                    "Type": {
+                        "Name": "int",
+                        "Mods": [
+                            11
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": true,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c27",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c28": {
+                    "Name": "FirstName",
+                    "Type": {
+                        "Name": "varchar",
+                        "Mods": [
+                            50
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c28",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c29": {
+                    "Name": "LastName",
+                    "Type": {
+                        "Name": "varchar",
+                        "Mods": [
+                            50
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c29",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c30": {
+                    "Name": "BirthDate",
+                    "Type": {
+                        "Name": "date",
+                        "Mods": null,
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c30",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c31": {
+                    "Name": "HireDate",
+                    "Type": {
+                        "Name": "date",
+                        "Mods": null,
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c31",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c32": {
+                    "Name": "Salary",
+                    "Type": {
+                        "Name": "decimal",
+                        "Mods": [
+                            10,
+                            2
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c32",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c33": {
+                    "Name": "Gender",
+                    "Type": {
+                        "Name": "char",
+                        "Mods": [
+                            1
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c33",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                }
+            },
+            "PrimaryKeys": [
+                {
+                    "ColId": "c27",
+                    "Desc": false,
+                    "Order": 1
+                }
+            ],
+            "ForeignKeys": null,
+            "CheckConstraints": [
+                {
+                    "Name": "employees_chk_1",
+                    "Expr": "(`HireDate`\u003e=`BirthDate`)",
+                    "ExprId": "expr21",
+                    "Id": "cc22"
+                },
+                {
+                    "Name": "employees_chk_2",
+                    "Expr": "(`Salary`\u003e0)",
+                    "ExprId": "expr23",
+                    "Id": "cc24"
+                },
+                {
+                    "Name": "employees_chk_3",
+                    "Expr": "(`Gender` IN ('M','F'))",
+                    "ExprId": "expr25",
+                    "Id": "cc26"
+                }
+            ],
+            "Indexes": null,
+            "Id": "t20"
+        },
+        "t34": {
+            "Name": "Projects",
+            "Schema": "",
+            "ColIds": [
+                "c39",
+                "c40",
+                "c41",
+                "c42",
+                "c43"
+            ],
+            "ColDefs": {
+                "c39": {
+                    "Name": "ProjectID",
+                    "Type": {
+                        "Name": "int",
+                        "Mods": [
+                            11
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": true,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c39",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c40": {
+                    "Name": "ProjectName",
+                    "Type": {
+                        "Name": "varchar",
+                        "Mods": [
+                            100
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c40",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c41": {
+                    "Name": "StartDate",
+                    "Type": {
+                        "Name": "date",
+                        "Mods": null,
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c41",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c42": {
+                    "Name": "EndDate",
+                    "Type": {
+                        "Name": "date",
+                        "Mods": null,
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c42",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                },
+                "c43": {
+                    "Name": "Budget",
+                    "Type": {
+                        "Name": "decimal",
+                        "Mods": [
+                            12,
+                            2
+                        ],
+                        "ArrayBounds": null
+                    },
+                    "NotNull": false,
+                    "Ignored": {
+                        "Check": false,
+                        "Identity": false,
+                        "Default": false,
+                        "Exclusion": false,
+                        "ForeignKey": false,
+                        "AutoIncrement": false
+                    },
+                    "Id": "c43",
+                    "AutoGen": {
+                        "Name": "",
+                        "GenerationType": ""
+                    }
+                }
+            },
+            "PrimaryKeys": [
+                {
+                    "ColId": "c39",
+                    "Desc": false,
+                    "Order": 1
+                }
+            ],
+            "ForeignKeys": null,
+            "CheckConstraints": [
+                {
+                    "Name": "projects_chk_1",
+                    "Expr": "(`StartDate`\u003c=`EndDate`)",
+                    "ExprId": "expr35",
+                    "Id": "cc36"
+                },
+                {
+                    "Name": "projects_chk_2",
+                    "Expr": "(`Budget`\u003e=0)",
+                    "ExprId": "expr37",
+                    "Id": "cc38"
+                }
+            ],
+            "Indexes": null,
+            "Id": "t34"
+        }
+    },
+    "SchemaIssues": {
+        "t1": {
+            "ColumnLevelIssues": {
+                "c4": [
+                    14
+                ],
+                "c5": [
+                    14
+                ],
+                "c6": [
+                    14
+                ],
+                "c8": [
+                    14
+                ]
+            },
+            "TableLevelIssues": null
+        },
+        "t13": {
+            "ColumnLevelIssues": {
+                "c16": [
+                    14
+                ]
+            },
+            "TableLevelIssues": null
+        },
+        "t20": {
+            "ColumnLevelIssues": {
+                "c27": [
+                    14
+                ]
+            },
+            "TableLevelIssues": null
+        },
+        "t34": {
+            "ColumnLevelIssues": {
+                "c39": [
+                    14
+                ]
+            },
+            "TableLevelIssues": null
+        }
+    },
+    "Location": {},
+    "TimezoneOffset": "+00:00",
+    "SpDialect": "google_standard_sql",
+    "UniquePKey": {},
+    "Rules": [],
+    "IsSharded": false,
+    "SpRegion": "",
+    "ResourceValidation": false,
+    "UI": false,
+    "SpSequences": {},
+    "SrcSequences": {},
+    "SpProjectId": "",
+    "SpInstanceId": "",
+    "Source": "mysqldump"
+}
