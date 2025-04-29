@@ -49,7 +49,7 @@ func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 	set.StringVar(&cmd.databaseName, "database-name", "", "Spanner database name")
 	set.StringVar(&cmd.tableName, "table-name", "", "Spanner table name")
 	set.StringVar(&cmd.sourceUri, "source-uri", "", "URI of the file to import")
-	set.StringVar(&cmd.sourceFormat, "source-format", "", "Format of the file to import. Valid values {csv}")
+	set.StringVar(&cmd.sourceFormat, "source-format", "", "Format of the file to import. Valid values {csv, mysqldump}")
 	set.StringVar(&cmd.schemaUri, "schema-uri", "", "URI of the file with schema for the csv to import. Only used for csv format.")
 	set.StringVar(&cmd.csvLineDelimiter, "csv-line-delimiter", "", "Token to be used as line delimiter for csv format. Defaults to '\\n'. Only used for csv format.")
 	set.StringVar(&cmd.csvFieldDelimiter, "csv-field-delimiter", "", "Token to be used as field delimiter for csv format. Defaults to ','. Only used for csv format.")
