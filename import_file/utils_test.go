@@ -1,4 +1,4 @@
-package import_data
+package import_file
 
 import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"

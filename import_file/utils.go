@@ -1,11 +1,14 @@
-package import_data
+package import_file
 
 import (
 	sp "cloud.google.com/go/spanner"
 	"context"
+	"fmt"
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
+	"os"
 	"sync/atomic"
 )
 
@@ -38,4 +41,14 @@ func getBatchWriterWithConfig(spannerClient spannerclient.SpannerClient, conv *i
 		batchWriter.Flush()
 	}
 	return batchWriter
+}
+
+func ResetReader(dumpReader *os.File, fileUri string) (*os.File, error) {
+	_, err := dumpReader.Seek(0, 0)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("can't reset reader: %v\n", err))
+		dumpReader.Close()
+		dumpReader, err = os.Open(fileUri)
+	}
+	return dumpReader, err
 }

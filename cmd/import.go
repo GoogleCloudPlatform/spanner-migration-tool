@@ -26,7 +26,7 @@ import (
 
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_data"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_file"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/google/subcommands"
 	"go.uber.org/zap"
@@ -68,14 +68,16 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 
 	switch cmd.sourceFormat {
 	case constants.CSV:
-		err := cmd.handleCsv(ctx, dbURI, sp)
+		//TODO: handle POSTGRESQL
+		dialect := constants.DIALECT_GOOGLESQL
+		err := cmd.handleCsv(ctx, dbURI, dialect, sp)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle Csv %v", err))
 			return subcommands.ExitFailure
 		}
 		return subcommands.ExitSuccess
 	case constants.MYSQLDUMP:
-		err := cmd.handleDump(ctx, dbURI, constants.DIALECT_GOOGLESQL, sp)
+		err := cmd.handleDatabaseDumpFile(ctx, dbURI, constants.MYSQLDUMP, constants.DIALECT_GOOGLESQL, sp)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle MYSQL Dump %v", err))
 			return subcommands.ExitFailure
@@ -87,17 +89,15 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	return subcommands.ExitFailure
 }
 
-func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, sp *spanneraccessor.SpannerAccessorImpl) error {
-	//TODO: handle POSTGRESQL
-	dialect := constants.DIALECT_GOOGLESQL
-	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, constants.DIALECT_GOOGLESQL)
+func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, dialect string, sp *spanneraccessor.SpannerAccessorImpl) error {
+	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, dialect)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Unable to read Spanner schema %v", err))
 		return err
 	}
 
 	startTime := time.Now()
-	csvSchema := import_data.CsvSchemaImpl{ProjectId: cmd.project, InstanceId: cmd.instanceId,
+	csvSchema := import_file.CsvSchemaImpl{ProjectId: cmd.project, InstanceId: cmd.instanceId,
 		TableName: cmd.tableName, DbName: cmd.databaseName, SchemaUri: cmd.schemaUri, CsvFieldDelimiter: cmd.csvFieldDelimiter}
 	err = csvSchema.CreateSchema(ctx, dialect, sp)
 
@@ -108,7 +108,7 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, sp *spann
 		return err
 	}
 
-	csvData := import_data.CsvDataImpl{ProjectId: cmd.project, InstanceId: cmd.instanceId,
+	csvData := import_file.CsvDataImpl{ProjectId: cmd.project, InstanceId: cmd.instanceId,
 		TableName: cmd.tableName, DbName: cmd.databaseName, SourceUri: cmd.sourceUri, CsvFieldDelimiter: cmd.csvFieldDelimiter}
 	err = csvData.ImportData(ctx, infoSchema, dialect)
 
@@ -119,10 +119,7 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, sp *spann
 
 }
 
-func (cmd *ImportDataCmd) handleDump(ctx context.Context, dbUri, dialect string, spannerAccessor *spanneraccessor.SpannerAccessorImpl) error {
-	// TODO: handle POSTGRESQL
-	driver := constants.MYSQLDUMP
-
+func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, driver string, dialect string, spannerAccessor *spanneraccessor.SpannerAccessorImpl) error {
 	// TODO: handle GCS
 	dumpReader, err := os.Open(cmd.sourceUri)
 	if err != nil {
@@ -133,7 +130,7 @@ func (cmd *ImportDataCmd) handleDump(ctx context.Context, dbUri, dialect string,
 
 	defer dumpReader.Close()
 
-	importDump := &import_data.ImportFromDumpImpl{
+	importDump := &import_file.ImportFromDumpImpl{
 		ProjectId:  cmd.project,
 		InstanceId: cmd.instanceId,
 		DbName:     cmd.databaseName,
@@ -150,13 +147,13 @@ func (cmd *ImportDataCmd) handleDump(ctx context.Context, dbUri, dialect string,
 		ExpressionVerificationAccessor: expressionVerificationAccessor,
 	}
 
-	startTime := time.Now()
+	schemaStartTime := time.Now()
 	conv, err := importDump.CreateSchema(dialect, processDump)
 	if err != nil {
 		return fmt.Errorf(fmt.Sprintf("can't create schema: %v\n", err))
 	}
 
-	dumpReader, err = resetReader(dumpReader, cmd.sourceUri)
+	dumpReader, err = import_file.ResetReader(dumpReader, cmd.sourceUri)
 
 	if err != nil {
 		return fmt.Errorf(fmt.Sprintf("can't reset reader: %v\n", err))
@@ -164,30 +161,20 @@ func (cmd *ImportDataCmd) handleDump(ctx context.Context, dbUri, dialect string,
 
 	err = spannerAccessor.CreateOrUpdateDatabase(ctx, dbUri, driver, conv, driver)
 
-	endTime1 := time.Now()
-	elapsedTime := endTime1.Sub(startTime)
-	fmt.Println("Schema creation took ", elapsedTime.Seconds(), "  secs")
+	schemaEndTime := time.Now()
+	elapsedTime := schemaEndTime.Sub(schemaStartTime)
+	logger.Log.Info(fmt.Sprintf("Schema creation took %f secs", elapsedTime.Seconds()))
 	if err != nil {
 		return err
 	}
 
 	err = importDump.ImportData(conv, processDump, spannerAccessor.GetSpannerClient())
 
-	endTime2 := time.Now()
-	elapsedTime = endTime2.Sub(endTime1)
-	fmt.Println("Data import took ", elapsedTime.Seconds(), "  secs")
+	dataEndTime := time.Now()
+	elapsedTime = dataEndTime.Sub(schemaEndTime)
+	logger.Log.Info(fmt.Sprintf("Data import took %f secs", elapsedTime.Seconds()))
 	return err
 
-}
-
-func resetReader(dumpReader *os.File, fileUri string) (*os.File, error) {
-	_, err := dumpReader.Seek(0, 0)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("can't reset reader: %v\n", err))
-		dumpReader.Close()
-		dumpReader, err = os.Open(fileUri)
-	}
-	return dumpReader, err
 }
 
 func init() {
