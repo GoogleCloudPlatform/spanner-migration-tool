@@ -37,6 +37,7 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
 	dbIdentifier := utils.DbIdentifier{
 		DatabaseName: isi.DbName,
 	}
+	var errString string
 	for _, table := range conv.SrcSchema {
 		columnAssessments := make(map[string]utils.ColumnAssessmentInfo[any])
 		var collation, charset string
@@ -45,7 +46,7 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
 		WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?;`
 		err := isi.Db.QueryRow(q, isi.DbName, table.Name).Scan(&collation, &charset)
 		if err != nil {
-			return nil, fmt.Errorf("couldn't get schema for table %s: %s", table.Name, err)
+			errString = errString + fmt.Sprintf("couldn't get schema for table %s: %s", table.Name, err)
 		}
 		for _, column := range table.ColDefs {
 			q = `SELECT c.column_type, c.extra, c.generation_expression
@@ -57,7 +58,7 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
 			var generatedColumn utils.GeneratedColumnInfo
 			err := isi.Db.QueryRow(q, isi.DbName, table.Name, column.Name).Scan(&columnType, &colExtra, &colGeneratedExp)
 			if err != nil {
-				return nil, fmt.Errorf("couldn't get schema for column %s.%s: %s", table.Name, column.Name, err)
+				errString = errString + fmt.Sprintf("couldn't get schema for column %s.%s: %s", table.Name, column.Name, err)
 			}
 			if strings.Contains(colExtra.String, "on update CURRENT_TIMESTAMP") {
 				isOnUpdateTimestampSet = true
@@ -88,6 +89,9 @@ func (isi InfoSchemaImpl) GetTableInfo(conv *internal.Conv) (map[string]utils.Ta
 			}
 		}
 		tb[table.Id] = utils.TableAssessmentInfo{Name: table.Name, TableDef: table, ColumnAssessmentInfos: columnAssessments, Db: dbIdentifier, Charset: charset, Collation: collation}
+	}
+	if errString != "" {
+		return tb, fmt.Errorf(errString)
 	}
 	return tb, nil
 }
@@ -146,6 +150,9 @@ func (isi InfoSchemaImpl) GetTriggerInfo() ([]utils.TriggerAssessmentInfo, error
 			},
 		})
 	}
+	if errString != "" {
+		return triggers, fmt.Errorf(errString)
+	}
 	return triggers, nil
 }
 
@@ -174,6 +181,9 @@ func (isi InfoSchemaImpl) GetStoredProcedureInfo() ([]utils.StoredProcedureAsses
 				DatabaseName: isi.DbName,
 			},
 		})
+	}
+	if errString != "" {
+		return storedProcedures, fmt.Errorf(errString)
 	}
 	return storedProcedures, nil
 }
@@ -205,6 +215,9 @@ func (isi InfoSchemaImpl) GetFunctionInfo() ([]utils.FunctionAssessmentInfo, err
 			Datatype: datatype,
 		})
 	}
+	if errString != "" {
+		return functions, fmt.Errorf(errString)
+	}
 	return functions, nil
 }
 
@@ -234,6 +247,9 @@ func (isi InfoSchemaImpl) GetViewInfo() ([]utils.ViewAssessmentInfo, error) {
 				DatabaseName: isi.DbName,
 			},
 		})
+	}
+	if errString != "" {
+		return views, fmt.Errorf(errString)
 	}
 	return views, nil
 }
@@ -316,7 +332,6 @@ func getColumnMaxSize(dataType string, mods []int64, mysqlCharset string) int64 
 	case "longblob":
 		return 4294967295
 
-	// TEXT types store character strings.
 	case "tinytext":
 		return 255 * bytesPerChar
 	case "text":
