@@ -160,6 +160,7 @@ func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, dri
 	}
 
 	err = spannerAccessor.CreateOrUpdateDatabase(ctx, dbUri, driver, conv, driver)
+	spannerAccessor.Refresh(ctx, dbUri)
 
 	schemaEndTime := time.Now()
 	elapsedTime := schemaEndTime.Sub(schemaStartTime)
