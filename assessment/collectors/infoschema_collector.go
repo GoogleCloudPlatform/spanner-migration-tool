@@ -49,11 +49,11 @@ func (c InfoSchemaCollector) IsEmpty() bool {
 	return false
 }
 
-func CreateNewInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile) (InfoSchemaCollector, error) {
-	return CreateInfoSchemaCollector(conv, sourceProfile, SQLDBConnector{}, DefaultConnectionConfigProvider{})
+func GetDefaultInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile) (InfoSchemaCollector, error) {
+	return GetInfoSchemaCollector(conv, sourceProfile, SQLDBConnector{}, DefaultConnectionConfigProvider{}, getInfoSchema)
 }
 
-func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile, dbConnector DBConnector, configProvider ConnectionConfigProvider) (InfoSchemaCollector, error) {
+func GetInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile, dbConnector DBConnector, configProvider ConnectionConfigProvider, infoSchemaProvider func(*sql.DB, profiles.SourceProfile) (common.InfoSchema, error)) (InfoSchemaCollector, error) {
 	logger.Log.Info("initializing infoschema collector")
 	var errString string
 	connectionConfig, err := configProvider.GetConnectionConfig(sourceProfile)
@@ -66,7 +66,7 @@ func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.Sourc
 		return InfoSchemaCollector{}, err
 	}
 
-	infoSchema, err := getInfoSchema(db, sourceProfile)
+	infoSchema, err := infoSchemaProvider(db, sourceProfile)
 	if err != nil {
 		return InfoSchemaCollector{}, fmt.Errorf("error getting info schema: %v", err)
 	}
