@@ -467,5 +467,4 @@ func (ssa SourceSpecificComparisonImpl) IsDataTypeCodeCompatible(srcColumnDef ut
 	default:
 		return false
 	}
-
 }

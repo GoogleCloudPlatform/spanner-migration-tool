@@ -469,7 +469,7 @@ func TestInfoSchemaImpl_GetStoredProcedureInfo(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			isi, mock := newTestInfoSchemaImpl(t) // Assuming newTestInfoSchemaImpl is available
+			isi, mock := newTestInfoSchemaImpl(t)
 			isi.DbName = tc.dbName
 			defer isi.Db.Close()
 
@@ -525,7 +525,7 @@ func TestInfoSchemaImpl_GetFunctionInfo(t *testing.T) {
 				rows := sqlmock.NewRows([]string{"ROUTINE_NAME", "ROUTINE_DEFINITION", "IS_DETERMINISTIC", "DTD_IDENTIFIER"})
 				mock.ExpectQuery(queryRegex).WithArgs(dbName).WillReturnRows(rows)
 			},
-			expectedResult: []utils.FunctionAssessmentInfo(nil), // Expecting nil or empty slice; SUT returns empty slice
+			expectedResult: []utils.FunctionAssessmentInfo(nil),
 		},
 		{
 			name:   "DB Query Error",
@@ -567,7 +567,7 @@ func TestInfoSchemaImpl_GetFunctionInfo(t *testing.T) {
 
 			if tc.wantErrMsgContains != "" {
 				assert.Error(t, err)
-				if err != nil { // Check err is not nil before calling Error()
+				if err != nil {
 					assert.Contains(t, err.Error(), tc.wantErrMsgContains)
 				}
 			} else {
@@ -633,7 +633,7 @@ func TestInfoSchemaImpl_GetViewInfo(t *testing.T) {
 					AddRow("view_ok_2", "SELECT 2", "NONE", "NO")
 				mock.ExpectQuery(queryRegex).WithArgs(dbName).WillReturnRows(rows)
 			},
-			expectedResult: []utils.ViewAssessmentInfo{ // Only successfully scanned rows
+			expectedResult: []utils.ViewAssessmentInfo{
 				{Name: "view_ok_1", Definition: "SELECT 1", CheckOption: "LOCAL", IsUpdatable: true, Db: utils.DbIdentifier{DatabaseName: "test_db_scan_err_view"}},
 				{Name: "view_ok_2", Definition: "SELECT 2", CheckOption: "NONE", IsUpdatable: false, Db: utils.DbIdentifier{DatabaseName: "test_db_scan_err_view"}},
 			},
@@ -721,7 +721,7 @@ func TestGetColumnMaxSize_Simplified(t *testing.T) {
 
 		{name: "decimal no mods", dataType: "decimal", mods: nil, mysqlCharset: "utf8mb4", want: 8},
 		{name: "decimal with P,S (10,2)", dataType: "decimal", mods: []int64{10, 2}, mysqlCharset: "utf8mb4", want: 2},
-		{name: "decimal with P only (5)", dataType: "numeric", mods: []int64{5}, mysqlCharset: "utf8mb4", want: 1},
+		{name: "numeric with P only (5)", dataType: "numeric", mods: []int64{5}, mysqlCharset: "utf8mb4", want: 1},
 
 		{name: "char no mods (latin1)", dataType: "char", mods: nil, mysqlCharset: "latin1", want: 1 * 1},
 		{name: "char with mods (10, utf8mb4)", dataType: "char", mods: []int64{10}, mysqlCharset: "utf8mb4", want: 10 * 4},
@@ -732,16 +732,16 @@ func TestGetColumnMaxSize_Simplified(t *testing.T) {
 		{name: "binary no mods", dataType: "binary", mods: nil, mysqlCharset: "utf8mb4", want: 255},
 		{name: "binary with mods (100)", dataType: "binary", mods: []int64{100}, mysqlCharset: "utf8mb4", want: 100},
 
-		{name: "varbinary no mods", dataType: "varbinary", mods: nil, mysqlCharset: "utf8mb4", want: 255}, // Hits the varbinary case
+		{name: "varbinary no mods", dataType: "varbinary", mods: nil, mysqlCharset: "utf8mb4", want: 255},
 		{name: "varbinary with mods (150)", dataType: "varbinary", mods: []int64{150}, mysqlCharset: "utf8mb4", want: 150},
 
-		// BLOB types (representative cases)
+		// BLOB types
 		{name: "tinyblob", dataType: "tinyblob", mods: nil, mysqlCharset: "utf8mb4", want: 255},
 		{name: "blob", dataType: "blob", mods: nil, mysqlCharset: "utf8mb4", want: 65535},
 		{name: "mediumblob", dataType: "mediumblob", mods: nil, mysqlCharset: "utf8mb4", want: 16777215},
 		{name: "longblob", dataType: "longblob", mods: nil, mysqlCharset: "utf8mb4", want: 4294967295},
 
-		// TEXT types (representative cases with charset effect)
+		// TEXT types
 		{name: "tinytext (utf8mb4)", dataType: "tinytext", mods: nil, mysqlCharset: "utf8mb4", want: 255 * 4},
 		{name: "text (latin1)", dataType: "text", mods: nil, mysqlCharset: "latin1", want: 65535 * 1},
 		{name: "mediumtext (utf8)", dataType: "mediumtext", mods: nil, mysqlCharset: "utf8", want: 16777215 * 3},
@@ -751,7 +751,7 @@ func TestGetColumnMaxSize_Simplified(t *testing.T) {
 		{name: "json", dataType: "json", mods: nil, mysqlCharset: "utf8mb4", want: 4294967295},
 
 		// Default case for unknown type
-		{name: "unknown type", dataType: "highly_unlikely_type_name", mods: nil, mysqlCharset: "utf8mb4", want: 4},
+		{name: "unknown type", dataType: "unknown_type", mods: nil, mysqlCharset: "utf8mb4", want: 4},
 		{name: "case test dataType (Int)", dataType: "Int", mods: nil, mysqlCharset: "utf8mb4", want: 4},
 	}
 
@@ -759,6 +759,83 @@ func TestGetColumnMaxSize_Simplified(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := getColumnMaxSize(tt.dataType, tt.mods, tt.mysqlCharset)
 			assert.Equal(t, tt.want, got, fmt.Sprintf("dataType: %s, mods: %v, charset: %s", tt.dataType, tt.mods, tt.mysqlCharset))
+		})
+	}
+}
+
+func TestSourceSpecificComparisonImpl_IsDataTypeCodeCompatible(t *testing.T) {
+	ssa := SourceSpecificComparisonImpl{}
+
+	tests := []struct {
+		name        string
+		srcDataType string
+		spDataType  string
+		want        bool
+	}{
+		// BOOL compatibility
+		{"BOOL/tinyint", "tinyint", "BOOL", true},
+		{"BOOL/bit", "bit", "BOOL", true},
+		{"BOOL/other", "varchar", "BOOL", false},
+
+		// BYTES compatibility
+		{"BYTES/binary", "binary", "BYTES", true},
+		{"BYTES/varbinary", "varbinary", "BYTES", true},
+		{"BYTES/blob", "blob", "BYTES", true},
+		{"BYTES/other", "varchar", "BYTES", false},
+
+		// DATE compatibility
+		{"DATE/date", "date", "DATE", true},
+		{"DATE/other", "datetime", "DATE", false},
+
+		// FLOAT32 compatibility
+		{"FLOAT32/float", "float", "FLOAT32", true},
+		{"FLOAT32/double", "double", "FLOAT32", true},
+		{"FLOAT32/other", "varchar", "FLOAT32", false},
+
+		// FLOAT64 compatibility
+		{"FLOAT64/float", "float", "FLOAT64", true},
+		{"FLOAT64/double", "double", "FLOAT64", true},
+		{"FLOAT64/other", "varchar", "FLOAT64", false},
+
+		// INT64 compatibility
+		{"INT64/int", "int", "INT64", true},
+		{"INT64/bigint", "bigint", "INT64", true},
+		{"INT64/other", "varchar", "INT64", false},
+
+		// JSON compatibility
+		{"JSON/json", "json", "JSON", true},
+		{"JSON/varchar", "varchar", "JSON", true},
+		{"JSON/other", "text", "JSON", false},
+
+		// NUMERIC compatibility
+		{"NUMERIC/float", "float", "NUMERIC", true},
+		{"NUMERIC/double", "double", "NUMERIC", true},
+		{"NUMERIC/other", "varchar", "NUMERIC", false},
+
+		// STRING compatibility
+		{"STRING/varchar", "varchar", "STRING", true},
+		{"STRING/text", "text", "STRING", true},
+		{"STRING/mediumtext", "mediumtext", "STRING", true},
+		{"STRING/longtext", "longtext", "STRING", true},
+		{"STRING/other", "int", "STRING", false},
+
+		// TIMESTAMP compatibility
+		{"TIMESTAMP/timestamp", "timestamp", "TIMESTAMP", true},
+		{"TIMESTAMP/datetime", "datetime", "TIMESTAMP", true},
+		{"TIMESTAMP/other", "date", "TIMESTAMP", false},
+
+		// Default case (unsupported SP datatype)
+		{"Unsupported SP datatype", "varchar", "UNSUPPORTED", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srcColumnDef := utils.SrcColumnDetails{Datatype: tt.srcDataType}
+			spColumnDef := utils.SpColumnDetails{Datatype: tt.spDataType}
+			got := ssa.IsDataTypeCodeCompatible(srcColumnDef, spColumnDef)
+			if got != tt.want {
+				t.Errorf("IsDataTypeCodeCompatible() got = %v, want %v for src='%s', sp='%s'", got, tt.want, tt.srcDataType, tt.spDataType)
+			}
 		})
 	}
 }
