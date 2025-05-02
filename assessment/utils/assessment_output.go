@@ -23,7 +23,7 @@ import (
 
 type AssessmentOutput struct {
 	CostAssessment        CostAssessmentOutput
-	SchemaAssessment      SchemaAssessmentOutput
+	SchemaAssessment      *SchemaAssessmentOutput
 	AppCodeAssessment     *AppCodeAssessmentOutput
 	QueryAssessment       QueryAssessmentOutput
 	PerformanceAssessment PerformanceAssessmentOutput
