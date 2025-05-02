@@ -25,7 +25,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -85,7 +84,8 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 						}
 					},
 					SetSpannerClientMock: func(spannerClient spannerclient.SpannerClient) {
-
+					},
+					RefreshMock: func(ctx context.Context, dbURI string) {
 					},
 				}
 				return mock
@@ -134,12 +134,17 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 			cmd := &ImportDataCmd{
 				project:      "test-project",
 				instanceId:   "test-instance",
-				dbName:       "test-db",
+				databaseName: "test-db",
 				sourceUri:    tt.sourceUri,
 				sourceFormat: constants.MYSQLDUMP,
 			}
 			spannerAccessorMock := tt.spannerAccessorMock(t)
-			err := cmd.handleDump(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.dbName), tt.dialect, spannerAccessorMock)
+			err := cmd.handleDatabaseDumpFile(
+				ctx,
+				fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.databaseName),
+				constants.MYSQLDUMP,
+				tt.dialect,
+				spannerAccessorMock)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -148,53 +153,6 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestResetReader(t *testing.T) {
-	// Create a test file
-	tmpfile, err := os.CreateTemp("", "testfile.txt")
-	if err != nil {
-		t.Fatalf("Failed to create temporary file: %v", err)
-	}
-	defer os.Remove(tmpfile.Name()) // Clean up after test
-
-	_, err = tmpfile.WriteString("Test content")
-	if err != nil {
-		t.Fatalf("Failed to write to temporary file: %v", err)
-	}
-	tmpfile.Close()
-
-	// Open the file
-	file, err := os.Open(tmpfile.Name())
-	if err != nil {
-		t.Fatalf("Failed to open temporary file: %v", err)
-	}
-	defer file.Close()
-
-	// Read some bytes to change the offset
-	buffer := make([]byte, 4)
-	_, err = file.Read(buffer)
-	if err != nil {
-		t.Fatalf("Failed to read from file: %v", err)
-	}
-
-	// Check if offset is changed
-	if offset, _ := file.Seek(0, 1); offset != 4 {
-		t.Fatalf("Expected offset to be 4, got %d", offset)
-	}
-
-	// Reset the reader
-	resetFile, err := resetReader(file, tmpfile.Name())
-	if err != nil {
-		t.Fatalf("Failed to reset reader: %v", err)
-	}
-	defer resetFile.Close()
-
-	// Check if the offset is reset to 0
-	if offset, _ := resetFile.Seek(0, 1); offset != 0 {
-		t.Fatalf("Expected offset to be 0 after reset, got %d", offset)
-	}
-
 }
 
 func fetchDDLString(conv *internal.Conv) string {

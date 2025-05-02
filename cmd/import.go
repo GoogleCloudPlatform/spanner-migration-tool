@@ -20,13 +20,13 @@ import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_file"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
 	"os"
 	"time"
 
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_file"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/google/subcommands"
 	"go.uber.org/zap"
@@ -119,7 +119,7 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, dialect s
 
 }
 
-func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, driver string, dialect string, spannerAccessor *spanneraccessor.SpannerAccessorImpl) error {
+func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, driver string, dialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
 	// TODO: handle GCS
 	dumpReader, err := os.Open(cmd.sourceUri)
 	if err != nil {
