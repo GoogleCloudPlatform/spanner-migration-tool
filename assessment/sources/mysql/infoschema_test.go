@@ -40,13 +40,12 @@ func TestInfoSchemaImpl_GetTableInfo(t *testing.T) {
 	columnQueryRegex := `SELECT c\.column_type, c\.extra, c\.generation_expression\s+FROM information_schema\.COLUMNS c\s+where table_schema = \? and table_name = \? and column_name = \?\s+ORDER BY c\.ordinal_position;`
 
 	type testCase struct {
-		name               string
-		conv               *internal.Conv
-		dbName             string
-		mockTableSetup     func(mock sqlmock.Sqlmock, tableName string, dbName string)
-		mockColumnSetup    func(mock sqlmock.Sqlmock, tableName, colName, dbName string)
-		checkSpecifics     func(t *testing.T, result map[string]utils.TableAssessmentInfo, tableID, colID string)
-		wantErrMsgContains string
+		name            string
+		conv            *internal.Conv
+		dbName          string
+		mockTableSetup  func(mock sqlmock.Sqlmock, tableName string, dbName string)
+		mockColumnSetup func(mock sqlmock.Sqlmock, tableName, colName, dbName string)
+		checkSpecifics  func(t *testing.T, result map[string]utils.TableAssessmentInfo, tableID, colID string)
 	}
 
 	testCases := []testCase{
@@ -163,6 +162,65 @@ func TestInfoSchemaImpl_GetTableInfo(t *testing.T) {
 				assert.True(t, colInfo.IsUnsigned)
 			},
 		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			isi, mock := newTestInfoSchemaImpl(t)
+			isi.DbName = tc.dbName
+			defer isi.Db.Close()
+
+			currentTable, currentTableID := getFirstTable(tc.conv)
+			currentColumn, currentColumnID := getFirstColumn(currentTable)
+
+			if tc.mockTableSetup != nil {
+				tc.mockTableSetup(mock, currentTable.Name, tc.dbName)
+			}
+			if tc.mockColumnSetup != nil && currentColumn.Name != "" {
+				tc.mockColumnSetup(mock, currentTable.Name, currentColumn.Name, tc.dbName)
+			}
+
+			result, err := isi.GetTableInfo(tc.conv)
+
+			assert.NoError(t, err)
+			if tc.checkSpecifics != nil {
+				tc.checkSpecifics(t, result, currentTableID, currentColumnID)
+			}
+
+			err = mock.ExpectationsWereMet()
+			assert.NoError(t, err, "SQLMock expectations not met")
+		})
+	}
+}
+
+func getFirstTable(conv *internal.Conv) (schema.Table, string) {
+	for id, tbl := range conv.SrcSchema {
+		return tbl, id
+	}
+	return schema.Table{}, ""
+}
+
+func getFirstColumn(tbl schema.Table) (schema.Column, string) {
+	for id, col := range tbl.ColDefs {
+		return col, id
+	}
+	return schema.Column{}, ""
+}
+
+func TestInfoSchemaImpl_GetTableInfoErrorCases(t *testing.T) {
+	tableQueryRegex := `SELECT TABLE_COLLATION, SUBSTRING_INDEX\(TABLE_COLLATION, '_', 1\) as CHARACTER_SET FROM INFORMATION_SCHEMA\.TABLES WHERE TABLE_SCHEMA = \? AND TABLE_NAME = \?`
+	columnQueryRegex := `SELECT c\.column_type, c\.extra, c\.generation_expression\s+FROM information_schema\.COLUMNS c\s+where table_schema = \? and table_name = \? and column_name = \?\s+ORDER BY c\.ordinal_position;`
+
+	type testCase struct {
+		name               string
+		conv               *internal.Conv
+		dbName             string
+		mockTableSetup     func(mock sqlmock.Sqlmock, tableName string, dbName string)
+		mockColumnSetup    func(mock sqlmock.Sqlmock, tableName, colName, dbName string)
+		wantErrMsgContains string
+	}
+
+	testCases := []testCase{
 		{
 			name: "Error querying table info",
 			conv: &internal.Conv{
@@ -203,22 +261,8 @@ func TestInfoSchemaImpl_GetTableInfo(t *testing.T) {
 			isi.DbName = tc.dbName
 			defer isi.Db.Close()
 
-			var currentTable schema.Table
-			var currentTableID string
-			for id, tbl := range tc.conv.SrcSchema {
-				currentTable = tbl
-				currentTableID = id
-				break
-			}
-			var currentColumn schema.Column
-			var currentColumnID string
-			if len(currentTable.ColDefs) > 0 {
-				for id, col := range currentTable.ColDefs {
-					currentColumn = col
-					currentColumnID = id
-					break
-				}
-			}
+			currentTable, _ := getFirstTable(tc.conv)
+			currentColumn, _ := getFirstColumn(currentTable)
 
 			if tc.mockTableSetup != nil {
 				tc.mockTableSetup(mock, currentTable.Name, tc.dbName)
@@ -227,7 +271,7 @@ func TestInfoSchemaImpl_GetTableInfo(t *testing.T) {
 				tc.mockColumnSetup(mock, currentTable.Name, currentColumn.Name, tc.dbName)
 			}
 
-			result, err := isi.GetTableInfo(tc.conv)
+			_, err := isi.GetTableInfo(tc.conv)
 
 			if tc.wantErrMsgContains != "" {
 				assert.Error(t, err)
@@ -236,9 +280,6 @@ func TestInfoSchemaImpl_GetTableInfo(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err)
-				if tc.checkSpecifics != nil {
-					tc.checkSpecifics(t, result, currentTableID, currentColumnID)
-				}
 			}
 			err = mock.ExpectationsWereMet()
 			assert.NoError(t, err, "SQLMock expectations not met")
