@@ -83,6 +83,45 @@ func TestProcessDbDump_SchemaToSpannerDDL_Failure(t *testing.T) {
 	mockDbDump.AssertExpectations(t)
 }
 
+func TestConvertSchemaToSpannerDDL_Success(t *testing.T) {
+	mockDbDump := &MockDbDump{}
+	mockToDdl := &MockToDdl{}
+	mockDbDump.On("GetToDdl").Return(mockToDdl)
+
+	mockSchemaToSpanner := &MockSchemaToSpanner{}
+	mockSchemaToSpanner.On("SchemaToSpannerDDL", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	conv := internal.MakeConv()
+
+	err := ConvertSchemaToSpannerDDL(conv, mockDbDump, mockSchemaToSpanner)
+	assert.NoError(t, err)
+	mockDbDump.AssertExpectations(t)
+	mockSchemaToSpanner.AssertExpectations(t)
+	// Check that AddPrimaryKeys was called by verifying that a synthetic primary key was added if no primary key existed.
+	for _, table := range conv.SpSchema {
+		if len(table.PrimaryKeys) == 0 {
+			assert.NotEmpty(t, conv.SyntheticPKeys[table.Id])
+		}
+	}
+}
+
+func TestConvertSchemaToSpannerDDL_SchemaToSpannerDDL_Failure(t *testing.T) {
+	mockDbDump := &MockDbDump{}
+	mockToDdl := &MockToDdl{}
+	mockDbDump.On("GetToDdl").Return(mockToDdl)
+
+	mockSchemaToSpanner := &MockSchemaToSpanner{}
+	mockSchemaToSpanner.On("SchemaToSpannerDDL", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("schema to spanner error"))
+
+	conv := internal.MakeConv()
+
+	err := ConvertSchemaToSpannerDDL(conv, mockDbDump, mockSchemaToSpanner)
+	assert.Error(t, err)
+	assert.Equal(t, "schema to spanner error", err.Error())
+	mockDbDump.AssertExpectations(t)
+	mockSchemaToSpanner.AssertExpectations(t)
+}
+
 func getReader() *internal.Reader {
 	return internal.NewReader(bufio.NewReader(strings.NewReader("CREATE TABLE test (id INT PRIMARY KEY);")), nil)
 }

@@ -118,7 +118,7 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, dialect s
 
 func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, driver string, dialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
 
-	importDump, err := import_file.NewImportFromDump(cmd.project, cmd.instanceId, cmd.databaseName, cmd.sourceUri, nil, driver, spannerAccessor)
+	importDump, err := import_file.NewImportFromDump(cmd.project, cmd.instanceId, cmd.databaseName, cmd.sourceUri, driver, spannerAccessor)
 	if err != nil {
 		return err
 	}
@@ -129,10 +129,6 @@ func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, dri
 	conv, err := importDump.CreateSchema(dialect)
 	if err != nil {
 		return fmt.Errorf(fmt.Sprintf("can't create schema: %v\n", err))
-	}
-
-	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("can't reset reader: %v\n", err))
 	}
 
 	err = spannerAccessor.CreateOrUpdateDatabase(ctx, dbUri, driver, conv, driver)

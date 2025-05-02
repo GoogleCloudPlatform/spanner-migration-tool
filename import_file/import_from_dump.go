@@ -24,7 +24,7 @@ type ImportFromDump interface {
 type ImportFromDumpImpl struct {
 	ProjectId       string
 	InstanceId      string
-	DbName          string
+	DatabaseName    string
 	DumpUri         string
 	dumpReader      *os.File
 	Driver          string
@@ -38,15 +38,21 @@ func NewImportFromDump(
 	instanceId string,
 	databaseName string,
 	dumpUri string,
-	dumpReader *os.File,
 	driver string,
 	spannerAccessor spanneraccessor.SpannerAccessor) (ImportFromDump, error) {
 	dbDump, err := getDbDump(driver)
 	if err != nil {
 		return nil, err
 	}
+	// TODO: handle GCS
+	dumpReader, err := os.Open(dumpUri)
+	if err != nil {
+		if err != nil {
+			return nil, fmt.Errorf(fmt.Sprintf("can't read dump file: %s due to: %v\n", dumpUri, err))
+		}
+	}
 
-	sourceToSchema := &common.SchemaToSpannerImpl{
+	schemaToSpanner := &common.SchemaToSpannerImpl{
 		ExpressionVerificationAccessor: &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spannerAccessor},
 	}
 
@@ -58,21 +64,12 @@ func NewImportFromDump(
 		dumpReader,
 		driver,
 		spannerAccessor,
-		sourceToSchema,
+		schemaToSpanner,
 		dbDump,
 	}, nil
 }
 
 func (source *ImportFromDumpImpl) CreateSchema(dialect string) (*internal.Conv, error) {
-	// TODO: handle GCS
-	dumpReader, err := os.Open(source.DumpUri)
-	if err != nil {
-		if err != nil {
-			return nil, fmt.Errorf(fmt.Sprintf("can't read dump file: %s due to: %v\n", source.DumpUri, err))
-		}
-	}
-
-	source.dumpReader = dumpReader
 
 	r := internal.NewReader(bufio.NewReader(source.dumpReader), nil)
 	conv := internal.MakeConv()

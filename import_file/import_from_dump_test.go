@@ -81,7 +81,7 @@ func TestCreateSchema(t *testing.T) {
 			source := &ImportFromDumpImpl{
 				ProjectId:       "test-project",
 				InstanceId:      "test-instance",
-				DbName:          "test-db",
+				DatabaseName:    "test-db",
 				DumpUri:         file.Name(),
 				Driver:          tc.driver,
 				SpannerAccessor: spannerAccessorMock,
@@ -155,7 +155,7 @@ func TestImportData(t *testing.T) {
 			source := &ImportFromDumpImpl{
 				ProjectId:       "test-project",
 				InstanceId:      "test-instance",
-				DbName:          "test-db",
+				DatabaseName:    "test-db",
 				DumpUri:         file.Name(),
 				Driver:          tc.driver,
 				SpannerAccessor: spannerAccessorMock,
