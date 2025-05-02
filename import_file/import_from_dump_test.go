@@ -8,7 +8,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/stretchr/testify/mock"
-	"strings"
+	"os"
 	"testing"
 	"time"
 
@@ -55,13 +55,15 @@ func TestCreateSchema(t *testing.T) {
 			// Arrange
 			mockProcessDump := conversion.MockProcessDumpByDialect{}
 			mockProcessDump.On("ProcessDump", tc.driver, mock.Anything, mock.Anything).Return(tc.processDumpError)
+			file, err := os.CreateTemp("", "testfile.sql")
+			file.WriteString(tc.dumpContent)
+			file.Close()
 
 			source := &ImportFromDumpImpl{
 				ProjectId:  "test-project",
 				InstanceId: "test-instance",
 				DbName:     "test-db",
-				DumpUri:    "test-uri",
-				DumpReader: strings.NewReader(tc.dumpContent),
+				DumpUri:    file.Name(),
 				Driver:     tc.driver,
 			}
 
@@ -116,13 +118,16 @@ func TestImportData(t *testing.T) {
 					return time.Now(), tc.spannerError
 				},
 			}
+			file, err := os.CreateTemp("", "testfile.sql")
+			file.WriteString(tc.dumpContent)
+			file.Close()
 
 			source := &ImportFromDumpImpl{
 				ProjectId:  "test-project",
 				InstanceId: "test-instance",
 				DbName:     "test-db",
-				DumpUri:    "test-uri",
-				DumpReader: strings.NewReader(tc.dumpContent),
+				DumpUri:    file.Name(),
+				dumpReader: file,
 				Driver:     tc.driver,
 			}
 			conv := &internal.Conv{
@@ -133,7 +138,7 @@ func TestImportData(t *testing.T) {
 			}
 
 			// Act
-			err := source.ImportData(conv, &mockProcessDump, spannerClientMock)
+			err = source.ImportData(conv, &mockProcessDump, spannerClientMock)
 
 			assert.True(t, conv.DataMode())
 			// Assert

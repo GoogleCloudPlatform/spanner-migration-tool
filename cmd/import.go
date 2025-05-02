@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_file"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
-	"os"
 	"time"
 
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
@@ -120,24 +119,16 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, dialect s
 }
 
 func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, driver string, dialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
-	// TODO: handle GCS
-	dumpReader, err := os.Open(cmd.sourceUri)
-	if err != nil {
-		if err != nil {
-			return fmt.Errorf(fmt.Sprintf("can't read dump file: %s due to: %v\n", cmd.sourceUri, err))
-		}
-	}
-
-	defer dumpReader.Close()
 
 	importDump := &import_file.ImportFromDumpImpl{
 		ProjectId:  cmd.project,
 		InstanceId: cmd.instanceId,
 		DbName:     cmd.databaseName,
 		DumpUri:    cmd.sourceUri,
-		DumpReader: dumpReader,
 		Driver:     driver,
 	}
+
+	defer importDump.Finalize()
 
 	expressionVerificationAccessor := &expressions_api.ExpressionVerificationAccessorImpl{
 		SpannerAccessor: spannerAccessor,
@@ -152,8 +143,6 @@ func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, dri
 	if err != nil {
 		return fmt.Errorf(fmt.Sprintf("can't create schema: %v\n", err))
 	}
-
-	dumpReader, err = import_file.ResetReader(dumpReader, cmd.sourceUri)
 
 	if err != nil {
 		return fmt.Errorf(fmt.Sprintf("can't reset reader: %v\n", err))
