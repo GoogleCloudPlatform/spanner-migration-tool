@@ -17,6 +17,8 @@ package assessment
 import (
 	"database/sql"
 	"fmt"
+	"sort"
+	"strings"
 
 	common "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/mysql"
@@ -26,13 +28,17 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 type InfoSchemaCollector struct {
-	tables           map[string]utils.TableAssessment
-	indexes          []utils.IndexAssessment
-	triggers         []utils.TriggerAssessment
-	storedProcedures []utils.StoredProcedureAssessment
+	tables           map[string]utils.TableAssessmentInfo
+	indexes          []utils.IndexAssessmentInfo
+	triggers         []utils.TriggerAssessmentInfo
+	storedProcedures []utils.StoredProcedureAssessmentInfo
+	functions        []utils.FunctionAssessmentInfo
+	views            []utils.ViewAssessmentInfo
 	conv             *internal.Conv
 }
 
@@ -67,6 +73,14 @@ func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.Sourc
 	if err != nil {
 		errString = errString + fmt.Sprintf("\nError while scanning stored procedures: %v", err)
 	}
+	functions, err := infoSchema.GetFunctionInfo()
+	if err != nil {
+		errString = errString + fmt.Sprintf("\nError while scanning functions: %v", err)
+	}
+	views, err := infoSchema.GetViewInfo()
+	if err != nil {
+		errString = errString + fmt.Sprintf("\nError while scanning views: %v", err)
+	}
 	err = nil
 	if errString != "" {
 		err = fmt.Errorf(errString, "")
@@ -77,17 +91,22 @@ func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.Sourc
 		triggers:         triggers,
 		conv:             conv,
 		storedProcedures: sps,
+		functions:        functions,
+		views:            views,
 	}, err
 }
 
-func getIndexes(infoSchema common.InfoSchema, conv *internal.Conv) ([]utils.IndexAssessment, error) {
-	indCollector := []utils.IndexAssessment{}
+func getIndexes(infoSchema common.InfoSchema, conv *internal.Conv) ([]utils.IndexAssessmentInfo, error) {
+	indCollector := []utils.IndexAssessmentInfo{}
 	for _, table := range conv.SrcSchema {
-		index, err := infoSchema.GetIndexInfo(table.Name, conv)
-		if err != nil {
-			return nil, err
+		for id := range table.Indexes {
+			index, err := infoSchema.GetIndexInfo(table.Name, table.Indexes[id])
+			if err != nil {
+				return nil, err
+			}
+			index.TableId = table.Id
+			indCollector = append(indCollector, index)
 		}
-		indCollector = append(indCollector, index...)
 	}
 	return indCollector, nil
 }
@@ -113,26 +132,105 @@ func getInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 	}
 }
 
-func (c InfoSchemaCollector) ListTables() (map[string]utils.TableDetails, map[string]utils.TableDetails) {
-	srcTable := make(map[string]utils.TableDetails)
-	spTable := make(map[string]utils.TableDetails)
+func (c InfoSchemaCollector) ListTables() (map[string]utils.SrcTableDetails, map[string]utils.SpTableDetails) {
+	srcTable := make(map[string]utils.SrcTableDetails)
+	spTable := make(map[string]utils.SpTableDetails)
 
 	for tableId := range c.tables {
-		srcTable[tableId] = utils.TableDetails{
-			Id:   tableId,
-			Name: c.conv.SrcSchema[tableId].Name,
+		srcCheckConstraints := make(map[string]schema.CheckConstraint)
+		for _, ck := range c.conv.SrcSchema[tableId].CheckConstraints {
+			srcCheckConstraints[ck.Id] = ck
 		}
-		spTable[tableId] = utils.TableDetails{
-			Id:   tableId,
-			Name: c.conv.SpSchema[tableId].Name,
+		spCheckConstraints := make(map[string]ddl.CheckConstraint)
+		for _, ck := range c.conv.SpSchema[tableId].CheckConstraints {
+			spCheckConstraints[ck.Id] = ck
+		}
+		srcFks := make(map[string]utils.SourceForeignKey)
+		for _, fk := range c.conv.SrcSchema[tableId].ForeignKeys {
+			srcFks[fk.Id] = utils.SourceForeignKey{
+				Definition: fk,
+				// TODO : Move all print methods to source specific classes
+				Ddl: utils.PrintForeignKeyAlterTable(fk, tableId, c.conv.SrcSchema),
+			}
+		}
+		spFks := make(map[string]utils.SpannerForeignKey)
+		for _, fk := range c.conv.SpSchema[tableId].ForeignKeys {
+			spFks[fk.Id] = utils.SpannerForeignKey{
+				Definition:      fk,
+				IsInterleavable: canInterleaveWithFK(c.conv.SpSchema, tableId, fk.ReferTableId, &fk),
+				ParentTableName: c.conv.SpSchema[fk.ReferTableId].Name,
+				Ddl:             fk.PrintForeignKeyAlterTable(c.conv.SpSchema, ddl.Config{}, tableId),
+			}
+		}
+		srcTable[tableId] = utils.SrcTableDetails{
+			Id:               tableId,
+			Name:             c.conv.SrcSchema[tableId].Name,
+			Charset:          c.tables[tableId].Charset,
+			Collation:        c.tables[tableId].Collation,
+			CheckConstraints: srcCheckConstraints,
+			SourceForeignKey: srcFks,
+		}
+		spTable[tableId] = utils.SpTableDetails{
+			Id:                tableId,
+			Name:              c.conv.SpSchema[tableId].Name,
+			CheckConstraints:  spCheckConstraints,
+			SpannerForeignKey: spFks,
 		}
 	}
 	return srcTable, spTable
 }
 
+// TODO: move this method to assessment_engine
+func canInterleaveWithFK(tableSchemaMap map[string]ddl.CreateTable, childTableId string, parentTableId string, fk *ddl.Foreignkey) bool {
+	// Check if both tables exist
+	childTable, childOk := tableSchemaMap[childTableId]
+	parentTable, parentOk := tableSchemaMap[parentTableId]
+	if !childOk || !parentOk {
+		return false
+	}
+
+	// Check if parent key is a prefix of child key
+	if len(parentTable.PrimaryKeys) > len(childTable.PrimaryKeys) {
+		return false
+	}
+
+	sortedParentKeys := sortPrimaryKeys(parentTable.PrimaryKeys)
+	sortedChildKeys := sortPrimaryKeys(childTable.PrimaryKeys)
+
+	for i, parentKey := range sortedParentKeys {
+		childKey := childTable.PrimaryKeys[i]
+		if tableSchemaMap[parentTableId].ColDefs[parentKey.ColId].Name != tableSchemaMap[childTableId].ColDefs[childKey.ColId].Name {
+			return false // Parent key columns must be a prefix of child key columns in the same order
+		}
+	}
+
+	// Check if foreign key columns match the parent key
+	if len(parentTable.PrimaryKeys) != len(fk.ReferColumnIds) {
+		return false // Foreign key columns must match the parent primary key columns in number.
+	}
+	for i, parentKeyCol := range sortedParentKeys {
+		if parentKeyCol.ColId != fk.ReferColumnIds[i] {
+			return false // Foreign key columns must match the parent primary key columns in order.
+		}
+		if fk.ColIds[i] != sortedChildKeys[i].ColId {
+			return false // Foreign key columns must match child primary key prefix in order.
+		}
+	}
+
+	return true
+}
+
+func sortPrimaryKeys(keys []ddl.IndexKey) []ddl.IndexKey {
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i].Order < keys[j].Order
+	})
+	return keys
+}
+
 func (c InfoSchemaCollector) ListIndexes() (map[string]utils.SrcIndexDetails, map[string]utils.SpIndexDetails) {
 	srcIndexes := make(map[string]utils.SrcIndexDetails)
 	spIndexes := make(map[string]utils.SpIndexDetails)
+
 	for i := range c.indexes {
 		srcIndexes[c.indexes[i].IndexDef.Id] = utils.SrcIndexDetails{
 			Id:        c.indexes[i].IndexDef.Id,
@@ -141,6 +239,7 @@ func (c InfoSchemaCollector) ListIndexes() (map[string]utils.SrcIndexDetails, ma
 			Type:      c.indexes[i].Ty,
 			TableName: c.conv.SrcSchema[c.indexes[i].TableId].Name,
 			IsUnique:  c.indexes[i].IndexDef.Unique,
+			Ddl:       utils.PrintCreateIndex(c.indexes[i].IndexDef, c.conv.SrcSchema[c.indexes[i].TableId]),
 		}
 		spIndexes[c.indexes[i].IndexDef.Id] = utils.SpIndexDetails{
 			Id:        c.indexes[i].IndexDef.Id,
@@ -148,17 +247,27 @@ func (c InfoSchemaCollector) ListIndexes() (map[string]utils.SrcIndexDetails, ma
 			TableId:   c.indexes[i].TableId,
 			IsUnique:  c.indexes[i].IndexDef.Unique,
 			TableName: c.conv.SpSchema[c.indexes[i].TableId].Name,
+			Ddl:       getSpannerIndex(c.indexes[i].IndexDef.Id, c.conv.SpSchema[c.indexes[i].TableId]).PrintCreateIndex(c.conv.SpSchema[c.indexes[i].TableId], ddl.Config{}),
 		}
 	}
 	return srcIndexes, spIndexes
 }
 
-func (c InfoSchemaCollector) ListTriggers() map[string]utils.TriggerAssessmentOutput {
-	triggersAssessmentOutput := make(map[string]utils.TriggerAssessmentOutput)
+func getSpannerIndex(indexId string, spSchema ddl.CreateTable) ddl.CreateIndex {
+	for id := range spSchema.Indexes {
+		if spSchema.Indexes[id].Id == indexId {
+			return spSchema.Indexes[id]
+		}
+	}
+	return ddl.CreateIndex{}
+}
+
+func (c InfoSchemaCollector) ListTriggers() map[string]utils.TriggerAssessment {
+	triggersAssessmentOutput := make(map[string]utils.TriggerAssessment)
 	for _, trigger := range c.triggers {
 		tableId, _ := internal.GetTableIdFromSrcName(c.conv.SrcSchema, trigger.TargetTable)
 		triggerId := internal.GenerateTriggerId()
-		triggersAssessmentOutput[triggerId] = utils.TriggerAssessmentOutput{
+		triggersAssessmentOutput[triggerId] = utils.TriggerAssessment{
 			Id:            triggerId,
 			Name:          trigger.Name,
 			Operation:     trigger.Operation,
@@ -167,6 +276,35 @@ func (c InfoSchemaCollector) ListTriggers() map[string]utils.TriggerAssessmentOu
 		}
 	}
 	return triggersAssessmentOutput
+}
+
+func (c InfoSchemaCollector) ListFunctions() map[string]utils.FunctionAssessment {
+	functionAssessmentOutput := make(map[string]utils.FunctionAssessment)
+	for _, function := range c.functions {
+		fnId := internal.GenerateFunctionId()
+		functionAssessmentOutput[fnId] = utils.FunctionAssessment{
+			Id:          fnId,
+			Name:        function.Name,
+			Definition:  function.Definition,
+			LinesOfCode: strings.Count(function.Definition, ";"),
+		}
+	}
+	return functionAssessmentOutput
+}
+
+func (c InfoSchemaCollector) ListViews() map[string]utils.ViewAssessment {
+	viewAssessmentOutput := make(map[string]utils.ViewAssessment)
+	for _, view := range c.views {
+		viewId := internal.GenerateViewId()
+		viewAssessmentOutput[viewId] = utils.ViewAssessment{
+			Id:            viewId,
+			SrcName:       view.Name,
+			SrcDefinition: view.Definition,
+			SrcViewType:   "NON-MATERIALIZED", // Views are always non-materialized in MySQL
+			SpName:        internal.GetSpannerValidName(c.conv, view.Name),
+		}
+	}
+	return viewAssessmentOutput
 }
 
 func (c InfoSchemaCollector) ListColumnDefinitions() (map[string]utils.SrcColumnDetails, map[string]utils.SpColumnDetails) {
@@ -190,20 +328,28 @@ func (c InfoSchemaCollector) ListColumnDefinitions() (map[string]utils.SrcColumn
 					}
 				}
 			}
+			onInsertTimestampSet := false
+			if column.DefaultValue.IsPresent && column.DefaultValue.Value.Statement == "CURRENT_TIMESTAMP" {
+				onInsertTimestampSet = true
+			}
 			srcColumnDetails[column.Id] = utils.SrcColumnDetails{
-				Id:              column.Id,
-				Name:            column.Name,
-				TableId:         table.Id,
-				TableName:       table.Name,
-				Datatype:        column.Type.Name,
-				IsNull:          !column.NotNull,
-				Mods:            column.Type.Mods,
-				ArrayBounds:     column.Type.ArrayBounds,
-				AutoGen:         column.AutoGen,
-				DefaultValue:    column.DefaultValue,
-				PrimaryKeyOrder: pkOrder,
-				ForeignKey:      foreignKeys,
-				IsUnsigned:      c.tables[table.Id].ColumnAssessments[column.Id].IsUnsigned,
+				Id:                     column.Id,
+				Name:                   column.Name,
+				TableId:                table.Id,
+				TableName:              table.Name,
+				Datatype:               column.Type.Name,
+				IsNull:                 !column.NotNull,
+				Mods:                   column.Type.Mods,
+				ArrayBounds:            column.Type.ArrayBounds,
+				AutoGen:                column.AutoGen,
+				DefaultValue:           column.DefaultValue,
+				PrimaryKeyOrder:        pkOrder,
+				ForeignKey:             foreignKeys,
+				IsUnsigned:             c.tables[table.Id].ColumnAssessmentInfos[column.Id].IsUnsigned,
+				MaxColumnSize:          c.tables[table.Id].ColumnAssessmentInfos[column.Id].MaxColumnSize,
+				GeneratedColumn:        c.tables[table.Id].ColumnAssessmentInfos[column.Id].GeneratedColumn,
+				IsOnUpdateTimestampSet: c.tables[table.Id].ColumnAssessmentInfos[column.Id].IsOnUpdateTimestampSet,
+				IsOnInsertTimestampSet: onInsertTimestampSet,
 			}
 		}
 	}
@@ -244,15 +390,20 @@ func (c InfoSchemaCollector) ListColumnDefinitions() (map[string]utils.SrcColumn
 	return srcColumnDetails, spColumnDetails
 }
 
-func (c InfoSchemaCollector) ListStoredProcedures() map[string]utils.StoredProcedureAssessmentOutput {
-	storedProcedureAssessmentOutput := make(map[string]utils.StoredProcedureAssessmentOutput)
+func (c InfoSchemaCollector) ListStoredProcedures() map[string]utils.StoredProcedureAssessment {
+	storedProcedureAssessmentOutput := make(map[string]utils.StoredProcedureAssessment)
 	for _, storedProcedure := range c.storedProcedures {
 		spId := internal.GenerateStoredProcedureId()
-		storedProcedureAssessmentOutput[spId] = utils.StoredProcedureAssessmentOutput{
-			Id:         spId,
-			Name:       storedProcedure.Name,
-			Definition: storedProcedure.Definition,
+		storedProcedureAssessmentOutput[spId] = utils.StoredProcedureAssessment{
+			Id:          spId,
+			Name:        storedProcedure.Name,
+			Definition:  storedProcedure.Definition,
+			LinesOfCode: strings.Count(storedProcedure.Definition, ";"),
 		}
 	}
 	return storedProcedureAssessmentOutput
+}
+
+func (c InfoSchemaCollector) ListSpannerSequences() map[string]ddl.Sequence {
+	return c.conv.SpSequences
 }

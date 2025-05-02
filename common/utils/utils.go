@@ -382,15 +382,6 @@ func NewDatabaseAdminClient(ctx context.Context) (*database.DatabaseAdminClient,
 	return database.NewDatabaseAdminClient(ctx)
 }
 
-// NewInstanceAdminClient returns a new instance-admin client.
-// It respects SPANNER_API_ENDPOINT.
-func NewInstanceAdminClient(ctx context.Context) (*instance.InstanceAdminClient, error) {
-	if endpoint := os.Getenv("SPANNER_API_ENDPOINT"); endpoint != "" {
-		return instance.NewInstanceAdminClient(ctx, option.WithEndpoint(endpoint))
-	}
-	return instance.NewInstanceAdminClient(ctx)
-}
-
 func SumMapValues(m map[string]int64) int64 {
 	n := int64(0)
 	for _, c := range m {
@@ -402,44 +393,6 @@ func SumMapValues(m map[string]int64) int64 {
 // GetBanner prints banner message after command line process is finished.
 func GetBanner(now time.Time, db string) string {
 	return fmt.Sprintf("Generated at %s for db %s\n\n", now.Format("2006-01-02 15:04:05"), db)
-}
-
-func IsValidDriver(driver string) bool {
-	d := strings.ToLower(driver)
-	for _, vd := range GetValidDrivers() {
-		if d == vd {
-			return true
-		}
-	}
-	return false
-}
-
-func GetValidDrivers() []string {
-	//First 5 drivers support legacy mode. Rest dont.
-	return []string{
-		constants.POSTGRES,
-		constants.PGDUMP,
-		constants.MYSQL,
-		constants.MYSQLDUMP,
-		constants.DYNAMODB,
-
-		constants.SQLSERVER,
-	}
-}
-
-func IsLegacyModeSupportedDriver(driver string) bool {
-	d := strings.ToLower(driver)
-	lds := GetLegacyModeSupportedDrivers()
-	for _, ld := range lds {
-		if d == ld {
-			return true
-		}
-	}
-	return false
-}
-
-func GetLegacyModeSupportedDrivers() []string {
-	return GetValidDrivers()[:5]
 }
 
 // ReadSpannerSchema fills conv by querying Spanner infoschema treating Spanner as both the source and dest.
@@ -552,13 +505,6 @@ func CompareSchema(sessionFileConv, actualSpannerConv *internal.Conv) error {
 		}
 	}
 	return nil
-}
-
-func TargetDbToDialect(targetDb string) string {
-	if targetDb == constants.TargetExperimentalPostgres {
-		return constants.DIALECT_POSTGRESQL
-	}
-	return constants.DIALECT_GOOGLESQL
 }
 
 func sortKeysByOrder(pks []ddl.IndexKey) {

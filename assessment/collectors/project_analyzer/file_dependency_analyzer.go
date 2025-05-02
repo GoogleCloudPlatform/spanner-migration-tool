@@ -15,7 +15,9 @@
 package assessment
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
@@ -28,6 +30,7 @@ import (
 type DependencyAnalyzer interface {
 	getDependencyGraph(directory string) map[string]map[string]struct{}
 	IsDAO(filePath string, fileContent string) bool
+	GetFrameworkFromFileContent(fileContent string) string
 	GetExecutionOrder(projectDir string) (map[string]map[string]struct{}, [][]string)
 	LogDependencyGraph(dependencyGraphmap map[string]map[string]struct{}, projectDir string)
 	LogExecutionOrder(groupedTasks [][]string)
@@ -41,11 +44,59 @@ type GoDependencyAnalyzer struct {
 	BaseAnalyzer
 }
 
+func validateGoroot() error {
+
+	goroot := os.Getenv("GOROOT")
+	if len(goroot) == 0 {
+		return fmt.Errorf("please set GOROOT path to GO version 1.22.7 or higher to ensure that app assessment works")
+	}
+	return nil
+}
+
+// packagesLoadLogger: debug logger for packages.Load function
+func packagesLoadLogger(format string, args ...interface{}) {
+	logger.Log.Debug(fmt.Sprintf(format, args...))
+}
+
+func (b *BaseAnalyzer) RemoveCycle(fileDependenciesMapWithCycle map[string]map[string]struct{}) map[string]map[string]struct{} {
+
+	dependencyGraphCycleCheck := graph.New(graph.StringHash, graph.Directed(), graph.PreventCycles())
+	// Dependency graph: key = file, value = list of files it depends on
+	dependencyGraph := make(map[string]map[string]struct{})
+	for file, dependencies := range fileDependenciesMapWithCycle {
+		if _, ok := dependencyGraph[file]; !ok {
+			dependencyGraph[file] = make(map[string]struct{})
+			dependencyGraphCycleCheck.AddVertex(file)
+		}
+		for dependency := range dependencies {
+
+			if _, ok := dependencyGraph[dependency]; !ok {
+				dependencyGraph[dependency] = make(map[string]struct{})
+				dependencyGraphCycleCheck.AddVertex(dependency)
+			}
+
+			if dependencyGraphCycleCheck.AddEdge(file, dependency) != nil {
+				logger.Log.Debug("Cycle detected: ",
+					zap.String("file", file), zap.String("dependency", dependency))
+			} else if _, exists := dependencyGraph[file][dependency]; !exists {
+				dependencyGraph[file][dependency] = struct{}{}
+			}
+		}
+	}
+
+	return dependencyGraph
+}
+
 func (g *GoDependencyAnalyzer) getDependencyGraph(directory string) map[string]map[string]struct{} {
 
+	err := validateGoroot()
+	if err != nil {
+		logger.Log.Warn("Error validating GOROOT: ", zap.Error(err))
+	}
 	cfg := &packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
 		Dir:  (directory),
+		Logf: packagesLoadLogger,
 	}
 
 	logger.Log.Debug(fmt.Sprintf("loading packages from directory: %s", directory))
@@ -56,9 +107,7 @@ func (g *GoDependencyAnalyzer) getDependencyGraph(directory string) map[string]m
 	}
 
 	// Dependency graph: key = file, value = list of files it depends on
-	dependencyGraph := make(map[string]map[string]struct{})
-
-	dependencyGraphCycleCheck := graph.New(graph.StringHash, graph.Directed(), graph.PreventCycles())
+	dependencyGraphWithCycles := make(map[string]map[string]struct{})
 
 	// Iterate through all packages and process their files
 	for _, pkg := range pkgs {
@@ -79,38 +128,22 @@ func (g *GoDependencyAnalyzer) getDependencyGraph(directory string) map[string]m
 					// Only add if the file is inside the project directory and avoid redundant edges
 					if strings.HasPrefix(defFile, directory) && useFile != defFile {
 						// Initialize the map for the useFile if not present
-						if _, ok := dependencyGraph[useFile]; !ok {
-							dependencyGraph[useFile] = make(map[string]struct{})
-							dependencyGraphCycleCheck.AddVertex(useFile)
+						if _, ok := dependencyGraphWithCycles[useFile]; !ok {
+							dependencyGraphWithCycles[useFile] = make(map[string]struct{})
 						}
 
-						if _, ok := dependencyGraph[defFile]; !ok {
-							dependencyGraph[defFile] = make(map[string]struct{})
-							dependencyGraphCycleCheck.AddVertex(defFile)
+						if _, ok := dependencyGraphWithCycles[defFile]; !ok {
+							dependencyGraphWithCycles[defFile] = make(map[string]struct{})
 						}
 
-						if dependencyGraphCycleCheck.AddEdge(useFile, defFile) != nil {
-							logger.Log.Debug("Cycle detected: ", zap.String("useFile", useFile), zap.String("defFile", defFile))
-						} else if _, exists := dependencyGraph[useFile][defFile]; !exists {
-							dependencyGraph[useFile][defFile] = struct{}{}
-						}
+						dependencyGraphWithCycles[useFile][defFile] = struct{}{}
 					}
 				}
 			}
 		}
 	}
 
-	// Print the dependency graph
-	logger.Log.Debug("\nDependency Graph:")
-	for file, dependencies := range dependencyGraph {
-		logger.Log.Debug("Source file:", zap.String("file", file))
-		//ToDo:Better way to show dependencies
-		for dep := range dependencies {
-			logger.Log.Debug("Depends on:", zap.String("dep", dep))
-		}
-	}
-
-	return dependencyGraph
+	return g.RemoveCycle(dependencyGraphWithCycles)
 }
 
 func (g *GoDependencyAnalyzer) IsDAO(filePath string, fileContent string) bool {
@@ -127,13 +160,30 @@ func (g *GoDependencyAnalyzer) IsDAO(filePath string, fileContent string) bool {
 		return true
 	}
 
+	if strings.Contains(fileContent, "`gorm:\"") {
+		return true
+	}
+
 	return false
+}
+
+func (g *GoDependencyAnalyzer) GetFrameworkFromFileContent(fileContent string) string {
+	if strings.Contains(fileContent, "database/sql") || strings.Contains(fileContent, "github.com/go-sql-driver/mysql") {
+		return "database/sql"
+	}
+	if strings.Contains(fileContent, "*sql.DB") || strings.Contains(fileContent, "*sql.Tx") {
+		return "database/sql"
+	}
+	if strings.Contains(fileContent, "`gorm:\"") {
+		return "gorm"
+	}
+	return ""
 }
 
 func (g *GoDependencyAnalyzer) GetExecutionOrder(projectDir string) (map[string]map[string]struct{}, [][]string) {
 	G := g.getDependencyGraph(projectDir)
 
-	sortedTasks, err := topologicalSort(G)
+	sortedTasks, err := g.TopologicalSort(G)
 	if err != nil {
 		logger.Log.Debug("Graph still has cycles after relaxation. Sorting not possible: ", zap.Error(err))
 		return nil, nil
@@ -144,68 +194,19 @@ func (g *GoDependencyAnalyzer) GetExecutionOrder(projectDir string) (map[string]
 }
 
 // AnalyzerFactory creates DependencyAnalyzer instances
-func AnalyzerFactory(language string) DependencyAnalyzer {
+func AnalyzerFactory(language string, ctx context.Context) DependencyAnalyzer {
 	switch language {
 	case "go":
 		return &GoDependencyAnalyzer{}
+	case "java":
+		return &JavaDependencyAnalyzer{ctx: ctx}
+
 	default:
 		panic("Unsupported language")
 	}
 }
 
-func detectAndRemoveCycles(G map[string]map[string]struct{}) {
-	visited := make(map[string]bool)
-	stack := make(map[string]bool)
-	edgesToRemove := []struct {
-		from string
-		to   string
-	}{}
-
-	// Recursive DFS function to detect cycles
-	var visit func(node string) bool
-	visit = func(node string) bool {
-		if stack[node] {
-			// Found a cycle, mark this edge for removal
-			for parent := range G {
-				if _, exists := G[parent][node]; exists {
-					edgesToRemove = append(edgesToRemove, struct{ from, to string }{parent, node})
-					break
-				}
-			}
-			return true
-		}
-		if visited[node] {
-			return false
-		}
-
-		visited[node] = true
-		stack[node] = true
-
-		for neighbor := range G[node] {
-			if visit(neighbor) {
-				return true
-			}
-		}
-
-		stack[node] = false
-		return false
-	}
-
-	// Run DFS on all nodes
-	for node := range G {
-		if !visited[node] {
-			visit(node)
-		}
-	}
-
-	// Remove the detected edges from the graph
-	for _, edge := range edgesToRemove {
-		delete(G[edge.from], edge.to)
-		logger.Log.Debug("Removed edge: ", zap.String("from", edge.from), zap.String("to", edge.to))
-	}
-}
-
-func topologicalSort(G map[string]map[string]struct{}) ([][]string, error) {
+func (b *BaseAnalyzer) TopologicalSort(G map[string]map[string]struct{}) ([][]string, error) {
 	inDegree := make(map[string]int)
 	for node := range G {
 		inDegree[node] = 0
@@ -231,7 +232,7 @@ func topologicalSort(G map[string]map[string]struct{}) ([][]string, error) {
 	return taskLevels, nil
 }
 
-func (g *GoDependencyAnalyzer) LogDependencyGraph(dependencyGraph map[string]map[string]struct{}, projectDir string) {
+func (b *BaseAnalyzer) LogDependencyGraph(dependencyGraph map[string]map[string]struct{}, projectDir string) {
 
 	logger.Log.Debug("Dependency Graph:")
 	for file, dependencies := range dependencyGraph {
@@ -242,7 +243,7 @@ func (g *GoDependencyAnalyzer) LogDependencyGraph(dependencyGraph map[string]map
 	}
 }
 
-func (g *GoDependencyAnalyzer) LogExecutionOrder(groupedTasks [][]string) {
+func (b *BaseAnalyzer) LogExecutionOrder(groupedTasks [][]string) {
 
 	logger.Log.Debug("Execution Order Groups:")
 	for i, group := range groupedTasks {

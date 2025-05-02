@@ -1,0 +1,69 @@
+You are a Cloud Spanner expert tasked with migrating a DAO class from MySQL {{SOURCE_FRAMEWORK}} to Spanner {{TARGET_FRAMEWORK}}.
+
+**Objective:**
+Analyze the provided DAO code and identify the necessary modifications for compatibility with Cloud Spanner. The code may include comments, blank lines, and other non-executable elements. Use function documentation and comments to understand the code's purpose, particularly how it interacts with the database.
+
+**Schema Changes:**
+First, analyze the schema changes between the provided MySQL schema and the new Spanner schema. These changes may include column definitions, indexes, constraints, etc. Each schema change could potentially impact the DAO class code, particularly the SQL queries or method signatures.
+
+**Output Format: Please strictly follow the following format and ensure strict JSON parsable format:**
+@@@json
+{
+    "schema_impact": [
+        {
+            "schema_change": "Exact change in schema",
+            "table": "Name of the affected table",
+            "column": "Name of the affected column",
+            "number_of_affected_lines": <number_of_lines_impacted>,
+            "existing_code_lines": ["Line1", "Line2", ... ],
+            "new_code_lines": ["Line1", "Line2", ... ]
+        },
+        ...
+    ],
+    "method_signature_changes": [
+        {
+            "original_signature": "<original method signature>",
+            "new_signature": "<modified method signature>",
+            "complexity": "<SIMPLE|MODERATE|COMPLEX>",
+            "number_of_affected_lines": <number_of_lines_impacted>,
+            "explanation": "<description of why the change is needed and how to update the code>"
+        },
+        ...
+    ],
+    "pagination": {
+        "total_page": "Total number of pages that the response has",
+        "current_page": "Current page number of the response"
+    }
+}
+@@@
+
+**Instructions:**
+1. Ensure consistency between `schema_impact` and `public_method_changes`.
+2. Output should strictly be in given JSON format and ensure strict JSON parsable format.
+3. All generated result values should be single-line strings. Avoid hallucinations and suggest only relevant changes.
+4. Pay close attention to SQL queries within the DAO code. Identify any queries that are incompatible with Spanner and suggest appropriate modifications.
+5. Please paginate your output if the token limit is reached. Ensure that the JSON string is complete and parsable.
+
+**INPUT**
+**Older MySQL Schema**
+@@@
+{{OLDER_SCHEMA}}
+@@@
+
+**New Spanner Schema**
+@@@
+{{NEW_SCHEMA}}
+@@@
+
+Please analyze the following file:
+{{FILEPATH}}
+
+@@@
+{{CONTENT}}
+@@@
+
+**Dependent File Method Changes:**
+Consider the impact of method changes in dependent files on the DAO code being analyzed.
+@@@
+{{METHOD_CHANGES}}
+@@@

@@ -14,7 +14,9 @@
 
 package utils
 
-import "github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+import (
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+)
 
 // All the elements that will be a part of the assessment
 // If this file becomes too big, or if type specific methods get added, consider splitting this file
@@ -26,26 +28,37 @@ type DbIdentifier struct {
 }
 
 // Information relevant to assessment of tables
-type TableAssessment struct {
-	Db                DbIdentifier
-	Name              string
-	TableDef          schema.Table
-	ColumnAssessments map[string]ColumnAssessment[any]
+type TableAssessmentInfo struct {
+	Db                    DbIdentifier
+	Name                  string
+	TableDef              schema.Table
+	Charset               string
+	Collation             string
+	ColumnAssessmentInfos map[string]ColumnAssessmentInfo[any]
 }
 
 // Information relevant to assessment of columns
-type ColumnAssessment[T any] struct {
-	Db         DbIdentifier
-	Name       string
-	TableName  string
-	ColumnDef  schema.Column
-	MaxValue   T
-	MinValue   T
-	IsUnsigned bool
+type ColumnAssessmentInfo[T any] struct {
+	Db                     DbIdentifier
+	Name                   string
+	TableName              string
+	ColumnDef              schema.Column
+	MaxValue               T
+	MinValue               T
+	IsUnsigned             bool
+	IsOnUpdateTimestampSet bool
+	GeneratedColumn        GeneratedColumnInfo
+	MaxColumnSize          int64
+}
+
+type GeneratedColumnInfo struct {
+	IsPresent bool
+	Statement string
+	IsVirtual bool
 }
 
 // Information relevant to assessment of indexes
-type IndexAssessment struct {
+type IndexAssessmentInfo struct {
 	Db       DbIdentifier
 	Name     string
 	TableId  string
@@ -54,7 +67,7 @@ type IndexAssessment struct {
 }
 
 // Information relevant to assessment of stored procedures
-type StoredProcedureAssessment struct {
+type StoredProcedureAssessmentInfo struct {
 	Db               DbIdentifier
 	Name             string
 	LinesOfCode      int
@@ -65,7 +78,7 @@ type StoredProcedureAssessment struct {
 }
 
 // Information relevant to assessment of triggers
-type TriggerAssessment struct {
+type TriggerAssessmentInfo struct {
 	Db                DbIdentifier
 	Name              string
 	Operation         string
@@ -74,8 +87,30 @@ type TriggerAssessment struct {
 	EventManipulation string // This is the type of operation on the associated table for which the trigger activates. The value is INSERT , DELETE , or UPDATE.
 }
 
+// Information relevant to assessment of functions
+type FunctionAssessmentInfo struct {
+	Db               DbIdentifier
+	Name             string
+	LinesOfCode      int
+	TablesAffected   []string
+	ReferencesInCode int
+	Definition       string
+	IsDeterministic  bool
+	Datatype         string
+}
+
+// Information relevant to assessment of views
+// TODO : Capture information about view permissions
+type ViewAssessmentInfo struct {
+	Db          DbIdentifier
+	Name        string
+	Definition  string
+	CheckOption string // Determines how INSERT and UPDATE statements are handled when they affect a view. The value is one of NONE, CASCADE, or LOCAL.
+	IsUpdatable bool
+}
+
 // Information relevant to assessment of queries
-type QueryAssessment struct {
+type QueryAssessmentInfo struct {
 	db             DbIdentifier
 	name           string
 	lengthOfQuery  string
@@ -87,19 +122,25 @@ type Snippet struct {
 	TableName                string // will be empty if snippet is not a schema update
 	ColumnName               string // will be empty if snippet is not a schema update
 	SchemaChange             string // will be empty if snippet is not a schema update
-	NumberOfAffectedLines    string
+	NumberOfAffectedLines    int
 	Complexity               string
 	SourceCodeSnippet        []string
 	SuggestedCodeSnippet     []string
 	SourceMethodSignature    string // will be empty if code impact is outside method.
 	SuggestedMethodSignature string // will be empty if code impact is outside method.
 	Explanation              string
-	FileName                 string
+	RelativeFilePath         string
+	FilePath                 string
 	IsDao                    bool
 }
 
 // Information relevant to assessment of queries
 type CodeAssessment struct {
-	Snippets        []Snippet
+	ProjectPath     string
+	Language        string
+	Framework       string
+	TotalLoc        int
+	TotalFiles      int
+	Snippets        *[]Snippet
 	GeneralWarnings []string
 }

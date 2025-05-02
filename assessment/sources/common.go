@@ -17,13 +17,23 @@ package common
 import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 )
 
+// All the data that is to be extracted from infoschema of source
 type InfoSchema interface {
-	GetIndexInfo(table string, conv *internal.Conv) ([]utils.IndexAssessment, error)
-	GetTriggerInfo() ([]utils.TriggerAssessment, error)
-	GetStoredProcedureInfo() ([]utils.StoredProcedureAssessment, error)
-	GetTableInfo(conv *internal.Conv) (map[string]utils.TableAssessment, error)
+	GetIndexInfo(table string, index schema.Index) (utils.IndexAssessmentInfo, error)
+	GetTriggerInfo() ([]utils.TriggerAssessmentInfo, error)
+	GetStoredProcedureInfo() ([]utils.StoredProcedureAssessmentInfo, error)
+	GetTableInfo(conv *internal.Conv) (map[string]utils.TableAssessmentInfo, error)
+	GetFunctionInfo() ([]utils.FunctionAssessmentInfo, error)
+	GetViewInfo() ([]utils.ViewAssessmentInfo, error)
 }
 
 type InfoSchemaImpl struct{}
+
+type SourceSpecificComparison interface {
+	IsDataTypeCodeCompatible(srcColumnDef utils.SrcColumnDetails, spColumnDef utils.SpColumnDetails) bool
+}
+
+type SourceSpecificComparisonImpl struct{}

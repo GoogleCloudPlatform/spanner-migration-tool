@@ -1,0 +1,12 @@
+[
+  {
+    "table_name": "table2",
+    "file_patterns": [
+      "../../test_data/basic_csv.csv"
+    ],
+    "columns": [
+      {"column_name": "c3", "type_name": "INT64"},
+      {"column_name": "c4", "type_name": "STRING"}
+    ]
+  }
+]

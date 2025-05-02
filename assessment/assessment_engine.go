@@ -17,19 +17,29 @@ package assessment
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
 
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"go.uber.org/zap"
 )
 
 type assessmentCollectors struct {
 	sampleCollector        *assessment.SampleCollector
 	infoSchemaCollector    *assessment.InfoSchemaCollector
-	appAssessmentCollector *assessment.MigrationSummarizer
+	appAssessmentCollector *assessment.MigrationCodeSummarizer
+}
+
+type assessmentTaskInput struct {
+	taskName string
+	taskFunc func(ctx context.Context, c assessmentCollectors) (utils.AssessmentOutput, error)
 }
 
 func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile, assessmentConfig map[string]string, projectId string) (utils.AssessmentOutput, error) {
@@ -53,10 +63,48 @@ func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile
 	// Iterate over assessment rules and order output by confidence of each element. Merge outputs where required
 	// Select the highest confidence output for each attribute
 	// Populate assessment struct
+	parallelTaskRunner := &task.RunParallelTasksImpl[assessmentTaskInput, utils.AssessmentOutput]{}
 
-	output.SchemaAssessment, err = performSchemaAssessment(ctx, c)
+	assessmentTasksInput := []assessmentTaskInput{
+		{
+			taskName: "schemaAssessment",
+			taskFunc: func(ctx context.Context, c assessmentCollectors) (utils.AssessmentOutput, error) {
+				result, err := performSchemaAssessment(ctx, c)
+				return utils.AssessmentOutput{SchemaAssessment: result}, err
+			},
+		},
+		{
+			taskName: "appAssessment",
+			taskFunc: func(ctx context.Context, c assessmentCollectors) (utils.AssessmentOutput, error) {
+				result, err := performAppAssessment(ctx, c)
+				return utils.AssessmentOutput{AppCodeAssessment: result}, err
+			},
+		},
+	}
 
-	return output, err
+	assessmentResults, err := parallelTaskRunner.RunParallelTasks(assessmentTasksInput, 2, func(input assessmentTaskInput, mutex *sync.Mutex) task.TaskResult[utils.AssessmentOutput] {
+		result, err := input.taskFunc(ctx, c)
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("could not complete %s: ", input.taskName), zap.Error(err))
+		}
+		return task.TaskResult[utils.AssessmentOutput]{Result: result, Err: err}
+	}, false)
+
+	if err != nil {
+		// Handle any error from the parallel task runner itself
+		return output, err
+	}
+
+	for _, result := range assessmentResults {
+		if result.Result.SchemaAssessment != nil {
+			output.SchemaAssessment = result.Result.SchemaAssessment
+		}
+		if result.Result.AppCodeAssessment != nil {
+			output.AppCodeAssessment = result.Result.AppCodeAssessment
+		}
+	}
+
+	return output, nil
 }
 
 // Initilize collectors. Take a decision here on which collectors are mandatory and which are optional
@@ -73,35 +121,27 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 	}
 	c.infoSchemaCollector = &infoSchemaCollector
 
-	//Initiialize App Assessment Collector
+	//Initialize App Assessment Collector
+	language, exists := assessmentConfig["language"]
+	sourceFramework, exists := assessmentConfig["sourceFramework"]
+	targetFramework, exists := assessmentConfig["targetFramework"]
 
 	codeDirectory, exists := assessmentConfig["codeDirectory"]
 	if exists {
 		logger.Log.Info("initializing app collector")
+		mysqlSchema := utils.GetDDL(conv.SrcSchema)
+		spannerSchema := strings.Join(
+			ddl.GetDDL(
+				ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"},
+				conv.SpSchema,
+				conv.SpSequences),
+			"\n")
 
-		mysqlSchema := ""   // TODO fetch from conv
-		spannerSchema := "" // TODO fetch from conv
-		mysqlSchemaPath, exists := assessmentConfig["mysqlSchemaPath"]
-		if exists {
-			logger.Log.Info(fmt.Sprintf("overriding mysql schema from file %s", mysqlSchemaPath))
-			mysqlSchema, err := utils.ReadFile(mysqlSchemaPath)
-			if err != nil {
-				logger.Log.Debug("error reading MySQL schema file:", zap.Error(err))
-			}
-			logger.Log.Debug(mysqlSchema)
-		}
+		logger.Log.Debug("mysqlSchema", zap.String("schema", mysqlSchema))
+		logger.Log.Debug("spannerSchema", zap.String("schema", spannerSchema))
 
-		spannerSchemaPath, exists := assessmentConfig["spannerSchemaPath"]
-		if exists {
-			logger.Log.Info(fmt.Sprintf("overriding spanner schema from file %s", spannerSchemaPath))
-			spannerSchema, err := utils.ReadFile(spannerSchemaPath)
-			if err != nil {
-				logger.Log.Debug("error reading Spanner schema file:", zap.Error(err))
-			}
-			logger.Log.Info(spannerSchema)
-		}
-
-		summarizer, err := assessment.NewMigrationSummarizer(ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory)
+		summarizer, err := assessment.NewMigrationCodeSummarizer(
+			ctx, nil, projectId, assessmentConfig["location"], mysqlSchema, spannerSchema, codeDirectory, language, sourceFramework, targetFramework)
 		if err != nil {
 			logger.Log.Error("error initiating migration summarizer")
 			return c, err
@@ -115,25 +155,145 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 	return c, err
 }
 
-func performSchemaAssessment(ctx context.Context, collectors assessmentCollectors) (utils.SchemaAssessmentOutput, error) {
-	schemaOut := utils.SchemaAssessmentOutput{}
-	schemaOut.SourceTableDefs, schemaOut.SpannerTableDefs = collectors.infoSchemaCollector.ListTables()
-	schemaOut.SourceIndexDef, schemaOut.SpannerIndexDef = collectors.infoSchemaCollector.ListIndexes()
-	schemaOut.Triggers = collectors.infoSchemaCollector.ListTriggers()
-	schemaOut.SourceColDefs, schemaOut.SpannerColDefs = collectors.infoSchemaCollector.ListColumnDefinitions()
-	schemaOut.StoredProcedureAssessmentOutput = collectors.infoSchemaCollector.ListStoredProcedures()
+func performSchemaAssessment(ctx context.Context, collectors assessmentCollectors) (*utils.SchemaAssessmentOutput, error) {
+	logger.Log.Info("starting schema assessment...")
+	schemaOut := &utils.SchemaAssessmentOutput{}
 
-	if collectors.appAssessmentCollector != nil {
-		logger.Log.Info("adding app assessment details")
-		codeAssessment, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
+	srcTableDefs, spTableDefs := collectors.infoSchemaCollector.ListTables()
+	srcColDefs, spColDefs := collectors.infoSchemaCollector.ListColumnDefinitions()
+	srcIndexes, spIndexes := collectors.infoSchemaCollector.ListIndexes()
 
-		if err != nil {
-			logger.Log.Error("error analyzing project", zap.Error(err))
-			return schemaOut, err
+	tableAssessments := []utils.TableAssessment{}
+	for tableId, srcTableDef := range srcTableDefs {
+		spTableDef := spTableDefs[tableId]
+		tableSizeDiff := tableSizeDiffBytes(&srcTableDef, &spTableDef)
+
+		columnAssessments := []utils.ColumnAssessment{}
+
+		//Populate column info
+		for id, srcColumn := range srcColDefs {
+			spColumn := spColDefs[id]
+			if srcColumn.TableId != tableId {
+				//Column not of current table
+				continue
+			}
+			isTypeCompatible := mysql.SourceSpecificComparisonImpl{}.IsDataTypeCodeCompatible(srcColumn, spColumn) // Make generic when more sources added
+			sizeIncreaseInBytes := getSpColSizeBytes(spColumn) - srcColumn.MaxColumnSize
+			colAssessment := utils.ColumnAssessment{SourceColDef: &srcColumn, SpannerColDef: &spColumn, CompatibleDataType: isTypeCompatible, SizeIncreaseInBytes: int(sizeIncreaseInBytes)}
+			columnAssessments = append(columnAssessments, colAssessment)
 		}
 
-		logger.Log.Info(fmt.Sprintf("snippets %+v", codeAssessment.Snippets))
-		schemaOut.CodeSnippets = &codeAssessment.Snippets
+		//Populate indexes
+		tableSrcIndexes := []utils.SrcIndexDetails{}
+		for _, srcIndex := range srcIndexes {
+			if srcIndex.TableId == tableId {
+				tableSrcIndexes = append(tableSrcIndexes, srcIndex)
+			}
+		}
+
+		tableSpIndexes := []utils.SpIndexDetails{}
+		for _, spIndex := range spIndexes {
+			if spIndex.TableId == tableId {
+				tableSpIndexes = append(tableSpIndexes, spIndex)
+			}
+		}
+
+		tableAssessment := utils.TableAssessment{
+			SourceTableDef:      &srcTableDef,
+			SpannerTableDef:     &spTableDef,
+			Columns:             columnAssessments,
+			SourceIndexDef:      tableSrcIndexes,
+			SpannerIndexDef:     tableSpIndexes,
+			CompatibleCharset:   isCharsetCompatible(srcTableDef.Charset),
+			SizeIncreaseInBytes: tableSizeDiff,
+		}
+
+		tableAssessments = append(tableAssessments, tableAssessment)
 	}
+	schemaOut.TableAssessmentOutput = tableAssessments
+
+	schemaOut.TriggerAssessmentOutput = collectors.infoSchemaCollector.ListTriggers()
+	schemaOut.StoredProcedureAssessmentOutput = collectors.infoSchemaCollector.ListStoredProcedures()
+	schemaOut.FunctionAssessmentOutput = collectors.infoSchemaCollector.ListFunctions()
+	schemaOut.ViewAssessmentOutput = collectors.infoSchemaCollector.ListViews()
+	schemaOut.SpSequences = collectors.infoSchemaCollector.ListSpannerSequences()
+
+	logger.Log.Info("schema assessment completed successfully.")
 	return schemaOut, nil
+}
+
+func performAppAssessment(ctx context.Context, collectors assessmentCollectors) (*utils.AppCodeAssessmentOutput, error) {
+
+	if collectors.appAssessmentCollector == nil {
+		logger.Log.Info("not proceeding with app assessment as app collector was not initialized")
+		return nil, nil
+	}
+
+	logger.Log.Info("starting app assessment...")
+	codeAssessment, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
+
+	if err != nil {
+		logger.Log.Error("error analyzing project", zap.Error(err))
+		return nil, err
+	}
+
+	logger.Log.Debug("snippets: ", zap.Any("codeAssessment.Snippets", codeAssessment.Snippets))
+
+	logger.Log.Info("app assessment completed successfully.")
+	return &utils.AppCodeAssessmentOutput{
+		Language:     codeAssessment.Language,
+		Framework:    codeAssessment.Framework,
+		TotalLoc:     codeAssessment.TotalLoc,
+		TotalFiles:   codeAssessment.TotalFiles,
+		CodeSnippets: codeAssessment.Snippets,
+	}, nil
+}
+
+func isCharsetCompatible(srcCharset string) bool {
+	if !strings.Contains(srcCharset, "utf8") { // TODO add charset level comparisons - per source
+		return true
+	}
+	return false
+}
+
+func tableSizeDiffBytes(srcTableDef *utils.SrcTableDetails, spTableDef *utils.SpTableDetails) int {
+	// TODO - if no spanner table exists - return nil
+	return 1 //TODO - currently dummy implementation assuming spanner will always be bigger - to calculate based on charset and column size differences
+}
+
+// TODO - move to spanner interface?
+func getSpColSizeBytes(spCol utils.SpColumnDetails) int64 {
+	var size int64
+
+	switch strings.ToUpper(spCol.Datatype) {
+	case "ARRAY":
+		return 10 * 1024 * 1024
+	case "BOOL":
+		size = 1
+	case "BYTES":
+		size = spCol.Len
+	case "DATE":
+		size = 4
+	case "FLOAT32":
+		size = 4
+	case "FLOAT64":
+		size = 8
+	case "INT64":
+		size = 8
+	case "JSON":
+		return 10 * 1024 * 1024
+	case "NUMERIC":
+		size = 22
+	case "PROTO":
+		size = spCol.Len
+	case "STRING":
+		size = spCol.Len
+	case "STRUCT":
+		return 10 * 1024 * 1024
+	case "TIMESTAMP":
+		return 12
+	default:
+		return 8
+	}
+	return 8 + size //Overhead per col plus size
 }
