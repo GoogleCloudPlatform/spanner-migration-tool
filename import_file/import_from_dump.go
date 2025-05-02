@@ -27,7 +27,7 @@ type ImportFromDumpImpl struct {
 	DatabaseName    string
 	DumpUri         string
 	dumpReader      *os.File
-	Driver          string
+	SourceFormat    string
 	SpannerAccessor spanneraccessor.SpannerAccessor
 	schemaToSpanner common.SchemaToSpannerInterface
 	dbDumpProcessor common.DbDump
@@ -38,9 +38,9 @@ func NewImportFromDump(
 	instanceId string,
 	databaseName string,
 	dumpUri string,
-	driver string,
+	sourceFormat string,
 	spannerAccessor spanneraccessor.SpannerAccessor) (ImportFromDump, error) {
-	dbDump, err := getDbDump(driver)
+	dbDump, err := getDbDump(sourceFormat)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func NewImportFromDump(
 		databaseName,
 		dumpUri,
 		dumpReader,
-		driver,
+		sourceFormat,
 		spannerAccessor,
 		schemaToSpanner,
 		dbDump,
@@ -74,7 +74,7 @@ func (source *ImportFromDumpImpl) CreateSchema(dialect string) (*internal.Conv, 
 	r := internal.NewReader(bufio.NewReader(source.dumpReader), nil)
 	conv := internal.MakeConv()
 	conv.SpDialect = dialect
-	conv.Source = source.Driver
+	conv.Source = source.SourceFormat
 	conv.SpProjectId = source.ProjectId
 	conv.SpInstanceId = source.InstanceId
 	conv.SetSchemaMode() // Build schema and ignore data in dump.
@@ -117,7 +117,7 @@ func getDbDump(sourceFormat string) (common.DbDump, error) {
 	case constants.PGDUMP:
 		return postgres.DbDumpImpl{}, nil
 	default:
-		return nil, fmt.Errorf("process dump for driver %s not supported", sourceFormat)
+		return nil, fmt.Errorf("process dump for sourceFormat %s not supported", sourceFormat)
 	}
 }
 

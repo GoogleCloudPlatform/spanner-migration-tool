@@ -18,7 +18,7 @@ import (
 func TestCreateSchema(t *testing.T) {
 	testCases := []struct {
 		name                 string
-		driver               string
+		sourceFormat         string
 		dumpContent          string
 		processDumpError     error
 		schemaToSpannerError error
@@ -28,7 +28,7 @@ func TestCreateSchema(t *testing.T) {
 	}{
 		{
 			name:                 "Successful schema creation",
-			driver:               constants.MYSQLDUMP,
+			sourceFormat:         constants.MYSQLDUMP,
 			dumpContent:          "CREATE TABLE test (id INT PRIMARY KEY);",
 			processDumpError:     nil,
 			schemaToSpannerError: nil,
@@ -42,7 +42,7 @@ func TestCreateSchema(t *testing.T) {
 		},
 		{
 			name:                 "Error in process dump",
-			driver:               constants.MYSQLDUMP,
+			sourceFormat:         constants.MYSQLDUMP,
 			dumpContent:          "CREATE TABLE test (id INT PRIMARY KEY);",
 			processDumpError:     errors.New("failed to parse the dump file"),
 			schemaToSpannerError: nil,
@@ -52,7 +52,7 @@ func TestCreateSchema(t *testing.T) {
 		},
 		{
 			name:                 "Error in process dump",
-			driver:               constants.MYSQLDUMP,
+			sourceFormat:         constants.MYSQLDUMP,
 			dumpContent:          "CREATE TABLE test (id INT PRIMARY KEY);",
 			processDumpError:     nil,
 			schemaToSpannerError: errors.New("failed to convert schema to spanner DDL"),
@@ -83,7 +83,7 @@ func TestCreateSchema(t *testing.T) {
 				InstanceId:      "test-instance",
 				DatabaseName:    "test-db",
 				DumpUri:         file.Name(),
-				Driver:          tc.driver,
+				SourceFormat:    tc.sourceFormat,
 				SpannerAccessor: spannerAccessorMock,
 				dbDumpProcessor: dbDumpProcessorMock,
 				schemaToSpanner: schemaToSchema,
@@ -112,21 +112,21 @@ func TestCreateSchema(t *testing.T) {
 func TestImportData(t *testing.T) {
 	testCases := []struct {
 		name             string
-		driver           string
+		sourceFormat     string
 		dumpContent      string
 		expectedError    error
 		expectedErrorMsg string
 	}{
 		{
 			name:             "Successful data import",
-			driver:           constants.MYSQLDUMP,
+			sourceFormat:     constants.MYSQLDUMP,
 			dumpContent:      "INSERT INTO test (id) VALUES (1);",
 			expectedError:    nil,
 			expectedErrorMsg: "",
 		},
 		{
 			name:             "Successful data import",
-			driver:           constants.MYSQLDUMP,
+			sourceFormat:     constants.MYSQLDUMP,
 			dumpContent:      "INSERT INTO test (id) VALUES (1);",
 			expectedErrorMsg: "error in processing dump",
 			expectedError:    errors.New("error in processing dump"),
@@ -157,7 +157,7 @@ func TestImportData(t *testing.T) {
 				InstanceId:      "test-instance",
 				DatabaseName:    "test-db",
 				DumpUri:         file.Name(),
-				Driver:          tc.driver,
+				SourceFormat:    tc.sourceFormat,
 				SpannerAccessor: spannerAccessorMock,
 				dbDumpProcessor: dbDumpProcessorMock,
 				schemaToSpanner: schemaToSchema,
@@ -165,7 +165,7 @@ func TestImportData(t *testing.T) {
 
 			conv := &internal.Conv{
 				SpDialect:    constants.DIALECT_GOOGLESQL,
-				Source:       tc.driver,
+				Source:       tc.sourceFormat,
 				SpProjectId:  "test-project",
 				SpInstanceId: "test-instance",
 			}
@@ -188,30 +188,30 @@ func TestImportData(t *testing.T) {
 func TestGetDbDump(t *testing.T) {
 	testCases := []struct {
 		name          string
-		driver        string
+		sourceFormat  string
 		expectedType  interface{}
 		expectedError error
 	}{
 		{
 			name:         "MySQL Dump",
-			driver:       constants.MYSQLDUMP,
+			sourceFormat: constants.MYSQLDUMP,
 			expectedType: mysql.DbDumpImpl{},
 		},
 		{
 			name:         "Postgres Dump",
-			driver:       constants.PGDUMP,
+			sourceFormat: constants.PGDUMP,
 			expectedType: postgres.DbDumpImpl{},
 		},
 		{
-			name:          "Unsupported Driver",
-			driver:        "unsupported",
-			expectedError: errors.New("process dump for driver unsupported not supported"),
+			name:          "Unsupported SourceFormat",
+			sourceFormat:  "unsupported",
+			expectedError: errors.New("process dump for sourceFormat unsupported not supported"),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			dbDump, err := getDbDump(tc.driver)
+			dbDump, err := getDbDump(tc.sourceFormat)
 			if tc.expectedError != nil {
 				assert.EqualError(t, err, tc.expectedError.Error())
 				assert.Nil(t, dbDump)

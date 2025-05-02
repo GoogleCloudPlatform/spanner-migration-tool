@@ -64,10 +64,10 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 			dialect:   constants.DIALECT_GOOGLESQL,
 			spannerAccessorMock: func(t *testing.T) spanneraccessor.SpannerAccessor {
 				mock := &spanneraccessor.SpannerAccessorMock{
-					CreateOrUpdateDatabaseMock: func(ctx context.Context, dbURI, driver string, conv *internal.Conv, migrationType string) error {
+					CreateOrUpdateDatabaseMock: func(ctx context.Context, dbURI, sourceFormat string, conv *internal.Conv, migrationType string) error {
 
 						assert.Equal(t, "projects/test-project/instances/test-instance/databases/test-db", dbURI)
-						assert.Equal(t, "mysqldump", driver)
+						assert.Equal(t, constants.MYSQLDUMP, sourceFormat)
 						assert.Equal(t, expectedDDL, fetchDDLString(conv))
 
 						return nil
@@ -98,7 +98,7 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 			dialect:   constants.DIALECT_GOOGLESQL,
 			spannerAccessorMock: func(t *testing.T) spanneraccessor.SpannerAccessor {
 				mock := &spanneraccessor.SpannerAccessorMock{
-					CreateOrUpdateDatabaseMock: func(ctx context.Context, dbURI, driver string, conv *internal.Conv, migrationType string) error {
+					CreateOrUpdateDatabaseMock: func(ctx context.Context, dbURI, sourceFormat string, conv *internal.Conv, migrationType string) error {
 						return fmt.Errorf("failed to create or update database")
 					},
 					GetSpannerClientMock: func() spannerclient.SpannerClient {
@@ -115,7 +115,7 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 			dialect:   constants.DIALECT_GOOGLESQL,
 			spannerAccessorMock: func(t *testing.T) spanneraccessor.SpannerAccessor {
 				mock := &spanneraccessor.SpannerAccessorMock{
-					CreateOrUpdateDatabaseMock: func(ctx context.Context, dbURI, driver string, conv *internal.Conv, migrationType string) error {
+					CreateOrUpdateDatabaseMock: func(ctx context.Context, dbURI, sourceFormat string, conv *internal.Conv, migrationType string) error {
 						return nil
 					},
 					GetSpannerClientMock: func() spannerclient.SpannerClient {

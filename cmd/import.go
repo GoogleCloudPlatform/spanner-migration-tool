@@ -116,9 +116,9 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, dialect s
 
 }
 
-func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, driver string, dialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
+func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, sourceFormat string, dialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
 
-	importDump, err := import_file.NewImportFromDump(cmd.project, cmd.instanceId, cmd.databaseName, cmd.sourceUri, driver, spannerAccessor)
+	importDump, err := import_file.NewImportFromDump(cmd.project, cmd.instanceId, cmd.databaseName, cmd.sourceUri, sourceFormat, spannerAccessor)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,8 @@ func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, dri
 		return fmt.Errorf(fmt.Sprintf("can't create schema: %v\n", err))
 	}
 
-	err = spannerAccessor.CreateOrUpdateDatabase(ctx, dbUri, driver, conv, driver)
+	// TODO: Only update database
+	err = spannerAccessor.CreateOrUpdateDatabase(ctx, dbUri, sourceFormat, conv, sourceFormat)
 	spannerAccessor.Refresh(ctx, dbUri)
 
 	schemaEndTime := time.Now()
