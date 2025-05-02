@@ -1,74 +1,96 @@
 package import_file
 
 import (
-	"cloud.google.com/go/spanner"
-	"context"
 	"errors"
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"os"
 	"testing"
-	"time"
-
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateSchema(t *testing.T) {
 	testCases := []struct {
-		name             string
-		driver           string
-		dumpContent      string
-		processDumpError error
-		expectedConv     *internal.Conv
-		expectedError    error
-		expectedErrorMsg string
+		name                 string
+		driver               string
+		dumpContent          string
+		processDumpError     error
+		schemaToSpannerError error
+		expectedConv         *internal.Conv
+		expectedError        error
+		expectedErrorMsg     string
 	}{
 		{
-			name:             "Successful schema creation",
-			driver:           "mysql",
-			dumpContent:      "CREATE TABLE test (id INT PRIMARY KEY);",
-			processDumpError: nil,
+			name:                 "Successful schema creation",
+			driver:               constants.MYSQLDUMP,
+			dumpContent:          "CREATE TABLE test (id INT PRIMARY KEY);",
+			processDumpError:     nil,
+			schemaToSpannerError: nil,
 			expectedConv: &internal.Conv{
 				SpDialect:    constants.DIALECT_GOOGLESQL,
-				Source:       "mysql",
+				Source:       constants.MYSQLDUMP,
 				SpProjectId:  "test-project",
 				SpInstanceId: "test-instance",
 			},
 			expectedError: nil,
 		},
 		{
-			name:             "Error in process dump",
-			driver:           "mysql",
-			dumpContent:      "CREATE TABLE test (id INT PRIMARY KEY);",
-			processDumpError: errors.New("process dump error"),
-			expectedConv:     nil,
-			expectedError:    errors.New("failed to parse the dump file"),
-			expectedErrorMsg: "failed to parse the dump file",
+			name:                 "Error in process dump",
+			driver:               constants.MYSQLDUMP,
+			dumpContent:          "CREATE TABLE test (id INT PRIMARY KEY);",
+			processDumpError:     errors.New("failed to parse the dump file"),
+			schemaToSpannerError: nil,
+			expectedConv:         nil,
+			expectedError:        errors.New("failed to parse the dump file"),
+			expectedErrorMsg:     "failed to parse the dump file",
+		},
+		{
+			name:                 "Error in process dump",
+			driver:               constants.MYSQLDUMP,
+			dumpContent:          "CREATE TABLE test (id INT PRIMARY KEY);",
+			processDumpError:     nil,
+			schemaToSpannerError: errors.New("failed to convert schema to spanner DDL"),
+			expectedConv:         nil,
+			expectedError:        errors.New("failed to convert schema to spanner DDL"),
+			expectedErrorMsg:     "failed to convert schema to spanner DDL",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Arrange
-			mockProcessDump := conversion.MockProcessDumpByDialect{}
-			mockProcessDump.On("ProcessDump", tc.driver, mock.Anything, mock.Anything).Return(tc.processDumpError)
+			spannerAccessorMock := &spanneraccessor.SpannerAccessorMock{}
+
 			file, err := os.CreateTemp("", "testfile.sql")
 			file.WriteString(tc.dumpContent)
 			file.Close()
 
+			dbDumpProcessorMock := &common.MockDbDump{}
+			dbDumpProcessorMock.On("ProcessDump", mock.Anything, mock.Anything).Return(tc.processDumpError)
+
+			dbDumpProcessorMock.On("GetToDdl").Return(&common.MockToDdl{})
+
+			schemaToSchema := &common.MockSchemaToSpanner{}
+			schemaToSchema.On("SchemaToSpannerDDL", mock.Anything, mock.Anything, mock.Anything).Return(tc.schemaToSpannerError)
+
 			source := &ImportFromDumpImpl{
-				ProjectId:  "test-project",
-				InstanceId: "test-instance",
-				DbName:     "test-db",
-				DumpUri:    file.Name(),
-				Driver:     tc.driver,
+				ProjectId:       "test-project",
+				InstanceId:      "test-instance",
+				DbName:          "test-db",
+				DumpUri:         file.Name(),
+				Driver:          tc.driver,
+				SpannerAccessor: spannerAccessorMock,
+				dbDumpProcessor: dbDumpProcessorMock,
+				schemaToSpanner: schemaToSchema,
 			}
 
 			// Act
-			conv, err := source.CreateSchema(constants.DIALECT_GOOGLESQL, &mockProcessDump)
+			conv, err := source.CreateSchema(constants.DIALECT_GOOGLESQL)
 
 			// Assert
 			if tc.expectedError != nil {
@@ -83,7 +105,6 @@ func TestCreateSchema(t *testing.T) {
 				assert.Equal(t, tc.expectedConv.SpInstanceId, conv.SpInstanceId)
 				assert.True(t, conv.SchemaMode())
 			}
-			mockProcessDump.AssertExpectations(t)
 		})
 	}
 }
@@ -93,67 +114,131 @@ func TestImportData(t *testing.T) {
 		name             string
 		driver           string
 		dumpContent      string
-		processDumpError error
 		expectedError    error
 		expectedErrorMsg string
-		spannerError     error
 	}{
 		{
 			name:             "Successful data import",
-			driver:           "mysql",
+			driver:           constants.MYSQLDUMP,
 			dumpContent:      "INSERT INTO test (id) VALUES (1);",
-			processDumpError: nil,
 			expectedError:    nil,
+			expectedErrorMsg: "",
+		},
+		{
+			name:             "Successful data import",
+			driver:           constants.MYSQLDUMP,
+			dumpContent:      "INSERT INTO test (id) VALUES (1);",
+			expectedErrorMsg: "error in processing dump",
+			expectedError:    errors.New("error in processing dump"),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
-			mockProcessDump := conversion.MockProcessDumpByDialect{}
-			mockProcessDump.On("ProcessDump", tc.driver, mock.Anything, mock.Anything).Return(tc.processDumpError)
 
-			spannerClientMock := spannerclient.SpannerClientMock{
-				ApplyMock: func(ctx context.Context, ms []*spanner.Mutation, opts ...spanner.ApplyOption) (commitTimestamp time.Time, err error) {
-					return time.Now(), tc.spannerError
+			spannerClientMock := spannerclient.SpannerClientMock{}
+
+			spannerAccessorMock := &spanneraccessor.SpannerAccessorMock{
+				GetSpannerClientMock: func() spannerclient.SpannerClient {
+					return &spannerClientMock
 				},
 			}
+			schemaToSchema := &common.MockSchemaToSpanner{}
+
+			dbDumpProcessorMock := &common.MockDbDump{}
+			dbDumpProcessorMock.On("ProcessDump", mock.Anything, mock.Anything).Return(tc.expectedError)
+
 			file, err := os.CreateTemp("", "testfile.sql")
 			file.WriteString(tc.dumpContent)
 			file.Close()
-
 			source := &ImportFromDumpImpl{
-				ProjectId:  "test-project",
-				InstanceId: "test-instance",
-				DbName:     "test-db",
-				DumpUri:    file.Name(),
-				dumpReader: file,
-				Driver:     tc.driver,
+				ProjectId:       "test-project",
+				InstanceId:      "test-instance",
+				DbName:          "test-db",
+				DumpUri:         file.Name(),
+				Driver:          tc.driver,
+				SpannerAccessor: spannerAccessorMock,
+				dbDumpProcessor: dbDumpProcessorMock,
+				schemaToSpanner: schemaToSchema,
 			}
+
 			conv := &internal.Conv{
 				SpDialect:    constants.DIALECT_GOOGLESQL,
-				Source:       "mysql",
+				Source:       tc.driver,
 				SpProjectId:  "test-project",
 				SpInstanceId: "test-instance",
 			}
 
 			// Act
-			err = source.ImportData(conv, &mockProcessDump, spannerClientMock)
+			err = source.ImportData(conv)
 
 			assert.True(t, conv.DataMode())
 			// Assert
 			if tc.expectedError != nil {
-				if tc.spannerError != nil {
-					assert.Equal(t, err.Error(), tc.spannerError.Error())
-				} else {
-					assert.EqualError(t, err, tc.expectedErrorMsg)
-				}
-
+				assert.EqualError(t, err, tc.expectedErrorMsg)
 			} else {
 				assert.NoError(t, err)
 			}
 
-			mockProcessDump.AssertExpectations(t)
 		})
 	}
+}
+
+func TestGetDbDump(t *testing.T) {
+	testCases := []struct {
+		name          string
+		driver        string
+		expectedType  interface{}
+		expectedError error
+	}{
+		{
+			name:         "MySQL Dump",
+			driver:       constants.MYSQLDUMP,
+			expectedType: mysql.DbDumpImpl{},
+		},
+		{
+			name:         "Postgres Dump",
+			driver:       constants.PGDUMP,
+			expectedType: postgres.DbDumpImpl{},
+		},
+		{
+			name:          "Unsupported Driver",
+			driver:        "unsupported",
+			expectedError: errors.New("process dump for driver unsupported not supported"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dbDump, err := getDbDump(tc.driver)
+			if tc.expectedError != nil {
+				assert.EqualError(t, err, tc.expectedError.Error())
+				assert.Nil(t, dbDump)
+			} else {
+				assert.NoError(t, err)
+				assert.IsType(t, tc.expectedType, dbDump)
+			}
+		})
+	}
+}
+
+func TestFinalize(t *testing.T) {
+	file, err := os.CreateTemp("", "testfile.sql")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(file.Name())
+
+	source := &ImportFromDumpImpl{
+		dumpReader: file,
+	}
+
+	err = source.Finalize()
+	assert.NoError(t, err)
+
+	// Verify that the file is closed
+	_, err = file.Read([]byte{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "file already closed")
 }

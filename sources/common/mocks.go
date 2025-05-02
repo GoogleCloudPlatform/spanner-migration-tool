@@ -56,13 +56,18 @@ type MockSchemaToSpanner struct {
 	mock.Mock
 }
 
-func (mss *MockSchemaToSpanner) SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
-	args := mss.Called(conv, toddl)
+func (mss *MockSchemaToSpanner) SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl, attributes internal.AdditionalSchemaAttributes) error {
+	args := mss.Called(conv, toddl, attributes)
 	return args.Error(0)
 }
 
 func (mss *MockSchemaToSpanner) SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error {
 	args := mss.Called(conv, toddl, srcTable, isRestore)
+	return args.Error(0)
+}
+
+func (mss *MockSchemaToSpanner) SchemaToSpannerSequenceHelper(conv *internal.Conv, srcSequence ddl.Sequence) error {
+	args := mss.Called(conv, srcSequence)
 	return args.Error(0)
 }
 

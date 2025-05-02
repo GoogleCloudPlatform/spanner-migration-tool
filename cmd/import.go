@@ -18,8 +18,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_file"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
 	"time"
@@ -120,26 +118,15 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, dialect s
 
 func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, driver string, dialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
 
-	importDump := &import_file.ImportFromDumpImpl{
-		ProjectId:  cmd.project,
-		InstanceId: cmd.instanceId,
-		DbName:     cmd.databaseName,
-		DumpUri:    cmd.sourceUri,
-		Driver:     driver,
+	importDump, err := import_file.NewImportFromDump(cmd.project, cmd.instanceId, cmd.databaseName, cmd.sourceUri, nil, driver, spannerAccessor)
+	if err != nil {
+		return err
 	}
 
 	defer importDump.Finalize()
 
-	expressionVerificationAccessor := &expressions_api.ExpressionVerificationAccessorImpl{
-		SpannerAccessor: spannerAccessor,
-	}
-
-	processDump := &conversion.ProcessDumpByDialectImpl{
-		ExpressionVerificationAccessor: expressionVerificationAccessor,
-	}
-
 	schemaStartTime := time.Now()
-	conv, err := importDump.CreateSchema(dialect, processDump)
+	conv, err := importDump.CreateSchema(dialect)
 	if err != nil {
 		return fmt.Errorf(fmt.Sprintf("can't create schema: %v\n", err))
 	}
@@ -158,7 +145,7 @@ func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, dri
 		return err
 	}
 
-	err = importDump.ImportData(conv, processDump, spannerAccessor.GetSpannerClient())
+	err = importDump.ImportData(conv)
 
 	dataEndTime := time.Now()
 	elapsedTime = dataEndTime.Sub(schemaEndTime)
