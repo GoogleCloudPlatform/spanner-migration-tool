@@ -29,8 +29,8 @@ type CsvDataImpl struct {
 func (source *CsvDataImpl) ImportData(ctx context.Context, spannerInfoSchema *spanner.InfoSchemaImpl, dialect string, conv *internal.Conv, commonInfoSchema common.InfoSchemaInterface, csv csv.CsvInterface) error {
 	// TODO: Response code -  error /success contract between gcloud and SMT
 
-	conv := getConvObject(source.ProjectId, source.InstanceId, dialect)
-	batchWriter := writer.GetBatchWriterWithConfig(ctx, infoSchema.SpannerClient, conv)
+	conv = getConvObject(source.ProjectId, source.InstanceId, dialect, conv)
+	batchWriter := getBatchWriterWithConfig(spannerInfoSchema.SpannerClient, conv)
 
 	err := spannerInfoSchema.PopulateSpannerSchema(ctx, conv, commonInfoSchema)
 	if err != nil {
