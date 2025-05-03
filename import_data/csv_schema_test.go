@@ -29,12 +29,11 @@ func TestCsvSchemaImpl_CreateSchema(t *testing.T) {
 		{
 			name: "successful schema creation",
 			source: CsvSchemaImpl{
-				ProjectId:         "test-project",
-				InstanceId:        "test-instance",
-				DbName:            "test-db",
-				TableName:         "test-table",
-				SchemaUri:         "../test_data/basic_csv_schema.csv",
-				CsvFieldDelimiter: ",",
+				ProjectId:  "test-project",
+				InstanceId: "test-instance",
+				DbName:     "test-db",
+				TableName:  "test-table",
+				SchemaUri:  "../test_data/basic_csv_schema.json",
 			},
 			dialect:           constants.DIALECT_GOOGLESQL,
 			spannerClientMock: getSpannerClientMock(getDefaultRowIteratoMock()),
@@ -44,12 +43,11 @@ func TestCsvSchemaImpl_CreateSchema(t *testing.T) {
 		{
 			name: "table exists",
 			source: CsvSchemaImpl{
-				ProjectId:         "test-project",
-				InstanceId:        "test-instance",
-				DbName:            "test-db",
-				TableName:         "test-table",
-				SchemaUri:         "../test_data/basic_csv_schema.csv",
-				CsvFieldDelimiter: ",",
+				ProjectId:  "test-project",
+				InstanceId: "test-instance",
+				DbName:     "test-db",
+				TableName:  "test-table",
+				SchemaUri:  "../test_data/basic_csv_schema.json",
 			},
 			dialect: constants.DIALECT_GOOGLESQL,
 			spannerClientMock: getSpannerClientMock(&spannerclient.RowIteratorMock{
@@ -64,12 +62,11 @@ func TestCsvSchemaImpl_CreateSchema(t *testing.T) {
 		{
 			name: "update database ddl error",
 			source: CsvSchemaImpl{
-				ProjectId:         "test-project",
-				InstanceId:        "test-instance",
-				DbName:            "test-db",
-				TableName:         "test-table",
-				SchemaUri:         "../test_data/basic_csv_schema.csv",
-				CsvFieldDelimiter: ",",
+				ProjectId:  "test-project",
+				InstanceId: "test-instance",
+				DbName:     "test-db",
+				TableName:  "test-table",
+				SchemaUri:  "../test_data/basic_csv_schema.json",
 			},
 			dialect:           constants.DIALECT_GOOGLESQL,
 			spannerClientMock: getSpannerClientMock(getDefaultRowIteratoMock()),
