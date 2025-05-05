@@ -15,8 +15,11 @@
 package writer
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"reflect"
 	"sort"
 	"strings"
@@ -237,4 +240,22 @@ func partitionRows(badRowIndex map[int]bool, data []*row) (goodRows []*row, badR
 		}
 	}
 	return goodRows, badRows
+}
+
+func Test_getBatchWriterWithConfig(t *testing.T) {
+	spannerClient := getSpannerClientMock()
+	conv := internal.MakeConv()
+	bw := GetBatchWriterWithConfig(context.Background(), spannerClient, conv)
+
+	if bw == nil {
+		t.Errorf("getBatchWriterWithConfig() returned nil")
+	}
+}
+
+func getSpannerClientMock() spannerclient.SpannerClientMock {
+	return spannerclient.SpannerClientMock{
+		SingleMock: func() spannerclient.ReadOnlyTransaction {
+			return &spannerclient.ReadOnlyTransactionMock{}
+		},
+	}
 }

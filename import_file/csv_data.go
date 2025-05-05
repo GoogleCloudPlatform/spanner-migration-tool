@@ -8,6 +8,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"go.uber.org/zap"
 )
 
@@ -30,7 +31,7 @@ func (source *CsvDataImpl) ImportData(ctx context.Context, infoSchema *spanner.I
 	// TODO: get CSV locally. start with unchunked and later figure out chunking for larger sizes
 
 	conv := getConvObject(source.ProjectId, source.InstanceId, dialect)
-	batchWriter := getBatchWriterWithConfig(infoSchema.SpannerClient, conv)
+	batchWriter := writer.GetBatchWriterWithConfig(ctx, infoSchema.SpannerClient, conv)
 
 	err := infoSchema.PopulateSpannerSchema(ctx, conv)
 	if err != nil {

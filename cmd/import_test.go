@@ -22,6 +22,7 @@ import (
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_file"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +39,8 @@ func TestBasicCsvImport(t *testing.T) {
 	fs := flag.NewFlagSet("testSetFlags", flag.ContinueOnError)
 	importDataCmd.SetFlags(fs)
 
-	importDataCmd.instanceId = ""
+	importDataCmd.project = "test-project"
+	importDataCmd.instanceId = "test-instance"
 	importDataCmd.databaseName = "versionone"
 	importDataCmd.tableName = "table2"
 	importDataCmd.sourceUri = "../test_data/basic_csv.csv"
@@ -46,7 +48,6 @@ func TestBasicCsvImport(t *testing.T) {
 	importDataCmd.schemaUri = "../test_data/basic_csv_schema.csv"
 	importDataCmd.csvLineDelimiter = "\n"
 	importDataCmd.csvFieldDelimiter = ","
-	importDataCmd.project = ""
 	importDataCmd.Execute(context.Background(), fs)
 }
 
@@ -127,6 +128,7 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 			wantErr: true,
 		},
 	}
+	originalSpannerAccessorFunc := import_file.NewSpannerAccessor
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -138,13 +140,15 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 				sourceUri:    tt.sourceUri,
 				sourceFormat: constants.MYSQLDUMP,
 			}
-			spannerAccessorMock := tt.spannerAccessorMock(t)
+			import_file.NewSpannerAccessor = func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return tt.spannerAccessorMock(t), nil
+			}
+
 			err := cmd.handleDatabaseDumpFile(
 				ctx,
 				fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.databaseName),
 				constants.MYSQLDUMP,
-				tt.dialect,
-				spannerAccessorMock)
+				tt.dialect)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -153,6 +157,7 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 			}
 		})
 	}
+	import_file.NewSpannerAccessor = originalSpannerAccessorFunc
 }
 
 func fetchDDLString(conv *internal.Conv) string {

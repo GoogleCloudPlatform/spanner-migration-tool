@@ -57,26 +57,21 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	logger.Log.Debug(fmt.Sprintf("instanceId %s, dbName %s, schemaUri %s\n", cmd.instanceId, cmd.databaseName, cmd.schemaUri))
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.databaseName)
-	sp, err := spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, dbURI)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
-		return subcommands.ExitFailure
-	}
 
 	switch cmd.sourceFormat {
 	case constants.CSV:
 		//TODO: handle POSTGRESQL
 		dialect := constants.DIALECT_GOOGLESQL
-		err := cmd.handleCsv(ctx, dbURI, dialect, sp)
+		err := cmd.handleCsv(ctx, dbURI, dialect)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle Csv %v", err))
 			return subcommands.ExitFailure
 		}
 		return subcommands.ExitSuccess
 	case constants.MYSQLDUMP:
-		err := cmd.handleDatabaseDumpFile(ctx, dbURI, constants.MYSQLDUMP, constants.DIALECT_GOOGLESQL, sp)
+		err := cmd.handleDatabaseDumpFile(ctx, dbURI, constants.MYSQLDUMP, constants.DIALECT_GOOGLESQL)
 		if err != nil {
-			logger.Log.Error(fmt.Sprintf("Unable to handle MYSQL Dump %v", err))
+			logger.Log.Error(fmt.Sprintf("Unable to handle MYSQL Dump %v. Please reachout to the support team.", err))
 			return subcommands.ExitFailure
 		}
 		return subcommands.ExitSuccess
@@ -86,7 +81,13 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	return subcommands.ExitFailure
 }
 
-func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, dialect string, sp *spanneraccessor.SpannerAccessorImpl) error {
+func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, dialect string) error {
+	// TODO: move this to dependent classes
+	sp, err := spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, dbURI)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Unable to read Spanner schema %v", err))
+		return fmt.Errorf("unable to read Spanner schema %v", err)
+	}
 	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, dialect)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Unable to read Spanner schema %v", err))
@@ -100,7 +101,7 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, dialect s
 
 	endTime1 := time.Now()
 	elapsedTime := endTime1.Sub(startTime)
-	fmt.Println("Schema creation took ", elapsedTime.Seconds(), "  secs")
+	logger.Log.Info(fmt.Sprintf("Schema creation took %f secs", elapsedTime.Seconds()))
 	if err != nil {
 		return err
 	}
@@ -111,43 +112,39 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, dialect s
 
 	endTime2 := time.Now()
 	elapsedTime = endTime2.Sub(endTime1)
-	fmt.Println("Data import took ", elapsedTime.Seconds(), "  secs")
+	logger.Log.Info(fmt.Sprintf("Data import took %f secs", elapsedTime.Seconds()))
 	return err
 
 }
 
-func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, sourceFormat string, dialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
+func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, sourceFormat string, dialect string) error {
 
-	importDump, err := import_file.NewImportFromDump(cmd.project, cmd.instanceId, cmd.databaseName, cmd.sourceUri, sourceFormat, spannerAccessor)
+	importDump, err := import_file.NewImportFromDump(ctx, cmd.project, cmd.instanceId, cmd.databaseName, cmd.sourceUri, sourceFormat, dbUri)
 	if err != nil {
-		return err
+		return fmt.Errorf("can't open dump file or create spanner client: %v", err)
 	}
 
-	defer importDump.Finalize()
+	defer importDump.Close()
 
 	schemaStartTime := time.Now()
-	conv, err := importDump.CreateSchema(dialect)
+	conv, err := importDump.CreateSchema(ctx, dialect)
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("can't create schema: %v\n", err))
+		return fmt.Errorf("can't create schema: %v", err)
 	}
-
-	// TODO: Only update database
-	err = spannerAccessor.CreateOrUpdateDatabase(ctx, dbUri, sourceFormat, conv, sourceFormat)
-	spannerAccessor.Refresh(ctx, dbUri)
 
 	schemaEndTime := time.Now()
 	elapsedTime := schemaEndTime.Sub(schemaStartTime)
 	logger.Log.Info(fmt.Sprintf("Schema creation took %f secs", elapsedTime.Seconds()))
-	if err != nil {
-		return err
-	}
 
-	err = importDump.ImportData(conv)
+	err = importDump.ImportData(ctx, conv)
 
 	dataEndTime := time.Now()
 	elapsedTime = dataEndTime.Sub(schemaEndTime)
 	logger.Log.Info(fmt.Sprintf("Data import took %f secs", elapsedTime.Seconds()))
-	return err
+	if err != nil {
+		return fmt.Errorf("can't import data: %v", err)
+	}
+	return nil
 
 }
 

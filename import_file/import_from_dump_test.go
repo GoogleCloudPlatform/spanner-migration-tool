@@ -1,6 +1,7 @@
 package import_file
 
 import (
+	"context"
 	"errors"
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
@@ -17,15 +18,14 @@ import (
 
 func TestNewImportFromDump(t *testing.T) {
 	tests := []struct {
-		name                string
-		projectId           string
-		instanceId          string
-		databaseName        string
-		dumpUri             string
-		sourceFormat        string
-		spannerAccessorMock func(t *testing.T) spanneraccessor.SpannerAccessor
-		wantErr             bool
-		expectedError       string
+		name          string
+		projectId     string
+		instanceId    string
+		databaseName  string
+		dumpUri       string
+		sourceFormat  string
+		wantErr       bool
+		expectedError string
 	}{
 		{
 			name:         "Successful creation",
@@ -34,44 +34,38 @@ func TestNewImportFromDump(t *testing.T) {
 			databaseName: "test-db",
 			dumpUri:      "../test_data/basic_mysql_dump.test.out",
 			sourceFormat: constants.MYSQLDUMP,
-			spannerAccessorMock: func(t *testing.T) spanneraccessor.SpannerAccessor {
-				return &spanneraccessor.SpannerAccessorMock{}
-			},
-			wantErr: false,
+			wantErr:      false,
 		},
 		{
-			name:         "Unsupported source format",
-			projectId:    "test-project",
-			instanceId:   "test-instance",
-			databaseName: "test-db",
-			dumpUri:      "../test_data/basic_mysql_dump.test.out",
-			sourceFormat: "unsupported",
-			spannerAccessorMock: func(t *testing.T) spanneraccessor.SpannerAccessor {
-				return &spanneraccessor.SpannerAccessorMock{}
-			},
+			name:          "Unsupported source format",
+			projectId:     "test-project",
+			instanceId:    "test-instance",
+			databaseName:  "test-db",
+			dumpUri:       "../test_data/basic_mysql_dump.test.out",
+			sourceFormat:  "unsupported",
 			wantErr:       true,
 			expectedError: "process dump for sourceFormat unsupported not supported",
 		},
 		{
-			name:         "Failed to open dump file",
-			projectId:    "test-project",
-			instanceId:   "test-instance",
-			databaseName: "test-db",
-			dumpUri:      "nonexistent_file.sql",
-			sourceFormat: constants.MYSQLDUMP,
-			spannerAccessorMock: func(t *testing.T) spanneraccessor.SpannerAccessor {
-				return &spanneraccessor.SpannerAccessorMock{}
-			},
+			name:          "Failed to open dump file",
+			projectId:     "test-project",
+			instanceId:    "test-instance",
+			databaseName:  "test-db",
+			dumpUri:       "nonexistent_file.sql",
+			sourceFormat:  constants.MYSQLDUMP,
 			wantErr:       true,
 			expectedError: "can't read dump file: nonexistent_file.sql due to: open nonexistent_file.sql: no such file or directory",
 		},
 	}
+	originalSpannerAccessorFunc := NewSpannerAccessor
+	NewSpannerAccessor = func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+		return &spanneraccessor.SpannerAccessorImpl{}, nil
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			spannerAccessor := tt.spannerAccessorMock(t)
 
-			_, err := NewImportFromDump(tt.projectId, tt.instanceId, tt.databaseName, tt.dumpUri, tt.sourceFormat, spannerAccessor)
+			_, err := NewImportFromDump(context.Background(), tt.projectId, tt.instanceId, tt.databaseName, tt.dumpUri, tt.sourceFormat, "db-uri")
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -89,18 +83,18 @@ func TestNewImportFromDump(t *testing.T) {
 		}
 		defer os.Remove(tmpFile.Name())
 
-		spannerAccessor := (&spanneraccessor.SpannerAccessorMock{})
-
 		_, err = NewImportFromDump(
+			context.Background(),
 			"test-project",
 			"test-instance",
 			"test-db",
 			tmpFile.Name(),
 			constants.MYSQLDUMP,
-			spannerAccessor,
+			"db-uri",
 		)
 		assert.NoError(t, err)
 	})
+	NewSpannerAccessor = originalSpannerAccessorFunc
 }
 
 func TestCreateSchema(t *testing.T) {
@@ -135,8 +129,8 @@ func TestCreateSchema(t *testing.T) {
 			processDumpError:     errors.New("failed to parse the dump file"),
 			schemaToSpannerError: nil,
 			expectedConv:         nil,
-			expectedError:        errors.New("failed to parse the dump file"),
-			expectedErrorMsg:     "failed to parse the dump file",
+			expectedError:        errors.New("failed to process source schema: failed to parse the dump file"),
+			expectedErrorMsg:     "failed to process source schema: failed to parse the dump file",
 		},
 		{
 			name:                 "Error in schema to spanner",
@@ -145,14 +139,20 @@ func TestCreateSchema(t *testing.T) {
 			processDumpError:     nil,
 			schemaToSpannerError: errors.New("failed to convert schema to spanner DDL"),
 			expectedConv:         nil,
-			expectedError:        errors.New("failed to convert schema to spanner DDL"),
-			expectedErrorMsg:     "failed to convert schema to spanner DDL",
+			expectedError:        errors.New("failed to convert schema to spanner DDL: failed to convert schema to spanner DDL"),
+			expectedErrorMsg:     "failed to convert schema to spanner DDL: failed to convert schema to spanner DDL",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			spannerAccessorMock := &spanneraccessor.SpannerAccessorMock{}
+			spannerAccessorMock := &spanneraccessor.SpannerAccessorMock{
+				CreateOrUpdateDatabaseMock: func(ctx context.Context, dbURI, sourceFormat string, conv *internal.Conv, migrationType string) error {
+					return nil
+				},
+				RefreshMock: func(ctx context.Context, dbURI string) {
+				},
+			}
 
 			file, err := os.CreateTemp("", "testfile.sql")
 			file.WriteString(tc.dumpContent)
@@ -177,7 +177,7 @@ func TestCreateSchema(t *testing.T) {
 				schemaToSpanner: schemaToSchema,
 			}
 
-			conv, err := source.CreateSchema(constants.DIALECT_GOOGLESQL)
+			conv, err := source.CreateSchema(context.Background(), constants.DIALECT_GOOGLESQL)
 
 			if tc.expectedError != nil {
 				assert.EqualError(t, err, tc.expectedErrorMsg)
@@ -254,7 +254,7 @@ func TestImportData(t *testing.T) {
 				SpInstanceId: "test-instance",
 			}
 
-			err = source.ImportData(conv)
+			err = source.ImportData(context.Background(), conv)
 
 			assert.True(t, conv.DataMode())
 
@@ -317,7 +317,7 @@ func TestFinalize(t *testing.T) {
 		dumpReader: file,
 	}
 
-	err = source.Finalize()
+	source.Close()
 	assert.NoError(t, err)
 
 	// Verify that the file is closed
