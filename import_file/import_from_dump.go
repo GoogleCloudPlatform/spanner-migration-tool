@@ -69,6 +69,7 @@ func NewImportFromDump(
 	}, nil
 }
 
+// CreateSchema Process database dump file. Convert schema to spanner DDL. Update the provided database with the schema.
 func (source *ImportFromDumpImpl) CreateSchema(dialect string) (*internal.Conv, error) {
 
 	r := internal.NewReader(bufio.NewReader(source.dumpReader), nil)
@@ -92,6 +93,7 @@ func (source *ImportFromDumpImpl) CreateSchema(dialect string) (*internal.Conv, 
 	return conv, nil
 }
 
+// ImportData process database dump file. Convert insert statement to spanner mutation. Load data into spanner.
 func (source *ImportFromDumpImpl) ImportData(conv *internal.Conv) error {
 	dumpReader, err := ResetReader(source.dumpReader, source.DumpUri)
 	if err != nil {

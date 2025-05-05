@@ -41,7 +41,7 @@ func TestCreateSchema(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:                 "Error in process dump",
+			name:                 "Error in processing dump",
 			sourceFormat:         constants.MYSQLDUMP,
 			dumpContent:          "CREATE TABLE test (id INT PRIMARY KEY);",
 			processDumpError:     errors.New("failed to parse the dump file"),
@@ -51,7 +51,7 @@ func TestCreateSchema(t *testing.T) {
 			expectedErrorMsg:     "failed to parse the dump file",
 		},
 		{
-			name:                 "Error in process dump",
+			name:                 "Error in schema to spanner",
 			sourceFormat:         constants.MYSQLDUMP,
 			dumpContent:          "CREATE TABLE test (id INT PRIMARY KEY);",
 			processDumpError:     nil,
@@ -89,10 +89,8 @@ func TestCreateSchema(t *testing.T) {
 				schemaToSpanner: schemaToSchema,
 			}
 
-			// Act
 			conv, err := source.CreateSchema(constants.DIALECT_GOOGLESQL)
 
-			// Assert
 			if tc.expectedError != nil {
 				assert.EqualError(t, err, tc.expectedErrorMsg)
 				assert.Nil(t, conv)
@@ -125,7 +123,7 @@ func TestImportData(t *testing.T) {
 			expectedErrorMsg: "",
 		},
 		{
-			name:             "Successful data import",
+			name:             "Error in processing dump",
 			sourceFormat:     constants.MYSQLDUMP,
 			dumpContent:      "INSERT INTO test (id) VALUES (1);",
 			expectedErrorMsg: "error in processing dump",
@@ -135,8 +133,6 @@ func TestImportData(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Arrange
-
 			spannerClientMock := spannerclient.SpannerClientMock{}
 
 			spannerAccessorMock := &spanneraccessor.SpannerAccessorMock{
@@ -170,11 +166,10 @@ func TestImportData(t *testing.T) {
 				SpInstanceId: "test-instance",
 			}
 
-			// Act
 			err = source.ImportData(conv)
 
 			assert.True(t, conv.DataMode())
-			// Assert
+
 			if tc.expectedError != nil {
 				assert.EqualError(t, err, tc.expectedErrorMsg)
 			} else {
