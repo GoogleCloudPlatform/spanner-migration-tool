@@ -48,7 +48,7 @@ func NewImportFromDump(
 	dumpReader, err := os.Open(dumpUri)
 	if err != nil {
 		if err != nil {
-			return nil, fmt.Errorf(fmt.Sprintf("can't read dump file: %s due to: %v\n", dumpUri, err))
+			return nil, fmt.Errorf(fmt.Sprintf("can't read dump file: %s due to: %v", dumpUri, err))
 		}
 	}
 

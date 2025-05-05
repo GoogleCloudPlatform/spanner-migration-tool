@@ -15,6 +15,94 @@ import (
 	"testing"
 )
 
+func TestNewImportFromDump(t *testing.T) {
+	tests := []struct {
+		name                string
+		projectId           string
+		instanceId          string
+		databaseName        string
+		dumpUri             string
+		sourceFormat        string
+		spannerAccessorMock func(t *testing.T) spanneraccessor.SpannerAccessor
+		wantErr             bool
+		expectedError       string
+	}{
+		{
+			name:         "Successful creation",
+			projectId:    "test-project",
+			instanceId:   "test-instance",
+			databaseName: "test-db",
+			dumpUri:      "../test_data/basic_mysql_dump.test.out",
+			sourceFormat: constants.MYSQLDUMP,
+			spannerAccessorMock: func(t *testing.T) spanneraccessor.SpannerAccessor {
+				return &spanneraccessor.SpannerAccessorMock{}
+			},
+			wantErr: false,
+		},
+		{
+			name:         "Unsupported source format",
+			projectId:    "test-project",
+			instanceId:   "test-instance",
+			databaseName: "test-db",
+			dumpUri:      "../test_data/basic_mysql_dump.test.out",
+			sourceFormat: "unsupported",
+			spannerAccessorMock: func(t *testing.T) spanneraccessor.SpannerAccessor {
+				return &spanneraccessor.SpannerAccessorMock{}
+			},
+			wantErr:       true,
+			expectedError: "process dump for sourceFormat unsupported not supported",
+		},
+		{
+			name:         "Failed to open dump file",
+			projectId:    "test-project",
+			instanceId:   "test-instance",
+			databaseName: "test-db",
+			dumpUri:      "nonexistent_file.sql",
+			sourceFormat: constants.MYSQLDUMP,
+			spannerAccessorMock: func(t *testing.T) spanneraccessor.SpannerAccessor {
+				return &spanneraccessor.SpannerAccessorMock{}
+			},
+			wantErr:       true,
+			expectedError: "can't read dump file: nonexistent_file.sql due to: open nonexistent_file.sql: no such file or directory",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spannerAccessor := tt.spannerAccessorMock(t)
+
+			_, err := NewImportFromDump(tt.projectId, tt.instanceId, tt.databaseName, tt.dumpUri, tt.sourceFormat, spannerAccessor)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.EqualError(t, err, tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+
+	t.Run("successful creation with a temporary file", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp("", "test_dump_*.sql")
+		if err != nil {
+			t.Fatalf("Failed to create temp file: %v", err)
+		}
+		defer os.Remove(tmpFile.Name())
+
+		spannerAccessor := (&spanneraccessor.SpannerAccessorMock{})
+
+		_, err = NewImportFromDump(
+			"test-project",
+			"test-instance",
+			"test-db",
+			tmpFile.Name(),
+			constants.MYSQLDUMP,
+			spannerAccessor,
+		)
+		assert.NoError(t, err)
+	})
+}
+
 func TestCreateSchema(t *testing.T) {
 	testCases := []struct {
 		name                 string
