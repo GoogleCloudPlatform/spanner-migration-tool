@@ -23,7 +23,7 @@ import (
 
 type AssessmentOutput struct {
 	CostAssessment        CostAssessmentOutput
-	SchemaAssessment      SchemaAssessmentOutput
+	SchemaAssessment      *SchemaAssessmentOutput
 	AppCodeAssessment     *AppCodeAssessmentOutput
 	QueryAssessment       QueryAssessmentOutput
 	PerformanceAssessment PerformanceAssessmentOutput
@@ -117,7 +117,7 @@ type SpTableDetails struct {
 type SpannerForeignKey struct {
 	Definition      ddl.Foreignkey
 	Ddl             string
-	IsInterleavable bool
+	IsInterleavable bool   // TODO: display this information in report
 	ParentTableName string // Applicable incase of interleaving
 }
 
