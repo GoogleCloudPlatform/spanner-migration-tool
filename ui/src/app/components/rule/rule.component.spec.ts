@@ -4,7 +4,7 @@ import { RuleComponent } from './rule.component'
 import { MatTableModule } from '@angular/material/table'
 import { MatIconModule } from '@angular/material/icon'
 import { By } from '@angular/platform-browser'
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatSnackBar } from '@angular/material/snack-bar'
 import { Overlay } from '@angular/cdk/overlay'
@@ -15,10 +15,10 @@ describe('RuleComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [RuleComponent],
-      providers: [DataService, MatSnackBar, Overlay],
-      imports: [MatTableModule, MatIconModule, HttpClientModule],
-    }).compileComponents()
+    declarations: [RuleComponent],
+    imports: [MatTableModule, MatIconModule],
+    providers: [DataService, MatSnackBar, Overlay, provideHttpClient(withInterceptorsFromDi())]
+}).compileComponents()
   })
 
   beforeEach(() => {

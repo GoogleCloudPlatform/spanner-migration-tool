@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing'
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { DataService } from './data.service'
 import { FetchService } from '../fetch/fetch.service'
 import { SnackbarService } from '../snackbar/snackbar.service'
@@ -18,13 +18,14 @@ describe('DataService', () => {
 
     beforeEach(() => {
         TestBed.configureTestingModule({
-            imports: [HttpClientModule],
-            providers: [
-                DataService,
-                { provide: SnackbarService, useValue: snackbarServiceSpy },
-                { provide: FetchService, useValue: fetchServiceSpy },
-            ],
-        })
+    imports: [],
+    providers: [
+        DataService,
+        { provide: SnackbarService, useValue: snackbarServiceSpy },
+        { provide: FetchService, useValue: fetchServiceSpy },
+        provideHttpClient(withInterceptorsFromDi()),
+    ]
+})
         fetchServiceSpy.getLastSessionDetails.and.returnValue(of(mockIConv));
         fetchServiceSpy.getSpannerConfig.and.returnValue(of(mockSpannerConfig));
         fetchServiceSpy.getIsOffline.and.returnValue(of(false));
