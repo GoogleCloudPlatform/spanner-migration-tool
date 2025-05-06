@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
@@ -16,21 +16,22 @@ describe('AddNewColumnComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [AddNewColumnComponent],
-      imports: [ReactiveFormsModule, HttpClientModule, MatSnackBarModule, MatDialogModule, MatSelectModule, MatInputModule, BrowserAnimationsModule],
-      providers: [
+    declarations: [AddNewColumnComponent],
+    imports: [ReactiveFormsModule, MatSnackBarModule, MatDialogModule, MatSelectModule, MatInputModule, BrowserAnimationsModule],
+    providers: [
         {
-          provide: MatDialogRef,
-          useValue: {
-            close: () => { },
-          },
+            provide: MatDialogRef,
+            useValue: {
+                close: () => { },
+            },
         },
         {
-          provide: MAT_DIALOG_DATA,
-          useValue: {}
-        }
-      ],
-    })
+            provide: MAT_DIALOG_DATA,
+            useValue: {}
+        },
+        provideHttpClient(withInterceptorsFromDi())
+    ]
+})
       .compileComponents();
   });
 

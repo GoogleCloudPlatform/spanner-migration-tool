@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { RouterModule, Routes } from '@angular/router'
 import { WorkspaceComponent } from '../workspace/workspace.component'
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { DirectConnectionComponent } from './direct-connection.component'
 import { By } from '@angular/platform-browser'
 import { ReactiveFormsModule } from '@angular/forms'
@@ -23,10 +23,8 @@ describe('DirectConnectionComponent', () => {
   let btn: any
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [DirectConnectionComponent],
-      imports: [
-        RouterModule.forRoot(appRoutes),
-        HttpClientModule,
+    declarations: [DirectConnectionComponent],
+    imports: [RouterModule.forRoot(appRoutes),
         ReactiveFormsModule,
         MatCardModule,
         MatSelectModule,
@@ -34,13 +32,13 @@ describe('DirectConnectionComponent', () => {
         MatFormFieldModule,
         MatInputModule,
         BrowserAnimationsModule,
-        MatSnackBarModule,
-      ],
-      providers: [
+        MatSnackBarModule],
+    providers: [
         SnackbarService,
-        { provide: MatDialog, useValue: {} }
-      ],
-    }).compileComponents()
+        { provide: MatDialog, useValue: {} },
+        provideHttpClient(withInterceptorsFromDi())
+    ]
+}).compileComponents()
   })
 
   beforeEach(() => {
