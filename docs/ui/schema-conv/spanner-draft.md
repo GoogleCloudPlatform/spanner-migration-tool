@@ -56,8 +56,9 @@ Users can view and edit the foreign key of a table from the foreign key tab. The
 
 Interleaving physically co-locates child rows with parent rows in storage. Co-location can significantly improve performance.For example, if there is a _Customers_ table and an _Invoices_ table, and the application frequently fetches all the invoices for a customer, users can define Invoices as an interleaved child table of Customers. In doing so, a data locality relationship between two independent tables is declared resulting in significant performance improvement.
 Spanner Migration Tool provides the option to convert a table into an interleaved table if it fulfills all the criteria.The Interleave tab shows up only for tables which are possible candidates for interleaving, based on the existing foreign keys. Once a table is converted into an interleaved table, the UI shows the information of the parent table. Users can also choose to remove this interleaving property and restore the foreign key by clicking on ‘**Convert back to foreign key**'.
-Currently Spanner Migration Tool uses the INTERLEAVE IN feature during migration. This allows child rows to be inserted
-without parent being present. This leads to a faster migration. After the migration is completed, users need to modify the
+Currently Spanner Migration Tool allows users to choose between INTERLEAVE IN feature that allows child rows to be inserted
+without parent being present or INTERLEAVE IN PARENT feature which maintains the referential integrity. The INTERLEAVE IN
+feature leads to a faster migration. After the migration is completed, users need to modify the
 DDL to shift from INTERLEAVE IN to INTERLEAVE IN PARENT so that the check for parent and child rows can be inforced.
 
 {: .note }
