@@ -115,7 +115,7 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 		return c, err
 	}
 	c.sampleCollector = &sampleCollector
-	infoSchemaCollector, err := assessment.CreateInfoSchemaCollector(conv, sourceProfile)
+	infoSchemaCollector, err := assessment.GetDefaultInfoSchemaCollector(conv, sourceProfile)
 	if infoSchemaCollector.IsEmpty() {
 		return c, err
 	}

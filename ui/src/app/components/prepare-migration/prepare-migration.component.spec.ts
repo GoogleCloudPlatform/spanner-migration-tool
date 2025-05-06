@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
@@ -18,13 +18,14 @@ describe('PrepareMigrationComponent', () => {
     dialogRefSpy = jasmine.createSpyObj('MatDialogRef', ['afterClosed']);
 
     await TestBed.configureTestingModule({
-      declarations: [PrepareMigrationComponent],
-      imports: [MatDialogModule, HttpClientModule, MatSnackBarModule],
-      providers: [
+    declarations: [PrepareMigrationComponent],
+    imports: [MatDialogModule, MatSnackBarModule],
+    providers: [
         { provide: MatDialogRef, useValue: dialogRefSpy },
-        { provide: MatDialog, useValue: { open: () => dialogRefSpy } }
-      ]
-    }).compileComponents();
+        { provide: MatDialog, useValue: { open: () => dialogRefSpy } },
+        provideHttpClient(withInterceptorsFromDi())
+    ]
+}).compileComponents();
 
     fixture = TestBed.createComponent(PrepareMigrationComponent);
     component = fixture.componentInstance;

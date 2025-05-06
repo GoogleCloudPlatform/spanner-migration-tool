@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -47,30 +47,30 @@ describe('ShardedDataflowMigrationDetailsFormComponent', () => {
     fetchServiceSpy = jasmine.createSpyObj('FetchService', ['verifyJsonConfiguration', 'getLastSessionDetails', 'getConnectionProfiles', 'getStaticIps']);
     dataServiceSpy = jasmine.createSpyObj('DataService', ['getLastSessionDetails']);
     await TestBed.configureTestingModule({
-      declarations: [ ShardedDataflowMigrationDetailsFormComponent ],
-      imports: [ HttpClientModule, MatSnackBarModule, ReactiveFormsModule, MatDialogModule, MatInputModule, MatSelectModule, MatIconModule, MatCardModule, MatRadioModule, BrowserAnimationsModule ],
-      providers: [
+    declarations: [ShardedDataflowMigrationDetailsFormComponent],
+    imports: [MatSnackBarModule, ReactiveFormsModule, MatDialogModule, MatInputModule, MatSelectModule, MatIconModule, MatCardModule, MatRadioModule, BrowserAnimationsModule],
+    providers: [
         {
-          provide: MatDialogRef,
-          useValue: {
-            close: () => {},
-          },
+            provide: MatDialogRef,
+            useValue: {
+                close: () => { },
+            },
         },
         {
-          provide: MAT_DIALOG_DATA,
-          useValue: {
-          }
+            provide: MAT_DIALOG_DATA,
+            useValue: {}
         },
         {
-          provide: FetchService,
-          useValue: fetchServiceSpy
+            provide: FetchService,
+            useValue: fetchServiceSpy
         },
         {
-          provide: DataService,
-          useValue: dataServiceSpy
-        }
-      ],
-    })
+            provide: DataService,
+            useValue: dataServiceSpy
+        },
+        provideHttpClient(withInterceptorsFromDi())
+    ]
+})
     .compileComponents();
 
     fetchServiceSpy.verifyJsonConfiguration.and.returnValue(of(mockMigrationProfile));
