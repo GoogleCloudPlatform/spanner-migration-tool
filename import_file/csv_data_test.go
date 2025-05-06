@@ -1,13 +1,10 @@
-package import_data
+package import_file
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -209,15 +206,5 @@ func Test_getConvObject(t *testing.T) {
 	}
 	if conv.SpInstanceId != instance {
 		t.Errorf("getConvObject() SpInstanceId = %v, want %v", conv.SpInstanceId, instance)
-	}
-}
-
-func Test_getBatchWriterWithConfig(t *testing.T) {
-	spannerClient := getSpannerClientMock(getDefaultRowIteratoMock())
-	conv := internal.MakeConv()
-	bw := getBatchWriterWithConfig(spannerClient, conv)
-
-	if bw == nil {
-		t.Errorf("getBatchWriterWithConfig() returned nil")
 	}
 }

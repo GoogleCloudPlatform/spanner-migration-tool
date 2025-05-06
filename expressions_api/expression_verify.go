@@ -23,7 +23,7 @@ type ExpressionVerificationAccessor interface {
 }
 
 type ExpressionVerificationAccessorImpl struct {
-	SpannerAccessor *spanneraccessor.SpannerAccessorImpl
+	SpannerAccessor spanneraccessor.SpannerAccessor
 }
 
 func NewExpressionVerificationAccessorImpl(ctx context.Context, project string, instance string) (*ExpressionVerificationAccessorImpl, error) {
@@ -68,7 +68,7 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 	if err != nil {
 		return internal.VerifyExpressionsOutput{Err: err}
 	}
-	dbURI := ev.SpannerAccessor.SpannerClient.DatabaseName()
+	dbURI := ev.SpannerAccessor.GetDatabaseName()
 	dbExists, err := ev.SpannerAccessor.CheckExistingDb(ctx, dbURI)
 	if err != nil {
 		return internal.VerifyExpressionsOutput{Err: err}
@@ -113,7 +113,7 @@ func (ev *ExpressionVerificationAccessorImpl) RefreshSpannerClient(ctx context.C
 	if err != nil {
 		return err
 	}
-	ev.SpannerAccessor.SpannerClient = spannerClient
+	ev.SpannerAccessor.SetSpannerClient(spannerClient)
 	return nil
 }
 

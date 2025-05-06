@@ -1,0 +1,184 @@
+/* Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.*/
+
+package cmd
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_file"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
+	"time"
+
+	"cloud.google.com/go/storage"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/google/subcommands"
+	"go.uber.org/zap"
+)
+
+type ImportDataCmd struct {
+	instanceId        string
+	databaseName      string
+	tableName         string
+	sourceUri         string
+	sourceFormat      string
+	schemaUri         string
+	csvLineDelimiter  string
+	csvFieldDelimiter string
+	project           string
+}
+
+func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
+	set.StringVar(&cmd.instanceId, "instance-id", "", "Spanner instance Id")
+	set.StringVar(&cmd.databaseName, "database-name", "", "Spanner database name")
+	set.StringVar(&cmd.tableName, "table-name", "", "Spanner table name. Optional. If not specified, source-uri name will be used")
+	set.StringVar(&cmd.sourceUri, "source-uri", "", "URI of the file to import")
+	set.StringVar(&cmd.sourceFormat, "source-format", "", "Format of the file to import. Valid values {csv, mysqldump}")
+	set.StringVar(&cmd.schemaUri, "schema-uri", "", "URI of the file with schema for the csv to import. Only used for csv format.")
+	set.StringVar(&cmd.csvLineDelimiter, "csv-line-delimiter", "", "Token to be used as line delimiter for csv format. Defaults to '\\n'. Only used for csv format.")
+	set.StringVar(&cmd.csvFieldDelimiter, "csv-field-delimiter", "", "Token to be used as field delimiter for csv format. Defaults to ','. Only used for csv format.")
+	set.StringVar(&cmd.project, "project", "", "Project id for all resources related to this import")
+}
+
+func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
+	logger.Log.Debug(fmt.Sprintf("instanceId %s, dbName %s, schemaUri %s\n", cmd.instanceId, cmd.databaseName, cmd.schemaUri))
+
+	err := validateInputLocal(cmd)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Input validation failed. Reason %v", err))
+		return subcommands.ExitFailure
+	}
+
+	err = validateInputRemote(ctx, cmd)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Input validation failed. Reason %v", err))
+		return subcommands.ExitFailure
+	}
+
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.databaseName)
+
+	switch cmd.sourceFormat {
+	case constants.CSV:
+		//TODO: handle POSTGRESQL
+		dialect := constants.DIALECT_GOOGLESQL
+		err := cmd.handleCsv(ctx, dbURI, dialect)
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("Unable to handle Csv %v", err))
+			return subcommands.ExitFailure
+		}
+		return subcommands.ExitSuccess
+	case constants.MYSQLDUMP:
+		err := cmd.handleDatabaseDumpFile(ctx, dbURI, constants.MYSQLDUMP, constants.DIALECT_GOOGLESQL)
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("Unable to handle MYSQL Dump %v. Please reachout to the support team.", err))
+			return subcommands.ExitFailure
+		}
+		return subcommands.ExitSuccess
+	default:
+		logger.Log.Warn(fmt.Sprintf("format %s not supported yet", cmd.sourceFormat))
+	}
+	return subcommands.ExitFailure
+}
+
+func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI string, dialect string) error {
+	// TODO: move this to dependent classes
+	sp, err := spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, dbURI)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Unable to read Spanner schema %v", err))
+		return fmt.Errorf("unable to read Spanner schema %v", err)
+	}
+	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, dialect)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Unable to read Spanner schema %v", err))
+		return err
+	}
+
+	startTime := time.Now()
+	csvSchema := import_file.CsvSchemaImpl{ProjectId: cmd.project, InstanceId: cmd.instanceId,
+		TableName: cmd.tableName, DbName: cmd.databaseName, SchemaUri: cmd.schemaUri, CsvFieldDelimiter: cmd.csvFieldDelimiter}
+	err = csvSchema.CreateSchema(ctx, dialect, sp)
+
+	endTime1 := time.Now()
+	elapsedTime := endTime1.Sub(startTime)
+	logger.Log.Info(fmt.Sprintf("Schema creation took %f secs", elapsedTime.Seconds()))
+	if err != nil {
+		return err
+	}
+
+	csvData := import_file.CsvDataImpl{ProjectId: cmd.project, InstanceId: cmd.instanceId,
+		TableName: cmd.tableName, DbName: cmd.databaseName, SourceUri: cmd.sourceUri, CsvFieldDelimiter: cmd.csvFieldDelimiter}
+	err = csvData.ImportData(ctx, infoSchema, dialect, internal.MakeConv(), &common.InfoSchemaImpl{}, &csv.CsvImpl{})
+
+	endTime2 := time.Now()
+	elapsedTime = endTime2.Sub(endTime1)
+	logger.Log.Info(fmt.Sprintf("Data import took %f secs", elapsedTime.Seconds()))
+	return err
+
+}
+
+func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, sourceFormat string, dialect string) error {
+
+	importDump, err := import_file.NewImportFromDump(ctx, cmd.project, cmd.instanceId, cmd.databaseName, cmd.sourceUri, sourceFormat, dbUri)
+	if err != nil {
+		return fmt.Errorf("can't open dump file or create spanner client: %v", err)
+	}
+
+	defer importDump.Close()
+
+	schemaStartTime := time.Now()
+	conv, err := importDump.CreateSchema(ctx, dialect)
+	if err != nil {
+		return fmt.Errorf("can't create schema: %v", err)
+	}
+
+	schemaEndTime := time.Now()
+	elapsedTime := schemaEndTime.Sub(schemaStartTime)
+	logger.Log.Info(fmt.Sprintf("Schema creation took %f secs", elapsedTime.Seconds()))
+
+	err = importDump.ImportData(ctx, conv)
+
+	dataEndTime := time.Now()
+	elapsedTime = dataEndTime.Sub(schemaEndTime)
+	logger.Log.Info(fmt.Sprintf("Data import took %f secs", elapsedTime.Seconds()))
+	if err != nil {
+		return fmt.Errorf("can't import data: %v", err)
+	}
+	return nil
+
+}
+
+func init() {
+	logger.Log, _ = zap.NewDevelopment()
+}
+
+func (cmd *ImportDataCmd) Name() string {
+	return "import"
+}
+
+// Synopsis returns summary of operation.
+func (cmd *ImportDataCmd) Synopsis() string {
+	return "Import data from supported source files to spanner"
+}
+
+// Usage returns usage info of the command.
+func (cmd *ImportDataCmd) Usage() string {
+	return fmt.Sprintf(`%v import --instance-id=i1 --database-name=db1 --source-format=csv --source-uri=uri1 --schema-uri=uri2 ...
+
+Import data from supported source files to spanner
+`, path.Base(os.Args[0]))
+
+}

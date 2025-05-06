@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { LoadDumpComponent } from './load-dump.component'
 import { RouterModule, Routes } from '@angular/router'
 import { WorkspaceComponent } from '../workspace/workspace.component'
@@ -21,10 +21,8 @@ describe('LoadDumpComponent', () => {
   let btn: DebugElement
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [LoadDumpComponent],
-      imports: [
-        RouterModule.forRoot(appRoutes),
-        HttpClientModule,
+    declarations: [LoadDumpComponent],
+    imports: [RouterModule.forRoot(appRoutes),
         ReactiveFormsModule,
         MatCardModule,
         MatSelectModule,
@@ -32,9 +30,9 @@ describe('LoadDumpComponent', () => {
         MatFormFieldModule,
         MatInputModule,
         BrowserAnimationsModule,
-        MatSnackBarModule
-      ],
-    }).compileComponents()
+        MatSnackBarModule],
+    providers: [provideHttpClient(withInterceptorsFromDi())]
+}).compileComponents()
   })
 
   beforeEach(() => {

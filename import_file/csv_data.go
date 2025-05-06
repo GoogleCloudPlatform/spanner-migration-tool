@@ -1,12 +1,8 @@
-package import_data
+package import_file
 
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
-
-	sp "cloud.google.com/go/spanner"
-	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
@@ -33,8 +29,8 @@ type CsvDataImpl struct {
 func (source *CsvDataImpl) ImportData(ctx context.Context, spannerInfoSchema *spanner.InfoSchemaImpl, dialect string, conv *internal.Conv, commonInfoSchema common.InfoSchemaInterface, csv csv.CsvInterface) error {
 	// TODO: Response code -  error /success contract between gcloud and SMT
 
-	conv = getConvObject(source.ProjectId, source.InstanceId, dialect, conv)
-	batchWriter := getBatchWriterWithConfig(spannerInfoSchema.SpannerClient, conv)
+	conv := getConvObject(source.ProjectId, source.InstanceId, dialect)
+	batchWriter := writer.GetBatchWriterWithConfig(ctx, infoSchema.SpannerClient, conv)
 
 	err := spannerInfoSchema.PopulateSpannerSchema(ctx, conv, commonInfoSchema)
 	if err != nil {
@@ -70,37 +66,6 @@ func getConvObject(projectId, instanceId, dialect string, conv *internal.Conv) *
 	conv.SpProjectId = projectId
 	conv.SpInstanceId = instanceId
 	return conv
-}
-
-func getBatchWriterWithConfig(spannerClient spannerclient.SpannerClient, conv *internal.Conv) *writer.BatchWriter {
-	// TODO: review these limits
-	config := writer.BatchWriterConfig{
-		BytesLimit: 100 * 1000 * 1000,
-		WriteLimit: 2000,
-		RetryLimit: 1000,
-		Verbose:    internal.Verbose(),
-	}
-
-	rows := int64(0)
-	config.Write = func(m []*sp.Mutation) error {
-		ctx := context.Background()
-		_, err := spannerClient.Apply(ctx, m)
-		if err != nil {
-			return err
-		}
-		atomic.AddInt64(&rows, int64(len(m)))
-		return nil
-	}
-	batchWriter := writer.NewBatchWriter(config)
-	conv.SetDataMode()
-	conv.SetDataSink(
-		func(table string, cols []string, vals []interface{}) {
-			batchWriter.AddRow(table, cols, vals)
-		})
-	conv.DataFlush = func() {
-		batchWriter.Flush()
-	}
-	return batchWriter
 }
 
 func init() {
