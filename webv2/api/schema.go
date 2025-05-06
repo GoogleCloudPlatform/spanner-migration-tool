@@ -874,6 +874,7 @@ func RenameIndexes(w http.ResponseWriter, r *http.Request) {
 func SetParentTable(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("table")
 	update := r.FormValue("update") == "true"
+	interleaveType := r.FormValue("interleaveType")
 	sessionState := session.GetSessionState()
 
 	if sessionState.Conv == nil || sessionState.Driver == "" {
@@ -886,7 +887,7 @@ func SetParentTable(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
-	tableInterleaveStatus := parentTableHelper(tableId, update)
+	tableInterleaveStatus := parentTableHelper(tableId, interleaveType, update)
 
 	if tableInterleaveStatus.Possible {
 
@@ -1003,6 +1004,7 @@ func RemoveParentTable(w http.ResponseWriter, r *http.Request) {
 	spTable.ForeignKeys = spFks
 	spTable.ParentTable.Id = ""
 	spTable.ParentTable.OnDelete = ""
+	spTable.ParentTable.InterleaveType = ""
 	conv.SpSchema[tableId] = spTable
 
 	sessionState.Conv = conv
@@ -1207,7 +1209,7 @@ func (tableHandler *TableAPIHandler) restoreTableHelper(w http.ResponseWriter, t
 	return convm
 }
 
-func parentTableHelper(tableId string, update bool) *types.TableInterleaveStatus {
+func parentTableHelper(tableId string, interleaveType string, update bool) *types.TableInterleaveStatus {
 	tableInterleaveStatus := &types.TableInterleaveStatus{
 		Possible: false,
 		Comment:  "No valid prefix",
@@ -1243,6 +1245,11 @@ func parentTableHelper(tableId string, update bool) *types.TableInterleaveStatus
 				delete(usedNames, strings.ToLower(sp.ForeignKeys[i].Name))
 				sp.ParentTable.Id = refTableId
 				sp.ParentTable.OnDelete = onDelete
+				if interleaveType != "" {
+					sp.ParentTable.InterleaveType = interleaveType
+				} else {
+					sp.ParentTable.InterleaveType = "IN PARENT"
+				}
 				sp.ForeignKeys, err = utilities.RemoveFk(sp.ForeignKeys, sp.ForeignKeys[i].Id, sessionState.Conv.SrcSchema[tableId], tableId)
 				if err != nil {
 					continue
@@ -1556,6 +1563,7 @@ func dropTableHelper(w http.ResponseWriter, tableId string) session.ConvWithMeta
 		if spTable.ParentTable.Id == tableId {
 			spTable.ParentTable.Id = ""
 			spTable.ParentTable.OnDelete = ""
+			spTable.ParentTable.InterleaveType = ""
 			spSchema[id] = spTable
 		}
 	}

@@ -425,6 +425,7 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 		spTable := conv.SpSchema[tableId]
 		spTable.ParentTable.Id = parentTable.Id
 		spTable.ParentTable.OnDelete = parentTable.OnDelete
+		spTable.ParentTable.InterleaveType = parentTable.InterleaveType
 		conv.SpSchema[tableId] = spTable
 	}
 	return nil

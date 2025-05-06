@@ -717,12 +717,22 @@
                   <button [disabled]="element.get('spName').value === ''" mat-menu-item (click)="dropFk(element)">
                     <span>Drop Foreign Key</span>
                   </button>
-                  <button *ngIf="
-                      interleaveStatus.tableInterleaveStatus &&
-                      interleaveStatus.tableInterleaveStatus.Possible
-                    " [disabled]="element.get('spName').value === ''" mat-menu-item (click)="setInterleave()">
-                    <span>Convert to interleave</span>
-                  </button>
+                  <ng-container *ngIf="interleaveStatus.tableInterleaveStatus && interleaveStatus.tableInterleaveStatus.Possible">
+                    <div mat-menu-item style="pointer-events: none; font-weight: bold; color: rgba(0,0,0,.87);">
+                      <span>Convert to Interleave</span>
+                    </div>
+                    <button
+                      mat-menu-item
+                      [disabled]="element.get('spName').value === ''"
+                      (click)="setInterleave('In PARENT')"> <span>Interleave In Parent with child-parent constraint enforced (Interleave In Parent)</span>
+                    </button>
+                  
+                    &nbsp;<button
+                      mat-menu-item
+                      [disabled]="element.get('spName').value === ''"
+                      (click)="setInterleave('IN')"> <span>Interleave In Parent without child-parent constraint enforced (Interleave In)</span>
+                    </button>
+                  </ng-container>
                 </mat-menu>
               </div>
             </td>
@@ -742,13 +752,23 @@
         currentObject.isSpannerNode
       ">
       <div class="interleave-tab-container">
-        <button *ngIf="
-            interleaveStatus.tableInterleaveStatus &&
-            interleaveStatus.tableInterleaveStatus.Possible &&
-            this.interleaveParentName === null
-          " mat-raised-button color="primary" (click)="setInterleave()">
-          Convert to Interleave
+        <ng-container *ngIf="
+        interleaveStatus.tableInterleaveStatus &&
+        interleaveStatus.tableInterleaveStatus.Possible &&
+        this.interleaveParentName === null">
+        <h4>Convert to Interleave</h4>
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="setInterleave('IN PARENT')"> Interleave In Parent <b>with</b> child-parent constraint enforced (Interleave In Parent)
         </button>
+
+        &nbsp;<button
+          mat-raised-button
+          color="primary"
+          (click)="setInterleave('IN')"> Interleave In Parent <b>without</b> child-parent constraint enforced (Interleave In)
+        </button>
+        </ng-container>
         <button *ngIf="
             (interleaveStatus.tableInterleaveStatus &&
               !interleaveStatus.tableInterleaveStatus.Possible) ||
@@ -763,7 +783,7 @@
             this.interleaveParentName !== null
           ">
           This table is interleaved with
-          <span class="interleave-parent-table">{{ interleaveParentName }}</span>. Click on the above button to convert
+          <span class="interleave-parent-table">{{ interleaveParentName }}</span> with Interleave Type {{ interleaveType }}. Click on the above button to convert
           back to foreign key.
         </div>
       </div>

@@ -186,7 +186,7 @@ func TestPrintCreateTable(t *testing.T) {
 			ForeignKeys:      nil,
 			Indexes:          nil,
 			CheckConstraints: nil,
-			ParentTable:      InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE},
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 			Comment:          "",
 			Id:               "t2",
 		},
@@ -201,7 +201,7 @@ func TestPrintCreateTable(t *testing.T) {
 			ForeignKeys:      nil,
 			Indexes:          nil,
 			CheckConstraints: nil,
-			ParentTable:      InterleavedParent{Id: "t1", OnDelete: ""},
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: "", InterleaveType: "IN PARENT"},
 			Comment:          "",
 			Id:               "t3",
 		},
@@ -224,6 +224,37 @@ func TestPrintCreateTable(t *testing.T) {
 			ParentTable: InterleavedParent{},
 			Comment:     "",
 			Id:          "t1",
+		},
+		"t5": CreateTable{
+			Name:          "table5",
+			ColIds:        []string{"col7", "col8"},
+			ShardIdColumn: "",
+			ColDefs: map[string]ColumnDef{
+				"col7": {Name: "col7", T: Type{Name: Int64}, NotNull: true},
+				"col8": {Name: "col8", T: Type{Name: String, Len: MaxLength}, NotNull: false},
+			},
+			PrimaryKeys:      []IndexKey{{ColId: "col7", Desc: true}},
+			ForeignKeys:      nil,
+			Indexes:          nil,
+			CheckConstraints: nil,
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
+			Comment:          "",
+			Id:               "t5",
+		},
+		"t6": CreateTable{
+			Name:          "table6",
+			ColIds:        []string{"col9"},
+			ShardIdColumn: "",
+			ColDefs: map[string]ColumnDef{
+				"col9": {Name: "col9", T: Type{Name: Int64}, NotNull: true},
+			},
+			PrimaryKeys:      []IndexKey{{ColId: "col9", Desc: true}},
+			ForeignKeys:      nil,
+			Indexes:          nil,
+			CheckConstraints: nil,
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: "", InterleaveType: "IN"},
+			Comment:          "",
+			Id:               "t6",
 		},
 	}
 	tests := []struct {
@@ -255,23 +286,23 @@ func TestPrintCreateTable(t *testing.T) {
 				") PRIMARY KEY (`col1` DESC)",
 		},
 		{
-			"interleaved",
+			"interleaved in parent",
 			false,
 			s["t2"],
 			"CREATE TABLE table2 (\n" +
 				"	col4 INT64 NOT NULL ,\n" +
 				"	col5 STRING(MAX),\n" +
 				") PRIMARY KEY (col4 DESC),\n" +
-				"INTERLEAVE IN table1",
+				"INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
 		},
 		{
-			"interleaved without on delete support",
+			"interleaved in parent without on delete support",
 			false,
 			s["t3"],
 			"CREATE TABLE table3 (\n" +
 				"	col6 INT64 NOT NULL ,\n" +
 				") PRIMARY KEY (col6 DESC),\n" +
-				"INTERLEAVE IN table1",
+				"INTERLEAVE IN PARENT table1",
 		},
 		{
 			"no quote",
@@ -283,6 +314,25 @@ func TestPrintCreateTable(t *testing.T) {
 				"	col3 BYTES(42),\n" +
 				"\tCONSTRAINT check_1 CHECK (age > 18),\n\tCONSTRAINT check_2 CHECK (age < 99)\n" +
 				") ",
+		},
+		{
+			"interleaved in",
+			false,
+			s["t5"],
+			"CREATE TABLE table5 (\n" +
+				"	col7 INT64 NOT NULL ,\n" +
+				"	col8 STRING(MAX),\n" +
+				") PRIMARY KEY (col7 DESC),\n" +
+				"INTERLEAVE IN table1",
+		},
+		{
+			"interleaved in without on delete support set",
+			false,
+			s["t6"],
+			"CREATE TABLE table6 (\n" +
+				"	col9 INT64 NOT NULL ,\n" +
+				") PRIMARY KEY (col9 DESC),\n" +
+				"INTERLEAVE IN table1",
 		},
 	}
 	for _, tc := range tests {
@@ -324,7 +374,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 			ForeignKeys:      nil,
 			Indexes:          nil,
 			CheckConstraints: nil,
-			ParentTable:      InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE},
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 			Comment:          "",
 			Id:               "t2",
 		},
@@ -339,9 +389,40 @@ func TestPrintCreateTablePG(t *testing.T) {
 			ForeignKeys:      nil,
 			Indexes:          nil,
 			CheckConstraints: nil,
-			ParentTable:      InterleavedParent{Id: "t1", OnDelete: ""},
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: "", InterleaveType: "IN PARENT"},
 			Comment:          "",
 			Id:               "t3",
+		},
+		"t4": CreateTable{
+			Name:          "table4",
+			ColIds:        []string{"col7", "col8"},
+			ShardIdColumn: "",
+			ColDefs: map[string]ColumnDef{
+				"col7": {Name: "col7", T: Type{Name: Int64}, NotNull: true},
+				"col8": {Name: "col8", T: Type{Name: String, Len: MaxLength}, NotNull: false},
+			},
+			PrimaryKeys:      []IndexKey{{ColId: "col7", Desc: true}},
+			ForeignKeys:      nil,
+			Indexes:          nil,
+			CheckConstraints: nil,
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
+			Comment:          "",
+			Id:               "t4",
+		},
+		"t5": CreateTable{
+			Name:          "table5",
+			ColIds:        []string{"col9"},
+			ShardIdColumn: "",
+			ColDefs: map[string]ColumnDef{
+				"col9": {Name: "col9", T: Type{Name: Int64}, NotNull: true},
+			},
+			PrimaryKeys:      []IndexKey{{ColId: "col9", Desc: true}},
+			ForeignKeys:      nil,
+			Indexes:          nil,
+			CheckConstraints: nil,
+			ParentTable:      InterleavedParent{Id: "t1", OnDelete: "", InterleaveType: "IN"},
+			Comment:          "",
+			Id:               "t5",
 		},
 	}
 	tests := []struct {
@@ -375,22 +456,41 @@ func TestPrintCreateTablePG(t *testing.T) {
 				")",
 		},
 		{
-			"interleaved",
+			"interleaved in parent",
 			false,
 			s["t2"],
 			"CREATE TABLE table2 (\n" +
 				"	col4 INT8 NOT NULL ,\n" +
 				"	col5 VARCHAR(2621440),\n" +
 				"	PRIMARY KEY (col4 DESC)\n" +
-				") INTERLEAVE IN table1",
+				") INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
 		},
 		{
-			"interleaved without on delete support",
+			"interleaved in parent without on delete support",
 			false,
 			s["t3"],
 			"CREATE TABLE table3 (\n" +
 				"	col6 INT8 NOT NULL ,\n" +
 				"	PRIMARY KEY (col6 DESC)\n" +
+				") INTERLEAVE IN PARENT table1",
+		},
+		{
+			"interleaved in",
+			false,
+			s["t4"],
+			"CREATE TABLE table4 (\n" +
+				"	col7 INT8 NOT NULL ,\n" +
+				"	col8 VARCHAR(2621440),\n" +
+				"	PRIMARY KEY (col7 DESC)\n" +
+				") INTERLEAVE IN table1",
+		},
+		{
+			"interleaved in without on delete support set",
+			false,
+			s["t5"],
+			"CREATE TABLE table5 (\n" +
+				"	col9 INT8 NOT NULL ,\n" +
+				"	PRIMARY KEY (col9 DESC)\n" +
 				") INTERLEAVE IN table1",
 		},
 	}
@@ -883,7 +983,19 @@ func TestGetDDL(t *testing.T) {
 				"c9": {Name: "c", Id: "c9", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c7"}, {ColId: "c8"}},
-			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION},
+			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
+		},
+		"t4": CreateTable{
+			Name:   "table4",
+			Id:     "t4",
+			ColIds: []string{"c10", "c11", "c12"},
+			ColDefs: map[string]ColumnDef{
+				"c10": {Name: "a", Id: "c7", T: Type{Name: Int64}},
+				"c11": {Name: "b", Id: "c8", T: Type{Name: Int64}},
+				"c12": {Name: "c", Id: "c9", T: Type{Name: Int64}},
+			},
+			PrimaryKeys: []IndexKey{{ColId: "c10"}, {ColId: "c11"}},
+			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 		},
 	}
 	tablesOnly := GetDDL(Config{Tables: true, ForeignKeys: false}, s, make(map[string]Sequence))
@@ -900,6 +1012,12 @@ func TestGetDDL(t *testing.T) {
 			") PRIMARY KEY (a)",
 		"CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)",
 		"CREATE TABLE table3 (\n" +
+			"	a INT64,\n" +
+			"	b INT64,\n" +
+			"	c INT64,\n" +
+			") PRIMARY KEY (a, b),\n" +
+			"INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+		"CREATE TABLE table4 (\n" +
 			"	a INT64,\n" +
 			"	b INT64,\n" +
 			"	c INT64,\n" +
@@ -929,6 +1047,12 @@ func TestGetDDL(t *testing.T) {
 			") PRIMARY KEY (a)",
 		"CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)",
 		"CREATE TABLE table3 (\n" +
+			"	a INT64,\n" +
+			"	b INT64,\n" +
+			"	c INT64,\n" +
+			") PRIMARY KEY (a, b),\n" +
+			"INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+		"CREATE TABLE table4 (\n" +
 			"	a INT64,\n" +
 			"	b INT64,\n" +
 			"	c INT64,\n" +
@@ -992,7 +1116,19 @@ func TestGetPGDDL(t *testing.T) {
 				"c8": {Name: "c", Id: "c8", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c6"}, {ColId: "c7"}},
-			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION},
+			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
+		},
+		"t4": CreateTable{
+			Name:   "table4",
+			Id:     "t4",
+			ColIds: []string{"c9", "c10", "c11"},
+			ColDefs: map[string]ColumnDef{
+				"c9":  {Name: "a", Id: "c9", T: Type{Name: Int64}},
+				"c10": {Name: "b", Id: "c10", T: Type{Name: Int64}},
+				"c11": {Name: "c", Id: "c11", T: Type{Name: Int64}},
+			},
+			PrimaryKeys: []IndexKey{{ColId: "c9"}, {ColId: "c10"}},
+			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 		},
 	}
 	tablesOnly := GetDDL(Config{Tables: true, ForeignKeys: false, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence))
@@ -1011,6 +1147,12 @@ func TestGetPGDDL(t *testing.T) {
 			")",
 		"CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)",
 		"CREATE TABLE table3 (\n" +
+			"	a INT8,\n" +
+			"	b INT8,\n" +
+			"	c INT8,\n" +
+			"	PRIMARY KEY (a, b)\n" +
+			") INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+		"CREATE TABLE table4 (\n" +
 			"	a INT8,\n" +
 			"	b INT8,\n" +
 			"	c INT8,\n" +
@@ -1042,6 +1184,12 @@ func TestGetPGDDL(t *testing.T) {
 			")",
 		"CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)",
 		"CREATE TABLE table3 (\n" +
+			"	a INT8,\n" +
+			"	b INT8,\n" +
+			"	c INT8,\n" +
+			"	PRIMARY KEY (a, b)\n" +
+			") INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+		"CREATE TABLE table4 (\n" +
 			"	a INT8,\n" +
 			"	b INT8,\n" +
 			"	c INT8,\n" +
@@ -1102,15 +1250,20 @@ func TestGetSortedTableIdsBySpName(t *testing.T) {
 				"table_id_2": CreateTable{
 					Name:        "Table2",
 					Id:          "table_id_2",
-					ParentTable: InterleavedParent{Id: "table_id_1", OnDelete: constants.FK_CASCADE},
+					ParentTable: InterleavedParent{Id: "table_id_1", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 				},
 				"table_id_3": CreateTable{
 					Name:        "Table3",
 					Id:          "table_id_3",
-					ParentTable: InterleavedParent{Id: "table_id_2", OnDelete: constants.FK_NO_ACTION},
+					ParentTable: InterleavedParent{Id: "table_id_2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN PARENT"},
+				},
+				"table_id_4": CreateTable{
+					Name:        "Table4",
+					Id:          "table_id_4",
+					ParentTable: InterleavedParent{Id: "table_id_2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 				},
 			},
-			expected: []string{"table_id_1", "table_id_2", "table_id_3"},
+			expected: []string{"table_id_1", "table_id_2", "table_id_3", "table_id_4"},
 		},
 		// Test Case 4: Schema with tables having no parent
 		{
@@ -1134,7 +1287,7 @@ func TestGetSortedTableIdsBySpName(t *testing.T) {
 				"table_id_1": CreateTable{
 					Name:        "Table1",
 					Id:          "table_id_1",
-					ParentTable: InterleavedParent{Id: "table_id_2", OnDelete: constants.FK_NO_ACTION},
+					ParentTable: InterleavedParent{Id: "table_id_2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN PARENT"},
 				},
 			},
 			expected: []string{"table_id_1"},
