@@ -300,7 +300,7 @@ type Foreignkey struct {
 
 // InterleavedParent encodes the following DDL definition:
 //
-//	INTERLEAVE IN parent_name
+//	INTERLEAVE IN parent_name or INTERLEAVE IN PARENT parent_name ON DELETE delete_rule
 type InterleavedParent struct {
 	Id             string
 	OnDelete       string

@@ -1490,8 +1490,6 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setInterleave(interleaveType: string) {
-    console.log("##")
-    console.log(interleaveType)
     this.data.setInterleave(this.currentObject!.id, interleaveType)
   }
 
