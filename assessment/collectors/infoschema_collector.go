@@ -49,13 +49,28 @@ func (c InfoSchemaCollector) IsEmpty() bool {
 	return false
 }
 
-func CreateInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile) (InfoSchemaCollector, error) {
+func GetDefaultInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile) (InfoSchemaCollector, error) {
+	return GetInfoSchemaCollector(conv, sourceProfile, SQLDBConnector{}, DefaultConnectionConfigProvider{}, getInfoSchema)
+}
+
+func GetInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile, dbConnector DBConnector, configProvider ConnectionConfigProvider, infoSchemaProvider func(*sql.DB, profiles.SourceProfile) (common.InfoSchema, error)) (InfoSchemaCollector, error) {
 	logger.Log.Info("initializing infoschema collector")
 	var errString string
-	infoSchema, err := getInfoSchema(sourceProfile)
+	connectionConfig, err := configProvider.GetConnectionConfig(sourceProfile)
 	if err != nil {
 		return InfoSchemaCollector{}, err
 	}
+
+	db, err := dbConnector.Connect(sourceProfile.Driver, connectionConfig)
+	if err != nil {
+		return InfoSchemaCollector{}, err
+	}
+
+	infoSchema, err := infoSchemaProvider(db, sourceProfile)
+	if err != nil {
+		return InfoSchemaCollector{}, fmt.Errorf("error getting info schema: %v", err)
+	}
+
 	tb, err := infoSchema.GetTableInfo(conv)
 	if err != nil {
 		errString = errString + fmt.Sprintf("\nError while scanning tables: %v", err)
@@ -111,18 +126,10 @@ func getIndexes(infoSchema common.InfoSchema, conv *internal.Conv) ([]utils.Inde
 	return indCollector, nil
 }
 
-func getInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, error) {
-	connectionConfig, err := conversion.ConnectionConfig(sourceProfile)
-	if err != nil {
-		return nil, err
-	}
+func getInfoSchema(db *sql.DB, sourceProfile profiles.SourceProfile) (common.InfoSchema, error) {
 	driver := sourceProfile.Driver
 	switch driver {
 	case constants.MYSQL:
-		db, err := sql.Open(driver, connectionConfig.(string))
-		if err != nil {
-			return nil, err
-		}
 		return mysql.InfoSchemaImpl{
 			Db:     db,
 			DbName: sourceProfile.Conn.Mysql.Db,
@@ -241,13 +248,15 @@ func (c InfoSchemaCollector) ListIndexes() (map[string]utils.SrcIndexDetails, ma
 			IsUnique:  c.indexes[i].IndexDef.Unique,
 			Ddl:       utils.PrintCreateIndex(c.indexes[i].IndexDef, c.conv.SrcSchema[c.indexes[i].TableId]),
 		}
-		spIndexes[c.indexes[i].IndexDef.Id] = utils.SpIndexDetails{
-			Id:        c.indexes[i].IndexDef.Id,
-			Name:      internal.ToSpannerIndexName(c.conv, c.indexes[i].IndexDef.Name),
-			TableId:   c.indexes[i].TableId,
-			IsUnique:  c.indexes[i].IndexDef.Unique,
-			TableName: c.conv.SpSchema[c.indexes[i].TableId].Name,
-			Ddl:       getSpannerIndex(c.indexes[i].IndexDef.Id, c.conv.SpSchema[c.indexes[i].TableId]).PrintCreateIndex(c.conv.SpSchema[c.indexes[i].TableId], ddl.Config{}),
+		if _, ok := c.conv.SpSchema[c.indexes[i].TableId]; ok {
+			spIndexes[c.indexes[i].IndexDef.Id] = utils.SpIndexDetails{
+				Id:        c.indexes[i].IndexDef.Id,
+				Name:      internal.ToSpannerIndexName(c.conv, c.indexes[i].IndexDef.Name),
+				TableId:   c.indexes[i].TableId,
+				IsUnique:  c.indexes[i].IndexDef.Unique,
+				TableName: c.conv.SpSchema[c.indexes[i].TableId].Name,
+				Ddl:       getSpannerIndex(c.indexes[i].IndexDef.Id, c.conv.SpSchema[c.indexes[i].TableId]).PrintCreateIndex(c.conv.SpSchema[c.indexes[i].TableId], ddl.Config{}),
+			}
 		}
 	}
 	return srcIndexes, spIndexes
@@ -332,6 +341,18 @@ func (c InfoSchemaCollector) ListColumnDefinitions() (map[string]utils.SrcColumn
 			if column.DefaultValue.IsPresent && column.DefaultValue.Value.Statement == "CURRENT_TIMESTAMP" {
 				onInsertTimestampSet = true
 			}
+			var isUnsigned, isOnUpdateTimestampSet bool
+			var generatedColumn utils.GeneratedColumnInfo
+			var maxColumnSize int64
+			if table, ok := c.tables[table.Id]; ok {
+				if columnAssessment, ok := table.ColumnAssessmentInfos[column.Id]; ok {
+					isUnsigned = columnAssessment.IsUnsigned
+					isOnUpdateTimestampSet = columnAssessment.IsOnUpdateTimestampSet
+					generatedColumn = columnAssessment.GeneratedColumn
+					maxColumnSize = columnAssessment.MaxColumnSize
+				}
+			}
+
 			srcColumnDetails[column.Id] = utils.SrcColumnDetails{
 				Id:                     column.Id,
 				Name:                   column.Name,
@@ -345,10 +366,10 @@ func (c InfoSchemaCollector) ListColumnDefinitions() (map[string]utils.SrcColumn
 				DefaultValue:           column.DefaultValue,
 				PrimaryKeyOrder:        pkOrder,
 				ForeignKey:             foreignKeys,
-				IsUnsigned:             c.tables[table.Id].ColumnAssessmentInfos[column.Id].IsUnsigned,
-				MaxColumnSize:          c.tables[table.Id].ColumnAssessmentInfos[column.Id].MaxColumnSize,
-				GeneratedColumn:        c.tables[table.Id].ColumnAssessmentInfos[column.Id].GeneratedColumn,
-				IsOnUpdateTimestampSet: c.tables[table.Id].ColumnAssessmentInfos[column.Id].IsOnUpdateTimestampSet,
+				IsUnsigned:             isUnsigned,
+				MaxColumnSize:          maxColumnSize,
+				GeneratedColumn:        generatedColumn,
+				IsOnUpdateTimestampSet: isOnUpdateTimestampSet,
 				IsOnInsertTimestampSet: onInsertTimestampSet,
 			}
 		}
@@ -406,4 +427,28 @@ func (c InfoSchemaCollector) ListStoredProcedures() map[string]utils.StoredProce
 
 func (c InfoSchemaCollector) ListSpannerSequences() map[string]ddl.Sequence {
 	return c.conv.SpSequences
+}
+
+type ConnectionConfigProvider interface {
+	GetConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
+}
+
+type DefaultConnectionConfigProvider struct{}
+
+func (d DefaultConnectionConfigProvider) GetConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error) {
+	return conversion.ConnectionConfig(sourceProfile)
+}
+
+type DBConnector interface {
+	Connect(driver string, connectionConfig interface{}) (*sql.DB, error)
+}
+
+type SQLDBConnector struct{}
+
+func (d SQLDBConnector) Connect(driver string, connectionConfig interface{}) (*sql.DB, error) {
+	db, err := sql.Open(driver, connectionConfig.(string))
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
 }
