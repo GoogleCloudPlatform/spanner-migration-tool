@@ -102,10 +102,12 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDL(conv *internal.Conv, toddl ToD
 	}
 
 	if (conv.Source == constants.MYSQL || conv.Source == constants.MYSQLDUMP) && conv.SpProjectId != "" && conv.SpInstanceId != "" {
-		// Process and verify Check constraints for MySQL and MySQLDump flow only
-		err := ss.VerifyExpressions(conv)
-		if err != nil {
-			return err
+		if ss.ExpressionVerificationAccessor != nil {
+			// Process and verify Check constraints for MySQL and MySQLDump flow only
+			err := ss.VerifyExpressions(conv)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
