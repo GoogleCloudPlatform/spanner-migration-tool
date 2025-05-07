@@ -16,72 +16,63 @@ var GoogleStorageNewClient = func(ctx context.Context, opts ...option.ClientOpti
 	return storage.NewClient(ctx, opts...)
 }
 
-type SchemeDataReader interface {
+type FileReader interface {
+	// ResetReader reset the reader to the beginning of the file. If seek is not possible,
+	// then the file is closed and opened again.
 	ResetReader(ctx context.Context) (io.Reader, error)
+	// CreateReader Create an io.reader for the file.
 	CreateReader(ctx context.Context) (io.Reader, error)
 	Close()
 }
 
-type SchemeDataReaderImpl struct {
-	DumpUri       string
-	isGCS         bool
+type LocalFileReaderImpl struct {
+	uri  string
+	file *os.File
+}
+
+type GcsFileReaderImpl struct {
+	uri           string
 	bucket        string
 	gcsFilePath   string
-	file          *os.File
 	storageClient *storage.Client
 	storageReader *storage.Reader
 }
 
-func NewSchemeDataReader(ctx context.Context, dumpUri string) (SchemeDataReader, error) {
-	u, err := url.Parse(dumpUri)
+func NewSchemeDataReader(ctx context.Context, uri string) (FileReader, error) {
+	u, err := url.Parse(uri)
 	if err != nil {
 		return nil, err
 	}
-	schemeDataReader := &SchemeDataReaderImpl{
-		DumpUri: dumpUri,
-	}
+
 	if u.Scheme == constants.GCS_SCHEME {
-		schemeDataReader.bucket = u.Host
-		schemeDataReader.gcsFilePath = u.Path[1:] // removes "/" from beginning of path
-		schemeDataReader.storageClient, err = GoogleStorageNewClient(ctx)
+		storageClient, err := GoogleStorageNewClient(ctx)
 		if err != nil {
 			return nil, err
 		}
-		schemeDataReader.isGCS = true
+		return &GcsFileReaderImpl{
+			uri:           uri,
+			bucket:        u.Host,
+			gcsFilePath:   u.Path[1:], // removes "/" from beginning of path
+			storageClient: storageClient,
+		}, nil
 	} else {
-		schemeDataReader.file, err = os.Open(dumpUri)
+		file, err := os.Open(uri)
 		if err != nil {
 			return nil, err
 		}
-		schemeDataReader.isGCS = false
+		return &LocalFileReaderImpl{uri: uri, file: file}, nil
 	}
-	return schemeDataReader, nil
 }
 
-func (reader *SchemeDataReaderImpl) CreateReader(ctx context.Context) (io.Reader, error) {
-	if reader.isGCS {
-		return reader.createGCSReader(ctx)
-	}
-	return reader.createFileReader()
-}
-
-func (reader *SchemeDataReaderImpl) ResetReader(ctx context.Context) (io.Reader, error) {
-	if reader.isGCS {
-		return reader.resetGcsReader(ctx)
-	}
-	return reader.resetFileReader()
-}
-
-func (reader *SchemeDataReaderImpl) resetGcsReader(ctx context.Context) (io.Reader, error) {
-
+func (reader *GcsFileReaderImpl) ResetReader(ctx context.Context) (io.Reader, error) {
 	if reader.storageReader != nil {
 		reader.storageReader.Close()
 	}
 
-	return reader.createGCSReader(ctx)
+	return reader.CreateReader(ctx)
 }
 
-func (reader *SchemeDataReaderImpl) resetFileReader() (io.Reader, error) {
+func (reader *LocalFileReaderImpl) ResetReader(ctx context.Context) (io.Reader, error) {
 	if reader.file != nil {
 		_, err := reader.file.Seek(0, 0)
 		if err == nil {
@@ -89,21 +80,21 @@ func (reader *SchemeDataReaderImpl) resetFileReader() (io.Reader, error) {
 		}
 		reader.file.Close()
 	}
-	return reader.createFileReader()
+	return reader.CreateReader(ctx)
 
 }
 
-func (reader *SchemeDataReaderImpl) createFileReader() (io.Reader, error) {
-	f, err := os.Open(reader.DumpUri)
+func (reader *LocalFileReaderImpl) CreateReader(_ context.Context) (io.Reader, error) {
+	f, err := os.Open(reader.uri)
 	if err != nil {
-		logger.Log.Error(fmt.Sprintf("readFile: unable to open file: %s. Error: %q", reader.DumpUri, err))
+		logger.Log.Error(fmt.Sprintf("readFile: unable to open file: %s. Error: %q", reader.uri, err))
 		return nil, err
 	}
 	reader.file = f
 	return f, nil
 }
 
-func (reader *SchemeDataReaderImpl) createGCSReader(ctx context.Context) (*storage.Reader, error) {
+func (reader *GcsFileReaderImpl) CreateReader(ctx context.Context) (io.Reader, error) {
 
 	rc, err := reader.storageClient.Bucket(reader.bucket).Object(reader.gcsFilePath).NewReader(ctx)
 	if err != nil {
@@ -114,13 +105,17 @@ func (reader *SchemeDataReaderImpl) createGCSReader(ctx context.Context) (*stora
 	return rc, nil
 }
 
-func (reader *SchemeDataReaderImpl) Close() {
+func (reader *GcsFileReaderImpl) Close() {
 	if reader.storageReader != nil {
 		reader.storageReader.Close()
 	}
 	if reader.storageClient != nil {
 		reader.storageClient.Close()
 	}
+
+}
+
+func (reader *LocalFileReaderImpl) Close() {
 	if reader.file != nil {
 		reader.file.Close()
 	}
