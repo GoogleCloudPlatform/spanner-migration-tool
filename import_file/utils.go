@@ -6,13 +6,12 @@ import (
 	"os"
 )
 
-func ResetReader(f *os.File, fileUri string) (*os.File, error) {
-	_, err := f.Seek(0, 0)
+func ResetReader(dumpReader *os.File, fileUri string) (*os.File, error) {
+	_, err := dumpReader.Seek(0, 0)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("can't reset reader: %v\n", err))
-		f.Close()
-		return os.Open(fileUri)
+		dumpReader.Close()
+		dumpReader, err = os.Open(fileUri)
 	}
-	return f, err
-
+	return dumpReader, err
 }
