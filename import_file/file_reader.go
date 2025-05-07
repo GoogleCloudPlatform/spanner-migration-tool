@@ -38,7 +38,7 @@ type GcsFileReaderImpl struct {
 	storageReader *storage.Reader
 }
 
-func NewSchemeDataReader(ctx context.Context, uri string) (FileReader, error) {
+func NewFileReader(ctx context.Context, uri string) (FileReader, error) {
 	u, err := url.Parse(uri)
 	if err != nil {
 		return nil, err
