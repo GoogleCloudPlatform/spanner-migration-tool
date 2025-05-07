@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/storage"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -37,7 +36,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
 	"github.com/google/subcommands"
 	"go.uber.org/zap"
-	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 type ImportDataCmd struct {
@@ -67,7 +65,7 @@ func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
 	logger.Log.Debug(fmt.Sprintf("instanceId %s, dbName %s, schemaUri %s\n", cmd.instanceId, cmd.databaseName, cmd.schemaUri))
 
-	err := validateInputLocal(ctx, cmd)
+	err := validateInputLocal(cmd)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Input validation failed. Reason %v", err))
 		return subcommands.ExitFailure
@@ -125,7 +123,7 @@ func validateInputRemote(ctx context.Context, input *ImportDataCmd) error {
 4. source format is valid
 5. If CSV, schema URI is mandatory and accessible
 */
-func validateInputLocal(ctx context.Context, input *ImportDataCmd) error {
+func validateInputLocal(input *ImportDataCmd) error {
 
 	var err error
 	if len(input.instanceId) == 0 {
@@ -152,19 +150,9 @@ func validateInputLocal(ctx context.Context, input *ImportDataCmd) error {
 }
 
 func isSpannerAccessible(ctx context.Context, projectID, instanceId, databaseName string) bool {
-
-	databaseAdminClient, err := database.NewDatabaseAdminClient(ctx)
+	_, err := spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, getDBUri(projectID, instanceId, databaseName))
 	if err != nil {
-		logger.Log.Error(fmt.Sprintf("error creating Spanner database admin client: %v", err))
-		return false
-	}
-	defer databaseAdminClient.Close()
-
-	_, err = databaseAdminClient.GetDatabase(ctx, &databasepb.GetDatabaseRequest{
-		Name: fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceId, databaseName),
-	})
-
-	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
 		return false
 	}
 	return true
@@ -216,7 +204,7 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.Inf
 	dialect := constants.DIALECT_GOOGLESQL
 
 	cmd.tableName = handleTableNameDefaults(cmd.tableName, cmd.sourceUri)
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.databaseName)
+	dbURI := getDBUri(cmd.project, cmd.instanceId, cmd.databaseName)
 	sp, err := spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, dbURI)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
@@ -244,6 +232,10 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.Inf
 	logger.Log.Info(fmt.Sprintf("Data import took %f secs", elapsedTime.Seconds()))
 	return err
 
+}
+
+func getDBUri(projectId, instanceId, databaseName string) string {
+	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, databaseName)
 }
 
 /*
