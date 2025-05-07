@@ -28,7 +28,7 @@ import (
 	"cloud.google.com/go/storage"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_data"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_file"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -78,12 +78,12 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	}
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.databaseName)
-
+	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, constants.DIALECT_GOOGLESQL)
 	switch cmd.sourceFormat {
 	case constants.CSV:
 		//TODO: handle POSTGRESQL
 		dialect := constants.DIALECT_GOOGLESQL
-		err := cmd.handleCsv(ctx, dbURI, dialect)
+		err := cmd.handleCsv(ctx, infoSchema, dialect)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle Csv %v", err))
 			return subcommands.ExitFailure
@@ -199,9 +199,7 @@ func isUriAccessible(uri string) bool {
 	}
 }
 
-func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.InfoSchemaImpl) error {
-	//TODO: handle POSTGRESQL
-	dialect := constants.DIALECT_GOOGLESQL
+func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.InfoSchemaImpl, dialect string) error {
 
 	cmd.tableName = handleTableNameDefaults(cmd.tableName, cmd.sourceUri)
 	dbURI := getDBUri(cmd.project, cmd.instanceId, cmd.databaseName)
@@ -212,7 +210,7 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.Inf
 	}
 
 	startTime := time.Now()
-	csvSchema := import_data.CsvSchemaImpl{ProjectId: cmd.project, InstanceId: cmd.instanceId,
+	csvSchema := import_file.CsvSchemaImpl{ProjectId: cmd.project, InstanceId: cmd.instanceId,
 		TableName: cmd.tableName, DbName: cmd.databaseName, SchemaUri: cmd.schemaUri}
 	err = csvSchema.CreateSchema(ctx, dialect, sp)
 
@@ -275,5 +273,36 @@ func (cmd *ImportDataCmd) Usage() string {
 
 Import data from supported source files to spanner
 `, path.Base(os.Args[0]))
+
+}
+
+func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, sourceFormat string, dialect string) error {
+
+	importDump, err := import_file.NewImportFromDump(ctx, cmd.project, cmd.instanceId, cmd.databaseName, cmd.sourceUri, sourceFormat, dbUri)
+	if err != nil {
+		return fmt.Errorf("can't open dump file or create spanner client: %v", err)
+	}
+
+	defer importDump.Close()
+
+	schemaStartTime := time.Now()
+	conv, err := importDump.CreateSchema(ctx, dialect)
+	if err != nil {
+		return fmt.Errorf("can't create schema: %v", err)
+	}
+
+	schemaEndTime := time.Now()
+	elapsedTime := schemaEndTime.Sub(schemaStartTime)
+	logger.Log.Info(fmt.Sprintf("Schema creation took %f secs", elapsedTime.Seconds()))
+
+	err = importDump.ImportData(ctx, conv)
+
+	dataEndTime := time.Now()
+	elapsedTime = dataEndTime.Sub(schemaEndTime)
+	logger.Log.Info(fmt.Sprintf("Data import took %f secs", elapsedTime.Seconds()))
+	if err != nil {
+		return fmt.Errorf("can't import data: %v", err)
+	}
+	return nil
 
 }

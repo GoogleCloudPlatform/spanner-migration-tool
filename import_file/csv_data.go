@@ -3,6 +3,7 @@ package import_file
 import (
 	"context"
 	"fmt"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
@@ -30,7 +31,7 @@ func (source *CsvDataImpl) ImportData(ctx context.Context, spannerInfoSchema *sp
 	// TODO: Response code -  error /success contract between gcloud and SMT
 
 	conv = getConvObject(source.ProjectId, source.InstanceId, dialect, conv)
-	batchWriter := getBatchWriterWithConfig(spannerInfoSchema.SpannerClient, conv)
+	batchWriter := writer.GetBatchWriterWithConfig(ctx, spannerInfoSchema.SpannerClient, conv)
 
 	err := spannerInfoSchema.PopulateSpannerSchema(ctx, conv, commonInfoSchema)
 	if err != nil {
