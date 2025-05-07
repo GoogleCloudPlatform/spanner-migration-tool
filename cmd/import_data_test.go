@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	"context"
 	"flag"
 	"testing"
 
@@ -58,47 +57,41 @@ func TestImportDataCmd_SetFlags(t *testing.T) {
 }
 
 func TestValidateInputLocal_MissingInstanceID(t *testing.T) {
-	ctx := context.Background()
 	input := &ImportDataCmd{}
-	err := validateInputLocal(ctx, input)
+	err := validateInputLocal(input)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Please specify instanceId")
 }
 
 func TestValidateInputLocal_MissingDatabaseName(t *testing.T) {
-	ctx := context.Background()
 	input := &ImportDataCmd{instanceId: "test-instance"}
-	err := validateInputLocal(ctx, input)
+	err := validateInputLocal(input)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Please specify databaseName")
 }
 
 func TestValidateInputLocal_MissingSourceURI(t *testing.T) {
-	ctx := context.Background()
 	input := &ImportDataCmd{instanceId: "test-instance", databaseName: "test-db"}
-	err := validateInputLocal(ctx, input)
+	err := validateInputLocal(input)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Please specify sourceUri")
 }
 
 func TestValidateInputLocal_MissingSourceFormat(t *testing.T) {
-	ctx := context.Background()
 	input := &ImportDataCmd{instanceId: "test-instance", databaseName: "test-db", sourceUri: "file:///tmp/data.csv"}
-	err := validateInputLocal(ctx, input)
+	err := validateInputLocal(input)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Please specify sourceFormat")
 }
 
 func TestValidateInputLocal_CSVMissingSchemaURI(t *testing.T) {
-	ctx := context.Background()
 	input := &ImportDataCmd{instanceId: "test-instance", databaseName: "test-db", sourceUri: "file:///tmp/data.csv", sourceFormat: constants.CSV}
-	err := validateInputLocal(ctx, input)
+	err := validateInputLocal(input)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Please specify schemaUri")
 }
 
 func TestValidateInputLocal_SuccessCSV(t *testing.T) {
-	ctx := context.Background()
 	input := &ImportDataCmd{
 		instanceId:   "test-instance",
 		databaseName: "test-db",
@@ -106,19 +99,18 @@ func TestValidateInputLocal_SuccessCSV(t *testing.T) {
 		sourceFormat: constants.CSV,
 		schemaUri:    "file:///tmp/schema.csv",
 	}
-	err := validateInputLocal(ctx, input)
+	err := validateInputLocal(input)
 	assert.NoError(t, err)
 }
 
 func TestValidateInputLocal_SuccessNonCSV(t *testing.T) {
-	ctx := context.Background()
 	input := &ImportDataCmd{
 		instanceId:   "test-instance",
 		databaseName: "test-db",
 		sourceUri:    "gs://bucket/data.avro",
 		sourceFormat: "avro",
 	}
-	err := validateInputLocal(ctx, input)
+	err := validateInputLocal(input)
 	assert.NoError(t, err)
 }
 
