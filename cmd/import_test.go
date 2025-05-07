@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_file"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"github.com/google/subcommands"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
@@ -51,6 +52,89 @@ func TestBasicCsvImport(t *testing.T) {
 	importDataCmd.Execute(context.Background(), fs)
 }
 
+func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
+
+	tests := []struct {
+		name           string
+		cmd            *ImportDataCmd
+		expectedStatus subcommands.ExitStatus
+		expectedError  error // Add expectedError
+	}{
+		{
+			name: "successful MySQL dump import",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instanceId:   "test-instance",
+				databaseName: "test-db",
+				sourceUri:    "../test_data/basic_mysql_dump.test.out",
+				sourceFormat: constants.MYSQLDUMP,
+			},
+			expectedStatus: subcommands.ExitSuccess,
+			expectedError:  nil,
+		},
+		{
+			name: "failed MySQL dump import",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instanceId:   "test-instance",
+				databaseName: "test-db",
+				sourceUri:    "nonexistent_file.sql",
+				sourceFormat: constants.MYSQLDUMP,
+			},
+			expectedStatus: subcommands.ExitFailure,
+			expectedError:  nil,
+		},
+		{
+			name: "unsupported format",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instanceId:   "test-instance",
+				databaseName: "test-db",
+				sourceUri:    "testdata/test.txt",
+				sourceFormat: "unsupported",
+			},
+			expectedStatus: subcommands.ExitFailure,
+			expectedError:  nil, // The function handles the unsupported format internally and returns a failure status
+		},
+		// Add more test cases as needed, e.g., for file read errors, database connection errors, etc.
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			originalNewSpannerAccessor := import_file.NewSpannerAccessor
+			import_file.NewSpannerAccessor = func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{
+					UpdateDatabaseMock: func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
+						return nil
+					},
+					RefreshMock: func(ctx context.Context, dbURI string) {
+					},
+					GetSpannerClientMock: func() spannerclient.SpannerClient {
+						return &spannerclient.SpannerClientMock{
+							ApplyMock: func(ctx context.Context, ms []*spanner.Mutation, opts ...spanner.ApplyOption) (commitTimestamp time.Time, err error) {
+								return time.Now(), nil
+							},
+						}
+					},
+				}, nil
+			}
+			defer func() {
+				import_file.NewSpannerAccessor = originalNewSpannerAccessor
+			}()
+
+			// Create a new flag set and register the command's flags
+			f := flag.NewFlagSet("import", flag.ContinueOnError)
+			// Execute the command
+			status := tc.cmd.Execute(context.Background(), f)
+
+			// Check the exit status
+			if status != tc.expectedStatus {
+				t.Errorf("Unexpected exit status: got %v, want %v", status, tc.expectedStatus)
+			}
+		})
+	}
+}
+
 func TestImportDataCmd_handleDump(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -65,10 +149,9 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 			dialect:   constants.DIALECT_GOOGLESQL,
 			spannerAccessorMock: func(t *testing.T) spanneraccessor.SpannerAccessor {
 				mock := &spanneraccessor.SpannerAccessorMock{
-					CreateOrUpdateDatabaseMock: func(ctx context.Context, dbURI, sourceFormat string, conv *internal.Conv, migrationType string) error {
-
+					UpdateDatabaseMock: func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
 						assert.Equal(t, "projects/test-project/instances/test-instance/databases/test-db", dbURI)
-						assert.Equal(t, constants.MYSQLDUMP, sourceFormat)
+						assert.Equal(t, constants.MYSQLDUMP, driver)
 						assert.Equal(t, expectedDDL, fetchDDLString(conv))
 
 						return nil

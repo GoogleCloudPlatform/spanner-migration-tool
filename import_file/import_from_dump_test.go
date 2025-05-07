@@ -150,6 +150,9 @@ func TestCreateSchema(t *testing.T) {
 				CreateOrUpdateDatabaseMock: func(ctx context.Context, dbURI, sourceFormat string, conv *internal.Conv, migrationType string) error {
 					return nil
 				},
+				UpdateDatabaseMock: func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
+					return nil
+				},
 				RefreshMock: func(ctx context.Context, dbURI string) {
 				},
 			}

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -65,9 +64,7 @@ func NewImportFromDump(
 		return nil, fmt.Errorf("unable to instantiate spanner client %v", err)
 	}
 
-	schemaToSpanner := &common.SchemaToSpannerImpl{
-		ExpressionVerificationAccessor: &expressions_api.ExpressionVerificationAccessorImpl{SpannerAccessor: spannerAccessor},
-	}
+	schemaToSpanner := &common.SchemaToSpannerImpl{}
 
 	return &ImportFromDumpImpl{
 		projectId,
@@ -102,11 +99,9 @@ func (source *ImportFromDumpImpl) CreateSchema(ctx context.Context, dialect stri
 	if err := common.ConvertSchemaToSpannerDDL(conv, source.dbDumpProcessor, source.schemaToSpanner); err != nil {
 		logger.Log.Error("Failed to convert schema to spanner DDL:", zap.Error(err))
 		return nil, fmt.Errorf("failed to convert schema to spanner DDL: %v", err)
-
 	}
 
-	// TODO: Only update database
-	err := source.SpannerAccessor.CreateOrUpdateDatabase(ctx, source.dbUri, source.SourceFormat, conv, source.SourceFormat)
+	err := source.SpannerAccessor.UpdateDatabase(ctx, source.dbUri, conv, source.SourceFormat)
 	if err != nil {
 		return nil, fmt.Errorf("can't create or update database: %v", err)
 	}
