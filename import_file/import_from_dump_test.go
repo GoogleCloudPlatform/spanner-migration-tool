@@ -3,6 +3,7 @@ package import_file
 import (
 	"context"
 	"errors"
+	"fmt"
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -61,6 +62,9 @@ func TestNewImportFromDump(t *testing.T) {
 	NewSpannerAccessor = func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
 		return &spanneraccessor.SpannerAccessorImpl{}, nil
 	}
+	defer func() {
+		NewSpannerAccessor = originalSpannerAccessorFunc
+	}()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -94,7 +98,28 @@ func TestNewImportFromDump(t *testing.T) {
 		)
 		assert.NoError(t, err)
 	})
-	NewSpannerAccessor = originalSpannerAccessorFunc
+
+	t.Run("failure in creation of spanner accessor", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp("", "test_dump_*.sql")
+		if err != nil {
+			t.Fatalf("Failed to create temp file: %v", err)
+		}
+		defer os.Remove(tmpFile.Name())
+		NewSpannerAccessor = func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+			return nil, fmt.Errorf("error in accessor")
+		}
+		_, err = NewImportFromDump(
+			context.Background(),
+			"",
+			"test-instance",
+			"test-db",
+			tmpFile.Name(),
+			constants.MYSQLDUMP,
+			"db-uri",
+		)
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "unable to instantiate spanner client")
+	})
 }
 
 func TestCreateSchema(t *testing.T) {

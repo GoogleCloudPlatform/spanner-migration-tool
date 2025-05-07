@@ -212,6 +212,9 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 		},
 	}
 	originalSpannerAccessorFunc := import_file.NewSpannerAccessor
+	defer func() {
+		import_file.NewSpannerAccessor = originalSpannerAccessorFunc
+	}()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -240,7 +243,6 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 			}
 		})
 	}
-	import_file.NewSpannerAccessor = originalSpannerAccessorFunc
 }
 
 func fetchDDLString(conv *internal.Conv) string {
