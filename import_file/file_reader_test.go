@@ -85,7 +85,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exit)
 }
 
-func TestNewSchemeDataReaderFile(t *testing.T) {
+func TestFileReaderFile(t *testing.T) {
 	tests := []struct {
 		name          string
 		dumpUri       string
@@ -120,7 +120,7 @@ func TestNewSchemeDataReaderFile(t *testing.T) {
 				defer tmpFile.Close()
 			}
 
-			reader, err := NewSchemeDataReader(context.Background(), tt.dumpUri)
+			reader, err := NewFileReader(context.Background(), tt.dumpUri)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -145,7 +145,7 @@ func TestNewSchemeDataReaderFile(t *testing.T) {
 
 }
 
-func TestNewSchemeDataReaderGCS(t *testing.T) {
+func TestNewFileReaderGCS(t *testing.T) {
 	tests := []struct {
 		name           string
 		dumpUri        string
@@ -184,7 +184,7 @@ func TestNewSchemeDataReaderGCS(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			GoogleStorageNewClient = tt.gcsClientFunc
 
-			reader, err := NewSchemeDataReader(context.Background(), tt.dumpUri)
+			reader, err := NewFileReader(context.Background(), tt.dumpUri)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -209,7 +209,7 @@ func TestNewSchemeDataReaderGCS(t *testing.T) {
 	}
 }
 
-func TestSchemeDataReaderImpl_CreateReaderFile(t *testing.T) {
+func TestFileReaderImpl_CreateReaderFile(t *testing.T) {
 	tests := []struct {
 		name    string
 		uri     string
@@ -261,7 +261,7 @@ func TestSchemeDataReaderImpl_CreateReaderFile(t *testing.T) {
 	}
 }
 
-func TestSchemeDataReaderImpl_CreateReaderGCS(t *testing.T) {
+func TestFileReaderImpl_CreateReaderGCS(t *testing.T) {
 	tests := []struct {
 		name    string
 		dumpUri string
@@ -286,7 +286,7 @@ func TestSchemeDataReaderImpl_CreateReaderGCS(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			reader, err := NewSchemeDataReader(context.Background(), tt.dumpUri)
+			reader, err := NewFileReader(context.Background(), tt.dumpUri)
 			if err != nil {
 				t.Fatalf("Failed to create FileReader: %v", err)
 			}
@@ -304,7 +304,7 @@ func TestSchemeDataReaderImpl_CreateReaderGCS(t *testing.T) {
 	}
 }
 
-func TestSchemeDataReaderImpl_ResetReaderFileSuccess(t *testing.T) {
+func TestFileReaderImpl_ResetReaderFileSuccess(t *testing.T) {
 	tests := []struct {
 		name    string
 		dumpUri string
@@ -331,7 +331,7 @@ func TestSchemeDataReaderImpl_ResetReaderFileSuccess(t *testing.T) {
 				t.Fatalf("Failed to create temp file: %v", err)
 			}
 			defer os.Remove(tmpFile.Name())
-			reader, err := NewSchemeDataReader(context.Background(), tmpFile.Name())
+			reader, err := NewFileReader(context.Background(), tmpFile.Name())
 			if err != nil {
 				t.Fatalf("Failed to create FileReader: %v", err)
 			}
@@ -348,7 +348,7 @@ func TestSchemeDataReaderImpl_ResetReaderFileSuccess(t *testing.T) {
 	}
 }
 
-func TestSchemeDataReaderImpl_ResetReaderFileError(t *testing.T) {
+func TestFileReaderImpl_ResetReaderFileError(t *testing.T) {
 	tests := []struct {
 		name    string
 		dumpUri string
@@ -375,7 +375,7 @@ func TestSchemeDataReaderImpl_ResetReaderFileError(t *testing.T) {
 				t.Fatalf("Failed to create temp file: %v", err)
 			}
 			defer os.Remove(tmpFile.Name())
-			reader, err := NewSchemeDataReader(context.Background(), tmpFile.Name())
+			reader, err := NewFileReader(context.Background(), tmpFile.Name())
 			if err != nil {
 				t.Fatalf("Failed to create FileReader: %v", err)
 			}
@@ -393,7 +393,7 @@ func TestSchemeDataReaderImpl_ResetReaderFileError(t *testing.T) {
 	}
 }
 
-func TestSchemeDataReaderImpl_ResetReaderGCS(t *testing.T) {
+func TestFileReaderImpl_ResetReaderGCS(t *testing.T) {
 	validUri := fmt.Sprintf("gs://%s/%s", *bucketName, *fileName)
 	invalidUri := "gs://test-bucket/nonexistent_file.sql"
 	tests := []struct {
@@ -431,7 +431,7 @@ func TestSchemeDataReaderImpl_ResetReaderGCS(t *testing.T) {
 			var reader FileReader
 			var err error
 
-			reader, err = NewSchemeDataReader(context.Background(), validUri)
+			reader, err = NewFileReader(context.Background(), validUri)
 			if err != nil {
 				t.Fatalf("Failed to create FileReader: %v", err)
 			}
@@ -457,7 +457,7 @@ func TestSchemeDataReaderImpl_ResetReaderGCS(t *testing.T) {
 	}
 }
 
-func TestSchemeDataReaderImpl_Close(t *testing.T) {
+func TestFileReaderImpl_Close(t *testing.T) {
 	originalGoogleStorageNewClient := GoogleStorageNewClient
 	defer func() { GoogleStorageNewClient = originalGoogleStorageNewClient }()
 
@@ -468,7 +468,7 @@ func TestSchemeDataReaderImpl_Close(t *testing.T) {
 		}
 		defer os.Remove(tmpFile.Name())
 
-		reader, err := NewSchemeDataReader(context.Background(), tmpFile.Name())
+		reader, err := NewFileReader(context.Background(), tmpFile.Name())
 		if err != nil {
 			t.Fatalf("Failed to create FileReader: %v", err)
 		}
@@ -484,7 +484,7 @@ func TestSchemeDataReaderImpl_Close(t *testing.T) {
 		GoogleStorageNewClient = newTestClient
 		validURI := fmt.Sprintf("gs://%s/%s", *bucketName, *fileName)
 
-		reader, err := NewSchemeDataReader(context.Background(), validURI)
+		reader, err := NewFileReader(context.Background(), validURI)
 		if err != nil {
 			t.Fatalf("Failed to create FileReader: %v", err)
 		}
