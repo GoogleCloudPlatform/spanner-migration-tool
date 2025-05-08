@@ -2,9 +2,8 @@ package import_file
 
 import (
 	"context"
-	csv2 "encoding/csv"
+	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -23,20 +22,19 @@ type CsvSchema interface {
 }
 
 type CsvSchemaImpl struct {
-	ProjectId         string
-	InstanceId        string
-	DbName            string
-	TableName         string
-	SchemaUri         string
-	CsvFieldDelimiter string
+	ProjectId  string
+	InstanceId string
+	DbName     string
+	TableName  string
+	SchemaUri  string
 }
 
 // ColumnDefinition represents the definition of a Spanner table column.
 type ColumnDefinition struct {
-	Name    string
-	Type    string // e.g., "INT64", "STRING(MAX)", "TIMESTAMP", "DATE"
-	NotNull bool
-	PkOrder int // defines the order in the PK for the table, 0 means absence.
+	Name    string `json:"name"`
+	Type    string `json:"type"` // e.g., "INT64", "STRING(MAX)", "TIMESTAMP", "DATE"
+	NotNull bool   `json:"notNull"`
+	PkOrder int    `json:"primaryKeyOrder"` // defines the order in the PK for the table, 0 means absence.
 }
 
 type PrimaryKey struct {
@@ -47,7 +45,7 @@ type PrimaryKey struct {
 func (source *CsvSchemaImpl) CreateSchema(ctx context.Context, dialect string, sp *spanneraccessor.SpannerAccessorImpl) error {
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", source.ProjectId, source.InstanceId, source.DbName)
-	colDef, err := parseSchema(source.SchemaUri, rune(source.CsvFieldDelimiter[0]))
+	colDef, err := parseSchema(source.SchemaUri)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Unable to parse schema URI %v", err))
 		return err
@@ -85,38 +83,25 @@ func (source *CsvSchemaImpl) CreateSchema(ctx context.Context, dialect string, s
 	return nil
 }
 
-func parseSchema(schemaUri string, delimiter rune) ([]ColumnDefinition, error) {
-	schemaFile, err := os.Open(schemaUri)
-	if err != nil {
-		return nil, fmt.Errorf("error opening file: %v", err)
-	}
-	defer schemaFile.Close()
+func parseSchema(schemaUri string) ([]ColumnDefinition, error) {
 
-	reader := csv2.NewReader(schemaFile)
-	reader.Comma = delimiter
-	reader.TrimLeadingSpace = true
+	schemaFile, err := os.ReadFile(schemaUri)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Error reading schema file: %v", err))
+		return nil, err
+	}
+
+	var schema []ColumnDefinition
+	err = json.Unmarshal(schemaFile, &schema)
+	if err != nil {
+		fmt.Println("Error parsing schema file:", err)
+		return nil, err
+	}
 
 	var colDefs []ColumnDefinition
-	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("error reading CSV record: %v", err)
-		}
-		if len(record) != 4 {
-			return nil, fmt.Errorf("expected 4 columns, but got %d", len(record))
-		}
+	for _, column := range schema {
 
-		pkOrder, err := strconv.Atoi(strings.TrimSpace(record[3]))
-
-		if err != nil {
-			fmt.Println("Error parsing schema file", err)
-			return colDefs, err
-		}
-
-		colDef := ColumnDefinition{record[0], record[1], StringToBool(record[2]), pkOrder}
+		colDef := ColumnDefinition{column.Name, column.Type, column.NotNull, column.PkOrder}
 		colDefs = append(colDefs, colDef)
 	}
 	return colDefs, nil

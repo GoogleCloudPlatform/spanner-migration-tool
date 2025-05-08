@@ -145,7 +145,7 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	return tables, nil
 }
 
-func (sp *InfoSchemaImpl) PopulateSpannerSchema(ctx context.Context, conv *internal.Conv) error {
+func (sp *InfoSchemaImpl) PopulateSpannerSchema(ctx context.Context, conv *internal.Conv, commonInfoSchema common.InfoSchemaInterface) error {
 	processSchema := common.ProcessSchemaImpl{}
 	expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
 	ddlVerifier, err := expressions_api.NewDDLVerifierImpl(ctx, conv.SpProjectId, conv.SpInstanceId)
@@ -156,7 +156,7 @@ func (sp *InfoSchemaImpl) PopulateSpannerSchema(ctx context.Context, conv *inter
 		DdlV:                           ddlVerifier,
 		ExpressionVerificationAccessor: expressionVerificationAccessor,
 	}
-	err = processSchema.ProcessSchema(conv, sp, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	err = processSchema.ProcessSchema(conv, sp, common.DefaultWorkers, internal.AdditionalSchemaAttributes{IsSharded: false}, &schemaToSpanner, &common.UtilsOrderImpl{}, commonInfoSchema)
 	if err != nil {
 		return fmt.Errorf("error trying to read and convert spanner schema: %v", err)
 	}
