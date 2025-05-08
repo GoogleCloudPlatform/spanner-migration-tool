@@ -49,7 +49,7 @@ const mockIConv: IConv = {
                     ]
                 },
             ],
-            ParentTable: {Id: "", OnDelete: ""},
+            ParentTable: {Id: "", OnDelete: "", InterleaveType: ""},
             Comment: ""
         }
     },
@@ -178,7 +178,7 @@ export const mockIConv2: IConv = {
                     ]
                 },
             ],
-            ParentTable: {Id: "", OnDelete: ""},
+            ParentTable: {Id: "", OnDelete: "", InterleaveType: ""},
             CheckConstraints:[],
             Comment: ""
         },
@@ -191,7 +191,7 @@ export const mockIConv2: IConv = {
             PrimaryKeys: [],
             ForeignKeys: [],
             Indexes: [],
-            ParentTable: {Id: "", OnDelete: ""},
+            ParentTable: {Id: "", OnDelete: "", InterleaveType: ""},
             CheckConstraints:[],
             Comment: ""
         }

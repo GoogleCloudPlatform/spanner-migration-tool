@@ -622,7 +622,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 					},
 					"t2": {
 						Name:   "table2",
@@ -676,7 +676,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 					},
 					"t2": {
 						Name:   "table2",
@@ -741,7 +741,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 					},
 					"t2": {
 						Name:   "table2",
@@ -795,7 +795,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 					},
 					"t2": {
 						Name:   "table2",
@@ -860,7 +860,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 					},
 					"t2": {
 						Name:   "table2",
@@ -914,7 +914,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 					},
 					"t2": {
 						Name:   "table2",
@@ -979,7 +979,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 					},
 					"t2": {
 						Name:   "t2",
@@ -1029,7 +1029,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 					},
 					"t2": {
 						Name:   "t2",
@@ -1103,7 +1103,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c6": {Name: "c", Id: "c6", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false}},
-						ParentTable: ddl.InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION},
+						ParentTable: ddl.InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 					},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -1157,7 +1157,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c6": {Name: "c", Id: "c6", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false}},
-						ParentTable: ddl.InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION},
+						ParentTable: ddl.InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 					},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -1211,7 +1211,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 					},
 					"t2": {
 						Name:   "t2",
@@ -1261,7 +1261,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 					},
 					"t2": {
 						Name:   "t2",
@@ -1432,7 +1432,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 					},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -1467,7 +1467,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}, AutoGen: ddl.AutoGenCol{Name: "UUID", GenerationType: "Pre-defined"}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 					},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -1507,7 +1507,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 					},
 				},
 				SrcSchema: map[string]schema.Table{
@@ -1550,7 +1550,7 @@ func TestUpdateTableSchema(t *testing.T) {
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 					},
 				},
 				SrcSchema: map[string]schema.Table{

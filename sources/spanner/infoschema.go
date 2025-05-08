@@ -173,6 +173,7 @@ func (sp *InfoSchemaImpl) PopulateSpannerSchema(ctx context.Context, conv *inter
 		spTable := conv.SpSchema[tableId]
 		spTable.ParentTable.Id = parentTable.Id
 		spTable.ParentTable.OnDelete = parentTable.OnDelete
+		spTable.ParentTable.InterleaveType = parentTable.InterleaveType
 		conv.SpSchema[tableId] = spTable
 	}
 	return nil
@@ -459,11 +460,11 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 }
 
 func (isi InfoSchemaImpl) GetInterleaveTables(spSchema ddl.Schema) (map[string]ddl.InterleavedParent, error) {
-	q := `SELECT table_name, parent_table_name, on_delete_action FROM information_schema.tables 
-	WHERE interleave_type = 'IN PARENT' AND table_type = 'BASE TABLE' AND table_schema = ''`
+	q := `SELECT table_name, parent_table_name, on_delete_action, interleave_type FROM information_schema.tables 
+	WHERE interleave_type <> '' AND table_type = 'BASE TABLE' AND table_schema = ''`
 	if isi.SpDialect == constants.DIALECT_POSTGRESQL {
-		q = `SELECT table_name, parent_table_name, on_delete_action FROM information_schema.tables 
-		WHERE interleave_type = 'IN PARENT' AND table_type = 'BASE TABLE' AND table_schema = 'public'`
+		q = `SELECT table_name, parent_table_name, on_delete_action, interleave_type FROM information_schema.tables 
+		WHERE interleave_type <> '' AND table_type = 'BASE TABLE' AND table_schema = 'public'`
 	}
 	stmt := spanner.Statement{SQL: q}
 
@@ -476,7 +477,7 @@ func (isi InfoSchemaImpl) GetInterleaveTables(spSchema ddl.Schema) (map[string]d
 
 	defer iter.Stop()
 
-	var tableName, parentTableName, onDelete string
+	var tableName, parentTableName, onDelete, interleaveType string
 	parentTables := map[string]ddl.InterleavedParent{}
 	for {
 		row, err := iter.Next()
@@ -486,12 +487,12 @@ func (isi InfoSchemaImpl) GetInterleaveTables(spSchema ddl.Schema) (map[string]d
 		if err != nil {
 			return nil, fmt.Errorf("couldn't read row while fetching interleaved tables: %w", err)
 		}
-		err = row.Columns(&tableName, &parentTableName, &onDelete)
+		err = row.Columns(&tableName, &parentTableName, &onDelete, &interleaveType)
 		if err != nil {
 			return nil, err
 		}
 		parentTableId, _ := internal.GetTableIdFromSpName(spSchema, parentTableName)
-		parentTables[tableName] = ddl.InterleavedParent{Id: parentTableId, OnDelete: onDelete}
+		parentTables[tableName] = ddl.InterleavedParent{Id: parentTableId, OnDelete: onDelete, InterleaveType: interleaveType}
 	}
 	return parentTables, nil
 }
