@@ -37,8 +37,6 @@ func initIntegrationTests() (cleanup func()) {
 	projectID = os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID")
 	instanceID = os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID")
 
-	projectID = "span-cloud-testing"
-	instanceID = "asapha-test"
 	ctx = context.Background()
 	flag.Parse() // Needed for calling testing.Short().
 
@@ -70,9 +68,9 @@ func initIntegrationTests() (cleanup func()) {
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
-	//if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-	//	t.Skip("Skipping tests only running against the emulator.")
-	//}
+	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		t.Skip("Skipping tests only running against the emulator.")
+	}
 }
 
 func TestLocalImportMysqlDumpFile(t *testing.T) {
