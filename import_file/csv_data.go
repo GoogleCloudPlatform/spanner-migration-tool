@@ -3,9 +3,11 @@ package import_file
 import (
 	"context"
 	"fmt"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/proto/migration"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
@@ -25,15 +27,13 @@ type CsvDataImpl struct {
 	CsvFieldDelimiter string
 }
 
-func (source *CsvDataImpl) ImportData(ctx context.Context, infoSchema *spanner.InfoSchemaImpl, dialect string) error {
-	// TODO: start with single table imports
+func (source *CsvDataImpl) ImportData(ctx context.Context, spannerInfoSchema *spanner.InfoSchemaImpl, dialect string, conv *internal.Conv, commonInfoSchema common.InfoSchemaInterface, csv csv.CsvInterface) error {
 	// TODO: Response code -  error /success contract between gcloud and SMT
-	// TODO: get CSV locally. start with unchunked and later figure out chunking for larger sizes
 
-	conv := getConvObject(source.ProjectId, source.InstanceId, dialect)
-	batchWriter := writer.GetBatchWriterWithConfig(ctx, infoSchema.SpannerClient, conv)
+	conv = getConvObject(source.ProjectId, source.InstanceId, dialect, conv)
+	batchWriter := writer.GetBatchWriterWithConfig(ctx, spannerInfoSchema.SpannerClient, conv)
 
-	err := infoSchema.PopulateSpannerSchema(ctx, conv)
+	err := spannerInfoSchema.PopulateSpannerSchema(ctx, conv, commonInfoSchema)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Unable to read Spanner schema %v", err))
 		return err
@@ -49,7 +49,6 @@ func (source *CsvDataImpl) ImportData(ctx context.Context, infoSchema *spanner.I
 		columnNames = append(columnNames, conv.SpSchema[tableId].ColDefs[v].Name)
 	}
 
-	csv := csv.CsvImpl{}
 	err = csv.ProcessSingleCSV(conv, source.TableName, columnNames,
 		conv.SpSchema[tableId].ColDefs, source.SourceUri, "", rune(source.CsvFieldDelimiter[0]))
 	if err != nil {
@@ -59,8 +58,7 @@ func (source *CsvDataImpl) ImportData(ctx context.Context, infoSchema *spanner.I
 	return err
 }
 
-func getConvObject(projectId, instanceId, dialect string) *internal.Conv {
-	conv := internal.MakeConv()
+func getConvObject(projectId, instanceId, dialect string, conv *internal.Conv) *internal.Conv {
 	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 	conv.Audit.SkipMetricsPopulation = true
 	conv.Audit.DryRun = false
