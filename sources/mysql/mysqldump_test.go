@@ -40,15 +40,21 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		ty       string
 		expected ddl.Type
 	}{
+		{"varbinary(100)", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 		{"bigint", ddl.Type{Name: ddl.Int64}},
 		{"bool", ddl.Type{Name: ddl.Bool}},
 		{"boolean", ddl.Type{Name: ddl.Bool}},
 		{"tinyint(1)", ddl.Type{Name: ddl.Bool}},
 		{"tinyint(4)", ddl.Type{Name: ddl.Int64}},
+		{"json", ddl.Type{Name: ddl.JSON}},
 		{"blob", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+		{"mediumblob", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+		{"tinyblob", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+		{"longblob", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 		{"char(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
 		{"date", ddl.Type{Name: ddl.Date}},
 		{"decimal(4,10)", ddl.Type{Name: ddl.Numeric}},
+		{"numeric(4,10)", ddl.Type{Name: ddl.Numeric}},
 		{"double(4,10)", ddl.Type{Name: ddl.Float64}},
 		{"float(4,10)", ddl.Type{Name: ddl.Float32}},
 		{"integer", ddl.Type{Name: ddl.Int64}},
@@ -64,6 +70,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		{"enum('a','b')", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}},
 		{"datetime", ddl.Type{Name: ddl.Timestamp}},
+		{"binary", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 		{"varchar(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
 	}
 	for _, tc := range scalarTests {
@@ -72,7 +79,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 			tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, "t")
 			columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, "a")
 			noIssues(conv, t, "Scalar type: "+tc.ty)
-			assert.Equal(t, conv.SpSchema[tableId].ColDefs[columnId].T, tc.expected, "Scalar type: "+tc.ty)
+			assert.Equal(t, tc.expected, conv.SpSchema[tableId].ColDefs[columnId].T, "Scalar type: "+tc.ty)
 		})
 	}
 }
