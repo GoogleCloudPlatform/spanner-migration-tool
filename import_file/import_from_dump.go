@@ -13,7 +13,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"go.uber.org/zap"
-	"os"
 )
 
 var NewSpannerAccessor = func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
@@ -32,7 +31,7 @@ type ImportFromDumpImpl struct {
 	DatabaseName    string
 	DumpUri         string
 	dbUri           string
-	dumpReader      *os.File
+	dumpReader      FileReader
 	SourceFormat    string
 	SpannerAccessor spanneraccessor.SpannerAccessor
 	schemaToSpanner common.SchemaToSpannerInterface
@@ -53,7 +52,7 @@ func NewImportFromDump(
 		return nil, err
 	}
 	// TODO: handle GCS
-	dumpReader, err := os.Open(dumpUri)
+	dumpReader, err := NewFileReader(ctx, dumpUri)
 	if err != nil {
 		if err != nil {
 			return nil, fmt.Errorf(fmt.Sprintf("can't read dump file: %s due to: %v", dumpUri, err))
@@ -78,8 +77,13 @@ func NewImportFromDump(
 
 // CreateSchema Process database dump file. Convert schema to spanner DDL. Update the provided database with the schema.
 func (source *ImportFromDumpImpl) CreateSchema(ctx context.Context, dialect string) (*internal.Conv, error) {
+	reader, err := source.dumpReader.CreateReader(ctx)
+	if err != nil {
+		logger.Log.Error("Failed to create reader:", zap.Error(err))
+		return nil, fmt.Errorf("failed to create reader: %v", err)
+	}
 
-	r := internal.NewReader(bufio.NewReader(source.dumpReader), nil)
+	r := internal.NewReader(bufio.NewReader(reader), nil)
 	conv := internal.MakeConv()
 	conv.SpDialect = dialect
 	conv.Source = source.SourceFormat
@@ -97,7 +101,7 @@ func (source *ImportFromDumpImpl) CreateSchema(ctx context.Context, dialect stri
 		return nil, fmt.Errorf("failed to convert schema to spanner DDL: %v", err)
 	}
 
-	err := source.SpannerAccessor.UpdateDatabase(ctx, source.dbUri, conv, source.SourceFormat)
+	err = source.SpannerAccessor.UpdateDatabase(ctx, source.dbUri, conv, source.SourceFormat)
 	if err != nil {
 		return nil, fmt.Errorf("can't create or update database: %v", err)
 	}
@@ -108,13 +112,12 @@ func (source *ImportFromDumpImpl) CreateSchema(ctx context.Context, dialect stri
 
 // ImportData process database dump file. Convert insert statement to spanner mutation. Load data into spanner.
 func (source *ImportFromDumpImpl) ImportData(ctx context.Context, conv *internal.Conv) error {
-	dumpReader, err := ResetReader(source.dumpReader, source.DumpUri)
+	dumpReader, err := source.dumpReader.ResetReader(ctx)
 	if err != nil {
 		return fmt.Errorf("can't read dump file: %s due to: %v", source.DumpUri, err)
 	}
-	source.dumpReader = dumpReader
 	logger.Log.Info(fmt.Sprintf("Importing %d rows.", conv.Rows()))
-	r := internal.NewReader(bufio.NewReader(source.dumpReader), nil)
+	r := internal.NewReader(bufio.NewReader(dumpReader), nil)
 	batchWriter := writer.GetBatchWriterWithConfig(ctx, source.SpannerAccessor.GetSpannerClient(), conv)
 
 	if err := source.dbDumpProcessor.ProcessDump(conv, r); err != nil {
