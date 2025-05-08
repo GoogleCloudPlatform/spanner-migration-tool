@@ -724,14 +724,19 @@
                     <button
                       mat-menu-item
                       [disabled]="element.get('spName').value === ''"
-                      (click)="setInterleave('In PARENT')"> <span>Interleave In Parent with child-parent constraint enforced (Interleave In Parent)</span>
+                      (click)="setInterleave('In PARENT')"> <span>Convert to Interleave In Parent</span>
                     </button>
-                  
                     &nbsp;<button
                       mat-menu-item
                       [disabled]="element.get('spName').value === ''"
-                      (click)="setInterleave('IN')"> <span>Interleave In Parent without child-parent constraint enforced (Interleave In)</span>
+                      (click)="setInterleave('IN')"> <span>Convert to Interleave In</span>
                     </button>
+                    &nbsp;<div style="display: inline-flex; align-items: center;">
+                      <mat-icon color="primary">info_outline</mat-icon>&nbsp;
+                      <a href="https://cloud.google.com/spanner/docs/schema-and-data-model#create-interleaved-tables" target="_blank">
+                        Interleaving Information
+                      </a>
+                    </div>
                   </ng-container>
                 </mat-menu>
               </div>
@@ -760,14 +765,19 @@
         <button
           mat-raised-button
           color="primary"
-          (click)="setInterleave('IN PARENT')"> Interleave In Parent <b>with</b> child-parent constraint enforced (Interleave In Parent)
+          (click)="setInterleave('IN PARENT')"> Convert to Interleave In Parent
         </button>
-
         &nbsp;<button
           mat-raised-button
           color="primary"
-          (click)="setInterleave('IN')"> Interleave In Parent <b>without</b> child-parent constraint enforced (Interleave In)
+          (click)="setInterleave('IN')"> Convert to Interleave In
         </button>
+        &nbsp;<div style="display: inline-flex; align-items: center;">
+          <mat-icon color="primary">info_outline</mat-icon>&nbsp;
+          <a href="https://cloud.google.com/spanner/docs/schema-and-data-model#create-interleaved-tables" target="_blank">
+            Interleaving Information
+          </a>
+        </div>
         </ng-container>
         <button *ngIf="
             (interleaveStatus.tableInterleaveStatus &&
