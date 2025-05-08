@@ -1,4 +1,4 @@
-package import_file
+package file_reader
 
 import (
 	"cloud.google.com/go/httpreplay"
@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 	"google.golang.org/api/option"
 	"log"
 	"os"
@@ -75,6 +77,7 @@ func initIntegrationTestSetup() func() error {
 }
 
 func TestMain(m *testing.M) {
+	logger.Log = zap.NewNop()
 	cleanup := initIntegrationTestSetup()
 	defer cleanup()
 	exit := m.Run()
@@ -83,66 +86,6 @@ func TestMain(m *testing.M) {
 		log.Printf("Post-test cleanup failed: %v", err)
 	}
 	os.Exit(exit)
-}
-
-func TestFileReaderFile(t *testing.T) {
-	tests := []struct {
-		name          string
-		dumpUri       string
-		wantErr       bool
-		expectedError string
-	}{
-		{
-			name:    "Local file",
-			dumpUri: "local_file.sql",
-			wantErr: false,
-		},
-		{
-			name:          "Invalid URI",
-			dumpUri:       "://invalid-uri",
-			wantErr:       true,
-			expectedError: "missing protocol scheme",
-		},
-		{
-			name:          "Local file open error",
-			dumpUri:       "nonexistent_file.sql",
-			wantErr:       true,
-			expectedError: "open nonexistent_file.sql: no such file or directory",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if !tt.wantErr {
-				// Create a dummy file for testing local file reading.
-				tmpFile, _ := os.CreateTemp("", "local_file.sql")
-				tt.dumpUri = tmpFile.Name()
-				defer tmpFile.Close()
-			}
-
-			reader, err := NewFileReader(context.Background(), tt.dumpUri)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.expectedError != "" {
-					assert.Contains(t, err.Error(), tt.expectedError)
-				}
-				assert.Nil(t, reader)
-				return
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, reader)
-				assert.IsType(t, &LocalFileReaderImpl{}, reader)
-				impl, ok := reader.(*LocalFileReaderImpl)
-				assert.True(t, ok)
-
-				assert.NotNil(t, impl.file)
-				impl.file.Close()
-				impl.Close() // Ensure resources are cleaned up
-			}
-		})
-	}
-
 }
 
 func TestNewFileReaderGCS(t *testing.T) {
@@ -209,58 +152,6 @@ func TestNewFileReaderGCS(t *testing.T) {
 	}
 }
 
-func TestFileReaderImpl_CreateReaderFile(t *testing.T) {
-	tests := []struct {
-		name    string
-		uri     string
-		wantErr bool
-	}{
-		{
-			name:    "Local file",
-			uri:     "test_file.sql",
-			wantErr: false,
-		},
-		{
-			name:    "Local file error",
-			uri:     "nonexistent_file.sql",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var err error
-
-			if !tt.wantErr {
-				// Create a dummy file for testing local file reading.
-				tmpFile, err := os.CreateTemp("", "test_file_*.sql")
-				if err != nil {
-					t.Fatalf("Failed to create temp file: %v", err)
-				}
-				defer os.Remove(tmpFile.Name())
-				tt.uri = tmpFile.Name()
-			}
-
-			reader := &LocalFileReaderImpl{
-				uri: tt.uri,
-			}
-			if err != nil {
-				t.Fatalf("Failed to create FileReader: %v", err)
-			}
-			defer reader.Close()
-
-			r, err := reader.CreateReader(context.Background())
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, r)
-				assert.IsType(t, &os.File{}, r)
-			}
-		})
-	}
-}
-
 func TestFileReaderImpl_CreateReaderGCS(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -300,95 +191,6 @@ func TestFileReaderImpl_CreateReaderGCS(t *testing.T) {
 				assert.NotNil(t, r)
 				assert.IsType(t, &storage.Reader{}, r)
 			}
-		})
-	}
-}
-
-func TestFileReaderImpl_ResetReaderFileSuccess(t *testing.T) {
-	tests := []struct {
-		name    string
-		dumpUri string
-		isGCS   bool
-		seek    bool
-	}{
-		{
-			name:    "Local file",
-			dumpUri: "test_file.sql",
-			seek:    false,
-		},
-		{
-			name:    "Local file error",
-			dumpUri: "test_file.sql",
-			seek:    true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create a dummy file for testing local file reading.
-			tmpFile, err := os.CreateTemp("", "test_file_*.sql")
-			if err != nil {
-				t.Fatalf("Failed to create temp file: %v", err)
-			}
-			defer os.Remove(tmpFile.Name())
-			reader, err := NewFileReader(context.Background(), tmpFile.Name())
-			if err != nil {
-				t.Fatalf("Failed to create FileReader: %v", err)
-			}
-			defer reader.Close()
-			if tt.seek {
-				reader.(*LocalFileReaderImpl).file.Close()
-			}
-
-			r, err := reader.ResetReader(context.Background())
-			assert.NoError(t, err)
-			assert.NotNil(t, r)
-			assert.IsType(t, &os.File{}, r)
-		})
-	}
-}
-
-func TestFileReaderImpl_ResetReaderFileError(t *testing.T) {
-	tests := []struct {
-		name    string
-		dumpUri string
-		isGCS   bool
-		seek    bool
-	}{
-		{
-			name:    "Local file",
-			dumpUri: "test_nonexistent_file.sql",
-			seek:    false,
-		},
-		{
-			name:    "Local file error",
-			dumpUri: "test_nonexistent_file.sql",
-			seek:    true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create a dummy file for testing local file reading.
-			tmpFile, err := os.CreateTemp("", "test_file_*.sql")
-			if err != nil {
-				t.Fatalf("Failed to create temp file: %v", err)
-			}
-			defer os.Remove(tmpFile.Name())
-			reader, err := NewFileReader(context.Background(), tmpFile.Name())
-			if err != nil {
-				t.Fatalf("Failed to create FileReader: %v", err)
-			}
-			defer reader.Close()
-			reader.(*LocalFileReaderImpl).uri = tt.dumpUri
-			if tt.seek {
-				reader.(*LocalFileReaderImpl).file.Close()
-			} else {
-				reader.(*LocalFileReaderImpl).file = nil
-			}
-
-			_, err = reader.ResetReader(context.Background())
-			assert.Error(t, err)
 		})
 	}
 }
@@ -457,28 +259,9 @@ func TestFileReaderImpl_ResetReaderGCS(t *testing.T) {
 	}
 }
 
-func TestFileReaderImpl_Close(t *testing.T) {
+func TestFileReaderImpl_GCS_Close(t *testing.T) {
 	originalGoogleStorageNewClient := GoogleStorageNewClient
 	defer func() { GoogleStorageNewClient = originalGoogleStorageNewClient }()
-
-	t.Run("Local File", func(t *testing.T) {
-		tmpFile, err := os.CreateTemp("", "test_file_*.sql")
-		if err != nil {
-			t.Fatalf("Failed to create temp file: %v", err)
-		}
-		defer os.Remove(tmpFile.Name())
-
-		reader, err := NewFileReader(context.Background(), tmpFile.Name())
-		if err != nil {
-			t.Fatalf("Failed to create FileReader: %v", err)
-		}
-
-		impl, ok := reader.(*LocalFileReaderImpl)
-		assert.True(t, ok)
-		assert.NotNil(t, impl.file)
-
-		reader.Close()
-	})
 
 	t.Run("GCS File", func(t *testing.T) {
 		GoogleStorageNewClient = newTestClient
