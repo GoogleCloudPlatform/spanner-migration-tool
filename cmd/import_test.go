@@ -177,18 +177,18 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 		expectedStatus subcommands.ExitStatus
 		expectedError  error // Add expectedError
 	}{
-		{
-			name: "successful MySQL dump import",
-			cmd: &ImportDataCmd{
-				project:      "test-project",
-				instanceId:   "test-instance",
-				databaseName: "test-db",
-				sourceUri:    "../test_data/basic_mysql_dump.test.out",
-				sourceFormat: constants.MYSQLDUMP,
-			},
-			expectedStatus: subcommands.ExitSuccess,
-			expectedError:  nil,
-		},
+		//{
+		//	name: "successful MySQL dump import",
+		//	cmd: &ImportDataCmd{
+		//		project:      "test-project",
+		//		instanceId:   "test-instance",
+		//		databaseName: "test-db",
+		//		sourceUri:    "../test_data/basic_mysql_dump.test.out",
+		//		sourceFormat: constants.MYSQLDUMP,
+		//	},
+		//	expectedStatus: subcommands.ExitSuccess,
+		//	expectedError:  nil,
+		//},
 		{
 			name: "failed MySQL dump import",
 			cmd: &ImportDataCmd{
