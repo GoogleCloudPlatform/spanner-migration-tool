@@ -102,10 +102,6 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 }
 
 func validateInputRemote(ctx context.Context, input *ImportDataCmd) error {
-	if !isSpannerAccessible(ctx, input.project, input.instanceId, input.databaseName) {
-		return fmt.Errorf("spanner instanceId: %v, databaseName: %v not accessible. please check the input and access permissions and try again", input.instanceId, input.databaseName)
-	}
-
 	if !isUriAccessible(input.sourceUri) {
 		return fmt.Errorf("sourceUri:%v not accessible. Please check the input and access permissions and try again", input.sourceUri)
 	}
