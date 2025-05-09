@@ -64,7 +64,6 @@ func initIntegrationTests() (cleanup func()) {
 	}
 	return func() {
 		databaseAdmin.Close()
-		// clean up the table -  skip for now for validation
 	}
 }
 
@@ -77,7 +76,7 @@ func onlyRunForEmulatorTest(t *testing.T) {
 func TestLocalImportMysqlDumpFile(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
-	// explicitly setting for test.
+
 	log.Printf("projectID %s, instanceID %s", projectID, instanceID)
 
 	// configure the database client
@@ -88,8 +87,6 @@ func TestLocalImportMysqlDumpFile(t *testing.T) {
 	createSpannerDatabase(t, projectID, instanceID, dbName)
 	defer databaseAdmin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: dbURI})
 
-	// write new csv data to spanner
-	// just trigger the csv command
 	dumpFilePath := "../../test_data/mysql_dump_import_data.sql"
 
 	args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance-id=%s -database-name=%s -source-uri=%s", projectID, instanceID, dbName, dumpFilePath)
@@ -154,7 +151,7 @@ func createSpannerDatabase(t *testing.T, project, instance, dbName string) {
 		Parent: fmt.Sprintf("projects/%s/instances/%s", project, instance),
 	}
 
-	req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
+	req.CreateStatement = fmt.Sprintf("CREATE DATABASE `%s`", dbName)
 	op, err := databaseAdmin.CreateDatabase(ctx, req)
 	if err != nil {
 		t.Fatalf("can't build CreateDatabaseRequest for %s: %v", dbURI, err)
