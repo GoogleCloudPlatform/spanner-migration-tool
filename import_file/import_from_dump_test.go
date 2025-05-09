@@ -3,7 +3,6 @@ package import_file
 import (
 	"context"
 	"errors"
-	"fmt"
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -58,18 +57,11 @@ func TestNewImportFromDump(t *testing.T) {
 			expectedError: "can't read dump file: nonexistent_file.sql due to: open nonexistent_file.sql: no such file or directory",
 		},
 	}
-	originalSpannerAccessorFunc := NewSpannerAccessor
-	NewSpannerAccessor = func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
-		return &spanneraccessor.SpannerAccessorImpl{}, nil
-	}
-	defer func() {
-		NewSpannerAccessor = originalSpannerAccessorFunc
-	}()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			_, err := NewImportFromDump(context.Background(), tt.projectId, tt.instanceId, tt.databaseName, tt.dumpUri, tt.sourceFormat, "db-uri")
+			_, err := NewImportFromDump(context.Background(), tt.projectId, tt.instanceId, tt.databaseName, tt.dumpUri, tt.sourceFormat, "db-uri", &spanneraccessor.SpannerAccessorMock{})
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -95,30 +87,9 @@ func TestNewImportFromDump(t *testing.T) {
 			tmpFile.Name(),
 			constants.MYSQLDUMP,
 			"db-uri",
+			&spanneraccessor.SpannerAccessorMock{},
 		)
 		assert.NoError(t, err)
-	})
-
-	t.Run("failure in creation of spanner accessor", func(t *testing.T) {
-		tmpFile, err := os.CreateTemp("", "test_dump_*.sql")
-		if err != nil {
-			t.Fatalf("Failed to create temp file: %v", err)
-		}
-		defer os.Remove(tmpFile.Name())
-		NewSpannerAccessor = func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
-			return nil, fmt.Errorf("error in accessor")
-		}
-		_, err = NewImportFromDump(
-			context.Background(),
-			"",
-			"test-instance",
-			"test-db",
-			tmpFile.Name(),
-			constants.MYSQLDUMP,
-			"db-uri",
-		)
-		assert.Error(t, err)
-		assert.ErrorContains(t, err, "unable to instantiate spanner client")
 	})
 }
 
@@ -185,6 +156,7 @@ func TestCreateSchema(t *testing.T) {
 			file, err := os.CreateTemp("", "testfile.sql")
 			file.WriteString(tc.dumpContent)
 			file.Close()
+			defer os.Remove(file.Name())
 
 			dbDumpProcessorMock := &common.MockDbDump{}
 			dbDumpProcessorMock.On("ProcessDump", mock.Anything, mock.Anything).Return(tc.processDumpError)
@@ -194,11 +166,16 @@ func TestCreateSchema(t *testing.T) {
 			schemaToSchema := &common.MockSchemaToSpanner{}
 			schemaToSchema.On("SchemaToSpannerDDL", mock.Anything, mock.Anything, mock.Anything).Return(tc.schemaToSpannerError)
 
+			fileReader, err := NewFileReader(context.Background(), file.Name())
+			assert.NoError(t, err)
+			defer fileReader.Close()
+
 			source := &ImportFromDumpImpl{
 				ProjectId:       "test-project",
 				InstanceId:      "test-instance",
 				DatabaseName:    "test-db",
 				DumpUri:         file.Name(),
+				dumpReader:      fileReader,
 				SourceFormat:    tc.sourceFormat,
 				SpannerAccessor: spannerAccessorMock,
 				dbDumpProcessor: dbDumpProcessorMock,
@@ -264,11 +241,17 @@ func TestImportData(t *testing.T) {
 			file, err := os.CreateTemp("", "testfile.sql")
 			file.WriteString(tc.dumpContent)
 			file.Close()
+			defer os.Remove(file.Name())
+
+			fileReader, err := NewFileReader(context.Background(), file.Name())
+			assert.NoError(t, err)
+
 			source := &ImportFromDumpImpl{
 				ProjectId:       "test-project",
 				InstanceId:      "test-instance",
 				DatabaseName:    "test-db",
 				DumpUri:         file.Name(),
+				dumpReader:      fileReader,
 				SourceFormat:    tc.sourceFormat,
 				SpannerAccessor: spannerAccessorMock,
 				dbDumpProcessor: dbDumpProcessorMock,
@@ -342,7 +325,10 @@ func TestFinalize(t *testing.T) {
 	defer os.Remove(file.Name())
 
 	source := &ImportFromDumpImpl{
-		dumpReader: file,
+		dumpReader: &LocalFileReaderImpl{
+			uri:  file.Name(),
+			file: file,
+		},
 	}
 
 	source.Close()

@@ -88,6 +88,8 @@ type SpannerAccessor interface {
 	SetSpannerClient(spannerClient spannerclient.SpannerClient)
 
 	GetSpannerClient() spannerclient.SpannerClient
+
+	GetSpannerAdminClient() spanneradmin.AdminClient
 }
 
 // This implements the SpannerAccessor interface. This is the primary implementation that should be used in all places other than tests.
@@ -530,4 +532,8 @@ func (sp *SpannerAccessorImpl) SetSpannerClient(spannerClient spannerclient.Span
 
 func (sp *SpannerAccessorImpl) GetSpannerClient() spannerclient.SpannerClient {
 	return sp.SpannerClient
+}
+
+func (sp *SpannerAccessorImpl) GetSpannerAdminClient() spanneradmin.AdminClient {
+	return sp.AdminClient
 }

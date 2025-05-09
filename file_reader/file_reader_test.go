@@ -29,7 +29,7 @@ func TestFileReaderFile(t *testing.T) {
 			name:          "Local file open error",
 			dumpUri:       "nonexistent_file.sql",
 			wantErr:       true,
-			expectedError: "open nonexistent_file.sql: no such file or directory",
+			expectedError: "stat nonexistent_file.sql: no such file or directory",
 		},
 	}
 
@@ -58,7 +58,7 @@ func TestFileReaderFile(t *testing.T) {
 				impl, ok := reader.(*LocalFileReaderImpl)
 				assert.True(t, ok)
 
-				assert.NotNil(t, impl.fileHandle)
+				assert.Nil(t, impl.fileHandle)
 				impl.fileHandle.Close()
 				impl.Close() // Ensure resources are cleaned up
 			}

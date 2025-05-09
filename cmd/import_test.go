@@ -172,54 +172,24 @@ func TestHandleTableNameDefaults_TableNameEmptyURIWithTrailingSlash(t *testing.T
 func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 
 	tests := []struct {
-		name           string
-		cmd            *ImportDataCmd
-		expectedStatus subcommands.ExitStatus
-		expectedError  error // Add expectedError
+		name                string
+		cmd                 *ImportDataCmd
+		expectedStatus      subcommands.ExitStatus
+		expectedError       error // Add expectedError
+		spannerAccessorMock func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error)
 	}{
-		//{
-		//	name: "successful MySQL dump import",
-		//	cmd: &ImportDataCmd{
-		//		project:      "test-project",
-		//		instanceId:   "test-instance",
-		//		databaseName: "test-db",
-		//		sourceUri:    "../test_data/basic_mysql_dump.test.out",
-		//		sourceFormat: constants.MYSQLDUMP,
-		//	},
-		//	expectedStatus: subcommands.ExitSuccess,
-		//	expectedError:  nil,
-		//},
 		{
-			name: "failed MySQL dump import",
+			name: "successful MySQL dump import",
 			cmd: &ImportDataCmd{
 				project:      "test-project",
 				instanceId:   "test-instance",
 				databaseName: "test-db",
-				sourceUri:    "nonexistent_file.sql",
+				sourceUri:    "../test_data/basic_mysql_dump.test.out",
 				sourceFormat: constants.MYSQLDUMP,
 			},
-			expectedStatus: subcommands.ExitFailure,
+			expectedStatus: subcommands.ExitSuccess,
 			expectedError:  nil,
-		},
-		{
-			name: "unsupported format",
-			cmd: &ImportDataCmd{
-				project:      "test-project",
-				instanceId:   "test-instance",
-				databaseName: "test-db",
-				sourceUri:    "testdata/test.txt",
-				sourceFormat: "unsupported",
-			},
-			expectedStatus: subcommands.ExitFailure,
-			expectedError:  nil, // The function handles the unsupported format internally and returns a failure status
-		},
-		// Add more test cases as needed, e.g., for file read errors, database connection errors, etc.
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			originalNewSpannerAccessor := import_file.NewSpannerAccessor
-			import_file.NewSpannerAccessor = func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
 				return &spanneraccessor.SpannerAccessorMock{
 					UpdateDatabaseMock: func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
 						return nil
@@ -234,7 +204,71 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 						}
 					},
 				}, nil
-			}
+			},
+		},
+		{
+			name: "Mysql Dump failed initialisation SpannerAccessor",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instanceId:   "test-instance",
+				databaseName: "test-db",
+				sourceUri:    "../test_data/basic_mysql_dump.test.out",
+				sourceFormat: constants.MYSQLDUMP,
+			},
+			expectedStatus: subcommands.ExitFailure,
+			expectedError:  nil,
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return nil, fmt.Errorf("failed to create or update database")
+			},
+		},
+		{
+			name: "MySQL dump invalid instance",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instanceId:   "",
+				databaseName: "test-db",
+				sourceUri:    "nonexistent_file.sql",
+				sourceFormat: constants.MYSQLDUMP,
+			},
+			expectedStatus: subcommands.ExitFailure,
+			expectedError:  nil,
+		},
+		{
+			name: "failed MySQL dump import",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instanceId:   "test-instance",
+				databaseName: "test-db",
+				sourceUri:    "nonexistent_file.sql",
+				sourceFormat: constants.MYSQLDUMP,
+			},
+			expectedStatus: subcommands.ExitFailure,
+			expectedError:  nil,
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{}, nil
+			},
+		},
+		{
+			name: "unsupported format",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instanceId:   "test-instance",
+				databaseName: "test-db",
+				sourceUri:    "testdata/test.txt",
+				sourceFormat: "unsupported",
+			},
+			expectedStatus: subcommands.ExitFailure,
+			expectedError:  nil, // The function handles the unsupported format internally and returns a failure status
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{}, nil
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			originalNewSpannerAccessor := import_file.NewSpannerAccessor
+			import_file.NewSpannerAccessor = tc.spannerAccessorMock
 			defer func() {
 				import_file.NewSpannerAccessor = originalNewSpannerAccessor
 			}()
@@ -343,15 +377,13 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 				sourceUri:    tt.sourceUri,
 				sourceFormat: constants.MYSQLDUMP,
 			}
-			import_file.NewSpannerAccessor = func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
-				return tt.spannerAccessorMock(t), nil
-			}
 
 			err := cmd.handleDatabaseDumpFile(
 				ctx,
 				fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.databaseName),
 				constants.MYSQLDUMP,
-				tt.dialect)
+				tt.dialect,
+				tt.spannerAccessorMock(t))
 
 			if tt.wantErr {
 				assert.Error(t, err)

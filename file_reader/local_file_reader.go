@@ -14,11 +14,11 @@ type LocalFileReaderImpl struct {
 }
 
 func NewLocalFileReader(uri string) (*LocalFileReaderImpl, error) {
-	fileHandle, err := os.Open(uri)
+	_, err := os.Stat(uri)
 	if err != nil {
 		return nil, err
 	}
-	return &LocalFileReaderImpl{uri: uri, fileHandle: fileHandle}, nil
+	return &LocalFileReaderImpl{uri: uri}, nil
 }
 
 func (reader *LocalFileReaderImpl) ResetReader(ctx context.Context) (io.Reader, error) {
@@ -47,4 +47,14 @@ func (reader *LocalFileReaderImpl) Close() {
 	if reader.fileHandle != nil {
 		reader.fileHandle.Close()
 	}
+}
+
+func (reader *LocalFileReaderImpl) ReadAll(_ context.Context) ([]byte, error) {
+	if reader.fileHandle == nil {
+		_, err := reader.CreateReader(context.Background())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return io.ReadAll(reader.fileHandle)
 }

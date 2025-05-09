@@ -92,30 +92,23 @@ func TestNewGCSFileReader(t *testing.T) {
 	tests := []struct {
 		name           string
 		dumpUri        string
-		gcsClientFunc  func(ctx context.Context, opts ...option.ClientOption) (*storage.Client, error)
 		expectedBucket string
 		expectedPath   string
 		wantErr        bool
 		expectedError  string
 	}{
 		{
-			name:    "GCS file",
-			dumpUri: "gs://test-bucket/path/to/file.sql",
-			gcsClientFunc: func(ctx context.Context, opts ...option.ClientOption) (*storage.Client, error) {
-				return &storage.Client{}, nil
-			},
-			expectedBucket: "test-bucket",
-			expectedPath:   "path/to/file.sql",
+			name:           "GCS file",
+			dumpUri:        fmt.Sprintf("gs://%s/%s", *bucketName, *fileName),
+			expectedBucket: *bucketName,
+			expectedPath:   *fileName,
 			wantErr:        false,
 		},
 		{
-			name:    "GCS client creation error",
-			dumpUri: "gs://test-bucket/file.sql",
-			gcsClientFunc: func(ctx context.Context, opts ...option.ClientOption) (*storage.Client, error) {
-				return nil, fmt.Errorf("storage: fake client error")
-			},
+			name:          "GCS client creation error",
+			dumpUri:       "gs://test-bucket/file.sql",
 			wantErr:       true,
-			expectedError: "storage: fake client error",
+			expectedError: "does not have storage.objects.get access to the Google Cloud Storage object",
 		},
 	}
 	originalGoogleStorageNewClient := GoogleStorageNewClient
@@ -125,7 +118,6 @@ func TestNewGCSFileReader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			GoogleStorageNewClient = tt.gcsClientFunc
 
 			reader, err := NewFileReader(context.Background(), tt.dumpUri)
 
@@ -156,17 +148,19 @@ func TestGCSFileReaderImpl_CreateReader(t *testing.T) {
 	tests := []struct {
 		name    string
 		dumpUri string
-		isGCS   bool
+		path    string
 		wantErr bool
 	}{
 		{
 			name:    "GCS file",
 			dumpUri: fmt.Sprintf("gs://%s/%s", *bucketName, *fileName),
+			path:    *fileName,
 			wantErr: false,
 		},
 		{
 			name:    "GCS file error",
-			dumpUri: "gs://test-bucket/nonexistent_file.sql",
+			dumpUri: fmt.Sprintf("gs://%s/nonexistent_file.sql", *bucketName),
+			path:    "nonexistent_file.sql",
 			wantErr: true,
 		},
 	}
@@ -177,10 +171,18 @@ func TestGCSFileReaderImpl_CreateReader(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			reader, err := NewFileReader(context.Background(), tt.dumpUri)
+			storageClient, err := GoogleStorageNewClient(context.Background())
 			if err != nil {
 				t.Fatalf("Failed to create FileReader: %v", err)
 			}
+
+			reader := &GcsFileReaderImpl{
+				uri:           tt.dumpUri,
+				bucket:        *bucketName,
+				gcsFilePath:   tt.path,
+				storageClient: storageClient,
+			}
+
 			defer reader.Close()
 
 			r, err := reader.CreateReader(context.Background())

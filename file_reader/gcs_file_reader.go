@@ -27,6 +27,11 @@ func NewGcsFileReader(ctx context.Context, uri, host, path string) (*GcsFileRead
 	if err != nil {
 		return nil, err
 	}
+	err = validateObjectExists(ctx, storageClient, host, path[1:])
+	if err != nil {
+		storageClient.Close()
+		return nil, err
+	}
 	return &GcsFileReaderImpl{
 		uri:           uri,
 		bucket:        host,
@@ -62,4 +67,19 @@ func (reader *GcsFileReaderImpl) Close() {
 		reader.storageClient.Close()
 	}
 
+}
+
+func (reader *GcsFileReaderImpl) ReadAll(ctx context.Context) ([]byte, error) {
+	if reader.storageReader == nil {
+		_, err := reader.CreateReader(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return io.ReadAll(reader.storageReader)
+}
+
+func validateObjectExists(ctx context.Context, client *storage.Client, bucket, object string) error {
+	_, err := client.Bucket(bucket).Object(object).Attrs(ctx)
+	return err
 }
