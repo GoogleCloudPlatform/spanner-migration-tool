@@ -77,7 +77,7 @@ func initTestSetup() func() error {
 }
 
 func TestMain(m *testing.M) {
-	logger.Log, _ = zap.NewDevelopment()
+	logger.Log = zap.NewNop()
 	cleanup := initTestSetup()
 	defer cleanup()
 	exit := m.Run()
