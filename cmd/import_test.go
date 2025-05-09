@@ -172,10 +172,11 @@ func TestHandleTableNameDefaults_TableNameEmptyURIWithTrailingSlash(t *testing.T
 func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 
 	tests := []struct {
-		name           string
-		cmd            *ImportDataCmd
-		expectedStatus subcommands.ExitStatus
-		expectedError  error // Add expectedError
+		name                string
+		cmd                 *ImportDataCmd
+		expectedStatus      subcommands.ExitStatus
+		expectedError       error // Add expectedError
+		spannerAccessorMock func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error)
 	}{
 		{
 			name: "successful MySQL dump import",
@@ -187,6 +188,49 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 				sourceFormat: constants.MYSQLDUMP,
 			},
 			expectedStatus: subcommands.ExitSuccess,
+			expectedError:  nil,
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{
+					UpdateDatabaseMock: func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
+						return nil
+					},
+					RefreshMock: func(ctx context.Context, dbURI string) {
+					},
+					GetSpannerClientMock: func() spannerclient.SpannerClient {
+						return &spannerclient.SpannerClientMock{
+							ApplyMock: func(ctx context.Context, ms []*spanner.Mutation, opts ...spanner.ApplyOption) (commitTimestamp time.Time, err error) {
+								return time.Now(), nil
+							},
+						}
+					},
+				}, nil
+			},
+		},
+		{
+			name: "Mysql Dump failed initialisation SpannerAccessor",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instanceId:   "test-instance",
+				databaseName: "test-db",
+				sourceUri:    "../test_data/basic_mysql_dump.test.out",
+				sourceFormat: constants.MYSQLDUMP,
+			},
+			expectedStatus: subcommands.ExitFailure,
+			expectedError:  nil,
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return nil, fmt.Errorf("failed to create or update database")
+			},
+		},
+		{
+			name: "MySQL dump invalid instance",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instanceId:   "",
+				databaseName: "test-db",
+				sourceUri:    "nonexistent_file.sql",
+				sourceFormat: constants.MYSQLDUMP,
+			},
+			expectedStatus: subcommands.ExitFailure,
 			expectedError:  nil,
 		},
 		{
@@ -213,28 +257,12 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 			expectedStatus: subcommands.ExitFailure,
 			expectedError:  nil, // The function handles the unsupported format internally and returns a failure status
 		},
-		// Add more test cases as needed, e.g., for file read errors, database connection errors, etc.
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			originalNewSpannerAccessor := import_file.NewSpannerAccessor
-			import_file.NewSpannerAccessor = func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
-				return &spanneraccessor.SpannerAccessorMock{
-					UpdateDatabaseMock: func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
-						return nil
-					},
-					RefreshMock: func(ctx context.Context, dbURI string) {
-					},
-					GetSpannerClientMock: func() spannerclient.SpannerClient {
-						return &spannerclient.SpannerClientMock{
-							ApplyMock: func(ctx context.Context, ms []*spanner.Mutation, opts ...spanner.ApplyOption) (commitTimestamp time.Time, err error) {
-								return time.Now(), nil
-							},
-						}
-					},
-				}, nil
-			}
+			import_file.NewSpannerAccessor = tc.spannerAccessorMock
 			defer func() {
 				import_file.NewSpannerAccessor = originalNewSpannerAccessor
 			}()

@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_file"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -77,7 +76,7 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 		return subcommands.ExitFailure
 	}
 
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.databaseName)
+	dbURI := getDBUri(cmd.project, cmd.instanceId, cmd.databaseName)
 	switch cmd.sourceFormat {
 	case constants.CSV:
 		//TODO: handle POSTGRESQL
@@ -142,15 +141,6 @@ func validateInputLocal(input *ImportDataCmd) error {
 	}
 
 	return err
-}
-
-func isSpannerAccessible(ctx context.Context, projectID, instanceId, databaseName string) bool {
-	_, err := spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, getDBUri(projectID, instanceId, databaseName))
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
-		return false
-	}
-	return true
 }
 
 func isUriAccessible(uri string) bool {
