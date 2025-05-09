@@ -58,8 +58,8 @@ func TestFileReaderFile(t *testing.T) {
 				impl, ok := reader.(*LocalFileReaderImpl)
 				assert.True(t, ok)
 
-				assert.NotNil(t, impl.file)
-				impl.file.Close()
+				assert.NotNil(t, impl.fileHandle)
+				impl.fileHandle.Close()
 				impl.Close() // Ensure resources are cleaned up
 			}
 		})

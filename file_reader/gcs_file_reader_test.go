@@ -29,7 +29,7 @@ var (
 	newTestClient func(ctx context.Context, opts ...option.ClientOption) (*storage.Client, error)
 )
 
-func initIntegrationTestSetup() func() error {
+func initTestSetup() func() error {
 	if *record {
 		now := time.Now().UTC()
 		nowBytes, err := json.Marshal(now)
@@ -77,8 +77,8 @@ func initIntegrationTestSetup() func() error {
 }
 
 func TestMain(m *testing.M) {
-	logger.Log = zap.NewNop()
-	cleanup := initIntegrationTestSetup()
+	logger.Log, _ = zap.NewDevelopment()
+	cleanup := initTestSetup()
 	defer cleanup()
 	exit := m.Run()
 	if err := cleanup(); err != nil {
@@ -88,7 +88,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exit)
 }
 
-func TestNewFileReaderGCS(t *testing.T) {
+func TestNewGCSFileReader(t *testing.T) {
 	tests := []struct {
 		name           string
 		dumpUri        string
@@ -152,7 +152,7 @@ func TestNewFileReaderGCS(t *testing.T) {
 	}
 }
 
-func TestFileReaderImpl_CreateReaderGCS(t *testing.T) {
+func TestGCSFileReaderImpl_CreateReader(t *testing.T) {
 	tests := []struct {
 		name    string
 		dumpUri string
@@ -195,7 +195,7 @@ func TestFileReaderImpl_CreateReaderGCS(t *testing.T) {
 	}
 }
 
-func TestFileReaderImpl_ResetReaderGCS(t *testing.T) {
+func TestGCSFileReaderImpl_ResetReader(t *testing.T) {
 	validUri := fmt.Sprintf("gs://%s/%s", *bucketName, *fileName)
 	invalidUri := "gs://test-bucket/nonexistent_file.sql"
 	tests := []struct {
@@ -259,7 +259,7 @@ func TestFileReaderImpl_ResetReaderGCS(t *testing.T) {
 	}
 }
 
-func TestFileReaderImpl_GCS_Close(t *testing.T) {
+func TestGCSFileReaderImpl_Close(t *testing.T) {
 	originalGoogleStorageNewClient := GoogleStorageNewClient
 	defer func() { GoogleStorageNewClient = originalGoogleStorageNewClient }()
 

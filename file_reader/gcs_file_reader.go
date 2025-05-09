@@ -5,8 +5,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"google.golang.org/api/option"
 	"io"
 )
+
+var GoogleStorageNewClient = func(ctx context.Context, opts ...option.ClientOption) (*storage.Client, error) {
+	return storage.NewClient(ctx, opts...)
+}
 
 type GcsFileReaderImpl struct {
 	uri           string
@@ -14,6 +19,20 @@ type GcsFileReaderImpl struct {
 	gcsFilePath   string
 	storageClient *storage.Client
 	storageReader *storage.Reader
+}
+
+func NewGcsFileReader(ctx context.Context, uri, host, path string) (*GcsFileReaderImpl, error) {
+	fmt.Printf("uri: %v, host: %v, path: %v\n", uri, host, path)
+	storageClient, err := GoogleStorageNewClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &GcsFileReaderImpl{
+		uri:           uri,
+		bucket:        host,
+		gcsFilePath:   path[1:], // removes "/" from beginning of path
+		storageClient: storageClient,
+	}, nil
 }
 
 func (reader *GcsFileReaderImpl) ResetReader(ctx context.Context) (io.Reader, error) {
@@ -28,7 +47,7 @@ func (reader *GcsFileReaderImpl) CreateReader(ctx context.Context) (io.Reader, e
 
 	rc, err := reader.storageClient.Bucket(reader.bucket).Object(reader.gcsFilePath).NewReader(ctx)
 	if err != nil {
-		logger.Log.Error(fmt.Sprintf("readFile: unable to open file from bucket %q, file %q: %v", reader.bucket, reader.gcsFilePath, err))
+		logger.Log.Error(fmt.Sprintf("readFile: unable to open fileHandle from bucket %q, fileHandle %q: %v", reader.bucket, reader.gcsFilePath, err))
 		return nil, err
 	}
 	reader.storageReader = rc

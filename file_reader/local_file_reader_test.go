@@ -92,7 +92,7 @@ func TestFileReaderImpl_ResetReaderFileSuccess(t *testing.T) {
 			}
 			defer reader.Close()
 			if tt.seek {
-				reader.(*LocalFileReaderImpl).file.Close()
+				reader.(*LocalFileReaderImpl).fileHandle.Close()
 			}
 
 			r, err := reader.ResetReader(context.Background())
@@ -137,9 +137,9 @@ func TestFileReaderImpl_ResetReaderFileError(t *testing.T) {
 			defer reader.Close()
 			reader.(*LocalFileReaderImpl).uri = tt.dumpUri
 			if tt.seek {
-				reader.(*LocalFileReaderImpl).file.Close()
+				reader.(*LocalFileReaderImpl).fileHandle.Close()
 			} else {
-				reader.(*LocalFileReaderImpl).file = nil
+				reader.(*LocalFileReaderImpl).fileHandle = nil
 			}
 
 			_, err = reader.ResetReader(context.Background())
@@ -166,7 +166,7 @@ func TestFileReaderImpl_Close(t *testing.T) {
 
 		impl, ok := reader.(*LocalFileReaderImpl)
 		assert.True(t, ok)
-		assert.NotNil(t, impl.file)
+		assert.NotNil(t, impl.fileHandle)
 
 		reader.Close()
 	})
