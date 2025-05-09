@@ -244,6 +244,9 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 			},
 			expectedStatus: subcommands.ExitFailure,
 			expectedError:  nil,
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{}, nil
+			},
 		},
 		{
 			name: "unsupported format",
@@ -256,6 +259,9 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 			},
 			expectedStatus: subcommands.ExitFailure,
 			expectedError:  nil, // The function handles the unsupported format internally and returns a failure status
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{}, nil
+			},
 		},
 	}
 
@@ -371,15 +377,13 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 				sourceUri:    tt.sourceUri,
 				sourceFormat: constants.MYSQLDUMP,
 			}
-			import_file.NewSpannerAccessor = func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
-				return tt.spannerAccessorMock(t), nil
-			}
 
 			err := cmd.handleDatabaseDumpFile(
 				ctx,
 				fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.databaseName),
 				constants.MYSQLDUMP,
-				tt.dialect)
+				tt.dialect,
+				tt.spannerAccessorMock(t))
 
 			if tt.wantErr {
 				assert.Error(t, err)

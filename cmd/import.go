@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"net/url"
 	"os"
 	"path"
@@ -70,25 +71,31 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 		return subcommands.ExitFailure
 	}
 
+	dbURI := getDBUri(cmd.project, cmd.instanceId, cmd.databaseName)
+	spannerAccessor, err := validateSpannerAccessor(ctx, dbURI)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Input validation failed. Reason %v", err))
+		return subcommands.ExitFailure
+	}
+
 	err = validateInputRemote(ctx, cmd)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Input validation failed. Reason %v", err))
 		return subcommands.ExitFailure
 	}
 
-	dbURI := getDBUri(cmd.project, cmd.instanceId, cmd.databaseName)
 	switch cmd.sourceFormat {
 	case constants.CSV:
 		//TODO: handle POSTGRESQL
 		dialect := constants.DIALECT_GOOGLESQL
-		err := cmd.handleCsv(ctx, dbURI, dialect)
+		err := cmd.handleCsv(ctx, dbURI, dialect, spannerAccessor)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle Csv %v", err))
 			return subcommands.ExitFailure
 		}
 		return subcommands.ExitSuccess
 	case constants.MYSQLDUMP:
-		err := cmd.handleDatabaseDumpFile(ctx, dbURI, constants.MYSQLDUMP, constants.DIALECT_GOOGLESQL)
+		err := cmd.handleDatabaseDumpFile(ctx, dbURI, constants.MYSQLDUMP, constants.DIALECT_GOOGLESQL, spannerAccessor)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle MYSQL Dump %v. Please reachout to the support team.", err))
 			return subcommands.ExitFailure
@@ -108,6 +115,15 @@ func validateInputRemote(ctx context.Context, input *ImportDataCmd) error {
 		return fmt.Errorf("schemaUri:%v not accessible. Please check the input and access permissions and try again", input.schemaUri)
 	}
 	return nil
+}
+
+func validateSpannerAccessor(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+	spannerAccessor, err := import_file.NewSpannerAccessor(ctx, dbURI)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
+		return nil, fmt.Errorf("unable to instantiate spanner client %v", err)
+	}
+	return spannerAccessor, nil
 }
 
 /*
@@ -184,10 +200,9 @@ func isUriAccessible(uri string) bool {
 	}
 }
 
-func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI, dialect string) error {
+func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI, dialect string, sp spanneraccessor.SpannerAccessor) error {
 
 	cmd.tableName = handleTableNameDefaults(cmd.tableName, cmd.sourceUri)
-	sp, err := import_file.NewSpannerAccessor(ctx, dbURI)
 
 	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, constants.DIALECT_GOOGLESQL)
 	if err != nil {
@@ -262,9 +277,9 @@ Import data from supported source files to spanner
 
 }
 
-func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, sourceFormat string, dialect string) error {
+func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, sourceFormat string, dialect string, sp spanneraccessor.SpannerAccessor) error {
 
-	importDump, err := import_file.NewImportFromDump(ctx, cmd.project, cmd.instanceId, cmd.databaseName, cmd.sourceUri, sourceFormat, dbUri)
+	importDump, err := import_file.NewImportFromDump(ctx, cmd.project, cmd.instanceId, cmd.databaseName, cmd.sourceUri, sourceFormat, dbUri, sp)
 	if err != nil {
 		return fmt.Errorf("can't open dump file or create spanner client: %v", err)
 	}
