@@ -78,12 +78,11 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	}
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.databaseName)
-	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, constants.DIALECT_GOOGLESQL)
 	switch cmd.sourceFormat {
 	case constants.CSV:
 		//TODO: handle POSTGRESQL
 		dialect := constants.DIALECT_GOOGLESQL
-		err := cmd.handleCsv(ctx, infoSchema, dialect)
+		err := cmd.handleCsv(ctx, dbURI, dialect)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle Csv %v", err))
 			return subcommands.ExitFailure
@@ -199,11 +198,12 @@ func isUriAccessible(uri string) bool {
 	}
 }
 
-func (cmd *ImportDataCmd) handleCsv(ctx context.Context, infoSchema *spanner.InfoSchemaImpl, dialect string) error {
+func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI, dialect string) error {
 
 	cmd.tableName = handleTableNameDefaults(cmd.tableName, cmd.sourceUri)
-	dbURI := getDBUri(cmd.project, cmd.instanceId, cmd.databaseName)
-	sp, err := spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, dbURI)
+	sp, err := import_file.NewSpannerAccessor(ctx, dbURI)
+
+	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, constants.DIALECT_GOOGLESQL)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
 		return err
