@@ -6,6 +6,7 @@ import (
 	"fmt"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -31,7 +32,7 @@ type ImportFromDumpImpl struct {
 	DatabaseName    string
 	DumpUri         string
 	dbUri           string
-	dumpReader      FileReader
+	dumpReader      file_reader.FileReader
 	SourceFormat    string
 	SpannerAccessor spanneraccessor.SpannerAccessor
 	schemaToSpanner common.SchemaToSpannerInterface
@@ -52,7 +53,7 @@ func NewImportFromDump(
 		return nil, err
 	}
 	// TODO: handle GCS
-	dumpReader, err := NewFileReader(ctx, dumpUri)
+	dumpReader, err := file_reader.NewFileReader(ctx, dumpUri)
 	if err != nil {
 		if err != nil {
 			return nil, fmt.Errorf(fmt.Sprintf("can't read dump file: %s due to: %v", dumpUri, err))
