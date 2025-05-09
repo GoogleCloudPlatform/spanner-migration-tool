@@ -13,12 +13,11 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/parse"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
-	"github.com/google/subcommands"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 type CsvSchema interface {
-	CreateSchema(ctx context.Context, dialect string, sp *spanneraccessor.SpannerAccessorImpl) subcommands.ExitStatus
+	CreateSchema(ctx context.Context, dialect string, sp spanneraccessor.SpannerAccessor) error
 }
 
 type CsvSchemaImpl struct {
