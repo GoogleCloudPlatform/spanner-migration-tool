@@ -13,12 +13,11 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/parse"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
-	"github.com/google/subcommands"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 type CsvSchema interface {
-	CreateSchema(ctx context.Context, dialect string, sp *spanneraccessor.SpannerAccessorImpl) subcommands.ExitStatus
+	CreateSchema(ctx context.Context, dialect string, sp spanneraccessor.SpannerAccessor) error
 }
 
 type CsvSchemaImpl struct {
@@ -42,7 +41,7 @@ type PrimaryKey struct {
 	PkOrder int // defines the order in the PK for the table, 0 means absence.
 }
 
-func (source *CsvSchemaImpl) CreateSchema(ctx context.Context, dialect string, sp *spanneraccessor.SpannerAccessorImpl) error {
+func (source *CsvSchemaImpl) CreateSchema(ctx context.Context, dialect string, sp spanneraccessor.SpannerAccessor) error {
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", source.ProjectId, source.InstanceId, source.DbName)
 	colDef, err := parseSchema(source.SchemaUri)
@@ -71,7 +70,7 @@ func (source *CsvSchemaImpl) CreateSchema(ctx context.Context, dialect string, s
 		Database:   dbURI,
 		Statements: stmts,
 	}
-	op, err := sp.AdminClient.UpdateDatabaseDdl(ctx, req)
+	op, err := sp.GetSpannerAdminClient().UpdateDatabaseDdl(ctx, req)
 	if err != nil {
 		return fmt.Errorf("can't build UpdateDatabaseDdlRequest: %w", parse.AnalyzeError(err, dbURI))
 	}

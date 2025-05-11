@@ -46,7 +46,8 @@ func NewImportFromDump(
 	databaseName string,
 	dumpUri string,
 	sourceFormat string,
-	dbURI string) (ImportFromDump, error) {
+	dbURI string,
+	sp spanneraccessor.SpannerAccessor) (ImportFromDump, error) {
 	dbDump, err := getDbDump(sourceFormat)
 	if err != nil {
 		return nil, err
@@ -57,11 +58,6 @@ func NewImportFromDump(
 		if err != nil {
 			return nil, fmt.Errorf(fmt.Sprintf("can't read dump file: %s due to: %v", dumpUri, err))
 		}
-	}
-	spannerAccessor, err := NewSpannerAccessor(ctx, dbURI)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
-		return nil, fmt.Errorf("unable to instantiate spanner client %v", err)
 	}
 
 	schemaToSpanner := &common.SchemaToSpannerImpl{}
@@ -74,7 +70,7 @@ func NewImportFromDump(
 		dbURI,
 		dumpReader,
 		sourceFormat,
-		spannerAccessor,
+		sp,
 		schemaToSpanner,
 		dbDump,
 	}, nil

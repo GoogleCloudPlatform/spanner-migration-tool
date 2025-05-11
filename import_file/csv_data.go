@@ -15,7 +15,7 @@ import (
 )
 
 type CsvData interface {
-	ImportData(ctx context.Context, infoSchema *spanner.InfoSchemaImpl, dialect string) error
+	ImportData(ctx context.Context, spannerInfoSchema *spanner.InfoSchemaImpl, dialect string, conv *internal.Conv, commonInfoSchema common.InfoSchemaInterface, csv csv.CsvInterface) error
 }
 
 type CsvDataImpl struct {

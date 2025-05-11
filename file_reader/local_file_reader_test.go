@@ -166,7 +166,7 @@ func TestFileReaderImpl_Close(t *testing.T) {
 
 		impl, ok := reader.(*LocalFileReaderImpl)
 		assert.True(t, ok)
-		assert.NotNil(t, impl.fileHandle)
+		assert.Nil(t, impl.fileHandle)
 
 		reader.Close()
 	})
