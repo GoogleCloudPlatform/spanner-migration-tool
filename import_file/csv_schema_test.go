@@ -3,6 +3,7 @@ package import_file
 import (
 	"context"
 	"errors"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 	"testing"
 
 	"cloud.google.com/go/spanner"
@@ -79,6 +80,7 @@ func TestCsvSchemaImpl_CreateSchema(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			spannerAccessor := &spanneraccessor.SpannerAccessorImpl{SpannerClient: tt.spannerClientMock, AdminClient: tt.adminClientMock}
+			tt.source.SchemaFileReader, _ = file_reader.NewFileReader(ctx, tt.source.SchemaUri)
 			if err := tt.source.CreateSchema(ctx, tt.dialect, spannerAccessor); (err != nil) != tt.wantErr {
 				t.Errorf("CsvSchemaImpl.CreateSchema() error = %v, wantErr %v", err, tt.wantErr)
 			}

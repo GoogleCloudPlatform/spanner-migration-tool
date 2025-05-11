@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 	"strings"
 	"testing"
 	"time"
@@ -329,29 +330,12 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 		},
 		{
 			name:      "Failed CreateOrUpdateDatabase",
-			sourceUri: "./testdata/mysqldump.sql",
+			sourceUri: "../test_data/basic_mysql_dump.test.out",
 			dialect:   constants.DIALECT_GOOGLESQL,
 			spannerAccessorMock: func(t *testing.T) spanneraccessor.SpannerAccessor {
 				mock := &spanneraccessor.SpannerAccessorMock{
-					CreateOrUpdateDatabaseMock: func(ctx context.Context, dbURI, sourceFormat string, conv *internal.Conv, migrationType string) error {
+					UpdateDatabaseMock: func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
 						return fmt.Errorf("failed to create or update database")
-					},
-					GetSpannerClientMock: func() spannerclient.SpannerClient {
-						return &spannerclient.SpannerClientMock{}
-					},
-				}
-				return mock
-			},
-			wantErr: true,
-		},
-		{
-			name:      "Failed Dump File Read",
-			sourceUri: "./testdata/wrongfile.sql",
-			dialect:   constants.DIALECT_GOOGLESQL,
-			spannerAccessorMock: func(t *testing.T) spanneraccessor.SpannerAccessor {
-				mock := &spanneraccessor.SpannerAccessorMock{
-					CreateOrUpdateDatabaseMock: func(ctx context.Context, dbURI, sourceFormat string, conv *internal.Conv, migrationType string) error {
-						return nil
 					},
 					GetSpannerClientMock: func() spannerclient.SpannerClient {
 						return &spannerclient.SpannerClientMock{}
@@ -378,12 +362,16 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 				sourceFormat: constants.MYSQLDUMP,
 			}
 
+			fileReader, _ := file_reader.NewFileReader(ctx, tt.sourceUri)
+			defer fileReader.Close()
+
 			err := cmd.handleDatabaseDumpFile(
 				ctx,
 				fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.databaseName),
 				constants.MYSQLDUMP,
 				tt.dialect,
-				tt.spannerAccessorMock(t))
+				tt.spannerAccessorMock(t),
+				fileReader)
 
 			if tt.wantErr {
 				assert.Error(t, err)

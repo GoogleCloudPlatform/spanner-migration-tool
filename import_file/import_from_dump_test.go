@@ -6,6 +6,7 @@ import (
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
@@ -46,22 +47,15 @@ func TestNewImportFromDump(t *testing.T) {
 			wantErr:       true,
 			expectedError: "process dump for sourceFormat unsupported not supported",
 		},
-		{
-			name:          "Failed to open dump file",
-			projectId:     "test-project",
-			instanceId:    "test-instance",
-			databaseName:  "test-db",
-			dumpUri:       "nonexistent_file.sql",
-			sourceFormat:  constants.MYSQLDUMP,
-			wantErr:       true,
-			expectedError: "can't read dump file: nonexistent_file.sql due to: open nonexistent_file.sql: no such file or directory",
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			_, err := NewImportFromDump(context.Background(), tt.projectId, tt.instanceId, tt.databaseName, tt.dumpUri, tt.sourceFormat, "db-uri", &spanneraccessor.SpannerAccessorMock{})
+			fileReader, _ := file_reader.NewFileReader(context.Background(), tt.dumpUri)
+
+			_, err := NewImportFromDump(tt.projectId, tt.instanceId, tt.databaseName, tt.dumpUri, tt.sourceFormat,
+				"db-uri", &spanneraccessor.SpannerAccessorMock{}, fileReader)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -80,7 +74,6 @@ func TestNewImportFromDump(t *testing.T) {
 		defer os.Remove(tmpFile.Name())
 
 		_, err = NewImportFromDump(
-			context.Background(),
 			"test-project",
 			"test-instance",
 			"test-db",
@@ -88,6 +81,7 @@ func TestNewImportFromDump(t *testing.T) {
 			constants.MYSQLDUMP,
 			"db-uri",
 			&spanneraccessor.SpannerAccessorMock{},
+			&file_reader.LocalFileReaderImpl{},
 		)
 		assert.NoError(t, err)
 	})
@@ -166,7 +160,7 @@ func TestCreateSchema(t *testing.T) {
 			schemaToSchema := &common.MockSchemaToSpanner{}
 			schemaToSchema.On("SchemaToSpannerDDL", mock.Anything, mock.Anything, mock.Anything).Return(tc.schemaToSpannerError)
 
-			fileReader, err := NewFileReader(context.Background(), file.Name())
+			fileReader, err := file_reader.NewFileReader(context.Background(), file.Name())
 			assert.NoError(t, err)
 			defer fileReader.Close()
 
@@ -243,7 +237,7 @@ func TestImportData(t *testing.T) {
 			file.Close()
 			defer os.Remove(file.Name())
 
-			fileReader, err := NewFileReader(context.Background(), file.Name())
+			fileReader, err := file_reader.NewFileReader(context.Background(), file.Name())
 			assert.NoError(t, err)
 
 			source := &ImportFromDumpImpl{
@@ -315,27 +309,4 @@ func TestGetDbDump(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestFinalize(t *testing.T) {
-	file, err := os.CreateTemp("", "testfile.sql")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer os.Remove(file.Name())
-
-	source := &ImportFromDumpImpl{
-		dumpReader: &LocalFileReaderImpl{
-			uri:  file.Name(),
-			file: file,
-		},
-	}
-
-	source.Close()
-	assert.NoError(t, err)
-
-	// Verify that the file is closed
-	_, err = file.Read([]byte{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "file already closed")
 }
