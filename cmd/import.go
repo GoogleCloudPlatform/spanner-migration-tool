@@ -85,6 +85,7 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	}
 
 	defer sourceReader.Close()
+	// schemaReader will only be valid if sourceFormat is CSV
 	switch cmd.sourceFormat {
 	case constants.CSV:
 		defer schemaReader.Close()
@@ -109,6 +110,8 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	return subcommands.ExitFailure
 }
 
+// validateUriRemote validate if source URI and schema URI are accessible. Return sourceReader, schemaReader, error.
+// If sourceFormat is not CSV, schemaReader will be nil.
 func validateUriRemote(ctx context.Context, input *ImportDataCmd) (file_reader.FileReader, file_reader.FileReader, error) {
 	sourceReader, err := file_reader.NewFileReader(ctx, input.sourceUri)
 	if err != nil {
@@ -126,6 +129,7 @@ func validateUriRemote(ctx context.Context, input *ImportDataCmd) (file_reader.F
 	return sourceReader, schemaReader, nil
 }
 
+// validateSpannerAccessor validate if spanner is accessible by the provided dbURI. Return spannerAccessor, error.
 func validateSpannerAccessor(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
 	spannerAccessor, err := import_file.NewSpannerAccessor(ctx, dbURI)
 	if err != nil {

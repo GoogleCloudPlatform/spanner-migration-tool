@@ -15,6 +15,7 @@ type FileReader interface {
 	ResetReader(ctx context.Context) (io.Reader, error)
 	// CreateReader Create an io.reader for the fileHandle.
 	CreateReader(ctx context.Context) (io.Reader, error)
+	// ReadAll return all the bytes in the file.
 	ReadAll(ctx context.Context) ([]byte, error)
 	Close()
 }
