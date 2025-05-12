@@ -93,6 +93,14 @@ func TestMysqlExampleImportDumpFile(t *testing.T) {
 			dbName:  "world_mysql_example",
 			wantErr: false,
 		},
+		{
+			name:    "world dump file",
+			dumpUri: "../../test_data/menagerie.sql",
+			dbName:  "menagerie",
+			wantErr: false,
+		},
+		// TODO: ADD Mysql Example Airport DB Tests.
+		// TODO: Move test data to GCS
 	}
 
 	for _, tt := range tests {
