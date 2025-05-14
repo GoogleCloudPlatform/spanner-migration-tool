@@ -33,7 +33,9 @@ func (g *JavaDependencyAnalyzer) IsDAO(filePath string, fileContent string) bool
 		return true
 	}
 
-	if strings.Contains(fileContent, "jdbc") || strings.Contains(fileContent, "mysql") {
+	fileContentLowerCase := strings.ToLower(fileContent)
+
+	if strings.Contains(fileContentLowerCase, "jdbc") || strings.Contains(fileContentLowerCase, "mysql") {
 		return true
 	}
 
