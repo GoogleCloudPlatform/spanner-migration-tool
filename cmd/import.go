@@ -177,15 +177,15 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI, dialect string,
 
 	cmd.tableName = handleTableNameDefaults(cmd.tableName, cmd.sourceUri)
 
-	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, constants.DIALECT_GOOGLESQL)
+	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, dialect)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
 		return err
 	}
 
 	startTime := time.Now()
-	csvSchema := import_file.CsvSchemaImpl{ProjectId: cmd.project, InstanceId: cmd.instanceId,
-		TableName: cmd.tableName, DbName: cmd.databaseName, SchemaUri: cmd.schemaUri, SchemaFileReader: schemaReader}
+	csvSchema := import_file.NewCsvSchema(cmd.project, cmd.instanceId,
+		cmd.databaseName, cmd.tableName, cmd.schemaUri, schemaReader)
 	err = csvSchema.CreateSchema(ctx, dialect, sp)
 
 	endTime1 := time.Now()
@@ -195,9 +195,8 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI, dialect string,
 		return err
 	}
 
-	csvData := import_file.CsvDataImpl{ProjectId: cmd.project, InstanceId: cmd.instanceId,
-		TableName: cmd.tableName, DbName: cmd.databaseName, SourceUri: cmd.sourceUri,
-		CsvFieldDelimiter: cmd.csvFieldDelimiter, SourceFileReader: sourceReader}
+	csvData := import_file.NewCsvData(cmd.project, cmd.instanceId,
+		cmd.databaseName, cmd.tableName, cmd.sourceUri, cmd.csvFieldDelimiter, sourceReader)
 	err = csvData.ImportData(ctx, infoSchema, dialect, internal.MakeConv(), &common.InfoSchemaImpl{}, &csv.CsvImpl{})
 
 	endTime2 := time.Now()

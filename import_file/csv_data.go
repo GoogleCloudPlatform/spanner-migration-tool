@@ -15,6 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
+var NewCsvData = newCsvData
+
 type CsvData interface {
 	ImportData(ctx context.Context, spannerInfoSchema *spanner.InfoSchemaImpl, dialect string, conv *internal.Conv, commonInfoSchema common.InfoSchemaInterface, csv csv.CsvInterface) error
 }
@@ -27,6 +29,18 @@ type CsvDataImpl struct {
 	SourceUri         string
 	CsvFieldDelimiter string
 	SourceFileReader  file_reader.FileReader
+}
+
+func newCsvData(projectId, instanceId, dbName, tableName, sourceUri, csvFieldDelimiter string, sourceFileReader file_reader.FileReader) CsvData {
+	return &CsvDataImpl{
+		ProjectId:         projectId,
+		InstanceId:        instanceId,
+		DbName:            dbName,
+		TableName:         tableName,
+		SourceUri:         sourceUri,
+		CsvFieldDelimiter: csvFieldDelimiter,
+		SourceFileReader:  sourceFileReader,
+	}
 }
 
 func (source *CsvDataImpl) ImportData(ctx context.Context, spannerInfoSchema *spanner.InfoSchemaImpl, dialect string, conv *internal.Conv, commonInfoSchema common.InfoSchemaInterface, csv csv.CsvInterface) error {

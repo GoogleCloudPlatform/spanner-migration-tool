@@ -3,7 +3,9 @@ package import_file
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
+	"github.com/stretchr/testify/assert"
 	"testing"
 
 	"cloud.google.com/go/spanner"
@@ -86,6 +88,40 @@ func TestCsvSchemaImpl_CreateSchema(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("error in file reader", func(t *testing.T) {
+		fileReader := &file_reader.MockFileReader{
+			ReadAllFn: func(ctx context.Context) ([]byte, error) {
+				return nil, fmt.Errorf("test error")
+			},
+		}
+		source := CsvSchemaImpl{
+			ProjectId:        "test-project",
+			InstanceId:       "test-instance",
+			DbName:           "test-db",
+			SchemaFileReader: fileReader,
+		}
+		err := source.CreateSchema(ctx, "dialect", nil)
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "test error")
+	})
+
+	t.Run("error in parsing schema", func(t *testing.T) {
+		fileReader := &file_reader.MockFileReader{
+			ReadAllFn: func(ctx context.Context) ([]byte, error) {
+				return []byte{0}, nil
+			},
+		}
+		source := CsvSchemaImpl{
+			ProjectId:        "test-project",
+			InstanceId:       "test-instance",
+			DbName:           "test-db",
+			SchemaFileReader: fileReader,
+		}
+		err := source.CreateSchema(ctx, "dialect", nil)
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "invalid character")
+	})
 }
 
 func getSpannerAdminClientMock(err error) *spanneradmin.AdminClientMock {

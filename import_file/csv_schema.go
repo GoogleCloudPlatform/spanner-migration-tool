@@ -16,6 +16,8 @@ import (
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
+var NewCsvSchema = newCsvSchema
+
 type CsvSchema interface {
 	CreateSchema(ctx context.Context, dialect string, sp spanneraccessor.SpannerAccessor) error
 }
@@ -27,6 +29,17 @@ type CsvSchemaImpl struct {
 	TableName        string
 	SchemaUri        string
 	SchemaFileReader file_reader.FileReader
+}
+
+func newCsvSchema(projectId, instanceId, dbName, tableName, schemaUri string, schemaFileReader file_reader.FileReader) CsvSchema {
+	return &CsvSchemaImpl{
+		ProjectId:        projectId,
+		InstanceId:       instanceId,
+		DbName:           dbName,
+		TableName:        tableName,
+		SchemaUri:        schemaUri,
+		SchemaFileReader: schemaFileReader,
+	}
 }
 
 // ColumnDefinition represents the definition of a Spanner table column.

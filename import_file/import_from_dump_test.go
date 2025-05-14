@@ -13,6 +13,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"io"
 	"os"
 	"testing"
 )
@@ -192,6 +193,25 @@ func TestCreateSchema(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("error in file reader", func(t *testing.T) {
+		source := &ImportFromDumpImpl{
+			ProjectId:    "test-project",
+			InstanceId:   "test-instance",
+			DatabaseName: "test-db",
+			DumpUri:      "test-file",
+			dumpReader: &file_reader.MockFileReader{
+				CreateReaderFn: func(ctx context.Context) (io.Reader, error) {
+					return nil, errors.New("test error")
+				},
+			},
+		}
+		_, err := source.CreateSchema(context.Background(), constants.DIALECT_GOOGLESQL)
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "failed to create reader")
+
+	})
+
 }
 
 func TestImportData(t *testing.T) {
@@ -271,6 +291,24 @@ func TestImportData(t *testing.T) {
 
 		})
 	}
+
+	t.Run("error in file reader", func(t *testing.T) {
+		source := &ImportFromDumpImpl{
+			ProjectId:    "test-project",
+			InstanceId:   "test-instance",
+			DatabaseName: "test-db",
+			DumpUri:      "test-file",
+			dumpReader: &file_reader.MockFileReader{
+				ResetReaderFn: func(ctx context.Context) (io.Reader, error) {
+					return nil, errors.New("test error")
+				},
+			},
+		}
+		err := source.ImportData(context.Background(), internal.MakeConv())
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "can't read dump file")
+
+	})
 }
 
 func TestGetDbDump(t *testing.T) {

@@ -32,3 +32,38 @@ func newFileReader(ctx context.Context, uri string) (FileReader, error) {
 		return NewLocalFileReader(uri)
 	}
 }
+
+type MockFileReader struct {
+	ReadAllFn      func(ctx context.Context) ([]byte, error)
+	CloseFn        func()
+	CreateReaderFn func(ctx context.Context) (io.Reader, error)
+	ResetReaderFn  func(ctx context.Context) (io.Reader, error)
+}
+
+func (reader *MockFileReader) ReadAll(ctx context.Context) ([]byte, error) {
+	if reader.ReadAllFn != nil {
+		return reader.ReadAllFn(ctx)
+	}
+	return nil, nil
+}
+
+func (reader *MockFileReader) Close() {
+	if reader.CloseFn != nil {
+		reader.CloseFn()
+	}
+}
+
+func (reader *MockFileReader) CreateReader(ctx context.Context) (io.Reader, error) {
+	if reader.CreateReaderFn != nil {
+		return reader.CreateReaderFn(ctx)
+	}
+	return nil, nil
+
+}
+
+func (reader *MockFileReader) ResetReader(ctx context.Context) (io.Reader, error) {
+	if reader.ResetReaderFn != nil {
+		return reader.ResetReaderFn(ctx)
+	}
+	return nil, nil
+}

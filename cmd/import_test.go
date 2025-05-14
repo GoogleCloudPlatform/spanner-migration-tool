@@ -19,6 +19,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_file"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	sourcesspanner "github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/google/subcommands"
 	"github.com/stretchr/testify/assert"
@@ -170,6 +173,98 @@ func TestHandleTableNameDefaults_TableNameEmptyURIWithTrailingSlash(t *testing.T
 	assert.Equal(t, "folder", result)
 }
 
+func TestImportDataCmd_HandleCsvExecute(t *testing.T) {
+
+	tests := []struct {
+		name                string
+		cmd                 *ImportDataCmd
+		expectedStatus      subcommands.ExitStatus
+		expectedError       error // Add expectedError
+		spannerAccessorMock func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error)
+		infoClientFunc      func(ctx context.Context, dbURI string, spDialect string) (*sourcesspanner.InfoSchemaImpl, error)
+		csvSchemaFunc       func(projectId, instanceId, dbName, tableName, schemaUri string, schemaFileReader file_reader.FileReader) import_file.CsvSchema
+		csvDataFunc         func(projectId, instanceId, dbName, tableName, sourceUri, csvFieldDelimiter string, sourceFileReader file_reader.FileReader) import_file.CsvData
+	}{
+		{
+			name: "successful csv import",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instanceId:   "test-instance",
+				databaseName: "test-db",
+				sourceUri:    "../test_data/basic_mysql_dump.test.out",
+				schemaUri:    "../test_data/basic_csv_schema.json",
+				sourceFormat: constants.CSV,
+			},
+			expectedStatus: subcommands.ExitSuccess,
+			expectedError:  nil,
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{}, nil
+			},
+			infoClientFunc: func(ctx context.Context, dbURI string, spDialect string) (*sourcesspanner.InfoSchemaImpl, error) {
+				return &sourcesspanner.InfoSchemaImpl{}, nil
+			},
+			csvSchemaFunc: func(projectId, instanceId, dbName, tableName, schemaUri string, schemaFileReader file_reader.FileReader) import_file.CsvSchema {
+				return &import_file.MockCsvSchema{}
+			},
+			csvDataFunc: func(projectId, instanceId, dbName, tableName, sourceUri, csvFieldDelimiter string, sourceFileReader file_reader.FileReader) import_file.CsvData {
+				return &import_file.MockCsvData{}
+			},
+		},
+		{
+			name: "error in handling csv",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instanceId:   "test-instance",
+				databaseName: "test-db",
+				sourceUri:    "../test_data/basic_mysql_dump.test.out",
+				schemaUri:    "../test_data/basic_csv_schema.json",
+				sourceFormat: constants.CSV,
+			},
+			expectedStatus: subcommands.ExitFailure,
+			expectedError:  fmt.Errorf("error in creating info client"),
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{}, nil
+			},
+			infoClientFunc: func(ctx context.Context, dbURI string, spDialect string) (*sourcesspanner.InfoSchemaImpl, error) {
+				return nil, fmt.Errorf("error in creating info client")
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			originalNewSpannerAccessor := import_file.NewSpannerAccessor
+			originalNewInfoSchemaFunc := sourcesspanner.NewInfoSchemaImplWithSpannerClient
+			originalNewCsvSchema := import_file.NewCsvSchema
+			originalNewCsvData := import_file.NewCsvData
+
+			defer func() {
+				import_file.NewSpannerAccessor = originalNewSpannerAccessor
+				sourcesspanner.NewInfoSchemaImplWithSpannerClient = originalNewInfoSchemaFunc
+				import_file.NewCsvSchema = originalNewCsvSchema
+				import_file.NewCsvData = originalNewCsvData
+			}()
+
+			// Mock InfoSchema
+			sourcesspanner.NewInfoSchemaImplWithSpannerClient = tc.infoClientFunc
+			// Mock CsvSchema
+			import_file.NewCsvSchema = tc.csvSchemaFunc
+			import_file.NewCsvData = tc.csvDataFunc
+			import_file.NewSpannerAccessor = tc.spannerAccessorMock
+
+			// Create a new flag set and register the command's flags
+			f := flag.NewFlagSet("import", flag.ContinueOnError)
+			// Execute the command
+			status := tc.cmd.Execute(context.Background(), f)
+
+			// Check the exit status
+			if status != tc.expectedStatus {
+				t.Errorf("Unexpected exit status: got %v, want %v", status, tc.expectedStatus)
+			}
+		})
+	}
+}
+
 func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 
 	tests := []struct {
@@ -203,6 +298,25 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 								return time.Now(), nil
 							},
 						}
+					},
+				}, nil
+			},
+		},
+		{
+			name: "error in handling mysql dump",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instanceId:   "test-instance",
+				databaseName: "test-db",
+				sourceUri:    "../test_data/basic_mysql_dump.test.out",
+				sourceFormat: constants.MYSQLDUMP,
+			},
+			expectedStatus: subcommands.ExitFailure,
+			expectedError:  fmt.Errorf("error in handling mysql dump"),
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{
+					UpdateDatabaseMock: func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
+						return fmt.Errorf("error in handling mysql dump")
 					},
 				}, nil
 			},
@@ -378,6 +492,116 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestHandleCsv(t *testing.T) {
+	expectedDbUri := "projects/test-project/instances/test-instance/databases/test-db"
+	expectedDialect := constants.DIALECT_POSTGRESQL
+
+	testCases := []struct {
+		desc           string
+		expectedErr    error
+		infoClientFunc func(ctx context.Context, dbURI string, spDialect string) (*sourcesspanner.InfoSchemaImpl, error)
+		csvSchemaFunc  func(projectId, instanceId, dbName, tableName, schemaUri string, schemaFileReader file_reader.FileReader) import_file.CsvSchema
+		csvDataFunc    func(projectId, instanceId, dbName, tableName, sourceUri, csvFieldDelimiter string, sourceFileReader file_reader.FileReader) import_file.CsvData
+	}{
+		{
+			desc:        "Successful CSV import",
+			expectedErr: nil,
+			infoClientFunc: func(ctx context.Context, dbURI string, spDialect string) (*sourcesspanner.InfoSchemaImpl, error) {
+				assert.Equal(t, expectedDbUri, dbURI)
+				assert.Equal(t, expectedDialect, spDialect)
+				return &sourcesspanner.InfoSchemaImpl{}, nil
+			},
+			csvSchemaFunc: func(projectId, instanceId, dbName, tableName, schemaUri string, schemaFileReader file_reader.FileReader) import_file.CsvSchema {
+				assert.Equal(t, "test-project", projectId)
+				assert.Equal(t, "test-instance", instanceId)
+				assert.Equal(t, "test-db", dbName)
+				assert.Equal(t, "test-table", tableName)
+				assert.Equal(t, "gs://test-bucket/test_schema.json", schemaUri)
+
+				return &import_file.MockCsvSchema{}
+			},
+			csvDataFunc: func(projectId, instanceId, dbName, tableName, sourceUri, csvFieldDelimiter string, sourceFileReader file_reader.FileReader) import_file.CsvData {
+				assert.Equal(t, "test-project", projectId)
+				assert.Equal(t, "test-instance", instanceId)
+				assert.Equal(t, "test-db", dbName)
+				assert.Equal(t, "test-table", tableName)
+				assert.Equal(t, ",", csvFieldDelimiter)
+				return &import_file.MockCsvData{}
+			},
+		},
+		{
+			desc: "Schema creation fails",
+			infoClientFunc: func(ctx context.Context, dbURI string, spDialect string) (*sourcesspanner.InfoSchemaImpl, error) {
+				return &sourcesspanner.InfoSchemaImpl{}, nil
+			},
+			csvSchemaFunc: func(projectId, instanceId, dbName, tableName, schemaUri string, schemaFileReader file_reader.FileReader) import_file.CsvSchema {
+				return &import_file.MockCsvSchema{
+					CreateSchemaFn: func(ctx context.Context, dialect string, sp spanneraccessor.SpannerAccessor) error {
+						return fmt.Errorf("schema creation error")
+					},
+				}
+			},
+			expectedErr: fmt.Errorf("schema creation error"),
+		},
+		{
+			desc: "Data import fails",
+			infoClientFunc: func(ctx context.Context, dbURI string, spDialect string) (*sourcesspanner.InfoSchemaImpl, error) {
+				return &sourcesspanner.InfoSchemaImpl{}, nil
+			},
+			csvSchemaFunc: func(projectId, instanceId, dbName, tableName, schemaUri string, schemaFileReader file_reader.FileReader) import_file.CsvSchema {
+				return &import_file.MockCsvSchema{}
+			},
+			csvDataFunc: func(projectId, instanceId, dbName, tableName, sourceUri, csvFieldDelimiter string, sourceFileReader file_reader.FileReader) import_file.CsvData {
+				return &import_file.MockCsvData{
+					ImportDataFn: func(ctx context.Context, spannerInfoSchema *sourcesspanner.InfoSchemaImpl, dialect string, conv *internal.Conv, commonInfoSchema common.InfoSchemaInterface, csv csv.CsvInterface) error {
+						return fmt.Errorf("data import error")
+					},
+				}
+			},
+			expectedErr: fmt.Errorf("data import error"),
+		},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			ctx := context.Background()
+			cmd := &ImportDataCmd{
+				project:           "test-project",
+				instanceId:        "test-instance",
+				databaseName:      "test-db",
+				tableName:         "test-table",
+				sourceUri:         "gs://test-bucket/test.csv",
+				schemaUri:         "gs://test-bucket/test_schema.json",
+				csvFieldDelimiter: ",",
+			}
+			originalNewInfoSchemaFunc := sourcesspanner.NewInfoSchemaImplWithSpannerClient
+			originalNewCsvSchema := import_file.NewCsvSchema
+			originalNewCsvData := import_file.NewCsvData
+
+			defer func() {
+				sourcesspanner.NewInfoSchemaImplWithSpannerClient = originalNewInfoSchemaFunc
+				import_file.NewCsvSchema = originalNewCsvSchema
+				import_file.NewCsvData = originalNewCsvData
+			}()
+
+			// Mock InfoSchema
+			sourcesspanner.NewInfoSchemaImplWithSpannerClient = tC.infoClientFunc
+			// Mock CsvSchema
+			import_file.NewCsvSchema = tC.csvSchemaFunc
+			import_file.NewCsvData = tC.csvDataFunc
+
+			err := cmd.handleCsv(ctx, expectedDbUri, constants.DIALECT_POSTGRESQL, &spanneraccessor.SpannerAccessorMock{}, &file_reader.GcsFileReaderImpl{}, &file_reader.LocalFileReaderImpl{})
+
+			if tC.expectedErr != nil {
+				assert.EqualError(t, err, tC.expectedErr.Error())
+			} else if err == nil {
+				assert.NoError(t, err)
+			}
+
 		})
 	}
 }
