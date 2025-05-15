@@ -13,6 +13,7 @@ import (
 	"google.golang.org/api/option"
 	"log"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -23,8 +24,9 @@ var (
 	// In the recorded file, ensure that `X-Goog-User-Project` is not present.
 	record = flag.Bool("record", false, "If true, rpc interaction with GCS will be recorded.")
 
-	bucketName = flag.String("bucketName", "smt-test-ut", "record RPCs")
-	fileName   = flag.String("fileName", "smt-ut-file.sql", "record RPCs")
+	bucketName   = flag.String("bucketName", "smt-test-ut", "SMT test bucket name.")
+	fileName     = flag.String("fileName", "smt-ut-file.sql", "SMT test file name.")
+	testFileName = flag.String("testFileName", "/test_file.txt", "SMT test file name.")
 
 	newTestClient func(ctx context.Context, opts ...option.ClientOption) (*storage.Client, error)
 )
@@ -280,4 +282,76 @@ func TestGCSFileReaderImpl_Close(t *testing.T) {
 
 		reader.Close()
 	})
+}
+
+func TestGcsFileReaderImpl_ReadAll(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		uri      string
+		host     string
+		path     string
+		expected []byte
+		wantErr  bool
+	}{
+		{
+			name:     "read all content",
+			content:  "This is a test file content.",
+			uri:      fmt.Sprintf("gs://%s%s", *bucketName, *testFileName),
+			host:     *bucketName,
+			path:     *testFileName,
+			expected: []byte("This is a test file content."),
+			wantErr:  false,
+		},
+		{
+			name:     "file not found",
+			uri:      fmt.Sprintf("gs://%s/nonexistent_file.txt", *bucketName),
+			host:     "test-bucket",
+			path:     "/nonexistent_file.txt",
+			expected: nil,
+			wantErr:  true,
+		},
+		{
+			name:     "bucket not found",
+			uri:      fmt.Sprintf("gs://nonexistent-bucket/%s", *testFileName),
+			host:     "nonexistent-bucket",
+			path:     *testFileName,
+			expected: nil,
+			wantErr:  true,
+		},
+	}
+
+	originalGoogleStorageNewClient := GoogleStorageNewClient
+	defer func() { GoogleStorageNewClient = originalGoogleStorageNewClient }()
+
+	GoogleStorageNewClient = newTestClient
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			reader, err := NewGcsFileReader(context.Background(), tt.uri, tt.host, tt.path)
+			if (err != nil) != tt.wantErr && !strings.Contains(tt.name, "or it may not exist") {
+				t.Fatalf("NewGcsFileReader() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if reader == nil && !tt.wantErr {
+				t.Fatalf("Reader is nil when no error was expected")
+			}
+			if reader != nil {
+				defer reader.Close()
+			}
+			if strings.Contains(tt.name, "file not found") || strings.Contains(tt.name, "bucket not found") {
+				assert.Error(t, err)
+				return
+			}
+
+			actual, err := reader.ReadAll(context.Background())
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GcsFileReaderImpl.ReadAll() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr && !assert.Equal(t, tt.expected, actual) {
+				t.Errorf("GcsFileReaderImpl.ReadAll() = %v, expected %v", actual, tt.expected)
+			}
+		})
+	}
 }
