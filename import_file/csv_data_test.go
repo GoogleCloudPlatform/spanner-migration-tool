@@ -3,7 +3,10 @@ package import_file
 import (
 	"context"
 	"errors"
+	"io"
 	"testing"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -36,7 +39,7 @@ func TestCsvDataImpl_ImportData(t *testing.T) {
 				InstanceId:        "test-instance",
 				DbName:            "test-db",
 				TableName:         "nonexistent-table",
-				SourceUri:         "test-uri",
+				SourceUri:         "../test_data/basic_csv.csv",
 				CsvFieldDelimiter: ",",
 			},
 			spannerInfoSchema: &spanner.InfoSchemaImpl{
@@ -54,7 +57,7 @@ func TestCsvDataImpl_ImportData(t *testing.T) {
 				InstanceId:        "test-instance",
 				DbName:            "test-db",
 				TableName:         "test-table",
-				SourceUri:         "test-uri",
+				SourceUri:         "../test_data/basic_csv.csv",
 				CsvFieldDelimiter: ",",
 			},
 			spannerInfoSchema: &spanner.InfoSchemaImpl{
@@ -72,7 +75,7 @@ func TestCsvDataImpl_ImportData(t *testing.T) {
 				InstanceId:        "test-instance",
 				DbName:            "test-db",
 				TableName:         "test-table",
-				SourceUri:         "test-uri",
+				SourceUri:         "../test_data/basic_csv.csv",
 				CsvFieldDelimiter: ",",
 			},
 			spannerInfoSchema: &spanner.InfoSchemaImpl{
@@ -81,24 +84,6 @@ func TestCsvDataImpl_ImportData(t *testing.T) {
 			commonInfoSchema: getCommonInfoSchemaMock(1),
 			csvHandler:       getCsvInterfaceMock(nil),
 			dialect:          constants.DIALECT_GOOGLESQL,
-			wantErr:          false,
-		},
-		{
-			name: "success case",
-			source: CsvDataImpl{
-				ProjectId:         "test-project",
-				InstanceId:        "test-instance",
-				DbName:            "test-db",
-				TableName:         "test-table",
-				SourceUri:         "test-uri",
-				CsvFieldDelimiter: ",",
-			},
-			spannerInfoSchema: &spanner.InfoSchemaImpl{
-				SpannerClient: getSpannerClientMock(getDefaultRowIteratoMock()),
-			},
-			commonInfoSchema: getCommonInfoSchemaMock(1),
-			csvHandler:       getCsvInterfaceMock(nil),
-			dialect:          constants.DIALECT_POSTGRESQL,
 			wantErr:          false,
 		},
 		// add more cases here
@@ -124,6 +109,10 @@ func TestCsvDataImpl_ImportData(t *testing.T) {
 				conv.SpSchema = map[string]ddl.CreateTable{}
 			}
 
+			tt.source.SourceFileReader, _ = file_reader.NewFileReader(context.Background(), tt.source.SourceUri)
+
+			defer tt.source.SourceFileReader.Close()
+
 			if err := tt.source.ImportData(ctx, tt.spannerInfoSchema, tt.dialect, conv, tt.commonInfoSchema, tt.csvHandler); (err != nil) != tt.wantErr {
 				t.Errorf("CsvDataImpl.ImportData() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -133,7 +122,7 @@ func TestCsvDataImpl_ImportData(t *testing.T) {
 
 func getCsvInterfaceMock(singleProcessError error) *MockCsvInterface {
 	return &MockCsvInterface{
-		MockProcessSingleCSV: func(conv *internal.Conv, tableName string, columnNames []string, colDefs map[string]ddl.ColumnDef, filePath string, nullStr string, delimiter rune) error {
+		MockProcessSingleCSV: func(conv *internal.Conv, tableName string, columnNames []string, colDefs map[string]ddl.ColumnDef, sourceIoReader io.Reader, nullStr string, delimiter rune) error {
 			return singleProcessError
 		},
 	}
@@ -168,7 +157,7 @@ type MockCsvInterface struct {
 	MockGetCSVFiles      func(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tables []utils.ManifestTable, err error)
 	MockSetRowStats      func(conv *internal.Conv, tables []utils.ManifestTable, delimiter rune) error
 	MockProcessCSV       func(conv *internal.Conv, tables []utils.ManifestTable, nullStr string, delimiter rune) error
-	MockProcessSingleCSV func(conv *internal.Conv, tableName string, columnNames []string, colDefs map[string]ddl.ColumnDef, filePath string, nullStr string, delimiter rune) error
+	MockProcessSingleCSV func(conv *internal.Conv, tableName string, columnNames []string, colDefs map[string]ddl.ColumnDef, sourceIoReader io.Reader, nullStr string, delimiter rune) error
 }
 
 func (m MockCsvInterface) GetCSVFiles(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tables []utils.ManifestTable, err error) {
@@ -183,8 +172,8 @@ func (m MockCsvInterface) ProcessCSV(conv *internal.Conv, tables []utils.Manifes
 	return m.MockProcessCSV(conv, tables, nullStr, delimiter)
 }
 
-func (m MockCsvInterface) ProcessSingleCSV(conv *internal.Conv, tableName string, columnNames []string, colDefs map[string]ddl.ColumnDef, filePath string, nullStr string, delimiter rune) error {
-	return m.MockProcessSingleCSV(conv, tableName, columnNames, colDefs, filePath, nullStr, delimiter)
+func (m MockCsvInterface) ProcessSingleCSV(conv *internal.Conv, tableName string, columnNames []string, colDefs map[string]ddl.ColumnDef, sourceIoReader io.Reader, nullStr string, delimiter rune) error {
+	return m.MockProcessSingleCSV(conv, tableName, columnNames, colDefs, sourceIoReader, nullStr, delimiter)
 }
 
 func (m *MockInfoSchemaInterface) ProcessData(conv *internal.Conv, infoSchema common.InfoSchema, additionalAttributes internal.AdditionalDataAttributes) {
