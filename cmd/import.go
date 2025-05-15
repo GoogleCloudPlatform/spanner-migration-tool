@@ -18,13 +18,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
+
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -48,6 +49,7 @@ type ImportDataCmd struct {
 	csvLineDelimiter  string
 	csvFieldDelimiter string
 	project           string
+	dialect           string
 }
 
 func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
@@ -60,6 +62,7 @@ func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 	set.StringVar(&cmd.csvLineDelimiter, "csv-line-delimiter", "", "Token to be used as line delimiter for csv format. Defaults to '\\n'. Only used for csv format.")
 	set.StringVar(&cmd.csvFieldDelimiter, "csv-field-delimiter", "", "Token to be used as field delimiter for csv format. Defaults to ','. Only used for csv format.")
 	set.StringVar(&cmd.project, "project", "", "Project id for all resources related to this import")
+	set.StringVar(&cmd.dialect, "dialect", "", "Dialect of the Spanner database. Optional. Defaults to google_standard_sql")
 }
 
 func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
@@ -78,16 +81,16 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 		return subcommands.ExitFailure
 	}
 
-	err = validateInputRemote(ctx, cmd)
+	err = validateInputRemote(cmd)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Input validation failed. Reason %v", err))
 		return subcommands.ExitFailure
 	}
 
+	dialect := getDialectWithDefaults(cmd.dialect)
+
 	switch cmd.sourceFormat {
 	case constants.CSV:
-		//TODO: handle POSTGRESQL
-		dialect := constants.DIALECT_GOOGLESQL
 		err := cmd.handleCsv(ctx, dbURI, dialect, spannerAccessor)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle Csv %v", err))
@@ -95,7 +98,7 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 		}
 		return subcommands.ExitSuccess
 	case constants.MYSQLDUMP:
-		err := cmd.handleDatabaseDumpFile(ctx, dbURI, constants.MYSQLDUMP, constants.DIALECT_GOOGLESQL, spannerAccessor)
+		err := cmd.handleDatabaseDumpFile(ctx, dbURI, constants.MYSQLDUMP, dialect, spannerAccessor)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle MYSQL Dump %v. Please reachout to the support team.", err))
 			return subcommands.ExitFailure
@@ -107,7 +110,23 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	return subcommands.ExitFailure
 }
 
-func validateInputRemote(ctx context.Context, input *ImportDataCmd) error {
+func getDialectWithDefaults(dialect string) string {
+	if len(dialect) == 0 {
+		return constants.DIALECT_GOOGLESQL
+	}
+
+	switch dialect {
+	case constants.DIALECT_GOOGLESQL:
+		return dialect
+	case constants.DIALECT_POSTGRESQL:
+		return dialect
+	default:
+		logger.Log.Warn(fmt.Sprintf("Dialect passed is %s . Defaulting to %s", dialect, constants.DIALECT_GOOGLESQL))
+		return constants.DIALECT_GOOGLESQL
+	}
+}
+
+func validateInputRemote(input *ImportDataCmd) error {
 	if !isUriAccessible(input.sourceUri) {
 		return fmt.Errorf("sourceUri:%v not accessible. Please check the input and access permissions and try again", input.sourceUri)
 	}
@@ -203,8 +222,7 @@ func isUriAccessible(uri string) bool {
 func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI, dialect string, sp spanneraccessor.SpannerAccessor) error {
 
 	cmd.tableName = handleTableNameDefaults(cmd.tableName, cmd.sourceUri)
-
-	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, constants.DIALECT_GOOGLESQL)
+	infoSchema, err := spanner.NewInfoSchemaImplWithSpannerClient(ctx, dbURI, dialect)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
 		return err
@@ -301,9 +319,9 @@ func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, sou
 	dataEndTime := time.Now()
 	elapsedTime = dataEndTime.Sub(schemaEndTime)
 	logger.Log.Info(fmt.Sprintf("Data import took %f secs", elapsedTime.Seconds()))
+
 	if err != nil {
 		return fmt.Errorf("can't import data: %v", err)
 	}
 	return nil
-
 }
