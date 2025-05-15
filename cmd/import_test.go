@@ -115,9 +115,24 @@ func TestValidateInputLocal_SuccessCSV(t *testing.T) {
 		sourceUri:    "file:///tmp/data.csv",
 		sourceFormat: constants.CSV,
 		schemaUri:    "file:///tmp/schema.csv",
+		dialect:      constants.DIALECT_GOOGLESQL,
 	}
 	err := validateInputLocal(input)
 	assert.NoError(t, err)
+}
+
+func TestValidateInputLocal_ErrorDialect(t *testing.T) {
+	input := &ImportDataCmd{
+		instanceId:   "test-instance",
+		databaseName: "test-db",
+		sourceUri:    "file:///tmp/data.csv",
+		sourceFormat: constants.CSV,
+		schemaUri:    "file:///tmp/schema.csv",
+		dialect:      "invalid",
+	}
+	err := validateInputLocal(input)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Please specify dialect")
 }
 
 func TestValidateInputLocal_SuccessNonCSV(t *testing.T) {
@@ -126,6 +141,7 @@ func TestValidateInputLocal_SuccessNonCSV(t *testing.T) {
 		databaseName: "test-db",
 		sourceUri:    "gs://bucket/data.avro",
 		sourceFormat: "avro",
+		dialect:      constants.DIALECT_POSTGRESQL,
 	}
 	err := validateInputLocal(input)
 	assert.NoError(t, err)
@@ -282,6 +298,7 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 				databaseName: "test-db",
 				sourceUri:    "../test_data/basic_mysql_dump.test.out",
 				sourceFormat: constants.MYSQLDUMP,
+				dialect:      constants.DIALECT_GOOGLESQL,
 			},
 			expectedStatus: subcommands.ExitSuccess,
 			expectedError:  nil,
@@ -298,6 +315,9 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 								return time.Now(), nil
 							},
 						}
+					},
+					GetDatabaseDialectMock: func(ctx context.Context, dbURI string) (string, error) {
+						return constants.DIALECT_GOOGLESQL, nil
 					},
 				}, nil
 			},
