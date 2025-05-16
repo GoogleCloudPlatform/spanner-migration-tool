@@ -18,12 +18,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
 
 	"cloud.google.com/go/spanner"
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
@@ -612,4 +613,48 @@ func fetchDDLString(conv *internal.Conv) string {
 			ddl.Config{Comments: false, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"},
 			conv.SpSchema,
 			conv.SpSequences), ";"), "\n", " ", -1)
+}
+
+func TestGetDialectWithDefaults(t *testing.T) {
+	testCases := []struct {
+		name            string
+		inputDialect    string
+		expectedDialect string
+		expectWarning   bool
+	}{
+		{
+			name:            "Empty Dialect",
+			inputDialect:    "",
+			expectedDialect: constants.DIALECT_GOOGLESQL,
+		},
+		{
+			name:            "GoogleSQL Dialect",
+			inputDialect:    constants.DIALECT_GOOGLESQL,
+			expectedDialect: constants.DIALECT_GOOGLESQL,
+		},
+		{
+			name:            "PG Dialect",
+			inputDialect:    constants.DIALECT_POSTGRESQL,
+			expectedDialect: constants.DIALECT_POSTGRESQL,
+		},
+		{
+			name:            "Unknown Dialect",
+			inputDialect:    "postgres",
+			expectedDialect: constants.DIALECT_GOOGLESQL,
+		},
+		{
+			name:            "Another Unknown Dialect",
+			inputDialect:    "sqlserver",
+			expectedDialect: constants.DIALECT_GOOGLESQL,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualDialect := getDialectWithDefaults(tc.inputDialect)
+			if actualDialect != tc.expectedDialect {
+				t.Errorf("For input '%s', expected dialect '%s', but got '%s'", tc.inputDialect, tc.expectedDialect, actualDialect)
+			}
+		})
+	}
 }

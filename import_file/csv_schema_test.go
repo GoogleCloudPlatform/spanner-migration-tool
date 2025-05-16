@@ -44,6 +44,20 @@ func TestCsvSchemaImpl_CreateSchema(t *testing.T) {
 			wantErr:           false,
 		},
 		{
+			name: "successful schema creation",
+			source: CsvSchemaImpl{
+				ProjectId:  "test-project",
+				InstanceId: "test-instance",
+				DbName:     "test-db",
+				TableName:  "test-table",
+				SchemaUri:  "../test_data/basic_csv_schema.json",
+			},
+			dialect:           constants.DIALECT_POSTGRESQL,
+			spannerClientMock: getSpannerClientMock(getDefaultRowIteratoMock()),
+			adminClientMock:   getSpannerAdminClientMock(nil),
+			wantErr:           false,
+		},
+		{
 			name: "table exists",
 			source: CsvSchemaImpl{
 				ProjectId:  "test-project",

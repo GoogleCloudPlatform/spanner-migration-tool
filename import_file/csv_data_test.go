@@ -3,10 +3,12 @@ package import_file
 import (
 	"context"
 	"errors"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 	"io"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -45,7 +47,7 @@ func TestCsvDataImpl_ImportData(t *testing.T) {
 			},
 			commonInfoSchema: getCommonInfoSchemaMock(0),
 			csvHandler:       getCsvInterfaceMock(nil),
-			dialect:          "googleSQL",
+			dialect:          constants.DIALECT_GOOGLESQL,
 			wantErr:          true,
 		},
 		{
@@ -63,7 +65,7 @@ func TestCsvDataImpl_ImportData(t *testing.T) {
 			},
 			commonInfoSchema: getCommonInfoSchemaMock(1),
 			csvHandler:       getCsvInterfaceMock(errors.New("test error")),
-			dialect:          "googleSQL",
+			dialect:          constants.DIALECT_GOOGLESQL,
 			wantErr:          true,
 		},
 		{
@@ -81,7 +83,7 @@ func TestCsvDataImpl_ImportData(t *testing.T) {
 			},
 			commonInfoSchema: getCommonInfoSchemaMock(1),
 			csvHandler:       getCsvInterfaceMock(nil),
-			dialect:          "googleSQL",
+			dialect:          constants.DIALECT_GOOGLESQL,
 			wantErr:          false,
 		},
 		// add more cases here

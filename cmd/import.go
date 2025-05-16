@@ -18,14 +18,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
+
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/import_file"
@@ -48,6 +50,7 @@ type ImportDataCmd struct {
 	csvLineDelimiter  string
 	csvFieldDelimiter string
 	project           string
+	dialect           string
 }
 
 func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
@@ -56,10 +59,11 @@ func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 	set.StringVar(&cmd.tableName, "table-name", "", "Spanner table name. Optional. If not specified, source-uri name will be used")
 	set.StringVar(&cmd.sourceUri, "source-uri", "", "URI of the file to import")
 	set.StringVar(&cmd.sourceFormat, "source-format", "", "Format of the file to import. Valid values {csv, mysqldump}")
-	set.StringVar(&cmd.schemaUri, "schema-uri", "", "URI of the file with schema for the csv to import. Only used for csv format.")
-	set.StringVar(&cmd.csvLineDelimiter, "csv-line-delimiter", "", "Token to be used as line delimiter for csv format. Defaults to '\\n'. Only used for csv format.")
-	set.StringVar(&cmd.csvFieldDelimiter, "csv-field-delimiter", "", "Token to be used as field delimiter for csv format. Defaults to ','. Only used for csv format.")
-	set.StringVar(&cmd.project, "project", "", "Project id for all resources related to this import")
+	set.StringVar(&cmd.schemaUri, "schema-uri", "", "URI of the file with schema for the csv to import. Only non-optional for csv format.")
+	set.StringVar(&cmd.csvLineDelimiter, "csv-line-delimiter", "\n", "Token to be used as line delimiter for csv format. Optional. Defaults to '\\n'. Only used for csv format.")
+	set.StringVar(&cmd.csvFieldDelimiter, "csv-field-delimiter", ",", "Token to be used as field delimiter for csv format. Optional. Defaults to ','. Only used for csv format.")
+	set.StringVar(&cmd.project, "project", "", "Project id for all resources related to this import. Optional")
+	set.StringVar(&cmd.dialect, "dialect", constants.DIALECT_GOOGLESQL, "Dialect of the Spanner database. Optional. Defaults to google_standard_sql")
 }
 
 func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
@@ -85,12 +89,12 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	}
 
 	defer sourceReader.Close()
-	// schemaReader will only be valid if sourceFormat is CSV
+	dialect := getDialectWithDefaults(cmd.dialect)
+
 	switch cmd.sourceFormat {
 	case constants.CSV:
+		// schemaReader will only be valid if sourceFormat is CSV
 		defer schemaReader.Close()
-		//TODO: handle POSTGRESQL
-		dialect := constants.DIALECT_GOOGLESQL
 		err := cmd.handleCsv(ctx, dbURI, dialect, spannerAccessor, sourceReader, schemaReader)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle Csv %v", err))
@@ -98,7 +102,7 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 		}
 		return subcommands.ExitSuccess
 	case constants.MYSQLDUMP:
-		err := cmd.handleDatabaseDumpFile(ctx, dbURI, constants.MYSQLDUMP, constants.DIALECT_GOOGLESQL, spannerAccessor, sourceReader)
+		err := cmd.handleDatabaseDumpFile(ctx, dbURI, constants.MYSQLDUMP, dialect, spannerAccessor, sourceReader)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle MYSQL Dump %v. Please reachout to the support team.", err))
 			return subcommands.ExitFailure
@@ -127,6 +131,18 @@ func validateUriRemote(ctx context.Context, input *ImportDataCmd) (file_reader.F
 		}
 	}
 	return sourceReader, schemaReader, nil
+}
+
+func getDialectWithDefaults(dialect string) string {
+	switch dialect {
+	case constants.DIALECT_GOOGLESQL:
+		return dialect
+	case constants.DIALECT_POSTGRESQL:
+		return dialect
+	default:
+		logger.Log.Warn(fmt.Sprintf("Dialect passed is %s . Defaulting to %s", dialect, constants.DIALECT_GOOGLESQL))
+		return constants.DIALECT_GOOGLESQL
+	}
 }
 
 // validateSpannerAccessor validate if spanner is accessible by the provided dbURI. Return spannerAccessor, error.
@@ -274,9 +290,9 @@ func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, sou
 	dataEndTime := time.Now()
 	elapsedTime = dataEndTime.Sub(schemaEndTime)
 	logger.Log.Info(fmt.Sprintf("Data import took %f secs", elapsedTime.Seconds()))
+
 	if err != nil {
 		return fmt.Errorf("can't import data: %v", err)
 	}
 	return nil
-
 }
