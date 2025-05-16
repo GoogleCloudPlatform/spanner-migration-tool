@@ -59,11 +59,11 @@ func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 	set.StringVar(&cmd.tableName, "table-name", "", "Spanner table name. Optional. If not specified, source-uri name will be used")
 	set.StringVar(&cmd.sourceUri, "source-uri", "", "URI of the file to import")
 	set.StringVar(&cmd.sourceFormat, "source-format", "", "Format of the file to import. Valid values {csv, mysqldump}")
-	set.StringVar(&cmd.schemaUri, "schema-uri", "", "URI of the file with schema for the csv to import. Only used for csv format.")
-	set.StringVar(&cmd.csvLineDelimiter, "csv-line-delimiter", "", "Token to be used as line delimiter for csv format. Defaults to '\\n'. Only used for csv format.")
-	set.StringVar(&cmd.csvFieldDelimiter, "csv-field-delimiter", "", "Token to be used as field delimiter for csv format. Defaults to ','. Only used for csv format.")
-	set.StringVar(&cmd.project, "project", "", "Project id for all resources related to this import")
-	set.StringVar(&cmd.dialect, "dialect", "", "Dialect of the Spanner database. Optional. Defaults to google_standard_sql")
+	set.StringVar(&cmd.schemaUri, "schema-uri", "", "URI of the file with schema for the csv to import. Only non-optional for csv format.")
+	set.StringVar(&cmd.csvLineDelimiter, "csv-line-delimiter", "\n", "Token to be used as line delimiter for csv format. Optional. Defaults to '\\n'. Only used for csv format.")
+	set.StringVar(&cmd.csvFieldDelimiter, "csv-field-delimiter", ",", "Token to be used as field delimiter for csv format. Optional. Defaults to ','. Only used for csv format.")
+	set.StringVar(&cmd.project, "project", "", "Project id for all resources related to this import. Optional")
+	set.StringVar(&cmd.dialect, "dialect", "google_standard_sql", "Dialect of the Spanner database. Optional. Defaults to google_standard_sql")
 }
 
 func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
@@ -134,10 +134,6 @@ func validateUriRemote(ctx context.Context, input *ImportDataCmd) (file_reader.F
 }
 
 func getDialectWithDefaults(dialect string) string {
-	if len(dialect) == 0 {
-		return constants.DIALECT_GOOGLESQL
-	}
-
 	switch dialect {
 	case constants.DIALECT_GOOGLESQL:
 		return dialect
