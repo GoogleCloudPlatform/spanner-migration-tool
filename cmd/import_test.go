@@ -143,28 +143,28 @@ func TestHandleTableNameDefaults_TableNameEmptyFileScheme(t *testing.T) {
 	tableName := ""
 	sourceUri := "file:///path/to/my_data.csv"
 	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "my_data.csv", result)
+	assert.Equal(t, "my_data", result)
 }
 
 func TestHandleTableNameDefaults_TableNameEmptyGCScheme(t *testing.T) {
 	tableName := ""
 	sourceUri := "gs://my-bucket/data_file.txt"
 	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "data_file.txt", result)
+	assert.Equal(t, "data_file", result)
 }
 
 func TestHandleTableNameDefaults_TableNameEmptyLocalPathNoScheme(t *testing.T) {
 	tableName := ""
 	sourceUri := "/tmp/another_file.json"
 	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "another_file.json", result)
+	assert.Equal(t, "another_file", result)
 }
 
 func TestHandleTableNameDefaults_TableNameEmptyRelativePath(t *testing.T) {
 	tableName := ""
 	sourceUri := "relative/path/some_data.avro"
 	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "some_data.avro", result)
+	assert.Equal(t, "some_data", result)
 }
 
 func TestHandleTableNameDefaults_TableNameEmptyURIWithTrailingSlash(t *testing.T) {
