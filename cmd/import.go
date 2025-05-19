@@ -134,6 +134,7 @@ func validateUriRemote(ctx context.Context, input *ImportDataCmd) (file_reader.F
 }
 
 func getDialectWithDefaults(dialect string) string {
+	dialect = strings.ToLower(dialect)
 	switch dialect {
 	case constants.DIALECT_GOOGLESQL:
 		return dialect
@@ -241,7 +242,10 @@ func handleTableNameDefaults(tableName, sourceUri string) string {
 	if strings.HasPrefix(path, "/") && len(path) > 1 {
 		path = path[1:] // Remove leading slash if present
 	}
-	return filepath.Base(path)
+	basePath := filepath.Base(path)
+
+	// pick the substring before the first dot
+	return strings.Split(basePath, ".")[0]
 }
 
 func init() {

@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -78,7 +79,7 @@ func (source *CsvSchemaImpl) CreateSchema(ctx context.Context, dialect string, s
 	}
 
 	if dbExists {
-		logger.Log.Error(fmt.Sprintf("table %s exists ", source.TableName))
+		logger.Log.Info(fmt.Sprintf("table %s exists ", source.TableName))
 		// if exists, verify table schema is same as passed
 		// TODO: validate schema matches
 		return nil
