@@ -29,7 +29,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: 16
+          node-version: 18
       - name: Install and build frontend dependencies
         run: |
           cd ui
@@ -45,7 +45,7 @@ jobs:
           cd ui
           npm test -- --browsers=ChromeHeadless --watch=false
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           # Temp fix for https://github.com/codecov/codecov-action/issues/1487

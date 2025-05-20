@@ -535,8 +535,6 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 		switch columnAssessment.SourceColDef.DefaultValue.Value.Statement {
 		case "NULL":
 			//Nothing to do - equivalent
-		case "'NULL'":
-			//Nothing to do - equivalent
 		default:
 			changes = append(changes, "feature")
 			changeEffort = "Small"
@@ -686,7 +684,7 @@ func populateTriggerInfo(triggerAssessmentOutput map[string]utils.TriggerAssessm
 		row.element = trigger.Name
 		row.elementType = "Trigger"
 
-		row.sourceTableName = "N/A"
+		row.sourceTableName = trigger.TargetTable
 		row.sourceName = trigger.Name
 		row.sourceDefinition = trigger.Operation
 

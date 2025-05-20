@@ -68,7 +68,7 @@ type InfoSchemaInterface interface {
 	GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema, numWorkers int) (int, error)
 	ProcessData(conv *internal.Conv, infoSchema InfoSchema, additionalAttributes internal.AdditionalDataAttributes)
 	SetRowStats(conv *internal.Conv, infoSchema InfoSchema)
-	processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error)
+	ProcessTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error)
 	GetIncludedSrcTablesFromConv(conv *internal.Conv) (schemaToTablesMap map[string]internal.SchemaDetails, err error)
 }
 type InfoSchemaImpl struct{}
@@ -114,7 +114,7 @@ func (is *InfoSchemaImpl) GenerateSrcSchema(conv *internal.Conv, infoSchema Info
 	}
 
 	asyncProcessTable := func(t SchemaAndName, mutex *sync.Mutex) task.TaskResult[SchemaAndName] {
-		table, e := is.processTable(conv, t, infoSchema)
+		table, e := is.ProcessTable(conv, t, infoSchema)
 		mutex.Lock()
 		conv.SrcSchema[table.Id] = table
 		mutex.Unlock()
@@ -183,7 +183,7 @@ func (is *InfoSchemaImpl) SetRowStats(conv *internal.Conv, infoSchema InfoSchema
 	}
 }
 
-func (is *InfoSchemaImpl) processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error) {
+func (is *InfoSchemaImpl) ProcessTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) (schema.Table, error) {
 	var t schema.Table
 	logger.Log.Info(fmt.Sprintf("processing schema for table %s", table))
 	tblId := internal.GenerateTableId()
