@@ -33,6 +33,7 @@ func RemoveColumn(tableId string, colId string, conv *internal.Conv) {
 			childSp := conv.SpSchema[childTableId]
 			childSp.ParentTable.Id = ""
 			childSp.ParentTable.OnDelete = ""
+			childSp.ParentTable.InterleaveType = ""
 			conv.SpSchema[childTableId] = childSp
 		}
 	}
@@ -41,6 +42,7 @@ func RemoveColumn(tableId string, colId string, conv *internal.Conv) {
 		if isColFistOderPk(conv.SpSchema[tableId].PrimaryKeys, colId) {
 			sp.ParentTable.Id = ""
 			sp.ParentTable.OnDelete = ""
+			sp.ParentTable.InterleaveType = ""
 			conv.SpSchema[tableId] = sp
 		}
 	}

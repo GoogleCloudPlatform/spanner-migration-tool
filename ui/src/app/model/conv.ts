@@ -101,6 +101,7 @@ export interface IIndex {
 export interface IInterleavedParent{
   Id: string
   OnDelete: string
+  InterleaveType: string
 }
 
 // spanner schema

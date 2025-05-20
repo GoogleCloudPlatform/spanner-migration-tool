@@ -50,3 +50,15 @@ func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump, ddlVe
 	}
 	return nil
 }
+
+func ConvertSchemaToSpannerDDL(conv *internal.Conv, dbDump DbDump, schemaToSpanner SchemaToSpannerInterface) error {
+	utilsOrder := UtilsOrderImpl{}
+	utilsOrder.initPrimaryKeyOrder(conv)
+	utilsOrder.initIndexOrder(conv)
+	err := schemaToSpanner.SchemaToSpannerDDL(conv, dbDump.GetToDdl(), internal.AdditionalSchemaAttributes{})
+	if err != nil {
+		return err
+	}
+	conv.AddPrimaryKeys()
+	return nil
+}
