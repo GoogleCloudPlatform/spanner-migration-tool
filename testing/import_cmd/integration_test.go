@@ -108,7 +108,7 @@ func TestMysqlExampleImportDumpFile(t *testing.T) {
 			t.Parallel()
 
 			dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tt.dbName)
-			log.Printf("dbURI %s", dbURI)
+			log.Printf("Spanner database used for testing: %s", dbURI)
 
 			createSpannerDatabase(t, projectID, instanceID, tt.dbName)
 			defer databaseAdmin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: dbURI})
@@ -134,7 +134,7 @@ func TestLocalImportMysqlDumpFile(t *testing.T) {
 	// configure the database client
 	dbName := "import_test_local_mysql_dump"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	log.Printf("dbURI %s", dbURI)
+	log.Printf("Spanner database URI used for testing: %s", dbURI)
 
 	createSpannerDatabase(t, projectID, instanceID, dbName)
 	defer databaseAdmin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: dbURI})
