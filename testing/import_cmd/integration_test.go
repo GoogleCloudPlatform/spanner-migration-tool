@@ -38,9 +38,6 @@ func initIntegrationTests() (cleanup func()) {
 	projectID = os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID")
 	instanceID = os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID")
 
-	projectID = "span-cloud-testing"
-	instanceID = "asapha-test"
-
 	ctx = context.Background()
 	flag.Parse() // Needed for calling testing.Short().
 
@@ -71,9 +68,9 @@ func initIntegrationTests() (cleanup func()) {
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
-	//if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-	//	t.Skip("Skipping tests only running against the emulator.")
-	//}
+	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		t.Skip("Skipping tests only running against the emulator.")
+	}
 }
 
 func TestMysqlExampleImportDumpFile(t *testing.T) {
@@ -86,13 +83,13 @@ func TestMysqlExampleImportDumpFile(t *testing.T) {
 	}{
 		{
 			name:    "sakila dump file",
-			dumpUri: "../../test_data/sakila-dump.sql",
+			dumpUri: "gs://smt-integration-test/import/mysql/sakila-dump.sql",
 			dbName:  "sakila",
 			wantErr: false,
 		},
 		{
 			name:    "world dump file",
-			dumpUri: "../../test_data/sakila-dump.sql",
+			dumpUri: "../../test_data/world.sql",
 			dbName:  "world_mysql_example",
 			wantErr: false,
 		},
@@ -104,13 +101,13 @@ func TestMysqlExampleImportDumpFile(t *testing.T) {
 		},
 		{
 			name:    "airport mysql example",
-			dumpUri: "/Users/pratick/Downloads/mysql_example/airport-db.sql",
+			dumpUri: "gs://smt-integration-test/import/mysql/airport-db.sql",
 			dbName:  "airport_mysql_example",
 			wantErr: false,
 		},
 		{
 			name:    "employees mysql example",
-			dumpUri: "/Users/pratick/Downloads/mysql_example/employees.sql",
+			dumpUri: "gs://smt-integration-test/import/mysql/employees.sql",
 			dbName:  "employees_mysql_example",
 			wantErr: false,
 		},
