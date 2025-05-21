@@ -130,7 +130,6 @@ func TestMysqlExampleImportDumpFile(t *testing.T) {
 			args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance-id=%s -database-name=%s -source-uri=%s",
 				projectID, instanceID, tt.dbName, dumpFilePath)
 			err := common.RunCommand(args, projectID)
-			fmt.Printf("Error: %v", err)
 			assert.NoError(t, err)
 
 			// TODO validation to be added.
