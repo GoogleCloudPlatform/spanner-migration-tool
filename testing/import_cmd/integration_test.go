@@ -38,6 +38,9 @@ func initIntegrationTests() (cleanup func()) {
 	projectID = os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID")
 	instanceID = os.Getenv("SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID")
 
+	projectID = "span-cloud-testing"
+	instanceID = "asapha-test"
+
 	ctx = context.Background()
 	flag.Parse() // Needed for calling testing.Short().
 
@@ -68,9 +71,9 @@ func initIntegrationTests() (cleanup func()) {
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("Skipping tests only running against the emulator.")
-	}
+	//if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+	//	t.Skip("Skipping tests only running against the emulator.")
+	//}
 }
 
 func TestMysqlExampleImportDumpFile(t *testing.T) {
@@ -99,6 +102,18 @@ func TestMysqlExampleImportDumpFile(t *testing.T) {
 			dbName:  "menagerie",
 			wantErr: false,
 		},
+		{
+			name:    "airport mysql example",
+			dumpUri: "/Users/pratick/Downloads/mysql_example/airport-db.sql",
+			dbName:  "airport_mysql_example",
+			wantErr: false,
+		},
+		{
+			name:    "employees mysql example",
+			dumpUri: "/Users/pratick/Downloads/mysql_example/employees.sql",
+			dbName:  "employees_mysql_example",
+			wantErr: false,
+		},
 		// TODO: ADD Mysql Example Airport DB Tests.
 		// TODO: Move test data to GCS
 	}
@@ -118,6 +133,7 @@ func TestMysqlExampleImportDumpFile(t *testing.T) {
 			args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance-id=%s -database-name=%s -source-uri=%s",
 				projectID, instanceID, tt.dbName, dumpFilePath)
 			err := common.RunCommand(args, projectID)
+			fmt.Printf("Error: %v", err)
 			assert.NoError(t, err)
 
 			// TODO validation to be added.
