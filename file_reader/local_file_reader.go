@@ -48,3 +48,13 @@ func (reader *LocalFileReaderImpl) Close() {
 		reader.fileHandle.Close()
 	}
 }
+
+func (reader *LocalFileReaderImpl) ReadAll(_ context.Context) ([]byte, error) {
+	if reader.fileHandle == nil {
+		_, err := reader.CreateReader(context.Background())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return io.ReadAll(reader.fileHandle)
+}
