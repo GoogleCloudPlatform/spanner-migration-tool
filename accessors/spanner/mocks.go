@@ -15,6 +15,8 @@ package spanneraccessor
 
 import (
 	"context"
+	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
+	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 )
@@ -38,6 +40,11 @@ type SpannerAccessorMock struct {
 	DropDatabaseMock                func(ctx context.Context, dbURI string) error
 	ValidateDMLMock                 func(ctx context.Context, query string) (bool, error)
 	TableExistsMock                 func(ctx context.Context, tableName string) (bool, error)
+	GetDatabaseNameMock             func() string
+	RefreshMock                     func(ctx context.Context, dbURI string)
+	SetSpannerClientMock            func(spannerClient spannerclient.SpannerClient)
+	GetSpannerClientMock            func() spannerclient.SpannerClient
+	GetSpannerAdminClientMock       func() spanneradmin.AdminClient
 }
 
 func (sam *SpannerAccessorMock) GetDatabaseDialect(ctx context.Context, dbURI string) (string, error) {
@@ -98,4 +105,23 @@ func (sam *SpannerAccessorMock) ValidateDML(ctx context.Context, query string) (
 
 func (sam *SpannerAccessorMock) TableExists(ctx context.Context, tableName string) (bool, error) {
 	return sam.TableExistsMock(ctx, tableName)
+}
+func (sam *SpannerAccessorMock) GetDatabaseName() string {
+	return sam.GetDatabaseNameMock()
+}
+
+func (sam *SpannerAccessorMock) Refresh(ctx context.Context, dbURI string) {
+	sam.RefreshMock(ctx, dbURI)
+}
+
+func (sam *SpannerAccessorMock) SetSpannerClient(spannerClient spannerclient.SpannerClient) {
+	sam.SetSpannerClientMock(spannerClient)
+}
+
+func (sam *SpannerAccessorMock) GetSpannerClient() spannerclient.SpannerClient {
+	return sam.GetSpannerClientMock()
+}
+
+func (sam *SpannerAccessorMock) GetSpannerAdminClient() spanneradmin.AdminClient {
+	return sam.GetSpannerAdminClientMock()
 }

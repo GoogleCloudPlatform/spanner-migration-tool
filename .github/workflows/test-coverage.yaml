@@ -45,7 +45,7 @@ jobs:
           cd ui
           npm test -- --browsers=ChromeHeadless --watch=false
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           # Temp fix for https://github.com/codecov/codecov-action/issues/1487

@@ -1,0 +1,15 @@
+[
+
+  {
+    "name": "c3",
+    "type": "INT64",
+    "notNull": true,
+    "primaryKeyOrder": 1
+  },
+  {
+    "name": "c4",
+    "type": "STRING(250)",
+    "notNull": true,
+    "primaryKeyOrder": 0
+  }
+]

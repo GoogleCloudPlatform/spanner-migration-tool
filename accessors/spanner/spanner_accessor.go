@@ -80,6 +80,16 @@ type SpannerAccessor interface {
 	ValidateDML(ctx context.Context, query string) (bool, error)
 
 	TableExists(ctx context.Context, tableName string) (bool, error)
+
+	GetDatabaseName() string
+
+	Refresh(ctx context.Context, dbURI string)
+
+	SetSpannerClient(spannerClient spannerclient.SpannerClient)
+
+	GetSpannerClient() spannerclient.SpannerClient
+
+	GetSpannerAdminClient() spanneradmin.AdminClient
 }
 
 // This implements the SpannerAccessor interface. This is the primary implementation that should be used in all places other than tests.
@@ -508,6 +518,22 @@ func (sp *SpannerAccessorImpl) ValidateDML(ctx context.Context, query string) (b
 	}
 }
 
+func (sp *SpannerAccessorImpl) GetDatabaseName() string {
+	return sp.SpannerClient.DatabaseName()
+}
+
 func (sp *SpannerAccessorImpl) Refresh(ctx context.Context, dbURI string) {
 	sp.SpannerClient.Refresh(ctx, dbURI)
+}
+
+func (sp *SpannerAccessorImpl) SetSpannerClient(spannerClient spannerclient.SpannerClient) {
+	sp.SpannerClient = spannerClient
+}
+
+func (sp *SpannerAccessorImpl) GetSpannerClient() spannerclient.SpannerClient {
+	return sp.SpannerClient
+}
+
+func (sp *SpannerAccessorImpl) GetSpannerAdminClient() spanneradmin.AdminClient {
+	return sp.AdminClient
 }
