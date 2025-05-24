@@ -1,16 +1,17 @@
 package import_cmd
 
 import (
-	"cloud.google.com/go/spanner"
 	"context"
 	"flag"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
 	"slices"
 	"strings"
 	"testing"
+
+	"cloud.google.com/go/spanner"
+	"github.com/stretchr/testify/assert"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
@@ -115,7 +116,7 @@ func TestMysqlExampleImportDumpFile(t *testing.T) {
 
 			dumpFilePath := tt.dumpUri
 
-			args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance-id=%s -database-name=%s -source-uri=%s",
+			args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance=%s -database=%s -source-uri=%s",
 				projectID, instanceID, tt.dbName, dumpFilePath)
 			err := common.RunCommand(args, projectID)
 			assert.NoError(t, err)
@@ -141,7 +142,7 @@ func TestLocalImportMysqlDumpFile(t *testing.T) {
 
 	dumpFilePath := "../../test_data/mysql_dump_import_data.sql"
 
-	args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance-id=%s -database-name=%s -source-uri=%s", projectID, instanceID, dbName, dumpFilePath)
+	args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance=%s -database=%s -source-uri=%s", projectID, instanceID, dbName, dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
