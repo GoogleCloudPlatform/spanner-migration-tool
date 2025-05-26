@@ -1,16 +1,17 @@
 package import_cmd
 
 import (
-	"cloud.google.com/go/spanner"
 	"context"
 	"flag"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
 	"slices"
 	"strings"
 	"testing"
+
+	"cloud.google.com/go/spanner"
+	"github.com/stretchr/testify/assert"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
@@ -70,6 +71,58 @@ func initIntegrationTests() (cleanup func()) {
 func onlyRunForEmulatorTest(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
 		t.Skip("Skipping tests only running against the emulator.")
+	}
+}
+
+func TestCSVImportFromGCS(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	tests := []struct {
+		name      string
+		sourceUri string
+		schemaUri string
+		dbName    string
+		wantErr   bool
+	}{
+		{
+			name:      "sakila dump file",
+			sourceUri: "gs://smt-integration-test/import/csv/sakila-data.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/sakila-schema.json",
+			dbName:    "sakila",
+			wantErr:   false,
+		},
+		{
+			name:      "world dump file",
+			sourceUri: "../../test_data/sakila-dump.sql",
+			schemaUri: "",
+			dbName:    "world_mysql_example",
+			wantErr:   false,
+		},
+		{
+			name:      "world dump file",
+			sourceUri: "../../test_data/sakila-dump.sql",
+			schemaUri: "",
+			dbName:    "menagerie",
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tt.dbName)
+			log.Printf("Spanner database used for testing: %s", dbURI)
+
+			createSpannerDatabase(t, projectID, instanceID, tt.dbName)
+			defer databaseAdmin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: dbURI})
+			//TODO: update the parameters after merge from master
+			args := fmt.Sprintf("import -source-format=csv -project=%s -instance-id=%s -database-name=%s -source-uri=%s --schema-uri=%s",
+				projectID, instanceID, tt.dbName, tt.sourceUri, tt.schemaUri)
+			err := common.RunCommand(args, projectID)
+			assert.NoError(t, err)
+
+			// TODO validation to be added.
+		})
 	}
 }
 
