@@ -84,13 +84,13 @@ func TestMysqlExampleImportDumpFile(t *testing.T) {
 	}{
 		{
 			name:    "sakila dump file",
-			dumpUri: "../../test_data/sakila-dump.sql",
+			dumpUri: "gs://smt-integration-test/import/mysql/sakila-dump.sql",
 			dbName:  "sakila",
 			wantErr: false,
 		},
 		{
 			name:    "world dump file",
-			dumpUri: "../../test_data/sakila-dump.sql",
+			dumpUri: "../../test_data/world.sql",
 			dbName:  "world_mysql_example",
 			wantErr: false,
 		},
@@ -98,6 +98,18 @@ func TestMysqlExampleImportDumpFile(t *testing.T) {
 			name:    "world dump file",
 			dumpUri: "../../test_data/menagerie.sql",
 			dbName:  "menagerie",
+			wantErr: false,
+		},
+		{
+			name:    "airport mysql example",
+			dumpUri: "gs://smt-integration-test/import/mysql/airport-db.sql",
+			dbName:  "airport_mysql_example",
+			wantErr: false,
+		},
+		{
+			name:    "employees mysql example",
+			dumpUri: "gs://smt-integration-test/import/mysql/employees.sql",
+			dbName:  "employees_mysql_example",
 			wantErr: false,
 		},
 		// TODO: ADD Mysql Example Airport DB Tests.
