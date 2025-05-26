@@ -320,7 +320,7 @@ func TestSpannerAccessorImpl_CreateEmptyDatabase(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range testCases {
 		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
-		err := spA.CreateEmptyDatabase(ctx, "projects/test-project/instances/test-instance/databases/mydb")
+		err := spA.CreateEmptyDatabase(ctx, "projects/test-project/instances/test-instance/databases/mydb", constants.DIALECT_GOOGLESQL)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
