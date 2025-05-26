@@ -13,36 +13,53 @@ coverage:
       
 component_management:
   individual_components:
-    - component_id: backend-apis
-      name: backend-apis # only Golang backend APIs
+    - component_id: schema
+      name: schema # Golang packages for schema
       paths:
-        - "webv2/**"
-        - "!webv2/webCmd.go"
-      statuses: # each component has its own status and corresponding configuration
-        - type: project
-          informational: true
-    - component_id: backend-library
-      name: backend-library # only library code
-      paths:
-        - "!webv2/**"
-        - "!ui/**"
-        - "!cmd/**"
-      statuses: # each component has its own status and corresponding configuration
-        - type: project
-          informational: true
-    - component_id: cli 
-      name: cli # only the CLI
-      paths:
+        - "accessors/**"
         - "cmd/**"
-        - "webv2/webCmd.go"
-      statuses: # each component has its own status and corresponding configuration
+        - "common/**"
+        - "internal/**"
+        - "profiles/**"
+        - "sources/**"
+        - "spanner/**"
+        - "webv2/**"
+      statuses:
+        - type: project
+          informational: true
+    - component_id: orchestration
+      name: orchestration
+      paths:
+        - "accessors/**"
+        - "cmd/**"
+        - "common/**"
+        - "conversion/**"
+        - "dao/**"
+        - "internal/**"
+        - "profiles/**"
+        - "streaming/**"
+        - "webv2/**"
+      statuses:
+        - type: project
+          informational: true
+    - component_id: legacy 
+      name: legacy
+      paths:
+        - "accessors/**"
+        - "cmd/**"
+        - "common/**"
+        - "profiles/**"
+        - "sources/**"
+        - "spanner/**"
+        - "webv2/**"
+      statuses:
         - type: project
           informational: true
     - component_id: frontend
       name: frontend # only frontend components
       paths:
         - "ui/**"
-      statuses: # the core component has its own statuses
+      statuses:
         - type: project
           informational: true
 ignore:
