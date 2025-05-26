@@ -47,12 +47,12 @@ func TestBasicCsvImport(t *testing.T) {
 	importDataCmd.SetFlags(fs)
 
 	importDataCmd.project = "test-project"
-	importDataCmd.instanceId = "test-instance"
-	importDataCmd.databaseName = "versionone"
+	importDataCmd.instance = "test-instance"
+	importDataCmd.database = "versionone"
 	importDataCmd.tableName = "table2"
 	importDataCmd.sourceUri = "../test_data/basic_csv.csv"
 	importDataCmd.sourceFormat = "csv"
-	importDataCmd.schemaUri = "../test_data/basic_csv_schema.csv"
+	importDataCmd.schemaUri = "../test_data/basic_csv_schema.json"
 	importDataCmd.csvLineDelimiter = "\n"
 	importDataCmd.csvFieldDelimiter = ","
 	importDataCmd.Execute(context.Background(), fs)
@@ -63,8 +63,8 @@ func TestImportDataCmd_SetFlags(t *testing.T) {
 	fs := flag.NewFlagSet("import", flag.ContinueOnError)
 	cmd.SetFlags(fs)
 
-	assert.NotNil(t, fs.Lookup("instance-id"))
-	assert.NotNil(t, fs.Lookup("database-name"))
+	assert.NotNil(t, fs.Lookup("instance"))
+	assert.NotNil(t, fs.Lookup("database"))
 	assert.NotNil(t, fs.Lookup("table-name"))
 	assert.NotNil(t, fs.Lookup("source-uri"))
 	assert.NotNil(t, fs.Lookup("source-format"))
@@ -78,32 +78,32 @@ func TestValidateInputLocal_MissingInstanceID(t *testing.T) {
 	input := &ImportDataCmd{}
 	err := validateInputLocal(input)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Please specify instanceId")
+	assert.Contains(t, err.Error(), "Please specify instance")
 }
 
 func TestValidateInputLocal_MissingDatabaseName(t *testing.T) {
-	input := &ImportDataCmd{instanceId: "test-instance"}
+	input := &ImportDataCmd{instance: "test-instance"}
 	err := validateInputLocal(input)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Please specify databaseName")
+	assert.Contains(t, err.Error(), "Please specify database")
 }
 
 func TestValidateInputLocal_MissingSourceURI(t *testing.T) {
-	input := &ImportDataCmd{instanceId: "test-instance", databaseName: "test-db"}
+	input := &ImportDataCmd{instance: "test-instance", database: "test-db"}
 	err := validateInputLocal(input)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Please specify sourceUri")
 }
 
 func TestValidateInputLocal_MissingSourceFormat(t *testing.T) {
-	input := &ImportDataCmd{instanceId: "test-instance", databaseName: "test-db", sourceUri: "file:///tmp/data.csv"}
+	input := &ImportDataCmd{instance: "test-instance", database: "test-db", sourceUri: "file:///tmp/data.csv"}
 	err := validateInputLocal(input)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Please specify sourceFormat")
 }
 
 func TestValidateInputLocal_CSVMissingSchemaURI(t *testing.T) {
-	input := &ImportDataCmd{instanceId: "test-instance", databaseName: "test-db", sourceUri: "file:///tmp/data.csv", sourceFormat: constants.CSV}
+	input := &ImportDataCmd{instance: "test-instance", database: "test-db", sourceUri: "file:///tmp/data.csv", sourceFormat: constants.CSV}
 	err := validateInputLocal(input)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Please specify schemaUri")
@@ -111,8 +111,8 @@ func TestValidateInputLocal_CSVMissingSchemaURI(t *testing.T) {
 
 func TestValidateInputLocal_SuccessCSV(t *testing.T) {
 	input := &ImportDataCmd{
-		instanceId:   "test-instance",
-		databaseName: "test-db",
+		instance:     "test-instance",
+		database:     "test-db",
 		sourceUri:    "file:///tmp/data.csv",
 		sourceFormat: constants.CSV,
 		schemaUri:    "file:///tmp/schema.csv",
@@ -123,8 +123,8 @@ func TestValidateInputLocal_SuccessCSV(t *testing.T) {
 
 func TestValidateInputLocal_SuccessNonCSV(t *testing.T) {
 	input := &ImportDataCmd{
-		instanceId:   "test-instance",
-		databaseName: "test-db",
+		instance:     "test-instance",
+		database:     "test-db",
 		sourceUri:    "gs://bucket/data.avro",
 		sourceFormat: "avro",
 	}
@@ -139,39 +139,111 @@ func TestHandleTableNameDefaults_TableNamePresent(t *testing.T) {
 	assert.Equal(t, "explicit_table", result)
 }
 
-func TestHandleTableNameDefaults_TableNameEmptyFileScheme(t *testing.T) {
-	tableName := ""
-	sourceUri := "file:///path/to/my_data.csv"
-	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "my_data", result)
+func TestHandleTableNameDefaults(t *testing.T) {
+	tests := []struct {
+		name      string
+		sourceUri string
+		expected  string
+	}{
+		{
+			name:      "URIWithTrailingSlash",
+			sourceUri: "gs://my-bucket/folder/",
+			expected:  "folder",
+		},
+		{
+			name:      "RelativePath",
+			sourceUri: "relative/path/some_data.avro",
+			expected:  "some_data",
+		},
+		{
+			name:      "LocalPathNoScheme",
+			sourceUri: "/tmp/another_file.json",
+			expected:  "another_file",
+		},
+		{
+			name:      "GCScheme",
+			sourceUri: "s://my-bucket/data_file.txt",
+			expected:  "data_file",
+		},
+		{
+			name:      "FileScheme",
+			sourceUri: "file:///path/to/my_data.csv",
+			expected:  "my_data",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := handleTableNameDefaults("", tc.sourceUri)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
 }
 
-func TestHandleTableNameDefaults_TableNameEmptyGCScheme(t *testing.T) {
-	tableName := ""
-	sourceUri := "gs://my-bucket/data_file.txt"
-	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "data_file", result)
-}
+func TestSanitizeTableName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		// --- Basic Valid Cases ---
+		{"myTableName", "mytablename"},
+		{"another_table", "another_table"},
+		{"table123", "table123"},
+		{"_leading_underscore", "_leading_underscore"},
+		{"has_numbers_123", "has_numbers_123"},
+		{"ALLCAPS", "allcaps"},
 
-func TestHandleTableNameDefaults_TableNameEmptyLocalPathNoScheme(t *testing.T) {
-	tableName := ""
-	sourceUri := "/tmp/another_file.json"
-	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "another_file", result)
-}
+		// --- Leading Character Trimming (underscoreOrAlphabet) ---
+		{"_ABC", "_abc"},
+		{"-table", "table"},
+		{"#table", "table"},
+		{"1table", "table"},
+		{"-1table", "table"},
+		{"   leading_spaces", "leading_spaces"},
+		{"_leading_underscores_and_spaces", "_leading_underscores_and_spaces"},
+		{"__leading_double_underscore", "__leading_double_underscore"},
 
-func TestHandleTableNameDefaults_TableNameEmptyRelativePath(t *testing.T) {
-	tableName := ""
-	sourceUri := "relative/path/some_data.avro"
-	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "some_data", result)
-}
+		// --- Invalid Characters Removal (underscoreOrAlphanumeric) ---
+		{"table name", "tablename"},
+		{"table.name", "tablename"},
+		{"table-name", "tablename"},
+		{"table!@#$%^&*()", "table"},
+		{"table_name_with_spaces and stuff", "table_name_with_spacesandstuff"},
+		{"mixed_Case_AND_SYMBOLS!@", "mixed_case_and_symbols"},
+		{"__Table__Name__", "__table__name__"},
+		{"Table Name With Space And Special Chars!@#$", "tablenamewithspaceandspecialchars"},
 
-func TestHandleTableNameDefaults_TableNameEmptyURIWithTrailingSlash(t *testing.T) {
-	tableName := ""
-	sourceUri := "gs://my-bucket/folder/"
-	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "folder", result)
+		// --- Empty/Edge Cases ---
+		{"", ""},
+		{"   ", ""},
+		{"!!!", ""},
+		{"_!@#", "_"},
+		{"_123", "_123"},
+		{"__", "__"},
+		{"A", "a"},
+		{"1", ""},
+		{"-", ""},
+		{"-1", ""},
+		{"-a", "a"},
+
+		// --- Unicode Characters ---
+		{"tābļē_ňāmē", "tābļē_ňāmē"},
+		{"table_名稱", "table_名稱"},
+		{"table_привет", "table_привет"},
+		{"😊table😁name", "tablename"},
+		{"table_日本語_123", "table_日本語_123"},
+		{"你好_world", "你好_world"},
+		{"_hello_世界_123", "_hello_世界_123"},
+		{"table_!@#_name", "table__name"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) { // Use t.Run for better test output for each case
+			got := sanitizeTableName(tt.input)
+			if got != tt.expected {
+				t.Errorf("sanitizeTableName(%q) = %q; want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
 }
 
 func TestImportDataCmd_HandleCsvExecute(t *testing.T) {
@@ -187,11 +259,11 @@ func TestImportDataCmd_HandleCsvExecute(t *testing.T) {
 		csvDataFunc         func(projectId, instanceId, dbName, tableName, sourceUri, csvFieldDelimiter string, sourceFileReader file_reader.FileReader) import_file.CsvData
 	}{
 		{
-			name: "successful csv import",
+			name: "successful csv import_existing DB",
 			cmd: &ImportDataCmd{
 				project:      "test-project",
-				instanceId:   "test-instance",
-				databaseName: "test-db",
+				instance:     "test-instance",
+				database:     "test-db",
 				sourceUri:    "../test_data/basic_mysql_dump.test.out",
 				schemaUri:    "../test_data/basic_csv_schema.json",
 				sourceFormat: constants.CSV,
@@ -199,7 +271,43 @@ func TestImportDataCmd_HandleCsvExecute(t *testing.T) {
 			expectedStatus: subcommands.ExitSuccess,
 			expectedError:  nil,
 			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
-				return &spanneraccessor.SpannerAccessorMock{}, nil
+				return &spanneraccessor.SpannerAccessorMock{
+					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
+						return true, nil
+					},
+				}, nil
+			},
+			infoClientFunc: func(ctx context.Context, dbURI string, spDialect string) (*sourcesspanner.InfoSchemaImpl, error) {
+				return &sourcesspanner.InfoSchemaImpl{}, nil
+			},
+			csvSchemaFunc: func(projectId, instanceId, dbName, tableName, schemaUri string, schemaFileReader file_reader.FileReader) import_file.CsvSchema {
+				return &import_file.MockCsvSchema{}
+			},
+			csvDataFunc: func(projectId, instanceId, dbName, tableName, sourceUri, csvFieldDelimiter string, sourceFileReader file_reader.FileReader) import_file.CsvData {
+				return &import_file.MockCsvData{}
+			},
+		},
+		{
+			name: "successful csv import_new DB",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instance:     "test-instance",
+				database:     "test-db",
+				sourceUri:    "../test_data/basic_mysql_dump.test.out",
+				schemaUri:    "../test_data/basic_csv_schema.json",
+				sourceFormat: constants.CSV,
+			},
+			expectedStatus: subcommands.ExitSuccess,
+			expectedError:  nil,
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{
+					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
+						return false, nil
+					},
+					CreateEmptyDatabaseMock: func(ctx context.Context, dbURI, dialect string) error {
+						return nil
+					},
+				}, nil
 			},
 			infoClientFunc: func(ctx context.Context, dbURI string, spDialect string) (*sourcesspanner.InfoSchemaImpl, error) {
 				return &sourcesspanner.InfoSchemaImpl{}, nil
@@ -215,8 +323,8 @@ func TestImportDataCmd_HandleCsvExecute(t *testing.T) {
 			name: "error in handling csv",
 			cmd: &ImportDataCmd{
 				project:      "test-project",
-				instanceId:   "test-instance",
-				databaseName: "test-db",
+				instance:     "test-instance",
+				database:     "test-db",
 				sourceUri:    "../test_data/basic_mysql_dump.test.out",
 				schemaUri:    "../test_data/basic_csv_schema.json",
 				sourceFormat: constants.CSV,
@@ -224,7 +332,11 @@ func TestImportDataCmd_HandleCsvExecute(t *testing.T) {
 			expectedStatus: subcommands.ExitFailure,
 			expectedError:  fmt.Errorf("error in creating info client"),
 			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
-				return &spanneraccessor.SpannerAccessorMock{}, nil
+				return &spanneraccessor.SpannerAccessorMock{
+					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
+						return true, nil
+					},
+				}, nil
 			},
 			infoClientFunc: func(ctx context.Context, dbURI string, spDialect string) (*sourcesspanner.InfoSchemaImpl, error) {
 				return nil, fmt.Errorf("error in creating info client")
@@ -276,11 +388,11 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 		spannerAccessorMock func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error)
 	}{
 		{
-			name: "successful MySQL dump import",
+			name: "successful MySQL dump import_existing DB",
 			cmd: &ImportDataCmd{
 				project:      "test-project",
-				instanceId:   "test-instance",
-				databaseName: "test-db",
+				instance:     "test-instance",
+				database:     "test-db",
 				sourceUri:    "../test_data/basic_mysql_dump.test.out",
 				sourceFormat: constants.MYSQLDUMP,
 			},
@@ -288,6 +400,43 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 			expectedError:  nil,
 			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
 				return &spanneraccessor.SpannerAccessorMock{
+					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
+						return true, nil
+					},
+					UpdateDatabaseMock: func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
+						return nil
+					},
+					RefreshMock: func(ctx context.Context, dbURI string) {
+					},
+					GetSpannerClientMock: func() spannerclient.SpannerClient {
+						return &spannerclient.SpannerClientMock{
+							ApplyMock: func(ctx context.Context, ms []*spanner.Mutation, opts ...spanner.ApplyOption) (commitTimestamp time.Time, err error) {
+								return time.Now(), nil
+							},
+						}
+					},
+				}, nil
+			},
+		},
+		{
+			name: "successful MySQL dump import_new DB",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instance:     "test-instance",
+				database:     "test-db",
+				sourceUri:    "../test_data/basic_mysql_dump.test.out",
+				sourceFormat: constants.MYSQLDUMP,
+			},
+			expectedStatus: subcommands.ExitSuccess,
+			expectedError:  nil,
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{
+					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
+						return false, nil
+					},
+					CreateEmptyDatabaseMock: func(ctx context.Context, dbURI, dialect string) error {
+						return nil
+					},
 					UpdateDatabaseMock: func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
 						return nil
 					},
@@ -307,8 +456,8 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 			name: "error in handling mysql dump",
 			cmd: &ImportDataCmd{
 				project:      "test-project",
-				instanceId:   "test-instance",
-				databaseName: "test-db",
+				instance:     "test-instance",
+				database:     "test-db",
 				sourceUri:    "../test_data/basic_mysql_dump.test.out",
 				sourceFormat: constants.MYSQLDUMP,
 			},
@@ -316,6 +465,9 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 			expectedError:  fmt.Errorf("error in handling mysql dump"),
 			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
 				return &spanneraccessor.SpannerAccessorMock{
+					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
+						return true, nil
+					},
 					UpdateDatabaseMock: func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
 						return fmt.Errorf("error in handling mysql dump")
 					},
@@ -326,8 +478,8 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 			name: "Mysql Dump failed initialisation SpannerAccessor",
 			cmd: &ImportDataCmd{
 				project:      "test-project",
-				instanceId:   "test-instance",
-				databaseName: "test-db",
+				instance:     "test-instance",
+				database:     "test-db",
 				sourceUri:    "../test_data/basic_mysql_dump.test.out",
 				sourceFormat: constants.MYSQLDUMP,
 			},
@@ -341,8 +493,8 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 			name: "MySQL dump invalid instance",
 			cmd: &ImportDataCmd{
 				project:      "test-project",
-				instanceId:   "",
-				databaseName: "test-db",
+				instance:     "",
+				database:     "test-db",
 				sourceUri:    "nonexistent_file.sql",
 				sourceFormat: constants.MYSQLDUMP,
 			},
@@ -353,30 +505,38 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 			name: "failed MySQL dump import",
 			cmd: &ImportDataCmd{
 				project:      "test-project",
-				instanceId:   "test-instance",
-				databaseName: "test-db",
+				instance:     "test-instance",
+				database:     "test-db",
 				sourceUri:    "nonexistent_file.sql",
 				sourceFormat: constants.MYSQLDUMP,
 			},
 			expectedStatus: subcommands.ExitFailure,
 			expectedError:  nil,
 			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
-				return &spanneraccessor.SpannerAccessorMock{}, nil
+				return &spanneraccessor.SpannerAccessorMock{
+					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
+						return true, nil
+					},
+				}, nil
 			},
 		},
 		{
 			name: "unsupported format",
 			cmd: &ImportDataCmd{
 				project:      "test-project",
-				instanceId:   "test-instance",
-				databaseName: "test-db",
+				instance:     "test-instance",
+				database:     "test-db",
 				sourceUri:    "testdata/test.txt",
 				sourceFormat: "unsupported",
 			},
 			expectedStatus: subcommands.ExitFailure,
 			expectedError:  nil, // The function handles the unsupported format internally and returns a failure status
 			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
-				return &spanneraccessor.SpannerAccessorMock{}, nil
+				return &spanneraccessor.SpannerAccessorMock{
+					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
+						return true, nil
+					},
+				}, nil
 			},
 		},
 	}
@@ -471,8 +631,8 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 			ctx := context.Background()
 			cmd := &ImportDataCmd{
 				project:      "test-project",
-				instanceId:   "test-instance",
-				databaseName: "test-db",
+				instance:     "test-instance",
+				database:     "test-db",
 				sourceUri:    tt.sourceUri,
 				sourceFormat: constants.MYSQLDUMP,
 			}
@@ -482,7 +642,7 @@ func TestImportDataCmd_handleDump(t *testing.T) {
 
 			err := cmd.handleDatabaseDumpFile(
 				ctx,
-				fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instanceId, cmd.databaseName),
+				fmt.Sprintf("projects/%s/instances/%s/databases/%s", cmd.project, cmd.instance, cmd.database),
 				constants.MYSQLDUMP,
 				tt.dialect,
 				tt.spannerAccessorMock(t),
@@ -572,8 +732,8 @@ func TestHandleCsv(t *testing.T) {
 			ctx := context.Background()
 			cmd := &ImportDataCmd{
 				project:           "test-project",
-				instanceId:        "test-instance",
-				databaseName:      "test-db",
+				instance:          "test-instance",
+				database:          "test-db",
 				tableName:         "test-table",
 				sourceUri:         "gs://test-bucket/test.csv",
 				schemaUri:         "gs://test-bucket/test_schema.json",
@@ -653,7 +813,7 @@ func TestGetDialectWithDefaults(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actualDialect := getDialectWithDefaults(tc.inputDialect)
 			if actualDialect != tc.expectedDialect {
-				t.Errorf("For input '%s', expected dialect '%s', but got '%s'", tc.inputDialect, tc.expectedDialect, actualDialect)
+				t.Errorf("For input '%s', expected databaseDialect '%s', but got '%s'", tc.inputDialect, tc.expectedDialect, actualDialect)
 			}
 		})
 	}

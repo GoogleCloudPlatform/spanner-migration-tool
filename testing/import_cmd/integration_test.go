@@ -84,24 +84,80 @@ func TestCSVImportFromGCS(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:      "sakila dump file",
-			sourceUri: "gs://smt-integration-test/import/csv/sakila-data.csv",
-			schemaUri: "gs://smt-integration-test/import/csv/sakila-schema.json",
-			dbName:    "sakila",
+			name:      "table test",
+			sourceUri: "gs://smt-integration-test/import/csv/tabletest.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/tabletest.json",
+			dbName:    "tabletest",
 			wantErr:   false,
 		},
 		{
-			name:      "world dump file",
-			sourceUri: "../../test_data/sakila-dump.sql",
-			schemaUri: "",
-			dbName:    "world_mysql_example",
+			name:      "employees",
+			sourceUri: "gs://smt-integration-test/import/csv/employees-data.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/employees-schema.json",
+			dbName:    "employees",
 			wantErr:   false,
 		},
 		{
-			name:      "world dump file",
-			sourceUri: "../../test_data/sakila-dump.sql",
-			schemaUri: "",
-			dbName:    "menagerie",
+			name:      "large",
+			sourceUri: "gs://smt-integration-test/import/csv/large-data.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/large.json",
+			dbName:    "large",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 1",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_current_dept_emp.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_current_dept_emp-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 2",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_departments.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_departments-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 3",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_dept_emp.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_dept_emp-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 4",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_dept_emp_latest_date.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_dept_emp_latest_date-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 5",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_dept_manager.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_dept_manager-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 6",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_employees.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_employees-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 7",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_salaries.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_salaries-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 8",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_titles.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_titles-schema.json",
+			dbName:    "datacharmer_emp",
 			wantErr:   false,
 		},
 	}
@@ -113,11 +169,9 @@ func TestCSVImportFromGCS(t *testing.T) {
 			dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tt.dbName)
 			log.Printf("Spanner database used for testing: %s", dbURI)
 
-			createSpannerDatabase(t, projectID, instanceID, tt.dbName)
-			defer databaseAdmin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: dbURI})
-			//TODO: update the parameters after merge from master
-			args := fmt.Sprintf("import -source-format=csv -project=%s -instance-id=%s -database-name=%s -source-uri=%s --schema-uri=%s",
+			args := fmt.Sprintf("import -source-format=csv -project=%s -instance=%s -database=%s -source-uri=%s --schema-uri=%s",
 				projectID, instanceID, tt.dbName, tt.sourceUri, tt.schemaUri)
+			log.Printf("Running Spanner database import via: %s", args)
 			err := common.RunCommand(args, projectID)
 			assert.NoError(t, err)
 
@@ -168,7 +222,7 @@ func TestMysqlExampleImportDumpFile(t *testing.T) {
 
 			dumpFilePath := tt.dumpUri
 
-			args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance-id=%s -database-name=%s -source-uri=%s",
+			args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance=%s -database=%s -source-uri=%s",
 				projectID, instanceID, tt.dbName, dumpFilePath)
 			err := common.RunCommand(args, projectID)
 			assert.NoError(t, err)
@@ -194,7 +248,7 @@ func TestLocalImportMysqlDumpFile(t *testing.T) {
 
 	dumpFilePath := "../../test_data/mysql_dump_import_data.sql"
 
-	args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance-id=%s -database-name=%s -source-uri=%s", projectID, instanceID, dbName, dumpFilePath)
+	args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance=%s -database=%s -source-uri=%s", projectID, instanceID, dbName, dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
