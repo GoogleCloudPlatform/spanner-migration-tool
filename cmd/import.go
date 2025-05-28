@@ -173,7 +173,7 @@ func getDialectWithDefaults(dialect string) string {
 	case constants.DIALECT_POSTGRESQL:
 		return dialect
 	default:
-		logger.Log.Warn(fmt.Sprintf("Dialect passed is %s . Defaulting to %s", dialect, constants.DIALECT_GOOGLESQL))
+		logger.Log.Info(fmt.Sprintf("Dialect passed is %s . Defaulting to %s", dialect, constants.DIALECT_GOOGLESQL))
 		return constants.DIALECT_GOOGLESQL
 	}
 }
