@@ -141,7 +141,7 @@ func validateSpannerAccessor(ctx context.Context, dbURI string, targetDialect st
 
 	// Only used for Emulator integration testing.
 	// TODO: Remove once Cl for fix within Emulator is release.
-	if skipDialectValidation != "true" {
+	if skipDialectValidation == "true" {
 		return spannerAccessor, nil
 	}
 	dialect, err := spannerAccessor.GetDatabaseDialect(ctx, dbURI)
