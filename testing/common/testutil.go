@@ -33,6 +33,7 @@ func RunCommand(args string, projectID string) error {
 	cmd.Stderr = &stderr
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
+		fmt.Sprintf("IMPORT_CMD_SKIP_DIALECT_VALIDATION=%s", os.Getenv("IMPORT_CMD_SKIP_DIALECT_VALIDATION"))
 	)
 	if err := cmd.Run(); err != nil {
 		fmt.Printf("stdout: %q\n", out.String())
