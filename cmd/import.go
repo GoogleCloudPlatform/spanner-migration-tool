@@ -136,6 +136,14 @@ func validateSpannerAccessor(ctx context.Context, dbURI string, targetDialect st
 		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
 		return nil, fmt.Errorf("unable to instantiate spanner client %v", err)
 	}
+
+	skipDialectValidation := os.Getenv("IMPORT_CMD_SKIP_DIALECT_VALIDATION")
+
+	// Only used for Emulator integration testing.
+	// TODO: Remove once Cl for fix within Emulator is release.
+	if skipDialectValidation != "true" {
+		return spannerAccessor, nil
+	}
 	dialect, err := spannerAccessor.GetDatabaseDialect(ctx, dbURI)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get database dialect %v", err)
