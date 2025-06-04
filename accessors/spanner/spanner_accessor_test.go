@@ -1242,3 +1242,49 @@ func TestValidateDML(t *testing.T) {
 		assert.NotNil(t, err) // Expect an error
 	})
 }
+
+func TestFetchCreateDatabaseStatement(t *testing.T) {
+	tests := []struct {
+		name         string
+		dialect      string
+		databaseName string
+		want         string
+	}{
+		{
+			name:         "PostgreSQL dialect",
+			dialect:      constants.DIALECT_POSTGRESQL,
+			databaseName: "mypgdb",
+			want:         `CREATE DATABASE "mypgdb"`,
+		},
+		{
+			name:         "Google Standard SQL dialect",
+			dialect:      constants.DIALECT_GOOGLESQL,
+			databaseName: "mydb",
+			want:         "CREATE DATABASE `mydb`",
+		},
+		{
+			name:         "Empty dialect (defaults to Google Standard SQL)",
+			dialect:      "",
+			databaseName: "anotherdb",
+			want:         "CREATE DATABASE `anotherdb`",
+		},
+		{
+			name:         "Database name with special characters for GoogleSQL",
+			dialect:      constants.DIALECT_GOOGLESQL,
+			databaseName: "my-db_123",
+			want:         "CREATE DATABASE `my-db_123`",
+		},
+		{
+			name:         "Database name with special characters for PostgreSQL",
+			dialect:      constants.DIALECT_POSTGRESQL,
+			databaseName: "my-pg_db",
+			want:         `CREATE DATABASE "my-pg_db"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := fetchCreateDatabaseStatement(tt.dialect, tt.databaseName)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

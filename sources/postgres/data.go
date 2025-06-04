@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"math/big"
 	"math/bits"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +28,11 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+)
+
+var (
+	pgNumericNullValue   = spanner.PGNumeric{Valid: false}
+	gsqlNumericNullValue = spanner.NullNumeric{Valid: false}
 )
 
 // ProcessDataRow converts a row of data and writes it out to Spanner.
@@ -87,7 +91,7 @@ func ConvertData(conv *internal.Conv, tableId string, colIds []string, vals []st
 		var x interface{}
 		var err error
 		if spColDef.T.IsArray {
-			x, err = convArray(spColDef.T, srcColDef.Type.Name, conv.Location, vals[i])
+			x, err = convArray(conv, spColDef.T, srcColDef.Type.Name, conv.Location, vals[i])
 		} else {
 			x, err = convScalar(conv, spColDef.T, srcColDef.Type.Name, conv.Location, vals[i])
 		}
@@ -193,6 +197,54 @@ func convInt64(val string) (int64, error) {
 	return i, err
 }
 
+func convNumericArray(conv *internal.Conv, val []string) (interface{}, error) {
+	switch conv.SpDialect {
+	case constants.DIALECT_POSTGRESQL:
+		return convPGNumericArray(conv, val)
+	default:
+		return convGSQLNumericArray(conv, val)
+	}
+}
+
+func convPGNumericArray(conv *internal.Conv, val []string) ([]spanner.PGNumeric, error) {
+	var r []spanner.PGNumeric
+	for _, s := range val {
+		if s == "NULL" {
+			r = append(r, pgNumericNullValue)
+			continue
+		}
+		s, err := processQuote(s)
+		if err != nil {
+			return make([]spanner.PGNumeric, 0), err
+		}
+		n := spanner.PGNumeric{Numeric: s, Valid: true}
+		r = append(r, n)
+	}
+	return r, nil
+}
+
+func convGSQLNumericArray(conv *internal.Conv, val []string) ([]spanner.NullNumeric, error) {
+	var r []spanner.NullNumeric
+	for _, s := range val {
+		if s == "NULL" {
+			r = append(r, gsqlNumericNullValue)
+			continue
+		}
+		s, err := processQuote(s)
+		if err != nil {
+			return make([]spanner.NullNumeric, 0), err
+		}
+
+		bigRat := new(big.Rat)
+		if _, ok := bigRat.SetString(s); !ok {
+			return r, fmt.Errorf("can't convert %q to big.Rat", val)
+		}
+		n := spanner.NullNumeric{Numeric: *bigRat, Valid: true}
+		r = append(r, n)
+	}
+	return r, nil
+}
+
 // convNumeric maps a source database string value (representing a numeric)
 // into a string representing a valid Spanner numeric.
 func convNumeric(conv *internal.Conv, val string) (interface{}, error) {
@@ -253,7 +305,7 @@ func convTimestamp(srcTypeName string, location *time.Location, val string) (t t
 // is NULL. However, convArray does handle the case where individual
 // array elements are NULL. In other words, convArray handles "{1,
 // NULL, 2}", but it does not handle "NULL" (it returns error).
-func convArray(spannerType ddl.Type, srcTypeName string, location *time.Location, v string) (interface{}, error) {
+func convArray(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, location *time.Location, v string) (interface{}, error) {
 	v = strings.TrimSpace(v)
 	// Handle empty array. Note that we use an empty NullString array
 	// for all Spanner array types since this will be converted to the
@@ -392,6 +444,8 @@ func convArray(spannerType ddl.Type, srcTypeName string, location *time.Location
 			r = append(r, spanner.NullString{StringVal: s, Valid: true})
 		}
 		return r, nil
+	case ddl.Numeric:
+		return convNumericArray(conv, a)
 	case ddl.Timestamp:
 		var r []spanner.NullTime
 		for _, s := range a {
@@ -411,7 +465,7 @@ func convArray(spannerType ddl.Type, srcTypeName string, location *time.Location
 		}
 		return r, nil
 	}
-	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type %v", reflect.TypeOf(spannerType))
+	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type %v", spannerType.Name)
 }
 
 // processQuote returns the unquoted version of s.

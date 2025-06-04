@@ -31,6 +31,62 @@ func init() {
 	logger.Log = zap.NewNop()
 }
 
+func TestToPGDialectType(t *testing.T) {
+	tests := []struct {
+		name           string
+		standardType   ddl.Type
+		isPk           bool
+		expectedType   ddl.Type
+		expectedIssues []internal.SchemaIssue
+	}{
+		{
+			name:           "Numeric PK",
+			standardType:   ddl.Type{Name: ddl.Numeric},
+			isPk:           true,
+			expectedType:   ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false},
+			expectedIssues: []internal.SchemaIssue{internal.NumericPKNotSupported},
+		},
+		{
+			name:           "Numeric Non-PK",
+			standardType:   ddl.Type{Name: ddl.Numeric},
+			isPk:           false,
+			expectedType:   ddl.Type{Name: ddl.Numeric},
+			expectedIssues: nil,
+		},
+		{
+			name:           "String PK",
+			standardType:   ddl.Type{Name: ddl.String, Len: 50},
+			isPk:           true,
+			expectedType:   ddl.Type{Name: ddl.String, Len: 50},
+			expectedIssues: nil,
+		},
+		{
+			name:           "Int64 Non-PK",
+			standardType:   ddl.Type{Name: ddl.Int64},
+			isPk:           false,
+			expectedType:   ddl.Type{Name: ddl.Int64},
+			expectedIssues: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			actualType, actualIssues := ToPGDialectType(tc.standardType, tc.isPk)
+
+			if !reflect.DeepEqual(actualType, tc.expectedType) {
+				t.Errorf("ToPGDialectType() got type = %v, want %v", actualType, tc.expectedType)
+			}
+
+			// Normalize nil vs empty slice for issues comparison
+			if len(actualIssues) == 0 && len(tc.expectedIssues) == 0 {
+				// both are effectively "no issues", so consider them equal
+			} else if !reflect.DeepEqual(actualIssues, tc.expectedIssues) {
+				t.Errorf("ToPGDialectType() got issues = %v, want %v", actualIssues, tc.expectedIssues)
+			}
+		})
+	}
+}
+
 func TestToNotNull(t *testing.T) {
 	conv := internal.MakeConv()
 	assert.Equal(t, false, ToNotNull(conv, "YES"))

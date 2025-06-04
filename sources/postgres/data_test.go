@@ -16,6 +16,7 @@ package postgres
 
 import (
 	"fmt"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"math/bits"
 	"testing"
 	"time"
@@ -118,27 +119,34 @@ func TestConvertData(t *testing.T) {
 		{"timestamp array", ddl.Type{Name: ddl.Timestamp, IsArray: true}, "timestamptz", `{"2019-10-29 05:30:00+10",NULL}`, []spanner.NullTime{
 			spanner.NullTime{Time: getTime(t, "2019-10-29T05:30:00+10:00"), Valid: true},
 			spanner.NullTime{Valid: false}}},
+		{"numeric array pg", ddl.Type{Name: ddl.Numeric, IsArray: true},
+			"numeric_arr", `{"32.3213",NULL}`, []spanner.PGNumeric{
+				{Numeric: "32.3213", Valid: true},
+				{Valid: false}}},
 		{"empty array", ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}, "", "{}", []spanner.NullString{}},
 	}
 	tableName := "testtable"
 	tableId := "t1"
 	for _, tc := range singleColTests {
-		col := "a"
-		colId := "c1"
-		conv := buildConv(
-			ddl.CreateTable{
-				Name:        tableName,
-				Id:          tableId,
-				ColIds:      []string{colId},
-				ColDefs:     map[string]ddl.ColumnDef{colId: ddl.ColumnDef{Name: col, Id: colId, T: tc.ty, NotNull: false}},
-				PrimaryKeys: []ddl.IndexKey{}},
-			schema.Table{Name: tableName,
-				Id:      tableId,
-				ColIds:  []string{colId},
-				ColDefs: map[string]schema.Column{colId: schema.Column{Name: col, Id: colId, Type: schema.Type{Name: tc.srcTy}}}})
-		conv.SetLocation(time.UTC)
-		at, ac, av, err := ConvertData(conv, tableId, []string{colId}, []string{tc.in})
-		checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			col := "a"
+			colId := "c1"
+			conv := buildConv(
+				ddl.CreateTable{
+					Name:        tableName,
+					Id:          tableId,
+					ColIds:      []string{colId},
+					ColDefs:     map[string]ddl.ColumnDef{colId: ddl.ColumnDef{Name: col, Id: colId, T: tc.ty, NotNull: false}},
+					PrimaryKeys: []ddl.IndexKey{}},
+				schema.Table{Name: tableName,
+					Id:      tableId,
+					ColIds:  []string{colId},
+					ColDefs: map[string]schema.Column{colId: schema.Column{Name: col, Id: colId, Type: schema.Type{Name: tc.srcTy}}}})
+			conv.SetLocation(time.UTC)
+			conv.SpDialect = constants.DIALECT_POSTGRESQL
+			at, ac, av, err := ConvertData(conv, tableId, []string{colId}, []string{tc.in})
+			checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
+		})
 	}
 
 	timestampTests := []struct {
@@ -153,33 +161,35 @@ func TestConvertData(t *testing.T) {
 		{"timestamp", "timestamp", "2019-10-29 05:30:00", getTime(t, "2019-10-29T05:30:00Z")},
 	}
 	for _, tc := range timestampTests {
-		col := "a"
-		colId := "c1"
-		conv := buildConv(
-			ddl.CreateTable{
-				Name:    tableName,
-				Id:      tableId,
-				ColIds:  []string{colId},
-				ColDefs: map[string]ddl.ColumnDef{colId: ddl.ColumnDef{Name: col, Id: colId, T: ddl.Type{Name: ddl.Timestamp}}}},
-			schema.Table{
-				Name:    tableName,
-				Id:      tableId,
-				ColIds:  []string{colId},
-				ColDefs: map[string]schema.Column{colId: schema.Column{Type: schema.Type{Name: tc.srcTy}, Name: col, Id: colId}}})
-		loc, _ := time.LoadLocation("Australia/Sydney")
-		conv.SetLocation(loc) // Set location so test is robust i.e. doesn't depent on local timezone.
-		atable, ac, av, err := ConvertData(conv, tableId, []string{colId}, []string{tc.in})
-		assert.Nil(t, err, tc.name)
-		assert.Equal(t, atable, tableName, tc.name+": table mismatch")
-		assert.Equal(t, []string{col}, ac, tc.name+": column mismatch")
-		// Avoid assert.Equal for time.Time (it forces location equality).
-		// Instead use Time.Equals, which determines equality based on whether
-		// two times represent the same instant.
-		assert.Equal(t, 1, len(av))
-		at, ok1 := av[0].(time.Time)
-		et, ok2 := tc.e.(time.Time)
-		assert.True(t, ok1 && ok2, tc.name+": cast to Time failed")
-		assert.True(t, at.Equal(et), tc.name+": value mismatch")
+		t.Run(tc.name, func(t *testing.T) {
+			col := "a"
+			colId := "c1"
+			conv := buildConv(
+				ddl.CreateTable{
+					Name:    tableName,
+					Id:      tableId,
+					ColIds:  []string{colId},
+					ColDefs: map[string]ddl.ColumnDef{colId: ddl.ColumnDef{Name: col, Id: colId, T: ddl.Type{Name: ddl.Timestamp}}}},
+				schema.Table{
+					Name:    tableName,
+					Id:      tableId,
+					ColIds:  []string{colId},
+					ColDefs: map[string]schema.Column{colId: schema.Column{Type: schema.Type{Name: tc.srcTy}, Name: col, Id: colId}}})
+			loc, _ := time.LoadLocation("Australia/Sydney")
+			conv.SetLocation(loc) // Set location so test is robust i.e. doesn't depent on local timezone.
+			atable, ac, av, err := ConvertData(conv, tableId, []string{colId}, []string{tc.in})
+			assert.Nil(t, err, tc.name)
+			assert.Equal(t, atable, tableName, tc.name+": table mismatch")
+			assert.Equal(t, []string{col}, ac, tc.name+": column mismatch")
+			// Avoid assert.Equal for time.Time (it forces location equality).
+			// Instead use Time.Equals, which determines equality based on whether
+			// two times represent the same instant.
+			assert.Equal(t, 1, len(av))
+			at, ok1 := av[0].(time.Time)
+			et, ok2 := tc.e.(time.Time)
+			assert.True(t, ok1 && ok2, tc.name+": cast to Time failed")
+			assert.True(t, at.Equal(et), tc.name+": value mismatch")
+		})
 	}
 
 	multiColTests := []struct {
@@ -242,9 +252,11 @@ func TestConvertData(t *testing.T) {
 			"c3": schema.Column{Type: schema.Type{Name: "bool"}, Name: "c", Id: "c3"},
 		}}
 	for _, tc := range multiColTests {
-		conv := buildConv(spTable, srcTable)
-		atable, acols, avals, err := ConvertData(conv, tableId, tc.colIds, tc.vals)
-		checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			conv := buildConv(spTable, srcTable)
+			atable, acols, avals, err := ConvertData(conv, tableId, tc.colIds, tc.vals)
+			checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
+		})
 	}
 
 	errorTests := []struct {
@@ -269,9 +281,11 @@ func TestConvertData(t *testing.T) {
 		},
 	}
 	for _, tc := range errorTests {
-		conv := buildConv(spTable, srcTable)
-		_, _, _, err := ConvertData(conv, tableId, tc.cols, tc.vals)
-		assert.NotNil(t, err, tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			conv := buildConv(spTable, srcTable)
+			_, _, _, err := ConvertData(conv, tableId, tc.cols, tc.vals)
+			assert.NotNil(t, err, tc.name)
+		})
 	}
 
 	syntheticPKeyTests := []struct {
@@ -303,8 +317,10 @@ func TestConvertData(t *testing.T) {
 	conv := buildConv(spTable, srcTable)
 	conv.SyntheticPKeys[spTable.Id] = internal.SyntheticPKey{ColId: "c4", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {
-		atable, acols, avals, err := ConvertData(conv, tableId, tc.colIds, tc.vals)
-		checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			atable, acols, avals, err := ConvertData(conv, tableId, tc.colIds, tc.vals)
+			checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
+		})
 	}
 }
 
@@ -331,4 +347,12 @@ func getTime(t *testing.T, s string) time.Time {
 func getDate(s string) civil.Date {
 	d, _ := civil.ParseDate(s)
 	return d
+}
+
+func getIntArray(intArr []int64) []spanner.NullInt64 {
+	res := make([]spanner.NullInt64, len(intArr))
+	for i, val := range intArr {
+		res[i] = spanner.NullInt64{Int64: val, Valid: true}
+	}
+	return res
 }
