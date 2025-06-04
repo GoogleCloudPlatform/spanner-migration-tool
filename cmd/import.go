@@ -144,12 +144,17 @@ func validateSpannerAccessor(ctx context.Context, dbURI string, targetDialect st
 	if skipDialectValidation == "true" {
 		return spannerAccessor, nil
 	}
-	dialect, err := spannerAccessor.GetDatabaseDialect(ctx, dbURI)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get database dialect %v", err)
-	}
-	if dialect != targetDialect {
-		return nil, fmt.Errorf("database dialect is different for target dialect. Provided dialect: %s, Database dialect: %s", targetDialect, dialect)
+
+	if exists, _ := spannerAccessor.CheckExistingDb(ctx, dbURI); exists {
+
+		dialect, err := spannerAccessor.GetDatabaseDialect(ctx, dbURI)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get database dialect %v", err)
+		}
+
+		if dialect != targetDialect {
+			return nil, fmt.Errorf("database dialect is different for target dialect. Provided dialect: %s, Database dialect: %s", targetDialect, dialect)
+		}
 	}
 	return spannerAccessor, nil
 }
@@ -181,7 +186,7 @@ func getDialectWithDefaults(dialect string) string {
 	case constants.DIALECT_POSTGRESQL:
 		return dialect
 	default:
-		logger.Log.Info(fmt.Sprintf("Dialect passed is %s . Defaulting to %s", dialect, constants.DIALECT_GOOGLESQL))
+		logger.Log.Warn(fmt.Sprintf("Dialect passed is %s . Defaulting to %s", dialect, constants.DIALECT_GOOGLESQL))
 		return constants.DIALECT_GOOGLESQL
 	}
 }

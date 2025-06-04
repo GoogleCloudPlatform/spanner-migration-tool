@@ -517,6 +517,28 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 				}, nil
 			},
 		},
+		{
+			name: "get dialect error",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instance:     "test-instance",
+				database:     "test-db",
+				sourceUri:    "testdata/test.txt",
+				sourceFormat: constants.MYSQLDUMP,
+			},
+			expectedStatus: subcommands.ExitFailure,
+			expectedError:  nil, // The function handles the unsupported format internally and returns a failure status
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{
+					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
+						return true, nil
+					},
+					GetDatabaseDialectMock: func(ctx context.Context, dbURI string) (string, error) {
+						return "", fmt.Errorf("failed to get dialect")
+					},
+				}, nil
+			},
+		},
 	}
 
 	for _, tc := range tests {
