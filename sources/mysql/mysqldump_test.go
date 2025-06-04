@@ -767,6 +767,45 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 			expectedData: []spannerData{
 				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(-1), int64(-88), int64(-44), int64(-22), float64(-444.9876)}}},
 		},
+		{
+			name: "create table check constraint",
+			input: "CREATE TABLE `Reviews` (" +
+				"`review_id` int NOT NULL AUTO_INCREMENT, " +
+				"`rating` tinyint unsigned DEFAULT NULL, " +
+				"`restaurant_id` bigint unsigned DEFAULT NULL, " +
+				"PRIMARY KEY (`review_id`), " +
+				"UNIQUE KEY `restaurant_id` (`restaurant_id`), " +
+				"CONSTRAINT `reviews_chk_1` CHECK (((`rating` >= 1) and (`rating` <= 5)))" +
+				");",
+			expectedSchema: map[string]ddl.CreateTable{
+				"Reviews": {
+					Name:   "Reviews",
+					ColIds: []string{"review_id", "rating"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"review_id":     {Name: "review_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"rating":        {Name: "rating", T: ddl.Type{Name: ddl.Int64}},
+						"restaurant_id": {Name: "restaurant_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "review_id", Order: 1}},
+					Indexes: []ddl.CreateIndex{
+						{
+							Name:   "restaurant_id",
+							Unique: true,
+							Keys:   []ddl.IndexKey{{ColId: "restaurant_id", Order: 1}},
+						},
+					},
+					CheckConstraints: []ddl.CheckConstraint{
+						{
+							Name:   "reviews_chk_1",
+							Expr:   "((rating>=1) AND (rating<=5))",
+							ExprId: "e2",
+							Id:     "cc3",
+						},
+					},
+				},
+			},
+			expectIssues: false,
+		},
 		// test with different timezone
 		{
 			name: "Data conversion:  text, timestamp, datetime, varchar",
@@ -776,14 +815,10 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 		INSERT INTO test (id, a, b, c, d) VALUES (1, 'my text', '2019-10-29 05:30:00', '2019-10-29 05:30:00', 'my varchar');
 		`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), "my text", getTime(t, "2019-10-29T05:30:00+02:30"), getTimeWithoutTimezone(t, "2019-10-29 05:30:00"), "my varchar"}}},
+				{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), "my text", getTime(t, "2019-10-29T05:30:00+02:30"), getTimeWithoutTimezone(t, "2019-10-29 05:30:00"), "my varchar"}}},
 		},
 	}
 	for _, tc := range multiColTests {
-		// if tc.name != "INSERT INTO with no primary key" {
-		// 	continue
-		// }
-
 		t.Run(tc.name, func(t *testing.T) {
 			conv, rows := runProcessMySQLDump(tc.input)
 			if !tc.expectIssues {

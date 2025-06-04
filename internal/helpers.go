@@ -147,6 +147,15 @@ func GetSrcFkFromId(fks []schema.ForeignKey, fkId string) (schema.ForeignKey, er
 	return schema.ForeignKey{}, fmt.Errorf("foreign key not found")
 }
 
+func GetCheckConstraintFromId(checkConstraints []ddl.CheckConstraint, checkConstraintName string) (ddl.CheckConstraint, error) {
+	for _, v := range checkConstraints {
+		if v.Name == checkConstraintName {
+			return v, nil
+		}
+	}
+	return ddl.CheckConstraint{}, fmt.Errorf("check constraint not found")
+}
+
 func GetSrcIndexFromId(indexes []schema.Index, indexId string) (schema.Index, error) {
 	for _, v := range indexes {
 		if v.Id == indexId {
