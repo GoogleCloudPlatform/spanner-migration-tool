@@ -167,10 +167,6 @@ func PrepareValues[T interface{}](conv *internal.Conv, tableId string, colNameId
 }
 
 func ToPGDialectType(standardType ddl.Type, isPk bool) (ddl.Type, []internal.SchemaIssue) {
-	if standardType.IsArray {
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false},
-			[]internal.SchemaIssue{internal.ArrayTypeNotSupported}
-	}
 	if isPk && standardType.Name == ddl.Numeric {
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false},
 			[]internal.SchemaIssue{internal.NumericPKNotSupported}
