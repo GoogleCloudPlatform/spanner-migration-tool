@@ -201,7 +201,8 @@ func fetchRow(t *testing.T, dbURI, table, primaryKey string, id int64) string {
 func createSpannerDatabase(t *testing.T, project, instance, dbName string) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
 	req := &databasepb.CreateDatabaseRequest{
-		Parent: fmt.Sprintf("projects/%s/instances/%s", project, instance),
+		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
+		DatabaseDialect: databasepb.DatabaseDialect_GOOGLE_STANDARD_SQL,
 	}
 
 	req.CreateStatement = fmt.Sprintf("CREATE DATABASE `%s`", dbName)
