@@ -166,9 +166,9 @@ func ParseDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath stri
 }
 
 func isCodeEqual(sourceCode *[]string, suggestedCode *[]string) bool {
-	if *sourceCode == nil && *suggestedCode == nil {
+	if sourceCode == nil && suggestedCode == nil {
 		return true
-	} else if *sourceCode == nil || suggestedCode == nil {
+	} else if sourceCode == nil || suggestedCode == nil {
 		return false
 	}
 
