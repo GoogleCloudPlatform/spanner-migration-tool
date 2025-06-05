@@ -78,7 +78,7 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	dialect := getDialectWithDefaults(cmd.databaseDialect)
 	dbURI := getDBUri(cmd.project, cmd.instance, cmd.database)
 
-	spannerAccessor, err := validateSpannerAccessor(ctx, dbURI, dialect)
+	spannerAccessor, err := validateSpannerAccessor(ctx, dbURI)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Input validation failed. Reason %v", err))
 		return subcommands.ExitFailure
@@ -146,7 +146,7 @@ func createDatabase(ctx context.Context, dbURI, targetDialect string, spannerAcc
 }
 
 // validateSpannerAccessor validate if spanner is accessible by the provided dbURI. Return spannerAccessor, error.
-func validateSpannerAccessor(ctx context.Context, dbURI string, targetDialect string) (spanneraccessor.SpannerAccessor, error) {
+func validateSpannerAccessor(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
 	spannerAccessor, err := import_file.NewSpannerAccessor(ctx, dbURI)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
