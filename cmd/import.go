@@ -121,12 +121,28 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	return subcommands.ExitFailure
 }
 
-func createDatabase(ctx context.Context, dbURI, dialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
-	exists, _ := spannerAccessor.CheckExistingDb(ctx, dbURI)
-	if !exists {
-		return spannerAccessor.CreateEmptyDatabase(ctx, dbURI, dialect)
+func createDatabase(ctx context.Context, dbURI, targetDialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
+	if exists, _ := spannerAccessor.CheckExistingDb(ctx, dbURI); exists {
+
+		skipDialectValidation := os.Getenv("IMPORT_CMD_SKIP_DIALECT_VALIDATION")
+
+		// Only used for Emulator integration testing.
+		// TODO(b/406423609): Remove once Cl for fix within Emulator is release.
+		if skipDialectValidation == "true" {
+			return nil
+		}
+
+		dialect, err := spannerAccessor.GetDatabaseDialect(ctx, dbURI)
+		if err != nil {
+			return fmt.Errorf("unable to get database dialect %v", err)
+		}
+
+		if dialect != targetDialect {
+			return fmt.Errorf("database dialect is different for target dialect. Provided dialect: %s, Database dialect: %s", targetDialect, dialect)
+		}
+		return nil
 	}
-	return nil
+	return spannerAccessor.CreateEmptyDatabase(ctx, dbURI, targetDialect)
 }
 
 // validateSpannerAccessor validate if spanner is accessible by the provided dbURI. Return spannerAccessor, error.
@@ -137,25 +153,6 @@ func validateSpannerAccessor(ctx context.Context, dbURI string, targetDialect st
 		return nil, fmt.Errorf("unable to instantiate spanner client %v", err)
 	}
 
-	skipDialectValidation := os.Getenv("IMPORT_CMD_SKIP_DIALECT_VALIDATION")
-
-	// Only used for Emulator integration testing.
-	// TODO(b/406423609): Remove once Cl for fix within Emulator is release.
-	if skipDialectValidation == "true" {
-		return spannerAccessor, nil
-	}
-
-	if exists, _ := spannerAccessor.CheckExistingDb(ctx, dbURI); exists {
-
-		dialect, err := spannerAccessor.GetDatabaseDialect(ctx, dbURI)
-		if err != nil {
-			return nil, fmt.Errorf("unable to get database dialect %v", err)
-		}
-
-		if dialect != targetDialect {
-			return nil, fmt.Errorf("database dialect is different for target dialect. Provided dialect: %s, Database dialect: %s", targetDialect, dialect)
-		}
-	}
 	return spannerAccessor, nil
 }
 
