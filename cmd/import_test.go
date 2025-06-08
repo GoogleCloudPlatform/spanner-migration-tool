@@ -111,11 +111,12 @@ func TestValidateInputLocal_CSVMissingSchemaURI(t *testing.T) {
 
 func TestValidateInputLocal_SuccessCSV(t *testing.T) {
 	input := &ImportDataCmd{
-		instance:     "test-instance",
-		database:     "test-db",
-		sourceUri:    "file:///tmp/data.csv",
-		sourceFormat: constants.CSV,
-		schemaUri:    "file:///tmp/schema.csv",
+		instance:        "test-instance",
+		database:        "test-db",
+		sourceUri:       "file:///tmp/data.csv",
+		sourceFormat:    constants.CSV,
+		schemaUri:       "file:///tmp/schema.csv",
+		databaseDialect: constants.DIALECT_GOOGLESQL,
 	}
 	err := validateInputLocal(input)
 	assert.NoError(t, err)
@@ -123,10 +124,11 @@ func TestValidateInputLocal_SuccessCSV(t *testing.T) {
 
 func TestValidateInputLocal_SuccessNonCSV(t *testing.T) {
 	input := &ImportDataCmd{
-		instance:     "test-instance",
-		database:     "test-db",
-		sourceUri:    "gs://bucket/data.avro",
-		sourceFormat: "avro",
+		instance:        "test-instance",
+		database:        "test-db",
+		sourceUri:       "gs://bucket/data.avro",
+		sourceFormat:    "avro",
+		databaseDialect: constants.DIALECT_POSTGRESQL,
 	}
 	err := validateInputLocal(input)
 	assert.NoError(t, err)
@@ -261,12 +263,13 @@ func TestImportDataCmd_HandleCsvExecute(t *testing.T) {
 		{
 			name: "successful csv import_existing DB",
 			cmd: &ImportDataCmd{
-				project:      "test-project",
-				instance:     "test-instance",
-				database:     "test-db",
-				sourceUri:    "../test_data/basic_mysql_dump.test.out",
-				schemaUri:    "../test_data/basic_csv_schema.json",
-				sourceFormat: constants.CSV,
+				project:         "test-project",
+				instance:        "test-instance",
+				database:        "test-db",
+				sourceUri:       "../test_data/basic_mysql_dump.test.out",
+				schemaUri:       "../test_data/basic_csv_schema.json",
+				sourceFormat:    constants.CSV,
+				databaseDialect: constants.DIALECT_GOOGLESQL,
 			},
 			expectedStatus: subcommands.ExitSuccess,
 			expectedError:  nil,
@@ -274,6 +277,9 @@ func TestImportDataCmd_HandleCsvExecute(t *testing.T) {
 				return &spanneraccessor.SpannerAccessorMock{
 					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
 						return true, nil
+					},
+					GetDatabaseDialectMock: func(ctx context.Context, dbURI string) (string, error) {
+						return constants.DIALECT_GOOGLESQL, nil
 					},
 				}, nil
 			},
@@ -307,6 +313,9 @@ func TestImportDataCmd_HandleCsvExecute(t *testing.T) {
 					CreateEmptyDatabaseMock: func(ctx context.Context, dbURI, dialect string) error {
 						return nil
 					},
+					GetDatabaseDialectMock: func(ctx context.Context, dbURI string) (string, error) {
+						return constants.DIALECT_GOOGLESQL, nil
+					},
 				}, nil
 			},
 			infoClientFunc: func(ctx context.Context, dbURI string, spDialect string) (*sourcesspanner.InfoSchemaImpl, error) {
@@ -335,6 +344,9 @@ func TestImportDataCmd_HandleCsvExecute(t *testing.T) {
 				return &spanneraccessor.SpannerAccessorMock{
 					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
 						return true, nil
+					},
+					GetDatabaseDialectMock: func(ctx context.Context, dbURI string) (string, error) {
+						return constants.DIALECT_GOOGLESQL, nil
 					},
 				}, nil
 			},
@@ -390,11 +402,12 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 		{
 			name: "successful MySQL dump import_existing DB",
 			cmd: &ImportDataCmd{
-				project:      "test-project",
-				instance:     "test-instance",
-				database:     "test-db",
-				sourceUri:    "../test_data/basic_mysql_dump.test.out",
-				sourceFormat: constants.MYSQLDUMP,
+				project:         "test-project",
+				instance:        "test-instance",
+				database:        "test-db",
+				sourceUri:       "../test_data/basic_mysql_dump.test.out",
+				sourceFormat:    constants.MYSQLDUMP,
+				databaseDialect: constants.DIALECT_GOOGLESQL,
 			},
 			expectedStatus: subcommands.ExitSuccess,
 			expectedError:  nil,
@@ -414,6 +427,9 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 								return time.Now(), nil
 							},
 						}
+					},
+					GetDatabaseDialectMock: func(ctx context.Context, dbURI string) (string, error) {
+						return constants.DIALECT_GOOGLESQL, nil
 					},
 				}, nil
 			},
@@ -449,6 +465,9 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 							},
 						}
 					},
+					GetDatabaseDialectMock: func(ctx context.Context, dbURI string) (string, error) {
+						return constants.DIALECT_GOOGLESQL, nil
+					},
 				}, nil
 			},
 		},
@@ -470,6 +489,9 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 					},
 					UpdateDatabaseMock: func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
 						return fmt.Errorf("error in handling mysql dump")
+					},
+					GetDatabaseDialectMock: func(ctx context.Context, dbURI string) (string, error) {
+						return constants.DIALECT_GOOGLESQL, nil
 					},
 				}, nil
 			},
@@ -517,6 +539,9 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
 						return true, nil
 					},
+					GetDatabaseDialectMock: func(ctx context.Context, dbURI string) (string, error) {
+						return constants.DIALECT_GOOGLESQL, nil
+					},
 				}, nil
 			},
 		},
@@ -535,6 +560,53 @@ func TestImportDataCmd_HandleDumpExecute(t *testing.T) {
 				return &spanneraccessor.SpannerAccessorMock{
 					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
 						return true, nil
+					},
+					GetDatabaseDialectMock: func(ctx context.Context, dbURI string) (string, error) {
+						return constants.DIALECT_GOOGLESQL, nil
+					},
+				}, nil
+			},
+		},
+		{
+			name: "invalid dialect",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instance:     "test-instance",
+				database:     "test-db",
+				sourceUri:    "testdata/test.txt",
+				sourceFormat: constants.MYSQLDUMP,
+			},
+			expectedStatus: subcommands.ExitFailure,
+			expectedError:  nil, // The function handles the unsupported format internally and returns a failure status
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{
+					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
+						return true, nil
+					},
+					GetDatabaseDialectMock: func(ctx context.Context, dbURI string) (string, error) {
+						return constants.DIALECT_POSTGRESQL, nil
+					},
+				}, nil
+			},
+		},
+		{
+			name: "get dialect error",
+			cmd: &ImportDataCmd{
+				project:      "test-project",
+				instance:     "test-instance",
+				database:     "test-db",
+				sourceUri:    "testdata/test.txt",
+				sourceFormat: constants.MYSQLDUMP,
+			},
+			expectedStatus: subcommands.ExitFailure,
+			expectedError:  nil, // The function handles the unsupported format internally and returns a failure status
+			spannerAccessorMock: func(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+				return &spanneraccessor.SpannerAccessorMock{
+					CheckExistingDbMock: func(ctx context.Context, dbURI string) (bool, error) {
+						return true, nil
+					},
+					GetDatabaseDialectMock: func(ctx context.Context, dbURI string) (string, error) {
+						return "", fmt.Errorf("failed to get dialect")
 					},
 				}, nil
 			},

@@ -59,12 +59,12 @@ func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 	set.StringVar(&cmd.database, "database", "", "Spanner database name. If one with the specified name does not exist, a new one will be created with the same")
 	set.StringVar(&cmd.tableName, "table-name", "", "Spanner table name. Optional. If not specified, source-uri name will be used")
 	set.StringVar(&cmd.sourceUri, "source-uri", "", "URI of the file to import")
-	set.StringVar(&cmd.sourceFormat, "source-format", "", "Format of the file to import. Valid values {csv, mysqldump}")
+	set.StringVar(&cmd.sourceFormat, "source-format", "", fmt.Sprintf("Format of the file to import. Valid values {%s, %s, %s}", constants.MYSQLDUMP, constants.PGDUMP, constants.CSV))
 	set.StringVar(&cmd.schemaUri, "schema-uri", "", "URI of the file with schema for the csv to import. Only non-optional for csv format.")
 	set.StringVar(&cmd.csvLineDelimiter, "csv-line-delimiter", "\n", "Token to be used as line delimiter for csv format. Optional. Defaults to '\\n'. Only used for csv format.")
 	set.StringVar(&cmd.csvFieldDelimiter, "csv-field-delimiter", ",", "Token to be used as field delimiter for csv format. Optional. Defaults to ','. Only used for csv format.")
 	set.StringVar(&cmd.project, "project", "", "Project id for all resources related to this import. Optional")
-	set.StringVar(&cmd.databaseDialect, "database-dialect", constants.DIALECT_GOOGLESQL, "Dialect of the Spanner database. Optional. Defaults to google_standard_sql")
+	set.StringVar(&cmd.databaseDialect, "database-dialect", constants.DIALECT_GOOGLESQL, fmt.Sprintf("Spanner database dialect. Defaults to %s. Valid values {%s, %s}", constants.DIALECT_GOOGLESQL, constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL))
 }
 
 func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
@@ -109,8 +109,8 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 			return subcommands.ExitFailure
 		}
 		return subcommands.ExitSuccess
-	case constants.MYSQLDUMP:
-		err := cmd.handleDatabaseDumpFile(ctx, dbURI, constants.MYSQLDUMP, dialect, spannerAccessor, sourceReader)
+	case constants.MYSQLDUMP, constants.PGDUMP:
+		err := cmd.handleDatabaseDumpFile(ctx, dbURI, cmd.sourceFormat, dialect, spannerAccessor, sourceReader)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle MYSQL Dump %v. Please reachout to the support team.", err))
 			return subcommands.ExitFailure
@@ -122,12 +122,28 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	return subcommands.ExitFailure
 }
 
-func createDatabase(ctx context.Context, dbURI, dialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
-	exists, _ := spannerAccessor.CheckExistingDb(ctx, dbURI)
-	if !exists {
-		return spannerAccessor.CreateEmptyDatabase(ctx, dbURI, dialect)
+func createDatabase(ctx context.Context, dbURI, targetDialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
+	if exists, _ := spannerAccessor.CheckExistingDb(ctx, dbURI); exists {
+
+		skipDialectValidation := os.Getenv("IMPORT_CMD_SKIP_DIALECT_VALIDATION")
+
+		// Only used for Emulator integration testing.
+		// TODO(b/406423609): Remove once Cl for fix within Emulator is release.
+		if skipDialectValidation == "true" {
+			return nil
+		}
+
+		dialect, err := spannerAccessor.GetDatabaseDialect(ctx, dbURI)
+		if err != nil {
+			return fmt.Errorf("unable to get database dialect %v", err)
+		}
+
+		if dialect != targetDialect {
+			return fmt.Errorf("database dialect is different for target dialect. Provided dialect: %s, Database dialect: %s", targetDialect, dialect)
+		}
+		return nil
 	}
-	return nil
+	return spannerAccessor.CreateEmptyDatabase(ctx, dbURI, targetDialect)
 }
 
 // validateSpannerAccessor validate if spanner is accessible by the provided dbURI. Return spannerAccessor, error.
@@ -137,6 +153,7 @@ func validateSpannerAccessor(ctx context.Context, dbURI string) (spanneraccessor
 		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
 		return nil, fmt.Errorf("unable to instantiate spanner client %v", err)
 	}
+
 	return spannerAccessor, nil
 }
 
