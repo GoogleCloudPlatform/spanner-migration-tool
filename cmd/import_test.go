@@ -752,7 +752,7 @@ func TestHandleCsv(t *testing.T) {
 				assert.Equal(t, "test-project", projectId)
 				assert.Equal(t, "test-instance", instanceId)
 				assert.Equal(t, "test-db", dbName)
-				assert.Equal(t, "test-table", tableName)
+				assert.Equal(t, "testtable", tableName)
 				assert.Equal(t, "gs://test-bucket/test_schema.json", schemaUri)
 
 				return &import_file.MockCsvSchema{}
@@ -761,7 +761,7 @@ func TestHandleCsv(t *testing.T) {
 				assert.Equal(t, "test-project", projectId)
 				assert.Equal(t, "test-instance", instanceId)
 				assert.Equal(t, "test-db", dbName)
-				assert.Equal(t, "test-table", tableName)
+				assert.Equal(t, "testtable", tableName)
 				assert.Equal(t, ",", csvFieldDelimiter)
 				return &import_file.MockCsvData{}
 			},
