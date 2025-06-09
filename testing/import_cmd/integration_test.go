@@ -1,16 +1,17 @@
 package import_cmd
 
 import (
-	"cloud.google.com/go/spanner"
 	"context"
 	"flag"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
 	"slices"
 	"strings"
 	"testing"
+
+	"cloud.google.com/go/spanner"
+	"github.com/stretchr/testify/assert"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
@@ -73,6 +74,58 @@ func onlyRunForEmulatorTest(t *testing.T) {
 	}
 }
 
+func TestMysqlExampleImportDumpFile(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	tests := []struct {
+		name    string
+		dumpUri string
+		dbName  string
+		wantErr bool
+	}{
+		{
+			name:    "sakila dump file",
+			dumpUri: "../../test_data/sakila-dump.sql",
+			dbName:  "sakila",
+			wantErr: false,
+		},
+		{
+			name:    "world dump file",
+			dumpUri: "../../test_data/sakila-dump.sql",
+			dbName:  "world_mysql_example",
+			wantErr: false,
+		},
+		{
+			name:    "world dump file",
+			dumpUri: "../../test_data/menagerie.sql",
+			dbName:  "menagerie",
+			wantErr: false,
+		},
+		// TODO: ADD Mysql Example Airport DB Tests.
+		// TODO: Move test data to GCS
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tt.dbName)
+			log.Printf("Spanner database used for testing: %s", dbURI)
+
+			createSpannerDatabase(t, projectID, instanceID, tt.dbName)
+			defer databaseAdmin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: dbURI})
+
+			dumpFilePath := tt.dumpUri
+
+			args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance=%s -database=%s -source-uri=%s",
+				projectID, instanceID, tt.dbName, dumpFilePath)
+			err := common.RunCommand(args, projectID)
+			assert.NoError(t, err)
+
+			// TODO validation to be added.
+		})
+	}
+}
+
 func TestLocalImportMysqlDumpFile(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
@@ -82,14 +135,14 @@ func TestLocalImportMysqlDumpFile(t *testing.T) {
 	// configure the database client
 	dbName := "import_test_local_mysql_dump"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	log.Printf("dbURI %s", dbURI)
+	log.Printf("Spanner database URI used for testing: %s", dbURI)
 
 	createSpannerDatabase(t, projectID, instanceID, dbName)
 	defer databaseAdmin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: dbURI})
 
 	dumpFilePath := "../../test_data/mysql_dump_import_data.sql"
 
-	args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance-id=%s -database-name=%s -source-uri=%s", projectID, instanceID, dbName, dumpFilePath)
+	args := fmt.Sprintf("import -source-format=mysqldump -project=%s -instance=%s -database=%s -source-uri=%s", projectID, instanceID, dbName, dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -148,7 +201,8 @@ func fetchRow(t *testing.T, dbURI, table, primaryKey string, id int64) string {
 func createSpannerDatabase(t *testing.T, project, instance, dbName string) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
 	req := &databasepb.CreateDatabaseRequest{
-		Parent: fmt.Sprintf("projects/%s/instances/%s", project, instance),
+		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
+		DatabaseDialect: databasepb.DatabaseDialect_GOOGLE_STANDARD_SQL,
 	}
 
 	req.CreateStatement = fmt.Sprintf("CREATE DATABASE `%s`", dbName)

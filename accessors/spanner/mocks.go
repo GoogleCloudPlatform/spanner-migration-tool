@@ -15,6 +15,7 @@ package spanneraccessor
 
 import (
 	"context"
+
 	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 
@@ -26,7 +27,7 @@ import (
 type SpannerAccessorMock struct {
 	GetDatabaseDialectMock          func(ctx context.Context, dbURI string) (string, error)
 	CheckExistingDbMock             func(ctx context.Context, dbURI string) (bool, error)
-	CreateEmptyDatabaseMock         func(ctx context.Context, dbURI string) error
+	CreateEmptyDatabaseMock         func(ctx context.Context, dbURI, dialect string) error
 	GetSpannerLeaderLocationMock    func(ctx context.Context, instanceURI string) (string, error)
 	CheckIfChangeStreamExistsMock   func(ctx context.Context, changeStreamName, dbURI string) (bool, error)
 	ValidateChangeStreamOptionsMock func(ctx context.Context, changeStreamName, dbURI string) error
@@ -55,8 +56,8 @@ func (sam *SpannerAccessorMock) CheckExistingDb(ctx context.Context, dbURI strin
 	return sam.CheckExistingDbMock(ctx, dbURI)
 }
 
-func (sam *SpannerAccessorMock) CreateEmptyDatabase(ctx context.Context, dbURI string) error {
-	return sam.CreateEmptyDatabaseMock(ctx, dbURI)
+func (sam *SpannerAccessorMock) CreateEmptyDatabase(ctx context.Context, dbURI, dialect string) error {
+	return sam.CreateEmptyDatabaseMock(ctx, dbURI, dialect)
 }
 
 func (sam *SpannerAccessorMock) GetSpannerLeaderLocation(ctx context.Context, instanceURI string) (string, error) {

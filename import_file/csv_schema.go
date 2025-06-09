@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -16,16 +17,30 @@ import (
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
+var NewCsvSchema = newCsvSchema
+
 type CsvSchema interface {
 	CreateSchema(ctx context.Context, dialect string, sp spanneraccessor.SpannerAccessor) error
 }
 
 type CsvSchemaImpl struct {
-	ProjectId  string
-	InstanceId string
-	DbName     string
-	TableName  string
-	SchemaUri  string
+	ProjectId        string
+	InstanceId       string
+	DbName           string
+	TableName        string
+	SchemaUri        string
+	SchemaFileReader file_reader.FileReader
+}
+
+func newCsvSchema(projectId, instanceId, dbName, tableName, schemaUri string, schemaFileReader file_reader.FileReader) CsvSchema {
+	return &CsvSchemaImpl{
+		ProjectId:        projectId,
+		InstanceId:       instanceId,
+		DbName:           dbName,
+		TableName:        tableName,
+		SchemaUri:        schemaUri,
+		SchemaFileReader: schemaFileReader,
+	}
 }
 
 // ColumnDefinition represents the definition of a Spanner table column.
@@ -44,7 +59,14 @@ type PrimaryKey struct {
 func (source *CsvSchemaImpl) CreateSchema(ctx context.Context, dialect string, sp spanneraccessor.SpannerAccessor) error {
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", source.ProjectId, source.InstanceId, source.DbName)
-	colDef, err := parseSchema(source.SchemaUri)
+
+	schemaFile, err := source.SchemaFileReader.ReadAll(ctx)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Unable to read schema file %v", err))
+		return err
+	}
+
+	colDef, err := parseSchema(schemaFile)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Unable to parse schema URI %v", err))
 		return err
@@ -57,7 +79,7 @@ func (source *CsvSchemaImpl) CreateSchema(ctx context.Context, dialect string, s
 	}
 
 	if dbExists {
-		logger.Log.Error(fmt.Sprintf("table %s exists ", source.TableName))
+		logger.Log.Info(fmt.Sprintf("table %s exists ", source.TableName))
 		// if exists, verify table schema is same as passed
 		// TODO: validate schema matches
 		return nil
@@ -82,16 +104,10 @@ func (source *CsvSchemaImpl) CreateSchema(ctx context.Context, dialect string, s
 	return nil
 }
 
-func parseSchema(schemaUri string) ([]ColumnDefinition, error) {
-
-	schemaFile, err := os.ReadFile(schemaUri)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Error reading schema file: %v", err))
-		return nil, err
-	}
+func parseSchema(schemaFile []byte) ([]ColumnDefinition, error) {
 
 	var schema []ColumnDefinition
-	err = json.Unmarshal(schemaFile, &schema)
+	err := json.Unmarshal(schemaFile, &schema)
 	if err != nil {
 		fmt.Println("Error parsing schema file:", err)
 		return nil, err

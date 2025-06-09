@@ -101,6 +101,19 @@ func TestFileReaderImpl_ResetReaderFileSuccess(t *testing.T) {
 			assert.IsType(t, &os.File{}, r)
 		})
 	}
+
+	t.Run("local file seek failed", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp("", "test_file_*.sql")
+		if err != nil {
+			t.Fatalf("Failed to create temp file: %v", err)
+		}
+		defer os.Remove(tmpFile.Name())
+		reader, err := NewFileReader(context.Background(), tmpFile.Name())
+		reader.(*LocalFileReaderImpl).fileHandle.Close()
+
+		_, err = reader.ResetReader(context.Background())
+		assert.NoError(t, err)
+	})
 }
 
 func TestFileReaderImpl_ResetReaderFileError(t *testing.T) {
@@ -170,4 +183,80 @@ func TestFileReaderImpl_Close(t *testing.T) {
 
 		reader.Close()
 	})
+}
+
+func TestLocalFileReaderImpl_ReadAll(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		uri      string
+		expected []byte
+		wantErr  bool
+	}{
+		{
+			name:     "read all content",
+			content:  "This is a test file content.",
+			expected: []byte("This is a test file content."),
+			wantErr:  false,
+		},
+		{
+			name:     "empty file",
+			content:  "",
+			expected: []byte(""),
+			wantErr:  false,
+		},
+		{
+			name:     "file not found",
+			uri:      "nonexistent_file.txt",
+			expected: nil,
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var reader *LocalFileReaderImpl
+			var err error
+
+			if tt.uri == "" {
+				// Create a temporary file with content for testing.
+				tmpFile, err := os.CreateTemp("", "test_file_*.txt")
+				if err != nil {
+					t.Fatalf("Failed to create temp file: %v", err)
+				}
+				defer os.Remove(tmpFile.Name())
+
+				if _, err := tmpFile.WriteString(tt.content); err != nil {
+					t.Fatalf("Failed to write to temp file: %v", err)
+				}
+
+				if _, err := tmpFile.Seek(0, 0); err != nil {
+					t.Fatalf("Failed to seek to beginning of temp file: %v", err)
+				}
+
+				reader, err = NewLocalFileReader(tmpFile.Name())
+				if err != nil {
+					t.Fatalf("Failed to create FileReader: %v", err)
+				}
+			} else {
+				reader = &LocalFileReaderImpl{uri: tt.uri}
+			}
+
+			defer func() {
+				if reader != nil {
+					reader.Close()
+				}
+			}()
+
+			actual, err := reader.ReadAll(context.Background())
+			if (err != nil) != tt.wantErr {
+				t.Errorf("LocalFileReaderImpl.ReadAll() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr && !assert.Equal(t, tt.expected, actual) {
+				t.Errorf("LocalFileReaderImpl.ReadAll() = %v, expected %v", actual, tt.expected)
+			}
+		})
+	}
 }
