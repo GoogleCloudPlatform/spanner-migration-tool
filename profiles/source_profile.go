@@ -51,6 +51,7 @@ type SourceProfileDialectInterface interface {
 	NewSourceProfileConnectionSqlServer(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionSqlServer, error)
 	NewSourceProfileConnectionDynamoDB(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionDynamoDB, error)
 	NewSourceProfileConnectionOracle(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionOracle, error)
+	NewSourceProfileConnectionCassandra(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCassandra, error)
 }
 
 type SourceProfileDialectImpl struct{}
@@ -89,6 +90,7 @@ const (
 	SourceProfileConnectionTypeDynamoDB
 	SourceProfileConnectionTypeSqlServer
 	SourceProfileConnectionTypeOracle
+	SourceProfileConnectionTypeCassandra
 )
 
 type SourceProfileConnectionTypeCloudSQL int
@@ -456,6 +458,47 @@ func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionOracle(params map
 	return ss, nil
 }
 
+type SourceProfileConnectionCassandra struct {
+	Host            string 
+	Port            string 
+	User            string 
+	Pwd             string
+	Keyspace        string 
+	DataCenter      string  // Cassandra 4.x requires data center information for connection
+}
+
+func (spd *SourceProfileDialectImpl) NewSourceProfileConnectionCassandra(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCassandra, error) {
+	cs := SourceProfileConnectionCassandra{}
+
+	host, hostOk := params["host"]
+	user, userOk := params["user"]
+	keyspace, keyspaceOk := params["keyspace"]
+	port := params["port"]
+	pwd := params["password"]
+	datacenter, datacenterOk := params["datacenter"]
+
+	if hostOk && userOk && keyspaceOk && datacenterOk {
+		cs.Host, cs.User, cs.Keyspace, cs.Port, cs.Pwd, cs.DataCenter = host, user, keyspace, port, pwd, datacenter
+		// Throw an error if the input entered is empty.
+		if cs.Host == "" || cs.User == "" || cs.Keyspace == "" || cs.DataCenter == "" {
+			return cs, fmt.Errorf("found empty string for host/user/keyspace/datacenter. Please specify host, port, user, keyspace and datacenter in the source-profile")
+		}
+	} else {
+		// Partial params provided through source-profile. Ask the user to provide all through the source-profile.
+		return cs, fmt.Errorf("please specify host, port, user, keyspace and datacenter in the source-profile")
+	}
+
+	if cs.Port == "" {
+		// Set default port for cassandra, which rarely changes.
+		cs.Port = "9042"
+	}
+	if cs.Pwd == "" {
+		cs.Pwd = g.GetPassword()
+	}
+
+	return cs, nil
+}
+
 type SourceProfileConnection struct {
 	Ty        SourceProfileConnectionType
 	Streaming bool
@@ -464,6 +507,7 @@ type SourceProfileConnection struct {
 	Dydb      SourceProfileConnectionDynamoDB
 	SqlServer SourceProfileConnectionSqlServer
 	Oracle    SourceProfileConnectionOracle
+	Cassandra SourceProfileConnectionCassandra
 }
 
 type SourceProfileConnectionCloudSQL struct {
@@ -527,6 +571,14 @@ func (nsp *NewSourceProfileImpl) NewSourceProfileConnection(source string, param
 			}
 			if conn.Oracle.StreamingConfig != "" {
 				conn.Streaming = true
+			}
+		}
+	case "cassandra":
+		{
+			conn.Ty = SourceProfileConnectionTypeCassandra
+			conn.Cassandra, err = s.NewSourceProfileConnectionCassandra(params, &utils.GetUtilInfoImpl{})
+			if err != nil {
+				return conn, err
 			}
 		}
 	default:
@@ -722,6 +774,8 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 				return constants.PGDUMP, nil
 			case "dynamodb":
 				return "", fmt.Errorf("dump files are not supported with DynamoDB")
+			case "cassandra":
+				return "", fmt.Errorf("dump files are not supported with Cassandra")	
 			default:
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}
@@ -740,6 +794,8 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 				return constants.SQLSERVER, nil
 			case "oracle":
 				return constants.ORACLE, nil
+			case "cassandra":
+				return constants.CASSANDRA, nil
 			default:
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}

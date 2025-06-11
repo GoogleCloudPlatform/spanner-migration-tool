@@ -187,6 +187,7 @@ type ColumnDef struct {
 	Id           string
 	AutoGen      AutoGenCol
 	DefaultValue DefaultValue
+	Opts         map[string]string
 }
 
 // Config controls how AST nodes are printed (aka unparsed).
@@ -251,6 +252,15 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 		}
 		s += cd.DefaultValue.PrintDefaultValue(cd.T)
 		s += cd.AutoGen.PrintAutoGenCol()
+	}
+	var  opts []string
+	if cd.Opts != nil {
+		if opt, ok := cd.Opts["cassandra_type"]; ok && opt != "" {
+			opts = append(opts, fmt.Sprintf("cassandra_type = '%s'", opt))
+		}
+	}	
+	if len(opts) > 0 {
+		s += " OPTIONS (" + strings.Join(opts, ", ") + ")"
 	}
 	return s, cd.Comment
 }
