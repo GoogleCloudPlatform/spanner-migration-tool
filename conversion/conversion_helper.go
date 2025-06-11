@@ -163,6 +163,7 @@ func ConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
 		return profiles.GetSQLConnectionStr(sourceProfile), nil
 	case constants.ORACLE:
 		return profiles.GetSQLConnectionStr(sourceProfile), nil
+	// Returns an empty string as Cassandra connections are managed directly by the gocql session.	
 	case constants.CASSANDRA:
 		return "", nil
 	default:

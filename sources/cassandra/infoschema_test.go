@@ -139,7 +139,7 @@ func TestProcessSchemaCassandra(t *testing.T) {
 
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{
-		session: mockSession,
+		Session: mockSession,
 		SourceProfile: profiles.SourceProfile{
 			Conn: profiles.SourceProfileConnection{
 				Cassandra: profiles.SourceProfileConnectionCassandra{Keyspace: "testks"},
