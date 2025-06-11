@@ -44,6 +44,9 @@ const (
 	// This is an experimental driver; implementation in progress.
 	ORACLE string = "oracle"
 
+	// CASSANDRA is the driver name for Cassandra.
+	CASSANDRA string = "cassandra"
+
 	// Target db for which schema is being generated.
 	// This can be removed once the support for global flags is removed.
 	TargetSpanner              string = "spanner"

@@ -90,6 +90,14 @@ func TestPrintColumnDef(t *testing.T) {
 			},
 			expected: "col1 INT64 DEFAULT ((`col2` + 1))",
 		},
+		{
+			in: ColumnDef{
+				Name: "col1",
+				T:    Type{Name: Int64},
+				Opts: map[string]string{"cassandra_type": "bigint"},
+			},
+			expected: "col1 INT64 OPTIONS (cassandra_type = 'bigint')",
+		},
 	}
 	for _, tc := range tests {
 		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds})
