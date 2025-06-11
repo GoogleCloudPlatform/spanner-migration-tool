@@ -67,6 +67,11 @@ func (m *MockSourceProfileDialect) NewSourceProfileConnectionOracle(params map[s
 	return args.Get(0).(SourceProfileConnectionOracle), args.Error(1)
 }
 
+func (m *MockSourceProfileDialect) NewSourceProfileConnectionCassandra(params map[string]string, g utils.GetUtilInfoInterface) (SourceProfileConnectionCassandra, error) {
+	args := m.Called(params, g)
+	return args.Get(0).(SourceProfileConnectionCassandra), args.Error(1)
+}
+
 func setEnvVariables() {
 	// My Sql variables
 	os.Setenv("MYSQLHOST", "0.0.0.0")
@@ -570,6 +575,84 @@ func TestNewSourceProfileConnectionOracle(t *testing.T) {
 		setGetInfoMockValues(&g)
 		_, oracleErr := sourceProfileDialect.NewSourceProfileConnectionOracle(tc.params, &g)
 		assert.Equal(t, tc.errorExpected, oracleErr != nil, tc.name)
+	}
+}
+
+// code for testing cassandra connection
+func TestNewSourceProfileConnectionCassandra(t *testing.T) {
+	testCases := []struct {
+		name          string
+		params        map[string]string
+		errorExpected bool
+	}{
+		{
+			name:          "mandatory params provided",
+			params:        map[string]string{"host": "a", "user": "b", "keyspace": "c", "datacenter": "d", "password": "f"},
+			errorExpected: false,
+		},
+		{
+			name:          "all params provided",
+			params:        map[string]string{"host": "a", "user": "b", "keyspace": "c", "datacenter": "d", "port": "e", "password": "f"},
+			errorExpected: false,
+		},
+		{
+			name:          "host is blank",
+			params:        map[string]string{"host": "", "user": "b", "keyspace": "c", "datacenter": "d", "port": "e", "password": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "user is blank",
+			params:        map[string]string{"host": "a", "user": "", "keyspace": "c", "datacenter": "d", "port": "e", "password": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "keyspace is blank",
+			params:        map[string]string{"host": "a", "user": "b", "keyspace": "", "datacenter": "d", "port": "e", "password": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "datacenter is blank",
+			params:        map[string]string{"host": "a", "user": "b", "keyspace": "c", "datacenter": "", "port": "e", "password": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "host is not specified",
+			params:        map[string]string{"user": "b", "keyspace": "c", "datacenter": "d", "port": "e", "password": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "user is not specified",
+			params:        map[string]string{"host": "a", "keyspace": "c", "datacenter": "d", "port": "e", "password": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "keyspace is not specified",
+			params:        map[string]string{"host": "a", "user": "b", "datacenter": "d", "port": "e", "password": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "datacenter is not specified",
+			params:		   map[string]string{"host": "a", "user": "b", "keyspace": "c", "port": "e", "password": "f"},
+			errorExpected: true,
+		},
+		{
+			name:          "port is blank",
+			params:        map[string]string{"host": "a", "user": "b", "keyspace": "c", "datacenter": "d", "port": "", "password": "f"},
+			errorExpected: false,
+		},
+		{
+			name:          "password is blank",
+			params:        map[string]string{"host": "a", "user": "b", "keyspace": "c", "datacenter": "d", "port": "e", "password": ""},
+			errorExpected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		sourceProfileDialect := SourceProfileDialectImpl{}
+		g := GetUtilInfoMock{}
+		setGetInfoMockValues(&g)
+		_, cassandraErr := sourceProfileDialect.NewSourceProfileConnectionCassandra(tc.params, &g)
+		assert.Equal(t, tc.errorExpected, cassandraErr != nil, tc.name)
 	}
 }
 

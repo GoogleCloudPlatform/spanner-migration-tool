@@ -163,6 +163,8 @@ func ConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
 		return profiles.GetSQLConnectionStr(sourceProfile), nil
 	case constants.ORACLE:
 		return profiles.GetSQLConnectionStr(sourceProfile), nil
+	case constants.CASSANDRA:
+		return "", nil
 	default:
 		return "", fmt.Errorf("driver %s not supported", sourceProfile.Driver)
 	}
