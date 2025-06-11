@@ -53,12 +53,6 @@ type ToDdl interface {
 	GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error)
 }
 
-// CassandraOptionProvider is an interface that can be implemented by ToDdl
-// implementations for sources that provide specific type options, like Cassandra.
-type OptionProvider interface {
-	GetTypeOption(srcTypeName string, spType ddl.Type) string
-}
-
 type SchemaToSpannerInterface interface {
 	SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl, attributes internal.AdditionalSchemaAttributes) error
 	SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error
@@ -395,14 +389,7 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		if len(issues) > 0 {
 			columnLevelIssues[srcColId] = issues
 		}
-		
-		colDefOpts := make(map[string]string)
-		if conv.Source == constants.CASSANDRA {
-			if optionProvider, ok := toddl.(OptionProvider); ok {
-				option := optionProvider.GetTypeOption(srcCol.Type.Name, ty)
-				colDefOpts["cassandra_type"] = option
-			}
-		}
+
 		spColDef[srcColId] = ddl.ColumnDef{
 			Name:    colName,
 			T:       ty,
@@ -410,7 +397,6 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			Id:      srcColId,
 			AutoGen: *autoGenCol,
-			Opts:    colDefOpts,
 		}
 		if !checkIfColumnIsPartOfPK(srcColId, srcTable.PrimaryKeys) {
 			totalNonKeyColumnSize += getColumnSize(ty.Name, ty.Len)
