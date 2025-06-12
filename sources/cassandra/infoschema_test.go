@@ -15,6 +15,8 @@
 package cassandra
 
 import (
+	"fmt"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"reflect"
 	"testing"
 
@@ -29,8 +31,8 @@ import (
 
 type MockIter struct {
 	mock.Mock
-	data      [][]interface{}
-	scanPos   int
+	data        [][]interface{}
+	scanPos     int
 	errToReturn error
 }
 
@@ -52,12 +54,26 @@ func (m *MockIter) Close() error {
 	return args.Error(0)
 }
 
-type MockQuery struct { mock.Mock }
+type MockQuery struct{ mock.Mock }
+
 func (m *MockQuery) Iter() IterInterface { args := m.Called(); return args.Get(0).(IterInterface) }
-type MockSession struct { mock.Mock }
-func (m *MockSession) Query(stmt string, values ...interface{}) QueryInterface { args := m.Called(stmt, mock.Anything); return args.Get(0).(QueryInterface) }
+
+type MockSession struct{ mock.Mock }
+
+func (m *MockSession) Query(stmt string, values ...interface{}) QueryInterface {
+	args := m.Called(stmt, mock.Anything)
+	return args.Get(0).(QueryInterface)
+}
 func (m *MockSession) Close() { m.Called() }
 
+func TestGetToDdl(t *testing.T) {
+	isi := InfoSchemaImpl{}
+	toDdl := isi.GetToDdl()
+	assert.IsType(t, ToDdlImpl{}, toDdl)
+	toDdlImpl, ok := toDdl.(ToDdlImpl)
+	assert.True(t, ok)
+	assert.NotNil(t, toDdlImpl.typeMapper)
+}
 
 func TestProcessSchemaCassandra(t *testing.T) {
 	logger.InitializeLogger("INFO")
@@ -124,7 +140,7 @@ func TestProcessSchemaCassandra(t *testing.T) {
 	mockIterTxColumns.On("Close").Return(nil)
 
 	mockQueryTxIndexes := new(MockQuery)
-	mockIterTxIndexes := new(MockIter) 
+	mockIterTxIndexes := new(MockIter)
 	mockQueryTxIndexes.On("Iter").Return(mockIterTxIndexes)
 	mockIterTxIndexes.On("Close").Return(nil)
 
@@ -135,7 +151,6 @@ func TestProcessSchemaCassandra(t *testing.T) {
 	mockSession.On("Query", "SELECT column_name, kind, position FROM system_schema.columns WHERE keyspace_name = ? AND table_name = ?", mock.Anything).Return(mockQueryTxConstraints).Once()
 	mockSession.On("Query", "SELECT column_name, type, kind FROM system_schema.columns WHERE keyspace_name = ? AND table_name = ?", mock.Anything).Return(mockQueryTxColumns).Once()
 	mockSession.On("Query", "SELECT index_name, options FROM system_schema.indexes WHERE keyspace_name = ? AND table_name = ?", mock.Anything).Return(mockQueryTxIndexes).Once()
-
 
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{
@@ -204,4 +219,34 @@ func TestProcessSchemaCassandra(t *testing.T) {
 	assert.Equal(t, 0, len(txTable.Indexes), "transactions table should have no indexes")
 
 	assert.Equal(t, int64(0), conv.Unexpecteds())
+}
+
+func TestDataMethodsReturnNotSupported(t *testing.T) {
+	isi := InfoSchemaImpl{}
+	expectedErr := fmt.Errorf("operation not supported")
+
+	t.Run("GetRowsFromTable", func(t *testing.T) {
+		_, err := isi.GetRowsFromTable(nil, "")
+		assert.Equal(t, expectedErr, err)
+	})
+
+	t.Run("GetRowCount", func(t *testing.T) {
+		_, err := isi.GetRowCount(common.SchemaAndName{})
+		assert.Equal(t, expectedErr, err)
+	})
+
+	t.Run("ProcessData", func(t *testing.T) {
+		err := isi.ProcessData(nil, "", schema.Table{}, nil, ddl.CreateTable{}, internal.AdditionalDataAttributes{})
+		assert.Equal(t, expectedErr, err)
+	})
+
+	t.Run("StartChangeDataCapture", func(t *testing.T) {
+		_, err := isi.StartChangeDataCapture(nil, nil)
+		assert.Equal(t, expectedErr, err)
+	})
+
+	t.Run("StartStreamingMigration", func(t *testing.T) {
+		_, err := isi.StartStreamingMigration(nil, "", nil, nil, nil)
+		assert.Equal(t, expectedErr, err)
+	})
 }

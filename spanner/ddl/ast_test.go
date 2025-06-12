@@ -93,10 +93,10 @@ func TestPrintColumnDef(t *testing.T) {
 		{
 			in: ColumnDef{
 				Name: "col1",
-				T:	  Type{Name: Int64},
+				T:    Type{Name: Int64},
 				Opts: map[string]string{"cassandra_type": "bigint"},
 			},
-			expected: "col1 INT64 OPTIONS (cassandra_type = bigint)",
+			expected: "col1 INT64 OPTIONS (cassandra_type = 'bigint')",
 		},
 	}
 	for _, tc := range tests {

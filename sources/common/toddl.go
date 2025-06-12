@@ -395,14 +395,6 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		if len(issues) > 0 {
 			columnLevelIssues[srcColId] = issues
 		}
-		
-		colDefOpts := make(map[string]string)
-		if conv.Source == constants.CASSANDRA {
-			if optionProvider, ok := toddl.(OptionProvider); ok {
-				option := optionProvider.GetTypeOption(srcCol.Type.Name, ty)
-				colDefOpts["cassandra_type"] = option
-			}
-		}
 		spColDef[srcColId] = ddl.ColumnDef{
 			Name:    colName,
 			T:       ty,
@@ -410,7 +402,18 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			Id:      srcColId,
 			AutoGen: *autoGenCol,
-			Opts:    colDefOpts,
+		}
+		// Initialise Opts only for Cassandra source
+		if conv.Source == constants.CASSANDRA {
+			colDef := spColDef[srcColId]
+			if optionProvider, ok := toddl.(OptionProvider); ok {
+				option := optionProvider.GetTypeOption(srcCol.Type.Name, ty)
+				if colDef.Opts == nil {
+					colDef.Opts = make(map[string]string)
+				}
+				colDef.Opts["cassandra_type"] = option
+			}
+			spColDef[srcColId] = colDef
 		}
 		if !checkIfColumnIsPartOfPK(srcColId, srcTable.PrimaryKeys) {
 			totalNonKeyColumnSize += getColumnSize(ty.Name, ty.Len)

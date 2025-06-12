@@ -40,10 +40,10 @@ func (tdi ToDdlImpl) GetTypeOption(srcTypeName string, spType ddl.Type) string {
 	return tdi.typeMapper.GetOption(srcTypeName, spType)
 }
 
-// Encapsulates info about the ddl type, cassandra_type and issue
+// CassandraDdlInfo encapsulates info about the ddl type, cassandra_type and issue
 type CassandraDdlInfo struct {
 	SpannerType ddl.Type
-	Option  	string 
+	Option      string
 	Issues      []internal.SchemaIssue
 }
 
@@ -51,253 +51,253 @@ type CassandraDdlInfo struct {
 var typeMappings = map[string][]CassandraDdlInfo{
 	"TINYINT": {
 		{
-			SpannerType: ddl.Type{Name: ddl.Int64}, 
-			Option: "tinyint", 
-			Issues: []internal.SchemaIssue{internal.Widened},
+			SpannerType: ddl.Type{Name: ddl.Int64},
+			Option:      "tinyint",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 		{
-			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, 
-			Option: "text", 
-			Issues: []internal.SchemaIssue{internal.Widened},
+			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
+			Option:      "text",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"SMALLINT": {
 		{
-			SpannerType: ddl.Type{Name: ddl.Int64}, 
-			Option: "smallint", 
-			Issues: []internal.SchemaIssue{internal.Widened},
+			SpannerType: ddl.Type{Name: ddl.Int64},
+			Option:      "smallint",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 		{
-			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, 
-			Option: "text", 
-			Issues: []internal.SchemaIssue{internal.Widened},
+			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
+			Option:      "text",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"INT": {
 		{
-			SpannerType: ddl.Type{Name: ddl.Int64}, 
-			Option: "int", 
-			Issues: []internal.SchemaIssue{internal.Widened},
+			SpannerType: ddl.Type{Name: ddl.Int64},
+			Option:      "int",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 		{
-			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, 
-			Option: "text", 
-			Issues: []internal.SchemaIssue{internal.Widened},
+			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
+			Option:      "text",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"BIGINT": {
 		{
-			SpannerType: ddl.Type{Name: ddl.Int64}, 
-			Option: "bigint",
-			Issues: nil,
+			SpannerType: ddl.Type{Name: ddl.Int64},
+			Option:      "bigint",
+			Issues:      nil,
 		},
 		{
-			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, 
-			Option: "text", 
-			Issues: []internal.SchemaIssue{internal.Widened},
+			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
+			Option:      "text",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"FLOAT": {
 		{
-			SpannerType: ddl.Type{Name: ddl.Float32}, 
-			Option: "float",
-			Issues: nil,
+			SpannerType: ddl.Type{Name: ddl.Float32},
+			Option:      "float",
+			Issues:      nil,
 		},
 		{
-			SpannerType: ddl.Type{Name: ddl.Float64}, 
-			Option: "double", 
-			Issues: []internal.SchemaIssue{internal.Widened},
+			SpannerType: ddl.Type{Name: ddl.Float64},
+			Option:      "double",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 		{
-			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, 
-			Option: "text", 
-			Issues: []internal.SchemaIssue{internal.Widened},
+			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
+			Option:      "text",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"DOUBLE": {
 		{
-			SpannerType: ddl.Type{Name: ddl.Float64}, 
-			Option: "double",
-			Issues: nil,
+			SpannerType: ddl.Type{Name: ddl.Float64},
+			Option:      "double",
+			Issues:      nil,
 		},
 		{
-			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, 
-			Option: "text", 
-			Issues: []internal.SchemaIssue{internal.Widened},
+			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
+			Option:      "text",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"DECIMAL": {
 		// TODO: Generate appropriate SchemaIssue to warn of potential data loss
 		{
-			SpannerType: ddl.Type{Name: ddl.Numeric}, 
-			Option: "decimal",
-			Issues: nil,
+			SpannerType: ddl.Type{Name: ddl.Numeric},
+			Option:      "decimal",
+			Issues:      nil,
 		},
 	},
 	"VARINT": {
 		// TODO: Generate appropriate SchemaIssue to warn of potential data loss
 		{
-			SpannerType: ddl.Type{Name: ddl.Numeric}, 
-			Option: "decimal",
-			Issues: nil,
+			SpannerType: ddl.Type{Name: ddl.Numeric},
+			Option:      "decimal",
+			Issues:      nil,
 		},
 		{
-			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, 
-			Option: "text", 
-			Issues: []internal.SchemaIssue{internal.Widened},
+			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
+			Option:      "text",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 		{
-			SpannerType: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, 
-			Option: "blob", 
-			Issues: []internal.SchemaIssue{internal.Widened},
+			SpannerType: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength},
+			Option:      "blob",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"TEXT": {
 		{
-			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, 
-			Option: "text",
-			Issues: nil,
+			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
+			Option:      "text",
+			Issues:      nil,
 		},
 		{
-			SpannerType: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, 
-			Option: "blob", 
-			Issues: []internal.SchemaIssue{internal.Widened},
+			SpannerType: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength},
+			Option:      "blob",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"VARCHAR": {
 		{
 			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
-			Option: "varchar",
-			Issues: nil,
+			Option:      "varchar",
+			Issues:      nil,
 		},
 		{
 			SpannerType: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength},
-			Option: "blob",
-			Issues: []internal.SchemaIssue{internal.Widened},
+			Option:      "blob",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"ASCII": {
 		{
 			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
-			Option: "ascii",
-			Issues: nil,
+			Option:      "ascii",
+			Issues:      nil,
 		},
 		{
 			SpannerType: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength},
-			Option: "blob",
-			Issues: []internal.SchemaIssue{internal.Widened},
+			Option:      "blob",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"UUID": {
 		{
 			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
-			Option: "uuid",
-			Issues: nil,
+			Option:      "uuid",
+			Issues:      nil,
 		},
 		{
 			SpannerType: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength},
-			Option: "uuid",
-			Issues: []internal.SchemaIssue{internal.Widened},
+			Option:      "uuid",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"TIMEUUID": {
 		{
 			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
-			Option: "timeuuid",
-			Issues: nil,
+			Option:      "timeuuid",
+			Issues:      nil,
 		},
 		{
 			SpannerType: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength},
-			Option: "timeuuid",
-			Issues: []internal.SchemaIssue{internal.Widened},
+			Option:      "timeuuid",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"INET": {
 		{
 			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
-			Option: "inet",
-			Issues: nil,
+			Option:      "inet",
+			Issues:      nil,
 		},
 	},
 	"BLOB": {
 		{
 			SpannerType: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength},
-			Option: "blob",
-			Issues: nil,
+			Option:      "blob",
+			Issues:      nil,
 		},
 		{
 			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
-			Option: "text",
-			Issues: []internal.SchemaIssue{internal.Widened},
+			Option:      "text",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"DATE": {
 		{
 			SpannerType: ddl.Type{Name: ddl.Date},
-			Option: "date",
-			Issues: nil,
+			Option:      "date",
+			Issues:      nil,
 		},
 		{
 			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
-			Option: "text",
-			Issues: []internal.SchemaIssue{internal.Widened},
+			Option:      "text",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"TIMESTAMP": {
 		{
 			SpannerType: ddl.Type{Name: ddl.Timestamp},
-			Option: "timestamp",
-			Issues: nil,
+			Option:      "timestamp",
+			Issues:      nil,
 		},
 		{
 			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
-			Option: "text",
-			Issues: []internal.SchemaIssue{internal.Widened},
+			Option:      "text",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"TIME": {
 		{
 			SpannerType: ddl.Type{Name: ddl.Int64},
-			Option: "time",
-			Issues: []internal.SchemaIssue{internal.Time},
+			Option:      "time",
+			Issues:      []internal.SchemaIssue{internal.Time},
 		},
 		{
 			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
-			Option: "text",
-			Issues: []internal.SchemaIssue{internal.Widened},
+			Option:      "text",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"DURATION": {
 		// TODO: Generate appropriate SchemaIssue to warn about adapter not supporting duration
 		{
 			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
-			Option: "duration",
-			Issues: nil,
+			Option:      "duration",
+			Issues:      nil,
 		},
 	},
 	"BOOLEAN": {
 		{
 			SpannerType: ddl.Type{Name: ddl.Bool},
-			Option: "boolean",
-			Issues: nil,
+			Option:      "boolean",
+			Issues:      nil,
 		},
 		{
 			SpannerType: ddl.Type{Name: ddl.Int64},
-			Option: "int",
-			Issues: []internal.SchemaIssue{internal.Widened},
+			Option:      "int",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 		{
 			SpannerType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
-			Option: "text",
-			Issues: []internal.SchemaIssue{internal.Widened},
+			Option:      "text",
+			Issues:      []internal.SchemaIssue{internal.Widened},
 		},
 	},
 	"COUNTER": {
 		// TODO: Generate appropriate SchemaIssue to warn about adapter not supporting counter
 		{
 			SpannerType: ddl.Type{Name: ddl.Int64},
-			Option: "counter",
-			Issues: nil,
+			Option:      "counter",
+			Issues:      nil,
 		},
 	},
 }
@@ -326,7 +326,7 @@ func (m *CassandraTypeMapper) getMapping(cassandraTypeName string, spTypeName st
 				}
 			}
 		}
-		return mappings[0], true 
+		return mappings[0], true
 	}
 	return CassandraDdlInfo{}, false
 }

@@ -19,9 +19,62 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
+
+type MockCassandraMappingProvider struct {
+	mock.Mock
+}
+
+func (m *MockCassandraMappingProvider) GetSpannerType(cassandraTypeName string, spType string) (ddl.Type, []internal.SchemaIssue) {
+	args := m.Called(cassandraTypeName, spType)
+	return args.Get(0).(ddl.Type), args.Get(1).([]internal.SchemaIssue)
+}
+
+func (m *MockCassandraMappingProvider) GetOption(cassandraTypeName string, spType ddl.Type) string {
+	args := m.Called(cassandraTypeName, spType)
+	return args.String(0)
+}
+
+func TestToSpannerType(t *testing.T) {
+
+	mockMapper := new(MockCassandraMappingProvider)
+	srcTypeName := "text"
+	expectedSpannerType := ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	expectedIssues := []internal.SchemaIssue{internal.NoGoodType}
+	mockMapper.On("GetSpannerType", srcTypeName, "").Return(expectedSpannerType, expectedIssues)
+	tdi := &ToDdlImpl{
+		typeMapper: mockMapper,
+	}
+	spType, issues := tdi.ToSpannerType(nil, "", schema.Type{Name: srcTypeName}, false)
+	mockMapper.AssertCalled(t, "GetSpannerType", srcTypeName, "")
+	assert.Equal(t, expectedSpannerType, spType)
+	assert.Equal(t, expectedIssues, issues)
+}
+
+func TestGetColumnAutoGen(t *testing.T) {
+	tdi := &ToDdlImpl{}
+	autoGenCol, err := tdi.GetColumnAutoGen(nil, ddl.AutoGenCol{}, "", "")
+	assert.Nil(t, err)
+	assert.Equal(t, &ddl.AutoGenCol{}, autoGenCol)
+}
+
+func TestGetTypeOption(t *testing.T) {
+	mockMapper := new(MockCassandraMappingProvider)
+	srcTypeName := "tinyint"
+	spannerType := ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	expectedOption := "text"
+	mockMapper.On("GetOption", srcTypeName, spannerType).Return(expectedOption)
+	tdi := &ToDdlImpl{
+		typeMapper: mockMapper,
+	}
+	option := tdi.GetTypeOption(srcTypeName, spannerType)
+	mockMapper.AssertCalled(t, "GetOption", srcTypeName, spannerType)
+	assert.Equal(t, expectedOption, option)
+}
 
 func TestCassandraTypeMapper(t *testing.T) {
 	mapper := NewCassandraTypeMapper()
@@ -29,7 +82,7 @@ func TestCassandraTypeMapper(t *testing.T) {
 	testCases := []struct {
 		name                string
 		cassandraType       string
-		userSpannerType     string 
+		userSpannerType     string
 		expectedSpannerType ddl.Type
 		expectedOption      string
 		expectedIssues      []internal.SchemaIssue

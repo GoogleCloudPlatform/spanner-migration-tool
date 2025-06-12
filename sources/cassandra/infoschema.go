@@ -18,8 +18,8 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -40,9 +40,7 @@ func Connect(sourceProfile profiles.SourceProfile) (SessionInterface, error) {
 
 	cluster := gocql.NewCluster(contactPoint)
 	cluster.Keyspace = cfg.Keyspace
-	cluster.Consistency = gocql.Quorum 
-	
-
+	cluster.Consistency = gocql.Quorum
 	cluster.Timeout = 10 * time.Second
 	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: 3}
 
@@ -75,23 +73,24 @@ func Connect(sourceProfile profiles.SourceProfile) (SessionInterface, error) {
 
 // InfoSchemaImpl is Cassandra specific implementation for InfoSchema
 type InfoSchemaImpl struct {
-	Session            SessionInterface
-	SourceProfile      profiles.SourceProfile
-	TargetProfile      profiles.TargetProfile
+	Session       SessionInterface
+	SourceProfile profiles.SourceProfile
+	TargetProfile profiles.TargetProfile
 }
 
-// GetToDdl fucntion below implements the common.InfoSchema interface
+// GetToDdl implements the common.InfoSchema interface
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{
-		typeMapper:  NewCassandraTypeMapper(),
+		typeMapper: NewCassandraTypeMapper(),
 	}
 }
-// GetTableName returns tabel name
+
+// GetTableName returns table name
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 	return tableName
 }
 
-// GetTables return list of tables in selected database
+// GetTables return list of tables in selected keyspace
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	keyspace := isi.SourceProfile.Conn.Cassandra.Keyspace
 	if keyspace == "" {
@@ -110,13 +109,13 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 		tables = append(tables, common.SchemaAndName{Schema: keyspace, Name: tableName})
 	}
 	return tables, nil
-}	
+}
 
 // GetColumns returns a list of Column objects and names
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
 	q := `SELECT column_name, type, kind FROM system_schema.columns WHERE keyspace_name = ? AND table_name = ?`
 	cols := isi.Session.Query(q, table.Schema, table.Name).Iter()
-	
+
 	defer cols.Close()
 
 	colDefs := make(map[string]schema.Column)
@@ -124,13 +123,13 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	var colName, dataType, columnType string
 	for cols.Scan(&colName, &dataType, &columnType) {
 		colId := internal.GenerateColumnId()
-		isPrimaryKey := (columnType == "partition_key" || columnType == "clustering")
+		isPrimaryKey := columnType == "partition_key" || columnType == "clustering"
 
 		c := schema.Column{
 			Id:      colId,
 			Name:    colName,
 			Type:    schema.Type{Name: dataType},
-			NotNull: isPrimaryKey, 
+			NotNull: isPrimaryKey,
 			Ignored: schema.Ignored{},
 		}
 		colDefs[colId] = c
@@ -141,7 +140,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 
 // GetConstraints returns a list of primary keys for a given table.
 // Cassandra does not have check constraints and other constraints in the SQL sense.
-func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName)  ([]string, []schema.CheckConstraint, map[string][]string, error) {	
+func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, []schema.CheckConstraint, map[string][]string, error) {
 	query := `SELECT column_name, kind, position FROM system_schema.columns WHERE keyspace_name = ? AND table_name = ?`
 	rows := isi.Session.Query(query, table.Schema, table.Name).Iter()
 	defer rows.Close()
@@ -171,7 +170,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 	for _, ck := range clusteringKeys {
 		primaryKeys = append(primaryKeys, ck.Name)
 	}
-	
+
 	return primaryKeys, nil, make(map[string][]string), nil
 }
 
@@ -207,8 +206,8 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		spIndex := schema.Index{
 			Id:     internal.GenerateIndexesId(),
 			Name:   indexName,
-			Unique: false,		  
-			Keys: []schema.Key{  
+			Unique: false,
+			Keys: []schema.Key{
 				{
 					ColId: colId,
 				},
@@ -216,13 +215,13 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		}
 		indexes = append(indexes, spIndex)
 	}
-	
+
 	return indexes, nil
 }
 
 // Data Migration Related Methods (Stubs for Schema Migration)
 
-var errNotSupported = fmt.Errorf("Operation not supported")
+var errNotSupported = fmt.Errorf("operation not supported")
 
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) (interface{}, error) {
 	return nil, errNotSupported
