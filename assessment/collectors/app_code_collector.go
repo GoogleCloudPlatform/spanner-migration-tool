@@ -107,8 +107,9 @@ var SupportedProgrammingLanguages = map[string]bool{
 }
 
 var SupportedFrameworkCombinations = map[FrameworkPair]bool{
-	{Source: "jdbc", Target: "jdbc"}:                   true,
-	{Source: "go-sql-mysql", Target: "go-sql-spanner"}: true,
+	{Source: "jdbc", Target: "jdbc"}:                            true,
+	{Source: "go-sql-driver/mysql", Target: "go-sql-spanner"}:   true,
+	{Source: "vertx-mysql-client", Target: "vertx-jdbc-client"}: true,
 	// Add more allowed combinations here
 }
 
@@ -155,7 +156,7 @@ func NewMigrationCodeSummarizer(
 		return nil, fmt.Errorf("failed to create Vertex AI client: %w", err)
 	}
 
-	conceptExampleDB, err := assessment.NewMysqlConceptDb(projectID, location, language)
+	conceptExampleDB, err := assessment.NewMysqlConceptDb(projectID, location, strings.ToLower(sourceFramework)+"_"+strings.ToLower(targetFramework))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load code example DB: %w", err)
 	}
