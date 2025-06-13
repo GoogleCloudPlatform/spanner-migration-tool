@@ -21,11 +21,12 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/aiplatform/apiv1/aiplatformpb"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
+	"github.com/googleapis/gax-go/v2"
 	"go.uber.org/zap"
 	"google.golang.org/api/option"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -50,6 +51,12 @@ type MySqlMigrationConcept struct {
 	Embedding []float32 `json:"embedding,omitempty"`
 }
 
+// PredictionClientInterface allows mocking
+type PredictionClientInterface interface {
+	Predict(context.Context, *aiplatformpb.PredictRequest, ...gax.CallOption) (*aiplatformpb.PredictResponse, error)
+	Close() error
+}
+
 func createEmbededTextsFromFile(project, location, language string) ([]MySqlMigrationConcept, error) {
 	ctx := context.Background()
 	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
@@ -61,7 +68,10 @@ func createEmbededTextsFromFile(project, location, language string) ([]MySqlMigr
 	}
 	defer client.Close()
 
-	// Read the JSON file
+	return createEmbededTextsWithClient(ctx, client, project, location, model, language)
+}
+
+func createEmbededTextsWithClient(ctx context.Context, client PredictionClientInterface, project, location, model, language string) ([]MySqlMigrationConcept, error) {
 	var data []byte
 	switch language {
 	case "go":
@@ -69,22 +79,22 @@ func createEmbededTextsFromFile(project, location, language string) ([]MySqlMigr
 	case "java":
 		data = javaMysqlMigrationConcept
 	default:
-		panic("Unsupported language")
+		return nil, fmt.Errorf("unsupported language: %s", language)
 	}
 
-	var mysqlMigrationConcepts []MySqlMigrationConcept
-	if err := json.Unmarshal(data, &mysqlMigrationConcepts); err != nil {
+	var concepts []MySqlMigrationConcept
+	if err := json.Unmarshal(data, &concepts); err != nil {
 		return nil, err
 	}
 
-	instances := make([]*structpb.Value, len(mysqlMigrationConcepts))
-	for i, concept := range mysqlMigrationConcepts {
-		instances[i] = structpb.NewStructValue(&structpb.Struct{
+	var instances []*structpb.Value
+	for _, c := range concepts {
+		instances = append(instances, structpb.NewStructValue(&structpb.Struct{
 			Fields: map[string]*structpb.Value{
-				"content":   structpb.NewStringValue(concept.Example),
+				"content":   structpb.NewStringValue(c.Example),
 				"task_type": structpb.NewStringValue("SEMANTIC_SIMILARITY"),
 			},
-		})
+		}))
 	}
 
 	req := &aiplatformpb.PredictRequest{
@@ -98,39 +108,31 @@ func createEmbededTextsFromFile(project, location, language string) ([]MySqlMigr
 	}
 
 	for i, prediction := range resp.Predictions {
-		values := prediction.GetStructValue().Fields["embeddings"].GetStructValue().Fields["values"].GetListValue().Values
-		embeddings := make([]float32, len(values))
-		for j, value := range values {
-			embeddings[j] = float32(value.GetNumberValue())
+		values := prediction.GetStructValue().GetFields()["embeddings"].GetStructValue().GetFields()["values"].GetListValue().GetValues()
+		embedding := make([]float32, len(values))
+		for j, v := range values {
+			embedding[j] = float32(v.GetNumberValue())
 		}
-		mysqlMigrationConcepts[i].Embedding = embeddings
+		concepts[i].Embedding = embedding
 	}
-	return mysqlMigrationConcepts, nil
+	return concepts, nil
 }
 
 func embedTextsFromFile(project, location, inputPath, outputPath string) error {
-	mysqlMigrationConcepts, err := createEmbededTextsFromFile(project, location, "java")
+	concepts, err := createEmbededTextsFromFile(project, location, "java")
 	if err != nil {
 		return err
 	}
 
-	// Save updated data to a new JSON file
-	outputData, err := json.MarshalIndent(mysqlMigrationConcepts, "", "  ")
+	output, err := json.MarshalIndent(concepts, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	if err := ioutil.WriteFile(outputPath, outputData, 0644); err != nil {
+	if err := os.WriteFile(outputPath, output, 0644); err != nil {
 		return err
 	}
 
-	logger.Log.Debug("Embeddings saved to", zap.String("fkStmt", outputPath))
+	logger.Log.Debug("Embeddings saved to", zap.String("path", outputPath))
 	return nil
 }
-
-// Sample Usage
-// func main() {
-// 	if err := embedTextsFromFile("", "", "go_concept_examples.json", "output.json"); err != nil {
-// 		logger.Log.Debug("Error:", err)
-// 	}
-// }
