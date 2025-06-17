@@ -17,6 +17,7 @@ package postgres
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"math/big"
 	"math/bits"
 	"testing"
 	"time"
@@ -65,6 +66,34 @@ func TestProcessDataRow(t *testing.T) {
 		})
 	ProcessDataRow(conv, tableId, colIds, []string{"4.2", "6", "prisoner zero", "3.14"})
 	assert.Equal(t, []spannerData{spannerData{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero", float32(3.14)}}}, rows)
+}
+
+func TestConvertNumericData(t *testing.T) {
+	col := "a"
+	colId := "c1"
+	tableName := "testtable"
+	tableId := "t1"
+	ty := ddl.Type{Name: ddl.Numeric, IsArray: true}
+	var expectedOutput []spanner.NullNumeric
+	bigRat := new(big.Rat)
+	r, _ := bigRat.SetString("32.3213")
+	expectedOutput = append(expectedOutput, spanner.NullNumeric{Numeric: *r, Valid: true})
+	expectedOutput = append(expectedOutput, spanner.NullNumeric{Valid: false})
+	conv := buildConv(
+		ddl.CreateTable{
+			Name:        tableName,
+			Id:          tableId,
+			ColIds:      []string{colId},
+			ColDefs:     map[string]ddl.ColumnDef{colId: {Name: col, Id: colId, T: ty, NotNull: false}},
+			PrimaryKeys: []ddl.IndexKey{}},
+		schema.Table{Name: tableName,
+			Id:      tableId,
+			ColIds:  []string{colId},
+			ColDefs: map[string]schema.Column{colId: {Name: col, Id: colId, Type: schema.Type{Name: "numeric_arr"}}}})
+	conv.SetLocation(time.UTC)
+	conv.SpDialect = constants.DIALECT_GOOGLESQL
+	at, ac, av, err := ConvertData(conv, tableId, []string{colId}, []string{`{"32.3213",NULL}`})
+	checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{expectedOutput}, "TestConvertNumericData")
 }
 
 func TestConvertData(t *testing.T) {
