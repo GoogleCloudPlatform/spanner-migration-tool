@@ -355,7 +355,7 @@ func getCheckConstraints(constraints []*ast.Constraint) (checkConstraints []sche
 // converts an AST expression node to its string representation.
 func expressionToString(expr ast.Node) string {
 	var sb strings.Builder
-	restoreCtx := format.NewRestoreCtx(format.DefaultRestoreFlags, &sb)
+	restoreCtx := format.NewRestoreCtx(format.RestoreStringSingleQuotes|format.RestoreKeyWordUppercase, &sb)
 	if err := expr.Restore(restoreCtx); err != nil {
 		fmt.Errorf("Error restoring expression: %v\n", err)
 		return ""
