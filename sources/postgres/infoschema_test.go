@@ -286,8 +286,8 @@ func TestProcessSchema(t *testing.T) {
 			ColIds: []string{"id", "aint", "atext", "b", "bs", "by", "c", "c_8", "d", "f8", "f4", "i8", "i4", "i2", "num", "s", "ts", "tz", "txt", "vc", "vc6"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"id":    ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-				"aint":  ddl.ColumnDef{Name: "aint", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}},
-				"atext": ddl.ColumnDef{Name: "atext", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}},
+				"aint":  ddl.ColumnDef{Name: "aint", T: ddl.Type{Name: ddl.Int64, Len: 0, IsArray: true}},
+				"atext": ddl.ColumnDef{Name: "atext", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
 				"b":     ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Bool}},
 				"bs":    ddl.ColumnDef{Name: "bs", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 				"by":    ddl.ColumnDef{Name: "by", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
