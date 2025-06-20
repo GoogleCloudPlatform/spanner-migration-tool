@@ -200,7 +200,7 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 	if err != nil {
 		return "", err
 	}
-	logger.Log.Info("LLM Token Usage (Initial Conversion): ",
+	logger.Log.Debug("LLM Token Usage (Initial Conversion): ",
 		zap.Int32("Prompt Tokens", response.UsageMetadata.PromptTokenCount),
 		zap.Int32("Candidate Tokens", response.UsageMetadata.CandidatesTokenCount),
 		zap.Int32("Total Tokens", response.UsageMetadata.TotalTokenCount))

@@ -53,7 +53,7 @@ type SpannerAccessor interface {
 	// If API call doesn't respond then user is informed after every 5 minutes on command line.
 	CheckExistingDb(ctx context.Context, dbURI string) (bool, error)
 	// Create a database with no schema.
-	CreateEmptyDatabase(ctx context.Context, dbURI string) error
+	CreateEmptyDatabase(ctx context.Context, dbURI, dialect string) error
 	// Fetch the leader of the Spanner instance.
 	GetSpannerLeaderLocation(ctx context.Context, instanceURI string) (string, error)
 	// Check if a change stream already exists.
@@ -158,11 +158,19 @@ func (sp *SpannerAccessorImpl) CheckExistingDb(ctx context.Context, dbURI string
 	}
 }
 
-func (sp *SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, dbURI string) error {
+func (sp *SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, dbURI, dialect string) error {
 	project, instance, dbName := parse.ParseDbURI(dbURI)
+
+	dbDialect := databasepb.DatabaseDialect_GOOGLE_STANDARD_SQL
+
+	if dialect == constants.DIALECT_POSTGRESQL {
+		dbDialect = databasepb.DatabaseDialect_POSTGRESQL
+	}
+
 	req := &databasepb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
 		CreateStatement: "CREATE DATABASE `" + dbName + "`",
+		DatabaseDialect: dbDialect,
 	}
 	op, err := sp.AdminClient.CreateDatabase(ctx, req)
 	if err != nil {

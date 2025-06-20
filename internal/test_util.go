@@ -32,7 +32,18 @@ func AssertSpSchema(conv *Conv, t *testing.T, expectedSchema, actualSchema map[s
 		assertSpPk(conv, t, tableId, expectedTable.PrimaryKeys, actualSchema[tableId].PrimaryKeys)
 		assertSpFk(conv, t, tableId, expectedTable.ForeignKeys, actualSchema[tableId].ForeignKeys)
 		assertSpIndexes(conv, t, tableId, expectedTable.Indexes, actualSchema[tableId].Indexes)
+		assertCheckConstraints(conv, t, tableId, expectedTable.CheckConstraints, actualSchema[tableId].CheckConstraints)
 	}
+}
+
+func assertCheckConstraints(conv *Conv, t *testing.T, tableId string, expectedCheckConstraints, actualCheckConstraints []ddl.CheckConstraint) {
+	assert.Equal(t, len(expectedCheckConstraints), len(actualCheckConstraints))
+	for _, expectedCheckConstraint := range expectedCheckConstraints {
+		actualCheckConstraint, err := GetCheckConstraintFromName(actualCheckConstraints, expectedCheckConstraint.Name)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedCheckConstraint.Expr, actualCheckConstraint.Expr)
+	}
+
 }
 
 func assertSpColDef(conv *Conv, t *testing.T, tableId string, expectedColDef, actualColDef map[string]ddl.ColumnDef) {
@@ -231,4 +242,13 @@ func AssertTableIssues(conv *Conv, t *testing.T, tableId string, expectedIssues,
 		assert.Equal(t, nil, err)
 		assert.ElementsMatch(t, issues, actualIssues[colId])
 	}
+}
+
+func GetCheckConstraintFromName(checkConstraints []ddl.CheckConstraint, checkConstraintName string) (ddl.CheckConstraint, error) {
+	for _, v := range checkConstraints {
+		if v.Name == checkConstraintName {
+			return v, nil
+		}
+	}
+	return ddl.CheckConstraint{}, fmt.Errorf("check constraint not found")
 }

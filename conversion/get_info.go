@@ -22,9 +22,11 @@ import (
 	"strings"
 
 	"cloud.google.com/go/cloudsqlconn"
+	ca "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/cassandra" 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/dynamodb"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
@@ -197,6 +199,16 @@ func (gi *GetInfoImpl) GetInfoSchema(migrationProjectId string, sourceProfile pr
 			return nil, err
 		}
 		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db, MigrationProjectId: migrationProjectId, SourceProfile: sourceProfile, TargetProfile: targetProfile}, nil
+	case constants.CASSANDRA:
+		_, ksMetadata, err := ca.NewCassandraAccessor(sourceProfile)
+		if err != nil {
+			return nil, err
+		}
+		return cassandra.InfoSchemaImpl{
+			KeyspaceMetadata: ksMetadata, 
+			SourceProfile:    sourceProfile,
+			TargetProfile:    targetProfile,
+		}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}

@@ -35,6 +35,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
+var NewInfoSchemaImplWithSpannerClient = newInfoSchemaImplWithSpannerClient
+
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
 	Client        *spanner.Client
@@ -43,7 +45,7 @@ type InfoSchemaImpl struct {
 	SpDialect     string
 }
 
-func NewInfoSchemaImplWithSpannerClient(ctx context.Context, dbURI string, spDialect string) (*InfoSchemaImpl, error) {
+func newInfoSchemaImplWithSpannerClient(ctx context.Context, dbURI string, spDialect string) (*InfoSchemaImpl, error) {
 	spannerClient, err := spannerclient.NewSpannerClientImpl(ctx, dbURI)
 	if err != nil {
 		return nil, err
