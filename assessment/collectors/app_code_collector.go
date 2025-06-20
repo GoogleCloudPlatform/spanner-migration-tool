@@ -130,6 +130,7 @@ var SupportedFrameworkCombinations = map[FrameworkPair]bool{
 }
 
 // NewMigrationCodeSummarizer initializes a new MigrationCodeSummarizer.
+// ToDo:Add Unit Tests
 func NewMigrationCodeSummarizer(
 	ctx context.Context,
 	googleGenerativeAIAPIKey *string,
@@ -364,6 +365,7 @@ func (m *MigrationCodeSummarizer) fetchFileContent(filepath string) (string, err
 }
 
 // AnalyzeFileTask wraps the AnalyzeFile function to be used with the task runner.
+// ToDo:Add Unit Tests
 func (m *MigrationCodeSummarizer) AnalyzeFileTask(analyzeFileInput *FileAnalysisInput, mutex *sync.Mutex) task.TaskResult[*FileAnalysisResponse] {
 	analyzeFileResponse := m.AnalyzeFile(
 		analyzeFileInput.Context,
@@ -499,6 +501,7 @@ func (m *MigrationCodeSummarizer) analyzeFileDependencies(filePath, fileContent 
 }
 
 // AnalyzeProject orchestrates the analysis of the entire project.
+// ToDo:Add Unit Tests
 func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessment, error) {
 	logger.Log.Info(fmt.Sprintf("analyzing project: %s", m.projectRootPath))
 	dependencyGraph, processingOrder := m.projectDependencyAnalyzer.GetExecutionOrder(m.projectRootPath)
