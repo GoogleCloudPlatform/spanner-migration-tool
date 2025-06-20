@@ -69,6 +69,16 @@ func (reader *GcsFileReaderImpl) Close() {
 
 }
 
+func (reader *GcsFileReaderImpl) ReadAll(ctx context.Context) ([]byte, error) {
+	if reader.storageReader == nil {
+		_, err := reader.CreateReader(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return io.ReadAll(reader.storageReader)
+}
+
 func validateObjectExists(ctx context.Context, client *storage.Client, bucket, object string) error {
 	_, err := client.Bucket(bucket).Object(object).Attrs(ctx)
 	return err

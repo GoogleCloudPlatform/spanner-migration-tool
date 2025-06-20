@@ -126,3 +126,25 @@ func (m *MockToDdl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGen
 	}
 	return args.Get(0).(*ddl.AutoGenCol), args.Error(1)
 }
+
+// MockOptionProvider is a mock implementation of OptionProvider
+type MockOptionProvider struct {
+	mock.Mock
+}
+
+// ToSpannerType and GetCOlumnAutoGen are methods of the ToDdl interface
+func (m *MockOptionProvider) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type, isPk bool) (ddl.Type, []internal.SchemaIssue) {
+	args := m.Called(conv, spType, srcType, isPk)
+	return args.Get(0).(ddl.Type), args.Get(1).([]internal.SchemaIssue)
+}
+
+func (m *MockOptionProvider) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
+	args := m.Called(conv, autoGenCol, colId, tableId)
+	return args.Get(0).(*ddl.AutoGenCol), args.Error(1)
+}
+
+// GetTypeOption is a method of the OptionProvider interface
+func (m *MockOptionProvider) GetTypeOption(srcTypeName string, spType ddl.Type) string {
+	args := m.Called(srcTypeName, spType)
+	return args.String(0)
+}
