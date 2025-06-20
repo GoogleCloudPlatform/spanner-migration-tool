@@ -421,7 +421,7 @@ func (m *MigrationCodeSummarizer) AnalyzeFile(ctx context.Context, projectPath, 
 			zap.Int32("Candidate Tokens", response.UsageMetadata.CandidatesTokenCount),
 			zap.Int32("Total Tokens", response.UsageMetadata.TotalTokenCount))
 
-		if len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
+		if response.Candidates != nil && len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
 			if part, ok := response.Candidates[0].Content.Parts[0].(genai.Text); ok {
 				llmResponse = string(part)
 			}
