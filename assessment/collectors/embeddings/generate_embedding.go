@@ -21,13 +21,10 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/aiplatform/apiv1/aiplatformpb"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/googleapis/gax-go/v2"
-	"go.uber.org/zap"
 	"google.golang.org/api/option"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -114,30 +111,19 @@ func createEmbededTextsWithClient(ctx context.Context, client PredictionClientIn
 
 	for i, prediction := range resp.Predictions {
 		values := prediction.GetStructValue().GetFields()["embeddings"].GetStructValue().GetFields()["values"].GetListValue().GetValues()
+
+		if values == nil {
+			continue
+		}
+
 		embedding := make([]float32, len(values))
 		for j, v := range values {
+			if v == nil {
+				continue
+			}
 			embedding[j] = float32(v.GetNumberValue())
 		}
 		concepts[i].Embedding = embedding
 	}
 	return concepts, nil
-}
-
-func embedTextsFromFile(project, location, inputPath, outputPath string) error {
-	concepts, err := createEmbededTextsFromFile(project, location, "java")
-	if err != nil {
-		return err
-	}
-
-	output, err := json.MarshalIndent(concepts, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(outputPath, output, 0644); err != nil {
-		return err
-	}
-
-	logger.Log.Debug("Embeddings saved to", zap.String("path", outputPath))
-	return nil
 }
