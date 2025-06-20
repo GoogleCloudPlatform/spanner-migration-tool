@@ -191,7 +191,7 @@ func TestGoDependencyAnalyzer_IsDAO(t *testing.T) {
 			want:        true,
 		},
 		{
-			name:        "File content contains database/sql import",
+			name:        "File content contains go-sql-driver/mysql import",
 			filePath:    "/project/src/repository/item.go",
 			fileContent: `import "database/sql"`,
 			want:        true,
@@ -251,24 +251,24 @@ func TestGoDependencyAnalyzer_GetFrameworkFromFileContent(t *testing.T) {
 		want        string
 	}{
 		{
-			name:        "File content contains database/sql import",
+			name:        "File content contains go-sql-driver/mysql import",
 			fileContent: `import "database/sql"`,
-			want:        "database/sql",
+			want:        "go-sql-driver/mysql",
 		},
 		{
 			name:        "File content contains github.com/go-sql-driver/mysql import",
 			fileContent: `import "github.com/go-sql-driver/mysql"`,
-			want:        "database/sql",
+			want:        "go-sql-driver/mysql",
 		},
 		{
 			name:        "File content contains *sql.DB",
 			fileContent: `func connect() *sql.DB`,
-			want:        "database/sql",
+			want:        "go-sql-driver/mysql",
 		},
 		{
 			name:        "File content contains *sql.Tx",
 			fileContent: `func beginTx() (*sql.Tx, error)`,
-			want:        "database/sql",
+			want:        "go-sql-driver/mysql",
 		},
 		{
 			name:        "File content contains gorm tag",
@@ -286,9 +286,9 @@ func TestGoDependencyAnalyzer_GetFrameworkFromFileContent(t *testing.T) {
 			want:        "",
 		},
 		{
-			name:        "Content with both database/sql and gorm (database/sql should take precedence as it's checked first)",
+			name:        "Content with both go-sql-driver/mysql and gorm (go-sql-driver/mysql should take precedence as it's checked first)",
 			fileContent: `import "database/sql"; type Product struct { ID int ` + "`gorm:\"primaryKey\"`" + `}`,
-			want:        "database/sql",
+			want:        "go-sql-driver/mysql",
 		},
 	}
 
