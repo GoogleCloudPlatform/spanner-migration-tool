@@ -182,7 +182,7 @@ func NewMigrationCodeSummarizer(
 		gcpLocation:                location,
 		aiClient:                   client,
 		geminiProModel:             &genaiModelWrapper{client.GenerativeModel("gemini-1.5-pro-002")},
-		geminiFlashModel:           &genaiModelWrapper{client.GenerativeModel("gemini-1.5-flash-001")},
+		geminiFlashModel:           &genaiModelWrapper{client.GenerativeModel("gemini-2.0-flash-001")},
 		conceptExampleDatabase:     conceptExampleDB,
 		projectDependencyAnalyzer:  projectDependencyAnalyzer,
 		sourceDatabaseSchema:       sourceSchema,
@@ -222,7 +222,7 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 		zap.Int32("Total Tokens", response.UsageMetadata.TotalTokenCount))
 
 	var llmResponse string
-	if len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
+	if response.Candidates != nil && len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
 		if part, ok := response.Candidates[0].Content.Parts[0].(genai.Text); ok {
 			llmResponse = string(part)
 		}

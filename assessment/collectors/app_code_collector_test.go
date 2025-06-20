@@ -50,12 +50,16 @@ func TestIsProgrammingLanguageSupported(t *testing.T) {
 
 func TestIsFrameworkCombinationSupported(t *testing.T) {
 	supported := map[FrameworkPair]bool{
-		{Source: "jdbc", Target: "jdbc"}:                   true,
-		{Source: "go-sql-mysql", Target: "go-sql-spanner"}: true,
+		{Source: "jdbc", Target: "jdbc"}:                            true,
+		{Source: "go-sql-mysql", Target: "go-sql-spanner"}:          true,
+		{Source: "go-sql-driver/mysql", Target: "go-sql-spanner"}:   true,
+		{Source: "vertx-mysql-client", Target: "vertx-jdbc-client"}: true,
 	}
+
 	assert.True(t, isFrameworkCombinationSupported("jdbc", "jdbc", supported), "Should be true for supported pair")
 	assert.True(t, isFrameworkCombinationSupported("JDBC", "JDBC", supported), "Should be true for supported pair (case-insensitive)")
 	assert.False(t, isFrameworkCombinationSupported("jdbc", "go-sql-spanner", supported), "Should be false for unsupported pair")
+	assert.True(t, isFrameworkCombinationSupported("go-sql-driver/mysql", "go-sql-spanner", supported), "Should be true for supported pair (case-insensitive)")
 }
 
 func TestDetectProgrammingLanguage(t *testing.T) {
