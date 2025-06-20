@@ -280,8 +280,8 @@ var typeMappings = map[string][]CassandraDdlInfo{
 		// TODO: Generate appropriate SchemaIssue to warn about adapter not supporting duration
 		{
 			SpannerType:         ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
-			CassandraTypeOption: "duration",
-			Issues:              nil,
+			CassandraTypeOption: "text",
+			Issues:              []internal.SchemaIssue{internal.NoGoodType},
 		},
 	},
 	"BOOLEAN": {
@@ -337,6 +337,79 @@ func (m *CassandraTypeMapper) getMapping(cassandraTypeName string, spTypeName st
 		}
 		return mappings[0], true
 	}
+	// TODO: Generate appropriate SchemaIssue to warn about conversion from map to JSON
+    // Handles map collection type
+    if strings.HasPrefix(s, "MAP<") {
+        startIndex := strings.Index(s, "<")
+        midIndex   := strings.Index(s, ",")
+        endIndex   := strings.Index(s, ">")
+
+        KeyTypeName := strings.TrimSpace(s[startIndex+1 : midIndex])
+        ValueTypeName := strings.TrimSpace(s[midIndex+1 : endIndex])
+
+        var KeyTypeOption string
+        var ValueTypeOption string
+        var hasIssue bool
+
+        keyMapping, foundKey := m.getMapping(KeyTypeName, spTypeName)
+        if !foundKey {
+            KeyTypeOption = "text"
+            hasIssue = true
+        } else {
+            KeyTypeOption = keyMapping.CassandraTypeOption
+            for _, keyIssue := range keyMapping.Issues {
+                if keyIssue == internal.NoGoodType {
+                    hasIssue = true
+                }
+            }
+        }
+
+        valueMapping, foundValue := m.getMapping(ValueTypeName, spTypeName)
+        if !foundValue {
+            ValueTypeOption = "text"
+            hasIssue = true
+        } else {
+            ValueTypeOption = valueMapping.CassandraTypeOption
+            for _, valueIssue := range valueMapping.Issues {
+                if valueIssue == internal.NoGoodType {
+                    hasIssue = true
+                }
+            }
+        }
+
+        newCassandraTypeOption := "map<" + KeyTypeOption + "," + ValueTypeOption + ">"
+
+        issues := []internal.SchemaIssue{}
+        if hasIssue {
+            issues = append(issues, internal.NoGoodType)
+        }
+        
+        return CassandraDdlInfo{
+            SpannerType:         ddl.Type{Name: ddl.JSON},
+            CassandraTypeOption: newCassandraTypeOption,
+            Issues:              issues,
+        }, true
+    }
+    // Handles list and set collection type
+    if strings.HasPrefix(s, "LIST<") || strings.HasPrefix(s, "SET<") {
+        startIndex := strings.Index(s, "<")
+        endIndex   := strings.Index(s, ">")
+
+        innerCassandraTypeName := strings.TrimSpace(s[startIndex+1 : endIndex])
+
+        var newCassandraTypeOption string
+
+        if mapping, ok := m.getMapping(innerCassandraTypeName, spTypeName); ok {
+            mapping.SpannerType.IsArray = true
+            if strings.HasPrefix(s, "LIST<") { 
+                newCassandraTypeOption = "list<" + mapping.CassandraTypeOption + ">"
+            } else {
+                newCassandraTypeOption = "set<" + mapping.CassandraTypeOption + ">"
+            }
+            mapping.CassandraTypeOption = newCassandraTypeOption
+            return mapping, true
+        }
+    }
 	return CassandraDdlInfo{}, false
 }
 
@@ -353,5 +426,5 @@ func (m *CassandraTypeMapper) GetOption(cassandraTypeName string, spType ddl.Typ
 	if mapping, ok := m.getMapping(cassandraTypeName, spType.Name); ok {
 		return mapping.CassandraTypeOption
 	}
-	return cassandraTypeName
+	return "text"
 }
