@@ -169,10 +169,10 @@ func (g *GoDependencyAnalyzer) IsDAO(filePath string, fileContent string) bool {
 
 func (g *GoDependencyAnalyzer) GetFrameworkFromFileContent(fileContent string) string {
 	if strings.Contains(fileContent, "database/sql") || strings.Contains(fileContent, "github.com/go-sql-driver/mysql") {
-		return "database/sql"
+		return "go-sql-driver/mysql"
 	}
 	if strings.Contains(fileContent, "*sql.DB") || strings.Contains(fileContent, "*sql.Tx") {
-		return "database/sql"
+		return "go-sql-driver/mysql"
 	}
 	if strings.Contains(fileContent, "`gorm:\"") {
 		return "gorm"

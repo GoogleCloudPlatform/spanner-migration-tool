@@ -37,6 +37,9 @@ var goMysqlMigrationConcept []byte
 //go:embed java_concept_examples.json
 var javaMysqlMigrationConcept []byte
 
+//go:embed vertx_concept_examples.json
+var vertxMysqlMigrationConcept []byte
+
 type MySqlMigrationConcept struct {
 	ID      string `json:"id"`
 	Example string `json:"example"`
@@ -50,7 +53,7 @@ type MySqlMigrationConcept struct {
 	Embedding []float32 `json:"embedding,omitempty"`
 }
 
-func createEmbededTextsFromFile(project, location, language string) ([]MySqlMigrationConcept, error) {
+func createEmbededTextsFromFile(project, location, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
 	ctx := context.Background()
 	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
 	model := "text-embedding-preview-0815"
@@ -63,11 +66,13 @@ func createEmbededTextsFromFile(project, location, language string) ([]MySqlMigr
 
 	// Read the JSON file
 	var data []byte
-	switch language {
-	case "go":
+	switch sourceTargetFramework {
+	case "go-sql-driver/mysql_go-sql-spanner":
 		data = goMysqlMigrationConcept
-	case "java":
+	case "jdbc_jdbc":
 		data = javaMysqlMigrationConcept
+	case "vertx-mysql-client_vertx-jdbc-client":
+		data = vertxMysqlMigrationConcept
 	default:
 		panic("Unsupported language")
 	}
