@@ -87,7 +87,7 @@ func TestCreateEmbededTextsWithClient(t *testing.T) {
 	]`)
 
 	client := &fakeClient{}
-	concepts, err := createEmbededTextsWithClient(ctx, client, "test-proj", "us-central1", "mock-model", "go")
+	concepts, err := createEmbededTextsWithClient(ctx, client, "test-proj", "us-central1", "mock-model", "go-sql-driver/mysql_go-sql-spanner")
 
 	assert.NoError(t, err)
 	assert.Len(t, concepts, 1)
@@ -102,13 +102,13 @@ func TestCreateEmbededTextsWithClient_UnsupportedLanguage(t *testing.T) {
 
 	assert.Nil(t, concepts)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unsupported language")
+	assert.Contains(t, err.Error(), "unsupported sourceTargetFramework")
 }
 func TestCreateEmbededTextsWithClient_PredictError(t *testing.T) {
 	ctx := context.Background()
 	client := &fakeClient{predictErr: errors.New("predict failure")}
 
-	_, err := createEmbededTextsWithClient(ctx, client, "test-proj", "us-central1", "mock-model", "go")
+	_, err := createEmbededTextsWithClient(ctx, client, "test-proj", "us-central1", "mock-model", "go-sql-driver/mysql_go-sql-spanner")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "predict failure")
 }
@@ -121,7 +121,7 @@ func TestCreateEmbededTextsWithClient_InvalidJSON(t *testing.T) {
 	defer func() { goMysqlMigrationConcept = oldGoConcept }()
 
 	client := &fakeClient{}
-	_, err := createEmbededTextsWithClient(ctx, client, "test-proj", "us-central1", "mock-model", "go")
+	_, err := createEmbededTextsWithClient(ctx, client, "test-proj", "us-central1", "mock-model", "go-sql-driver/mysql_go-sql-spanner")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid character")
 }

@@ -38,6 +38,9 @@ var goMysqlMigrationConcept []byte
 //go:embed java_concept_examples.json
 var javaMysqlMigrationConcept []byte
 
+//go:embed vertx_concept_examples.json
+var vertxMysqlMigrationConcept []byte
+
 type MySqlMigrationConcept struct {
 	ID      string `json:"id"`
 	Example string `json:"example"`
@@ -57,7 +60,7 @@ type PredictionClientInterface interface {
 	Close() error
 }
 
-func createEmbededTextsFromFile(project, location, language string) ([]MySqlMigrationConcept, error) {
+func createEmbededTextsFromFile(project, location, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
 	ctx := context.Background()
 	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
 	model := "text-embedding-preview-0815"
@@ -68,18 +71,20 @@ func createEmbededTextsFromFile(project, location, language string) ([]MySqlMigr
 	}
 	defer client.Close()
 
-	return createEmbededTextsWithClient(ctx, client, project, location, model, language)
+	return createEmbededTextsWithClient(ctx, client, project, location, model, sourceTargetFramework)
 }
 
-func createEmbededTextsWithClient(ctx context.Context, client PredictionClientInterface, project, location, model, language string) ([]MySqlMigrationConcept, error) {
+func createEmbededTextsWithClient(ctx context.Context, client PredictionClientInterface, project, location, model, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
 	var data []byte
-	switch language {
-	case "go":
+	switch sourceTargetFramework {
+	case "go-sql-driver/mysql_go-sql-spanner":
 		data = goMysqlMigrationConcept
-	case "java":
+	case "jdbc_jdbc":
 		data = javaMysqlMigrationConcept
+	case "vertx-mysql-client_vertx-jdbc-client":
+		data = vertxMysqlMigrationConcept
 	default:
-		return nil, fmt.Errorf("unsupported language: %s", language)
+		return nil, fmt.Errorf("unsupported sourceTargetFramework: %s", sourceTargetFramework)
 	}
 
 	var concepts []MySqlMigrationConcept
