@@ -17,11 +17,15 @@ package cassandra
 
 import (
 	"strings"
+	"regexp"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
+
+var mapRegex     = regexp.MustCompile(`^MAP<([^,]+)\s*,\s*([^>]+)>$`)
+var listSetRegex = regexp.MustCompile(`^(LIST|SET)<([^>]+)>$`)
 
 // ToDdlImpl Cassandra specific implementation for the ToDdl.
 type ToDdlImpl struct {
@@ -325,6 +329,10 @@ func NewCassandraTypeMapper() *CassandraTypeMapper {
 }
 
 // getMapping retrieves a Spanner DDL mapping rule for a given Cassandra type and Spanner Type(if non-default).
+// For collection types, 'spTypeName' refers to the element type of the array.
+// For example, when converting a Cassandra 'list<int>' to Spanner 'ARRAY<INT64>',
+// 'spTypeName' would be 'INT64'. This allows users to specify or modify the Spanner
+// data type of the elements within a list or set.
 func (m *CassandraTypeMapper) getMapping(cassandraTypeName string, spTypeName string) (CassandraDdlInfo, bool) {
 	s := strings.ToUpper(strings.ReplaceAll(cassandraTypeName, " ", ""))
 	if mappings, ok := typeMappings[s]; ok && len(mappings) > 0 {
@@ -337,15 +345,11 @@ func (m *CassandraTypeMapper) getMapping(cassandraTypeName string, spTypeName st
 		}
 		return mappings[0], true
 	}
-	// TODO: Generate appropriate SchemaIssue to warn about conversion from map to JSON
+    // TODO: Generate appropriate SchemaIssue to warn about conversion from map to JSON
     // Handles map collection type
-    if strings.HasPrefix(s, "MAP<") {
-        startIndex := strings.Index(s, "<")
-        midIndex   := strings.Index(s, ",")
-        endIndex   := strings.Index(s, ">")
-
-        KeyTypeName := strings.TrimSpace(s[startIndex+1 : midIndex])
-        ValueTypeName := strings.TrimSpace(s[midIndex+1 : endIndex])
+    if mapMatch := mapRegex.FindStringSubmatch(s); len(mapMatch) > 0 {
+		KeyTypeName := strings.TrimSpace(mapMatch[1])
+		ValueTypeName := strings.TrimSpace(mapMatch[2])
 
         var KeyTypeOption string
         var ValueTypeOption string
@@ -391,17 +395,15 @@ func (m *CassandraTypeMapper) getMapping(cassandraTypeName string, spTypeName st
         }, true
     }
     // Handles list and set collection type
-    if strings.HasPrefix(s, "LIST<") || strings.HasPrefix(s, "SET<") {
-        startIndex := strings.Index(s, "<")
-        endIndex   := strings.Index(s, ">")
-
-        innerCassandraTypeName := strings.TrimSpace(s[startIndex+1 : endIndex])
+    if listSetMatch := listSetRegex.FindStringSubmatch(s); len(listSetMatch) > 0 {
+		collectionPrefix := listSetMatch[1]
+		innerCassandraTypeName := strings.TrimSpace(listSetMatch[2])
 
         var newCassandraTypeOption string
 
         if mapping, ok := m.getMapping(innerCassandraTypeName, spTypeName); ok {
             mapping.SpannerType.IsArray = true
-            if strings.HasPrefix(s, "LIST<") { 
+            if collectionPrefix == "LIST" { 
                 newCassandraTypeOption = "list<" + mapping.CassandraTypeOption + ">"
             } else {
                 newCassandraTypeOption = "set<" + mapping.CassandraTypeOption + ">"
@@ -418,6 +420,7 @@ func (m *CassandraTypeMapper) GetSpannerType(cassandraTypeName string, spType st
 	if mapping, ok := m.getMapping(cassandraTypeName, spType); ok {
 		return mapping.SpannerType, mapping.Issues
 	}
+	// When unsupported types are encountered, they are defaulted to STRING type
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 }
 
@@ -426,5 +429,6 @@ func (m *CassandraTypeMapper) GetOption(cassandraTypeName string, spType ddl.Typ
 	if mapping, ok := m.getMapping(cassandraTypeName, spType.Name); ok {
 		return mapping.CassandraTypeOption
 	}
+	// When unsupported types are encountered, they are defaulted to Cassandra type option of 'text'
 	return "text"
 }
