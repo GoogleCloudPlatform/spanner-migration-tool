@@ -208,7 +208,9 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			sequence.ColumnsUsingSeq = map[string][]string{
 				table.Id: {colId},
 			}
+			conv.ConvLock.Lock()
 			conv.SrcSequences[sequence.Id] = sequence
+			conv.ConvLock.Unlock()
 		} else {
 			colAutoGen = ddl.AutoGenCol{}
 		}
