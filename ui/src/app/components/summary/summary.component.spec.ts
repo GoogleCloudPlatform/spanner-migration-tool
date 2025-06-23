@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { SummaryComponent } from './summary.component'
 import { MatMenuModule } from '@angular/material/menu'
 import { By } from '@angular/platform-browser'
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { MatSnackBar } from '@angular/material/snack-bar'
 import { ObjectExplorerNodeType } from 'src/app/app.constants'
 import { MatAutocompleteModule } from '@angular/material/autocomplete'
@@ -14,10 +14,10 @@ describe('SummaryComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [SummaryComponent],
-      providers: [MatSnackBar],
-      imports: [MatMenuModule, MatAutocompleteModule, HttpClientModule],
-    }).compileComponents()
+    declarations: [SummaryComponent],
+    imports: [MatMenuModule, MatAutocompleteModule],
+    providers: [MatSnackBar, provideHttpClient(withInterceptorsFromDi())]
+}).compileComponents()
   })
 
   beforeEach(() => {

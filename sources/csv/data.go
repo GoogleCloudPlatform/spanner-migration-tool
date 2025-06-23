@@ -40,7 +40,7 @@ type CsvInterface interface {
 	GetCSVFiles(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tables []utils.ManifestTable, err error)
 	SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter rune) error
 	ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr string, delimiter rune) error
-	ProcessSingleCSV(conv *internal.Conv, tableName string, columnNames []string, colDefs map[string]ddl.ColumnDef, filePath string, nullStr string, delimiter rune) error
+	ProcessSingleCSV(conv *internal.Conv, tableName string, columnNames []string, colDefs map[string]ddl.ColumnDef, csvFile io.Reader, nullStr string, delimiter rune) error
 }
 
 type CsvImpl struct{}
@@ -219,8 +219,12 @@ func (c *CsvImpl) ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, 
 			}
 			colDefs := conv.SpSchema[tableId].ColDefs
 
+			csvFile, err := os.Open(filePath)
+			if err != nil {
+				return fmt.Errorf(fmt.Sprintf("can't read csv file: %s due to: %v\n", filePath, err))
+			}
 			err = c.ProcessSingleCSV(conv, table.Table_name, colNames, colDefs,
-				filePath, nullStr, delimiter)
+				csvFile, nullStr, delimiter)
 			if err != nil {
 				return err
 			}
@@ -233,23 +237,19 @@ func (c *CsvImpl) ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, 
 }
 
 func (c *CsvImpl) ProcessSingleCSV(conv *internal.Conv, tableName string,
-	columnNames []string, colDefs map[string]ddl.ColumnDef, filePath string,
+	columnNames []string, colDefs map[string]ddl.ColumnDef, csvFile io.Reader,
 	nullStr string, delimiter rune) error {
 
-	csvFile, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("can't read csv file: %s due to: %v\n", filePath, err))
-	}
 	r := csvReader.NewReader(csvFile)
 	r.Comma = delimiter
 
 	srcCols, err := r.Read()
 	if err == io.EOF {
-		logger.Log.Error(fmt.Sprintf("error processing table %s: file %s is empty.", tableName, filePath))
+		logger.Log.Error(fmt.Sprintf("error processing table %s", tableName))
 		return err
 	}
 	if err != nil {
-		return fmt.Errorf("can't read row for %s due to: %v", filePath, err)
+		return fmt.Errorf("can't read row for file due to: %v", err)
 	}
 	// If first row is some permutation of Spanner schema columns, we assume the first row is headers.
 	if utils.CheckEqualSets(srcCols, columnNames) {
@@ -265,7 +265,7 @@ func (c *CsvImpl) ProcessSingleCSV(conv *internal.Conv, tableName string,
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("can't read row for %s due to: %v", filePath, err)
+			return fmt.Errorf("can't read row for file due to: %v", err)
 		}
 		processDataRow(conv, nullStr, tableName, columnNames, colDefs, values)
 	}
@@ -298,7 +298,7 @@ func convertData(dialect, nullStr string, srcCols []string,
 		colName := srcCols[i]
 		colId, err := internal.GetColIdFromSpName(colDefs, colName)
 		if err != nil {
-			return cvtCols, v, err
+			return cvtCols, v, fmt.Errorf("Unable to get colId from SpName for column %s ", colName)
 		}
 		spColDef := colDefs[colId]
 

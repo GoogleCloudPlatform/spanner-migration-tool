@@ -66,6 +66,7 @@ export class ObjectDetailComponent implements OnInit {
   interleaveObj!: Subscription
   interleaveStatus: any
   interleaveParentName: string | null = null
+  interleaveType: string | null = null
   localTableData: IColumnTabData[] = []
   localIndexData: IIndexData[] = []
   localSequenceData: ISequenceData = {}
@@ -236,6 +237,7 @@ export class ObjectDetailComponent implements OnInit {
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.checkIsInterleave()
+      this.interleaveType = this.getInterleaveTypeFromConv()
 
       this.interleaveObj = this.data.tableInterleaveStatus.subscribe((res) => {
         this.interleaveStatus = res
@@ -1487,8 +1489,8 @@ export class ObjectDetailComponent implements OnInit {
     }
   }
 
-  setInterleave() {
-    this.data.setInterleave(this.currentObject!.id)
+  setInterleave(interleaveType: string) {
+    this.data.setInterleave(this.currentObject!.id, interleaveType)
   }
 
   getInterleaveParentFromConv() {
@@ -1497,6 +1499,15 @@ export class ObjectDetailComponent implements OnInit {
       !this.currentObject.isDeleted &&
       this.conv.SpSchema[this.currentObject.id].ParentTable.Id != ''
       ? this.conv.SpSchema[this.conv.SpSchema[this.currentObject.id].ParentTable.Id]?.Name
+      : null
+  }
+
+  getInterleaveTypeFromConv() {
+    return this.currentObject?.type === ObjectExplorerNodeType.Table &&
+      this.currentObject.isSpannerNode &&
+      !this.currentObject.isDeleted &&
+      this.conv.SpSchema[this.currentObject.id].ParentTable.Id != ''
+      ? this.conv.SpSchema[this.currentObject.id].ParentTable.InterleaveType
       : null
   }
 

@@ -320,7 +320,7 @@ func TestSpannerAccessorImpl_CreateEmptyDatabase(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range testCases {
 		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
-		err := spA.CreateEmptyDatabase(ctx, "projects/test-project/instances/test-instance/databases/mydb")
+		err := spA.CreateEmptyDatabase(ctx, "projects/test-project/instances/test-instance/databases/mydb", constants.DIALECT_GOOGLESQL)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
@@ -1090,7 +1090,7 @@ func TestSpannerAccessorImpl_UpdateDDLForeignKey(t *testing.T) {
 		"table_id2": {
 			Name:        "table2",
 			Id:          "table_id2",
-			ParentTable: ddl.InterleavedParent{Id: "table1", OnDelete: constants.FK_CASCADE},
+			ParentTable: ddl.InterleavedParent{Id: "table1", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 			ForeignKeys: []ddl.Foreignkey{
 				{
 					Name:           "fk",
@@ -1104,7 +1104,7 @@ func TestSpannerAccessorImpl_UpdateDDLForeignKey(t *testing.T) {
 		"table_id3": {
 			Name:        "table3",
 			Id:          "table_id3",
-			ParentTable: ddl.InterleavedParent{Id: "table1", OnDelete: constants.FK_NO_ACTION},
+			ParentTable: ddl.InterleavedParent{Id: "table1", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN PARENT"},
 			ForeignKeys: []ddl.Foreignkey{
 				{
 					Name:           "fk2",

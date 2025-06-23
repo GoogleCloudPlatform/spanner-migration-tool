@@ -17,6 +17,7 @@ package assessment
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 
@@ -30,6 +31,7 @@ import (
 type DependencyAnalyzer interface {
 	getDependencyGraph(directory string) map[string]map[string]struct{}
 	IsDAO(filePath string, fileContent string) bool
+	GetFrameworkFromFileContent(fileContent string) string
 	GetExecutionOrder(projectDir string) (map[string]map[string]struct{}, [][]string)
 	LogDependencyGraph(dependencyGraphmap map[string]map[string]struct{}, projectDir string)
 	LogExecutionOrder(groupedTasks [][]string)
@@ -166,6 +168,19 @@ func (g *GoDependencyAnalyzer) IsDAO(filePath string, fileContent string) bool {
 	return false
 }
 
+func (g *GoDependencyAnalyzer) GetFrameworkFromFileContent(fileContent string) string {
+	if strings.Contains(fileContent, "database/sql") || strings.Contains(fileContent, "github.com/go-sql-driver/mysql") {
+		return "go-sql-driver/mysql"
+	}
+	if strings.Contains(fileContent, "*sql.DB") || strings.Contains(fileContent, "*sql.Tx") {
+		return "go-sql-driver/mysql"
+	}
+	if strings.Contains(fileContent, "`gorm:\"") {
+		return "gorm"
+	}
+	return ""
+}
+
 func (g *GoDependencyAnalyzer) GetExecutionOrder(projectDir string) (map[string]map[string]struct{}, [][]string) {
 	G := g.getDependencyGraph(projectDir)
 
@@ -197,25 +212,108 @@ func (b *BaseAnalyzer) TopologicalSort(G map[string]map[string]struct{}) ([][]st
 	for node := range G {
 		inDegree[node] = 0
 	}
-	var maxDegree int
 
 	for node := range G {
 		for neighbor := range G[node] {
 			inDegree[neighbor]++
-			if inDegree[neighbor] > maxDegree {
-				maxDegree = inDegree[neighbor]
+		}
+	}
+
+	// Use Kahn's algorithm
+	queue := []string{}
+	for node, degree := range inDegree {
+		if degree == 0 {
+			queue = append(queue, node)
+		}
+	}
+
+	sortedTasks := []string{} // Changed to a simple string slice
+	for len(queue) > 0 {
+		// Dequeue a node
+		node := queue[0]
+		queue = queue[1:]
+		sortedTasks = append([]string{node}, sortedTasks...)
+
+		// For each neighbor of the dequeued node
+		for neighbor := range G[node] {
+			// Decrease the in-degree of the neighbor
+			inDegree[neighbor]--
+			// If the in-degree of the neighbor becomes 0, enqueue it
+			if inDegree[neighbor] == 0 {
+				queue = append(queue, neighbor)
 			}
 		}
 	}
 
-	taskLevels := make([][]string, maxDegree+1)
-
-	for node, degree := range inDegree {
-		degree = maxDegree - degree
-		taskLevels[degree] = append(taskLevels[degree], node)
+	// Check for cycles. If the result doesn't contain all nodes, there's a cycle.
+	if len(sortedTasks) != len(G) {
+		return nil, fmt.Errorf("graph contains a cycle")
 	}
 
-	return taskLevels, nil
+	groupedTasks := groupTasksOptimized(sortedTasks, G)
+	return groupedTasks, nil
+}
+
+// groupTasksOptimized groups tasks based on their dependencies in a directed acyclic graph (DAG).
+//
+// This function efficiently groups tasks into independent sets, ensuring that
+// tasks within the same group do not have dependencies on each other. This is
+// useful for determining parallel execution opportunities and visualizing task
+// dependencies.
+//
+// Args:
+//
+//	tasks: A list of tasks in topological order. Tasks should be listed
+//	       before their dependencies.
+//	graph: A map representing the task dependencies. An edge (u, v)
+//	       indicates that task u must be completed before task v.
+//
+// Returns:
+//
+//	A list of lists, where each inner list represents a group of independent
+//	tasks.
+//
+// Complexity:
+//
+//	Time Complexity: O(n * m), where n is the number of tasks and m is the
+//	    average number of dependencies per task.
+//	Space Complexity: O(n) to store the task-to-group mapping.
+//
+// Example:
+//
+//	// Example usage (assuming you have a graph representation in Go)
+//	// graph := map[string]map[string]struct{}{
+//	//     "1": {"2": {}, "3": {}},
+//	//     "2": {"4": {}},
+//	//     "3": {"4": {}},
+//	//     "4": {},
+//	// }
+//	// sortedTasks := []string{"1", "2", "3", "4"}
+//	// groupedTasks := groupTasksOptimized(sortedTasks, graph)
+//	// // groupedTasks will be: [][]string{{"1"}, {"2", "3"}, {"4"}}
+func groupTasksOptimized(tasks []string, graph map[string]map[string]struct{}) [][]string {
+	groupedTasks := [][]string{}
+	taskToGroup := make(map[string]int)
+
+	for _, task := range tasks {
+		groupNumber := -1
+
+		// Determine the appropriate group for the task based on its predecessors
+		for predecessor := range graph[task] {
+			if predGroup, ok := taskToGroup[predecessor]; ok {
+				groupNumber = int(math.Max(float64(groupNumber), float64(predGroup)))
+			}
+		}
+
+		if groupNumber+1 < len(groupedTasks) {
+			groupedTasks[groupNumber+1] = append(groupedTasks[groupNumber+1], task)
+		} else {
+			groupedTasks = append(groupedTasks, []string{task})
+		}
+
+		taskToGroup[task] = groupNumber + 1
+	}
+	return groupedTasks
 }
 
 func (b *BaseAnalyzer) LogDependencyGraph(dependencyGraph map[string]map[string]struct{}, projectDir string) {

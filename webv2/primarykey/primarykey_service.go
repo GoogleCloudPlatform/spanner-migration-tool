@@ -95,6 +95,7 @@ func RemoveInterleave(conv *internal.Conv, spannertable ddl.CreateTable) {
 		if childPkFirstColumn != parentPkFirstColumn {
 			spannertable.ParentTable.Id = ""
 			spannertable.ParentTable.OnDelete = ""
+			spannertable.ParentTable.InterleaveType = ""
 			conv.SpSchema[spannertable.Name] = spannertable
 		}
 	}

@@ -263,6 +263,11 @@ func getSchemaHeaders() []string {
 
 func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []SchemaReportRow {
 	rows := []SchemaReportRow{}
+	var codeSnippets *[]utils.Snippet
+	codeSnippets = nil
+	if assessmentOutput.AppCodeAssessment != nil {
+		codeSnippets = assessmentOutput.AppCodeAssessment.CodeSnippets
+	}
 
 	//Populate table info
 	for _, tableAssessment := range assessmentOutput.SchemaAssessment.TableAssessmentOutput {
@@ -282,7 +287,7 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 		row.dbChanges, row.dbImpact = calculateTableDbChangesAndImpact(tableAssessment)
 
 		//Populate code info
-		populateTableCodeImpact(*tableAssessment.SourceTableDef, *tableAssessment.SpannerTableDef, assessmentOutput.AppCodeAssessment.CodeSnippets, &row)
+		populateTableCodeImpact(*tableAssessment.SourceTableDef, *tableAssessment.SpannerTableDef, codeSnippets, &row)
 
 		rows = append(rows, row)
 
@@ -304,7 +309,7 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 
 			//Populate code info
 			//logger.Log.Info(fmt.Sprintf("%s.%s", column.TableName, column.Name))
-			populateColumnCodeImpact(*column, *spColumn, assessmentOutput.AppCodeAssessment.CodeSnippets, &row, columnAssessment)
+			populateColumnCodeImpact(*column, *spColumn, codeSnippets, &row, columnAssessment)
 
 			rows = append(rows, row)
 		}
@@ -318,7 +323,7 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 	populateTriggerInfo(assessmentOutput.SchemaAssessment.TriggerAssessmentOutput, &rows)
 	populateFunctionInfo(assessmentOutput.SchemaAssessment.FunctionAssessmentOutput, &rows)
 	populateViewInfo(assessmentOutput.SchemaAssessment.ViewAssessmentOutput, &rows)
-	populateSequenceInfo(assessmentOutput.SchemaAssessment.SpSequences, assessmentOutput.SchemaAssessment.TableAssessmentOutput, assessmentOutput.AppCodeAssessment.CodeSnippets, &rows)
+	populateSequenceInfo(assessmentOutput.SchemaAssessment.SpSequences, assessmentOutput.SchemaAssessment.TableAssessmentOutput, codeSnippets, &rows)
 
 	return rows
 }
@@ -535,8 +540,6 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 		switch columnAssessment.SourceColDef.DefaultValue.Value.Statement {
 		case "NULL":
 			//Nothing to do - equivalent
-		case "'NULL'":
-			//Nothing to do - equivalent
 		default:
 			changes = append(changes, "feature")
 			changeEffort = "Small"
@@ -594,14 +597,17 @@ func populateTableCodeImpact(srcTableDef utils.SrcTableDetails, spTableDef utils
 
 	impactedFiles := []string{}
 	relatedSnippets := []string{}
-	for _, snippet := range *codeSnippets {
-		if srcTableDef.Name == snippet.TableName { //TODO add check that column is empty here
-			if !slices.Contains(impactedFiles, snippet.RelativeFilePath) {
-				impactedFiles = append(impactedFiles, snippet.RelativeFilePath)
+	if codeSnippets != nil {
+		for _, snippet := range *codeSnippets {
+			if srcTableDef.Name == snippet.TableName { //TODO add check that column is empty here
+				if !slices.Contains(impactedFiles, snippet.RelativeFilePath) {
+					impactedFiles = append(impactedFiles, snippet.RelativeFilePath)
+				}
+				relatedSnippets = append(relatedSnippets, snippet.Id)
 			}
-			relatedSnippets = append(relatedSnippets, snippet.Id)
 		}
 	}
+
 	if len(impactedFiles) == 0 {
 		row.codeImpactedFiles = "None"
 		row.codeChangeType = "None"
@@ -686,7 +692,7 @@ func populateTriggerInfo(triggerAssessmentOutput map[string]utils.TriggerAssessm
 		row.element = trigger.Name
 		row.elementType = "Trigger"
 
-		row.sourceTableName = "N/A"
+		row.sourceTableName = trigger.TargetTable
 		row.sourceName = trigger.Name
 		row.sourceDefinition = trigger.Operation
 

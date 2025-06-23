@@ -1,0 +1,71 @@
+[
+  {
+    "id": "1000",
+    "example": "How to migrate from `AUTO_INCREMENT` in MySQL to Spanner using Vert.x JDBC client?",
+    "rewrite": {
+      "theory": "Cloud Spanner doesn’t support AUTO_INCREMENT. Use UUIDs with `GENERATE_UUID()` or sequences with `NEXT VALUE FOR`. In Vert.x, use async SQL calls to handle inserts accordingly.",
+      "options": [
+        {
+          "mysql_code": "CREATE TABLE Singers (SingerId INT AUTO_INCREMENT PRIMARY KEY, Name VARCHAR(255), Rank INT);",
+          "spanner_code": "CREATE SEQUENCE SingerIdSequence OPTIONS (sequence_kind='bit_reversed_positive');\nCREATE TABLE Singers (SingerId INT64 DEFAULT (NEXT VALUE FOR SingerIdSequence), Name STRING(255), Rank INT64);"
+        },
+        {
+          "mysql_code": "CREATE TABLE Singers (SingerId INT AUTO_INCREMENT PRIMARY KEY, Name VARCHAR(255), Rank INT);",
+          "spanner_code": "CREATE TABLE Singers (SingerId STRING(36) DEFAULT (GENERATE_UUID()), Name STRING(255), Rank INT64);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "1100",
+    "example": "How to insert a record and retrieve the generated ID when migrating from `mysql-vertx-client` to `vertx-jdbc-client` with Spanner?",
+    "rewrite": {
+      "theory": "Spanner does not support `LAST_INSERT_ID()` like MySQL. Instead, use `DML RETURNING` in the JDBC client to fetch generated keys. You must also explicitly use a sequence or `GENERATE_UUID()` to populate ID fields.",
+      "options": [
+        {
+          "mysql_code": "client.preparedQuery(\"INSERT INTO Users (name, email) VALUES (?, ?)\")\n  .execute(Tuple.of(\"Alice\", \"alice@example.com\"))\n  .onSuccess(rows -> {\n    client.query(\"SELECT LAST_INSERT_ID()\")\n      .execute()\n      .onSuccess(idRow -> {\n        // use idRow.iterator().next()\n      });\n  });",
+          "spanner_code": "JDBCClient client = JDBCClient.createShared(vertx, config);\nclient.getConnection(ar -> {\n  if (ar.succeeded()) {\n    SQLConnection conn = ar.result();\n    conn.updateWithParams(\n      \"INSERT INTO Users (id, name, email) THEN RETURN id\",\n      new JsonArray().add(UUID.randomUUID().toString()).add(\"Alice\").add(\"alice@example.com\"),\n      res -> {\n        if (res.succeeded()) {\n          String generatedId = res.result().getKeys().getString(0);\n          // use generatedId\n        }\n      });\n  }\n});"
+        }
+      ]
+    }
+  },
+  {
+    "id": "1200",
+    "example": "How to handle multi-statement transactions while migrating from mysql-vertx-client to vertx-jdbc-client with Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports transactions via the JDBC client. You must manually manage transactions with `setAutoCommit(false)` and use `commit()` or `rollback()`.",
+      "options": [
+        {
+          "mysql_code": "client.getConnection(conn -> {\n  conn.result().begin(tx -> {\n    // insert op\n    // update op\n    tx.result().commit();\n  });\n});",
+          "spanner_code": "JDBCClient client = JDBCClient.createShared(vertx, config);\nclient.getConnection(conn -> {\n  SQLConnection connection = conn.result();\n  connection.setAutoCommit(false, res -> {\n    if (res.succeeded()) {\n      connection.update(\"UPDATE Users SET name = 'Bob' WHERE id = 1\", update1 -> {\n        connection.update(\"UPDATE Orders SET status = 'shipped' WHERE user_id = 1\", update2 -> {\n          connection.commit();\n        });\n      });\n    }\n  });\n});"
+        }
+      ]
+    }
+  },
+  {
+    "id": "1300",
+    "example": "How to rewrite a prepared query from mysql-vertx-client to vertx-jdbc-client while ensuring compatibility with Spanner?",
+    "rewrite": {
+      "theory": "The `vertx-jdbc-client` uses blocking calls under the hood, so ensure you run them in a worker thread or use `executeBlocking`. Also, Spanner prefers prepared statements for performance and safety.",
+      "options": [
+        {
+          "mysql_code": "client.preparedQuery(\"SELECT * FROM Users WHERE email = ?\")\n  .execute(Tuple.of(\"bob@example.com\"), res -> {\n    RowSet<Row> rows = res.result();\n  });",
+          "spanner_code": "JDBCClient client = JDBCClient.createShared(vertx, config);\nclient.getConnection(conn -> {\n  SQLConnection connection = conn.result();\n  connection.queryWithParams(\"SELECT * FROM Users WHERE email = ?\", new JsonArray().add(\"bob@example.com\"), result -> {\n    ResultSet rs = result.result().getResults();\n  });\n});"
+        }
+      ]
+    }
+  },
+  {
+    "id": "1400",
+    "example": "How do I change Maven dependencies when migrating from vertx-mysql-client to vertx-jdbc-client for Spanner?",
+    "rewrite": {
+      "theory": "When migrating from `vertx-mysql-client` to `vertx-jdbc-client` with Spanner, you need to remove the MySQL-specific dependency and add the `vertx-jdbc-client` dependency along with the necessary Spanner JDBC driver dependency.",
+      "options": [
+        {
+          "mysql_code": "<dependency>\n  <groupId>io.vertx</groupId>\n  <artifactId>vertx-mysql-client</artifactId>\n  <version>4.5.14</version>\n</dependency>",
+          "spanner_code": "<dependency>\n  <groupId>io.vertx</groupId>\n  <artifactId>vertx-jdbc-client</artifactId>\n  <version>4.5.14</version>\n</dependency>\n\n<dependency>\n  <groupId>com.google.cloud</groupId>\n   <artifactId>google-cloud-spanner-jdbc</artifactId>\n  <version>2.30.1</version>\n</dependency>"
+        }
+      ]
+    }
+  }
+]

@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatSelectModule } from '@angular/material/select';
@@ -13,9 +13,10 @@ describe('AddShardIdPrimaryKeyComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ AddShardIdPrimaryKeyComponent ],
-      imports: [ReactiveFormsModule, HttpClientModule, MatSnackBarModule, MatSelectModule, BrowserAnimationsModule]
-    })
+    declarations: [AddShardIdPrimaryKeyComponent],
+    imports: [ReactiveFormsModule, MatSnackBarModule, MatSelectModule, BrowserAnimationsModule],
+    providers: [provideHttpClient(withInterceptorsFromDi())]
+})
     .compileComponents();
   });
 

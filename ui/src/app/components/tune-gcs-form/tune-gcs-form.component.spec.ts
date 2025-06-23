@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
 import { TuneGcsFormComponent } from './tune-gcs-form.component';
@@ -10,22 +10,22 @@ describe('TuneGcsFormComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ TuneGcsFormComponent ],
-      imports: [HttpClientModule],
-      providers: [
+    declarations: [TuneGcsFormComponent],
+    imports: [],
+    providers: [
         {
-          provide: MatDialogRef,
-          useValue: {
-            close: () => {},
-          },
+            provide: MatDialogRef,
+            useValue: {
+                close: () => { },
+            },
         },
         {
-          provide: MAT_DIALOG_DATA,
-          useValue: {
-          }
-        }
-      ],
-    })
+            provide: MAT_DIALOG_DATA,
+            useValue: {}
+        },
+        provideHttpClient(withInterceptorsFromDi())
+    ]
+})
     .compileComponents();
   });
 

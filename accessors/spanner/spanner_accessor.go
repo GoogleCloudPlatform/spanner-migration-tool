@@ -53,7 +53,7 @@ type SpannerAccessor interface {
 	// If API call doesn't respond then user is informed after every 5 minutes on command line.
 	CheckExistingDb(ctx context.Context, dbURI string) (bool, error)
 	// Create a database with no schema.
-	CreateEmptyDatabase(ctx context.Context, dbURI string) error
+	CreateEmptyDatabase(ctx context.Context, dbURI, dialect string) error
 	// Fetch the leader of the Spanner instance.
 	GetSpannerLeaderLocation(ctx context.Context, instanceURI string) (string, error)
 	// Check if a change stream already exists.
@@ -80,6 +80,16 @@ type SpannerAccessor interface {
 	ValidateDML(ctx context.Context, query string) (bool, error)
 
 	TableExists(ctx context.Context, tableName string) (bool, error)
+
+	GetDatabaseName() string
+
+	Refresh(ctx context.Context, dbURI string)
+
+	SetSpannerClient(spannerClient spannerclient.SpannerClient)
+
+	GetSpannerClient() spannerclient.SpannerClient
+
+	GetSpannerAdminClient() spanneradmin.AdminClient
 }
 
 // This implements the SpannerAccessor interface. This is the primary implementation that should be used in all places other than tests.
@@ -148,11 +158,19 @@ func (sp *SpannerAccessorImpl) CheckExistingDb(ctx context.Context, dbURI string
 	}
 }
 
-func (sp *SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, dbURI string) error {
+func (sp *SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, dbURI, dialect string) error {
 	project, instance, dbName := parse.ParseDbURI(dbURI)
+
+	dbDialect := databasepb.DatabaseDialect_GOOGLE_STANDARD_SQL
+
+	if dialect == constants.DIALECT_POSTGRESQL {
+		dbDialect = databasepb.DatabaseDialect_POSTGRESQL
+	}
+
 	req := &databasepb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
 		CreateStatement: "CREATE DATABASE `" + dbName + "`",
+		DatabaseDialect: dbDialect,
 	}
 	op, err := sp.AdminClient.CreateDatabase(ctx, req)
 	if err != nil {
@@ -508,6 +526,22 @@ func (sp *SpannerAccessorImpl) ValidateDML(ctx context.Context, query string) (b
 	}
 }
 
+func (sp *SpannerAccessorImpl) GetDatabaseName() string {
+	return sp.SpannerClient.DatabaseName()
+}
+
 func (sp *SpannerAccessorImpl) Refresh(ctx context.Context, dbURI string) {
 	sp.SpannerClient.Refresh(ctx, dbURI)
+}
+
+func (sp *SpannerAccessorImpl) SetSpannerClient(spannerClient spannerclient.SpannerClient) {
+	sp.SpannerClient = spannerClient
+}
+
+func (sp *SpannerAccessorImpl) GetSpannerClient() spannerclient.SpannerClient {
+	return sp.SpannerClient
+}
+
+func (sp *SpannerAccessorImpl) GetSpannerAdminClient() spanneradmin.AdminClient {
+	return sp.AdminClient
 }

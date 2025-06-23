@@ -1,3 +1,4 @@
+include ui.mk
 # Set GOPATH env variable if not set
 ifndef $(GOPATH)
     GOPATH=$(shell go env GOPATH)
@@ -5,19 +6,17 @@ ifndef $(GOPATH)
 endif
 # Build the default binary
 build: ui/package-lock.json
-	cd ui/ && ng build
+	cd ui/ && npm install --from-lock-file && ng build
 	go build -o spanner-migration-tool
-ui/package-lock.json: ui/package.json
-	cd ui/ && npm install
 # Build a static binary
 build-static: ui/package-lock.json
-	cd ui/ && ng build
+	cd ui/ && npm install --from-lock-file && ng build
 	go build -a -tags osusergo,netgo -ldflags '-w -extldflags "-static"' -o spanner-migration-tool main.go
 # Create a new release for Spanner migration tool.
 release:
 	./release.sh ${VERSION}
 # Update vendor dependencies
-update-vendor:
+update-vendor: ui/package-lock.json
 	go mod tidy
 	go mod vendor
 # 	vendor non-go files

@@ -134,6 +134,24 @@ func TestProcessPgDump(t *testing.T) {
 					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid", Order: 1}, ddl.IndexKey{ColId: "userid", Order: 2}}}},
 		},
 		{
+			name: "Check constraint success",
+			input: "CREATE TABLE data_types_master (id bigint NOT NULL, integer_col integer, status_code character(3) DEFAULT 'NEW'::bpchar, CONSTRAINT data_types_master_integer_col_check CHECK ((integer_col > 0)), CONSTRAINT data_types_master_status_code_check CHECK ((status_code = ANY (ARRAY['NEW'::bpchar, 'ACT'::bpchar, 'OLD'::bpchar, 'DEL'::bpchar]))));\n" +
+				"ALTER TABLE ONLY data_types_master ADD CONSTRAINT data_types_master_pkey PRIMARY KEY (id);",
+			expectedSchema: map[string]ddl.CreateTable{
+				"data_types_master": {
+					Name:   "data_types_master",
+					ColIds: []string{"id", "integer_col", "status_code"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id":          {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"integer_col": {Name: "integer_col", T: ddl.Type{Name: ddl.Int64}},
+						"status_code": {Name: "status_code", T: ddl.Type{Name: ddl.String, Len: 3}},
+					},
+					PrimaryKeys:      []ddl.IndexKey{{ColId: "id", Order: 1}},
+					CheckConstraints: []ddl.CheckConstraint{},
+				},
+			},
+		},
+		{
 			name:  "Shopping cart with no primary key",
 			input: "CREATE TABLE cart (productid text, userid text NOT NULL, quantity bigint);\n",
 			expectedSchema: map[string]ddl.CreateTable{
@@ -665,24 +683,27 @@ COPY test (id, a, b, c, d, e, f, g) FROM stdin;
 		},
 	}
 	for _, tc := range multiColTests {
-		conv, rows := runProcessPgDump(tc.input)
-		assert.ElementsMatch(t, [][]string{{"a"}, {"b"}}, [][]string{{"b"}, {"a"}}, "Array good")
-		if !tc.expectIssues {
-			noIssues(conv, t, tc.name)
-		}
-		if tc.expectedSchema != nil {
-			internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
-		}
-		if tc.expectedData != nil {
-			assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			conv, rows := runProcessPgDump(tc.input)
+			assert.ElementsMatch(t, [][]string{{"a"}, {"b"}}, [][]string{{"b"}, {"a"}}, "Array good")
+			if !tc.expectIssues {
+				noIssues(conv, t, tc.name)
+			}
+			if tc.expectedSchema != nil {
+				internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
+			}
+			if tc.expectedData != nil {
+				assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
+			}
+
+		})
 	}
 
-	{ // Test set timezone statement.
+	t.Run("Test set timezone statement", func(t *testing.T) {
 		conv, _ := runProcessPgDump("set timezone='US/Eastern';")
 		loc, _ := time.LoadLocation("US/Eastern")
 		assert.Equal(t, conv.Location, loc, "Set timezone")
-	}
+	})
 
 	// Finally test data conversion errors.
 	dataErrorTests := []struct {
@@ -735,9 +756,11 @@ COPY test (id, a, b, c, d, e, f, g) FROM stdin;
 		},
 	}
 	for _, tc := range dataErrorTests {
-		conv, rows := runProcessPgDump(tc.input)
-		assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-		assert.Equal(t, conv.BadRows(), int64(7), tc.name+": Error count did not match")
+		t.Run(tc.name, func(t *testing.T) {
+			conv, rows := runProcessPgDump(tc.input)
+			assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
+			assert.Equal(t, conv.BadRows(), int64(7), tc.name+": Error count did not match")
+		})
 	}
 }
 

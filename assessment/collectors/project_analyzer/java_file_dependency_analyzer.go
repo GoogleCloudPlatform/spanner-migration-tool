@@ -1,15 +1,32 @@
+/*
+	Copyright 2025 Google LLC
+
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+*/
 package assessment
 
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/java"
 	"go.uber.org/zap"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 // JavaDependencyAnalyzer implements DependencyAnalyzer for Go projects
@@ -32,11 +49,29 @@ func (g *JavaDependencyAnalyzer) IsDAO(filePath string, fileContent string) bool
 		return true
 	}
 
-	if strings.Contains(fileContent, "jdbc") || strings.Contains(fileContent, "mysql") {
+	fileContentLowerCase := strings.ToLower(fileContent)
+
+	if strings.Contains(fileContentLowerCase, "jdbc") || strings.Contains(fileContentLowerCase, "mysql") {
 		return true
 	}
 
 	return false
+}
+
+func (g *JavaDependencyAnalyzer) GetFrameworkFromFileContent(fileContent string) string {
+	if strings.Contains(fileContent, "org.hibernate") {
+		return "Hibernate"
+	}
+	if strings.Contains(fileContent, "org.apache.ibatis") {
+		return "MyBatis"
+	}
+	if strings.Contains(fileContent, "java.sql.DriverManager") || strings.Contains(fileContent, "javax.sql.DataSource") {
+		return "JDBC"
+	}
+	if strings.Contains(fileContent, "org.springframework.data.jpa") {
+		return "Spring Data JPA"
+	}
+	return ""
 }
 
 func (j *JavaDependencyAnalyzer) GetExecutionOrder(projectDir string) (map[string]map[string]struct{}, [][]string) {

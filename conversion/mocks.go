@@ -29,6 +29,17 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+// MockProcessDumpByDialect is a mock implementation of ProcessDumpByDialectInterface.
+type MockProcessDumpByDialect struct {
+	mock.Mock
+}
+
+// ProcessDump mocks the ProcessDump method of ProcessDumpByDialectInterface.
+func (m *MockProcessDumpByDialect) ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
+	args := m.Called(driver, conv, r)
+	return args.Error(0)
+}
+
 type MockGetInfo struct {
 	mock.Mock
 }
