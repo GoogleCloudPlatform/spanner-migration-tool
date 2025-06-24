@@ -340,12 +340,16 @@ export class ConversionService {
         })
       }
       let spannerColDef = spTableName ? data.SpSchema[tableId]?.ColDefs[colId] : null
+      let spannerTypeName = spannerColDef ? spannerColDef.T.Name : ''
+      if(spannerColDef?.T.IsArray){
+        spannerTypeName = 'ARRAY<'+spannerTypeName+'>'
+      }
       let pgSQLDatatype = spannerColDef ? standardTypeToPGSQLTypeMap.get(spannerColDef.T.Name) : ''
       return {
         spOrder: spannerColDef ? i + 1 : '',
         srcOrder: i + 1,
         spColName: spannerColDef ? spannerColDef.Name : '',
-        spDataType: spannerColDef ? (data.SpDialect === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
+        spDataType: spannerColDef ? (data.SpDialect === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerTypeName) : '',
         srcColName: data.SrcSchema[tableId].ColDefs[colId].Name,
         srcDataType: data.SrcSchema[tableId].ColDefs[colId].Type.Name,
         spIsPk:
@@ -375,6 +379,7 @@ export class ConversionService {
             Statement: ''
           }
         },
+        spCassandraOption: spannerColDef?.Opts["cassandra_type"] != null ? spannerColDef?.Opts["cassandra_type"] : '',
         }
     })
     if (spColIds) {
@@ -399,6 +404,7 @@ export class ConversionService {
             spId: colId,
             srcColMaxLength: '',
             spColMaxLength: spannerColDef?.T.Len,
+            spCassandraOption: '',
             spAutoGen: spColumn.AutoGen,
             srcAutoGen: {
               Name: '',

@@ -14,6 +14,15 @@
             </mat-select>
         </mat-form-field>
         <br>
+        <div *ngIf="srcDbName === 'cassandra' && cassandraOptions.length > 0">
+            <mat-form-field class="full-width" appearance="outline">
+                <mat-label>Cassandra Type Option</mat-label>
+                <mat-select formControlName="option">
+                    <mat-option *ngFor="let cType of cassandraOptions" [value]="cType">{{ cType }}</mat-option>
+                </mat-select>
+            </mat-form-field>
+            <br>
+        </div>
         <div *ngIf="dataTypesWithColLen.indexOf(selectedDatatype)>-1">
             <mat-form-field class="full-width" appearance="outline">
                 <mat-label>Length</mat-label>
@@ -21,7 +30,7 @@
             </mat-form-field>
             <br>
         </div>
-        <div *ngIf="selectedDatatype != '' && autoGenMap[selectedDatatype].length > 1 && autGenSupported">
+        <div *ngIf="selectedDatatype != '' && autoGenMap[selectedDatatype]?.length > 1 && autGenSupported">
             <mat-form-field class="full-width" appearance="outline">
                 <mat-label>Auto Generated</mat-label>
                 <mat-select [(ngModel)]="selectedAutoGen" class="input-field" formControlName="autoGen">

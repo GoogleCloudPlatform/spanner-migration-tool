@@ -24,8 +24,8 @@ import (
 )
 
 func TestNewCassandraAccessor(t *testing.T) {
-	originalGetOrCreateClient := getOrCreateClient
-	defer func() { getOrCreateClient = originalGetOrCreateClient }()
+	originalGetOrCreateClient := GetOrCreateClient
+	defer func() { GetOrCreateClient = originalGetOrCreateClient }()
 
 	sourceProfile := profiles.SourceProfile{
 		Conn: profiles.SourceProfileConnection{
@@ -46,7 +46,7 @@ func TestNewCassandraAccessor(t *testing.T) {
 
 		mockClient.On("KeyspaceMetadata", "test_keyspace").Return(mockMetadata, nil).Once()
 
-		getOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string) (cc.CassandraClusterInterface, error) {
+		GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string) (cc.CassandraClusterInterface, error) {
 			assert.Equal(t, []string{"127.0.0.1"}, contactPoints)
 			assert.Equal(t, 9042, port)
 			assert.Equal(t, "test_keyspace", keyspace)
@@ -68,7 +68,7 @@ func TestNewCassandraAccessor(t *testing.T) {
 
 	t.Run("Failure to create client", func(t *testing.T) {
 		expectedErr := errors.New("client creation failed")
-		getOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string) (cc.CassandraClusterInterface, error) {
+		GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string) (cc.CassandraClusterInterface, error) {
 			return nil, expectedErr
 		}
 
@@ -88,7 +88,7 @@ func TestNewCassandraAccessor(t *testing.T) {
 		mockClient.On("KeyspaceMetadata", "test_keyspace").Return(nil, expectedErr).Once()
 		mockClient.On("Close").Return().Once()
 
-		getOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string) (cc.CassandraClusterInterface, error) {
+		GetOrCreateClient = func(contactPoints []string, port int, keyspace, datacenter, user, password string) (cc.CassandraClusterInterface, error) {
 			return mockClient, nil
 		}
 

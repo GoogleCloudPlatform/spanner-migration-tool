@@ -18,6 +18,7 @@ export enum SourceDbNames {
   Postgres = 'Postgres',
   SQLServer = 'SQL Server',
   Oracle = 'Oracle',
+  Cassandra = 'cassandra',
 }
 
 export enum ObjectExplorerNodeType {
@@ -180,4 +181,16 @@ export const dialogDefault: MatDialogConfig<any> = {
   width: '30vw',
   minWidth: '400px',
   maxWidth: '500px',
+}
+
+export const SpannerToCassandra: { [key: string]: string[] } = {
+  STRING: ['text', 'varchar', 'ascii', 'inet', 'uuid', 'timeuuid', 'duration'],
+  INT64: ['bigint', 'int', 'smallint', 'tinyint', 'counter', 'time'],
+  BYTES: ['blob', 'uuid', 'timeuuid'],
+  BOOL: ['boolean'],
+  FLOAT32: ['float'],
+  FLOAT64: ['double'],
+  NUMERIC: ['decimal', 'varint'],
+  DATE: ['date'],
+  TIMESTAMP: ['timestamp'],
 }

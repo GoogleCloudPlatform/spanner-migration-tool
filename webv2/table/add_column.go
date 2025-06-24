@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
@@ -32,6 +33,7 @@ type columnDetails struct {
 	Length     int            `json:"Length"`
 	IsNullable bool           `json:"IsNullable"`
 	AutoGen    ddl.AutoGenCol `json:"AutoGen"`
+	Option     string         `json:"Option"`
 }
 
 // addColumn add given column into spannerTable.
@@ -89,12 +91,18 @@ func AddNewColumn(w http.ResponseWriter, r *http.Request) {
 	ct := sessionState.Conv.SpSchema[tableId]
 	columnId := internal.GenerateColumnId()
 	ct.ColIds = append(ct.ColIds, columnId)
-	ct.ColDefs[columnId] = ddl.ColumnDef{
-		Name: details.Name, Id: columnId, T: ddl.Type{Name: details.Datatype,
-			Len: int64(details.Length)},
+	colDef := ddl.ColumnDef{
+		Name:    details.Name,
+		Id:      columnId,
+		T:       ddl.Type{Name: details.Datatype, Len: int64(details.Length)},
 		NotNull: !details.IsNullable,
 		AutoGen: details.AutoGen,
 	}
+	if sessionState.Conv.Source == constants.CASSANDRA {
+		colDef.Opts = make(map[string]string)
+		colDef.Opts["cassandra_type"] = details.Option
+	}
+	ct.ColDefs[columnId] = colDef
 	sessionState.Conv.SpSchema[tableId] = ct
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
