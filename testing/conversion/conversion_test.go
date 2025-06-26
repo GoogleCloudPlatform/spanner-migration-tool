@@ -35,10 +35,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
+	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
-	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
+	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
+	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 var (
@@ -219,41 +220,53 @@ func TestVerifyDb(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 
 	testCases := []struct {
-		dbName      string
-		dbExists    bool
-		emptySchema bool
+		dbName                  string
+		dbExists                bool
+		tablesExistingOnSpanner []string
+		expectError             bool
 	}{
-		{"verifydb-exists-schema", true, false},
-		{"verifydb-exists-noschema", true, true},
-		{"verifydb-does-not-exist", false, true},
+		{"verifydb-exists-schema-clash", true, []string{"table_a"}, true},
+		{"verifydb-exists-schema-noclash", true, []string{"unrelated_table"}, false},
+		{"verifydb-exists-noschema", true, []string{}, false},
+		{"verifydb-does-not-exist", false, []string{}, false},
 	}
 
 	for _, tc := range testCases {
 		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
 		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
 		spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
-		if tc.dbExists {
-			if err != nil {
-				t.Fatal(err)
+		tablesExistingOnSpanner := tc.tablesExistingOnSpanner
+		conv := internal.MakeConv()
+		if len(tablesExistingOnSpanner) > 0 {
+			conv.SpSchema["t1"] = ddl.CreateTable{
+				Name:        tablesExistingOnSpanner[0],
+				ColIds:      []string{"c1"},
+				ColDefs:     map[string]ddl.ColumnDef{"c1": {Name: "col1", T: ddl.Type{Name: ddl.String, Len: 10}}},
+				PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+				Id:          "t1",
 			}
-			err = spA.CreateDatabase(ctx, dbURI, BuildConv(t, 2, 0, tc.emptySchema), "", constants.BULK_MIGRATION)
+		}
+		if tc.dbExists {
+			err = spA.CreateDatabase(ctx, dbURI, conv, "", constants.BULK_MIGRATION)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer dropDatabase(t, dbURI)
-			dbExists, err := spA.VerifyDb(ctx, dbURI)
+			dbExists, err := spA.VerifyDb(ctx, dbURI, BuildConv(t, 2, 0, false), tablesExistingOnSpanner)
 			assert.True(t, dbExists)
-			if tc.emptySchema {
-				assert.Nil(t, err)
-			} else {
+			if tc.expectError {
 				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
 			}
 		} else {
-			dbExists, err := spA.VerifyDb(ctx, dbURI)
+			dbExists, err := spA.VerifyDb(ctx, dbURI, conv, tablesExistingOnSpanner)
 			assert.Nil(t, err)
 			assert.False(t, dbExists)
 		}
-
 	}
 }
 
@@ -261,31 +274,117 @@ func TestValidateDDL(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 
 	testCases := []struct {
-		dbName      string
-		emptySchema bool
+		dbName                  string
+		conv                    *internal.Conv
+		tablesExistingOnSpanner []string
+		expectError             bool
 	}{
-		{"validate-ddl-empty-schema", true},
-		{"validate-ddl-non-empty-schema", false},
+		{
+			dbName:                  "validate-ddl-no-spanner-tables",
+			conv:                    BuildConv(t, 2, 0, false),
+			tablesExistingOnSpanner: []string{},
+			expectError:             false,
+		},
+		{
+			dbName:                  "validate-ddl-clash-free-spanner-tables",
+			conv:                    BuildConv(t, 2, 0, false),
+			tablesExistingOnSpanner: []string{"unrelated_table"},
+			expectError:             false,
+		},
+		{
+			dbName:                  "validate-ddl-collision",
+			conv:                    BuildConv(t, 2, 0, false),
+			tablesExistingOnSpanner: []string{"table_a"},
+			expectError:             true,
+		},
 	}
 
 	for _, tc := range testCases {
-		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName)
 		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
 		spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
-		err = spA.CreateDatabase(ctx, dbURI, BuildConv(t, 2, 0, tc.emptySchema), "", constants.BULK_MIGRATION)
+
+		err = spA.ValidateDDL(ctx, tc.conv, tc.tablesExistingOnSpanner)
+		if tc.expectError {
+			assert.NotNil(t, err)
+		} else {
+			assert.Nil(t, err)
+		}
+	}
+}
+
+func TestGetTableNamesFromSpanner(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+
+	type testCase struct {
+		name           string
+		dialect        string
+		numTables      int
+		expectedTables []string
+	}
+
+	testCases := []testCase{
+		{
+			name:           "gsql-no-tables",
+			dialect:        constants.DIALECT_GOOGLESQL,
+			numTables:      0,
+			expectedTables: []string{},
+		},
+		{
+			name:           "gsql-two-tables",
+			dialect:        constants.DIALECT_GOOGLESQL,
+			numTables:      2,
+			expectedTables: []string{"table_a", "table_b"},
+		},
+		{
+			name:           "pgsql-no-tables",
+			dialect:        constants.DIALECT_POSTGRESQL,
+			numTables:      0,
+			expectedTables: []string{},
+		},
+		{
+			name:           "pgsql-two-tables",
+			dialect:        constants.DIALECT_POSTGRESQL,
+			numTables:      2,
+			expectedTables: []string{"table_a", "table_b"},
+		},
+	}
+
+	for _, tc := range testCases {
+		dbName := fmt.Sprintf("test-%s", tc.name)
+		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+		conv := BuildConv(t, 1, 0, true)
+		if len(tc.expectedTables) > 0 {
+			conv = BuildConv(t, 1, 0, false)
+
+		}
+		conv.SpDialect = tc.dialect
+
+		adminClientImpl, err := spanneradmin.NewAdminClientImpl(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		spA := spanneraccessor.SpannerAccessorImpl{AdminClient: adminClientImpl}
+
+		err = spA.CreateDatabase(ctx, dbURI, conv, "", constants.BULK_MIGRATION)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer dropDatabase(t, dbURI)
-		err = spA.ValidateDDL(ctx, dbURI)
-		if tc.emptySchema {
-			assert.Nil(t, err)
-		} else {
-			assert.NotNil(t, err)
+
+		spClient, err := sp.NewClient(ctx, dbURI)
+		if err != nil {
+			t.Fatalf("failed to create spanner client: %v", err)
 		}
+
+		tableNames, err := spA.GetTableNamesFromSpanner(ctx, tc.dialect, dbURI, spClient)
+		if err != nil {
+			t.Fatalf("GetTableNamesFromSpanner failed: %v", err)
+		}
+		assert.ElementsMatch(t, tc.expectedTables, tableNames)
 	}
 }
 
