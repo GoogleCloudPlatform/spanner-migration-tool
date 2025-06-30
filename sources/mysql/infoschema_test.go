@@ -562,7 +562,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	columnLevelIssues := map[string][]internal.SchemaIssue{
-		"c53": []internal.SchemaIssue{
+		"c5": []internal.SchemaIssue{
 			2,
 		},
 	}
@@ -732,7 +732,7 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
 			rows:  [][]driver.Value{{1}},
 		},
 		{
-			query: regexp.QuoteMeta(`SELECT DISTINCT COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME,t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE
+			query: regexp.QuoteMeta(`SELECT DISTINCT COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME,t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE, COALESCE(k.ORDINAL_POSITION, 0) AS ORDINAL_POSITION
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
             LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
             ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
@@ -742,10 +742,11 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
             ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
 	    AND t.TABLE_SCHEMA = c.CONSTRAINT_SCHEMA
             WHERE t.TABLE_SCHEMA = ? 
-            AND t.TABLE_NAME = ?;`),
+            AND t.TABLE_NAME = ?
+			ORDER BY COALESCE(k.ORDINAL_POSITION, 0);`),
 			args: []driver.Value{"test_schema", "test_table"},
-			cols: []string{"COLUMN_NAME", "CONSTRAINT_NAME", "CONSTRAINT_TYPE", "CHECK_CLAUSE"},
-			rows: [][]driver.Value{{"column1", "PRIMARY", "PRIMARY KEY", ""}, {"column2", "check_name", "CHECK", "(column2 > 0)"}},
+			cols: []string{"COLUMN_NAME", "CONSTRAINT_NAME", "CONSTRAINT_TYPE", "CHECK_CLAUSE", "ORDINAL_POSITION"},
+			rows: [][]driver.Value{{"column1", "PRIMARY", "PRIMARY KEY", "", 0}, {"column2", "check_name", "CHECK", "(column2 > 0)", 0}},
 		},
 	}
 	db := mkMockDB(t, ms)
