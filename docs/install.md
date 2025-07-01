@@ -94,8 +94,15 @@ Building from source is only supported for MacOS and Linux based platforms.
     Required go version: 1.22.7+
 2. Install nodejs ([download](https://nodejs.org/en/download)). <br/>
     Required node version: v18.20.6+
+3. Install angular-cli ([instructions](https://angular.dev/tools/cli/setup-local#install-the-angular-cli))
+4. Install gcc, g++ and make using the command -
 
-3. Run the following commands to clone the repository and build it from source:
+```sh
+sudo apt update
+sudo apt install build-essential
+```
+
+5. Run the following commands to clone the repository and build it from source:
 
 ```sh
 git clone https://github.com/GoogleCloudPlatform/spanner-migration-tool
