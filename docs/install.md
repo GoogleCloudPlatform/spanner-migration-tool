@@ -100,7 +100,7 @@ Building from source is only supported for MacOS and Linux based platforms.
 sudo apt update
 sudo apt install build-essential
 ```
-5. Run the following commands to clone the repository and build it from source:
+5. Run the following commands to clone the repository and build from source:
 
 ```sh
 git clone https://github.com/GoogleCloudPlatform/spanner-migration-tool
