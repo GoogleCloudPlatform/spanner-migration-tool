@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 
@@ -265,7 +266,7 @@ This method does not handle validation. It is supposed to be called only after c
 */
 func handleTableNameDefaults(tableName, sourceUri string) string {
 	if len(tableName) != 0 {
-		return tableName
+		return sanitizeTableName(tableName)
 	}
 
 	parsedURL, _ := url.Parse(sourceUri)
@@ -277,7 +278,25 @@ func handleTableNameDefaults(tableName, sourceUri string) string {
 	basePath := filepath.Base(path)
 
 	// pick the substring before the first dot
-	return strings.Split(basePath, ".")[0]
+	return sanitizeTableName(strings.Split(basePath, ".")[0])
+
+}
+
+func sanitizeTableName(tableName string) string {
+	tableName = strings.ToLower(tableName)
+	underscoreOrAlphabet := func(r rune) bool {
+		return !(unicode.IsLetter(r) || r == '_')
+	}
+
+	underscoreOrAlphanumeric := func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || r == '_' {
+			return r
+		}
+		return -1
+	}
+
+	trimmedTableName := strings.TrimLeftFunc(tableName, underscoreOrAlphabet)
+	return strings.Map(underscoreOrAlphanumeric, trimmedTableName)
 }
 
 func init() {
