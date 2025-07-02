@@ -10,7 +10,7 @@ import IConv, {
 } from '../../model/conv'
 import IColumnTabData, { IIndexData, ISequenceData } from '../../model/edit-table'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ColLength, Dialect, ObjectExplorerNodeType, StorageKeys, autoGenSupportedDbs } from 'src/app/app.constants'
+import { ColLength, Dialect, ObjectExplorerNodeType, SourceDbNames, StorageKeys, autoGenSupportedDbs } from 'src/app/app.constants'
 import { BehaviorSubject } from 'rxjs'
 import { FetchService } from '../fetch/fetch.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
@@ -341,7 +341,8 @@ export class ConversionService {
       }
       let spannerColDef = spTableName ? data.SpSchema[tableId]?.ColDefs[colId] : null
       let spannerTypeName = spannerColDef ? spannerColDef.T.Name : ''
-      if(spannerColDef?.T.IsArray){
+      // Note: ARRAY support is currently limited to Cassandra (GoogleSQL Dialect only).
+      if(spannerColDef?.T.IsArray && data.DatabaseType === SourceDbNames.Cassandra && data.SpDialect !== Dialect.PostgreSQLDialect){
         spannerTypeName = 'ARRAY<'+spannerTypeName+'>'
       }
       let pgSQLDatatype = spannerColDef ? standardTypeToPGSQLTypeMap.get(spannerColDef.T.Name) : ''
@@ -379,7 +380,7 @@ export class ConversionService {
             Statement: ''
           }
         },
-        spCassandraOption: spannerColDef?.Opts["cassandra_type"] != null ? spannerColDef?.Opts["cassandra_type"] : '',
+        spCassandraOption: spannerColDef?.Opts?.["cassandra_type"] || '',
         }
     })
     if (spColIds) {

@@ -1728,11 +1728,10 @@ func initializeTypeMap() {
 			var l []types.TypeIssue
 			srcType := schema.MakeType()
 			srcType.Name = mapType
-			for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-				ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType, false)
-				l = addTypeToList(ty.Name, spType, issues, l)
-			}	
-			ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType, false)
+			// Currently, the map type can't be edited, so it's only mapped to JSON.
+			ty, issues := toddl.ToSpannerType(sessionState.Conv, ddl.JSON, srcType, false)
+			l = addTypeToList(ty.Name, ddl.JSON, issues, l)
+			ty, _ = toddl.ToSpannerType(sessionState.Conv, "", srcType, false)
 			cassandraDefaultTypeMap[mapType] = ty
 			cassandraTypeMap[mapType] = l
 		}

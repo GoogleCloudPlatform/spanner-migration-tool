@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ func TestAddNewColumn(t *testing.T) {
 	}{
 		{
 			name:    "Add new column to Cassandra table",
-			payload: `{"Name": "new_col", "Datatype": "STRING", "Length": 50, "IsNullable": true, "Option": "text"}`,
+			payload: `{"Name": "new_col", "Datatype": "STRING", "Length": 50, "IsNullable": true}`,
 			initialConv: &internal.Conv{
 				Source: constants.CASSANDRA,
 				SpSchema: map[string]ddl.CreateTable{
@@ -74,6 +74,40 @@ func TestAddNewColumn(t *testing.T) {
 				assert.False(t, newCol.NotNull)
 				assert.NotNil(t, newCol.Opts)
 				assert.Equal(t, "text", newCol.Opts["cassandra_type"])
+			},
+		},
+		{
+			name:    "Add new column with unsupported datatype to Cassandra table",
+			payload: `{"Name": "new_col", "Datatype": "JSON", "Length": 50, "IsNullable": true}`,
+			initialConv: &internal.Conv{
+				Source: constants.CASSANDRA,
+				SpSchema: map[string]ddl.CreateTable{
+					tableId: {
+						Id: tableId, 
+						Name: "my_table", 
+						ColIds: []string{"c1"}, 
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {
+								Id: "c1", 
+								Name: "existing_col", 
+								T: ddl.Type{
+									Name: ddl.Int64,
+								},
+							},
+						},
+					},
+				},
+			},
+			initialCounterState: "1",
+			expectedNewColId:    "c2",
+			expectedStatusCode: http.StatusOK,
+			checkConv: func(t *testing.T, conv *internal.Conv, newColId string) {
+				newCol, ok := conv.SpSchema[tableId].ColDefs[newColId]
+				assert.True(t, ok, "new column with predicted ID should exist")
+				assert.Equal(t, "JSON", newCol.T.Name)
+				assert.False(t, newCol.NotNull)
+				assert.NotNil(t, newCol.Opts)
+				assert.Equal(t, "", newCol.Opts["cassandra_type"])
 			},
 		},
 		{

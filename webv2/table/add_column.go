@@ -33,7 +33,6 @@ type columnDetails struct {
 	Length     int            `json:"Length"`
 	IsNullable bool           `json:"IsNullable"`
 	AutoGen    ddl.AutoGenCol `json:"AutoGen"`
-	Option     string         `json:"Option"`
 }
 
 // addColumn add given column into spannerTable.
@@ -100,7 +99,7 @@ func AddNewColumn(w http.ResponseWriter, r *http.Request) {
 	}
 	if sessionState.Conv.Source == constants.CASSANDRA {
 		colDef.Opts = make(map[string]string)
-		colDef.Opts["cassandra_type"] = details.Option
+		colDef.Opts["cassandra_type"] = GetCassandraType(details.Datatype)
 	}
 	ct.ColDefs[columnId] = colDef
 	sessionState.Conv.SpSchema[tableId] = ct

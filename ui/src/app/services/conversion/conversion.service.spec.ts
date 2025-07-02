@@ -5,7 +5,7 @@ import IConv, { IInterleavedParent } from '../../model/conv'
 
 import { ConversionService } from './conversion.service';
 import ISchemaObjectNode from 'src/app/model/schema-object-node';
-import { ObjectExplorerNodeType } from 'src/app/app.constants';
+import { ObjectExplorerNodeType, Dialect, SourceDbNames } from 'src/app/app.constants';
 import ICcTabData from 'src/app/model/cc-tab-data';
 import IColumnTabData from 'src/app/model/edit-table'
 
@@ -354,6 +354,8 @@ describe('ConversionService', () => {
         Comment: '',
       },
     }
+    conv.DatabaseType = SourceDbNames.Cassandra
+    conv.SpDialect = Dialect.GoogleStandardSQLDialect
 
     const result = service.getColumnMapping('t1', conv);
     const expected: IColumnTabData[] = [
