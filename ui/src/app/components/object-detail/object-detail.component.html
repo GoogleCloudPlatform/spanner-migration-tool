@@ -592,7 +592,7 @@
       </div>
     </mat-tab>
 
-    <mat-tab>
+    <mat-tab *ngIf="srcDbName !== 'cassandra'">
       <ng-template mat-tab-label>
         <span>FOREIGN KEY</span>
       </ng-template>

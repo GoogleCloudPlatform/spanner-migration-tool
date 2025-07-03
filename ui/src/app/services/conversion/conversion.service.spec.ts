@@ -388,5 +388,77 @@ describe('ConversionService', () => {
       },
     ]
     expect(result).toEqual(expected)
-  })  
+  })
+
+  it('getColumnMapping test for new column', () => {
+    let conv: IConv = {} as IConv
+    conv.SrcSchema = {
+      t1: {
+        Name: 'test_table',
+        Id: 't1',
+        Schema: '',
+        ColIds: ['c1'],
+        ColDefs: {
+          c1: {
+            Name: 'src_col',
+            Id: 'c1',
+            Type: { Name: 'text', Mods: [], ArrayBounds: [] },
+            NotNull: false,
+            Ignored: {Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false},
+            DefaultValue: { IsPresent: false, Value: { Statement: '' , ExpressionId: '' } },
+            AutoGen: { Name: '', GenerationType: '' },
+          },
+        },
+        PrimaryKeys: [],
+        ForeignKeys: [],
+        Indexes: [],
+        CheckConstraints: [],
+      },
+    }
+    conv.SpSchema = {
+      t1: {
+        Name: 'test_table',
+        Id: 't1',
+        ColIds: ['c1', 'c2'],
+        ShardIdColumn: '',
+        ColDefs: {
+          c1: {
+            Name: 'sp_col',
+            Id: 'c1',
+            T: { Name: 'STRING', IsArray: false, Len: 255 },
+            NotNull: false,
+            DefaultValue: { IsPresent: false, Value: { Statement: '', ExpressionId: '' } },
+            AutoGen: { Name: '', GenerationType: '' },
+            Opts: {},
+            Comment: '',
+          },
+          c2: {
+            Name: 'new_sp_col',
+            Id: 'c2',
+            T: { Name: 'INT64', IsArray: false, Len: 0 },
+            NotNull: true,
+            DefaultValue: { IsPresent: false, Value: { Statement: '', ExpressionId: '' } },
+            AutoGen: { Name: '', GenerationType: '' },
+            Opts: {},
+            Comment: '',
+          },
+        },
+        PrimaryKeys: [],
+        ForeignKeys: [],
+        Indexes: [],
+        CheckConstraints: [],
+        ParentTable: {} as IInterleavedParent,
+        Comment: '',
+      },
+    }
+    conv.DatabaseType = SourceDbNames.MySQL
+    conv.SpDialect = Dialect.GoogleStandardSQLDialect
+
+    const result = service.getColumnMapping('t1', conv);
+    const expected: IColumnTabData[] = [
+      { spOrder: 1, srcOrder: 1, spColName: 'sp_col', spDataType: 'STRING', srcColName: 'src_col', srcDataType: 'text', spIsPk: false, srcIsPk: false, spIsNotNull: false, srcIsNotNull: false, srcId: 'c1', srcDefaultValue: '', spId: 'c1', spColMaxLength: 255, srcColMaxLength: undefined, spAutoGen: { Name: '', GenerationType: '' }, srcAutoGen: { Name: '', GenerationType: '' }, spDefaultValue: { IsPresent: false, Value: { ExpressionId: '', Statement: '' } }, spCassandraOption: '' },
+      { spOrder: 2, srcOrder: '', spColName: 'new_sp_col', spDataType: 'INT64', srcColName: '', srcDataType: '', spIsPk: false, srcIsPk: false, spIsNotNull: true, srcIsNotNull: false, srcId: '', srcDefaultValue: '', spId: 'c2', spColMaxLength: 0, srcColMaxLength: '', spAutoGen: { Name: '', GenerationType: '' }, srcAutoGen: { Name: '', GenerationType: '' }, spDefaultValue: { IsPresent: false, Value: { ExpressionId: '', Statement: '' } }, spCassandraOption: '' },
+    ]
+    expect(result).toEqual(expected)
+  })
 });
