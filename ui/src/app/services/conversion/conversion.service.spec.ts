@@ -5,8 +5,9 @@ import IConv, { IInterleavedParent } from '../../model/conv'
 
 import { ConversionService } from './conversion.service';
 import ISchemaObjectNode from 'src/app/model/schema-object-node';
-import { ObjectExplorerNodeType } from 'src/app/app.constants';
+import { ObjectExplorerNodeType, Dialect, SourceDbNames } from 'src/app/app.constants';
 import ICcTabData from 'src/app/model/cc-tab-data';
+import IColumnTabData from 'src/app/model/edit-table'
 
 describe('ConversionService', () => {
   let service: ConversionService;
@@ -301,4 +302,91 @@ describe('ConversionService', () => {
     const result = service.getCheckConstraints('t1', conv)
     expect(result).toEqual(expected)
   })
+
+  it('getColumnMapping for Array Type', () => {
+    let conv: IConv = {} as IConv
+    conv.SrcSchema = {
+      t1: {
+        Name: 'test_table',
+        Id: 't1',
+        Schema: '',
+        ColIds: ['c1'],
+        ColDefs: {
+          c1: {
+            Name: 'src_col',
+            Id: 'c1',
+            Type: { Name: 'text', Mods: [], ArrayBounds: [] },
+            NotNull: false,
+            Ignored: {Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false},
+            DefaultValue: { IsPresent: false, Value: { Statement: '' , ExpressionId: '' } },
+            AutoGen: { Name: '', GenerationType: '' },
+          },
+        },
+        PrimaryKeys: [],
+        ForeignKeys: [],
+        Indexes: [],
+        CheckConstraints: [],
+      },
+    }
+    conv.SpSchema = {
+      t1: {
+        Name: 'test_table',
+        Id: 't1',
+        ColIds: ['c1'],
+        ShardIdColumn: '',
+        ColDefs: {
+          c1: {
+            Name: 'sp_col',
+            Id: 'c1',
+            T: { Name: 'STRING', IsArray: true, Len: 0 },
+            NotNull: false,
+            DefaultValue: { IsPresent: false, Value: { Statement: '', ExpressionId: '' } },
+            AutoGen: { Name: '', GenerationType: '' },
+            Opts: {},
+            Comment: '',
+          },
+        },
+        PrimaryKeys: [],
+        ForeignKeys: [],
+        Indexes: [],
+        CheckConstraints: [],
+        ParentTable: {} as IInterleavedParent,
+        Comment: '',
+      },
+    }
+    conv.DatabaseType = SourceDbNames.Cassandra
+    conv.SpDialect = Dialect.GoogleStandardSQLDialect
+
+    const result = service.getColumnMapping('t1', conv);
+    const expected: IColumnTabData[] = [
+      {
+        spOrder: 1,
+        srcOrder: 1,
+        spColName: 'sp_col',
+        spDataType: 'ARRAY<STRING>',
+        srcColName: 'src_col',
+        srcDataType: 'text',
+        spIsPk: false,
+        srcIsPk: false,
+        spIsNotNull: false,
+        srcIsNotNull: false,
+        srcId: 'c1',
+        srcDefaultValue: '',
+        spId: 'c1',
+        spColMaxLength: '',
+        srcColMaxLength: undefined,
+        spAutoGen: { Name: '', GenerationType: '' },
+        srcAutoGen: { Name: '', GenerationType: '' },
+        spDefaultValue: {
+          IsPresent: false,
+          Value: {
+            ExpressionId: '',
+            Statement: '',
+          },
+        },
+        spCassandraOption: '',
+      },
+    ]
+    expect(result).toEqual(expected)
+  })  
 });

@@ -412,7 +412,7 @@ func (m *CassandraTypeMapper) getMapping(cassandraTypeName string, spTypeName st
             return mapping, true
         }
     }
-	return CassandraDdlInfo{}, false
+    return CassandraDdlInfo{}, false
 }
 
 // GetSpannerType finds the correct mapping for the Spanner type and issues

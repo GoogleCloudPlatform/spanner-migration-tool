@@ -220,6 +220,10 @@ export class ObjectDetailComponent implements OnInit {
     this.localIndexData = JSON.parse(JSON.stringify(this.indexData))
     this.localSequenceData = JSON.parse(JSON.stringify(this.sequenceData))
 
+    if (this.srcDbName === SourceDbNames.Cassandra && !this.spDisplayedColumns.includes('spCassandraOption')) {
+      this.spDisplayedColumns.splice(3, 0, 'spCassandraOption');
+    }
+
     if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
       this.spDisplayedColumns.splice(2, 0, "spAutoGen");
       this.displayedPkColumns.splice(8, 0, "spAutoGen");
@@ -293,6 +297,7 @@ export class ObjectDetailComponent implements OnInit {
           srcId: new FormControl(row.srcId),
           spColMaxLength: new FormControl(row.spColMaxLength, [
             Validators.required]),
+          spCassandraOption: new FormControl(row.spCassandraOption),
           spAutoGen: new FormControl(row.spAutoGen),
           spDefaultValue: new FormControl(row.spDefaultValue ? row.spDefaultValue.Value.Statement : ''),
         })
@@ -358,6 +363,7 @@ export class ObjectDetailComponent implements OnInit {
             spId: new FormControl(col.spId),
             srcId: new FormControl(col.srcId),
             spColMaxLength: new FormControl(col.spColMaxLength),
+            spCassandraOption: new FormControl(col.spCassandraOption),
             spAutoGen: new FormControl(col.spAutoGen),
             spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
           })
@@ -396,6 +402,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
             spColMaxLength: new FormControl(droppedColumnSpMaxLength),
+            spCassandraOption: new FormControl(col.spCassandraOption),
             spAutoGen: new FormControl(col.spAutoGen),
             spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
           })
@@ -439,6 +446,13 @@ export class ObjectDetailComponent implements OnInit {
     this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
       for (let j = 0; j < this.tableData.length; j++) {
         let oldRow = this.tableData[j]
+        let newSpDataType: String
+        if (col.spDataType.startsWith('ARRAY<') && col.spDataType.endsWith('>')) {
+          newSpDataType = col.spDataType.substring(6, col.spDataType.length - 1)
+        } else {
+          newSpDataType = col.spDataType
+        }
+        col.spDataType = newSpDataType
         let standardDataType = pgSQLToStandardTypeTypemap.get(col.spDataType)
         if (col.spColMaxLength !== undefined && col.spColMaxLength !== 'MAX') {
           if ((col.spDataType === 'STRING' || col.spDataType === 'VARCHAR') && typeof col.spColMaxLength === "number" && col.spColMaxLength > ColLength.StringMaxLength) {
@@ -570,6 +584,7 @@ export class ObjectDetailComponent implements OnInit {
     this.localTableData[index].spIsPk = this.droppedColumns[addedRowIndex].spIsPk
     this.localTableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
     this.localTableData[index].spColMaxLength = this.droppedColumns[addedRowIndex].spColMaxLength
+    this.localTableData[index].spCassandraOption = this.droppedColumns[addedRowIndex].spCassandraOption
     this.localTableData[index].spAutoGen = this.droppedColumns[addedRowIndex].spAutoGen
     this.localTableData[index].spDefaultValue = this.droppedColumns[addedRowIndex].spDefaultValue
     let ind = this.droppedColumns
@@ -714,6 +729,7 @@ export class ObjectDetailComponent implements OnInit {
         col.spIsPk = false
         col.spOrder = ''
         col.spColMaxLength = ''
+        col.spCassandraOption = ''
         col.spAutoGen = {
           Name : '',
           GenerationType : ''

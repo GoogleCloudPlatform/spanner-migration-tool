@@ -18,6 +18,7 @@ export enum SourceDbNames {
   Postgres = 'Postgres',
   SQLServer = 'SQL Server',
   Oracle = 'Oracle',
+  Cassandra = 'cassandra',
 }
 
 export enum ObjectExplorerNodeType {

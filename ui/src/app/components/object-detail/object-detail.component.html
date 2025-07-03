@@ -308,6 +308,15 @@
               </td>
             </ng-container>
 
+            <ng-container *ngIf="srcDbName === 'cassandra'">
+              <ng-container matColumnDef="spCassandraOption">
+                <th mat-header-cell *matHeaderCellDef>Cassandra Type Option</th>
+                <td mat-cell *matCellDef="let element">
+                  <p>{{ element.get('spCassandraOption').value }}</p>
+                </td>
+              </ng-container>
+            </ng-container>
+
             <ng-container matColumnDef="spDefaultValue" *ngIf="mySqlSource">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Default Value</th>
               <td mat-cell *matCellDef="let element">

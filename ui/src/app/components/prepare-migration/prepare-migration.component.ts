@@ -295,6 +295,10 @@ export class PrepareMigrationComponent implements OnInit {
           MigrationModes.dataOnly,
           MigrationModes.schemaAndData,
         ]
+        if (this.sourceDatabaseType === SourceDbNames.Cassandra) {
+          this.migrationModes = [MigrationModes.schemaOnly]
+          this.selectedMigrationMode = MigrationModes.schemaOnly
+        }
       },
       error: (err: any) => {
         this.snack.openSnackBar(err.error, 'Close')
