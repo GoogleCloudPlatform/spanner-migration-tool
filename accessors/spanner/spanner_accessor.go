@@ -169,7 +169,7 @@ func (sp *SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, dbURI, d
 
 	req := &databasepb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
-		CreateStatement: "CREATE DATABASE `" + dbName + "`",
+		CreateStatement: fetchCreateDatabaseStatement(dialect, dbName),
 		DatabaseDialect: dbDialect,
 	}
 	op, err := sp.AdminClient.CreateDatabase(ctx, req)
@@ -298,15 +298,11 @@ func (sp *SpannerAccessorImpl) CreateDatabase(ctx context.Context, dbURI string,
 	req := &adminpb.CreateDatabaseRequest{
 		Parent: fmt.Sprintf("projects/%s/instances/%s", project, instance),
 	}
+
+	req.CreateStatement = fetchCreateDatabaseStatement(conv.SpDialect, dbName)
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
-		// PostgreSQL dialect doesn't support:
-		// a) backticks around the database name, and
-		// b) DDL statements as part of a CreateDatabase operation (so schema
-		// must be set using a separate UpdateDatabase operation).
-		req.CreateStatement = "CREATE DATABASE \"" + dbName + "\""
 		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
 	} else {
-		req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
 		if migrationType == constants.DATAFLOW_MIGRATION {
 			req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences)
 		} else {
@@ -544,4 +540,18 @@ func (sp *SpannerAccessorImpl) GetSpannerClient() spannerclient.SpannerClient {
 
 func (sp *SpannerAccessorImpl) GetSpannerAdminClient() spanneradmin.AdminClient {
 	return sp.AdminClient
+}
+
+func fetchCreateDatabaseStatement(dialect string, databaseName string) string {
+
+	statementPattern := "CREATE DATABASE `%s`"
+	if dialect == constants.DIALECT_POSTGRESQL {
+		// PostgreSQL dialect doesn't support:
+		// a) backticks around the database name, and
+		// b) DDL statements as part of a CreateDatabase operation (so schema
+		// must be set using a separate UpdateDatabase operation).
+		statementPattern = "CREATE DATABASE \"%s\""
+	}
+
+	return fmt.Sprintf(statementPattern, databaseName)
 }
