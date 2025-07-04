@@ -105,7 +105,7 @@ The following table outlines the recommended Java object types for each Spanner 
 | JSON                            | jsonb                                 | String                                          |
 
 {: .highlight }
-Please refer to the sample implementation of **toSpannerRow** for most MySQL datatype columns [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/ce0b7c62f34b10d3e7cc81f6b81768e20767ac70/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationWithShardForLiveIT.java#L48).
+Please refer to the sample implementation of **toSpannerRow** for most MySQL datatype columns [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationWithShardForLiveIT.java#L48).
 
 ### Reverse replication
 
