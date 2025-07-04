@@ -148,6 +148,10 @@ const (
 	CheckConstraintFunctionNotFoundError
 	GenericError
 	GenericWarning
+	PrecisionLoss
+	CassandraUUID
+	CassandraTIMEUUID
+	CassandraMAP
 )
 
 const (
