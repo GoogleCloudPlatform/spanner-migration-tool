@@ -187,12 +187,14 @@ func TestCassandraTypeMapper(t *testing.T) {
 			cassandraType:       "decimal",
 			expectedSpannerType: ddl.Type{Name: ddl.Numeric},
 			expectedOption:      "decimal",
+			expectedIssues:      []internal.SchemaIssue{internal.PrecisionLoss},
 		},
 		{
 			name:                "Default varint",
 			cassandraType:       "varint",
 			expectedSpannerType: ddl.Type{Name: ddl.Numeric},
 			expectedOption:      "varint",
+			expectedIssues:      []internal.SchemaIssue{internal.PrecisionLoss},
 		},
 		{
 			name:                "Override varint to STRING",
@@ -264,7 +266,7 @@ func TestCassandraTypeMapper(t *testing.T) {
 			userSpannerType:     ddl.Bytes,
 			expectedSpannerType: ddl.Type{Name: ddl.Bytes, Len: 16},
 			expectedOption:      "uuid",
-			expectedIssues:      []internal.SchemaIssue{internal.Widened},
+			expectedIssues:      []internal.SchemaIssue{internal.CassandraUUID},
 		},
 		{
 			name:                "Default timeuuid",
@@ -278,7 +280,7 @@ func TestCassandraTypeMapper(t *testing.T) {
 			userSpannerType:     ddl.Bytes,
 			expectedSpannerType: ddl.Type{Name: ddl.Bytes, Len: 16},
 			expectedOption:      "timeuuid",
-			expectedIssues:      []internal.SchemaIssue{internal.Widened},
+			expectedIssues:      []internal.SchemaIssue{internal.CassandraTIMEUUID},
 		},
 		{
 			name:                "Default inet",
@@ -377,6 +379,7 @@ func TestCassandraTypeMapper(t *testing.T) {
 			cassandraType:       "counter",
 			expectedSpannerType: ddl.Type{Name: ddl.Int64},
 			expectedOption:      "counter",
+			expectedIssues:      []internal.SchemaIssue{internal.NoGoodType},
 		},
 		{
 			name:                "List Type",
@@ -396,20 +399,21 @@ func TestCassandraTypeMapper(t *testing.T) {
 			cassandraType:       "map<text,int>",
 			expectedSpannerType: ddl.Type{Name: ddl.JSON},
 			expectedOption:      "map<text,int>",
+			expectedIssues:      []internal.SchemaIssue{internal.CassandraMAP},
 		},
 		{
 			name:                "Unsupported types in map",
 			cassandraType:       "map<udt, duration>",
 			expectedSpannerType: ddl.Type{Name: ddl.JSON},
 			expectedOption:      "map<text,text>",
-			expectedIssues:      []internal.SchemaIssue{internal.NoGoodType},
+			expectedIssues:      []internal.SchemaIssue{internal.CassandraMAP, internal.NoGoodType},
 		},
 		{
 			name:                "Unsupported types in map",
 			cassandraType:       "map<duration, udt>",
 			expectedSpannerType: ddl.Type{Name: ddl.JSON},
 			expectedOption:      "map<text,text>",
-			expectedIssues:      []internal.SchemaIssue{internal.NoGoodType},
+			expectedIssues:      []internal.SchemaIssue{internal.CassandraMAP, internal.NoGoodType},
 		},
 		{
 			name:                "Fallback Nested List",

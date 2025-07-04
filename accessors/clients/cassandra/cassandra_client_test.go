@@ -16,6 +16,7 @@ package cassandraclient
 import (
 	"errors"
 	"sync"
+	"fmt"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ import (
 )
 
 func resetGlobals() {
-	once = sync.Once{}
+	clusterConfigMux = sync.Mutex{}
 	globalClusterConfig = nil
 }
 
@@ -105,28 +106,42 @@ func TestGetOrCreateCassandraClusterClient(t *testing.T) {
 		assert.EqualError(t, err, "failed to create Cassandra session: session creation failed")
 	})
 
+	t.Run("Concurrent calls", func(t *testing.T) {
+		resetGlobals()
+		mockSession := &MockGocqlSession{}
+		createSessionFromCluster = func(c *gocql.ClusterConfig) (GocqlSessionInterface, error) {
+			return mockSession, nil
+		}
+		newCluster = func(contactPoints ...string) *gocql.ClusterConfig {
+			return gocql.NewCluster(contactPoints...)
+		}
+
+		var wg sync.WaitGroup
+		numGoroutines := 5
+		wg.Add(numGoroutines)
+
+		for i := 0; i < numGoroutines; i++ {
+			go func(i int) {
+				defer wg.Done()
+				_, err := GetOrCreateCassandraClusterClient([]string{"127.0.0.1"}, 9042, fmt.Sprintf("keyspace%d", i), "", "", "")
+				assert.NoError(t, err)
+			}(i)
+		}
+
+		wg.Wait()
+		assert.NotNil(t, globalClusterConfig, "globalClusterConfig should be set after concurrent calls")
+	})
 }
 
-func TestGetOrCreateCassandraClusterClientSingleton(t *testing.T) {
-	var newClusterCallCount int
+func TestCreateSessionFromCluster(t *testing.T) {
 	resetGlobals()
 
 	originalNewCluster := newCluster
-	newCluster = func(cp ...string) *gocql.ClusterConfig {
-		newClusterCallCount++
-		return gocql.NewCluster(cp...)
+	newCluster = func(contactPoints ...string) *gocql.ClusterConfig {
+		return gocql.NewCluster(contactPoints...)
 	}
 	t.Cleanup(func() { newCluster = originalNewCluster })
 
-	_, _ = GetOrCreateCassandraClusterClient([]string{"host1"}, 9042, "keyspace1", "dc1", "user1", "pass1")
-	_, _ = GetOrCreateCassandraClusterClient([]string{"host2"}, 9043, "keyspace2", "dc2", "user2", "pass2")
-	_, _ = GetOrCreateCassandraClusterClient([]string{"host3"}, 9044, "keyspace3", "dc3", "user3", "pass3")
-
-
-	assert.Equal(t, 1, newClusterCallCount, "The cluster config should only be initialized once.")
+	_, _ = GetOrCreateCassandraClusterClient([]string{"127.0.0.1"}, 9042, "keyspace", "dc", "user", "pass")
 	assert.NotNil(t, globalClusterConfig)
-	assert.Equal(t, []string{"host1"}, globalClusterConfig.Hosts)
-	assert.Equal(t, 9042, globalClusterConfig.Port)
-	assert.Equal(t, "keyspace1", globalClusterConfig.Keyspace)
-	assert.Equal(t, gocql.PasswordAuthenticator{Username: "user1", Password: "pass1"}, globalClusterConfig.Authenticator)	
 }

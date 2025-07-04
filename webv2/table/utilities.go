@@ -30,6 +30,26 @@ const (
 	NotNullRemoved string = "REMOVED"
 )
 
+var SpannerToCassandra = map[string]string{
+	ddl.Bool:     "boolean",
+	ddl.Bytes:    "blob",
+	ddl.Date:     "date",
+	ddl.Float32:  "float",
+	ddl.Float64:  "double",
+	ddl.Int64:    "bigint",
+	ddl.Numeric:  "decimal",
+	ddl.String:   "text",
+	ddl.Timestamp:"timestamp",
+}
+
+// GetCassandraType returns default cassandra type for specified Spanner type
+func GetCassandraType(spannerType string) string {
+	if cassandraType, ok := SpannerToCassandra[spannerType]; ok {
+		return cassandraType
+	}
+	return ""
+}
+
 // IsColumnPresentInColNames check column is present in colnames.
 func IsColumnPresentInColNames(colIds []string, colId string) bool {
 
