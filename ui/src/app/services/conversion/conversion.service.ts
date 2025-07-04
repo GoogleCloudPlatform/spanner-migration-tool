@@ -405,7 +405,7 @@ export class ConversionService {
             spId: colId,
             srcColMaxLength: '',
             spColMaxLength: spannerColDef?.T.Len,
-            spCassandraOption: '',
+            spCassandraOption: spannerColDef?.Opts?.["cassandra_type"] || '',
             spAutoGen: spColumn.AutoGen,
             srcAutoGen: {
               Name: '',
