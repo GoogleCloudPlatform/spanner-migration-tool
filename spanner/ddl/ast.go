@@ -155,15 +155,9 @@ func GetPGType(spType Type) string {
 
 func (ty Type) PGPrintColumnDefType() string {
 	str := GetPGType(ty)
-	// PG doesn't support array types, and we don't expect to receive a type
-	// with IsArray set to true. In the unlikely event, set to string type.
-	if ty.IsArray {
-		str = PGVarchar
-		ty.Len = PGMaxLength
-	}
 	// PG doesn't support variable length Bytea and thus doesn't support
 	// setting length (or max length) for the Bytes.
-	if ty.Name == String || ty.IsArray {
+	if ty.Name == String {
 		str += "("
 		if ty.Len == MaxLength || ty.Len == PGMaxLength {
 			str += fmt.Sprintf("%v", PGMaxLength)
@@ -171,6 +165,9 @@ func (ty Type) PGPrintColumnDefType() string {
 			str += strconv.FormatInt(ty.Len, 10)
 		}
 		str += ")"
+	}
+	if ty.IsArray {
+		str += "[]"
 	}
 	return str
 }

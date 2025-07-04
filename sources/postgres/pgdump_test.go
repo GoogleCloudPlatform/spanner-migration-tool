@@ -78,13 +78,15 @@ func TestProcessPgDump(t *testing.T) {
 		{"jsonb", ddl.Type{Name: ddl.JSON}},
 	}
 	for _, tc := range scalarTests {
-		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
-		noIssues(conv, t, "Scalar type: "+tc.ty)
-		tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "t")
-		assert.Equal(t, nil, err)
-		colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
-		assert.Equal(t, nil, err)
-		assert.Equal(t, tc.expected, conv.SpSchema[tableId].ColDefs[colId].T, "Scalar type: "+tc.ty)
+		t.Run(tc.ty, func(t *testing.T) {
+			conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
+			noIssues(conv, t, "Scalar type: "+tc.ty)
+			tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "t")
+			assert.Equal(t, nil, err)
+			colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
+			assert.Equal(t, nil, err)
+			assert.Equal(t, tc.expected, conv.SpSchema[tableId].ColDefs[colId].T, "Scalar type: "+tc.ty)
+		})
 	}
 	// Next test array types and not null.
 	singleColTests := []struct {
@@ -93,22 +95,24 @@ func TestProcessPgDump(t *testing.T) {
 	}{
 		{"text", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
 		{"text NOT NULL", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
-		{"text array[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}}},
-		{"text[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}}},
-		{"text[]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}}},
+		{"text array[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}}},
+		{"text[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}}},
+		{"text[]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}}},
 		{"text[][]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}}, // Unrecognized array type mapped to string.
 	}
 	for _, tc := range singleColTests {
-		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
-		noIssues(conv, t, "Not null: "+tc.ty)
-		tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "t")
-		assert.Equal(t, nil, err)
-		colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
-		assert.Equal(t, nil, err)
-		cd := conv.SpSchema[tableId].ColDefs[colId]
-		cd.Comment = ""
-		cd.Id = ""
-		assert.Equal(t, tc.expected, cd, "Not null: "+tc.ty)
+		t.Run(tc.ty, func(t *testing.T) {
+			conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
+			noIssues(conv, t, "Not null: "+tc.ty)
+			tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "t")
+			assert.Equal(t, nil, err)
+			colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
+			assert.Equal(t, nil, err)
+			cd := conv.SpSchema[tableId].ColDefs[colId]
+			cd.Comment = ""
+			cd.Id = ""
+			assert.Equal(t, tc.expected, cd, "Not null: "+tc.ty)
+		})
 	}
 	// Next test more general cases: multi-column schemas and data conversion.
 	multiColTests := []struct {
@@ -730,7 +734,7 @@ COPY test (id, a, b, c, d, e, f, g) FROM stdin;
 				"\\N	\\N	\\N	\\N	\\N	\\\\x0001beef	\\N	\\N\n" + // Good
 				"\\N	\\N	\\N	\\N	\\N	\\ \\x0001beef	\\N	\\N\n" + // Error
 				"\\N	\\N	\\N	\\N	\\N	\\N	{42,6}	\\N\n" + // Good
-				"\\N	\\N	\\N	\\N	\\N	\\N	{42, 6}	\\N\n" + // Good
+				"\\N	\\N	\\N	\\N	\\N	\\N	{42, 6}	\\N\n" + // Error
 				"\\N	\\N	\\N	\\N	\\N	\\N	\\N	3.14\n" + // Good
 				"\\N	\\N	\\N	\\N	\\N	\\N	\\N	3.1.4\n" + // Error
 				"\\.\n",
@@ -739,7 +743,7 @@ COPY test (id, a, b, c, d, e, f, g) FROM stdin;
 					table: "test", cols: []string{"int8", "float8", "bool", "timestamp", "date", "bytea", "arr", "float4", "synth_id"},
 					vals: []interface{}{int64(7), float64(42.1), true, getTime(t, "2019-10-29T05:30:00Z"),
 						getDate("2019-10-29"), []byte{0x0, 0x1, 0xbe, 0xef},
-						"{42,6}", float32(3.14),
+						getIntArray([]int64{42, 6}), float32(3.14),
 						fmt.Sprintf("%d", bitReverse(0))}},
 				spannerData{table: "test", cols: []string{"int8", "synth_id"}, vals: []interface{}{int64(7), fmt.Sprintf("%d", bitReverse(1))}},
 				spannerData{table: "test", cols: []string{"float8", "synth_id"}, vals: []interface{}{float64(42.1), fmt.Sprintf("%d", bitReverse(2))}},
@@ -748,10 +752,8 @@ COPY test (id, a, b, c, d, e, f, g) FROM stdin;
 				spannerData{table: "test", cols: []string{"date", "synth_id"}, vals: []interface{}{getDate("2019-10-29"), fmt.Sprintf("%d", bitReverse(5))}},
 				spannerData{table: "test", cols: []string{"bytea", "synth_id"}, vals: []interface{}{[]byte{0x0, 0x1, 0xbe, 0xef}, fmt.Sprintf("%d", bitReverse(6))}},
 				spannerData{table: "test", cols: []string{"arr", "synth_id"},
-					vals: []interface{}{"{42,6}", fmt.Sprintf("%d", bitReverse(7))}},
-				spannerData{table: "test", cols: []string{"arr", "synth_id"},
-					vals: []interface{}{"{42, 6}", fmt.Sprintf("%d", bitReverse(8))}},
-				spannerData{table: "test", cols: []string{"float4", "synth_id"}, vals: []interface{}{float32(3.14), fmt.Sprintf("%d", bitReverse(9))}},
+					vals: []interface{}{getIntArray([]int64{42, 6}), fmt.Sprintf("%d", bitReverse(7))}},
+				spannerData{table: "test", cols: []string{"float4", "synth_id"}, vals: []interface{}{float32(3.14), fmt.Sprintf("%d", bitReverse(8))}},
 			},
 		},
 	}
@@ -759,7 +761,7 @@ COPY test (id, a, b, c, d, e, f, g) FROM stdin;
 		t.Run(tc.name, func(t *testing.T) {
 			conv, rows := runProcessPgDump(tc.input)
 			assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-			assert.Equal(t, conv.BadRows(), int64(7), tc.name+": Error count did not match")
+			assert.Equal(t, int64(8), conv.BadRows(), tc.name+": Error count did not match")
 		})
 	}
 }
@@ -797,11 +799,13 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 		{"varchar(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
 	}
 	for _, tc := range scalarTests {
-		conv, _ := runProcessPgDumpPGTarget(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
-		noIssues(conv, t, "Scalar type: "+tc.ty)
-		tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, "t")
-		columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, "a")
-		assert.Equal(t, conv.SpSchema[tableId].ColDefs[columnId].T, tc.expected, "Scalar type: "+tc.ty)
+		t.Run(tc.ty, func(t *testing.T) {
+			conv, _ := runProcessPgDumpPGTarget(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
+			noIssues(conv, t, "Scalar type: "+tc.ty)
+			tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, "t")
+			columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, "a")
+			assert.Equal(t, conv.SpSchema[tableId].ColDefs[columnId].T, tc.expected, "Scalar type: "+tc.ty)
+		})
 	}
 	// Next test array types and not null. For PG Spanner, all array types mapped to string.
 	singleColTests := []struct {
@@ -810,20 +814,22 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 	}{
 		{"text", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
 		{"text NOT NULL", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
-		{"text array[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
-		{"text[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
-		{"text[]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
+		{"text array[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}}},
+		{"text[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}}},
+		{"text[]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}}},
 		{"text[][]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
 	}
 	for _, tc := range singleColTests {
-		conv, _ := runProcessPgDumpPGTarget(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
-		noIssues(conv, t, "Not null: "+tc.ty)
-		tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, "t")
-		columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, "a")
-		cd := conv.SpSchema[tableId].ColDefs[columnId]
-		cd.Comment = ""
-		cd.Id = ""
-		assert.Equal(t, tc.expected, cd, "Not null: "+tc.ty)
+		t.Run(tc.ty, func(t *testing.T) {
+			conv, _ := runProcessPgDumpPGTarget(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
+			noIssues(conv, t, "Not null: "+tc.ty)
+			tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, "t")
+			columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, "a")
+			cd := conv.SpSchema[tableId].ColDefs[columnId]
+			cd.Comment = ""
+			cd.Id = ""
+			assert.Equal(t, tc.expected, cd, "Not null: "+tc.ty)
+		})
 	}
 	// Next test more general cases: multi-column schemas and data conversion.
 	multiColTests := []struct {
@@ -1367,23 +1373,25 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 		},
 	}
 	for _, tc := range multiColTests {
-		conv, rows := runProcessPgDumpPGTarget(tc.input)
-		if !tc.expectIssues {
-			noIssues(conv, t, tc.name)
-		}
-		if tc.expectedSchema != nil {
-			internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
-		}
-		if tc.expectedData != nil {
-			assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			conv, rows := runProcessPgDumpPGTarget(tc.input)
+			if !tc.expectIssues {
+				noIssues(conv, t, tc.name)
+			}
+			if tc.expectedSchema != nil {
+				internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
+			}
+			if tc.expectedData != nil {
+				assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
+			}
+		})
 	}
 
-	{ // Test set timezone statement.
+	t.Run("set time zone test", func(t *testing.T) {
 		conv, _ := runProcessPgDumpPGTarget("set timezone='US/Eastern';")
 		loc, _ := time.LoadLocation("US/Eastern")
 		assert.Equal(t, conv.Location, loc, "Set timezone")
-	}
+	})
 
 	// Finally test data conversion errors.
 	dataErrorTests := []struct {
@@ -1410,7 +1418,7 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 				"\\N	\\N	\\N	\\N	\\N	\\\\x0001beef	\\N	\\N\n" + // Good
 				"\\N	\\N	\\N	\\N	\\N	\\ \\x0001beef	\\N	\\N\n" + // Error
 				"\\N	\\N	\\N	\\N	\\N	\\N	{42,6}	\\N\n" + // Good
-				"\\N	\\N	\\N	\\N	\\N	\\N	{42, 6}	\\N\n" + // Good
+				"\\N	\\N	\\N	\\N	\\N	\\N	{42, 6}	\\N\n" + // Error
 				"\\N	\\N	\\N	\\N	\\N	\\N	\\N	3.14\n" + // Good
 				"\\N	\\N	\\N	\\N	\\N	\\N	\\N	3.1.4\n" + // Error
 				"\\.\n",
@@ -1419,7 +1427,7 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 					table: "test", cols: []string{"int8", "float8", "bool", "timestamp", "date", "bytea", "arr", "float4", "synth_id"},
 					vals: []interface{}{int64(7), float64(42.1), true, getTime(t, "2019-10-29T05:30:00Z"),
 						getDate("2019-10-29"), []byte{0x0, 0x1, 0xbe, 0xef},
-						"{42,6}", float32(3.14),
+						getIntArray([]int64{42, 6}), float32(3.14),
 						fmt.Sprintf("%d", bitReverse(0))}},
 				spannerData{table: "test", cols: []string{"int8", "synth_id"}, vals: []interface{}{int64(7), fmt.Sprintf("%d", bitReverse(1))}},
 				spannerData{table: "test", cols: []string{"float8", "synth_id"}, vals: []interface{}{float64(42.1), fmt.Sprintf("%d", bitReverse(2))}},
@@ -1427,16 +1435,17 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 				spannerData{table: "test", cols: []string{"timestamp", "synth_id"}, vals: []interface{}{getTime(t, "2019-10-29T05:30:00Z"), fmt.Sprintf("%d", bitReverse(4))}},
 				spannerData{table: "test", cols: []string{"date", "synth_id"}, vals: []interface{}{getDate("2019-10-29"), fmt.Sprintf("%d", bitReverse(5))}},
 				spannerData{table: "test", cols: []string{"bytea", "synth_id"}, vals: []interface{}{[]byte{0x0, 0x1, 0xbe, 0xef}, fmt.Sprintf("%d", bitReverse(6))}},
-				spannerData{table: "test", cols: []string{"arr", "synth_id"}, vals: []interface{}{"{42,6}", fmt.Sprintf("%d", bitReverse(7))}},
-				spannerData{table: "test", cols: []string{"arr", "synth_id"}, vals: []interface{}{"{42, 6}", fmt.Sprintf("%d", bitReverse(8))}},
-				spannerData{table: "test", cols: []string{"float4", "synth_id"}, vals: []interface{}{float32(3.14), fmt.Sprintf("%d", bitReverse(9))}},
+				spannerData{table: "test", cols: []string{"arr", "synth_id"}, vals: []interface{}{getIntArray([]int64{42, 6}), fmt.Sprintf("%d", bitReverse(7))}},
+				spannerData{table: "test", cols: []string{"float4", "synth_id"}, vals: []interface{}{float32(3.14), fmt.Sprintf("%d", bitReverse(8))}},
 			},
 		},
 	}
 	for _, tc := range dataErrorTests {
-		conv, rows := runProcessPgDumpPGTarget(tc.input)
-		assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-		assert.Equal(t, conv.BadRows(), int64(7), tc.name+": Error count did not match")
+		t.Run(tc.name, func(t *testing.T) {
+			conv, rows := runProcessPgDumpPGTarget(tc.input)
+			assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
+			assert.Equal(t, int64(8), conv.BadRows(), tc.name+": Error count did not match")
+		})
 	}
 }
 
