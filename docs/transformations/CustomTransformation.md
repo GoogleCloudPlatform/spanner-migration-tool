@@ -105,7 +105,7 @@ The following table outlines the recommended Java object types for each Spanner 
 | JSON                            | jsonb                                 | String                                          |
 
 {: .highlight }
-Please refer to the sample implementation of **toSpannerRow** for most MySQL datatype columns [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationWithShardForIT.java#L44).
+Please refer to the sample implementation of **toSpannerRow** for most MySQL datatype columns [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/ce0b7c62f34b10d3e7cc81f6b81768e20767ac70/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationWithShardForLiveIT.java#L48).
 
 ### Reverse replication
 
@@ -154,7 +154,7 @@ The following table outlines format of the response string for each **MySQL** da
 | String (**enclosed in single quotes**)                                              | [Spatial Datatypes](https://dev.mysql.com/doc/refman/8.0/en/spatial-type-overview.html) |
 
 {: .highlight }
-Please refer to the sample implementation of **toSourceRow** for most MySQL datatype columns [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationWithShardForIT.java#L145).
+Please refer to the sample implementation of **toSourceRow** for most MySQL datatype columns [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/ce0b7c62f34b10d3e7cc81f6b81768e20767ac70/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationWithShardForLiveIT.java#L115).
 
 ## Steps to implement custom transformation
 1. Checkout the dataflow code from [github](https://github.com/GoogleCloudPlatform/DataflowTemplates)
