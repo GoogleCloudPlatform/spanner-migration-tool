@@ -3,6 +3,10 @@ package import_file
 import (
 	"context"
 	"errors"
+	"io"
+	"os"
+	"testing"
+
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
@@ -13,9 +17,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/postgres"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"io"
-	"os"
-	"testing"
 )
 
 func TestNewImportFromDump(t *testing.T) {
@@ -138,7 +139,7 @@ func TestCreateSchema(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			spannerAccessorMock := &spanneraccessor.SpannerAccessorMock{
-				CreateOrUpdateDatabaseMock: func(ctx context.Context, dbURI, sourceFormat string, conv *internal.Conv, migrationType string) error {
+				CreateOrUpdateDatabaseMock: func(ctx context.Context, dbURI, driver string, conv *internal.Conv, migrationType string, tablesExistingOnSpanner []string) error {
 					return nil
 				},
 				UpdateDatabaseMock: func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
