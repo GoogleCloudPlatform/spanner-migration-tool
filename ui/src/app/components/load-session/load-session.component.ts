@@ -29,6 +29,7 @@ export class LoadSessionComponent implements OnInit {
     { value: 'sqlserver', displayName: 'SQL Server' },
     { value: 'oracle', displayName: 'Oracle' },
     { value: 'postgres', displayName: 'PostgreSQL' },
+    { value: 'cassandra', displayName: 'Cassandra' },
   ]
   fileToUpload: File | null = null
   uploadStart: boolean = false

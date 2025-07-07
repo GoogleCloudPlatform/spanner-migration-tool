@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"time"
 
+	cc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 )
@@ -37,6 +38,7 @@ type SourceDBConnDetails struct {
 	Port           string
 	User           string
 	Password       string
+	DataCenter     string
 	Path           string
 	ConnectionType string
 }
@@ -53,6 +55,7 @@ type SessionState struct {
 	GCPProjectID         string              // GCP project id where the migration resources are created
 	SpannerProjectId     string              // Project id of the spanner instance
 	SpannerInstanceID    string
+	KeyspaceMetadata     cc.KeyspaceMetadataInterface
 	Dialect              string
 	IsSharded            bool
 	TmpDir               string

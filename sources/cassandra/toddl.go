@@ -136,19 +136,17 @@ var typeMappings = map[string][]CassandraDdlInfo{
 		},
 	},
 	"DECIMAL": {
-		// TODO: Generate appropriate SchemaIssue to warn of potential data loss
 		{
 			SpannerType:         ddl.Type{Name: ddl.Numeric},
 			CassandraTypeOption: "decimal",
-			Issues:              nil,
+			Issues:              []internal.SchemaIssue{internal.PrecisionLoss},
 		},
 	},
 	"VARINT": {
-		// TODO: Generate appropriate SchemaIssue to warn of potential data loss
 		{
 			SpannerType:         ddl.Type{Name: ddl.Numeric},
 			CassandraTypeOption: "varint",
-			Issues:              nil,
+			Issues:              []internal.SchemaIssue{internal.PrecisionLoss},
 		},
 		{
 			SpannerType:         ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
@@ -197,8 +195,6 @@ var typeMappings = map[string][]CassandraDdlInfo{
 			Issues:              []internal.SchemaIssue{internal.Widened},
 		},
 	},
-	// TODO: Generate appropriate SchemaIssue to warn 
-	// that the field might acceept UUID of unsupported versions as compared to Cassandra.
 	"UUID": {
 		{
 			SpannerType:         ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
@@ -208,11 +204,9 @@ var typeMappings = map[string][]CassandraDdlInfo{
 		{
 			SpannerType:         ddl.Type{Name: ddl.Bytes, Len: 16},
 			CassandraTypeOption: "uuid",
-			Issues:              []internal.SchemaIssue{internal.Widened},
+			Issues:              []internal.SchemaIssue{internal.CassandraUUID},
 		},
 	},
-	// TODO: Generate appropriate SchemaIssue to warn 
-	// that the field might acceept TIMEUUID of unsupported versions as compared to Cassandra.
 	"TIMEUUID": {
 		{
 			SpannerType:         ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
@@ -222,7 +216,7 @@ var typeMappings = map[string][]CassandraDdlInfo{
 		{
 			SpannerType:         ddl.Type{Name: ddl.Bytes, Len: 16},
 			CassandraTypeOption: "timeuuid",
-			Issues:              []internal.SchemaIssue{internal.Widened},
+			Issues:              []internal.SchemaIssue{internal.CassandraTIMEUUID},
 		},
 	},
 	"INET": {
@@ -281,7 +275,6 @@ var typeMappings = map[string][]CassandraDdlInfo{
 		},
 	},
 	"DURATION": {
-		// TODO: Generate appropriate SchemaIssue to warn about adapter not supporting duration
 		{
 			SpannerType:         ddl.Type{Name: ddl.String, Len: ddl.MaxLength},
 			CassandraTypeOption: "text",
@@ -306,11 +299,10 @@ var typeMappings = map[string][]CassandraDdlInfo{
 		},
 	},
 	"COUNTER": {
-		// TODO: Generate appropriate SchemaIssue to warn about adapter not supporting counter
 		{
 			SpannerType:         ddl.Type{Name: ddl.Int64},
 			CassandraTypeOption: "counter",
-			Issues:              nil,
+			Issues:              []internal.SchemaIssue{internal.NoGoodType},
 		},
 	},
 }
@@ -345,7 +337,6 @@ func (m *CassandraTypeMapper) getMapping(cassandraTypeName string, spTypeName st
 		}
 		return mappings[0], true
 	}
-    // TODO: Generate appropriate SchemaIssue to warn about conversion from map to JSON
     // Handles map collection type
     if mapMatch := mapRegex.FindStringSubmatch(s); len(mapMatch) > 0 {
 		KeyTypeName := strings.TrimSpace(mapMatch[1])
@@ -383,7 +374,7 @@ func (m *CassandraTypeMapper) getMapping(cassandraTypeName string, spTypeName st
 
         newCassandraTypeOption := "map<" + KeyTypeOption + "," + ValueTypeOption + ">"
 
-        issues := []internal.SchemaIssue{}
+        issues := []internal.SchemaIssue{internal.CassandraMAP}
         if hasIssue {
             issues = append(issues, internal.NoGoodType)
         }
@@ -412,7 +403,7 @@ func (m *CassandraTypeMapper) getMapping(cassandraTypeName string, spTypeName st
             return mapping, true
         }
     }
-	return CassandraDdlInfo{}, false
+    return CassandraDdlInfo{}, false
 }
 
 // GetSpannerType finds the correct mapping for the Spanner type and issues

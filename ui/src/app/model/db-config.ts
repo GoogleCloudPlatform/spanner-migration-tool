@@ -6,6 +6,7 @@ export default interface IDbConfig {
   userName: string
   password: string
   dbName: string
+  dataCenter?: string
   shardId?: string
 }
 

@@ -44,4 +44,5 @@ export interface IAddColumn {
   Length: number
   IsNullable: boolean
   AutoGen: AutoGen
+  Option?: string
 }

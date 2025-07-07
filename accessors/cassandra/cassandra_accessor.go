@@ -27,14 +27,14 @@ type CassandraAccessor struct {
 	keyspaceMetadata cc.KeyspaceMetadataInterface
 }
 
-var getOrCreateClient = cc.GetOrCreateCassandraClusterClient
+var GetOrCreateClient = cc.GetOrCreateCassandraClusterClient
 
 func NewCassandraAccessor(sourceProfile profiles.SourceProfile) (*CassandraAccessor, cc.KeyspaceMetadataInterface, error) {
 	cfg := sourceProfile.Conn.Cassandra
 
 	port, _ := strconv.Atoi(cfg.Port)
 
-	client, err := getOrCreateClient(
+	client, err := GetOrCreateClient(
 		strings.Split(cfg.Host, ","),
 		port,
 		cfg.Keyspace,
