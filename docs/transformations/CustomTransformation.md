@@ -148,10 +148,12 @@ The following table outlines format of the response string for each **MySQL** da
 | String                                                                              | FLOAT, DOUBLE, DECIMAL                                                           |
 | String                                                                              | BOOLEAN                                                                          |
 | String (**enclosed in single quotes**, e.g., 'Transformed text')                    | TEXT, ENUM, JSON, CHAR, LONGTEXT, MEDIUMTEXT, SET, TINYTEXT, VARCHAR             |
-| Binary String                                                                       | BLOB, BINARY, BIT, LONGBLOB, MEDIUMBLOB, TINYBLOB, VARBINARY                     |
+| String (**enclosed in single quotes**, e.g., 'Transformed binary')                   | BLOB, BINARY, BIT, LONGBLOB, MEDIUMBLOB, TINYBLOB, VARBINARY                     |
 | String (Format: yyyy-MM-dd **enclosed in single quotes**, e.g., '1995-01-13')       | DATE                                                                             |
 | String (UTC format,e.g. 2024-01-01T12:34:56Z)                                       | DATETIME, TIMESTAMP                                                              |
 | String (**enclosed in single quotes**)                                              | [Spatial Datatypes](https://dev.mysql.com/doc/refman/8.0/en/spatial-type-overview.html) |
+
+**To store a NULL value in any column, pass the string "NULL"(without single quotes) instead of a Java `null`.**
 
 {: .highlight }
 Please refer to the sample implementation of **toSourceRow** for most MySQL datatype columns [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationWithShardForLiveIT.java#L115).
