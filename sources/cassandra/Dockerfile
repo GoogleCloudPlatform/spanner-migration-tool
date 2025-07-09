@@ -1,4 +1,4 @@
-FROM golang:1.23-bullseye AS builder
+FROM golang:1.24-bullseye AS builder
 
 # Disable cgo to remove gcc dependency
 ENV CGO_ENABLED=0
