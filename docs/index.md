@@ -54,7 +54,7 @@ To find out how to configure custom transformations, refer [here](./transformati
 
 ## Supported Sources and Targets
 
-- **Schema Migrations**: SMT supports schema migrations for MySQL and PostgreSQL.
+- **Schema Migrations**: SMT supports schema migrations for MySQL, PostgreSQL and Cassandra.
 - **Data Migrations**: SMT supports minimal downtime migrations and POC migration for MySQL and PostgreSQL databases.
 
 ## About the project
