@@ -83,6 +83,112 @@ func onlyRunForEmulatorTest(t *testing.T) {
 	}
 }
 
+func TestCSVImportFromGCS(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	tests := []struct {
+		name      string
+		sourceUri string
+		schemaUri string
+		dbName    string
+		wantErr   bool
+	}{
+		{
+			name:      "table test",
+			sourceUri: "gs://smt-integration-test/import/csv/tabletest.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/tabletest.json",
+			dbName:    "tabletest",
+			wantErr:   false,
+		},
+		{
+			name:      "employees",
+			sourceUri: "gs://smt-integration-test/import/csv/employees-data.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/employees-schema.json",
+			dbName:    "employees",
+			wantErr:   false,
+		},
+		{
+			name:      "large",
+			sourceUri: "gs://smt-integration-test/import/csv/large-data.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/large.json",
+			dbName:    "large",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 1",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_current_dept_emp.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_current_dept_emp-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 2",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_departments.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_departments-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 3",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_dept_emp.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_dept_emp-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 4",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_dept_emp_latest_date.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_dept_emp_latest_date-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 5",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_dept_manager.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_dept_manager-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 6",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_employees.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_employees-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 7",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_salaries.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_salaries-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 8",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_titles.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_titles-schema.json",
+			dbName:    "datacharmer_emp",
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tt.dbName)
+			log.Printf("Spanner database used for testing: %s", dbURI)
+
+			args := fmt.Sprintf("import -source-format=csv -project=%s -instance=%s -database=%s -source-uri=%s --schema-uri=%s",
+				projectID, instanceID, tt.dbName, tt.sourceUri, tt.schemaUri)
+			log.Printf("Running Spanner database import via: %s", args)
+			err := common.RunCommand(args, projectID)
+			assert.NoError(t, err)
+
+			// TODO validation to be added.
+		})
+	}
+}
+
 func TestExampleImportDumpFile(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	tests := []testStruct{
