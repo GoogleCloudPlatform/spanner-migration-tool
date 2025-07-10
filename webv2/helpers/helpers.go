@@ -177,6 +177,8 @@ func GetSourceDatabaseFromDriver(driver string) (string, error) {
 		return constants.POSTGRES, nil
 	case constants.ORACLE, constants.SQLSERVER:
 		return driver, nil
+	case constants.CASSANDRA:
+		return constants.CASSANDRA, nil	
 	default:
 		return "", fmt.Errorf("unsupported driver type: %v", driver)
 	}

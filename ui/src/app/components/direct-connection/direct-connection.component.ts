@@ -5,7 +5,7 @@ import IDbConfig from 'src/app/model/db-config'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { DataService } from 'src/app/services/data/data.service'
 import { LoaderService } from '../../services/loader/loader.service'
-import { DialectList, InputType, PersistedFormValues, StorageKeys } from 'src/app/app.constants'
+import { DialectList, InputType, PersistedFormValues, SourceDbNames, StorageKeys } from 'src/app/app.constants'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
@@ -27,6 +27,7 @@ export class DirectConnectionComponent implements OnInit {
     password: new FormControl(''),
     dbName: new FormControl('', [Validators.required]),
     dialect: new FormControl('', [Validators.required]),
+    dataCenter: new FormControl(''),
   })
 
   dbEngineList = [
@@ -34,6 +35,7 @@ export class DirectConnectionComponent implements OnInit {
     { value: 'sqlserver', displayName: 'SQL Server' },
     { value: 'oracle', displayName: 'Oracle' },
     { value: 'postgres', displayName: 'PostgreSQL' },
+    { value: 'cassandra', displayName: 'Cassandra'},
   ]
 
   isTestConnectionSuccessful = false
@@ -46,7 +48,7 @@ export class DirectConnectionComponent implements OnInit {
     { value: true, displayName: 'Yes'},
   ]
 
-  dialect = DialectList
+  dialect: { value: string, displayName: string }[] = []
 
   constructor(
     private router: Router,
@@ -76,11 +78,29 @@ export class DirectConnectionComponent implements OnInit {
         }
       },
     })
+    this.connectForm.get('dbEngine')?.valueChanges.subscribe((dbEngine) => {
+      this.updateDialectAndDataCenterOptions(dbEngine || '')
+    })
+    this.updateDialectAndDataCenterOptions(this.connectForm.value.dbEngine || '')
+  }
+
+  updateDialectAndDataCenterOptions(dbEngine: string) {
+    const dataCenterControl = this.connectForm.get('dataCenter')
+    if (dbEngine === SourceDbNames.Cassandra) {
+      this.dialect = DialectList.filter((d) => d.value !== 'postgresql')
+      this.connectForm.get('dialect')?.setValue('google_standard_sql')
+
+      dataCenterControl?.setValidators([Validators.required])
+    } else {
+      this.dialect = DialectList
+      dataCenterControl?.clearValidators()
+    }
+    dataCenterControl?.updateValueAndValidity()
   }
 
   testConn() {
     this.clickEvent.openDatabaseLoader('test-connection', this.connectForm.value.dbName!)
-    const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect } = this.connectForm.value
+    const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter } = this.connectForm.value
     localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value))
     let config: IDbConfig = {
       dbEngine: dbEngine!,
@@ -90,6 +110,7 @@ export class DirectConnectionComponent implements OnInit {
       userName: userName!,
       password: password!,
       dbName: dbName!,
+      dataCenter: dataCenter!,
     }
     this.connectRequest =this.fetch.connectTodb(config, dialect!).subscribe({
         next: () => {
@@ -128,7 +149,7 @@ export class DirectConnectionComponent implements OnInit {
         window.scroll(0, 0);
         this.data.resetStore();
         localStorage.clear();
-        const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect } = this.connectForm.value;
+        const { dbEngine, isSharded, hostName, port, userName, password, dbName, dialect, dataCenter } = this.connectForm.value;
         localStorage.setItem(PersistedFormValues.DirectConnectForm, JSON.stringify(this.connectForm.value));
         let config: IDbConfig = {
           dbEngine: dbEngine!,
@@ -138,6 +159,7 @@ export class DirectConnectionComponent implements OnInit {
           userName: userName!,
           password: password!,
           dbName: dbName!,
+          dataCenter: dataCenter!,
         };
         this.connectRequest = this.fetch.connectTodb(config, dialect!).subscribe({
           next: () => {
