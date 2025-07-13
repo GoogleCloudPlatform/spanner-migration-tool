@@ -38,8 +38,6 @@ var (
 	databaseAdmin *database.DatabaseAdminClient
 )
 
-var supported_dialects = [2]string{constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL}
-
 func TestMain(m *testing.M) {
 	cleanup := initIntegrationTests()
 	res := m.Run()
@@ -173,6 +171,7 @@ func TestCSVImportFromGCS(t *testing.T) {
 			wantErr:   false,
 		},
 	}
+	supported_dialects := [2]string{"gsql", "pg"}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
