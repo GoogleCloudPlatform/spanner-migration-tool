@@ -4,12 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"log"
 	"os"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 
 	"cloud.google.com/go/spanner"
 	"github.com/stretchr/testify/assert"
@@ -36,6 +37,8 @@ var (
 	ctx           context.Context
 	databaseAdmin *database.DatabaseAdminClient
 )
+
+var supported_dialects = [2]string{constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL}
 
 func TestMain(m *testing.M) {
 	cleanup := initIntegrationTests()
@@ -117,56 +120,56 @@ func TestCSVImportFromGCS(t *testing.T) {
 			name:      "datacharmer_emp 1",
 			sourceUri: "gs://smt-integration-test/import/csv/emp_current_dept_emp.csv",
 			schemaUri: "gs://smt-integration-test/import/csv/emp_current_dept_emp-schema.json",
-			dbName:    "datacharmer_emp",
+			dbName:    "datacharmer_emp1",
 			wantErr:   false,
 		},
 		{
 			name:      "datacharmer_emp 2",
 			sourceUri: "gs://smt-integration-test/import/csv/emp_departments.csv",
 			schemaUri: "gs://smt-integration-test/import/csv/emp_departments-schema.json",
-			dbName:    "datacharmer_emp",
+			dbName:    "datacharmer_emp2",
 			wantErr:   false,
 		},
 		{
 			name:      "datacharmer_emp 3",
 			sourceUri: "gs://smt-integration-test/import/csv/emp_dept_emp.csv",
 			schemaUri: "gs://smt-integration-test/import/csv/emp_dept_emp-schema.json",
-			dbName:    "datacharmer_emp",
+			dbName:    "datacharmer_emp3",
 			wantErr:   false,
 		},
 		{
 			name:      "datacharmer_emp 4",
 			sourceUri: "gs://smt-integration-test/import/csv/emp_dept_emp_latest_date.csv",
 			schemaUri: "gs://smt-integration-test/import/csv/emp_dept_emp_latest_date-schema.json",
-			dbName:    "datacharmer_emp",
+			dbName:    "datacharmer_emp4",
 			wantErr:   false,
 		},
 		{
 			name:      "datacharmer_emp 5",
 			sourceUri: "gs://smt-integration-test/import/csv/emp_dept_manager.csv",
 			schemaUri: "gs://smt-integration-test/import/csv/emp_dept_manager-schema.json",
-			dbName:    "datacharmer_emp",
+			dbName:    "datacharmer_emp5",
 			wantErr:   false,
 		},
 		{
 			name:      "datacharmer_emp 6",
 			sourceUri: "gs://smt-integration-test/import/csv/emp_employees.csv",
 			schemaUri: "gs://smt-integration-test/import/csv/emp_employees-schema.json",
-			dbName:    "datacharmer_emp",
+			dbName:    "datacharmer_emp6",
 			wantErr:   false,
 		},
 		{
 			name:      "datacharmer_emp 7",
 			sourceUri: "gs://smt-integration-test/import/csv/emp_salaries.csv",
 			schemaUri: "gs://smt-integration-test/import/csv/emp_salaries-schema.json",
-			dbName:    "datacharmer_emp",
+			dbName:    "datacharmer_emp7",
 			wantErr:   false,
 		},
 		{
 			name:      "datacharmer_emp 8",
 			sourceUri: "gs://smt-integration-test/import/csv/emp_titles.csv",
 			schemaUri: "gs://smt-integration-test/import/csv/emp_titles-schema.json",
-			dbName:    "datacharmer_emp",
+			dbName:    "datacharmer_emp8",
 			wantErr:   false,
 		},
 	}
@@ -178,13 +181,15 @@ func TestCSVImportFromGCS(t *testing.T) {
 			dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tt.dbName)
 			log.Printf("Spanner database used for testing: %s", dbURI)
 
-			args := fmt.Sprintf("import -source-format=csv -project=%s -instance=%s -database=%s -source-uri=%s --schema-uri=%s",
-				projectID, instanceID, tt.dbName, tt.sourceUri, tt.schemaUri)
-			log.Printf("Running Spanner database import via: %s", args)
-			err := common.RunCommand(args, projectID)
-			assert.NoError(t, err)
+			for i := 0; i < len(supported_dialects); i++ {
+				args := fmt.Sprintf("import -source-format=csv -project=%s -instance=%s -database=%s -source-uri=%s --schema-uri=%s -database-dialect=%s",
+					projectID, instanceID, tt.dbName, tt.sourceUri, tt.schemaUri, supported_dialects[i])
+				log.Printf("Running Spanner database import via: %s", args)
+				err := common.RunCommand(args, projectID)
+				assert.NoError(t, err)
 
-			// TODO validation to be added.
+				// TODO validation to be added.
+			}
 		})
 	}
 }
