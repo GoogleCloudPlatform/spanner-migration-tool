@@ -110,7 +110,7 @@ func TestCSVImportFromGCS(t *testing.T) {
 		{
 			name:      "large",
 			sourceUri: "gs://smt-integration-test/import/csv/large-data.csv",
-			schemaUri: "gs://smt-integration-test/import/csv/large.json",
+			schemaUri: "gs://smt-integration-test/import/csv/large-schema.json",
 			dbName:    "large",
 			wantErr:   false,
 		},
