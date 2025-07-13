@@ -182,8 +182,9 @@ func TestCSVImportFromGCS(t *testing.T) {
 			log.Printf("Spanner database used for testing: %s", dbURI)
 
 			for i := 0; i < len(supported_dialects); i++ {
+				dialectSpecificDbName := tt.dbName + "_" + supported_dialects[i]
 				args := fmt.Sprintf("import -source-format=csv -project=%s -instance=%s -database=%s -source-uri=%s --schema-uri=%s -database-dialect=%s",
-					projectID, instanceID, tt.dbName, tt.sourceUri, tt.schemaUri, supported_dialects[i])
+					projectID, instanceID, dialectSpecificDbName, tt.sourceUri, tt.schemaUri, supported_dialects[i])
 				log.Printf("Running Spanner database import via: %s", args)
 				err := common.RunCommand(args, projectID)
 				assert.NoError(t, err)
