@@ -68,6 +68,19 @@ func NewExampleDb(filePath string) (*MysqlConceptDb, error) {
 	return db, nil
 }
 
+func NewMysqlQueryExampleDb(projectId, location string) (*MysqlConceptDb, error) {
+	mysqlQueryExamples, err := createQueryExampleEmbeddingsFromFile(projectId, location)
+	if err != nil {
+		return nil, err
+	}
+
+	db := &MysqlConceptDb{data: make(map[string]MySqlMigrationConcept)}
+	for _, concept := range mysqlQueryExamples {
+		db.data[concept.ID] = concept
+	}
+	return db, nil
+}
+
 func cosineSimilarity(a, b []float32) float32 {
 	var dotProduct, normA, normB float32
 	for i := range a {

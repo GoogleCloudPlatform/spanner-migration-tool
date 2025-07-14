@@ -38,6 +38,9 @@ var javaMysqlMigrationConcept []byte
 //go:embed vertx_concept_examples.json
 var vertxMysqlMigrationConcept []byte
 
+//go:embed mysql_query_examples.json
+var mysqlQueryExamples []byte
+
 type MySqlMigrationConcept struct {
 	ID      string `json:"id"`
 	Example string `json:"example"`
@@ -57,18 +60,31 @@ type PredictionClientInterface interface {
 	Close() error
 }
 
-func createEmbededTextsFromFile(project, location, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
+// Refactored: Accepts optional client for testing
+func createEmbededTextsFromFileWithClient(project, location, sourceTargetFramework string, client PredictionClientInterface) ([]MySqlMigrationConcept, error) {
 	ctx := context.Background()
 	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
 	model := "text-embedding-preview-0815"
 
-	client, err := aiplatform.NewPredictionClient(ctx, option.WithEndpoint(apiEndpoint))
-	if err != nil {
-		return nil, err
+	var closeClient bool
+	if client == nil {
+		var err error
+		client, err = aiplatform.NewPredictionClient(ctx, option.WithEndpoint(apiEndpoint))
+		if err != nil {
+			return nil, err
+		}
+		closeClient = true
 	}
-	defer client.Close()
+	if closeClient {
+		defer client.Close()
+	}
 
 	return createEmbededTextsWithClient(ctx, client, project, location, model, sourceTargetFramework)
+}
+
+// Backward-compatible wrapper
+func createEmbededTextsFromFile(project, location, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
+	return createEmbededTextsFromFileWithClient(project, location, sourceTargetFramework, nil)
 }
 
 func createEmbededTextsWithClient(ctx context.Context, client PredictionClientInterface, project, location, model, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
@@ -89,14 +105,101 @@ func createEmbededTextsWithClient(ctx context.Context, client PredictionClientIn
 		return nil, err
 	}
 
-	var instances []*structpb.Value
-	for _, c := range concepts {
-		instances = append(instances, structpb.NewStructValue(&structpb.Struct{
+	return createEmbeddingsForConcepts(project, location, concepts)
+}
+
+// createEmbeddingsForConcepts is a common method that handles the embedding generation process
+func createEmbeddingsForConcepts(project, location string, concepts []MySqlMigrationConcept) ([]MySqlMigrationConcept, error) {
+	ctx := context.Background()
+	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
+	model := "text-embedding-preview-0815"
+
+	client, err := aiplatform.NewPredictionClient(ctx, option.WithEndpoint(apiEndpoint))
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
+	// Extract text for embedding using the provided text extractor function
+	instances := make([]*structpb.Value, len(concepts))
+	for i, concept := range concepts {
+		text := concept.Example
+		instances[i] = structpb.NewStructValue(&structpb.Struct{
 			Fields: map[string]*structpb.Value{
-				"content":   structpb.NewStringValue(c.Example),
+				"content":   structpb.NewStringValue(text),
 				"task_type": structpb.NewStringValue("SEMANTIC_SIMILARITY"),
 			},
-		}))
+		})
+	}
+
+	req := &aiplatformpb.PredictRequest{
+		Endpoint:  fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", project, location, model),
+		Instances: instances,
+	}
+
+	resp, err := client.Predict(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Attach embeddings to concepts
+	for i, prediction := range resp.Predictions {
+		values := prediction.GetStructValue().Fields["embeddings"].GetStructValue().Fields["values"].GetListValue().Values
+		embeddings := make([]float32, len(values))
+		for j, value := range values {
+			embeddings[j] = float32(value.GetNumberValue())
+		}
+		concepts[i].Embedding = embeddings
+	}
+	return concepts, nil
+}
+
+// embeddingsForConceptsFunc allows injection for testing
+var embeddingsForConceptsFunc = createEmbeddingsForConcepts
+
+// Refactored: Accepts optional client for testing
+func createQueryExampleEmbeddingsFromFileWithClient(project, location string, client PredictionClientInterface) ([]MySqlMigrationConcept, error) {
+	var queryExamples []MySqlMigrationConcept
+	if err := json.Unmarshal(mysqlQueryExamples, &queryExamples); err != nil {
+		return nil, fmt.Errorf("failed to parse MySQL query examples JSON: %w", err)
+	}
+
+	ctx := context.Background()
+	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
+	model := "text-embedding-preview-0815"
+
+	var closeClient bool
+	if client == nil {
+		var err error
+		client, err = aiplatform.NewPredictionClient(ctx, option.WithEndpoint(apiEndpoint))
+		if err != nil {
+			return nil, err
+		}
+		closeClient = true
+	}
+	if closeClient {
+		defer client.Close()
+	}
+
+	return createEmbeddingsForConceptsWithClient(ctx, client, project, location, model, queryExamples)
+}
+
+// Backward-compatible wrapper
+func createQueryExampleEmbeddingsFromFile(project, location string) ([]MySqlMigrationConcept, error) {
+	return createQueryExampleEmbeddingsFromFileWithClient(project, location, nil)
+}
+
+// Helper for embedding with a provided client
+func createEmbeddingsForConceptsWithClient(ctx context.Context, client PredictionClientInterface, project, location, model string, concepts []MySqlMigrationConcept) ([]MySqlMigrationConcept, error) {
+	instances := make([]*structpb.Value, len(concepts))
+	for i, concept := range concepts {
+		text := concept.Example
+		instances[i] = structpb.NewStructValue(&structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				"content":   structpb.NewStringValue(text),
+				"task_type": structpb.NewStringValue("SEMANTIC_SIMILARITY"),
+			},
+		})
 	}
 
 	req := &aiplatformpb.PredictRequest{
@@ -110,20 +213,12 @@ func createEmbededTextsWithClient(ctx context.Context, client PredictionClientIn
 	}
 
 	for i, prediction := range resp.Predictions {
-		values := prediction.GetStructValue().GetFields()["embeddings"].GetStructValue().GetFields()["values"].GetListValue().GetValues()
-
-		if values == nil {
-			continue
+		values := prediction.GetStructValue().Fields["embeddings"].GetStructValue().Fields["values"].GetListValue().Values
+		embeddings := make([]float32, len(values))
+		for j, value := range values {
+			embeddings[j] = float32(value.GetNumberValue())
 		}
-
-		embedding := make([]float32, len(values))
-		for j, v := range values {
-			if v == nil {
-				continue
-			}
-			embedding[j] = float32(v.GetNumberValue())
-		}
-		concepts[i].Embedding = embedding
+		concepts[i].Embedding = embeddings
 	}
 	return concepts, nil
 }

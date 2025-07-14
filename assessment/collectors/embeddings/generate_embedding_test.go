@@ -154,3 +154,59 @@ func TestFakeClient_CloseCalled(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, client.closeCalled)
 }
+
+func TestCreateQueryExampleEmbeddingsFromFile(t *testing.T) {
+	// Save and restore the original mysqlQueryExamples
+	oldMysqlQueryExamples := mysqlQueryExamples
+	defer func() { mysqlQueryExamples = oldMysqlQueryExamples }()
+
+	// Mock mysqlQueryExamples with a single example
+	mysqlQueryExamples = []byte(`[
+		{
+			"id": "1",
+			"example": "SELECT * FROM employees",
+			"rewrite": {
+				"theory": "simple select",
+				"options": [{"mysql_code": "SELECT * FROM employees", "spanner_code": "SELECT * FROM employees"}]
+			}
+		}
+	]`)
+
+	// Patch embeddingsForConceptsFunc to use a fake embedding function
+	fakeEmbedFunc := func(project, location string, concepts []MySqlMigrationConcept) ([]MySqlMigrationConcept, error) {
+		for i := range concepts {
+			concepts[i].Embedding = []float32{0.1, 0.2, 0.3}
+		}
+		return concepts, nil
+	}
+	oldEmbeddingsForConceptsFunc := embeddingsForConceptsFunc
+	embeddingsForConceptsFunc = fakeEmbedFunc
+	defer func() { embeddingsForConceptsFunc = oldEmbeddingsForConceptsFunc }()
+
+	concepts, err := createQueryExampleEmbeddingsFromFile("test-proj", "us-central1")
+	assert.NoError(t, err)
+	assert.Len(t, concepts, 1)
+	assert.Equal(t, "1", concepts[0].ID)
+	assert.InDeltaSlice(t, []float32{0.1, 0.2, 0.3}, concepts[0].Embedding, 0.001)
+}
+
+func TestCreateQueryExampleEmbeddingsFromFileWithClient(t *testing.T) {
+	oldMysqlQueryExamples := mysqlQueryExamples
+	defer func() { mysqlQueryExamples = oldMysqlQueryExamples }()
+	mysqlQueryExamples = []byte(`[
+		{
+			"id": "1",
+			"example": "SELECT * FROM employees",
+			"rewrite": {
+				"theory": "simple select",
+				"options": [{"mysql_code": "SELECT * FROM employees", "spanner_code": "SELECT * FROM employees"}]
+			}
+		}
+	]`)
+	client := &fakeClient{}
+	concepts, err := createQueryExampleEmbeddingsFromFileWithClient("test-proj", "us-central1", client)
+	assert.NoError(t, err)
+	assert.Len(t, concepts, 1)
+	assert.Equal(t, "1", concepts[0].ID)
+	assert.InDeltaSlice(t, []float32{0.1, 0.2, 0.3}, concepts[0].Embedding, 0.001)
+}
