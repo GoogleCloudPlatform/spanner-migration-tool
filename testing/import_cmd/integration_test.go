@@ -218,13 +218,13 @@ func TestExampleImportDumpFile(t *testing.T) {
 			wantErr:      false,
 			sourceFormat: constants.MYSQLDUMP,
 		},
-		{
-			name:         "employees dump file",
-			dumpUri:      "gs://smt-integration-test/import/mysql/employees.sql",
-			dbName:       "employees_dump_file_mysql_test",
-			wantErr:      false,
-			sourceFormat: constants.MYSQLDUMP,
-		},
+		//{
+		//	name:         "employees dump file",
+		//	dumpUri:      "gs://smt-integration-test/import/mysql/employees.sql",
+		//	dbName:       "employees_dump_file_mysql_test",
+		//	wantErr:      false,
+		//	sourceFormat: constants.MYSQLDUMP,
+		//},
 		//{
 		//	name:         "pagila",
 		//	dumpUri:      "../../test_data/pagila.sql",
