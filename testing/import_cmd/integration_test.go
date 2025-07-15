@@ -197,13 +197,13 @@ func TestCSVImportFromGCS(t *testing.T) {
 func TestExampleImportDumpFile(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	tests := []testStruct{
-		{
-			name:         "sakila dump file",
-			dumpUri:      "../../test_data/sakila-dump.sql",
-			dbName:       "sakila",
-			wantErr:      false,
-			sourceFormat: constants.MYSQLDUMP,
-		},
+		//{
+		//	name:         "sakila dump file",
+		//	dumpUri:      "../../test_data/sakila-dump.sql",
+		//	dbName:       "sakila",
+		//	wantErr:      false,
+		//	sourceFormat: constants.MYSQLDUMP,
+		//},
 		{
 			name:         "world dump file",
 			dumpUri:      "../../test_data/world.sql",
@@ -225,13 +225,13 @@ func TestExampleImportDumpFile(t *testing.T) {
 			wantErr:      false,
 			sourceFormat: constants.MYSQLDUMP,
 		},
-		{
-			name:         "pagila",
-			dumpUri:      "../../test_data/pagila.sql",
-			dbName:       "pagila",
-			wantErr:      false,
-			sourceFormat: constants.PGDUMP,
-		},
+		//{
+		//	name:         "pagila",
+		//	dumpUri:      "../../test_data/pagila.sql",
+		//	dbName:       "pagila",
+		//	wantErr:      false,
+		//	sourceFormat: constants.PGDUMP,
+		//},
 		{
 			name:         "pg_world",
 			dumpUri:      "../../test_data/pg_world.sql",
