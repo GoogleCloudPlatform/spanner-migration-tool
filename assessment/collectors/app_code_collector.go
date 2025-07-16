@@ -47,13 +47,29 @@ var daoMigrationPromptTemplate string
 //go:embed prompts/non-dao-migration-prompt.txt
 var nonDAOMigrationPromptTemplate string
 
+// generativeModel defines an interface for interacting with a generative AI model.
+type generativeModel interface {
+	GenerateContent(ctx context.Context, parts ...genai.Part) (*genai.GenerateContentResponse, error)
+	SetResponseMIMEType(string)
+}
+
+// genaiModelWrapper wraps the actual genai.GenerativeModel to implement the generativeModel interface.
+type genaiModelWrapper struct {
+	*genai.GenerativeModel
+}
+
+// SetResponseMIMEType sets the response MIME type for the underlying model.
+func (w *genaiModelWrapper) SetResponseMIMEType(mimeType string) {
+	w.GenerativeModel.ResponseMIMEType = mimeType
+}
+
 // MigrationCodeSummarizer holds the LLM models and configurations for code migration assessment.
 type MigrationCodeSummarizer struct {
 	gcpProjectID               string
 	gcpLocation                string
 	aiClient                   *genai.Client
-	geminiProModel             *genai.GenerativeModel
-	geminiFlashModel           *genai.GenerativeModel
+	geminiProModel             generativeModel
+	geminiFlashModel           generativeModel
 	conceptExampleDatabase     *assessment.MysqlConceptDb
 	sourceDatabaseFramework    string
 	targetDatabaseFramework    string
@@ -115,6 +131,7 @@ var SupportedFrameworkCombinations = map[FrameworkPair]bool{
 }
 
 // NewMigrationCodeSummarizer initializes a new MigrationCodeSummarizer.
+// ToDo:Add Unit Tests
 func NewMigrationCodeSummarizer(
 	ctx context.Context,
 	googleGenerativeAIAPIKey *string,
@@ -166,8 +183,8 @@ func NewMigrationCodeSummarizer(
 		gcpProjectID:               projectID,
 		gcpLocation:                location,
 		aiClient:                   client,
-		geminiProModel:             client.GenerativeModel("gemini-1.5-pro-002"),
-		geminiFlashModel:           client.GenerativeModel("gemini-2.0-flash-001"),
+		geminiProModel:             &genaiModelWrapper{client.GenerativeModel("gemini-1.5-pro-002")},
+		geminiFlashModel:           &genaiModelWrapper{client.GenerativeModel("gemini-2.0-flash-001")},
 		conceptExampleDatabase:     conceptExampleDB,
 		projectDependencyAnalyzer:  projectDependencyAnalyzer,
 		sourceDatabaseSchema:       sourceSchema,
@@ -179,8 +196,8 @@ func NewMigrationCodeSummarizer(
 		dependencyGraph:            make(map[string]map[string]struct{}),
 		fileDependencyAnalysis:     make(map[string]FileDependencyInfo),
 	}
-	summarizer.geminiFlashModel.ResponseMIMEType = "application/json"
-	summarizer.geminiProModel.ResponseMIMEType = "application/json"
+	summarizer.geminiFlashModel.SetResponseMIMEType("application/json")
+	summarizer.geminiProModel.SetResponseMIMEType("application/json")
 
 	return summarizer, nil
 }
@@ -207,8 +224,10 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 		zap.Int32("Total Tokens", response.UsageMetadata.TotalTokenCount))
 
 	var llmResponse string
-	if part, ok := response.Candidates[0].Content.Parts[0].(genai.Text); ok {
-		llmResponse = string(part)
+	if response.Candidates != nil && len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
+		if part, ok := response.Candidates[0].Content.Parts[0].(genai.Text); ok {
+			llmResponse = string(part)
+		}
 	}
 
 	llmResponse = m.parseJSONWithRetries(m.geminiFlashModel, prompt, llmResponse, identifier)
@@ -253,13 +272,16 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 		zap.Int32("Prompt Tokens", finalResponse.UsageMetadata.PromptTokenCount),
 		zap.Int32("Candidate Tokens", finalResponse.UsageMetadata.CandidatesTokenCount),
 		zap.Int32("Total Tokens", finalResponse.UsageMetadata.TotalTokenCount))
-	if part, ok := finalResponse.Candidates[0].Content.Parts[0].(genai.Text); ok {
-		llmResponse = string(part)
+
+	if len(finalResponse.Candidates) > 0 && len(finalResponse.Candidates[0].Content.Parts) > 0 {
+		if part, ok := finalResponse.Candidates[0].Content.Parts[0].(genai.Text); ok {
+			llmResponse = string(part)
+		}
 	}
 
 	logger.Log.Debug("Final LLM Response: ", zap.String("response", llmResponse))
 
-	llmResponse = m.parseJSONWithRetries(m.geminiFlashModel, finalPrompt, llmResponse, identifier)
+	llmResponse = m.parseJSONWithRetries(m.geminiProModel, finalPrompt, llmResponse, identifier)
 
 	return llmResponse, nil
 }
@@ -279,11 +301,11 @@ func formatQuestionsAndSearchResults(questions []string, searchResults [][]strin
 	return formattedString
 }
 
-func (m *MigrationCodeSummarizer) parseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, originalResponse string, identifier string) string {
+func (m *MigrationCodeSummarizer) parseJSONWithRetries(model generativeModel, originalPrompt string, originalResponse string, identifier string) string {
 	jsonFixPromptTemplate := `
-		You are a JSON parser expert tasked with fixing parsing errors in JSON string. Golang's json.Unmarshal library is 
-		being used for parsing the json string. The following JSON string is currently failing with error message: %s.  
-		Ensure that all the parsing errors are resolved and output string is parsable by json.Unmarshal library. Also, 
+		You are a JSON parser expert tasked with fixing parsing errors in JSON string. Golang's json.Unmarshal library is
+		being used for parsing the json string. The following JSON string is currently failing with error message: %s.
+		Ensure that all the parsing errors are resolved and output string is parsable by json.Unmarshal library. Also,
 		ensure that the output only contain JSON string.
 		
 		%s
@@ -324,8 +346,10 @@ func (m *MigrationCodeSummarizer) parseJSONWithRetries(model *genai.GenerativeMo
 			zap.Int32("Prompt Tokens", resp.UsageMetadata.PromptTokenCount),
 			zap.Int32("Candidate Tokens", resp.UsageMetadata.CandidatesTokenCount),
 			zap.Int32("Total Tokens", resp.UsageMetadata.TotalTokenCount))
-		if part, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
-			originalResponse = string(part)
+		if len(resp.Candidates) > 0 && len(resp.Candidates[0].Content.Parts) > 0 {
+			if part, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
+				originalResponse = string(part)
+			}
 		}
 	}
 	logger.Log.Warn("Failed to parse JSON after multiple retries for identifier: ", zap.String("identifier", identifier))
@@ -342,6 +366,7 @@ func (m *MigrationCodeSummarizer) fetchFileContent(filepath string) (string, err
 }
 
 // AnalyzeFileTask wraps the AnalyzeFile function to be used with the task runner.
+// ToDo:Add Unit Tests
 func (m *MigrationCodeSummarizer) AnalyzeFileTask(analyzeFileInput *FileAnalysisInput, mutex *sync.Mutex) task.TaskResult[*FileAnalysisResponse] {
 	analyzeFileResponse := m.AnalyzeFile(
 		analyzeFileInput.Context,
@@ -397,8 +422,10 @@ func (m *MigrationCodeSummarizer) AnalyzeFile(ctx context.Context, projectPath, 
 			zap.Int32("Candidate Tokens", response.UsageMetadata.CandidatesTokenCount),
 			zap.Int32("Total Tokens", response.UsageMetadata.TotalTokenCount))
 
-		if part, ok := response.Candidates[0].Content.Parts[0].(genai.Text); ok {
-			llmResponse = string(part)
+		if response.Candidates != nil && len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
+			if part, ok := response.Candidates[0].Content.Parts[0].(genai.Text); ok {
+				llmResponse = string(part)
+			}
 		}
 
 		llmResponse = m.parseJSONWithRetries(m.geminiFlashModel, prompt, llmResponse, "analyze-non-dao-class-"+filepath)
@@ -475,6 +502,7 @@ func (m *MigrationCodeSummarizer) analyzeFileDependencies(filePath, fileContent 
 }
 
 // AnalyzeProject orchestrates the analysis of the entire project.
+// ToDo:Add Unit Tests
 func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessment, error) {
 	logger.Log.Info(fmt.Sprintf("analyzing project: %s", m.projectRootPath))
 	dependencyGraph, processingOrder := m.projectDependencyAnalyzer.GetExecutionOrder(m.projectRootPath)

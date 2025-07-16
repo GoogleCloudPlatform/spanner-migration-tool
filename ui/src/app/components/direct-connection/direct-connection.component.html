@@ -58,8 +58,17 @@
       </mat-form-field>
       <br />
       <mat-form-field class="full-width" appearance="outline">
-        <mat-label>Database Name</mat-label>
+        <mat-label *ngIf="connectForm.value.dbEngine === 'cassandra'">Keyspace Name</mat-label>
+        <mat-label *ngIf="connectForm.value.dbEngine !== 'cassandra'">Database Name</mat-label>
         <input matInput name="dbname" type="text" formControlName="dbName" id="dbname-input" />
+      </mat-form-field>
+
+      <mat-form-field class="full-width" appearance="outline" *ngIf="connectForm.value.dbEngine === 'cassandra'">
+        <mat-label>Datacenter</mat-label>
+        <input matInput placeholder="dc" name="dataCenter" type="text" formControlName="dataCenter" id="datacenter-input"/>
+        <mat-error *ngIf="connectForm.controls['dataCenter'].hasError('required')">
+          Datacenter is required for Cassandra connections.
+        </mat-error>
       </mat-form-field>
       <br />
       <h3 class="primary-header">Spanner Dialect</h3>

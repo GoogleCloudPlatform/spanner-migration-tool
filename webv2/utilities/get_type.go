@@ -19,6 +19,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/oracle"
@@ -50,6 +51,9 @@ func GetType(conv *internal.Conv, newType, tableId, colId string) (ddl.CreateTab
 	case constants.ORACLE:
 		toddl = oracle.InfoSchemaImpl{}.GetToDdl()
 		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type, isPk)
+	case constants.CASSANDRA:
+		toddl = cassandra.InfoSchemaImpl{}.GetToDdl()
+		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type, isPk)
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.Driver)
 	}
@@ -68,6 +72,8 @@ func GetType(conv *internal.Conv, newType, tableId, colId string) (ddl.CreateTab
 	if conv.SchemaIssues != nil && len(issues) > 0 {
 		conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = issues
 	}
-	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
+	if conv.Source != constants.CASSANDRA {
+		ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
+	}
 	return sp, ty, nil
 }

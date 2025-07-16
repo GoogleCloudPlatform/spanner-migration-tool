@@ -62,27 +62,3 @@ func (m *MockCassandraCluster) KeyspaceMetadata(keyspace string) (KeyspaceMetada
 func (m *MockCassandraCluster) Close() {
 	m.Called()
 }
-
-// MockTypeInfo mocks TypeInfo field in ColumnMetadata
-type MockTypeInfo struct {
-	MockGocqlType gocql.Type 
-	MockVersion   byte       
-	MockNewResult interface{}
-	MockNewError  error
-}
-
-func (m MockTypeInfo) Type() gocql.Type {
-	return m.MockGocqlType
-}
-func (m MockTypeInfo) Version() byte {
-	return m.MockVersion
-}
-func (m MockTypeInfo) Custom() string {
-	return "" 
-}
-func (m MockTypeInfo) New() interface{} {
-	return m.MockNewResult
-}
-func (m MockTypeInfo) NewWithError() (interface{}, error) {
-	return m.MockNewResult, m.MockNewError
-}

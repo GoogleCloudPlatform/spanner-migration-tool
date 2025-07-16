@@ -2191,6 +2191,86 @@ func TestReviewTableSchema(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:    "Test change cassandra type success",
+			tableId: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"c1": { "ToType": "STRING" },
+			"c2": { "ToType": "BYTES" }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, Opts: map[string]string{"cassandra_type": "bigint"},},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					},
+				},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint"}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar"}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+				Source: constants.CASSANDRA,
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Opts: map[string]string{"cassandra_type": "text"}},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, Opts: map[string]string{"cassandra_type": "blob"}},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					},
+				},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]schema.Column{
+							"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "bigint"}},
+							"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "varchar"}},
+						},
+						PrimaryKeys: []schema.Key{{ColId: "c1"}},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						ColumnLevelIssues: map[string][]internal.SchemaIssue{
+							"c1": {internal.Widened},
+						},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+				Source: constants.CASSANDRA,
+			},
+		},
 	}
 
 	for _, tc := range tc {

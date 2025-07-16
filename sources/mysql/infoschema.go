@@ -208,7 +208,9 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			sequence.ColumnsUsingSeq = map[string][]string{
 				table.Id: {colId},
 			}
+			conv.ConvLock.Lock()
 			conv.SrcSequences[sequence.Id] = sequence
+			conv.ConvLock.Unlock()
 		} else {
 			colAutoGen = ddl.AutoGenCol{}
 		}
@@ -284,7 +286,7 @@ func (isi InfoSchemaImpl) getConstraintsDQL() (string, error) {
 
 	// mysql version 8.0.16 and above has CHECK_CONSTRAINTS table.
 	if tableExistsCount > 0 {
-		return `SELECT DISTINCT COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME,t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE
+		return `SELECT DISTINCT COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME,t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE, COALESCE(k.ORDINAL_POSITION, 0) AS ORDINAL_POSITION
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
             LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
             ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
@@ -294,7 +296,8 @@ func (isi InfoSchemaImpl) getConstraintsDQL() (string, error) {
             ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
 	    AND t.TABLE_SCHEMA = c.CONSTRAINT_SCHEMA
             WHERE t.TABLE_SCHEMA = ? 
-            AND t.TABLE_NAME = ?;`, nil
+            AND t.TABLE_NAME = ? 
+            ORDER BY COALESCE(k.ORDINAL_POSITION, 0);`, nil
 	}
 	return `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
@@ -312,7 +315,7 @@ func (isi InfoSchemaImpl) processRow(
 	rows *sql.Rows, conv *internal.Conv, primaryKeys *[]string,
 	checkKeys *[]schema.CheckConstraint, m map[string][]string,
 ) error {
-	var col, constraintType, checkClause, constraintName string
+	var col, constraintType, checkClause, constraintName, ordinal_position string
 	var err error
 	cols, err := rows.Columns()
 	if err != nil {
@@ -323,8 +326,8 @@ func (isi InfoSchemaImpl) processRow(
 	switch len(cols) {
 	case 2:
 		err = rows.Scan(&col, &constraintType)
-	case 4:
-		err = rows.Scan(&col, &constraintName, &constraintType, &checkClause)
+	case 5:
+		err = rows.Scan(&col, &constraintName, &constraintType, &checkClause, &ordinal_position)
 	default:
 		conv.Unexpected(fmt.Sprintf("unexpected number of columns: %d", len(cols)))
 		return fmt.Errorf("unexpected number of columns: %d", len(cols))

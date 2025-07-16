@@ -81,6 +81,9 @@ func cosineSimilarity(a, b []float32) float32 {
 	return dotProduct / (float32(math.Sqrt(float64(normA))) * float32(math.Sqrt(float64(normB))))
 }
 
+// We make embedTextsFunc a variable so it can be overridden in tests.
+var embedTextsFunc = embedTexts
+
 func embedTexts(project, location string, texts []string) ([][]float32, error) {
 	ctx := context.Background()
 	client, err := aiplatform.NewPredictionClient(ctx, option.WithEndpoint(location+"-aiplatform.googleapis.com:443"))
@@ -118,7 +121,6 @@ func embedTexts(project, location string, texts []string) ([][]float32, error) {
 		for j, value := range values {
 			vector[j] = float32(value.GetNumberValue())
 		}
-
 		embeddings = append(embeddings, vector)
 	}
 	return embeddings, nil
@@ -128,8 +130,7 @@ func (db *MysqlConceptDb) Search(searchTerms []string, project, location string,
 	if len(searchTerms) == 0 {
 		return nil
 	}
-	searchEmbeddings, err := embedTexts(project, location, searchTerms)
-
+	searchEmbeddings, err := embedTextsFunc(project, location, searchTerms)
 	if err != nil {
 		log.Fatalf("Failed to get embeddings: %v", err)
 	}
@@ -168,18 +169,3 @@ func (db *MysqlConceptDb) Search(searchTerms []string, project, location string,
 	}
 	return output
 }
-
-// Sample Usage
-// func main() {
-// 	db, err := NewExampleDb("output.json")
-// 	if err != nil {
-// 		log.Fatalf("Failed to load database: %v", err)
-// 	}
-
-// 	searchResults := db.Search([]string{
-// 		"How to migrate from `AUTO_INCREMENT` in PG to Spanner?",
-// 	}, "", "", 0.25, 3)
-
-// 	resultJSON, _ := json.MarshalIndent(searchResults, "", "  ")
-// 	logger.Log.Debug(string(resultJSON))
-// }
