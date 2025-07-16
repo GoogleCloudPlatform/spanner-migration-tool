@@ -38,7 +38,13 @@ type MysqlConceptDb struct {
 }
 
 func NewMysqlConceptDb(projectId, location, sourceTargetFramework string) (*MysqlConceptDb, error) {
-	mysqlMigrationConcepts, err := createEmbededTextsFromFile(projectId, location, sourceTargetFramework)
+	ctx, client, model, err := newAIPredictionClient(location)
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
+	mysqlMigrationConcepts, err := createEmbededTextsWithClient(ctx, client, projectId, location, model, sourceTargetFramework)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +75,13 @@ func NewExampleDb(filePath string) (*MysqlConceptDb, error) {
 }
 
 func NewMysqlQueryExampleDb(projectId, location string) (*MysqlConceptDb, error) {
-	mysqlQueryExamples, err := createQueryExampleEmbeddingsFromFile(projectId, location)
+	ctx, client, model, err := newAIPredictionClient(location)
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
+	mysqlQueryExamples, err := createQueryExampleEmbeddingsWithClient(ctx, client, projectId, location, model)
 	if err != nil {
 		return nil, err
 	}

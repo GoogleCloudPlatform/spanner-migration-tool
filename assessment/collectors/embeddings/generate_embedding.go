@@ -60,31 +60,43 @@ type PredictionClientInterface interface {
 	Close() error
 }
 
-// Refactored: Accepts optional client for testing
-func createEmbededTextsFromFileWithClient(project, location, sourceTargetFramework string, client PredictionClientInterface) ([]MySqlMigrationConcept, error) {
-	ctx := context.Background()
-	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
-	model := "text-embedding-preview-0815"
+// Helper to attach embeddings to a slice of concepts using a PredictionClientInterface
+func attachEmbeddingsToConcepts(ctx context.Context, client PredictionClientInterface, project, location, model string, concepts []MySqlMigrationConcept) ([]MySqlMigrationConcept, error) {
+	var instances []*structpb.Value
+	for _, c := range concepts {
+		instances = append(instances, structpb.NewStructValue(&structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				"content":   structpb.NewStringValue(c.Example),
+				"task_type": structpb.NewStringValue("SEMANTIC_SIMILARITY"),
+			},
+		}))
+	}
 
-	var closeClient bool
-	if client == nil {
-		var err error
-		client, err = aiplatform.NewPredictionClient(ctx, option.WithEndpoint(apiEndpoint))
-		if err != nil {
-			return nil, err
+	req := &aiplatformpb.PredictRequest{
+		Endpoint:  fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", project, location, model),
+		Instances: instances,
+	}
+
+	resp, err := client.Predict(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, prediction := range resp.Predictions {
+		values := prediction.GetStructValue().GetFields()["embeddings"].GetStructValue().GetFields()["values"].GetListValue().GetValues()
+		if values == nil {
+			continue
 		}
-		closeClient = true
+		embedding := make([]float32, len(values))
+		for j, v := range values {
+			if v == nil {
+				continue
+			}
+			embedding[j] = float32(v.GetNumberValue())
+		}
+		concepts[i].Embedding = embedding
 	}
-	if closeClient {
-		defer client.Close()
-	}
-
-	return createEmbededTextsWithClient(ctx, client, project, location, model, sourceTargetFramework)
-}
-
-// Backward-compatible wrapper
-func createEmbededTextsFromFile(project, location, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
-	return createEmbededTextsFromFileWithClient(project, location, sourceTargetFramework, nil)
+	return concepts, nil
 }
 
 func createEmbededTextsWithClient(ctx context.Context, client PredictionClientInterface, project, location, model, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
@@ -104,121 +116,26 @@ func createEmbededTextsWithClient(ctx context.Context, client PredictionClientIn
 	if err := json.Unmarshal(data, &concepts); err != nil {
 		return nil, err
 	}
-
-	return createEmbeddingsForConcepts(project, location, concepts)
+	return attachEmbeddingsToConcepts(ctx, client, project, location, model, concepts)
 }
 
-// createEmbeddingsForConcepts is a common method that handles the embedding generation process
-func createEmbeddingsForConcepts(project, location string, concepts []MySqlMigrationConcept) ([]MySqlMigrationConcept, error) {
+func createQueryExampleEmbeddingsWithClient(ctx context.Context, client PredictionClientInterface, project, location, model string) ([]MySqlMigrationConcept, error) {
+	var queryExamples []MySqlMigrationConcept
+	if err := json.Unmarshal(mysqlQueryExamples, &queryExamples); err != nil {
+		return nil, fmt.Errorf("failed to parse MySQL query examples JSON: %w", err)
+	}
+	return attachEmbeddingsToConcepts(ctx, client, project, location, model, queryExamples)
+}
+
+// Helper to create a new Vertex AI Prediction client and return context, client, and model
+func newAIPredictionClient(location string) (context.Context, PredictionClientInterface, string, error) {
 	ctx := context.Background()
 	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
 	model := "text-embedding-preview-0815"
 
 	client, err := aiplatform.NewPredictionClient(ctx, option.WithEndpoint(apiEndpoint))
 	if err != nil {
-		return nil, err
+		return nil, nil, "", err
 	}
-	defer client.Close()
-
-	// Extract text for embedding using the provided text extractor function
-	instances := make([]*structpb.Value, len(concepts))
-	for i, concept := range concepts {
-		text := concept.Example
-		instances[i] = structpb.NewStructValue(&structpb.Struct{
-			Fields: map[string]*structpb.Value{
-				"content":   structpb.NewStringValue(text),
-				"task_type": structpb.NewStringValue("SEMANTIC_SIMILARITY"),
-			},
-		})
-	}
-
-	req := &aiplatformpb.PredictRequest{
-		Endpoint:  fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", project, location, model),
-		Instances: instances,
-	}
-
-	resp, err := client.Predict(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Attach embeddings to concepts
-	for i, prediction := range resp.Predictions {
-		values := prediction.GetStructValue().Fields["embeddings"].GetStructValue().Fields["values"].GetListValue().Values
-		embeddings := make([]float32, len(values))
-		for j, value := range values {
-			embeddings[j] = float32(value.GetNumberValue())
-		}
-		concepts[i].Embedding = embeddings
-	}
-	return concepts, nil
-}
-
-// embeddingsForConceptsFunc allows injection for testing
-var embeddingsForConceptsFunc = createEmbeddingsForConcepts
-
-// Refactored: Accepts optional client for testing
-func createQueryExampleEmbeddingsFromFileWithClient(project, location string, client PredictionClientInterface) ([]MySqlMigrationConcept, error) {
-	var queryExamples []MySqlMigrationConcept
-	if err := json.Unmarshal(mysqlQueryExamples, &queryExamples); err != nil {
-		return nil, fmt.Errorf("failed to parse MySQL query examples JSON: %w", err)
-	}
-
-	ctx := context.Background()
-	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
-	model := "text-embedding-preview-0815"
-
-	var closeClient bool
-	if client == nil {
-		var err error
-		client, err = aiplatform.NewPredictionClient(ctx, option.WithEndpoint(apiEndpoint))
-		if err != nil {
-			return nil, err
-		}
-		closeClient = true
-	}
-	if closeClient {
-		defer client.Close()
-	}
-
-	return createEmbeddingsForConceptsWithClient(ctx, client, project, location, model, queryExamples)
-}
-
-// Backward-compatible wrapper
-func createQueryExampleEmbeddingsFromFile(project, location string) ([]MySqlMigrationConcept, error) {
-	return createQueryExampleEmbeddingsFromFileWithClient(project, location, nil)
-}
-
-// Helper for embedding with a provided client
-func createEmbeddingsForConceptsWithClient(ctx context.Context, client PredictionClientInterface, project, location, model string, concepts []MySqlMigrationConcept) ([]MySqlMigrationConcept, error) {
-	instances := make([]*structpb.Value, len(concepts))
-	for i, concept := range concepts {
-		text := concept.Example
-		instances[i] = structpb.NewStructValue(&structpb.Struct{
-			Fields: map[string]*structpb.Value{
-				"content":   structpb.NewStringValue(text),
-				"task_type": structpb.NewStringValue("SEMANTIC_SIMILARITY"),
-			},
-		})
-	}
-
-	req := &aiplatformpb.PredictRequest{
-		Endpoint:  fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", project, location, model),
-		Instances: instances,
-	}
-
-	resp, err := client.Predict(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	for i, prediction := range resp.Predictions {
-		values := prediction.GetStructValue().Fields["embeddings"].GetStructValue().Fields["values"].GetListValue().Values
-		embeddings := make([]float32, len(values))
-		for j, value := range values {
-			embeddings[j] = float32(value.GetNumberValue())
-		}
-		concepts[i].Embedding = embeddings
-	}
-	return concepts, nil
+	return ctx, client, model, nil
 }

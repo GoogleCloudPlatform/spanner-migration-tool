@@ -14,9 +14,9 @@
     },
     {
       "id": "2",
-      "example": "How to define and insert data into tables with foreign key constraints, `TEXT` and `BLOB` data types in Spanner?",
+      "example": "How to define and insert data into tables with foreign key constraints?",
       "rewrite": {
-        "theory": "Spanner supports foreign key constraints. `TEXT` in MySQL maps to `STRING(MAX)` in Spanner, and `BLOB` maps to `BYTES` with a specified length or `BYTES(MAX)`.",
+        "theory": "Spanner supports foreign key constraints.",
         "options": [
           {
             "mysql_code": "create table Employee_Details(\nid varchar(36) PRIMARY key,\nemployee_id int ,\naddress text,\ndob date not null,\nother_details blob,\nconstraint FOREIGN KEY (employee_id) REFERENCES Employee(employee_id)\n);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),1,'Koramanagla Bangalore 560048', '1988-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),2,\"Mahadeva Bangalore 560018\", '1992-01-24',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),3,\"Goregaon Mumbai 560025\", '1998-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),4,\"CannaughtPlace 560088\", '1998-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),5,\"Sarjapura Bangalore 560035\", '1998-05-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),6,\"Whitefield Bangalore 560010\", '1988-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),7,\"Indiranagar Bangalore 560001\", '1996-11-18',null);",
@@ -27,19 +27,32 @@
     },
     {
       "id": "3",
-      "example": "How to create a table with multiple foreign key constraints and a composite primary key in Spanner?",
+      "example": "How to create a table with multiple foreign key constraints in Spanner?",
       "rewrite": {
-        "theory": "Spanner supports multiple foreign key constraints within a table definition. For a composite primary key, list all columns that form the primary key within the `PRIMARY KEY` clause.",
+        "theory": "Spanner supports multiple foreign key constraints within a table definition. You can define more than one FOREIGN KEY clause in the CREATE TABLE statement.",
         "options": [
           {
-            "mysql_code": "CREATE TABLE Employee_Manager( employee_id int,\nmanager_id int,\nCONSTRAINT FOREIGN KEY (employee_id) REFERENCES Employee(employee_id),\nCONSTRAINT FOREIGN KEY (manager_id) REFERENCES Employee(employee_id) )\ninsert into Employee_Manager ( employee_id,manager_id) values ( 1,2);\ninsert into Employee_Manager ( employee_id,manager_id) values ( 2,2);\ninsert into Employee_Manager ( employee_id,manager_id) values ( 3,2);\ninsert into Employee_Manager ( employee_id,manager_id) values ( 4,1);\ninsert into Employee_Manager ( employee_id,manager_id) values ( 5,1);\ninsert into Employee_Manager ( employee_id,manager_id) values ( 6,1);\ninsert into Employee_Manager ( employee_id,manager_id) values ( 7,1);",
-            "spanner_code": "CREATE TABLE Employee_Manager( employee_id int64,\nmanager_id int64,\nCONSTRAINT FK_EM FOREIGN KEY (employee_id) REFERENCES Employee(employee_id))\nPRIMARY KEY (employee_id,manager_id);\ninsert into Employee_Manager ( employee_id,manager_id) values ( 1,2);\ninsert into Employee_Manager ( employee_id,manager_id) values ( 2,2);\ninsert into Employee_Manager ( employee_id,manager_id) values ( 3,2);\ninsert into Employee_Manager ( employee_id,manager_id) values ( 4,1);\ninsert into Employee_Manager ( employee_id,manager_id) values ( 5,1);\ninsert into Employee_Manager ( employee_id,manager_id) values ( 6,1);\ninsert into Employee_Manager ( employee_id,manager_id) values ( 7,1);"
+            "mysql_code": "CREATE TABLE Employee_Manager( employee_id int, manager_id int, CONSTRAINT FOREIGN KEY (employee_id) REFERENCES Employee(employee_id), CONSTRAINT FOREIGN KEY (manager_id) REFERENCES Employee(employee_id) );",
+            "spanner_code": "CREATE TABLE Employee_Manager( employee_id int64, manager_id int64, CONSTRAINT FK_EM1 FOREIGN KEY (employee_id) REFERENCES Employee(employee_id), CONSTRAINT FK_EM2 FOREIGN KEY (manager_id) REFERENCES Employee(employee_id) ) PRIMARY KEY (employee_id, manager_id);"
           }
         ]
       }
     },
     {
       "id": "4",
+      "example": "How to create a table with a composite primary key in Spanner?",
+      "rewrite": {
+        "theory": "For a composite primary key in Spanner, list all columns that form the primary key within the PRIMARY KEY clause.",
+        "options": [
+          {
+            "mysql_code": "CREATE TABLE Employee_Manager( employee_id int, manager_id int, PRIMARY KEY (employee_id, manager_id) );",
+            "spanner_code": "CREATE TABLE Employee_Manager( employee_id int64, manager_id int64 ) PRIMARY KEY (employee_id, manager_id);"
+          }
+        ]
+      }
+    },
+    {
+      "id": "5",
       "example": "How to handle unique key constraints where NULL is allowed and insert data into such a table in Spanner?",
       "rewrite": {
         "theory": "In Spanner, unique indexes allow `NULL` values. If multiple rows have `NULL` for a column in a unique index, they are all considered unique. If a unique key includes multiple columns, and any of them is `NULL`, the combination is considered unique.",
@@ -52,7 +65,7 @@
       }
     },
     {
-      "id": "5",
+      "id": "6",
       "example": "How to create a table and insert data into it using `GENERATE_UUID()` for the primary key in Spanner?",
       "rewrite": {
         "theory": "Spanner allows `GENERATE_UUID()` to generate unique IDs for primary keys. You need to explicitly include the `id` column in your `INSERT` statement and use `GENERATE_UUID()` for its value.",
@@ -65,7 +78,7 @@
       }
     },
     {
-      "id": "6",
+      "id": "7",
       "example": "How to perform a join using a subquery in Spanner?",
       "rewrite": {
         "theory": "Spanner supports joins with subqueries in a similar way to MySQL. Ensure the data types used in the join condition are compatible.",
@@ -78,7 +91,7 @@
       }
     },
     {
-      "id": "7",
+      "id": "8",
       "example": "How to use the `ROW_NUMBER()` window function in Spanner?",
       "rewrite": {
         "theory": "Spanner supports the `ROW_NUMBER()` window function. It functions identically to MySQL for assigning sequential integers to rows within a partition.",
@@ -91,7 +104,7 @@
       }
     },
     {
-      "id": "8",
+      "id": "9",
       "example": "How to use subqueries with `NOT IN` clause in Spanner?",
       "rewrite": {
         "theory": "Spanner supports subqueries within `WHERE` clauses, including with the `NOT IN` operator. The behavior is consistent with MySQL.",
@@ -104,7 +117,7 @@
       }
     },
     {
-      "id": "9",
+      "id": "10",
       "example": "How to use `COALESCE` with multiple subqueries in Spanner?",
       "rewrite": {
         "theory": "Spanner's `COALESCE` function works similarly to MySQL, returning the first non-NULL expression from a list. It can effectively be used with subqueries.",
@@ -117,7 +130,7 @@
       }
     },
     {
-      "id": "10",
+      "id": "11",
       "example": "How to perform an `UPDATE` statement with nested subqueries in Spanner?",
       "rewrite": {
         "theory": "Spanner supports `UPDATE` statements with nested subqueries in the `WHERE` clause. When updating `BLOB` equivalent data types, Spanner requires a byte string literal (e.g., `b'...'`).",
@@ -130,20 +143,33 @@
       }
     },
     {
-      "id": "11",
-      "example": "How to perform an `UPSERT` (Insert or Ignore / On Duplicate Key Update) operation in Spanner?",
+      "id": "12",
+      "example": "How to perform an `INSERT IGNORE INTO` operation in Spanner?",
       "rewrite": {
-        "theory": "Spanner doesn't directly support `INSERT IGNORE` or `ON DUPLICATE KEY UPDATE`. Instead, you use `INSERT OR IGNORE` for scenarios where you want to skip insertion on duplicate keys. For updates on duplicate keys, you'll typically need to check for existence first and then perform an `UPDATE` or `INSERT` conditionally in your application logic.",
+        "theory": "Spanner supports `INSERT OR IGNORE` to skip insertion on duplicate keys. Use this when you want to insert a row only if it does not already exist.",
         "options": [
           {
-            "mysql_code": "INSERT IGNORE INTO Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL) ON DUPLICATE KEY UPDATE id = '27ec8b5f-a1d1-11ef-96dc-42010a400002',employee_id=employee_id+12,address='new Address';",
-            "spanner_code": "INSERT OR IGNORE Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',18,'Koramanagla Bangalore 560048', '1988-01-14',NULL);"
+            "mysql_code": "INSERT IGNORE INTO Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL);",
+            "spanner_code": "INSERT OR IGNORE Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL);"
           }
         ]
       }
     },
     {
-        "id": "12",
+      "id": "13",
+      "example": "How to perform an `ON DUPLICATE KEY UPDATE` operation in Spanner?",
+      "rewrite": {
+        "theory": "Spanner does not support `ON DUPLICATE KEY UPDATE` directly. To achieve similar behavior, you need to check for existence first and then perform an UPDATE or INSERT conditionally in your application logic.",
+        "options": [
+          {
+            "mysql_code": "INSERT INTO Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL) ON DUPLICATE KEY UPDATE employee_id=employee_id+12,address='new Address';",
+            "spanner_code": "-- Pseudocode: Check if row exists, then update or insert\nIF EXISTS (SELECT 1 FROM Employee_Details WHERE id = '27ec8b5f-a1d1-11ef-96dc-42010a400002') THEN\n  UPDATE Employee_Details SET employee_id=employee_id+12, address='new Address' WHERE id = '27ec8b5f-a1d1-11ef-96dc-42010a400002';\nELSE\n  INSERT Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL);\nEND IF;"
+          }
+        ]
+      }
+    },
+    {
+        "id": "14",
         "example": "How to handle REPLACE INTO in Spanner?",
         "rewrite": {
           "theory": "Spanner doesn't directly support `REPLACE INTO`. Instead, you need to update your application logic to delete the existing record if it exists and then insert the new record.",
