@@ -328,13 +328,13 @@ func formatQuestionsAndSearchResults(questions []string, conceptSearchResults []
 
 func (m *MigrationCodeSummarizer) parseJSONWithRetries(model generativeModel, originalPrompt string, originalResponse string, identifier string) string {
 	jsonFixPromptTemplate := `
-		You are a JSON parser expert tasked with fixing parsing errors in JSON string. Golang's json.Unmarshal library is
-		being used for parsing the json string. The following JSON string is currently failing with error message: %s.
-		Ensure that all the parsing errors are resolved and output string is parsable by json.Unmarshal library. Also,
-		ensure that the output only contain JSON string.
-		
-		%s
-		`
+        You are a JSON parser expert tasked with fixing parsing errors in JSON string. Golang's json.Unmarshal library is
+        being used for parsing the json string. The following JSON string is currently failing with error message: %s.
+        Ensure that all the parsing errors are resolved and output string is parsable by json.Unmarshal library. Also,
+        ensure that the output only contain JSON string.
+        
+        %s
+        `
 
 	for i := 0; i < jsonParserRetryAttempts; i++ {
 		logger.Log.Debug("JSON Parsing Retry - Original Response: ", zap.String("response", originalResponse))
@@ -377,7 +377,7 @@ func (m *MigrationCodeSummarizer) parseJSONWithRetries(model generativeModel, or
 			}
 		}
 	}
-	logger.Log.Warn("Failed to parse JSON after multiple retries for identifier: ", zap.String("identifier", identifier))
+	logger.Log.Warn("Failed to parse JSON after multiple retries for identifier: ", zap.String("identifier", identifier), zap.String("originalResponse", originalResponse))
 	return ""
 }
 
@@ -428,12 +428,14 @@ func (m *MigrationCodeSummarizer) AnalyzeFile(ctx context.Context, projectPath, 
 			return &FileAnalysisResponse{codeAssessment, extractedMethodSignatures, projectPath, filepath, queryResults}
 		}
 
-		publicMethods, err := m.extractPublicMethodSignatures(llmResponse)
-		if err != nil {
-			fmt.Println("filepath", filepath)
-			logger.Log.Error("Error extracting public method signatures from DAO analysis response: ", zap.Error(err))
-		} else {
-			extractedMethodSignatures = publicMethods
+		if llmResponse != "" {
+			publicMethods, err := m.extractPublicMethodSignatures(llmResponse)
+			if err != nil {
+				fmt.Println("filepath", filepath)
+				logger.Log.Error("Error extracting public method signatures from DAO analysis response: ", zap.Error(err))
+			} else {
+				extractedMethodSignatures = publicMethods
+			}
 		}
 
 	} else {
@@ -458,12 +460,15 @@ func (m *MigrationCodeSummarizer) AnalyzeFile(ctx context.Context, projectPath, 
 		llmResponse = m.parseJSONWithRetries(m.geminiFlashModel, prompt, llmResponse, "analyze-non-dao-class-"+filepath)
 		isDataAccessObject = false
 
-		methodSignatures, err := m.extractPublicMethodSignatures(llmResponse)
-		if err != nil {
-			logger.Log.Error("Error extracting method signatures from Non-DAO analysis response: ", zap.Error(err))
-		} else {
-			extractedMethodSignatures = methodSignatures
+		if llmResponse != "" {
+			methodSignatures, err := m.extractPublicMethodSignatures(llmResponse)
+			if err != nil {
+				logger.Log.Error("Error extracting method signatures from Non-DAO analysis response: ", zap.Error(err))
+			} else {
+				extractedMethodSignatures = methodSignatures
+			}
 		}
+
 	}
 	logger.Log.Debug("File Analysis LLM Response: ", zap.String("response", llmResponse))
 
@@ -478,6 +483,7 @@ func (m *MigrationCodeSummarizer) AnalyzeFile(ctx context.Context, projectPath, 
 
 func (m *MigrationCodeSummarizer) extractPublicMethodSignatures(fileAnalysisResponse string) ([]any, error) {
 	var responseMap map[string]any
+
 	err := json.Unmarshal([]byte(fileAnalysisResponse), &responseMap)
 	if err != nil {
 		fmt.Println("llmresponse: ", fileAnalysisResponse)
@@ -495,8 +501,8 @@ func (m *MigrationCodeSummarizer) extractPublicMethodSignatures(fileAnalysisResp
 		var allMethodChanges []any
 		for _, ccRaw := range codeChanges {
 			if cc, ok := ccRaw.(map[string]any); ok {
-				if methodChanges, ok := cc["method_signature_changes"].([]any); ok {
-					allMethodChanges = append(allMethodChanges, methodChanges...)
+				if methodChanges, ok := cc["method_signature_changes"].(map[string]any); ok {
+					allMethodChanges = append(allMethodChanges, methodChanges)
 				}
 			}
 		}

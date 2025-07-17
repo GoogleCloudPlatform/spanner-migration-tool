@@ -192,21 +192,21 @@ type PerformanceAssessmentOutput struct {
 }
 
 type QueryTranslationResult struct {
-	OriginalQuery     string             `json:"original_query"`
-	NormalizedQuery   string             `json:"normalized_query"`
-	SpannerQuery      string             `json:"spanner_query"`
-	Explanation       string             `json:"explanation"`
-	Complexity        string             `json:"complexity"`
-	TranslationError  string             `json:"translation_error,omitempty"`
-	MigrationAnalysis *MigrationAnalysis `json:"migration_analysis,omitempty"`
-	// Fields from app code assessment
-	SourceCodeSnippet    []string `json:"source_code_snippet,omitempty"`
-	SuggestedCodeSnippet []string `json:"suggested_code_snippet,omitempty"`
-	FilePath             string   `json:"file_path,omitempty"`
-	IsDao                bool     `json:"is_dao,omitempty"`
-	Source               string   `json:"source,omitempty"` // "app_code" or "performance_schema"
-	ExecutionCount       int      `json:"execution_count,omitempty"`
-	SnippetId            string   `json:"snippet_id,omitempty"`
+	OriginalQuery           string             `json:"old_query"`
+	NormalizedQuery         string             `json:"normalized_query"`
+	SpannerQuery            string             `json:"new_query"`
+	Explanation             string             `json:"explanation"`
+	Complexity              string             `json:"complexity"`
+	TranslationError        string             `json:"translation_error,omitempty"`
+	MigrationAnalysis       *MigrationAnalysis `json:"migration_analysis,omitempty"`
+	SourceCodeSnippet       []string           `json:"source_code_snippet,omitempty"`
+	SuggestedCodeSnippet    []string           `json:"suggested_code_snippet,omitempty"`
+	FilePath                string             `json:"file_path,omitempty"`
+	IsDao                   bool               `json:"is_dao,omitempty"`
+	Source                  string             `json:"source,omitempty"` // "app_code" or "performance_schema"
+	ExecutionCount          int                `json:"execution_count,omitempty"`
+	SnippetId               string             `json:"snippet_id,omitempty"`
+	NumberOfQueryOccurances int                `json:"number_of_query_occurances,omitempty"`
 }
 
 // MigrationAnalysis represents comprehensive analysis of query migration compatibility

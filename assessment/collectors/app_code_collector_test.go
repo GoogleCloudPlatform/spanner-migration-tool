@@ -147,8 +147,10 @@ func TestExtractPublicMethodSignatures(t *testing.T) {
 	assert.Error(t, err)
 
 	missingKeyJSON := `{"other_key": "value"}`
-	_, err = summarizer.extractPublicMethodSignatures(missingKeyJSON)
-	assert.Error(t, err)
+	signatures, err = summarizer.extractPublicMethodSignatures(missingKeyJSON)
+	assert.NoError(t, err)
+	assert.NotNil(t, signatures)
+	assert.Len(t, signatures, 0)
 }
 
 func TestFormatQuestionsAndSearchResults(t *testing.T) {

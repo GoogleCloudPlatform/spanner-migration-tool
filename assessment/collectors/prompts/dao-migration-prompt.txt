@@ -29,7 +29,7 @@ If a code change affects both schema and query, include both in the same object.
         "normalized_query": "The canonical/digest form of the SQL query (e.g., SELECT * FROM users WHERE id = ?)",
         "new_query": "<modified spanner query>",
         "complexity": "<SIMPLE|MODERATE|COMPLEX>",
-        "number_of_query_occurances": "<number_of_times_query_occured_in_code>",
+        "number_of_query_occurances": "<number_of_times_query_occured_in_code>. Return as integer.",
         "explanation": "<description of why the change is needed and how to update the query>",
         "migration_analysis": {
           "overall_compatibility": "valid|valid_with_small_changes|require_rewrite",
