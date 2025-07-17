@@ -126,6 +126,7 @@ var SupportedProgrammingLanguages = map[string]bool{
 
 var SupportedFrameworkCombinations = map[FrameworkPair]bool{
 	{Source: "jdbc", Target: "jdbc"}:                            true,
+	{Source: "hibernate", Target: "hibernate"}:                  true,
 	{Source: "go-sql-driver/mysql", Target: "go-sql-spanner"}:   true,
 	{Source: "vertx-mysql-client", Target: "vertx-jdbc-client"}: true,
 	// Add more allowed combinations here

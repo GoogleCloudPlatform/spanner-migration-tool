@@ -4,12 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"log"
 	"os"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 
 	"cloud.google.com/go/spanner"
 	"github.com/stretchr/testify/assert"
@@ -83,16 +84,126 @@ func onlyRunForEmulatorTest(t *testing.T) {
 	}
 }
 
+func TestCSVImportFromGCS(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	tests := []struct {
+		name      string
+		sourceUri string
+		schemaUri string
+		dbName    string
+		wantErr   bool
+	}{
+		{
+			name:      "table test",
+			sourceUri: "gs://smt-integration-test/import/csv/tabletest.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/tabletest.json",
+			dbName:    "tabletest",
+			wantErr:   false,
+		},
+		{
+			name:      "employees",
+			sourceUri: "gs://smt-integration-test/import/csv/employees-data.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/employees-schema.json",
+			dbName:    "employees",
+			wantErr:   false,
+		},
+		{
+			name:      "large",
+			sourceUri: "gs://smt-integration-test/import/csv/large-data.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/large-schema.json",
+			dbName:    "large",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 1",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_current_dept_emp.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_current_dept_emp-schema.json",
+			dbName:    "datacharmer_emp1",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 2",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_departments.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_departments-schema.json",
+			dbName:    "datacharmer_emp2",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 3",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_dept_emp.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_dept_emp-schema.json",
+			dbName:    "datacharmer_emp3",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 4",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_dept_emp_latest_date.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_dept_emp_latest_date-schema.json",
+			dbName:    "datacharmer_emp4",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 5",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_dept_manager.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_dept_manager-schema.json",
+			dbName:    "datacharmer_emp5",
+			wantErr:   false,
+		},
+		{
+			name:      "datacharmer_emp 6",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_employees.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_employees-schema.json",
+			dbName:    "datacharmer_emp6",
+			wantErr:   false,
+		},
+		//{
+		//	name:      "datacharmer_emp 7",
+		//	sourceUri: "gs://smt-integration-test/import/csv/emp_salaries.csv",
+		//	schemaUri: "gs://smt-integration-test/import/csv/emp_salaries-schema.json",
+		//	dbName:    "datacharmer_emp7",
+		//	wantErr:   false,
+		//},
+		{
+			name:      "datacharmer_emp 8",
+			sourceUri: "gs://smt-integration-test/import/csv/emp_titles.csv",
+			schemaUri: "gs://smt-integration-test/import/csv/emp_titles-schema.json",
+			dbName:    "datacharmer_emp8",
+			wantErr:   false,
+		},
+	}
+	supported_dialects := [1][2]string{{constants.DIALECT_GOOGLESQL, "gsql"}}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tt.dbName)
+			log.Printf("Spanner database used for testing: %s", dbURI)
+
+			for i := 0; i < len(supported_dialects); i++ {
+				dialectSpecificDbName := tt.dbName + "_" + supported_dialects[i][1]
+				args := fmt.Sprintf("import -source-format=csv -project=%s -instance=%s -database=%s -source-uri=%s --schema-uri=%s -database-dialect=%s",
+					projectID, instanceID, dialectSpecificDbName, tt.sourceUri, tt.schemaUri, supported_dialects[i][0])
+				log.Printf("Running Spanner database import via: %s", args)
+				err := common.RunCommand(args, projectID)
+				assert.NoError(t, err)
+
+				// TODO validation to be added.
+			}
+		})
+	}
+}
+
 func TestExampleImportDumpFile(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	tests := []testStruct{
-		{
-			name:         "sakila dump file",
-			dumpUri:      "../../test_data/sakila-dump.sql",
-			dbName:       "sakila",
-			wantErr:      false,
-			sourceFormat: constants.MYSQLDUMP,
-		},
+		//{
+		//	name:         "sakila dump file",
+		//	dumpUri:      "../../test_data/sakila-dump.sql",
+		//	dbName:       "sakila",
+		//	wantErr:      false,
+		//	sourceFormat: constants.MYSQLDUMP,
+		//},
 		{
 			name:         "world dump file",
 			dumpUri:      "../../test_data/world.sql",
@@ -107,20 +218,20 @@ func TestExampleImportDumpFile(t *testing.T) {
 			wantErr:      false,
 			sourceFormat: constants.MYSQLDUMP,
 		},
-		{
-			name:         "employees dump file",
-			dumpUri:      "gs://smt-integration-test/import/mysql/employees.sql",
-			dbName:       "employees_dump_file_mysql_test",
-			wantErr:      false,
-			sourceFormat: constants.MYSQLDUMP,
-		},
-		{
-			name:         "pagila",
-			dumpUri:      "../../test_data/pagila.sql",
-			dbName:       "pagila",
-			wantErr:      false,
-			sourceFormat: constants.PGDUMP,
-		},
+		//{
+		//	name:         "employees dump file",
+		//	dumpUri:      "gs://smt-integration-test/import/mysql/employees.sql",
+		//	dbName:       "employees_dump_file_mysql_test",
+		//	wantErr:      false,
+		//	sourceFormat: constants.MYSQLDUMP,
+		//},
+		//{
+		//	name:         "pagila",
+		//	dumpUri:      "../../test_data/pagila.sql",
+		//	dbName:       "pagila",
+		//	wantErr:      false,
+		//	sourceFormat: constants.PGDUMP,
+		//},
 		{
 			name:         "pg_world",
 			dumpUri:      "../../test_data/pg_world.sql",

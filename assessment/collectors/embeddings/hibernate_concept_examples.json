@@ -1,0 +1,393 @@
+[
+  {
+    "id": "200",
+    "example": "How to migrate from `@GeneratedValue(strategy = GenerationType.IDENTITY)` in Hibernate to Spanner?",
+    "rewrite": {
+      "theory": "Spanner does not support `GenerationType.IDENTITY`. Instead, use a UUID string or sequences with Spanner-compatible logic to generate keys.",
+      "options": [
+        {
+          "mysql_code": "@Id\n@GeneratedValue(strategy = GenerationType.IDENTITY)\n@Column(name = \"id\")\nprivate Long id;",
+          "spanner_code": "@Id\n@Column(name = \"id\")\nprivate String id = UUID.randomUUID().toString();"
+        }
+      ]
+    }
+  },
+  {
+    "id": "201",
+    "example": "How to migrate from `@Column(columnDefinition = \"TEXT\")` in Hibernate to Spanner?",
+    "rewrite": {
+      "theory": "Spanner doesn't support MySQL's `TEXT` type. Instead, use `STRING(MAX)` for unbounded string fields.",
+      "options": [
+        {
+          "mysql_code": "@Column(columnDefinition = \"TEXT\")\nprivate String description;",
+          "spanner_code": "@Column(length = 10485760)\nprivate String description;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "202",
+    "example": "How to migrate enum fields stored as strings in Hibernate from MySQL to Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports storing enums as STRING fields. Ensure enums are persisted as strings using `@Enumerated(EnumType.STRING)`.",
+      "options": [
+        {
+          "mysql_code": "@Enumerated(EnumType.STRING)\n@Column(name = \"status\")\nprivate Status status;",
+          "spanner_code": "@Enumerated(EnumType.STRING)\n@Column(name = \"status\")\nprivate Status status;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "203",
+    "example": "How to migrate `@Temporal(TemporalType.TIMESTAMP)` to Spanner?",
+    "rewrite": {
+      "theory": "Spanner uses `TIMESTAMP` with UTC timezone. No change needed, but ensure that Hibernate uses UTC and maps to `java.time.Instant` or `java.sql.Timestamp`.",
+      "options": [
+        {
+          "mysql_code": "@Temporal(TemporalType.TIMESTAMP)\nprivate Date createdAt;",
+          "spanner_code": "private Instant createdAt;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "204",
+    "example": "How to migrate from `@Column(columnDefinition = \"BLOB\")` in Hibernate?",
+    "rewrite": {
+      "theory": "Spanner supports `BYTES(MAX)` for blob-like fields. Use `byte[]` as the data type.",
+      "options": [
+        {
+          "mysql_code": "@Column(columnDefinition = \"BLOB\")\nprivate byte[] imageData;",
+          "spanner_code": "@Column(length = 10485760)\nprivate byte[] imageData;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "205",
+    "example": "How to migrate MySQL-specific collations in Hibernate column definitions?",
+    "rewrite": {
+      "theory": "Spanner does not support MySQL-style collations in DDL. Avoid `@Column(columnDefinition = \"VARCHAR(255) COLLATE utf8mb4_unicode_ci\")`.",
+      "options": [
+        {
+          "mysql_code": "@Column(columnDefinition = \"VARCHAR(255) COLLATE utf8mb4_unicode_ci\")\nprivate String name;",
+          "spanner_code": "@Column(length = 255)\nprivate String name;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "206",
+    "example": "How to migrate composite primary keys using `@Embeddable` and `@EmbeddedId`?",
+    "rewrite": {
+      "theory": "Spanner supports composite primary keys. Use `@Embeddable` and `@EmbeddedId` as-is in Hibernate.",
+      "options": [
+        {
+          "mysql_code": "@EmbeddedId\nprivate OrderId id;",
+          "spanner_code": "@EmbeddedId\nprivate OrderId id;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "207",
+    "example": "How to migrate nullable foreign keys in Hibernate for Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports nullable foreign keys but you must define the ON DELETE/UPDATE behavior in application logic. Hibernate annotations remain the same.",
+      "options": [
+        {
+          "mysql_code": "@ManyToOne\n@JoinColumn(name = \"customer_id\", nullable = true)\nprivate Customer customer;",
+          "spanner_code": "@ManyToOne\n@JoinColumn(name = \"customer_id\", nullable = true)\nprivate Customer customer;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "208",
+    "example": "How to migrate `@Version` for optimistic locking from MySQL to Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports optimistic locking using `@Version`. Hibernate handles this automatically with an INT64 field.",
+      "options": [
+        {
+          "mysql_code": "@Version\nprivate Long version;",
+          "spanner_code": "@Version\nprivate Long version;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "209",
+    "example": "How to migrate UUIDs stored as BINARY(16) in MySQL to Spanner?",
+    "rewrite": {
+      "theory": "Spanner does not support BINARY types. Store UUIDs as STRING(36) and use UUID string representation.",
+      "options": [
+        {
+          "mysql_code": "@Column(columnDefinition = \"BINARY(16)\")\nprivate UUID uuid;",
+          "spanner_code": "@Column(length = 36)\nprivate String uuid = UUID.randomUUID().toString();"
+        }
+      ]
+    }
+  },
+  {
+    "id": "210",
+    "example": "How to migrate from `@Column(nullable = false)` for NOT NULL columns?",
+    "rewrite": {
+      "theory": "Spanner supports NOT NULL via the same Hibernate `@Column(nullable = false)` annotation.",
+      "options": [
+        {
+          "mysql_code": "@Column(nullable = false)\nprivate String email;",
+          "spanner_code": "@Column(nullable = false)\nprivate String email;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "211",
+    "example": "How to migrate Hibernate entities using `@OneToMany(mappedBy = ...)` to Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports interleaved tables, but Hibernate can model this as a normal OneToMany with a `List<>` reference.",
+      "options": [
+        {
+          "mysql_code": "@OneToMany(mappedBy = \"customer\")\nprivate List<Order> orders;",
+          "spanner_code": "@OneToMany(mappedBy = \"customer\")\nprivate List<Order> orders;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "212",
+    "example": "How to handle MySQL `@Index` annotations in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports secondary indexes but requires them to be defined at schema level. In Hibernate, define indexes using `@Table(indexes = {...})`.",
+      "options": [
+        {
+          "mysql_code": "@Table(indexes = {@Index(name = \"email_idx\", columnList = \"email\")})",
+          "spanner_code": "@Table(indexes = {@Index(name = \"email_idx\", columnList = \"email\")})"
+        }
+      ]
+    }
+  },
+  {
+    "id": "213",
+    "example": "How to migrate precision/scale fields from MySQL to Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports NUMERIC(38,9). Ensure Hibernate fields use `@Column(precision = ..., scale = ...)` within this range.",
+      "options": [
+        {
+          "mysql_code": "@Column(precision = 10, scale = 2)\nprivate BigDecimal amount;",
+          "spanner_code": "@Column(precision = 10, scale = 2)\nprivate BigDecimal amount;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "214",
+    "example": "How to migrate default timestamp fields in Hibernate?",
+    "rewrite": {
+      "theory": "Spanner does not support `DEFAULT CURRENT_TIMESTAMP`. Handle defaults in application code using constructors or entity listeners.",
+      "options": [
+        {
+          "mysql_code": "@Column(name = \"created_at\", columnDefinition = \"TIMESTAMP DEFAULT CURRENT_TIMESTAMP\")\nprivate Timestamp createdAt;",
+          "spanner_code": "@Column(name = \"created_at\")\nprivate Instant createdAt = Instant.now();"
+        }
+      ]
+    }
+  },
+  {
+    "id": "215",
+    "example": "How to avoid N+1 selects when migrating to Spanner?",
+    "rewrite": {
+      "theory": "Use `join fetch` in HQL to eagerly fetch related entities and avoid N+1 query issues. This is critical for performance on Spanner.",
+      "options": [
+        {
+          "mysql_code": "List<MyEntity> entities = session.createQuery(\"from MyEntity\", MyEntity.class).getResultList();\nfor (MyEntity entity : entities) {\n    entity.getChildren();\n}",
+          "spanner_code": "List<MyEntity> entities = session.createQuery(\"from MyEntity e join fetch e.children\", MyEntity.class).getResultList();"
+        }
+      ]
+    }
+  },
+  {
+    "id": "216",
+    "example": "How to enable batching for better performance in Spanner?",
+    "rewrite": {
+      "theory": "Enable batching by setting `hibernate.jdbc.batch_size`. Spanner benefits from reduced network round-trips for bulk inserts/updates.",
+      "options": [
+        {
+          "mysql_code": "for (int i = 0; i < 1000; i++) {\n  MyEntity entity = new MyEntity();\n  session.save(entity);\n}",
+          "spanner_code": "session.setJdbcBatchSize(50);\nfor (int i = 0; i < 1000; i++) {\n  MyEntity entity = new MyEntity();\n  session.save(entity);\n}"
+        }
+      ]
+    }
+  },
+  {
+    "id": "217",
+    "example": "How to configure second-level caching in Hibernate for Spanner?",
+    "rewrite": {
+      "theory": "Use `@Cacheable` and `@Cache` annotations with Spanner-compatible caching strategy to avoid repeated reads for hot entities.",
+      "options": [
+        {
+          "mysql_code": "// No cache\n@Entity\npublic class MyEntity { ... }",
+          "spanner_code": "@Cacheable\n@Cache(usage = CacheConcurrencyStrategy.READ_WRITE)\n@Entity\npublic class MyEntity { ... }"
+        }
+      ]
+    }
+  },
+  {
+    "id": "218",
+    "example": "How to use read staleness in Hibernate with Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports stale reads. Use `session.setSpannerReadStaleness()` to set bounded staleness for read-only transactions.",
+      "options": [
+        {
+          "mysql_code": "Session session = sessionFactory.openSession();\nTransaction tx = session.beginTransaction();\n// ...\ntx.commit();\nsession.close();",
+          "spanner_code": "Session session = sessionFactory.openSession();\nsession.setReadOnly(true);\nsession.setSpannerReadStaleness(Duration.of(10, ChronoUnit.SECONDS));\nTransaction tx = session.beginTransaction();\n// ...\ntx.commit();\nsession.close();"
+        }
+      ]
+    }
+  },
+  {
+    "id": "219",
+    "example": "How to map integer ID fields correctly in Spanner?",
+    "rewrite": {
+      "theory": "Spanner uses INT64 for integer types. Change ID types from `int` to `Long`.",
+      "options": [
+        {
+          "mysql_code": "@Id\n@GeneratedValue(strategy = GenerationType.IDENTITY)\nprivate int id;",
+          "spanner_code": "@Id\n@GeneratedValue(strategy = GenerationType.IDENTITY)\nprivate Long id;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "220",
+    "example": "How to map `TEXT` fields in MySQL to Spanner?",
+    "rewrite": {
+      "theory": "Use `@Column(length = ...)` for specifying Spanner's STRING types. For large strings, use `STRING(MAX)` equivalent with `length = 10485760`.",
+      "options": [
+        {
+          "mysql_code": "@Column(columnDefinition = \"TEXT\")\nprivate String description;",
+          "spanner_code": "@Column(length = 10485760)\nprivate String description;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "221",
+    "example": "How to represent timestamp fields accurately in Spanner?",
+    "rewrite": {
+      "theory": "Spanner stores timestamps in UTC. Use `Instant` instead of `Date` for better compatibility and timezone handling.",
+      "options": [
+        {
+          "mysql_code": "@Temporal(TemporalType.TIMESTAMP)\nprivate Date timestamp;",
+          "spanner_code": "@Column(columnDefinition = \"TIMESTAMP\")\nprivate Instant timestamp;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "222",
+    "example": "Do we need to change boolean fields when migrating to Spanner?",
+    "rewrite": {
+      "theory": "Spanner uses `BOOL` for booleans. Hibernate mappings generally don't require changes for boolean fields.",
+      "options": [
+        {
+          "mysql_code": "@Column(columnDefinition = \"TINYINT(1)\")\nprivate boolean isActive;",
+          "spanner_code": "@Column(columnDefinition = \"BOOL\")\nprivate boolean isActive;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "223",
+    "example": "How to map BigDecimal fields with precision and scale to Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports `NUMERIC(38, 9)`. Make sure the precision and scale defined in Hibernate stay within that.",
+      "options": [
+        {
+          "mysql_code": "@Column(precision = 10, scale = 2)\nprivate BigDecimal amount;",
+          "spanner_code": "@Column(precision = 10, scale = 2)\nprivate BigDecimal amount;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "224",
+    "example": "How to replace auto-incremented IDs in Hibernate for Spanner?",
+    "rewrite": {
+      "theory": "Spanner doesn't support auto-increment. Use `UUID` or sequence-based approaches for primary key generation.",
+      "options": [
+        {
+          "mysql_code": "@Id\n@GeneratedValue(strategy = GenerationType.IDENTITY)\nprivate Long id;",
+          "spanner_code": "@Id\nprivate String id = UUID.randomUUID().toString();"
+        }
+      ]
+    }
+  },
+  {
+    "id": "225",
+    "example": "How to migrate a column using `BLOB` in MySQL?",
+    "rewrite": {
+      "theory": "Spanner uses `BYTES(MAX)` for binary data. Use `byte[]` and define a suitable `@Column(length = ...)`.",
+      "options": [
+        {
+          "mysql_code": "@Column(columnDefinition = \"BLOB\")\nprivate byte[] image;",
+          "spanner_code": "@Column(length = 10485760)\nprivate byte[] image;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "226",
+    "example": "How to persist enums with Hibernate in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports storing enums as strings. Use `@Enumerated(EnumType.STRING)`.",
+      "options": [
+        {
+          "mysql_code": "@Enumerated(EnumType.STRING)\nprivate Status status;",
+          "spanner_code": "@Enumerated(EnumType.STRING)\nprivate Status status;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "227",
+    "example": "How to use optimistic locking in Hibernate with Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports optimistic locking via a `@Version` field. No changes needed if already used in Hibernate.",
+      "options": [
+        {
+          "mysql_code": "@Version\nprivate Long version;",
+          "spanner_code": "@Version\nprivate Long version;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "228",
+    "example": "How to migrate pagination queries efficiently to Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports `LIMIT` and `OFFSET`, but OFFSET can be inefficient. Prefer keyset pagination for large datasets.",
+      "options": [
+        {
+          "mysql_code": "query.setFirstResult(100).setMaxResults(20);",
+          "spanner_code": "// Prefer keyset pagination using where clause on last seen ID\nquery.setParameter(\"lastId\", lastSeenId);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "229",
+    "example": "How to handle schema evolution (adding new fields) in Hibernate with Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports adding new nullable columns. In Hibernate, just add the new field and regenerate the schema.",
+      "options": [
+        {
+          "mysql_code": "// No field for new column",
+          "spanner_code": "@Column(nullable = true)\nprivate String newField;"
+        }
+      ]
+    }
+  }
+]
+

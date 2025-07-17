@@ -141,39 +141,111 @@ func TestHandleTableNameDefaults_TableNamePresent(t *testing.T) {
 	assert.Equal(t, "explicit_table", result)
 }
 
-func TestHandleTableNameDefaults_TableNameEmptyFileScheme(t *testing.T) {
-	tableName := ""
-	sourceUri := "file:///path/to/my_data.csv"
-	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "my_data", result)
+func TestHandleTableNameDefaults(t *testing.T) {
+	tests := []struct {
+		name      string
+		sourceUri string
+		expected  string
+	}{
+		{
+			name:      "URIWithTrailingSlash",
+			sourceUri: "gs://my-bucket/folder/",
+			expected:  "folder",
+		},
+		{
+			name:      "RelativePath",
+			sourceUri: "relative/path/some_data.avro",
+			expected:  "some_data",
+		},
+		{
+			name:      "LocalPathNoScheme",
+			sourceUri: "/tmp/another_file.json",
+			expected:  "another_file",
+		},
+		{
+			name:      "GCScheme",
+			sourceUri: "s://my-bucket/data_file.txt",
+			expected:  "data_file",
+		},
+		{
+			name:      "FileScheme",
+			sourceUri: "file:///path/to/my_data.csv",
+			expected:  "my_data",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := handleTableNameDefaults("", tc.sourceUri)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
 }
 
-func TestHandleTableNameDefaults_TableNameEmptyGCScheme(t *testing.T) {
-	tableName := ""
-	sourceUri := "gs://my-bucket/data_file.txt"
-	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "data_file", result)
-}
+func TestSanitizeTableName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		// --- Basic Valid Cases ---
+		{"myTableName", "mytablename"},
+		{"another_table", "another_table"},
+		{"table123", "table123"},
+		{"_leading_underscore", "_leading_underscore"},
+		{"has_numbers_123", "has_numbers_123"},
+		{"ALLCAPS", "allcaps"},
 
-func TestHandleTableNameDefaults_TableNameEmptyLocalPathNoScheme(t *testing.T) {
-	tableName := ""
-	sourceUri := "/tmp/another_file.json"
-	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "another_file", result)
-}
+		// --- Leading Character Trimming (underscoreOrAlphabet) ---
+		{"_ABC", "_abc"},
+		{"-table", "table"},
+		{"#table", "table"},
+		{"1table", "table"},
+		{"-1table", "table"},
+		{"   leading_spaces", "leading_spaces"},
+		{"_leading_underscores_and_spaces", "_leading_underscores_and_spaces"},
+		{"__leading_double_underscore", "__leading_double_underscore"},
 
-func TestHandleTableNameDefaults_TableNameEmptyRelativePath(t *testing.T) {
-	tableName := ""
-	sourceUri := "relative/path/some_data.avro"
-	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "some_data", result)
-}
+		// --- Invalid Characters Removal (underscoreOrAlphanumeric) ---
+		{"table name", "tablename"},
+		{"table.name", "tablename"},
+		{"table-name", "tablename"},
+		{"table!@#$%^&*()", "table"},
+		{"table_name_with_spaces and stuff", "table_name_with_spacesandstuff"},
+		{"mixed_Case_AND_SYMBOLS!@", "mixed_case_and_symbols"},
+		{"__Table__Name__", "__table__name__"},
+		{"Table Name With Space And Special Chars!@#$", "tablenamewithspaceandspecialchars"},
 
-func TestHandleTableNameDefaults_TableNameEmptyURIWithTrailingSlash(t *testing.T) {
-	tableName := ""
-	sourceUri := "gs://my-bucket/folder/"
-	result := handleTableNameDefaults(tableName, sourceUri)
-	assert.Equal(t, "folder", result)
+		// --- Empty/Edge Cases ---
+		{"", ""},
+		{"   ", ""},
+		{"!!!", ""},
+		{"_!@#", "_"},
+		{"_123", "_123"},
+		{"__", "__"},
+		{"A", "a"},
+		{"1", ""},
+		{"-", ""},
+		{"-1", ""},
+		{"-a", "a"},
+
+		// --- Unicode Characters ---
+		{"tābļē_ňāmē", "tābļē_ňāmē"},
+		{"table_名稱", "table_名稱"},
+		{"table_привет", "table_привет"},
+		{"😊table😁name", "tablename"},
+		{"table_日本語_123", "table_日本語_123"},
+		{"你好_world", "你好_world"},
+		{"_hello_世界_123", "_hello_世界_123"},
+		{"table_!@#_name", "table__name"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) { // Use t.Run for better test output for each case
+			got := sanitizeTableName(tt.input)
+			if got != tt.expected {
+				t.Errorf("sanitizeTableName(%q) = %q; want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
 }
 
 func TestImportDataCmd_HandleCsvExecute(t *testing.T) {
@@ -680,7 +752,7 @@ func TestHandleCsv(t *testing.T) {
 				assert.Equal(t, "test-project", projectId)
 				assert.Equal(t, "test-instance", instanceId)
 				assert.Equal(t, "test-db", dbName)
-				assert.Equal(t, "test-table", tableName)
+				assert.Equal(t, "testtable", tableName)
 				assert.Equal(t, "gs://test-bucket/test_schema.json", schemaUri)
 
 				return &import_file.MockCsvSchema{}
@@ -689,7 +761,7 @@ func TestHandleCsv(t *testing.T) {
 				assert.Equal(t, "test-project", projectId)
 				assert.Equal(t, "test-instance", instanceId)
 				assert.Equal(t, "test-db", dbName)
-				assert.Equal(t, "test-table", tableName)
+				assert.Equal(t, "testtable", tableName)
 				assert.Equal(t, ",", csvFieldDelimiter)
 				return &import_file.MockCsvData{}
 			},

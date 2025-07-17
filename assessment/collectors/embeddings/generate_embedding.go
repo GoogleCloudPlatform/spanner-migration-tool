@@ -41,6 +41,9 @@ var vertxMysqlMigrationConcept []byte
 //go:embed mysql_query_examples.json
 var mysqlQueryExamples []byte
 
+//go:embed hibernate_concept_examples.json
+var hibernateMysqlMigrationConcept []byte
+
 type MySqlMigrationConcept struct {
 	ID      string `json:"id"`
 	Example string `json:"example"`
@@ -108,6 +111,8 @@ func createEmbededTextsWithClient(ctx context.Context, client PredictionClientIn
 		data = javaMysqlMigrationConcept
 	case "vertx-mysql-client_vertx-jdbc-client":
 		data = vertxMysqlMigrationConcept
+	case "hibernate_hibernate":
+		data = hibernateMysqlMigrationConcept
 	default:
 		return nil, fmt.Errorf("unsupported sourceTargetFramework: %s", sourceTargetFramework)
 	}
