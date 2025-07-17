@@ -154,3 +154,25 @@ func TestFakeClient_CloseCalled(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, client.closeCalled)
 }
+
+func TestCreateQueryExampleEmbeddingsWithClient(t *testing.T) {
+	oldMysqlQueryExamples := mysqlQueryExamples
+	defer func() { mysqlQueryExamples = oldMysqlQueryExamples }()
+	mysqlQueryExamples = []byte(`[
+		{
+			"id": "1",
+			"example": "SELECT * FROM employees",
+			"rewrite": {
+				"theory": "simple select",
+				"options": [{"mysql_code": "SELECT * FROM employees", "spanner_code": "SELECT * FROM employees"}]
+			}
+		}
+	]`)
+	ctx := context.Background()
+	client := &fakeClient{}
+	concepts, err := createQueryExampleEmbeddingsWithClient(ctx, client, "test-proj", "us-central1", "mock-model")
+	assert.NoError(t, err)
+	assert.Len(t, concepts, 1)
+	assert.Equal(t, "1", concepts[0].ID)
+	assert.InDeltaSlice(t, []float32{0.1, 0.2, 0.3}, concepts[0].Embedding, 0.001)
+}
