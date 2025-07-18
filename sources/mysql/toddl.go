@@ -193,6 +193,9 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
+			if len(srcType.Mods) > 0 {
+				return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
+			}
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "tinyblob", "mediumblob", "blob", "longblob":
