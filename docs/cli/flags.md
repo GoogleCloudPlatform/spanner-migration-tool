@@ -38,11 +38,13 @@ such as `avro` etc.
 
 * **`user`**: Specifies the user for the source database.
 
-* **`dbName`**: Specifies the name of the source database.
+* **`dbName`**: Specifies the name of the source database. For Cassandra, this corresponds to the keyspace.
 
 * **`port`**: Specifies the port for the source database.
 
 * **`password`**: Specifies the password for the source database.
+
+* **`datacenter`**: Optional flag. Specifies the datacenter for the source database. This parameter is specific to Cassandra source and will be ignored for all other databases.
 
 * **`streamingCfg`**: Optional flag. Specifies the file path for streaming config.
 Please note that streaming migration is only supported for MySQL and PostgreSQL databases currently.
