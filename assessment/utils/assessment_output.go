@@ -198,81 +198,39 @@ type QueryTranslationResult struct {
 	Explanation             string             `json:"explanation"`
 	Complexity              string             `json:"complexity"`
 	TranslationError        string             `json:"translation_error,omitempty"`
-	MigrationAnalysis       *MigrationAnalysis `json:"migration_analysis,omitempty"`
-	SourceCodeSnippet       []string           `json:"source_code_snippet,omitempty"`
-	SuggestedCodeSnippet    []string           `json:"suggested_code_snippet,omitempty"`
-	FilePath                string             `json:"file_path,omitempty"`
-	IsDao                   bool               `json:"is_dao,omitempty"`
 	Source                  string             `json:"source,omitempty"` // "app_code" or "performance_schema"
 	ExecutionCount          int                `json:"execution_count,omitempty"`
 	SnippetId               string             `json:"snippet_id,omitempty"`
 	NumberOfQueryOccurances int                `json:"number_of_query_occurances,omitempty"`
-}
-
-// MigrationAnalysis represents comprehensive analysis of query migration compatibility
-type MigrationAnalysis struct {
-	OverallCompatibility string                       `json:"overall_compatibility"`
-	CompatibilityReason  string                       `json:"compatibility_reason"`
-	DDLStatement         bool                         `json:"ddl_statement"`
-	TablesAffected       []string                     `json:"tables_affected"`
-	CrossDBJoins         bool                         `json:"cross_db_joins"`
-	FunctionAnalysis     *FunctionAnalysis            `json:"function_analysis,omitempty"`
-	ComparisonAnalysis   *ComparisonAnalysis          `json:"comparison_analysis,omitempty"`
-	OperatorAnalysis     *OperatorAnalysis            `json:"operator_analysis,omitempty"`
-	LockingAnalysis      *LockingAnalysis             `json:"locking_analysis,omitempty"`
-	TimestampComparisons *TimestampComparisonAnalysis `json:"timestamp_comparisons,omitempty"`
-	DateComparisons      *DateComparisonAnalysis      `json:"date_comparisons,omitempty"`
-	DatabasesReferenced  []string                     `json:"databases_referenced,omitempty"`
-	CodeChangeType       []string                     `json:"code_change_type,omitempty"`
-}
-
-type TableAnalysis struct {
-	TablesAffected []string `json:"tables_affected"`
-	CrossDBJoins   bool     `json:"cross_db_joins"`
-	DDLStatement   bool     `json:"ddl_statement"`
-}
-
-type FunctionAnalysis struct {
-	FunctionsUsed        []string `json:"functions_used"`
-	SupportedFunctions   []string `json:"supported_functions"`
-	UnsupportedFunctions []string `json:"unsupported_functions"`
+	TablesAffected          []string           `json:"tables_affected"`
+	CrossDBJoins            bool               `json:"cross_db_joins"`
+	DDLStatement            bool               `json:"ddl_statement"`
+	FunctionsUsed           []string           `json:"functions_used"`
+	OperatorsUsed           []string           `json:"operators_used"`
+	DatabasesReferenced     []string           `json:"databases_referenced"`
+	SelectForUpdate         bool               `json:"select_for_update"`
+	ComparisonAnalysis      ComparisonAnalysis `json:"comparison_analysis"`
 }
 
 type ComparisonAnalysis struct {
-	LiteralComparisons  *LiteralComparisonAnalysis  `json:"literal_comparisons,omitempty"`
-	DataTypeComparisons *DataTypeComparisonAnalysis `json:"data_type_comparisons,omitempty"`
+	LiteralComparisons   *LiteralComparisonAnalysis   `json:"literal_comparisons,omitempty"`
+	DataTypeComparisons  *DataTypeComparisonAnalysis  `json:"data_type_comparisons,omitempty"`
+	TimestampComparisons *TimestampComparisonAnalysis `json:"timestamp_comparisons,omitempty"`
+	DateComparisons      *DateComparisonAnalysis      `json:"date_comparisons,omitempty"`
 }
 
 type LiteralComparisonAnalysis struct {
-	Count           int      `json:"count"`
 	PrecisionIssues []string `json:"precision_issues"`
 }
 
 type DataTypeComparisonAnalysis struct {
-	Count                      int      `json:"count"`
-	IncompatibleTypes          []string `json:"incompatible_types"`
-	CaseInsensitiveComparisons []string `json:"case_insensitive_comparisons"`
-}
-
-type OperatorAnalysis struct {
-	UnsupportedOperators []string `json:"unsupported_operators"`
-}
-
-type LockingAnalysis struct {
-	SelectForUpdate bool `json:"select_for_update"`
+	IncompatibleTypes []string `json:"incompatible_types"`
 }
 
 type TimestampComparisonAnalysis struct {
-	Count          int      `json:"count"`
 	TimezoneIssues []string `json:"timezone_issues"`
 }
 
 type DateComparisonAnalysis struct {
-	Count        int      `json:"count"`
 	FormatIssues []string `json:"format_issues"`
-}
-
-type DDLAnalysis struct {
-	DDLStatement  bool   `json:"ddl_statement"`
-	Compatibility string `json:"compatibility"` // "valid", "valid_with_small_changes", "require_rewrite"
 }

@@ -605,7 +605,7 @@ func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*utils.Co
 			continue
 		}
 
-		analysisResults, err := parallelTaskRunner.RunParallelTasks(analysisInputs, 20, m.AnalyzeFileTask, false)
+		analysisResults, err := parallelTaskRunner.RunParallelTasks(analysisInputs, 40, m.AnalyzeFileTask, false)
 		if err != nil {
 			logger.Log.Error("Error running parallel file analysis: ", zap.Error(err))
 		} else {

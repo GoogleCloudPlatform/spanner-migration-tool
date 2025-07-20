@@ -62,6 +62,9 @@ func ParseStringArrayInterface(input any) []string {
 }
 
 func ParseAnyToString(anyType any) string {
+	if anyType == nil {
+		return ""
+	}
 	return fmt.Sprintf("%v", anyType)
 }
 
@@ -75,19 +78,14 @@ func ParseAnyToInteger(anyType any) int {
 	return i
 }
 
-func ParseSchemaImpact(schemaImpactResponse map[string]any, projectPath, filePath string) (*Snippet, error) {
-	logger.Log.Debug("schemaImpactResponse:", zap.Any("sec: ", schemaImpactResponse))
-	return &Snippet{
-		SchemaChange:          ParseAnyToString(schemaImpactResponse["schema_change"]),
-		TableName:             ParseAnyToString(schemaImpactResponse["table"]),
-		ColumnName:            ParseAnyToString(schemaImpactResponse["column"]),
-		NumberOfAffectedLines: ParseAnyToInteger(schemaImpactResponse["number_of_affected_lines"]),
-		SourceCodeSnippet:     ParseStringArrayInterface(schemaImpactResponse["existing_code_lines"]),
-		SuggestedCodeSnippet:  ParseStringArrayInterface(schemaImpactResponse["new_code_lines"]),
-		RelativeFilePath:      GetRelativeFilePath(projectPath, filePath),
-		FilePath:              filePath,
-		IsDao:                 true,
-	}, nil
+func ParseAnyToBool(anyType any) bool {
+	str := ParseAnyToString(anyType)
+	i, err := strconv.ParseBool(str)
+	if err != nil {
+		logger.Log.Debug("could not parse string to int" + str)
+		return false
+	}
+	return i
 }
 
 func ParseCodeImpact(codeImpactResponse map[string]any, projectPath, filePath string) (*Snippet, error) {
@@ -128,9 +126,13 @@ func ParseNonDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath s
 		if err != nil {
 			return nil, nil, err
 		}
-		codeImpact.Id = fmt.Sprintf("snippet_%d_%d", fileIndex, codeSnippetIndex)
-		snippets = append(snippets, *codeImpact)
-		codeSnippetIndex++
+		if !IsCodeEqual(&codeImpact.SourceCodeSnippet, &codeImpact.SuggestedCodeSnippet) {
+			codeImpact.Id = fmt.Sprintf("snippet_%d_%d", fileIndex, codeSnippetIndex)
+			snippets = append(snippets, *codeImpact)
+			codeSnippetIndex++
+		} else {
+			logger.Log.Debug("not emmitting as code snippets are equal")
+		}
 	}
 	generalWarnings := []string{}
 	if result["general_warnings"] != nil {
@@ -139,32 +141,34 @@ func ParseNonDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath s
 	return snippets, generalWarnings, nil
 }
 
-func ParseDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath string, fileIndex int) ([]Snippet, []string, []QueryTranslationResult, error) {
+func ParseDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath string, fileIndex int) ([]Snippet, []QueryTranslationResult, error) {
 	var result map[string]any
 	err := json.Unmarshal([]byte(fileAnalyzerResponse), &result)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	snippets := []Snippet{}
 	queryResults := []QueryTranslationResult{}
 	codeSnippetIndex := 0
 	codeChanges, ok := result["code_changes"].([]any)
 	if !ok {
-		return nil, nil, nil, fmt.Errorf("missing code_changes array in response")
+		return nil, nil, fmt.Errorf("missing code_changes array in response")
 	}
 	for _, codeChangeRaw := range codeChanges {
 		cc := codeChangeRaw.(map[string]any)
-
 		snippet := Snippet{
-			SchemaChange:          ParseAnyToString(cc["schema_change"]),
-			TableName:             ParseAnyToString(cc["table"]),
-			ColumnName:            ParseAnyToString(cc["column"]),
 			NumberOfAffectedLines: ParseAnyToInteger(cc["number_of_affected_lines"]),
 			SourceCodeSnippet:     ParseStringArrayInterface(cc["existing_code_lines"]),
 			SuggestedCodeSnippet:  ParseStringArrayInterface(cc["new_code_lines"]),
 			RelativeFilePath:      GetRelativeFilePath(projectPath, filePath),
 			FilePath:              filePath,
 			IsDao:                 true,
+		}
+		if cc["schema_change"] != nil {
+			sc := cc["schema_change"].(map[string]any)
+			snippet.TableName = ParseAnyToString(sc["table"])
+			snippet.ColumnName = ParseAnyToString(sc["column"])
+			snippet.SchemaChange = ParseAnyToString(cc["explanation"])
 		}
 		snippet.Id = fmt.Sprintf("snippet_%d_%d", fileIndex, codeSnippetIndex)
 		if !IsCodeEqual(&snippet.SourceCodeSnippet, &snippet.SuggestedCodeSnippet) {
@@ -176,33 +180,27 @@ func ParseDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath stri
 		// If there is a query_change, extract QueryTranslationResult and link to snippet ID
 		if cc["query_change"] != nil {
 			qc := cc["query_change"].(map[string]any)
-			var migrationAnalysis *MigrationAnalysis
-			if qc["migration_analysis"] != nil {
-				b, _ := json.Marshal(qc["migration_analysis"])
-				_ = json.Unmarshal(b, &migrationAnalysis)
-			}
 			queryResult := QueryTranslationResult{
-				OriginalQuery:        ParseAnyToString(qc["old_query"]),
-				NormalizedQuery:      ParseAnyToString(qc["normalized_query"]),
-				SpannerQuery:         ParseAnyToString(qc["new_query"]),
-				Explanation:          ParseAnyToString(qc["explanation"]),
-				Complexity:           ParseAnyToString(qc["complexity"]),
-				SourceCodeSnippet:    ParseStringArrayInterface(cc["existing_code_lines"]),
-				SuggestedCodeSnippet: ParseStringArrayInterface(cc["new_code_lines"]),
-				FilePath:             filePath,
-				IsDao:                true,
-				MigrationAnalysis:    migrationAnalysis,
-				Source:               "app_code",
-				SnippetId:            snippet.Id,
+				OriginalQuery:           ParseAnyToString(qc["old_query"]),
+				NormalizedQuery:         ParseAnyToString(qc["normalized_query"]),
+				SpannerQuery:            ParseAnyToString(qc["new_query"]),
+				Explanation:             ParseAnyToString(qc["explanation"]),
+				Complexity:              ParseAnyToString(qc["complexity"]),
+				Source:                  "app_code",
+				SnippetId:               snippet.Id,
+				NumberOfQueryOccurances: ParseAnyToInteger(qc["number_of_query_occurances"]),
+				CrossDBJoins:            ParseAnyToBool(qc["cross_db_joins"]),
+				TablesAffected:          ParseStringArrayInterface(qc["tables_affected"]),
+				DDLStatement:            ParseAnyToBool(qc["ddl_statement"]),
+				FunctionsUsed:           ParseStringArrayInterface(qc["functions_used"]),
+				OperatorsUsed:           ParseStringArrayInterface(qc["operators_used"]),
+				DatabasesReferenced:     ParseStringArrayInterface(qc["databases_referenced"]),
+				SelectForUpdate:         ParseAnyToBool(qc["select_for_update"]),
 			}
 			queryResults = append(queryResults, queryResult)
 		}
 	}
-	generalWarnings := []string{}
-	if result["general_warnings"] != nil {
-		generalWarnings = ParseStringArrayInterface(result["general_warnings"].([]any))
-	}
-	return snippets, generalWarnings, queryResults, nil
+	return snippets, queryResults, nil
 }
 
 func IsCodeEqual(sourceCode *[]string, suggestedCode *[]string) bool {
@@ -232,7 +230,7 @@ func ParseFileAnalyzerResponse(projectPath, filePath, fileAnalyzerResponse strin
 	var queryResults []QueryTranslationResult
 	if isDao {
 		//This logic is incorrect - the dependent files need to show up as schema impact
-		snippets, generalWarnings, queryResults, err = ParseDaoFileChanges(fileAnalyzerResponse, projectPath, filePath, fileIndex)
+		snippets, queryResults, err = ParseDaoFileChanges(fileAnalyzerResponse, projectPath, filePath, fileIndex)
 	} else {
 		snippets, generalWarnings, err = ParseNonDaoFileChanges(fileAnalyzerResponse, projectPath, filePath, fileIndex)
 	}

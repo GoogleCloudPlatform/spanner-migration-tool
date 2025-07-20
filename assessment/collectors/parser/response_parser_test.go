@@ -107,7 +107,7 @@ func TestParseAnyToString(t *testing.T) {
 		{
 			name:  "nil",
 			input: nil,
-			want:  "<nil>",
+			want:  "",
 		},
 	}
 	for _, tt := range tests {
@@ -300,101 +300,6 @@ func TestIsCodeEqual(t *testing.T) {
 			got := IsCodeEqual(tt.sourceCode, tt.suggestedCode)
 			if got != tt.want {
 				t.Errorf("isCodeEqual() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestParseSchemaImpact(t *testing.T) {
-	projectPath := "/home/user/project"
-	filePath := "/home/user/project/src/main.go"
-	relativeFilePath := "/src/main.go"
-
-	tests := []struct {
-		name    string
-		input   map[string]any
-		want    *Snippet
-		wantErr bool
-	}{
-		{
-			name: "valid input",
-			input: map[string]any{
-				"schema_change":            "table_creation",
-				"table":                    "mytable",
-				"column":                   "mycolumn",
-				"number_of_affected_lines": "10",
-				"existing_code_lines":      []any{"line1", "line2"},
-				"new_code_lines":           []any{"line3", "line4"},
-			},
-			want: &Snippet{
-				SchemaChange:          "table_creation",
-				TableName:             "mytable",
-				ColumnName:            "mycolumn",
-				NumberOfAffectedLines: 10,
-				SourceCodeSnippet:     []string{"line1", "line2"},
-				SuggestedCodeSnippet:  []string{"line3", "line4"},
-				RelativeFilePath:      relativeFilePath,
-				FilePath:              filePath,
-				IsDao:                 true,
-			},
-			wantErr: false,
-		},
-		{
-			name: "invalid number_of_affected_lines",
-			input: map[string]any{
-				"schema_change":            "table_creation",
-				"table":                    "mytable",
-				"column":                   "mycolumn",
-				"number_of_affected_lines": "abc",
-				"existing_code_lines":      []any{"line1", "line2"},
-				"new_code_lines":           []any{"line3", "line4"},
-			},
-			want: &Snippet{
-				SchemaChange:          "table_creation",
-				TableName:             "mytable",
-				ColumnName:            "mycolumn",
-				NumberOfAffectedLines: 0,
-				SourceCodeSnippet:     []string{"line1", "line2"},
-				SuggestedCodeSnippet:  []string{"line3", "line4"},
-				RelativeFilePath:      relativeFilePath,
-				FilePath:              filePath,
-				IsDao:                 true,
-			},
-			wantErr: false,
-		},
-		{
-			name: "empty code lines",
-			input: map[string]any{
-				"schema_change":            "table_creation",
-				"table":                    "mytable",
-				"column":                   "mycolumn",
-				"number_of_affected_lines": "10",
-				"existing_code_lines":      []any{},
-				"new_code_lines":           []any{},
-			},
-			want: &Snippet{
-				SchemaChange:          "table_creation",
-				TableName:             "mytable",
-				ColumnName:            "mycolumn",
-				NumberOfAffectedLines: 10,
-				SourceCodeSnippet:     []string{},
-				SuggestedCodeSnippet:  []string{},
-				RelativeFilePath:      relativeFilePath,
-				FilePath:              filePath,
-				IsDao:                 true,
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseSchemaImpact(tt.input, projectPath, filePath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseSchemaImpact() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ParseSchemaImpact() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -690,7 +595,6 @@ func TestParseDaoFileChanges(t *testing.T) {
 		name         string
 		input        string
 		wantSnippets []Snippet
-		wantWarnings []string
 		wantErr      bool
 	}{
 		{
@@ -698,22 +602,20 @@ func TestParseDaoFileChanges(t *testing.T) {
 			input: `{
 				"code_changes": [
 					{
-						"schema_change": "table_creation",
-						"table": "mytable",
-						"column": "mycolumn",
+						"schema_change": {"is_schema_related_change": true, "table": "mytable", "column": "mycolumn"},
 						"number_of_affected_lines": "10",
 						"existing_code_lines": ["line1", "line2"],
-						"new_code_lines": ["line3", "line4"]
+						"new_code_lines": ["line3", "line4"],
+						"explanation":"test change"
 					}
-				],
-				"general_warnings": ["warning1", "warning2"]
+				]
 			}`,
 			wantSnippets: []Snippet{
 				{
 					Id:                    "snippet_0_0",
-					SchemaChange:          "table_creation",
 					TableName:             "mytable",
 					ColumnName:            "mycolumn",
+					SchemaChange:          "test change",
 					NumberOfAffectedLines: 10,
 					SourceCodeSnippet:     []string{"line1", "line2"},
 					SuggestedCodeSnippet:  []string{"line3", "line4"},
@@ -722,28 +624,25 @@ func TestParseDaoFileChanges(t *testing.T) {
 					IsDao:                 true,
 				},
 			},
-			wantWarnings: []string{"warning1", "warning2"},
-			wantErr:      false,
+			wantErr: false,
 		},
 		{
 			name: "valid input with multiple schema impacts",
 			input: `{
 				"code_changes": [
 					{
-						"schema_change": "table_creation",
-						"table": "mytable",
-						"column": "mycolumn",
+						"schema_change": {"is_schema_related_change": true, "table": "mytable", "column": "mycolumn"},
 						"number_of_affected_lines": "10",
 						"existing_code_lines": ["line1", "line2"],
-						"new_code_lines": ["line3", "line4"]
+						"new_code_lines": ["line3", "line4"],
+						"explanation":"test change"
 					},
 					{
-						"schema_change": "table_alter",
-						"table": "mytable2",
-						"column": "mycolumn2",
+						"schema_change": {"is_schema_related_change": true, "table": "mytable2", "column": "mycolumn2"},
 						"number_of_affected_lines": "5",
 						"existing_code_lines": ["line5", "line6"],
-						"new_code_lines": ["line7", "line8"]
+						"new_code_lines": ["line7", "line8"],
+						"explanation":"test change"
 					}
 				],
 				"general_warnings": []
@@ -751,9 +650,9 @@ func TestParseDaoFileChanges(t *testing.T) {
 			wantSnippets: []Snippet{
 				{
 					Id:                    "snippet_0_0",
-					SchemaChange:          "table_creation",
 					TableName:             "mytable",
 					ColumnName:            "mycolumn",
+					SchemaChange:          "test change",
 					NumberOfAffectedLines: 10,
 					SourceCodeSnippet:     []string{"line1", "line2"},
 					SuggestedCodeSnippet:  []string{"line3", "line4"},
@@ -763,9 +662,9 @@ func TestParseDaoFileChanges(t *testing.T) {
 				},
 				{
 					Id:                    "snippet_0_1",
-					SchemaChange:          "table_alter",
 					TableName:             "mytable2",
 					ColumnName:            "mycolumn2",
+					SchemaChange:          "test change",
 					NumberOfAffectedLines: 5,
 					SourceCodeSnippet:     []string{"line5", "line6"},
 					SuggestedCodeSnippet:  []string{"line7", "line8"},
@@ -774,8 +673,7 @@ func TestParseDaoFileChanges(t *testing.T) {
 					IsDao:                 true,
 				},
 			},
-			wantWarnings: []string{},
-			wantErr:      false,
+			wantErr: false,
 		},
 		{
 			name: "empty schema impacts",
@@ -784,67 +682,68 @@ func TestParseDaoFileChanges(t *testing.T) {
 				"general_warnings": ["warning1"]
 			}`,
 			wantSnippets: []Snippet{},
-			wantWarnings: []string{"warning1"},
 			wantErr:      false,
 		},
 		{
-			name: "empty general warnings",
+			name: "valid input with query_change",
 			input: `{
 				"code_changes": [
 					{
-						"schema_change": "table_creation",
-						"table": "mytable",
-						"column": "mycolumn",
+						"schema_change": {"is_schema_related_change": true, "table": "mytable", "column": "mycolumn"},
 						"number_of_affected_lines": "10",
 						"existing_code_lines": ["line1", "line2"],
-						"new_code_lines": ["line1", "line2"]
+						"new_code_lines": ["line3", "line4"],
+						"query_change": {
+							"old_query": "SELECT * FROM mytable WHERE id = 1",
+							"normalized_query": "SELECT * FROM mytable WHERE id = ?",
+							"new_query": "SELECT * FROM mytable WHERE id = @id",
+							"explanation": "Parameter syntax changed",
+							"complexity": "SIMPLE",
+							"number_of_query_occurances": 1,
+							"cross_db_joins": false,
+							"tables_affected": ["mytable"],
+							"ddl_statement": false,
+							"functions_used": ["NOW()"],
+							"operators_used": ["="],
+							"databases_referenced": ["db1"],
+							"select_for_update": false
+						}
 					}
 				],
 				"general_warnings": []
 			}`,
-			wantSnippets: []Snippet{},
-			wantWarnings: []string{},
-			wantErr:      false,
-		},
-		{
-			name: "missing general warnings",
-			input: `{
-				"code_changes": [
-					{
-						"schema_change": "table_creation",
-						"table": "mytable",
-						"column": "mycolumn",
-						"number_of_affected_lines": "10",
-						"existing_code_lines": ["line1", "line2"],
-						"new_code_lines": ["line1", "line2"]
-					}
-				]
-			}`,
-			wantSnippets: []Snippet{},
-			wantWarnings: []string{},
-			wantErr:      false,
+			wantSnippets: []Snippet{
+				{
+					Id:                    "snippet_0_0",
+					TableName:             "mytable",
+					ColumnName:            "mycolumn",
+					NumberOfAffectedLines: 10,
+					SourceCodeSnippet:     []string{"line1", "line2"},
+					SuggestedCodeSnippet:  []string{"line3", "line4"},
+					RelativeFilePath:      "/src/main.go",
+					FilePath:              "/home/user/project/src/main.go",
+					IsDao:                 true,
+				},
+			},
+			wantErr: false,
 		},
 		{
 			name:         "invalid json",
 			input:        `invalid json`,
 			wantSnippets: nil,
-			wantWarnings: nil,
 			wantErr:      true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			snippets, warnings, _, err := ParseDaoFileChanges(tt.input, projectPath, filePath, fileIndex)
+			snippets, _, err := ParseDaoFileChanges(tt.input, projectPath, filePath, fileIndex)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseDaoFileChanges() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(snippets, tt.wantSnippets) {
 				t.Errorf("ParseDaoFileChanges() gotSnippets = %v, want %v", snippets, tt.wantSnippets)
-			}
-			if !reflect.DeepEqual(warnings, tt.wantWarnings) {
-				t.Errorf("ParseDaoFileChanges() gotWarnings = %v, want %v", warnings, tt.wantWarnings)
 			}
 		})
 	}
@@ -867,9 +766,7 @@ func TestParseFileAnalyzerResponse(t *testing.T) {
 			input: `{
 				"code_changes": [
 					{
-						"schema_change": "table_creation",
-						"table": "mytable",
-						"column": "mycolumn",
+						"schema_change": {"is_schema_related_change": true, "table": "mytable", "column": "mycolumn"},
 						"number_of_affected_lines": "10",
 						"existing_code_lines": ["line1", "line2"],
 						"new_code_lines": ["line3", "line4"]
@@ -882,7 +779,6 @@ func TestParseFileAnalyzerResponse(t *testing.T) {
 				Snippets: &[]Snippet{
 					{
 						Id:                    "snippet_0_0",
-						SchemaChange:          "table_creation",
 						TableName:             "mytable",
 						ColumnName:            "mycolumn",
 						NumberOfAffectedLines: 10,
@@ -891,9 +787,10 @@ func TestParseFileAnalyzerResponse(t *testing.T) {
 						RelativeFilePath:      "/src/main.go",
 						FilePath:              "/home/user/project/src/main.go",
 						IsDao:                 true,
+						SchemaChange:          "",
 					},
 				},
-				GeneralWarnings: []string{"warning1", "warning2"},
+				GeneralWarnings: nil,
 			},
 			wantErr: false,
 		},
@@ -950,7 +847,7 @@ func TestParseFileAnalyzerResponse(t *testing.T) {
 			isDao: true,
 			want: &CodeAssessment{
 				Snippets:        &[]Snippet{},
-				GeneralWarnings: []string{"warning1"},
+				GeneralWarnings: nil,
 			},
 			wantErr: false,
 		},
@@ -976,8 +873,18 @@ func TestParseFileAnalyzerResponse(t *testing.T) {
 				t.Errorf("ParseFileAnalyzerResponse() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if got == nil && tt.want == nil {
+				return
+			}
+			if got == nil || tt.want == nil {
 				t.Errorf("ParseFileAnalyzerResponse() = %v, want %v", got, tt.want)
+				return
+			}
+			if !reflect.DeepEqual(*got.Snippets, *tt.want.Snippets) {
+				t.Errorf("Snippets = %v, want %v", *got.Snippets, *tt.want.Snippets)
+			}
+			if !reflect.DeepEqual(got.GeneralWarnings, tt.want.GeneralWarnings) {
+				t.Errorf("GeneralWarnings = %v, want %v", got.GeneralWarnings, tt.want.GeneralWarnings)
 			}
 		})
 	}

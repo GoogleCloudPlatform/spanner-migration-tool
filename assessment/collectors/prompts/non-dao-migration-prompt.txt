@@ -6,36 +6,25 @@ Analyze the provided code and identify the necessary modifications for compatibi
 
 **Output:**
 Return your analysis in JSON format with the following keys and ensure strict JSON parsable format:
-
-*   **file_modifications**: A list of required code changes.
-*   **method_signature_changes**: A list of required public method signature changes for callers (excluding parameter name changes).
-*   **general_warnings**: A list of general warnings or considerations for the migration, especially regarding Spanner-specific limitations and best practices.
-*	  **pagination**: Information about the pagination of the response.
-
-**Format for "file_modifications"**:
-@@@json
-[
 {
-    "original_method_signature": "<original method signature where the change is required>",
-    "new_method_signature": "<modified method signature>",
-    "code_sample": : ["Line1", "Line2", ... ],
-    "start_line": <starting line number of the affected code>,
-    "end_line": <ending line number of the affected code>,
-    "suggested_change": ["Line1", "Line2", ... ],
-    "description": "<human-readable description of the required change>",
-    "number_of_affected_lines": <number_of_lines_impacted>. Return as integer.,
-    "complexity": "<SIMPLE|MODERATE|COMPLEX>",
-    "warnings": [
-    "<thing to be aware of>",
-    "<another thing to be aware of>",
-    ...]
-},
-...],
-@@@
-
-**Format for "method_signature_changes"**
-@@@json
-[
+    "file_modifications": [
+    {
+        "original_method_signature": "<original method signature where the change is required>",
+        "new_method_signature": "<modified method signature>",
+        "code_sample": : ["Line1", "Line2", ... ],
+        "start_line": <starting line number of the affected code>,
+        "end_line": <ending line number of the affected code>,
+        "suggested_change": ["Line1", "Line2", ... ],
+        "description": "<human-readable description of the required change>",
+        "number_of_affected_lines": <number_of_lines_impacted>. Return as integer.,
+        "complexity": "<SIMPLE|MODERATE|COMPLEX>",
+        "warnings": [
+        "<thing to be aware of>",
+        "<another thing to be aware of>",
+        ...]
+    },
+    ...],
+    "method_signature_changes": [
     {
         "original_signature": "<original method signature>",
         "new_signature": "<modified method signature>",
@@ -44,24 +33,19 @@ Return your analysis in JSON format with the following keys and ensure strict JS
         "explanation": "<description of why the change is needed and how to update the code>"
     },
     ...
-],
-@@@
-
-**Format for general_warnings**
-@@@json
-[
-  "Warning 1",
-  "Warning 2",
-...],
-@@@
-
-**Format for pagination**
-@@@json
-{
-    "total_page": "Total number of pages that the response has",
-    "current_page": "Current page number of the response"
+    ],
+    "general_warnings": ["Warning 1","Warning 2",...],
+    "pagination": {
+        "total_page": "Total number of pages that the response has. Return as string, e.g. '5'",
+        "current_page": "Current page number of the response. Return as string, e.g. '1'"
+    }
 }
-@@@
+
+*   **file_modifications**: A list of required code changes.
+*   **method_signature_changes**: A list of required public method signature changes for callers (excluding parameter name changes).
+*   **general_warnings**: A list of general warnings or considerations for the migration, especially regarding Spanner-specific limitations and best practices.
+*	**pagination**: Information about the pagination of the response.
+
 
 **Instructions:**
 1. Line numbers in file_modifications must be accurate and include all lines in the original code.
@@ -74,7 +58,7 @@ Return your analysis in JSON format with the following keys and ensure strict JS
 5. Ensure that the output is a valid JSON string and parsable.
 6. Capture larger code snippets for modification and provide cumulative descriptions instead of line-by-line changes.
 7. Classify complexity as SIMPLE, MODERATE, or COMPLEX based on implementation difficulty, required expertise, and clarity of requirements.
-8. Please paginate your output if the token limit is getting reached. Do ensure that the json string is complete and parsable.
+8. Please paginate your output if the token limit is getting reached. Ensure the output json string is complete and parsable.
 
 
 **INPUT**
