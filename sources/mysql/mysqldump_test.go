@@ -40,7 +40,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		ty       string
 		expected ddl.Type
 	}{
-		{"varbinary(100)", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+		{"varbinary(100)", ddl.Type{Name: ddl.Bytes, Len: int64(100)}},
 		{"bigint", ddl.Type{Name: ddl.Int64}},
 		{"bool", ddl.Type{Name: ddl.Bool}},
 		{"boolean", ddl.Type{Name: ddl.Bool}},
