@@ -507,11 +507,9 @@ func (m *MigrationCodeSummarizer) extractPublicMethodSignatures(fileAnalysisResp
 				}
 			}
 		}
-		// Return empty slice if none found (not an error)
 		return allMethodChanges, nil
 	}
 
-	// If not found anywhere, return empty slice (not error)
 	return []any{}, nil
 }
 
