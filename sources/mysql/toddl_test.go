@@ -105,10 +105,17 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	}
 	spType, errCheck := toSpannerTypeInternal(schema.Type{"varbinary", []int64{10}, []int64{}}, "BYTES")
 	if errCheck != nil {
-		t.Errorf("Error in binary to default conversion")
+		t.Errorf("Error in varbinary to default conversion")
 	}
 	assert.Equal(t, "BYTES", spType.Name)
 	assert.Equal(t, int64(10), spType.Len)
+	assert.Equal(t, false, spType.IsArray)
+	spType, errCheck = toSpannerTypeInternal(schema.Type{"binary", []int64{12}, []int64{}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in binary to default conversion")
+	}
+	assert.Equal(t, "BYTES", spType.Name)
+	assert.Equal(t, int64(12), spType.Len)
 	assert.Equal(t, false, spType.IsArray)
 	_, errCheck = toSpannerTypeInternal(schema.Type{"blob", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
 	if errCheck != nil {
