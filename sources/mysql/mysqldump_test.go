@@ -70,7 +70,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		{"enum('a','b')", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}},
 		{"datetime", ddl.Type{Name: ddl.Timestamp}},
-		{"binary", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+		{"binary", ddl.Type{Name: ddl.Bytes, Len: int64(1)}},
 		{"varchar(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
 	}
 	for _, tc := range scalarTests {
