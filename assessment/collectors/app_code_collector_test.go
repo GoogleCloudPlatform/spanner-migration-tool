@@ -166,10 +166,10 @@ func TestFormatQuestionsAndSearchResults(t *testing.T) {
 
 	formatted := formatQuestionsAndSearchResults(questions, searchResults, querySearchResults)
 	assert.Contains(t, formatted, "* **Question 1:** How to connect?")
-	assert.Contains(t, formatted, "* **Concept Solution 1:** Use Connection A.")
-	assert.Contains(t, formatted, "* **Concept Solution 2:** Use Connection B.")
+	assert.Contains(t, formatted, "* **Potential Code Solution 1:** Use Connection A.")
+	assert.Contains(t, formatted, "* **Potential Code Solution 2:** Use Connection B.")
 	assert.Contains(t, formatted, "* **Question 2:** How to write?")
-	assert.Contains(t, formatted, "* **Concept Solution 1:** Use Write-Op C.")
+	assert.Contains(t, formatted, "* **Potential Code Solution 1:** Use Write-Op C.")
 }
 
 func TestAnalyzeFileDependencies(t *testing.T) {

@@ -70,8 +70,8 @@ type MigrationCodeSummarizer struct {
 	aiClient                   *genai.Client
 	geminiProModel             generativeModel
 	geminiFlashModel           generativeModel
-	conceptExampleDatabase     *assessment.MysqlConceptDb
-	queryExampleDatabase       *assessment.MysqlConceptDb
+	codeSampleDatabase         *assessment.MysqlConceptDb
+	querySampleDatabase        *assessment.MysqlConceptDb
 	sourceDatabaseFramework    string
 	targetDatabaseFramework    string
 	projectDependencyAnalyzer  dependencyAnalyzer.DependencyAnalyzer
@@ -176,12 +176,12 @@ func NewMigrationCodeSummarizer(
 		return nil, fmt.Errorf("failed to create Vertex AI client: %w", err)
 	}
 
-	conceptExampleDB, err := assessment.NewMysqlConceptDb(projectID, location, strings.ToLower(sourceFramework)+"_"+strings.ToLower(targetFramework))
+	codeSampleDB, err := assessment.NewMysqlToSpannerCodeDb(projectID, location, strings.ToLower(sourceFramework)+"_"+strings.ToLower(targetFramework))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load code example DB: %w", err)
 	}
 
-	queryExampleDB, err := assessment.NewMysqlQueryExampleDb(projectID, location)
+	querySampleDB, err := assessment.NewMysqlToSpannerQueryDb(projectID, location)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load MySQL query example DB: %w", err)
 	}
@@ -192,12 +192,12 @@ func NewMigrationCodeSummarizer(
 		aiClient:                   client,
 		geminiProModel:             &genaiModelWrapper{client.GenerativeModel("gemini-1.5-pro-002")},
 		geminiFlashModel:           &genaiModelWrapper{client.GenerativeModel("gemini-2.0-flash-001")},
-		conceptExampleDatabase:     conceptExampleDB,
+		codeSampleDatabase:         codeSampleDB,
 		projectDependencyAnalyzer:  projectDependencyAnalyzer,
 		sourceDatabaseSchema:       sourceSchema,
 		sourceDatabaseFramework:    strings.ToUpper(sourceFramework),
 		targetDatabaseFramework:    strings.ToUpper(targetFramework),
-		queryExampleDatabase:       queryExampleDB,
+		querySampleDatabase:        querySampleDB,
 		targetDatabaseSchema:       targetSchema,
 		projectRootPath:            projectPath,
 		projectProgrammingLanguage: language,
@@ -248,26 +248,26 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 
 	finalPrompt := originalPrompt
 	if len(questionOutput.Questions) > 0 {
-		conceptSearchResults := make([][]string, len(questionOutput.Questions))
+		codeSearchResults := make([][]string, len(questionOutput.Questions))
 		querySearchResults := make([][]string, len(questionOutput.Questions))
 		answersPresent := false
 
 		for i, question := range questionOutput.Questions {
-			// Search in concept database
-			relevantRecords := m.conceptExampleDatabase.Search([]string{question}, m.gcpProjectID, m.gcpLocation, 0.25, 2)
+			// Search in code samples database
+			relevantRecords := m.codeSampleDatabase.Search([]string{question}, m.gcpProjectID, m.gcpLocation, 0.25, 2)
 			if len(relevantRecords) > 0 {
 				answersPresent = true
 				for _, record := range relevantRecords {
 					if rewrite, ok := record["rewrite"].(string); ok {
-						conceptSearchResults[i] = append(conceptSearchResults[i], rewrite)
+						codeSearchResults[i] = append(codeSearchResults[i], rewrite)
 					} else {
-						logger.Log.Debug("Error: 'rewrite' field in concept DB is not a string")
+						logger.Log.Debug("Error: 'rewrite' field in code sample DB is not a string")
 					}
 				}
 			}
 
 			// Search in MySQL query examples database
-			queryRecords := m.queryExampleDatabase.Search([]string{question}, m.gcpProjectID, m.gcpLocation, 0.25, 2)
+			queryRecords := m.querySampleDatabase.Search([]string{question}, m.gcpProjectID, m.gcpLocation, 0.25, 2)
 			if len(queryRecords) > 0 {
 				answersPresent = true
 				for _, record := range queryRecords {
@@ -281,7 +281,7 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 		}
 
 		if answersPresent {
-			formattedResults := formatQuestionsAndSearchResults(questionOutput.Questions, conceptSearchResults, querySearchResults)
+			formattedResults := formatQuestionsAndSearchResults(questionOutput.Questions, codeSearchResults, querySearchResults)
 			finalPrompt += "\n" + formattedResults
 		}
 	}
@@ -309,17 +309,17 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 	return llmResponse, nil
 }
 
-func formatQuestionsAndSearchResults(questions []string, conceptSearchResults [][]string, querySearchResults [][]string) string {
+func formatQuestionsAndSearchResults(questions []string, codeSearchResults [][]string, querySearchResults [][]string) string {
 	formattedString := "Use the following questions and their corresponding answers to guide the code conversions:\n**Clarifying Questions and Potential Solutions:**\n\n"
 
 	for i, question := range questions {
-		if len(conceptSearchResults[i]) > 0 || len(querySearchResults[i]) > 0 {
+		if len(codeSearchResults[i]) > 0 || len(querySearchResults[i]) > 0 {
 			formattedString += fmt.Sprintf("* **Question %d:** %s\n", i+1, question)
-			for j, result := range conceptSearchResults[i] {
-				formattedString += fmt.Sprintf("  * **Concept Solution %d:** %s\n", j+1, result)
+			for j, result := range codeSearchResults[i] {
+				formattedString += fmt.Sprintf("  * **Potential Code Solution %d:** %s\n", j+1, result)
 			}
 			for j, result := range querySearchResults[i] {
-				formattedString += fmt.Sprintf("  * **Query Example Solution %d:** %s\n", j+1, result)
+				formattedString += fmt.Sprintf("  * **Potential Query Solution %d:** %s\n", j+1, result)
 			}
 		}
 	}
@@ -432,7 +432,6 @@ func (m *MigrationCodeSummarizer) AnalyzeFile(ctx context.Context, projectPath, 
 		if llmResponse != "" {
 			publicMethods, err := m.extractPublicMethodSignatures(llmResponse)
 			if err != nil {
-				fmt.Println("filepath", filepath)
 				logger.Log.Error("Error extracting public method signatures from DAO analysis response: ", zap.Error(err))
 			} else {
 				extractedMethodSignatures = publicMethods
@@ -487,7 +486,6 @@ func (m *MigrationCodeSummarizer) extractPublicMethodSignatures(fileAnalysisResp
 
 	err := json.Unmarshal([]byte(fileAnalysisResponse), &responseMap)
 	if err != nil {
-		fmt.Println("llmresponse: ", fileAnalysisResponse)
 		logger.Log.Error("Error unmarshalling file analysis response for public method signatures: ", zap.Error(err))
 		return nil, err
 	}
@@ -603,7 +601,7 @@ func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*utils.Co
 			continue
 		}
 
-		analysisResults, err := parallelTaskRunner.RunParallelTasks(analysisInputs, 40, m.AnalyzeFileTask, false)
+		analysisResults, err := parallelTaskRunner.RunParallelTasks(analysisInputs, utils.PARALLEL_TASK_RUNNER_COUNT, m.AnalyzeFileTask, false)
 		if err != nil {
 			logger.Log.Error("Error running parallel file analysis: ", zap.Error(err))
 		} else {

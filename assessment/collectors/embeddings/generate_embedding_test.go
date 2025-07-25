@@ -72,7 +72,7 @@ func (f *fakeClient) Close() error {
 	return nil
 }
 
-func TestCreateEmbededTextsWithClient(t *testing.T) {
+func TestCreateCodeSampleEmbeddings(t *testing.T) {
 	ctx := context.Background()
 
 	goMysqlMigrationConcept = []byte(`[
@@ -87,14 +87,14 @@ func TestCreateEmbededTextsWithClient(t *testing.T) {
 	]`)
 
 	client := &fakeClient{}
-	concepts, err := createEmbededTextsWithClient(ctx, client, "test-proj", "us-central1", "mock-model", "go-sql-driver/mysql_go-sql-spanner")
+	concepts, err := createCodeSampleEmbeddings(ctx, client, "test-proj", "us-central1", "mock-model", "go-sql-driver/mysql_go-sql-spanner")
 
 	assert.NoError(t, err)
 	assert.Len(t, concepts, 1)
 	assert.InDeltaSlice(t, []float32{0.1, 0.2, 0.3}, concepts[0].Embedding, 0.001)
 }
 
-func TestCreateEmbededTextsWithClientJava(t *testing.T) {
+func TestCreateCodeSampleEmbeddingsJava(t *testing.T) {
 	ctx := context.Background()
 
 	javaMysqlMigrationConcept = []byte(`[
@@ -109,33 +109,33 @@ func TestCreateEmbededTextsWithClientJava(t *testing.T) {
 	]`)
 
 	client := &fakeClient{}
-	concepts, err := createEmbededTextsWithClient(ctx, client, "test-proj", "us-central1", "mock-model", "jdbc_jdbc")
+	concepts, err := createCodeSampleEmbeddings(ctx, client, "test-proj", "us-central1", "mock-model", "jdbc_jdbc")
 
 	assert.NoError(t, err)
 	assert.Len(t, concepts, 1)
 	assert.InDeltaSlice(t, []float32{0.1, 0.2, 0.3}, concepts[0].Embedding, 0.001)
 }
 
-func TestCreateEmbededTextsWithClient_UnsupportedLanguage(t *testing.T) {
+func TestCreateCodeSampleEmbeddings_UnsupportedLanguage(t *testing.T) {
 	ctx := context.Background()
 	client := &fakeClient{}
 
-	concepts, err := createEmbededTextsWithClient(ctx, client, "test-proj", "us-central1", "mock-model", "python")
+	concepts, err := createCodeSampleEmbeddings(ctx, client, "test-proj", "us-central1", "mock-model", "python")
 
 	assert.Nil(t, concepts)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported sourceTargetFramework")
 }
-func TestCreateEmbededTextsWithClient_PredictError(t *testing.T) {
+func TestCreateCodeSampleEmbeddings_PredictError(t *testing.T) {
 	ctx := context.Background()
 	client := &fakeClient{predictErr: errors.New("predict failure")}
 
-	_, err := createEmbededTextsWithClient(ctx, client, "test-proj", "us-central1", "mock-model", "go-sql-driver/mysql_go-sql-spanner")
+	_, err := createCodeSampleEmbeddings(ctx, client, "test-proj", "us-central1", "mock-model", "go-sql-driver/mysql_go-sql-spanner")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "predict failure")
 }
 
-func TestCreateEmbededTextsWithClient_InvalidJSON(t *testing.T) {
+func TestCreateCodeSampleEmbeddings_InvalidJSON(t *testing.T) {
 	ctx := context.Background()
 	// Temporarily assign invalid JSON
 	oldGoConcept := goMysqlMigrationConcept
@@ -143,7 +143,7 @@ func TestCreateEmbededTextsWithClient_InvalidJSON(t *testing.T) {
 	defer func() { goMysqlMigrationConcept = oldGoConcept }()
 
 	client := &fakeClient{}
-	_, err := createEmbededTextsWithClient(ctx, client, "test-proj", "us-central1", "mock-model", "go-sql-driver/mysql_go-sql-spanner")
+	_, err := createCodeSampleEmbeddings(ctx, client, "test-proj", "us-central1", "mock-model", "go-sql-driver/mysql_go-sql-spanner")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid character")
 }
@@ -170,7 +170,7 @@ func TestCreateQueryExampleEmbeddingsWithClient(t *testing.T) {
 	]`)
 	ctx := context.Background()
 	client := &fakeClient{}
-	concepts, err := createQueryExampleEmbeddingsWithClient(ctx, client, "test-proj", "us-central1", "mock-model")
+	concepts, err := createQuerySampleEmbeddings(ctx, client, "test-proj", "us-central1", "mock-model")
 	assert.NoError(t, err)
 	assert.Len(t, concepts, 1)
 	assert.Equal(t, "1", concepts[0].ID)

@@ -63,8 +63,37 @@ type PredictionClientInterface interface {
 	Close() error
 }
 
-// Helper to attach embeddings to a slice of concepts using a PredictionClientInterface
-func attachEmbeddingsToConcepts(ctx context.Context, client PredictionClientInterface, project, location, model string, concepts []MySqlMigrationConcept) ([]MySqlMigrationConcept, error) {
+func createCodeSampleEmbeddings(ctx context.Context, client PredictionClientInterface, project, location, model, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
+	var data []byte
+	switch sourceTargetFramework {
+	case "go-sql-driver/mysql_go-sql-spanner":
+		data = goMysqlMigrationConcept
+	case "jdbc_jdbc":
+		data = javaMysqlMigrationConcept
+	case "vertx-mysql-client_vertx-jdbc-client":
+		data = vertxMysqlMigrationConcept
+	case "hibernate_hibernate":
+		data = hibernateMysqlMigrationConcept
+	default:
+		return nil, fmt.Errorf("unsupported sourceTargetFramework: %s", sourceTargetFramework)
+	}
+
+	var concepts []MySqlMigrationConcept
+	if err := json.Unmarshal(data, &concepts); err != nil {
+		return nil, err
+	}
+	return attachEmbeddings(ctx, client, project, location, model, concepts)
+}
+
+func createQuerySampleEmbeddings(ctx context.Context, client PredictionClientInterface, project, location, model string) ([]MySqlMigrationConcept, error) {
+	var queryExamples []MySqlMigrationConcept
+	if err := json.Unmarshal(mysqlQueryExamples, &queryExamples); err != nil {
+		return nil, fmt.Errorf("failed to parse MySQL query examples JSON: %w", err)
+	}
+	return attachEmbeddings(ctx, client, project, location, model, queryExamples)
+}
+
+func attachEmbeddings(ctx context.Context, client PredictionClientInterface, project, location, model string, concepts []MySqlMigrationConcept) ([]MySqlMigrationConcept, error) {
 	var instances []*structpb.Value
 	for _, c := range concepts {
 		instances = append(instances, structpb.NewStructValue(&structpb.Struct{
@@ -100,36 +129,6 @@ func attachEmbeddingsToConcepts(ctx context.Context, client PredictionClientInte
 		concepts[i].Embedding = embedding
 	}
 	return concepts, nil
-}
-
-func createEmbededTextsWithClient(ctx context.Context, client PredictionClientInterface, project, location, model, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
-	var data []byte
-	switch sourceTargetFramework {
-	case "go-sql-driver/mysql_go-sql-spanner":
-		data = goMysqlMigrationConcept
-	case "jdbc_jdbc":
-		data = javaMysqlMigrationConcept
-	case "vertx-mysql-client_vertx-jdbc-client":
-		data = vertxMysqlMigrationConcept
-	case "hibernate_hibernate":
-		data = hibernateMysqlMigrationConcept
-	default:
-		return nil, fmt.Errorf("unsupported sourceTargetFramework: %s", sourceTargetFramework)
-	}
-
-	var concepts []MySqlMigrationConcept
-	if err := json.Unmarshal(data, &concepts); err != nil {
-		return nil, err
-	}
-	return attachEmbeddingsToConcepts(ctx, client, project, location, model, concepts)
-}
-
-func createQueryExampleEmbeddingsWithClient(ctx context.Context, client PredictionClientInterface, project, location, model string) ([]MySqlMigrationConcept, error) {
-	var queryExamples []MySqlMigrationConcept
-	if err := json.Unmarshal(mysqlQueryExamples, &queryExamples); err != nil {
-		return nil, fmt.Errorf("failed to parse MySQL query examples JSON: %w", err)
-	}
-	return attachEmbeddingsToConcepts(ctx, client, project, location, model, queryExamples)
 }
 
 // Helper to create a new Vertex AI Prediction client and return context, client, and model
