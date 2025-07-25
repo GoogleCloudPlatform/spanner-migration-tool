@@ -230,7 +230,7 @@ func performAppAssessment(ctx context.Context, collectors assessmentCollectors) 
 	}
 
 	logger.Log.Info("starting app assessment...")
-	codeAssessment, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
+	codeAssessment, _, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
 
 	if err != nil {
 		logger.Log.Error("error analyzing project", zap.Error(err))

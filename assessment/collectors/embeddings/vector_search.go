@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
 	"sort"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
@@ -37,8 +36,14 @@ type MysqlConceptDb struct {
 	data map[string]MySqlMigrationConcept
 }
 
-func NewMysqlConceptDb(projectId, location, sourceTargetFramework string) (*MysqlConceptDb, error) {
-	mysqlMigrationConcepts, err := createEmbededTextsFromFile(projectId, location, sourceTargetFramework)
+func NewMysqlToSpannerCodeDb(projectId, location, sourceTargetFramework string) (*MysqlConceptDb, error) {
+	ctx, client, model, err := newAIPredictionClient(location)
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
+	mysqlMigrationConcepts, err := createCodeSampleEmbeddings(ctx, client, projectId, location, model, sourceTargetFramework)
 	if err != nil {
 		return nil, err
 	}
@@ -50,20 +55,21 @@ func NewMysqlConceptDb(projectId, location, sourceTargetFramework string) (*Mysq
 	return db, nil
 }
 
-func NewExampleDb(filePath string) (*MysqlConceptDb, error) {
-	file, err := os.Open(filePath)
+func NewMysqlToSpannerQueryDb(projectId, location string) (*MysqlConceptDb, error) {
+	ctx, client, model, err := newAIPredictionClient(location)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer client.Close()
 
-	var records []MySqlMigrationConcept
-	if err := json.NewDecoder(file).Decode(&records); err != nil {
+	mysqlQueryExamples, err := createQuerySampleEmbeddings(ctx, client, projectId, location, model)
+	if err != nil {
 		return nil, err
 	}
+
 	db := &MysqlConceptDb{data: make(map[string]MySqlMigrationConcept)}
-	for _, record := range records {
-		db.data[record.ID] = record
+	for _, concept := range mysqlQueryExamples {
+		db.data[concept.ID] = concept
 	}
 	return db, nil
 }
