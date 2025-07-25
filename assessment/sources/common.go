@@ -37,3 +37,9 @@ type SourceSpecificComparison interface {
 }
 
 type SourceSpecificComparisonImpl struct{}
+
+type PerformanceSchema interface {
+	GetAllQueries() ([]utils.QueryAssessmentInfo, error)
+}
+
+type PerformanceSchemaImpl struct{}

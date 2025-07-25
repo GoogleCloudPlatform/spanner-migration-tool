@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 
+	"cloud.google.com/go/vertexai/genai"
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
@@ -32,9 +33,16 @@ import (
 )
 
 type assessmentCollectors struct {
-	sampleCollector        *assessment.SampleCollector
-	infoSchemaCollector    *assessment.InfoSchemaCollector
-	appAssessmentCollector *assessment.MigrationCodeSummarizer
+	sampleCollector            *assessment.SampleCollector
+	infoSchemaCollector        *assessment.InfoSchemaCollector
+	appAssessmentCollector     *assessment.MigrationCodeSummarizer
+	performanceSchemaCollector *assessment.PerformanceSchemaCollector
+
+	mysqlSchema   string
+	spannerSchema string
+	aiClient      *genai.Client
+	projectId     string
+	location      string
 }
 
 type assessmentTaskInput struct {
@@ -82,6 +90,10 @@ func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile
 		},
 	}
 
+	_, err = performQueryAssessment(ctx, c)
+	if err != nil {
+		logger.Log.Warn("Could not complete query assessment", zap.Error(err))
+	}
 	assessmentResults, err := parallelTaskRunner.RunParallelTasks(assessmentTasksInput, 2, func(input assessmentTaskInput, mutex *sync.Mutex) task.TaskResult[utils.AssessmentOutput] {
 		result, err := input.taskFunc(ctx, c)
 		if err != nil {
@@ -126,6 +138,33 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 	sourceFramework, exists := assessmentConfig["sourceFramework"]
 	targetFramework, exists := assessmentConfig["targetFramework"]
 
+	mysqlSchema := utils.GetDDL(conv.SrcSchema)
+	spannerSchema := strings.Join(
+		ddl.GetDDL(
+			ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"},
+			conv.SpSchema,
+			conv.SpSequences),
+		"\n")
+
+	// Store schema information for query assessment
+	c.mysqlSchema = mysqlSchema
+	c.spannerSchema = spannerSchema
+	c.projectId = projectId
+	c.location = assessmentConfig["location"]
+
+	// Create AI client for both app collector and query assessment
+	var aiClient *genai.Client
+	if projectId != "" && assessmentConfig["location"] != "" {
+		var err error
+		aiClient, err = genai.NewClient(ctx, projectId, assessmentConfig["location"])
+		if err != nil {
+			logger.Log.Warn("failed to create AI client", zap.Error(err))
+		} else {
+			c.aiClient = aiClient
+			logger.Log.Info("created AI client for assessment")
+		}
+	}
+
 	codeDirectory, exists := assessmentConfig["codeDirectory"]
 	if exists {
 		logger.Log.Info("initializing app collector")
@@ -150,6 +189,17 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 		logger.Log.Info("initialized app collector")
 	} else {
 		logger.Log.Info("app code info unavailable")
+	}
+
+	// Initialize Performance Schema Collector
+	logger.Log.Info("initializing performance schema collector")
+	performanceSchemaCollector, err := assessment.GetDefaultPerformanceSchemaCollector(sourceProfile)
+	if err != nil {
+		logger.Log.Warn("failed to initialize performance schema collector", zap.Error(err))
+		logger.Log.Info("performance schema assessment will be skipped")
+	} else {
+		c.performanceSchemaCollector = &performanceSchemaCollector
+		logger.Log.Info("initialized performance schema collector")
 	}
 
 	return c, err
@@ -247,6 +297,45 @@ func performAppAssessment(ctx context.Context, collectors assessmentCollectors) 
 		TotalFiles:   codeAssessment.TotalFiles,
 		CodeSnippets: codeAssessment.Snippets,
 	}, nil
+}
+
+func performQueryAssessment(ctx context.Context, collectors assessmentCollectors) (utils.QueryAssessmentOutput, error) {
+	if collectors.performanceSchemaCollector == nil {
+		logger.Log.Info("not proceeding with query assessment as performance schema collector was not initialized")
+		return utils.QueryAssessmentOutput{}, nil
+	}
+
+	logger.Log.Info("starting query assessment...")
+
+	// Get basic query statistics
+	queries := collectors.performanceSchemaCollector.ListQueries()
+
+	// Initialize query translations
+	var queryTranslations []utils.QueryTranslationResult
+
+	// Try to translate queries if we have queries to translate
+	if len(queries) > 0 {
+		logger.Log.Info("attempting query translation with LLM...")
+
+		if collectors.aiClient != nil && collectors.mysqlSchema != "" && collectors.spannerSchema != "" {
+			// Perform query translation
+			translationResults, err := collectors.performanceSchemaCollector.TranslateQueriesToSpanner(ctx, collectors.aiClient, collectors.mysqlSchema, collectors.spannerSchema)
+			if err != nil {
+				logger.Log.Warn("failed to translate queries with LLM", zap.Error(err))
+				logger.Log.Info("continuing with query assessment without translations")
+			} else {
+				queryTranslations = translationResults
+				logger.Log.Info("successfully translated queries", zap.Int("translated_count", len(translationResults)))
+			}
+		} else {
+			logger.Log.Info("LLM client or schema information not available, skipping query translation")
+		}
+	}
+
+	fmt.Println(queryTranslations)
+
+	logger.Log.Info("query assessment completed successfully.")
+	return utils.QueryAssessmentOutput{}, nil
 }
 
 func isCharsetCompatible(srcCharset string) bool {
