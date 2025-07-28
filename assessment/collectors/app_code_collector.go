@@ -178,12 +178,12 @@ func NewMigrationCodeSummarizer(
 
 	codeSampleDB, err := assessment.NewMysqlToSpannerCodeDb(projectID, location, strings.ToLower(sourceFramework)+"_"+strings.ToLower(targetFramework))
 	if err != nil {
-		return nil, fmt.Errorf("failed to load code example DB: %w", err)
+		return nil, fmt.Errorf("failed to load code sample DB: %w", err)
 	}
 
 	querySampleDB, err := assessment.NewMysqlToSpannerQueryDb(projectID, location)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load MySQL query example DB: %w", err)
+		return nil, fmt.Errorf("failed to load MySQL query sample DB: %w", err)
 	}
 
 	summarizer := &MigrationCodeSummarizer{
@@ -266,7 +266,7 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 				}
 			}
 
-			// Search in MySQL query examples database
+			// Search in MySQL query samples database
 			queryRecords := m.querySampleDatabase.Search([]string{question}, m.gcpProjectID, m.gcpLocation, 0.25, 2)
 			if len(queryRecords) > 0 {
 				answersPresent = true
