@@ -63,7 +63,7 @@ func GetPerformanceSchemaCollector(sourceProfile profiles.SourceProfile, dbConne
 		return PerformanceSchemaCollector{}, fmt.Errorf("failed to get performance schema: %w", err)
 	}
 
-	queries, err := performanceSchema.GetAllQueries()
+	queries, err := performanceSchema.GetAllQueryAssessments()
 	if err != nil {
 		return PerformanceSchemaCollector{}, fmt.Errorf("failed to get all queries: %w", err)
 	}

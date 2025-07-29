@@ -33,7 +33,7 @@ type InfoSchema interface {
 type InfoSchemaImpl struct{}
 
 type PerformanceSchema interface {
-	GetAllQueries() ([]utils.QueryAssessmentInfo, error)
+	GetAllQueryAssessments() ([]utils.QueryAssessmentInfo, error)
 }
 
 type PerformanceSchemaImpl struct{}

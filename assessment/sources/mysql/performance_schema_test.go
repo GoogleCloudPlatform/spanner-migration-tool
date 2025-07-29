@@ -17,6 +17,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
+	"regexp"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -32,12 +33,32 @@ type mockSpec struct {
 	err   error
 }
 
+const (
+	fullQueryPattern = `SELECT
+    DIGEST_TEXT,
+    SUM(COUNT_STAR) AS total_count
+FROM
+    performance_schema.events_statements_summary_by_digest
+WHERE
+  SCHEMA_NAME = ?
+  AND DIGEST_TEXT NOT LIKE 'COMMIT%'
+  AND DIGEST_TEXT NOT LIKE 'ROLLBACK%'
+  AND DIGEST_TEXT NOT LIKE 'SET%'
+  AND DIGEST_TEXT NOT LIKE 'SHOW%'
+  AND DIGEST_TEXT NOT LIKE 'PREPARE%'
+  AND DIGEST_TEXT NOT LIKE 'EXECUTE%stmt%'
+GROUP BY
+    DIGEST_TEXT
+ORDER BY
+  total_count DESC;`
+)
+
 // mkMockDB creates a *sql.DB instance with the specified mock expectations.
 func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 	db, mock, err := sqlmock.New()
 	assert.Nil(t, err)
 	for _, m := range ms {
-		queryExpectation := mock.ExpectQuery(m.query)
+		queryExpectation := mock.ExpectQuery(regexp.QuoteMeta(m.query))
 		if len(m.args) > 0 {
 			queryExpectation = queryExpectation.WithArgs(m.args...)
 		}
@@ -55,11 +76,11 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 	return db
 }
 
-// TestGetAllQueries_Success tests the GetAllQueries method when database returns valid data.
-func TestGetAllQueries_Success(t *testing.T) {
+// TestGetAllQueryAssessments_Success tests the GetAllQueryAssessments method when database returns valid data.
+func TestGetAllQueryAssessments_Success(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: `SELECT\s+DIGEST_TEXT,\s+SUM\(COUNT_STAR\)\s+AS\s+total_count\s+FROM\s+performance_schema\.events_statements_summary_by_digest\s+WHERE\s+SCHEMA_NAME\s+=\s+\?\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'COMMIT%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'ROLLBACK%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'SET%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'SHOW%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'PREPARE%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'EXECUTE%stmt%'\s+GROUP\s+BY\s+DIGEST_TEXT\s+ORDER\s+BY\s+total_count\s+DESC;`,
+			query: fullQueryPattern,
 			args:  []driver.Value{"test_db"},
 			cols:  []string{"DIGEST_TEXT", "total_count"},
 			rows: [][]driver.Value{
@@ -76,7 +97,7 @@ func TestGetAllQueries_Success(t *testing.T) {
 		DbName: "test_db",
 	}
 
-	queries, err := psi.GetAllQueries()
+	queries, err := psi.GetAllQueryAssessments()
 
 	assert.NoError(t, err)
 	assert.Len(t, queries, 2)
@@ -88,11 +109,11 @@ func TestGetAllQueries_Success(t *testing.T) {
 	assert.Equal(t, 50, queries[1].Count)
 }
 
-// TestGetAllQueries_DbQueryError tests GetAllQueries when the database query fails.
-func TestGetAllQueries_DbQueryError(t *testing.T) {
+// TestGetAllQueryAssessments_DbQueryError tests GetAllQueryAssessments when the database query fails.
+func TestGetAllQueryAssessments_DbQueryError(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: `SELECT\s+DIGEST_TEXT,\s+SUM\(COUNT_STAR\)\s+AS\s+total_count\s+FROM\s+performance_schema\.events_statements_summary_by_digest\s+WHERE\s+SCHEMA_NAME\s+=\s+\?\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'COMMIT%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'ROLLBACK%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'SET%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'SHOW%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'PREPARE%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'EXECUTE%stmt%'\s+GROUP\s+BY\s+DIGEST_TEXT\s+ORDER\s+BY\s+total_count\s+DESC;`,
+			query: fullQueryPattern,
 			args:  []driver.Value{"test_db"},
 			err:   errors.New("database connection error"),
 		},
@@ -105,18 +126,18 @@ func TestGetAllQueries_DbQueryError(t *testing.T) {
 		DbName: "test_db",
 	}
 
-	queries, err := psi.GetAllQueries()
+	queries, err := psi.GetAllQueryAssessments()
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "couldn't read events_statements_summary_by_digest from performance schema : database connection error")
 	assert.Nil(t, queries)
 }
 
-// TestGetAllQueries_ScanError tests GetAllQueries when scanning rows fails for some records.
-func TestGetAllQueries_ScanError(t *testing.T) {
+// TestGetAllQueryAssessments_ScanError tests GetAllQueryAssessments when scanning rows fails for some records.
+func TestGetAllQueryAssessments_ScanError(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: `SELECT\s+DIGEST_TEXT,\s+SUM\(COUNT_STAR\)\s+AS\s+total_count\s+FROM\s+performance_schema\.events_statements_summary_by_digest\s+WHERE\s+SCHEMA_NAME\s+=\s+\?\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'COMMIT%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'ROLLBACK%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'SET%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'SHOW%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'PREPARE%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'EXECUTE%stmt%'\s+GROUP\s+BY\s+DIGEST_TEXT\s+ORDER\s+BY\s+total_count\s+DESC;`,
+			query: fullQueryPattern,
 			args:  []driver.Value{"test_db"},
 			cols:  []string{"DIGEST_TEXT", "total_count"},
 			rows: [][]driver.Value{
@@ -134,7 +155,7 @@ func TestGetAllQueries_ScanError(t *testing.T) {
 		DbName: "test_db",
 	}
 
-	queries, err := psi.GetAllQueries()
+	queries, err := psi.GetAllQueryAssessments()
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Can't scan")
@@ -145,11 +166,11 @@ func TestGetAllQueries_ScanError(t *testing.T) {
 	assert.Equal(t, 200, queries[1].Count)
 }
 
-// TestGetAllQueries_NoRows tests GetAllQueries when no rows are returned.
-func TestGetAllQueries_NoRows(t *testing.T) {
+// TestGetAllQueryAssessments_NoRows tests GetAllQueryAssessments when no rows are returned.
+func TestGetAllQueryAssessments_NoRows(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: `SELECT\s+DIGEST_TEXT,\s+SUM\(COUNT_STAR\)\s+AS\s+total_count\s+FROM\s+performance_schema\.events_statements_summary_by_digest\s+WHERE\s+SCHEMA_NAME\s+=\s+\?\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'COMMIT%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'ROLLBACK%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'SET%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'SHOW%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'PREPARE%'\s+AND\s+DIGEST_TEXT\s+NOT\s+LIKE\s+'EXECUTE%stmt%'\s+GROUP\s+BY\s+DIGEST_TEXT\s+ORDER\s+BY\s+total_count\s+DESC;`,
+			query: fullQueryPattern,
 			args:  []driver.Value{"test_db"},
 			cols:  []string{"DIGEST_TEXT", "total_count"},
 			rows:  [][]driver.Value{}, // No rows
@@ -163,7 +184,7 @@ func TestGetAllQueries_NoRows(t *testing.T) {
 		DbName: "test_db",
 	}
 
-	queries, err := psi.GetAllQueries()
+	queries, err := psi.GetAllQueryAssessments()
 
 	assert.NoError(t, err)
 	assert.Len(t, queries, 0)

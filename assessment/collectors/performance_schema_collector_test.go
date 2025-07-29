@@ -39,7 +39,7 @@ type MockPerformanceSchema struct {
 	mock.Mock
 }
 
-func (m *MockPerformanceSchema) GetAllQueries() ([]utils.QueryAssessmentInfo, error) {
+func (m *MockPerformanceSchema) GetAllQueryAssessments() ([]utils.QueryAssessmentInfo, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -110,7 +110,7 @@ func TestPerformanceSchemaCollector_IsEmpty(t *testing.T) {
 	}
 }
 
-func TestGetPerformanceSchemaCollector(t *testing.T) {
+func TestGetPerformanceSchemaCollector_Success(t *testing.T) {
 	dummyDb, _, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("Error creating dummy sqlmock DB: %v", err)
@@ -130,112 +130,158 @@ func TestGetPerformanceSchemaCollector(t *testing.T) {
 		{Query: "INSERT INTO products", Db: utils.DbIdentifier{DatabaseName: "test_db"}, Count: 50},
 	}
 
-	t.Run("SuccessScenario", func(t *testing.T) {
-		mockCfgProvider := new(MockConnectionConfigProvider)
-		mockDbConnector := new(MockDBConnector)
-		mockPS := new(MockPerformanceSchema)
+	mockCfgProvider := new(MockConnectionConfigProvider)
+	mockDbConnector := new(MockDBConnector)
+	mockPS := new(MockPerformanceSchema)
 
-		mockCfgProvider.On("GetConnectionConfig", sourceProfile).Return("mock_conn_string", nil).Once()
-		mockDbConnector.On("Connect", sourceProfile.Driver, "mock_conn_string").Return(dummyDb, nil).Once()
-		mockPS.On("GetAllQueries").Return(expectedQueries, nil).Once()
+	mockCfgProvider.On("GetConnectionConfig", sourceProfile).Return("mock_conn_string", nil).Once()
+	mockDbConnector.On("Connect", sourceProfile.Driver, "mock_conn_string").Return(dummyDb, nil).Once()
+	mockPS.On("GetAllQueryAssessments").Return(expectedQueries, nil).Once()
 
-		mockPerformanceSchemaProvider := func(db *sql.DB, sp profiles.SourceProfile) (sourcesCommon.PerformanceSchema, error) {
-			assert.Equal(t, dummyDb, db)
-			assert.Equal(t, sourceProfile, sp)
-			return mockPS, nil
-		}
+	mockPerformanceSchemaProvider := func(db *sql.DB, sp profiles.SourceProfile) (sourcesCommon.PerformanceSchema, error) {
+		assert.Equal(t, dummyDb, db) // Verify that the correct DB is passed.
+		assert.Equal(t, sourceProfile, sp)
+		return mockPS, nil
+	}
 
-		collector, err := GetPerformanceSchemaCollector(sourceProfile, mockDbConnector, mockCfgProvider, mockPerformanceSchemaProvider)
+	collector, err := GetPerformanceSchemaCollector(sourceProfile, mockDbConnector, mockCfgProvider, mockPerformanceSchemaProvider)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, collector)
-		assert.False(t, collector.IsEmpty())
-		assert.Equal(t, expectedQueries, collector.queries)
+	assert.NoError(t, err)
+	assert.NotNil(t, collector)
+	assert.False(t, collector.IsEmpty())
+	assert.Equal(t, expectedQueries, collector.queries)
 
-		mockCfgProvider.AssertExpectations(t)
-		mockDbConnector.AssertExpectations(t)
-		mockPS.AssertExpectations(t)
-	})
+	mockCfgProvider.AssertExpectations(t)
+	mockDbConnector.AssertExpectations(t)
+	mockPS.AssertExpectations(t)
+}
 
-	t.Run("ErrorFromGetConnectionConfig", func(t *testing.T) {
-		mockCfgProvider := new(MockConnectionConfigProvider)
-		mockDbConnector := new(MockDBConnector)
+func TestGetPerformanceSchemaCollector_ErrorFromGetConnectionConfig(t *testing.T) {
+	sourceProfile := profiles.SourceProfile{
+		Driver: constants.MYSQL,
+		Conn: profiles.SourceProfileConnection{
+			Mysql: profiles.SourceProfileConnectionMySQL{
+				Db: "test_db",
+			},
+		},
+	}
 
-		expectedErr := errors.New("failed to get connection config: mock config error")
-		mockCfgProvider.On("GetConnectionConfig", sourceProfile).Return("", errors.New("mock config error")).Once()
+	mockCfgProvider := new(MockConnectionConfigProvider)
+	mockDbConnector := new(MockDBConnector)
 
-		collector, err := GetPerformanceSchemaCollector(sourceProfile, mockDbConnector, mockCfgProvider, nil)
+	expectedErr := errors.New("failed to get connection config: mock config error")
+	mockCfgProvider.On("GetConnectionConfig", sourceProfile).Return("", errors.New("mock config error")).Once()
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, expectedErr.Error())
-		assert.True(t, collector.IsEmpty())
+	collector, err := GetPerformanceSchemaCollector(sourceProfile, mockDbConnector, mockCfgProvider, nil)
 
-		mockCfgProvider.AssertExpectations(t)
-		mockDbConnector.AssertNotCalled(t, "Connect", mock.Anything, mock.Anything)
-	})
+	assert.Error(t, err)
+	assert.EqualError(t, err, expectedErr.Error())
+	assert.True(t, collector.IsEmpty())
 
-	t.Run("ErrorFromDBConnect", func(t *testing.T) {
-		mockCfgProvider := new(MockConnectionConfigProvider)
-		mockDbConnector := new(MockDBConnector)
+	mockCfgProvider.AssertExpectations(t)
+	mockDbConnector.AssertNotCalled(t, "Connect", mock.Anything, mock.Anything)
+}
 
-		expectedErr := errors.New("failed to connect to database: mock db connect error")
-		mockCfgProvider.On("GetConnectionConfig", sourceProfile).Return("mock_conn_string", nil).Once()
-		mockDbConnector.On("Connect", sourceProfile.Driver, "mock_conn_string").Return(nil, errors.New("mock db connect error")).Once()
+func TestGetPerformanceSchemaCollector_ErrorFromDBConnect(t *testing.T) {
+	sourceProfile := profiles.SourceProfile{
+		Driver: constants.MYSQL,
+		Conn: profiles.SourceProfileConnection{
+			Mysql: profiles.SourceProfileConnectionMySQL{
+				Db: "test_db",
+			},
+		},
+	}
 
-		collector, err := GetPerformanceSchemaCollector(sourceProfile, mockDbConnector, mockCfgProvider, nil)
+	mockCfgProvider := new(MockConnectionConfigProvider)
+	mockDbConnector := new(MockDBConnector)
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, expectedErr.Error())
-		assert.True(t, collector.IsEmpty())
+	expectedErr := errors.New("failed to connect to database: mock db connect error")
+	mockCfgProvider.On("GetConnectionConfig", sourceProfile).Return("mock_conn_string", nil).Once()
+	mockDbConnector.On("Connect", sourceProfile.Driver, "mock_conn_string").Return(nil, errors.New("mock db connect error")).Once()
 
-		mockCfgProvider.AssertExpectations(t)
-		mockDbConnector.AssertExpectations(t)
-	})
+	collector, err := GetPerformanceSchemaCollector(sourceProfile, mockDbConnector, mockCfgProvider, nil)
 
-	t.Run("ErrorFromPerformanceSchemaProvider", func(t *testing.T) {
-		mockCfgProvider := new(MockConnectionConfigProvider)
-		mockDbConnector := new(MockDBConnector)
+	assert.Error(t, err)
+	assert.EqualError(t, err, expectedErr.Error())
+	assert.True(t, collector.IsEmpty())
 
-		expectedErr := errors.New("failed to get performance schema: mock provider error")
-		mockCfgProvider.On("GetConnectionConfig", sourceProfile).Return("mock_conn_string", nil).Once()
-		mockDbConnector.On("Connect", sourceProfile.Driver, "mock_conn_string").Return(dummyDb, nil).Once()
+	mockCfgProvider.AssertExpectations(t)
+	mockDbConnector.AssertExpectations(t)
+}
 
-		mockPerformanceSchemaProvider := func(db *sql.DB, sp profiles.SourceProfile) (sourcesCommon.PerformanceSchema, error) {
-			return nil, errors.New("mock provider error")
-		}
+func TestGetPerformanceSchemaCollector_ErrorFromPerformanceSchemaProvider(t *testing.T) {
+	dummyDb, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Error creating dummy sqlmock DB: %v", err)
+	}
+	defer dummyDb.Close()
 
-		collector, err := GetPerformanceSchemaCollector(sourceProfile, mockDbConnector, mockCfgProvider, mockPerformanceSchemaProvider)
+	sourceProfile := profiles.SourceProfile{
+		Driver: constants.MYSQL,
+		Conn: profiles.SourceProfileConnection{
+			Mysql: profiles.SourceProfileConnectionMySQL{
+				Db: "test_db",
+			},
+		},
+	}
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, expectedErr.Error())
-		assert.True(t, collector.IsEmpty())
+	mockCfgProvider := new(MockConnectionConfigProvider)
+	mockDbConnector := new(MockDBConnector)
 
-		mockCfgProvider.AssertExpectations(t)
-		mockDbConnector.AssertExpectations(t)
-	})
+	expectedErr := errors.New("failed to get performance schema: mock provider error")
+	mockCfgProvider.On("GetConnectionConfig", sourceProfile).Return("mock_conn_string", nil).Once()
+	mockDbConnector.On("Connect", sourceProfile.Driver, "mock_conn_string").Return(dummyDb, nil).Once()
 
-	t.Run("ErrorFromGetAllQueries", func(t *testing.T) {
-		mockCfgProvider := new(MockConnectionConfigProvider)
-		mockDbConnector := new(MockDBConnector)
-		mockPS := new(MockPerformanceSchema)
+	mockPerformanceSchemaProvider := func(db *sql.DB, sp profiles.SourceProfile) (sourcesCommon.PerformanceSchema, error) {
+		return nil, errors.New("mock provider error")
+	}
 
-		expectedErr := errors.New("failed to get all queries: mock get all queries error")
-		mockCfgProvider.On("GetConnectionConfig", sourceProfile).Return("mock_conn_string", nil).Once()
-		mockDbConnector.On("Connect", sourceProfile.Driver, "mock_conn_string").Return(dummyDb, nil).Once()
-		mockPS.On("GetAllQueries").Return(nil, errors.New("mock get all queries error")).Once()
+	collector, err := GetPerformanceSchemaCollector(sourceProfile, mockDbConnector, mockCfgProvider, mockPerformanceSchemaProvider)
 
-		mockPerformanceSchemaProvider := func(db *sql.DB, sp profiles.SourceProfile) (sourcesCommon.PerformanceSchema, error) {
-			return mockPS, nil
-		}
+	assert.Error(t, err)
+	assert.EqualError(t, err, expectedErr.Error())
+	assert.True(t, collector.IsEmpty())
 
-		collector, err := GetPerformanceSchemaCollector(sourceProfile, mockDbConnector, mockCfgProvider, mockPerformanceSchemaProvider)
+	mockCfgProvider.AssertExpectations(t)
+	mockDbConnector.AssertExpectations(t)
+}
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, expectedErr.Error())
-		assert.True(t, collector.IsEmpty())
+func TestGetPerformanceSchemaCollector_ErrorFromGetAllQueryAssessments(t *testing.T) {
+	dummyDb, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Error creating dummy sqlmock DB: %v", err)
+	}
+	defer dummyDb.Close()
 
-		mockCfgProvider.AssertExpectations(t)
-		mockDbConnector.AssertExpectations(t)
-		mockPS.AssertExpectations(t)
-	})
+	sourceProfile := profiles.SourceProfile{
+		Driver: constants.MYSQL,
+		Conn: profiles.SourceProfileConnection{
+			Mysql: profiles.SourceProfileConnectionMySQL{
+				Db: "test_db",
+			},
+		},
+	}
+
+	mockCfgProvider := new(MockConnectionConfigProvider)
+	mockDbConnector := new(MockDBConnector)
+	mockPS := new(MockPerformanceSchema)
+
+	expectedErr := errors.New("failed to get all queries: mock get all queries error")
+	mockCfgProvider.On("GetConnectionConfig", sourceProfile).Return("mock_conn_string", nil).Once()
+	mockDbConnector.On("Connect", sourceProfile.Driver, "mock_conn_string").Return(dummyDb, nil).Once()
+	mockPS.On("GetAllQueryAssessments").Return(nil, errors.New("mock get all queries error")).Once()
+
+	mockPerformanceSchemaProvider := func(db *sql.DB, sp profiles.SourceProfile) (sourcesCommon.PerformanceSchema, error) {
+		return mockPS, nil
+	}
+
+	collector, err := GetPerformanceSchemaCollector(sourceProfile, mockDbConnector, mockCfgProvider, mockPerformanceSchemaProvider)
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, expectedErr.Error())
+	assert.True(t, collector.IsEmpty())
+
+	mockCfgProvider.AssertExpectations(t)
+	mockDbConnector.AssertExpectations(t)
+	mockPS.AssertExpectations(t)
 }

@@ -26,7 +26,7 @@ type PerformanceSchemaImpl struct {
 	DbName string
 }
 
-func (psi PerformanceSchemaImpl) GetAllQueries() ([]utils.QueryAssessmentInfo, error) {
+func (psi PerformanceSchemaImpl) GetAllQueryAssessments() ([]utils.QueryAssessmentInfo, error) {
 	q := `SELECT
     DIGEST_TEXT,
     SUM(COUNT_STAR) AS total_count
@@ -44,7 +44,6 @@ GROUP BY
     DIGEST_TEXT
 ORDER BY
   total_count DESC;`
-	fmt.Println("database name", psi.DbName)
 	rows, err := psi.Db.Query(q, psi.DbName)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't read events_statements_summary_by_digest from performance schema : %s", err)
@@ -58,7 +57,6 @@ ORDER BY
 			errString = errString + fmt.Sprintf("Can't scan: %v", err)
 			continue
 		}
-		fmt.Println("query digest", digestText)
 		queryInfo = append(queryInfo, utils.QueryAssessmentInfo{
 			Query: digestText,
 			Db: utils.DbIdentifier{
