@@ -29,6 +29,7 @@ import (
 // input string is of the form "key1=value1,key2=value2,..." etc. Return error
 // otherwise.
 func ParseMap(s string) (map[string]string, error) {
+	fmt.Println("Complete string", s)
 	params := make(map[string]string)
 	if len(s) == 0 {
 		return params, nil
@@ -49,20 +50,28 @@ func ParseMap(s string) (map[string]string, error) {
 	}
 
 	for _, kv := range records[0] {
-		s := strings.Split(strings.TrimSpace(kv), "=")
-		if len(s) != 2 {
+		equalSignIndex := strings.Index(kv, "=")
+		if equalSignIndex == -1 {
 			return params, fmt.Errorf("invalid key=value pair (expected format: key1=value1): %v", kv)
 		}
-		if _, ok := params[s[0]]; ok {
-			return params, fmt.Errorf("duplicate key found: %v", s[0])
+
+		key := strings.TrimSpace(kv[:equalSignIndex])
+		value := kv[equalSignIndex+1:]
+
+		if len(key) == 0 {
+			return params, fmt.Errorf("empty key found in pair: %v", kv)
 		}
-		params[s[0]] = s[1]
+
+		if _, ok := params[key]; ok {
+			return params, fmt.Errorf("duplicate key found: %v", key)
+		}
+		params[key] = value
 	}
 	return params, nil
 }
 
-func ParseList(s string)([]string, error) {
-	if (len(s) == 0) {
+func ParseList(s string) ([]string, error) {
+	if len(s) == 0 {
 		return nil, nil
 	}
 	r := csv.NewReader(strings.NewReader(s))
