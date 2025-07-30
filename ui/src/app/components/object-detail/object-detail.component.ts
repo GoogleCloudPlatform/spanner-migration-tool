@@ -252,6 +252,7 @@ export class ObjectDetailComponent implements OnInit {
       this.setColumnsToAdd()
       this.setAddPkColumnList()
       this.setPkOrder()
+      this.setSrcPkOrder()
       this.setPkRows()
       this.setFkRows()
       this.setCCRows()
@@ -808,7 +809,9 @@ export class ObjectDetailComponent implements OnInit {
     spArr.sort((a, b) => {
       return a.spOrder - b.spOrder
     })
-
+    srcArr.sort((a, b) => {
+      return a.srcOrder - b.srcOrder
+    })
     for (let i = 0; i < Math.min(srcArr.length, spArr.length); i++) {
       this.pkArray.push(
         new FormGroup({
@@ -1140,6 +1143,35 @@ export class ObjectDetailComponent implements OnInit {
       })
     }
   }
+
+  setSrcPkOrder() {
+    if (
+        this.currentObject &&
+        this.conv.SrcSchema[this.currentObject!.id]?.PrimaryKeys.length == this.pkData.length
+    ) {
+        this.pkData.forEach((pk: IColumnTabData, i: number) => {
+            if (
+                this.pkData[i].srcId === this.conv.SrcSchema[this.currentObject!.id].PrimaryKeys[i].ColId
+            ) {
+                this.pkData[i].srcOrder = this.conv.SrcSchema[this.currentObject!.id].PrimaryKeys[i].Order
+            } else {
+                let index = this.conv.SrcSchema[this.currentObject!.id].PrimaryKeys.map(
+                    (item) => item.ColId
+                ).indexOf(pk.srcId)
+                pk.srcOrder = this.conv.SrcSchema[this.currentObject!.id].PrimaryKeys[index]?.Order
+            }
+        })
+    } else {
+        this.pkData.forEach((pk: IColumnTabData, i: number) => {
+            let index = this.conv.SrcSchema[this.currentObject!.id]?.PrimaryKeys.map(
+                (item) => item.ColId
+            ).indexOf(pk.srcId)
+            if (index !== -1) {
+                pk.srcOrder = this.conv.SrcSchema[this.currentObject!.id]?.PrimaryKeys[index].Order
+            }
+        })
+    }
+}
 
   pkOrderValidation() {
     let arr = this.pkData
