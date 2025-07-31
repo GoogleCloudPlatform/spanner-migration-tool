@@ -16,9 +16,11 @@ package spanneradmin
 import (
 	"context"
 	"fmt"
+	"google.golang.org/api/option"
 	"sync"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients"
 )
 
 var once sync.Once
@@ -30,9 +32,15 @@ var newDatabaseAdminClient = database.NewDatabaseAdminClient
 
 func GetOrCreateClient(ctx context.Context) (*database.DatabaseAdminClient, error) {
 	var err error
+	var clientOptions []option.ClientOption
 	if spannerAdminClient == nil {
 		once.Do(func() {
-			spannerAdminClient, err = newDatabaseAdminClient(ctx)
+			clientOptions, err = clients.FetchSpannerClientOptions()
+			if err != nil {
+				return
+			}
+
+			spannerAdminClient, err = newDatabaseAdminClient(ctx, clientOptions...)
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create spanner admin client: %v", err)

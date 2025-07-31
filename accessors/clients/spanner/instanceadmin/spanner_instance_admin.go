@@ -16,9 +16,11 @@ package spinstanceadmin
 import (
 	"context"
 	"fmt"
+	"google.golang.org/api/option"
 	"sync"
 
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients"
 )
 
 var once sync.Once
@@ -30,9 +32,14 @@ var newInstanceAdminClient = instance.NewInstanceAdminClient
 
 func GetOrCreateClient(ctx context.Context) (*instance.InstanceAdminClient, error) {
 	var err error
+	var clientOptions []option.ClientOption
 	if instanceAdminClient == nil {
 		once.Do(func() {
-			instanceAdminClient, err = newInstanceAdminClient(ctx)
+			clientOptions, err = clients.FetchSpannerClientOptions()
+			if err != nil {
+				return
+			}
+			instanceAdminClient, err = newInstanceAdminClient(ctx, clientOptions...)
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create spanner instance admin client: %v", err)

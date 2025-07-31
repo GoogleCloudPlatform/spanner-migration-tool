@@ -18,6 +18,7 @@ package utils
 
 import (
 	"bufio"
+	"cloud.google.com/go/auth/credentials"
 	"context"
 	"crypto/rand"
 	"fmt"
@@ -362,10 +363,11 @@ func PrintSeekError(driver string, err error, out *os.File) {
 // NewSpannerClient returns a new Spanner client.
 // It respects SPANNER_API_ENDPOINT.
 func NewSpannerClient(ctx context.Context, db string) (*sp.Client, error) {
-	if endpoint := os.Getenv("SPANNER_API_ENDPOINT"); endpoint != "" {
-		return sp.NewClient(ctx, db, option.WithEndpoint(endpoint))
+	clientOptions, err := FetchSpannerClientOptions()
+	if err != nil {
+		return nil, err
 	}
-	return sp.NewClient(ctx, db)
+	return sp.NewClient(ctx, db, clientOptions...)
 }
 
 // GetClient returns a new Spanner client.  It uses the background context.
@@ -376,10 +378,32 @@ func GetClient(ctx context.Context, db string) (*sp.Client, error) {
 // NewDatabaseAdminClient returns a new db-admin client.
 // It respects SPANNER_API_ENDPOINT.
 func NewDatabaseAdminClient(ctx context.Context) (*database.DatabaseAdminClient, error) {
-	if endpoint := os.Getenv("SPANNER_API_ENDPOINT"); endpoint != "" {
-		return database.NewDatabaseAdminClient(ctx, option.WithEndpoint(endpoint))
+	clientOptions, err := FetchSpannerClientOptions()
+	if err != nil {
+		return nil, err
 	}
-	return database.NewDatabaseAdminClient(ctx)
+	return database.NewDatabaseAdminClient(ctx, clientOptions...)
+}
+
+func FetchSpannerClientOptions() ([]option.ClientOption, error) {
+	var clientOptions []option.ClientOption
+	if endpoint := os.Getenv("SPANNER_API_ENDPOINT"); endpoint != "" {
+		clientOptions = append(clientOptions, option.WithEndpoint(endpoint))
+	}
+
+	if gcloudAuthPlugin := os.Getenv("GCLOUD_AUTH_PLUGIN"); gcloudAuthPlugin == "true" {
+		// Wrap the token with cloud.google.com/go/auth.Credentials.
+		creds, err := credentials.DetectDefault(&credentials.DetectOptions{
+			Scopes:          []string{"https://www.googleapis.com/auth/cloud-platform"},
+			CredentialsJSON: []byte(os.Getenv("GCLOUD_AUTH_ACCESS_TOKEN")),
+		})
+		if err != nil {
+			return []option.ClientOption{}, err
+		}
+
+		clientOptions = append(clientOptions, option.WithAuthCredentials(creds))
+	}
+	return clientOptions, nil
 }
 
 func SumMapValues(m map[string]int64) int64 {

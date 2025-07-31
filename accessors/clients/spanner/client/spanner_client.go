@@ -16,9 +16,11 @@ package spannerclient
 import (
 	"context"
 	"fmt"
+	"google.golang.org/api/option"
 	"sync"
 
 	sp "cloud.google.com/go/spanner"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients"
 )
 
 var once sync.Once
@@ -30,9 +32,14 @@ var newClient = sp.NewClient
 
 func GetOrCreateClient(ctx context.Context, dbURI string) (*sp.Client, error) {
 	var err error
+	var clientOptions []option.ClientOption
 	if spannerClient == nil {
 		once.Do(func() {
-			spannerClient, err = newClient(ctx, dbURI)
+			clientOptions, err = clients.FetchSpannerClientOptions()
+			if err != nil {
+				return
+			}
+			spannerClient, err = newClient(ctx, dbURI, clientOptions...)
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create spanner database client: %v", err)
