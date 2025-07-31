@@ -41,11 +41,11 @@ func (c PerformanceSchemaCollector) IsEmpty() bool {
 
 // GetDefaultPerformanceSchemaCollector creates a new PerformanceSchemaCollector with default settings
 func GetDefaultPerformanceSchemaCollector(sourceProfile profiles.SourceProfile) (PerformanceSchemaCollector, error) {
-	return GetPerformanceSchemaCollector(sourceProfile, collectorCommon.SQLDBConnector{}, collectorCommon.DefaultConnectionConfigProvider{}, getPerformanceSchema)
+	return GetPerformanceSchemaCollector(sourceProfile, collectorCommon.SQLDBConnector{}, collectorCommon.DefaultConnectionConfigProvider{}, DefaultPerformanceSchemaProvider{})
 }
 
 // GetPerformanceSchemaCollector creates a new PerformanceSchemaCollector with custom dependencies
-func GetPerformanceSchemaCollector(sourceProfile profiles.SourceProfile, dbConnector collectorCommon.DBConnector, configProvider collectorCommon.ConnectionConfigProvider, performanceSchemaProvider func(*sql.DB, profiles.SourceProfile) (sourcesCommon.PerformanceSchema, error)) (PerformanceSchemaCollector, error) {
+func GetPerformanceSchemaCollector(sourceProfile profiles.SourceProfile, dbConnector collectorCommon.DBConnector, configProvider collectorCommon.ConnectionConfigProvider, performanceSchemaProvider PerformanceSchemaProvider) (PerformanceSchemaCollector, error) {
 	logger.Log.Info("initializing performance schema collector")
 
 	connectionConfig, err := configProvider.GetConnectionConfig(sourceProfile)
@@ -58,7 +58,7 @@ func GetPerformanceSchemaCollector(sourceProfile profiles.SourceProfile, dbConne
 		return PerformanceSchemaCollector{}, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	performanceSchema, err := performanceSchemaProvider(db, sourceProfile)
+	performanceSchema, err := performanceSchemaProvider.getPerformanceSchema(db, sourceProfile)
 	if err != nil {
 		return PerformanceSchemaCollector{}, fmt.Errorf("failed to get performance schema: %w", err)
 	}
@@ -76,8 +76,16 @@ func GetPerformanceSchemaCollector(sourceProfile profiles.SourceProfile, dbConne
 	}, nil
 }
 
+// DBConnector interface for establishing database connections
+type PerformanceSchemaProvider interface {
+	getPerformanceSchema(db *sql.DB, sourceProfile profiles.SourceProfile) (sourcesCommon.PerformanceSchema, error)
+}
+
+// SQLDBConnector provides default SQL database connection functionality
+type DefaultPerformanceSchemaProvider struct{}
+
 // getPerformanceSchema creates a performance schema implementation based on the database driver
-func getPerformanceSchema(db *sql.DB, sourceProfile profiles.SourceProfile) (sourcesCommon.PerformanceSchema, error) {
+func (d DefaultPerformanceSchemaProvider) getPerformanceSchema(db *sql.DB, sourceProfile profiles.SourceProfile) (sourcesCommon.PerformanceSchema, error) {
 	driver := sourceProfile.Driver
 	switch driver {
 	case constants.MYSQL:

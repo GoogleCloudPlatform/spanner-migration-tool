@@ -114,7 +114,7 @@ type QueryAssessmentInfo struct {
 	Db             DbIdentifier
 	Query          string
 	LengthOfQuery  string
-	TablesAffected []string
+	TablesAffected *[]string
 	Count          int
 }
 
