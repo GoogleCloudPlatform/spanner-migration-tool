@@ -1095,6 +1095,7 @@ export class ObjectDetailComponent implements OnInit {
     })
     this.pkData[index].spOrder = newColumnOrder
     this.setAddPkColumnList()
+    this.setSrcPkOrder()
     this.setPkRows()
   }
 
@@ -1116,23 +1117,9 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setPkOrder() {
-    if (
-      this.currentObject &&
-      this.conv.SpSchema[this.currentObject!.id]?.PrimaryKeys.length == this.pkData.length
-    ) {
-      this.pkData.forEach((pk: IColumnTabData, i: number) => {
-        if (
-          this.pkData[i].spId === this.conv.SpSchema[this.currentObject!.id].PrimaryKeys[i].ColId
-        ) {
-          this.pkData[i].spOrder = this.conv.SpSchema[this.currentObject!.id].PrimaryKeys[i].Order
-        } else {
-          let index = this.conv.SpSchema[this.currentObject!.id].PrimaryKeys.map(
-            (item) => item.ColId
-          ).indexOf(pk.spId)
-          pk.spOrder = this.conv.SpSchema[this.currentObject!.id].PrimaryKeys[index]?.Order
-        }
-      })
-    } else {
+    if (!this.currentObject || !this.conv.SrcSchema[this.currentObject!.id]?.PrimaryKeys) {
+        return; // Early exit if there's no current object or primary key data
+    }
       this.pkData.forEach((pk: IColumnTabData, i: number) => {
         let index = this.conv.SpSchema[this.currentObject!.id]?.PrimaryKeys.map(
           (item) => item.ColId
@@ -1141,36 +1128,19 @@ export class ObjectDetailComponent implements OnInit {
           pk.spOrder = this.conv.SpSchema[this.currentObject!.id]?.PrimaryKeys[index].Order
         }
       })
-    }
   }
 
   setSrcPkOrder() {
-    if (
-        this.currentObject &&
-        this.conv.SrcSchema[this.currentObject!.id]?.PrimaryKeys.length == this.pkData.length
-    ) {
-        this.pkData.forEach((pk: IColumnTabData, i: number) => {
-            if (
-                this.pkData[i].srcId === this.conv.SrcSchema[this.currentObject!.id].PrimaryKeys[i].ColId
-            ) {
-                this.pkData[i].srcOrder = this.conv.SrcSchema[this.currentObject!.id].PrimaryKeys[i].Order
-            } else {
-                let index = this.conv.SrcSchema[this.currentObject!.id].PrimaryKeys.map(
-                    (item) => item.ColId
-                ).indexOf(pk.srcId)
-                pk.srcOrder = this.conv.SrcSchema[this.currentObject!.id].PrimaryKeys[index]?.Order
-            }
-        })
-    } else {
-        this.pkData.forEach((pk: IColumnTabData, i: number) => {
-            let index = this.conv.SrcSchema[this.currentObject!.id]?.PrimaryKeys.map(
-                (item) => item.ColId
-            ).indexOf(pk.srcId)
-            if (index !== -1) {
-                pk.srcOrder = this.conv.SrcSchema[this.currentObject!.id]?.PrimaryKeys[index].Order
-            }
-        })
+    if (!this.currentObject || !this.conv.SrcSchema[this.currentObject!.id]?.PrimaryKeys) {
+        return; // Early exit if there's no current object or primary key data
     }
+    const srcPrimaryKeys = this.conv.SrcSchema[this.currentObject!.id].PrimaryKeys;
+    this.pkData.forEach((pk: IColumnTabData) => {
+        let index = srcPrimaryKeys.map(item => item.ColId).indexOf(pk.srcId);
+        if (index !== -1) {
+            pk.srcOrder = srcPrimaryKeys[index].Order;
+        }
+    });
 }
 
   pkOrderValidation() {
@@ -1236,6 +1206,7 @@ export class ObjectDetailComponent implements OnInit {
       this.pkData = this.conversion.getPkMapping(this.tableData)
       this.setAddPkColumnList()
       this.setPkOrder()
+      this.setSrcPkOrder()
       this.setPkRows()
       this.isPkEditMode = false
     } else {
