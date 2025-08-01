@@ -324,7 +324,6 @@ export class ConversionService {
     let srcColIds = data.SrcSchema[tableId].ColIds
     let spColIds = data.SpSchema[tableId] ? data.SpSchema[tableId].ColIds : null
     let srcPks = data.SrcSchema[tableId].PrimaryKeys
-    console.log("src pks", srcPks)
     let spPks = spColIds ? data.SpSchema[tableId].PrimaryKeys : null
     let standardTypeToPGSQLTypeMap: Map<String, String>
     this.standardTypeToPGSQLTypeMap.subscribe((typemap) => {
