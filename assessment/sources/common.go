@@ -32,6 +32,12 @@ type InfoSchema interface {
 
 type InfoSchemaImpl struct{}
 
+type PerformanceSchema interface {
+	GetAllQueryAssessments() ([]utils.QueryAssessmentInfo, error)
+}
+
+type PerformanceSchemaImpl struct{}
+
 type SourceSpecificComparison interface {
 	IsDataTypeCodeCompatible(srcColumnDef utils.SrcColumnDetails, spColumnDef utils.SpColumnDetails) bool
 }
