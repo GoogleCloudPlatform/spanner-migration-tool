@@ -33,10 +33,10 @@ import (
 	"time"
 
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	cassandraaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/cassandra"
 	cc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/cassandra"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/cmd"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -830,7 +830,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details type
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating config to initiate sharded migration:%v", err)
 		}
 	} else if sessionState.Driver == constants.CASSANDRA {
-		sourceProfileString = fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,keyspace=%v,datacenter=%v",
+		sourceProfileString = fmt.Sprintf("\"host=%v\",\"port=%v\",\"user=%v\",\"password=%v\",\"keyspace=%v\",\"datacenter=%v\"",
 			sourceDBConnectionDetails.Host,
 			sourceDBConnectionDetails.Port,
 			sourceDBConnectionDetails.User,
@@ -838,7 +838,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details type
 			sessionState.DbName,
 			sourceDBConnectionDetails.DataCenter)
 	} else {
-		sourceProfileString = fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,dbName=%v",
+		sourceProfileString = fmt.Sprintf("\"host=%v\",\"port=%v\",\"user=%v\",\"password=%v\",\"dbName=%v\"",
 			sourceDBConnectionDetails.Host, sourceDBConnectionDetails.Port, sourceDBConnectionDetails.User,
 			sourceDBConnectionDetails.Password, sessionState.DbName)
 	}
