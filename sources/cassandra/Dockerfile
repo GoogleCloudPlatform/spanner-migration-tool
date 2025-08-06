@@ -26,7 +26,7 @@ WORKDIR /app/go-spanner-cassandra
 RUN go build -o cassandra-spanner-proxy
 
 # --- Final Image ---
-FROM alpine:3.21
+FROM alpine:3.22
 
 # Install bash, ca-certificates, openssl, and update packages
 RUN apk update && \
