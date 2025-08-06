@@ -1726,7 +1726,7 @@ func TestRestoreTable(t *testing.T) {
 				ColDefs: map[string]ddl.ColumnDef{
 					"c3": {Name: "cn3", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "From: cn3 varchar", Id: "c3", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
 					"c4": {Name: "cn4", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "From: cn4 varchar", Id: "c4", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
-					"c5": {Name: "cn5", T: ddl.Type{Name: "INT64", Len: 0, IsArray: false}, NotNull: false, Comment: "From: cn5 bigint", Id: "c5", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
+					"c5": {Name: "cn5", T: ddl.Type{Name: "NUMERIC", Len: 0, IsArray: false}, NotNull: false, Comment: "From: cn5 bigint", Id: "c5", AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}},
 				},
 				PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
 				Id:          "t2",

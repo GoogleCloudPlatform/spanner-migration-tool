@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"math/big"
 	"regexp"
 	"testing"
 
@@ -554,7 +555,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 			ColDefs: map[string]ddl.ColumnDef{
 				"a":        {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"b":        {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-				"c":        {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+				"c":        {Name: "c", T: ddl.Type{Name: ddl.Numeric}},
 				"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 			},
 			PrimaryKeys: []ddl.IndexKey{{ColId: "synth_id", Order: 1}},
@@ -583,7 +584,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 	commonInfoSchema.ProcessData(conv, isi, internal.AdditionalDataAttributes{})
 	assert.Equal(t, []spannerData{
 		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), "0"}},
-		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), "-9223372036854775808"}},
+		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", big.NewRat(22, 1), "-9223372036854775808"}},
 	},
 		rows)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
@@ -669,7 +670,7 @@ func TestProcessSchema_Sharded(t *testing.T) {
 			ColDefs: map[string]ddl.ColumnDef{
 				"a":                  {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"b":                  {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-				"c":                  {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+				"c":                  {Name: "c", T: ddl.Type{Name: ddl.Numeric}},
 				"synth_id":           {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 				"migration_shard_id": {Name: "migration_shard_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 			},
