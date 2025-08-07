@@ -627,7 +627,7 @@ func TestDropRule(t *testing.T) {
 						Name:   "table1",
 						ColIds: []string{"c1", "c2", "c3"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
@@ -674,8 +674,8 @@ func TestDropRule(t *testing.T) {
 						Name:   "table1",
 						ColIds: []string{"c1", "c2", "c3"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
+							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},

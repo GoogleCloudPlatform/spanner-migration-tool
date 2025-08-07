@@ -38,7 +38,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const expectedDDL = "CREATE TABLE cart ( \tuser_id STRING(20) NOT NULL , \tproduct_id STRING(20) NOT NULL , \tquantity INT64, \tlast_modified TIMESTAMP NOT NULL , ) PRIMARY KEY (user_id, product_id);CREATE INDEX idx ON cart (quantity)"
+const expectedDDL = "CREATE TABLE cart ( \tuser_id STRING(20) NOT NULL , \tproduct_id STRING(20) NOT NULL , \tquantity NUMERIC, \tlast_modified TIMESTAMP NOT NULL , ) PRIMARY KEY (user_id, product_id);CREATE INDEX idx ON cart (quantity)"
 
 func TestBasicCsvImport(t *testing.T) {
 	importDataCmd := ImportDataCmd{}
