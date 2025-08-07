@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/aiplatform/apiv1/aiplatformpb"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -156,9 +157,9 @@ func TestFakeClient_CloseCalled(t *testing.T) {
 }
 
 func TestCreateQueryExampleEmbeddingsWithClient(t *testing.T) {
-	oldMysqlQueryExamples := mysqlQueryExamples
-	defer func() { mysqlQueryExamples = oldMysqlQueryExamples }()
-	mysqlQueryExamples = []byte(`[
+	oldMysqlQueryExamples := utils.QueryTranslationExamples
+	defer func() { utils.QueryTranslationExamples = oldMysqlQueryExamples }()
+	utils.QueryTranslationExamples = []byte(`[
 		{
 			"id": "1",
 			"example": "SELECT * FROM employees",

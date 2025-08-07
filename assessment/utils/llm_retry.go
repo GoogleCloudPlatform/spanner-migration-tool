@@ -10,8 +10,15 @@ import (
 	"go.uber.org/zap"
 )
 
+type LLMRetryClient interface {
+	GenerateContentWithRetry(ctx context.Context, model *genai.GenerativeModel, prompt genai.Part, maxRetries int,
+		logger *zap.Logger) (*genai.GenerateContentResponse, error)
+}
+
+type DefaultLLMRetryClient struct{}
+
 // GenerateContentWithRetry wraps a Vertex AI LLM call with retry logic for rate limiting/quota errors.
-func GenerateContentWithRetry(
+func (c *DefaultLLMRetryClient) GenerateContentWithRetry(
 	ctx context.Context,
 	model *genai.GenerativeModel,
 	prompt genai.Part,
