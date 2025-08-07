@@ -120,8 +120,11 @@ func WriteConvGeneratedFiles(conv *internal.Conv, dbName string, driver string, 
 	reportFileName := dirPath + dbName
 	reportImpl := ReportImpl{}
 	reportImpl.GenerateReport(driver, nil, BytesRead, "", conv, reportFileName, dbName, out)
-	sessionFileName := dirPath + dbName + ".session.json"
+	sessionFileName := dirPath + dbName + "_session.json"
 	WriteSessionFile(conv, sessionFileName, out)
+	// Generate overrides file for schema mapping information
+	overridesFileName := dirPath + dbName + "_overrides.json"
+	WriteOverridesFile(conv, overridesFileName, out)
 	return dirPath, nil
 }
 
@@ -262,4 +265,28 @@ func getBadStreamingDataCount(conv *internal.Conv) int64 {
 		badDataCount += utils.SumMapValues(x)
 	}
 	return badDataCount
+}
+
+// WriteOverridesFile writes the overrides file in JSON format.
+func WriteOverridesFile(conv *internal.Conv, name string, out *os.File) {
+	f, err := os.Create(name)
+	if err != nil {
+		fmt.Fprintf(out, "Can't create overrides file %s: %v\n", name, err)
+		return
+	}
+
+	// Extract renamed tables and columns from conv object
+	overrides := internal.ExtractOverridesFromConv(conv)
+
+	overridesJSON, err := json.MarshalIndent(overrides, "", " ")
+	if err != nil {
+		fmt.Fprintf(out, "Can't encode overrides to JSON: %v\n", err)
+		return
+	}
+
+	if _, err := f.Write(overridesJSON); err != nil {
+		fmt.Fprintf(out, "Can't write out overrides file: %v\n", err)
+		return
+	}
+	fmt.Fprintf(out, "Wrote overrides to file '%s'.\n", name)
 }

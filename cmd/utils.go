@@ -41,9 +41,9 @@ import (
 )
 
 var (
-	badDataFile = ".dropped.txt"
-	schemaFile  = ".schema.txt"
-	sessionFile = ".session.json"
+	badDataFile = "_dropped.txt"
+	schemaFile  = "_schema.txt"
+	sessionFile = "_session.json"
 )
 
 const (

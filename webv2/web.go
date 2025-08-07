@@ -33,10 +33,10 @@ import (
 	"time"
 
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	cassandraaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/cassandra"
 	cc "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/cassandra"
 	storageclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/storage"
 	storageaccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/storage"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/cmd"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
@@ -559,7 +559,7 @@ func getSchemaFile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
 	}
-	schemaFileName := "frontend/" + filePrefix + "schema.txt"
+	schemaFileName := "frontend/" + filePrefix + "_schema.txt"
 
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.RLock()
