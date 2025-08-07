@@ -24,40 +24,52 @@ import (
 func TestParseMap(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
 	testCases := []struct {
-		name          string
-		inputString   string
-		expectedParams  map[string]string
-		errorExpected bool
+		name           string
+		inputString    string
+		expectedParams map[string]string
+		errorExpected  bool
 	}{
 		{
-			name:          		"empty params",
-			inputString:   		"",
-			expectedParams: 	map[string]string{},
-			errorExpected: 		false,
+			name:           "empty params",
+			inputString:    "",
+			expectedParams: map[string]string{},
+			errorExpected:  false,
 		},
 		{
-			name:          		"valid params=",
-			inputString:   		"instance=instance",
-			expectedParams: 	map[string]string{"instance": "instance"},
-			errorExpected: 		false,
+			name:           "valid params",
+			inputString:    "instance=instance",
+			expectedParams: map[string]string{"instance": "instance"},
+			errorExpected:  false,
 		},
 		{
-			name:          		"invalid params incorrect format",
-			inputString:   		"uuwy",
-			expectedParams: 	map[string]string{},
-			errorExpected: 		true,
+			name:           "valid params with = in value",
+			inputString:    "password=pass=word",
+			expectedParams: map[string]string{"password": "pass=word"},
+			errorExpected:  false,
 		},
 		{
-			name:          		"invalid params new line char",
-			inputString:   		"uuwy\n hjgse",
-			expectedParams: 	map[string]string{},
-			errorExpected: 		true,
+			name:           "valid params with special characters in value",
+			inputString:    "\"password=password`~!@#$%^&*()-_=+[]{}|;:<,>.?/'\\\"",
+			expectedParams: map[string]string{"password": "password`~!@#$%^&*()-_=+[]{}|;:<,>.?/'\\"},
+			errorExpected:  false,
 		},
 		{
-			name:          		"invalid params duplicates",
-			inputString:   		"instance=instance, instance=instance",
-			expectedParams: 	map[string]string{"instance": "instance"},
-			errorExpected: 		true,
+			name:           "invalid params incorrect format",
+			inputString:    "uuwy",
+			expectedParams: map[string]string{},
+			errorExpected:  true,
+		},
+		{
+			name:           "invalid params new line char",
+			inputString:    "uuwy\n hjgse",
+			expectedParams: map[string]string{},
+			errorExpected:  true,
+		},
+		{
+			name:           "invalid params duplicates",
+			inputString:    "instance=instance, instance=instance",
+			expectedParams: map[string]string{"instance": "instance"},
+			errorExpected:  true,
 		},
 	}
 
@@ -68,33 +80,32 @@ func TestParseMap(t *testing.T) {
 	}
 }
 
-
 // code for testing parse list
 func TestParseList(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
 	testCases := []struct {
-		name            string
-		inputString     string
-		expectedParams  []string
-		errorExpected   bool
+		name           string
+		inputString    string
+		expectedParams []string
+		errorExpected  bool
 	}{
 		{
-			name:          		"empty input string",
-			inputString:   		"",
-			expectedParams: 	nil,
-			errorExpected: 		false,
+			name:           "empty input string",
+			inputString:    "",
+			expectedParams: nil,
+			errorExpected:  false,
 		},
 		{
-			name:          		"valid input string",
-			inputString:   		"hello, world",
-			expectedParams: 	[]string{"hello","world"},
-			errorExpected: 		false,
+			name:           "valid input string",
+			inputString:    "hello, world",
+			expectedParams: []string{"hello", "world"},
+			errorExpected:  false,
 		},
 		{
-			name:          		"invalid input string new line char",
-			inputString:   		"hello, world\n, !",
-			expectedParams: 	nil,
-			errorExpected: 		true,
+			name:           "invalid input string new line char",
+			inputString:    "hello, world\n, !",
+			expectedParams: nil,
+			errorExpected:  true,
 		},
 	}
 
@@ -114,72 +125,72 @@ func TestGetSQLConnectionStr(t *testing.T) {
 	pwd := "password"
 	db := "database"
 	testCases := []struct {
-		name            		string
-		inputSourceProfileConn  SourceProfileConnection
-		expectedOutput			string
+		name                   string
+		inputSourceProfileConn SourceProfileConnection
+		expectedOutput         string
 	}{
 		{
-			name:          			"source profile connection type mysql",
+			name:                   "source profile connection type mysql",
 			inputSourceProfileConn: SourceProfileConnection{Ty: SourceProfileConnectionTypeMySQL, Mysql: SourceProfileConnectionMySQL{Host: host, Port: port, User: user, Pwd: pwd, Db: db}},
-			expectedOutput:			"user:password@tcp(0.0.0.0:3306)/database",
+			expectedOutput:         "user:password@tcp(0.0.0.0:3306)/database",
 		},
 		{
-			name:          			"source profile connection type postgres",
+			name:                   "source profile connection type postgres",
 			inputSourceProfileConn: SourceProfileConnection{Ty: SourceProfileConnectionTypePostgreSQL, Pg: SourceProfileConnectionPostgreSQL{Host: host, Port: port, User: user, Pwd: pwd, Db: db}},
-			expectedOutput:			"host=0.0.0.0 port=3306 user=user password=password dbname=database sslmode=disable",
+			expectedOutput:         "host=0.0.0.0 port=3306 user=user password=password dbname=database sslmode=disable",
 		},
 		{
-			name:          			"source profile connection type dynamodb",
+			name:                   "source profile connection type dynamodb",
 			inputSourceProfileConn: SourceProfileConnection{Ty: SourceProfileConnectionTypeDynamoDB},
-			expectedOutput:			"",
+			expectedOutput:         "",
 		},
 		{
-			name:          			"source profile connection type sql server",
+			name:                   "source profile connection type sql server",
 			inputSourceProfileConn: SourceProfileConnection{Ty: SourceProfileConnectionTypeSqlServer, SqlServer: SourceProfileConnectionSqlServer{Host: host, Port: port, User: user, Pwd: pwd, Db: db}},
-			expectedOutput:			"sqlserver://user:password@0.0.0.0:3306?database=database",
+			expectedOutput:         "sqlserver://user:password@0.0.0.0:3306?database=database",
 		},
 		{
-			name:          			"source profile connection type oracle",
+			name:                   "source profile connection type oracle",
 			inputSourceProfileConn: SourceProfileConnection{Ty: SourceProfileConnectionTypeOracle, Oracle: SourceProfileConnectionOracle{Host: host, Port: port, User: user, Pwd: pwd, Db: db}},
-			expectedOutput:			"oracle://user:password@0.0.0.0:3306/database",
+			expectedOutput:         "oracle://user:password@0.0.0.0:3306/database",
 		},
 	}
 
 	for _, tc := range testCases {
-		res:= GetSQLConnectionStr(SourceProfile{Ty: SourceProfileType(SourceProfileTypeConnection), Conn: tc.inputSourceProfileConn})
+		res := GetSQLConnectionStr(SourceProfile{Ty: SourceProfileType(SourceProfileTypeConnection), Conn: tc.inputSourceProfileConn})
 		assert.Equal(t, tc.expectedOutput, res, tc.name)
 	}
 }
 
 func TestGenerateConnectionStr(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
-	before := func(){
+	before := func() {
 		setEnvVariables()
 	}
 
-	after := func(){
+	after := func() {
 		unsetEnvVariables()
 	}
 	testCases := []struct {
-		name            			string
-		expectedOutputPg			string
-		expectedOutputMysql			string
-		errorExpected				bool
+		name                string
+		expectedOutputPg    string
+		expectedOutputMysql string
+		errorExpected       bool
 	}{
 		{
-			name:          				"valid get mysql and postgres conn string",
-			expectedOutputPg:			"host=0.0.0.0 port=3306 user=user password=password dbname=db sslmode=disable",
-			expectedOutputMysql:		"user:password@tcp(0.0.0.0:3306)/db",
-			errorExpected: 				false,
+			name:                "valid get mysql and postgres conn string",
+			expectedOutputPg:    "host=0.0.0.0 port=3306 user=user password=password dbname=db sslmode=disable",
+			expectedOutputMysql: "user:password@tcp(0.0.0.0:3306)/db",
+			errorExpected:       false,
 		},
 	}
 
 	for _, tc := range testCases {
 		before()
-		res, err:= GeneratePGSQLConnectionStr()
+		res, err := GeneratePGSQLConnectionStr()
 		assert.Equal(t, tc.expectedOutputPg, res, tc.name)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
-		res, err= GenerateMYSQLConnectionStr()
+		res, err = GenerateMYSQLConnectionStr()
 		assert.Equal(t, tc.expectedOutputMysql, res, tc.name)
 		assert.Equal(t, tc.errorExpected, err != nil, tc.name)
 		after()
@@ -189,19 +200,19 @@ func TestGenerateConnectionStr(t *testing.T) {
 func TestGetSchemaSampleSize(t *testing.T) {
 	// Avoid getting/setting env variables in the unit tests.
 	testCases := []struct {
-		name            			string
-		inputSourceProfile			SourceProfile
-		expectedOutput				int64
+		name               string
+		inputSourceProfile SourceProfile
+		expectedOutput     int64
 	}{
 		{
-			name:          				"mysql source profile type",
-			inputSourceProfile: 		SourceProfile{Ty: SourceProfileType(SourceProfileTypeConnection), Conn: SourceProfileConnection{Ty: SourceProfileConnectionTypeMySQL}},
-			expectedOutput:				int64(100000),
+			name:               "mysql source profile type",
+			inputSourceProfile: SourceProfile{Ty: SourceProfileType(SourceProfileTypeConnection), Conn: SourceProfileConnection{Ty: SourceProfileConnectionTypeMySQL}},
+			expectedOutput:     int64(100000),
 		},
 		{
-			name:          				"dynamo db source profile type",
-			inputSourceProfile: 		SourceProfile{Ty: SourceProfileType(SourceProfileTypeConnection), Conn: SourceProfileConnection{Ty: SourceProfileConnectionTypeDynamoDB, Dydb: SourceProfileConnectionDynamoDB{SchemaSampleSize: int64(5000)}}},
-			expectedOutput:				int64(5000),
+			name:               "dynamo db source profile type",
+			inputSourceProfile: SourceProfile{Ty: SourceProfileType(SourceProfileTypeConnection), Conn: SourceProfileConnection{Ty: SourceProfileConnectionTypeDynamoDB, Dydb: SourceProfileConnectionDynamoDB{SchemaSampleSize: int64(5000)}}},
+			expectedOutput:     int64(5000),
 		},
 	}
 

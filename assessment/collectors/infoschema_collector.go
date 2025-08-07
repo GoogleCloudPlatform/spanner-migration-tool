@@ -20,11 +20,11 @@ import (
 	"sort"
 	"strings"
 
+	collectorCommon "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/common"
 	common "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
@@ -50,10 +50,10 @@ func (c InfoSchemaCollector) IsEmpty() bool {
 }
 
 func GetDefaultInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile) (InfoSchemaCollector, error) {
-	return GetInfoSchemaCollector(conv, sourceProfile, SQLDBConnector{}, DefaultConnectionConfigProvider{}, getInfoSchema)
+	return GetInfoSchemaCollector(conv, sourceProfile, collectorCommon.SQLDBConnector{}, collectorCommon.DefaultConnectionConfigProvider{}, getInfoSchema)
 }
 
-func GetInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile, dbConnector DBConnector, configProvider ConnectionConfigProvider, infoSchemaProvider func(*sql.DB, profiles.SourceProfile) (common.InfoSchema, error)) (InfoSchemaCollector, error) {
+func GetInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile, dbConnector collectorCommon.DBConnector, configProvider collectorCommon.ConnectionConfigProvider, infoSchemaProvider func(*sql.DB, profiles.SourceProfile) (common.InfoSchema, error)) (InfoSchemaCollector, error) {
 	logger.Log.Info("initializing infoschema collector")
 	var errString string
 	connectionConfig, err := configProvider.GetConnectionConfig(sourceProfile)
@@ -427,28 +427,4 @@ func (c InfoSchemaCollector) ListStoredProcedures() map[string]utils.StoredProce
 
 func (c InfoSchemaCollector) ListSpannerSequences() map[string]ddl.Sequence {
 	return c.conv.SpSequences
-}
-
-type ConnectionConfigProvider interface {
-	GetConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
-}
-
-type DefaultConnectionConfigProvider struct{}
-
-func (d DefaultConnectionConfigProvider) GetConnectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error) {
-	return conversion.ConnectionConfig(sourceProfile)
-}
-
-type DBConnector interface {
-	Connect(driver string, connectionConfig interface{}) (*sql.DB, error)
-}
-
-type SQLDBConnector struct{}
-
-func (d SQLDBConnector) Connect(driver string, connectionConfig interface{}) (*sql.DB, error) {
-	db, err := sql.Open(driver, connectionConfig.(string))
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
 }
