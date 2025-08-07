@@ -30,6 +30,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"go.uber.org/zap"
+	"google.golang.org/api/option"
 )
 
 type assessmentCollectors struct {
@@ -109,23 +110,31 @@ func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile
 	combinedQueries := combineAndDeduplicateQueries(c.performanceSchemaCollector.Queries, output.AppCodeAssessment)
 	logger.Log.Info("Combined deduplicated queries", zap.Int("count", len(combinedQueries)))
 	translatedQueries, err := performQueryAssessment(ctx, c, combinedQueries, projectId, assessmentConfig, conv)
+	output.QueryAssessment = utils.QueryAssessmentOutput{QueryTranslationResult: &translatedQueries}
 	if err != nil {
 		logger.Log.Error("error translating queries", zap.Error(err))
 		return output, err
 	}
-	output.QueryAssessment = utils.QueryAssessmentOutput{QueryTranslationResult: &translatedQueries}
 
 	return output, nil
 }
+
+// newAIClientFunc is a function type for genai.NewClient.
+type newAIClientFunc func(ctx context.Context, projectID, location string, opts ...option.ClientOption) (*genai.Client, error)
+
+// NewAIClient is a package-level variable to hold the AI client creation function.
+var NewAIClient newAIClientFunc = genai.NewClient
+
+// translateQueriesFunc is a function type for utils.TranslateQueriesToSpanner.
+type translateQueriesFunc func(ctx context.Context, queries []utils.QueryTranslationInput, aiClient *genai.Client, mysqlSchema, spannerSchema string) ([]utils.QueryTranslationResult, error)
+
+// TranslateQueriesToSpanner is a package-level variable to hold the query translation function.
+var TranslateQueriesToSpanner translateQueriesFunc = utils.TranslateQueriesToSpanner
 
 func performQueryAssessment(ctx context.Context, collectors assessmentCollectors, queries []utils.QueryTranslationResult, projectId string, assessmentConfig map[string]string, conv *internal.Conv) ([]utils.QueryTranslationResult, error) {
 	logger.Log.Info("starting query assessment...")
 	var performanceSchemaQueries []utils.QueryTranslationInput
 	var translationResult []utils.QueryTranslationResult
-	aiClient, err := genai.NewClient(ctx, projectId, assessmentConfig["location"])
-	if err != nil {
-		return nil, fmt.Errorf("Error creating ai client")
-	}
 
 	mysqlSchema := utils.GetDDL(conv.SrcSchema)
 	spannerSchema := strings.Join(
@@ -141,15 +150,22 @@ func performQueryAssessment(ctx context.Context, collectors assessmentCollectors
 				Query: query.NormalizedQuery,
 				Count: query.ExecutionCount,
 			})
+		} else {
+			translationResult = append(translationResult, query)
 		}
-		translationResult = append(translationResult, query)
 	}
-	translatedQueries, err := utils.TranslateQueriesToSpanner(ctx, performanceSchemaQueries, aiClient, mysqlSchema, spannerSchema)
+	aiClient, err := NewAIClient(ctx, projectId, assessmentConfig["location"])
 	if err != nil {
-		return nil, fmt.Errorf("Error translating queries")
+		return translationResult, fmt.Errorf("Error creating ai client")
 	}
-	translationResult = append(translationResult, translatedQueries...)
+	translatedQueries, err := TranslateQueriesToSpanner(ctx, performanceSchemaQueries, aiClient, mysqlSchema, spannerSchema)
+	if translatedQueries != nil {
+		translationResult = append(translationResult, translatedQueries...)
+	}
 	logger.Log.Info("query assessment completed successfully.")
+	if err != nil {
+		return translationResult, fmt.Errorf("Error translating queries: %v", err)
+	}
 	return translationResult, nil
 }
 
