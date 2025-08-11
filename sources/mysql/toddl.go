@@ -140,7 +140,10 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		case ddl.Numeric:
 			return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Widened}
 		default:
-			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.PrecisionLoss}
+			// MySQL's BIGINT type is unsigned by default, but Spanner's INT64 type is signed
+			// and can cause loss in precision.
+			// TODO: Generate appropriate SchemaIssue to warn of this difference.
+			return ddl.Type{Name: ddl.Int64}, nil
 		}
 	case "smallint", "mediumint", "integer", "int":
 		switch spType {
