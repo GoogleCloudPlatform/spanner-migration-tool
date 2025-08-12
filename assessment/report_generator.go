@@ -204,7 +204,6 @@ func GenerateReport(dbName string, assessmentOutput utils.AssessmentOutput) {
 		if assessmentOutput.AppCodeAssessment.CodeSnippets != nil {
 			writeRawSnippets(folderPath, *assessmentOutput.AppCodeAssessment.CodeSnippets)
 			logger.Log.Info("completed publishing code changes report")
-
 		}
 	} else {
 		logger.Log.Info("not performing application assessment as code is not detected")
