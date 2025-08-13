@@ -126,7 +126,7 @@ func TestSourceColumnDefinitionToString(t *testing.T) {
 					IsPresent: true,
 					Value:     ddl.Expression{Statement: "0"},
 				},
-				IsNull:                 false,
+				NotNull:                true,
 				IsOnUpdateTimestampSet: true,
 				AutoGen: ddl.AutoGenCol{
 					Name:           "my_sequence",
@@ -144,7 +144,7 @@ func TestSourceColumnDefinitionToString(t *testing.T) {
 					Statement: "(c * d)",
 					IsVirtual: false,
 				},
-				IsNull: true, // Test that NOT NULL is absent
+				NotNull: false, // Test that NOT NULL is absent
 				AutoGen: ddl.AutoGenCol{
 					Name:           "my_sequence",
 					GenerationType: "some_other_type",
@@ -155,7 +155,7 @@ func TestSourceColumnDefinitionToString(t *testing.T) {
 		{
 			name:  "Empty struct",
 			input: utils.SrcColumnDetails{},
-			want:  " NOT NULL", // Default case for empty struct
+			want:  "",
 		},
 	}
 
@@ -1007,47 +1007,47 @@ func TestSpannerColumnDefinitionToString(t *testing.T) {
 	}{
 		{
 			name:  "Simple INT64 NOT NULL",
-			input: utils.SpColumnDetails{Name: "id", Datatype: "INT64", IsNull: false},
+			input: utils.SpColumnDetails{Name: "id", Datatype: "INT64", NotNull: true},
 			want:  "id INT64 NOT NULL ",
 		},
 		{
 			name:  "STRING with length",
-			input: utils.SpColumnDetails{Name: "name", Datatype: "STRING", Len: 255, IsNull: true},
+			input: utils.SpColumnDetails{Name: "name", Datatype: "STRING", Len: 255, NotNull: false},
 			want:  "name STRING(255)",
 		},
 		{
 			name:  "BYTES with MAX length",
-			input: utils.SpColumnDetails{Name: "data", Datatype: "BYTES", Len: ddl.MaxLength, IsNull: true},
+			input: utils.SpColumnDetails{Name: "data", Datatype: "BYTES", Len: ddl.MaxLength, NotNull: false},
 			want:  "data BYTES(MAX)",
 		},
 		{
 			name:  "ARRAY of INT64",
-			input: utils.SpColumnDetails{Name: "user_ids", Datatype: "INT64", IsArray: true, IsNull: true},
+			input: utils.SpColumnDetails{Name: "user_ids", Datatype: "INT64", IsArray: true, NotNull: false},
 			want:  "user_ids ARRAY<INT64>",
 		},
 		{
 			name: "DEFAULT value",
-			input: utils.SpColumnDetails{Name: "status", Datatype: "STRING", Len: 50, IsNull: false, DefaultValue: ddl.DefaultValue{
+			input: utils.SpColumnDetails{Name: "status", Datatype: "STRING", Len: 50, NotNull: true, DefaultValue: ddl.DefaultValue{
 				IsPresent: true, Value: ddl.Expression{Statement: "'active'"}},
 			},
 			want: "status STRING(50) NOT NULL  DEFAULT ('active')",
 		},
 		{
 			name: "AutoGen sequence",
-			input: utils.SpColumnDetails{Name: "seq_val", Datatype: "INT64", IsNull: false, AutoGen: ddl.AutoGenCol{
+			input: utils.SpColumnDetails{Name: "seq_val", Datatype: "INT64", NotNull: true, AutoGen: ddl.AutoGenCol{
 				Name: "my_sequence", GenerationType: constants.SEQUENCE},
 			},
 			want: "seq_val INT64 NOT NULL  DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE my_sequence))",
 		},
 		{
 			name:  "ARRAY of STRING(MAX) NOT NULL",
-			input: utils.SpColumnDetails{Name: "photo_urls", Datatype: "STRING", Len: ddl.MaxLength, IsArray: true, IsNull: false},
+			input: utils.SpColumnDetails{Name: "photo_urls", Datatype: "STRING", Len: ddl.MaxLength, IsArray: true, NotNull: true},
 			want:  "photo_urls ARRAY<STRING(MAX)> NOT NULL ",
 		},
 		{
 			name:  "Zero-value struct",
 			input: utils.SpColumnDetails{},
-			want:  "  NOT NULL ", // Defaults to NOT NULL in a zero-value struct
+			want:  " ",
 		},
 	}
 
@@ -1774,9 +1774,9 @@ func TestConvertToSchemaReportRows(t *testing.T) {
 					elementType:       "Column",
 					sourceTableName:   "my_table",
 					sourceName:        "col1",
-					sourceDefinition:  "INT NOT NULL",
+					sourceDefinition:  "INT",
 					targetName:        "my_table.col1",
-					targetDefinition:  "col1 INT64 NOT NULL ",
+					targetDefinition:  "col1 INT64",
 					dbChangeEffort:    "Automatic",
 					dbChanges:         "type",
 					dbImpact:          "None",
@@ -1792,9 +1792,9 @@ func TestConvertToSchemaReportRows(t *testing.T) {
 					elementType:       "Column",
 					sourceTableName:   "my_table",
 					sourceName:        "col2",
-					sourceDefinition:  "VARCHAR NOT NULL",
+					sourceDefinition:  "VARCHAR",
 					targetName:        "my_table.col2",
-					targetDefinition:  "col2 STRING(0) NOT NULL ",
+					targetDefinition:  "col2 STRING(0)",
 					dbChangeEffort:    "Automatic",
 					dbChanges:         "type",
 					dbImpact:          "None",
@@ -2037,7 +2037,7 @@ func TestGenerateSchemaReport(t *testing.T) {
 			expectedRecords: [][]string{
 				header,
 				{"Table", "table with tabs", "table with tabs", "", "table_with_tabs", "N/A", "Automatic", "charset", "None", "Unavailable", "Unavailable", "Unavailable", "None"},
-				{"Column", "table with tabs", "col 1", " NOT NULL ON UPDATE CURRENT_TIMESTAMP", "table_with_tabs.col_1", "col_1  NOT NULL ", "None", "type,feature", "None", "Unavailable", "Unavailable", "Unavailable", "Update queries to include PENDING_COMMIT_TIMESTAMP"},
+				{"Column", "table with tabs", "col 1", " ON UPDATE CURRENT_TIMESTAMP", "table_with_tabs.col_1", "col_1 ", "None", "type,feature", "None", "Unavailable", "Unavailable", "Unavailable", "Update queries to include PENDING_COMMIT_TIMESTAMP"},
 			},
 		},
 	}
