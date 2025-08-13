@@ -95,7 +95,7 @@ func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 			return getMYSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
 		case SourceProfileConnectionTypePostgreSQL:
 			connParams := sourceProfile.Conn.Pg
-			return getPGSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
+			return getPGSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db, connParams.Sslmode)
 		case SourceProfileConnectionTypeDynamoDB:
 			// For DynamoDB, client provided by aws-sdk reads connection credentials from env variables only.
 			// Thus, there is no need to create sqlConnectionStr for the same. We instead set the env variables
@@ -117,6 +117,7 @@ func GeneratePGSQLConnectionStr() (string, error) {
 	port := os.Getenv("PGPORT")
 	user := os.Getenv("PGUSER")
 	dbName := os.Getenv("PGDATABASE")
+	sslmode := os.Getenv("PGSSLMODE")
 	if server == "" || port == "" || user == "" || dbName == "" {
 		fmt.Printf("Please specify host, port, user and database using PGHOST, PGPORT, PGUSER and PGDATABASE environment variables\n")
 		return "", fmt.Errorf("could not connect to source database")
@@ -126,11 +127,15 @@ func GeneratePGSQLConnectionStr() (string, error) {
 		getInfo := utils.GetUtilInfoImpl{}
 		password = getInfo.GetPassword()
 	}
-	return getPGSQLConnectionStr(server, port, user, password, dbName), nil
+	return getPGSQLConnectionStr(server, port, user, password, dbName, sslmode), nil
 }
 
-func getPGSQLConnectionStr(server, port, user, password, dbName string) string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbName)
+func getPGSQLConnectionStr(server, port, user, password, dbName, sslmode string) string {
+	if sslmode == "" {
+		sslmode = "disable" // Default to disable SSL mode if not specified
+	}
+
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", server, port, user, password, dbName, sslmode)
 }
 
 func GenerateMYSQLConnectionStr() (string, error) {
