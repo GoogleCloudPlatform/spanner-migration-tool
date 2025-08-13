@@ -7,7 +7,7 @@ require (
 	cloud.google.com/go/aiplatform v1.74.0
 	cloud.google.com/go/dataflow v0.10.5
 	cloud.google.com/go/datastream v1.13.0
-	cloud.google.com/go/monitoring v1.24.1
+	cloud.google.com/go/monitoring v1.24.2
 	cloud.google.com/go/pubsub v1.47.0
 	cloud.google.com/go/resourcemanager v1.10.6
 	cloud.google.com/go/spanner v1.79.0
@@ -146,7 +146,7 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/oauth2 v0.29.0 // indirect
+	golang.org/x/oauth2 v0.29.0
 	golang.org/x/sync v0.13.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/term v0.31.0 // indirect
