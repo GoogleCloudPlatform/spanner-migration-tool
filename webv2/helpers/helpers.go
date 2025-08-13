@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
@@ -108,7 +109,8 @@ func createDatabase(ctx context.Context, uri string, dbExists bool) error {
 	spInstance := matches[1]
 	dbName := matches[2]
 
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	clientOptions := clients.FetchSpannerClientOptions()
+	adminClient, err := database.NewDatabaseAdminClient(ctx, clientOptions...)
 	if err != nil {
 		return err
 	}
@@ -178,7 +180,7 @@ func GetSourceDatabaseFromDriver(driver string) (string, error) {
 	case constants.ORACLE, constants.SQLSERVER:
 		return driver, nil
 	case constants.CASSANDRA:
-		return constants.CASSANDRA, nil	
+		return constants.CASSANDRA, nil
 	default:
 		return "", fmt.Errorf("unsupported driver type: %v", driver)
 	}
