@@ -92,6 +92,12 @@ describe('DirectConnectionComponent', () => {
     dbname?.setValue('mysql')
     expect(dbname?.invalid).toBeFalsy()
 
+    let sslMode = component.connectForm.get('sslMode')
+    sslMode?.setValue('disable')
+    expect(sslMode?.invalid).toBeTruthy()
+    sslMode?.setValue('enable')
+    expect(sslMode?.invalid).toBeFalsy()
+
     let dialect = component.connectForm.get('dialect')
     dialect?.setValue('')
     expect(dialect?.invalid).toBeTruthy()
@@ -123,6 +129,7 @@ describe('DirectConnectionComponent', () => {
       port: '1433',
       userName: 'sa',
       password: 'password',
+      sslMode: 'disable',
       dbName: 'database',
       dialect: 'postgresql',
     })
@@ -158,6 +165,7 @@ describe('DirectConnectionComponent', () => {
             password: 'pass',
             dbName: 'keyspace1',
             dataCenter: 'dc1',
+            sslMode: 'disable',
             dialect: 'google_standard_sql',
         })
 
