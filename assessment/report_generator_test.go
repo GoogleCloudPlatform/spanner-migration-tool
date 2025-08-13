@@ -20,6 +20,7 @@ import (
 
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -104,7 +105,7 @@ func TestTableDefinitionToString(t *testing.T) {
 	}
 }
 
-func TestSourceColumnDefinitionToString_Optimized(t *testing.T) {
+func TestSourceColumnDefinitionToString(t *testing.T) {
 	testCases := []struct {
 		name  string
 		input utils.SrcColumnDetails
@@ -113,8 +114,8 @@ func TestSourceColumnDefinitionToString_Optimized(t *testing.T) {
 		{
 			name: "Everything is set",
 			input: utils.SrcColumnDetails{
-				Datatype:   "BIGINT",
-				Mods:       []int64{20},
+				Datatype:   "INT64",
+				Mods:       []int64{10, 2},
 				IsUnsigned: true,
 				GeneratedColumn: utils.GeneratedColumnInfo{
 					IsPresent: true,
@@ -132,7 +133,7 @@ func TestSourceColumnDefinitionToString_Optimized(t *testing.T) {
 					GenerationType: constants.AUTO_INCREMENT,
 				},
 			},
-			want: "BIGINT(20) UNSIGNED GENERATED ALWAYS AS (a + b) VIRTUAL DEFAULT 0 NOT NULL ON UPDATE CURRENT_TIMESTAMP AUTO_INCREMENT",
+			want: "INT64(10,2) UNSIGNED GENERATED ALWAYS AS (a + b) VIRTUAL DEFAULT 0 NOT NULL ON UPDATE CURRENT_TIMESTAMP AUTO_INCREMENT",
 		},
 		{
 			name: "Generated STORED with other flags off",
@@ -268,13 +269,16 @@ func TestCalculateColumnDbChangesAndImpact(t *testing.T) {
 			wantActionItems: &[]string{"Update queries to include PENDING_COMMIT_TIMESTAMP", "Alter column to apply default value", "Update schema to add generated column"},
 		},
 		{
-			name: "Storage decrease only",
+			name: "Storage decrease and defaultValue NULL is ignored",
 			input: utils.ColumnAssessment{
-				SourceColDef:        baseSrcCol(),
-				SpannerColDef:       baseSpCol(),
+				SourceColDef: &utils.SrcColumnDetails{
+					DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{Statement: "NULL"}},
+				},
+				SpannerColDef:       &utils.SpColumnDetails{DefaultValue: ddl.DefaultValue{IsPresent: false}},
 				SizeIncreaseInBytes: -128,
+				CompatibleDataType:  true,
 			},
-			wantChanges:     "type",
+			wantChanges:     "None",
 			wantImpact:      "storage decrease",
 			wantEffort:      "Automatic",
 			wantActionItems: &[]string{},
@@ -288,7 +292,7 @@ func TestCalculateColumnDbChangesAndImpact(t *testing.T) {
 			wantActionItems: &[]string{},
 		},
 		{
-			name: "No source column and Spanner column definition",
+			name: "Nil source column and Spanner column",
 			input: utils.ColumnAssessment{
 				SourceColDef:  nil,
 				SpannerColDef: nil,
@@ -365,6 +369,7 @@ func TestPopulateUnsupportedObjects(t *testing.T) {
 			},
 			expectedLen: 1,
 			expectedLastRow: SchemaReportRow{
+				element:          "my_trigger",
 				elementType:      "Trigger",
 				sourceName:       "my_trigger",
 				sourceTableName:  "my_table",
@@ -395,21 +400,22 @@ func TestPopulateUnsupportedObjects(t *testing.T) {
 			expectedLen: 0,
 		},
 		{
-			name: "populateStoredProcedureInfo - Appends to existing rows",
+			name: "populateFunctionInfo - Appends to existing rows",
 			initialRows: []SchemaReportRow{
 				{elementType: "Existing Row"},
 			},
 			runFunc: func(rows *[]SchemaReportRow) {
-				sprocs := map[string]utils.StoredProcedureAssessment{
-					"sp1": {Name: "another_proc"},
+				funcs := map[string]utils.FunctionAssessment{
+					"fn1": {Name: "another_func"},
 				}
-				populateStoredProcedureInfo(sprocs, rows)
+				populateFunctionInfo(funcs, rows)
 			},
 			expectedLen:       2,
 			expectedFirstRows: []SchemaReportRow{{elementType: "Existing Row"}},
 			expectedLastRow: SchemaReportRow{
-				elementType:     "Stored Procedure",
-				sourceName:      "another_proc",
+				element:         "another_func",
+				elementType:     "Function",
+				sourceName:      "another_func",
 				sourceTableName: "N/A",
 				targetName:      "Not supported",
 			},
@@ -431,6 +437,7 @@ func TestPopulateUnsupportedObjects(t *testing.T) {
 			// Verify the last added row's content where predictable.
 			if tc.expectedLen > 0 && tc.expectedLastRow.elementType != "" {
 				lastRow := rows[len(rows)-1]
+				assert.Equal(t, tc.expectedLastRow.element, lastRow.element)
 				assert.Equal(t, tc.expectedLastRow.elementType, lastRow.elementType)
 				assert.Equal(t, tc.expectedLastRow.sourceName, lastRow.sourceName)
 				assert.Equal(t, tc.expectedLastRow.sourceTableName, lastRow.sourceTableName)
@@ -598,7 +605,7 @@ func TestPopulateIndexes(t *testing.T) {
 			expectedLastRow:   SchemaReportRow{elementType: "Index", sourceName: "appended_idx"},
 		},
 		{
-			name:        "No indexes - empty or nil slice",
+			name:        "No indexes - empty slice",
 			initialRows: []SchemaReportRow{},
 			tableAssessment: utils.TableAssessment{
 				SourceIndexDef:  []utils.SrcIndexDetails{},
@@ -608,7 +615,7 @@ func TestPopulateIndexes(t *testing.T) {
 			expectedLen: 0,
 		},
 		{
-			name:        "No source table definition",
+			name:        "Nil SourceTableDef",
 			initialRows: []SchemaReportRow{},
 			tableAssessment: utils.TableAssessment{
 				SourceTableDef:  nil,
@@ -616,6 +623,21 @@ func TestPopulateIndexes(t *testing.T) {
 			},
 			spTableName: "",
 			expectedLen: 0, // No rows should be added
+		},
+		{
+			name:        "Mismatched index count skips row and does not panic",
+			initialRows: []SchemaReportRow{},
+			tableAssessment: utils.TableAssessment{
+				SourceTableDef: &utils.SrcTableDetails{Name: "users"},
+				// Source has one index.
+				SourceIndexDef: []utils.SrcIndexDetails{
+					{Name: "idx_email", Ddl: "CREATE INDEX idx_email ON users(email)"},
+				},
+				// Spanner has zero indexes. The bounds check should skip thisiteration, prevent ing a panic.
+				SpannerIndexDef: []utils.SpIndexDetails{},
+			},
+			spTableName: "users_sp",
+			expectedLen: 0, // No row should be added because the iteration is skipped.
 		},
 	}
 
@@ -785,6 +807,16 @@ func TestPopulateForeignKeys(t *testing.T) {
 				codeImpactedFiles: "None",
 				codeSnippets:      "None",
 			},
+		},
+		{
+			name:        "Nil SourceTableDef does not panic",
+			initialRows: []SchemaReportRow{},
+			tableAssessment: utils.TableAssessment{
+				SourceTableDef:  nil,
+				SpannerTableDef: &utils.SpTableDetails{},
+			},
+			spTableName: "orders_sp",
+			expectedLen: 0, // Expect no rows to be added.
 		},
 	}
 
@@ -1016,7 +1048,6 @@ func TestSpannerColumnDefinitionToString(t *testing.T) {
 			name:  "Zero-value struct",
 			input: utils.SpColumnDetails{},
 			want:  "  NOT NULL ", // Defaults to NOT NULL in a zero-value struct
-			// problematic
 		},
 	}
 
@@ -1410,6 +1441,10 @@ func TestPopulateSequenceInfo(t *testing.T) {
 			rows := tc.initialRows
 			populateSequenceInfo(tc.sequences, tc.tableAssessments, tc.codeSnippets, &rows)
 
+			sort.Slice(rows, func(i, j int) bool {
+				return rows[i].sourceName < rows[j].sourceName
+			})
+
 			assert.Len(t, rows, tc.expectedLen)
 
 			if tc.expectedLen > 0 {
@@ -1551,6 +1586,29 @@ func TestGenerateCodeSummary(t *testing.T) {
 				"Framework":      "Django",
 				"App Code Files": "20",
 				"Lines of code":  "2000",
+			},
+		},
+		{
+			name: "Handles special characters that need sanitization",
+			input: &utils.AppCodeAssessmentOutput{
+				Language:   "Java",
+				Framework:  "Spring",
+				TotalFiles: 1,
+				TotalLoc:   100,
+				CodeSnippets: &[]utils.Snippet{
+					{Id: "s3", RelativeFilePath: "path/to/file.java", SourceMethodSignature: "old\nmethod()", SuggestedMethodSignature: "new\tmethod()", NumberOfAffectedLines: 1, SchemaChange: "Y", Explanation: "An explanation\nwith a newline"},
+				},
+			},
+			expectedNumRows: 6, // 4 summary rows + 1 header + 1 data row
+			expectedSummary: map[string]string{
+				"Language":       "Java",
+				"Framework":      "Spring",
+				"App Code Files": "1",
+				"Lines of code":  "100",
+			},
+			expectedDataRows: [][]string{
+				// Note how the newlines and tabs from the input are replaced with spaces.
+				{"s3", "path/to/file.java", "old method()", "new method()", "1", "Yes", "An explanation with a newline"},
 			},
 		},
 		{
@@ -1893,9 +1951,22 @@ func TestConvertToSchemaReportRows(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			got := convertToSchemaReportRows(tc.input)
-			for i, want := range tc.expect {
-				assert.Equal(t, want, got[i])
-			}
+
+			sort.Slice(got, func(i, j int) bool {
+				if got[i].elementType != got[j].elementType {
+					return got[i].elementType < got[j].elementType
+				}
+				return got[i].element < got[j].element
+			})
+
+			sort.Slice(tc.expect, func(i, j int) bool {
+				if tc.expect[i].elementType != tc.expect[j].elementType {
+					return tc.expect[i].elementType < tc.expect[j].elementType
+				}
+				return tc.expect[i].element < tc.expect[j].element
+			})
+
+			assert.Equal(t, tc.expect, got)
 			assert.Equal(t, len(tc.expect), len(got))
 		})
 	}
@@ -1974,7 +2045,180 @@ func TestGenerateSchemaReport(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := generateSchemaReport(tc.input)
-			assert.Equal(t, tc.expectedRecords, got)
+			// Assert the header is correct.
+			assert.Equal(t, tc.expectedRecords[0], got[0], "Header should match")
+
+			// Sort the data rows (all rows after the header) to avoid flakiness due to order.
+			gotDataRows := got[1:]
+			expectedDataRows := tc.expectedRecords[1:]
+
+			sort.Slice(gotDataRows, func(i, j int) bool {
+				// Sort by Element Type, then Source Name
+				if gotDataRows[i][0] != gotDataRows[j][0] {
+					return gotDataRows[i][0] < gotDataRows[j][0]
+				}
+				return gotDataRows[i][2] < gotDataRows[j][2]
+			})
+
+			sort.Slice(expectedDataRows, func(i, j int) bool {
+				if expectedDataRows[i][0] != expectedDataRows[j][0] {
+					return expectedDataRows[i][0] < expectedDataRows[j][0]
+				}
+				return expectedDataRows[i][2] < expectedDataRows[j][2]
+			})
+
+			// Assert that the sorted data rows are equal.
+			assert.Equal(t, expectedDataRows, gotDataRows, "Data rows should match after sorting")
+		})
+	}
+}
+
+func TestWriteRawSnippets(t *testing.T) {
+	snippet1 := utils.Snippet{
+		Id:                    "s1",
+		TableName:             "users",
+		RelativeFilePath:      "path/to/file.java",
+		NumberOfAffectedLines: 5,
+	}
+
+	testCases := []struct {
+		name            string
+		snippets        []utils.Snippet
+		expectFile      bool
+		expectedContent string
+		setupFailure    func(dir string) // Optional function to set up a failure condition
+	}{
+		{
+			name:            "Standard case with a single snippet",
+			snippets:        []utils.Snippet{snippet1},
+			expectFile:      true,
+			expectedContent: `[{"Id":"s1","TableName":"users","ColumnName":"","SchemaChange":"","NumberOfAffectedLines":5,"Complexity":"","SourceCodeSnippet":null,"SuggestedCodeSnippet":null,"SourceMethodSignature":"","SuggestedMethodSignature":"","Explanation":"","RelativeFilePath":"path/to/file.java","FilePath":"","IsDao":false}]` + "\n",
+		},
+		{
+			name:       "Empty snippets slice writes an empty JSON array",
+			snippets:   []utils.Snippet{},
+			expectFile: true,
+			// Note: json.Encoder adds a newline character at the end.
+			expectedContent: "[]\n",
+		},
+		{
+			name:            "Nil snippets slice writes JSON null",
+			snippets:        nil,
+			expectFile:      true,
+			expectedContent: "null\n",
+		},
+		{
+			name:       "File creation failure due to permissions",
+			snippets:   []utils.Snippet{snippet1},
+			expectFile: false,
+			setupFailure: func(dir string) {
+				// Make the directory read-only to cause os.Create to fail.
+				err := os.Chmod(dir, 0555)
+				assert.NoError(t, err)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+
+			if tc.setupFailure != nil {
+				tc.setupFailure(tempDir)
+			}
+
+			filePath := filepath.Join(tempDir, "raw_snippets.txt")
+			writeRawSnippets(tempDir+"/", tc.snippets)
+
+			if !tc.expectFile {
+				assert.NoFileExists(t, filePath)
+				return
+			}
+
+			assert.FileExists(t, filePath)
+			content, err := os.ReadFile(filePath)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedContent, string(content))
+		})
+	}
+}
+
+func TestDumpCsvReport(t *testing.T) {
+	testCases := []struct {
+		name            string
+		records         [][]string
+		expectFile      bool
+		expectedContent string
+		setupFailure    func(filePath string) // Optional function to set up a failure condition
+	}{
+		{
+			name: "Standard case with multiple rows",
+			records: [][]string{
+				{"Header1", "Header2"},
+				{"Value1", "Value2"},
+				{"Value3", "Value4"},
+			},
+			expectFile: true,
+			// Note: The csv writer adds a CRLF (\r\n) after each line.
+			expectedContent: "Header1\tHeader2\r\nValue1\tValue2\r\nValue3\tValue4\r\n",
+		},
+		{
+			name: "Handles records with special characters",
+			records: [][]string{
+				{"Field A", "Field with\na newline"},
+				{"Field with a\ttab", "Field, with, commas and \"quotes\""},
+			},
+			expectFile:      true,
+			expectedContent: "Field A\t\"Field with\r\na newline\"\r\n\"Field with a\ttab\"\t\"Field, with, commas and \"\"quotes\"\"\"\r\n",
+		},
+		{
+			name:            "Empty records slice creates an empty file",
+			records:         [][]string{},
+			expectFile:      true,
+			expectedContent: "",
+		},
+		{
+			name:            "Nil records slice creates an empty file",
+			records:         nil,
+			expectFile:      true,
+			expectedContent: "",
+		},
+		{
+			name:       "File creation failure due to permissions",
+			records:    [][]string{{"data"}},
+			expectFile: false,
+			setupFailure: func(filePath string) {
+				// Make the parent directory read-only to cause os.Create to fail.
+				dir := filepath.Dir(filePath)
+				err := os.Chmod(dir, 0555) // Read and execute permissions only
+				assert.NoError(t, err)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			filePath := filepath.Join(tempDir, "report.csv")
+
+			if tc.setupFailure != nil {
+				tc.setupFailure(filePath)
+			}
+
+			dumpCsvReport(filePath, tc.records)
+			if !tc.expectFile {
+				assert.NoFileExists(t, filePath)
+				// Restore permissions so the temp directory can be cleaned up.
+				if tc.setupFailure != nil {
+					os.Chmod(filepath.Dir(filePath), 0755)
+				}
+				return
+			}
+
+			assert.FileExists(t, filePath)
+			content, err := os.ReadFile(filePath)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedContent, string(content))
 		})
 	}
 }
@@ -2026,7 +2270,6 @@ func TestGenerateReport(t *testing.T) {
 		rawFile := filepath.Join(reportDir, "raw_snippets.txt")
 		assert.FileExists(t, rawFile)
 
-		// Assert content using golden file pattern
 		schemaContent, err := os.ReadFile(schemaFile)
 		assert.NoError(t, err)
 		goldenSchema := "Element Type\tSource Table Name\tSource Name\tSource Definition\tTarget Name\tTarget Definition\tDB Change Effort\tDB Changes\tDB Impact\tCode Change Type\tImpacted Files\tCode Snippet References\tAction Items\r\n" +

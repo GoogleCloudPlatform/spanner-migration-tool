@@ -353,7 +353,11 @@ func populateIndexes(tableAssessment utils.TableAssessment, spTableName string, 
 		return
 	}
 	for id, srcIndex := range tableAssessment.SourceIndexDef {
-		// srcIndex := tableAssessment.SourceIndexDef[id]
+		if id >= len(tableAssessment.SpannerIndexDef) {
+			// TODO: Log a row for this case and add action item?
+			logger.Log.Warn(fmt.Sprintf("Mismatched index count for table %s. Source index %s has no corresponding Spanner index.", tableAssessment.SourceTableDef.Name, srcIndex.Name))
+			continue // Skip this iteration to avoid a panic.
+		}
 		row := SchemaReportRow{}
 		row.element = tableAssessment.SourceTableDef.Name + "." + srcIndex.Name
 		row.elementType = "Index"
