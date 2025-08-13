@@ -150,8 +150,8 @@ func createDatabase(ctx context.Context, dbURI, targetDialect string, spannerAcc
 func validateSpannerAccessor(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
 	spannerAccessor, err := import_file.NewSpannerAccessor(ctx, dbURI)
 	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
-		return nil, fmt.Errorf("unable to instantiate spanner client %v", err)
+		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client: %v", err))
+		return nil, fmt.Errorf("unable to instantiate spanner client: %v", err)
 	}
 
 	return spannerAccessor, nil
