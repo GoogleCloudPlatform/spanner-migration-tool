@@ -341,6 +341,15 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 
 	columnLevelIssues := make(map[string][]internal.SchemaIssue)
 
+	// Initialize ToSpanner mapping for this table
+	if conv.ToSpanner == nil {
+		conv.ToSpanner = make(map[string]internal.NameAndCols)
+	}
+	conv.ToSpanner[srcTable.Name] = internal.NameAndCols{
+		Name: spTableName,
+		Cols: make(map[string]string),
+	}
+
 	// Iterate over columns using ColNames order.
 	for _, srcColId := range srcTable.ColIds {
 		srcCol := srcTable.ColDefs[srcColId]
@@ -350,6 +359,10 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 			continue
 		}
 		spColIds = append(spColIds, srcColId)
+
+		// Add column mapping to ToSpanner
+		conv.ToSpanner[srcTable.Name].Cols[srcCol.Name] = colName
+
 		isPk := IsPrimaryKey(srcColId, srcTable)
 		ty, issues := toddl.ToSpannerType(conv, "", srcCol.Type, isPk)
 

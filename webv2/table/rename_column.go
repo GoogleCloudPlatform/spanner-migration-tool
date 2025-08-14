@@ -46,16 +46,25 @@ func renameColumn(newName, tableId, colId string, conv *internal.Conv) {
 
 // renameColumnNameInCurrentTableSchema renames given column in Table Schema.
 func renameColumnNameTableSchema(conv *internal.Conv, tableId string, colId string, newName string) {
-	sp := conv.SpSchema[tableId]
+	spTable := conv.SpSchema[tableId]
 
-	column, ok := sp.ColDefs[colId]
+	spColumn, ok := spTable.ColDefs[colId]
 
 	if ok {
 
-		column.Name = newName
+		spColumn.Name = newName
 
-		sp.ColDefs[colId] = column
-		conv.SpSchema[tableId] = sp
+		spTable.ColDefs[colId] = spColumn
+		conv.SpSchema[tableId] = spTable
+
+		// Update ToSpanner mapping to reflect the column rename
+		if conv.ToSpanner != nil {
+			srcTable := conv.SrcSchema[tableId]
+			srcColumn, ok := srcTable.ColDefs[colId]
+			if ok {
+				conv.ToSpanner[srcTable.Name].Cols[srcColumn.Name] = newName
+			}
+		}
 
 	}
 }
