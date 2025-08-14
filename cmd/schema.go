@@ -168,7 +168,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	// We always write the session file to accommodate for a re-run that might change anything.
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 	// Generate overrides file for schema mapping information
-	conversion.WriteOverridesFile(conv, cmd.filePrefix+"_overrides.json", ioHelper.Out)
+	conversion.WriteOverridesFile(conv, cmd.filePrefix+overridesFile, ioHelper.Out)
 
 	// Populate migration request id and migration type in conv object.
 	conv.Audit.MigrationRequestId, _ = utils.GenerateName("smt-job")

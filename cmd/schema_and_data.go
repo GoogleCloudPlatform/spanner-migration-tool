@@ -160,7 +160,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out, sourceProfile.Driver)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 	// Generate overrides file for schema mapping information
-	conversion.WriteOverridesFile(conv, cmd.filePrefix+"_overrides.json", ioHelper.Out)
+	conversion.WriteOverridesFile(conv, cmd.filePrefix+overridesFile, ioHelper.Out)
 	conv.Audit.SkipMetricsPopulation = os.Getenv("SKIP_METRICS_POPULATION") == "true"
 	reportImpl := conversion.ReportImpl{}
 	if !cmd.dryRun {

@@ -120,10 +120,10 @@ func WriteConvGeneratedFiles(conv *internal.Conv, dbName string, driver string, 
 	reportFileName := dirPath + dbName
 	reportImpl := ReportImpl{}
 	reportImpl.GenerateReport(driver, nil, BytesRead, "", conv, reportFileName, dbName, out)
-	sessionFileName := dirPath + dbName + "_session.json"
+	sessionFileName := dirPath + dbName + ".session.json"
 	WriteSessionFile(conv, sessionFileName, out)
 	// Generate overrides file for schema mapping information
-	overridesFileName := dirPath + dbName + "_overrides.json"
+	overridesFileName := dirPath + dbName + ".overrides.json"
 	WriteOverridesFile(conv, overridesFileName, out)
 	return dirPath, nil
 }

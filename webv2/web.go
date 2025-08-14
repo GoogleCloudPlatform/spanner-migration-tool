@@ -559,7 +559,7 @@ func getSchemaFile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
 	}
-	schemaFileName := "frontend/" + filePrefix + "_schema.txt"
+	schemaFileName := "frontend/" + filePrefix + "schema.txt"
 
 	sessionState := session.GetSessionState()
 	sessionState.Conv.ConvLock.RLock()
