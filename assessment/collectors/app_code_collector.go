@@ -222,7 +222,8 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 	prompt = strings.ReplaceAll(prompt, "{{OLDER_SCHEMA}}", olderSchema)
 	prompt = strings.ReplaceAll(prompt, "{{NEW_SCHEMA}}", newSchema)
 
-	response, err := utils.GenerateContentWithRetry(ctx, m.geminiFlashModel.(*genaiModelWrapper).GenerativeModel, genai.Text(prompt), 5, logger.Log)
+	retryClient := utils.DefaultLLMRetryClient{}
+	response, err := retryClient.GenerateContentWithRetry(ctx, m.geminiFlashModel.(*genaiModelWrapper).GenerativeModel, genai.Text(prompt), 5, logger.Log)
 	if err != nil {
 		return "", err
 	}
@@ -286,7 +287,7 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 		}
 	}
 
-	finalResponse, err := utils.GenerateContentWithRetry(ctx, m.geminiProModel.(*genaiModelWrapper).GenerativeModel, genai.Text(finalPrompt), 5, logger.Log)
+	finalResponse, err := retryClient.GenerateContentWithRetry(ctx, m.geminiProModel.(*genaiModelWrapper).GenerativeModel, genai.Text(finalPrompt), 5, logger.Log)
 	if err != nil {
 		logger.Log.Error("Error generating final content:", zap.Error(err))
 		return "", err
@@ -441,7 +442,8 @@ func (m *MigrationCodeSummarizer) AnalyzeFile(ctx context.Context, projectPath, 
 	} else {
 		logger.Log.Debug("Analyzing Non-DAO File: ", zap.String("filepath", filepath))
 		prompt := m.getPromptForNonDAOClass(content, filepath, &methodChanges)
-		response, err := utils.GenerateContentWithRetry(ctx, m.geminiFlashModel.(*genaiModelWrapper).GenerativeModel, genai.Text(prompt), 5, logger.Log)
+		retryClient := utils.DefaultLLMRetryClient{}
+		response, err := retryClient.GenerateContentWithRetry(ctx, m.geminiFlashModel.(*genaiModelWrapper).GenerativeModel, genai.Text(prompt), 5, logger.Log)
 
 		if err != nil {
 			return &FileAnalysisResponse{codeAssessment, extractedMethodSignatures, projectPath, filepath, queryResults}

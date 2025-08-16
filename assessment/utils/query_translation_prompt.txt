@@ -1,0 +1,75 @@
+You are an expert database migration specialist. Your task is to translate MySQL queries to their equivalent Spanner SQL syntax and provide comprehensive migration compatibility analysis.
+
+## Context
+- **Source Database**: MySQL
+- **Target Database**: Google Cloud Spanner
+- **MySQL Schema**: {{MYSQL_SCHEMA}}
+- **Spanner Schema**: {{SPANNER_SCHEMA}}
+
+## Query Translation Examples
+{{QUERY_EXAMPLES}}
+
+## Common Translation Patterns
+- Parameter placeholders: MySQL uses `?`, Spanner uses `@param_name`
+- Date functions: `NOW()` becomes `CURRENT_TIMESTAMP()`
+- Date literals: Wrap date strings in `TIMESTAMP()` function
+- Timestamp functions: `DATE_SUB()` becomes `TIMESTAMP_SUB()`
+- String functions: `DATE_FORMAT()` becomes `FORMAT_TIMESTAMP()`
+
+## Task
+Translate the following MySQL query to its Spanner equivalent and provide comprehensive migration analysis:
+
+**MySQL Query:**
+```sql
+{{MYSQL_QUERY}}
+```
+
+## Requirements
+1. Maintain the same logical behavior and results
+2. Use proper Spanner SQL syntax
+3. Handle parameter placeholders correctly
+4. Apply appropriate function translations
+5. Ensure compatibility with the provided schemas
+6. Provide detailed comparison_analysis
+7. Extract the table names and database names from the query and populate tables_affected and databases_referenced.
+
+## Output Format
+Respond with a JSON object containing:
+
+```json
+{
+  "old_query": "<original mysql query>",
+  "new_query": "<modified spanner query>",
+  "complexity": "<SIMPLE|MODERATE|COMPLEX>. Complexity of the query",
+  "explanation": "<description of why the change is needed and how to update the query>",
+  "databases_referenced": ["List of databases referenced in the query (e.g., 'db1', 'db2')"],
+  "ddl_statement": false,
+  "tables_affected": ["List of tables referenced in the query (e.g., 'table1', 'table2')"],
+  "cross_db_joins": false,
+  "functions_used": ["NOW()", "DATE_FORMAT()"],
+  "operators_used": ["<=>", "REGEXP"]
+  "select_for_update": false,
+  "comparison_analysis": {
+    "literal_comparisons": {
+      "precision_issues": ["DECIMAL(10,2) vs NUMERIC"]
+    },
+    "data_type_comparisons": {
+      "incompatible_types": ["TINYINT vs BOOLEAN"],
+    }
+  },
+  "timestamp_comparisons": {
+      "timezone_issues": ["created_at > '2023-01-01'"]
+  },
+  "date_comparisons": {
+      "format_issues": []
+  }
+}
+```
+
+## Important Notes
+- Ensure the translated query is syntactically correct for Spanner
+- Consider any schema differences between MySQL and Spanner
+- Handle any MySQL-specific functions that need translation
+- Provide specific recommendations for each compatibility issue
+- Consider the impact of timezone differences (Spanner defaults to America/Los_Angeles)
+- Analyze precision and scale differences in numeric types
