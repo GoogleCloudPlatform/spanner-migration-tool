@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
@@ -55,8 +54,8 @@ func TestTranslateQueriesToSpanner(t *testing.T) {
 	tests := []struct {
 		name           string
 		queries        []QueryTranslationInput
-		mockResponse   *genai.GenerateContentResponse
-		mockError      error
+		mockTaskResult task.TaskResult[*QueryTranslationResult]
+		mockTaskError  error
 		expectedResult []QueryTranslationResult
 		expectedError  bool
 	}{
@@ -65,16 +64,15 @@ func TestTranslateQueriesToSpanner(t *testing.T) {
 			queries: []QueryTranslationInput{
 				{Query: "SELECT * FROM users", Count: 10},
 			},
-			mockResponse: &genai.GenerateContentResponse{
-				Candidates: []*genai.Candidate{
-					{
-						Content: &genai.Content{
-							Parts: []genai.Part{genai.Text(`{"new_query": "SELECT * FROM users"}`)}, // Corrected JSON format
-						},
-					},
+			mockTaskResult: task.TaskResult[*QueryTranslationResult]{
+				Result: &QueryTranslationResult{
+					OriginalQuery:  "SELECT * FROM users",
+					SpannerQuery:   "SELECT * FROM users",
+					Source:         "performance_schema",
+					ExecutionCount: 10,
 				},
 			},
-			mockError: nil,
+			mockTaskError: nil,
 			expectedResult: []QueryTranslationResult{
 				{
 					OriginalQuery:  "SELECT * FROM users",
@@ -88,52 +86,67 @@ func TestTranslateQueriesToSpanner(t *testing.T) {
 		{
 			name:           "No queries to translate",
 			queries:        []QueryTranslationInput{},
+			mockTaskResult: task.TaskResult[*QueryTranslationResult]{},
+			mockTaskError:  nil,
 			expectedResult: nil,
 			expectedError:  true,
+		},
+		{
+			name: "Translation failure",
+			queries: []QueryTranslationInput{
+				{Query: "SELECT * FROM users", Count: 10},
+			},
+			mockTaskResult: task.TaskResult[*QueryTranslationResult]{
+				Result: &QueryTranslationResult{
+					OriginalQuery:    "SELECT * FROM users",
+					TranslationError: "mock translation error",
+				},
+			},
+			mockTaskError: errors.New("mock translation error"),
+			expectedResult: []QueryTranslationResult{
+				{
+					OriginalQuery:    "SELECT * FROM users",
+					TranslationError: "mock translation error",
+				},
+			},
+			expectedError: false, // The function should not return an error, but the result will contain one.
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockModel := &mockGenerativeModel{
-				GenerateContentFunc: func(ctx context.Context, parts ...genai.Part) (*genai.GenerateContentResponse, error) {
-					return tt.mockResponse, tt.mockError
-				},
-			}
-			aiClient := &genai.Client{}
-
-			// Replace the original TranslateQueryTask with a mock version
 			originalTranslateQueryTask := TranslateQueryTask
 			TranslateQueryTask = func(input *LLMQueryTranslationInput, mutex *sync.Mutex) task.TaskResult[*QueryTranslationResult] {
-				resp, err := mockModel.GenerateContent(input.Context, genai.Text(""))
-				if err != nil {
-					return task.TaskResult[*QueryTranslationResult]{Err: err}
-				}
-				var result QueryTranslationResult
-				var llmResponse string
-				if part, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
-					llmResponse = string(part)
-				}
-
-				// Convert the string to a byte slice before unmarshaling
-				if err := json.Unmarshal([]byte(llmResponse), &result); err != nil {
-					return task.TaskResult[*QueryTranslationResult]{Err: err}
-				}
-				result.OriginalQuery = input.MySQLQuery
-				result.Source = "performance_schema"
-				result.ExecutionCount = input.Count
-				return task.TaskResult[*QueryTranslationResult]{Result: &result}
+				assert.Equal(t, tt.queries[0].Query, input.MySQLQuery)
+				return tt.mockTaskResult
 			}
 			defer func() { TranslateQueryTask = originalTranslateQueryTask }()
 
-			result, err := TranslateQueriesToSpanner(ctx, tt.queries, aiClient, "", "")
+			var result []QueryTranslationResult
+			var err error
+
+			if len(tt.queries) == 0 {
+				result, err = TranslateQueriesToSpanner(ctx, tt.queries, nil, "", "")
+			} else {
+				result, err = TranslateQueriesToSpanner(ctx, tt.queries, nil, "", "")
+			}
 
 			if tt.expectedError {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, tt.expectedResult, result)
+
+			// Clean up the expected result's error message for comparison
+			if len(tt.expectedResult) > 0 && tt.expectedResult[0].TranslationError != "" {
+				if result[0].TranslationError != "" {
+					assert.Contains(t, result[0].TranslationError, tt.expectedResult[0].TranslationError)
+				} else {
+					assert.Fail(t, "expected translation error, but got none")
+				}
+			} else {
+				assert.Equal(t, tt.expectedResult, result)
+			}
 		})
 	}
 }
@@ -141,12 +154,6 @@ func TestTranslateQueriesToSpanner(t *testing.T) {
 func TestTranslateQueryTask(t *testing.T) {
 	ctx := context.Background()
 
-	originalPromptTemplate := queryTranslationPromptTemplate
-	originalQueryExamples := QueryTranslationExamples
-	defer func() {
-		queryTranslationPromptTemplate = originalPromptTemplate
-		QueryTranslationExamples = originalQueryExamples
-	}()
 	queryTranslationPromptTemplate = mockQueryTranslationPromptTemplate
 	QueryTranslationExamples = []byte(mockQueryTranslationExamples)
 

@@ -119,17 +119,15 @@ func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile
 	return output, nil
 }
 
-// newAIClientFunc is a function type for genai.NewClient.
-type newAIClientFunc func(ctx context.Context, projectID, location string, opts ...option.ClientOption) (*genai.Client, error)
+type AIClientService struct {
+	NewClientFunc        func(ctx context.Context, projectID, location string, opts ...option.ClientOption) (*genai.Client, error)
+	TranslateQueriesFunc func(ctx context.Context, queries []utils.QueryTranslationInput, aiClient *genai.Client, mysqlSchema, spannerSchema string) ([]utils.QueryTranslationResult, error)
+}
 
-// NewAIClient is a package-level variable to hold the AI client creation function.
-var NewAIClient newAIClientFunc = genai.NewClient
-
-// translateQueriesFunc is a function type for utils.TranslateQueriesToSpanner.
-type translateQueriesFunc func(ctx context.Context, queries []utils.QueryTranslationInput, aiClient *genai.Client, mysqlSchema, spannerSchema string) ([]utils.QueryTranslationResult, error)
-
-// TranslateQueriesToSpanner is a package-level variable to hold the query translation function.
-var TranslateQueriesToSpanner translateQueriesFunc = utils.TranslateQueriesToSpanner
+var aiClientService = &AIClientService{
+	NewClientFunc:        genai.NewClient,
+	TranslateQueriesFunc: utils.TranslateQueriesToSpanner,
+}
 
 func performQueryAssessment(ctx context.Context, collectors assessmentCollectors, queries []utils.QueryTranslationResult, projectId string, assessmentConfig map[string]string, conv *internal.Conv) ([]utils.QueryTranslationResult, error) {
 	logger.Log.Info("starting query assessment...")
@@ -154,11 +152,11 @@ func performQueryAssessment(ctx context.Context, collectors assessmentCollectors
 			translationResult = append(translationResult, query)
 		}
 	}
-	aiClient, err := NewAIClient(ctx, projectId, assessmentConfig["location"])
+	aiClient, err := aiClientService.NewClientFunc(ctx, projectId, assessmentConfig["location"])
 	if err != nil {
 		return translationResult, fmt.Errorf("Error creating ai client")
 	}
-	translatedQueries, err := TranslateQueriesToSpanner(ctx, performanceSchemaQueries, aiClient, mysqlSchema, spannerSchema)
+	translatedQueries, err := aiClientService.TranslateQueriesFunc(ctx, performanceSchemaQueries, aiClient, mysqlSchema, spannerSchema)
 	if translatedQueries != nil {
 		translationResult = append(translationResult, translatedQueries...)
 	}

@@ -98,7 +98,7 @@ func defaultTranslateQueryTask(input *LLMQueryTranslationInput, mutex *sync.Mute
 		}
 	}
 
-	model := input.AIClient.GenerativeModel("gemini-1.5-pro-002")
+	model := input.AIClient.GenerativeModel(GEMINI_PRO_MODEL)
 	model.ResponseMIMEType = "application/json"
 
 	// Build prompt
