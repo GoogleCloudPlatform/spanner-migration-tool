@@ -1,48 +1,93 @@
 You are a Cloud Spanner expert tasked with migrating a DAO class from MySQL {{SOURCE_FRAMEWORK}} to Spanner {{TARGET_FRAMEWORK}}.
 
 **Objective:**
+Carefully review both the provided MySQL schema and the Spanner schema. Identify and explain any query or code changes that may be required due to:
+- Differences in schema (e.g., data types, constraints, table/column names, indexes, keys, etc.)
+- Unsupported or partially supported MySQL features in Spanner
+- Differences in query syntax of MYSQL and Spanner
+- Any other incompatibilities or migration considerations
+    - Auto-incrementing IDs (Spanner requires UUIDs or sequence generators)
+    - Case sensitivity differences for table/column names
+    - Lack of direct support for stored procedures or triggers in Spanner
+    - Differences in client library APIs (e.g., JDBC drivers)
+
+
 Analyze the provided DAO code and identify the necessary modifications for compatibility with Cloud Spanner. The code may include comments, blank lines, and other non-executable elements. Use function documentation and comments to understand the code's purpose, particularly how it interacts with the database.
 
-**Schema Changes:**
-First, analyze the schema changes between the provided MySQL schema and the new Spanner schema. These changes may include column definitions, indexes, constraints, etc. Each schema change could potentially impact the DAO class code, particularly the SQL queries or method signatures.
+For each code change in the DAO file, emit a single object that includes all relevant details:
+- Code changes due to difference in schema (if any)
+- Query migration analysis (if any)
+- Method signature changes (if any)
+- The code snippet (before/after)
+
+If a code change affects both schema and query, include both in the same object. If it only affects one, fill only the relevant fields. This ensures that each code change is represented as a single, unified entity.
 
 **Output Format: Please strictly follow the following format and ensure strict JSON parsable format:**
 @@@json
 {
-    "schema_impact": [
-        {
-            "schema_change": "Exact change in schema",
-            "table": "Name of the affected table",
-            "column": "Name of the affected column",
-            "number_of_affected_lines": <number_of_lines_impacted>,
-            "existing_code_lines": ["Line1", "Line2", ... ],
-            "new_code_lines": ["Line1", "Line2", ... ]
+  "code_changes": [
+    {
+      "code_change_type": ["List of high-level categories of code changes (e.g., 'QUERY_SYNTAX_ADJUSTMENT', 'API_CHANGE', 'LOGIC_REWRITE', 'SCHEMA_IMPACTED_CHANGE')"]
+      "overall_compatibility": "valid|valid_with_small_changes|require_rewrite",
+      "explanation": "<description of why the change is needed and how to update the code>",
+      "number_of_affected_lines": "<number_of_lines_impacted>. Return as integer",
+      "existing_code_lines": ["Line1", "Line2", ... ],
+      "new_code_lines": ["Line1", "Line2", ... ],
+      "schema_change": {
+        "table": "Name of the affected table (extract from SQL queries, table names, or schema references in the code), or empty if not applicable",
+        "column": "Name of the affected column (extract from SQL queries, column references, or schema definitions in the code), or empty if not applicable",
+      }
+      "query_change": {
+        "old_query": "<original mysql query>",
+        "normalized_query": "The canonical/digest form of the SQL query (e.g., SELECT * FROM users WHERE id = ?)",
+        "new_query": "<modified spanner query>",
+        "complexity": "<SIMPLE|MODERATE|COMPLEX>. Complexity of the query",
+        "number_of_query_occurances": "<number_of_times_query_occured_in_code>. Return as integer.",
+        "explanation": "<description of why the change is needed and how to update the query>",
+        "databases_referenced": ["List of databases referenced in the query (e.g., 'db1', 'db2' - useful for cross-DB joins)"],
+        "ddl_statement": false,
+        "tables_affected": ["table1", "table2"],
+        "cross_db_joins": false,
+        "functions_used": ["NOW()", "DATE_FORMAT()"],
+        "operators_used": ["<=>", "REGEXP"]
+        "select_for_update": false,
+        "comparison_analysis": {
+          "literal_comparisons": {
+            "precision_issues": ["DECIMAL(10,2) vs NUMERIC"]
+          },
+          "data_type_comparisons": {
+            "incompatible_types": ["TINYINT vs BOOLEAN"],
+          }
         },
-        ...
-    ],
-    "method_signature_changes": [
-        {
-            "original_signature": "<original method signature>",
-            "new_signature": "<modified method signature>",
-            "complexity": "<SIMPLE|MODERATE|COMPLEX>",
-            "number_of_affected_lines": <number_of_lines_impacted>,
-            "explanation": "<description of why the change is needed and how to update the code>"
+        "timestamp_comparisons": {
+            "timezone_issues": ["created_at > '2023-01-01'"]
         },
-        ...
-    ],
-    "pagination": {
-        "total_page": "Total number of pages that the response has",
-        "current_page": "Current page number of the response"
+        "date_comparisons": {
+            "format_issues": []
+        }
+      },
+      "method_signature_changes": {
+        "original_signature": "<original method signature>",
+        "new_signature": "<modified method signature>"
+      }
     }
+  ],
+  "pagination": {
+    "total_page": "Total number of pages that the response has. Return as string, e.g. '5'",
+    "current_page": "Current page number of the response. Return as string, e.g. '1'"
+  }
 }
 @@@
 
 **Instructions:**
-1. Ensure consistency between `schema_impact` and `public_method_changes`.
-2. Output should strictly be in given JSON format and ensure strict JSON parsable format.
-3. All generated result values should be single-line strings. Avoid hallucinations and suggest only relevant changes.
-4. Pay close attention to SQL queries within the DAO code. Identify any queries that are incompatible with Spanner and suggest appropriate modifications.
-5. Please paginate your output if the token limit is reached. Ensure that the JSON string is complete and parsable.
+1. For each code change, include all relevant schema, query, and method signature details in the same object if they are related to the same code snippet.
+2. Output should strictly be in the given JSON format and ensure strict JSON parsability.
+3. For the `normalized_query` field, generate a canonical representation of the SQL query by replacing all literal values (e.g., numbers, strings) with a '?' placeholder.
+4. All generated result values should be single-line strings. Avoid hallucinations and suggest only relevant changes.
+5. For each query in a `query_change`, provide a full `migration_analysis` object as detailed in the output format.
+6. Pay close attention to SQL queries within the DAO code. Identify any queries that are incompatible with Spanner and suggest appropriate modifications.
+7. In case a code change is due to schema differences in source and spanner then only populte schema_change object and always extract table and column names and set the `table` and `column` fields.
+8. Please paginate your output if the token limit is reached. Ensure that the JSON string is complete and parsable.
 
 **INPUT**
 **Older MySQL Schema**

@@ -32,9 +32,10 @@ import (
 )
 
 type assessmentCollectors struct {
-	sampleCollector        *assessment.SampleCollector
-	infoSchemaCollector    *assessment.InfoSchemaCollector
-	appAssessmentCollector *assessment.MigrationCodeSummarizer
+	sampleCollector            *assessment.SampleCollector
+	infoSchemaCollector        *assessment.InfoSchemaCollector
+	appAssessmentCollector     *assessment.MigrationCodeSummarizer
+	performanceSchemaCollector *assessment.PerformanceSchemaCollector
 }
 
 type assessmentTaskInput struct {
@@ -152,6 +153,17 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 		logger.Log.Info("app code info unavailable")
 	}
 
+	// Initialize Performance Schema Collector
+	logger.Log.Info("initializing performance schema collector")
+	performanceSchemaCollector, err := assessment.GetDefaultPerformanceSchemaCollector(sourceProfile)
+	if err != nil {
+		logger.Log.Warn("failed to initialize performance schema collector", zap.Error(err))
+		logger.Log.Info("performance schema assessment will be skipped")
+	} else {
+		c.performanceSchemaCollector = &performanceSchemaCollector
+		logger.Log.Info("initialized performance schema collector")
+	}
+
 	return c, err
 }
 
@@ -230,7 +242,7 @@ func performAppAssessment(ctx context.Context, collectors assessmentCollectors) 
 	}
 
 	logger.Log.Info("starting app assessment...")
-	codeAssessment, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
+	codeAssessment, _, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
 
 	if err != nil {
 		logger.Log.Error("error analyzing project", zap.Error(err))
