@@ -15,6 +15,8 @@
 package conversion
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -131,5 +133,125 @@ func TestReadSessionFile(t *testing.T) {
 		err := ReadSessionFile(conv, tc.filePath)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 		assert.Equal(t, &tc.expectedConv, &conv, tc.name)
+	}
+}
+
+func TestWriteOverridesFile(t *testing.T) {
+	// Create a temporary directory for test files
+	tempDir := t.TempDir()
+
+	tests := []struct {
+		name     string
+		conv     *internal.Conv
+		fileName string
+		expected string
+	}{
+		{
+			name: "empty overrides",
+			conv: &internal.Conv{
+				SrcSchema: map[string]schema.Table{
+					"t1": {Name: "users", ColDefs: map[string]schema.Column{
+						"c1": {Name: "id"},
+						"c2": {Name: "name"},
+					}},
+				},
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {Name: "users", ColDefs: map[string]ddl.ColumnDef{
+						"c1": {Name: "id"},
+						"c2": {Name: "name"},
+					}},
+				},
+				ToSpanner: map[string]internal.NameAndCols{
+					"users": {
+						Name: "users",
+						Cols: map[string]string{
+							"id":   "id",
+							"name": "name",
+						},
+					},
+				},
+			},
+			fileName: tempDir + "/test_overrides.json",
+			expected: `{
+  "renamedTables": {},
+  "renamedColumns": {}
+}`,
+		},
+		{
+			name: "with table and column renames",
+			conv: &internal.Conv{
+				SrcSchema: map[string]schema.Table{
+					"t1": {Name: "user_table", ColDefs: map[string]schema.Column{
+						"c1": {Name: "user_id"},
+						"c2": {Name: "user_name"},
+					}},
+				},
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {Name: "Users", ColDefs: map[string]ddl.ColumnDef{
+						"c1": {Name: "id"},
+						"c2": {Name: "name"},
+					}},
+				},
+				ToSpanner: map[string]internal.NameAndCols{
+					"user_table": {
+						Name: "Users",
+						Cols: map[string]string{
+							"user_id":   "id",
+							"user_name": "name",
+						},
+					},
+				},
+			},
+			fileName: tempDir + "/test_overrides_with_renames.json",
+			expected: `{
+  "renamedTables": {
+    "user_table": "Users"
+  },
+  "renamedColumns": {
+    "user_table": {
+      "user_id": "id",
+      "user_name": "name"
+    }
+  }
+}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a temporary file for output
+			outFile, err := os.CreateTemp(tempDir, "test_output")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(outFile.Name())
+			outFile.Close()
+
+			// Call WriteOverridesFile
+			WriteOverridesFile(tt.conv, tt.fileName, outFile)
+
+			// Read the generated file
+			content, err := os.ReadFile(tt.fileName)
+			if err != nil {
+				t.Fatalf("Failed to read generated file: %v", err)
+			}
+
+			// Unmarshal both the generated file and the expected string to OverridesFile and compare
+			var gotOverrides, expectedOverrides internal.OverridesFile
+			if err := json.Unmarshal(content, &gotOverrides); err != nil {
+				t.Fatalf("Failed to unmarshal generated file: %v", err)
+			}
+			if err := json.Unmarshal([]byte(tt.expected), &expectedOverrides); err != nil {
+				t.Fatalf("Failed to unmarshal expected JSON: %v", err)
+			}
+			if !assert.Equal(t, expectedOverrides, gotOverrides, "WriteOverridesFile() output mismatch") {
+				t.Errorf("WriteOverridesFile() output = %+v, want %+v", gotOverrides, expectedOverrides)
+			}
+
+			// Verify file exists
+			if _, err := os.Stat(tt.fileName); os.IsNotExist(err) {
+				t.Errorf("WriteOverridesFile() did not create file %s", tt.fileName)
+			}
+		})
 	}
 }
