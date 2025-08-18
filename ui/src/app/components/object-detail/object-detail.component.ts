@@ -852,8 +852,10 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(false),
             spIsNotNull: new FormControl(false),
             spId: new FormControl(''),
-            spAutoGen: new FormControl(spArr[i].spAutoGen),
-            spDefaultValue: new FormControl(spArr[i].spDefaultValue),
+            spAutoGen: new FormControl({
+              Name: "",
+              GenerationType: ""
+            }),
           })
         )
       }
@@ -877,8 +879,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(spArr[i].spIsPk),
             spIsNotNull: new FormControl(spArr[i].spIsNotNull),
             spId: new FormControl(spArr[i].spId),
-            spAutoGen: new FormControl(spArr[i].spAutoGen),
-            spDefaultValue: new FormControl(spArr[i].spDefaultValue),
+            spAutoGen: new FormControl(spArr[i].spAutoGen)
           })
         )
       }
