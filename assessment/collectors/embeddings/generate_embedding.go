@@ -24,6 +24,7 @@ import (
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/aiplatform/apiv1/aiplatformpb"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/option"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -37,9 +38,6 @@ var javaMysqlMigrationConcept []byte
 
 //go:embed vertx_concept_examples.json
 var vertxMysqlMigrationConcept []byte
-
-//go:embed mysql_query_examples.json
-var mysqlQueryExamples []byte
 
 //go:embed hibernate_concept_examples.json
 var hibernateMysqlMigrationConcept []byte
@@ -87,7 +85,7 @@ func createCodeSampleEmbeddings(ctx context.Context, client PredictionClientInte
 
 func createQuerySampleEmbeddings(ctx context.Context, client PredictionClientInterface, project, location, model string) ([]MySqlMigrationConcept, error) {
 	var queryExamples []MySqlMigrationConcept
-	if err := json.Unmarshal(mysqlQueryExamples, &queryExamples); err != nil {
+	if err := json.Unmarshal(utils.QueryTranslationExamples, &queryExamples); err != nil {
 		return nil, fmt.Errorf("failed to parse MySQL query examples JSON: %w", err)
 	}
 	return attachEmbeddings(ctx, client, project, location, model, queryExamples)
