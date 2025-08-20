@@ -15,9 +15,6 @@
 package assessment
 
 import (
-	// "os"
-	// "path/filepath"
-
 	"os"
 	"path/filepath"
 	"sort"
@@ -114,7 +111,7 @@ func TestSourceColumnDefinitionToString(t *testing.T) {
 		{
 			name: "Everything is set",
 			input: utils.SrcColumnDetails{
-				Datatype:   "INT64",
+				Datatype:   "DECIMAL",
 				Mods:       []int64{10, 2},
 				IsUnsigned: true,
 				GeneratedColumn: utils.GeneratedColumnInfo{
@@ -133,7 +130,7 @@ func TestSourceColumnDefinitionToString(t *testing.T) {
 					GenerationType: constants.AUTO_INCREMENT,
 				},
 			},
-			want: "INT64(10,2) UNSIGNED GENERATED ALWAYS AS (a + b) VIRTUAL DEFAULT 0 NOT NULL ON UPDATE CURRENT_TIMESTAMP AUTO_INCREMENT",
+			want: "DECIMAL(10,2) UNSIGNED GENERATED ALWAYS AS (a + b) VIRTUAL DEFAULT 0 NOT NULL ON UPDATE CURRENT_TIMESTAMP AUTO_INCREMENT",
 		},
 		{
 			name: "Generated STORED with other flags off",
@@ -625,19 +622,33 @@ func TestPopulateIndexes(t *testing.T) {
 			expectedLen: 0, // No rows should be added
 		},
 		{
-			name:        "Mismatched index count skips row and does not panic",
+			name:        "Spanner index not present - count mismatch",
 			initialRows: []SchemaReportRow{},
 			tableAssessment: utils.TableAssessment{
 				SourceTableDef: &utils.SrcTableDetails{Name: "users"},
-				// Source has one index.
 				SourceIndexDef: []utils.SrcIndexDetails{
 					{Name: "idx_email", Ddl: "CREATE INDEX idx_email ON users(email)"},
 				},
-				// Spanner has zero indexes. The bounds check should skip thisiteration, prevent ing a panic.
 				SpannerIndexDef: []utils.SpIndexDetails{},
 			},
 			spTableName: "users_sp",
-			expectedLen: 0, // No row should be added because the iteration is skipped.
+			expectedLen: 1,
+			expectedLastRow: SchemaReportRow{
+				element:           "users.idx_email",
+				elementType:       "Index",
+				sourceTableName:   "users",
+				sourceName:        "idx_email",
+				sourceDefinition:  "CREATE INDEX idx_email ON users(email)",
+				targetName:        "N/A",
+				targetDefinition:  "N/A",
+				dbChangeEffort:    "Small",
+				dbChanges:         "Unknown",
+				dbImpact:          "",
+				codeChangeEffort:  "None",
+				codeChangeType:    "None",
+				codeImpactedFiles: "None",
+				codeSnippets:      "None",
+			},
 		},
 	}
 
@@ -762,7 +773,24 @@ func TestPopulateForeignKeys(t *testing.T) {
 				},
 			},
 			spTableName: "orders_sp",
-			expectedLen: 0, // No row should be added.
+			expectedLen: 1,
+			expectedLastRow: SchemaReportRow{
+				element:           "orders.fk_missing",
+				elementType:       "Foreign Key",
+				sourceName:        "fk_missing",
+				sourceDefinition:  "CONSTRAINT fk_missing FOREIGN KEY (customer_id) REFERENCES customers(id)",
+				sourceTableName:   "orders",
+				targetName:        "N/A",
+				targetDefinition:  "N/A",
+				dbChangeEffort:    "Small",
+				dbChanges:         "Dropped",
+				dbImpact:          "",
+				codeChangeEffort:  "None",
+				codeChangeType:    "None",
+				codeImpactedFiles: "None",
+				codeSnippets:      "None",
+				actionItems:       &[]string{"Spanner foreign key needs to be created manually"},
+			},
 		},
 		{
 			name: "No foreign keys (empty map)",
@@ -1427,6 +1455,16 @@ func TestPopulateSequenceInfo(t *testing.T) {
 			},
 		},
 		{
+			name:        "Nil SourceTableDef - should not panic",
+			initialRows: []SchemaReportRow{},
+			sequences:   map[string]ddl.Sequence{},
+			tableAssessments: []utils.TableAssessment{
+				{SourceTableDef: nil, SpannerTableDef: &utils.SpTableDetails{}},
+			},
+			codeSnippets: nil,
+			expectedLen:  0,
+		},
+		{
 			name:             "Empty sequence map",
 			initialRows:      []SchemaReportRow{},
 			sequences:        map[string]ddl.Sequence{},
@@ -1650,6 +1688,56 @@ func TestConvertToSchemaReportRows(t *testing.T) {
 			name:   "Empty AssessmentOutput",
 			input:  utils.AssessmentOutput{},
 			expect: []SchemaReportRow{},
+		},
+		{
+			name: "SourceTableDef is nil",
+			input: utils.AssessmentOutput{
+				SchemaAssessment: &utils.SchemaAssessmentOutput{
+					TableAssessmentOutput: []utils.TableAssessment{
+						{
+							SourceTableDef:    nil,
+							SpannerTableDef:   &utils.SpTableDetails{Name: "t1"},
+							CompatibleCharset: true,
+						},
+					},
+				},
+				AppCodeAssessment: nil,
+			},
+			expect: []SchemaReportRow{},
+		},
+		{
+			name: "SpannerTableDef is nil",
+			input: utils.AssessmentOutput{
+				SchemaAssessment: &utils.SchemaAssessmentOutput{
+					TableAssessmentOutput: []utils.TableAssessment{
+						{
+							SourceTableDef:    &utils.SrcTableDetails{Name: "t1"},
+							SpannerTableDef:   nil,
+							CompatibleCharset: true,
+						},
+					},
+				},
+				AppCodeAssessment: nil,
+			},
+			expect: []SchemaReportRow{
+				{
+					element:           "t1",
+					elementType:       "Table",
+					sourceTableName:   "t1",
+					sourceName:        "t1",
+					sourceDefinition:  "",
+					targetName:        "N/A",
+					targetDefinition:  "N/A",
+					dbChangeEffort:    "Small",
+					dbChanges:         "None",
+					dbImpact:          "None",
+					codeChangeType:    "None",
+					codeChangeEffort:  "None",
+					codeImpactedFiles: "None",
+					codeSnippets:      "None",
+					actionItems:       &[]string{"Create Spanner table manually"},
+				},
+			},
 		},
 		{
 			name: "AppCodeAssessment nil",

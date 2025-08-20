@@ -286,8 +286,8 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 	for _, tableAssessment := range assessmentOutput.SchemaAssessment.TableAssessmentOutput {
 		spTable := tableAssessment.SpannerTableDef
 		srcTable := tableAssessment.SourceTableDef
-		if srcTable == nil || spTable == nil {
-			continue // skip if either is nil
+		if srcTable == nil {
+			continue
 		}
 		row := SchemaReportRow{}
 		row.element = srcTable.Name
@@ -296,12 +296,25 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 		row.sourceTableName = srcTable.Name
 		row.sourceName = srcTable.Name
 		row.sourceDefinition = tableDefinitionToString(*srcTable)
+		row.dbChanges, row.dbImpact = calculateTableDbChangesAndImpact(tableAssessment)
+
+		if spTable == nil {
+			row.targetName = "N/A"
+			row.targetDefinition = "N/A"
+			row.dbChangeEffort = "Small"
+			row.actionItems = &[]string{"Create Spanner table manually"}
+
+			row.codeChangeType = "None"
+			row.codeChangeEffort = "None"
+			row.codeImpactedFiles = "None"
+			row.codeSnippets = "None"
+			rows = append(rows, row)
+			continue // skip if Spanner table definition is nil
+		}
 
 		row.targetName = spTable.Name
 		row.targetDefinition = "N/A"
-
 		row.dbChangeEffort = "Automatic"
-		row.dbChanges, row.dbImpact = calculateTableDbChangesAndImpact(tableAssessment)
 
 		// Populate code info
 		populateTableCodeImpact(*srcTable, *spTable, codeSnippets, &row)
@@ -312,8 +325,8 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 		for _, columnAssessment := range tableAssessment.Columns {
 			spColumn := columnAssessment.SpannerColDef
 			column := columnAssessment.SourceColDef
-			if column == nil || spColumn == nil {
-				continue // skip if either is nil
+			if column == nil {
+				continue
 			}
 			row := SchemaReportRow{}
 			row.element = column.TableName + "." + column.Name
@@ -322,10 +335,25 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 			row.sourceTableName = column.TableName
 			row.sourceName = column.Name
 			row.sourceDefinition = sourceColumnDefinitionToString(*column)
+			row.dbChanges, row.dbImpact, row.dbChangeEffort, row.actionItems = calculateColumnDbChangesAndImpact(columnAssessment)
+
+			if spColumn == nil {
+				row.targetName = "N/A"
+				row.targetDefinition = "N/A"
+
+				row.dbChangeEffort = "Small"
+				*row.actionItems = append(*row.actionItems, "Spanner column needs to be created manually")
+
+				row.codeChangeType = "None"
+				row.codeChangeEffort = "None"
+				row.codeImpactedFiles = "None"
+				row.codeSnippets = "None"
+
+				rows = append(rows, row)
+				continue // skip if Spanner column definition is nil
+			}
 			row.targetName = spColumn.TableName + "." + spColumn.Name
 			row.targetDefinition = spannerColumnDefinitionToString(*spColumn)
-
-			row.dbChanges, row.dbImpact, row.dbChangeEffort, row.actionItems = calculateColumnDbChangesAndImpact(columnAssessment)
 
 			//Populate code info
 			//logger.Log.Info(fmt.Sprintf("%s.%s", column.TableName, column.Name))
@@ -353,30 +381,34 @@ func populateIndexes(tableAssessment utils.TableAssessment, spTableName string, 
 		return
 	}
 	for id, srcIndex := range tableAssessment.SourceIndexDef {
-		if id >= len(tableAssessment.SpannerIndexDef) {
-			// TODO: Log a row for this case and add action item?
-			logger.Log.Warn(fmt.Sprintf("Mismatched index count for table %s. Source index %s has no corresponding Spanner index.", tableAssessment.SourceTableDef.Name, srcIndex.Name))
-			continue // Skip this iteration to avoid a panic.
-		}
 		row := SchemaReportRow{}
 		row.element = tableAssessment.SourceTableDef.Name + "." + srcIndex.Name
 		row.elementType = "Index"
-		// TODO : Right now we migrate all mysql indexes to spanner, we need to do it based on index type and then modify the fields here for unsupported index types
 		row.sourceTableName = tableAssessment.SourceTableDef.Name
 		row.sourceName = srcIndex.Name
 		row.sourceDefinition = srcIndex.Ddl
-		row.targetName = spTableName + "." + tableAssessment.SpannerIndexDef[id].Name
-		row.targetDefinition = tableAssessment.SpannerIndexDef[id].Ddl
+		if id >= len(tableAssessment.SpannerIndexDef) {
+			row.targetName = "N/A"
+			row.targetDefinition = "N/A"
 
-		row.dbChangeEffort = "Automatic"
-		row.dbChanges = "None"
-		row.dbImpact = "None"
+			row.dbChangeEffort = "Small"
+			row.dbChanges = "Unknown"
+			row.dbImpact = ""
+			row.actionItems = &[]string{"Create index manually"}
+
+		} else {
+			row.targetName = spTableName + "." + tableAssessment.SpannerIndexDef[id].Name
+			row.targetDefinition = tableAssessment.SpannerIndexDef[id].Ddl
+
+			row.dbChangeEffort = "Automatic"
+			row.dbChanges = "None"
+			row.dbImpact = "None"
+		}
 
 		row.codeChangeEffort = "None"
 		row.codeChangeType = "None"
 		row.codeImpactedFiles = "None"
 		row.codeSnippets = "None"
-
 		*rows = append(*rows, row)
 	}
 }
@@ -423,11 +455,6 @@ func populateForeignKeys(tableAssessment utils.TableAssessment, spTableName stri
 		return
 	}
 	for id, fk := range tableAssessment.SourceTableDef.SourceForeignKey {
-		spFk, ok := tableAssessment.SpannerTableDef.SpannerForeignKey[id]
-		if !ok {
-			logger.Log.Warn(fmt.Sprintf("Foreign key %s not found in Spanner table definition for table %s", fk.Definition.Name, tableAssessment.SourceTableDef.Name))
-			continue // skip if Spanner foreign key is not found
-		}
 		row := SchemaReportRow{}
 		row.element = tableAssessment.SourceTableDef.Name + "." + fk.Definition.Name
 		row.elementType = "Foreign Key"
@@ -435,6 +462,26 @@ func populateForeignKeys(tableAssessment utils.TableAssessment, spTableName stri
 		row.sourceTableName = tableAssessment.SourceTableDef.Name
 		row.sourceName = fk.Definition.Name
 		row.sourceDefinition = fk.Ddl[strings.Index(fk.Ddl, "CONSTRAINT"):]
+
+		spFk, ok := tableAssessment.SpannerTableDef.SpannerForeignKey[id]
+		if !ok {
+			row.targetName = "N/A"
+			row.targetDefinition = "N/A"
+			row.actionItems = &[]string{"Spanner foreign key needs to be created manually"}
+
+			row.dbChangeEffort = "Small"
+			row.dbChanges = "Dropped"
+			row.dbImpact = ""
+
+			row.codeChangeEffort = "None"
+			row.codeChangeType = "None"
+			row.codeImpactedFiles = "None"
+			row.codeSnippets = "None"
+
+			*rows = append(*rows, row)
+			continue // skip if Spanner foreign key is not found
+		}
+
 		row.targetName = spTableName + "." + spFk.Definition.Name
 		row.targetDefinition = spFk.Ddl[strings.Index(spFk.Ddl, "CONSTRAINT"):]
 
@@ -806,6 +853,9 @@ func populateSequenceInfo(sequenceAssessmentOutput map[string]ddl.Sequence, tabl
 
 	srcTableIdToName := make(map[string]string)
 	for _, table := range tableAssessments {
+		if table.SourceTableDef == nil {
+			continue
+		}
 		srcTableIdToName[table.SourceTableDef.Id] = table.SourceTableDef.Name
 	}
 
