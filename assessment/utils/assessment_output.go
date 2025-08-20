@@ -148,7 +148,7 @@ type SrcColumnDetails struct {
 	Datatype               string
 	ArrayBounds            []int64
 	Mods                   []int64
-	IsNull                 bool
+	NotNull                bool
 	PrimaryKeyOrder        int
 	ForeignKey             []string
 	AutoGen                ddl.AutoGenCol
@@ -168,7 +168,7 @@ type SpColumnDetails struct {
 	Datatype        string
 	IsArray         bool
 	Len             int64
-	IsNull          bool
+	NotNull         bool
 	PrimaryKeyOrder int
 	ForeignKey      []string
 	AutoGen         ddl.AutoGenCol

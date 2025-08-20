@@ -468,7 +468,7 @@ func spannerColumnDefinitionToString(columnDefinition utils.SpColumnDetails) str
 			Len:     columnDefinition.Len,
 			IsArray: columnDefinition.IsArray,
 		},
-		NotNull: !columnDefinition.IsNull,
+		NotNull: columnDefinition.NotNull,
 	}
 	s, _ := columnDef.PrintColumnDef(ddl.Config{})
 	return s
@@ -506,7 +506,7 @@ func sourceColumnDefinitionToString(columnDefinition utils.SrcColumnDetails) str
 	if columnDefinition.DefaultValue.IsPresent {
 		s += " DEFAULT " + columnDefinition.DefaultValue.Value.Statement
 	}
-	if !columnDefinition.IsNull {
+	if columnDefinition.NotNull {
 		s += " NOT NULL"
 	}
 

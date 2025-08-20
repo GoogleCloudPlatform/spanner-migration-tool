@@ -137,6 +137,8 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Numeric:
+			return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Int64}, nil
 		}
