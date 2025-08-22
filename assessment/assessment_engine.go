@@ -149,6 +149,7 @@ func performQueryAssessment(ctx context.Context, collectors assessmentCollectors
 				Count: query.ExecutionCount,
 			})
 		} else {
+			query.SpannerTablesAffected = fetchSpannerTableNames(conv, query.SourceTablesAffected)
 			translationResult = append(translationResult, query)
 		}
 	}
@@ -158,13 +159,31 @@ func performQueryAssessment(ctx context.Context, collectors assessmentCollectors
 	}
 	translatedQueries, err := aiClientService.TranslateQueriesFunc(ctx, performanceSchemaQueries, aiClient, mysqlSchema, spannerSchema)
 	if translatedQueries != nil {
-		translationResult = append(translationResult, translatedQueries...)
+		for _, translatedQuery := range translatedQueries {
+			translatedQuery.SpannerTablesAffected = fetchSpannerTableNames(conv, translatedQuery.SourceTablesAffected)
+			translationResult = append(translationResult, translatedQuery)
+		}
 	}
 	logger.Log.Info("query assessment completed successfully.")
 	if err != nil {
 		return translationResult, fmt.Errorf("Error translating queries: %v", err)
 	}
 	return translationResult, nil
+}
+
+func fetchSpannerTableNames(conv *internal.Conv, tableNames []string) []string {
+	spannerTableNames := make([]string, 0, len(tableNames))
+	for _, tableName := range tableNames {
+		tableId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, tableName)
+		if err != nil {
+			logger.Log.Warn("error getting table id from source name", zap.String("tableName", tableName), zap.Error(err))
+			spannerTableNames = append(spannerTableNames, internal.GetSpannerValidName(conv, tableName))
+			continue
+		}
+		spannerTableName, _ := internal.GetSpannerTable(conv, tableId)
+		spannerTableNames = append(spannerTableNames, spannerTableName)
+	}
+	return spannerTableNames
 }
 
 // Initilize collectors. Take a decision here on which collectors are mandatory and which are optional

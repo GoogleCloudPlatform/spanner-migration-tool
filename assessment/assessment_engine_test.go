@@ -241,3 +241,60 @@ func TestPerformQueryAssessment(t *testing.T) {
 		assert.Equal(t, "INSERT INTO products", result[0].OriginalQuery)
 	})
 }
+
+func TestFetchSpannerTableNames(t *testing.T) {
+	conv := &internal.Conv{
+		SpDialect: constants.DIALECT_GOOGLESQL,
+		SrcSchema: map[string]schema.Table{
+			"t1": {Name: "table1", Id: "t1"},
+			"t2": {Name: "table2", Id: "t2"},
+		},
+		SpSchema: map[string]ddl.CreateTable{
+			"t1": {Name: "sp_table1", Id: "t1"},
+			"t2": {Name: "sp_table2", Id: "t2"},
+		},
+		UsedNames: map[string]bool{
+			"sp_table1": true,
+			"sp_table2": true,
+		},
+	}
+
+	tests := []struct {
+		name          string
+		tableNames    []string
+		expectedNames []string
+	}{
+		{
+			name:          "single table",
+			tableNames:    []string{"table1"},
+			expectedNames: []string{"sp_table1"},
+		},
+		{
+			name:          "multiple tables",
+			tableNames:    []string{"table1", "table2"},
+			expectedNames: []string{"sp_table1", "sp_table2"},
+		},
+		{
+			name:          "table not in source schema",
+			tableNames:    []string{"table3"},
+			expectedNames: []string{"table3"},
+		},
+		{
+			name:          "mix of existing and non-existing tables",
+			tableNames:    []string{"table1", "table4"},
+			expectedNames: []string{"sp_table1", "table4"},
+		},
+		{
+			name:          "empty input",
+			tableNames:    []string{},
+			expectedNames: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualNames := fetchSpannerTableNames(conv, tt.tableNames)
+			assert.Equal(t, tt.expectedNames, actualNames)
+		})
+	}
+}

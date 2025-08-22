@@ -702,7 +702,6 @@ func TestParseDaoFileChanges(t *testing.T) {
 							"number_of_query_occurances": 1,
 							"cross_db_joins": false,
 							"tables_affected": ["mytable"],
-							"ddl_statement": false,
 							"functions_used": ["NOW()"],
 							"operators_used": ["="],
 							"databases_referenced": ["db1"],
