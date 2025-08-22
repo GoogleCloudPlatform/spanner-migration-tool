@@ -23,7 +23,6 @@ type GcsFileReaderImpl struct {
 }
 
 func NewGcsFileReader(ctx context.Context, uri, host, path string) (*GcsFileReaderImpl, error) {
-	fmt.Printf("uri: %v, host: %v, path: %v\n", uri, host, path)
 	clientOptions := clients.FetchStorageClientOptions()
 	storageClient, err := GoogleStorageNewClient(ctx, clientOptions...)
 	if err != nil {

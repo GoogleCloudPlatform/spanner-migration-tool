@@ -607,19 +607,19 @@ func calculateTableDbChangesAndImpact(tableAssessment utils.TableAssessment) (st
 }
 
 func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) (string, string, string, *[]string) {
-	changes := []string{}
+	changesMap := make(map[string]bool)
 	impact := []string{}
 	changeEffort := "Automatic"
 	actionItems := []string{}
 	if !columnAssessment.CompatibleDataType { // TODO type specific checks on size
-		changes = append(changes, "type")
+		changesMap["type"] = true
 	}
 
 	srcCol := columnAssessment.SourceColDef
 	spCol := columnAssessment.SpannerColDef
 
 	if srcCol != nil && srcCol.IsOnUpdateTimestampSet { //TODO Add Code change effort for this
-		changes = append(changes, "feature")
+		changesMap["feature"] = true
 		changeEffort = "None"
 		actionItems = append(actionItems, "Update queries to include PENDING_COMMIT_TIMESTAMP")
 	}
@@ -629,7 +629,7 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 		case "NULL":
 			// Nothing to do - equivalent
 		default:
-			changes = append(changes, "feature")
+			changesMap["feature"] = true
 			changeEffort = "Small"
 			actionItems = append(actionItems, "Alter column to apply default value")
 		}
@@ -647,7 +647,7 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 	}
 
 	if srcCol != nil && srcCol.AutoGen.Name != "" && srcCol.AutoGen.GenerationType == constants.AUTO_INCREMENT {
-		changes = append(changes, "feature")
+		changesMap["feature"] = true
 	}
 	if srcCol != nil && srcCol.GeneratedColumn.IsPresent {
 		changeEffort = "Small"
@@ -655,6 +655,11 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 	}
 
 	//TODO add check for not null to null scenarios
+
+	changes := []string{}
+	for k := range changesMap {
+		changes = append(changes, k)
+	}
 
 	if len(changes) == 0 {
 		changes = append(changes, "None")
