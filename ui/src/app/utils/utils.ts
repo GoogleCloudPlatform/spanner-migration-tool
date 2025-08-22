@@ -35,6 +35,51 @@ export function downloadSession(conv: IConv) {
     a.click()
 }
 
+export function downloadOverrides(conv: IConv) {
+  var a = document.createElement('a')
+  // Extract overrides from conv object
+  const overrides = extractOverridesFromConv(conv)
+  let resJson = JSON.stringify(overrides, null, 2)
+  a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
+  a.download = `${conv.SessionName}_${conv.DatabaseType}_${conv.DatabaseName}_overrides.json`
+  a.click()
+}
+
+export function extractOverridesFromConv(conv: IConv) {
+  const overrides = {
+    renamedTables: {} as Record<string, string>,
+    renamedColumns: {} as Record<string, Record<string, string>>
+  }
+  //Extract renamed tables and columns from ToSpanner mapping
+  if (conv.ToSpanner && Object.keys(conv.ToSpanner).length > 0) {
+    for (const [srcTableName, nameAndCols] of Object.entries(conv.ToSpanner)) {
+      // Skip if nameAndCols is undefined or null
+      if (!nameAndCols || typeof nameAndCols !== 'object') {
+        continue
+      }
+      
+      // Check if Name property exists and is different from srcTableName
+      if (nameAndCols.Name && nameAndCols.Name !== srcTableName) {
+        overrides.renamedTables[srcTableName] = nameAndCols.Name
+      }
+
+      // Extract renamed columns
+      if (nameAndCols.Cols && Object.keys(nameAndCols.Cols).length > 0) {
+        for (const [srcColName, spColName] of Object.entries(nameAndCols.Cols)) {
+          if (spColName && spColName !== srcColName) {
+            if (!overrides.renamedColumns[srcTableName]) {
+              overrides.renamedColumns[srcTableName] = {}
+            }
+            overrides.renamedColumns[srcTableName][srcColName] = spColName
+          }
+        }
+      }
+    }
+  } 
+  
+  return overrides
+}
+
 export function groupAutoGenByType(autoGens: AutoGen[]): { [type: string]: AutoGen[] } {
   return autoGens.reduce((acc: { [type: string]: AutoGen[] }, autoGen: AutoGen) => {
     const type = autoGen.GenerationType;

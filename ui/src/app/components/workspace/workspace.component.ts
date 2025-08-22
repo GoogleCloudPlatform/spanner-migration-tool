@@ -12,7 +12,7 @@ import { InputType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.cons
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 import ConversionRate from 'src/app/model/conversion-rate'
 import { Router } from '@angular/router'
-import { downloadSession, extractSourceDbName } from 'src/app/utils/utils'
+import { downloadSession, extractSourceDbName, downloadOverrides, extractOverridesFromConv } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 import IViewAssesmentData from 'src/app/model/view-assesment'
 import IDbConfig from 'src/app/model/db-config'
@@ -296,9 +296,16 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     downloadSession(this.conv)
   }
 
+  downloadOverrides() {
+    downloadOverrides(this.conv)
+  }
+
   downloadArtifacts(){
     let zip = new JSZip()
     let fileNameHeader = `${this.conv.DatabaseName}`
+     
+    const overrides = extractOverridesFromConv(this.conv)
+    
     this.fetch.getDStructuredReport().subscribe({
       next: (resStructured: IStructuredReport) => {
         let resJson = JSON.stringify(resStructured).replace(/9223372036854776000/g, '9223372036854775807')
@@ -317,6 +324,12 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
                 let sessionFileName = `${this.conv.SessionName}_${this.conv.DatabaseType}_${fileNameHeader}.json`
                 // add session to zip file
                 zip.file(sessionFileName, resJsonSession)
+                
+                // Get overrides using the existing downloadOverrides method
+                let resJsonOverrides = JSON.stringify(overrides, null, 2)
+                let overridesFileName = `${this.conv.SessionName}_${this.conv.DatabaseType}_${fileNameHeader}_overrides.json`
+                zip.file(overridesFileName, resJsonOverrides)
+                
                 // Generate the zip file asynchronously
                 zip.generateAsync({ type: 'blob' })
                 .then((blob: Blob) => {

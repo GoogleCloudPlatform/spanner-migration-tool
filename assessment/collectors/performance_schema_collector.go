@@ -31,12 +31,12 @@ import (
 
 // PerformanceSchemaCollector collects performance schema data from source databases
 type PerformanceSchemaCollector struct {
-	queries []utils.QueryAssessmentInfo
+	Queries []utils.QueryAssessmentInfo
 }
 
 // IsEmpty checks if the collector has any data
 func (c PerformanceSchemaCollector) IsEmpty() bool {
-	return len(c.queries) == 0
+	return len(c.Queries) == 0
 }
 
 // GetDefaultPerformanceSchemaCollector creates a new PerformanceSchemaCollector with default settings
@@ -72,7 +72,7 @@ func GetPerformanceSchemaCollector(sourceProfile profiles.SourceProfile, dbConne
 		zap.Int("query_count", len(queries)))
 
 	return PerformanceSchemaCollector{
-		queries: queries,
+		Queries: queries,
 	}, nil
 }
 

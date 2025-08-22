@@ -18,5 +18,7 @@
 package utils
 
 const (
-	PARALLEL_TASK_RUNNER_COUNT int = 40
+	PARALLEL_TASK_RUNNER_COUNT int    = 40
+	GEMINI_PRO_MODEL           string = "gemini-1.5-pro-002"
+	GEMINI_FLASH_MODEL         string = "gemini-2.0-flash-001"
 )
