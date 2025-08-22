@@ -302,12 +302,11 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 			row.targetName = "N/A"
 			row.targetDefinition = "N/A"
 			row.dbChangeEffort = "Small"
+			row.dbChanges = "Unknown"
+			row.dbImpact = "None"
 			row.actionItems = &[]string{"Create Spanner table manually"}
 
-			row.codeChangeType = "None"
-			row.codeChangeEffort = "None"
-			row.codeImpactedFiles = "None"
-			row.codeSnippets = "None"
+			populateTableCodeImpact(*srcTable, utils.SpTableDetails{}, codeSnippets, &row)
 			rows = append(rows, row)
 			continue // skip if Spanner table definition is nil
 		}
@@ -342,12 +341,11 @@ func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []Schema
 				row.targetDefinition = "N/A"
 
 				row.dbChangeEffort = "Small"
+				row.dbChanges = "Unknown"
+				row.dbImpact = "None"
 				*row.actionItems = append(*row.actionItems, "Spanner column needs to be created manually")
 
-				row.codeChangeType = "None"
-				row.codeChangeEffort = "None"
-				row.codeImpactedFiles = "None"
-				row.codeSnippets = "None"
+				populateColumnCodeImpact(*column, utils.SpColumnDetails{}, codeSnippets, &row, columnAssessment)
 
 				rows = append(rows, row)
 				continue // skip if Spanner column definition is nil
@@ -393,8 +391,13 @@ func populateIndexes(tableAssessment utils.TableAssessment, spTableName string, 
 
 			row.dbChangeEffort = "Small"
 			row.dbChanges = "Unknown"
-			row.dbImpact = ""
+			row.dbImpact = "None"
 			row.actionItems = &[]string{"Create index manually"}
+
+			row.codeChangeEffort = "Unknown"
+			row.codeChangeType = "Manual"
+			row.codeImpactedFiles = "Unknown"
+			row.codeSnippets = ""
 
 		} else {
 			row.targetName = spTableName + "." + tableAssessment.SpannerIndexDef[id].Name
@@ -403,12 +406,12 @@ func populateIndexes(tableAssessment utils.TableAssessment, spTableName string, 
 			row.dbChangeEffort = "Automatic"
 			row.dbChanges = "None"
 			row.dbImpact = "None"
-		}
 
-		row.codeChangeEffort = "None"
-		row.codeChangeType = "None"
-		row.codeImpactedFiles = "None"
-		row.codeSnippets = "None"
+			row.codeChangeEffort = "None"
+			row.codeChangeType = "None"
+			row.codeImpactedFiles = "None"
+			row.codeSnippets = "None"
+		}
 		*rows = append(*rows, row)
 	}
 }
@@ -470,13 +473,13 @@ func populateForeignKeys(tableAssessment utils.TableAssessment, spTableName stri
 			row.actionItems = &[]string{"Spanner foreign key needs to be created manually"}
 
 			row.dbChangeEffort = "Small"
-			row.dbChanges = "Dropped"
-			row.dbImpact = ""
+			row.dbChanges = "Unknown"
+			row.dbImpact = "None"
 
-			row.codeChangeEffort = "None"
-			row.codeChangeType = "None"
-			row.codeImpactedFiles = "None"
-			row.codeSnippets = "None"
+			row.codeChangeEffort = "Unknown"
+			row.codeChangeType = "Manual"
+			row.codeImpactedFiles = "Unknown"
+			row.codeSnippets = ""
 
 			*rows = append(*rows, row)
 			continue // skip if Spanner foreign key is not found
