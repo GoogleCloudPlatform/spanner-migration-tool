@@ -2125,7 +2125,7 @@ func TestGenerateSchemaReport(t *testing.T) {
 			expectedRecords: [][]string{
 				header,
 				{"Table", "table with tabs", "table with tabs", "", "table_with_tabs", "N/A", "Automatic", "charset", "None", "Unavailable", "Unavailable", "Unavailable", "None"},
-				{"Column", "table with tabs", "col 1", " ON UPDATE CURRENT_TIMESTAMP", "table_with_tabs.col_1", "col_1 ", "None", "type,feature", "None", "Unavailable", "Unavailable", "Unavailable", "Update queries to include PENDING_COMMIT_TIMESTAMP"},
+				{"Column", "table with tabs", "col 1", " ON UPDATE CURRENT_TIMESTAMP", "table_with_tabs.col_1", "col_1 ", "None", "feature,type", "None", "Unavailable", "Unavailable", "Unavailable", "Update queries to include PENDING_COMMIT_TIMESTAMP"},
 			},
 		},
 	}

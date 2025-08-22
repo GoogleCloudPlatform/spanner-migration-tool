@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -663,10 +664,11 @@ func calculateColumnDbChangesAndImpact(columnAssessment utils.ColumnAssessment) 
 	for k := range changesMap {
 		changes = append(changes, k)
 	}
-
+	sort.Strings(changes)
 	if len(changes) == 0 {
 		changes = append(changes, "None")
 	}
+	sort.Strings(impact)
 	if len(impact) == 0 {
 		impact = append(impact, "None")
 	}
