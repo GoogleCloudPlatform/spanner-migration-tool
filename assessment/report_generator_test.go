@@ -260,8 +260,8 @@ func TestCalculateColumnDbChangesAndImpact(t *testing.T) {
 				CompatibleDataType:  false,
 				SizeIncreaseInBytes: 128,
 			},
-			wantChanges:     "type,feature",
-			wantImpact:      "storage increase,potential overflow",
+			wantChanges:     "feature,type",
+			wantImpact:      "potential overflow,storage increase",
 			wantEffort:      "Small",
 			wantActionItems: &[]string{"Update queries to include PENDING_COMMIT_TIMESTAMP", "Alter column to apply default value", "Update schema to add generated column"},
 		},
@@ -2125,7 +2125,7 @@ func TestGenerateSchemaReport(t *testing.T) {
 			expectedRecords: [][]string{
 				header,
 				{"Table", "table with tabs", "table with tabs", "", "table_with_tabs", "N/A", "Automatic", "charset", "None", "Unavailable", "Unavailable", "Unavailable", "None"},
-				{"Column", "table with tabs", "col 1", " ON UPDATE CURRENT_TIMESTAMP", "table_with_tabs.col_1", "col_1 ", "None", "type,feature", "None", "Unavailable", "Unavailable", "Unavailable", "Update queries to include PENDING_COMMIT_TIMESTAMP"},
+				{"Column", "table with tabs", "col 1", " ON UPDATE CURRENT_TIMESTAMP", "table_with_tabs.col_1", "col_1 ", "None", "feature,type", "None", "Unavailable", "Unavailable", "Unavailable", "Update queries to include PENDING_COMMIT_TIMESTAMP"},
 			},
 		},
 	}
