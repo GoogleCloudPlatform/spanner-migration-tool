@@ -570,6 +570,41 @@ func getInterleaveDetail(conv *internal.Conv, tableId string, colId string, issu
 			}
 		}
 	}
+	// Search for potential parents even if there is no foreign key.
+	// This is for INTERLEAVE IN, where we don't need an FK.
+	// We check if the child's PK has a prefix that matches a potential parent's PK.
+	// We assume that the column names and types are the same in this case.
+	childPks := make([]ddl.IndexKey, len(table.PrimaryKeys))
+	copy(childPks, table.PrimaryKeys)
+	sort.Slice(childPks, func(i, j int) bool { return childPks[i].Order < childPks[j].Order })
+
+	if len(childPks) > 0 && childPks[0].ColId == colId {
+		for pTableId, pTable := range conv.SpSchema {
+			if pTableId == tableId {
+				continue
+			}
+			parentPks := make([]ddl.IndexKey, len(pTable.PrimaryKeys))
+			copy(parentPks, pTable.PrimaryKeys)
+			sort.Slice(parentPks, func(i, j int) bool { return parentPks[i].Order < parentPks[j].Order })
+
+			if len(parentPks) > 0 && len(childPks) > len(parentPks) {
+				isPrefix := true
+				for i, pPk := range parentPks {
+					cPk := childPks[i]
+					if table.ColDefs[cPk.ColId].Name != pTable.ColDefs[pPk.ColId].Name || table.ColDefs[cPk.ColId].T != pTable.ColDefs[pPk.ColId].T {
+						isPrefix = false
+						break
+					}
+				}
+
+				if isPrefix && len(parentPks) == 1 {
+					if issueType == internal.InterleavedOrder {
+						return pTable.Name, "", ""
+					}
+				}
+			}
+		}
+	}
 	return "", "", ""
 }
 
