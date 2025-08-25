@@ -618,6 +618,11 @@ func getTypeModsAndID(conv *internal.Conv, columnType string) (string, []int64) 
 	if strings.Contains(id, " ") {
 		id = strings.TrimSuffix(columnType, " BINARY")
 	}
+	// Bigint unsigned comes as bigint(20) UNSIGNED in columnType and is treated as bigint in id.
+	// An extra check is added to respect the unsigned nature.
+	if id == "bigint" && strings.Contains(strings.ToUpper(columnType), "UNSIGNED") {
+		id = "bigint unsigned"
+	}
 	return id, mods
 }
 
