@@ -133,13 +133,16 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 			// capabilities between MySQL and Spanner NUMERIC.
 			return ddl.Type{Name: ddl.Numeric}, nil
 		}
-	case "bigint":
+ 	case "bigint", "bigint unsigned":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		case ddl.Numeric:
 			return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Widened}
 		default:
+			if srcType.Name == "bigint unsigned" {
+				return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.PossibleOverflow}
+			}
 			return ddl.Type{Name: ddl.Int64}, nil
 		}
 	case "smallint", "mediumint", "integer", "int":

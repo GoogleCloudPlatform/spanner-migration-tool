@@ -152,6 +152,7 @@ const (
 	CassandraUUID
 	CassandraTIMEUUID
 	CassandraMAP
+	PossibleOverflow
 )
 
 const (
