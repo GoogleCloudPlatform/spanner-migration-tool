@@ -18,6 +18,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"path/filepath"
+	"strings"
 	"time"
 
 	sp "cloud.google.com/go/spanner"
@@ -60,6 +62,22 @@ func metricsPopulation(ctx context.Context, driver string, conv *internal.Conv) 
 		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
 		ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
 	}
+}
+
+func GetSessionFileName(sessionFileName, filePrefix string) string {
+	if sessionFileName == "" {
+		return filePrefix + sessionFile
+	}
+
+	if !strings.HasSuffix(sessionFileName, ".json") {
+		ext := filepath.Ext(sessionFileName)
+		if ext != "" {
+			sessionFileName = strings.TrimSuffix(sessionFileName, ext)
+		}
+		sessionFileName += sessionFile
+	}
+
+	return sessionFileName
 }
 
 // CreateDatabaseClient creates new database client and admin client.
