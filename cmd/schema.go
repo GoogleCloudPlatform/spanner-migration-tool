@@ -38,16 +38,17 @@ import (
 
 // SchemaCmd struct with flags.
 type SchemaCmd struct {
-	source        string
-	sourceProfile string
-	target        string
-	targetProfile string
-	filePrefix    string // TODO: move filePrefix to global flags
-	project       string
-	logLevel      string
-	dryRun        bool
-	validate      bool
-	sessionJSON   string
+	source          string
+	sourceProfile   string
+	target          string
+	targetProfile   string
+	filePrefix      string // TODO: move filePrefix to global flags
+	project         string
+	logLevel        string
+	dryRun          bool
+	validate        bool
+	sessionJSON     string
+	sessionFileName string
 }
 
 // Name returns the name of operation.
@@ -83,6 +84,7 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
 	f.StringVar(&cmd.sessionJSON, "session", "", "Optional. Specifies the file we restore session state from.")
+	f.StringVar(&cmd.sessionFileName, "sessionfile-name", "", "Optional. Specifies the name of the file we store session state in.")
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -165,8 +167,11 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		return subcommands.ExitFailure
 	}
 	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out, sourceProfile.Driver)
+
 	// We always write the session file to accommodate for a re-run that might change anything.
-	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
+	sessionFileName := GetSessionFileName(cmd.sessionFileName, cmd.filePrefix)
+	conversion.WriteSessionFile(conv, sessionFileName, ioHelper.Out)
+
 	// Generate overrides file for schema mapping information
 	conversion.WriteOverridesFile(conv, cmd.filePrefix+overridesFile, ioHelper.Out)
 
