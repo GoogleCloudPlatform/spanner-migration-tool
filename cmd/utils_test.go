@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -72,3 +72,69 @@ func TestGetSessionFileName(t *testing.T) {
 		})
 	}
 }
+
+// func TestMetricsPopulation(t *testing.T) {
+// 	// Test cases for the metricsPopulation function.
+// 	// This function modifies the context by adding migration metadata.
+// 	// We test two primary scenarios:
+// 	// 1. When metrics population is enabled (default).
+// 	// 2. When metrics population is explicitly skipped.
+// 	testCases := []struct {
+// 		name                string
+// 		driver              string
+// 		skipMetrics         bool
+// 		expectMetadata      bool
+// 		expectedMigrationId string
+// 	}{
+// 		{
+// 			name:                "Metrics population enabled",
+// 			driver:              "mysql",
+// 			skipMetrics:         false,
+// 			expectMetadata:      true,
+// 			expectedMigrationId: "spanner-migration-tool:mysql:schema-conv:go",
+// 		},
+// 		{
+// 			name:           "Metrics population skipped",
+// 			driver:         "postgres",
+// 			skipMetrics:    true,
+// 			expectMetadata: false,
+// 		},
+// 	}
+
+// 	for _, tc := range testCases {
+// 		t.Run(tc.name, func(t *testing.T) {
+// 			conv := &internal.Conv{
+// 				Audit: internal.Audit{
+// 					SkipMetricsPopulation: tc.skipMetrics,
+// 				},
+// 			}
+// 			ctx := context.Background()
+
+// 			// Call the function to populate metrics.
+// 			metricsPopulation(ctx, tc.driver, conv)
+
+// 			// Retrieve outgoing metadata from the context.
+// 			md, ok := metadata.FromOutgoingContext(ctx)
+
+// 			if !tc.expectMetadata {
+// 				assert.False(t, ok, "Expected no outgoing metadata to be set")
+// 				return
+// 			}
+
+// 			// If metadata is expected, perform detailed checks.
+// 			assert.True(t, ok, "Expected outgoing metadata to be set")
+// 			values := md.Get(constants.MigrationMetadataKey)
+// 			assert.Len(t, values, 1, "Expected exactly one metadata value")
+
+// 			// Decode the metadata and verify its content.
+// 			decodedBytes, err := base64.StdEncoding.DecodeString(values[0])
+// 			assert.NoError(t, err, "Failed to decode metadata value")
+
+// 			var migrationData internal.MigrationData
+// 			err = proto.Unmarshal(decodedBytes, &migrationData)
+// 			assert.NoError(t, err, "Failed to unmarshal migration data protobuf")
+
+// 			assert.Equal(t, tc.expectedMigrationId, migrationData.MigrationId)
+// 		})
+// 	}
+// }

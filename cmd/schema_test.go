@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -114,7 +114,7 @@ func TestSchemaSetFlags(t *testing.T) {
 		},
 		{
 			testName: "Session JSON and Session File Name",
-			flagArgs: []string{"--session=test-session.json", "--session-filename=my-session.json"},
+			flagArgs: []string{"--session=test-session.json", "--session-file-name=my-session.json"},
 			expectedValues: SchemaCmd{
 				source:          "",
 				sourceProfile:   "",
@@ -142,7 +142,7 @@ func TestSchemaSetFlags(t *testing.T) {
 				"--dry-run",
 				"--validate",
 				"--session=restored-session.json",
-				"--session-filename=my-session.json",
+				"--session-file-name=my-session.json",
 			},
 			expectedValues: SchemaCmd{
 				source:          "MySQL",
