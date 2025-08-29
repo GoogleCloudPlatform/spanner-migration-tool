@@ -138,7 +138,7 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
 		},
 		{
 			testName: "Custom Dataflow Template and Proper Session File Name with Extension",
-			flagArgs: []string{"--dataflow-template=gs://my-bucket/my-template", "--session-filename=migration_session.json"},
+			flagArgs: []string{"--dataflow-template=gs://my-bucket/my-template", "--session-file-name=migration_session.json"},
 			expectedValues: SchemaAndDataCmd{
 				source:           "",
 				sourceProfile:    "",
@@ -168,7 +168,7 @@ func TestSchemaAndDataSetFlags(t *testing.T) {
 				"--skip-foreign-keys",
 				"--validate",
 				"--dataflow-template=gs://custom/template",
-				"--session-filename=my_session_file",
+				"--session-file-name=my_session_file",
 			},
 			expectedValues: SchemaAndDataCmd{
 				source:           "MySQL",
