@@ -74,7 +74,7 @@ func GetSessionFileName(sessionFileName, filePrefix string) string {
 		if ext != "" {
 			sessionFileName = strings.TrimSuffix(sessionFileName, ext)
 		}
-		sessionFileName += sessionFile
+		sessionFileName += ".json"
 	}
 
 	return sessionFileName
