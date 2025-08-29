@@ -84,7 +84,7 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.BoolVar(&cmd.validate, "validate", false, "Flag for validating if all the required input parameters are present")
 	f.StringVar(&cmd.sessionJSON, "session", "", "Optional. Specifies the file we restore session state from.")
-	f.StringVar(&cmd.sessionFileName, "sessionfile-name", "", "Optional. Specifies the name of the file we store session state in.")
+	f.StringVar(&cmd.sessionFileName, "session-filename", "", "Optional. Specifies the name of the file we store session state in.")
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
