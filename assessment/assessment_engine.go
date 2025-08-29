@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 
+	"cloud.google.com/go/vertexai/genai"
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
@@ -29,12 +30,14 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"go.uber.org/zap"
+	"google.golang.org/api/option"
 )
 
 type assessmentCollectors struct {
-	sampleCollector        *assessment.SampleCollector
-	infoSchemaCollector    *assessment.InfoSchemaCollector
-	appAssessmentCollector *assessment.MigrationCodeSummarizer
+	sampleCollector            *assessment.SampleCollector
+	infoSchemaCollector        *assessment.InfoSchemaCollector
+	appAssessmentCollector     *assessment.MigrationCodeSummarizer
+	performanceSchemaCollector *assessment.PerformanceSchemaCollector
 }
 
 type assessmentTaskInput struct {
@@ -104,7 +107,64 @@ func PerformAssessment(conv *internal.Conv, sourceProfile profiles.SourceProfile
 		}
 	}
 
+	combinedQueries := combineAndDeduplicateQueries(c.performanceSchemaCollector.Queries, output.AppCodeAssessment)
+	logger.Log.Info("Combined deduplicated queries", zap.Int("count", len(combinedQueries)))
+	translatedQueries, err := performQueryAssessment(ctx, c, combinedQueries, projectId, assessmentConfig, conv)
+	output.QueryAssessment = utils.QueryAssessmentOutput{QueryTranslationResult: &translatedQueries}
+	if err != nil {
+		logger.Log.Error("error translating queries", zap.Error(err))
+		return output, err
+	}
+
 	return output, nil
+}
+
+type AIClientService struct {
+	NewClientFunc        func(ctx context.Context, projectID, location string, opts ...option.ClientOption) (*genai.Client, error)
+	TranslateQueriesFunc func(ctx context.Context, queries []utils.QueryTranslationInput, aiClient *genai.Client, mysqlSchema, spannerSchema string) ([]utils.QueryTranslationResult, error)
+}
+
+var aiClientService = &AIClientService{
+	NewClientFunc:        genai.NewClient,
+	TranslateQueriesFunc: utils.TranslateQueriesToSpanner,
+}
+
+func performQueryAssessment(ctx context.Context, collectors assessmentCollectors, queries []utils.QueryTranslationResult, projectId string, assessmentConfig map[string]string, conv *internal.Conv) ([]utils.QueryTranslationResult, error) {
+	logger.Log.Info("starting query assessment...")
+	var performanceSchemaQueries []utils.QueryTranslationInput
+	var translationResult []utils.QueryTranslationResult
+
+	mysqlSchema := utils.GetDDL(conv.SrcSchema)
+	spannerSchema := strings.Join(
+		ddl.GetDDL(
+			ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"},
+			conv.SpSchema,
+			conv.SpSequences),
+		"\n")
+
+	for _, query := range queries {
+		if query.Source == "performance_schema" {
+			performanceSchemaQueries = append(performanceSchemaQueries, utils.QueryTranslationInput{
+				Query: query.NormalizedQuery,
+				Count: query.ExecutionCount,
+			})
+		} else {
+			translationResult = append(translationResult, query)
+		}
+	}
+	aiClient, err := aiClientService.NewClientFunc(ctx, projectId, assessmentConfig["location"])
+	if err != nil {
+		return translationResult, fmt.Errorf("Error creating ai client")
+	}
+	translatedQueries, err := aiClientService.TranslateQueriesFunc(ctx, performanceSchemaQueries, aiClient, mysqlSchema, spannerSchema)
+	if translatedQueries != nil {
+		translationResult = append(translationResult, translatedQueries...)
+	}
+	logger.Log.Info("query assessment completed successfully.")
+	if err != nil {
+		return translationResult, fmt.Errorf("Error translating queries: %v", err)
+	}
+	return translationResult, nil
 }
 
 // Initilize collectors. Take a decision here on which collectors are mandatory and which are optional
@@ -152,7 +212,61 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 		logger.Log.Info("app code info unavailable")
 	}
 
+	// Initialize Performance Schema Collector
+	logger.Log.Info("initializing performance schema collector")
+	performanceSchemaCollector, err := assessment.GetDefaultPerformanceSchemaCollector(sourceProfile)
+	if err != nil {
+		logger.Log.Warn("failed to initialize performance schema collector", zap.Error(err))
+		logger.Log.Info("performance schema assessment will be skipped")
+	} else {
+		c.performanceSchemaCollector = &performanceSchemaCollector
+		logger.Log.Info("initialized performance schema collector")
+	}
+
 	return c, err
+}
+
+func combineAndDeduplicateQueries(
+	performanceSchemaQueries []utils.QueryAssessmentInfo,
+	appCodeQueries *utils.AppCodeAssessmentOutput,
+) []utils.QueryTranslationResult {
+	queryMap := make(map[string]utils.QueryTranslationResult)
+
+	// Process queries from the performance schema collector first.
+	for _, q := range performanceSchemaQueries {
+		key := q.Query
+		queryMap[key] = utils.QueryTranslationResult{
+			OriginalQuery:   key,
+			NormalizedQuery: key,
+			Source:          "performance_schema",
+			ExecutionCount:  q.Count,
+		}
+	}
+
+	// Process and merge queries from the app code collector.
+	if appCodeQueries != nil && appCodeQueries.QueryTranslationResult != nil {
+		for _, q := range *appCodeQueries.QueryTranslationResult {
+			key := q.NormalizedQuery
+			if key == "" {
+				key = q.OriginalQuery
+				q.NormalizedQuery = q.OriginalQuery
+			}
+			if existingQuery, ok := queryMap[key]; ok {
+				q.Source = "app_code, performance_schema"
+				q.ExecutionCount = existingQuery.ExecutionCount
+				queryMap[key] = q
+			} else {
+				queryMap[key] = q
+			}
+		}
+
+	}
+	// Convert map back to slice.
+	var combinedQueries []utils.QueryTranslationResult
+	for _, q := range queryMap {
+		combinedQueries = append(combinedQueries, q)
+	}
+	return combinedQueries
 }
 
 func performSchemaAssessment(ctx context.Context, collectors assessmentCollectors) (*utils.SchemaAssessmentOutput, error) {
@@ -230,7 +344,7 @@ func performAppAssessment(ctx context.Context, collectors assessmentCollectors) 
 	}
 
 	logger.Log.Info("starting app assessment...")
-	codeAssessment, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
+	codeAssessment, queryResults, err := collectors.appAssessmentCollector.AnalyzeProject(ctx)
 
 	if err != nil {
 		logger.Log.Error("error analyzing project", zap.Error(err))
@@ -241,11 +355,12 @@ func performAppAssessment(ctx context.Context, collectors assessmentCollectors) 
 
 	logger.Log.Info("app assessment completed successfully.")
 	return &utils.AppCodeAssessmentOutput{
-		Language:     codeAssessment.Language,
-		Framework:    codeAssessment.Framework,
-		TotalLoc:     codeAssessment.TotalLoc,
-		TotalFiles:   codeAssessment.TotalFiles,
-		CodeSnippets: codeAssessment.Snippets,
+		Language:               codeAssessment.Language,
+		Framework:              codeAssessment.Framework,
+		TotalLoc:               codeAssessment.TotalLoc,
+		TotalFiles:             codeAssessment.TotalFiles,
+		CodeSnippets:           codeAssessment.Snippets,
+		QueryTranslationResult: &queryResults,
 	}, nil
 }
 

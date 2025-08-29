@@ -1,4 +1,4 @@
-FROM golang:1.23-bullseye AS builder
+FROM golang:1.24-bullseye AS builder
 
 # Disable cgo to remove gcc dependency
 ENV CGO_ENABLED=0
@@ -26,7 +26,7 @@ WORKDIR /app/go-spanner-cassandra
 RUN go build -o cassandra-spanner-proxy
 
 # --- Final Image ---
-FROM alpine:3.21
+FROM alpine:3.22
 
 # Install bash, ca-certificates, openssl, and update packages
 RUN apk update && \

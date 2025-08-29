@@ -16,6 +16,9 @@ package spanneraccessor
 import (
 	"context"
 
+	spanneradmin "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/admin"
+	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 )
 
@@ -24,20 +27,25 @@ import (
 type SpannerAccessorMock struct {
 	GetDatabaseDialectMock          func(ctx context.Context, dbURI string) (string, error)
 	CheckExistingDbMock             func(ctx context.Context, dbURI string) (bool, error)
-	CreateEmptyDatabaseMock         func(ctx context.Context, dbURI string) error
+	CreateEmptyDatabaseMock         func(ctx context.Context, dbURI, dialect string) error
 	GetSpannerLeaderLocationMock    func(ctx context.Context, instanceURI string) (string, error)
 	CheckIfChangeStreamExistsMock   func(ctx context.Context, changeStreamName, dbURI string) (bool, error)
 	ValidateChangeStreamOptionsMock func(ctx context.Context, changeStreamName, dbURI string) error
 	CreateChangeStreamMock          func(ctx context.Context, changeStreamName, dbURI string) error
 	CreateDatabaseMock              func(ctx context.Context, dbURI string, conv *internal.Conv, driver string, migrationType string) error
 	UpdateDatabaseMock              func(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error
-	CreateOrUpdateDatabaseMock      func(ctx context.Context, dbURI, driver string, conv *internal.Conv, migrationType string) error
-	VerifyDbMock                    func(ctx context.Context, dbURI string) (dbExists bool, err error)
-	ValidateDDLMock                 func(ctx context.Context, dbURI string) error
+	CreateOrUpdateDatabaseMock      func(ctx context.Context, dbURI, driver string, conv *internal.Conv, migrationType string, tablesExistingOnSpanner []string) error
+	VerifyDbMock                    func(ctx context.Context, dbURI string, conv *internal.Conv, tablesExistingOnSpanner []string) (dbExists bool, err error)
+	ValidateDDLMock                 func(ctx context.Context, conv *internal.Conv, tablesExistingOnSpanner []string) error
 	UpdateDDLForeignKeysMock        func(ctx context.Context, dbURI string, conv *internal.Conv, driver string, migrationType string)
 	DropDatabaseMock                func(ctx context.Context, dbURI string) error
 	ValidateDMLMock                 func(ctx context.Context, query string) (bool, error)
 	TableExistsMock                 func(ctx context.Context, tableName string) (bool, error)
+	GetDatabaseNameMock             func() string
+	RefreshMock                     func(ctx context.Context, dbURI string)
+	SetSpannerClientMock            func(spannerClient spannerclient.SpannerClient)
+	GetSpannerClientMock            func() spannerclient.SpannerClient
+	GetSpannerAdminClientMock       func() spanneradmin.AdminClient
 }
 
 func (sam *SpannerAccessorMock) GetDatabaseDialect(ctx context.Context, dbURI string) (string, error) {
@@ -48,8 +56,8 @@ func (sam *SpannerAccessorMock) CheckExistingDb(ctx context.Context, dbURI strin
 	return sam.CheckExistingDbMock(ctx, dbURI)
 }
 
-func (sam *SpannerAccessorMock) CreateEmptyDatabase(ctx context.Context, dbURI string) error {
-	return sam.CreateEmptyDatabaseMock(ctx, dbURI)
+func (sam *SpannerAccessorMock) CreateEmptyDatabase(ctx context.Context, dbURI, dialect string) error {
+	return sam.CreateEmptyDatabaseMock(ctx, dbURI, dialect)
 }
 
 func (sam *SpannerAccessorMock) GetSpannerLeaderLocation(ctx context.Context, instanceURI string) (string, error) {
@@ -74,14 +82,14 @@ func (sam *SpannerAccessorMock) CreateDatabase(ctx context.Context, dbURI string
 func (sam *SpannerAccessorMock) UpdateDatabase(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error {
 	return sam.UpdateDatabaseMock(ctx, dbURI, conv, driver)
 }
-func (sam *SpannerAccessorMock) CreateOrUpdateDatabase(ctx context.Context, dbURI, driver string, conv *internal.Conv, migrationType string) error {
-	return sam.CreateOrUpdateDatabaseMock(ctx, dbURI, driver, conv, migrationType)
+func (sam *SpannerAccessorMock) CreateOrUpdateDatabase(ctx context.Context, dbURI, driver string, conv *internal.Conv, migrationType string, tablesExistingOnSpanner []string) error {
+	return sam.CreateOrUpdateDatabaseMock(ctx, dbURI, driver, conv, migrationType, tablesExistingOnSpanner)
 }
-func (sam *SpannerAccessorMock) VerifyDb(ctx context.Context, dbURI string) (dbExists bool, err error) {
-	return sam.VerifyDbMock(ctx, dbURI)
+func (sam *SpannerAccessorMock) VerifyDb(ctx context.Context, dbURI string, conv *internal.Conv, tablesExistingOnSpanner []string) (dbExists bool, err error) {
+	return sam.VerifyDbMock(ctx, dbURI, conv, tablesExistingOnSpanner)
 }
-func (sam *SpannerAccessorMock) ValidateDDL(ctx context.Context, dbURI string) error {
-	return sam.ValidateDDLMock(ctx, dbURI)
+func (sam *SpannerAccessorMock) ValidateDDL(ctx context.Context, conv *internal.Conv, tablesExistingOnSpanner []string) error {
+	return sam.ValidateDDLMock(ctx, conv, tablesExistingOnSpanner)
 }
 func (sam *SpannerAccessorMock) UpdateDDLForeignKeys(ctx context.Context, dbURI string, conv *internal.Conv, driver string, migrationType string) {
 }
@@ -98,4 +106,23 @@ func (sam *SpannerAccessorMock) ValidateDML(ctx context.Context, query string) (
 
 func (sam *SpannerAccessorMock) TableExists(ctx context.Context, tableName string) (bool, error) {
 	return sam.TableExistsMock(ctx, tableName)
+}
+func (sam *SpannerAccessorMock) GetDatabaseName() string {
+	return sam.GetDatabaseNameMock()
+}
+
+func (sam *SpannerAccessorMock) Refresh(ctx context.Context, dbURI string) {
+	sam.RefreshMock(ctx, dbURI)
+}
+
+func (sam *SpannerAccessorMock) SetSpannerClient(spannerClient spannerclient.SpannerClient) {
+	sam.SetSpannerClientMock(spannerClient)
+}
+
+func (sam *SpannerAccessorMock) GetSpannerClient() spannerclient.SpannerClient {
+	return sam.GetSpannerClientMock()
+}
+
+func (sam *SpannerAccessorMock) GetSpannerAdminClient() spanneradmin.AdminClient {
+	return sam.GetSpannerAdminClientMock()
 }

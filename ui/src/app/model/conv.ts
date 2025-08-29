@@ -101,6 +101,7 @@ export interface IIndex {
 export interface IInterleavedParent{
   Id: string
   OnDelete: string
+  InterleaveType: string
 }
 
 // spanner schema
@@ -161,6 +162,7 @@ export interface IColumnDef {
   T: IType
   NotNull: boolean
   Comment: string
+  Opts: { [key: string]: string }
   AutoGen: IAutoGen
   DefaultValue: IDefaultValue
 }

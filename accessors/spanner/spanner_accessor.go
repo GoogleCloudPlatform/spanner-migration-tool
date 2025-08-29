@@ -20,6 +20,8 @@ import (
 	"sync"
 	"time"
 
+	sp "cloud.google.com/go/spanner"
+
 	"cloud.google.com/go/spanner"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	"cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
@@ -53,7 +55,7 @@ type SpannerAccessor interface {
 	// If API call doesn't respond then user is informed after every 5 minutes on command line.
 	CheckExistingDb(ctx context.Context, dbURI string) (bool, error)
 	// Create a database with no schema.
-	CreateEmptyDatabase(ctx context.Context, dbURI string) error
+	CreateEmptyDatabase(ctx context.Context, dbURI, dialect string) error
 	// Fetch the leader of the Spanner instance.
 	GetSpannerLeaderLocation(ctx context.Context, instanceURI string) (string, error)
 	// Check if a change stream already exists.
@@ -67,11 +69,11 @@ type SpannerAccessor interface {
 	// Update Database using conv
 	UpdateDatabase(ctx context.Context, dbURI string, conv *internal.Conv, driver string) error
 	// Updates an existing Spanner database or create a new one if one does not exist using Conv
-	CreateOrUpdateDatabase(ctx context.Context, dbURI, driver string, conv *internal.Conv, migrationType string) error
+	CreateOrUpdateDatabase(ctx context.Context, dbURI, driver string, conv *internal.Conv, migrationType string, tablesExistingOnSpanner []string) error
 	// Check whether the db exists and if it does, verify if the schema is what we currently support.
-	VerifyDb(ctx context.Context, dbURI string) (dbExists bool, err error)
+	VerifyDb(ctx context.Context, dbURI string, conv *internal.Conv, tablesExistingOnSpanner []string) (dbExists bool, err error)
 	// Verify if an existing DB's ddl follows what is supported by Spanner migration tool. Currently, we only support empty schema when db already exists.
-	ValidateDDL(ctx context.Context, dbURI string) error
+	ValidateDDL(ctx context.Context, conv *internal.Conv, tablesExistingOnSpanner []string) error
 	// UpdateDDLForeignKeys updates the Spanner database with foreign key constraints using ALTER TABLE statements.
 	UpdateDDLForeignKeys(ctx context.Context, dbURI string, conv *internal.Conv, driver string, migrationType string)
 	// Deletes a database.
@@ -80,6 +82,16 @@ type SpannerAccessor interface {
 	ValidateDML(ctx context.Context, query string) (bool, error)
 
 	TableExists(ctx context.Context, tableName string) (bool, error)
+
+	GetDatabaseName() string
+
+	Refresh(ctx context.Context, dbURI string)
+
+	SetSpannerClient(spannerClient spannerclient.SpannerClient)
+
+	GetSpannerClient() spannerclient.SpannerClient
+
+	GetSpannerAdminClient() spanneradmin.AdminClient
 }
 
 // This implements the SpannerAccessor interface. This is the primary implementation that should be used in all places other than tests.
@@ -148,11 +160,19 @@ func (sp *SpannerAccessorImpl) CheckExistingDb(ctx context.Context, dbURI string
 	}
 }
 
-func (sp *SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, dbURI string) error {
+func (sp *SpannerAccessorImpl) CreateEmptyDatabase(ctx context.Context, dbURI, dialect string) error {
 	project, instance, dbName := parse.ParseDbURI(dbURI)
+
+	dbDialect := databasepb.DatabaseDialect_GOOGLE_STANDARD_SQL
+
+	if dialect == constants.DIALECT_POSTGRESQL {
+		dbDialect = databasepb.DatabaseDialect_POSTGRESQL
+	}
+
 	req := &databasepb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
-		CreateStatement: "CREATE DATABASE `" + dbName + "`",
+		CreateStatement: fetchCreateDatabaseStatement(dialect, dbName),
+		DatabaseDialect: dbDialect,
 	}
 	op, err := sp.AdminClient.CreateDatabase(ctx, req)
 	if err != nil {
@@ -280,15 +300,11 @@ func (sp *SpannerAccessorImpl) CreateDatabase(ctx context.Context, dbURI string,
 	req := &adminpb.CreateDatabaseRequest{
 		Parent: fmt.Sprintf("projects/%s/instances/%s", project, instance),
 	}
+
+	req.CreateStatement = fetchCreateDatabaseStatement(conv.SpDialect, dbName)
 	if conv.SpDialect == constants.DIALECT_POSTGRESQL {
-		// PostgreSQL dialect doesn't support:
-		// a) backticks around the database name, and
-		// b) DDL statements as part of a CreateDatabase operation (so schema
-		// must be set using a separate UpdateDatabase operation).
-		req.CreateStatement = "CREATE DATABASE \"" + dbName + "\""
 		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
 	} else {
-		req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
 		if migrationType == constants.DATAFLOW_MIGRATION {
 			req.ExtraStatements = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences)
 		} else {
@@ -335,6 +351,9 @@ func (sp *SpannerAccessorImpl) UpdateDatabase(ctx context.Context, dbURI string,
 	// using backticks (to avoid any issues with Spanner reserved words).
 	// Foreign Keys are set to false since we create them post data migration.
 	schema := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences)
+	if len(schema) == 0 {
+		return nil
+	}
 	req := &adminpb.UpdateDatabaseDdlRequest{
 		Database:   dbURI,
 		Statements: schema,
@@ -354,8 +373,8 @@ func (sp *SpannerAccessorImpl) UpdateDatabase(ctx context.Context, dbURI string,
 }
 
 // CreatesOrUpdatesDatabase updates an existing Spanner database or creates a new one if one does not exist.
-func (sp *SpannerAccessorImpl) CreateOrUpdateDatabase(ctx context.Context, dbURI, driver string, conv *internal.Conv, migrationType string) error {
-	dbExists, err := sp.VerifyDb(ctx, dbURI)
+func (sp *SpannerAccessorImpl) CreateOrUpdateDatabase(ctx context.Context, dbURI, driver string, conv *internal.Conv, migrationType string, tablesExistingOnSpanner []string) error {
+	dbExists, err := sp.VerifyDb(ctx, dbURI, conv, tablesExistingOnSpanner)
 	if err != nil {
 		return err
 	}
@@ -377,28 +396,72 @@ func (sp *SpannerAccessorImpl) CreateOrUpdateDatabase(ctx context.Context, dbURI
 }
 
 // VerifyDb checks whether the db exists and if it does, verifies if the schema is what we currently support.
-func (sp *SpannerAccessorImpl) VerifyDb(ctx context.Context, dbURI string) (dbExists bool, err error) {
+func (sp *SpannerAccessorImpl) VerifyDb(ctx context.Context, dbURI string, conv *internal.Conv, tablesExistingOnSpanner []string) (dbExists bool, err error) {
 	dbExists, err = sp.CheckExistingDb(ctx, dbURI)
 	if err != nil {
 		return dbExists, err
 	}
 	if dbExists {
-		err = sp.ValidateDDL(ctx, dbURI)
+		err = sp.ValidateDDL(ctx, conv, tablesExistingOnSpanner)
 	}
 	return dbExists, err
 }
 
-// ValidateDDL verifies if an existing DB's ddl follows what is supported by Spanner migration tool. Currently,
-// we only support empty schema when db already exists.
-func (sp *SpannerAccessorImpl) ValidateDDL(ctx context.Context, dbURI string) error {
-	dbDdl, err := sp.AdminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{Database: dbURI})
-	if err != nil {
-		return fmt.Errorf("can't fetch database ddl: %v", err)
+// GetTableNamesFromSpanner queries INFORMATION_SCHEMA.TABLES and returns a list of lower-case table names in the database.
+func (sp *SpannerAccessorImpl) GetTableNamesFromSpanner(ctx context.Context, dialect, dbURI string, client *sp.Client) ([]string, error) {
+	var tableNames []string
+	dbExists, err := sp.CheckExistingDb(ctx, dbURI)
+	if err != nil || !dbExists {
+		return []string{}, err
 	}
-	if len(dbDdl.Statements) != 0 {
-		return fmt.Errorf("spanner migration tool supports writing to existing databases only if they have an empty schema")
+	var stmt spanner.Statement
+	if dialect == constants.DIALECT_POSTGRESQL {
+		stmt = spanner.Statement{SQL: "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'public'"}
+	} else {
+		stmt = spanner.Statement{SQL: "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ''"}
+	}
+	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	var tableName string
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("error reading table names from Spanner: %v", err)
+		}
+		err = row.Columns(&tableName)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning table name: %v", err)
+		}
+		tableNames = append(tableNames, strings.ToLower(tableName))
+	}
+	return tableNames, nil
+}
+
+// ValidateDDL verifies if an existing DB's tables overlap with those in conv.SpSchema. Returns error on first match.
+func (sp *SpannerAccessorImpl) ValidateDDL(ctx context.Context, conv *internal.Conv, tablesExistingOnSpanner []string) error {
+
+	tableNames := extractTableNamesFromSpSchema(conv.SpSchema)
+	// Convert tablesExistingOnSpanner slice to a map for efficient lookup
+	for _, tableName := range tableNames {
+		for _, existingTable := range tablesExistingOnSpanner {
+			if strings.ToLower(tableName) == strings.ToLower(existingTable) {
+				return fmt.Errorf("some tables to be created already exist in Spanner: %s. Remove them before proceeding", tableName)
+			}
+		}
 	}
 	return nil
+}
+
+// extractTableNamesFromSpSchema extracts table names from a ddl.Schema object (map of tableId to CreateTable).
+func extractTableNamesFromSpSchema(schema map[string]ddl.CreateTable) []string {
+	tableNames := make([]string, 0, len(schema))
+	for _, table := range schema {
+		tableNames = append(tableNames, table.Name)
+	}
+	return tableNames
 }
 
 // UpdateDDLForeignKeys updates the Spanner database with foreign key
@@ -508,6 +571,36 @@ func (sp *SpannerAccessorImpl) ValidateDML(ctx context.Context, query string) (b
 	}
 }
 
+func (sp *SpannerAccessorImpl) GetDatabaseName() string {
+	return sp.SpannerClient.DatabaseName()
+}
+
 func (sp *SpannerAccessorImpl) Refresh(ctx context.Context, dbURI string) {
 	sp.SpannerClient.Refresh(ctx, dbURI)
+}
+
+func (sp *SpannerAccessorImpl) SetSpannerClient(spannerClient spannerclient.SpannerClient) {
+	sp.SpannerClient = spannerClient
+}
+
+func (sp *SpannerAccessorImpl) GetSpannerClient() spannerclient.SpannerClient {
+	return sp.SpannerClient
+}
+
+func (sp *SpannerAccessorImpl) GetSpannerAdminClient() spanneradmin.AdminClient {
+	return sp.AdminClient
+}
+
+func fetchCreateDatabaseStatement(dialect string, databaseName string) string {
+
+	statementPattern := "CREATE DATABASE `%s`"
+	if dialect == constants.DIALECT_POSTGRESQL {
+		// PostgreSQL dialect doesn't support:
+		// a) backticks around the database name, and
+		// b) DDL statements as part of a CreateDatabase operation (so schema
+		// must be set using a separate UpdateDatabase operation).
+		statementPattern = "CREATE DATABASE \"%s\""
+	}
+
+	return fmt.Sprintf(statementPattern, databaseName)
 }

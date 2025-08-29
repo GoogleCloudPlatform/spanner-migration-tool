@@ -66,6 +66,7 @@ export class ObjectDetailComponent implements OnInit {
   interleaveObj!: Subscription
   interleaveStatus: any
   interleaveParentName: string | null = null
+  interleaveType: string | null = null
   localTableData: IColumnTabData[] = []
   localIndexData: IIndexData[] = []
   localSequenceData: ISequenceData = {}
@@ -219,6 +220,10 @@ export class ObjectDetailComponent implements OnInit {
     this.localIndexData = JSON.parse(JSON.stringify(this.indexData))
     this.localSequenceData = JSON.parse(JSON.stringify(this.sequenceData))
 
+    if (this.srcDbName === SourceDbNames.Cassandra && !this.spDisplayedColumns.includes('spCassandraOption')) {
+      this.spDisplayedColumns.splice(3, 0, 'spCassandraOption');
+    }
+
     if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
       this.spDisplayedColumns.splice(2, 0, "spAutoGen");
       this.displayedPkColumns.splice(8, 0, "spAutoGen");
@@ -236,6 +241,7 @@ export class ObjectDetailComponent implements OnInit {
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.checkIsInterleave()
+      this.interleaveType = this.getInterleaveTypeFromConv()
 
       this.interleaveObj = this.data.tableInterleaveStatus.subscribe((res) => {
         this.interleaveStatus = res
@@ -246,6 +252,7 @@ export class ObjectDetailComponent implements OnInit {
       this.setColumnsToAdd()
       this.setAddPkColumnList()
       this.setPkOrder()
+      this.setSrcPkOrder()
       this.setPkRows()
       this.setFkRows()
       this.setCCRows()
@@ -291,6 +298,7 @@ export class ObjectDetailComponent implements OnInit {
           srcId: new FormControl(row.srcId),
           spColMaxLength: new FormControl(row.spColMaxLength, [
             Validators.required]),
+          spCassandraOption: new FormControl(row.spCassandraOption),
           spAutoGen: new FormControl(row.spAutoGen),
           spDefaultValue: new FormControl(row.spDefaultValue ? row.spDefaultValue.Value.Statement : ''),
         })
@@ -356,6 +364,7 @@ export class ObjectDetailComponent implements OnInit {
             spId: new FormControl(col.spId),
             srcId: new FormControl(col.srcId),
             spColMaxLength: new FormControl(col.spColMaxLength),
+            spCassandraOption: new FormControl(col.spCassandraOption),
             spAutoGen: new FormControl(col.spAutoGen),
             spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
           })
@@ -394,6 +403,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
             spColMaxLength: new FormControl(droppedColumnSpMaxLength),
+            spCassandraOption: new FormControl(col.spCassandraOption),
             spAutoGen: new FormControl(col.spAutoGen),
             spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
           })
@@ -437,6 +447,13 @@ export class ObjectDetailComponent implements OnInit {
     this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
       for (let j = 0; j < this.tableData.length; j++) {
         let oldRow = this.tableData[j]
+        let newSpDataType: String
+        if (col.spDataType.startsWith('ARRAY<') && col.spDataType.endsWith('>')) {
+          newSpDataType = col.spDataType.substring(6, col.spDataType.length - 1)
+        } else {
+          newSpDataType = col.spDataType
+        }
+        col.spDataType = newSpDataType
         let standardDataType = pgSQLToStandardTypeTypemap.get(col.spDataType)
         if (col.spColMaxLength !== undefined && col.spColMaxLength !== 'MAX') {
           if ((col.spDataType === 'STRING' || col.spDataType === 'VARCHAR') && typeof col.spColMaxLength === "number" && col.spColMaxLength > ColLength.StringMaxLength) {
@@ -568,6 +585,7 @@ export class ObjectDetailComponent implements OnInit {
     this.localTableData[index].spIsPk = this.droppedColumns[addedRowIndex].spIsPk
     this.localTableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
     this.localTableData[index].spColMaxLength = this.droppedColumns[addedRowIndex].spColMaxLength
+    this.localTableData[index].spCassandraOption = this.droppedColumns[addedRowIndex].spCassandraOption
     this.localTableData[index].spAutoGen = this.droppedColumns[addedRowIndex].spAutoGen
     this.localTableData[index].spDefaultValue = this.droppedColumns[addedRowIndex].spDefaultValue
     let ind = this.droppedColumns
@@ -712,6 +730,7 @@ export class ObjectDetailComponent implements OnInit {
         col.spIsPk = false
         col.spOrder = ''
         col.spColMaxLength = ''
+        col.spCassandraOption = ''
         col.spAutoGen = {
           Name : '',
           GenerationType : ''
@@ -790,7 +809,9 @@ export class ObjectDetailComponent implements OnInit {
     spArr.sort((a, b) => {
       return a.spOrder - b.spOrder
     })
-
+    srcArr.sort((a, b) => {
+      return a.srcOrder - b.srcOrder
+    })
     for (let i = 0; i < Math.min(srcArr.length, spArr.length); i++) {
       this.pkArray.push(
         new FormGroup({
@@ -831,8 +852,10 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(false),
             spIsNotNull: new FormControl(false),
             spId: new FormControl(''),
-            spAutoGen: new FormControl(spArr[i].spAutoGen),
-            spDefaultValue: new FormControl(spArr[i].spDefaultValue),
+            spAutoGen: new FormControl({
+              Name: "",
+              GenerationType: ""
+            }),
           })
         )
       }
@@ -856,8 +879,7 @@ export class ObjectDetailComponent implements OnInit {
             spIsPk: new FormControl(spArr[i].spIsPk),
             spIsNotNull: new FormControl(spArr[i].spIsNotNull),
             spId: new FormControl(spArr[i].spId),
-            spAutoGen: new FormControl(spArr[i].spAutoGen),
-            spDefaultValue: new FormControl(spArr[i].spDefaultValue),
+            spAutoGen: new FormControl(spArr[i].spAutoGen)
           })
         )
       }
@@ -1074,6 +1096,7 @@ export class ObjectDetailComponent implements OnInit {
     })
     this.pkData[index].spOrder = newColumnOrder
     this.setAddPkColumnList()
+    this.setSrcPkOrder()
     this.setPkRows()
   }
 
@@ -1095,23 +1118,9 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setPkOrder() {
-    if (
-      this.currentObject &&
-      this.conv.SpSchema[this.currentObject!.id]?.PrimaryKeys.length == this.pkData.length
-    ) {
-      this.pkData.forEach((pk: IColumnTabData, i: number) => {
-        if (
-          this.pkData[i].spId === this.conv.SpSchema[this.currentObject!.id].PrimaryKeys[i].ColId
-        ) {
-          this.pkData[i].spOrder = this.conv.SpSchema[this.currentObject!.id].PrimaryKeys[i].Order
-        } else {
-          let index = this.conv.SpSchema[this.currentObject!.id].PrimaryKeys.map(
-            (item) => item.ColId
-          ).indexOf(pk.spId)
-          pk.spOrder = this.conv.SpSchema[this.currentObject!.id].PrimaryKeys[index]?.Order
-        }
-      })
-    } else {
+    if (!this.currentObject || !this.conv.SrcSchema[this.currentObject!.id]?.PrimaryKeys) {
+        return; // Early exit if there's no current object or primary key data
+    }
       this.pkData.forEach((pk: IColumnTabData, i: number) => {
         let index = this.conv.SpSchema[this.currentObject!.id]?.PrimaryKeys.map(
           (item) => item.ColId
@@ -1120,8 +1129,20 @@ export class ObjectDetailComponent implements OnInit {
           pk.spOrder = this.conv.SpSchema[this.currentObject!.id]?.PrimaryKeys[index].Order
         }
       })
-    }
   }
+
+  setSrcPkOrder() {
+    if (!this.currentObject || !this.conv.SrcSchema[this.currentObject!.id]?.PrimaryKeys) {
+        return; // Early exit if there's no current object or primary key data
+    }
+    const srcPrimaryKeys = this.conv.SrcSchema[this.currentObject!.id].PrimaryKeys;
+    this.pkData.forEach((pk: IColumnTabData) => {
+        let index = srcPrimaryKeys.map(item => item.ColId).indexOf(pk.srcId);
+        if (index !== -1) {
+            pk.srcOrder = srcPrimaryKeys[index].Order;
+        }
+    });
+}
 
   pkOrderValidation() {
     let arr = this.pkData
@@ -1186,6 +1207,7 @@ export class ObjectDetailComponent implements OnInit {
       this.pkData = this.conversion.getPkMapping(this.tableData)
       this.setAddPkColumnList()
       this.setPkOrder()
+      this.setSrcPkOrder()
       this.setPkRows()
       this.isPkEditMode = false
     } else {
@@ -1487,8 +1509,8 @@ export class ObjectDetailComponent implements OnInit {
     }
   }
 
-  setInterleave() {
-    this.data.setInterleave(this.currentObject!.id)
+  setInterleave(interleaveType: string) {
+    this.data.setInterleave(this.currentObject!.id, interleaveType)
   }
 
   getInterleaveParentFromConv() {
@@ -1497,6 +1519,15 @@ export class ObjectDetailComponent implements OnInit {
       !this.currentObject.isDeleted &&
       this.conv.SpSchema[this.currentObject.id].ParentTable.Id != ''
       ? this.conv.SpSchema[this.conv.SpSchema[this.currentObject.id].ParentTable.Id]?.Name
+      : null
+  }
+
+  getInterleaveTypeFromConv() {
+    return this.currentObject?.type === ObjectExplorerNodeType.Table &&
+      this.currentObject.isSpannerNode &&
+      !this.currentObject.isDeleted &&
+      this.conv.SpSchema[this.currentObject.id].ParentTable.Id != ''
+      ? this.conv.SpSchema[this.currentObject.id].ParentTable.InterleaveType
       : null
   }
 

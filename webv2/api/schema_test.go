@@ -1744,6 +1744,7 @@ func TestSetParentTable(t *testing.T) {
 		name                string
 		ct                  *internal.Conv
 		table               string
+		interleaveType      string
 		statusCode          int64
 		expectedResponse    *types.TableInterleaveStatus
 		expectedFKs         []ddl.Foreignkey
@@ -2005,10 +2006,58 @@ func TestSetParentTable(t *testing.T) {
 				},
 			},
 			table:               "t1",
+			interleaveType:      "IN",
 			statusCode:          http.StatusOK,
 			expectedResponse:    &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_NO_ACTION},
 			expectedFKs:         []ddl.Foreignkey{},
-			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
+			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
+			expectedTableIssues: []internal.SchemaIssue{},
+		},
+		{
+			name: "successful interleave missing interleaveType",
+			ct: &internal.Conv{
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:        "t1",
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}, Id: "f1", OnDelete: constants.FK_RESTRICT}},
+					},
+				},
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
+						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}, Id: "f1", OnDelete: constants.FK_NO_ACTION}},
+					},
+					"t2": {
+						Name:   "t2",
+						ColIds: []string{"c1", "c2", "c3"},
+						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
+					},
+				},
+				SchemaIssues: map[string]internal.TableIssues{
+					"t1": {
+						TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyOnDelete},
+						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+			},
+			table:               "t1",
+			statusCode:          http.StatusOK,
+			expectedResponse:    &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_NO_ACTION},
+			expectedFKs:         []ddl.Foreignkey{},
+			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN PARENT"},
 			expectedTableIssues: []internal.SchemaIssue{},
 		},
 		{
@@ -2052,10 +2101,11 @@ func TestSetParentTable(t *testing.T) {
 				},
 			},
 			table:               "t1",
+			interleaveType:      "IN",
 			statusCode:          http.StatusOK,
 			expectedResponse:    &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_CASCADE},
 			expectedFKs:         []ddl.Foreignkey{},
-			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
+			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN"},
 			expectedTableIssues: []internal.SchemaIssue{},
 		},
 		{
@@ -2111,10 +2161,11 @@ func TestSetParentTable(t *testing.T) {
 				},
 			},
 			table:               "t1",
+			interleaveType:      "IN",
 			statusCode:          http.StatusOK,
 			expectedResponse:    &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_NO_ACTION},
 			expectedFKs:         []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c3"}, ReferTableId: "t3", ReferColumnIds: []string{"c3"}, Id: "f1", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
-			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
+			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 			expectedTableIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete},
 		},
 	}
@@ -2124,7 +2175,7 @@ func TestSetParentTable(t *testing.T) {
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = tc.ct
 		update := true
-		req, err := http.NewRequest("GET", fmt.Sprintf("/setparent?table=%s&update=%v", tc.table, update), nil)
+		req, err := http.NewRequest("GET", fmt.Sprintf("/setparent?table=%s&interleaveType=%s&update=%v", tc.table, tc.interleaveType, update), nil)
 		if err != nil {
 			t.Fatal(err)
 		}

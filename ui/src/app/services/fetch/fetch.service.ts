@@ -29,7 +29,7 @@ export class FetchService {
   constructor(private http: HttpClient) {}
 
   connectTodb(payload: IDbConfig, dialect: string) {
-    const { dbEngine, isSharded, hostName, port, dbName, userName, password } = payload
+    const { dbEngine, isSharded, hostName, port, dbName, userName, password, dataCenter} = payload
     return this.http.post<HttpResponse<null>>(
       `${this.url}/connect`,
       {
@@ -41,6 +41,7 @@ export class FetchService {
         User: userName,
         Password: password,
         Dialect: dialect,
+        DataCenter: dataCenter,
       },
       { observe: 'response' }
     )
@@ -62,7 +63,7 @@ export class FetchService {
   }
 
   setSourceDBDetailsForDirectConnect(payload: IDbConfig) {
-    const { dbEngine, hostName, port, dbName, userName, password } = payload
+    const { dbEngine, hostName, port, dbName, userName, password, dataCenter} = payload
     return this.http.post(`${this.url}/SetSourceDBDetailsForDirectConnect`, {
       Driver: dbEngine,
       Host: hostName,
@@ -70,6 +71,7 @@ export class FetchService {
       Database: dbName,
       User: userName,
       Password: password,
+      DataCenter: dataCenter,
     })
   }
 
@@ -322,8 +324,8 @@ export class FetchService {
     return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableId}&update=false`)
   }
 
-  setInterleave(tableId: string) {
-    return this.http.get(`${this.url}/setparent?table=${tableId}&update=true`)
+  setInterleave(tableId: string, interleaveType: string) {
+    return this.http.get(`${this.url}/setparent?table=${tableId}&interleaveType=${interleaveType}&update=true`)
   }
 
   getSourceDestinationSummary() {

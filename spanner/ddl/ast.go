@@ -187,6 +187,7 @@ type ColumnDef struct {
 	Id           string
 	AutoGen      AutoGenCol
 	DefaultValue DefaultValue
+	Opts         map[string]string
 }
 
 // Config controls how AST nodes are printed (aka unparsed).
@@ -252,6 +253,15 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 		s += cd.DefaultValue.PrintDefaultValue(cd.T)
 		s += cd.AutoGen.PrintAutoGenCol()
 	}
+	var  opts []string
+	if cd.Opts != nil {
+		if opt, ok := cd.Opts["cassandra_type"]; ok && opt != "" {
+			opts = append(opts, fmt.Sprintf("cassandra_type = '%s'", opt))
+		}
+	}	
+	if len(opts) > 0 {
+		s += " OPTIONS (" + strings.Join(opts, ", ") + ")"
+	}
 	return s, cd.Comment
 }
 
@@ -300,10 +310,11 @@ type Foreignkey struct {
 
 // InterleavedParent encodes the following DDL definition:
 //
-//	INTERLEAVE IN PARENT parent_name ON DELETE delete_rule
+//	INTERLEAVE IN parent_name or INTERLEAVE IN PARENT parent_name ON DELETE delete_rule
 type InterleavedParent struct {
-	Id       string
-	OnDelete string
+	Id             string
+	OnDelete       string
+	InterleaveType string
 }
 
 // PrintForeignKey unparses the foreign keys.
@@ -383,12 +394,24 @@ func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 		if config.SpDialect == constants.DIALECT_POSTGRESQL {
 			// PG spanner only supports PRIMARY KEY() inside the CREATE TABLE()
 			// and thus INTERLEAVE follows immediately after closing brace.
-			interleave = " INTERLEAVE IN PARENT " + config.quote(parent)
+			// ON DELETE option is not supported by INTERLEAVE IN and is dropped.
+			if ct.ParentTable.InterleaveType == "IN" {
+				interleave = " INTERLEAVE IN " + config.quote(parent)
+			} else {
+				interleave = " INTERLEAVE IN PARENT " + config.quote(parent)
+				if ct.ParentTable.OnDelete != "" {
+					interleave = interleave + " ON DELETE " + ct.ParentTable.OnDelete
+				}
+			}
 		} else {
-			interleave = ",\nINTERLEAVE IN PARENT " + config.quote(parent)
-		}
-		if ct.ParentTable.OnDelete != "" {
-			interleave = interleave + " ON DELETE " + ct.ParentTable.OnDelete
+			if ct.ParentTable.InterleaveType == "IN" {
+				interleave = ",\nINTERLEAVE IN " + config.quote(parent)
+			} else {
+				interleave = ",\nINTERLEAVE IN PARENT " + config.quote(parent)
+				if ct.ParentTable.OnDelete != "" {
+					interleave = interleave + " ON DELETE " + ct.ParentTable.OnDelete
+				}
+			}
 		}
 	}
 

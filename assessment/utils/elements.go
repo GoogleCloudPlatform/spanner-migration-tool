@@ -111,10 +111,11 @@ type ViewAssessmentInfo struct {
 
 // Information relevant to assessment of queries
 type QueryAssessmentInfo struct {
-	db             DbIdentifier
-	name           string
-	lengthOfQuery  string
-	tablesAffected []string
+	Db             DbIdentifier
+	Query          string
+	LengthOfQuery  string
+	TablesAffected *[]string
+	Count          int
 }
 
 type Snippet struct {

@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
@@ -53,6 +54,9 @@ func addColumn(tableId string, colId string, conv *internal.Conv) {
 	}
 
 	conv.SpSchema[tableId] = sp
+
+	// Note: ToSpanner mapping is not updated for added columns
+	// since they don't have corresponding source columns
 }
 
 func AddNewColumn(w http.ResponseWriter, r *http.Request) {
@@ -89,12 +93,18 @@ func AddNewColumn(w http.ResponseWriter, r *http.Request) {
 	ct := sessionState.Conv.SpSchema[tableId]
 	columnId := internal.GenerateColumnId()
 	ct.ColIds = append(ct.ColIds, columnId)
-	ct.ColDefs[columnId] = ddl.ColumnDef{
-		Name: details.Name, Id: columnId, T: ddl.Type{Name: details.Datatype,
-			Len: int64(details.Length)},
+	colDef := ddl.ColumnDef{
+		Name:    details.Name,
+		Id:      columnId,
+		T:       ddl.Type{Name: details.Datatype, Len: int64(details.Length)},
 		NotNull: !details.IsNullable,
 		AutoGen: details.AutoGen,
 	}
+	if sessionState.Conv.Source == constants.CASSANDRA {
+		colDef.Opts = make(map[string]string)
+		colDef.Opts["cassandra_type"] = GetCassandraType(details.Datatype)
+	}
+	ct.ColDefs[columnId] = colDef
 	sessionState.Conv.SpSchema[tableId] = ct
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,

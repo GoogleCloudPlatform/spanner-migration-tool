@@ -1,9 +1,13 @@
-package import_data
+package import_file
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
+
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
+	"github.com/stretchr/testify/assert"
 
 	"cloud.google.com/go/spanner"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
@@ -29,12 +33,11 @@ func TestCsvSchemaImpl_CreateSchema(t *testing.T) {
 		{
 			name: "successful schema creation",
 			source: CsvSchemaImpl{
-				ProjectId:         "test-project",
-				InstanceId:        "test-instance",
-				DbName:            "test-db",
-				TableName:         "test-table",
-				SchemaUri:         "../test_data/basic_csv_schema.csv",
-				CsvFieldDelimiter: ",",
+				ProjectId:  "test-project",
+				InstanceId: "test-instance",
+				DbName:     "test-db",
+				TableName:  "test-table",
+				SchemaUri:  "../test_data/basic_csv_schema.json",
 			},
 			dialect:           constants.DIALECT_GOOGLESQL,
 			spannerClientMock: getSpannerClientMock(getDefaultRowIteratoMock()),
@@ -42,14 +45,27 @@ func TestCsvSchemaImpl_CreateSchema(t *testing.T) {
 			wantErr:           false,
 		},
 		{
+			name: "successful schema creation",
+			source: CsvSchemaImpl{
+				ProjectId:  "test-project",
+				InstanceId: "test-instance",
+				DbName:     "test-db",
+				TableName:  "test-table",
+				SchemaUri:  "../test_data/basic_csv_schema.json",
+			},
+			dialect:           constants.DIALECT_POSTGRESQL,
+			spannerClientMock: getSpannerClientMock(getDefaultRowIteratoMock()),
+			adminClientMock:   getSpannerAdminClientMock(nil),
+			wantErr:           false,
+		},
+		{
 			name: "table exists",
 			source: CsvSchemaImpl{
-				ProjectId:         "test-project",
-				InstanceId:        "test-instance",
-				DbName:            "test-db",
-				TableName:         "test-table",
-				SchemaUri:         "../test_data/basic_csv_schema.csv",
-				CsvFieldDelimiter: ",",
+				ProjectId:  "test-project",
+				InstanceId: "test-instance",
+				DbName:     "test-db",
+				TableName:  "test-table",
+				SchemaUri:  "../test_data/basic_csv_schema.json",
 			},
 			dialect: constants.DIALECT_GOOGLESQL,
 			spannerClientMock: getSpannerClientMock(&spannerclient.RowIteratorMock{
@@ -64,12 +80,11 @@ func TestCsvSchemaImpl_CreateSchema(t *testing.T) {
 		{
 			name: "update database ddl error",
 			source: CsvSchemaImpl{
-				ProjectId:         "test-project",
-				InstanceId:        "test-instance",
-				DbName:            "test-db",
-				TableName:         "test-table",
-				SchemaUri:         "../test_data/basic_csv_schema.csv",
-				CsvFieldDelimiter: ",",
+				ProjectId:  "test-project",
+				InstanceId: "test-instance",
+				DbName:     "test-db",
+				TableName:  "test-table",
+				SchemaUri:  "../test_data/basic_csv_schema.json",
 			},
 			dialect:           constants.DIALECT_GOOGLESQL,
 			spannerClientMock: getSpannerClientMock(getDefaultRowIteratoMock()),
@@ -82,11 +97,46 @@ func TestCsvSchemaImpl_CreateSchema(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			spannerAccessor := &spanneraccessor.SpannerAccessorImpl{SpannerClient: tt.spannerClientMock, AdminClient: tt.adminClientMock}
+			tt.source.SchemaFileReader, _ = file_reader.NewFileReader(ctx, tt.source.SchemaUri)
 			if err := tt.source.CreateSchema(ctx, tt.dialect, spannerAccessor); (err != nil) != tt.wantErr {
 				t.Errorf("CsvSchemaImpl.CreateSchema() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
+
+	t.Run("error in file reader", func(t *testing.T) {
+		fileReader := &file_reader.MockFileReader{
+			ReadAllFn: func(ctx context.Context) ([]byte, error) {
+				return nil, fmt.Errorf("test error")
+			},
+		}
+		source := CsvSchemaImpl{
+			ProjectId:        "test-project",
+			InstanceId:       "test-instance",
+			DbName:           "test-db",
+			SchemaFileReader: fileReader,
+		}
+		err := source.CreateSchema(ctx, "dialect", nil)
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "test error")
+	})
+
+	t.Run("error in parsing schema", func(t *testing.T) {
+		fileReader := &file_reader.MockFileReader{
+			ReadAllFn: func(ctx context.Context) ([]byte, error) {
+				return []byte{0}, nil
+			},
+		}
+		source := CsvSchemaImpl{
+			ProjectId:        "test-project",
+			InstanceId:       "test-instance",
+			DbName:           "test-db",
+			SchemaFileReader: fileReader,
+		}
+		err := source.CreateSchema(ctx, "dialect", nil)
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "invalid character")
+	})
 }
 
 func getSpannerAdminClientMock(err error) *spanneradmin.AdminClientMock {
@@ -137,7 +187,7 @@ func Test_getCreateTableStmt(t *testing.T) {
 				{"col2", "STRING(MAX)", false, 2},
 			},
 			dialect: constants.DIALECT_GOOGLESQL,
-			want:    "CREATE TABLE `test_table` (\n`col1` INT64 NOT NULL ,`col2` STRING(MAX)) PRIMARY KEY (`col1`,`col2`)",
+			want:    "CREATE TABLE `test_table` (`col1` INT64 NOT NULL ,`col2` STRING(MAX)) PRIMARY KEY (`col1`,`col2`)",
 		},
 		{
 			name:      "Postgres Dialect",
@@ -147,7 +197,7 @@ func Test_getCreateTableStmt(t *testing.T) {
 				{"col2", "STRING(MAX)", false, 2},
 			},
 			dialect: constants.DIALECT_POSTGRESQL,
-			want:    "CREATE TABLE `test_table` (\n`col1` INT64 NOT NULL ,`col2` STRING(MAX)) PRIMARY KEY (`col1`,`col2`)",
+			want:    "CREATE TABLE `test_table` (`col1` INT64 NOT NULL ,`col2` STRING(MAX)) PRIMARY KEY (`col1`,`col2`)",
 		},
 	}
 

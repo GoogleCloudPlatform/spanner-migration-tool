@@ -355,7 +355,7 @@ func getCheckConstraints(constraints []*ast.Constraint) (checkConstraints []sche
 // converts an AST expression node to its string representation.
 func expressionToString(expr ast.Node) string {
 	var sb strings.Builder
-	restoreCtx := format.NewRestoreCtx(format.DefaultRestoreFlags, &sb)
+	restoreCtx := format.NewRestoreCtx(format.RestoreStringSingleQuotes|format.RestoreKeyWordUppercase, &sb)
 	if err := expr.Restore(restoreCtx); err != nil {
 		fmt.Errorf("Error restoring expression: %v\n", err)
 		return ""
@@ -617,6 +617,11 @@ func getTypeModsAndID(conv *internal.Conv, columnType string) (string, []int64) 
 	// Eg: mediumblob BINARY. It needs to be trimmed to retrieve ID.
 	if strings.Contains(id, " ") {
 		id = strings.TrimSuffix(columnType, " BINARY")
+	}
+	// Bigint unsigned comes as bigint(20) UNSIGNED in columnType and is treated as bigint in id.
+	// An extra check is added to respect the unsigned nature.
+	if id == "bigint" && strings.Contains(strings.ToUpper(columnType), "UNSIGNED") {
+		id = "bigint unsigned"
 	}
 	return id, mods
 }

@@ -320,7 +320,7 @@ func TestSpannerAccessorImpl_CreateEmptyDatabase(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range testCases {
 		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
-		err := spA.CreateEmptyDatabase(ctx, "projects/test-project/instances/test-instance/databases/mydb")
+		err := spA.CreateEmptyDatabase(ctx, "projects/test-project/instances/test-instance/databases/mydb", constants.DIALECT_GOOGLESQL)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
@@ -587,6 +587,17 @@ func TestSpannerAccessorImpl_CreateDatabase(t *testing.T) {
 		dbURI := "projects/project-id/instances/instance-id/databases/database-id"
 		conv := internal.MakeConv()
 		conv.SpDialect = tc.dialect
+		conv.SpSchema = map[string]ddl.CreateTable{
+			"t1": {
+				Name:        "table1",
+				Id:          "t1",
+				PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+				ColIds:      []string{"c1"},
+				ColDefs: map[string]ddl.ColumnDef{
+					"c1": {Name: "col1", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+				},
+			},
+		}
 		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
 		err := spA.CreateDatabase(ctx, dbURI, conv, "", tc.migrationType)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
@@ -863,11 +874,12 @@ func TestSpannerAccessorImpl_CreateDatabase_exceeds_and_hit_limits(t *testing.T)
 
 func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 	testCases := []struct {
-		name          string
-		acm           spanneradmin.AdminClientMock
-		dialect       string
-		migrationType string
-		expectError   bool
+		name                    string
+		acm                     spanneradmin.AdminClientMock
+		dialect                 string
+		migrationType           string
+		expectError             bool
+		tablesExistingOnSpanner []string
 	}{
 		{
 			name: "GoogleSql Dataflow db does not exist",
@@ -880,13 +892,11 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 				GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
 					return nil, fmt.Errorf("database not found")
 				},
-				GetDatabaseDdlMock: func(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error) {
-					return &databasepb.GetDatabaseDdlResponse{}, nil
-				},
 			},
-			expectError:   false,
-			dialect:       "google_standard_sql",
-			migrationType: "dataflow",
+			expectError:             false,
+			dialect:                 "google_standard_sql",
+			migrationType:           "dataflow",
+			tablesExistingOnSpanner: []string{},
 		},
 		{
 			name: "GoogleSql Dataflow db exists",
@@ -899,13 +909,11 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 				GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
 					return &databasepb.Database{DatabaseDialect: databasepb.DatabaseDialect_GOOGLE_STANDARD_SQL}, nil
 				},
-				GetDatabaseDdlMock: func(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error) {
-					return &databasepb.GetDatabaseDdlResponse{}, nil
-				},
 			},
-			expectError:   true,
-			dialect:       "google_standard_sql",
-			migrationType: "dataflow",
+			expectError:             true,
+			dialect:                 "google_standard_sql",
+			migrationType:           "dataflow",
+			tablesExistingOnSpanner: []string{},
 		},
 		{
 			name: "Postgres Dataflow db exists",
@@ -913,13 +921,11 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 				GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
 					return &databasepb.Database{DatabaseDialect: databasepb.DatabaseDialect_GOOGLE_STANDARD_SQL}, nil
 				},
-				GetDatabaseDdlMock: func(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error) {
-					return &databasepb.GetDatabaseDdlResponse{}, nil
-				},
 			},
-			expectError:   true,
-			dialect:       "google_standard_sql",
-			migrationType: "dataflow",
+			expectError:             true,
+			dialect:                 "google_standard_sql",
+			migrationType:           "dataflow",
+			tablesExistingOnSpanner: []string{},
 		},
 		{
 			name: "Postgres bulk db exists",
@@ -932,13 +938,11 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 				GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
 					return &databasepb.Database{DatabaseDialect: databasepb.DatabaseDialect_GOOGLE_STANDARD_SQL}, nil
 				},
-				GetDatabaseDdlMock: func(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error) {
-					return &databasepb.GetDatabaseDdlResponse{}, nil
-				},
 			},
-			expectError:   false,
-			dialect:       "google_standard_sql",
-			migrationType: "bulk",
+			expectError:             false,
+			dialect:                 "google_standard_sql",
+			migrationType:           "bulk",
+			tablesExistingOnSpanner: []string{},
 		},
 		{
 			name: "GoogleSql Dataflow db get database error",
@@ -946,13 +950,11 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 				GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
 					return nil, fmt.Errorf("error")
 				},
-				GetDatabaseDdlMock: func(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error) {
-					return &databasepb.GetDatabaseDdlResponse{}, nil
-				},
 			},
-			expectError:   true,
-			dialect:       "google_standard_sql",
-			migrationType: "dataflow",
+			expectError:             true,
+			dialect:                 "google_standard_sql",
+			migrationType:           "dataflow",
+			tablesExistingOnSpanner: []string{},
 		},
 		{
 			name: "GoogleSql Dataflow db ddl statements nto empty",
@@ -960,32 +962,11 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 				GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
 					return &databasepb.Database{DatabaseDialect: databasepb.DatabaseDialect_GOOGLE_STANDARD_SQL}, nil
 				},
-				GetDatabaseDdlMock: func(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error) {
-					return &databasepb.GetDatabaseDdlResponse{Statements: []string{"string"}}, nil
-				},
 			},
-			expectError:   true,
-			dialect:       "google_standard_sql",
-			migrationType: "dataflow",
-		},
-		{
-			name: "GoogleSql Dataflow db get database ddl error",
-			acm: spanneradmin.AdminClientMock{
-				CreateDatabaseMock: func(ctx context.Context, req *databasepb.CreateDatabaseRequest, opts ...gax.CallOption) (spanneradmin.CreateDatabaseOperation, error) {
-					return &spanneradmin.CreateDatabaseOperationMock{
-						WaitMock: func(ctx context.Context, opts ...gax.CallOption) (*databasepb.Database, error) { return nil, nil },
-					}, nil
-				},
-				GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
-					return &databasepb.Database{DatabaseDialect: databasepb.DatabaseDialect_GOOGLE_STANDARD_SQL}, nil
-				},
-				GetDatabaseDdlMock: func(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error) {
-					return nil, fmt.Errorf("error")
-				},
-			},
-			expectError:   true,
-			dialect:       "google_standard_sql",
-			migrationType: "dataflow",
+			expectError:             true,
+			dialect:                 "google_standard_sql",
+			migrationType:           "dataflow",
+			tablesExistingOnSpanner: []string{"table_a"},
 		},
 		{
 			name: "Postgres bulk db exists update ddl error",
@@ -996,13 +977,11 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 				GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
 					return &databasepb.Database{DatabaseDialect: databasepb.DatabaseDialect_GOOGLE_STANDARD_SQL}, nil
 				},
-				GetDatabaseDdlMock: func(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error) {
-					return &databasepb.GetDatabaseDdlResponse{}, nil
-				},
 			},
-			expectError:   true,
-			dialect:       "google_standard_sql",
-			migrationType: "bulk",
+			expectError:             true,
+			dialect:                 "google_standard_sql",
+			migrationType:           "bulk",
+			tablesExistingOnSpanner: []string{},
 		},
 		{
 			name: "GoogleSql Dataflow db does not exist create error",
@@ -1013,22 +992,26 @@ func TestSpannerAccessorImpl_CreateOrUpdateDatabase(t *testing.T) {
 				GetDatabaseMock: func(ctx context.Context, req *databasepb.GetDatabaseRequest, opts ...gax.CallOption) (*databasepb.Database, error) {
 					return nil, fmt.Errorf("database not found")
 				},
-				GetDatabaseDdlMock: func(ctx context.Context, req *databasepb.GetDatabaseDdlRequest, opts ...gax.CallOption) (*databasepb.GetDatabaseDdlResponse, error) {
-					return &databasepb.GetDatabaseDdlResponse{}, nil
-				},
 			},
-			expectError:   true,
-			dialect:       "google_standard_sql",
-			migrationType: "dataflow",
+			expectError:             true,
+			dialect:                 "google_standard_sql",
+			migrationType:           "dataflow",
+			tablesExistingOnSpanner: []string{},
 		},
 	}
 	ctx := context.Background()
 	for _, tc := range testCases {
 		dbURI := "projects/project-id/instances/instance-id/databases/database-id"
 		conv := internal.MakeConv()
-		conv.SpDialect = tc.dialect
+		conv.SpSchema["t1"] = ddl.CreateTable{
+			Name:        "table_a",
+			ColIds:      []string{"c1"},
+			ColDefs:     map[string]ddl.ColumnDef{"c1": {Name: "col1", T: ddl.Type{Name: ddl.String, Len: 10}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+			Id:          "t1",
+		}
 		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
-		err := spA.CreateOrUpdateDatabase(ctx, dbURI, "", conv, tc.migrationType)
+		err := spA.CreateOrUpdateDatabase(ctx, dbURI, "", conv, tc.migrationType, tc.tablesExistingOnSpanner)
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
 	}
 }
@@ -1075,6 +1058,13 @@ func TestSpannerAccessorImpl_UpdateDatabase(t *testing.T) {
 	for _, tc := range testCases {
 		dbURI := "projects/project-id/instances/instance-id/databases/database-id"
 		conv := internal.MakeConv()
+		conv.SpSchema["t1"] = ddl.CreateTable{
+			Name:        "table_a",
+			ColIds:      []string{"c1"},
+			ColDefs:     map[string]ddl.ColumnDef{"c1": {Name: "col1", T: ddl.Type{Name: ddl.String, Len: 10}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+			Id:          "t1",
+		}
 		spA := SpannerAccessorImpl{AdminClient: &tc.acm}
 		err := spA.UpdateDatabase(ctx, dbURI, conv, "")
 		assert.Equal(t, tc.expectError, err != nil, tc.name)
@@ -1090,7 +1080,7 @@ func TestSpannerAccessorImpl_UpdateDDLForeignKey(t *testing.T) {
 		"table_id2": {
 			Name:        "table2",
 			Id:          "table_id2",
-			ParentTable: ddl.InterleavedParent{Id: "table1", OnDelete: constants.FK_CASCADE},
+			ParentTable: ddl.InterleavedParent{Id: "table1", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 			ForeignKeys: []ddl.Foreignkey{
 				{
 					Name:           "fk",
@@ -1104,7 +1094,7 @@ func TestSpannerAccessorImpl_UpdateDDLForeignKey(t *testing.T) {
 		"table_id3": {
 			Name:        "table3",
 			Id:          "table_id3",
-			ParentTable: ddl.InterleavedParent{Id: "table1", OnDelete: constants.FK_NO_ACTION},
+			ParentTable: ddl.InterleavedParent{Id: "table1", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN PARENT"},
 			ForeignKeys: []ddl.Foreignkey{
 				{
 					Name:           "fk2",
@@ -1241,4 +1231,50 @@ func TestValidateDML(t *testing.T) {
 		assert.False(t, isValid)
 		assert.NotNil(t, err) // Expect an error
 	})
+}
+
+func TestFetchCreateDatabaseStatement(t *testing.T) {
+	tests := []struct {
+		name         string
+		dialect      string
+		databaseName string
+		want         string
+	}{
+		{
+			name:         "PostgreSQL dialect",
+			dialect:      constants.DIALECT_POSTGRESQL,
+			databaseName: "mypgdb",
+			want:         `CREATE DATABASE "mypgdb"`,
+		},
+		{
+			name:         "Google Standard SQL dialect",
+			dialect:      constants.DIALECT_GOOGLESQL,
+			databaseName: "mydb",
+			want:         "CREATE DATABASE `mydb`",
+		},
+		{
+			name:         "Empty dialect (defaults to Google Standard SQL)",
+			dialect:      "",
+			databaseName: "anotherdb",
+			want:         "CREATE DATABASE `anotherdb`",
+		},
+		{
+			name:         "Database name with special characters for GoogleSQL",
+			dialect:      constants.DIALECT_GOOGLESQL,
+			databaseName: "my-db_123",
+			want:         "CREATE DATABASE `my-db_123`",
+		},
+		{
+			name:         "Database name with special characters for PostgreSQL",
+			dialect:      constants.DIALECT_POSTGRESQL,
+			databaseName: "my-pg_db",
+			want:         `CREATE DATABASE "my-pg_db"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := fetchCreateDatabaseStatement(tt.dialect, tt.databaseName)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
