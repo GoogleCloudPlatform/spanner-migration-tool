@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	mtrand "math/rand"
 	"sync"
+	"time"
 
 	spannerclient "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients/spanner/client"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
@@ -24,24 +26,27 @@ type ExpressionVerificationAccessor interface {
 
 type ExpressionVerificationAccessorImpl struct {
 	SpannerAccessor spanneraccessor.SpannerAccessor
+	tempDB          string
 }
 
 func NewExpressionVerificationAccessorImpl(ctx context.Context, project string, instance string) (*ExpressionVerificationAccessorImpl, error) {
 	var spannerAccessor *spanneraccessor.SpannerAccessorImpl
 	var err error
+	tempDb := fmt.Sprintf("%s_%s", constants.TEMP_DB, generateRandomString(10))
 	if project == "" || instance == "" {
 		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf(constants.DB_URI, project, instance, constants.TEMP_DB))
+		spannerAccessor, err = spanneraccessor.NewSpannerAccessorClientImplWithSpannerClient(ctx, fmt.Sprintf(constants.DB_URI, project, instance, tempDb))
 		if err != nil {
 			return nil, err
 		}
 	}
 	return &ExpressionVerificationAccessorImpl{
 		SpannerAccessor: spannerAccessor,
+		tempDB:          tempDb,
 	}, nil
 }
 
@@ -109,7 +114,7 @@ func (ev *ExpressionVerificationAccessorImpl) VerifyExpressions(ctx context.Cont
 }
 
 func (ev *ExpressionVerificationAccessorImpl) RefreshSpannerClient(ctx context.Context, project string, instance string) error {
-	spannerClient, err := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf(constants.DB_URI, project, instance, constants.TEMP_DB))
+	spannerClient, err := spannerclient.NewSpannerClientImpl(ctx, fmt.Sprintf(constants.DB_URI, project, instance, ev.tempDB))
 	if err != nil {
 		return err
 	}
@@ -243,4 +248,16 @@ func (ddlv *DDLVerifierImpl) GetSpannerExpressionDetails(conv *internal.Conv, ta
 
 func (ddlv *DDLVerifierImpl) RefreshSpannerClient(ctx context.Context, project string, instance string) error {
 	return ddlv.Expressions.RefreshSpannerClient(ctx, project, instance)
+}
+
+func generateRandomString(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	seed := mtrand.NewSource(time.Now().UnixNano())
+	random := mtrand.New(seed)
+
+	result := make([]byte, length)
+	for i := range result {
+		result[i] = charset[random.Intn(len(charset))]
+	}
+	return string(result)
 }

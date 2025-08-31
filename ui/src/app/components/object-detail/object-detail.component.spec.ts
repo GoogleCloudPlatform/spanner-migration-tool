@@ -11,26 +11,33 @@ import { MatDividerModule } from '@angular/material/divider'
 import { MatIconModule } from '@angular/material/icon'
 import { MatSnackBar} from '@angular/material/snack-bar'
 import { DataService } from 'src/app/services/data/data.service'
+import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import mockIConv from 'src/mocks/conv'
 import { of } from 'rxjs'
 import { FormBuilder } from '@angular/forms'
 import { FlatNode } from 'src/app/model/schema-object-node'
 import { DropObjectDetailDialogComponent } from '../drop-object-detail-dialog/drop-object-detail-dialog.component'
-import { ObjectDetailNodeType } from 'src/app/app.constants'
+import { Dialect, ObjectDetailNodeType, SourceDbNames } from 'src/app/app.constants'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
+import IUpdateTable from 'src/app/model/update-table'
 
 describe('ObjectDetailComponent', () => {
   let component: ObjectDetailComponent
   let fixture: ComponentFixture<ObjectDetailComponent>
   let dataServiceSpy: jasmine.SpyObj<DataService>;
+  let conversionServiceSpy: jasmine.SpyObj<ConversionService>
   let dialogSpyObj: jasmine.SpyObj<MatDialog>;
   let rowData: IColumnTabData[]
 
   beforeEach(async () => {
-    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence', 'updateCheckConstraint']);
+    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence', 'updateCheckConstraint', 'reviewTableUpdate']);
     dataServiceSpy.updateSequence.and.returnValue(of({}));
     dataServiceSpy.dropSequence.and.returnValue(of(''));
+    dataServiceSpy.reviewTableUpdate.and.returnValue(of(''));
     dialogSpyObj = jasmine.createSpyObj('MatDialog', ['open']);
+    conversionServiceSpy = jasmine.createSpyObj('ConversionService', [], {
+      pgSQLToStandardTypeTypeMap: of(new Map<String, String>()),
+    })
 
     await TestBed.configureTestingModule({
     declarations: [ObjectDetailComponent],
@@ -49,6 +56,10 @@ describe('ObjectDetailComponent', () => {
         {
             provide: MatDialog,
             useValue: dialogSpyObj
+        },
+        {
+          provide: ConversionService,
+          useValue: conversionServiceSpy,
         },
         provideHttpClient(withInterceptorsFromDi())
     ]
@@ -77,6 +88,7 @@ describe('ObjectDetailComponent', () => {
         spId: '1',
         srcColMaxLength: 50,
         spColMaxLength: 50,
+        spCassandraOption: '',
         spAutoGen: {
           Name: '',
           GenerationType: ''
@@ -109,6 +121,7 @@ describe('ObjectDetailComponent', () => {
         spId: '2',
         srcColMaxLength: 50,
         spColMaxLength: 50,
+        spCassandraOption: '',
         spAutoGen: {
           Name: '',
           GenerationType: ''
@@ -438,5 +451,50 @@ describe('ObjectDetailComponent', () => {
 
   })
 
+  it('should save column table for Cassandra source', () => {
+    component.srcDbName = SourceDbNames.Cassandra
+    component.conv.SpDialect = Dialect.GoogleStandardSQLDialect
+    component.currentObject = { id: 't1', name: 'test_table' } as FlatNode
+
+    const formBuilder = new FormBuilder()
+    component.spRowArray = formBuilder.array([
+      formBuilder.group({
+        srcId: 'c1',
+        spId: 'c1_sp',
+        spColName: 'spcol1_renamed',
+        spDataType: 'ARRAY<INT64>',
+        spIsPk: true,
+        spIsNotNull: true,
+        spColMaxLength: '',
+        spCassandraOption: 'list<bigint>', 
+        spAutoGen: { Name: '', GenerationType: '' },
+        spDefaultValue: '',
+      }),
+    ])
+    component.tableData = [
+      {
+        srcId: 'c1',
+        spId: 'c1_sp',
+        spColName: 'spcol1',
+      } as IColumnTabData,
+    ]
+    component.saveColumnTable()
+
+    const expectedPayload: IUpdateTable = {
+      UpdateCols: {
+        c1: {
+          Add: false,
+          Rename: 'spcol1_renamed',
+          NotNull: 'ADDED',
+          Removed: false,
+          ToType: 'INT64',
+          MaxColLength: '',
+          AutoGen: { Name: '', GenerationType: '' },
+          DefaultValue: { IsPresent: false, Value: { ExpressionId: '', Statement: '' } },
+        },
+      },
+    }
+    expect(dataServiceSpy.reviewTableUpdate).toHaveBeenCalledWith('t1', expectedPayload)
+  })
 
 });

@@ -105,7 +105,7 @@ The following table outlines the recommended Java object types for each Spanner 
 | JSON                            | jsonb                                 | String                                          |
 
 {: .highlight }
-Please refer to the sample implementation of **toSpannerRow** for most MySQL datatype columns [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationWithShardForIT.java#L44).
+Please refer to the sample implementation of **toSpannerRow** for most MySQL datatype columns [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationWithShardForLiveIT.java#L48).
 
 ### Reverse replication
 
@@ -148,13 +148,15 @@ The following table outlines format of the response string for each **MySQL** da
 | String                                                                              | FLOAT, DOUBLE, DECIMAL                                                           |
 | String                                                                              | BOOLEAN                                                                          |
 | String (**enclosed in single quotes**, e.g., 'Transformed text')                    | TEXT, ENUM, JSON, CHAR, LONGTEXT, MEDIUMTEXT, SET, TINYTEXT, VARCHAR             |
-| Binary String                                                                       | BLOB, BINARY, BIT, LONGBLOB, MEDIUMBLOB, TINYBLOB, VARBINARY                     |
+| String (**enclosed in single quotes**, e.g., 'Transformed binary')                   | BLOB, BINARY, BIT, LONGBLOB, MEDIUMBLOB, TINYBLOB, VARBINARY                     |
 | String (Format: yyyy-MM-dd **enclosed in single quotes**, e.g., '1995-01-13')       | DATE                                                                             |
 | String (UTC format,e.g. 2024-01-01T12:34:56Z)                                       | DATETIME, TIMESTAMP                                                              |
 | String (**enclosed in single quotes**)                                              | [Spatial Datatypes](https://dev.mysql.com/doc/refman/8.0/en/spatial-type-overview.html) |
 
+**To store a NULL value in any column, pass the string "NULL"(without single quotes) instead of a Java `null`.**
+
 {: .highlight }
-Please refer to the sample implementation of **toSourceRow** for most MySQL datatype columns [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationWithShardForIT.java#L145).
+Please refer to the sample implementation of **toSourceRow** for most MySQL datatype columns [here](https://github.com/GoogleCloudPlatform/DataflowTemplates/blob/main/v2/spanner-custom-shard/src/main/java/com/custom/CustomTransformationWithShardForLiveIT.java#L115).
 
 ## Steps to implement custom transformation
 1. Checkout the dataflow code from [github](https://github.com/GoogleCloudPlatform/DataflowTemplates)
@@ -197,9 +199,9 @@ Please refer to the sample implementation of **toSourceRow** for most MySQL data
 - If the custom JAR returns an extra column in response which is not present in the spanner schema then the record will be labelled as SEVERE error and moved to DLQ.
 
 ### Reverse replication
-- If the value of a column, received as a response from the custom JAR, cannot be successfully inserted into the source database then the reverse replication pipeline will stop processing records for the particular shard.
-- If the custom JAR returns a NULL value for a NOT NULL column, the record will encounter a failure during insertion and will stop processing records for the particular shard.
-- If the custom JAR returns an exception while processing a record then pipeline will deem the record as failed, will stop processing records for the particular shard and will increment the `custom_transformation_exception` metric.
+- If the value of a column, received as a response from the custom JAR, cannot be successfully inserted into the source database then the pipeline will deem the record as failed and label it as a SEVERE error in the DLQ.
+- If the custom JAR returns a NULL value for a NOT NULL column, the record will encounter a failure during insertion and will be labelled as a SEVERE error in the DLQ.
+- If the custom JAR returns an exception while processing a record then pipeline will deem the record as failed and will increment the `custom_transformation_exception` metric.
 - If the custom JAR returns an extra column in response which is not present in the spanner schema then the extra column will be ignored.
 
 

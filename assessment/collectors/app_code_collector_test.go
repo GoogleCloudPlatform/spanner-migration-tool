@@ -147,8 +147,10 @@ func TestExtractPublicMethodSignatures(t *testing.T) {
 	assert.Error(t, err)
 
 	missingKeyJSON := `{"other_key": "value"}`
-	_, err = summarizer.extractPublicMethodSignatures(missingKeyJSON)
-	assert.Error(t, err)
+	signatures, err = summarizer.extractPublicMethodSignatures(missingKeyJSON)
+	assert.NoError(t, err)
+	assert.NotNil(t, signatures)
+	assert.Len(t, signatures, 0)
 }
 
 func TestFormatQuestionsAndSearchResults(t *testing.T) {
@@ -157,13 +159,17 @@ func TestFormatQuestionsAndSearchResults(t *testing.T) {
 		{"Use Connection A.", "Use Connection B."},
 		{"Use Write-Op C."},
 	}
+	querySearchResults := [][]string{
+		{},
+		{},
+	}
 
-	formatted := formatQuestionsAndSearchResults(questions, searchResults)
+	formatted := formatQuestionsAndSearchResults(questions, searchResults, querySearchResults)
 	assert.Contains(t, formatted, "* **Question 1:** How to connect?")
-	assert.Contains(t, formatted, "* **Potential Solution 1:** Use Connection A.")
-	assert.Contains(t, formatted, "* **Potential Solution 2:** Use Connection B.")
+	assert.Contains(t, formatted, "* **Potential Code Solution 1:** Use Connection A.")
+	assert.Contains(t, formatted, "* **Potential Code Solution 2:** Use Connection B.")
 	assert.Contains(t, formatted, "* **Question 2:** How to write?")
-	assert.Contains(t, formatted, "* **Potential Solution 1:** Use Write-Op C.")
+	assert.Contains(t, formatted, "* **Potential Code Solution 1:** Use Write-Op C.")
 }
 
 func TestAnalyzeFileDependencies(t *testing.T) {

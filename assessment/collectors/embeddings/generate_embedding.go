@@ -24,6 +24,7 @@ import (
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/aiplatform/apiv1/aiplatformpb"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/option"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -37,6 +38,9 @@ var javaMysqlMigrationConcept []byte
 
 //go:embed vertx_concept_examples.json
 var vertxMysqlMigrationConcept []byte
+
+//go:embed hibernate_concept_examples.json
+var hibernateMysqlMigrationConcept []byte
 
 type MySqlMigrationConcept struct {
 	ID      string `json:"id"`
@@ -57,21 +61,7 @@ type PredictionClientInterface interface {
 	Close() error
 }
 
-func createEmbededTextsFromFile(project, location, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
-	ctx := context.Background()
-	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
-	model := "text-embedding-preview-0815"
-
-	client, err := aiplatform.NewPredictionClient(ctx, option.WithEndpoint(apiEndpoint))
-	if err != nil {
-		return nil, err
-	}
-	defer client.Close()
-
-	return createEmbededTextsWithClient(ctx, client, project, location, model, sourceTargetFramework)
-}
-
-func createEmbededTextsWithClient(ctx context.Context, client PredictionClientInterface, project, location, model, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
+func createCodeSampleEmbeddings(ctx context.Context, client PredictionClientInterface, project, location, model, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
 	var data []byte
 	switch sourceTargetFramework {
 	case "go-sql-driver/mysql_go-sql-spanner":
@@ -80,6 +70,8 @@ func createEmbededTextsWithClient(ctx context.Context, client PredictionClientIn
 		data = javaMysqlMigrationConcept
 	case "vertx-mysql-client_vertx-jdbc-client":
 		data = vertxMysqlMigrationConcept
+	case "hibernate_hibernate":
+		data = hibernateMysqlMigrationConcept
 	default:
 		return nil, fmt.Errorf("unsupported sourceTargetFramework: %s", sourceTargetFramework)
 	}
@@ -88,7 +80,18 @@ func createEmbededTextsWithClient(ctx context.Context, client PredictionClientIn
 	if err := json.Unmarshal(data, &concepts); err != nil {
 		return nil, err
 	}
+	return attachEmbeddings(ctx, client, project, location, model, concepts)
+}
 
+func createQuerySampleEmbeddings(ctx context.Context, client PredictionClientInterface, project, location, model string) ([]MySqlMigrationConcept, error) {
+	var queryExamples []MySqlMigrationConcept
+	if err := json.Unmarshal(utils.QueryTranslationExamples, &queryExamples); err != nil {
+		return nil, fmt.Errorf("failed to parse MySQL query examples JSON: %w", err)
+	}
+	return attachEmbeddings(ctx, client, project, location, model, queryExamples)
+}
+
+func attachEmbeddings(ctx context.Context, client PredictionClientInterface, project, location, model string, concepts []MySqlMigrationConcept) ([]MySqlMigrationConcept, error) {
 	var instances []*structpb.Value
 	for _, c := range concepts {
 		instances = append(instances, structpb.NewStructValue(&structpb.Struct{
@@ -111,11 +114,9 @@ func createEmbededTextsWithClient(ctx context.Context, client PredictionClientIn
 
 	for i, prediction := range resp.Predictions {
 		values := prediction.GetStructValue().GetFields()["embeddings"].GetStructValue().GetFields()["values"].GetListValue().GetValues()
-
 		if values == nil {
 			continue
 		}
-
 		embedding := make([]float32, len(values))
 		for j, v := range values {
 			if v == nil {
@@ -126,4 +127,17 @@ func createEmbededTextsWithClient(ctx context.Context, client PredictionClientIn
 		concepts[i].Embedding = embedding
 	}
 	return concepts, nil
+}
+
+// Helper to create a new Vertex AI Prediction client and return context, client, and model
+func newAIPredictionClient(location string) (context.Context, PredictionClientInterface, string, error) {
+	ctx := context.Background()
+	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
+	model := "text-embedding-preview-0815"
+
+	client, err := aiplatform.NewPredictionClient(ctx, option.WithEndpoint(apiEndpoint))
+	if err != nil {
+		return nil, nil, "", err
+	}
+	return ctx, client, model, nil
 }

@@ -22,7 +22,7 @@ import (
 	"github.com/gocql/gocql"
 )
 
-var once sync.Once
+var clusterConfigMux sync.Mutex
 var globalClusterConfig *gocql.ClusterConfig
 
 // newCluster is declared as a global variable for easy mocking of gocql.NewCluster during tests.
@@ -37,23 +37,24 @@ var createSessionFromCluster = func(c *gocql.ClusterConfig) (GocqlSessionInterfa
 }
 
 func GetOrCreateCassandraClusterClient(contactPoints []string, port int, keyspace, datacenter, user, password string) (CassandraClusterInterface, error) {
-	once.Do(func() {
-		clusterCfg := newCluster(contactPoints...)
-		clusterCfg.Keyspace = keyspace
-		clusterCfg.Consistency = gocql.Quorum
-		clusterCfg.Timeout = 10 * time.Second
-		clusterCfg.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: 3}
-		if port > 0 {
-			clusterCfg.Port = port
-		}
-		if user != "" {
-			clusterCfg.Authenticator = gocql.PasswordAuthenticator{Username: user, Password: password}
-		}
-		if datacenter != "" {
-			clusterCfg.PoolConfig.HostSelectionPolicy = gocql.DCAwareRoundRobinPolicy(datacenter)
-		}
-		globalClusterConfig = clusterCfg
-	})
+	clusterConfigMux.Lock()
+	defer clusterConfigMux.Unlock()
+	
+	clusterCfg := newCluster(contactPoints...)
+	clusterCfg.Keyspace = keyspace
+	clusterCfg.Consistency = gocql.Quorum
+	clusterCfg.Timeout = 10 * time.Second
+	clusterCfg.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: 3}
+	if port > 0 {
+		clusterCfg.Port = port
+	}
+	if user != "" {
+		clusterCfg.Authenticator = gocql.PasswordAuthenticator{Username: user, Password: password}
+	}
+	if datacenter != "" {
+		clusterCfg.PoolConfig.HostSelectionPolicy = gocql.DCAwareRoundRobinPolicy(datacenter)
+	}
+	globalClusterConfig = clusterCfg
 
 	wrappedSession, err := createSessionFromCluster(globalClusterConfig)
 

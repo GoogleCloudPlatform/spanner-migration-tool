@@ -40,7 +40,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		ty       string
 		expected ddl.Type
 	}{
-		{"varbinary(100)", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+		{"varbinary(100)", ddl.Type{Name: ddl.Bytes, Len: int64(100)}},
 		{"bigint", ddl.Type{Name: ddl.Int64}},
 		{"bool", ddl.Type{Name: ddl.Bool}},
 		{"boolean", ddl.Type{Name: ddl.Bool}},
@@ -63,6 +63,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		{"bit(1)", ddl.Type{Name: ddl.Bool}},
 		{"bit(5)", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 		{"smallint", ddl.Type{Name: ddl.Int64}},
+		{"bigint unsigned", ddl.Type{Name: ddl.Int64}},
 		{"text", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"tinytext", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"mediumtext", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -70,7 +71,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		{"enum('a','b')", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}},
 		{"datetime", ddl.Type{Name: ddl.Timestamp}},
-		{"binary", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+		{"binary", ddl.Type{Name: ddl.Bytes, Len: int64(1)}},
 		{"varchar(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
 	}
 	for _, tc := range scalarTests {
@@ -122,16 +123,17 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 	}{
 		{
 			name: "Shopping cart",
-			input: "CREATE TABLE cart (productid text, userid text, quantity bigint);\n" +
+			input: "CREATE TABLE cart (productid text, userid text, quantity bigint, price bigint unsigned);\n" +
 				"ALTER TABLE cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"cart": {
 					Name:   "cart",
-					ColIds: []string{"productid", "userid", "quantity"},
+					ColIds: []string{"productid", "userid", "quantity", "price"},
 					ColDefs: map[string]ddl.ColumnDef{
 						"productid": {Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						"userid":    {Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						"quantity":  {Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
+						"price":    {Name: "price", T: ddl.Type{Name: ddl.Int64}},
 					},
 					PrimaryKeys: []ddl.IndexKey{{ColId: "productid", Order: 1}, {ColId: "userid", Order: 2}}}},
 		},

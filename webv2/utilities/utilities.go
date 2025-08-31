@@ -25,6 +25,8 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/cassandra"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 )
@@ -357,6 +359,17 @@ func UpdateDataType(conv *internal.Conv, newType, tableId, colId string) error {
 	}
 	colDef := sp.ColDefs[colId]
 	colDef.T = ty
+	if conv.Source == constants.CASSANDRA {
+		toddl := cassandra.InfoSchemaImpl{}.GetToDdl()
+		if optionProvider, ok := toddl.(common.OptionProvider); ok {
+			srcCol := conv.SrcSchema[tableId].ColDefs[colId]
+			option := optionProvider.GetTypeOption(srcCol.Type.Name, ty)
+			if colDef.Opts == nil {
+				colDef.Opts = make(map[string]string)
+			}
+			colDef.Opts["cassandra_type"] = option
+		}
+	}
 	sp.ColDefs[colId] = colDef
 	return nil
 }

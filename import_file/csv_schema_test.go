@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"testing"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 	"github.com/stretchr/testify/assert"
-	"testing"
 
 	"cloud.google.com/go/spanner"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
@@ -186,7 +187,7 @@ func Test_getCreateTableStmt(t *testing.T) {
 				{"col2", "STRING(MAX)", false, 2},
 			},
 			dialect: constants.DIALECT_GOOGLESQL,
-			want:    "CREATE TABLE `test_table` (\n`col1` INT64 NOT NULL ,`col2` STRING(MAX)) PRIMARY KEY (`col1`,`col2`)",
+			want:    "CREATE TABLE `test_table` (`col1` INT64 NOT NULL ,`col2` STRING(MAX)) PRIMARY KEY (`col1`,`col2`)",
 		},
 		{
 			name:      "Postgres Dialect",
@@ -196,7 +197,7 @@ func Test_getCreateTableStmt(t *testing.T) {
 				{"col2", "STRING(MAX)", false, 2},
 			},
 			dialect: constants.DIALECT_POSTGRESQL,
-			want:    "CREATE TABLE `test_table` (\n`col1` INT64 NOT NULL ,`col2` STRING(MAX)) PRIMARY KEY (`col1`,`col2`)",
+			want:    "CREATE TABLE `test_table` (`col1` INT64 NOT NULL ,`col2` STRING(MAX)) PRIMARY KEY (`col1`,`col2`)",
 		},
 	}
 
