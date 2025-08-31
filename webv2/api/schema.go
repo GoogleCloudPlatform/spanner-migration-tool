@@ -19,6 +19,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal/reports"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/cassandra"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/mysql"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/oracle"
@@ -42,12 +43,14 @@ var mysqlDefaultTypeMap = make(map[string]ddl.Type)
 var postgresDefaultTypeMap = make(map[string]ddl.Type)
 var sqlserverDefaultTypeMap = make(map[string]ddl.Type)
 var oracleDefaultTypeMap = make(map[string]ddl.Type)
+var cassandraDefaultTypeMap = make(map[string]ddl.Type)
 
 var (
 	mysqlTypeMap     = make(map[string][]types.TypeIssue)
 	postgresTypeMap  = make(map[string][]types.TypeIssue)
 	sqlserverTypeMap = make(map[string][]types.TypeIssue)
 	oracleTypeMap    = make(map[string][]types.TypeIssue)
+	cassandraTypeMap = make(map[string][]types.TypeIssue)
 )
 
 var autoGenMap = make(map[string][]types.AutoGen)
@@ -68,7 +71,7 @@ func init() {
 // with postgres and mysql driver.
 func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	if sessionState.SourceDB == nil || sessionState.DbName == "" || sessionState.Driver == "" {
+	if (sessionState.SourceDB == nil && sessionState.Driver != constants.CASSANDRA) || sessionState.DbName == "" || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Database is not configured or Database connection is lost. Please set configuration and connect to database."), http.StatusNotFound)
 		return
 	}
@@ -107,6 +110,8 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 		err = processSchema.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.DbName, Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	case constants.ORACLE:
 		err = processSchema.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.DbName), Db: sessionState.SourceDB}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
+	case constants.CASSANDRA:
+		err = processSchema.ProcessSchema(conv, cassandra.InfoSchemaImpl{KeyspaceMetadata: sessionState.KeyspaceMetadata}, common.DefaultWorkers, additionalSchemaAttributes, &schemaToSpanner, &common.UtilsOrderImpl{}, &common.InfoSchemaImpl{})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -295,6 +300,8 @@ func SpannerDefaultTypeMap(w http.ResponseWriter, r *http.Request) {
 		typeMap = sqlserverDefaultTypeMap
 	case constants.ORACLE:
 		typeMap = oracleDefaultTypeMap
+	case constants.CASSANDRA:
+		typeMap = cassandraDefaultTypeMap	
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -324,6 +331,8 @@ func GetTypeMap(w http.ResponseWriter, r *http.Request) {
 		typeMap = sqlserverTypeMap
 	case constants.ORACLE:
 		typeMap = oracleTypeMap
+	case constants.CASSANDRA:
+		typeMap = cassandraTypeMap	
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -1174,6 +1183,8 @@ func (tableHandler *TableAPIHandler) restoreTableHelper(w http.ResponseWriter, t
 		toddl = sqlserver.InfoSchemaImpl{}.GetToDdl()
 	case constants.ORACLE:
 		toddl = oracle.InfoSchemaImpl{}.GetToDdl()
+	case constants.CASSANDRA:
+		toddl = cassandra.InfoSchemaImpl{}.GetToDdl()	
 	case constants.MYSQLDUMP:
 		toddl = mysql.DbDumpImpl{}.GetToDdl()
 	case constants.PGDUMP:
@@ -1678,6 +1689,52 @@ func initializeTypeMap() {
 		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType, false)
 		oracleDefaultTypeMap[srcTypeName] = ty
 		oracleTypeMap[srcTypeName] = l
+	}
+
+	// Initialize cassandraTypeMap
+	toddl = cassandra.InfoSchemaImpl{}.GetToDdl()
+	for _, srcTypeName := range []string{"tinyint", "smallint", "int", "bigint", "float", "double", "decimal", "varint", "text", "varchar", "ascii", "uuid", "timeuuid", "inet", "blob", "date", "timestamp", "time", "duration", "boolean", "counter"} {
+		var l []types.TypeIssue
+		srcType := schema.MakeType()
+		srcType.Name = srcTypeName
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType, false)
+			l = addTypeToList(ty.Name, spType, issues, l)
+		}
+		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType, false)
+		cassandraDefaultTypeMap[srcTypeName] = ty
+		cassandraTypeMap[srcTypeName] = l
+	}
+	// Include collection types in Type Mapping
+	for _, srcTypeName := range []string{"tinyint", "smallint", "int", "bigint", "float", "double", "decimal", "varint", "text", "varchar", "ascii", "uuid", "timeuuid", "inet", "blob", "date", "timestamp", "time", "duration", "boolean", "counter"} {
+		listType := fmt.Sprintf("list<%s>", srcTypeName)
+		setType  := fmt.Sprintf("set<%s>", srcTypeName)
+		var l []types.TypeIssue
+		srcType := schema.MakeType()
+		srcType.Name = listType
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType, false)
+			l = addTypeToList("ARRAY<"+ty.Name+">", "ARRAY<"+spType+">", issues, l)
+		}	
+		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType, false)
+		cassandraDefaultTypeMap[listType] = ty
+		cassandraTypeMap[listType] = l
+		cassandraDefaultTypeMap[setType] = ty
+		cassandraTypeMap[setType] = l
+	}
+	for _, keyTypeName := range []string{"tinyint", "smallint", "int", "bigint", "float", "double", "decimal", "varint", "text", "varchar", "ascii", "uuid", "timeuuid", "inet", "blob", "date", "timestamp", "time", "duration", "boolean", "counter"} {
+		for _, valueTypeName := range []string{"tinyint", "smallint", "int", "bigint", "float", "double", "decimal", "varint", "text", "varchar", "ascii", "uuid", "timeuuid", "inet", "blob", "date", "timestamp", "time", "duration", "boolean", "counter"} {
+			mapType := fmt.Sprintf("map<%s,%s>", keyTypeName, valueTypeName)
+			var l []types.TypeIssue
+			srcType := schema.MakeType()
+			srcType.Name = mapType
+			// Currently, the map type can't be edited, so it's only mapped to JSON.
+			ty, issues := toddl.ToSpannerType(sessionState.Conv, ddl.JSON, srcType, false)
+			l = addTypeToList(ty.Name, ddl.JSON, issues, l)
+			ty, _ = toddl.ToSpannerType(sessionState.Conv, "", srcType, false)
+			cassandraDefaultTypeMap[mapType] = ty
+			cassandraTypeMap[mapType] = l
+		}
 	}
 }
 

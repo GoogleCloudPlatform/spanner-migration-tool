@@ -53,6 +53,12 @@ type ToDdl interface {
 	GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error)
 }
 
+// CassandraOptionProvider is an interface that can be implemented by ToDdl
+// implementations for sources that provide specific type options, like Cassandra.
+type OptionProvider interface {
+	GetTypeOption(srcTypeName string, spType ddl.Type) string
+}
+
 type SchemaToSpannerInterface interface {
 	SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl, attributes internal.AdditionalSchemaAttributes) error
 	SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error
@@ -335,6 +341,15 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 
 	columnLevelIssues := make(map[string][]internal.SchemaIssue)
 
+	// Initialize ToSpanner mapping for this table
+	if conv.ToSpanner == nil {
+		conv.ToSpanner = make(map[string]internal.NameAndCols)
+	}
+	conv.ToSpanner[srcTable.Name] = internal.NameAndCols{
+		Name: spTableName,
+		Cols: make(map[string]string),
+	}
+
 	// Iterate over columns using ColNames order.
 	for _, srcColId := range srcTable.ColIds {
 		srcCol := srcTable.ColDefs[srcColId]
@@ -344,6 +359,10 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 			continue
 		}
 		spColIds = append(spColIds, srcColId)
+
+		// Add column mapping to ToSpanner
+		conv.ToSpanner[srcTable.Name].Cols[srcCol.Name] = colName
+
 		isPk := IsPrimaryKey(srcColId, srcTable)
 		ty, issues := toddl.ToSpannerType(conv, "", srcCol.Type, isPk)
 
@@ -389,7 +408,6 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 		if len(issues) > 0 {
 			columnLevelIssues[srcColId] = issues
 		}
-
 		spColDef[srcColId] = ddl.ColumnDef{
 			Name:    colName,
 			T:       ty,
@@ -397,6 +415,18 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			Id:      srcColId,
 			AutoGen: *autoGenCol,
+		}
+		// Initialise Opts only for Cassandra source
+		if conv.Source == constants.CASSANDRA {
+			colDef := spColDef[srcColId]
+			if optionProvider, ok := toddl.(OptionProvider); ok {
+				option := optionProvider.GetTypeOption(srcCol.Type.Name, ty)
+				if colDef.Opts == nil {
+					colDef.Opts = make(map[string]string)
+				}
+				colDef.Opts["cassandra_type"] = option
+			}
+			spColDef[srcColId] = colDef
 		}
 		if !checkIfColumnIsPartOfPK(srcColId, srcTable.PrimaryKeys) {
 			totalNonKeyColumnSize += getColumnSize(ty.Name, ty.Len)

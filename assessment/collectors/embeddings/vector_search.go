@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
 	"sort"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
@@ -37,8 +36,14 @@ type MysqlConceptDb struct {
 	data map[string]MySqlMigrationConcept
 }
 
-func NewMysqlConceptDb(projectId, location, language string) (*MysqlConceptDb, error) {
-	mysqlMigrationConcepts, err := createEmbededTextsFromFile(projectId, location, language)
+func NewMysqlToSpannerCodeDb(projectId, location, sourceTargetFramework string) (*MysqlConceptDb, error) {
+	ctx, client, model, err := newAIPredictionClient(location)
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
+	mysqlMigrationConcepts, err := createCodeSampleEmbeddings(ctx, client, projectId, location, model, sourceTargetFramework)
 	if err != nil {
 		return nil, err
 	}
@@ -50,20 +55,21 @@ func NewMysqlConceptDb(projectId, location, language string) (*MysqlConceptDb, e
 	return db, nil
 }
 
-func NewExampleDb(filePath string) (*MysqlConceptDb, error) {
-	file, err := os.Open(filePath)
+func NewMysqlToSpannerQueryDb(projectId, location string) (*MysqlConceptDb, error) {
+	ctx, client, model, err := newAIPredictionClient(location)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer client.Close()
 
-	var records []MySqlMigrationConcept
-	if err := json.NewDecoder(file).Decode(&records); err != nil {
+	mysqlQueryExamples, err := createQuerySampleEmbeddings(ctx, client, projectId, location, model)
+	if err != nil {
 		return nil, err
 	}
+
 	db := &MysqlConceptDb{data: make(map[string]MySqlMigrationConcept)}
-	for _, record := range records {
-		db.data[record.ID] = record
+	for _, concept := range mysqlQueryExamples {
+		db.data[concept.ID] = concept
 	}
 	return db, nil
 }
@@ -80,6 +86,9 @@ func cosineSimilarity(a, b []float32) float32 {
 	}
 	return dotProduct / (float32(math.Sqrt(float64(normA))) * float32(math.Sqrt(float64(normB))))
 }
+
+// We make embedTextsFunc a variable so it can be overridden in tests.
+var embedTextsFunc = embedTexts
 
 func embedTexts(project, location string, texts []string) ([][]float32, error) {
 	ctx := context.Background()
@@ -118,7 +127,6 @@ func embedTexts(project, location string, texts []string) ([][]float32, error) {
 		for j, value := range values {
 			vector[j] = float32(value.GetNumberValue())
 		}
-
 		embeddings = append(embeddings, vector)
 	}
 	return embeddings, nil
@@ -128,8 +136,7 @@ func (db *MysqlConceptDb) Search(searchTerms []string, project, location string,
 	if len(searchTerms) == 0 {
 		return nil
 	}
-	searchEmbeddings, err := embedTexts(project, location, searchTerms)
-
+	searchEmbeddings, err := embedTextsFunc(project, location, searchTerms)
 	if err != nil {
 		log.Fatalf("Failed to get embeddings: %v", err)
 	}
@@ -168,18 +175,3 @@ func (db *MysqlConceptDb) Search(searchTerms []string, project, location string,
 	}
 	return output
 }
-
-// Sample Usage
-// func main() {
-// 	db, err := NewExampleDb("output.json")
-// 	if err != nil {
-// 		log.Fatalf("Failed to load database: %v", err)
-// 	}
-
-// 	searchResults := db.Search([]string{
-// 		"How to migrate from `AUTO_INCREMENT` in PG to Spanner?",
-// 	}, "", "", 0.25, 3)
-
-// 	resultJSON, _ := json.MarshalIndent(searchResults, "", "  ")
-// 	logger.Log.Debug(string(resultJSON))
-// }

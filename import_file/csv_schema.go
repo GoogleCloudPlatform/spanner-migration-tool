@@ -151,9 +151,9 @@ func getCreateTableStmt(tableName string, colDef []ColumnDefinition, dialect str
 
 	var stmt string
 	if dialect == constants.DIALECT_POSTGRESQL {
-		stmt = fmt.Sprintf("CREATE TABLE %s (\n%s PRIMARY KEY (%s)\n)", quote(tableName), col, pk)
+		stmt = fmt.Sprintf("CREATE TABLE %s (%s PRIMARY KEY (%s))", quote(tableName), col, pk)
 	}
-	stmt = fmt.Sprintf("CREATE TABLE %s (\n%s) PRIMARY KEY (%s)", quote(tableName), col, pk)
+	stmt = fmt.Sprintf("CREATE TABLE %s (%s) PRIMARY KEY (%s)", quote(tableName), col, pk)
 	logger.Log.Debug(fmt.Sprintf("create table cmd %s ==", stmt))
 	return stmt
 }

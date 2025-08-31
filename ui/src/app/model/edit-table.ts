@@ -17,6 +17,7 @@ export default interface IColumnTabData {
   spId: string
   srcColMaxLength: Number | string | undefined
   spColMaxLength: Number | string | undefined
+  spCassandraOption: string
   srcAutoGen: AutoGen
   spDefaultValue: IDefaultValue
 }

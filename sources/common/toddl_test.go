@@ -722,3 +722,39 @@ func TestVerifyCheckConstraintExpressions(t *testing.T) {
 		})
 	}
 }
+
+func TestSchemaToSpannerDDLHelper_CassandraOpts(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.Source = constants.CASSANDRA
+
+	srcTable := schema.Table{
+		Name:   "users",
+		Id:     "t1",
+		ColIds: []string{"c1"},
+		ColDefs: map[string]schema.Column{
+			"c1": {Name: "user_id", Id: "c1", Type: schema.Type{Name: "uuid"}},
+		},
+	}
+
+	mockToddl := new(MockOptionProvider)
+
+	expectedSpannerType := ddl.Type{Name: ddl.String, Len: 36}
+	mockToddl.On("ToSpannerType", mock.Anything, "", mock.Anything, mock.Anything).Return(expectedSpannerType, []internal.SchemaIssue(nil))
+
+	expectedAnnotation := "uuid"
+	mockToddl.On("GetTypeOption", "uuid", expectedSpannerType).Return(expectedAnnotation)
+
+	ss := SchemaToSpannerImpl{} 
+	err := ss.SchemaToSpannerDDLHelper(conv, mockToddl, srcTable, false)
+
+	assert.Nil(t, err)
+	assert.Contains(t, conv.SpSchema, "t1", "Spanner schema for table t1 should be created")
+	spTable := conv.SpSchema["t1"]
+	assert.Contains(t, spTable.ColDefs, "c1", "Spanner column for c1 should be created")
+	spCol := spTable.ColDefs["c1"]
+	assert.NotNil(t, spCol.Opts)
+	assert.Contains(t, spCol.Opts, "cassandra_type")
+	assert.Equal(t, expectedAnnotation, spCol.Opts["cassandra_type"])
+	mockToddl.AssertCalled(t, "ToSpannerType", mock.Anything, "", mock.AnythingOfType("schema.Type"), mock.AnythingOfType("bool"))
+	mockToddl.AssertCalled(t, "GetTypeOption", "uuid", expectedSpannerType)
+}

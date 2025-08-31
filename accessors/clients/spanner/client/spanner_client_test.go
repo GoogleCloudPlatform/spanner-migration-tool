@@ -54,6 +54,22 @@ func TestGetOrCreateClient_Basic(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestGetOrCreateClient_ClientOpts(t *testing.T) {
+	resetTest()
+	ctx := context.Background()
+	_ = os.Setenv("GCLOUD_AUTH_PLUGIN", "true")
+	_ = os.Setenv("GCLOUD_AUTH_ACCESS_TOKEN", "access-token")
+	oldFunc := newClient
+	defer func() { newClient = oldFunc }()
+	newClient = func(ctx context.Context, database string, opts ...option.ClientOption) (*sp.Client, error) {
+		assert.Equal(t, len(opts), 1)
+		return &sp.Client{}, nil
+	}
+	c, err := GetOrCreateClient(ctx, "testURI")
+	assert.NotNil(t, c)
+	assert.Nil(t, err)
+}
+
 func TestGetOrCreateClient_OnlyOnceViaSync(t *testing.T) {
 	resetTest()
 	ctx := context.Background()

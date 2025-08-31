@@ -40,7 +40,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		ty       string
 		expected ddl.Type
 	}{
-		{"varbinary(100)", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+		{"varbinary(100)", ddl.Type{Name: ddl.Bytes, Len: int64(100)}},
 		{"bigint", ddl.Type{Name: ddl.Int64}},
 		{"bool", ddl.Type{Name: ddl.Bool}},
 		{"boolean", ddl.Type{Name: ddl.Bool}},
@@ -63,6 +63,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		{"bit(1)", ddl.Type{Name: ddl.Bool}},
 		{"bit(5)", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 		{"smallint", ddl.Type{Name: ddl.Int64}},
+		{"bigint unsigned", ddl.Type{Name: ddl.Int64}},
 		{"text", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"tinytext", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"mediumtext", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -70,7 +71,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		{"enum('a','b')", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}},
 		{"datetime", ddl.Type{Name: ddl.Timestamp}},
-		{"binary", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+		{"binary", ddl.Type{Name: ddl.Bytes, Len: int64(1)}},
 		{"varchar(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
 	}
 	for _, tc := range scalarTests {
@@ -122,16 +123,17 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 	}{
 		{
 			name: "Shopping cart",
-			input: "CREATE TABLE cart (productid text, userid text, quantity bigint);\n" +
+			input: "CREATE TABLE cart (productid text, userid text, quantity bigint, price bigint unsigned);\n" +
 				"ALTER TABLE cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"cart": {
 					Name:   "cart",
-					ColIds: []string{"productid", "userid", "quantity"},
+					ColIds: []string{"productid", "userid", "quantity", "price"},
 					ColDefs: map[string]ddl.ColumnDef{
 						"productid": {Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						"userid":    {Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						"quantity":  {Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
+						"price":    {Name: "price", T: ddl.Type{Name: ddl.Int64}},
 					},
 					PrimaryKeys: []ddl.IndexKey{{ColId: "productid", Order: 1}, {ColId: "userid", Order: 2}}}},
 		},
@@ -767,6 +769,45 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 			expectedData: []spannerData{
 				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(-1), int64(-88), int64(-44), int64(-22), float64(-444.9876)}}},
 		},
+		{
+			name: "create table check constraint",
+			input: "CREATE TABLE `Reviews` (" +
+				"`review_id` int NOT NULL AUTO_INCREMENT, " +
+				"`rating` tinyint unsigned DEFAULT NULL, " +
+				"`restaurant_id` bigint unsigned DEFAULT NULL, " +
+				"PRIMARY KEY (`review_id`), " +
+				"UNIQUE KEY `restaurant_id` (`restaurant_id`), " +
+				"CONSTRAINT `reviews_chk_1` CHECK (((`rating` >= 1) and (`rating` <= 5)))" +
+				");",
+			expectedSchema: map[string]ddl.CreateTable{
+				"Reviews": {
+					Name:   "Reviews",
+					ColIds: []string{"review_id", "rating"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"review_id":     {Name: "review_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"rating":        {Name: "rating", T: ddl.Type{Name: ddl.Int64}},
+						"restaurant_id": {Name: "restaurant_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "review_id", Order: 1}},
+					Indexes: []ddl.CreateIndex{
+						{
+							Name:   "restaurant_id",
+							Unique: true,
+							Keys:   []ddl.IndexKey{{ColId: "restaurant_id", Order: 1}},
+						},
+					},
+					CheckConstraints: []ddl.CheckConstraint{
+						{
+							Name:   "reviews_chk_1",
+							Expr:   "((rating>=1) AND (rating<=5))",
+							ExprId: "e2",
+							Id:     "cc3",
+						},
+					},
+				},
+			},
+			expectIssues: false,
+		},
 		// test with different timezone
 		{
 			name: "Data conversion:  text, timestamp, datetime, varchar",
@@ -776,14 +817,10 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 		INSERT INTO test (id, a, b, c, d) VALUES (1, 'my text', '2019-10-29 05:30:00', '2019-10-29 05:30:00', 'my varchar');
 		`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), "my text", getTime(t, "2019-10-29T05:30:00+02:30"), getTimeWithoutTimezone(t, "2019-10-29 05:30:00"), "my varchar"}}},
+				{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), "my text", getTime(t, "2019-10-29T05:30:00+02:30"), getTimeWithoutTimezone(t, "2019-10-29 05:30:00"), "my varchar"}}},
 		},
 	}
 	for _, tc := range multiColTests {
-		// if tc.name != "INSERT INTO with no primary key" {
-		// 	continue
-		// }
-
 		t.Run(tc.name, func(t *testing.T) {
 			conv, rows := runProcessMySQLDump(tc.input)
 			if !tc.expectIssues {

@@ -130,4 +130,41 @@ describe('DirectConnectionComponent', () => {
     fixture.detectChanges()
     expect(btn.nativeElement.disabled).toBeFalsy()
   })
+
+  describe('Cassandra Engine Tests', () => {
+    beforeEach(() => {
+      component.connectForm.get('dbEngine')?.setValue('cassandra')
+      fixture.detectChanges()
+    })
+
+    it('should have an invalid form if dataCenter is missing', () => {
+      component.connectForm.patchValue({
+        hostName: 'localhost',
+        userName: 'user',
+        dbName: 'keyspace1'
+      })
+      
+      const dataCenter = component.connectForm.get('dataCenter')
+      dataCenter?.setValue('')
+
+      expect(component.connectForm.valid).toBeFalsy()
+    })
+
+    it('should have a valid form and enabled button with all required fields', () => {
+        component.connectForm.patchValue({
+            hostName: 'localhost',
+            port: '9042',
+            userName: 'user',
+            password: 'pass',
+            dbName: 'keyspace1',
+            dataCenter: 'dc1',
+            dialect: 'google_standard_sql',
+        })
+
+        fixture.detectChanges()
+
+        expect(component.connectForm.valid).toBeTruthy()
+        expect(btn.nativeElement.disabled).toBeFalsy()
+    })
+  })
 })

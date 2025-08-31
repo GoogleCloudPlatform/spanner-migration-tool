@@ -54,6 +54,22 @@ func TestGetOrCreateClient_Basic(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestGetOrCreateClient_ClientOpts(t *testing.T) {
+	resetTest()
+	ctx := context.Background()
+	_ = os.Setenv("GCLOUD_AUTH_PLUGIN", "true")
+	_ = os.Setenv("GCLOUD_AUTH_ACCESS_TOKEN", "access-token")
+	oldFunc := newDatabaseAdminClient
+	defer func() { newDatabaseAdminClient = oldFunc }()
+	newDatabaseAdminClient = func(ctx context.Context, opts ...option.ClientOption) (*database.DatabaseAdminClient, error) {
+		assert.Equal(t, len(opts), 1)
+		return &database.DatabaseAdminClient{}, nil
+	}
+	c, err := GetOrCreateClient(ctx)
+	assert.NotNil(t, c)
+	assert.Nil(t, err)
+}
+
 func TestGetOrCreateClient_OnlyOnceViaSync(t *testing.T) {
 	resetTest()
 	ctx := context.Background()
