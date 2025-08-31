@@ -673,6 +673,11 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	internal.ForeignKeyActionNotSupported: {Brief: "Spanner supports foreign key action migration only for MySQL and PostgreSQL", Severity: warning, Category: "FOREIGN_KEY_ACTIONS"},
 	internal.NumericPKNotSupported:        {Brief: "Spanner PostgreSQL does not support numeric primary keys / unique indices", Severity: warning, Category: "NUMERIC_PK_NOT_SUPPORTED"},
 	internal.DefaultValueError:            {Brief: "Some columns have default value expressions not supported by Spanner. Please fix them to continue migration.", Severity: Errors, batch: true, Category: "INCOMPATIBLE_DEFAULT_VALUE_CONSTRAINTS"},
+	internal.PrecisionLoss:                {Brief: "Numeric only supports (38,9) precision. Be aware of potential precision loss due to type mapping.", Severity: warning, Category: "PRECISION_LOSS"},
+	internal.CassandraUUID:                {Brief: "Cassandra UUIDs map to Spanner's BYTES(16). This generic type doesn't validate UUID versions.", Severity: warning, Category: "CASSANDRA_UUID_USES"},
+	internal.CassandraTIMEUUID:            {Brief: "Cassandra TimeUUIDs map to Spanner's BYTES(16). This generic type doesn't validate embedded timestamps.", Severity: warning, Category: "CASSANDRA_TIMEUUID_USES"},
+	internal.CassandraMAP:                 {Brief: "Cassandra MAP type maps to Spanner's JSON. Spanner does not validate internal JSON structure or types, unlike Cassandra's MAP.", Severity: warning, Category: "CASSANDRA_MAP_USES"},
+	internal.PossibleOverflow:             {Brief: "Possible overflow in Spanner. Source type does not entirely fit inside Spanner's type. Please check if the data fits within the target type's limits.", Severity: warning, Category: "POSSIBLE_OVERFLOW"},
 }
 
 type Severity int

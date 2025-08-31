@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/file_reader"
 
@@ -37,12 +38,11 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
 	"github.com/google/subcommands"
-	"go.uber.org/zap"
 )
 
 type ImportDataCmd struct {
-	instanceId        string
-	databaseName      string
+	instance          string
+	database          string
 	tableName         string
 	sourceUri         string
 	sourceFormat      string
@@ -50,35 +50,50 @@ type ImportDataCmd struct {
 	csvLineDelimiter  string
 	csvFieldDelimiter string
 	project           string
-	dialect           string
+	databaseDialect   string
+	logLevel          string
 }
 
 func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
-	set.StringVar(&cmd.instanceId, "instance-id", "", "Spanner instance Id")
-	set.StringVar(&cmd.databaseName, "database-name", "", "Spanner database name")
+	set.StringVar(&cmd.instance, "instance", "", "Spanner instance Id")
+	set.StringVar(&cmd.database, "database", "", "Spanner database name. If one with the specified name does not exist, a new one will be created with the same")
 	set.StringVar(&cmd.tableName, "table-name", "", "Spanner table name. Optional. If not specified, source-uri name will be used")
 	set.StringVar(&cmd.sourceUri, "source-uri", "", "URI of the file to import")
-	set.StringVar(&cmd.sourceFormat, "source-format", "", "Format of the file to import. Valid values {csv, mysqldump}")
+	set.StringVar(&cmd.sourceFormat, "source-format", "", fmt.Sprintf("Format of the file to import. Valid values {%s, %s, %s}", constants.MYSQLDUMP, constants.PGDUMP, constants.CSV))
 	set.StringVar(&cmd.schemaUri, "schema-uri", "", "URI of the file with schema for the csv to import. Only non-optional for csv format.")
 	set.StringVar(&cmd.csvLineDelimiter, "csv-line-delimiter", "\n", "Token to be used as line delimiter for csv format. Optional. Defaults to '\\n'. Only used for csv format.")
 	set.StringVar(&cmd.csvFieldDelimiter, "csv-field-delimiter", ",", "Token to be used as field delimiter for csv format. Optional. Defaults to ','. Only used for csv format.")
 	set.StringVar(&cmd.project, "project", "", "Project id for all resources related to this import. Optional")
-	set.StringVar(&cmd.dialect, "dialect", constants.DIALECT_GOOGLESQL, "Dialect of the Spanner database. Optional. Defaults to google_standard_sql")
+	set.StringVar(&cmd.databaseDialect, "database-dialect", constants.DIALECT_GOOGLESQL, fmt.Sprintf("Spanner database dialect. Defaults to %s. Valid values {%s, %s}", constants.DIALECT_GOOGLESQL, constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL))
+	set.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 }
 
 func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
-	logger.Log.Debug(fmt.Sprintf("instanceId %s, dbName %s, schemaUri %s\n", cmd.instanceId, cmd.databaseName, cmd.schemaUri))
+	err := logger.InitializeLogger(cmd.logLevel)
+	if err != nil {
+		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
+		return subcommands.ExitFailure
+	}
+	logger.Log.Debug(fmt.Sprintf("instance %s, dbName %s, schemaUri %s\n", cmd.instance, cmd.database, cmd.schemaUri))
 
-	err := validateInputLocal(cmd)
+	err = validateInputLocal(cmd)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Input validation failed. Reason %v", err))
 		return subcommands.ExitFailure
 	}
 
-	dbURI := getDBUri(cmd.project, cmd.instanceId, cmd.databaseName)
+	dialect := getDialectWithDefaults(cmd.databaseDialect)
+	dbURI := getDBUri(cmd.project, cmd.instance, cmd.database)
+
 	spannerAccessor, err := validateSpannerAccessor(ctx, dbURI)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Input validation failed. Reason %v", err))
+		return subcommands.ExitFailure
+	}
+
+	err = createDatabase(ctx, dbURI, dialect, spannerAccessor)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Failed to create database. Reason %v", err))
 		return subcommands.ExitFailure
 	}
 
@@ -89,7 +104,6 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 	}
 
 	defer sourceReader.Close()
-	dialect := getDialectWithDefaults(cmd.dialect)
 
 	switch cmd.sourceFormat {
 	case constants.CSV:
@@ -101,8 +115,8 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 			return subcommands.ExitFailure
 		}
 		return subcommands.ExitSuccess
-	case constants.MYSQLDUMP:
-		err := cmd.handleDatabaseDumpFile(ctx, dbURI, constants.MYSQLDUMP, dialect, spannerAccessor, sourceReader)
+	case constants.MYSQLDUMP, constants.PGDUMP:
+		err := cmd.handleDatabaseDumpFile(ctx, dbURI, cmd.sourceFormat, dialect, spannerAccessor, sourceReader)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("Unable to handle MYSQL Dump %v. Please reachout to the support team.", err))
 			return subcommands.ExitFailure
@@ -112,6 +126,41 @@ func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...
 		logger.Log.Warn(fmt.Sprintf("format %s not supported yet", cmd.sourceFormat))
 	}
 	return subcommands.ExitFailure
+}
+
+func createDatabase(ctx context.Context, dbURI, targetDialect string, spannerAccessor spanneraccessor.SpannerAccessor) error {
+	if exists, _ := spannerAccessor.CheckExistingDb(ctx, dbURI); exists {
+
+		skipDialectValidation := os.Getenv("IMPORT_CMD_SKIP_DIALECT_VALIDATION")
+
+		// Only used for Emulator integration testing.
+		// TODO(b/406423609): Remove once Cl for fix within Emulator is release.
+		if skipDialectValidation == "true" {
+			return nil
+		}
+
+		dialect, err := spannerAccessor.GetDatabaseDialect(ctx, dbURI)
+		if err != nil {
+			return fmt.Errorf("unable to get database dialect %v", err)
+		}
+
+		if dialect != targetDialect {
+			return fmt.Errorf("database dialect is different for target dialect. Provided dialect: %s, Database dialect: %s", targetDialect, dialect)
+		}
+		return nil
+	}
+	return spannerAccessor.CreateEmptyDatabase(ctx, dbURI, targetDialect)
+}
+
+// validateSpannerAccessor validate if spanner is accessible by the provided dbURI. Return spannerAccessor, error.
+func validateSpannerAccessor(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
+	spannerAccessor, err := import_file.NewSpannerAccessor(ctx, dbURI)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client: %v", err))
+		return nil, fmt.Errorf("unable to instantiate spanner client: %v", err)
+	}
+
+	return spannerAccessor, nil
 }
 
 // validateUriRemote validate if source URI and schema URI are accessible. Return sourceReader, schemaReader, error.
@@ -146,16 +195,6 @@ func getDialectWithDefaults(dialect string) string {
 	}
 }
 
-// validateSpannerAccessor validate if spanner is accessible by the provided dbURI. Return spannerAccessor, error.
-func validateSpannerAccessor(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
-	spannerAccessor, err := import_file.NewSpannerAccessor(ctx, dbURI)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
-		return nil, fmt.Errorf("unable to instantiate spanner client %v", err)
-	}
-	return spannerAccessor, nil
-}
-
 /*
 1. instance Id is mandatory and accessible
 2. database name is mandatory and accessible
@@ -166,12 +205,12 @@ func validateSpannerAccessor(ctx context.Context, dbURI string) (spanneraccessor
 func validateInputLocal(input *ImportDataCmd) error {
 
 	var err error
-	if len(input.instanceId) == 0 {
-		return fmt.Errorf("Please specify instanceId using the --instance-id parameter. Received instanceId: %v", input.instanceId)
+	if len(input.instance) == 0 {
+		return fmt.Errorf("Please specify instance using the --instance parameter. Received instance: %v", input.instance)
 	}
 
-	if len(input.databaseName) == 0 {
-		return fmt.Errorf("Please specify databaseName using the --database-name parameter. Received  databaseName: %v", input.databaseName)
+	if len(input.database) == 0 {
+		return fmt.Errorf("Please specify databaseName using the --database parameter. Received  databaseName: %v", input.database)
 	}
 
 	if len(input.sourceUri) == 0 {
@@ -201,8 +240,8 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI, dialect string,
 	}
 
 	startTime := time.Now()
-	csvSchema := import_file.NewCsvSchema(cmd.project, cmd.instanceId,
-		cmd.databaseName, cmd.tableName, cmd.schemaUri, schemaReader)
+	csvSchema := import_file.NewCsvSchema(cmd.project, cmd.instance,
+		cmd.database, cmd.tableName, cmd.schemaUri, schemaReader)
 	err = csvSchema.CreateSchema(ctx, dialect, sp)
 
 	endTime1 := time.Now()
@@ -212,8 +251,8 @@ func (cmd *ImportDataCmd) handleCsv(ctx context.Context, dbURI, dialect string,
 		return err
 	}
 
-	csvData := import_file.NewCsvData(cmd.project, cmd.instanceId,
-		cmd.databaseName, cmd.tableName, cmd.sourceUri, cmd.csvFieldDelimiter, sourceReader)
+	csvData := import_file.NewCsvData(cmd.project, cmd.instance,
+		cmd.database, cmd.tableName, cmd.sourceUri, cmd.csvFieldDelimiter, sourceReader)
 	err = csvData.ImportData(ctx, infoSchema, dialect, internal.MakeConv(), &common.InfoSchemaImpl{}, &csv.CsvImpl{})
 
 	endTime2 := time.Now()
@@ -233,7 +272,7 @@ This method does not handle validation. It is supposed to be called only after c
 */
 func handleTableNameDefaults(tableName, sourceUri string) string {
 	if len(tableName) != 0 {
-		return tableName
+		return sanitizeTableName(tableName)
 	}
 
 	parsedURL, _ := url.Parse(sourceUri)
@@ -245,11 +284,25 @@ func handleTableNameDefaults(tableName, sourceUri string) string {
 	basePath := filepath.Base(path)
 
 	// pick the substring before the first dot
-	return strings.Split(basePath, ".")[0]
+	return sanitizeTableName(strings.Split(basePath, ".")[0])
+
 }
 
-func init() {
-	logger.Log, _ = zap.NewDevelopment()
+func sanitizeTableName(tableName string) string {
+	tableName = strings.ToLower(tableName)
+	underscoreOrAlphabet := func(r rune) bool {
+		return !(unicode.IsLetter(r) || r == '_')
+	}
+
+	underscoreOrAlphanumeric := func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || r == '_' {
+			return r
+		}
+		return -1
+	}
+
+	trimmedTableName := strings.TrimLeftFunc(tableName, underscoreOrAlphabet)
+	return strings.Map(underscoreOrAlphanumeric, trimmedTableName)
 }
 
 func (cmd *ImportDataCmd) Name() string {
@@ -273,7 +326,7 @@ Import data from supported source files to spanner
 func (cmd *ImportDataCmd) handleDatabaseDumpFile(ctx context.Context, dbUri, sourceFormat string, dialect string,
 	sp spanneraccessor.SpannerAccessor, sourceReader file_reader.FileReader) error {
 
-	importDump, err := import_file.NewImportFromDump(cmd.project, cmd.instanceId, cmd.databaseName, cmd.sourceUri,
+	importDump, err := import_file.NewImportFromDump(cmd.project, cmd.instance, cmd.database, cmd.sourceUri,
 		sourceFormat, dbUri, sp, sourceReader)
 	if err != nil {
 		return fmt.Errorf("can't open dump file or create spanner client: %v", err)

@@ -22,7 +22,7 @@ import { ShardedBulkSourceDetailsFormComponent } from '../sharded-bulk-source-de
 import { IShardSessionDetails } from 'src/app/model/db-config'
 import { ShardedDataflowMigrationDetailsFormComponent } from '../sharded-dataflow-migration-details-form/sharded-dataflow-migration-details-form.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
-import { downloadSession } from 'src/app/utils/utils'
+import { downloadSession, downloadOverrides } from 'src/app/utils/utils'
 import {MatPaginator} from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table'
 import { GcsMetadataDetailsFormComponent } from '../gcs-metadata-details-form/gcs-metadata-details-form.component'
@@ -295,6 +295,10 @@ export class PrepareMigrationComponent implements OnInit {
           MigrationModes.dataOnly,
           MigrationModes.schemaAndData,
         ]
+        if (this.sourceDatabaseType === SourceDbNames.Cassandra) {
+          this.migrationModes = [MigrationModes.schemaOnly]
+          this.selectedMigrationMode = MigrationModes.schemaOnly
+        }
       },
       error: (err: any) => {
         this.snack.openSnackBar(err.error, 'Close')
@@ -1084,6 +1088,10 @@ export class PrepareMigrationComponent implements OnInit {
   }
   downloadSession() {
     downloadSession(this.conv)
+  }
+
+  downloadOverrides() {
+    downloadOverrides(this.conv)
   }
 
   prepareGeneratedResourcesTableData(resourcesGenerated: IGeneratedResources) {

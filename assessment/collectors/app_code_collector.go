@@ -32,7 +32,7 @@ import (
 	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/embeddings"
 	parser "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/parser"
 	dependencyAnalyzer "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors/project_analyzer"
-	. "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
+	utils "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/task"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"go.uber.org/zap"
@@ -47,14 +47,31 @@ var daoMigrationPromptTemplate string
 //go:embed prompts/non-dao-migration-prompt.txt
 var nonDAOMigrationPromptTemplate string
 
+// generativeModel defines an interface for interacting with a generative AI model.
+type generativeModel interface {
+	GenerateContent(ctx context.Context, parts ...genai.Part) (*genai.GenerateContentResponse, error)
+	SetResponseMIMEType(string)
+}
+
+// genaiModelWrapper wraps the actual genai.GenerativeModel to implement the generativeModel interface.
+type genaiModelWrapper struct {
+	*genai.GenerativeModel
+}
+
+// SetResponseMIMEType sets the response MIME type for the underlying model.
+func (w *genaiModelWrapper) SetResponseMIMEType(mimeType string) {
+	w.GenerativeModel.ResponseMIMEType = mimeType
+}
+
 // MigrationCodeSummarizer holds the LLM models and configurations for code migration assessment.
 type MigrationCodeSummarizer struct {
 	gcpProjectID               string
 	gcpLocation                string
 	aiClient                   *genai.Client
-	geminiProModel             *genai.GenerativeModel
-	geminiFlashModel           *genai.GenerativeModel
-	conceptExampleDatabase     *assessment.MysqlConceptDb
+	geminiProModel             generativeModel
+	geminiFlashModel           generativeModel
+	codeSampleDatabase         *assessment.MysqlConceptDb
+	querySampleDatabase        *assessment.MysqlConceptDb
 	sourceDatabaseFramework    string
 	targetDatabaseFramework    string
 	projectDependencyAnalyzer  dependencyAnalyzer.DependencyAnalyzer
@@ -74,10 +91,11 @@ type FileDependencyInfo struct {
 
 // FileAnalysisResponse represents the response after analyzing a single file.
 type FileAnalysisResponse struct {
-	CodeAssessment      *CodeAssessment
+	CodeAssessment      *utils.CodeAssessment
 	MethodSignatures    []any
 	AnalyzedProjectPath string
 	AnalyzedFilePath    string
+	QueryResults        []utils.QueryTranslationResult
 }
 
 // FileAnalysisInput represents the input for analyzing a single file.
@@ -107,12 +125,15 @@ var SupportedProgrammingLanguages = map[string]bool{
 }
 
 var SupportedFrameworkCombinations = map[FrameworkPair]bool{
-	{Source: "jdbc", Target: "jdbc"}:                   true,
-	{Source: "go-sql-mysql", Target: "go-sql-spanner"}: true,
+	{Source: "jdbc", Target: "jdbc"}:                            true,
+	{Source: "hibernate", Target: "hibernate"}:                  true,
+	{Source: "go-sql-driver/mysql", Target: "go-sql-spanner"}:   true,
+	{Source: "vertx-mysql-client", Target: "vertx-jdbc-client"}: true,
 	// Add more allowed combinations here
 }
 
 // NewMigrationCodeSummarizer initializes a new MigrationCodeSummarizer.
+// ToDo:Add Unit Tests
 func NewMigrationCodeSummarizer(
 	ctx context.Context,
 	googleGenerativeAIAPIKey *string,
@@ -155,30 +176,36 @@ func NewMigrationCodeSummarizer(
 		return nil, fmt.Errorf("failed to create Vertex AI client: %w", err)
 	}
 
-	conceptExampleDB, err := assessment.NewMysqlConceptDb(projectID, location, language)
+	codeSampleDB, err := assessment.NewMysqlToSpannerCodeDb(projectID, location, strings.ToLower(sourceFramework)+"_"+strings.ToLower(targetFramework))
 	if err != nil {
-		return nil, fmt.Errorf("failed to load code example DB: %w", err)
+		return nil, fmt.Errorf("failed to load code sample DB: %w", err)
+	}
+
+	querySampleDB, err := assessment.NewMysqlToSpannerQueryDb(projectID, location)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load MySQL query sample DB: %w", err)
 	}
 
 	summarizer := &MigrationCodeSummarizer{
 		gcpProjectID:               projectID,
 		gcpLocation:                location,
 		aiClient:                   client,
-		geminiProModel:             client.GenerativeModel("gemini-1.5-pro-002"),
-		geminiFlashModel:           client.GenerativeModel("gemini-2.0-flash-001"),
-		conceptExampleDatabase:     conceptExampleDB,
+		geminiProModel:             &genaiModelWrapper{client.GenerativeModel(utils.GEMINI_PRO_MODEL)},
+		geminiFlashModel:           &genaiModelWrapper{client.GenerativeModel(utils.GEMINI_FLASH_MODEL)},
+		codeSampleDatabase:         codeSampleDB,
 		projectDependencyAnalyzer:  projectDependencyAnalyzer,
 		sourceDatabaseSchema:       sourceSchema,
 		sourceDatabaseFramework:    strings.ToUpper(sourceFramework),
 		targetDatabaseFramework:    strings.ToUpper(targetFramework),
+		querySampleDatabase:        querySampleDB,
 		targetDatabaseSchema:       targetSchema,
 		projectRootPath:            projectPath,
 		projectProgrammingLanguage: language,
 		dependencyGraph:            make(map[string]map[string]struct{}),
 		fileDependencyAnalysis:     make(map[string]FileDependencyInfo),
 	}
-	summarizer.geminiFlashModel.ResponseMIMEType = "application/json"
-	summarizer.geminiProModel.ResponseMIMEType = "application/json"
+	summarizer.geminiFlashModel.SetResponseMIMEType("application/json")
+	summarizer.geminiProModel.SetResponseMIMEType("application/json")
 
 	return summarizer, nil
 }
@@ -195,18 +222,21 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 	prompt = strings.ReplaceAll(prompt, "{{OLDER_SCHEMA}}", olderSchema)
 	prompt = strings.ReplaceAll(prompt, "{{NEW_SCHEMA}}", newSchema)
 
-	response, err := m.geminiFlashModel.GenerateContent(ctx, genai.Text(prompt))
+	retryClient := utils.DefaultLLMRetryClient{}
+	response, err := retryClient.GenerateContentWithRetry(ctx, m.geminiFlashModel.(*genaiModelWrapper).GenerativeModel, genai.Text(prompt), 5, logger.Log)
 	if err != nil {
 		return "", err
 	}
-	logger.Log.Info("LLM Token Usage (Initial Conversion): ",
+	logger.Log.Debug("LLM Token Usage (Initial Conversion): ",
 		zap.Int32("Prompt Tokens", response.UsageMetadata.PromptTokenCount),
 		zap.Int32("Candidate Tokens", response.UsageMetadata.CandidatesTokenCount),
 		zap.Int32("Total Tokens", response.UsageMetadata.TotalTokenCount))
 
 	var llmResponse string
-	if part, ok := response.Candidates[0].Content.Parts[0].(genai.Text); ok {
-		llmResponse = string(part)
+	if response.Candidates != nil && len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
+		if part, ok := response.Candidates[0].Content.Parts[0].(genai.Text); ok {
+			llmResponse = string(part)
+		}
 	}
 
 	llmResponse = m.parseJSONWithRetries(m.geminiFlashModel, prompt, llmResponse, identifier)
@@ -219,30 +249,45 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 
 	finalPrompt := originalPrompt
 	if len(questionOutput.Questions) > 0 {
-		conceptSearchResults := make([][]string, len(questionOutput.Questions))
+		codeSearchResults := make([][]string, len(questionOutput.Questions))
+		querySearchResults := make([][]string, len(questionOutput.Questions))
 		answersPresent := false
 
 		for i, question := range questionOutput.Questions {
-			relevantRecords := m.conceptExampleDatabase.Search([]string{question}, m.gcpProjectID, m.gcpLocation, 0.25, 2)
+			// Search in code samples database
+			relevantRecords := m.codeSampleDatabase.Search([]string{question}, m.gcpProjectID, m.gcpLocation, 0.25, 2)
 			if len(relevantRecords) > 0 {
 				answersPresent = true
 				for _, record := range relevantRecords {
 					if rewrite, ok := record["rewrite"].(string); ok {
-						conceptSearchResults[i] = append(conceptSearchResults[i], rewrite)
+						codeSearchResults[i] = append(codeSearchResults[i], rewrite)
 					} else {
-						logger.Log.Debug("Error: 'rewrite' field in concept DB is not a string")
+						logger.Log.Debug("Error: 'rewrite' field in code sample DB is not a string")
+					}
+				}
+			}
+
+			// Search in MySQL query samples database
+			queryRecords := m.querySampleDatabase.Search([]string{question}, m.gcpProjectID, m.gcpLocation, 0.25, 2)
+			if len(queryRecords) > 0 {
+				answersPresent = true
+				for _, record := range queryRecords {
+					if rewrite, ok := record["rewrite"].(string); ok {
+						querySearchResults[i] = append(querySearchResults[i], rewrite)
+					} else {
+						logger.Log.Debug("Error: 'rewrite' field in query DB is not a string")
 					}
 				}
 			}
 		}
 
 		if answersPresent {
-			formattedResults := formatQuestionsAndSearchResults(questionOutput.Questions, conceptSearchResults)
+			formattedResults := formatQuestionsAndSearchResults(questionOutput.Questions, codeSearchResults, querySearchResults)
 			finalPrompt += "\n" + formattedResults
 		}
 	}
 
-	finalResponse, err := m.geminiProModel.GenerateContent(ctx, genai.Text(finalPrompt))
+	finalResponse, err := retryClient.GenerateContentWithRetry(ctx, m.geminiProModel.(*genaiModelWrapper).GenerativeModel, genai.Text(finalPrompt), 5, logger.Log)
 	if err != nil {
 		logger.Log.Error("Error generating final content:", zap.Error(err))
 		return "", err
@@ -251,25 +296,31 @@ func (m *MigrationCodeSummarizer) InvokeCodeConversion(
 		zap.Int32("Prompt Tokens", finalResponse.UsageMetadata.PromptTokenCount),
 		zap.Int32("Candidate Tokens", finalResponse.UsageMetadata.CandidatesTokenCount),
 		zap.Int32("Total Tokens", finalResponse.UsageMetadata.TotalTokenCount))
-	if part, ok := finalResponse.Candidates[0].Content.Parts[0].(genai.Text); ok {
-		llmResponse = string(part)
+
+	if len(finalResponse.Candidates) > 0 && len(finalResponse.Candidates[0].Content.Parts) > 0 {
+		if part, ok := finalResponse.Candidates[0].Content.Parts[0].(genai.Text); ok {
+			llmResponse = string(part)
+		}
 	}
 
 	logger.Log.Debug("Final LLM Response: ", zap.String("response", llmResponse))
 
-	llmResponse = m.parseJSONWithRetries(m.geminiFlashModel, finalPrompt, llmResponse, identifier)
+	llmResponse = m.parseJSONWithRetries(m.geminiProModel, finalPrompt, llmResponse, identifier)
 
 	return llmResponse, nil
 }
 
-func formatQuestionsAndSearchResults(questions []string, searchResults [][]string) string {
+func formatQuestionsAndSearchResults(questions []string, codeSearchResults [][]string, querySearchResults [][]string) string {
 	formattedString := "Use the following questions and their corresponding answers to guide the code conversions:\n**Clarifying Questions and Potential Solutions:**\n\n"
 
 	for i, question := range questions {
-		if len(searchResults[i]) > 0 {
+		if len(codeSearchResults[i]) > 0 || len(querySearchResults[i]) > 0 {
 			formattedString += fmt.Sprintf("* **Question %d:** %s\n", i+1, question)
-			for j, result := range searchResults[i] {
-				formattedString += fmt.Sprintf("  * **Potential Solution %d:** %s\n", j+1, result)
+			for j, result := range codeSearchResults[i] {
+				formattedString += fmt.Sprintf("  * **Potential Code Solution %d:** %s\n", j+1, result)
+			}
+			for j, result := range querySearchResults[i] {
+				formattedString += fmt.Sprintf("  * **Potential Query Solution %d:** %s\n", j+1, result)
 			}
 		}
 	}
@@ -277,15 +328,15 @@ func formatQuestionsAndSearchResults(questions []string, searchResults [][]strin
 	return formattedString
 }
 
-func (m *MigrationCodeSummarizer) parseJSONWithRetries(model *genai.GenerativeModel, originalPrompt string, originalResponse string, identifier string) string {
+func (m *MigrationCodeSummarizer) parseJSONWithRetries(model generativeModel, originalPrompt string, originalResponse string, identifier string) string {
 	jsonFixPromptTemplate := `
-		You are a JSON parser expert tasked with fixing parsing errors in JSON string. Golang's json.Unmarshal library is 
-		being used for parsing the json string. The following JSON string is currently failing with error message: %s.  
-		Ensure that all the parsing errors are resolved and output string is parsable by json.Unmarshal library. Also, 
-		ensure that the output only contain JSON string.
-		
-		%s
-		`
+        You are a JSON parser expert tasked with fixing parsing errors in JSON string. Golang's json.Unmarshal library is
+        being used for parsing the json string. The following JSON string is currently failing with error message: %s.
+        Ensure that all the parsing errors are resolved and output string is parsable by json.Unmarshal library. Also,
+        ensure that the output only contain JSON string.
+        
+        %s
+        `
 
 	for i := 0; i < jsonParserRetryAttempts; i++ {
 		logger.Log.Debug("JSON Parsing Retry - Original Response: ", zap.String("response", originalResponse))
@@ -322,16 +373,18 @@ func (m *MigrationCodeSummarizer) parseJSONWithRetries(model *genai.GenerativeMo
 			zap.Int32("Prompt Tokens", resp.UsageMetadata.PromptTokenCount),
 			zap.Int32("Candidate Tokens", resp.UsageMetadata.CandidatesTokenCount),
 			zap.Int32("Total Tokens", resp.UsageMetadata.TotalTokenCount))
-		if part, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
-			originalResponse = string(part)
+		if len(resp.Candidates) > 0 && len(resp.Candidates[0].Content.Parts) > 0 {
+			if part, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
+				originalResponse = string(part)
+			}
 		}
 	}
-	logger.Log.Warn("Failed to parse JSON after multiple retries for identifier: ", zap.String("identifier", identifier))
+	logger.Log.Warn("Failed to parse JSON after multiple retries for identifier: ", zap.String("identifier", identifier), zap.String("originalResponse", originalResponse))
 	return ""
 }
 
 func (m *MigrationCodeSummarizer) fetchFileContent(filepath string) (string, error) {
-	content, err := ReadFileWithExplicitBuffer(filepath, bufio.MaxScanTokenSize*10)
+	content, err := utils.ReadFileWithExplicitBuffer(filepath, bufio.MaxScanTokenSize*10)
 	if err != nil {
 		logger.Log.Fatal("Failed to read file: ", zap.Error(err), zap.String("filepath", filepath))
 		return "", err
@@ -340,6 +393,7 @@ func (m *MigrationCodeSummarizer) fetchFileContent(filepath string) (string, err
 }
 
 // AnalyzeFileTask wraps the AnalyzeFile function to be used with the task runner.
+// ToDo:Add Unit Tests
 func (m *MigrationCodeSummarizer) AnalyzeFileTask(analyzeFileInput *FileAnalysisInput, mutex *sync.Mutex) task.TaskResult[*FileAnalysisResponse] {
 	analyzeFileResponse := m.AnalyzeFile(
 		analyzeFileInput.Context,
@@ -353,8 +407,8 @@ func (m *MigrationCodeSummarizer) AnalyzeFileTask(analyzeFileInput *FileAnalysis
 
 // AnalyzeFile analyzes a single file to identify potential migration issues.
 func (m *MigrationCodeSummarizer) AnalyzeFile(ctx context.Context, projectPath, filepath, methodChanges, content string, fileIndex int) *FileAnalysisResponse {
-	emptySnippets := make([]Snippet, 0)
-	emptyAssessment := &CodeAssessment{
+	emptySnippets := make([]utils.Snippet, 0)
+	emptyAssessment := &utils.CodeAssessment{
 		Snippets:        &emptySnippets,
 		GeneralWarnings: make([]string, 0),
 	}
@@ -363,6 +417,7 @@ func (m *MigrationCodeSummarizer) AnalyzeFile(ctx context.Context, projectPath, 
 	var llmResponse string
 	var isDataAccessObject bool
 	extractedMethodSignatures := make([]any, 0)
+	var queryResults []utils.QueryTranslationResult
 
 	if m.projectDependencyAnalyzer.IsDAO(filepath, content) {
 		logger.Log.Debug("Analyzing DAO File: ", zap.String("filepath", filepath))
@@ -372,68 +427,90 @@ func (m *MigrationCodeSummarizer) AnalyzeFile(ctx context.Context, projectPath, 
 		isDataAccessObject = true
 		if err != nil {
 			logger.Log.Error("Error analyzing DAO class: ", zap.Error(err))
-			return &FileAnalysisResponse{codeAssessment, extractedMethodSignatures, projectPath, filepath}
+			return &FileAnalysisResponse{codeAssessment, extractedMethodSignatures, projectPath, filepath, queryResults}
 		}
 
-		publicMethods, err := m.extractPublicMethodSignatures(llmResponse)
-		if err != nil {
-			logger.Log.Error("Error extracting public method signatures from DAO analysis response: ", zap.Error(err))
-		} else {
-			extractedMethodSignatures = publicMethods
+		if llmResponse != "" {
+			publicMethods, err := m.extractPublicMethodSignatures(llmResponse)
+			if err != nil {
+				logger.Log.Error("Error extracting public method signatures from DAO analysis response: ", zap.Error(err))
+			} else {
+				extractedMethodSignatures = publicMethods
+			}
 		}
 
 	} else {
 		logger.Log.Debug("Analyzing Non-DAO File: ", zap.String("filepath", filepath))
 		prompt := m.getPromptForNonDAOClass(content, filepath, &methodChanges)
-		response, err := m.geminiFlashModel.GenerateContent(ctx, genai.Text(prompt))
+		retryClient := utils.DefaultLLMRetryClient{}
+		response, err := retryClient.GenerateContentWithRetry(ctx, m.geminiFlashModel.(*genaiModelWrapper).GenerativeModel, genai.Text(prompt), 5, logger.Log)
 
 		if err != nil {
-			return &FileAnalysisResponse{codeAssessment, extractedMethodSignatures, projectPath, filepath}
+			return &FileAnalysisResponse{codeAssessment, extractedMethodSignatures, projectPath, filepath, queryResults}
 		}
 		logger.Log.Debug("LLM Token Usage (Non-DAO Analysis): ",
 			zap.Int32("Prompt Tokens", response.UsageMetadata.PromptTokenCount),
 			zap.Int32("Candidate Tokens", response.UsageMetadata.CandidatesTokenCount),
 			zap.Int32("Total Tokens", response.UsageMetadata.TotalTokenCount))
 
-		if part, ok := response.Candidates[0].Content.Parts[0].(genai.Text); ok {
-			llmResponse = string(part)
+		if response.Candidates != nil && len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
+			if part, ok := response.Candidates[0].Content.Parts[0].(genai.Text); ok {
+				llmResponse = string(part)
+			}
 		}
 
 		llmResponse = m.parseJSONWithRetries(m.geminiFlashModel, prompt, llmResponse, "analyze-non-dao-class-"+filepath)
 		isDataAccessObject = false
 
-		methodSignatures, err := m.extractPublicMethodSignatures(llmResponse)
-		if err != nil {
-			logger.Log.Error("Error extracting method signatures from Non-DAO analysis response: ", zap.Error(err))
-		} else {
-			extractedMethodSignatures = methodSignatures
+		if llmResponse != "" {
+			methodSignatures, err := m.extractPublicMethodSignatures(llmResponse)
+			if err != nil {
+				logger.Log.Error("Error extracting method signatures from Non-DAO analysis response: ", zap.Error(err))
+			} else {
+				extractedMethodSignatures = methodSignatures
+			}
 		}
+
 	}
 	logger.Log.Debug("File Analysis LLM Response: ", zap.String("response", llmResponse))
 
-	codeAssessment, err := parser.ParseFileAnalyzerResponse(projectPath, filepath, llmResponse, isDataAccessObject, fileIndex)
+	codeAssessment, queryResults, err := parser.ParseFileAnalyzerResponse(projectPath, filepath, llmResponse, isDataAccessObject, fileIndex)
 
 	if err != nil {
-		return &FileAnalysisResponse{emptyAssessment, extractedMethodSignatures, projectPath, filepath}
+		return &FileAnalysisResponse{emptyAssessment, extractedMethodSignatures, projectPath, filepath, queryResults}
 	}
 
-	return &FileAnalysisResponse{codeAssessment, extractedMethodSignatures, projectPath, filepath}
+	return &FileAnalysisResponse{codeAssessment, extractedMethodSignatures, projectPath, filepath, queryResults}
 }
 
 func (m *MigrationCodeSummarizer) extractPublicMethodSignatures(fileAnalysisResponse string) ([]any, error) {
 	var responseMap map[string]any
+
 	err := json.Unmarshal([]byte(fileAnalysisResponse), &responseMap)
 	if err != nil {
 		logger.Log.Error("Error unmarshalling file analysis response for public method signatures: ", zap.Error(err))
 		return nil, err
 	}
 
-	publicMethodChanges, ok := responseMap["method_signature_changes"].([]any)
-	if !ok {
-		return nil, fmt.Errorf("method_signature_changes not found or not a list")
+	// Try top-level (non-DAO)
+	if publicMethodChanges, ok := responseMap["method_signature_changes"].([]any); ok {
+		return publicMethodChanges, nil
 	}
 
-	return publicMethodChanges, nil
+	// Try inside code_changes (DAO)
+	if codeChanges, ok := responseMap["code_changes"].([]any); ok {
+		var allMethodChanges []any
+		for _, ccRaw := range codeChanges {
+			if cc, ok := ccRaw.(map[string]any); ok {
+				if methodChanges, ok := cc["method_signature_changes"].(map[string]any); ok {
+					allMethodChanges = append(allMethodChanges, methodChanges)
+				}
+			}
+		}
+		return allMethodChanges, nil
+	}
+
+	return []any{}, nil
 }
 
 func (m *MigrationCodeSummarizer) fetchDependentMethodSignatureChange(filePath string) string {
@@ -473,7 +550,8 @@ func (m *MigrationCodeSummarizer) analyzeFileDependencies(filePath, fileContent 
 }
 
 // AnalyzeProject orchestrates the analysis of the entire project.
-func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*CodeAssessment, error) {
+// ToDo:Add Unit Tests
+func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*utils.CodeAssessment, []utils.QueryTranslationResult, error) {
 	logger.Log.Info(fmt.Sprintf("analyzing project: %s", m.projectRootPath))
 	dependencyGraph, processingOrder := m.projectDependencyAnalyzer.GetExecutionOrder(m.projectRootPath)
 	m.projectDependencyAnalyzer.LogDependencyGraph(dependencyGraph, m.projectRootPath)
@@ -481,8 +559,8 @@ func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*CodeAsse
 
 	m.dependencyGraph = dependencyGraph
 
-	var allSnippets []Snippet
-	projectCodeAssessment := &CodeAssessment{
+	var allSnippets []utils.Snippet
+	projectCodeAssessment := &utils.CodeAssessment{
 		ProjectPath:     m.projectRootPath,
 		Snippets:        &allSnippets,
 		GeneralWarnings: make([]string, 0, 10),
@@ -495,6 +573,7 @@ func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*CodeAsse
 	detectedFramework := m.sourceDatabaseFramework
 
 	logger.Log.Info("initiating file scanning and analysis. this may take a few minutes.")
+	var allQueryResults []utils.QueryTranslationResult
 	for _, fileBatch := range processingOrder {
 		analysisInputs := make([]*FileAnalysisInput, 0, len(fileBatch))
 		for _, filePath := range fileBatch {
@@ -524,7 +603,7 @@ func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*CodeAsse
 			continue
 		}
 
-		analysisResults, err := parallelTaskRunner.RunParallelTasks(analysisInputs, 20, m.AnalyzeFileTask, false)
+		analysisResults, err := parallelTaskRunner.RunParallelTasks(analysisInputs, utils.PARALLEL_TASK_RUNNER_COUNT, m.AnalyzeFileTask, false)
 		if err != nil {
 			logger.Log.Error("Error running parallel file analysis: ", zap.Error(err))
 		} else {
@@ -541,6 +620,7 @@ func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*CodeAsse
 					PublicMethodSignatures: analysisResponse.MethodSignatures,
 					IsDAODependent:         true,
 				}
+				allQueryResults = append(allQueryResults, analysisResponse.QueryResults...)
 			}
 		}
 	}
@@ -549,7 +629,7 @@ func (m *MigrationCodeSummarizer) AnalyzeProject(ctx context.Context) (*CodeAsse
 	projectCodeAssessment.Framework = detectedFramework
 	projectCodeAssessment.TotalLoc = totalLinesOfCode
 	projectCodeAssessment.TotalFiles = fileIndex
-	return projectCodeAssessment, nil
+	return projectCodeAssessment, allQueryResults, nil
 }
 
 func isProgrammingLanguageSupported(programmingLanguage string, supportedProgrammingLanguages map[string]bool) bool {

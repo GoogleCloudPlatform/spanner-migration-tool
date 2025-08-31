@@ -17,10 +17,12 @@ package helpers
 import (
 	"context"
 	"fmt"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"regexp"
 	"strings"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients"
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
@@ -108,12 +110,13 @@ func createDatabase(ctx context.Context, uri string, dbExists bool) error {
 	spInstance := matches[1]
 	dbName := matches[2]
 
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	clientOptions := clients.FetchSpannerClientOptions()
+	adminClient, err := database.NewDatabaseAdminClient(ctx, clientOptions...)
 	if err != nil {
 		return err
 	}
 	defer adminClient.Close()
-	fmt.Println("Creating/Updating database to store session metadata...")
+	logger.Log.Info("Creating/Updating database to store session metadata...")
 	if dbExists {
 		op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 			Database:   uri,
@@ -125,7 +128,7 @@ func createDatabase(ctx context.Context, uri string, dbExists bool) error {
 		if err := op.Wait(ctx); err != nil {
 			return err
 		}
-		fmt.Printf("Updated database [%s]\n", matches[2])
+		logger.Log.Info(fmt.Sprintf("Updated database [%s]\n", matches[2]))
 	} else {
 		op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
 			Parent:          spInstance,
@@ -138,7 +141,7 @@ func createDatabase(ctx context.Context, uri string, dbExists bool) error {
 		if _, err := op.Wait(ctx); err != nil {
 			return err
 		}
-		fmt.Printf("Created database [%s]\n", matches[2])
+		logger.Log.Info(fmt.Sprintf("Created database [%s]\n", matches[2]))
 	}
 	return nil
 }
@@ -146,7 +149,7 @@ func createDatabase(ctx context.Context, uri string, dbExists bool) error {
 func CheckOrCreateMetadataDb(projectId string, instanceId string) bool {
 	uri := GetSpannerUri(projectId, instanceId)
 	if uri == "" {
-		fmt.Println("Invalid spanner uri")
+		logger.Log.Error(fmt.Sprintf("Invalid spanner uri"))
 		return false
 	}
 
@@ -158,12 +161,12 @@ func CheckOrCreateMetadataDb(projectId string, instanceId string) bool {
 	}
 	dbExists, err := spA.CheckExistingDb(ctx, uri)
 	if err != nil {
-		fmt.Println(err)
+		logger.Log.Error(fmt.Sprintf("Error in validating database. %v", err))
 		return false
 	}
 	err = createDatabase(ctx, uri, dbExists)
 	if err != nil {
-		fmt.Println(err)
+		logger.Log.Error(fmt.Sprintf("Error in creating database. %v", err))
 		return false
 	}
 	return true
@@ -177,6 +180,8 @@ func GetSourceDatabaseFromDriver(driver string) (string, error) {
 		return constants.POSTGRES, nil
 	case constants.ORACLE, constants.SQLSERVER:
 		return driver, nil
+	case constants.CASSANDRA:
+		return constants.CASSANDRA, nil
 	default:
 		return "", fmt.Errorf("unsupported driver type: %v", driver)
 	}

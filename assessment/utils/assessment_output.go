@@ -148,7 +148,7 @@ type SrcColumnDetails struct {
 	Datatype               string
 	ArrayBounds            []int64
 	Mods                   []int64
-	IsNull                 bool
+	NotNull                bool
 	PrimaryKeyOrder        int
 	ForeignKey             []string
 	AutoGen                ddl.AutoGenCol
@@ -168,7 +168,7 @@ type SpColumnDetails struct {
 	Datatype        string
 	IsArray         bool
 	Len             int64
-	IsNull          bool
+	NotNull         bool
 	PrimaryKeyOrder int
 	ForeignKey      []string
 	AutoGen         ddl.AutoGenCol
@@ -176,17 +176,67 @@ type SpColumnDetails struct {
 }
 
 type AppCodeAssessmentOutput struct {
-	Language     string
-	Framework    string
-	TotalLoc     int
-	TotalFiles   int
-	CodeSnippets *[]Snippet // Affected code snippets
+	Language               string
+	Framework              string
+	TotalLoc               int
+	TotalFiles             int
+	CodeSnippets           *[]Snippet // Affected code snippets
+	QueryTranslationResult *[]QueryTranslationResult
 }
 
 type QueryAssessmentOutput struct {
-	//TBD
+	QueryTranslationResult *[]QueryTranslationResult
 }
 
 type PerformanceAssessmentOutput struct {
 	//TBD
+}
+
+type QueryTranslationResult struct {
+	OriginalQuery           string             `json:"old_query"`
+	NormalizedQuery         string             `json:"normalized_query"`
+	SpannerQuery            string             `json:"new_query"`
+	Explanation             string             `json:"explanation"`
+	Complexity              string             `json:"complexity"`
+	TranslationError        string             `json:"translation_error,omitempty"`
+	Source                  string             `json:"source,omitempty"` // "app_code" or "performance_schema"
+	ExecutionCount          int                `json:"execution_count,omitempty"`
+	SnippetId               string             `json:"snippet_id,omitempty"`
+	NumberOfQueryOccurances int                `json:"number_of_query_occurances,omitempty"`
+	TablesAffected          []string           `json:"tables_affected"`
+	CrossDBJoins            bool               `json:"cross_db_joins"`
+	DDLStatement            bool               `json:"ddl_statement"`
+	FunctionsUsed           []string           `json:"functions_used"`
+	OperatorsUsed           []string           `json:"operators_used"`
+	DatabasesReferenced     []string           `json:"databases_referenced"`
+	SelectForUpdate         bool               `json:"select_for_update"`
+	ComparisonAnalysis      ComparisonAnalysis `json:"comparison_analysis"`
+}
+
+type ComparisonAnalysis struct {
+	LiteralComparisons   *LiteralComparisonAnalysis   `json:"literal_comparisons,omitempty"`
+	DataTypeComparisons  *DataTypeComparisonAnalysis  `json:"data_type_comparisons,omitempty"`
+	TimestampComparisons *TimestampComparisonAnalysis `json:"timestamp_comparisons,omitempty"`
+	DateComparisons      *DateComparisonAnalysis      `json:"date_comparisons,omitempty"`
+}
+
+type LiteralComparisonAnalysis struct {
+	PrecisionIssues []string `json:"precision_issues"`
+}
+
+type DataTypeComparisonAnalysis struct {
+	IncompatibleTypes []string `json:"incompatible_types"`
+}
+
+type TimestampComparisonAnalysis struct {
+	TimezoneIssues []string `json:"timezone_issues"`
+}
+
+type DateComparisonAnalysis struct {
+	FormatIssues []string `json:"format_issues"`
+}
+
+type QueryTranslationInput struct {
+	Query string
+	Count int
 }

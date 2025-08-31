@@ -22,7 +22,7 @@ on:
 name: integration-tests-against-emulator
 jobs:
   integration-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     env:
       # set PostgreSQL related environment variables
       PGHOST: localhost
@@ -53,7 +53,7 @@ jobs:
 
     services:
       spanner_emulator:
-        image: gcr.io/cloud-spanner-emulator/emulator:1.5.32
+        image: gcr.io/cloud-spanner-emulator/emulator:1.5.40
         ports:
           - 9010:9010
           - 9020:9020
@@ -119,48 +119,29 @@ jobs:
       # since we use ubuntu-latest container, we should ensure that the path matches the latest from  https://packages.microsoft.com/config/ubuntu/
       # while its possible to infer the latest from the path in the run script, it will make the run section more complex and hard to maintian.
       - name: Install sqlcmd required for loading .sql files
-        run: |
-          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/24.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
-          sudo apt-get install mssql-tools18 unixodbc-dev
-          set -x
-          ls /opt/mssql-tools18/bin/
-          set +x
-          echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> ~/.bashrc
-      - run: /opt/mssql-tools18/bin/sqlcmd -C -?
+        run: /opt/mssql-tools18/bin/sqlcmd -C -?
       - run: /opt/mssql-tools18/bin/sqlcmd -U sa -P ${MSSQL_SA_PASSWORD} -i test_data/sqlserver.test.out -C
-
       # sqlplus set up init oracle db.
       - name: Install sqlplus required for loading .sql files
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libaio1t64 rpm2cpio cpio
-          sudo ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/libaio.so.1
-          curl -O https://download.oracle.com/otn_software/linux/instantclient/2340000/oracle-instantclient-basic-23.4.0.24.05-1.el9.x86_64.rpm
-          curl -O https://download.oracle.com/otn_software/linux/instantclient/2340000/oracle-instantclient-sqlplus-23.4.0.24.05-1.el9.x86_64.rpm
-          rpm2cpio oracle-instantclient-basic-23.4.0.24.05-1.el9.x86_64.rpm | sudo cpio -idmv
-          sudo cp -r usr/* /usr/
-          rpm2cpio oracle-instantclient-sqlplus-23.4.0.24.05-1.el9.x86_64.rpm | sudo cpio -idmv
-          sudo cp -r usr/* /usr/
-          sudo sh -c 'echo /usr/lib/oracle/23/client64/lib/ > /etc/ld.so.conf.d/oracle.conf'
-          sudo ldconfig
-      - run: sqlplus SYS/oracle@127.0.0.1:1521/xe as sysdba @test_data/oracle.test.out
+        run: sqlplus SYS/oracle@127.0.0.1:1521/xe as sysdba @test_data/oracle.test.out
       # create a spanner instance
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.8'
+          python-version: '3.13'
       - uses: google-github-actions/setup-gcloud@v0
         with:
           version: "410.0.0"
       - run: gcloud info
-      - run: gcloud config configurations create emulator
+      - run: gcloud config list
       - run: gcloud config set auth/disable_credentials true
       - run: gcloud config set project emulator-test-project
       - run: gcloud config set api_endpoint_overrides/spanner http://localhost:9020/
       - run: gcloud spanner instances create test-instance --config=emulator-config --description="Test Instance" --nodes=1
 
+      - name: Setup cypress dependency
+        run: |
+          sudo apt-get install -yq libgtk2.0-0t64 libgtk-3-0t64 libgbm-dev libnotify-dev libnss3 libxss1 libasound2t64 libxtst6 xauth xvfb
+          sudo apt-get install build-essential
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
@@ -183,14 +164,17 @@ jobs:
       - name: Cypress run
         run: |
           cd ui
+          npm install cypress --save-dev
           npx cypress run
 
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.24.3"
+          go-version: "1.23.0"
       - run: go version
+      - run: go build
       - run: go test -v ./...
         env:
           SPANNER_EMULATOR_HOST: localhost:9010
           SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_PROJECT_ID: emulator-test-project
           SPANNER_MIGRATION_TOOL_TESTS_GCLOUD_INSTANCE_ID: test-instance
+          IMPORT_CMD_SKIP_DIALECT_VALIDATION: true

@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit, Input } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { ColLength, DataTypes, Dialect, StorageKeys } from 'src/app/app.constants';
+import { ColLength, DataTypes, Dialect, SourceDbNames, StorageKeys } from 'src/app/app.constants';
 import { AutoGen, IAddColumnProps } from 'src/app/model/edit-table';
 import { IAddColumn } from 'src/app/model/update-table';
 import { DataService } from 'src/app/services/data/data.service';
@@ -57,7 +57,6 @@ export class AddNewColumnComponent implements OnInit {
     this.autGenSupported = this.autoGenSupportedDbs.includes(this.srcDbName)
   }
 
-
   isColumnNullable = [
     { value: false, displayName: 'No' },
     { value: true, displayName: 'Yes' },
@@ -69,8 +68,10 @@ export class AddNewColumnComponent implements OnInit {
     } else {
       this.datatypes = DataTypes.PostgreSQL
     }
+    if (this.srcDbName === SourceDbNames.Cassandra) {
+      this.datatypes = this.datatypes.filter((type) => type !== 'JSON')
+    }
   }
-
 
   changeValidator() {
     this.addNewColumnForm.controls['length'].clearValidators()

@@ -229,6 +229,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 				{"tz", "timestamp", "timestamp", "YES", nil, nil, nil, nil, nil},
 				{"vc", "varchar", "varchar", "YES", nil, nil, nil, nil, nil},
 				{"vc6", "varchar", "varchar(6)", "YES", nil, 6, nil, nil, nil},
+				{"bu", "bigint", "bigint(20) unsigned", "YES", nil, nil, 20, 0, nil},
 			},
 		},
 		// db call to fetch index happens after fetching of column
@@ -302,7 +303,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			PrimaryKeys: []schema.Key{{ColId: "product_id", Desc: false, Order: 0}},
 			ForeignKeys: []schema.ForeignKey(nil),
 			Indexes:     []schema.Index(nil), Id: ""},
-		"test": schema.Table{Name: "test", Schema: "test", ColIds: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "dec", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6"}, ColDefs: map[string]schema.Column{
+		"test": schema.Table{Name: "test", Schema: "test", ColIds: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "dec", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6", "bu"}, ColDefs: map[string]schema.Column{
 			"b":   schema.Column{Name: "b", Type: schema.Type{Name: "boolean", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"bl":  schema.Column{Name: "bl", Type: schema.Type{Name: "blob", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"bs":  schema.Column{Name: "bs", Type: schema.Type{Name: "bigint", Mods: []int64{64}, ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "", DefaultValue: ddl.DefaultValue{IsPresent: true, Value: ddl.Expression{ExpressionId: "e27", Statement: "nextval('test11_bs_seq'::regclass)"}}},
@@ -322,7 +323,8 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			"txt": schema.Column{Name: "txt", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"tz":  schema.Column{Name: "tz", Type: schema.Type{Name: "timestamp", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
 			"vc":  schema.Column{Name: "vc", Type: schema.Type{Name: "varchar", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
-			"vc6": schema.Column{Name: "vc6", Type: schema.Type{Name: "varchar", Mods: []int64{6}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
+			"vc6": schema.Column{Name: "vc6", Type: schema.Type{Name: "varchar", Mods: []int64{6}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"bu":  schema.Column{Name: "bu", Type: schema.Type{Name: "bigint unsigned", Mods: []int64{20}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
 			PrimaryKeys: []schema.Key{schema.Key{ColId: "id", Desc: false, Order: 0}},
 			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test4", ColIds: []string{"id", "txt"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id", "ref_txt"}, OnUpdate: constants.FK_RESTRICT, OnDelete: constants.FK_CASCADE, Id: ""}},
 			Indexes:     []schema.Index(nil), Id: ""},
@@ -340,6 +342,74 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			PrimaryKeys: []schema.Key{schema.Key{ColId: "user_id", Desc: false, Order: 0}},
 			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"id"}, OnUpdate: constants.FK_CASCADE, OnDelete: constants.FK_SET_NULL, Id: ""}},
 			Indexes:     []schema.Index(nil), Id: ""}}
+	internal.AssertSrcSchema(t, conv, expectedSchema, conv.SrcSchema)
+	assert.Equal(t, int64(0), conv.Unexpecteds())
+}
+
+func TestProcessSchemaMYSQLPKOrdering(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT (.+) FROM information_schema.tables where table_type = 'BASE TABLE'  and (.+)",
+			args:  []driver.Value{"test"},
+			cols:  []string{"table_name"},
+			rows: [][]driver.Value{
+				{"pk_order"},
+			},
+		},
+		{
+			query: regexp.QuoteMeta(`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE (TABLE_SCHEMA = 'information_schema' OR TABLE_SCHEMA = 'INFORMATION_SCHEMA') AND TABLE_NAME = 'CHECK_CONSTRAINTS';`),
+			args:  nil,
+			cols:  []string{"count"},
+			rows: [][]driver.Value{
+				{int64(1)},
+			},
+		},
+		{
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			args:  []driver.Value{"test", "pk_order"},
+			cols:  []string{"column_name", "constraint_type", "constraint_type", "check_clause", "ordinal_position"},
+			rows: [][]driver.Value{
+				{"pk_2", "PRIMARY KEY", "PRIMARY KEY", "PRIMARY KEY", 0},
+				{"pk_1", "PRIMARY KEY", "PRIMARY KEY", "PRIMARY KEY", 1},
+			},
+		},
+		{
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
+			args:  []driver.Value{"test", "pk_order"},
+			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME", "DELETE_RULE", "UPDATE_RULE"},
+		},
+		{
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"test", "pk_order"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			rows: [][]driver.Value{
+				{"pk_1", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"pk_2", "text", "text", "NO", nil, nil, nil, nil, nil},
+			},
+		},
+		{
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
+			args:  []driver.Value{"test", "pk_order"},
+			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{"test", db, "migration-project-id", profiles.SourceProfile{}, profiles.TargetProfile{}}
+	commonInfoSchema := common.InfoSchemaImpl{}
+	_, err := commonInfoSchema.GenerateSrcSchema(conv, isi, 1)
+	assert.Nil(t, err)
+	expectedSchema := map[string]schema.Table{
+		"pk_order": {
+			Name: "pk_order", Schema: "test", ColIds: []string{"pk_1", "pk_2"}, ColDefs: map[string]schema.Column{
+				"pk_1":   {Name: "pk_1", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+				"pk_2": {Name: "pk_2", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			},
+			PrimaryKeys: []schema.Key{{ColId: "pk_2", Desc: false, Order: 0}, {ColId: "pk_1", Desc: false, Order: 0}},
+			ForeignKeys: []schema.ForeignKey(nil),
+			Indexes:     []schema.Index(nil), Id: "",
+		},
+	}
 	internal.AssertSrcSchema(t, conv, expectedSchema, conv.SrcSchema)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
@@ -494,7 +564,7 @@ func TestProcessData_MultiCol(t *testing.T) {
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	columnLevelIssues := map[string][]internal.SchemaIssue{
-		"c53": []internal.SchemaIssue{
+		"c57": []internal.SchemaIssue{
 			2,
 		},
 	}
@@ -664,7 +734,7 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
 			rows:  [][]driver.Value{{1}},
 		},
 		{
-			query: regexp.QuoteMeta(`SELECT DISTINCT COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME,t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE
+			query: regexp.QuoteMeta(`SELECT DISTINCT COALESCE(k.COLUMN_NAME,'') AS COLUMN_NAME,t.CONSTRAINT_NAME, t.CONSTRAINT_TYPE, COALESCE(c.CHECK_CLAUSE, '') AS CHECK_CLAUSE, COALESCE(k.ORDINAL_POSITION, 0) AS ORDINAL_POSITION
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
             LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
             ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
@@ -674,10 +744,11 @@ func TestGetConstraints_CheckConstraintsTableExists(t *testing.T) {
             ON t.CONSTRAINT_NAME = c.CONSTRAINT_NAME
 	    AND t.TABLE_SCHEMA = c.CONSTRAINT_SCHEMA
             WHERE t.TABLE_SCHEMA = ? 
-            AND t.TABLE_NAME = ?;`),
+            AND t.TABLE_NAME = ?
+			ORDER BY COALESCE(k.ORDINAL_POSITION, 0);`),
 			args: []driver.Value{"test_schema", "test_table"},
-			cols: []string{"COLUMN_NAME", "CONSTRAINT_NAME", "CONSTRAINT_TYPE", "CHECK_CLAUSE"},
-			rows: [][]driver.Value{{"column1", "PRIMARY", "PRIMARY KEY", ""}, {"column2", "check_name", "CHECK", "(column2 > 0)"}},
+			cols: []string{"COLUMN_NAME", "CONSTRAINT_NAME", "CONSTRAINT_TYPE", "CHECK_CLAUSE", "ORDINAL_POSITION"},
+			rows: [][]driver.Value{{"column1", "PRIMARY", "PRIMARY KEY", "", 0}, {"column2", "check_name", "CHECK", "(column2 > 0)", 0}},
 		},
 	}
 	db := mkMockDB(t, ms)
