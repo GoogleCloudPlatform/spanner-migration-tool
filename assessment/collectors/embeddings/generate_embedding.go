@@ -21,12 +21,11 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/aiplatform/apiv1/aiplatformpb"
-	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
-	"go.uber.org/zap"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
+	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/option"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -36,6 +35,12 @@ var goMysqlMigrationConcept []byte
 
 //go:embed java_concept_examples.json
 var javaMysqlMigrationConcept []byte
+
+//go:embed vertx_concept_examples.json
+var vertxMysqlMigrationConcept []byte
+
+//go:embed hibernate_concept_examples.json
+var hibernateMysqlMigrationConcept []byte
 
 type MySqlMigrationConcept struct {
 	ID      string `json:"id"`
@@ -50,41 +55,51 @@ type MySqlMigrationConcept struct {
 	Embedding []float32 `json:"embedding,omitempty"`
 }
 
-func createEmbededTextsFromFile(project, location, language string) ([]MySqlMigrationConcept, error) {
-	ctx := context.Background()
-	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
-	model := "text-embedding-preview-0815"
+// PredictionClientInterface allows mocking
+type PredictionClientInterface interface {
+	Predict(context.Context, *aiplatformpb.PredictRequest, ...gax.CallOption) (*aiplatformpb.PredictResponse, error)
+	Close() error
+}
 
-	client, err := aiplatform.NewPredictionClient(ctx, option.WithEndpoint(apiEndpoint))
-	if err != nil {
-		return nil, err
-	}
-	defer client.Close()
-
-	// Read the JSON file
+func createCodeSampleEmbeddings(ctx context.Context, client PredictionClientInterface, project, location, model, sourceTargetFramework string) ([]MySqlMigrationConcept, error) {
 	var data []byte
-	switch language {
-	case "go":
+	switch sourceTargetFramework {
+	case "go-sql-driver/mysql_go-sql-spanner":
 		data = goMysqlMigrationConcept
-	case "java":
+	case "jdbc_jdbc":
 		data = javaMysqlMigrationConcept
+	case "vertx-mysql-client_vertx-jdbc-client":
+		data = vertxMysqlMigrationConcept
+	case "hibernate_hibernate":
+		data = hibernateMysqlMigrationConcept
 	default:
-		panic("Unsupported language")
+		return nil, fmt.Errorf("unsupported sourceTargetFramework: %s", sourceTargetFramework)
 	}
 
-	var mysqlMigrationConcepts []MySqlMigrationConcept
-	if err := json.Unmarshal(data, &mysqlMigrationConcepts); err != nil {
+	var concepts []MySqlMigrationConcept
+	if err := json.Unmarshal(data, &concepts); err != nil {
 		return nil, err
 	}
+	return attachEmbeddings(ctx, client, project, location, model, concepts)
+}
 
-	instances := make([]*structpb.Value, len(mysqlMigrationConcepts))
-	for i, concept := range mysqlMigrationConcepts {
-		instances[i] = structpb.NewStructValue(&structpb.Struct{
+func createQuerySampleEmbeddings(ctx context.Context, client PredictionClientInterface, project, location, model string) ([]MySqlMigrationConcept, error) {
+	var queryExamples []MySqlMigrationConcept
+	if err := json.Unmarshal(utils.QueryTranslationExamples, &queryExamples); err != nil {
+		return nil, fmt.Errorf("failed to parse MySQL query examples JSON: %w", err)
+	}
+	return attachEmbeddings(ctx, client, project, location, model, queryExamples)
+}
+
+func attachEmbeddings(ctx context.Context, client PredictionClientInterface, project, location, model string, concepts []MySqlMigrationConcept) ([]MySqlMigrationConcept, error) {
+	var instances []*structpb.Value
+	for _, c := range concepts {
+		instances = append(instances, structpb.NewStructValue(&structpb.Struct{
 			Fields: map[string]*structpb.Value{
-				"content":   structpb.NewStringValue(concept.Example),
+				"content":   structpb.NewStringValue(c.Example),
 				"task_type": structpb.NewStringValue("SEMANTIC_SIMILARITY"),
 			},
-		})
+		}))
 	}
 
 	req := &aiplatformpb.PredictRequest{
@@ -98,39 +113,31 @@ func createEmbededTextsFromFile(project, location, language string) ([]MySqlMigr
 	}
 
 	for i, prediction := range resp.Predictions {
-		values := prediction.GetStructValue().Fields["embeddings"].GetStructValue().Fields["values"].GetListValue().Values
-		embeddings := make([]float32, len(values))
-		for j, value := range values {
-			embeddings[j] = float32(value.GetNumberValue())
+		values := prediction.GetStructValue().GetFields()["embeddings"].GetStructValue().GetFields()["values"].GetListValue().GetValues()
+		if values == nil {
+			continue
 		}
-		mysqlMigrationConcepts[i].Embedding = embeddings
+		embedding := make([]float32, len(values))
+		for j, v := range values {
+			if v == nil {
+				continue
+			}
+			embedding[j] = float32(v.GetNumberValue())
+		}
+		concepts[i].Embedding = embedding
 	}
-	return mysqlMigrationConcepts, nil
+	return concepts, nil
 }
 
-func embedTextsFromFile(project, location, inputPath, outputPath string) error {
-	mysqlMigrationConcepts, err := createEmbededTextsFromFile(project, location, "java")
+// Helper to create a new Vertex AI Prediction client and return context, client, and model
+func newAIPredictionClient(location string) (context.Context, PredictionClientInterface, string, error) {
+	ctx := context.Background()
+	apiEndpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
+	model := "text-embedding-preview-0815"
+
+	client, err := aiplatform.NewPredictionClient(ctx, option.WithEndpoint(apiEndpoint))
 	if err != nil {
-		return err
+		return nil, nil, "", err
 	}
-
-	// Save updated data to a new JSON file
-	outputData, err := json.MarshalIndent(mysqlMigrationConcepts, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	if err := ioutil.WriteFile(outputPath, outputData, 0644); err != nil {
-		return err
-	}
-
-	logger.Log.Debug("Embeddings saved to", zap.String("fkStmt", outputPath))
-	return nil
+	return ctx, client, model, nil
 }
-
-// Sample Usage
-// func main() {
-// 	if err := embedTextsFromFile("", "", "go_concept_examples.json", "output.json"); err != nil {
-// 		logger.Log.Debug("Error:", err)
-// 	}
-// }

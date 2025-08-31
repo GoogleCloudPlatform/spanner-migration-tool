@@ -41,9 +41,10 @@ import (
 )
 
 var (
-	badDataFile = ".dropped.txt"
-	schemaFile  = ".schema.txt"
-	sessionFile = ".session.json"
+	badDataFile   = ".dropped.txt"
+	schemaFile    = ".schema.txt"
+	sessionFile   = ".session.json"
+	overridesFile = ".overrides.json"
 )
 
 const (
@@ -145,7 +146,7 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 	defer client.Close()
 	switch v := cmd.(type) {
 	case *SchemaCmd:
-		err = migrateSchema(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient)
+		err = migrateSchema(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client)
 	case *DataCmd:
 		bw, err = migrateData(ctx, migrationProjectId, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
 	case *SchemaAndDataCmd:
@@ -159,12 +160,16 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 }
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
-	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient) error {
+	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client) error {
 	spA, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		return err
 	}
-	err = spA.CreateOrUpdateDatabase(ctx, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
+	tablesExistingOnSpanner, err := spA.GetTableNamesFromSpanner(ctx, conv.SpDialect, dbURI, client)
+	if err != nil {
+		return err
+	}
+	err = spA.CreateOrUpdateDatabase(ctx, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType, tablesExistingOnSpanner)
 	if err != nil {
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return err
@@ -221,7 +226,11 @@ func migrateSchemaAndData(ctx context.Context, migrationProjectId string, target
 	if err != nil {
 		return nil, err
 	}
-	err = spA.CreateOrUpdateDatabase(ctx, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType)
+	tablesExistingOnSpanner, err := spA.GetTableNamesFromSpanner(ctx, conv.SpDialect, dbURI, client)
+	if err != nil {
+		return nil, err
+	}
+	err = spA.CreateOrUpdateDatabase(ctx, dbURI, sourceProfile.Driver, conv, sourceProfile.Config.ConfigType, tablesExistingOnSpanner)
 	if err != nil {
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return nil, err
