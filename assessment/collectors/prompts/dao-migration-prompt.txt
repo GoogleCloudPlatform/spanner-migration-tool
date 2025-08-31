@@ -44,7 +44,7 @@ If a code change affects both schema and query, include both in the same object.
         "complexity": "<SIMPLE|MODERATE|COMPLEX>. Complexity of the query",
         "number_of_query_occurances": "<number_of_times_query_occured_in_code>. Return as integer.",
         "explanation": "<description of why the change is needed and how to update the query>",
-        "databases_referenced": ["List of databases referenced in the query (e.g., 'db1', 'db2' - useful for cross-DB joins)"],
+        "databases_referenced": ["List of databases referenced in the query (e.g., 'db1', 'db2')"],
         "ddl_statement": false,
         "tables_affected": ["table1", "table2"],
         "cross_db_joins": false,

@@ -54,6 +54,9 @@ func addColumn(tableId string, colId string, conv *internal.Conv) {
 	}
 
 	conv.SpSchema[tableId] = sp
+
+	// Note: ToSpanner mapping is not updated for added columns
+	// since they don't have corresponding source columns
 }
 
 func AddNewColumn(w http.ResponseWriter, r *http.Request) {

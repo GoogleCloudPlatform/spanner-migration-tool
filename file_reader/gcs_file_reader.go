@@ -4,6 +4,7 @@ import (
 	"cloud.google.com/go/storage"
 	"context"
 	"fmt"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"google.golang.org/api/option"
 	"io"
@@ -22,8 +23,8 @@ type GcsFileReaderImpl struct {
 }
 
 func NewGcsFileReader(ctx context.Context, uri, host, path string) (*GcsFileReaderImpl, error) {
-	fmt.Printf("uri: %v, host: %v, path: %v\n", uri, host, path)
-	storageClient, err := GoogleStorageNewClient(ctx)
+	clientOptions := clients.FetchStorageClientOptions()
+	storageClient, err := GoogleStorageNewClient(ctx, clientOptions...)
 	if err != nil {
 		return nil, err
 	}

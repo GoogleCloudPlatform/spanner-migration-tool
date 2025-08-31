@@ -107,7 +107,7 @@ func TestPerformanceSchemaCollector_IsEmpty(t *testing.T) {
 		{
 			name: "collector with queries",
 			collector: PerformanceSchemaCollector{
-				queries: []utils.QueryAssessmentInfo{{Query: "SELECT * FROM users"}},
+				Queries: []utils.QueryAssessmentInfo{{Query: "SELECT * FROM users"}},
 			},
 			want: false,
 		},
@@ -156,7 +156,7 @@ func TestGetPerformanceSchemaCollector_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, collector)
 	assert.False(t, collector.IsEmpty())
-	assert.Equal(t, expectedQueries, collector.queries)
+	assert.Equal(t, expectedQueries, collector.Queries)
 
 	mockCfgProvider.AssertExpectations(t)
 	mockDbConnector.AssertExpectations(t)
