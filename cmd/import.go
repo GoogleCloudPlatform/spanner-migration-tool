@@ -38,7 +38,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/csv"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/spanner"
 	"github.com/google/subcommands"
-	"go.uber.org/zap"
 )
 
 type ImportDataCmd struct {
@@ -52,6 +51,7 @@ type ImportDataCmd struct {
 	csvFieldDelimiter string
 	project           string
 	databaseDialect   string
+	logLevel          string
 }
 
 func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
@@ -65,12 +65,18 @@ func (cmd *ImportDataCmd) SetFlags(set *flag.FlagSet) {
 	set.StringVar(&cmd.csvFieldDelimiter, "csv-field-delimiter", ",", "Token to be used as field delimiter for csv format. Optional. Defaults to ','. Only used for csv format.")
 	set.StringVar(&cmd.project, "project", "", "Project id for all resources related to this import. Optional")
 	set.StringVar(&cmd.databaseDialect, "database-dialect", constants.DIALECT_GOOGLESQL, fmt.Sprintf("Spanner database dialect. Defaults to %s. Valid values {%s, %s}", constants.DIALECT_GOOGLESQL, constants.DIALECT_GOOGLESQL, constants.DIALECT_POSTGRESQL))
+	set.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to DEBUG")
 }
 
 func (cmd *ImportDataCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
+	err := logger.InitializeLogger(cmd.logLevel)
+	if err != nil {
+		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
+		return subcommands.ExitFailure
+	}
 	logger.Log.Debug(fmt.Sprintf("instance %s, dbName %s, schemaUri %s\n", cmd.instance, cmd.database, cmd.schemaUri))
 
-	err := validateInputLocal(cmd)
+	err = validateInputLocal(cmd)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("Input validation failed. Reason %v", err))
 		return subcommands.ExitFailure
@@ -150,8 +156,8 @@ func createDatabase(ctx context.Context, dbURI, targetDialect string, spannerAcc
 func validateSpannerAccessor(ctx context.Context, dbURI string) (spanneraccessor.SpannerAccessor, error) {
 	spannerAccessor, err := import_file.NewSpannerAccessor(ctx, dbURI)
 	if err != nil {
-		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client %v", err))
-		return nil, fmt.Errorf("unable to instantiate spanner client %v", err)
+		logger.Log.Error(fmt.Sprintf("Unable to instantiate spanner client: %v", err))
+		return nil, fmt.Errorf("unable to instantiate spanner client: %v", err)
 	}
 
 	return spannerAccessor, nil
@@ -297,10 +303,6 @@ func sanitizeTableName(tableName string) string {
 
 	trimmedTableName := strings.TrimLeftFunc(tableName, underscoreOrAlphabet)
 	return strings.Map(underscoreOrAlphanumeric, trimmedTableName)
-}
-
-func init() {
-	logger.Log, _ = zap.NewDevelopment()
 }
 
 func (cmd *ImportDataCmd) Name() string {

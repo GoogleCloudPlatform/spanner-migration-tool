@@ -39,6 +39,7 @@ import (
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
 	"cloud.google.com/go/storage"
+	accessorclients "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/clients"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/parse"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/expressions_api"
@@ -48,7 +49,6 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
 )
 
 var (
@@ -76,6 +76,9 @@ type GetUtilInfoInterface interface {
 }
 
 type GetUtilInfoImpl struct{}
+
+var newClient = sp.NewClient
+var newDatabaseAdminClient = database.NewDatabaseAdminClient
 
 // NewIOStreams returns a new IOStreams struct such that input stream is set
 // to open file descriptor for dumpFile if driver is PGDUMP or MYSQLDUMP.
@@ -362,10 +365,8 @@ func PrintSeekError(driver string, err error, out *os.File) {
 // NewSpannerClient returns a new Spanner client.
 // It respects SPANNER_API_ENDPOINT.
 func NewSpannerClient(ctx context.Context, db string) (*sp.Client, error) {
-	if endpoint := os.Getenv("SPANNER_API_ENDPOINT"); endpoint != "" {
-		return sp.NewClient(ctx, db, option.WithEndpoint(endpoint))
-	}
-	return sp.NewClient(ctx, db)
+	clientOptions := accessorclients.FetchSpannerClientOptions()
+	return newClient(ctx, db, clientOptions...)
 }
 
 // GetClient returns a new Spanner client.  It uses the background context.
@@ -376,10 +377,8 @@ func GetClient(ctx context.Context, db string) (*sp.Client, error) {
 // NewDatabaseAdminClient returns a new db-admin client.
 // It respects SPANNER_API_ENDPOINT.
 func NewDatabaseAdminClient(ctx context.Context) (*database.DatabaseAdminClient, error) {
-	if endpoint := os.Getenv("SPANNER_API_ENDPOINT"); endpoint != "" {
-		return database.NewDatabaseAdminClient(ctx, option.WithEndpoint(endpoint))
-	}
-	return database.NewDatabaseAdminClient(ctx)
+	clientOptions := accessorclients.FetchSpannerClientOptions()
+	return newDatabaseAdminClient(ctx, clientOptions...)
 }
 
 func SumMapValues(m map[string]int64) int64 {

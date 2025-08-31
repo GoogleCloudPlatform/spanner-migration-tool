@@ -538,6 +538,14 @@ func toType(dataType string, columnType string, charLen sql.NullInt64, numericPr
 			return schema.Type{Name: dataType}
 		}
 		return schema.Type{Name: dataType, Mods: []int64{length}}
+	case dataType == "bigint" && len(columnType) > len("bigint") && strings.Contains(strings.ToUpper(columnType), "UNSIGNED"):
+		if numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0 {
+			return schema.Type{Name: "bigint unsigned", Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
+		} else if numericPrecision.Valid {
+			return schema.Type{Name: "bigint unsigned", Mods: []int64{numericPrecision.Int64}}
+		} else {
+			return schema.Type{Name: "bigint unsigned"}
+		}
 	case numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
 	case numericPrecision.Valid:

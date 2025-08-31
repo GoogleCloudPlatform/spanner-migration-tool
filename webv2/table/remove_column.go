@@ -94,6 +94,9 @@ func removeColumnFromTableSchema(conv *internal.Conv, tableId string, colId stri
 
 	conv.SpSchema[tableId] = sp
 	conv.SpSequences = spSeq
+
+	// Note: ToSpanner mapping is not updated for removed columns
+	// since they don't have corresponding source columns
 }
 
 // removeColumnFromSpannerColNames remove given column from ColNames.
