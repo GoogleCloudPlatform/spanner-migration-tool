@@ -148,7 +148,7 @@ type SrcColumnDetails struct {
 	Datatype               string
 	ArrayBounds            []int64
 	Mods                   []int64
-	IsNull                 bool
+	NotNull                bool
 	PrimaryKeyOrder        int
 	ForeignKey             []string
 	AutoGen                ddl.AutoGenCol
@@ -168,7 +168,7 @@ type SpColumnDetails struct {
 	Datatype        string
 	IsArray         bool
 	Len             int64
-	IsNull          bool
+	NotNull         bool
 	PrimaryKeyOrder int
 	ForeignKey      []string
 	AutoGen         ddl.AutoGenCol
@@ -176,15 +176,16 @@ type SpColumnDetails struct {
 }
 
 type AppCodeAssessmentOutput struct {
-	Language     string
-	Framework    string
-	TotalLoc     int
-	TotalFiles   int
-	CodeSnippets *[]Snippet // Affected code snippets
+	Language               string
+	Framework              string
+	TotalLoc               int
+	TotalFiles             int
+	CodeSnippets           *[]Snippet // Affected code snippets
+	QueryTranslationResult *[]QueryTranslationResult
 }
 
 type QueryAssessmentOutput struct {
-	//TBD
+	QueryTranslationResult *[]QueryTranslationResult
 }
 
 type PerformanceAssessmentOutput struct {
@@ -233,4 +234,9 @@ type TimestampComparisonAnalysis struct {
 
 type DateComparisonAnalysis struct {
 	FormatIssues []string `json:"format_issues"`
+}
+
+type QueryTranslationInput struct {
+	Query string
+	Count int
 }
