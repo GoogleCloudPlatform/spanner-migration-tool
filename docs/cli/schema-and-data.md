@@ -113,3 +113,6 @@ Detailed description of optional flags can be found [here](./flags.md).
      --dataflow-template=DATAFLOW_TEMPLATE
         The google cloud storage path of the minimal downtime migration
         template to use to run the migration job. Default value is the latest dataflow template.
+
+     --session-file-name=SESSION_FILENAME
+        Optional. Specifies the name of the file we store session state in.
