@@ -100,7 +100,7 @@ Detailed description of optional flags can be found [here](./flags.md).
      --session=SESSION
         Specifies the file that you restore session state from. This file can be generaed using the [schma](schema.md) sub command.
 
-     --session-filename=SESSION_FILENAME
+     --session-file-name=SESSION_FILENAME
         Optional. Specifies the name of the file we store session state in.
 
      --source=SOURCE
