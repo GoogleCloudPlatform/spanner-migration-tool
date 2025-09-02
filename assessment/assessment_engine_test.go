@@ -324,6 +324,185 @@ func TestFetchSpannerTableNames(t *testing.T) {
 				assert.Empty(t, actualErr)
 				assert.Equal(t, tt.expectedNames, actualNames)
 			}
+		}
+	}
+}
+
+func TestPerformSchemaAssessment(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("panics if infoSchemaCollector is nil", func(t *testing.T) {
+		collectors := assessmentCollectors{
+			infoSchemaCollector: nil, // Intentionally nil
+		}
+		assert.Panics(t, func() {
+			performSchemaAssessment(ctx, collectors)
+		}, "The code should panic on a nil-pointer dereference")
+	})
+
+	// Note: A comprehensive unit test for the success path of performSchemaAssessment
+	// is challenging because it depends on `assessment.InfoSchemaCollector`, a concrete
+	// type from another package. To test the logic thoroughly, this dependency
+	// would ideally be an interface, allowing for a mock implementation.
+	// An integration-style test would be required to test the current implementation.
+}
+
+func TestPerformAppAssessment(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("returns nil when app collector is nil", func(t *testing.T) {
+		collectors := assessmentCollectors{
+			appAssessmentCollector: nil,
+		}
+		output, err := performAppAssessment(ctx, collectors)
+		assert.NoError(t, err)
+		assert.Nil(t, output)
+	})
+
+	// Note: Testing the success and error paths of performAppAssessment is difficult
+	// as it requires mocking `AnalyzeProject` on the concrete `assessment.MigrationCodeSummarizer` type.
+	// A full test would require either refactoring the production code to use an interface
+	// for the collector, or setting up a complex integration test.
+}
+
+func TestIsCharsetCompatible(t *testing.T) {
+	testCases := []struct {
+		name    string
+		charset string
+		want    bool
+	}{
+		{
+			name:    "compatible charset (non-utf8)",
+			charset: "latin1",
+			want:    true,
+		},
+		{
+			name:    "incompatible charset (utf8)",
+			charset: "utf8",
+			want:    false,
+		},
+		{
+			name:    "incompatible charset (utf8mb4)",
+			charset: "utf8mb4",
+			want:    false,
+		},
+		{
+			name:    "empty charset string",
+			charset: "",
+			want:    true,
+		},
+		{
+			name:    "case sensitivity check (UTF8)",
+			charset: "UTF8",
+			want:    true, // strings.Contains is case-sensitive
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := isCharsetCompatible(tc.charset)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestTableSizeDiffBytes(t *testing.T) {
+	// Note: This test reflects the current dummy implementation.
+	// It should be updated when the function logic is implemented.
+	t.Run("dummy implementation returns 1", func(t *testing.T) {
+		got := tableSizeDiffBytes(&utils.SrcTableDetails{}, &utils.SpTableDetails{})
+		assert.Equal(t, 1, got, "Expected dummy implementation to return 1")
+	})
+}
+
+func TestGetSpColSizeBytes(t *testing.T) {
+	const mb = 10 * 1024 * 1024 // 10MB
+	testCases := []struct {
+		name  string
+		input utils.SpColumnDetails
+		want  int64
+	}{
+		{
+			name:  "ARRAY type",
+			input: utils.SpColumnDetails{Datatype: "ARRAY"},
+			want:  mb,
+		},
+		{
+			name:  "BOOL type",
+			input: utils.SpColumnDetails{Datatype: "BOOL"},
+			want:  8 + 1,
+		},
+		{
+			name:  "BYTES type with length",
+			input: utils.SpColumnDetails{Datatype: "BYTES", Len: 256},
+			want:  8 + 256,
+		},
+		{
+			name:  "DATE type",
+			input: utils.SpColumnDetails{Datatype: "DATE"},
+			want:  8 + 4,
+		},
+		{
+			name:  "FLOAT32 type",
+			input: utils.SpColumnDetails{Datatype: "FLOAT32"},
+			want:  8 + 4,
+		},
+		{
+			name:  "FLOAT64 type",
+			input: utils.SpColumnDetails{Datatype: "FLOAT64"},
+			want:  8 + 8,
+		},
+		{
+			name:  "INT64 type",
+			input: utils.SpColumnDetails{Datatype: "INT64"},
+			want:  8 + 8,
+		},
+		{
+			name:  "JSON type",
+			input: utils.SpColumnDetails{Datatype: "JSON"},
+			want:  mb,
+		},
+		{
+			name:  "NUMERIC type",
+			input: utils.SpColumnDetails{Datatype: "NUMERIC"},
+			want:  8 + 22,
+		},
+		{
+			name:  "PROTO type with length",
+			input: utils.SpColumnDetails{Datatype: "PROTO", Len: 1024},
+			want:  8 + 1024,
+		},
+		{
+			name:  "STRING type with length",
+			input: utils.SpColumnDetails{Datatype: "STRING", Len: 512},
+			want:  8 + 512,
+		},
+		{
+			name:  "STRUCT type",
+			input: utils.SpColumnDetails{Datatype: "STRUCT"},
+			want:  mb,
+		},
+		{
+			name:  "TIMESTAMP type",
+			input: utils.SpColumnDetails{Datatype: "TIMESTAMP"},
+			want:  12, // This case returns directly
+		},
+		{
+			name:  "Default case for unknown type",
+			input: utils.SpColumnDetails{Datatype: "UNKNOWN_TYPE"},
+			want:  8, // This case returns directly
+		},
+		{
+			name:  "Case-insensitivity check (string)",
+			input: utils.SpColumnDetails{Datatype: "string", Len: 100},
+			want:  8 + 100,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := getSpColSizeBytes(tc.input)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }
