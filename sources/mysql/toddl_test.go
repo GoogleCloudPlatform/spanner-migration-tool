@@ -157,6 +157,58 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck == nil {
 		t.Errorf("Error in default conversion for unidentified source datatype")
 	}
+
+	blobToBytes, errCheck := toSpannerTypeInternal(schema.Type{"blob", []int64{42}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in blob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", blobToBytes.Name)
+	assert.Equal(t, int64(42), blobToBytes.Len)
+	blobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{"blob", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in blob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", blobToBytesWithoutMods.Name)
+	assert.Equal(t, int64(65535), blobToBytesWithoutMods.Len)
+
+	tinyBlobToBytes, errCheck := toSpannerTypeInternal(schema.Type{"tinyblob", []int64{42}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in tinyBlob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", tinyBlobToBytes.Name)
+	assert.Equal(t, int64(42), tinyBlobToBytes.Len)
+	tinyBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{"tinyblob", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in tinyBlob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", tinyBlobToBytesWithoutMods.Name)
+	assert.Equal(t, int64(255), tinyBlobToBytesWithoutMods.Len)
+
+	mediumBlobToBytes, errCheck := toSpannerTypeInternal(schema.Type{"mediumblob", []int64{42}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in mediumBlob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", mediumBlobToBytes.Name)
+	assert.Equal(t, int64(42), mediumBlobToBytes.Len)
+	mediumBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{"mediumblob", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in mediumBlob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", mediumBlobToBytesWithoutMods.Name)
+	assert.Equal(t, int64(16_777_215), mediumBlobToBytesWithoutMods.Len)
+
+	longBlobToBytes, errCheck := toSpannerTypeInternal(schema.Type{"longblob", []int64{42}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in longBlob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", longBlobToBytes.Name)
+	assert.Equal(t, int64(42), longBlobToBytes.Len)
+	longBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{"longblob", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in longBlob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", longBlobToBytesWithoutMods.Name)
+	assert.Equal(t, int64(4_294_967_295), longBlobToBytesWithoutMods.Len)
 }
 
 // This is just a very basic smoke-test for toSpannerType.
@@ -251,7 +303,7 @@ func TestToSpannerType(t *testing.T) {
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"c1": []internal.SchemaIssue{internal.Widened},
+		"c1":  []internal.SchemaIssue{internal.Widened},
 		"c18": []internal.SchemaIssue{internal.PossibleOverflow},
 	}
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
@@ -358,7 +410,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"c1": []internal.SchemaIssue{internal.Widened},
+		"c1":  []internal.SchemaIssue{internal.Widened},
 		"c18": []internal.SchemaIssue{internal.PossibleOverflow},
 	}
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
@@ -428,5 +480,60 @@ func Test_GetColumnAutoGen(t *testing.T) {
 		autoGenCol, _ := toddl.GetColumnAutoGen(tt.conv, tt.autoGenCol, tt.colId, tt.tableId)
 		assert.Equal(t, &tt.expectedAutoGenCol, autoGenCol)
 		assert.Equal(t, len(tt.conv.SpSequences[tt.srcSequence.Id].ColumnsUsingSeq[tt.tableId]), 1)
+	}
+
+}
+
+func TestGetMaxSize(t *testing.T) {
+	// testCases defines the table for our tests.
+	testCases := []struct {
+		name      string // The name of the test case for clear output.
+		mysqlType string // The input to the getMaxSize function.
+		want      int64  // The expected result.
+	}{
+		{
+			name:      "tinyblob size is correctly returned",
+			mysqlType: "tinyblob",
+			want:      255, // Expected: 255, since 255 < MaxLength
+		},
+		{
+			name:      "blob size is correctly returned",
+			mysqlType: "blob",
+			want:      65535, // Expected: 65535, since 65535 < MaxLength
+		},
+		{
+			name:      "mediumblob size is capped by MaxLength",
+			mysqlType: "mediumblob",
+			want:      16_777_215, // Expected: MaxLength, since 16,777,215 > MaxLength
+		},
+		{
+			name:      "longblob size is capped by MaxLength",
+			mysqlType: "longblob",
+			want:      4_294_967_295, // Expected: MaxLength, since 4,294,967,295 > MaxLength
+		},
+		{
+			name:      "unmapped type returns MaxLength",
+			mysqlType: "varchar", // A type not present in our map.
+			want:      ddl.MaxLength,
+		},
+		{
+			name:      "empty string type returns MaxLength",
+			mysqlType: "", // Edge case: empty input string.
+			want:      ddl.MaxLength,
+		},
+	}
+
+	// Iterate over each test case.
+	for _, tc := range testCases {
+		// t.Run enables running sub-tests, one for each case.
+		// This provides clearer test output and allows for running specific tests.
+		t.Run(tc.name, func(t *testing.T) {
+			got := getMaxSize(tc.mysqlType)
+
+			if got != tc.want {
+				// t.Errorf logs the error without stopping the test execution.
+				t.Errorf("getMaxSize(%q) = %d; want %d", tc.mysqlType, got, tc.want)
+			}
+		})
 	}
 }
