@@ -40,12 +40,14 @@ var maxMysqlSizesMap = map[string]int64{
 	"LONGBLOB":   1<<32 - 1, // 4,294,967,295 bytes
 }
 
+const maxLengthPerCell = 10_485_760
+
 func getMaxSize(srcType string) int64 {
 	value, found := maxMysqlSizesMap[strings.ToUpper(srcType)]
 	if !found {
 		value = ddl.MaxLength
 	}
-	return min(value, ddl.MaxLength)
+	return min(value, maxLengthPerCell)
 }
 
 // ToSpannerType maps a scalar source schema type (defined by id and
@@ -234,7 +236,7 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
 			if len(srcType.Mods) > 0 {
-				return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
+				return ddl.Type{Name: ddl.Bytes, Len: min(srcType.Mods[0], maxLengthPerCell)}, nil
 			}
 			return ddl.Type{Name: ddl.Bytes, Len: getMaxSize(srcType.Name)}, nil
 		}

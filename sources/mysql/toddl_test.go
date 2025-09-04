@@ -195,7 +195,7 @@ func TestToSpannerTypeInternal(t *testing.T) {
 		t.Errorf("Error in mediumBlob to byte conversion")
 	}
 	assert.Equal(t, "BYTES", mediumBlobToBytesWithoutMods.Name)
-	assert.Equal(t, int64(16_777_215), mediumBlobToBytesWithoutMods.Len)
+	assert.Equal(t, int64(10_485_760), mediumBlobToBytesWithoutMods.Len)
 
 	longBlobToBytes, errCheck := toSpannerTypeInternal(schema.Type{"longblob", []int64{42}, []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
@@ -208,7 +208,7 @@ func TestToSpannerTypeInternal(t *testing.T) {
 		t.Errorf("Error in longBlob to byte conversion")
 	}
 	assert.Equal(t, "BYTES", longBlobToBytesWithoutMods.Name)
-	assert.Equal(t, int64(4_294_967_295), longBlobToBytesWithoutMods.Len)
+	assert.Equal(t, int64(10_485_760), longBlobToBytesWithoutMods.Len)
 }
 
 // This is just a very basic smoke-test for toSpannerType.
@@ -504,22 +504,22 @@ func TestGetMaxSize(t *testing.T) {
 		{
 			name:      "mediumblob size is capped by MaxLength",
 			mysqlType: "mediumblob",
-			want:      16_777_215, // Expected: MaxLength, since 16,777,215 > MaxLength
+			want:      10_485_760, // Expected: MaxLength, since 16,777,215 > MaxLength
 		},
 		{
 			name:      "longblob size is capped by MaxLength",
 			mysqlType: "longblob",
-			want:      4_294_967_295, // Expected: MaxLength, since 4,294,967,295 > MaxLength
+			want:      10_485_760, // Expected: MaxLength, since 4,294,967,295 > MaxLength
 		},
 		{
 			name:      "unmapped type returns MaxLength",
 			mysqlType: "varchar", // A type not present in our map.
-			want:      ddl.MaxLength,
+			want:      10_485_760,
 		},
 		{
 			name:      "empty string type returns MaxLength",
 			mysqlType: "", // Edge case: empty input string.
-			want:      ddl.MaxLength,
+			want:      10_485_760,
 		},
 	}
 

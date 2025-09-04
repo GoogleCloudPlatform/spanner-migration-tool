@@ -24,35 +24,35 @@ There are also nuances to handling certain specific data types. These are captur
 
 The Spanner migration tool maps MySQL types to Spanner types as follows:
 
-|                  **MySQL Type**                   |      **Spanner Type**      | **Notes**                                                |
-|:-------------------------------------------------:|:--------------------------:|:--------------------------------------------------------:|
-|        `BOOL`, `BOOLEAN`,<br/>`TINYINT(1)`        |           `BOOL`           |                                                          |
-|                     `BIGINT`                      |          `INT64`           |                                                          |
-|               `BINARY`, `VARBINARY`               |        `BYTES(MAX)`        |                                                          |
-|                      `BLOB`                       |       `BYTES(65535)`       |                                                          |
-|                     `BLOB(N)`                     |         `BYTES(N)`         |                                                          |
-|                   `MEDIUMBLOB`                    |     `BYTES(16777215)`      |                                                          |
-|                  `MEDIUMBLOB(N)`                  |         `BYTES(N)`         |                                                          |
-|                    `TINYBLOB`                     |        `BYTES(255)`        |                                                          |
-|                   `TINYBLOB(N)`                   |         `BYTES(N)`         |                                                          |
-|                    `LONGBLOB`                     |    `BYTES(4294967295)`     |                                                          |
-|                   `LONGBLOB(N)`                   |         `BYTES(N)`         |                                                          |
-|                       `BIT`                       |        `BYTES(MAX)`        | BIT(1) converts to BOOL, other cases map to BYTES        |
-|                      `CHAR`                       |        `STRING(1)`         | CHAR defaults to length 1                                |
-|                     `CHAR(N)`                     |        `STRING(N)`         | differences in treatment of fixed-length character types |
-|                      `DATE`                       |           `DATE`           |                                                          |
-|                    `DATETIME`                     |        `TIMESTAMP`         | differences in treatment of timezones                    |
-|               `DECIMAL`, `NUMERIC`                |         `NUMERIC`          | potential changes of precision                           |
-|                     `DOUBLE`                      |         `FLOAT64`          |                                                          |
-|                      `ENUM`                       |       `STRING(MAX)`        |                                                          |
-|                      `FLOAT`                      |         `FLOAT32`          |                                                          |
-| `INTEGER`, `MEDIUMINT`,<br/>`TINYINT`, `SMALLINT` |          `INT64`           | changes in storage size                                  |
-|                      `JSON`                       |           `JSON`           |                                                          |
-|                       `SET`                       |      `ARRAY<STRING>`       | SET only supports string values                          |
-| `TEXT`, `MEDIUMTEXT`,<br/>`TINYTEXT`, `LONGTEXT`  |       `STRING(MAX)`        |                                                          |
-|                    `TIMESTAMP`                    |        `TIMESTAMP`         |                                                          |
-|                     `VARCHAR`                     |       `STRING(MAX)`        |                                                          |
-|                   `VARCHAR(N)`                    |        `STRING(N)`         | differences in treatment of fixed-length character types |
+|                  **MySQL Type**                   | **Spanner Type**  | **Notes**                                                |
+|:-------------------------------------------------:|:-----------------:|:--------------------------------------------------------:|
+|        `BOOL`, `BOOLEAN`,<br/>`TINYINT(1)`        |      `BOOL`       |                                                          |
+|                     `BIGINT`                      |      `INT64`      |                                                          |
+|               `BINARY`, `VARBINARY`               |   `BYTES(MAX)`    |                                                          |
+|                      `BLOB`                       |  `BYTES(65535)`   |                                                          |
+|                     `BLOB(N)`                     |    `BYTES(N)`     |                                                          |
+|                   `MEDIUMBLOB`                    |     `BYTES(10485760)`     |                                                          |
+|                  `MEDIUMBLOB(N)`                  |    `BYTES(N)`     |                                                          |
+|                    `TINYBLOB`                     |   `BYTES(255)`    |                                                          |
+|                   `TINYBLOB(N)`                   |    `BYTES(N)`     |                                                          |
+|                    `LONGBLOB`                     | `BYTES(10485760)` |                                                          |
+|                   `LONGBLOB(N)`                   |    `BYTES(N)`     |                                                          |
+|                       `BIT`                       |   `BYTES(MAX)`    | BIT(1) converts to BOOL, other cases map to BYTES        |
+|                      `CHAR`                       |    `STRING(1)`    | CHAR defaults to length 1                                |
+|                     `CHAR(N)`                     |    `STRING(N)`    | differences in treatment of fixed-length character types |
+|                      `DATE`                       |      `DATE`       |                                                          |
+|                    `DATETIME`                     |    `TIMESTAMP`    | differences in treatment of timezones                    |
+|               `DECIMAL`, `NUMERIC`                |     `NUMERIC`     | potential changes of precision                           |
+|                     `DOUBLE`                      |     `FLOAT64`     |                                                          |
+|                      `ENUM`                       |   `STRING(MAX)`   |                                                          |
+|                      `FLOAT`                      |     `FLOAT32`     |                                                          |
+| `INTEGER`, `MEDIUMINT`,<br/>`TINYINT`, `SMALLINT` |      `INT64`      | changes in storage size                                  |
+|                      `JSON`                       |      `JSON`       |                                                          |
+|                       `SET`                       |  `ARRAY<STRING>`  | SET only supports string values                          |
+| `TEXT`, `MEDIUMTEXT`,<br/>`TINYTEXT`, `LONGTEXT`  |   `STRING(MAX)`   |                                                          |
+|                    `TIMESTAMP`                    |    `TIMESTAMP`    |                                                          |
+|                     `VARCHAR`                     |   `STRING(MAX)`   |                                                          |
+|                   `VARCHAR(N)`                    |    `STRING(N)`    | differences in treatment of fixed-length character types |
 
 
 Spanner does not support `spatial` datatypes of MySQL. Along with `spatial`
