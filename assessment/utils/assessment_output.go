@@ -199,7 +199,7 @@ type QueryTranslationResult struct {
 	Explanation             string   `json:"explanation"`
 	Complexity              string   `json:"complexity"`
 	TranslationError        string   `json:"translation_error,omitempty"`
-	Source                  string   // "app_code" or "performance_schema" or "app_code,performance_schema"
+	AssessmentSource        string   // "app_code" or "performance_schema" or "app_code,performance_schema"
 	ExecutionCount          int      `json:"execution_count,omitempty"`
 	SnippetId               string   `json:"snippet_id,omitempty"`
 	NumberOfQueryOccurances int      `json:"number_of_query_occurances,omitempty"`
@@ -211,6 +211,7 @@ type QueryTranslationResult struct {
 	DatabasesReferenced     []string           `json:"databases_referenced"`
 	SelectForUpdate         bool               `json:"select_for_update"`
 	ComparisonAnalysis      ComparisonAnalysis `json:"comparison_analysis"`
+	QueryType               string             // INSERT / UPDATE / DELETE / SELECT / CALL / DDL / OTHER
 }
 
 type ComparisonAnalysis struct {

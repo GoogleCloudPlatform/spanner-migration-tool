@@ -18,7 +18,7 @@ func TestGenerateQueryAssessmentReport_MoreCoverage(t *testing.T) {
 			SourceTablesAffected: nil,
 			Complexity:           "complex",
 			ExecutionCount:       0,
-			Source:               "performance_schema",
+			AssessmentSource:     "performance_schema",
 			CrossDBJoins:         true,
 			SelectForUpdate:      true,
 			TranslationError:     "some error",
@@ -112,18 +112,6 @@ func TestCodeChangeEffort(t *testing.T) {
 	assert.Equal(t, "", codeChangeEffort("unknown"))
 }
 
-func TestGetQueryType(t *testing.T) {
-	assert.Equal(t, "SELECT", getQueryType("SELECT * FROM users"))
-	assert.Equal(t, "INSERT", getQueryType("INSERT INTO users VALUES (1)"))
-	assert.Equal(t, "UPDATE", getQueryType("UPDATE users SET name = 'test' WHERE id = 1"))
-	assert.Equal(t, "DELETE", getQueryType("DELETE FROM users WHERE id = 1"))
-	assert.Equal(t, "DDL", getQueryType("CREATE TABLE users (id INT64, name STRING(100)) PRIMARY KEY (id)"))
-	assert.Equal(t, "DDL", getQueryType("ALTER TABLE users ADD COLUMN age INT64"))
-	assert.Equal(t, "DDL", getQueryType("DROP TABLE users"))
-	assert.Equal(t, "CALL", getQueryType("CALL my_procedure()"))
-	assert.Equal(t, "OTHER", getQueryType("SHOW TABLES"))
-}
-
 func TestGenerateQueryAssessmentReport(t *testing.T) {
 	queries := []utils.QueryTranslationResult{
 		{
@@ -134,7 +122,7 @@ func TestGenerateQueryAssessmentReport(t *testing.T) {
 			SpannerTablesAffected: []string{"users"},
 			Complexity:            "simple",
 			ExecutionCount:        100,
-			Source:                "app_code",
+			AssessmentSource:      "app_code",
 		},
 		{
 			NormalizedQuery:       "SELECT * FROM products WHERE price > ?",
@@ -144,7 +132,7 @@ func TestGenerateQueryAssessmentReport(t *testing.T) {
 			SpannerTablesAffected: []string{"products"},
 			Complexity:            "moderate",
 			ExecutionCount:        50,
-			Source:                "app_code",
+			AssessmentSource:      "app_code",
 			TranslationError:      "Error while translating query",
 		},
 	}

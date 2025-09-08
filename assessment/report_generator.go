@@ -849,29 +849,6 @@ func codeChangeEffort(complexity string) string {
 	}
 }
 
-func getQueryType(normalized string) string {
-	s := strings.TrimSpace(strings.ToUpper(normalized))
-	if strings.HasPrefix(s, "SELECT") {
-		return "SELECT"
-	}
-	if strings.HasPrefix(s, "INSERT") {
-		return "INSERT"
-	}
-	if strings.HasPrefix(s, "UPDATE") {
-		return "UPDATE"
-	}
-	if strings.HasPrefix(s, "DELETE") {
-		return "DELETE"
-	}
-	if strings.HasPrefix(s, "CREATE") || strings.HasPrefix(s, "ALTER") || strings.HasPrefix(s, "DROP") {
-		return "DDL"
-	}
-	if strings.HasPrefix(s, "CALL") {
-		return "CALL"
-	}
-	return "OTHER"
-}
-
 func GenerateQueryAssessmentReport(queries []utils.QueryTranslationResult, outputPath string) error {
 	f, err := os.Create(outputPath)
 	if err != nil {
@@ -892,7 +869,7 @@ func GenerateQueryAssessmentReport(queries []utils.QueryTranslationResult, outpu
 
 	for _, q := range queries {
 		queryID := hashNormalizedQuery(q.NormalizedQuery)
-		queryType := getQueryType(q.NormalizedQuery)
+		queryType := q.QueryType
 		srcTables := ""
 		if q.SourceTablesAffected != nil {
 			srcTables = strings.Join(q.SourceTablesAffected, ", ")
@@ -966,7 +943,7 @@ func GenerateQueryAssessmentReport(queries []utils.QueryTranslationResult, outpu
 			codeChangeDetails,
 			numExec,
 			databasesReferenced,
-			q.Source,
+			q.AssessmentSource,
 		})
 	}
 	return nil

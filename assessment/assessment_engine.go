@@ -143,7 +143,7 @@ func performQueryAssessment(ctx context.Context, collectors assessmentCollectors
 		"\n")
 
 	for _, query := range queries {
-		if query.Source == "performance_schema" {
+		if query.AssessmentSource == "performance_schema" {
 			performanceSchemaQueries = append(performanceSchemaQueries, utils.QueryTranslationInput{
 				Query: query.NormalizedQuery,
 				Count: query.ExecutionCount,
@@ -255,10 +255,10 @@ func combineAndDeduplicateQueries(
 	for _, q := range performanceSchemaQueries {
 		key := q.Query
 		queryMap[key] = utils.QueryTranslationResult{
-			OriginalQuery:   key,
-			NormalizedQuery: key,
-			Source:          "performance_schema",
-			ExecutionCount:  q.Count,
+			OriginalQuery:    key,
+			NormalizedQuery:  key,
+			AssessmentSource: "performance_schema",
+			ExecutionCount:   q.Count,
 		}
 	}
 
@@ -271,7 +271,7 @@ func combineAndDeduplicateQueries(
 				q.NormalizedQuery = q.OriginalQuery
 			}
 			if existingQuery, ok := queryMap[key]; ok {
-				q.Source = "app_code, performance_schema"
+				q.AssessmentSource = "app_code, performance_schema"
 				q.ExecutionCount = existingQuery.ExecutionCount
 				queryMap[key] = q
 			} else {

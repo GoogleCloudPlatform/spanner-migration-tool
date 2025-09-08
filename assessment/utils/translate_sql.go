@@ -158,8 +158,9 @@ func defaultTranslateQueryTask(input *LLMQueryTranslationInput, mutex *sync.Mute
 	}
 
 	translationResult.OriginalQuery = input.MySQLQuery
-	translationResult.Source = "performance_schema"
+	translationResult.AssessmentSource = "performance_schema"
 	translationResult.ExecutionCount = input.Count
+	translationResult.QueryType = GetQueryType(input.MySQLQuery)
 
 	return task.TaskResult[*QueryTranslationResult]{
 		Result: &translationResult,
@@ -178,4 +179,27 @@ func buildTranslationPrompt(mysqlQuery, mysqlSchema, spannerSchema string) strin
 	prompt = strings.ReplaceAll(prompt, "{{QUERY_EXAMPLES}}", string(QueryTranslationExamples))
 
 	return prompt
+}
+
+func GetQueryType(normalized string) string {
+	s := strings.TrimSpace(strings.ToUpper(normalized))
+	if strings.HasPrefix(s, "SELECT") {
+		return "SELECT"
+	}
+	if strings.HasPrefix(s, "INSERT") {
+		return "INSERT"
+	}
+	if strings.HasPrefix(s, "UPDATE") {
+		return "UPDATE"
+	}
+	if strings.HasPrefix(s, "DELETE") {
+		return "DELETE"
+	}
+	if strings.HasPrefix(s, "CREATE") || strings.HasPrefix(s, "ALTER") || strings.HasPrefix(s, "DROP") {
+		return "DDL"
+	}
+	if strings.HasPrefix(s, "CALL") {
+		return "CALL"
+	}
+	return "OTHER"
 }
