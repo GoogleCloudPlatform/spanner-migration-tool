@@ -2,8 +2,9 @@ name: Build with Trusted Registry
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches:
+      - master
+  pull_request:
 
 jobs:
   build:
