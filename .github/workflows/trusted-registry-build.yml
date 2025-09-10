@@ -1,0 +1,79 @@
+name: Build with Trusted Registry
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: self-hosted  # <-- Change this to your self-hosted runner label
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Backup package-lock.json
+      run: |
+        if [ -f ui/package-lock.json ]; then
+          cp ui/package-lock.json ui/package-lock.json.bak
+        else
+          echo "ui/package-lock.json not found. Skipping backup."
+        fi
+      working-directory: ${{ github.workspace }}
+
+    - name: Authenticate to Google Cloud with Service Account Key
+      id: auth_gcp
+      env:
+        GCP_SA_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+      run: |
+        echo "$GCP_SA_KEY" | base64 --decode > ~/gcp-key.json
+        gcloud auth activate-service-account --key-file=~/gcp-key.json
+        rm ~/gcp-key.json
+
+    - name: Build with trusted registry
+      id: build_with_trusted_registry
+      continue-on-error: true
+      run: |
+        set -e
+        cd ui
+        cat <<EOF > .npmrc
+        registry=https://us-npm.pkg.dev/artifact-foundry-prod/npm-3p-trusted/
+        //us-npm.pkg.dev/artifact-foundry-prod/npm-3p-trusted/:always-auth=true
+        EOF
+        npm_config_registry=https://registry.npmjs.org npx google-artifactregistry-auth
+        if [ -f package-lock.json ]; then
+          rm package-lock.json
+        fi
+        if [ -d node_modules ]; then
+          rm -rf node_modules
+        fi
+        npm install
+        npm run build
+        cd ..
+        if [ -d ui/node_modules ]; then
+          rm -rf ui/node_modules
+        fi
+        rm ui/.npmrc
+
+    - name: Restore package-lock.json and install
+      if: steps.build_with_trusted_registry.outcome == 'success'
+      run: |
+        if [ -f ui/package-lock.json.bak ]; then
+          mv ui/package-lock.json.bak ui/package-lock.json
+          cd ui
+          npm install
+        else
+          echo "Backup package-lock.json not found. Skipping restore."
+        fi
+      working-directory: ${{ github.workspace }}
+
+    - name: Fail workflow if build failed
+      if: steps.build_with_trusted_registry.outcome != 'success'
+      run: |
+        echo "Build with trusted registry failed. Failing the workflow."
+        exit 1
