@@ -71,6 +71,18 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck == nil {
 		t.Errorf("Error in bigint to numeric conversion")
 	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bigint unsigned", []int64{1, 2, 3}, []int64{1, 2, 3}}, "INT64")
+	if errCheck == nil {
+		t.Errorf("Error in bigint unsigned to int64 conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bigint unsigned", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in bigint unsigned to string conversion")
+	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"bigint unsigned", []int64{1, 2, 3}, []int64{1, 2, 3}}, "NUMERIC")
+	if errCheck == nil {
+		t.Errorf("Error in bigint unsigned to numeric conversion")
+	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{"int", []int64{1, 2, 3}, []int64{1, 2, 3}}, "STRING")
 	if errCheck == nil {
 		t.Errorf("Error in int to string conversion")
@@ -145,6 +157,58 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck == nil {
 		t.Errorf("Error in default conversion for unidentified source datatype")
 	}
+
+	blobToBytes, errCheck := toSpannerTypeInternal(schema.Type{"blob", []int64{42}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in blob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", blobToBytes.Name)
+	assert.Equal(t, int64(42), blobToBytes.Len)
+	blobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{"blob", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in blob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", blobToBytesWithoutMods.Name)
+	assert.Equal(t, int64(65535), blobToBytesWithoutMods.Len)
+
+	tinyBlobToBytes, errCheck := toSpannerTypeInternal(schema.Type{"tinyblob", []int64{42}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in tinyBlob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", tinyBlobToBytes.Name)
+	assert.Equal(t, int64(42), tinyBlobToBytes.Len)
+	tinyBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{"tinyblob", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in tinyBlob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", tinyBlobToBytesWithoutMods.Name)
+	assert.Equal(t, int64(255), tinyBlobToBytesWithoutMods.Len)
+
+	mediumBlobToBytes, errCheck := toSpannerTypeInternal(schema.Type{"mediumblob", []int64{42}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in mediumBlob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", mediumBlobToBytes.Name)
+	assert.Equal(t, int64(42), mediumBlobToBytes.Len)
+	mediumBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{"mediumblob", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in mediumBlob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", mediumBlobToBytesWithoutMods.Name)
+	assert.Equal(t, int64(10_485_760), mediumBlobToBytesWithoutMods.Len)
+
+	longBlobToBytes, errCheck := toSpannerTypeInternal(schema.Type{"longblob", []int64{42}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in longBlob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", longBlobToBytes.Name)
+	assert.Equal(t, int64(42), longBlobToBytes.Len)
+	longBlobToBytesWithoutMods, errCheck := toSpannerTypeInternal(schema.Type{"longblob", []int64{}, []int64{1, 2, 3}}, "BYTES")
+	if errCheck != nil {
+		t.Errorf("Error in longBlob to byte conversion")
+	}
+	assert.Equal(t, "BYTES", longBlobToBytesWithoutMods.Name)
+	assert.Equal(t, int64(10_485_760), longBlobToBytesWithoutMods.Len)
 }
 
 // This is just a very basic smoke-test for toSpannerType.
@@ -156,7 +220,7 @@ func TestToSpannerType(t *testing.T) {
 	srcSchema := schema.Table{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c17"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c17", "c18"},
 		ColDefs: map[string]schema.Column{
 			"c1":  {Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
 			"c2":  {Name: "b", Id: "c2", Type: schema.Type{Name: "double"}},
@@ -169,6 +233,7 @@ func TestToSpannerType(t *testing.T) {
 			"c9":  {Name: "i", Id: "c9", Type: schema.Type{Name: "timestamp"}},
 			"c10": {Name: "j", Id: "c10", Type: schema.Type{Name: "bit"}},
 			"c17": {Name: "k", Id: "c17", Type: schema.Type{Name: "float"}},
+			"c18": {Name: "l", Id: "c18", Type: schema.Type{Name: "bigint unsigned", Mods: []int64{20}}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{ColId: "c1"}},
 		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c11"}},
@@ -216,7 +281,7 @@ func TestToSpannerType(t *testing.T) {
 	expected := ddl.CreateTable{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c17"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c17", "c18"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"c1":  ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 			"c2":  ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
@@ -229,6 +294,7 @@ func TestToSpannerType(t *testing.T) {
 			"c9":  ddl.ColumnDef{Name: "i", Id: "c9", T: ddl.Type{Name: ddl.Timestamp}},
 			"c10": ddl.ColumnDef{Name: "j", Id: "c10", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 			"c17": ddl.ColumnDef{Name: "k", Id: "c17", T: ddl.Type{Name: ddl.Float32}},
+			"c18": ddl.ColumnDef{Name: "l", Id: "c18", T: ddl.Type{Name: ddl.Int64}},
 		},
 		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1"}},
 		ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c11"}},
@@ -237,7 +303,8 @@ func TestToSpannerType(t *testing.T) {
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"c1": []internal.SchemaIssue{internal.Widened},
+		"c1":  []internal.SchemaIssue{internal.Widened},
+		"c18": []internal.SchemaIssue{internal.PossibleOverflow},
 	}
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 	commonInfoSchema := common.InfoSchemaImpl{}
@@ -260,7 +327,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	srcSchema := schema.Table{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c17"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c17", "c18"},
 		ColDefs: map[string]schema.Column{
 			"c1":  schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
 			"c2":  schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "double"}},
@@ -273,6 +340,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 			"c9":  schema.Column{Name: "i", Id: "c9", Type: schema.Type{Name: "timestamp"}},
 			"c10": schema.Column{Name: "j", Id: "c10", Type: schema.Type{Name: "bit"}},
 			"c17": schema.Column{Name: "k", Id: "c17", Type: schema.Type{Name: "float"}},
+			"c18": schema.Column{Name: "l", Id: "c18", Type: schema.Type{Name: "bigint unsigned", Mods: []int64{20}}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{ColId: "c1"}},
 		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c11"}},
@@ -320,7 +388,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	expected := ddl.CreateTable{
 		Name:   name,
 		Id:     tableId,
-		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c17"},
+		ColIds: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c17", "c18"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"c1":  ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 			"c2":  ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
@@ -333,6 +401,7 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 			"c9":  ddl.ColumnDef{Name: "i", Id: "c9", T: ddl.Type{Name: ddl.Timestamp}},
 			"c10": ddl.ColumnDef{Name: "j", Id: "c10", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 			"c17": ddl.ColumnDef{Name: "k", Id: "c17", T: ddl.Type{Name: ddl.Float32}},
+			"c18": ddl.ColumnDef{Name: "l", Id: "c18", T: ddl.Type{Name: ddl.Int64}},
 		},
 		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1"}},
 		ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"c4"}, ReferTableId: "t2", ReferColumnIds: []string{"c11"}},
@@ -341,7 +410,8 @@ func TestToSpannerPostgreSQLDialectType(t *testing.T) {
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"c1": []internal.SchemaIssue{internal.Widened},
+		"c1":  []internal.SchemaIssue{internal.Widened},
+		"c18": []internal.SchemaIssue{internal.PossibleOverflow},
 	}
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId].ColumnLevelIssues)
 }
@@ -410,5 +480,60 @@ func Test_GetColumnAutoGen(t *testing.T) {
 		autoGenCol, _ := toddl.GetColumnAutoGen(tt.conv, tt.autoGenCol, tt.colId, tt.tableId)
 		assert.Equal(t, &tt.expectedAutoGenCol, autoGenCol)
 		assert.Equal(t, len(tt.conv.SpSequences[tt.srcSequence.Id].ColumnsUsingSeq[tt.tableId]), 1)
+	}
+
+}
+
+func TestGetMaxSize(t *testing.T) {
+	// testCases defines the table for our tests.
+	testCases := []struct {
+		name      string // The name of the test case for clear output.
+		mysqlType string // The input to the getMaxSize function.
+		want      int64  // The expected result.
+	}{
+		{
+			name:      "tinyblob size is correctly returned",
+			mysqlType: "tinyblob",
+			want:      255, // Expected: 255, since 255 < MaxLength
+		},
+		{
+			name:      "blob size is correctly returned",
+			mysqlType: "blob",
+			want:      65535, // Expected: 65535, since 65535 < MaxLength
+		},
+		{
+			name:      "mediumblob size is capped by MaxLength",
+			mysqlType: "mediumblob",
+			want:      10_485_760, // Expected: MaxLength, since 16,777,215 > MaxLength
+		},
+		{
+			name:      "longblob size is capped by MaxLength",
+			mysqlType: "longblob",
+			want:      10_485_760, // Expected: MaxLength, since 4,294,967,295 > MaxLength
+		},
+		{
+			name:      "unmapped type returns MaxLength",
+			mysqlType: "varchar", // A type not present in our map.
+			want:      10_485_760,
+		},
+		{
+			name:      "empty string type returns MaxLength",
+			mysqlType: "", // Edge case: empty input string.
+			want:      10_485_760,
+		},
+	}
+
+	// Iterate over each test case.
+	for _, tc := range testCases {
+		// t.Run enables running sub-tests, one for each case.
+		// This provides clearer test output and allows for running specific tests.
+		t.Run(tc.name, func(t *testing.T) {
+			got := getMaxSize(tc.mysqlType)
+
+			if got != tc.want {
+				// t.Errorf logs the error without stopping the test execution.
+				t.Errorf("getMaxSize(%q) = %d; want %d", tc.mysqlType, got, tc.want)
+			}
+		})
 	}
 }

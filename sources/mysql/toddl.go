@@ -17,6 +17,7 @@ package mysql
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -27,6 +28,26 @@ import (
 
 // ToDdlImpl MySQL specific implementation for ToDdl.
 type ToDdlImpl struct {
+}
+
+// maxBytesMap holds the maximum length in bytes for fixed-size MySQL string types.
+// This is based on the maximum possible length (L) of the data.
+// Reference: https://dev.mysql.com/doc/refman/9.0/en/storage-requirements.html
+var maxMysqlSizesMap = map[string]int64{
+	"TINYBLOB":   1<<8 - 1,  // 255 bytes
+	"BLOB":       1<<16 - 1, // 65,535 bytes
+	"MEDIUMBLOB": 1<<24 - 1, // 16,777,215 bytes
+	"LONGBLOB":   1<<32 - 1, // 4,294,967,295 bytes
+}
+
+const maxLengthPerCell = 10_485_760
+
+func getMaxSize(srcType string) int64 {
+	value, found := maxMysqlSizesMap[strings.ToUpper(srcType)]
+	if !found {
+		value = ddl.MaxLength
+	}
+	return min(value, maxLengthPerCell)
 }
 
 // ToSpannerType maps a scalar source schema type (defined by id and
@@ -133,7 +154,7 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 			// capabilities between MySQL and Spanner NUMERIC.
 			return ddl.Type{Name: ddl.Numeric}, nil
 		}
-	case "bigint":
+ 	case "bigint":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
@@ -141,6 +162,15 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 			return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Int64}, nil
+		}
+	case "bigint unsigned":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Numeric:
+			return ddl.Type{Name: ddl.Numeric}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.PossibleOverflow}
 		}
 	case "smallint", "mediumint", "integer", "int":
 		switch spType {
@@ -205,7 +235,10 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
-			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+			if len(srcType.Mods) > 0 {
+				return ddl.Type{Name: ddl.Bytes, Len: min(srcType.Mods[0], maxLengthPerCell)}, nil
+			}
+			return ddl.Type{Name: ddl.Bytes, Len: getMaxSize(srcType.Name)}, nil
 		}
 	case "date":
 		switch spType {
