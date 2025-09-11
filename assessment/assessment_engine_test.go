@@ -243,7 +243,7 @@ func TestPerformQueryAssessment(t *testing.T) {
 }
 
 func TestFetchSpannerTableNames(t *testing.T) {
-	conv := &internal.Conv{
+	baseConv := &internal.Conv{
 		SpDialect: constants.DIALECT_GOOGLESQL,
 		SrcSchema: map[string]schema.Table{
 			"t1": {Name: "table1", Id: "t1"},
@@ -251,50 +251,79 @@ func TestFetchSpannerTableNames(t *testing.T) {
 		},
 		SpSchema: map[string]ddl.CreateTable{
 			"t1": {Name: "sp_table1", Id: "t1"},
-			"t2": {Name: "sp_table2", Id: "t2"},
-		},
-		UsedNames: map[string]bool{
-			"sp_table1": true,
-			"sp_table2": true,
 		},
 	}
 
 	tests := []struct {
 		name          string
 		tableNames    []string
+		setup         func(conv *internal.Conv) // Optional setup for the test case
 		expectedNames []string
+		expectedErr   string
 	}{
 		{
-			name:          "single table",
+			name:          "Success - single table",
 			tableNames:    []string{"table1"},
 			expectedNames: []string{"sp_table1"},
+			expectedErr:   "",
 		},
 		{
-			name:          "multiple tables",
-			tableNames:    []string{"table1", "table2"},
+			name:       "Success - multiple tables",
+			tableNames: []string{"table1", "table2"},
+			setup: func(conv *internal.Conv) {
+				conv.SpSchema["t2"] = ddl.CreateTable{Name: "sp_table2", Id: "t2"}
+			},
 			expectedNames: []string{"sp_table1", "sp_table2"},
+			expectedErr:   "",
 		},
 		{
-			name:          "table not in source schema",
+			name:          "Error - table not in source schema",
 			tableNames:    []string{"table3"},
-			expectedNames: []string{"table3"},
+			expectedNames: nil,
+			expectedErr:   "error getting table id from source name",
 		},
 		{
-			name:          "mix of existing and non-existing tables",
-			tableNames:    []string{"table1", "table4"},
-			expectedNames: []string{"sp_table1", "table4"},
+			name:          "Error - spanner table not found",
+			tableNames:    []string{"table2"},
+			expectedNames: nil,
+			expectedErr:   "spanner table not found for source table: table2",
 		},
 		{
-			name:          "empty input",
+			name:          "Success - empty input",
 			tableNames:    []string{},
 			expectedNames: []string{},
+			expectedErr:   "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualNames := fetchSpannerTableNames(conv, tt.tableNames)
-			assert.Equal(t, tt.expectedNames, actualNames)
+			// Create a deep copy of the baseConv for each test run to ensure isolation.
+			conv := &internal.Conv{
+				SpDialect: baseConv.SpDialect,
+				SrcSchema: make(map[string]schema.Table),
+				SpSchema:  make(map[string]ddl.CreateTable),
+			}
+			for k, v := range baseConv.SrcSchema {
+				conv.SrcSchema[k] = v
+			}
+			for k, v := range baseConv.SpSchema {
+				conv.SpSchema[k] = v
+			}
+
+			if tt.setup != nil {
+				tt.setup(conv)
+			}
+
+			actualNames, actualErr := fetchSpannerTableNames(conv, tt.tableNames)
+
+			if tt.expectedErr != "" {
+				assert.Contains(t, actualErr, tt.expectedErr)
+				assert.Nil(t, actualNames)
+			} else {
+				assert.Empty(t, actualErr)
+				assert.Equal(t, tt.expectedNames, actualNames)
+			}
 		})
 	}
 }

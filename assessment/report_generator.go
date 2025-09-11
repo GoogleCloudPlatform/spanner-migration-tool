@@ -925,8 +925,10 @@ func GenerateQueryAssessmentReport(queries []utils.QueryTranslationResult, outpu
 		}
 
 		explaination := q.Explanation
+		spannerQuery := q.SpannerQuery
 		if q.TranslationError != "" {
 			explaination = q.TranslationError
+			spannerQuery = ""
 		}
 
 		w.Write([]string{
@@ -937,7 +939,7 @@ func GenerateQueryAssessmentReport(queries []utils.QueryTranslationResult, outpu
 			srcTables,
 			spTables,
 			strings.Join(incompatibilityTypes, ", "),
-			q.SpannerQuery,
+			spannerQuery,
 			explaination,
 			codeChangeEffort(q.Complexity),
 			codeChangeDetails,
