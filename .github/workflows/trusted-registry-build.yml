@@ -27,15 +27,6 @@ jobs:
         fi
       working-directory: ${{ github.workspace }}
 
-    - name: Authenticate to Google Cloud with Service Account Key
-      id: auth_gcp
-      env:
-        GCP_SA_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-      run: |
-        echo "$GCP_SA_KEY" | base64 --decode > ~/gcp-key.json
-        gcloud auth activate-service-account --key-file=~/gcp-key.json
-        rm ~/gcp-key.json
-
     - name: Build with trusted registry
       id: build_with_trusted_registry
       continue-on-error: true
