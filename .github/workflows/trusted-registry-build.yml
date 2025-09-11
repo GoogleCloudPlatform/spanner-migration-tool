@@ -34,6 +34,7 @@ jobs:
         set -e
         cd ui
         cat <<EOF > .npmrc
+        gcloud auth list
         registry=https://us-npm.pkg.dev/artifact-foundry-prod/npm-3p-trusted/
         //us-npm.pkg.dev/artifact-foundry-prod/npm-3p-trusted/:always-auth=true
         EOF
