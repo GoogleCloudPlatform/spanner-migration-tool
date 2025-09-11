@@ -206,6 +206,7 @@ func TestTranslateQueryTask(t *testing.T) {
 				SpannerQuery:     "SELECT * FROM users",
 				AssessmentSource: "performance_schema",
 				ExecutionCount:   10,
+				QueryType:        "SELECT",
 			},
 			expectedError: false,
 		},
