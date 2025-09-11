@@ -34,11 +34,13 @@ jobs:
         set -e
         cd ui
         cat <<EOF > .npmrc
-        gcloud auth list
         registry=https://us-npm.pkg.dev/artifact-foundry-prod/npm-3p-trusted/
         //us-npm.pkg.dev/artifact-foundry-prod/npm-3p-trusted/:always-auth=true
         EOF
         npm_config_registry=https://registry.npmjs.org npx google-artifactregistry-auth
+        echo "--- GCloud Auth List ---"
+        gcloud auth list
+        echo "------------------------"
         if [ -f package-lock.json ]; then
           rm package-lock.json
         fi
