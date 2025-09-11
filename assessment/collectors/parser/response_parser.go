@@ -186,16 +186,16 @@ func ParseDaoFileChanges(fileAnalyzerResponse string, projectPath, filePath stri
 				SpannerQuery:            ParseAnyToString(qc["new_query"]),
 				Explanation:             ParseAnyToString(qc["explanation"]),
 				Complexity:              ParseAnyToString(qc["complexity"]),
-				Source:                  "app_code",
+				AssessmentSource:        "app_code",
 				SnippetId:               snippet.Id,
 				NumberOfQueryOccurances: ParseAnyToInteger(qc["number_of_query_occurances"]),
 				CrossDBJoins:            ParseAnyToBool(qc["cross_db_joins"]),
-				TablesAffected:          ParseStringArrayInterface(qc["tables_affected"]),
-				DDLStatement:            ParseAnyToBool(qc["ddl_statement"]),
+				SourceTablesAffected:    ParseStringArrayInterface(qc["tables_affected"]),
 				FunctionsUsed:           ParseStringArrayInterface(qc["functions_used"]),
 				OperatorsUsed:           ParseStringArrayInterface(qc["operators_used"]),
 				DatabasesReferenced:     ParseStringArrayInterface(qc["databases_referenced"]),
 				SelectForUpdate:         ParseAnyToBool(qc["select_for_update"]),
+				QueryType:               GetQueryType(ParseAnyToString(qc["normalized_query"])),
 			}
 			queryResults = append(queryResults, queryResult)
 		}

@@ -15,6 +15,7 @@
 package assessment
 
 import (
+	"encoding/csv"
 	"os"
 	"path/filepath"
 	"sort"
@@ -2496,3 +2497,164 @@ func TestGenerateReport(t *testing.T) {
 		assert.NoFileExists(t, schemaFile)
 	})
 }
+
+func TestGenerateQueryAssessmentReport(t *testing.T) {
+	queries := []utils.QueryTranslationResult{
+		{
+			NormalizedQuery:       "SELECT * FROM users WHERE id = ?",
+			OriginalQuery:         "SELECT * FROM users WHERE id = 1",
+			SpannerQuery:          "SELECT * FROM `users` WHERE `id` = 1",
+			SourceTablesAffected:  []string{"users"},
+			SpannerTablesAffected: []string{"users"},
+			Complexity:            "simple",
+			ExecutionCount:        100,
+			AssessmentSource:      "app_code",
+			QueryType:             "SELECT",
+		},
+		{
+			NormalizedQuery:       "SELECT * FROM products WHERE price > ?",
+			OriginalQuery:         "SELECT * FROM products WHERE price > 100.0",
+			SpannerQuery:          "",
+			SourceTablesAffected:  []string{"products"},
+			SpannerTablesAffected: []string{"products"},
+			Complexity:            "moderate",
+			ExecutionCount:        50,
+			AssessmentSource:      "app_code",
+			TranslationError:      "Error while translating query",
+			QueryType:             "SELECT",
+		},
+		{
+			NormalizedQuery:      "SELECT * FROM users WHERE id = ?",
+			OriginalQuery:        "SELECT * FROM users WHERE id = 1",
+			SpannerQuery:         "SELECT * FROM `users` WHERE `id` = 1",
+			SourceTablesAffected: nil,
+			Complexity:           "complex",
+			ExecutionCount:       0,
+			AssessmentSource:     "performance_schema",
+			CrossDBJoins:         true,
+			SelectForUpdate:      true,
+			TranslationError:     "some error",
+			FunctionsUsed:        []string{"unsupported_function"},
+			OperatorsUsed:        []string{"unsupported_operator"},
+			ComparisonAnalysis: utils.ComparisonAnalysis{
+				LiteralComparisons: &utils.LiteralComparisonAnalysis{
+					PrecisionIssues: []string{"col1"},
+				},
+				DataTypeComparisons: &utils.DataTypeComparisonAnalysis{
+					IncompatibleTypes: []string{"col2"},
+				},
+				TimestampComparisons: &utils.TimestampComparisonAnalysis{
+					TimezoneIssues: []string{"col3"},
+				},
+				DateComparisons: &utils.DateComparisonAnalysis{
+					FormatIssues: []string{"col4"},
+				},
+			},
+			DatabasesReferenced: []string{"db1", "db2"},
+			SnippetId:           "snippet123",
+		},
+	}
+
+	// Create a temporary file for the report
+	tmpfile, err := os.CreateTemp("", "query_assessment_report_*.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name()) // clean up
+
+	// Generate the report
+	err = GenerateQueryAssessmentReport(queries, tmpfile.Name())
+	assert.NoError(t, err)
+
+	// Read the generated report
+	f, err := os.Open(tmpfile.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	reader := csv.NewReader(f)
+	reader.Comma = '\t'
+	records, err := reader.ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify the report content
+	assert.Len(t, records, 4, "Expected 4 records (1 header + 3 data rows)")
+
+	// Verify header
+	expectedHeader := []string{
+		"Query ID", "Query Type", "Normalized Query Text", "Original Query Example",
+		"Associated Source Table(s)", "Associated Spanner Table(s)", "Incompatibility Type(s)", "Suggested Spanner Query",
+		"Reason for Change", "Estimated Code Change Effort", "Code Change Details", "Number of Executions",
+		"Databases Referenced", "Source of Information",
+	}
+	assert.Equal(t, expectedHeader, records[0])
+
+	// Create a map for easy lookup of records by a unique key if possible, or just iterate
+	for _, record := range records[1:] {
+		switch record[0] {
+		case "q41cc943b": // SELECT * FROM products WHERE price > ?
+			assert.Equal(t, "SELECT", record[1])
+			assert.Equal(t, "SELECT * FROM products WHERE price > ?", record[2])
+			assert.Equal(t, "SELECT * FROM products WHERE price > 100.0", record[3])
+			assert.Equal(t, "products", record[4])
+			assert.Equal(t, "products", record[5])
+			assert.Equal(t, "", record[6])
+			assert.Equal(t, "", record[7])
+			assert.Equal(t, "Error while translating query", record[8])
+			assert.Equal(t, "Medium", record[9])
+			assert.Equal(t, "None/Unavailable", record[10])
+			assert.Equal(t, "50", record[11])
+			assert.Equal(t, "", record[12])
+			assert.Equal(t, "app_code", record[13])
+		case "q6f540be5": // SELECT * FROM users WHERE id = ?
+			// This query ID is duplicated, so we need to distinguish them.
+			if record[13] == "app_code" { // First test case
+				assert.Equal(t, "SELECT", record[1])
+				assert.Equal(t, "SELECT * FROM users WHERE id = ?", record[2])
+				assert.Equal(t, "SELECT * FROM users WHERE id = 1", record[3])
+				assert.Equal(t, "users", record[4])
+				assert.Equal(t, "users", record[5])
+				assert.Equal(t, "", record[6])
+				assert.Equal(t, "SELECT * FROM `users` WHERE `id` = 1", record[7])
+				assert.Equal(t, "", record[8])
+				assert.Equal(t, "Low", record[9])
+				assert.Equal(t, "None/Unavailable", record[10])
+				assert.Equal(t, "100", record[11])
+				assert.Equal(t, "", record[12])
+			} else if record[13] == "performance_schema" { // from MoreCoverage test
+				assert.Equal(t, "", record[4])
+				assert.Contains(t, record[6], "Cross-DB Join")
+				assert.Contains(t, record[6], "Unsupported Function: unsupported_function")
+				assert.Contains(t, record[6], "Unsupported Operator: unsupported_operator")
+				assert.Contains(t, record[6], "Literal Precision Issues: col1")
+				assert.Contains(t, record[6], "Incompatible Data Types: col2")
+				assert.Contains(t, record[6], "Timestamp Timezone Issue: col3")
+				assert.Contains(t, record[6], "Date Format Issue: col4")
+				assert.Equal(t, "High", record[9])
+				assert.Equal(t, "snippet123", record[10])
+				assert.Equal(t, "", record[11])
+				assert.Equal(t, "db1, db2", record[12])
+			}
+		}
+	}
+}
+
+func TestGenerateQueryAssessmentReport_FileCreationError(t *testing.T) {
+	queries := []utils.QueryTranslationResult{}
+	// Attempt to create a report in a non-existent directory to trigger an error.
+	outputPath := "/non_existent_dir/report.csv"
+	err := GenerateQueryAssessmentReport(queries, outputPath)
+	assert.Error(t, err)
+}
+
+func TestCodeChangeEffort(t *testing.T) {
+	assert.Equal(t, "Low", codeChangeEffort("simple"))
+	assert.Equal(t, "Medium", codeChangeEffort("moderate"))
+	assert.Equal(t, "Medium", codeChangeEffort("medium"))
+	assert.Equal(t, "High", codeChangeEffort("complex"))
+	assert.Equal(t, "", codeChangeEffort("unknown"))
+}
+
