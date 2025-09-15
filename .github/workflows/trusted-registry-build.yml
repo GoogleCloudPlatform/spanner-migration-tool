@@ -8,7 +8,10 @@ on:
 
 jobs:
   build:
-    runs-on: self-hosted  # <-- Change this to your self-hosted runner label
+    # IMPORTANT: Your self-hosted runner MUST have the 'gcloud' CLI installed 
+    # AND be authenticated to Google Cloud (e.g., via Application Default Credentials)
+    runs-on: self-hosted  
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -18,57 +21,95 @@ jobs:
       with:
         node-version: '18'
 
+    # --- 1. BACKUP package-lock.json ---
     - name: Backup package-lock.json
+      id: backup_lockfile
+      working-directory: ${{ github.workspace }}/ui
       run: |
-        if [ -f ui/package-lock.json ]; then
-          cp ui/package-lock.json ui/package-lock.json.bak
+        if [ -f package-lock.json ]; then
+          # Create the backup file in the same directory
+          cp package-lock.json package-lock.json.bak
+          echo "Backed up package-lock.json to package-lock.json.bak"
         else
-          echo "ui/package-lock.json not found. Skipping backup."
+          echo "package-lock.json not found. Skipping backup."
         fi
-      working-directory: ${{ github.workspace }}
 
-    - name: Build with trusted registry
-      id: build_with_trusted_registry
-      continue-on-error: true
+    # --- 2. ARTIFACT REGISTRY AUTHENTICATION & .npmrc SETUP ---
+    - name: Configure .npmrc with Gcloud Token
+      id: configure_npmrc
+      working-directory: ${{ github.workspace }}/ui
       run: |
+        #!/usr/bin/env bash
         set -e
-        cd ui
-        cat <<EOF > .npmrc
+        
+        # Get the access token. This requires the runner to be authenticated.
+        REPO_TOKEN="$(gcloud auth print-access-token)"
+        
+        # Create the .npmrc file in the 'ui' directory.
+        cat > .npmrc <<EOL
         registry=https://us-npm.pkg.dev/artifact-foundry-prod/npm-3p-trusted/
         //us-npm.pkg.dev/artifact-foundry-prod/npm-3p-trusted/:always-auth=true
-        EOF
-        npm_config_registry=https://registry.npmjs.org npx google-artifactregistry-auth
-        echo "--- GCloud Auth List ---"
-        gcloud auth list
-        echo "------------------------"
+        //us-npm.pkg.dev/artifact-foundry-prod/npm-3p-trusted/:_authToken=${REPO_TOKEN}
+        EOL
+        
+        echo "Successfully created .npmrc in ui/"
+
+    # --- 3. INSTALL AND BUILD ---
+    - name: Install Dependencies and Build UI
+      id: build_ui
+      continue-on-error: true 
+      working-directory: ${{ github.workspace }}/ui
+      run: |
+        set -e
+        
+        # CRITICAL: Delete the existing package-lock.json so npm generates a new one
+        # using the authenticated registry, but does not use the old integrity hashes.
         if [ -f package-lock.json ]; then
           rm package-lock.json
         fi
-        if [ -d node_modules ]; then
-          rm -rf node_modules
-        fi
+        
+        # Ensure a clean install
+        rm -rf node_modules
+        
         npm install
         npm run build
-        cd ..
-        if [ -d ui/node_modules ]; then
-          rm -rf ui/node_modules
-        fi
-        rm ui/.npmrc
+        
+        # NOTE: If the install or build fails, the cleanup step runs next due to 'continue-on-error: true'
 
-    - name: Restore package-lock.json and install
-      if: steps.build_with_trusted_registry.outcome == 'success'
+    # --- 4. CLEANUP AND RESTORE ---
+    - name: Cleanup .npmrc, node_modules, and Restore package-lock.json
+      if: always() # Ensure this runs even if the install/build step failed
+      working-directory: ${{ github.workspace }}/ui
       run: |
-        if [ -f ui/package-lock.json.bak ]; then
-          mv ui/package-lock.json.bak ui/package-lock.json
-          cd ui
-          npm install
-        else
-          echo "Backup package-lock.json not found. Skipping restore."
+        # 4a. Remove the generated .npmrc file
+        if [ -f .npmrc ]; then
+          rm .npmrc
+          echo "Removed temporary .npmrc"
         fi
-      working-directory: ${{ github.workspace }}
+        
+        # 4b. Remove the dynamically generated package-lock.json (from the install)
+        if [ -f package-lock.json ]; then
+          rm package-lock.json
+          echo "Removed newly generated package-lock.json"
+        fi
+        
+        # 4c. Restore the original package-lock.json
+        if [ -f package-lock.json.bak ]; then
+          mv package-lock.json.bak package-lock.json
+          echo "Restored original package-lock.json"
+        else
+          echo "No backup file found to restore."
+        fi
 
+        # 4d. Remove node_modules
+        if [ -d node_modules ]; then
+          rm -rf node_modules
+          echo "Removed node_modules directory"
+        fi
+
+    # --- 5. FAIL WORKFLOW (If Build Failed) ---
     - name: Fail workflow if build failed
-      if: steps.build_with_trusted_registry.outcome != 'success'
+      if: steps.build_ui.outcome != 'success'
       run: |
         echo "Build with trusted registry failed. Failing the workflow."
         exit 1
