@@ -614,3 +614,12 @@ html {
   margin-left: auto;
   margin-right: auto;
 }
+.ng-dropdown-panel.ng-select-bottom {
+  // This ensures the dropdown appears just below the input field
+  margin-top: -12px;
+  
+  // Control the height of the dropdown's scrollable area
+  .ng-dropdown-panel-items {
+    max-height: 240px; // Adjust this value as needed
+  }
+}
