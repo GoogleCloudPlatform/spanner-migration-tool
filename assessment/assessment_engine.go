@@ -143,12 +143,14 @@ func performQueryAssessment(ctx context.Context, collectors assessmentCollectors
 		"\n")
 
 	for _, query := range queries {
-		if query.Source == "performance_schema" {
+		if query.AssessmentSource == "performance_schema" {
 			performanceSchemaQueries = append(performanceSchemaQueries, utils.QueryTranslationInput{
 				Query: query.NormalizedQuery,
 				Count: query.ExecutionCount,
 			})
 		} else {
+			query.SpannerTablesAffected, query.TranslationError = fetchSpannerTableNames(conv, query.SourceTablesAffected)
+
 			translationResult = append(translationResult, query)
 		}
 	}
@@ -158,13 +160,33 @@ func performQueryAssessment(ctx context.Context, collectors assessmentCollectors
 	}
 	translatedQueries, err := aiClientService.TranslateQueriesFunc(ctx, performanceSchemaQueries, aiClient, mysqlSchema, spannerSchema)
 	if translatedQueries != nil {
-		translationResult = append(translationResult, translatedQueries...)
+		for _, translatedQuery := range translatedQueries {
+			translatedQuery.SpannerTablesAffected, translatedQuery.TranslationError = fetchSpannerTableNames(conv, translatedQuery.SourceTablesAffected)
+			translationResult = append(translationResult, translatedQuery)
+		}
 	}
 	logger.Log.Info("query assessment completed successfully.")
 	if err != nil {
 		return translationResult, fmt.Errorf("Error translating queries: %v", err)
 	}
 	return translationResult, nil
+}
+
+func fetchSpannerTableNames(conv *internal.Conv, tableNames []string) ([]string, string) {
+	spannerTableNames := make([]string, 0, len(tableNames))
+	for _, tableName := range tableNames {
+		tableId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, tableName)
+		if err != nil {
+			logger.Log.Warn("error getting table id from source name", zap.String("tableName", tableName), zap.Error(err))
+			return nil, fmt.Sprintf("error getting table id from source name: %v", err)
+		}
+		if sp, found := conv.SpSchema[tableId]; found {
+			spannerTableNames = append(spannerTableNames, sp.Name)
+			continue
+		}
+		return nil, fmt.Sprintf("spanner table not found for source table: %s", tableName)
+	}
+	return spannerTableNames, ""
 }
 
 // Initilize collectors. Take a decision here on which collectors are mandatory and which are optional
@@ -236,10 +258,10 @@ func combineAndDeduplicateQueries(
 	for _, q := range performanceSchemaQueries {
 		key := q.Query
 		queryMap[key] = utils.QueryTranslationResult{
-			OriginalQuery:   key,
-			NormalizedQuery: key,
-			Source:          "performance_schema",
-			ExecutionCount:  q.Count,
+			OriginalQuery:    key,
+			NormalizedQuery:  key,
+			AssessmentSource: "performance_schema",
+			ExecutionCount:   q.Count,
 		}
 	}
 
@@ -252,7 +274,7 @@ func combineAndDeduplicateQueries(
 				q.NormalizedQuery = q.OriginalQuery
 			}
 			if existingQuery, ok := queryMap[key]; ok {
-				q.Source = "app_code, performance_schema"
+				q.AssessmentSource = "app_code, performance_schema"
 				q.ExecutionCount = existingQuery.ExecutionCount
 				queryMap[key] = q
 			} else {

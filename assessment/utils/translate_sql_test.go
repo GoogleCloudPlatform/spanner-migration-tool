@@ -1,3 +1,19 @@
+/*
+	Copyright 2025 Google LLC
+
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+*/
 package utils
 
 import (
@@ -66,19 +82,19 @@ func TestTranslateQueriesToSpanner(t *testing.T) {
 			},
 			mockTaskResult: task.TaskResult[*QueryTranslationResult]{
 				Result: &QueryTranslationResult{
-					OriginalQuery:  "SELECT * FROM users",
-					SpannerQuery:   "SELECT * FROM users",
-					Source:         "performance_schema",
-					ExecutionCount: 10,
+					OriginalQuery:    "SELECT * FROM users",
+					SpannerQuery:     "SELECT * FROM users",
+					AssessmentSource: "performance_schema",
+					ExecutionCount:   10,
 				},
 			},
 			mockTaskError: nil,
 			expectedResult: []QueryTranslationResult{
 				{
-					OriginalQuery:  "SELECT * FROM users",
-					SpannerQuery:   "SELECT * FROM users",
-					Source:         "performance_schema",
-					ExecutionCount: 10,
+					OriginalQuery:    "SELECT * FROM users",
+					SpannerQuery:     "SELECT * FROM users",
+					AssessmentSource: "performance_schema",
+					ExecutionCount:   10,
 				},
 			},
 			expectedError: false,
@@ -186,10 +202,11 @@ func TestTranslateQueryTask(t *testing.T) {
 			},
 			mockError: nil,
 			expectedResult: &QueryTranslationResult{
-				OriginalQuery:  "SELECT * FROM users",
-				SpannerQuery:   "SELECT * FROM users",
-				Source:         "performance_schema",
-				ExecutionCount: 10,
+				OriginalQuery:    "SELECT * FROM users",
+				SpannerQuery:     "SELECT * FROM users",
+				AssessmentSource: "performance_schema",
+				ExecutionCount:   10,
+				QueryType:        "SELECT",
 			},
 			expectedError: false,
 		},
@@ -295,4 +312,16 @@ func TestBuildTranslationPrompt(t *testing.T) {
 	assert.Contains(t, prompt, mysqlSchema)
 	assert.Contains(t, prompt, spannerSchema)
 	assert.Contains(t, prompt, string(QueryTranslationExamples))
+}
+
+func TestGetQueryType(t *testing.T) {
+	assert.Equal(t, "SELECT", GetQueryType("SELECT * FROM users"))
+	assert.Equal(t, "INSERT", GetQueryType("INSERT INTO users VALUES (1)"))
+	assert.Equal(t, "UPDATE", GetQueryType("UPDATE users SET name = 'test' WHERE id = 1"))
+	assert.Equal(t, "DELETE", GetQueryType("DELETE FROM users WHERE id = 1"))
+	assert.Equal(t, "DDL", GetQueryType("CREATE TABLE users (id INT64, name STRING(100)) PRIMARY KEY (id)"))
+	assert.Equal(t, "DDL", GetQueryType("ALTER TABLE users ADD COLUMN age INT64"))
+	assert.Equal(t, "DDL", GetQueryType("DROP TABLE users"))
+	assert.Equal(t, "CALL", GetQueryType("CALL my_procedure()"))
+	assert.Equal(t, "OTHER", GetQueryType("SHOW TABLES"))
 }

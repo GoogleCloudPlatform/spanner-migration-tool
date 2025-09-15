@@ -45,10 +45,9 @@ If a code change affects both schema and query, include both in the same object.
         "number_of_query_occurances": "<number_of_times_query_occured_in_code>. Return as integer.",
         "explanation": "<description of why the change is needed and how to update the query>",
         "databases_referenced": ["List of databases referenced in the query (e.g., 'db1', 'db2')"],
-        "ddl_statement": false,
         "tables_affected": ["table1", "table2"],
         "cross_db_joins": false,
-        "functions_used": ["NOW()", "DATE_FORMAT()"],
+        "functions_used": ["NOW", "DATE_FORMAT"],
         "operators_used": ["<=>", "REGEXP"]
         "select_for_update": false,
         "comparison_analysis": {
