@@ -1,184 +1,665 @@
 [
-    {
-      "id": "1",
-      "example": "How to create tables with UUIDs, Enums, Dates, and insert data into them, while also creating a unique index in Spanner?",
-      "rewrite": {
-        "theory": "Spanner uses `GENERATE_UUID()` for UUID generation, `STRING()` for Enum types, and `INT64` for `INT` and `SMALLINT`. Unique indexes are created separately after table creation.",
-        "options": [
-          {
-            "mysql_code": "create table Employee(\nid varchar(36) PRIMARY key,\nemployee_id INT UNIQUE,\nname VARCHAR(30),\nemployee_type enum('Manager',\"Employee\"),\nlevel smallint,\ndoj date,\ndesignation VARCHAR(20)\n);\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),1,'ABhishek','Manager', 2,'2023-12-31', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),2,'Ashwin','Manager', 3,'2021-12-31', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),3,'Ashish','Employee', 4,'2021-10-31', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),4,'Hassan','Employee', 5,'2023-01-21', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),5,'Yasvi','Employee', 6,'2022-03-12', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),6,'Sharmili','Employee', 7,'2022-11-21', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),7,'Muskan','Employee', 8,'2022-03-31', 'Engineering Manager');",
-            "spanner_code": "CREATE TABLE Employee (\nid STRING(36),\nemployee_id INT64,\nname STRING(30),\nemployee_type STRING(30),\nlevel INT64,\ndoj DATE,\ndesignation STRING(20),\n) PRIMARY KEY (id);\nCREATE UNIQUE INDEX uk_employee_id ON Employee(employee_id);\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),1,'ABhishek','Manager', 2,'2023-12-31', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),2,'Ashwin','Manager', 3,'2021-12-31', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),3,'Ashish','Employee', 4,'2021-10-31', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),4,'Hassan','Employee', 5,'2023-01-21', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),5,'Yasvi','Employee', 6,'2022-03-12', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),6,'Sharmili','Employee', 7,'2022-11-21', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),7,'Muskan','Employee', 8,'2022-03-31', 'Engineering Manager');"
-          }
-        ]
-      }
-    },
-    {
-      "id": "2",
-      "example": "How to define and insert data into tables with foreign key constraints?",
-      "rewrite": {
-        "theory": "Spanner supports foreign key constraints.",
-        "options": [
-          {
-            "mysql_code": "create table Employee_Details(\nid varchar(36) PRIMARY key,\nemployee_id int ,\naddress text,\ndob date not null,\nother_details blob,\nconstraint FOREIGN KEY (employee_id) REFERENCES Employee(employee_id)\n);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),1,'Koramanagla Bangalore 560048', '1988-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),2,\"Mahadeva Bangalore 560018\", '1992-01-24',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),3,\"Goregaon Mumbai 560025\", '1998-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),4,\"CannaughtPlace 560088\", '1998-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),5,\"Sarjapura Bangalore 560035\", '1998-05-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),6,\"Whitefield Bangalore 560010\", '1988-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),7,\"Indiranagar Bangalore 560001\", '1996-11-18',null);",
-            "spanner_code": "create table Employee_Details(\nid String(36) ,\nemployee_id int64 ,\naddress String(MAX),\ndob date not null,\nother_details Bytes(100),\nconstraint FK_ED FOREIGN KEY (employee_id) REFERENCES Employee(employee_id)\n) PRIMARY KEY (id);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),1,'Koramanagla Bangalore 560048', '1988-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),2,'Mahadeva Bangalore 560018', '1992-01-24',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),3,'Goregaon Mumbai 560025', '1998-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),4,'CannaughtPlace 560088', '1998-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),5,'Sarjapura Bangalore 560035', '1998-05-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),6,'Whitefield Bangalore 560010', '1988-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),7,'Indiranagar Bangalore 560001', '1996-11-18',null);"
-          }
-        ]
-      }
-    },
-    {
-      "id": "3",
-      "example": "How to create a table with multiple foreign key constraints in Spanner?",
-      "rewrite": {
-        "theory": "Spanner supports multiple foreign key constraints within a table definition. You can define more than one FOREIGN KEY clause in the CREATE TABLE statement.",
-        "options": [
-          {
-            "mysql_code": "CREATE TABLE Employee_Manager( employee_id int, manager_id int, CONSTRAINT FOREIGN KEY (employee_id) REFERENCES Employee(employee_id), CONSTRAINT FOREIGN KEY (manager_id) REFERENCES Employee(employee_id) );",
-            "spanner_code": "CREATE TABLE Employee_Manager( employee_id int64, manager_id int64, CONSTRAINT FK_EM1 FOREIGN KEY (employee_id) REFERENCES Employee(employee_id), CONSTRAINT FK_EM2 FOREIGN KEY (manager_id) REFERENCES Employee(employee_id) ) PRIMARY KEY (employee_id, manager_id);"
-          }
-        ]
-      }
-    },
-    {
-      "id": "4",
-      "example": "How to create a table with a composite primary key in Spanner?",
-      "rewrite": {
-        "theory": "For a composite primary key in Spanner, list all columns that form the primary key within the PRIMARY KEY clause.",
-        "options": [
-          {
-            "mysql_code": "CREATE TABLE Employee_Manager( employee_id int, manager_id int, PRIMARY KEY (employee_id, manager_id) );",
-            "spanner_code": "CREATE TABLE Employee_Manager( employee_id int64, manager_id int64 ) PRIMARY KEY (employee_id, manager_id);"
-          }
-        ]
-      }
-    },
-    {
-      "id": "5",
-      "example": "How to handle unique key constraints where NULL is allowed and insert data into such a table in Spanner?",
-      "rewrite": {
-        "theory": "In Spanner, unique indexes allow `NULL` values. If multiple rows have `NULL` for a column in a unique index, they are all considered unique. If a unique key includes multiple columns, and any of them is `NULL`, the combination is considered unique.",
-        "options": [
-          {
-            "mysql_code": "create table Employee_chat_history(\nid int PRIMARY key,\nsender int,\nreceiver int,\nsender_name varchar(40),\nreceiver_name varchar(40),\nchat JSON,\nCONSTRAINT uK Unique key (sender,receiver)\n);\ninsert into Employee_chat_history (id,sender,receiver,sender_name,receiver_name) values (1, 1,null,'Ashwin',null);\ninsert into Employee_chat_history (id,sender,receiver,sender_name,receiver_name) values (2, 1,null,'Ashwin',null);\ninsert into Employee_chat_history (id,sender,receiver,sender_name,receiver_name) values (1, 1,null,'Ashwin',null);\ninsert into Employee_chat_history (id,sender,receiver,sender_name,receiver_name) values (2, 1,null,'Ashwin',null);",
-            "spanner_code": "create table Employee_chat_history(\nid int64 ,\nsender int64,\nreceiver int64,\nsender_name String(40),\nreceiver_name String(40),\nchat JSON\n) PRIMARY key(id);\nCREATE UNIQUE INDEX uk_ech ON Employee_chat_history(sender,receiver);\ninsert into Employee_chat_history (id,sender,receiver,sender_name,receiver_name) values (1, 1,null,'Ashwin',null);\ninsert into Employee_chat_history (id,sender,receiver,sender_name,receiver_name) values (2, 1,null,'Ashwin',null);"
-          }
-        ]
-      }
-    },
-    {
-      "id": "6",
-      "example": "How to create a table and insert data into it using `GENERATE_UUID()` for the primary key in Spanner?",
-      "rewrite": {
-        "theory": "Spanner allows `GENERATE_UUID()` to generate unique IDs for primary keys. You need to explicitly include the `id` column in your `INSERT` statement and use `GENERATE_UUID()` for its value.",
-        "options": [
-          {
-            "mysql_code": "CREATE TABLE sales (\nproduct VARCHAR(50),\nregion VARCHAR(50),\namount INT\n);\nINSERT INTO sales VALUES ('Laptop', 'North', 1000);\nINSERT INTO sales VALUES ('Laptop', 'South', 1200);\nINSERT INTO sales VALUES ('Desktop', 'North', 800);\nINSERT INTO sales VALUES ('Desktop', 'South', 900);\nINSERT INTO sales VALUES ('Tablet', 'North', 500);\nINSERT INTO sales VALUES ('Tablet', 'South', 600);",
-            "spanner_code": "CREATE TABLE sales (\nid String(50),\nproduct String(50),\nregion String(50),\namount INT64\n) primary key(id);\nINSERT INTO sales(id,product,region,amount) VALUES (GENERATE_UUID(),'Laptop', 'North', 1000);\nINSERT INTO sales(id,product,region,amount) VALUES (GENERATE_UUID(),'Laptop', 'South', 1200);\nINSERT INTO sales(id,product,region,amount) VALUES (GENERATE_UUID(),'Desktop', 'North', 800);\nINSERT INTO sales(id,product,region,amount) VALUES (GENERATE_UUID(),'Desktop', 'South', 900);\nINSERT INTO sales(id,product,region,amount) VALUES (GENERATE_UUID(),'Tablet', 'North', 500);\nINSERT INTO sales(id,product,region,amount) VALUES (GENERATE_UUID(),'Tablet', 'South', 600);"
-          }
-        ]
-      }
-    },
-    {
-      "id": "7",
-      "example": "How to perform a join using a subquery in Spanner?",
-      "rewrite": {
-        "theory": "Spanner supports joins with subqueries in a similar way to MySQL. Ensure the data types used in the join condition are compatible.",
-        "options": [
-          {
-            "mysql_code": "SELECT e.* FROM Employee e JOIN (SELECT employee_id FROM Employee_Details d WHERE d.address LIKE '%Bangalore%') t ON e.employee_id = t.employee_id;",
-            "spanner_code": "SELECT e.* FROM Employee e JOIN (SELECT employee_id FROM Employee_Details d WHERE d.address LIKE '%Bangalore%') t ON e.employee_id = t.employee_id;"
-          }
-        ]
-      }
-    },
-    {
-      "id": "8",
-      "example": "How to use the `ROW_NUMBER()` window function in Spanner?",
-      "rewrite": {
-        "theory": "Spanner supports the `ROW_NUMBER()` window function. It functions identically to MySQL for assigning sequential integers to rows within a partition.",
-        "options": [
-          {
-            "mysql_code": "SELECT * FROM Employee e JOIN (SELECT e.employee_id, e.address, e.dob, ROW_NUMBER() OVER(ORDER BY e.dob) AS row_number1 FROM Employee_Details e WHERE e.dob >'1990-01-01' ) t ON e.employee_id = t.employee_id WHERE t.row_number1 =1;",
-            "spanner_code": "SELECT * FROM Employee e JOIN (SELECT e.employee_id, e.address, e.dob, ROW_NUMBER() OVER(ORDER BY e.dob) AS row_number1 FROM Employee_Details e WHERE e.dob >'1990-01-01' ) t ON e.employee_id = t.employee_number WHERE t.row_number1 =1;"
-          }
-        ]
-      }
-    },
-    {
-      "id": "9",
-      "example": "How to use subqueries with `NOT IN` clause in Spanner?",
-      "rewrite": {
-        "theory": "Spanner supports subqueries within `WHERE` clauses, including with the `NOT IN` operator. The behavior is consistent with MySQL.",
-        "options": [
-          {
-            "mysql_code": "SELECT * FROM Employee e WHERE employee_id NOT IN (SELECT employee_id FROM Employee_Details d WHERE employee_id != 5)",
-            "spanner_code": "SELECT * FROM Employee e WHERE employee_id NOT IN (SELECT employee_id FROM Employee_Details d WHERE employee_id != 5)"
-          }
-        ]
-      }
-    },
-    {
-      "id": "10",
-      "example": "How to use `COALESCE` with multiple subqueries in Spanner?",
-      "rewrite": {
-        "theory": "Spanner's `COALESCE` function works similarly to MySQL, returning the first non-NULL expression from a list. It can effectively be used with subqueries.",
-        "options": [
-          {
-            "mysql_code": "SELECT COALESCE( (SELECT e.name FROM Employee e JOIN Employee_Details d ON e.employee_id = d.employee_id WHERE d.address LIKE '%Pune' LIMIT 1), (SELECT e.name FROM Employee e JOIN Employee_Details d ON e.employee_id = d.employee_id WHERE d.address LIKE '%Delhi' LIMIT 1 ), (SELECT e.name FROM Employee e JOIN Employee_Details d ON e.employee_id = d.employee_id WHERE d.address LIKE '%Bangalore%' LIMIT 1));",
-            "spanner_code": "SELECT COALESCE( (SELECT e.name FROM Employee e JOIN Employee_Details d ON e.employee_id = d.employee_id WHERE d.address LIKE '%Pune' LIMIT 1), (SELECT e.name FROM Employee e JOIN Employee_Details d ON e.employee_id = d.employee_id WHERE d.address LIKE '%Delhi' LIMIT 1 ), (SELECT e.name FROM Employee e JOIN Employee_Details d ON e.employee_id = d.employee_id WHERE d.address LIKE '%Bangalore%' LIMIT 1));"
-          }
-        ]
-      }
-    },
-    {
-      "id": "11",
-      "example": "How to perform an `UPDATE` statement with nested subqueries in Spanner?",
-      "rewrite": {
-        "theory": "Spanner supports `UPDATE` statements with nested subqueries in the `WHERE` clause. When updating `BLOB` equivalent data types, Spanner requires a byte string literal (e.g., `b'...'`).",
-        "options": [
-          {
-            "mysql_code": "UPDATE Employee_Details SET other_details = 'test2' WHERE employee_id IN (SELECT t.employee_id FROM Employee t WHERE t.name <> 'Ashwin' AND t.level IN (SELECT level FROM Employee e WHERE e.employee_id IN (SELECT employee_id FROM Employee WHERE level >1) ) )",
-            "spanner_code": "UPDATE Employee_Details SET other_details = b'123' WHERE employee_id IN (SELECT t.employee_id FROM Employee t WHERE t.name <> 'Ashwin' AND t.level IN (SELECT level FROM Employee e WHERE e.employee_id IN (SELECT employee_id FROM Employee WHERE level >1) ) );"
-          }
-        ]
-      }
-    },
-    {
-      "id": "12",
-      "example": "How to perform an `INSERT IGNORE INTO` operation in Spanner?",
-      "rewrite": {
-        "theory": "Spanner supports `INSERT OR IGNORE` to skip insertion on duplicate keys. Use this when you want to insert a row only if it does not already exist.",
-        "options": [
-          {
-            "mysql_code": "INSERT IGNORE INTO Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL);",
-            "spanner_code": "INSERT OR IGNORE Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL);"
-          }
-        ]
-      }
-    },
-    {
-      "id": "13",
-      "example": "How to perform an `ON DUPLICATE KEY UPDATE` operation in Spanner?",
-      "rewrite": {
-        "theory": "Spanner does not support `ON DUPLICATE KEY UPDATE` directly. To achieve similar behavior, you need to check for existence first and then perform an UPDATE or INSERT conditionally in your application logic.",
-        "options": [
-          {
-            "mysql_code": "INSERT INTO Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL) ON DUPLICATE KEY UPDATE employee_id=employee_id+12,address='new Address';",
-            "spanner_code": "-- Pseudocode: Check if row exists, then update or insert\nIF EXISTS (SELECT 1 FROM Employee_Details WHERE id = '27ec8b5f-a1d1-11ef-96dc-42010a400002') THEN\n  UPDATE Employee_Details SET employee_id=employee_id+12, address='new Address' WHERE id = '27ec8b5f-a1d1-11ef-96dc-42010a400002';\nELSE\n  INSERT Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL);\nEND IF;"
-          }
-        ]
-      }
-    },
-    {
-        "id": "14",
-        "example": "How to handle REPLACE INTO in Spanner?",
-        "rewrite": {
-          "theory": "Spanner doesn't directly support `REPLACE INTO`. Instead, you need to update your application logic to delete the existing record if it exists and then insert the new record.",
-          "options": [
-            {
-              "mysql_code": "REPLACE INTO Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL) ;",
-              "spanner_code": "DELETE FROM Employee_Details WHERE id='27ec8b5f-a1d1-11ef-96dc-42010a400002'; INSERT INTO Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',18,'Koramanagla Bangalore 560048', '1988-01-14',NULL);"
-            }
-          ]
+  {
+    "id": "1",
+    "example": "How to create tables with UUIDs, Enums, Dates, and insert data into them, while also creating a unique index in Spanner?",
+    "rewrite": {
+      "theory": "Spanner uses `GENERATE_UUID()` for UUID generation, `STRING()` for Enum types, and `INT64` for `INT` and `SMALLINT`. Unique indexes are created separately after table creation.",
+      "options": [
+        {
+          "mysql_code": "create table Employee(\nid varchar(36) PRIMARY key,\nemployee_id INT UNIQUE,\nname VARCHAR(30),\nemployee_type enum('Manager',\"Employee\"),\nlevel smallint,\ndoj date,\ndesignation VARCHAR(20)\n);\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),1,'ABhishek','Manager', 2,'2023-12-31', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),2,'Ashwin','Manager', 3,'2021-12-31', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),3,'Ashish','Employee', 4,'2021-10-31', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),4,'Hassan','Employee', 5,'2023-01-21', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),5,'Yasvi','Employee', 6,'2022-03-12', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),6,'Sharmili','Employee', 7,'2022-11-21', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( uuid(),7,'Muskan','Employee', 8,'2022-03-31', 'Engineering Manager');",
+          "spanner_code": "CREATE TABLE Employee (\nid STRING(36),\nemployee_id INT64,\nname STRING(30),\nemployee_type STRING(30),\nlevel INT64,\ndoj DATE,\ndesignation STRING(20),\n) PRIMARY KEY (id);\nCREATE UNIQUE INDEX uk_employee_id ON Employee(employee_id);\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),1,'ABhishek','Manager', 2,'2023-12-31', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),2,'Ashwin','Manager', 3,'2021-12-31', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),3,'Ashish','Employee', 4,'2021-10-31', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),4,'Hassan','Employee', 5,'2023-01-21', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),5,'Yasvi','Employee', 6,'2022-03-12', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),6,'Sharmili','Employee', 7,'2022-11-21', 'Engineering Manager');\ninsert into Employee(id,employee_id,name,employee_type,level,doj,designation)\nvalues( GENERATE_UUID(),7,'Muskan','Employee', 8,'2022-03-31', 'Engineering Manager');"
         }
-      }
+      ]
+    }
+  },
+  {
+    "id": "2",
+    "example": "How to define and insert data into tables with foreign key constraints?",
+    "rewrite": {
+      "theory": "Spanner supports foreign key constraints.",
+      "options": [
+        {
+          "mysql_code": "create table Employee_Details(\nid varchar(36) PRIMARY key,\nemployee_id int ,\naddress text,\ndob date not null,\nother_details blob,\nconstraint FOREIGN KEY (employee_id) REFERENCES Employee(employee_id)\n);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),1,'Koramanagla Bangalore 560048', '1988-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),2,\"Mahadeva Bangalore 560018\", '1992-01-24',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),3,\"Goregaon Mumbai 560025\", '1998-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),4,\"CannaughtPlace 560088\", '1998-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),5,\"Sarjapura Bangalore 560035\", '1998-05-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),6,\"Whitefield Bangalore 560010\", '1988-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(uuid(),7,\"Indiranagar Bangalore 560001\", '1996-11-18',null);",
+          "spanner_code": "create table Employee_Details(\nid String(36) ,\nemployee_id int64 ,\naddress String(MAX),\ndob date not null,\nother_details Bytes(100),\nconstraint FK_ED FOREIGN KEY (employee_id) REFERENCES Employee(employee_id)\n) PRIMARY KEY (id);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),1,'Koramanagla Bangalore 560048', '1988-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),2,'Mahadeva Bangalore 560018', '1992-01-24',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),3,'Goregaon Mumbai 560025', '1998-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),4,'CannaughtPlace 560088', '1998-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),5,'Sarjapura Bangalore 560035', '1998-05-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),6,'Whitefield Bangalore 560010', '1988-01-14',null);\ninsert into Employee_Details (id,employee_id, address,dob,other_details) values\n(GENERATE_UUID(),7,'Indiranagar Bangalore 560001', '1996-11-18',null);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "3",
+    "example": "How to create a table with multiple foreign key constraints in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports multiple foreign key constraints within a table definition. You can define more than one FOREIGN KEY clause in the CREATE TABLE statement.",
+      "options": [
+        {
+          "mysql_code": "CREATE TABLE Employee_Manager( employee_id int, manager_id int, CONSTRAINT FOREIGN KEY (employee_id) REFERENCES Employee(employee_id), CONSTRAINT FOREIGN KEY (manager_id) REFERENCES Employee(employee_id) );",
+          "spanner_code": "CREATE TABLE Employee_Manager( employee_id int64, manager_id int64, CONSTRAINT FK_EM1 FOREIGN KEY (employee_id) REFERENCES Employee(employee_id), CONSTRAINT FK_EM2 FOREIGN KEY (manager_id) REFERENCES Employee(employee_id) ) PRIMARY KEY (employee_id, manager_id);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "4",
+    "example": "How to create a table with a composite primary key in Spanner?",
+    "rewrite": {
+      "theory": "For a composite primary key in Spanner, list all columns that form the primary key within the PRIMARY KEY clause.",
+      "options": [
+        {
+          "mysql_code": "CREATE TABLE Employee_Manager( employee_id int, manager_id int, PRIMARY KEY (employee_id, manager_id) );",
+          "spanner_code": "CREATE TABLE Employee_Manager( employee_id int64, manager_id int64 ) PRIMARY KEY (employee_id, manager_id);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "5",
+    "example": "How to handle unique key constraints where NULL is allowed and insert data into such a table in Spanner?",
+    "rewrite": {
+      "theory": "In Spanner, unique indexes allow `NULL` values. If multiple rows have `NULL` for a column in a unique index, they are all considered unique. If a unique key includes multiple columns, and any of them is `NULL`, the combination is considered unique.",
+      "options": [
+        {
+          "mysql_code": "create table Employee_chat_history(\nid int PRIMARY key,\nsender int,\nreceiver int,\nsender_name varchar(40),\nreceiver_name varchar(40),\nchat JSON,\nCONSTRAINT uK Unique key (sender,receiver)\n);\ninsert into Employee_chat_history (id,sender,receiver,sender_name,receiver_name) values (1, 1,null,'Ashwin',null);\ninsert into Employee_chat_history (id,sender,receiver,sender_name,receiver_name) values (2, 1,null,'Ashwin',null);\ninsert into Employee_chat_history (id,sender,receiver,sender_name,receiver_name) values (1, 1,null,'Ashwin',null);\ninsert into Employee_chat_history (id,sender,receiver,sender_name,receiver_name) values (2, 1,null,'Ashwin',null);",
+          "spanner_code": "create table Employee_chat_history(\nid int64 ,\nsender int64,\nreceiver int64,\nsender_name String(40),\nreceiver_name String(40),\nchat JSON\n) PRIMARY key(id);\nCREATE UNIQUE INDEX uk_ech ON Employee_chat_history(sender,receiver);\ninsert into Employee_chat_history (id,sender,receiver,sender_name,receiver_name) values (1, 1,null,'Ashwin',null);\ninsert into Employee_chat_history (id,sender,receiver,sender_name,receiver_name) values (2, 1,null,'Ashwin',null);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "6",
+    "example": "How to create a table and insert data into it using `GENERATE_UUID()` for the primary key in Spanner?",
+    "rewrite": {
+      "theory": "Spanner allows `GENERATE_UUID()` to generate unique IDs for primary keys. You need to explicitly include the `id` column in your `INSERT` statement and use `GENERATE_UUID()` for its value.",
+      "options": [
+        {
+          "mysql_code": "CREATE TABLE sales (\nproduct VARCHAR(50),\nregion VARCHAR(50),\namount INT\n);\nINSERT INTO sales VALUES ('Laptop', 'North', 1000);\nINSERT INTO sales VALUES ('Laptop', 'South', 1200);\nINSERT INTO sales VALUES ('Desktop', 'North', 800);\nINSERT INTO sales VALUES ('Desktop', 'South', 900);\nINSERT INTO sales VALUES ('Tablet', 'North', 500);\nINSERT INTO sales VALUES ('Tablet', 'South', 600);",
+          "spanner_code": "CREATE TABLE sales (\nid String(50),\nproduct String(50),\nregion String(50),\namount INT64\n) primary key(id);\nINSERT INTO sales(id,product,region,amount) VALUES (GENERATE_UUID(),'Laptop', 'North', 1000);\nINSERT INTO sales(id,product,region,amount) VALUES (GENERATE_UUID(),'Laptop', 'South', 1200);\nINSERT INTO sales(id,product,region,amount) VALUES (GENERATE_UUID(),'Desktop', 'North', 800);\nINSERT INTO sales(id,product,region,amount) VALUES (GENERATE_UUID(),'Desktop', 'South', 900);\nINSERT INTO sales(id,product,region,amount) VALUES (GENERATE_UUID(),'Tablet', 'North', 500);\nINSERT INTO sales(id,product,region,amount) VALUES (GENERATE_UUID(),'Tablet', 'South', 600);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "7",
+    "example": "How to perform a join using a subquery in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports joins with subqueries in a similar way to MySQL. Ensure the data types used in the join condition are compatible.",
+      "options": [
+        {
+          "mysql_code": "SELECT e.* FROM Employee e JOIN (SELECT employee_id FROM Employee_Details d WHERE d.address LIKE '%Bangalore%') t ON e.employee_id = t.employee_id;",
+          "spanner_code": "SELECT e.* FROM Employee e JOIN (SELECT employee_id FROM Employee_Details d WHERE d.address LIKE '%Bangalore%') t ON e.employee_id = t.employee_id;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "8",
+    "example": "How to use the `ROW_NUMBER()` window function in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports the `ROW_NUMBER()` window function. It functions identically to MySQL for assigning sequential integers to rows within a partition.",
+      "options": [
+        {
+          "mysql_code": "SELECT * FROM Employee e JOIN (SELECT e.employee_id, e.address, e.dob, ROW_NUMBER() OVER(ORDER BY e.dob) AS row_number1 FROM Employee_Details e WHERE e.dob >'1990-01-01' ) t ON e.employee_id = t.employee_id WHERE t.row_number1 =1;",
+          "spanner_code": "SELECT * FROM Employee e JOIN (SELECT e.employee_id, e.address, e.dob, ROW_NUMBER() OVER(ORDER BY e.dob) AS row_number1 FROM Employee_Details e WHERE e.dob >'1990-01-01' ) t ON e.employee_id = t.employee_number WHERE t.row_number1 =1;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "9",
+    "example": "How to use subqueries with `NOT IN` clause in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports subqueries within `WHERE` clauses, including with the `NOT IN` operator. The behavior is consistent with MySQL.",
+      "options": [
+        {
+          "mysql_code": "SELECT * FROM Employee e WHERE employee_id NOT IN (SELECT employee_id FROM Employee_Details d WHERE employee_id != 5)",
+          "spanner_code": "SELECT * FROM Employee e WHERE employee_id NOT IN (SELECT employee_id FROM Employee_Details d WHERE employee_id != 5)"
+        }
+      ]
+    }
+  },
+  {
+    "id": "10",
+    "example": "How to use `COALESCE` with multiple subqueries in Spanner?",
+    "rewrite": {
+      "theory": "Spanner's `COALESCE` function works similarly to MySQL, returning the first non-NULL expression from a list. It can effectively be used with subqueries.",
+      "options": [
+        {
+          "mysql_code": "SELECT COALESCE( (SELECT e.name FROM Employee e JOIN Employee_Details d ON e.employee_id = d.employee_id WHERE d.address LIKE '%Pune' LIMIT 1), (SELECT e.name FROM Employee e JOIN Employee_Details d ON e.employee_id = d.employee_id WHERE d.address LIKE '%Delhi' LIMIT 1 ), (SELECT e.name FROM Employee e JOIN Employee_Details d ON e.employee_id = d.employee_id WHERE d.address LIKE '%Bangalore%' LIMIT 1));",
+          "spanner_code": "SELECT COALESCE( (SELECT e.name FROM Employee e JOIN Employee_Details d ON e.employee_id = d.employee_id WHERE d.address LIKE '%Pune' LIMIT 1), (SELECT e.name FROM Employee e JOIN Employee_Details d ON e.employee_id = d.employee_id WHERE d.address LIKE '%Delhi' LIMIT 1 ), (SELECT e.name FROM Employee e JOIN Employee_Details d ON e.employee_id = d.employee_id WHERE d.address LIKE '%Bangalore%' LIMIT 1));"
+        }
+      ]
+    }
+  },
+  {
+    "id": "11",
+    "example": "How to perform an `UPDATE` statement with nested subqueries in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports `UPDATE` statements with nested subqueries in the `WHERE` clause. When updating `BLOB` equivalent data types, Spanner requires a byte string literal (e.g., `b'...'`).",
+      "options": [
+        {
+          "mysql_code": "UPDATE Employee_Details SET other_details = 'test2' WHERE employee_id IN (SELECT t.employee_id FROM Employee t WHERE t.name <> 'Ashwin' AND t.level IN (SELECT level FROM Employee e WHERE e.employee_id IN (SELECT employee_id FROM Employee WHERE level >1) ) )",
+          "spanner_code": "UPDATE Employee_Details SET other_details = b'123' WHERE employee_id IN (SELECT t.employee_id FROM Employee t WHERE t.name <> 'Ashwin' AND t.level IN (SELECT level FROM Employee e WHERE e.employee_id IN (SELECT employee_id FROM Employee WHERE level >1) ) );"
+        }
+      ]
+    }
+  },
+  {
+    "id": "12",
+    "example": "How to perform an `INSERT IGNORE INTO` operation in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports `INSERT OR IGNORE` to skip insertion on duplicate keys. Use this when you want to insert a row only if it does not already exist.",
+      "options": [
+        {
+          "mysql_code": "INSERT IGNORE INTO Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL);",
+          "spanner_code": "INSERT OR IGNORE Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "13",
+    "example": "How to perform an `ON DUPLICATE KEY UPDATE` operation in Spanner?",
+    "rewrite": {
+      "theory": "Spanner does not support `ON DUPLICATE KEY UPDATE` directly. To achieve similar behavior, you need to check for existence first and then perform an UPDATE or INSERT conditionally in your application logic.",
+      "options": [
+        {
+          "mysql_code": "INSERT INTO Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL) ON DUPLICATE KEY UPDATE employee_id=employee_id+12,address='new Address';",
+          "spanner_code": "-- Pseudocode: Check if row exists, then update or insert\nIF EXISTS (SELECT 1 FROM Employee_Details WHERE id = '27ec8b5f-a1d1-11ef-96dc-42010a400002') THEN\n  UPDATE Employee_Details SET employee_id=employee_id+12, address='new Address' WHERE id = '27ec8b5f-a1d1-11ef-96dc-42010a400002';\nELSE\n  INSERT Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL);\nEND IF;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "14",
+    "example": "How to handle REPLACE INTO in Spanner?",
+    "rewrite": {
+      "theory": "Spanner doesn't directly support `REPLACE INTO`. Instead, you need to update your application logic to delete the existing record if it exists and then insert the new record.",
+      "options": [
+        {
+          "mysql_code": "REPLACE INTO Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',1,'Koramanagla Bangalore 560048', '1988-01-14',NULL) ;",
+          "spanner_code": "DELETE FROM Employee_Details WHERE id='27ec8b5f-a1d1-11ef-96dc-42010a400002'; INSERT INTO Employee_Details (id,employee_id,address,dob,other_details) VALUES ('27ec8b5f-a1d1-11ef-96dc-42010a400002',18,'Koramanagla Bangalore 560048', '1988-01-14',NULL);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "15",
+    "example": "How to perform an INNER JOIN using `USING` clause in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports `INNER JOIN` with the `USING` clause. This simplifies join syntax by allowing you to specify a common column name that exists in both tables.",
+      "options": [
+        {
+          "mysql_code": "SELECT * FROM Employee INNER JOIN Employee_Manager USING (employee_id);",
+          "spanner_code": "SELECT * FROM Employee INNER JOIN Employee_Manager USING (employee_id);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "16",
+    "example": "How to perform a `LEFT OUTER JOIN` using `USING` clause in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports `LEFT OUTER JOIN` with the `USING` clause, which behaves identically to MySQL. It returns all rows from the left table and the matching rows from the right table.",
+      "options": [
+        {
+          "mysql_code": "SELECT * FROM Employee LEFT OUTER JOIN Employee_Manager USING (employee_id);",
+          "spanner_code": "SELECT * FROM Employee LEFT OUTER JOIN Employee_Manager USING (employee_id);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "17",
+    "example": "How to perform a `RIGHT OUTER JOIN` using `USING` clause in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports `RIGHT OUTER JOIN` with the `USING` clause, which functions the same as in MySQL, returning all rows from the right table and the matching rows from the left table.",
+      "options": [
+        {
+          "mysql_code": "SELECT * FROM Employee RIGHT OUTER JOIN Employee_Manager USING (employee_id);",
+          "spanner_code": "SELECT * FROM Employee RIGHT OUTER JOIN Employee_Manager USING (employee_id);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "18",
+    "example": "How to perform a `CROSS JOIN` using commas inside parentheses in Spanner?",
+    "rewrite": {
+      "theory": "While MySQL allows a comma inside parentheses to perform a `CROSS JOIN`, Spanner requires the explicit use of the `CROSS JOIN` keyword. The comma syntax is not supported for joins.",
+      "options": [
+        {
+          "mysql_code": "SELECT t1.*,t3.*,t4.* FROM Employee t1 LEFT JOIN (Employee_Details t2, Employee_Manager t3, Employee_chat_history t4) ON (t2.employee_id = t1.employee_id AND t3.employee_id = t1.employee_id AND t4.sender = t1.employee_id);",
+          "spanner_code": "SELECT t1.*,t3.*,t4.* FROM Employee t1 LEFT JOIN (Employee_Details t2 CROSS JOIN Employee_Manager t3 CROSS JOIN Employee_chat_history t4) ON (t2.employee_id = t1.employee_id AND t3.employee_id = t1.employee_id AND t4.sender = t1.employee_id);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "19",
+    "example": "How to use the `EXCEPT` operator with a table reference in Spanner?",
+    "rewrite": {
+      "theory": "Spanner does not support the `TABLE` keyword as a direct alias for a table in `EXCEPT` or similar set operators. You must provide the full `SELECT * FROM` query instead.",
+      "options": [
+        {
+          "mysql_code": "TABLE Employee EXCEPT DISTINCT SELECT * FROM Employee WHERE employee_id = 1;",
+          "spanner_code": "SELECT * FROM Employee EXCEPT DISTINCT SELECT * FROM Employee WHERE employee_id = 1;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "20",
+    "example": "How to use the `INTERSECT` operator in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports `INTERSECT ALL` and `INTERSECT DISTINCT` to find common rows between two `SELECT` statements. The `ALL` keyword is required in the Spanner query to match the MySQL behavior, or `DISTINCT` to handle unique rows.",
+      "options": [
+        {
+          "mysql_code": "SELECT employee_id FROM Employee INTERSECT SELECT manager_id FROM Employee_Manager;",
+          "spanner_code": "SELECT employee_id FROM Employee INTERSECT ALL SELECT manager_id FROM Employee_Manager;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "21",
+    "example": "How to use the `VALUES` clause in Spanner?",
+    "rewrite": {
+      "theory": "Spanner does not have a direct `VALUES` clause for returning a table of literals. The equivalent functionality can be achieved using a `UNION ALL` statement with `SELECT` clauses for each row.",
+      "options": [
+        {
+          "mysql_code": "VALUES ROW(\"q\", 42, '2019-12-18'), ROW(23, \"abc\", 98.6), ROW(27.0002, \"Mary Smith\", '{\"a\": 10, \"b\": 25}');",
+          "spanner_code": "SELECT 'q' AS col1, 42 AS col2, DATE '2019-12-18' AS col3\nUNION ALL\nSELECT 23, 'abc', 98.6\nUNION ALL\nSELECT 27.0002, 'Mary Smith', JSON '{\"a\": 10, \"b\": 25}';"
+        }
+      ]
+    }
+  },
+  {
+    "id": "22",
+    "example": "How to perform a `DELETE` with `ORDER BY` and `LIMIT` in Spanner?",
+    "rewrite": {
+      "theory": "Spanner's `DELETE` statement does not support `ORDER BY` or `LIMIT` clauses. You need to use a standard `DELETE` statement based on a simple `WHERE` clause to remove rows. If you need to delete a specific number of rows based on an order, you must handle this logic within your application.",
+      "options": [
+        {
+          "mysql_code": "DELETE FROM Employee_Manager WHERE manager_id = 1 ORDER BY employee_id desc LIMIT 1;",
+          "spanner_code": "Spanner does not support `ORDER BY` or `LIMIT` with `DELETE` statements. You must remove the `ORDER BY` and `LIMIT` clauses and use a standard DELETE statement to delete records."
+        }
+      ]
+    }
+  },
+  {
+    "id": "23",
+    "example": "How to perform multi-table `DELETE` in Spanner?",
+    "rewrite": {
+      "theory": "Spanner does not support multi-table `DELETE` statements. You must handle each deletion separately with individual `DELETE` statements or use a transaction to ensure atomicity. This is a significant difference from MySQL.",
+      "options": [
+        {
+          "mysql_code": "DELETE Employee_Details, Employee_Manager FROM Employee INNER JOIN Employee_Details INNER JOIN Employee_Manager WHERE Employee.employee_id=Employee_Details.employee_id AND Employee_Details.employee_id=Employee_Manager.manager_id AND Employee_Manager.manager_id = 1;",
+          "spanner_code": "Spanner does not support multi-table `DELETE` statements. You would need to perform a separate DELETE operation for each table, typically within a transaction."
+        }
+      ]
+    }
+  },
+  {
+    "id": "24",
+    "example": "How to handle `INSERT DELAYED INTO` in Spanner?",
+    "rewrite": {
+      "theory": "The `INSERT DELAYED INTO` feature is deprecated in MySQL and is not supported in Spanner. This functionality is typically handled at the application level by using an asynchronous process or a message queue to delay writes.",
+      "options": [
+        {
+          "mysql_code": "INSERT DELAYED INTO Employee(id, employee_id, name, employee_type, level, doj, designation) VALUES (uuid(),11,'pqr','Manager', 12,'2023-12-31', 'Engineering Manager');",
+          "spanner_code": "Spanner does not support `INSERT DELAYED INTO`. This operation must be handled asynchronously in the application logic."
+        }
+      ]
+    }
+  },
+  {
+    "id": "25",
+    "example": "How to perform a `UNION` operation in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports `UNION DISTINCT` to return a unique set of all rows from multiple `SELECT` statements. Unlike MySQL's `UNION` which is a synonym for `UNION DISTINCT`, in Spanner you must use the `DISTINCT` keyword explicitly.",
+      "options": [
+        {
+          "mysql_code": "SELECT id, employee_id FROM Employee e UNION SELECT id, employee_id FROM Employee_Details;",
+          "spanner_code": "SELECT id, employee_id FROM Employee e UNION DISTINCT SELECT id, employee_id FROM Employee_Details;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "26",
+    "example": "How to perform a `UNION ALL` operation in Spanner?",
+    "rewrite": {
+      "theory": "Spanner's `UNION ALL` behaves identically to MySQL, combining all rows from multiple `SELECT` statements, including duplicates.",
+      "options": [
+        {
+          "mysql_code": "SELECT id, employee_id FROM Employee e UNION ALL SELECT id, employee_id FROM Employee_Details;",
+          "spanner_code": "SELECT id, employee_id FROM Employee e UNION ALL SELECT id, employee_id FROM Employee_Details;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "27",
+    "example": "How to use `ORDER BY` with `LIMIT` in Spanner?",
+    "rewrite": {
+      "theory": "Spanner supports `ORDER BY` and `LIMIT` clauses together, functioning the same as in MySQL to sort results and restrict the number of rows returned.",
+      "options": [
+        {
+          "mysql_code": "SELECT * FROM Employee ORDER BY doj LIMIT 5;",
+          "spanner_code": "SELECT * FROM Employee ORDER BY doj LIMIT 5;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "28",
+    "example": "How to perform a `NATURAL INNER JOIN` in Spanner?",
+    "rewrite": {
+      "theory": "Spanner does not support `NATURAL JOIN` directly. To achieve a similar result, you must explicitly list the common columns in a `USING` clause.",
+      "options": [
+        {
+          "mysql_code": "SELECT * FROM Employee NATURAL JOIN Employee_Manager;",
+          "spanner_code": "SELECT * FROM Employee INNER JOIN Employee_Manager USING (employee_id);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "29",
+    "example": "How to perform a `NATURAL LEFT JOIN` in Spanner?",
+    "rewrite": {
+      "theory": "Spanner does not support `NATURAL LEFT JOIN`. The equivalent query requires explicitly specifying the common columns for the join condition using the `USING` clause.",
+      "options": [
+        {
+          "mysql_code": "SELECT * FROM Employee NATURAL LEFT JOIN Employee_Manager;",
+          "spanner_code": "SELECT * FROM Employee LEFT JOIN Employee_Manager USING (employee_id);"
+        }
+      ]
+    }
+  },
+  {
+    "id": "30",
+    "example": "How to use functions that return the current date or timestamp?",
+    "rewrite": {
+      "theory": "Spanner uses `CURRENT_DATE()` for the current date and `CURRENT_TIMESTAMP()` for the current timestamp. MySQL's `NOW()` is not supported directly. You must use the Spanner-specific functions.",
+      "options": [
+        {
+          "mysql_code": "SELECT e.* FROM Employee e WHERE e.doj < now();",
+          "spanner_code": "SELECT e.* FROM Employee e WHERE e.doj < (SELECT CURRENT_DATETIME());"
+        }
+      ]
+    }
+  },
+  {
+    "id": "31",
+    "example": "How to use `WITH` clauses for creating temporary views?",
+    "rewrite": {
+      "theory": "Spanner supports the `WITH` clause, also known as Common Table Expressions (CTEs), for creating temporary views that are local to the query. This behaves the same as in MySQL.",
+      "options": [
+        {
+          "mysql_code": "WITH eview AS ( SELECT e.name, e.employee_type FROM Employee e ) SELECT * FROM eview;",
+          "spanner_code": "WITH eview AS ( SELECT e.name, e.employee_type FROM Employee e ) SELECT * FROM eview;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "32",
+    "example": "How to join multiple temporary views (`WITH` clauses)?",
+    "rewrite": {
+      "theory": "Spanner allows you to define and join multiple CTEs within a single query, which is a common pattern supported by both Spanner and MySQL.",
+      "options": [
+        {
+          "mysql_code": "WITH eview1 AS ( SELECT e.name, e.employee_type, employee_id FROM Employee e ), eview2 AS ( SELECT e.employee_id, e.address FROM Employee_Details e ) SELECT * FROM eview1 e JOIN eview2 d ON e.employee_id = d.employee_id",
+          "spanner_code": "WITH eview1 AS ( SELECT e.name, e.employee_type, employee_id FROM Employee e ), eview2 AS ( SELECT e.employee_id, e.address FROM Employee_Details e ) SELECT * FROM eview1 e JOIN eview2 d ON e.employee_id = d.employee_id"
+        }
+      ]
+    }
+  },
+  {
+    "id": "33",
+    "example": "How to perform a pivot operation?",
+    "rewrite": {
+      "theory": "Spanner does not have a dedicated `PIVOT` function. The same result can be achieved using an aggregation with `CASE` statements, which is a common and fully supported method in Spanner.",
+      "options": [
+        {
+          "mysql_code": "SELECT product, SUM(CASE WHEN region = 'North' THEN amount END) AS North, SUM(CASE WHEN region = 'South' THEN amount END) AS South FROM sales GROUP BY product;",
+          "spanner_code": "SELECT product, SUM(CASE WHEN region = 'North' THEN amount END) AS North, SUM(CASE WHEN region = 'South' THEN amount END) AS South FROM sales GROUP BY product;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "34",
+    "example": "How to extract the day of the week from a date column?",
+    "rewrite": {
+      "theory": "Spanner uses the `EXTRACT(DAYOFWEEK FROM ...)` function to get the day of the week from a date. MySQL's `DAYOFWEEK()` function is not supported. Spanner's `DAYOFWEEK` returns an integer from 1 (Sunday) to 7 (Saturday).",
+      "options": [
+        {
+          "mysql_code": "SELECT DAYOFWEEK (e.dob), e.employee_id FROM Employee_Details e;",
+          "spanner_code": "SELECT EXTRACT(DAYOFWEEK FROM e.dob), e.employee_id FROM Employee_Details e;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "35",
+    "example": "How to get the current user name?",
+    "rewrite": {
+      "theory": "Spanner does not have a direct equivalent to MySQL's `USER()` function. Access control and user identification are handled through IAM (Identity and Access Management) at the connection level, not within a SQL function.",
+      "options": [
+        {
+          "mysql_code": "SELECT USER();",
+          "spanner_code": "-- Spanner does not support a `USER()` function. User information is managed via IAM."
+        }
+      ]
+    }
+  },
+  {
+    "id": "36",
+    "example": "How to use `DISTINCT` with nullable columns?",
+    "rewrite": {
+      "theory": "Spanner handles `DISTINCT` with nullable columns similarly to MySQL. It considers `NULL` values as a single group for distinctness, so `DISTINCT` will return a single `NULL` row from a set of `NULL` values.",
+      "options": [
+        {
+          "mysql_code": "SELECT DISTINCT sender, receiver, sender_name FROM Employee_chat_history;",
+          "spanner_code": "SELECT DISTINCT sender, receiver, sender_name FROM Employee_chat_history;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "37",
+    "example": "How to use `LIMIT` with `OFFSET`?",
+    "rewrite": {
+      "theory": "Spanner fully supports the `LIMIT` and `OFFSET` clauses, which function identically to MySQL for retrieving a specific range of rows from a result set.",
+      "options": [
+        {
+          "mysql_code": "SELECT * FROM sales LIMIT 5 OFFSET 3;",
+          "spanner_code": "SELECT * FROM sales LIMIT 5 OFFSET 3;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "38",
+    "example": "How to insert `JSON` data into a table?",
+    "rewrite": {
+      "theory": "Spanner requires `JSON` data to be explicitly cast using the `JSON '...'` syntax, which is different from MySQL's implicit handling of string literals for `JSON` columns.",
+      "options": [
+        {
+          "mysql_code": "INSERT INTO Employee_chat_history (id, sender, receiver, sender_name, receiver_name, chat) VALUES (5, 1, 5, 'Ashwin', 'Yasvi', '{ \"array\": [ 1, 2, 3 ], \"boolean\": TRUE, \"color\": \"gold\", \"null\": NULL, \"number\": 123, \"object\": { \"a\": \"b\", \"c\": \"d\" }, \"string\": \"Hello World\" }');",
+          "spanner_code": "INSERT INTO Employee_chat_history (id, sender, receiver, sender_name, receiver_name, chat) VALUES (5, 1, 5, 'Ashwin', 'Yasvi', JSON '{\"array\": [ 1, 2, 3 ], \"boolean\": TRUE, \"color\": \"gold\", \"null\": NULL, \"number\": 123, \"object\": { \"a\": \"b\", \"c\": \"d\" }, \"string\": \"Hello World\" }');"
+        }
+      ]
+    }
+  },
+  {
+    "id": "39",
+    "example": "How to use `NOT IN` with subqueries?",
+    "rewrite": {
+      "theory": "Spanner's `NOT IN` behavior with subqueries is the same as MySQL. It returns true if the value on the left is not equal to any value returned by the subquery.",
+      "options": [
+        {
+          "mysql_code": "SELECT * FROM Employee e WHERE e.name NOT IN ( SELECT sender_name FROM Employee_chat_history c WHERE receiver IS NULL );",
+          "spanner_code": "SELECT * FROM Employee e WHERE e.name NOT IN ( SELECT sender_name FROM Employee_chat_history c WHERE receiver IS NULL );"
+        }
+      ]
+    }
+  },
+  {
+    "id": "40",
+    "example": "How to perform a comparison with a date field?",
+    "rewrite": {
+      "theory": "Spanner handles date comparisons the same as MySQL, allowing you to use `>` and other comparison operators with date literals.",
+      "options": [
+        {
+          "mysql_code": "SELECT * FROM Employee e WHERE e.doj > '2021-11-20';",
+          "spanner_code": "SELECT * FROM Employee e WHERE e.doj > '2021-11-20';"
+        }
+      ]
+    }
+  },
+  {
+    "id": "41",
+    "example": "How to find the length of a `JSON` array?",
+    "rewrite": {
+      "theory": "Spanner does not have a function equivalent to MySQL's `JSON_LENGTH()`. To get the size of a `JSON` array, you need to read the full `JSON` value in your application and compute the length there.",
+      "options": [
+        {
+          "mysql_code": "SELECT JSON_LENGTH(h.chat) FROM Employee_chat_history h WHERE h.chat IS NOT NULL;",
+          "spanner_code": "-- Spanner does not have a `JSON_LENGTH` function. This must be handled in the application layer."
+        }
+      ]
+    }
+  },
+  {
+    "id": "42",
+    "example": "How to use `HAVING` clause with joins?",
+    "rewrite": {
+      "theory": "Spanner fully supports the `HAVING` clause after a `JOIN` and `GROUP BY`, allowing you to filter grouped results based on an aggregate condition. The syntax is the same as in MySQL.",
+      "options": [
+        {
+          "mysql_code": "SELECT manager_id, em.name, COUNT(e.employee_id) cnt FROM Employee_Manager e INNER JOIN Employee em ON e.manager_id = em.employee_id GROUP BY manager_id, em.name HAVING cnt>3;",
+          "spanner_code": "SELECT manager_id, em.name, COUNT(e.employee_id) cnt FROM Employee_Manager e INNER JOIN Employee em ON e.manager_id = em.employee_id GROUP BY manager_id, em.name HAVING cnt>3;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "43",
+    "example": "How to find unmatched rows using a `RIGHT JOIN`?",
+    "rewrite": {
+      "theory": "Spanner handles `RIGHT JOIN` with `IS NULL` in the `WHERE` clause exactly like MySQL. This is used to find rows in the right table that do not have a match in the left table.",
+      "options": [
+        {
+          "mysql_code": "SELECT em.employee_id, em.name FROM Employee_Manager e RIGHT JOIN Employee em ON e.employee_id = em.employee_id WHERE e.employee_id IS NULL;",
+          "spanner_code": "SELECT em.employee_id, em.name FROM Employee_Manager e RIGHT JOIN Employee em ON e.employee_id = em.employee_id WHERE e.employee_id IS NULL;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "44",
+    "example": "How to find unmatched rows using a `LEFT JOIN`?",
+    "rewrite": {
+      "theory": "Spanner's `LEFT JOIN` with a `WHERE ... IS NULL` condition behaves the same as in MySQL. This is a common pattern to find rows in the left table that have no corresponding match in the right table.",
+      "options": [
+        {
+          "mysql_code": "SELECT em.employee_id, em.name FROM Employee em Left JOIN Employee_Manager e ON e.employee_id = em.employee_id WHERE e.employee_id IS NULL;",
+          "spanner_code": "SELECT em.employee_id, em.name FROM Employee em Left JOIN Employee_Manager e ON e.employee_id = em.employee_id WHERE e.employee_id IS NULL;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "45",
+    "example": "How to perform an implicit `CROSS JOIN`?",
+    "rewrite": {
+      "theory": "Spanner supports the implicit `CROSS JOIN` syntax using a comma between table names, which behaves the same as MySQL. This generates the Cartesian product of the two tables.",
+      "options": [
+        {
+          "mysql_code": "SELECT * FROM sales s, Employee e;",
+          "spanner_code": "SELECT * FROM sales s, Employee e;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "46",
+    "example": "How to perform an `INSERT` statement with a `SELECT` subquery?",
+    "rewrite": {
+      "theory": "Spanner supports `INSERT...SELECT` operations, but unlike MySQL, you must explicitly list the column names to be inserted. Also, if a column like the primary key needs a generated value, you must include a function like `GENERATE_UUID()` in the `SELECT` list.",
+      "options": [
+        {
+          "mysql_code": "INSERT INTO sales ( product, region, amount) SELECT * FROM sales WHERE region = 'South';",
+          "spanner_code": "INSERT INTO sales ( id, product, region, amount) SELECT GENERATE_UUID(), product, region, amount FROM sales WHERE region = 'South';"
+        }
+      ]
+    }
+  },
+  {
+    "id": "47",
+    "example": "How to perform an `UPDATE` statement with nested subqueries?",
+    "rewrite": {
+      "theory": "Spanner supports `UPDATE` statements with nested subqueries in the `WHERE` clause. When updating `BLOB` equivalent data types, Spanner requires a byte string literal (e.g., `b'...'`).",
+      "options": [
+        {
+          "mysql_code": "UPDATE Employee_Details SET other_details = 'test2' WHERE employee_id IN ( SELECT t.employee_id FROM Employee t WHERE t.name <> 'Ashwin' AND t.level IN ( SELECT level FROM Employee e WHERE e.employee_id IN ( SELECT employee_id FROM Employee WHERE level > 1 ) ) )",
+          "spanner_code": "UPDATE Employee_Details SET other_details = b'123' WHERE employee_id IN ( SELECT t.employee_id FROM Employee t WHERE t.name <> 'Ashwin' AND t.level IN ( SELECT level FROM Employee e WHERE e.employee_id IN ( SELECT employee_id FROM Employee WHERE level > 1 ) ) );"
+        }
+      ]
+    }
+  },
+  {
+    "id": "48",
+    "example": "How to query data from a `BLOB` column?",
+    "rewrite": {
+      "theory": "In Spanner, `BLOB` data from MySQL is stored as `BYTES`. You can compare `BYTES` data directly with a byte string literal (`b'...'`). Spanner does not require casting like MySQL's `CAST...CHARACTER SET` syntax.",
+      "options": [
+        {
+          "mysql_code": "SELECT employee_id FROM Employee_Details d WHERE CAST(d.other_details AS CHAR(10000) CHARACTER SET utf8) = 'test';",
+          "spanner_code": "SELECT employee_id FROM Employee_Details d WHERE other_details = b'123';"
+        }
+      ]
+    }
+  },
+  {
+    "id": "49",
+    "example": "How to `DELETE` rows based on a `BLOB` column?",
+    "rewrite": {
+      "theory": "Similar to querying, you can perform a `DELETE` operation in Spanner by directly comparing the `BYTES` column with a byte string literal (`b'...'`). The explicit casting needed in MySQL is not required.",
+      "options": [
+        {
+          "mysql_code": "DELETE FROM Employee_Details d WHERE CAST(d.other_details AS CHAR(10000) CHARACTER SET utf8) = 'test3';",
+          "spanner_code": "DELETE FROM Employee_Details d WHERE other_details = b'123';"
+        }
+      ]
+    }
+  },
+  {
+    "id": "50",
+    "example": "How to use `CASE` and `WHEN` statements?",
+    "rewrite": {
+      "theory": "Spanner supports `CASE` and `WHEN` statements in the same way as MySQL. The syntax and behavior for conditional logic remain consistent between the two databases.",
+      "options": [
+        {
+          "mysql_code": "SELECT name, doj, CASE WHEN ( e.doj > '2022-01-01') THEN \"Y\" WHEN ( e.doj > '2020-01-01' ) THEN \"M\" ELSE \"O\" END FROM Employee e;",
+          "spanner_code": "SELECT name, doj, CASE WHEN ( e.doj > '2022-01-01') THEN 'Y' WHEN ( e.doj > '2020-01-01' ) THEN 'M' ELSE 'O' END FROM Employee e;"
+        }
+      ]
+    }
+  },
+  {
+    "id": "51",
+    "example": "How to convert a timestamp to a date for comparison?",
+    "rewrite": {
+      "theory": "Spanner does not have a `FROM_UNIXTIME` function. To compare a `DATE` column with a Unix timestamp, you must convert the timestamp to a `TIMESTAMP` data type using `TIMESTAMP_MILLIS()` and then compare the two.",
+      "options": [
+        {
+          "mysql_code": "SELECT e.* FROM Employee e WHERE e.doj < FROM_UNIXTIME( 1731515807);",
+          "spanner_code": "SELECT e.* FROM Employee e WHERE TIMESTAMP(e.doj) < TIMESTAMP_MILLIS( 1731515807000);"
+        }
+      ]
+    }
+  }
 ]
