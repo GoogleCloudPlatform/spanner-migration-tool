@@ -21,6 +21,7 @@ type DriverConfig struct {
 	Database    string `json:"Database"`
 	User        string `json:"User"`
 	Password    string `json:"Password"`
+	Sslmode     string `json:"Sslmode"`
 	DataCenter  string `json:"DataCenter"`
 	Dialect     string `json:"Dialect"`
 	DataShardId string `json:"DataShardId"`
