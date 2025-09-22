@@ -894,6 +894,7 @@ func SetParentTable(w http.ResponseWriter, r *http.Request) {
 	}
 	if tableId == "" {
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+		return
 	}
 	if onDelete != "" && onDelete != "NO ACTION" && onDelete != "CASCADE" {
 		http.Error(w, fmt.Sprintf("onDelete value is not valid"), http.StatusBadRequest)
@@ -911,7 +912,6 @@ func SetParentTable(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
 	tableInterleaveStatus := parentTableHelper(tableId, parentTableId, interleaveType, onDelete, update)
-
 
 	index.IndexSuggestion()
 	session.UpdateSessionFile()
@@ -1169,13 +1169,11 @@ func parentTableHelper(tableId string, parentTableId string, interleaveType stri
 		Comment:  "",
 	}
 	sessionState := session.GetSessionState()
-	
-	
+
 	if !update && parentTableId == "" {
 		parentTableId = sessionState.Conv.SpSchema[tableId].ParentTable.Id
 	}
 
-	
 	if _, found := sessionState.Conv.SyntheticPKeys[tableId]; found {
 		tableInterleaveStatus.Possible = false
 		tableInterleaveStatus.Comment = "Has synthetic pk"
@@ -1269,7 +1267,7 @@ func checkInterleavePrimaryKeyPrefixCondition(tableId string, refTableId string)
 		j := 0
 		for ; j < len(childPks); j++ {
 			if parentTable.ColDefs[parentPks[i].ColId].Name == childTable.ColDefs[childPks[j].ColId].Name && parentTable.ColDefs[parentPks[i].ColId].T.Name == childTable.ColDefs[childPks[j].ColId].T.Name && parentTable.ColDefs[parentPks[i].ColId].T.Len == childTable.ColDefs[childPks[j].ColId].T.Len {
-				break;
+				break
 			}
 		}
 		if j == len(childPks) {
@@ -1283,7 +1281,6 @@ func checkInterleavePrimaryKeyPrefixCondition(tableId string, refTableId string)
 	}
 	return ""
 }
-
 
 func updateInterleaveSuggestion(colIds []string, tableId string, issue internal.SchemaIssue) {
 	sessionState := session.GetSessionState()
