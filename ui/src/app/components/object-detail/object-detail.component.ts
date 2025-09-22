@@ -69,6 +69,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
   interleaveStatus: ITableInterleaveStatus = {} as ITableInterleaveStatus
   onDeleteAction: string = ''
   interleaveParentId: string | null = null
+  interleaveParentName: string | null = null
   interleaveType: string | null = null
   localTableData: IColumnTabData[] = []
   localIndexData: IIndexData[] = []
@@ -220,6 +221,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     this.pkData = this.conversion.getPkMapping(this.tableData)
 
     this.interleaveParentId = this.getInterleaveParentIdFromConv()
+    this.interleaveParentName = this.conv['SpSchema'][this.interleaveParentId ?? '']?.Name ?? null
     this.interleaveType = this.getInterleaveTypeFromConv()
     this.onDeleteAction = this.getInterleaveOnDeleteActionFromConv() ?? ''
 
