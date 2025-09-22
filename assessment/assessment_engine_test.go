@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"testing"
 
 	"cloud.google.com/go/vertexai/genai"
+	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
@@ -340,11 +342,106 @@ func TestPerformSchemaAssessment(t *testing.T) {
 		}, "The code should panic on a nil-pointer dereference")
 	})
 
-	// Note: A comprehensive unit test for the success path of performSchemaAssessment
-	// is challenging because it depends on `assessment.InfoSchemaCollector`, a concrete
-	// type from another package. To test the logic thoroughly, this dependency
-	// would ideally be an interface, allowing for a mock implementation.
-	// An integration-style test would be required to test the current implementation.
+	t.Run("success with a sample infoSchemaCollector", func(t *testing.T) {
+		// 1. Create a sample internal.Conv object.
+		conv := &internal.Conv{
+			SrcSchema: map[string]schema.Table{
+				"t1": {
+					Id:   "t1",
+					Name: "table1",
+					ColDefs: map[string]schema.Column{
+						"c1": {Id: "c1", Name: "col1", Type: schema.Type{Name: "int"}, NotNull: true},
+						"c2": {Id: "c2", Name: "col2", Type: schema.Type{Name: "varchar", Mods: []int64{20}}},
+					},
+					PrimaryKeys: []schema.Key{{ColId: "c1", Order: 1}},
+					Indexes: []schema.Index{
+						{Id: "idx1", Name: "index1", Unique: false, Keys: []schema.Key{{ColId: "c2", Order: 1}}},
+					},
+				},
+			},
+			SpSchema: map[string]ddl.CreateTable{
+				"t1": {
+					Id:   "t1",
+					Name: "table1",
+					ColDefs: map[string]ddl.ColumnDef{
+						"c1": {Id: "c1", Name: "col1", T: ddl.Type{Name: "INT64"}, NotNull: true},
+						"c2": {Id: "c2", Name: "col2", T: ddl.Type{Name: "STRING", Len: 20}},
+					},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
+					Indexes: []ddl.CreateIndex{
+						{Id: "idx1", Name: "index1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Order: 1}}},
+					},
+				},
+			},
+			SpSequences: map[string]ddl.Sequence{
+				"seq1": {Name: "my_sequence"},
+			},
+			UsedNames: make(map[string]bool),
+		}
+
+		// 2. Create a sample InfoSchemaCollector.
+		// In a real test, this would be populated by a mock or a test database.
+
+		tables := map[string]utils.TableAssessmentInfo{
+			"t1": {
+				Name:      "table1",
+				Charset:   "utf8",
+				Collation: "utf8_general_ci",
+				ColumnAssessmentInfos: map[string]utils.ColumnAssessmentInfo[any]{
+					"c1": {MaxColumnSize: 8},
+					"c2": {MaxColumnSize: 20},
+				},
+			},
+		}
+		indexes := []utils.IndexAssessmentInfo{
+			{IndexDef: schema.Index{Id: "idx1", Name: "index1"}, TableId: "t1", Ty: "BTREE"},
+		}
+		triggers := []utils.TriggerAssessmentInfo{{Name: "my_trigger", TargetTable: "table1", Operation: "INSERT"}}
+		storedProcedures := []utils.StoredProcedureAssessmentInfo{{Name: "my_sp", Definition: "BEGIN ... END;"}}
+		functions := []utils.FunctionAssessmentInfo{{Name: "my_func", Definition: "RETURN 1;"}}
+		views := []utils.ViewAssessmentInfo{{Name: "my_view", Definition: "SELECT * FROM table1"}}
+
+		infoSchemaCollector, err := assessment.BuildInforSchemaCollector(tables, indexes, triggers, storedProcedures, functions, views, conv)
+		assert.NoError(t, err)
+
+		collectors := assessmentCollectors{
+			infoSchemaCollector: &infoSchemaCollector,
+		}
+
+		// 4. Call performSchemaAssessment.
+		result, err := performSchemaAssessment(ctx, collectors)
+
+		// 5. Assert results.
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		// Table assessments
+		assert.Len(t, result.TableAssessmentOutput, 1)
+		tableAssessment := result.TableAssessmentOutput[0]
+		assert.Equal(t, "table1", tableAssessment.SourceTableDef.Name)
+		assert.Equal(t, "table1", tableAssessment.SpannerTableDef.Name)
+		assert.False(t, tableAssessment.CompatibleCharset)      // utf8 is not compatible
+		assert.Equal(t, 1, tableAssessment.SizeIncreaseInBytes) // dummy implementation
+
+		// Column assessments
+		assert.Len(t, tableAssessment.Columns, 2)
+		// Sort columns for consistent test results
+		sort.Slice(tableAssessment.Columns, func(i, j int) bool {
+			return tableAssessment.Columns[i].SourceColDef.Name < tableAssessment.Columns[j].SourceColDef.Name
+		})
+		col1Assessment := tableAssessment.Columns[0]
+		assert.Equal(t, "col1", col1Assessment.SourceColDef.Name)
+		assert.Equal(t, "col1", col1Assessment.SpannerColDef.Name)
+		assert.True(t, col1Assessment.CompatibleDataType)
+		assert.Equal(t, 8, col1Assessment.SizeIncreaseInBytes)
+
+		// Other schema objects
+		assert.Len(t, result.TriggerAssessmentOutput, 1)
+		assert.Len(t, result.StoredProcedureAssessmentOutput, 1)
+		assert.Len(t, result.FunctionAssessmentOutput, 1)
+		assert.Len(t, result.ViewAssessmentOutput, 1)
+		assert.Len(t, result.SpSequences, 1)
+	})
 }
 
 func TestPerformAppAssessment(t *testing.T) {
