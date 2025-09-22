@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output, SimpleChanges } from '@angular/core'
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core'
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms'
 import IUpdateTable from '../../model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
@@ -16,6 +16,7 @@ import IConv, {
   ICreateIndex,
   IForeignKey,
   IIndexKey,
+  ITableInterleaveStatus,
   IPrimaryKey,
 } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
@@ -30,12 +31,13 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ICreateSequence from 'src/app/model/auto-gen'
 import { autoGenSupportedDbs } from 'src/app/app.constants'
 import ICcTabData from 'src/app/model/cc-tab-data'
+import { title } from 'process'
 @Component({
   selector: 'app-object-detail',
   templateUrl: './object-detail.component.html',
   styleUrls: ['./object-detail.component.scss'],
 })
-export class ObjectDetailComponent implements OnInit {
+export class ObjectDetailComponent implements OnInit, OnDestroy {
   userAddressValidations!: FormGroup
   constructor(
     private data: DataService,
@@ -62,10 +64,11 @@ export class ObjectDetailComponent implements OnInit {
   @Input() srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   @Output() updateSidebar = new EventEmitter<boolean>()
   ObjectExplorerNodeType = ObjectExplorerNodeType
+  private subscriptions = new Subscription()
   conv: IConv = {} as IConv
-  interleaveObj!: Subscription
-  interleaveStatus: any
-  interleaveParentName: string | null = null
+  interleaveStatus: ITableInterleaveStatus = {} as ITableInterleaveStatus
+  onDeleteAction: string = ''
+  interleaveParentId: string | null = null
   interleaveType: string | null = null
   localTableData: IColumnTabData[] = []
   localIndexData: IIndexData[] = []
@@ -76,21 +79,35 @@ export class ObjectDetailComponent implements OnInit {
   sequenceKinds: string[] = []
   mySqlSource: boolean = false
   foreignKeyActionsSupported: boolean = false
+  spTablesForInterleaving: { id: string; name: string }[] = [];
 
   ngOnInit(): void {
-    this.data.conv.subscribe({
-      next: (res: IConv) => {
-        this.conv = res
-        this.isPostgreSQLDialect = this.conv.SpDialect === Dialect.PostgreSQLDialect
-      },
-    })
-    if (this.conv.DatabaseType) {
-      this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
-    }
-    this.mySqlSource = autoGenSupportedDbs.includes(this.srcDbName)
-    if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres){
-          this.foreignKeyActionsSupported = true
-        }
+    this.subscriptions.add(
+      this.data.conv.subscribe({
+        next: (res: IConv) => {
+          this.conv = res
+          this.isPostgreSQLDialect = this.conv.SpDialect === Dialect.PostgreSQLDialect
+          if (this.conv.DatabaseType) {
+            this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
+          }
+          this.mySqlSource = autoGenSupportedDbs.includes(this.srcDbName)
+          if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres) {
+            this.foreignKeyActionsSupported = true
+          }
+          this.spTablesForInterleaving = Object.values(this.conv.SpSchema).map((tableSchema) => ({
+            id: tableSchema.Id,
+            name: tableSchema.Name,
+          }));
+        },
+      })
+    )
+    this.subscriptions.add(
+      this.data.tableInterleaveStatus.subscribe({
+        next: (res: {} | ITableInterleaveStatus) => {
+          this.interleaveStatus = res as ITableInterleaveStatus
+        },
+      })
+    )
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcColMaxLength', 'srcIsPk', 'srcIsNotNull']
@@ -201,8 +218,12 @@ export class ObjectDetailComponent implements OnInit {
     this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Index || this.currentObject?.type === ObjectExplorerNodeType.Sequence? -1 : 0
     this.isObjectSelected = this.currentObject ? true : false
     this.pkData = this.conversion.getPkMapping(this.tableData)
-    this.interleaveParentName = this.getInterleaveParentFromConv()
 
+    this.interleaveParentId = this.getInterleaveParentIdFromConv()
+    this.interleaveType = this.getInterleaveTypeFromConv()
+    this.onDeleteAction = this.getInterleaveOnDeleteActionFromConv() ?? ''
+
+  
     this.isEditMode = false
     this.isFkEditMode = false
     this.isIndexEditMode = false
@@ -214,7 +235,6 @@ export class ObjectDetailComponent implements OnInit {
     this.droppedColumns = []
     this.droppedSourceColumns = []
     this.pkColumnNames = []
-    this.interleaveParentName = this.getInterleaveParentFromConv()
 
     this.localTableData = JSON.parse(JSON.stringify(this.tableData))
     this.localIndexData = JSON.parse(JSON.stringify(this.indexData))
@@ -240,13 +260,6 @@ export class ObjectDetailComponent implements OnInit {
     }
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
-      this.checkIsInterleave()
-      this.interleaveType = this.getInterleaveTypeFromConv()
-
-      this.interleaveObj = this.data.tableInterleaveStatus.subscribe((res) => {
-        this.interleaveStatus = res
-      })
-
       this.setSrcTableRows()
       this.setSpTableRows()
       this.setColumnsToAdd()
@@ -991,13 +1004,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   toggleCcEdit() {
-    if(this.interleaveParentName !== null)
-    {
-      this.currentTabIndex = 4;
-    }
-    else{
-      this.currentTabIndex = 3;
-    }
+    this.currentTabIndex = 4;
 
     if (this.isCcEditMode) {
       this.setCCRows();
@@ -1492,33 +1499,52 @@ export class ObjectDetailComponent implements OnInit {
     this.data
       .removeInterleave(tableId)
       .pipe(take(1))
-      .subscribe((res: string) => {
-        if (res === '') {
-          this.snackbar.openSnackBar(
-            'Interleave removed and foreign key restored successfully',
-            'Close',
-            5
-          )
+      .subscribe({
+        next: (res: string) => {
+          if (res === '') {
+            this.snackbar.openSnackBar('Interleave removed successfully.', 'Close', 5)
+          } else {
+            this.dialog.open(InfodialogComponent, {
+              data: { message: res, type: 'error' },
+              maxWidth: '500px',
+            })
+          }
         }
-      })
+      });
   }
 
-  checkIsInterleave() {
-    if (this.currentObject && !this.currentObject?.isDeleted && this.currentObject?.isSpannerNode) {
-      this.data.getInterleaveConversionForATable(this.currentObject!.id)
+setInterleave(interleaveParentId: string, interleaveType: string | null, onDeleteAction: string) {
+    if (!interleaveType) {
+      console.error('Interleave type cannot be empty');
+      return;
     }
-  }
+    
+    let tableId = this.currentObject!.id;
 
-  setInterleave(interleaveType: string) {
-    this.data.setInterleave(this.currentObject!.id, interleaveType)
-  }
+    this.data
+      .setInterleave(tableId, interleaveType, interleaveParentId, onDeleteAction)
+      .pipe(take(1))
+      .subscribe((error: string) => {
+        if (error) {
+          this.dialog.open(InfodialogComponent, {
+            data: { message: error, type: 'error', title: 'Error' },
+            maxWidth: '500px',
+          });
+        } else {
+          this.dialog.open(InfodialogComponent, {
+            data: { message: 'Interleave Added Successfully', type: 'info', title: 'Info' },
+            maxWidth: '500px',
+          });
+        }
+      });
+}
 
-  getInterleaveParentFromConv() {
+  getInterleaveParentIdFromConv() {
     return this.currentObject?.type === ObjectExplorerNodeType.Table &&
       this.currentObject.isSpannerNode &&
       !this.currentObject.isDeleted &&
       this.conv.SpSchema[this.currentObject.id].ParentTable.Id != ''
-      ? this.conv.SpSchema[this.conv.SpSchema[this.currentObject.id].ParentTable.Id]?.Name
+      ? this.conv.SpSchema[this.currentObject.id].ParentTable.Id
       : null
   }
 
@@ -1528,6 +1554,15 @@ export class ObjectDetailComponent implements OnInit {
       !this.currentObject.isDeleted &&
       this.conv.SpSchema[this.currentObject.id].ParentTable.Id != ''
       ? this.conv.SpSchema[this.currentObject.id].ParentTable.InterleaveType
+      : null
+  }
+
+  getInterleaveOnDeleteActionFromConv() {
+    return this.currentObject?.type === ObjectExplorerNodeType.Table &&
+      this.currentObject.isSpannerNode &&
+      !this.currentObject.isDeleted &&
+      this.conv.SpSchema[this.currentObject.id].ParentTable.Id != ''
+      ? this.conv.SpSchema[this.currentObject.id].ParentTable.OnDelete
       : null
   }
 
@@ -1891,5 +1926,15 @@ export class ObjectDetailComponent implements OnInit {
       }
     }
     return false
+  }
+
+  customSearchFn(term: string, item: any) {
+    item = item.replace(',', '');
+    term = term.toLocaleLowerCase();
+    return item.toLocaleLowerCase().indexOf(term) > -1;
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe()
   }
 }

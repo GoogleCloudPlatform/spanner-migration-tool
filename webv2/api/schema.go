@@ -301,7 +301,7 @@ func SpannerDefaultTypeMap(w http.ResponseWriter, r *http.Request) {
 	case constants.ORACLE:
 		typeMap = oracleDefaultTypeMap
 	case constants.CASSANDRA:
-		typeMap = cassandraDefaultTypeMap	
+		typeMap = cassandraDefaultTypeMap
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -332,7 +332,7 @@ func GetTypeMap(w http.ResponseWriter, r *http.Request) {
 	case constants.ORACLE:
 		typeMap = oracleTypeMap
 	case constants.CASSANDRA:
-		typeMap = cassandraTypeMap	
+		typeMap = cassandraTypeMap
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -882,6 +882,8 @@ func RenameIndexes(w http.ResponseWriter, r *http.Request) {
 // whether the foreign key can be converted to interleave table without updating the schema.
 func SetParentTable(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("table")
+	parentTableId := r.FormValue("parentTable")
+	onDelete := r.FormValue("onDelete")
 	update := r.FormValue("update") == "true"
 	interleaveType := r.FormValue("interleaveType")
 	sessionState := session.GetSessionState()
@@ -893,39 +895,23 @@ func SetParentTable(w http.ResponseWriter, r *http.Request) {
 	if tableId == "" {
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
 	}
+	if onDelete != "" && onDelete != "NO ACTION" && onDelete != "CASCADE" {
+		http.Error(w, fmt.Sprintf("onDelete value is not valid"), http.StatusBadRequest)
+		return
+	}
+	if interleaveType != "" && interleaveType != "IN" && interleaveType != "IN PARENT" {
+		http.Error(w, fmt.Sprintf("interleaveType value is not valid"), http.StatusBadRequest)
+		return
+	}
+	if interleaveType == "IN PARENT" && onDelete == "" || interleaveType == "IN" && onDelete != "" {
+		http.Error(w, fmt.Sprintf("onDelete value is not valid for the interleaveType"), http.StatusBadRequest)
+		return
+	}
 
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
-	tableInterleaveStatus := parentTableHelper(tableId, interleaveType, update)
+	tableInterleaveStatus := parentTableHelper(tableId, parentTableId, interleaveType, onDelete, update)
 
-	if tableInterleaveStatus.Possible {
-
-		childPks := sessionState.Conv.SpSchema[tableId].PrimaryKeys
-		childindex := utilities.GetPrimaryKeyIndexFromOrder(childPks, 1)
-		schemaissue := []internal.SchemaIssue{}
-
-		colId := childPks[childindex].ColId
-		schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
-		if update {
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-		} else {
-			schemaissue = append(schemaissue, internal.InterleavedOrder)
-		}
-
-		sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaissue
-	} else {
-		// Remove "Table cart can be converted as Interleaved Table" suggestion from columns
-		// of the table if interleaving is not possible.
-		for _, colId := range sessionState.Conv.SpSchema[tableId].ColIds {
-			schemaIssue := []internal.SchemaIssue{}
-			for _, v := range sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] {
-				if v != internal.InterleavedOrder {
-					schemaIssue = append(schemaIssue, v)
-				}
-			}
-			sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaIssue
-		}
-	}
 
 	index.IndexSuggestion()
 	session.UpdateSessionFile()
@@ -968,49 +954,6 @@ func RemoveParentTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	spTable := conv.SpSchema[tableId]
-
-	var firstOrderPk ddl.IndexKey
-	order := 1
-
-	isPresent, isAddedAtFirst := hasShardIdPrimaryKeyRule()
-	if isAddedAtFirst {
-		order = 2
-	}
-
-	for _, pk := range spTable.PrimaryKeys {
-		if pk.Order == order {
-			firstOrderPk = pk
-			break
-		}
-	}
-
-	spColId := conv.SpSchema[tableId].ColDefs[firstOrderPk.ColId].Id
-	srcCol := conv.SrcSchema[tableId].ColDefs[spColId]
-	interleavedFk, err := utilities.GetInterleavedFk(conv, tableId, srcCol.Id)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("%v", err), http.StatusBadRequest)
-		return
-	}
-
-	spFk, err := common.CvtForeignKeysHelper(conv, conv.SpSchema[tableId].Name, tableId, interleavedFk, true)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Foreign key conversion fail"), http.StatusBadRequest)
-		return
-	}
-
-	if isPresent {
-		if isAddedAtFirst {
-			spFk.ColIds = append([]string{spTable.ShardIdColumn}, spFk.ColIds...)
-			spFk.ReferColumnIds = append([]string{sessionState.Conv.SpSchema[spTable.ParentTable.Id].ShardIdColumn}, spFk.ReferColumnIds...)
-		} else {
-			spFk.ColIds = append(spFk.ColIds, spTable.ShardIdColumn)
-			spFk.ReferColumnIds = append(spFk.ReferColumnIds, sessionState.Conv.SpSchema[spTable.ParentTable.Id].ShardIdColumn)
-		}
-	}
-
-	spFks := spTable.ForeignKeys
-	spFks = append(spFks, spFk)
-	spTable.ForeignKeys = spFks
 	spTable.ParentTable.Id = ""
 	spTable.ParentTable.OnDelete = ""
 	spTable.ParentTable.InterleaveType = ""
@@ -1184,7 +1127,7 @@ func (tableHandler *TableAPIHandler) restoreTableHelper(w http.ResponseWriter, t
 	case constants.ORACLE:
 		toddl = oracle.InfoSchemaImpl{}.GetToDdl()
 	case constants.CASSANDRA:
-		toddl = cassandra.InfoSchemaImpl{}.GetToDdl()	
+		toddl = cassandra.InfoSchemaImpl{}.GetToDdl()
 	case constants.MYSQLDUMP:
 		toddl = mysql.DbDumpImpl{}.GetToDdl()
 	case constants.PGDUMP:
@@ -1220,232 +1163,127 @@ func (tableHandler *TableAPIHandler) restoreTableHelper(w http.ResponseWriter, t
 	return convm
 }
 
-func parentTableHelper(tableId string, interleaveType string, update bool) *types.TableInterleaveStatus {
+func parentTableHelper(tableId string, parentTableId string, interleaveType string, onDelete string, update bool) *types.TableInterleaveStatus {
 	tableInterleaveStatus := &types.TableInterleaveStatus{
 		Possible: false,
-		Comment:  "No valid prefix",
+		Comment:  "",
 	}
 	sessionState := session.GetSessionState()
+	
+	
+	if !update && parentTableId == "" {
+		parentTableId = sessionState.Conv.SpSchema[tableId].ParentTable.Id
+	}
 
+	
 	if _, found := sessionState.Conv.SyntheticPKeys[tableId]; found {
 		tableInterleaveStatus.Possible = false
 		tableInterleaveStatus.Comment = "Has synthetic pk"
+		return tableInterleaveStatus
 	}
 
-	childPks := sessionState.Conv.SpSchema[tableId].PrimaryKeys
-
-	// Search this table's foreign keys for a suitable parent table.
-	// If there are several possible parent tables, we pick the first one.
-	// TODO: Allow users to pick which parent to use if more than one.
-	for i, fk := range sessionState.Conv.SpSchema[tableId].ForeignKeys {
-		refTableId := fk.ReferTableId
-		onDelete := fk.OnDelete
-		var err error
-
-		if _, found := sessionState.Conv.SyntheticPKeys[refTableId]; found {
-			continue
-		}
-
-		if checkPrimaryKeyPrefix(tableId, refTableId, fk, tableInterleaveStatus) {
-			sp := sessionState.Conv.SpSchema[tableId]
-
-			colIdNotInOrder := checkPrimaryKeyOrder(tableId, refTableId, fk)
-
-			if update && sp.ParentTable.Id == "" && colIdNotInOrder == "" {
-				usedNames := sessionState.Conv.UsedNames
-				delete(usedNames, strings.ToLower(sp.ForeignKeys[i].Name))
-				sp.ParentTable.Id = refTableId
-				sp.ParentTable.OnDelete = onDelete
-				if interleaveType != "" {
-					sp.ParentTable.InterleaveType = interleaveType
-				} else {
-					sp.ParentTable.InterleaveType = "IN PARENT"
-				}
-				sp.ForeignKeys, err = utilities.RemoveFk(sp.ForeignKeys, sp.ForeignKeys[i].Id, sessionState.Conv.SrcSchema[tableId], tableId)
-				if err != nil {
-					continue
-				}
-			}
-			sessionState.Conv.SpSchema[tableId] = sp
-
-			parentpks := sessionState.Conv.SpSchema[refTableId].PrimaryKeys
-			if len(parentpks) >= 1 {
-				if colIdNotInOrder == "" {
-
-					schemaissue := []internal.SchemaIssue{}
-					for _, column := range childPks {
-						colId := column.ColId
-						schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId]
-
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-						schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
-
-						sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colId] = schemaissue
-					}
-
-					tableInterleaveStatus.Possible = true
-					tableInterleaveStatus.Parent = refTableId
-					tableInterleaveStatus.OnDelete = onDelete
-					tableInterleaveStatus.Comment = ""
-
-				} else {
-
-					schemaissue := []internal.SchemaIssue{}
-					schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIdNotInOrder]
-
-					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
-					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
-
-					schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
-
-					sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIdNotInOrder] = schemaissue
-				}
-			}
-		}
+	if interleaveType == "" && update {
+		tableInterleaveStatus.Possible = false
+		tableInterleaveStatus.Comment = "Interleave type is empty"
+		return tableInterleaveStatus
 	}
+	pk_condition := checkInterleavePrimaryKeyPrefixCondition(tableId, parentTableId)
+	if pk_condition != "" {
+		tableInterleaveStatus.Possible = false
+		tableInterleaveStatus.Comment = pk_condition
+		return tableInterleaveStatus
+	}
+
+	cycle_condition := checkInterleaveCycleCondition(tableId, parentTableId)
+	if cycle_condition != "" {
+		tableInterleaveStatus.Possible = false
+		tableInterleaveStatus.Comment = cycle_condition
+		return tableInterleaveStatus
+	}
+
+	// add check for foreign key condition
+	sp := sessionState.Conv.SpSchema[tableId]
+	if update {
+		sp.ParentTable.Id = parentTableId
+		sp.ParentTable.OnDelete = onDelete
+		sp.ParentTable.InterleaveType = interleaveType
+		sessionState.Conv.SpSchema[tableId] = sp
+	}
+	tableInterleaveStatus.Possible = true
+	tableInterleaveStatus.Comment = ""
+	tableInterleaveStatus.Parent = sp.ParentTable.Id
+	tableInterleaveStatus.OnDelete = sp.ParentTable.OnDelete
+	tableInterleaveStatus.InterleaveType = sp.ParentTable.InterleaveType
 
 	return tableInterleaveStatus
 }
 
-func checkPrimaryKeyOrder(tableId string, refTableId string, fk ddl.Foreignkey) string {
+func checkInterleaveCycleCondition(tableId string, parentTableId string) string {
+	// Check if interleave will create cycle.
+	// If yes, then returns the comment why cycle condition is not met.
+	// Else returns empty string.
+	sessionState := session.GetSessionState()
+	visited := make(map[string]bool)
+	var dfs func(currentTableId string) bool
+	dfs = func(currentTableId string) bool {
+		if visited[currentTableId] {
+			return true
+		}
+		visited[currentTableId] = true
+		parentId := sessionState.Conv.SpSchema[currentTableId].ParentTable.Id
+		if parentId != "" {
+			if dfs(parentId) {
+				return true
+			}
+		}
+		visited[currentTableId] = false
+		return false
+	}
+	visited[tableId] = true
+	if dfs(parentTableId) {
+		message := fmt.Sprintf("Interleaving table '%s' in parent table '%s' will create a cycle.", sessionState.Conv.SpSchema[tableId].Name, sessionState.Conv.SpSchema[parentTableId].Name)
+		return message
+	}
+	return ""
+}
+
+func checkInterleavePrimaryKeyPrefixCondition(tableId string, refTableId string) string {
+	// Check if all parent primary keys are present in child primary keys with same order.
+	// If yes, then returns empty string else returns the comment why prefix condition is not met.
 	sessionState := session.GetSessionState()
 	childPks := sessionState.Conv.SpSchema[tableId].PrimaryKeys
 	parentPks := sessionState.Conv.SpSchema[refTableId].PrimaryKeys
-	childTable := sessionState.Conv.SpSchema[tableId]
 	parentTable := sessionState.Conv.SpSchema[refTableId]
+	childTable := sessionState.Conv.SpSchema[tableId]
+	parent_table_name := sessionState.Conv.SpSchema[refTableId].Name
+	child_table_name := sessionState.Conv.SpSchema[tableId].Name
+	if len(parentPks) == 0 || len(childPks) == 0 {
+		message := fmt.Sprintf("Both parent table '%s' and child table '%s' must have primary keys.", parent_table_name, child_table_name)
+		return message
+	}
+	if len(childPks) < len(parentPks) {
+		message := fmt.Sprintf("The child table '%s' has '%d' primary keys, which is less than the parent table '%s' primary keys count of '%d'.", child_table_name, len(childPks), parent_table_name, len(parentPks))
+		return message
+	}
 	for i := 0; i < len(parentPks); i++ {
-		for j := 0; j < len(childPks); j++ {
-			for k := 0; k < len(fk.ReferColumnIds); k++ {
-				if childTable.ColDefs[fk.ColIds[k]].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name &&
-					parentTable.ColDefs[parentPks[i].ColId].Name == childTable.ColDefs[childPks[j].ColId].Name &&
-					parentTable.ColDefs[parentPks[i].ColId].T.Name == childTable.ColDefs[childPks[j].ColId].T.Name &&
-					parentTable.ColDefs[parentPks[i].ColId].T.Len == childTable.ColDefs[childPks[j].ColId].T.Len &&
-					parentTable.ColDefs[parentPks[i].ColId].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name &&
-					childTable.ColDefs[childPks[j].ColId].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name {
-					if parentPks[i].Order != childPks[j].Order {
-						return childPks[j].ColId
-					}
-				}
+		j := 0
+		for ; j < len(childPks); j++ {
+			if parentTable.ColDefs[parentPks[i].ColId].Name == childTable.ColDefs[childPks[j].ColId].Name && parentTable.ColDefs[parentPks[i].ColId].T.Name == childTable.ColDefs[childPks[j].ColId].T.Name && parentTable.ColDefs[parentPks[i].ColId].T.Len == childTable.ColDefs[childPks[j].ColId].T.Len {
+				break;
 			}
+		}
+		if j == len(childPks) {
+			message := fmt.Sprintf("The child table '%s' does not have primary key '%s' of parent table '%s'.", child_table_name, parentTable.ColDefs[parentPks[i].ColId].Name, parent_table_name)
+			return message
+		}
+		if parentPks[i].Order != childPks[j].Order {
+			message := fmt.Sprintf("The primary key '%s' of parent table '%s' is at order '%d', but in child table '%s' it is at order '%d'.", parentTable.ColDefs[parentPks[i].ColId].Name, parent_table_name, parentPks[i].Order, child_table_name, childPks[j].Order)
+			return message
 		}
 	}
 	return ""
 }
 
-func checkPrimaryKeyPrefix(tableId string, refTableId string, fk ddl.Foreignkey, tableInterleaveStatus *types.TableInterleaveStatus) bool {
-	sessionState := session.GetSessionState()
-	childTable := sessionState.Conv.SpSchema[tableId]
-	parentTable := sessionState.Conv.SpSchema[refTableId]
-	childPks := sessionState.Conv.SpSchema[tableId].PrimaryKeys
-	parentPks := sessionState.Conv.SpSchema[refTableId].PrimaryKeys
-	possibleInterleave := false
-
-	flag := false
-	for _, key := range parentPks {
-		flag = false
-		for _, colId := range fk.ReferColumnIds {
-			if key.ColId == colId {
-				flag = true
-			}
-		}
-		if !flag {
-			break
-		}
-	}
-	if flag {
-		possibleInterleave = true
-	}
-
-	if !possibleInterleave {
-		removeInterleaveSuggestions(fk.ColIds, tableId)
-		return false
-	}
-
-	childPkColIds := []string{}
-	for _, k := range childPks {
-		childPkColIds = append(childPkColIds, k.ColId)
-	}
-
-	interleaved := []ddl.IndexKey{}
-
-	for i := 0; i < len(parentPks); i++ {
-		for j := 0; j < len(childPks); j++ {
-			for k := 0; k < len(fk.ReferColumnIds); k++ {
-				if childTable.ColDefs[fk.ColIds[k]].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name &&
-					parentTable.ColDefs[parentPks[i].ColId].Name == childTable.ColDefs[childPks[j].ColId].Name &&
-					parentTable.ColDefs[parentPks[i].ColId].T.Name == childTable.ColDefs[childPks[j].ColId].T.Name &&
-					parentTable.ColDefs[parentPks[i].ColId].T.Len == childTable.ColDefs[childPks[j].ColId].T.Len &&
-					parentTable.ColDefs[parentPks[i].ColId].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name &&
-					childTable.ColDefs[childPks[j].ColId].Name == parentTable.ColDefs[fk.ReferColumnIds[k]].Name {
-
-					interleaved = append(interleaved, parentPks[i])
-				}
-			}
-		}
-	}
-
-	if len(interleaved) == len(parentPks) {
-		return true
-	}
-
-	diff := []ddl.IndexKey{}
-
-	if len(interleaved) == 0 {
-		for i := 0; i < len(parentPks); i++ {
-			for j := 0; j < len(childPks); j++ {
-				if parentTable.ColDefs[parentPks[i].ColId].Name != childTable.ColDefs[childPks[j].ColId].Name || parentTable.ColDefs[parentPks[i].ColId].T.Len != childTable.ColDefs[childPks[j].ColId].T.Len {
-					diff = append(diff, parentPks[i])
-				}
-			}
-		}
-	}
-
-	canInterleavedOnAdd := []string{}
-	canInterleavedOnRename := []string{}
-	canInterLeaveOnChangeInColumnSize := []string{}
-
-	fkReferColNames := []string{}
-	childPkColNames := []string{}
-	for _, colId := range fk.ReferColumnIds {
-		fkReferColNames = append(fkReferColNames, parentTable.ColDefs[colId].Name)
-	}
-	for _, colId := range childPkColIds {
-		childPkColNames = append(childPkColNames, childTable.ColDefs[colId].Name)
-	}
-
-	for i := 0; i < len(diff); i++ {
-
-		parentColIndex := utilities.IsColumnPresent(fkReferColNames, parentTable.ColDefs[diff[i].ColId].Name)
-		if parentColIndex == -1 {
-			continue
-		}
-		childColIndex := utilities.IsColumnPresent(childPkColNames, childTable.ColDefs[fk.ColIds[parentColIndex]].Name)
-		if childColIndex == -1 {
-			canInterleavedOnAdd = append(canInterleavedOnAdd, fk.ColIds[parentColIndex])
-		} else {
-			if parentTable.ColDefs[diff[i].ColId].Name == childTable.ColDefs[fk.ColIds[parentColIndex]].Name {
-				canInterLeaveOnChangeInColumnSize = append(canInterLeaveOnChangeInColumnSize, fk.ColIds[parentColIndex])
-			} else {
-				canInterleavedOnRename = append(canInterleavedOnRename, fk.ColIds[parentColIndex])
-			}
-		}
-	}
-
-	if len(canInterLeaveOnChangeInColumnSize) > 0 {
-		updateInterleaveSuggestion(canInterLeaveOnChangeInColumnSize, tableId, internal.InterleavedChangeColumnSize)
-	} else if len(canInterleavedOnRename) > 0 {
-		updateInterleaveSuggestion(canInterleavedOnRename, tableId, internal.InterleavedRenameColumn)
-	} else if len(canInterleavedOnAdd) > 0 {
-		updateInterleaveSuggestion(canInterleavedOnAdd, tableId, internal.InterleavedAddColumn)
-	}
-
-	return false
-}
 
 func updateInterleaveSuggestion(colIds []string, tableId string, issue internal.SchemaIssue) {
 	sessionState := session.GetSessionState()
@@ -1708,14 +1546,14 @@ func initializeTypeMap() {
 	// Include collection types in Type Mapping
 	for _, srcTypeName := range []string{"tinyint", "smallint", "int", "bigint", "float", "double", "decimal", "varint", "text", "varchar", "ascii", "uuid", "timeuuid", "inet", "blob", "date", "timestamp", "time", "duration", "boolean", "counter"} {
 		listType := fmt.Sprintf("list<%s>", srcTypeName)
-		setType  := fmt.Sprintf("set<%s>", srcTypeName)
+		setType := fmt.Sprintf("set<%s>", srcTypeName)
 		var l []types.TypeIssue
 		srcType := schema.MakeType()
 		srcType.Name = listType
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType, false)
 			l = addTypeToList("ARRAY<"+ty.Name+">", "ARRAY<"+spType+">", issues, l)
-		}	
+		}
 		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType, false)
 		cassandraDefaultTypeMap[listType] = ty
 		cassandraTypeMap[listType] = l
