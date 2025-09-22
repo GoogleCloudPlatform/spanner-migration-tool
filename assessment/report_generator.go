@@ -15,7 +15,9 @@
 package assessment
 
 import (
+	"crypto/sha256"
 	"encoding/csv"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -28,6 +30,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
+	"go.uber.org/zap"
 )
 
 type SchemaReportRow struct {
@@ -98,9 +101,13 @@ func generateCodeSummary(appAssessment *utils.AppCodeAssessmentOutput) [][]strin
 	}
 
 	var rows [][]string
+
 	rows = append(rows, []string{"Language", appAssessment.Language})
+
 	rows = append(rows, []string{"Framework", appAssessment.Framework})
+
 	rows = append(rows, []string{"App Code Files", fmt.Sprint(appAssessment.TotalFiles)})
+
 	rows = append(rows, []string{"Lines of code", fmt.Sprint(appAssessment.TotalLoc)})
 
 	rows = append(rows, getNonSchemaChangeHeaders())
@@ -115,6 +122,7 @@ func generateCodeSummary(appAssessment *utils.AppCodeAssessmentOutput) [][]strin
 		row = append(row, fmt.Sprint(codeReportRow.loc))
 		row = append(row, utils.SanitizeCsvRow(&codeReportRow.schemaRelated))
 		row = append(row, utils.SanitizeCsvRow(&codeReportRow.explanation))
+
 		rows = append(rows, row)
 	}
 
@@ -122,6 +130,7 @@ func generateCodeSummary(appAssessment *utils.AppCodeAssessmentOutput) [][]strin
 }
 
 func convertToCodeReportRows(snippets *[]utils.Snippet) []CodeReportRow {
+
 	rows := []CodeReportRow{}
 
 	if snippets == nil {
@@ -165,6 +174,7 @@ func convertToCodeReportRows(snippets *[]utils.Snippet) []CodeReportRow {
 		}
 
 		if row.loc > 0 {
+
 			rows = append(rows, row)
 		}
 	}
@@ -208,6 +218,17 @@ func GenerateReport(dbName string, assessmentOutput utils.AssessmentOutput) {
 		}
 	} else {
 		logger.Log.Info("not performing application assessment as code is not detected")
+	}
+
+	// Generate query assessment report
+	if assessmentOutput.QueryAssessment.QueryTranslationResult != nil {
+		queryFile := folderPath + "query_assessment_report.csv"
+		err := GenerateQueryAssessmentReport(*assessmentOutput.QueryAssessment.QueryTranslationResult, queryFile)
+		if err != nil {
+			logger.Log.Error("failed to generate query assessment report", zap.Error(err))
+		} else {
+			logger.Log.Info("completed publishing query assessment report: " + queryFile)
+		}
 	}
 	logger.Log.Info("assessment complete!")
 }
@@ -271,6 +292,7 @@ func getSchemaHeaders() []string {
 }
 
 func convertToSchemaReportRows(assessmentOutput utils.AssessmentOutput) []SchemaReportRow {
+
 	rows := []SchemaReportRow{}
 	var codeSnippets *[]utils.Snippet
 	codeSnippets = nil
@@ -907,4 +929,125 @@ func populateSequenceInfo(sequenceAssessmentOutput map[string]ddl.Sequence, tabl
 
 		*rows = append(*rows, row)
 	}
+}
+
+func hashNormalizedQuery(normalized string) string {
+	h := sha256.New()
+	h.Write([]byte(normalized))
+	return "q" + hex.EncodeToString(h.Sum(nil))[:8]
+}
+
+func codeChangeEffort(complexity string) string {
+	switch strings.ToLower(complexity) {
+	case "simple":
+		return "Low"
+	case "moderate", "medium":
+		return "Medium"
+	case "complex":
+		return "High"
+	default:
+		return ""
+	}
+}
+
+func GenerateQueryAssessmentReport(queries []utils.QueryTranslationResult, outputPath string) error {
+	f, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	w := csv.NewWriter(f)
+	w.Comma = '\t'
+	defer w.Flush()
+
+	// Write header
+	w.Write([]string{
+		"Query ID", "Query Type", "Normalized Query Text", "Original Query Example",
+		"Associated Source Table(s)", "Associated Spanner Table(s)", "Incompatibility Type(s)", "Suggested Spanner Query",
+		"Reason for Change", "Estimated Code Change Effort", "Code Change Details", "Number of Executions",
+		"Databases Referenced", "Source of Information",
+	})
+
+	for _, q := range queries {
+		queryID := hashNormalizedQuery(q.NormalizedQuery)
+		queryType := q.QueryType
+		srcTables := ""
+		if q.SourceTablesAffected != nil {
+			srcTables = strings.Join(q.SourceTablesAffected, ", ")
+		}
+		spTables := ""
+		if q.SpannerTablesAffected != nil {
+			spTables = strings.Join(q.SpannerTablesAffected, ", ")
+		}
+
+		// Collect Incompatibility Types
+		var incompatibilityTypes []string
+		if q.CrossDBJoins {
+			incompatibilityTypes = append(incompatibilityTypes, "Cross-DB Join")
+		}
+
+		for _, functionUsed := range q.FunctionsUsed {
+			if _, ok := utils.SupportedFunctions[functionUsed]; !ok {
+				incompatibilityTypes = append(incompatibilityTypes, "Unsupported Function: "+functionUsed)
+			}
+		}
+		for _, operatorUsed := range q.OperatorsUsed {
+			if _, ok := utils.SupportedOperators[operatorUsed]; !ok {
+				incompatibilityTypes = append(incompatibilityTypes, "Unsupported Operator: "+operatorUsed)
+			}
+		}
+		// Add details from ComparisonAnalysis
+		if q.ComparisonAnalysis.LiteralComparisons != nil && len(q.ComparisonAnalysis.LiteralComparisons.PrecisionIssues) > 0 {
+			incompatibilityTypes = append(incompatibilityTypes, "Literal Precision Issues: "+strings.Join(q.ComparisonAnalysis.LiteralComparisons.PrecisionIssues, ", "))
+		}
+		if q.ComparisonAnalysis.DataTypeComparisons != nil && len(q.ComparisonAnalysis.DataTypeComparisons.IncompatibleTypes) > 0 {
+			incompatibilityTypes = append(incompatibilityTypes, "Incompatible Data Types: "+strings.Join(q.ComparisonAnalysis.DataTypeComparisons.IncompatibleTypes, ", "))
+		}
+		if q.ComparisonAnalysis.TimestampComparisons != nil && len(q.ComparisonAnalysis.TimestampComparisons.TimezoneIssues) > 0 {
+			incompatibilityTypes = append(incompatibilityTypes, "Timestamp Timezone Issue: "+strings.Join(q.ComparisonAnalysis.TimestampComparisons.TimezoneIssues, ", "))
+		}
+		if q.ComparisonAnalysis.DateComparisons != nil && len(q.ComparisonAnalysis.DateComparisons.FormatIssues) > 0 {
+			incompatibilityTypes = append(incompatibilityTypes, "Date Format Issue: "+strings.Join(q.ComparisonAnalysis.DateComparisons.FormatIssues, ", "))
+		}
+		numExec := ""
+		if q.ExecutionCount > 0 {
+			numExec = fmt.Sprintf("%d", q.ExecutionCount)
+		}
+
+		databasesReferenced := ""
+		if len(q.DatabasesReferenced) > 0 {
+			databasesReferenced = strings.Join(q.DatabasesReferenced, ", ")
+		}
+
+		// Find code snippet id if possible
+		codeChangeDetails := "None/Unavailable"
+		if q.SnippetId != "" {
+			codeChangeDetails = q.SnippetId
+		}
+
+		explaination := q.Explanation
+		spannerQuery := q.SpannerQuery
+		if q.TranslationError != "" {
+			explaination = q.TranslationError
+			spannerQuery = ""
+		}
+
+		w.Write([]string{
+			queryID,
+			queryType,
+			q.NormalizedQuery,
+			q.OriginalQuery,
+			srcTables,
+			spTables,
+			strings.Join(incompatibilityTypes, ", "),
+			spannerQuery,
+			explaination,
+			codeChangeEffort(q.Complexity),
+			codeChangeDetails,
+			numExec,
+			databasesReferenced,
+			q.AssessmentSource,
+		})
+	}
+	return nil
 }

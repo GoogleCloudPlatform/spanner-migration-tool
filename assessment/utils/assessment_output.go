@@ -193,24 +193,25 @@ type PerformanceAssessmentOutput struct {
 }
 
 type QueryTranslationResult struct {
-	OriginalQuery           string             `json:"old_query"`
-	NormalizedQuery         string             `json:"normalized_query"`
-	SpannerQuery            string             `json:"new_query"`
-	Explanation             string             `json:"explanation"`
-	Complexity              string             `json:"complexity"`
-	TranslationError        string             `json:"translation_error,omitempty"`
-	Source                  string             `json:"source,omitempty"` // "app_code" or "performance_schema"
-	ExecutionCount          int                `json:"execution_count,omitempty"`
-	SnippetId               string             `json:"snippet_id,omitempty"`
-	NumberOfQueryOccurances int                `json:"number_of_query_occurances,omitempty"`
-	TablesAffected          []string           `json:"tables_affected"`
+	OriginalQuery           string   `json:"old_query"`
+	NormalizedQuery         string   `json:"normalized_query"`
+	SpannerQuery            string   `json:"new_query"`
+	Explanation             string   `json:"explanation"`
+	Complexity              string   `json:"complexity"`
+	TranslationError        string   `json:"translation_error,omitempty"`
+	AssessmentSource        string   // "app_code" or "performance_schema" or "app_code,performance_schema"
+	ExecutionCount          int      `json:"execution_count,omitempty"`
+	SnippetId               string   `json:"snippet_id,omitempty"`
+	NumberOfQueryOccurances int      `json:"number_of_query_occurances,omitempty"`
+	SourceTablesAffected    []string `json:"tables_affected"`
+	SpannerTablesAffected   []string
 	CrossDBJoins            bool               `json:"cross_db_joins"`
-	DDLStatement            bool               `json:"ddl_statement"`
 	FunctionsUsed           []string           `json:"functions_used"`
 	OperatorsUsed           []string           `json:"operators_used"`
 	DatabasesReferenced     []string           `json:"databases_referenced"`
 	SelectForUpdate         bool               `json:"select_for_update"`
 	ComparisonAnalysis      ComparisonAnalysis `json:"comparison_analysis"`
+	QueryType               string             // INSERT / UPDATE / DELETE / SELECT / CALL / DDL / OTHER
 }
 
 type ComparisonAnalysis struct {

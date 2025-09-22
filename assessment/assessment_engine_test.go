@@ -45,31 +45,31 @@ func TestCombineAndDeduplicateQueries(t *testing.T) {
 
 		q1, ok1 := findResult(result, "SELECT * FROM users WHERE id = ?")
 		assert.True(t, ok1)
-		assert.Equal(t, "performance_schema", q1.Source)
+		assert.Equal(t, "performance_schema", q1.AssessmentSource)
 		assert.Equal(t, 100, q1.ExecutionCount)
 
 		q2, ok2 := findResult(result, "SELECT * FROM products WHERE id = ?")
 		assert.True(t, ok2)
-		assert.Equal(t, "performance_schema", q2.Source)
+		assert.Equal(t, "performance_schema", q2.AssessmentSource)
 		assert.Equal(t, 50, q2.ExecutionCount)
 	})
 
 	t.Run("only app code queries", func(t *testing.T) {
 		appQueries := []utils.QueryTranslationResult{
-			{NormalizedQuery: "SELECT * FROM users WHERE id = ?", OriginalQuery: "SELECT * FROM users WHERE id = 1", Source: "app_code"},
-			{NormalizedQuery: "INSERT INTO orders VALUES (?)", OriginalQuery: "INSERT INTO orders VALUES (1)", Source: "app_code"},
+			{NormalizedQuery: "SELECT * FROM users WHERE id = ?", OriginalQuery: "SELECT * FROM users WHERE id = 1", AssessmentSource: "app_code"},
+			{NormalizedQuery: "INSERT INTO orders VALUES (?)", OriginalQuery: "INSERT INTO orders VALUES (1)", AssessmentSource: "app_code"},
 		}
 		result := combineAndDeduplicateQueries([]utils.QueryAssessmentInfo{}, &utils.AppCodeAssessmentOutput{QueryTranslationResult: &appQueries})
 		assert.Len(t, result, 2)
 
 		q1, ok1 := findResult(result, "SELECT * FROM users WHERE id = ?")
 		assert.True(t, ok1)
-		assert.Equal(t, "app_code", q1.Source)
+		assert.Equal(t, "app_code", q1.AssessmentSource)
 		assert.Equal(t, "SELECT * FROM users WHERE id = 1", q1.OriginalQuery)
 
 		q2, ok2 := findResult(result, "INSERT INTO orders VALUES (?)")
 		assert.True(t, ok2)
-		assert.Equal(t, "app_code", q2.Source)
+		assert.Equal(t, "app_code", q2.AssessmentSource)
 	})
 
 	t.Run("no common queries", func(t *testing.T) {
@@ -77,18 +77,18 @@ func TestCombineAndDeduplicateQueries(t *testing.T) {
 			{Query: "SELECT * FROM users WHERE id = ?", Count: 100},
 		}
 		appQueries := []utils.QueryTranslationResult{
-			{NormalizedQuery: "SELECT * FROM products WHERE id = ?", OriginalQuery: "SELECT * FROM products", Source: "app_code"},
+			{NormalizedQuery: "SELECT * FROM products WHERE id = ?", OriginalQuery: "SELECT * FROM products", AssessmentSource: "app_code"},
 		}
 		result := combineAndDeduplicateQueries(perfQueries, &utils.AppCodeAssessmentOutput{QueryTranslationResult: &appQueries})
 		assert.Len(t, result, 2)
 
 		q1, ok1 := findResult(result, "SELECT * FROM users WHERE id = ?")
 		assert.True(t, ok1)
-		assert.Equal(t, "performance_schema", q1.Source)
+		assert.Equal(t, "performance_schema", q1.AssessmentSource)
 
 		q2, ok2 := findResult(result, "SELECT * FROM products WHERE id = ?")
 		assert.True(t, ok2)
-		assert.Equal(t, "app_code", q2.Source)
+		assert.Equal(t, "app_code", q2.AssessmentSource)
 	})
 
 	t.Run("some common queries should be deduplicated", func(t *testing.T) {
@@ -97,8 +97,8 @@ func TestCombineAndDeduplicateQueries(t *testing.T) {
 			{Query: "SELECT * FROM orders WHERE id = ?", Count: 25}, // Unique to perf
 		}
 		appQueries := []utils.QueryTranslationResult{
-			{NormalizedQuery: "SELECT * FROM users WHERE id = ?", OriginalQuery: "SELECT * FROM users WHERE id = 1", Source: "app_code"}, // Common query
-			{NormalizedQuery: "INSERT INTO products values(?)", OriginalQuery: "INSERT INTO products values(1)", Source: "app_code"},     // Unique to app code
+			{NormalizedQuery: "SELECT * FROM users WHERE id = ?", OriginalQuery: "SELECT * FROM users WHERE id = 1", AssessmentSource: "app_code"}, // Common query
+			{NormalizedQuery: "INSERT INTO products values(?)", OriginalQuery: "INSERT INTO products values(1)", AssessmentSource: "app_code"},     // Unique to app code
 		}
 		result := combineAndDeduplicateQueries(perfQueries, &utils.AppCodeAssessmentOutput{QueryTranslationResult: &appQueries})
 		assert.Len(t, result, 3)
@@ -107,21 +107,21 @@ func TestCombineAndDeduplicateQueries(t *testing.T) {
 		dedupQuery, ok1 := findResult(result, "SELECT * FROM users WHERE id = ?")
 		assert.True(t, ok1)
 		assert.Equal(t, "SELECT * FROM users WHERE id = 1", dedupQuery.OriginalQuery)
-		assert.Equal(t, "app_code, performance_schema", dedupQuery.Source)
+		assert.Equal(t, "app_code, performance_schema", dedupQuery.AssessmentSource)
 		assert.Equal(t, 100, dedupQuery.ExecutionCount) // Should be from performance schema
 
 		// Check the unique perf query
 		perfQuery, ok2 := findResult(result, "SELECT * FROM orders WHERE id = ?")
 		assert.True(t, ok2)
 		assert.Equal(t, "SELECT * FROM orders WHERE id = ?", perfQuery.OriginalQuery)
-		assert.Equal(t, "performance_schema", perfQuery.Source)
+		assert.Equal(t, "performance_schema", perfQuery.AssessmentSource)
 		assert.Equal(t, 25, perfQuery.ExecutionCount)
 
 		// Check the unique app code query
 		appQuery, ok3 := findResult(result, "INSERT INTO products values(?)")
 		assert.True(t, ok3)
 		assert.Equal(t, "INSERT INTO products values(1)", appQuery.OriginalQuery)
-		assert.Equal(t, "app_code", appQuery.Source)
+		assert.Equal(t, "app_code", appQuery.AssessmentSource)
 	})
 }
 
@@ -147,17 +147,17 @@ func TestPerformQueryAssessment(t *testing.T) {
 			assert.Equal(t, "SELECT * FROM users WHERE id = ?", queries[0].Query)
 			return []utils.QueryTranslationResult{
 				{
-					OriginalQuery: queries[0].Query,
-					SpannerQuery:  "SELECT * FROM `users` WHERE id = ?",
-					Source:        "performance_schema",
+					OriginalQuery:    queries[0].Query,
+					SpannerQuery:     "SELECT * FROM `users` WHERE id = ?",
+					AssessmentSource: "performance_schema",
 				},
 			}, nil
 		}
 
 		// Input queries: one from perf, one from app code.
 		queries := []utils.QueryTranslationResult{
-			{OriginalQuery: "SELECT * FROM users", NormalizedQuery: "SELECT * FROM users WHERE id = ?", Source: "performance_schema", ExecutionCount: 100},
-			{OriginalQuery: "INSERT INTO products", NormalizedQuery: "INSERT INTO products", Source: "app_code", ExecutionCount: 50},
+			{OriginalQuery: "SELECT * FROM users", NormalizedQuery: "SELECT * FROM users WHERE id = ?", AssessmentSource: "performance_schema", ExecutionCount: 100},
+			{OriginalQuery: "INSERT INTO products", NormalizedQuery: "INSERT INTO products", AssessmentSource: "app_code", ExecutionCount: 50},
 		}
 
 		result, err := performQueryAssessment(ctx, collectors, queries, projectId, assessmentConfig, conv)
@@ -192,7 +192,7 @@ func TestPerformQueryAssessment(t *testing.T) {
 		}
 
 		queries := []utils.QueryTranslationResult{
-			{OriginalQuery: "SELECT * FROM users", NormalizedQuery: "SELECT * FROM users WHERE id = ?", Source: "performance_schema"},
+			{OriginalQuery: "SELECT * FROM users", NormalizedQuery: "SELECT * FROM users WHERE id = ?", AssessmentSource: "performance_schema"},
 		}
 
 		result, err := performQueryAssessment(ctx, collectors, queries, projectId, assessmentConfig, conv)
@@ -230,7 +230,7 @@ func TestPerformQueryAssessment(t *testing.T) {
 		}
 
 		queries := []utils.QueryTranslationResult{
-			{OriginalQuery: "INSERT INTO products", Source: "app_code"},
+			{OriginalQuery: "INSERT INTO products", AssessmentSource: "app_code"},
 		}
 
 		result, err := performQueryAssessment(ctx, collectors, queries, projectId, assessmentConfig, conv)
@@ -240,4 +240,90 @@ func TestPerformQueryAssessment(t *testing.T) {
 		assert.Len(t, result, 1)
 		assert.Equal(t, "INSERT INTO products", result[0].OriginalQuery)
 	})
+}
+
+func TestFetchSpannerTableNames(t *testing.T) {
+	baseConv := &internal.Conv{
+		SpDialect: constants.DIALECT_GOOGLESQL,
+		SrcSchema: map[string]schema.Table{
+			"t1": {Name: "table1", Id: "t1"},
+			"t2": {Name: "table2", Id: "t2"},
+		},
+		SpSchema: map[string]ddl.CreateTable{
+			"t1": {Name: "sp_table1", Id: "t1"},
+		},
+	}
+
+	tests := []struct {
+		name          string
+		tableNames    []string
+		setup         func(conv *internal.Conv) // Optional setup for the test case
+		expectedNames []string
+		expectedErr   string
+	}{
+		{
+			name:          "Success - single table",
+			tableNames:    []string{"table1"},
+			expectedNames: []string{"sp_table1"},
+			expectedErr:   "",
+		},
+		{
+			name:       "Success - multiple tables",
+			tableNames: []string{"table1", "table2"},
+			setup: func(conv *internal.Conv) {
+				conv.SpSchema["t2"] = ddl.CreateTable{Name: "sp_table2", Id: "t2"}
+			},
+			expectedNames: []string{"sp_table1", "sp_table2"},
+			expectedErr:   "",
+		},
+		{
+			name:          "Error - table not in source schema",
+			tableNames:    []string{"table3"},
+			expectedNames: nil,
+			expectedErr:   "error getting table id from source name",
+		},
+		{
+			name:          "Error - spanner table not found",
+			tableNames:    []string{"table2"},
+			expectedNames: nil,
+			expectedErr:   "spanner table not found for source table: table2",
+		},
+		{
+			name:          "Success - empty input",
+			tableNames:    []string{},
+			expectedNames: []string{},
+			expectedErr:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a deep copy of the baseConv for each test run to ensure isolation.
+			conv := &internal.Conv{
+				SpDialect: baseConv.SpDialect,
+				SrcSchema: make(map[string]schema.Table),
+				SpSchema:  make(map[string]ddl.CreateTable),
+			}
+			for k, v := range baseConv.SrcSchema {
+				conv.SrcSchema[k] = v
+			}
+			for k, v := range baseConv.SpSchema {
+				conv.SpSchema[k] = v
+			}
+
+			if tt.setup != nil {
+				tt.setup(conv)
+			}
+
+			actualNames, actualErr := fetchSpannerTableNames(conv, tt.tableNames)
+
+			if tt.expectedErr != "" {
+				assert.Contains(t, actualErr, tt.expectedErr)
+				assert.Nil(t, actualNames)
+			} else {
+				assert.Empty(t, actualErr)
+				assert.Equal(t, tt.expectedNames, actualNames)
+			}
+		})
+	}
 }

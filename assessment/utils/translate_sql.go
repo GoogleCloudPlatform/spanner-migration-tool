@@ -1,3 +1,19 @@
+/*
+	Copyright 2025 Google LLC
+
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+*/
 package utils
 
 import (
@@ -142,8 +158,9 @@ func defaultTranslateQueryTask(input *LLMQueryTranslationInput, mutex *sync.Mute
 	}
 
 	translationResult.OriginalQuery = input.MySQLQuery
-	translationResult.Source = "performance_schema"
+	translationResult.AssessmentSource = "performance_schema"
 	translationResult.ExecutionCount = input.Count
+	translationResult.QueryType = GetQueryType(input.MySQLQuery)
 
 	return task.TaskResult[*QueryTranslationResult]{
 		Result: &translationResult,
@@ -162,4 +179,27 @@ func buildTranslationPrompt(mysqlQuery, mysqlSchema, spannerSchema string) strin
 	prompt = strings.ReplaceAll(prompt, "{{QUERY_EXAMPLES}}", string(QueryTranslationExamples))
 
 	return prompt
+}
+
+func GetQueryType(normalized string) string {
+	s := strings.TrimSpace(strings.ToUpper(normalized))
+	if strings.HasPrefix(s, "SELECT") {
+		return "SELECT"
+	}
+	if strings.HasPrefix(s, "INSERT") {
+		return "INSERT"
+	}
+	if strings.HasPrefix(s, "UPDATE") {
+		return "UPDATE"
+	}
+	if strings.HasPrefix(s, "DELETE") {
+		return "DELETE"
+	}
+	if strings.HasPrefix(s, "CREATE") || strings.HasPrefix(s, "ALTER") || strings.HasPrefix(s, "DROP") {
+		return "DDL"
+	}
+	if strings.HasPrefix(s, "CALL") {
+		return "CALL"
+	}
+	return "OTHER"
 }

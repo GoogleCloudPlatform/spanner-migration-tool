@@ -43,10 +43,9 @@ Respond with a JSON object containing:
   "complexity": "<SIMPLE|MODERATE|COMPLEX>. Complexity of the query",
   "explanation": "<description of why the change is needed and how to update the query>",
   "databases_referenced": ["List of databases referenced in the query (e.g., 'db1', 'db2')"],
-  "ddl_statement": false,
   "tables_affected": ["List of tables referenced in the query (e.g., 'table1', 'table2')"],
   "cross_db_joins": false,
-  "functions_used": ["NOW()", "DATE_FORMAT()"],
+  "functions_used": ["NOW", "DATE_FORMAT"],
   "operators_used": ["<=>", "REGEXP"]
   "select_for_update": false,
   "comparison_analysis": {
