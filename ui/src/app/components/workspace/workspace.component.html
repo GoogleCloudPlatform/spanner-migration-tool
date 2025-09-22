@@ -121,7 +121,10 @@
       </mat-tab-group>
       <button id="right-column-toggle-button" (click)="rightColumnToggle()">
         <mat-icon [ngClass]="[isRightColumnCollapse ? 'display' : 'hidden']">first_page</mat-icon>
+        <mat-icon *ngIf="isRightColumnCollapse">first_page</mat-icon>
+        clear
         <mat-icon [ngClass]="[isRightColumnCollapse ? 'hidden' : 'display']">last_page</mat-icon>
+        <mat-icon *ngIf="!isRightColumnCollapse">last_page</mat-icon>
       </button>
     </div>
   </div>

@@ -6,7 +6,7 @@ import IUpdateTable, { IReviewUpdateTable } from 'src/app/model/update-table'
   providedIn: 'root',
 })
 export class TableUpdatePubSubService {
-  private reviewTableChangesSub = new BehaviorSubject<IReviewUpdateTable>({ Changes: [], DDL: '' })
+  private reviewTableChangesSub = new BehaviorSubject<IReviewUpdateTable>({ DDL: '' })
   private tableUpdateDetailSub = new BehaviorSubject<{
     tableName: string
     tableId: string
