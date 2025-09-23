@@ -326,7 +326,7 @@ func TestFetchSpannerTableNames(t *testing.T) {
 				assert.Empty(t, actualErr)
 				assert.Equal(t, tt.expectedNames, actualNames)
 			}
-		}
+		})
 	}
 }
 
