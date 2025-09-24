@@ -53,7 +53,7 @@ func GetDefaultInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.S
 	return GetInfoSchemaCollector(conv, sourceProfile, collectorCommon.SQLDBConnector{}, collectorCommon.DefaultConnectionConfigProvider{}, getInfoSchema)
 }
 
-func BuildInforSchemaCollector(tables map[string]utils.TableAssessmentInfo,
+func BuildInfoSchemaCollector(tables map[string]utils.TableAssessmentInfo,
 	indexes []utils.IndexAssessmentInfo,
 	triggers []utils.TriggerAssessmentInfo,
 	storedProcedures []utils.StoredProcedureAssessmentInfo,

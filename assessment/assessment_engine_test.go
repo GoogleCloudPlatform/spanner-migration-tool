@@ -382,7 +382,7 @@ func TestPerformSchemaAssessment(t *testing.T) {
 		functions := []utils.FunctionAssessmentInfo{{Name: "my_func", Definition: "RETURN 1;"}}
 		views := []utils.ViewAssessmentInfo{{Name: "my_view", Definition: "SELECT * FROM table1"}}
 
-		infoSchemaCollector, err := assessment.BuildInforSchemaCollector(tables, indexes, triggers, storedProcedures, functions, views, conv)
+		infoSchemaCollector, err := assessment.BuildInfoSchemaCollector(tables, indexes, triggers, storedProcedures, functions, views, conv)
 		assert.NoError(t, err)
 
 		collectors := assessmentCollectors{
