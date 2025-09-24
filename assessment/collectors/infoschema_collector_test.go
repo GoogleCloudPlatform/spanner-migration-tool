@@ -24,6 +24,54 @@ import (
 func init() {
 	logger.Log = zap.NewNop()
 }
+func TestBuildInforSchemaCollector(t *testing.T) {
+	t.Run("successfully builds a collector with all fields", func(t *testing.T) {
+		// 1. Arrange: Create sample data for all parameters.
+		sampleTables := map[string]utils.TableAssessmentInfo{
+			"t1": {Name: "table1"},
+		}
+		sampleIndexes := []utils.IndexAssessmentInfo{
+			{Name: "index1"},
+		}
+		sampleTriggers := []utils.TriggerAssessmentInfo{
+			{Name: "trigger1"},
+		}
+		sampleSps := []utils.StoredProcedureAssessmentInfo{
+			{Name: "sp1"},
+		}
+		sampleFuncs := []utils.FunctionAssessmentInfo{
+			{Name: "func1"},
+		}
+		sampleViews := []utils.ViewAssessmentInfo{
+			{Name: "view1"},
+		}
+		sampleConv := &internal.Conv{}
+
+		// 2. Act: Call the function under test.
+		collector, err := BuildInfoSchemaCollector(
+			sampleTables,
+			sampleIndexes,
+			sampleTriggers,
+			sampleSps,
+			sampleFuncs,
+			sampleViews,
+			sampleConv,
+		)
+
+		// 3. Assert: Verify the returned struct and error.
+		assert.NoError(t, err, "BuildInfoSchemaCollector should not return an error")
+		assert.NotNil(t, collector, "The returned collector should not be nil")
+
+		// Verify that each field in the collector matches the input data.
+		assert.Equal(t, sampleTables, collector.tables)
+		assert.Equal(t, sampleIndexes, collector.indexes)
+		assert.Equal(t, sampleTriggers, collector.triggers)
+		assert.Equal(t, sampleSps, collector.storedProcedures)
+		assert.Equal(t, sampleFuncs, collector.functions)
+		assert.Equal(t, sampleViews, collector.views)
+		assert.Same(t, sampleConv, collector.conv, "The 'conv' field should be the same instance as the input")
+	})
+}
 
 func TestGetInfoSchema(t *testing.T) {
 	db, _, err := sqlmock.New()

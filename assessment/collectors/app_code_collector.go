@@ -63,6 +63,11 @@ func (w *genaiModelWrapper) SetResponseMIMEType(mimeType string) {
 	w.GenerativeModel.ResponseMIMEType = mimeType
 }
 
+// AppCodeAssessor defines the interface for any component that can analyze application code.
+type AppCodeAssessor interface {
+	AnalyzeProject(ctx context.Context) (*utils.CodeAssessment, []utils.QueryTranslationResult, error)
+}
+
 // MigrationCodeSummarizer holds the LLM models and configurations for code migration assessment.
 type MigrationCodeSummarizer struct {
 	gcpProjectID               string
