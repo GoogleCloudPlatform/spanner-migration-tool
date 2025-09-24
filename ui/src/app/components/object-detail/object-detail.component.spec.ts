@@ -65,6 +65,7 @@ describe('ObjectDetailComponent', () => {
     ]
 }).compileComponents()
     dataServiceSpy.conv = of(mockIConv);
+    dataServiceSpy.tableInterleaveStatus = of({});
     dataServiceSpy.updateCheckConstraint.and.returnValue(of(''))
   })
 

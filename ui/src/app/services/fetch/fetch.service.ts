@@ -324,8 +324,8 @@ export class FetchService {
     return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableId}&update=false`)
   }
 
-  setInterleave(tableId: string, interleaveType: string) {
-    return this.http.get(`${this.url}/setparent?table=${tableId}&interleaveType=${interleaveType}&update=true`)
+  setInterleave(tableId: string, interleaveType: string, interleaveParentName: string, onDeleteAction: string) {
+    return this.http.get(`${this.url}/setparent?table=${tableId}&interleaveType=${interleaveType}&parentTable=${interleaveParentName}&onDelete=${onDeleteAction}&update=true`)
   }
 
   getSourceDestinationSummary() {

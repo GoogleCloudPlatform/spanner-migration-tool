@@ -614,3 +614,11 @@ html {
   margin-left: auto;
   margin-right: auto;
 }
+.ng-dropdown-panel.ng-select-bottom {
+
+  margin-top: -12px;
+
+  .ng-dropdown-panel-items {
+    max-height: 240px;
+  }
+}

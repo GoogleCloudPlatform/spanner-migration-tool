@@ -52,6 +52,11 @@
       margin-left: 4px;
       text-decoration: underline;
     }
+    .interleave-parent-name,
+    .interleave-type {
+      margin-right: 8px;
+      text-decoration: underline;
+    }
   }
 }
 .interleave-parent-table {
@@ -255,20 +260,10 @@
 }
 
 .interleave-tab-container {
-  height: 200px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  /* Give the component some space from the top and sides */
+  padding: 24px 16px;
 }
 
-.interleave-tab-container {
-  height: 200px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
 
 .save-button {
   width: 100%;
