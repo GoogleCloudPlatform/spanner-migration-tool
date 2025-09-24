@@ -15,8 +15,22 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"google.golang.org/api/option"
 )
+
+// MockAppCodeAssessor is a mock for the AppCodeAssessor interface.
+type MockAppCodeAssessor struct {
+	mock.Mock
+}
+
+// AnalyzeProject mocks the AnalyzeProject method.
+func (m *MockAppCodeAssessor) AnalyzeProject(ctx context.Context) (*utils.CodeAssessment, []utils.QueryTranslationResult, error) {
+	args := m.Called(ctx)
+	// The mock framework requires careful handling of nil vs typed nil for interface return values.
+	// We get the first argument and handle the type assertion carefully.
+	return args.Get(0).(*utils.CodeAssessment), args.Get(1).([]utils.QueryTranslationResult), args.Error(2)
+}
 
 func TestCombineAndDeduplicateQueries(t *testing.T) {
 	// Helper function to find a specific result in a slice.
@@ -344,40 +358,7 @@ func TestPerformSchemaAssessment(t *testing.T) {
 
 	t.Run("success with a sample infoSchemaCollector", func(t *testing.T) {
 		// 1. Create a sample internal.Conv object.
-		conv := &internal.Conv{
-			SrcSchema: map[string]schema.Table{
-				"t1": {
-					Id:   "t1",
-					Name: "table1",
-					ColDefs: map[string]schema.Column{
-						"c1": {Id: "c1", Name: "col1", Type: schema.Type{Name: "int"}, NotNull: true},
-						"c2": {Id: "c2", Name: "col2", Type: schema.Type{Name: "varchar", Mods: []int64{20}}},
-					},
-					PrimaryKeys: []schema.Key{{ColId: "c1", Order: 1}},
-					Indexes: []schema.Index{
-						{Id: "idx1", Name: "index1", Unique: false, Keys: []schema.Key{{ColId: "c2", Order: 1}}},
-					},
-				},
-			},
-			SpSchema: map[string]ddl.CreateTable{
-				"t1": {
-					Id:   "t1",
-					Name: "table1",
-					ColDefs: map[string]ddl.ColumnDef{
-						"c1": {Id: "c1", Name: "col1", T: ddl.Type{Name: "INT64"}, NotNull: true},
-						"c2": {Id: "c2", Name: "col2", T: ddl.Type{Name: "STRING", Len: 20}},
-					},
-					PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
-					Indexes: []ddl.CreateIndex{
-						{Id: "idx1", Name: "index1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Order: 1}}},
-					},
-				},
-			},
-			SpSequences: map[string]ddl.Sequence{
-				"seq1": {Name: "my_sequence"},
-			},
-			UsedNames: make(map[string]bool),
-		}
+		conv := generateSampleConv()
 
 		// 2. Create a sample InfoSchemaCollector.
 		// In a real test, this would be populated by a mock or a test database.
@@ -444,6 +425,44 @@ func TestPerformSchemaAssessment(t *testing.T) {
 	})
 }
 
+func generateSampleConv() *internal.Conv {
+	conv := &internal.Conv{
+		SrcSchema: map[string]schema.Table{
+			"t1": {
+				Id:   "t1",
+				Name: "table1",
+				ColDefs: map[string]schema.Column{
+					"c1": {Id: "c1", Name: "col1", Type: schema.Type{Name: "int"}, NotNull: true},
+					"c2": {Id: "c2", Name: "col2", Type: schema.Type{Name: "varchar", Mods: []int64{20}}},
+				},
+				PrimaryKeys: []schema.Key{{ColId: "c1", Order: 1}},
+				Indexes: []schema.Index{
+					{Id: "idx1", Name: "index1", Unique: false, Keys: []schema.Key{{ColId: "c2", Order: 1}}},
+				},
+			},
+		},
+		SpSchema: map[string]ddl.CreateTable{
+			"t1": {
+				Id:   "t1",
+				Name: "table1",
+				ColDefs: map[string]ddl.ColumnDef{
+					"c1": {Id: "c1", Name: "col1", T: ddl.Type{Name: "INT64"}, NotNull: true},
+					"c2": {Id: "c2", Name: "col2", T: ddl.Type{Name: "STRING", Len: 20}},
+				},
+				PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
+				Indexes: []ddl.CreateIndex{
+					{Id: "idx1", Name: "index1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Order: 1}}},
+				},
+			},
+		},
+		SpSequences: map[string]ddl.Sequence{
+			"seq1": {Name: "my_sequence"},
+		},
+		UsedNames: make(map[string]bool),
+	}
+	return conv
+}
+
 func TestPerformAppAssessment(t *testing.T) {
 	ctx := context.Background()
 
@@ -455,40 +474,72 @@ func TestPerformAppAssessment(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, output)
 	})
-	t.Run("returns error when app collector AnalyzeProject fails", func(t *testing.T) {
-		mockSummarizer := &MockMigrationCodeSummarizer{}
-		mockSummarizer.On("AnalyzeProject", ctx).Return(nil, nil, errors.New("analysis failed"))
+
+	t.Run("returns error when AnalyzeProject fails", func(t *testing.T) {
+		mockAppCodeAccessor := new(MockAppCodeAssessor)
+		expectedError := errors.New("project analysis failed")
+
+		// The mock framework requires careful handling of nil vs typed nil for interface return values.
+		// We return a typed nil for the pointer and slice types.
+		mockAppCodeAccessor.On("AnalyzeProject", ctx).Return((*utils.CodeAssessment)(nil), ([]utils.QueryTranslationResult)(nil), expectedError)
 
 		collectors := assessmentCollectors{
-			appAssessmentCollector: mockSummarizer,
+			appAssessmentCollector: mockAppCodeAccessor,
 		}
+
 		output, err := performAppAssessment(ctx, collectors)
+
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "analysis failed")
+		assert.Equal(t, expectedError, err)
 		assert.Nil(t, output)
-		mockSummarizer.AssertExpectations(t)
+		mockAppCodeAccessor.AssertExpectations(t)
 	})
 
-	t.Run("returns correct output on success", func(t *testing.T) {
-		mockSummarizer := &MockMigrationCodeSummarizer{}
+	t.Run("success with valid analysis", func(t *testing.T) {
+		mockAppCodeAccessor := new(MockAppCodeAssessor)
+
 		expectedCodeAssessment := &utils.CodeAssessment{
-			Language:   "java",
-			Framework:  "spring",
-			TotalLoc:   1000,
-			TotalFiles: 10,
-			Snippets: []utils.CodeSnippet{
-				{FilePath: "file1.java", Line: 10, Snippet: "code snippet 1"},
+			Language:   "Java",
+			Framework:  "Spring",
+			TotalLoc:   10000,
+			TotalFiles: 100,
+
+			Snippets: &[]utils.Snippet{
+				{
+					Id:                    "snippet_1",
+					TableName:             "users",
+					ColumnName:            "last_updated",
+					SchemaChange:          "ON UPDATE CURRENT_TIMESTAMP",
+					NumberOfAffectedLines: 15,
+					Complexity:            "Medium",
+					SourceCodeSnippet:     []string{"user.setLastUpdated(new Timestamp(System.currentTimeMillis()));"},
+					SuggestedCodeSnippet:  []string{"// Spanner handles this with PENDING_COMMIT_TIMESTAMP()."},
+					Explanation:           "The ON UPDATE CURRENT_TIMESTAMP feature is not directly supported. Use PENDING_COMMIT_TIMESTAMP() in your DML statements.",
+					RelativeFilePath:      "/src/main/java/com/example/repository/UserRepository.java",
+					FilePath:              "/path/to/project/src/main/java/com/example/repository/UserRepository.java",
+					IsDao:                 true,
+				},
+				{
+					Id:                       "snippet_2",
+					SourceMethodSignature:    "public User findUser(String email)",
+					SuggestedMethodSignature: "public User findUser(String email)",
+					Explanation:              "Data type change from VARCHAR to STRING may require code changes if specific character set behavior was expected.",
+					RelativeFilePath:         "/src/main/java/com/example/service/UserService.java",
+					FilePath:                 "/path/to/project/src/main/java/com/example/service/UserService.java",
+				},
 			},
 		}
 		expectedQueryResults := []utils.QueryTranslationResult{
 			{OriginalQuery: "SELECT 1", NormalizedQuery: "SELECT ?", AssessmentSource: "app_code"},
 		}
-		mockSummarizer.On("AnalyzeProject", ctx).Return(expectedCodeAssessment, expectedQueryResults, nil)
+		mockAppCodeAccessor.On("AnalyzeProject", ctx).Return(expectedCodeAssessment, expectedQueryResults, nil)
 
 		collectors := assessmentCollectors{
-			appAssessmentCollector: mockSummarizer,
+			appAssessmentCollector: mockAppCodeAccessor,
 		}
+
 		output, err := performAppAssessment(ctx, collectors)
+
 		assert.NoError(t, err)
 		assert.NotNil(t, output)
 		assert.Equal(t, expectedCodeAssessment.Language, output.Language)
@@ -497,6 +548,7 @@ func TestPerformAppAssessment(t *testing.T) {
 		assert.Equal(t, expectedCodeAssessment.TotalFiles, output.TotalFiles)
 		assert.Equal(t, expectedCodeAssessment.Snippets, output.CodeSnippets)
 		assert.Equal(t, &expectedQueryResults, output.QueryTranslationResult)
+		mockAppCodeAccessor.AssertExpectations(t)
 	})
 }
 
