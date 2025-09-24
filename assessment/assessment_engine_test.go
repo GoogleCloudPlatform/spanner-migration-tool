@@ -455,11 +455,49 @@ func TestPerformAppAssessment(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, output)
 	})
+	t.Run("returns error when app collector AnalyzeProject fails", func(t *testing.T) {
+		mockSummarizer := &MockMigrationCodeSummarizer{}
+		mockSummarizer.On("AnalyzeProject", ctx).Return(nil, nil, errors.New("analysis failed"))
 
-	// Note: Testing the success and error paths of performAppAssessment is difficult
-	// as it requires mocking `AnalyzeProject` on the concrete `assessment.MigrationCodeSummarizer` type.
-	// A full test would require either refactoring the production code to use an interface
-	// for the collector, or setting up a complex integration test.
+		collectors := assessmentCollectors{
+			appAssessmentCollector: mockSummarizer,
+		}
+		output, err := performAppAssessment(ctx, collectors)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "analysis failed")
+		assert.Nil(t, output)
+		mockSummarizer.AssertExpectations(t)
+	})
+
+	t.Run("returns correct output on success", func(t *testing.T) {
+		mockSummarizer := &MockMigrationCodeSummarizer{}
+		expectedCodeAssessment := &utils.CodeAssessment{
+			Language:   "java",
+			Framework:  "spring",
+			TotalLoc:   1000,
+			TotalFiles: 10,
+			Snippets: []utils.CodeSnippet{
+				{FilePath: "file1.java", Line: 10, Snippet: "code snippet 1"},
+			},
+		}
+		expectedQueryResults := []utils.QueryTranslationResult{
+			{OriginalQuery: "SELECT 1", NormalizedQuery: "SELECT ?", AssessmentSource: "app_code"},
+		}
+		mockSummarizer.On("AnalyzeProject", ctx).Return(expectedCodeAssessment, expectedQueryResults, nil)
+
+		collectors := assessmentCollectors{
+			appAssessmentCollector: mockSummarizer,
+		}
+		output, err := performAppAssessment(ctx, collectors)
+		assert.NoError(t, err)
+		assert.NotNil(t, output)
+		assert.Equal(t, expectedCodeAssessment.Language, output.Language)
+		assert.Equal(t, expectedCodeAssessment.Framework, output.Framework)
+		assert.Equal(t, expectedCodeAssessment.TotalLoc, output.TotalLoc)
+		assert.Equal(t, expectedCodeAssessment.TotalFiles, output.TotalFiles)
+		assert.Equal(t, expectedCodeAssessment.Snippets, output.CodeSnippets)
+		assert.Equal(t, &expectedQueryResults, output.QueryTranslationResult)
+	})
 }
 
 func TestIsCharsetCompatible(t *testing.T) {
