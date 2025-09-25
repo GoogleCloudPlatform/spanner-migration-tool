@@ -162,6 +162,10 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 			return subcommands.ExitFailure
 		}
 	}
+	// conv.IsSharded = true
+	// conv.AddShardIdColumn()
+	// logger.Log.Info("Added Shard column")
+
 	if conv == nil {
 		logger.Log.Error("Could not initialize conversion context from")
 		return subcommands.ExitFailure
