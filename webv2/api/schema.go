@@ -1199,7 +1199,6 @@ func parentTableHelper(tableId string, parentTableId string, interleaveType stri
 		return tableInterleaveStatus
 	}
 
-	// add check for foreign key condition
 	sp := sessionState.Conv.SpSchema[tableId]
 	if update {
 		sp.ParentTable.Id = parentTableId
@@ -1216,29 +1215,25 @@ func parentTableHelper(tableId string, parentTableId string, interleaveType stri
 	return tableInterleaveStatus
 }
 
+func dfs(tableId string, sessionState *session.SessionState, visited map[string]bool) bool {
+	if visited[tableId] {
+		return true
+	}
+	visited[tableId] = true
+	parentTableId := sessionState.Conv.SpSchema[tableId].ParentTable.Id
+	if parentTableId == "" {
+		return false
+	}
+	return dfs(parentTableId, sessionState, visited)
+}
+
 func checkInterleaveCycleCondition(tableId string, parentTableId string) string {
 	// Check if interleave will create cycle.
 	// If yes, then returns the comment why cycle condition is not met.
 	// Else returns empty string.
 	sessionState := session.GetSessionState()
 	visited := make(map[string]bool)
-	var dfs func(currentTableId string) bool
-	dfs = func(currentTableId string) bool {
-		if visited[currentTableId] {
-			return true
-		}
-		visited[currentTableId] = true
-		parentId := sessionState.Conv.SpSchema[currentTableId].ParentTable.Id
-		if parentId != "" {
-			if dfs(parentId) {
-				return true
-			}
-		}
-		visited[currentTableId] = false
-		return false
-	}
-	visited[tableId] = true
-	if dfs(parentTableId) {
+	if dfs(parentTableId, sessionState, visited) {
 		message := fmt.Sprintf("Interleaving table '%s' in parent table '%s' will create a cycle.", sessionState.Conv.SpSchema[tableId].Name, sessionState.Conv.SpSchema[parentTableId].Name)
 		return message
 	}
@@ -1280,71 +1275,6 @@ func checkInterleavePrimaryKeyPrefixCondition(tableId string, refTableId string)
 		}
 	}
 	return ""
-}
-
-func updateInterleaveSuggestion(colIds []string, tableId string, issue internal.SchemaIssue) {
-	sessionState := session.GetSessionState()
-
-	for i := 0; i < len(colIds); i++ {
-
-		schemaissue := []internal.SchemaIssue{}
-
-		schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIds[i]]
-
-		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
-		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
-		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
-
-		schemaissue = append(schemaissue, issue)
-
-		if sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues == nil {
-
-			s := map[string][]internal.SchemaIssue{
-				colIds[i]: schemaissue,
-			}
-			sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
-				ColumnLevelIssues: s,
-			}
-		} else {
-			sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIds[i]] = schemaissue
-		}
-	}
-}
-
-func removeInterleaveSuggestions(colIds []string, tableId string) {
-	sessionState := session.GetSessionState()
-
-	for i := 0; i < len(colIds); i++ {
-
-		schemaissue := []internal.SchemaIssue{}
-
-		schemaissue = sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIds[i]]
-
-		if len(schemaissue) == 0 {
-			continue
-		}
-
-		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
-		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
-		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedChangeColumnSize)
-
-		if sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues == nil {
-
-			s := map[string][]internal.SchemaIssue{
-				colIds[i]: schemaissue,
-			}
-			sessionState.Conv.SchemaIssues[tableId] = internal.TableIssues{
-				ColumnLevelIssues: s,
-			}
-		} else {
-			sessionState.Conv.SchemaIssues[tableId].ColumnLevelIssues[colIds[i]] = schemaissue
-		}
-
-	}
 }
 
 func hasShardIdPrimaryKeyRule() (bool, bool) {

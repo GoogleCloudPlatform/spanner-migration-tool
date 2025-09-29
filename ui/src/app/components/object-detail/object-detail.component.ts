@@ -1515,31 +1515,31 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
       });
   }
 
-setInterleave(interleaveParentId: string, interleaveType: string | null, onDeleteAction: string) {
-    if (!interleaveType) {
-      console.error('Interleave type cannot be empty');
-      return;
-    }
-    
-    let tableId = this.currentObject!.id;
+  setInterleave(interleaveParentId: string, interleaveType: string | null, onDeleteAction: string) {
+      if (!interleaveType) {
+        console.error('Interleave type cannot be empty');
+        return;
+      }
+      
+      let tableId = this.currentObject!.id;
 
-    this.data
-      .setInterleave(tableId, interleaveType, interleaveParentId, onDeleteAction)
-      .pipe(take(1))
-      .subscribe((error: string) => {
-        if (error) {
-          this.dialog.open(InfodialogComponent, {
-            data: { message: error, type: 'error', title: 'Error' },
-            maxWidth: '500px',
-          });
-        } else {
-          this.dialog.open(InfodialogComponent, {
-            data: { message: 'Interleave Added Successfully', type: 'info', title: 'Info' },
-            maxWidth: '500px',
-          });
-        }
-      });
-}
+      this.data
+        .setInterleave(tableId, interleaveType, interleaveParentId, onDeleteAction)
+        .pipe(take(1))
+        .subscribe((error: string) => {
+          if (error) {
+            this.dialog.open(InfodialogComponent, {
+              data: { message: error, type: 'error', title: 'Error' },
+              maxWidth: '500px',
+            });
+          } else {
+            this.dialog.open(InfodialogComponent, {
+              data: { message: 'Interleave Added Successfully', type: 'info', title: 'Info' },
+              maxWidth: '500px',
+            });
+          }
+        });
+  }
 
   getInterleaveParentIdFromConv() {
     return this.currentObject?.type === ObjectExplorerNodeType.Table &&

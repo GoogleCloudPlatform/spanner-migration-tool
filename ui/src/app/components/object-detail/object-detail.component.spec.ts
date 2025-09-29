@@ -30,7 +30,7 @@ describe('ObjectDetailComponent', () => {
   let rowData: IColumnTabData[]
 
   beforeEach(async () => {
-    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence', 'updateCheckConstraint', 'reviewTableUpdate']);
+    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence', 'updateCheckConstraint', 'reviewTableUpdate', 'setInterleave']);
     dataServiceSpy.updateSequence.and.returnValue(of({}));
     dataServiceSpy.dropSequence.and.returnValue(of(''));
     dataServiceSpy.reviewTableUpdate.and.returnValue(of(''));
@@ -497,5 +497,48 @@ describe('ObjectDetailComponent', () => {
     }
     expect(dataServiceSpy.reviewTableUpdate).toHaveBeenCalledWith('t1', expectedPayload)
   })
+
+  it('should log an error and return if interleaveType is null', () => {
+    spyOn(console, 'error');
+    dataServiceSpy.setInterleave.and.returnValue(of(''));
+    component.setInterleave('p1', null, 'CASCADE');
+    expect(console.error).toHaveBeenCalledWith('Interleave type cannot be empty');
+    expect(dataServiceSpy.setInterleave).not.toHaveBeenCalled();
+  });
+
+  it('should call setInterleave and show success dialog on success', () => {
+    const tableId = 't1';
+    const parentId = 'p1';
+    const interleaveType = 'IN';
+    const onDelete = 'CASCADE';
+    component.currentObject = { id: tableId } as FlatNode;
+    dataServiceSpy.setInterleave.and.returnValue(of(''));
+
+    component.setInterleave(parentId, interleaveType, onDelete);
+
+    expect(dataServiceSpy.setInterleave).toHaveBeenCalledWith(tableId, interleaveType, parentId, onDelete);
+    expect(dialogSpyObj.open).toHaveBeenCalledWith(InfodialogComponent, {
+      data: { message: 'Interleave Added Successfully', type: 'info', title: 'Info' },
+      maxWidth: '500px',
+    });
+  });
+
+  it('should call setInterleave and show error dialog on failure', () => {
+    const tableId = 't1';
+    const parentId = 'p1';
+    const interleaveType = 'IN';
+    const onDelete = 'CASCADE';
+    const errorMessage = 'Interleave failed';
+    component.currentObject = { id: tableId } as FlatNode;
+    dataServiceSpy.setInterleave.and.returnValue(of(errorMessage));
+
+    component.setInterleave(parentId, interleaveType, onDelete);
+
+    expect(dataServiceSpy.setInterleave).toHaveBeenCalledWith(tableId, interleaveType, parentId, onDelete);
+    expect(dialogSpyObj.open).toHaveBeenCalledWith(InfodialogComponent, {
+      data: { message: errorMessage, type: 'error', title: 'Error' },
+      maxWidth: '500px',
+    });
+  });
 
 });
