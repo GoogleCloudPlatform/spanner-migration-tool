@@ -4,17 +4,33 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"testing"
 
 	"cloud.google.com/go/vertexai/genai"
+	assessment "github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/collectors"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/assessment/utils"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"google.golang.org/api/option"
 )
+
+// MockAppCodeAssessor is a mock for the AppCodeAssessor interface.
+type MockAppCodeAssessor struct {
+	mock.Mock
+}
+
+// AnalyzeProject mocks the AnalyzeProject method.
+func (m *MockAppCodeAssessor) AnalyzeProject(ctx context.Context) (*utils.CodeAssessment, []utils.QueryTranslationResult, error) {
+	args := m.Called(ctx)
+	// The mock framework requires careful handling of nil vs typed nil for interface return values.
+	// We get the first argument and handle the type assertion carefully.
+	return args.Get(0).(*utils.CodeAssessment), args.Get(1).([]utils.QueryTranslationResult), args.Error(2)
+}
 
 func TestCombineAndDeduplicateQueries(t *testing.T) {
 	// Helper function to find a specific result in a slice.
@@ -324,6 +340,356 @@ func TestFetchSpannerTableNames(t *testing.T) {
 				assert.Empty(t, actualErr)
 				assert.Equal(t, tt.expectedNames, actualNames)
 			}
+		})
+	}
+}
+
+func TestPerformSchemaAssessment(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("panics if infoSchemaCollector is nil", func(t *testing.T) {
+		collectors := assessmentCollectors{
+			infoSchemaCollector: nil, // Intentionally nil
+		}
+		assert.Panics(t, func() {
+			performSchemaAssessment(ctx, collectors)
+		}, "The code should panic on a nil-pointer dereference")
+	})
+
+	t.Run("success with a sample infoSchemaCollector", func(t *testing.T) {
+		// 1. Create a sample internal.Conv object.
+		conv := generateSampleConv()
+
+		// 2. Create a sample InfoSchemaCollector.
+		// In a real test, this would be populated by a mock or a test database.
+
+		tables := map[string]utils.TableAssessmentInfo{
+			"t1": {
+				Name:      "table1",
+				Charset:   "utf8",
+				Collation: "utf8_general_ci",
+				ColumnAssessmentInfos: map[string]utils.ColumnAssessmentInfo[any]{
+					"c1": {MaxColumnSize: 8},
+					"c2": {MaxColumnSize: 20},
+				},
+			},
+		}
+		indexes := []utils.IndexAssessmentInfo{
+			{IndexDef: schema.Index{Id: "idx1", Name: "index1"}, TableId: "t1", Ty: "BTREE"},
+		}
+		triggers := []utils.TriggerAssessmentInfo{{Name: "my_trigger", TargetTable: "table1", Operation: "INSERT"}}
+		storedProcedures := []utils.StoredProcedureAssessmentInfo{{Name: "my_sp", Definition: "BEGIN ... END;"}}
+		functions := []utils.FunctionAssessmentInfo{{Name: "my_func", Definition: "RETURN 1;"}}
+		views := []utils.ViewAssessmentInfo{{Name: "my_view", Definition: "SELECT * FROM table1"}}
+
+		infoSchemaCollector, err := assessment.BuildInfoSchemaCollector(tables, indexes, triggers, storedProcedures, functions, views, conv)
+		assert.NoError(t, err)
+
+		collectors := assessmentCollectors{
+			infoSchemaCollector: &infoSchemaCollector,
+		}
+
+		// 4. Call performSchemaAssessment.
+		result, err := performSchemaAssessment(ctx, collectors)
+
+		// 5. Assert results.
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		// Table assessments
+		assert.Len(t, result.TableAssessmentOutput, 1)
+		tableAssessment := result.TableAssessmentOutput[0]
+		assert.Equal(t, "table1", tableAssessment.SourceTableDef.Name)
+		assert.Equal(t, "table1", tableAssessment.SpannerTableDef.Name)
+		assert.False(t, tableAssessment.CompatibleCharset)      // utf8 is not compatible
+		assert.Equal(t, 1, tableAssessment.SizeIncreaseInBytes) // dummy implementation
+
+		// Column assessments
+		assert.Len(t, tableAssessment.Columns, 2)
+		// Sort columns for consistent test results
+		sort.Slice(tableAssessment.Columns, func(i, j int) bool {
+			return tableAssessment.Columns[i].SourceColDef.Name < tableAssessment.Columns[j].SourceColDef.Name
+		})
+		col1Assessment := tableAssessment.Columns[0]
+		assert.Equal(t, "col1", col1Assessment.SourceColDef.Name)
+		assert.Equal(t, "col1", col1Assessment.SpannerColDef.Name)
+		assert.True(t, col1Assessment.CompatibleDataType)
+		assert.Equal(t, 8, col1Assessment.SizeIncreaseInBytes)
+
+		// Other schema objects
+		assert.Len(t, result.TriggerAssessmentOutput, 1)
+		assert.Len(t, result.StoredProcedureAssessmentOutput, 1)
+		assert.Len(t, result.FunctionAssessmentOutput, 1)
+		assert.Len(t, result.ViewAssessmentOutput, 1)
+		assert.Len(t, result.SpSequences, 1)
+	})
+}
+
+func generateSampleConv() *internal.Conv {
+	conv := &internal.Conv{
+		SrcSchema: map[string]schema.Table{
+			"t1": {
+				Id:   "t1",
+				Name: "table1",
+				ColDefs: map[string]schema.Column{
+					"c1": {Id: "c1", Name: "col1", Type: schema.Type{Name: "int"}, NotNull: true},
+					"c2": {Id: "c2", Name: "col2", Type: schema.Type{Name: "varchar", Mods: []int64{20}}},
+				},
+				PrimaryKeys: []schema.Key{{ColId: "c1", Order: 1}},
+				Indexes: []schema.Index{
+					{Id: "idx1", Name: "index1", Unique: false, Keys: []schema.Key{{ColId: "c2", Order: 1}}},
+				},
+			},
+		},
+		SpSchema: map[string]ddl.CreateTable{
+			"t1": {
+				Id:   "t1",
+				Name: "table1",
+				ColDefs: map[string]ddl.ColumnDef{
+					"c1": {Id: "c1", Name: "col1", T: ddl.Type{Name: "INT64"}, NotNull: true},
+					"c2": {Id: "c2", Name: "col2", T: ddl.Type{Name: "STRING", Len: 20}},
+				},
+				PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
+				Indexes: []ddl.CreateIndex{
+					{Id: "idx1", Name: "index1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Order: 1}}},
+				},
+			},
+		},
+		SpSequences: map[string]ddl.Sequence{
+			"seq1": {Name: "my_sequence"},
+		},
+		UsedNames: make(map[string]bool),
+	}
+	return conv
+}
+
+func TestPerformAppAssessment(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("returns nil when app collector is nil", func(t *testing.T) {
+		collectors := assessmentCollectors{
+			appAssessmentCollector: nil,
+		}
+		output, err := performAppAssessment(ctx, collectors)
+		assert.NoError(t, err)
+		assert.Nil(t, output)
+	})
+
+	t.Run("returns error when AnalyzeProject fails", func(t *testing.T) {
+		mockAppCodeAccessor := new(MockAppCodeAssessor)
+		expectedError := errors.New("project analysis failed")
+
+		// The mock framework requires careful handling of nil vs typed nil for interface return values.
+		// We return a typed nil for the pointer and slice types.
+		mockAppCodeAccessor.On("AnalyzeProject", ctx).Return((*utils.CodeAssessment)(nil), ([]utils.QueryTranslationResult)(nil), expectedError)
+
+		collectors := assessmentCollectors{
+			appAssessmentCollector: mockAppCodeAccessor,
+		}
+
+		output, err := performAppAssessment(ctx, collectors)
+
+		assert.Error(t, err)
+		assert.Equal(t, expectedError, err)
+		assert.Nil(t, output)
+		mockAppCodeAccessor.AssertExpectations(t)
+	})
+
+	t.Run("success with valid analysis", func(t *testing.T) {
+		mockAppCodeAccessor := new(MockAppCodeAssessor)
+
+		expectedCodeAssessment := &utils.CodeAssessment{
+			Language:   "Java",
+			Framework:  "Spring",
+			TotalLoc:   10000,
+			TotalFiles: 100,
+
+			Snippets: &[]utils.Snippet{
+				{
+					Id:                    "snippet_1",
+					TableName:             "users",
+					ColumnName:            "last_updated",
+					SchemaChange:          "ON UPDATE CURRENT_TIMESTAMP",
+					NumberOfAffectedLines: 15,
+					Complexity:            "Medium",
+					SourceCodeSnippet:     []string{"user.setLastUpdated(new Timestamp(System.currentTimeMillis()));"},
+					SuggestedCodeSnippet:  []string{"// Spanner handles this with PENDING_COMMIT_TIMESTAMP()."},
+					Explanation:           "The ON UPDATE CURRENT_TIMESTAMP feature is not directly supported. Use PENDING_COMMIT_TIMESTAMP() in your DML statements.",
+					RelativeFilePath:      "/src/main/java/com/example/repository/UserRepository.java",
+					FilePath:              "/path/to/project/src/main/java/com/example/repository/UserRepository.java",
+					IsDao:                 true,
+				},
+				{
+					Id:                       "snippet_2",
+					SourceMethodSignature:    "public User findUser(String email)",
+					SuggestedMethodSignature: "public User findUser(String email)",
+					Explanation:              "Data type change from VARCHAR to STRING may require code changes if specific character set behavior was expected.",
+					RelativeFilePath:         "/src/main/java/com/example/service/UserService.java",
+					FilePath:                 "/path/to/project/src/main/java/com/example/service/UserService.java",
+				},
+			},
+		}
+		expectedQueryResults := []utils.QueryTranslationResult{
+			{OriginalQuery: "SELECT 1", NormalizedQuery: "SELECT ?", AssessmentSource: "app_code"},
+		}
+		mockAppCodeAccessor.On("AnalyzeProject", ctx).Return(expectedCodeAssessment, expectedQueryResults, nil)
+
+		collectors := assessmentCollectors{
+			appAssessmentCollector: mockAppCodeAccessor,
+		}
+
+		output, err := performAppAssessment(ctx, collectors)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, output)
+		assert.Equal(t, expectedCodeAssessment.Language, output.Language)
+		assert.Equal(t, expectedCodeAssessment.Framework, output.Framework)
+		assert.Equal(t, expectedCodeAssessment.TotalLoc, output.TotalLoc)
+		assert.Equal(t, expectedCodeAssessment.TotalFiles, output.TotalFiles)
+		assert.Equal(t, expectedCodeAssessment.Snippets, output.CodeSnippets)
+		assert.Equal(t, &expectedQueryResults, output.QueryTranslationResult)
+		mockAppCodeAccessor.AssertExpectations(t)
+	})
+}
+
+func TestIsCharsetCompatible(t *testing.T) {
+	testCases := []struct {
+		name    string
+		charset string
+		want    bool
+	}{
+		{
+			name:    "compatible charset (non-utf8)",
+			charset: "latin1",
+			want:    true,
+		},
+		{
+			name:    "incompatible charset (utf8)",
+			charset: "utf8",
+			want:    false,
+		},
+		{
+			name:    "incompatible charset (utf8mb4)",
+			charset: "utf8mb4",
+			want:    false,
+		},
+		{
+			name:    "empty charset string",
+			charset: "",
+			want:    true,
+		},
+		{
+			name:    "case sensitivity check (UTF8)",
+			charset: "UTF8",
+			want:    true, // strings.Contains is case-sensitive
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := isCharsetCompatible(tc.charset)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestTableSizeDiffBytes(t *testing.T) {
+	// Note: This test reflects the current dummy implementation.
+	// It should be updated when the function logic is implemented.
+	t.Run("dummy implementation returns 1", func(t *testing.T) {
+		got := tableSizeDiffBytes(&utils.SrcTableDetails{}, &utils.SpTableDetails{})
+		assert.Equal(t, 1, got, "Expected dummy implementation to return 1")
+	})
+}
+
+func TestGetSpColSizeBytes(t *testing.T) {
+	const mb = 10 * 1024 * 1024 // 10MB
+	testCases := []struct {
+		name  string
+		input utils.SpColumnDetails
+		want  int64
+	}{
+		{
+			name:  "ARRAY type",
+			input: utils.SpColumnDetails{Datatype: "ARRAY"},
+			want:  mb,
+		},
+		{
+			name:  "BOOL type",
+			input: utils.SpColumnDetails{Datatype: "BOOL"},
+			want:  8 + 1,
+		},
+		{
+			name:  "BYTES type with length",
+			input: utils.SpColumnDetails{Datatype: "BYTES", Len: 256},
+			want:  8 + 256,
+		},
+		{
+			name:  "DATE type",
+			input: utils.SpColumnDetails{Datatype: "DATE"},
+			want:  8 + 4,
+		},
+		{
+			name:  "FLOAT32 type",
+			input: utils.SpColumnDetails{Datatype: "FLOAT32"},
+			want:  8 + 4,
+		},
+		{
+			name:  "FLOAT64 type",
+			input: utils.SpColumnDetails{Datatype: "FLOAT64"},
+			want:  8 + 8,
+		},
+		{
+			name:  "INT64 type",
+			input: utils.SpColumnDetails{Datatype: "INT64"},
+			want:  8 + 8,
+		},
+		{
+			name:  "JSON type",
+			input: utils.SpColumnDetails{Datatype: "JSON"},
+			want:  mb,
+		},
+		{
+			name:  "NUMERIC type",
+			input: utils.SpColumnDetails{Datatype: "NUMERIC"},
+			want:  8 + 22,
+		},
+		{
+			name:  "PROTO type with length",
+			input: utils.SpColumnDetails{Datatype: "PROTO", Len: 1024},
+			want:  8 + 1024,
+		},
+		{
+			name:  "STRING type with length",
+			input: utils.SpColumnDetails{Datatype: "STRING", Len: 512},
+			want:  8 + 512,
+		},
+		{
+			name:  "STRUCT type",
+			input: utils.SpColumnDetails{Datatype: "STRUCT"},
+			want:  mb,
+		},
+		{
+			name:  "TIMESTAMP type",
+			input: utils.SpColumnDetails{Datatype: "TIMESTAMP"},
+			want:  12, // This case returns directly
+		},
+		{
+			name:  "Default case for unknown type",
+			input: utils.SpColumnDetails{Datatype: "UNKNOWN_TYPE"},
+			want:  8, // This case returns directly
+		},
+		{
+			name:  "Case-insensitivity check (string)",
+			input: utils.SpColumnDetails{Datatype: "string", Len: 100},
+			want:  8 + 100,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := getSpColSizeBytes(tc.input)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }
