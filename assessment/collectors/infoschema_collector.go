@@ -53,6 +53,24 @@ func GetDefaultInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.S
 	return GetInfoSchemaCollector(conv, sourceProfile, collectorCommon.SQLDBConnector{}, collectorCommon.DefaultConnectionConfigProvider{}, getInfoSchema)
 }
 
+func BuildInfoSchemaCollector(tables map[string]utils.TableAssessmentInfo,
+	indexes []utils.IndexAssessmentInfo,
+	triggers []utils.TriggerAssessmentInfo,
+	storedProcedures []utils.StoredProcedureAssessmentInfo,
+	functions []utils.FunctionAssessmentInfo,
+	views []utils.ViewAssessmentInfo,
+	conv *internal.Conv) (InfoSchemaCollector, error) {
+	return InfoSchemaCollector{
+		tables:           tables,
+		indexes:          indexes,
+		triggers:         triggers,
+		storedProcedures: storedProcedures,
+		functions:        functions,
+		views:            views,
+		conv:             conv,
+	}, nil
+}
+
 func GetInfoSchemaCollector(conv *internal.Conv, sourceProfile profiles.SourceProfile, dbConnector collectorCommon.DBConnector, configProvider collectorCommon.ConnectionConfigProvider, infoSchemaProvider func(*sql.DB, profiles.SourceProfile) (common.InfoSchema, error)) (InfoSchemaCollector, error) {
 	logger.Log.Info("initializing infoschema collector")
 	var errString string
