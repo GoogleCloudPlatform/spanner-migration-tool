@@ -36,7 +36,7 @@ import (
 type assessmentCollectors struct {
 	sampleCollector            *assessment.SampleCollector
 	infoSchemaCollector        *assessment.InfoSchemaCollector
-	appAssessmentCollector     *assessment.MigrationCodeSummarizer
+	appAssessmentCollector     assessment.AppCodeAssessor
 	performanceSchemaCollector *assessment.PerformanceSchemaCollector
 }
 
