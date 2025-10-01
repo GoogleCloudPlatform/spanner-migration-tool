@@ -1750,16 +1750,26 @@ func TestSetParentTable(t *testing.T) {
 		statusCode       int64
 		expectedResponse *types.TableInterleaveStatus
 		parentTable      ddl.InterleavedParent
+		update           bool
 	}{
 		{
 			name:       "no conv provided",
 			ct:         nil,
 			statusCode: http.StatusNotFound,
+			update:     true,
 		},
 		{
 			name:       "no table name provided",
 			statusCode: http.StatusBadRequest,
 			ct:         &internal.Conv{},
+			update:     true,
+		},
+		{
+			name:       "no parent name provided",
+			table:      "t1",
+			statusCode: http.StatusBadRequest,
+			ct:         &internal.Conv{},
+			update:     true,
 		},
 		{
 			name: "table with synthetic PK",
@@ -1793,6 +1803,7 @@ func TestSetParentTable(t *testing.T) {
 			parent:           "t2",
 			statusCode:       http.StatusOK,
 			expectedResponse: &types.TableInterleaveStatus{Possible: false, Comment: "Has synthetic pk"},
+			update:           true,
 		},
 		{
 			name: "no valid prefix",
@@ -1826,6 +1837,7 @@ func TestSetParentTable(t *testing.T) {
 			interleaveType:   "IN",
 			statusCode:       http.StatusOK,
 			expectedResponse: &types.TableInterleaveStatus{Possible: false, Comment: "The child table 't1' does not have primary key 'c2' of parent table 't2'."},
+		    update:		      true,
 		},
 		{
 			name: "interleave causes cycle",
@@ -1860,6 +1872,7 @@ func TestSetParentTable(t *testing.T) {
 			interleaveType:   "IN",
 			statusCode:       http.StatusOK,
 			expectedResponse: &types.TableInterleaveStatus{Possible: false, Comment: "Interleaving table 't2' in parent table 't1' will create a cycle."},
+			update:		      true,
 		},
 		{
 			name: "successful interleave IN",
@@ -1903,6 +1916,7 @@ func TestSetParentTable(t *testing.T) {
 			statusCode:       http.StatusOK,
 			expectedResponse: &types.TableInterleaveStatus{Possible: true, Parent: "t2", InterleaveType: "IN"},
 			parentTable:      ddl.InterleavedParent{Id: "t2", OnDelete: "", InterleaveType: "IN"},
+			update:           true,
 		},
 		{
 			name: "successful interleave IN PARENT",
@@ -1946,6 +1960,80 @@ func TestSetParentTable(t *testing.T) {
 			statusCode:       http.StatusOK,
 			expectedResponse: &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 			parentTable:      ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
+			update:           true,
+		},
+		{
+			name: 		   "child table has less primary keys than parent table",
+			ct:             &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						Id:     "t1",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
+					},
+					"t2": {
+						Name:   "t2",
+						Id:     "t2",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}, {ColId: "c2", Order: 2}},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+			},
+			table:          "t1",
+			parent:         "t2",
+			interleaveType: "IN",
+			onDelete:       "",
+			statusCode:     http.StatusOK,
+			expectedResponse: &types.TableInterleaveStatus{
+				Possible: false, Comment: "The child table 't1' has '1' primary keys, which is less than the parent table 't2' primary keys count of '2'."},
+			update: 	    true,
+		},
+		{
+			name:	   "both parent and child tables have no primary keys",
+			ct:             &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						Id:     "t1",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{},
+					},
+					"t2": {
+						Name:   "t2",
+						Id:     "t2",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+			},
+			table:          "t1",
+			parent:         "t2",
+			interleaveType: "IN",
+			onDelete:       "",
+			statusCode:     http.StatusOK,
+			expectedResponse: &types.TableInterleaveStatus{
+				Possible: false, Comment: "Both parent table 't2' and child table 't1' must have primary keys."},
+			update: 	    true,
 		},
 		{
 			name:             "invalid onDelete value",
@@ -1956,6 +2044,7 @@ func TestSetParentTable(t *testing.T) {
 			onDelete:         "INVALID",
 			statusCode:       http.StatusBadRequest,
 			expectedResponse: nil,
+			update:           true,
 		},
 		{
 			name:             "invalid interleaveType value",
@@ -1966,6 +2055,7 @@ func TestSetParentTable(t *testing.T) {
 			onDelete:         "CASCADE",
 			statusCode:       http.StatusBadRequest,
 			expectedResponse: nil,
+			update:           true,
 		},
 		{
 			name:             "onDelete specified for IN interleaveType",
@@ -1976,6 +2066,7 @@ func TestSetParentTable(t *testing.T) {
 			onDelete:         "CASCADE",
 			statusCode:       http.StatusBadRequest,
 			expectedResponse: nil,
+			update:           true,
 		},
 		{
 			name:             "onDelete not specified for IN PARENT interleaveType",
@@ -1986,6 +2077,43 @@ func TestSetParentTable(t *testing.T) {
 			onDelete:         "",
 			statusCode:       http.StatusBadRequest,
 			expectedResponse: nil,
+			update:           true,
+		},
+		{
+			name:             "get interleave status without updating",
+			ct:               &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						Id:     "t1",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
+					},
+					"t2": {
+						Name:   "t2",
+						Id:     "t2",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+			},
+			table:            "t1",
+			parent:           "",
+			interleaveType:   "",
+			onDelete:         "",
+			statusCode:       http.StatusOK,
+			expectedResponse: &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
+			update:           false,
 		},
 	}
 	for _, tc := range tests {
@@ -1993,8 +2121,7 @@ func TestSetParentTable(t *testing.T) {
 
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = tc.ct
-		update := true
-		req, err := http.NewRequest("GET", fmt.Sprintf("/setparent?table=%s&parentTable=%s&interleaveType=%s&onDelete=%s&update=%v", tc.table, tc.parent, tc.interleaveType, tc.onDelete, update), nil)
+		req, err := http.NewRequest("GET", fmt.Sprintf("/setparent?table=%s&parentTable=%s&interleaveType=%s&onDelete=%s&update=%v", tc.table, tc.parent, tc.interleaveType, tc.onDelete, tc.update), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2007,16 +2134,20 @@ func TestSetParentTable(t *testing.T) {
 			TableInterleaveStatus *types.TableInterleaveStatus `json:"tableInterleaveStatus"`
 			SessionState          *internal.Conv               `json:"sessionState"`
 		}
+		type ParentTableGetResponse struct {
+			TableInterleaveStatus *types.TableInterleaveStatus `json:"tableInterleaveStatus"`
+		}
 
 		var res *types.TableInterleaveStatus
 
-		if update {
+		if tc.update {
 			parentTableResponse := &ParentTableSetResponse{}
 			json.Unmarshal(rr.Body.Bytes(), parentTableResponse)
 			res = parentTableResponse.TableInterleaveStatus
 		} else {
-			res = &types.TableInterleaveStatus{}
-			json.Unmarshal(rr.Body.Bytes(), res)
+			parentTableResponse := &ParentTableGetResponse{}
+			json.Unmarshal(rr.Body.Bytes(), parentTableResponse)
+			res = parentTableResponse.TableInterleaveStatus
 		}
 
 		if status := rr.Code; int64(status) != tc.statusCode {

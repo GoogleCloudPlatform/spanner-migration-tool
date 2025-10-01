@@ -908,6 +908,11 @@ func SetParentTable(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("onDelete value is not valid for the interleaveType"), http.StatusBadRequest)
 		return
 	}
+	if parentTableId == "" && update {
+		http.Error(w, fmt.Sprintf("Parent Table Id is empty with update=true"), http.StatusBadRequest)
+		return
+	}
+
 
 	sessionState.Conv.ConvLock.Lock()
 	defer sessionState.Conv.ConvLock.Unlock()
@@ -1166,15 +1171,18 @@ func (tableHandler *TableAPIHandler) restoreTableHelper(w http.ResponseWriter, t
 }
 
 func parentTableHelper(tableId string, parentTableId string, interleaveType string, onDelete string, update bool) *types.TableInterleaveStatus {
+	// Three scenarios:
+	// 1. If update is false and parentTableId is empty in request, then return current interleave status of the table. Comment doesnot matter in this case and hence is empty.
+	// 2. If update is false and parentTableId is not empty in request, then return whether the table can be interleaved in the parentTableId without updating the schema. If possible, then comment is empty else comment contains the reason why it is not possible.
+	// 3. If update is true, then update the schema to interleave the table in parentTableId after checking whether it is possible to interleave. If possible, then comment is empty else comment contains the reason why it is not possible.
+
 	tableInterleaveStatus := &types.TableInterleaveStatus{
 		Possible: false,
 		Comment:  "",
 	}
 	sessionState := session.GetSessionState()
 
-	if !update && parentTableId == "" {
-		parentTableId = sessionState.Conv.SpSchema[tableId].ParentTable.Id
-	}
+	parentEmptyInRequest := parentTableId == ""
 
 	if _, found := sessionState.Conv.SyntheticPKeys[tableId]; found {
 		tableInterleaveStatus.Possible = false
@@ -1187,18 +1195,21 @@ func parentTableHelper(tableId string, parentTableId string, interleaveType stri
 		tableInterleaveStatus.Comment = "Interleave type is empty"
 		return tableInterleaveStatus
 	}
-	pk_condition := checkInterleavePrimaryKeyPrefixCondition(tableId, parentTableId)
-	if pk_condition != "" {
-		tableInterleaveStatus.Possible = false
-		tableInterleaveStatus.Comment = pk_condition
-		return tableInterleaveStatus
-	}
 
-	cycle_condition := checkInterleaveCycleCondition(tableId, parentTableId)
-	if cycle_condition != "" {
-		tableInterleaveStatus.Possible = false
-		tableInterleaveStatus.Comment = cycle_condition
-		return tableInterleaveStatus
+	if !parentEmptyInRequest {
+		pk_condition := checkInterleavePrimaryKeyPrefixCondition(tableId, parentTableId)
+		if pk_condition != "" {
+			tableInterleaveStatus.Possible = false
+			tableInterleaveStatus.Comment = pk_condition
+			return tableInterleaveStatus
+		}
+
+		cycle_condition := checkInterleaveCycleCondition(tableId, parentTableId)
+		if cycle_condition != "" {
+			tableInterleaveStatus.Possible = false
+			tableInterleaveStatus.Comment = cycle_condition
+			return tableInterleaveStatus
+		}
 	}
 
 	sp := sessionState.Conv.SpSchema[tableId]
