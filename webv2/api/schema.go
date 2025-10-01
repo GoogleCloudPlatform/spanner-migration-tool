@@ -914,7 +914,9 @@ func SetParentTable(w http.ResponseWriter, r *http.Request) {
 	tableInterleaveStatus := parentTableHelper(tableId, parentTableId, interleaveType, onDelete, update)
 
 	index.IndexSuggestion()
-	session.UpdateSessionFile()
+	if tableInterleaveStatus.Possible {
+		session.UpdateSessionFile()
+	}
 	w.WriteHeader(http.StatusOK)
 
 	if update {
@@ -1215,25 +1217,34 @@ func parentTableHelper(tableId string, parentTableId string, interleaveType stri
 	return tableInterleaveStatus
 }
 
-func dfs(tableId string, sessionState *session.SessionState, visited map[string]bool) bool {
+func hasCycleCheckDfs(tableId string, parentTableId string, undirectedGraph map[string][]string, visited map[string]bool) bool {
 	if visited[tableId] {
 		return true
 	}
 	visited[tableId] = true
-	parentTableId := sessionState.Conv.SpSchema[tableId].ParentTable.Id
-	if parentTableId == "" {
-		return false
+	for _, neighbor := range undirectedGraph[tableId] {
+		if neighbor != parentTableId {
+			if hasCycleCheckDfs(neighbor, tableId, undirectedGraph, visited) {
+				return true
+			}
+		}
 	}
-	return dfs(parentTableId, sessionState, visited)
+	return false
 }
 
 func checkInterleaveCycleCondition(tableId string, parentTableId string) string {
-	// Check if interleave will create cycle.
-	// If yes, then returns the comment why cycle condition is not met.
-	// Else returns empty string.
 	sessionState := session.GetSessionState()
-	visited := make(map[string]bool)
-	if dfs(parentTableId, sessionState, visited) {
+	undirectedGraph := map[string][]string{}
+	for _, spTable := range sessionState.Conv.SpSchema {
+		if spTable.ParentTable.Id != "" {
+			undirectedGraph[spTable.Id] = append(undirectedGraph[spTable.Id], spTable.ParentTable.Id)
+			undirectedGraph[spTable.ParentTable.Id] = append(undirectedGraph[spTable.ParentTable.Id], spTable.Id)
+		}
+	}
+	undirectedGraph[tableId] = append(undirectedGraph[tableId], parentTableId)
+	undirectedGraph[parentTableId] = append(undirectedGraph[parentTableId], tableId)
+	visited := map[string]bool{}
+	if hasCycleCheckDfs(tableId, "", undirectedGraph, visited) {
 		message := fmt.Sprintf("Interleaving table '%s' in parent table '%s' will create a cycle.", sessionState.Conv.SpSchema[tableId].Name, sessionState.Conv.SpSchema[parentTableId].Name)
 		return message
 	}
