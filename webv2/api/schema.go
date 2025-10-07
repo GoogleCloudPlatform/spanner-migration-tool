@@ -127,8 +127,8 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 	sessionState.Conv = conv
 
 	if sessionState.IsSharded {
-		setShardIdColumnAsPrimaryKey(true)
-		addShardIdColumnToForeignKeys(true)
+		SetShardIdColumnAsPrimaryKey(true)
+		AddShardIdColumnToForeignKeys(true)
 		ruleId := internal.GenerateRuleId()
 		rule := internal.Rule{
 			Id:                ruleId,
@@ -301,7 +301,7 @@ func SpannerDefaultTypeMap(w http.ResponseWriter, r *http.Request) {
 	case constants.ORACLE:
 		typeMap = oracleDefaultTypeMap
 	case constants.CASSANDRA:
-		typeMap = cassandraDefaultTypeMap	
+		typeMap = cassandraDefaultTypeMap
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -332,7 +332,7 @@ func GetTypeMap(w http.ResponseWriter, r *http.Request) {
 	case constants.ORACLE:
 		typeMap = oracleTypeMap
 	case constants.CASSANDRA:
-		typeMap = cassandraTypeMap	
+		typeMap = cassandraTypeMap
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
 		return
@@ -1184,7 +1184,7 @@ func (tableHandler *TableAPIHandler) restoreTableHelper(w http.ResponseWriter, t
 	case constants.ORACLE:
 		toddl = oracle.InfoSchemaImpl{}.GetToDdl()
 	case constants.CASSANDRA:
-		toddl = cassandra.InfoSchemaImpl{}.GetToDdl()	
+		toddl = cassandra.InfoSchemaImpl{}.GetToDdl()
 	case constants.MYSQLDUMP:
 		toddl = mysql.DbDumpImpl{}.GetToDdl()
 	case constants.PGDUMP:
@@ -1708,14 +1708,14 @@ func initializeTypeMap() {
 	// Include collection types in Type Mapping
 	for _, srcTypeName := range []string{"tinyint", "smallint", "int", "bigint", "float", "double", "decimal", "varint", "text", "varchar", "ascii", "uuid", "timeuuid", "inet", "blob", "date", "timestamp", "time", "duration", "boolean", "counter"} {
 		listType := fmt.Sprintf("list<%s>", srcTypeName)
-		setType  := fmt.Sprintf("set<%s>", srcTypeName)
+		setType := fmt.Sprintf("set<%s>", srcTypeName)
 		var l []types.TypeIssue
 		srcType := schema.MakeType()
 		srcType.Name = listType
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType, false)
 			l = addTypeToList("ARRAY<"+ty.Name+">", "ARRAY<"+spType+">", issues, l)
-		}	
+		}
 		ty, _ := toddl.ToSpannerType(sessionState.Conv, "", srcType, false)
 		cassandraDefaultTypeMap[listType] = ty
 		cassandraTypeMap[listType] = l
@@ -1753,7 +1753,7 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 	return l
 }
 
-func setShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
+func SetShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
 	sessionState := session.GetSessionState()
 	for _, table := range sessionState.Conv.SpSchema {
 		setShardIdColumnAsPrimaryKeyPerTable(isAddedAtFirst, table)
@@ -1781,7 +1781,7 @@ func setShardIdColumnAsPrimaryKeyPerTable(isAddedAtFirst bool, table ddl.CreateT
 	primarykey.UpdatePrimaryKey(pkRequest)
 }
 
-func addShardIdColumnToForeignKeys(isAddedAtFirst bool) {
+func AddShardIdColumnToForeignKeys(isAddedAtFirst bool) {
 	sessionState := session.GetSessionState()
 	for _, table := range sessionState.Conv.SpSchema {
 		addShardIdToForeignKeyPerTable(isAddedAtFirst, table)
