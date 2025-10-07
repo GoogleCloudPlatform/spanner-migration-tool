@@ -99,7 +99,8 @@ type SchemaIssue int
 // Defines all of the schema issues we track. Includes issues
 // with type mappings, as well as features (such as source
 // DB constraints) that aren't supported in Spanner.
-// TODO: b/449895043 - Index-based referencing prevents removal of deprecated issues. Devise a strategy to remove deprecated issues.
+// TODO: Remove the following issues later since they cannot be removed now.
+// InterleavedRenameColumn, InterleavedChangeColumnSize, InterleavedNotInOrder, InterleavedOrder, InterleavedAddColumn
 const (
 	DefaultValue SchemaIssue = iota
 	ForeignKey
