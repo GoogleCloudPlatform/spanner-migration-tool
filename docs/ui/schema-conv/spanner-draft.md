@@ -48,47 +48,23 @@ Users can view and edit the primary key of a table from the primary key tab. The
 
 ### Foreign Key
 
-Users can view and edit the foreign key of a table from the foreign key tab. They can modify the foreign key constraint name, drop the foreign key or convert the foreign key into interleave, if the table is interleavable. Once these changes are made the [session file](../ui.md/#termsterminology) is updated.
+Users can view and edit the foreign key of a table from the foreign key tab. They can modify the foreign key constraint name or drop the foreign key. Once these changes are made the [session file](../ui.md/#termsterminology) is updated.
 
-![](https://services.google.com/fh/files/helpcenter/asset-2tfzryfujfp.png)
+![](https://services.google.com/fh/files/misc/smt_foreign_key_change_options.png)
 
 ### Interleave
 
 Interleaving physically co-locates child rows with parent rows in storage. Co-location can significantly improve performance.For example, if there is a _Customers_ table and an _Invoices_ table, and the application frequently fetches all the invoices for a customer, users can define Invoices as an interleaved child table of Customers. In doing so, a data locality relationship between two independent tables is declared resulting in significant performance improvement.
-Spanner Migration Tool provides the option to convert a table into an interleaved table if it fulfills all the criteria.The Interleave tab shows up only for tables which are possible candidates for interleaving, based on the existing foreign keys. Once a table is converted into an interleaved table, the UI shows the information of the parent table. Users can also choose to remove this interleaving property and restore the foreign key by clicking on ‘**Convert back to foreign key**'.
+Spanner Migration Tool provides the option to convert a table into an interleaved table by providing the intended parent table if it fulfills interleave requirements. Once a table is converted into an interleaved table, the UI shows the information of the parent table. Users can also choose to remove this interleaving property.
 Currently Spanner Migration Tool allows users to choose between INTERLEAVE IN feature that allows child rows to be inserted
-without parent being present or INTERLEAVE IN PARENT feature which maintains the referential integrity. The INTERLEAVE IN
+without parent being present or INTERLEAVE IN PARENT feature which maintains the referential integrity. Users have to choose the ON DELETE action for INTERLEAVE IN PARENT setting. The INTERLEAVE IN
 feature leads to a faster migration. After the migration is completed, users need to modify the
 DDL to shift from INTERLEAVE IN to INTERLEAVE IN PARENT so that the check for parent and child rows can be inforced.
 
 {: .note }
 Interleaving property needs to be set during the migration and a table cannot be interleaved after migration.
 
-![](https://services.google.com/fh/files/helpcenter/asset-jni7ugajpw.png)
-
-
-#### Interleave any table on any table
-
-Interleaving one table within another without Foreign key relationship is not currently supported on the Spanner migration tool UI. However, there is a workaround that customers can use to achieve this.
-
-##### Prerequisites
-
-To interleave a `child table` within a `parent table`, the following conditions must be met:
-
-1. The column names in the child table that reference the parent table must exactly match the column names in the parent table. The columns must also have the same data type and constraints (e.g., NOT NULL).
-2. The child table must reference all of the primary key columns from the parent table, and these columns must also be part of the primary key in the child table.
-3. The column order for the referenced columns in the primary key of the child table must match the column order of the primary key in the parent table. Additionally, the referenced columns must appear at the beginning of the primary key set in the child table.
-
-##### Procedure
-
-1. Download the session file from the Spanner migration tool after connecting to the source database.
-2. Locate the table ID of the parent table in the session file.
-3. In the spSchema object, within the child table's section, set the Id field in the parentTable object to the parent table's ID. Also, specify the desired OnDelete action in the OnDelete field (NO ACTION or CASCADE), as illustrated below.
-
-![](https://services.google.com/fh/files/misc/smt_session_interleaving_parent.png)
-![](https://services.google.com/fh/files/misc/smt_session_interleaving_child.png)
-
-4. Use the modified session file in the [SMT commands](../../cli/cli.md) or it can be imported via [SMT UI](../connect-source.md#load-session-file) and proceed further.
+![](https://services.google.com/fh/files/misc/smt_interleave_tab.png)
 
 ### Check Constraints
 Users have the ability to view and modify check constraints of a table via the check constraints tab. They can alter the check constraint's name, condition, and even remove the check constraint entirely. Once these changes are made the [session file](../ui.md/#termsterminology) is updated.

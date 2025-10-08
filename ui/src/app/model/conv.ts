@@ -179,6 +179,8 @@ export interface ISyntheticPKey {
 }
 export interface ITableInterleaveStatus {
   Possible: boolean
+  Type: string
+  OnDeleteAction: string
   Parent: string
   Comment: string
 }

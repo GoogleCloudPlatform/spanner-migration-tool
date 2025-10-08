@@ -21,7 +21,7 @@ func TestAddNewSequence(t *testing.T) {
 
 	sessionState.Driver = constants.MYSQL
 	sessionState.Conv = &internal.Conv{
-		UsedNames: make(map[string]bool),
+		UsedNames:   make(map[string]bool),
 		SpSequences: make(map[string]ddl.Sequence),
 	}
 
