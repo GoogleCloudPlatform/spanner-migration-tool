@@ -106,6 +106,7 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 	// These system generated SQL statements are currently not supported by parser and return error.
 	// Pingcap Issue : https://github.com/pingcap/parser/issues/1370
 	regexExp := regexp.MustCompile(`^(\/\*[!0-9\s]*SELECT[^\n]*INTO[\s]+@[^\n]*\*\/;\n)$`)
+	var lastError error
 	for {
 		b := r.ReadLine()
 		l = append(l, b)
@@ -131,6 +132,9 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 			if err == nil {
 				return s, tree, nil
 			}
+			//remember the last error if it was not nil
+			lastError = err
+			
 			newTree, ok := handleParseError(conv, chunk, err, l)
 			if ok {
 				return s, newTree, nil
@@ -143,7 +147,7 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 			conv.Stats.Reparsed++
 		}
 		if r.EOF {
-			return nil, nil, fmt.Errorf("Error parsing last %d line(s) of input", len(l))
+			return nil, nil, fmt.Errorf("could not parse last %d line(s) of input due to error: %w", len(l), lastError)
 		}
 	}
 }
