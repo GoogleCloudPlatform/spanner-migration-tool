@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core'
-import IUpdateTable, { IReviewInterleaveTableChanges } from 'src/app/model/update-table'
+import IUpdateTable from 'src/app/model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
@@ -18,9 +18,6 @@ export class SidenavReviewChangesComponent implements OnInit {
     tableId: '',
     updateDetail: { UpdateCols: {} },
   }
-  tableChanges: IReviewInterleaveTableChanges[] = []
-  tableNames: string[] = []
-  tableList: string = ''
 
   constructor(
     private sidenav: SidenavService,
@@ -31,25 +28,8 @@ export class SidenavReviewChangesComponent implements OnInit {
 
   ngOnInit(): void {
     this.tableUpdatePubSub.reviewTableChanges.subscribe((data) => {
-      if (data.Changes && data.Changes.length > 0) {
-        this.showDdl = false
-        this.tableChanges = data.Changes
-        const updatedTableNames: string[] = []
-        this.tableList = ''
-        this.tableChanges.forEach((data, index) => {
-          updatedTableNames.push(data.Table)
-          if (index == 0) {
-            this.tableList += data.Table
-          } else {
-            this.tableList += ', ' + data.Table
-          }
-        })
-        this.tableList += '.'
-        this.tableNames = updatedTableNames
-      } else {
-        this.showDdl = true
-        this.ddl = data.DDL
-      }
+      this.showDdl = true
+      this.ddl = data.DDL
     })
     this.tableUpdatePubSub.tableUpdateDetail.subscribe((data) => {
       this.tableUpdateData = data
@@ -67,13 +47,6 @@ export class SidenavReviewChangesComponent implements OnInit {
               'Close',
               5
             )
-            if (this.showDdl == false && this.tableNames.length != 1) {
-              this.snackbar.openSnackBar(
-                `Schema changes to tables ${this.tableNames[0]} and  ${this.tableNames[1]}  saved successfully`,
-                'Close',
-                5
-              )
-            }
             this.closeSidenav()
           } else {
             this.snackbar.openSnackBar(res, 'Close', 5)

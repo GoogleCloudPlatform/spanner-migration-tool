@@ -23,30 +23,6 @@ import (
 
 // removeColumn remove given column from schema.
 func RemoveColumn(tableId string, colId string, conv *internal.Conv) {
-
-	sp := conv.SpSchema[tableId]
-
-	// remove interleaving if the column to be removed is used in interleaving.
-	isParent, childTableId := utilities.IsParent(tableId)
-	if isParent {
-		if isColFistOderPk(conv.SpSchema[tableId].PrimaryKeys, colId) {
-			childSp := conv.SpSchema[childTableId]
-			childSp.ParentTable.Id = ""
-			childSp.ParentTable.OnDelete = ""
-			childSp.ParentTable.InterleaveType = ""
-			conv.SpSchema[childTableId] = childSp
-		}
-	}
-
-	if conv.SpSchema[tableId].ParentTable.Id != "" {
-		if isColFistOderPk(conv.SpSchema[tableId].PrimaryKeys, colId) {
-			sp.ParentTable.Id = ""
-			sp.ParentTable.OnDelete = ""
-			sp.ParentTable.InterleaveType = ""
-			conv.SpSchema[tableId] = sp
-		}
-	}
-
 	// remove foreign keys from refer tables.
 	for id, sp := range conv.SpSchema {
 		var updatedFks []ddl.Foreignkey

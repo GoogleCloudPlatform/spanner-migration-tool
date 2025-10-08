@@ -1242,36 +1242,27 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
         maxWidth: '500px',
       })
     } else {
-      let interleaveTableId = this.tableInterleaveWith(this.currentObject?.id!)
-      if (interleaveTableId != '' && this.isPKPrefixModified(this.currentObject?.id!, interleaveTableId)) {
+      let interleaveTableIds = this.tableInterleaveWith(this.currentObject?.id!)
+      if (interleaveTableIds.length == 0) {
+        this.updatePk()
+        return
+      }
+      let affectedTableNames: string[] = []
+      for (let i = 0; i < interleaveTableIds.length; i++) {
+        if (this.isPKPrefixModified(this.currentObject?.id!, interleaveTableIds[i])) {
+          affectedTableNames.push(this.conv.SpSchema[interleaveTableIds[i]].Name)
+        }
+      }
+      if (affectedTableNames.length > 0) {
+        let formattedTableNames = affectedTableNames.join(', ')
         const dialogRef = this.dialog.open(InfodialogComponent, {
           data: {
-            message:
-              'Proceeding the update will remove interleaving between ' +
-              this.currentObject?.name +
-              ' and ' +
-              this.conv.SpSchema[interleaveTableId].Name +
-              ' tables.',
-            title: 'Confirm Update',
-            type: 'warning',
+            message: `Cannot update primary key as this primary key is part of interleaving with table(s) ${formattedTableNames}. Please remove the interleaved relationship and try again.`,
           },
           maxWidth: '500px',
         })
-        dialogRef.afterClosed().subscribe((dialogResult) => {
-          if (dialogResult) {
-            let interleavedChildId: string =
-              this.conv.SpSchema[this.currentObject!.id].ParentTable.Id != ''
-                ? this.currentObject!.id
-                : this.conv.SpSchema[interleaveTableId].Id
-            this.data
-              .removeInterleave(interleavedChildId)
-              .pipe(take(1))
-              .subscribe((res: string) => {
-                this.updatePk()
-              })
-          }
-        })
-      } else {
+      }
+      else {
         this.updatePk()
       }
     }
@@ -1858,6 +1849,23 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
   }
 
   dropTable() {
+    //  check interleaving
+    let interleaveTableIds = this.tableInterleaveWith(this.currentObject?.id!)
+    if (interleaveTableIds.length > 0) {
+      this.dialog.open(InfodialogComponent, {
+        data: {
+          message: `Cannot drop the table as it has interleaving with ${interleaveTableIds
+            .map((item) => this.conv.SpSchema[item].Name)
+            .join(
+            ', '
+          )}. Remove the interleaving first to continue.`,
+          title: 'Error',
+          type: 'error',
+        },
+        maxWidth: '500px',
+      })
+      return
+    }
     let openDialog = this.dialog.open(DropObjectDetailDialogComponent, {
       width: '35vw',
       minWidth: '450px',
@@ -1891,21 +1899,21 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     this.sidenav.setMiddleColComponent(this.isMiddleColumnCollapse)
   }
 
-  tableInterleaveWith(table: string): string {
+  tableInterleaveWith(table: string): string[] {
+    const interleavedTables: string[] = []
     if (this.conv.SpSchema[table].ParentTable.Id != '') {
-      return this.conv.SpSchema[table].ParentTable.Id
+      const parentId = this.conv.SpSchema[table].ParentTable.Id
+      interleavedTables.push(parentId)
     }
-    let interleaveTable = ''
-    Object.keys(this.conv.SpSchema).forEach((tableName: string) => {
+    Object.keys(this.conv.SpSchema).forEach((tableId: string) => {
       if (
-        this.conv.SpSchema[tableName].ParentTable.Id != '' &&
-        this.conv.SpSchema[tableName].ParentTable.Id == table
+        this.conv.SpSchema[tableId].ParentTable.Id != '' &&
+        this.conv.SpSchema[tableId].ParentTable.Id == table
       ) {
-        interleaveTable = tableName
+        interleavedTables.push(tableId)
       }
     })
-
-    return interleaveTable
+    return interleavedTables
   }
 
   isPKPrefixModified(tableId: string, interleaveTableId: string): boolean {

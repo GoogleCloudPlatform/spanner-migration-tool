@@ -20,6 +20,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
@@ -36,13 +38,13 @@ import (
 // (4) NotNull: "ADDED", "REMOVED" or "".
 // (5) ToType: New type or empty string.
 type updateCol struct {
-	Add          bool           `json:"Add"`
-	Removed      bool           `json:"Removed"`
-	Rename       string         `json:"Rename"`
-	NotNull      string         `json:"NotNull"`
-	ToType       string         `json:"ToType"`
-	MaxColLength string         `json:"MaxColLength"`
-	AutoGen      ddl.AutoGenCol `json:"AutoGen"`
+	Add          bool             `json:"Add"`
+	Removed      bool             `json:"Removed"`
+	Rename       string           `json:"Rename"`
+	NotNull      string           `json:"NotNull"`
+	ToType       string           `json:"ToType"`
+	MaxColLength string           `json:"MaxColLength"`
+	AutoGen      ddl.AutoGenCol   `json:"AutoGen"`
 	DefaultValue ddl.DefaultValue `json:"DefaultValue"`
 }
 
@@ -83,6 +85,67 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 	conv = sessionState.Conv
 
 	for colId, v := range t.UpdateCols {
+		// Inhibit changes to interleaved primary keys
+		isPkColumn := false
+		pkOrder := -1
+		for _, pk := range conv.SpSchema[tableId].PrimaryKeys {
+			if pk.ColId == colId {
+				isPkColumn = true
+				pkOrder = pk.Order
+				break
+			}
+		}
+
+		if isPkColumn {
+			isModification := false
+			isRename := v.Rename != "" && v.Rename != conv.SpSchema[tableId].ColDefs[colId].Name
+			isTypeChange, _ := utilities.IsTypeChanged(v.ToType, tableId, colId, conv)
+
+			var isSizeChange bool
+			if v.MaxColLength != "" {
+				var colMaxLength int64
+				if strings.ToLower(v.MaxColLength) == "max" {
+					colMaxLength = ddl.MaxLength
+				} else {
+					colMaxLength, _ = strconv.ParseInt(v.MaxColLength, 10, 64)
+				}
+				if conv.SpSchema[tableId].ColDefs[colId].T.Len != colMaxLength {
+					isSizeChange = true
+				}
+			}
+			if v.Removed || isRename || isTypeChange || isSizeChange {
+				isModification = true
+			}
+
+			if isModification {
+				isParent, _ := utilities.IsParent(tableId)
+				isChild := conv.SpSchema[tableId].ParentTable.Id != ""
+
+				// Rule 1: If it's a parent table, any change to a PK column is disallowed.
+				if isParent {
+					http.Error(w, fmt.Sprintf("Modifying primary key column '%s' is not allowed because table '%s' is a parent in an interleave relationship. Please remove the interleave relationship first.", conv.SpSchema[tableId].ColDefs[colId].Name, conv.SpSchema[tableId].Name), http.StatusBadRequest)
+					return
+				}
+
+				// Rule 2: If it's a child table, check if the PK column is part of the parent's key.
+				if isChild {
+					parentTableId := conv.SpSchema[tableId].ParentTable.Id
+					parentTable, parentExists := conv.SpSchema[parentTableId]
+					if !parentExists {
+						// This would be an inconsistent state, but handle it.
+						http.Error(w, fmt.Sprintf("Internal server error: Parent table with ID %s not found for interleaved table %s", parentTableId, conv.SpSchema[tableId].Name), http.StatusInternalServerError)
+						return
+					}
+					numParentPKs := len(parentTable.PrimaryKeys)
+
+					// If the column's order in the PK is within the count of parent PKs, it's an inherited key.
+					if pkOrder != -1 && pkOrder <= numParentPKs {
+						http.Error(w, fmt.Sprintf("Modifying column '%s' is not allowed because it is part of the interleaved primary key from parent table '%s'. Please remove the interleave relationship first.", conv.SpSchema[tableId].ColDefs[colId].Name, parentTable.Name), http.StatusBadRequest)
+						return
+					}
+				}
+			}
+		}
 
 		if v.Add {
 			addColumn(tableId, colId, conv)

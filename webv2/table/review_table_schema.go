@@ -31,22 +31,6 @@ import (
 
 type ReviewTableSchemaResponse struct {
 	DDL     string
-	Changes []InterleaveTableSchema
-}
-
-type InterleaveTableSchema struct {
-	Table                   string
-	InterleaveColumnChanges []InterleaveColumn
-}
-
-type InterleaveColumn struct {
-	ColumnName       string
-	Type             string
-	Size             int
-	UpdateColumnName string
-	UpdateType       string
-	UpdateSize       int
-	ColumnId         string
 }
 
 // ReviewTableSchema review Spanner Table Schema.
@@ -84,9 +68,68 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	conv.UsedNames = internal.ComputeUsedNames(conv)
 
-	interleaveTableSchema := []InterleaveTableSchema{}
-
 	for colId, v := range t.UpdateCols {
+
+		isPkColumn := false
+		pkOrder := -1
+		for _, pk := range conv.SpSchema[tableId].PrimaryKeys {
+			if pk.ColId == colId {
+				isPkColumn = true
+				pkOrder = pk.Order
+				break
+			}
+		}
+
+		if isPkColumn {
+			isModification := false
+			isRename := v.Rename != "" && v.Rename != conv.SpSchema[tableId].ColDefs[colId].Name
+			isTypeChange, _ := utilities.IsTypeChanged(v.ToType, tableId, colId, conv)
+
+			var isSizeChange bool
+			if v.MaxColLength != "" {
+				var colMaxLength int64
+				if strings.ToLower(v.MaxColLength) == "max" {
+					colMaxLength = ddl.MaxLength
+				} else {
+					colMaxLength, _ = strconv.ParseInt(v.MaxColLength, 10, 64)
+				}
+				if conv.SpSchema[tableId].ColDefs[colId].T.Len != colMaxLength {
+					isSizeChange = true
+				}
+			}
+			if v.Removed || isRename || isTypeChange || isSizeChange {
+				isModification = true
+			}
+
+			if isModification {
+				isParent, _ := utilities.IsParent(tableId)
+				isChild := conv.SpSchema[tableId].ParentTable.Id != ""
+
+				// Rule 1: If it's a parent table, any change to a PK column is disallowed.
+				if isParent {
+					http.Error(w, fmt.Sprintf("Modifying primary key column '%s' is not allowed because table '%s' is a parent in an interleave relationship. Please remove the interleave relationship first.", conv.SpSchema[tableId].ColDefs[colId].Name, conv.SpSchema[tableId].Name), http.StatusBadRequest)
+					return
+				}
+
+				// Rule 2: If it's a child table, check if the PK column is part of the parent's key.
+				if isChild {
+					parentTableId := conv.SpSchema[tableId].ParentTable.Id
+					parentTable, parentExists := conv.SpSchema[parentTableId]
+					if !parentExists {
+						// This would be an inconsistent state, but handle it.
+						http.Error(w, fmt.Sprintf("Internal server error: Parent table with ID %s not found for interleaved table %s", parentTableId, conv.SpSchema[tableId].Name), http.StatusInternalServerError)
+						return
+					}
+					numParentPKs := len(parentTable.PrimaryKeys)
+
+					// If the column's order in the PK is within the count of parent PKs, it's an inherited key.
+					if pkOrder != -1 && pkOrder <= numParentPKs {
+						http.Error(w, fmt.Sprintf("Modifying column '%s' is not allowed because it is part of the interleaved primary key from parent table '%s'. Please remove the interleave relationship first.", conv.SpSchema[tableId].ColDefs[colId].Name, parentTable.Name), http.StatusBadRequest)
+						return
+					}
+				}
+			}
+		}
 
 		if v.Add {
 			addColumn(tableId, colId, conv)
@@ -114,7 +157,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 				conv.SpSchema[tableId].CheckConstraints[i].Expr = updatedValue
 			}
 
-			interleaveTableSchema = reviewRenameColumn(v.Rename, tableId, colId, conv, interleaveTableSchema)
+			reviewRenameColumn(v.Rename, tableId, colId, conv)
 
 		}
 
@@ -128,8 +171,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if typeChange {
-
-				interleaveTableSchema, err = ReviewColumnType(v.ToType, tableId, colId, conv, interleaveTableSchema, w)
+				err = ReviewColumnType(v.ToType, tableId, colId, conv, w)
 				if err != nil {
 					return
 				}
@@ -138,18 +180,6 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.NotNull != "" {
 			UpdateNotNull(v.NotNull, tableId, colId, conv)
-		}
-
-		if v.MaxColLength != "" {
-			var colMaxLength int64
-			if strings.ToLower(v.MaxColLength) == "max" {
-				colMaxLength = ddl.MaxLength
-			} else {
-				colMaxLength, _ = strconv.ParseInt(v.MaxColLength, 10, 64)
-			}
-			if conv.SpSchema[tableId].ColDefs[colId].T.Len != colMaxLength {
-				interleaveTableSchema = ReviewColumnSize(colMaxLength, tableId, colId, conv, interleaveTableSchema)
-			}
 		}
 
 		if !v.Removed && !v.Add && v.Rename == "" {
@@ -161,13 +191,8 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	ddl := GetSpannerTableDDL(conv.SpSchema[tableId], conv.SpDialect, sessionState.Driver)
 
-	interleaveTableSchema = trimRedundantInterleaveTableSchema(interleaveTableSchema)
-	// update interleaveTableSchema by filling the missing fields.
-	interleaveTableSchema = updateInterleaveTableSchema(conv, interleaveTableSchema)
-
 	resp := ReviewTableSchemaResponse{
 		DDL:     ddl,
-		Changes: interleaveTableSchema,
 	}
 
 	sessionMetaData := session.GetSessionState().SessionMetadata
