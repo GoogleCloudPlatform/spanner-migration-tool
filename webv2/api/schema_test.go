@@ -1741,140 +1741,91 @@ func TestRestoreTable(t *testing.T) {
 // todo update SetParentTable with case III suggest interleve table column.
 func TestSetParentTable(t *testing.T) {
 	tests := []struct {
-		name                string
-		ct                  *internal.Conv
-		table               string
-		interleaveType      string
-		statusCode          int64
-		expectedResponse    *types.TableInterleaveStatus
-		expectedFKs         []ddl.Foreignkey
-		parentTable         ddl.InterleavedParent
-		expectedTableIssues []internal.SchemaIssue
+		name             string
+		ct               *internal.Conv
+		table            string
+		parent           string
+		interleaveType   string
+		onDelete         string
+		statusCode       int64
+		expectedResponse *types.TableInterleaveStatus
+		parentTable      ddl.InterleavedParent
+		update           bool
 	}{
 		{
 			name:       "no conv provided",
+			ct:         nil,
 			statusCode: http.StatusNotFound,
+			update:     true,
 		},
 		{
 			name:       "no table name provided",
 			statusCode: http.StatusBadRequest,
-			ct: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{"t1": {
-					Name:   "t1",
-					ColIds: []string{"c1", "c2", "c3"},
-					ColDefs: map[string]ddl.ColumnDef{"c1": ddl.ColumnDef{Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"c2": ddl.ColumnDef{Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"c3": ddl.ColumnDef{Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
-					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1", Desc: false}},
-					ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t1", ReferColumnIds: []string{"c1"}},
-						ddl.Foreignkey{Name: "fk2", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"c2"}}},
-				}},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
-					},
-				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
-				},
-			},
+			ct:         &internal.Conv{},
+			update:     true,
+		},
+		{
+			name:       "no parent name provided",
+			table:      "t1",
+			statusCode: http.StatusBadRequest,
+			ct:         &internal.Conv{},
+			update:     true,
 		},
 		{
 			name: "table with synthetic PK",
 			ct: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{"t1": {
-					Name:   "t1",
-					ColIds: []string{"c1", "c2", "c3"},
-					ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"c2":       {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"c3":       {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-					},
-					PrimaryKeys: []ddl.IndexKey{{ColId: "synth_id", Desc: false}},
-					ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t1", ReferColumnIds: []string{"c1"}},
-						{Name: "fk2", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"c2"}}},
-				}},
-				SyntheticPKeys: map[string]internal.SyntheticPKey{"t1": internal.SyntheticPKey{ColId: "synth_id"}},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
-					},
-				},
-			},
-			table:            "t1",
-			statusCode:       http.StatusOK,
-			expectedResponse: &types.TableInterleaveStatus{Possible: false, Comment: "Has synthetic pk"},
-		},
-		{
-			name: "no valid prefix 1",
-			ct: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "t1",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}}},
-					},
-					"t2": {
-						Name:   "t2",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2":       {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3":       {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						Id:     "t1",
+						ColIds: []string{"synth_id"},
+						ColDefs: map[string]ddl.ColumnDef{
 							"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "synth_id", Desc: false}},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "synth_id"}},
+					},
+					"t2": {
+						Name:   "t2",
+						Id:     "t2",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 					},
 				},
-				SyntheticPKeys: map[string]internal.SyntheticPKey{"t2": internal.SyntheticPKey{ColId: "synth_id"}},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
-					},
-				},
+				SyntheticPKeys: map[string]internal.SyntheticPKey{"t1": {ColId: "synth_id"}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
 			},
 			table:            "t1",
+			parent:           "t2",
 			statusCode:       http.StatusOK,
-			expectedResponse: &types.TableInterleaveStatus{Possible: false, Comment: "No valid prefix"},
-			expectedFKs:      []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}}},
+			expectedResponse: &types.TableInterleaveStatus{Possible: false, Comment: "Has synthetic pk"},
+			update:           true,
 		},
 		{
-			name: "no valid prefix 2",
+			name: "no valid prefix",
 			ct: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "t1",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						Id:     "t1",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}}},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 					},
 					"t2": {
 						Name:   "t2",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						Id:     "t2",
+						ColIds: []string{"c2"},
+						ColDefs: map[string]ddl.ColumnDef{
 							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-					},
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c2"}},
 					},
 				},
 				Audit: internal.Audit{
@@ -1882,291 +1833,287 @@ func TestSetParentTable(t *testing.T) {
 				},
 			},
 			table:            "t1",
+			parent:           "t2",
+			interleaveType:   "IN",
 			statusCode:       http.StatusOK,
-			expectedResponse: &types.TableInterleaveStatus{Possible: false, Parent: "", OnDelete: "", Comment: "No valid prefix"},
-			expectedFKs:      []ddl.Foreignkey{{}},
+			expectedResponse: &types.TableInterleaveStatus{Possible: false, Comment: "The child table 't1' does not have primary key 'c2' of parent table 't2'."},
+		    update:		      true,
 		},
 		{
-			name: "no valid prefix 3",
+			name: "interleave causes cycle",
 			ct: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "t1",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						Id:     "t1",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}, {ColId: "c2", Desc: false}},
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}}},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						ParentTable: ddl.InterleavedParent{Id: "t2"},
 					},
 					"t2": {
 						Name:   "t2",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						Id:     "t2",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
-					},
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
 			},
-			table:            "t1",
+			table:            "t2",
+			parent:           "t1",
+			interleaveType:   "IN",
 			statusCode:       http.StatusOK,
-			expectedResponse: &types.TableInterleaveStatus{Possible: false, Comment: "No valid prefix"},
-			expectedFKs:      []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c3"}, ReferTableId: "t2", ReferColumnIds: []string{"c3"}}},
+			expectedResponse: &types.TableInterleaveStatus{Possible: false, Comment: "Interleaving table 't2' in parent table 't1' will create a cycle."},
+			update:		      true,
 		},
 		{
-			name: "interleave possible on changing primary key order",
-			ct: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Name:   "t1",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 2}, {ColId: "c2", Desc: false, Order: 2}},
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, OnDelete: constants.FK_CASCADE}},
-					},
-					"t2": {
-						Name:   "t2",
-						ColIds: []string{"cc4", "c5", "c6"},
-						ColDefs: map[string]ddl.ColumnDef{"c4": {Name: "d", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c5": {Name: "e", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c6": {Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-					},
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						ColumnLevelIssues: map[string][]internal.SchemaIssue{
-							"c1": {internal.InterleavedNotInOrder},
-						},
-					},
-				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
-				},
-			},
-			table:            "t1",
-			statusCode:       http.StatusOK,
-			expectedResponse: &types.TableInterleaveStatus{Possible: false, Parent: "", OnDelete: "", Comment: "No valid prefix"},
-			expectedFKs:      []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, OnDelete: constants.FK_CASCADE}},
-			parentTable:      ddl.InterleavedParent{Id: "", OnDelete: ""},
-		},
-		{
-			name: "successful interleave",
+			name: "successful interleave IN",
 			ct: &internal.Conv{
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:        "t1",
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}, Id: "f1", OnDelete: constants.FK_RESTRICT}},
+						Id:          "t1",
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}, Id: "f1", OnDelete: constants.FK_CASCADE}},
 					},
 				},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "t1",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}, Id: "f1", OnDelete: constants.FK_NO_ACTION}},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}, {ColId: "c2", Order: 2}},
 					},
 					"t2": {
 						Name:   "t2",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						Id:     "t2",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
-					},
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyOnDelete},
-						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
 					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
 			},
-			table:               "t1",
-			interleaveType:      "IN",
-			statusCode:          http.StatusOK,
-			expectedResponse:    &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_NO_ACTION},
-			expectedFKs:         []ddl.Foreignkey{},
-			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
-			expectedTableIssues: []internal.SchemaIssue{},
+			table:            "t1",
+			parent:           "t2",
+			interleaveType:   "IN",
+			onDelete:         "",
+			statusCode:       http.StatusOK,
+			expectedResponse: &types.TableInterleaveStatus{Possible: true, Parent: "t2", InterleaveType: "IN"},
+			parentTable:      ddl.InterleavedParent{Id: "t2", OnDelete: "", InterleaveType: "IN"},
+			update:           true,
 		},
 		{
-			name: "successful interleave missing interleaveType",
+			name: "successful interleave IN PARENT",
 			ct: &internal.Conv{
 				SrcSchema: map[string]schema.Table{
 					"t1": {
 						Name:        "t1",
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}, Id: "f1", OnDelete: constants.FK_RESTRICT}},
+						Id:          "t1",
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}, Id: "f1", OnDelete: constants.FK_CASCADE}},
 					},
 				},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "t1",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}, Id: "f1", OnDelete: constants.FK_NO_ACTION}},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}, {ColId: "c2", Order: 2}},
 					},
 					"t2": {
 						Name:   "t2",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						Id:     "t2",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}},
-					},
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyOnDelete},
-						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
 					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
 			},
-			table:               "t1",
-			statusCode:          http.StatusOK,
-			expectedResponse:    &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_NO_ACTION},
-			expectedFKs:         []ddl.Foreignkey{},
-			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN PARENT"},
-			expectedTableIssues: []internal.SchemaIssue{},
+			table:            "t1",
+			parent:           "t2",
+			interleaveType:   "IN PARENT",
+			onDelete:         constants.FK_CASCADE,
+			statusCode:       http.StatusOK,
+			expectedResponse: &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
+			parentTable:      ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
+			update:           true,
 		},
 		{
-			name: "successful interleave with same primary key",
-			ct: &internal.Conv{
-				SrcSchema: map[string]schema.Table{
-					"t1": {
-						Name:        "t1",
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1", "c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c1", "c2"}, Id: "f1", OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_RESTRICT}},
-					},
-				},
+			name: 		   "child table has less primary keys than parent table",
+			ct:             &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "t1",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						Id:     "t1",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-						ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1", "c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c1", "c2"}, Id: "f1", OnDelete: constants.FK_CASCADE, OnUpdate: constants.FK_NO_ACTION}},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
 					},
 					"t2": {
 						Name:   "t2",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						Id:     "t2",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-					},
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyOnUpdate},
-						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}, {ColId: "c2", Order: 2}},
 					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
 			},
-			table:               "t1",
-			interleaveType:      "IN",
-			statusCode:          http.StatusOK,
-			expectedResponse:    &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_CASCADE},
-			expectedFKs:         []ddl.Foreignkey{},
-			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN"},
-			expectedTableIssues: []internal.SchemaIssue{},
+			table:          "t1",
+			parent:         "t2",
+			interleaveType: "IN",
+			onDelete:       "",
+			statusCode:     http.StatusOK,
+			expectedResponse: &types.TableInterleaveStatus{
+				Possible: false, Comment: "The child table 't1' has '1' primary keys, which is less than the parent table 't2' primary keys count of '2'."},
+			update: 	    true,
 		},
 		{
-			name: "successful interleave with multiple fks refering multiple tables",
-			ct: &internal.Conv{
-				SrcSchema: map[string]schema.Table{
-					"t1": {
-						ForeignKeys: []schema.ForeignKey{
-							{Name: "fk1", ColIds: []string{"c3"}, ReferTableId: "t3", ReferColumnIds: []string{"c3"}, Id: "f1", OnDelete: constants.FK_SET_DEFAULT, OnUpdate: constants.FK_NO_ACTION},
-							{Name: "fk1", ColIds: []string{"c1", "c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c1", "c2"}, Id: "f2", OnDelete: constants.FK_RESTRICT, OnUpdate: constants.FK_CASCADE}},
-					},
-				},
+			name:	   "both parent and child tables have no primary keys",
+			ct:             &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "t1",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						Id:     "t1",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-						ForeignKeys: []ddl.Foreignkey{
-							{Name: "fk1", ColIds: []string{"c3"}, ReferTableId: "t3", ReferColumnIds: []string{"c3"}, Id: "f1", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION},
-							{Name: "fk1", ColIds: []string{"c1", "c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c1", "c2"}, Id: "f2", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
+						PrimaryKeys: []ddl.IndexKey{},
 					},
 					"t2": {
 						Name:   "t2",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						Id:     "t2",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-					},
-					"t3": {
-						Name:   "t3",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]ddl.ColumnDef{"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c3": {Name: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
-					},
-				},
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {
-						ColumnLevelIssues: make(map[string][]internal.SchemaIssue),
-						TableLevelIssues:  []internal.SchemaIssue{internal.ForeignKeyOnDelete, internal.ForeignKeyOnDelete, internal.ForeignKeyOnUpdate},
+						PrimaryKeys: []ddl.IndexKey{},
 					},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
 			},
-			table:               "t1",
-			interleaveType:      "IN",
-			statusCode:          http.StatusOK,
-			expectedResponse:    &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_NO_ACTION},
-			expectedFKs:         []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c3"}, ReferTableId: "t3", ReferColumnIds: []string{"c3"}, Id: "f1", OnDelete: constants.FK_NO_ACTION, OnUpdate: constants.FK_NO_ACTION}},
-			parentTable:         ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
-			expectedTableIssues: []internal.SchemaIssue{internal.ForeignKeyOnDelete},
+			table:          "t1",
+			parent:         "t2",
+			interleaveType: "IN",
+			onDelete:       "",
+			statusCode:     http.StatusOK,
+			expectedResponse: &types.TableInterleaveStatus{
+				Possible: false, Comment: "Both parent table 't2' and child table 't1' must have primary keys."},
+			update: 	    true,
+		},
+		{
+			name:             "invalid onDelete value",
+			ct:               &internal.Conv{},
+			table:            "t1",
+			parent:           "t2",
+			interleaveType:   "IN PARENT",
+			onDelete:         "INVALID",
+			statusCode:       http.StatusBadRequest,
+			expectedResponse: nil,
+			update:           true,
+		},
+		{
+			name:             "invalid interleaveType value",
+			ct:               &internal.Conv{},
+			table:            "t1",
+			parent:           "t2",
+			interleaveType:   "INVALID",
+			onDelete:         "CASCADE",
+			statusCode:       http.StatusBadRequest,
+			expectedResponse: nil,
+			update:           true,
+		},
+		{
+			name:             "onDelete specified for IN interleaveType",
+			ct:               &internal.Conv{},
+			table:            "t1",
+			parent:           "t2",
+			interleaveType:   "IN",
+			onDelete:         "CASCADE",
+			statusCode:       http.StatusBadRequest,
+			expectedResponse: nil,
+			update:           true,
+		},
+		{
+			name:             "onDelete not specified for IN PARENT interleaveType",
+			ct:               &internal.Conv{},
+			table:            "t1",
+			parent:           "t2",
+			interleaveType:   "IN PARENT",
+			onDelete:         "",
+			statusCode:       http.StatusBadRequest,
+			expectedResponse: nil,
+			update:           true,
+		},
+		{
+			name:             "get interleave status without updating",
+			ct:               &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						Id:     "t1",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
+					},
+					"t2": {
+						Name:   "t2",
+						Id:     "t2",
+						ColIds: []string{"c1"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+			},
+			table:            "t1",
+			parent:           "",
+			interleaveType:   "",
+			onDelete:         "",
+			statusCode:       http.StatusOK,
+			expectedResponse: &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
+			update:           false,
 		},
 	}
 	for _, tc := range tests {
@@ -2174,8 +2121,7 @@ func TestSetParentTable(t *testing.T) {
 
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = tc.ct
-		update := true
-		req, err := http.NewRequest("GET", fmt.Sprintf("/setparent?table=%s&interleaveType=%s&update=%v", tc.table, tc.interleaveType, update), nil)
+		req, err := http.NewRequest("GET", fmt.Sprintf("/setparent?table=%s&parentTable=%s&interleaveType=%s&onDelete=%s&update=%v", tc.table, tc.parent, tc.interleaveType, tc.onDelete, tc.update), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2188,16 +2134,20 @@ func TestSetParentTable(t *testing.T) {
 			TableInterleaveStatus *types.TableInterleaveStatus `json:"tableInterleaveStatus"`
 			SessionState          *internal.Conv               `json:"sessionState"`
 		}
+		type ParentTableGetResponse struct {
+			TableInterleaveStatus *types.TableInterleaveStatus `json:"tableInterleaveStatus"`
+		}
 
 		var res *types.TableInterleaveStatus
 
-		if update {
+		if tc.update {
 			parentTableResponse := &ParentTableSetResponse{}
 			json.Unmarshal(rr.Body.Bytes(), parentTableResponse)
 			res = parentTableResponse.TableInterleaveStatus
 		} else {
-			res = &types.TableInterleaveStatus{}
-			json.Unmarshal(rr.Body.Bytes(), res)
+			parentTableResponse := &ParentTableGetResponse{}
+			json.Unmarshal(rr.Body.Bytes(), parentTableResponse)
+			res = parentTableResponse.TableInterleaveStatus
 		}
 
 		if status := rr.Code; int64(status) != tc.statusCode {
@@ -2209,13 +2159,11 @@ func TestSetParentTable(t *testing.T) {
 		}
 		if tc.parentTable.Id != "" {
 			assert.Equal(t, tc.parentTable, sessionState.Conv.SpSchema[tc.table].ParentTable, tc.name)
-			assert.Equal(t, tc.expectedFKs, sessionState.Conv.SpSchema[tc.table].ForeignKeys, tc.name)
-			assert.Equal(t, tc.expectedTableIssues, sessionState.Conv.SchemaIssues[tc.table].TableLevelIssues, tc.name)
 		}
 	}
 }
 
-func TestRemoveParentTable(t *testing.T) {
+func TestRemoveParentTable(t *testing.T) { // TODO: convert this to table driven test
 	tc := []struct {
 		name             string
 		tableId          string
@@ -2223,43 +2171,14 @@ func TestRemoveParentTable(t *testing.T) {
 		conv             *internal.Conv
 		expectedSpSchema ddl.Schema
 	}{
-		{
-			name:       "Remove interleaving with valid table id",
+		{name: "Remove interleaving with valid table id",
 			tableId:    "t1",
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {},
-					"t2": {},
-				},
-				SrcSchema: map[string]schema.Table{
-					"t1": {
-						Name:   "table1",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]schema.Column{
-							"c1": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c1"},
-							"c2": {Name: "b", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c2"},
-							"c3": {Name: "c", Type: schema.Type{Name: "varchar"}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c3"},
-						},
-						PrimaryKeys: []schema.Key{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, Id: "f1", OnDelete: constants.FK_CASCADE}},
-						Id:          "t1",
-					},
-
-					"t2": {
-						Name:   "table2",
-						ColIds: []string{"c4", "c5"},
-						ColDefs: map[string]schema.Column{
-							"c4": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: true, AutoIncrement: false}, Id: "c4"},
-							"c5": {Name: "d", Type: schema.Type{Name: "varchar"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c5"},
-						},
-						Id:          "t2",
-						PrimaryKeys: []schema.Key{{ColId: "c4", Desc: false, Order: 1}},
-					},
-				},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "table1",
+						Id:     "t1",
 						ColIds: []string{"c1", "c2", "c3"},
 						ColDefs: map[string]ddl.ColumnDef{
 							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
@@ -2267,18 +2186,17 @@ func TestRemoveParentTable(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-						Id:          "t1",
-						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
 					},
 					"t2": {
 						Name:   "table2",
+						Id:     "t2",
 						ColIds: []string{"c4", "c5"},
 						ColDefs: map[string]ddl.ColumnDef{
 							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false, Order: 1}},
-						Id:          "t2",
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
@@ -2288,6 +2206,7 @@ func TestRemoveParentTable(t *testing.T) {
 			expectedSpSchema: ddl.Schema{
 				"t1": {
 					Name:   "table1",
+					Id:     "t1",
 					ColIds: []string{"c1", "c2", "c3"},
 					ColDefs: map[string]ddl.ColumnDef{
 						"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
@@ -2295,59 +2214,29 @@ func TestRemoveParentTable(t *testing.T) {
 						"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 					},
 					PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-					ForeignKeys: []ddl.Foreignkey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, Id: "f1", OnDelete: constants.FK_CASCADE}},
-					Id:          "t1",
-					ParentTable: ddl.InterleavedParent{Id: "", OnDelete: ""},
+					ParentTable: ddl.InterleavedParent{Id: "", OnDelete: "", InterleaveType: ""},
 				},
 				"t2": {
 					Name:   "table2",
+					Id:     "t2",
 					ColIds: []string{"c4", "c5"},
 					ColDefs: map[string]ddl.ColumnDef{
 						"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 					},
 					PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false, Order: 1}},
-					Id:          "t2",
 				},
 			},
 		},
-
-		{name: "Remove interleaving with invalid table id",
+		{
+			name:       "Remove interleaving with invalid table id",
 			tableId:    "A",
 			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
-				SchemaIssues: map[string]internal.TableIssues{
-					"t1": {},
-					"t2": {},
-				},
-				SrcSchema: map[string]schema.Table{
-					"t1": {
-						Name:   "table1",
-						ColIds: []string{"c1", "c2", "c3"},
-						ColDefs: map[string]schema.Column{
-							"c1": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c1"},
-							"c2": {Name: "b", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c2"},
-							"c3": {Name: "c", Type: schema.Type{Name: "varchar"}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c3"},
-						},
-						PrimaryKeys: []schema.Key{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}, Id: "f1", OnDelete: constants.FK_NO_ACTION}},
-						Id:          "t1",
-					},
-
-					"t2": {
-						Name:   "table2",
-						ColIds: []string{"c4", "c5"},
-						ColDefs: map[string]schema.Column{
-							"c4": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: true, AutoIncrement: false}, Id: "c4"},
-							"c5": {Name: "d", Type: schema.Type{Name: "varchar"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c5"},
-						},
-						Id:          "t2",
-						PrimaryKeys: []schema.Key{{ColId: "c4", Desc: false, Order: 1}},
-					},
-				},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:   "table1",
+						Id:     "t1",
 						ColIds: []string{"c1", "c2", "c3"},
 						ColDefs: map[string]ddl.ColumnDef{
 							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
@@ -2355,18 +2244,17 @@ func TestRemoveParentTable(t *testing.T) {
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false, Order: 1}, {ColId: "c2", Desc: false, Order: 2}},
-						Id:          "t1",
 						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_NO_ACTION},
 					},
 					"t2": {
 						Name:   "table2",
+						Id:     "t2",
 						ColIds: []string{"c4", "c5"},
 						ColDefs: map[string]ddl.ColumnDef{
 							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c5": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Desc: false, Order: 1}},
-						Id:          "t2",
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
@@ -2382,8 +2270,7 @@ func TestRemoveParentTable(t *testing.T) {
 		sessionState.Driver = constants.MYSQL
 
 		sessionState.Conv = tc.conv
-		payload := `{}`
-		req, err := http.NewRequest("POST", "/drop/removeParent?tableId="+tc.tableId, strings.NewReader(payload))
+		req, err := http.NewRequest("POST", "/removeParent?tableId="+tc.tableId, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

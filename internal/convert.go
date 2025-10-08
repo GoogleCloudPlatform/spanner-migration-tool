@@ -99,6 +99,8 @@ type SchemaIssue int
 // Defines all of the schema issues we track. Includes issues
 // with type mappings, as well as features (such as source
 // DB constraints) that aren't supported in Spanner.
+// TODO: Remove the following issues later as they cannot be removed now because they are referenced by index in session files
+// InterleavedRenameColumn, InterleavedChangeColumnSize, InterleavedNotInOrder, InterleavedOrder, InterleavedAddColumn
 const (
 	DefaultValue SchemaIssue = iota
 	ForeignKey

@@ -178,4 +178,5 @@ type TableInterleaveStatus struct {
 	Parent   string
 	OnDelete string
 	Comment  string
+	InterleaveType string
 }

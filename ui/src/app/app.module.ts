@@ -56,6 +56,7 @@ import { EquivalentGcloudCommandComponent } from './components/equivalent-gcloud
 import { TuneDatastreamFormComponent } from './components/tune-datastream-form/tune-datastream-form.component';
 import { TuneGcsFormComponent } from './components/tune-gcs-form/tune-gcs-form.component';
 import { AddNewSequenceComponent } from './components/add-new-sequence/add-new-sequence.component'
+import { NgSelectModule } from '@ng-select/ng-select';
 
 @NgModule({ declarations: [
         AppComponent,
@@ -112,6 +113,7 @@ import { AddNewSequenceComponent } from './components/add-new-sequence/add-new-s
         ClipboardModule,
         MatProgressSpinnerModule,
         MatChipsModule,
+        NgSelectModule,
         MatTooltipModule], providers: [
         {
             provide: HTTP_INTERCEPTORS,

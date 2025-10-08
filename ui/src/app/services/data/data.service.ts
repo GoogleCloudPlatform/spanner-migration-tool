@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
-import IConv, { ICheckConstraints, ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
+import IConv, { ICheckConstraints, ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey, ITableInterleaveStatus } from '../../model/conv'
 import IRule from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of, Subject } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
@@ -30,7 +30,7 @@ export class DataService {
   private summarySub = new BehaviorSubject(new Map<string, ISummary>())
   private ddlSub = new BehaviorSubject({})
   private seqDdlSub = new BehaviorSubject({})
-  private tableInterleaveStatusSub = new BehaviorSubject({} as IInterleaveStatus)
+  private tableInterleaveStatusSub = new BehaviorSubject<ITableInterleaveStatus | {}>({} as ITableInterleaveStatus)
   private sessionsSub = new BehaviorSubject({} as ISession[])
   private configSub = new BehaviorSubject({} as ISpannerConfig)
   // currentSessionSub not using any where
@@ -80,7 +80,7 @@ export class DataService {
     this.autoGenMapSub.next({})
     this.summarySub.next(new Map<string, ISummary>())
     this.ddlSub.next({})
-    this.tableInterleaveStatusSub.next({} as IInterleaveStatus)
+    this.tableInterleaveStatusSub.next({} as ITableInterleaveStatus)
   }
 
   getDdl() {
@@ -636,18 +636,27 @@ export class DataService {
 
   getInterleaveConversionForATable(tableId: string) {
     this.fetch.getInterleaveStatus(tableId).subscribe((res: IInterleaveStatus) => {
-      this.tableInterleaveStatusSub.next(res)
+      this.tableInterleaveStatusSub.next(res.TableInterleaveStatus)
     })
   }
 
-  setInterleave(tableId: string, interleaveType: string) {
-    this.fetch.setInterleave(tableId, interleaveType).subscribe((res: any) => {
-      this.convSubject.next(res.sessionState)
-      this.getDdl()
-      if (res.sessionState) {
-        this.convSubject.next(res.sessionState as IConv)
-      }
-    })
+  setInterleave(tableId: string, interleaveType: string, interleaveParentName: string, onDeleteAction: string): Observable<string> {
+    return this.fetch.setInterleave(tableId, interleaveType, interleaveParentName, onDeleteAction).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          return data.error
+        } else {
+          this.convSubject.next(data.sessionState)
+          this.getDdl()
+          this.tableInterleaveStatusSub.next(data.tableInterleaveStatus)
+          return data.tableInterleaveStatus.Comment
+        }
+      })
+    )
   }
 
   uploadFile(file: FormData): Observable<string> {
