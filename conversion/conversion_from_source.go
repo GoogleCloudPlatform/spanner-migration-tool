@@ -132,7 +132,7 @@ func (sads *SchemaFromSourceImpl) SchemaFromDump(SpProjectId string, SpInstanceI
 	err = processDump.ProcessDump(driver, conv, r)
 	if err != nil {
 		fmt.Fprintf(ioHelper.Out, "Failed to parse the data file: %v", err)
-		return nil, fmt.Errorf("failed to parse the data file")
+		return nil, fmt.Errorf("failed to parse the data file: %w", err)
 	}
 	p.Done()
 	return conv, nil
