@@ -1258,6 +1258,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
         const dialogRef = this.dialog.open(InfodialogComponent, {
           data: {
             message: `Cannot update primary key as this primary key is part of interleaving with table(s) ${formattedTableNames}. Please remove the interleaved relationship and try again.`,
+            type: 'error',
           },
           maxWidth: '500px',
         })
