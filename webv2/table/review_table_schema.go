@@ -58,8 +58,6 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	convByte, err := json.Marshal(sessionState.Conv)
 
-	print("**", sessionState.Conv.SpSchema[tableId].ParentTable.Id, "--\n")
-
 	if err != nil {
 		http.Error(w, fmt.Sprintf("conversion object parse error : %v", err), http.StatusInternalServerError)
 		return
