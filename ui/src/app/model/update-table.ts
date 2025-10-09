@@ -20,10 +20,6 @@ export interface ITableColumnChanges {
   Size: Number
   UpdateSize: Number
 }
-export interface IReviewInterleaveTableChanges {
-  InterleaveColumnChanges: ITableColumnChanges[]
-  Table: string
-}
 export interface IUpdateTableArgument {
   text: string
   order: string
@@ -34,7 +30,6 @@ export default interface IUpdateTable {
 }
 
 export interface IReviewUpdateTable {
-  Changes: IReviewInterleaveTableChanges[]
   DDL: string
 }
 

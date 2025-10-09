@@ -4,7 +4,7 @@ import IConv, { ICheckConstraints, ICreateIndex, IForeignKey, IInterleaveStatus,
 import IRule from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of, Subject } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
-import IUpdateTable, { IAddColumn, IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
+import IUpdateTable, { IAddColumn, ITableColumnChanges } from 'src/app/model/update-table'
 import IDumpConfig, { IConvertFromDumpRequest } from 'src/app/model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISession from 'src/app/model/session'
@@ -229,29 +229,6 @@ export class DataService {
         if (data.error) {
           return data.error
         } else {
-          let standardDatatypeToPGSQLTypemap: Map<String, String>;
-          this.conversion.standardTypeToPGSQLTypeMap.subscribe((typemap) => {
-            standardDatatypeToPGSQLTypemap = typemap
-          })
-          this.conv.subscribe((convData: IConv) => {
-
-            data.Changes.forEach((table: IReviewInterleaveTableChanges) => {
-              table.InterleaveColumnChanges.forEach((column: ITableColumnChanges) => {
-                if (convData.SpDialect === Dialect.PostgreSQLDialect) {
-                  let pgSQLType = standardDatatypeToPGSQLTypemap.get(column.Type)
-                  let pgSQLUpdateType = standardDatatypeToPGSQLTypemap.get(column.UpdateType)
-                  column.Type = pgSQLType === undefined ? column.Type : pgSQLType
-                  column.UpdateType = pgSQLUpdateType === undefined ? column.UpdateType : pgSQLUpdateType
-                }
-                if (ColLength.DataTypes.indexOf(column.Type.toString())>-1) {
-                  column.Type += this.updateColumnSize(column.Size)
-                }
-                if (ColLength.DataTypes.indexOf(column.UpdateType.toString())>-1) {
-                  column.UpdateType += this.updateColumnSize(column.UpdateSize)
-                }
-              })
-            })
-          })
           this.tableUpdatePubSub.setTableReviewChanges(data)
           return ''
         }
