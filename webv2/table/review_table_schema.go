@@ -30,7 +30,7 @@ import (
 )
 
 type ReviewTableSchemaResponse struct {
-	DDL     string
+	DDL string
 }
 
 // ReviewTableSchema review Spanner Table Schema.
@@ -57,6 +57,9 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 	var conv *internal.Conv
 
 	convByte, err := json.Marshal(sessionState.Conv)
+
+	print("**", sessionState.Conv.SpSchema[tableId].ParentTable.Id, "--\n")
+
 	if err != nil {
 		http.Error(w, fmt.Sprintf("conversion object parse error : %v", err), http.StatusInternalServerError)
 		return
@@ -102,12 +105,12 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if isModification {
-				isParent, _ := utilities.IsParent(tableId)
+				isParent, childTableIds := utilities.IsParent(tableId)
 				isChild := conv.SpSchema[tableId].ParentTable.Id != ""
 
 				// Rule 1: If it's a parent table, any change to a PK column is disallowed.
 				if isParent {
-					http.Error(w, fmt.Sprintf("Modifying primary key column '%s' is not allowed because table '%s' is a parent in an interleave relationship. Please remove the interleave relationship first.", conv.SpSchema[tableId].ColDefs[colId].Name, conv.SpSchema[tableId].Name), http.StatusBadRequest)
+					http.Error(w, fmt.Sprintf("Modifying primary key column '%s' is not allowed because table '%s' is a parent in an interleave relationship with '%s'. Please remove the interleave relationship first.", conv.SpSchema[tableId].ColDefs[colId].Name, conv.SpSchema[tableId].Name, strings.Join(childTableIds, ", ")), http.StatusBadRequest)
 					return
 				}
 
@@ -192,7 +195,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 	ddl := GetSpannerTableDDL(conv.SpSchema[tableId], conv.SpDialect, sessionState.Driver)
 
 	resp := ReviewTableSchemaResponse{
-		DDL:     ddl,
+		DDL: ddl,
 	}
 
 	sessionMetaData := session.GetSessionState().SessionMetadata

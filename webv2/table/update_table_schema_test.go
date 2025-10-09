@@ -959,15 +959,15 @@ func TestUpdateTableSchema(t *testing.T) {
 			},
 		},
 		{
-			name:  "Test rename success for interleaved table",
+			name:  "Test rename failure for interleaved parent table PK",
 			table: "t1",
 			payload: `
 		{
 		  "UpdateCols":{
-			"c1": { "Rename": "aa" }
+			"c4": { "Rename": "aa" }
 		}
 		}`,
-			statusCode: http.StatusOK,
+			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -1071,7 +1071,7 @@ func TestUpdateTableSchema(t *testing.T) {
 			},
 		},
 		{
-			name:  "Test rename success for interleaved table 2",
+			name:  "Test rename failure for interleaved child table inherited PK",
 			table: "t1",
 			payload: `
 		{
@@ -1079,7 +1079,7 @@ func TestUpdateTableSchema(t *testing.T) {
 			"c1": { "Rename": "aa" }
 		}
 		}`,
-			statusCode: http.StatusOK,
+			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -1199,7 +1199,7 @@ func TestUpdateTableSchema(t *testing.T) {
 			"c1": { "MaxColLength": "20" }
 		}
 		}`,
-			statusCode: http.StatusOK,
+			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
