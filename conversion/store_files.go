@@ -32,6 +32,21 @@ import (
 // statements and ALTER TABLE statements to add foreign keys.
 // The parameter name should end with a .txt.
 func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.File, driver string) {
+	conv.IsSharded = true
+	//conv.AddShardIdColumn()
+	// for t, ct := range conv.SpSchema {
+	// 	if ct.ShardIdColumn == "" {
+	// 		colName := conv.BuildColumnNameWithBase(t, "migration_shard_id")
+	// 		columnId := internal.GenerateColumnId()
+	// 		ct.ColIds = append(ct.ColIds, columnId)
+	// 		ct.ColDefs[columnId] = ddl.ColumnDef{Name: colName, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}, NotNull: false, AutoGen: ddl.AutoGenCol{Name: "", GenerationType: ""}}
+	// 		ct.ShardIdColumn = columnId
+	// 		conv.SpSchema[t] = ct
+	// 		logger.Log.Debug(fmt.Sprintf("Added shardIdColumn with columnId %s to table %s", columnId, t))
+	// 	}
+	// }
+	// logger.Log.Info("Added Shard column")
+
 	f, err := os.Create(name)
 	if err != nil {
 		fmt.Fprintf(out, "Can't create schema file %s: %v\n", name, err)
