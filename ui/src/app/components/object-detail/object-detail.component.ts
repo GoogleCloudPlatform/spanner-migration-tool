@@ -221,7 +221,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     this.pkData = this.conversion.getPkMapping(this.tableData)
 
     this.interleaveParentId = this.getInterleaveParentIdFromConv()
-    this.interleaveParentName = this.conv['SpSchema'][this.interleaveParentId ?? '']?.Name ?? null
+    this.interleaveParentName = this.conv.SpSchema?.[this.interleaveParentId ?? '']?.Name ?? null
     this.interleaveType = this.getInterleaveTypeFromConv()
     this.onDeleteAction = this.getInterleaveOnDeleteActionFromConv() ?? ''
 
@@ -1919,10 +1919,15 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
 
   isPKPrefixModified(tableId: string, interleaveTableId: string): boolean {
     let parentPrimaryKey,childPrimaryKey: IIndexKey[]
+    let parentTableId = '', childTableId = ''
     if (this.conv.SpSchema[tableId].ParentTable.Id != interleaveTableId) {
+      parentTableId = tableId
+      childTableId = interleaveTableId
       parentPrimaryKey = this.pkObj.Columns
       childPrimaryKey = this.conv.SpSchema[interleaveTableId].PrimaryKeys
     } else {
+      parentTableId = interleaveTableId
+      childTableId = tableId
       childPrimaryKey = this.pkObj.Columns
       parentPrimaryKey = this.conv.SpSchema[interleaveTableId].PrimaryKeys
     }
@@ -1930,7 +1935,14 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     for (let i = 0; i < parentPrimaryKey.length; i++) {
       for (let j = 0; j < childPrimaryKey.length; j++) {
         if (parentPrimaryKey[i].Order == childPrimaryKey[j].Order) {
-          if (parentPrimaryKey[i].ColId != childPrimaryKey[j].ColId) {
+          let parentPrimaryKeyName = this.conv.SpSchema[parentTableId].ColDefs[parentPrimaryKey[i].ColId]?.Name
+          let childPrimaryKeyName = this.conv.SpSchema[childTableId].ColDefs[childPrimaryKey[j].ColId]?.Name
+          let parentPrimaryKeyType = this.conv.SpSchema[parentTableId].ColDefs[parentPrimaryKey[i].ColId]?.T
+          let childPrimaryKeyType = this.conv.SpSchema[childTableId].ColDefs[childPrimaryKey[j].ColId]?.T
+          let parentPrimaryKeyNotNull = this.conv.SpSchema[parentTableId].ColDefs[parentPrimaryKey[i].ColId]?.NotNull
+          let childPrimaryKeyNotNull = this.conv.SpSchema[childTableId].ColDefs[childPrimaryKey[j].ColId]?.NotNull
+
+          if (parentPrimaryKeyName != childPrimaryKeyName || parentPrimaryKeyType.IsArray != childPrimaryKeyType.IsArray || parentPrimaryKeyType.Len != childPrimaryKeyType.Len || parentPrimaryKeyType.Name != childPrimaryKeyType.Name || parentPrimaryKeyNotNull != childPrimaryKeyNotNull) {
             return true;
           }
         }

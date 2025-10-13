@@ -1283,7 +1283,7 @@ func checkInterleavePrimaryKeyPrefixCondition(tableId string, refTableId string)
 	for i := 0; i < len(parentPks); i++ {
 		j := 0
 		for ; j < len(childPks); j++ {
-			if parentTable.ColDefs[parentPks[i].ColId].Name == childTable.ColDefs[childPks[j].ColId].Name && parentTable.ColDefs[parentPks[i].ColId].T.Name == childTable.ColDefs[childPks[j].ColId].T.Name && parentTable.ColDefs[parentPks[i].ColId].T.Len == childTable.ColDefs[childPks[j].ColId].T.Len {
+			if parentTable.ColDefs[parentPks[i].ColId].Name == childTable.ColDefs[childPks[j].ColId].Name && parentTable.ColDefs[parentPks[i].ColId].T.Name == childTable.ColDefs[childPks[j].ColId].T.Name && parentTable.ColDefs[parentPks[i].ColId].T.Len == childTable.ColDefs[childPks[j].ColId].T.Len && parentTable.ColDefs[parentPks[i].ColId].NotNull == childTable.ColDefs[childPks[j].ColId].NotNull {
 				break
 			}
 		}

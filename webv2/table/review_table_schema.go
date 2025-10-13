@@ -85,7 +85,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 			isModification := false
 			isRename := v.Rename != "" && v.Rename != conv.SpSchema[tableId].ColDefs[colId].Name
 			isTypeChange, _ := utilities.IsTypeChanged(v.ToType, tableId, colId, conv)
-
+			isNullChange := v.NotNull != "" && ((v.NotNull == "ADDED" && !conv.SpSchema[tableId].ColDefs[colId].NotNull) || (v.NotNull == "REMOVED" && conv.SpSchema[tableId].ColDefs[colId].NotNull))
 			var isSizeChange bool
 			if v.MaxColLength != "" {
 				var colMaxLength int64
@@ -98,7 +98,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 					isSizeChange = true
 				}
 			}
-			if v.Removed || isRename || isTypeChange || isSizeChange {
+			if v.Removed || isRename || isTypeChange || isSizeChange || isNullChange {
 				isModification = true
 			}
 
