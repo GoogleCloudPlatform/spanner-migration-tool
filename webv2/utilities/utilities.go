@@ -267,7 +267,7 @@ func RemoveFk(slice []ddl.Foreignkey, fkId string, srcSchema schema.Table, table
 				return nil, err
 			}
 			if srcFk.OnDelete != fk.OnDelete {
-				tableIssues = RemoveSchemaIssueOnlyOnce(tableIssues, internal.ForeignKeyOnDelete)
+				tableIxssues = RemoveSchemaIssueOnlyOnce(tableIssues, internal.ForeignKeyOnDelete)
 			}
 			if srcFk.OnUpdate != fk.OnUpdate {
 				tableIssues = RemoveSchemaIssueOnlyOnce(tableIssues, internal.ForeignKeyOnUpdate)
@@ -393,32 +393,6 @@ func UpdateMaxColumnLen(conv *internal.Conv, dataType, tableId, colId string, sp
 	err := updateColLen(conv, dataType, tableId, colId, spColLen)
 	if err != nil {
 		return err
-	}
-	sp := conv.SpSchema[tableId]
-	// update column size of child table.
-	isParent, childTableIds := IsParent(tableId)
-	if isParent {
-		for _, childTableId := range childTableIds {
-			childColId, err := GetColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
-			if err == nil {
-				err = updateColLen(conv, dataType, childTableId, childColId, spColLen)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	// update column size of parent table.
-	parentTableId := conv.SpSchema[tableId].ParentTable.Id
-	if parentTableId != "" {
-		parentColId, err := GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
-		if err == nil {
-			err = updateColLen(conv, dataType, parentTableId, parentColId, spColLen)
-			if err != nil {
-				return err
-			}
-		}
 	}
 	return nil
 }

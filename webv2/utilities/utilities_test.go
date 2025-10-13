@@ -109,3 +109,54 @@ func TestUpdateDataType(t *testing.T) {
 		})
 	}
 }
+
+func TestIsParent(t *testing.T) {
+	testCases := []struct {
+		name             string
+		tableId          string
+		spSchema         map[string]ddl.CreateTable
+		expectedIsParent bool
+		expectedChildIds []string
+	}{
+		{
+			name:    "Table is a parent to one child",
+			tableId: "t1",
+			spSchema: map[string]ddl.CreateTable{
+				"t1": {Id: "t1", Name: "parent"},
+				"t2": {Id: "t2", Name: "child", ParentTable: ddl.InterleavedParent{Id: "t1"}},
+			},
+			expectedIsParent: true,
+			expectedChildIds: []string{"t2"},
+		},
+		{
+			name:    "Table is a parent to multiple children",
+			tableId: "t1",
+			spSchema: map[string]ddl.CreateTable{
+				"t1": {Id: "t1", Name: "parent"},
+				"t2": {Id: "t2", Name: "child1", ParentTable: ddl.InterleavedParent{Id: "t1"}},
+				"t3": {Id: "t3", Name: "child2", ParentTable: ddl.InterleavedParent{Id: "t1"}},
+			},
+			expectedIsParent: true,
+			expectedChildIds: []string{"t2", "t3"},
+		},
+		{
+			name:    "Table is not a parent",
+			tableId: "t2",
+			spSchema: map[string]ddl.CreateTable{
+				"t1": {Id: "t1", Name: "parent"},
+				"t2": {Id: "t2", Name: "not_a_parent", ParentTable: ddl.InterleavedParent{Id: "t1"}},
+			},
+			expectedIsParent: false,
+			expectedChildIds: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			session.GetSessionState().Conv = &internal.Conv{SpSchema: tc.spSchema}
+			isParent, childIds := IsParent(tc.tableId)
+			assert.Equal(t, tc.expectedIsParent, isParent)
+			assert.ElementsMatch(t, tc.expectedChildIds, childIds)
+		})
+	}
+}
