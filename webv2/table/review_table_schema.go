@@ -183,6 +183,18 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 			UpdateNotNull(v.NotNull, tableId, colId, conv)
 		}
 
+		if v.MaxColLength != "" {
+			var colMaxLength int64
+			if strings.ToLower(v.MaxColLength) == "max" {
+				colMaxLength = ddl.MaxLength
+			} else {
+				colMaxLength, _ = strconv.ParseInt(v.MaxColLength, 10, 64)
+			}
+			if conv.SpSchema[tableId].ColDefs[colId].T.Len != colMaxLength {
+				ReviewColumnSize(colMaxLength, tableId, colId, conv)
+			}
+		}
+
 		if !v.Removed && !v.Add && v.Rename == "" {
 			sequences := UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
 			conv.SpSequences = sequences
