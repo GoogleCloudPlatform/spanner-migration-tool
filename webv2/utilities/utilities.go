@@ -267,7 +267,7 @@ func RemoveFk(slice []ddl.Foreignkey, fkId string, srcSchema schema.Table, table
 				return nil, err
 			}
 			if srcFk.OnDelete != fk.OnDelete {
-				tableIxssues = RemoveSchemaIssueOnlyOnce(tableIssues, internal.ForeignKeyOnDelete)
+				tableIssues = RemoveSchemaIssueOnlyOnce(tableIssues, internal.ForeignKeyOnDelete)
 			}
 			if srcFk.OnUpdate != fk.OnUpdate {
 				tableIssues = RemoveSchemaIssueOnlyOnce(tableIssues, internal.ForeignKeyOnUpdate)
