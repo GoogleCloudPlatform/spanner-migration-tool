@@ -104,11 +104,20 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if isModification {
 				isParent, childTableIds := utilities.IsParent(tableId)
+				print(isParent, childTableIds)
 				isChild := conv.SpSchema[tableId].ParentTable.Id != ""
 
 				// Rule 1: If it's a parent table, any change to a PK column is disallowed.
 				if isParent {
-					http.Error(w, fmt.Sprintf("Modifying primary key column '%s' is not allowed because table '%s' is a parent in an interleave relationship with '%s'. Please remove the interleave relationship first.", conv.SpSchema[tableId].ColDefs[colId].Name, conv.SpSchema[tableId].Name, strings.Join(childTableIds, ", ")), http.StatusBadRequest)
+					childTableNames := []string{}
+					for _, ctId := range childTableIds {
+						if ct, exists := conv.SpSchema[ctId]; exists {
+							childTableNames = append(childTableNames, ct.Name)
+						} else {
+							childTableNames = append(childTableNames, ctId) // Fallback to ID if name not found
+						}
+					}
+					http.Error(w, fmt.Sprintf("Modifying primary key column '%s' is not allowed because table '%s' is a parent in an interleave relationship with '%s'. Please remove the interleave relationship first.", conv.SpSchema[tableId].ColDefs[colId].Name, conv.SpSchema[tableId].Name, strings.Join(childTableNames, ", ")), http.StatusBadRequest)
 					return
 				}
 

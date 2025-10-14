@@ -1442,10 +1442,10 @@ func TestReviewTableSchema(t *testing.T) {
 					"t2": {
 						Name:   "table2",
 						Id:     "t2",
-						ColIds: []string{"c1", "2", "c3"},
+						ColIds: []string{"c4", "c5", "c6"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c4": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c5": {Name: "b", Id: "c5", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Desc: false}},
@@ -1856,7 +1856,7 @@ func TestReviewTableSchema(t *testing.T) {
 						Name:   "t1",
 						ColIds: []string{"c1", "c2"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, Opts: map[string]string{"cassandra_type": "bigint"},},
+							"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, Opts: map[string]string{"cassandra_type": "bigint"}},
 							"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},

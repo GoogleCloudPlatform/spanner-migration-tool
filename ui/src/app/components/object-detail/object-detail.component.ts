@@ -1951,10 +1951,9 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     return false
   }
 
-  customSearchFn(term: string, item: any) {
-    item = item.replace(',', '');
-    term = term.toLocaleLowerCase();
-    return item.toLocaleLowerCase().indexOf(term) > -1;
+  customSearchFn(term: string, item: { id: string; name: string }) {
+    term = term.toLocaleLowerCase()
+    return item.name.toLocaleLowerCase().indexOf(term) > -1
   }
 
   ngOnDestroy(): void {

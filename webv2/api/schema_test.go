@@ -1848,7 +1848,7 @@ func TestSetParentTable(t *testing.T) {
 						Id:     "t1",
 						ColIds: []string{"c1"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c1": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 						ParentTable: ddl.InterleavedParent{Id: "t2"},
@@ -1856,11 +1856,11 @@ func TestSetParentTable(t *testing.T) {
 					"t2": {
 						Name:   "t2",
 						Id:     "t2",
-						ColIds: []string{"c1"},
+						ColIds: []string{"c2"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c2"}},
 					},
 				},
 				Audit: internal.Audit{
@@ -1890,19 +1890,19 @@ func TestSetParentTable(t *testing.T) {
 						Id:     "t1",
 						ColIds: []string{"c1", "c2"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c1": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "col2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}, {ColId: "c2", Order: 2}},
 					},
 					"t2": {
 						Name:   "t2",
 						Id:     "t2",
-						ColIds: []string{"c1"},
+						ColIds: []string{"c3"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c3": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Order: 1}},
 					},
 				},
 				Audit: internal.Audit{
@@ -1934,19 +1934,73 @@ func TestSetParentTable(t *testing.T) {
 						Id:     "t1",
 						ColIds: []string{"c1", "c2"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c1": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "col2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}, {ColId: "c2", Order: 2}},
 					},
 					"t2": {
 						Name:   "t2",
 						Id:     "t2",
-						ColIds: []string{"c1"},
+						ColIds: []string{"c3"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c3": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Order: 1}},
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+			},
+			table:            "t1",
+			parent:           "t2",
+			interleaveType:   "IN PARENT",
+			onDelete:         constants.FK_CASCADE,
+			statusCode:       http.StatusOK,
+			expectedResponse: &types.TableInterleaveStatus{Possible: true, Parent: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
+			parentTable:      ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
+			update:           true,
+		},
+		{
+			name: "successful interleave with 3 tables",
+			ct: &internal.Conv{
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:        "t1",
+						Id:          "t1",
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", ColIds: []string{"c1"}, ReferTableId: "t2", ReferColumnIds: []string{"c1"}, Id: "f1", OnDelete: constants.FK_CASCADE}},
+					},
+				},
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:   "t1",
+						Id:     "t1",
+						ColIds: []string{"c1", "c2"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c1": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "col2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}, {ColId: "c2", Order: 2}},
+					},
+					"t2": {
+						Name:   "t2",
+						Id:     "t2",
+						ColIds: []string{"c3"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c3": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Order: 1}},
+					},
+					"t3": {
+						Name:   "t3",
+						Id:     "t3",
+						ColIds: []string{"c4"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"c4": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c4", Order: 1}},
+						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE},
 					},
 				},
 				Audit: internal.Audit{
@@ -1971,19 +2025,19 @@ func TestSetParentTable(t *testing.T) {
 						Id:     "t1",
 						ColIds: []string{"c1"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c1": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
 					},
 					"t2": {
 						Name:   "t2",
 						Id:     "t2",
-						ColIds: []string{"c1", "c2"},
+						ColIds: []string{"c2", "c3"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c2": {Name: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c3": {Name: "col2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}, {ColId: "c2", Order: 2}},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c2", Order: 1}, {ColId: "c3", Order: 2}},
 					},
 				},
 				Audit: internal.Audit{
@@ -2008,16 +2062,16 @@ func TestSetParentTable(t *testing.T) {
 						Id:     "t1",
 						ColIds: []string{"c1"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c1": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{},
 					},
 					"t2": {
 						Name:   "t2",
 						Id:     "t2",
-						ColIds: []string{"c1"},
+						ColIds: []string{"c2"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{},
 					},
@@ -2088,7 +2142,7 @@ func TestSetParentTable(t *testing.T) {
 						Id:     "t1",
 						ColIds: []string{"c1"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c1": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
 						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
 						ParentTable: ddl.InterleavedParent{Id: "t2", OnDelete: constants.FK_CASCADE, InterleaveType: "IN PARENT"},
@@ -2098,9 +2152,9 @@ func TestSetParentTable(t *testing.T) {
 						Id:     "t2",
 						ColIds: []string{"c1"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"c1": {Name: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c2": {Name: "col1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						PrimaryKeys: []ddl.IndexKey{{ColId: "c1", Order: 1}},
+						PrimaryKeys: []ddl.IndexKey{{ColId: "c2", Order: 1}},
 					},
 				},
 				Audit: internal.Audit{

@@ -1247,7 +1247,7 @@ func checkInterleaveCycleCondition(tableId string, parentTableId string) string 
 	sessionState := session.GetSessionState()
 	undirectedGraph := map[string][]string{}
 	for _, spTable := range sessionState.Conv.SpSchema {
-		if spTable.ParentTable.Id != "" {
+		if spTable.ParentTable.Id != "" && spTable.ParentTable.Id != parentTableId && spTable.Id != tableId {
 			undirectedGraph[spTable.Id] = append(undirectedGraph[spTable.Id], spTable.ParentTable.Id)
 			undirectedGraph[spTable.ParentTable.Id] = append(undirectedGraph[spTable.ParentTable.Id], spTable.Id)
 		}
