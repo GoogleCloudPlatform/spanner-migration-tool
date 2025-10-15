@@ -20,11 +20,6 @@ import (
 
 // renameColumn renames given column to newname and update in schema.
 func renameColumn(newName, tableId, colId string, conv *internal.Conv) {
-	renameColumnNameTableSchema(conv, tableId, colId, newName)
-}
-
-// renameColumnNameInCurrentTableSchema renames given column in Table Schema.
-func renameColumnNameTableSchema(conv *internal.Conv, tableId string, colId string, newName string) {
 	spTable := conv.SpSchema[tableId]
 
 	spColumn, ok := spTable.ColDefs[colId]

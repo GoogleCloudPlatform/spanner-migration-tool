@@ -23,7 +23,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/cassandra"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/session"
 	utilities "github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/utilities"
@@ -71,74 +74,11 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	for colId, v := range t.UpdateCols {
 
-		isPkColumn := false
-		pkOrder := -1
-		for _, pk := range conv.SpSchema[tableId].PrimaryKeys {
-			if pk.ColId == colId {
-				isPkColumn = true
-				pkOrder = pk.Order
-				break
-			}
-		}
+		interleavingImpact := IsInterleavingImpacted(v, tableId, colId, conv)
 
-		if isPkColumn {
-			isModification := false
-			isRename := v.Rename != "" && v.Rename != conv.SpSchema[tableId].ColDefs[colId].Name
-			isTypeChange, _ := utilities.IsTypeChanged(v.ToType, tableId, colId, conv)
-			isNullChange := v.NotNull != "" && ((v.NotNull == "ADDED" && !conv.SpSchema[tableId].ColDefs[colId].NotNull) || (v.NotNull == "REMOVED" && conv.SpSchema[tableId].ColDefs[colId].NotNull))
-			var isSizeChange bool
-			if v.MaxColLength != "" {
-				var colMaxLength int64
-				if strings.ToLower(v.MaxColLength) == "max" {
-					colMaxLength = ddl.MaxLength
-				} else {
-					colMaxLength, _ = strconv.ParseInt(v.MaxColLength, 10, 64)
-				}
-				if conv.SpSchema[tableId].ColDefs[colId].T.Len != colMaxLength {
-					isSizeChange = true
-				}
-			}
-			if v.Removed || isRename || isTypeChange || isSizeChange || isNullChange {
-				isModification = true
-			}
-
-			if isModification {
-				isParent, childTableIds := utilities.IsParent(tableId)
-				print(isParent, childTableIds)
-				isChild := conv.SpSchema[tableId].ParentTable.Id != ""
-
-				// Rule 1: If it's a parent table, any change to a PK column is disallowed.
-				if isParent {
-					childTableNames := []string{}
-					for _, ctId := range childTableIds {
-						if ct, exists := conv.SpSchema[ctId]; exists {
-							childTableNames = append(childTableNames, ct.Name)
-						} else {
-							childTableNames = append(childTableNames, ctId) // Fallback to ID if name not found
-						}
-					}
-					http.Error(w, fmt.Sprintf("Modifying primary key column '%s' is not allowed because table '%s' is a parent in an interleave relationship with '%s'. Please remove the interleave relationship first.", conv.SpSchema[tableId].ColDefs[colId].Name, conv.SpSchema[tableId].Name, strings.Join(childTableNames, ", ")), http.StatusBadRequest)
-					return
-				}
-
-				// Rule 2: If it's a child table, check if the PK column is part of the parent's key.
-				if isChild {
-					parentTableId := conv.SpSchema[tableId].ParentTable.Id
-					parentTable, parentExists := conv.SpSchema[parentTableId]
-					if !parentExists {
-						// This would be an inconsistent state, but handle it.
-						http.Error(w, fmt.Sprintf("Internal server error: Parent table with ID %s not found for interleaved table %s", parentTableId, conv.SpSchema[tableId].Name), http.StatusInternalServerError)
-						return
-					}
-					numParentPKs := len(parentTable.PrimaryKeys)
-
-					// If the column's order in the PK is within the count of parent PKs, it's an inherited key.
-					if pkOrder != -1 && pkOrder <= numParentPKs {
-						http.Error(w, fmt.Sprintf("Modifying column '%s' is not allowed because it is part of the interleaved primary key from parent table '%s'. Please remove the interleave relationship first.", conv.SpSchema[tableId].ColDefs[colId].Name, parentTable.Name), http.StatusBadRequest)
-						return
-					}
-				}
-			}
+		if interleavingImpact != "" {
+			http.Error(w, interleavingImpact, http.StatusBadRequest)
+			return
 		}
 
 		if v.Add {
@@ -167,8 +107,13 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 				conv.SpSchema[tableId].CheckConstraints[i].Expr = updatedValue
 			}
 
-			reviewRenameColumn(v.Rename, tableId, colId, conv)
-
+			sp := conv.SpSchema[tableId]
+			column, ok := sp.ColDefs[colId]
+			if ok {
+				column.Name = v.Rename
+				sp.ColDefs[colId] = column
+				conv.SpSchema[tableId] = sp
+			}
 		}
 
 		_, found := conv.SrcSchema[tableId].ColDefs[colId]
@@ -181,8 +126,25 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if typeChange {
-				err = ReviewColumnType(v.ToType, tableId, colId, conv, w)
+				sp, ty, err := utilities.GetType(conv, v.ToType, tableId, colId)
+
+				colDef := sp.ColDefs[colId]
+				colDef.T = ty
+				if conv.Source == constants.CASSANDRA {
+					toddl := cassandra.InfoSchemaImpl{}.GetToDdl()
+					if optionProvider, ok := toddl.(common.OptionProvider); ok {
+						srcCol := conv.SrcSchema[tableId].ColDefs[colId]
+						option := optionProvider.GetTypeOption(srcCol.Type.Name, ty)
+						if colDef.Opts == nil {
+							colDef.Opts = make(map[string]string)
+						}
+						colDef.Opts["cassandra_type"] = option
+					}
+				}
+				sp.ColDefs[colId] = colDef
+				conv.SpSchema[tableId] = sp
 				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
 					return
 				}
 			}
@@ -200,7 +162,11 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 				colMaxLength, _ = strconv.ParseInt(v.MaxColLength, 10, 64)
 			}
 			if conv.SpSchema[tableId].ColDefs[colId].T.Len != colMaxLength {
-				ReviewColumnSize(colMaxLength, tableId, colId, conv)
+				sp := conv.SpSchema[tableId]
+				colDef := sp.ColDefs[colId]
+				colDef.T.Len = colMaxLength
+				sp.ColDefs[colId] = colDef
+				conv.SpSchema[tableId] = sp
 			}
 		}
 
