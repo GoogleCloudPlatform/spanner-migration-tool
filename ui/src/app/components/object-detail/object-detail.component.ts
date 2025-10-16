@@ -221,7 +221,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     this.pkData = this.conversion.getPkMapping(this.tableData)
 
     this.interleaveParentId = this.getInterleaveParentIdFromConv()
-    this.interleaveParentName = this.conv['SpSchema'][this.interleaveParentId ?? '']?.Name ?? null
+    this.interleaveParentName = this.conv.SpSchema?.[this.interleaveParentId ?? '']?.Name ?? null
     this.interleaveType = this.getInterleaveTypeFromConv()
     this.onDeleteAction = this.getInterleaveOnDeleteActionFromConv() ?? ''
 
@@ -1242,36 +1242,28 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
         maxWidth: '500px',
       })
     } else {
-      let interleaveTableId = this.tableInterleaveWith(this.currentObject?.id!)
-      if (interleaveTableId != '' && this.isPKPrefixModified(this.currentObject?.id!, interleaveTableId)) {
+      let interleaveTableIds = this.tableInterleaveWith(this.currentObject?.id!)
+      if (interleaveTableIds.length == 0) {
+        this.updatePk()
+        return
+      }
+      let affectedTableNames: string[] = []
+      for (let i = 0; i < interleaveTableIds.length; i++) {
+        if (this.isPKPrefixModified(this.currentObject?.id!, interleaveTableIds[i])) {
+          affectedTableNames.push(this.conv.SpSchema[interleaveTableIds[i]].Name)
+        }
+      }
+      if (affectedTableNames.length > 0) {
+        let formattedTableNames = affectedTableNames.join(', ')
         const dialogRef = this.dialog.open(InfodialogComponent, {
           data: {
-            message:
-              'Proceeding the update will remove interleaving between ' +
-              this.currentObject?.name +
-              ' and ' +
-              this.conv.SpSchema[interleaveTableId].Name +
-              ' tables.',
-            title: 'Confirm Update',
-            type: 'warning',
+            message: `Cannot update primary key as this primary key is part of interleaving with table(s) ${formattedTableNames}. Please remove the interleaved relationship and try again.`,
+            type: 'error',
           },
           maxWidth: '500px',
         })
-        dialogRef.afterClosed().subscribe((dialogResult) => {
-          if (dialogResult) {
-            let interleavedChildId: string =
-              this.conv.SpSchema[this.currentObject!.id].ParentTable.Id != ''
-                ? this.currentObject!.id
-                : this.conv.SpSchema[interleaveTableId].Id
-            this.data
-              .removeInterleave(interleavedChildId)
-              .pipe(take(1))
-              .subscribe((res: string) => {
-                this.updatePk()
-              })
-          }
-        })
-      } else {
+      }
+      else {
         this.updatePk()
       }
     }
@@ -1858,6 +1850,23 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
   }
 
   dropTable() {
+    //  check interleaving
+    let interleaveTableIds = this.tableInterleaveWith(this.currentObject?.id!)
+    if (interleaveTableIds.length > 0) {
+      this.dialog.open(InfodialogComponent, {
+        data: {
+          message: `Cannot drop the table as it has interleaving with ${interleaveTableIds
+            .map((item) => this.conv.SpSchema[item].Name)
+            .join(
+            ', '
+          )}. Remove the interleaving first to continue.`,
+          title: 'Error',
+          type: 'error',
+        },
+        maxWidth: '500px',
+      })
+      return
+    }
     let openDialog = this.dialog.open(DropObjectDetailDialogComponent, {
       width: '35vw',
       minWidth: '450px',
@@ -1891,29 +1900,34 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     this.sidenav.setMiddleColComponent(this.isMiddleColumnCollapse)
   }
 
-  tableInterleaveWith(table: string): string {
+  tableInterleaveWith(table: string): string[] {
+    const interleavedTables: string[] = []
     if (this.conv.SpSchema[table].ParentTable.Id != '') {
-      return this.conv.SpSchema[table].ParentTable.Id
+      const parentId = this.conv.SpSchema[table].ParentTable.Id
+      interleavedTables.push(parentId)
     }
-    let interleaveTable = ''
-    Object.keys(this.conv.SpSchema).forEach((tableName: string) => {
+    Object.keys(this.conv.SpSchema).forEach((tableId: string) => {
       if (
-        this.conv.SpSchema[tableName].ParentTable.Id != '' &&
-        this.conv.SpSchema[tableName].ParentTable.Id == table
+        this.conv.SpSchema[tableId].ParentTable.Id != '' &&
+        this.conv.SpSchema[tableId].ParentTable.Id == table
       ) {
-        interleaveTable = tableName
+        interleavedTables.push(tableId)
       }
     })
-
-    return interleaveTable
+    return interleavedTables
   }
 
   isPKPrefixModified(tableId: string, interleaveTableId: string): boolean {
     let parentPrimaryKey,childPrimaryKey: IIndexKey[]
+    let parentTableId = '', childTableId = ''
     if (this.conv.SpSchema[tableId].ParentTable.Id != interleaveTableId) {
+      parentTableId = tableId
+      childTableId = interleaveTableId
       parentPrimaryKey = this.pkObj.Columns
       childPrimaryKey = this.conv.SpSchema[interleaveTableId].PrimaryKeys
     } else {
+      parentTableId = interleaveTableId
+      childTableId = tableId
       childPrimaryKey = this.pkObj.Columns
       parentPrimaryKey = this.conv.SpSchema[interleaveTableId].PrimaryKeys
     }
@@ -1921,7 +1935,14 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     for (let i = 0; i < parentPrimaryKey.length; i++) {
       for (let j = 0; j < childPrimaryKey.length; j++) {
         if (parentPrimaryKey[i].Order == childPrimaryKey[j].Order) {
-          if (parentPrimaryKey[i].ColId != childPrimaryKey[j].ColId) {
+          let parentPrimaryKeyName = this.conv.SpSchema[parentTableId].ColDefs[parentPrimaryKey[i].ColId]?.Name
+          let childPrimaryKeyName = this.conv.SpSchema[childTableId].ColDefs[childPrimaryKey[j].ColId]?.Name
+          let parentPrimaryKeyType = this.conv.SpSchema[parentTableId].ColDefs[parentPrimaryKey[i].ColId]?.T
+          let childPrimaryKeyType = this.conv.SpSchema[childTableId].ColDefs[childPrimaryKey[j].ColId]?.T
+          let parentPrimaryKeyNotNull = this.conv.SpSchema[parentTableId].ColDefs[parentPrimaryKey[i].ColId]?.NotNull
+          let childPrimaryKeyNotNull = this.conv.SpSchema[childTableId].ColDefs[childPrimaryKey[j].ColId]?.NotNull
+
+          if (parentPrimaryKeyName != childPrimaryKeyName || parentPrimaryKeyType.IsArray != childPrimaryKeyType.IsArray || parentPrimaryKeyType.Len != childPrimaryKeyType.Len || parentPrimaryKeyType.Name != childPrimaryKeyType.Name || parentPrimaryKeyNotNull != childPrimaryKeyNotNull) {
             return true;
           }
         }
@@ -1930,10 +1951,9 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     return false
   }
 
-  customSearchFn(term: string, item: any) {
-    item = item.replace(',', '');
-    term = term.toLocaleLowerCase();
-    return item.toLocaleLowerCase().indexOf(term) > -1;
+  customSearchFn(term: string, item: { id: string; name: string }) {
+    term = term.toLocaleLowerCase()
+    return item.name.toLocaleLowerCase().indexOf(term) > -1
   }
 
   ngOnDestroy(): void {

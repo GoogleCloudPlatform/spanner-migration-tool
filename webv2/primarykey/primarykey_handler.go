@@ -150,6 +150,4 @@ func UpdatePrimaryKey(pkRequest PrimaryKeyRequest) {
 		}
 	}
 	common.ComputeNonKeyColumnSize(sessionState.Conv, pkRequest.TableId)
-	RemoveInterleave(sessionState.Conv, spannerTable)
-
 }

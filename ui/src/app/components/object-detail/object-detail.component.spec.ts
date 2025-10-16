@@ -29,8 +29,7 @@ describe('ObjectDetailComponent', () => {
   let dialogSpyObj: jasmine.SpyObj<MatDialog>;
   let rowData: IColumnTabData[]
 
-  beforeEach(async () => {
-    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence', 'updateCheckConstraint', 'reviewTableUpdate', 'setInterleave']);
+  beforeEach(async () => {    dataServiceSpy = jasmine.createSpyObj('DataService', ['updateSequence', 'dropSequence', 'updateCheckConstraint', 'reviewTableUpdate', 'setInterleave', 'dropTable', 'getConversionRate']);
     dataServiceSpy.updateSequence.and.returnValue(of({}));
     dataServiceSpy.dropSequence.and.returnValue(of(''));
     dataServiceSpy.reviewTableUpdate.and.returnValue(of(''));
@@ -67,6 +66,9 @@ describe('ObjectDetailComponent', () => {
     dataServiceSpy.conv = of(mockIConv);
     dataServiceSpy.tableInterleaveStatus = of({});
     dataServiceSpy.updateCheckConstraint.and.returnValue(of(''))
+    dataServiceSpy.dropTable.and.returnValue(of(''))
+    dataServiceSpy.updatePk = jasmine.createSpy('updatePk').and.returnValue(of(''));
+    dataServiceSpy.getConversionRate.and.returnValue()
   })
 
   beforeEach(() => {
@@ -541,4 +543,187 @@ describe('ObjectDetailComponent', () => {
     });
   });
 
+  it('should drop table successfully', () => {
+    const dialogRefSpyObj = jasmine.createSpyObj({ afterClosed: of(ObjectDetailNodeType.Table), close: null });
+    dialogSpyObj.open.and.returnValue(dialogRefSpyObj);
+    component.currentObject = { id: 't1', name: 'test_table' } as FlatNode;
+    spyOn(component.updateSidebar, 'emit');
+    spyOn(component, 'tableInterleaveWith').and.returnValue([]);
+
+    component.dropTable();
+
+    expect(dialogSpyObj.open).toHaveBeenCalledWith(DropObjectDetailDialogComponent, jasmine.any(Object));
+    expect(dataServiceSpy.dropTable).toHaveBeenCalledWith('t1');
+    expect(component.isObjectSelected).toBe(false);
+    expect(dataServiceSpy.getConversionRate).toHaveBeenCalled();
+    expect(component.updateSidebar.emit).toHaveBeenCalledWith(true);
+    expect(component.currentObject).toBeNull();
+  });
+
+  it('should not drop table if it is interleaved', () => {
+    component.currentObject = { id: 't1', name: 'test_table' } as FlatNode;
+    spyOn(component, 'tableInterleaveWith').and.returnValue(['t2']);
+    component.conv.SpSchema['t2'] = { Name: 'table2' } as any;
+
+    component.dropTable();
+
+    expect(dialogSpyObj.open).toHaveBeenCalledWith(InfodialogComponent, {
+      data: {
+        message: `Cannot drop the table as it has interleaving with table2. Remove the interleaving first to continue.`,
+        title: 'Error',
+        type: 'error',
+      },
+      maxWidth: '500px',
+    });
+    expect(dataServiceSpy.dropTable).not.toHaveBeenCalled();
+  });
+
+  describe('tableInterleaveWith', () => {
+
+    it('should return an empty array if the table is not interleaved with any other table', () => {
+      component.conv.SpSchema = {
+        't1': { ParentTable: { Id: '' } } as any,
+        't2': { ParentTable: { Id: '' } } as any,
+      };
+      const result = component.tableInterleaveWith('t1');
+      expect(result).toEqual([]);
+    });
+
+    it('should return child table IDs if the given table is a parent', () => {
+      component.conv.SpSchema = {
+        't1': { ParentTable: { Id: '' } } as any,
+        't2': { ParentTable: { Id: 't1' } } as any,
+        't3': { ParentTable: { Id: 't1' } } as any,
+        't4': { ParentTable: { Id: 't2' } } as any,
+      };
+      const result = component.tableInterleaveWith('t1');
+      expect(result.sort()).toEqual(['t2', 't3'].sort());
+    });
+
+    it('should return the parent table ID if the given table is a child', () => {
+      component.conv.SpSchema = {
+        't1': { ParentTable: { Id: '' } } as any,
+        't2': { ParentTable: { Id: 't1' } } as any,
+      };
+      const result = component.tableInterleaveWith('t2');
+      expect(result).toEqual(['t1']);
+    });
+
+    it('should return both parent and child table IDs if the table is in the middle of an interleave chain', () => {
+      component.conv.SpSchema = {
+        't1': { ParentTable: { Id: '' } } as any,
+        't2': { ParentTable: { Id: 't1' } } as any,
+        't3': { ParentTable: { Id: 't2' } } as any,
+        't4': { ParentTable: { Id: '' } } as any,
+      };
+      const result = component.tableInterleaveWith('t2');
+      expect(result.sort()).toEqual(['t1', 't3'].sort());
+    });
+  });
+
+  describe('savePk', () => {
+    let formBuilder: FormBuilder;
+
+    beforeEach(() => {
+      formBuilder = new FormBuilder();
+      component.currentObject = { id: 't1', name: 'test_table' } as FlatNode;
+      component.conv.SpSchema['t1'] = {
+        Id: 't1',
+        Name: 'test_table',
+        ColDefs: {
+          'c1': { Name: 'col1' },
+          'c2': { Name: 'col2' }
+        },
+        PrimaryKeys: [{ ColId: 'c1', Order: 1, Desc: false }]
+      } as any;
+      component.conv.SpSchema['t2'] = {
+        Id: 't2',
+        Name: 'table2',
+        ColDefs: {
+          'c3': { Name: 'col3' },
+          'c4': { Name: 'col4' }
+        },
+        PrimaryKeys: [{ ColId: 'c3', Order: 1 }]
+      } as any;
+    });
+
+    it('should open error dialog if no PK columns are selected', () => {
+      component.pkArray = formBuilder.array([]);
+      component.pkData = [];
+      component.savePk();
+
+      expect(dialogSpyObj.open).toHaveBeenCalledWith(InfodialogComponent, {
+        data: { message: 'Add columns to the primary key for saving', type: 'error' },
+        maxWidth: '500px',
+      });
+      expect(dataServiceSpy.updatePk).not.toHaveBeenCalled();
+    });
+
+    it('should call updatePk when there are no interleaved tables', () => {
+      component.pkData = [{ spId: 'c1', spIsPk: true, spOrder: 1 }] as IColumnTabData[];
+      component.pkArray = formBuilder.array([
+        formBuilder.group({ spColName: 'col1', spOrder: 1 })
+      ]);
+      spyOn(component, 'tableInterleaveWith').and.returnValue([]);
+
+      component.savePk();
+
+      expect(dataServiceSpy.updatePk).toHaveBeenCalledWith({
+        TableId: 't1',
+        Columns: [{ ColId: 'c1', Desc: false, Order: 1 }]
+      });
+    });
+
+    it('should call updatePk for interleaved table if PK prefix is not modified', () => {
+      component.pkData = [{ spId: 'c1', spIsPk: true, spOrder: 1 }] as IColumnTabData[];
+      component.pkArray = formBuilder.array([
+        formBuilder.group({ spColName: 'col1', spOrder: 1 })
+      ]);
+      spyOn(component, 'tableInterleaveWith').and.returnValue(['t2']);
+      spyOn(component, 'isPKPrefixModified').and.returnValue(false);
+
+      component.savePk();
+
+      expect(dataServiceSpy.updatePk).toHaveBeenCalled();
+      expect(dialogSpyObj.open).not.toHaveBeenCalledWith(InfodialogComponent, jasmine.any(Object));
+    });
+
+    it('should show error dialog if PK prefix is modified for an interleaved table', () => {
+      component.pkData = [{ spId: 'c2', spIsPk: true, spOrder: 1 }] as IColumnTabData[];
+      component.pkArray = formBuilder.array([
+        formBuilder.group({ spColName: 'col2', spOrder: 1 })
+      ]);
+      spyOn(component, 'tableInterleaveWith').and.returnValue(['t2']);
+      spyOn(component, 'isPKPrefixModified').and.returnValue(true);
+
+      component.savePk();
+
+      expect(dialogSpyObj.open).toHaveBeenCalledWith(InfodialogComponent, {
+        data: {
+          message: 'Cannot update primary key as this primary key is part of interleaving with table(s) table2. Please remove the interleaved relationship and try again.',
+          type: 'error',
+        },
+        maxWidth: '500px',
+      });
+      expect(dataServiceSpy.updatePk).not.toHaveBeenCalled();
+    });
+
+    it('should show error dialog if updatePk fails', () => {
+      const errorMessage = 'PK update failed';
+      dataServiceSpy.updatePk.and.returnValue(of(errorMessage));
+      component.pkData = [{ spId: 'c1', spIsPk: true, spOrder: 1 }] as IColumnTabData[];
+      component.pkArray = formBuilder.array([
+        formBuilder.group({ spColName: 'col1', spOrder: 1 })
+      ]);
+      spyOn(component, 'tableInterleaveWith').and.returnValue([]);
+
+      component.savePk();
+
+      expect(dialogSpyObj.open).toHaveBeenCalledWith(InfodialogComponent, {
+        data: { message: errorMessage, type: 'error' },
+        maxWidth: '500px',
+      });
+      expect(component.isPkEditMode).toBe(true);
+    });
+  });
 });

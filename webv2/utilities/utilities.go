@@ -394,30 +394,6 @@ func UpdateMaxColumnLen(conv *internal.Conv, dataType, tableId, colId string, sp
 	if err != nil {
 		return err
 	}
-	sp := conv.SpSchema[tableId]
-	// update column size of child table.
-	isParent, childTableId := IsParent(tableId)
-	if isParent {
-		childColId, err := GetColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
-		if err == nil {
-			err = updateColLen(conv, dataType, childTableId, childColId, spColLen)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// update column size of parent table.
-	parentTableId := conv.SpSchema[tableId].ParentTable.Id
-	if parentTableId != "" {
-		parentColId, err := GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
-		if err == nil {
-			err = updateColLen(conv, dataType, parentTableId, parentColId, spColLen)
-			if err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
 
@@ -430,15 +406,18 @@ func GetColIdFromSpannerName(conv *internal.Conv, tableId, colName string) (stri
 	return "", fmt.Errorf("column id not found for spaner column %v", colName)
 }
 
-func IsParent(tableId string) (bool, string) {
+func IsParent(tableId string) (bool, []string) {
 	sessionState := session.GetSessionState()
-
+	childTableIds := []string{}
 	for _, spSchema := range sessionState.Conv.SpSchema {
 		if spSchema.ParentTable.Id == tableId {
-			return true, spSchema.Id
+			childTableIds = append(childTableIds, spSchema.Id)
 		}
 	}
-	return false, ""
+	if len(childTableIds) > 0 {
+		return true, childTableIds
+	}
+	return false, nil
 }
 
 func GetInterleavedFk(conv *internal.Conv, tableId string, srcColId string) (schema.ForeignKey, error) {

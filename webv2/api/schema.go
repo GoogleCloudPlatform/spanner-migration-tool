@@ -1247,7 +1247,7 @@ func checkInterleaveCycleCondition(tableId string, parentTableId string) string 
 	sessionState := session.GetSessionState()
 	undirectedGraph := map[string][]string{}
 	for _, spTable := range sessionState.Conv.SpSchema {
-		if spTable.ParentTable.Id != "" {
+		if spTable.ParentTable.Id != "" && spTable.ParentTable.Id != parentTableId && spTable.Id != tableId {
 			undirectedGraph[spTable.Id] = append(undirectedGraph[spTable.Id], spTable.ParentTable.Id)
 			undirectedGraph[spTable.ParentTable.Id] = append(undirectedGraph[spTable.ParentTable.Id], spTable.Id)
 		}
@@ -1283,7 +1283,7 @@ func checkInterleavePrimaryKeyPrefixCondition(tableId string, refTableId string)
 	for i := 0; i < len(parentPks); i++ {
 		j := 0
 		for ; j < len(childPks); j++ {
-			if parentTable.ColDefs[parentPks[i].ColId].Name == childTable.ColDefs[childPks[j].ColId].Name && parentTable.ColDefs[parentPks[i].ColId].T.Name == childTable.ColDefs[childPks[j].ColId].T.Name && parentTable.ColDefs[parentPks[i].ColId].T.Len == childTable.ColDefs[childPks[j].ColId].T.Len {
+			if parentTable.ColDefs[parentPks[i].ColId].Name == childTable.ColDefs[childPks[j].ColId].Name && parentTable.ColDefs[parentPks[i].ColId].T.Name == childTable.ColDefs[childPks[j].ColId].T.Name && parentTable.ColDefs[parentPks[i].ColId].T.Len == childTable.ColDefs[childPks[j].ColId].T.Len && parentTable.ColDefs[parentPks[i].ColId].NotNull == childTable.ColDefs[childPks[j].ColId].NotNull {
 				break
 			}
 		}

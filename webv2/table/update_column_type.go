@@ -44,12 +44,6 @@ func UpdateColumnType(newType, tableId, colId string, conv *internal.Conv, w htt
 	if err != nil {
 		return
 	}
-
-	// update column type of child table.
-	updateColumnTypeForChildTable(newType, tableId, colId, conv, w)
-
-	// update column type of parent table.
-	updateColumnTypeForParentTable(newType, tableId, colId, conv, w)
 }
 
 func updateColumnTypeForReferredTable(newType, tableId, colId string, conv *internal.Conv, w http.ResponseWriter) error {
@@ -93,69 +87,8 @@ func updateColumnTypeForReferringTable(newType, tableId, colId string, conv *int
 	return nil
 }
 
-func updateColumnTypeForChildTable(newType, tableId, colId string, conv *internal.Conv, w http.ResponseWriter) {
-	sp := conv.SpSchema[tableId]
-
-	isParent, childTableId := utilities.IsParent(tableId)
-	if isParent {
-		childColId, err := utilities.GetColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
-		if err == nil {
-			err = UpdateColumnTypeChangeTableSchema(conv, childTableId, childColId, newType, w)
-			if err != nil {
-				return
-			}
-			updateColumnTypeForChildTable(newType, childTableId, childColId, conv, w)
-		}
-	}
-}
-
-func updateColumnTypeForParentTable(newType, tableId, colId string, conv *internal.Conv, w http.ResponseWriter) {
-	sp := conv.SpSchema[tableId]
-
-	parentTableId := conv.SpSchema[tableId].ParentTable.Id
-	if parentTableId != "" {
-		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
-		if err == nil {
-			err = UpdateColumnTypeChangeTableSchema(conv, parentTableId, parentColId, newType, w)
-			if err != nil {
-				return
-			}
-			updateColumnTypeForParentTable(newType, parentTableId, parentColId, conv, w)
-		}
-	}
-}
-
 func UpdateColumnSize(newSize, tableId, colId string, conv *internal.Conv) {
 	UpdateColumnSizeChangeTableSchema(conv, tableId, colId, newSize)
-	// update column size of child table.
-	updateColumnSizeForChildTable(newSize, tableId, colId, conv)
-
-	// update column size of parent table.
-	updateColumnSizeForParentTable(newSize, tableId, colId, conv)
-}
-
-func updateColumnSizeForChildTable(newSize, tableId, colId string, conv *internal.Conv) {
-	sp := conv.SpSchema[tableId]
-	isParent, childTableId := utilities.IsParent(tableId)
-	if isParent {
-		childColId, err := utilities.GetColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
-		if err == nil {
-			UpdateColumnSizeChangeTableSchema(conv, childTableId, childColId, newSize)
-			updateColumnSizeForChildTable(newSize, childTableId, childColId, conv)
-		}
-	}
-}
-
-func updateColumnSizeForParentTable(newSize, tableId, colId string, conv *internal.Conv) {
-	sp := conv.SpSchema[tableId]
-	parentTableId := conv.SpSchema[tableId].ParentTable.Id
-	if parentTableId != "" {
-		parentColId, err := utilities.GetColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
-		if err == nil {
-			UpdateColumnSizeChangeTableSchema(conv, parentTableId, parentColId, newSize)
-			updateColumnSizeForParentTable(newSize, parentTableId, parentColId, conv)
-		}
-	}
 }
 
 // UpdateColumnSizeTableSchema updates column size to newSize for a column of a table.

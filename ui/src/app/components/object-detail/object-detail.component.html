@@ -762,7 +762,7 @@
                placeholder="Select Interleave Type"
                [clearable]="false"
                appendTo="body"
-               [(ngModel)]="interleaveType">
+               [(ngModel)]="interleaveType" (change)="interleaveType === 'IN' ? (onDeleteAction = '') : null">
     </ng-select>
 
     <ng-select *ngIf="interleaveType === 'IN PARENT'"
