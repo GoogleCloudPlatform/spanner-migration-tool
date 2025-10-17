@@ -31,7 +31,9 @@ package common
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"reflect"
 	"strconv"
 	"strings"
@@ -673,6 +675,9 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 
 // Applies all valid expressions which can be migrated to spanner conv object
 func spannerSchemaApplyExpressions(conv *internal.Conv, expressions internal.VerifyExpressionsOutput) {
+	// Log expression verication output list
+	expression_str, _ := json.Marshal(expressions.ExpressionVerificationOutputList)
+	logger.Log.Info(fmt.Sprintf("Expressions: %s", string(expression_str)))
 	for _, expression := range expressions.ExpressionVerificationOutputList {
 		switch expression.ExpressionDetail.Type {
 		case "DEFAULT":
@@ -695,6 +700,34 @@ func spannerSchemaApplyExpressions(conv *internal.Conv, expressions internal.Ver
 					colIssues = append(colIssues, internal.DefaultValue)
 					conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = colIssues
 				}
+			}
+		case constants.VIRTUAL_GENERATED, constants.STORED_GENERATED:
+			{
+				tableId := expression.ExpressionDetail.Metadata["TableId"]
+				columnId := expression.ExpressionDetail.Metadata["ColId"]
+
+				cols := conv.SpSchema[tableId].ColDefs[columnId]
+				if expression.Result {
+					logger.Log.Info(fmt.Sprintf("Cat cat"))
+					col := conv.SpSchema[tableId].ColDefs[columnId]
+					col.GeneratedColumn = ddl.GeneratedColumn{
+						IsPresent: true,
+						Value: ddl.Expression{
+							ExpressionId: expression.ExpressionDetail.ExpressionId,
+							Statement:    expression.ExpressionDetail.Expression,
+						},
+						Type: ddl.GeneratedColType(expression.ExpressionDetail.Type),
+					}
+					conv.SpSchema[tableId].ColDefs[columnId] = col
+				} else {
+					logger.Log.Info(fmt.Sprintf("Bat Bat"))
+					colIssues := conv.SchemaIssues[tableId].ColumnLevelIssues[columnId]
+					colIssues = append(colIssues, internal.GeneratedColumnValueError)
+					conv.SchemaIssues[tableId].ColumnLevelIssues[columnId] = colIssues
+				}
+				expressionDetail, _ := json.Marshal(expression)
+				logger.Log.Info(fmt.Sprintf("[%s] Expression Detail: %v", cols.Name, string(expressionDetail)))
+
 			}
 		}
 	}
