@@ -289,9 +289,9 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 					issueBatcher[i] = true
 				}
 				srcColType := srcSchema.ColDefs[colId].Type.Print()
-				spColType := spSchema.ColDefs[colId].T.PrintColumnDefType()
+				spColType := spSchema.ColDefs[colId].T.PrintColumnDefType(spSchema.ColDefs[colId].GeneratedColumn.IsVirtual())
 				if conv.SpDialect == constants.DIALECT_POSTGRESQL {
-					spColType = spSchema.ColDefs[colId].T.PGPrintColumnDefType()
+					spColType = spSchema.ColDefs[colId].T.PGPrintColumnDefType(spSchema.ColDefs[colId].GeneratedColumn.IsVirtual())
 				}
 				srcColName := srcSchema.ColDefs[colId].Name
 				spColName := spSchema.ColDefs[colId].Name
@@ -306,7 +306,7 @@ func buildTableReportBody(conv *internal.Conv, tableId string, issues map[string
 				// on case of srcType.
 				spColType = strings.ToLower(spColType)
 				switch i {
-				case internal.DefaultValue:
+				case internal.DefaultValue, internal.GeneratedColumnValueError:
 					toAppend := Issue{
 						Category:    IssueDB[i].Category,
 						Description: fmt.Sprintf("%s for table '%s' e.g. column '%s'", IssueDB[i].Brief, conv.SpSchema[tableId].Name, spColName),
@@ -621,6 +621,7 @@ var IssueDB = map[internal.SchemaIssue]struct {
 	CategoryDescription string
 }{
 	internal.DefaultValue:                         {Brief: "Some columns have default values which Spanner migration tool does not migrate. Please add the default constraints manually after the migration is complete", Severity: note, batch: true, Category: "MISSING_DEFAULT_VALUE_CONSTRAINTS"},
+	internal.GeneratedColumnValueError:            {Brief: "Some columns have generated expression which Spanner migration tool cannot not migrate. Please add the expressions manually", Severity: warning, batch: false, Category: "MISSING_GENERATED_COL_VALUE_CONSTRAINTS"},
 	internal.TypeMismatch:                         {Brief: "Type mismatch in check constraint mention in table", Severity: warning, Category: "TYPE_MISMATCH"},
 	internal.TypeMismatchError:                    {Brief: "Type mismatch in check constraint mention in table", Severity: Errors, Category: "TYPE_MISMATCH_ERROR"},
 	internal.InvalidCondition:                     {Brief: "Invalid condition in check constraint mention in table", Severity: warning, Category: "INVALID_CONDITION"},
