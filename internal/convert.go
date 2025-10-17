@@ -155,6 +155,7 @@ const (
 	CassandraTIMEUUID
 	CassandraMAP
 	PossibleOverflow
+	GeneratedColumnValueError
 )
 
 const (
@@ -328,6 +329,7 @@ type ExpressionDetail struct {
 	ExpressionId     string
 	Expression       string
 	Type             string
+	SpTableName      string
 	Metadata         map[string]string
 }
 

@@ -101,12 +101,21 @@ describe('ObjectDetailComponent', () => {
           GenerationType: ''
         },
         srcDefaultValue: '',
+        srcGeneratedColExp: '',
         spDefaultValue: {
           Value: {
             ExpressionId: '',
             Statement: ''
           },
           IsPresent: false
+        },
+        spGeneratedColumn: {
+          Value: {
+            ExpressionId: '',
+            Statement: ''
+          },
+          IsPresent: false,
+          Type: "",
         },
       },
       {
@@ -133,6 +142,7 @@ describe('ObjectDetailComponent', () => {
           Name: '',
           GenerationType: ''
         },
+        srcGeneratedColExp: '',
         srcDefaultValue: '',
         spDefaultValue: {
           Value: {
@@ -140,6 +150,14 @@ describe('ObjectDetailComponent', () => {
             Statement: ''
           },
           IsPresent: false
+        },
+        spGeneratedColumn: {
+          Value: {
+            ExpressionId: '',
+            Statement: ''
+          },
+          IsPresent: false,
+          Type: "",
         },
       },
     ]
@@ -469,8 +487,9 @@ describe('ObjectDetailComponent', () => {
         spIsPk: true,
         spIsNotNull: true,
         spColMaxLength: '',
-        spCassandraOption: 'list<bigint>', 
+        spCassandraOption: 'list<bigint>',
         spAutoGen: { Name: '', GenerationType: '' },
+        srcGeneratedColExp: '',
         spDefaultValue: '',
       }),
     ])
@@ -494,6 +513,7 @@ describe('ObjectDetailComponent', () => {
           MaxColLength: '',
           AutoGen: { Name: '', GenerationType: '' },
           DefaultValue: { IsPresent: false, Value: { ExpressionId: '', Statement: '' } },
+          GeneratedColumn: { IsPresent: false, Type: '', Value: { ExpressionId: '', Statement: '' } },
         },
       },
     }

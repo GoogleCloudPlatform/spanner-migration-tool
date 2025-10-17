@@ -320,6 +320,7 @@ describe('ConversionService', () => {
             Ignored: {Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false},
             DefaultValue: { IsPresent: false, Value: { Statement: '' , ExpressionId: '' } },
             AutoGen: { Name: '', GenerationType: '' },
+            GeneratedColumn: { IsPresent: false, Value: { Statement: '' , ExpressionId: '' }, Type: '' },
           },
         },
         PrimaryKeys: [],
@@ -341,6 +342,7 @@ describe('ConversionService', () => {
             T: { Name: 'STRING', IsArray: true, Len: 0 },
             NotNull: false,
             DefaultValue: { IsPresent: false, Value: { Statement: '', ExpressionId: '' } },
+            GeneratedColumn: { IsPresent: false, Value: { Statement: '', ExpressionId: '' }, Type: '' },
             AutoGen: { Name: '', GenerationType: '' },
             Opts: {},
             Comment: '',
@@ -375,8 +377,8 @@ describe('ConversionService', () => {
         spId: 'c1',
         spColMaxLength: '',
         srcColMaxLength: undefined,
-        spAutoGen: { Name: '', GenerationType: '' },
-        srcAutoGen: { Name: '', GenerationType: '' },
+        spAutoGen: {Name: '', GenerationType: ''},
+        srcAutoGen: {Name: '', GenerationType: ''},
         spDefaultValue: {
           IsPresent: false,
           Value: {
@@ -384,7 +386,16 @@ describe('ConversionService', () => {
             Statement: '',
           },
         },
+        spGeneratedColumn: {
+          IsPresent: false,
+          Value: {
+            ExpressionId: '',
+            Statement: '',
+          },
+          Type: '',
+        },
         spCassandraOption: '',
+        srcGeneratedColExp: ''
       },
     ]
     expect(result).toEqual(expected)
@@ -407,6 +418,7 @@ describe('ConversionService', () => {
             Ignored: {Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false},
             DefaultValue: { IsPresent: false, Value: { Statement: '' , ExpressionId: '' } },
             AutoGen: { Name: '', GenerationType: '' },
+            GeneratedColumn: { IsPresent: false, Value: { Statement: '' , ExpressionId: '' }, Type: '' },
           },
         },
         PrimaryKeys: [],
@@ -428,6 +440,7 @@ describe('ConversionService', () => {
             T: { Name: 'STRING', IsArray: false, Len: 255 },
             NotNull: false,
             DefaultValue: { IsPresent: false, Value: { Statement: '', ExpressionId: '' } },
+            GeneratedColumn: { IsPresent: false, Value: { Statement: '' , ExpressionId: '' }, Type: '' },
             AutoGen: { Name: '', GenerationType: '' },
             Opts: {},
             Comment: '',
@@ -438,6 +451,7 @@ describe('ConversionService', () => {
             T: { Name: 'INT64', IsArray: false, Len: 0 },
             NotNull: true,
             DefaultValue: { IsPresent: false, Value: { Statement: '', ExpressionId: '' } },
+            GeneratedColumn: { IsPresent: false, Value: { Statement: '' , ExpressionId: '' }, Type: '' },
             AutoGen: { Name: '', GenerationType: '' },
             Opts: {},
             Comment: '',
@@ -456,8 +470,52 @@ describe('ConversionService', () => {
 
     const result = service.getColumnMapping('t1', conv);
     const expected: IColumnTabData[] = [
-      { spOrder: 1, srcOrder: 1, spColName: 'sp_col', spDataType: 'STRING', srcColName: 'src_col', srcDataType: 'text', spIsPk: false, srcIsPk: false, spIsNotNull: false, srcIsNotNull: false, srcId: 'c1', srcDefaultValue: '', spId: 'c1', spColMaxLength: 255, srcColMaxLength: undefined, spAutoGen: { Name: '', GenerationType: '' }, srcAutoGen: { Name: '', GenerationType: '' }, spDefaultValue: { IsPresent: false, Value: { ExpressionId: '', Statement: '' } }, spCassandraOption: '' },
-      { spOrder: 2, srcOrder: '', spColName: 'new_sp_col', spDataType: 'INT64', srcColName: '', srcDataType: '', spIsPk: false, srcIsPk: false, spIsNotNull: true, srcIsNotNull: false, srcId: '', srcDefaultValue: '', spId: 'c2', spColMaxLength: 0, srcColMaxLength: '', spAutoGen: { Name: '', GenerationType: '' }, srcAutoGen: { Name: '', GenerationType: '' }, spDefaultValue: { IsPresent: false, Value: { ExpressionId: '', Statement: '' } }, spCassandraOption: '' },
+      {
+        spOrder: 1,
+        srcOrder: 1,
+        spColName: 'sp_col',
+        spDataType: 'STRING',
+        srcColName: 'src_col',
+        srcDataType: 'text',
+        spIsPk: false,
+        srcIsPk: false,
+        spIsNotNull: false,
+        srcIsNotNull: false,
+        srcId: 'c1',
+        srcDefaultValue: '',
+        spId: 'c1',
+        spColMaxLength: 255,
+        srcColMaxLength: undefined,
+        spAutoGen: {Name: '', GenerationType: ''},
+        srcAutoGen: {Name: '', GenerationType: ''},
+        spDefaultValue: {IsPresent: false, Value: {ExpressionId: '', Statement: ''}},
+        spGeneratedColumn: {IsPresent: false, Value: {ExpressionId: '', Statement: ''}, Type: ''},
+        spCassandraOption: '',
+        srcGeneratedColExp: ''
+      },
+      {
+        spOrder: 2,
+        srcOrder: '',
+        spColName: 'new_sp_col',
+        spDataType: 'INT64',
+        srcColName: '',
+        srcDataType: '',
+        spIsPk: false,
+        srcIsPk: false,
+        spIsNotNull: true,
+        srcIsNotNull: false,
+        srcId: '',
+        srcDefaultValue: '',
+        spId: 'c2',
+        spColMaxLength: 0,
+        srcColMaxLength: '',
+        spAutoGen: {Name: '', GenerationType: ''},
+        srcAutoGen: {Name: '', GenerationType: ''},
+        spDefaultValue: {IsPresent: false, Value: {ExpressionId: '', Statement: ''}},
+        spCassandraOption: '',
+        srcGeneratedColExp: '',
+        spGeneratedColumn: {IsPresent: false, Value: {ExpressionId: '', Statement: ''}, Type: ''},
+      },
     ]
     expect(result).toEqual(expected)
   })

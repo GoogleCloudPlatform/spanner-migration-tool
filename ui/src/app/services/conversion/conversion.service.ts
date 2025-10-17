@@ -362,6 +362,7 @@ export class ConversionService {
         srcIsNotNull: data.SrcSchema[tableId].ColDefs[colId].NotNull,
         srcId: colId,
         srcDefaultValue: data.SrcSchema[tableId].ColDefs[colId].DefaultValue.Value.Statement,
+        srcGeneratedColExp: data.SrcSchema[tableId].ColDefs[colId].GeneratedColumn.Value.Statement,
         spId: spannerColDef ? colId : '',
         spColMaxLength: spannerColDef?.T.Len != 0 ? (spannerColDef?.T.Len != spColMax ? spannerColDef?.T.Len: 'MAX') : '',
         srcColMaxLength: data.SrcSchema[tableId].ColDefs[colId].Type.Mods != null ? data.SrcSchema[tableId].ColDefs[colId].Type.Mods[0] : '',
@@ -379,6 +380,14 @@ export class ConversionService {
             ExpressionId: '',
             Statement: ''
           }
+        },
+        spGeneratedColumn: spannerColDef?.GeneratedColumn != null ? spannerColDef?.GeneratedColumn : {
+          IsPresent: false,
+          Value: {
+            ExpressionId: '',
+            Statement: ''
+          },
+          Type: '',
         },
         spCassandraOption: spannerColDef?.Opts?.["cassandra_type"] || '',
         }
@@ -402,6 +411,7 @@ export class ConversionService {
             srcIsNotNull: false,
             srcId: '',
             srcDefaultValue: '',
+            srcGeneratedColExp: '',
             spId: colId,
             srcColMaxLength: '',
             spColMaxLength: spannerColDef?.T.Len,
@@ -417,6 +427,14 @@ export class ConversionService {
                 ExpressionId: '',
                 Statement: ''
               }
+            },
+            spGeneratedColumn: spannerColDef?.GeneratedColumn != null ? spannerColDef?.GeneratedColumn : {
+              IsPresent: false,
+              Value: {
+                ExpressionId: '',
+                Statement: ''
+              },
+              Type: '',
             },
           })
         }

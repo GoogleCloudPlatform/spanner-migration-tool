@@ -28,6 +28,14 @@ const mockIConv: IConv = {
                             ExpressionId: ""
                         },
                         IsPresent: false
+                    },
+                    GeneratedColumn: {
+                      Value: {
+                        Statement: "",
+                        ExpressionId: ""
+                      },
+                      IsPresent: false,
+                      Type: ''
                     }
                 }
             },
@@ -89,6 +97,14 @@ const mockIConv: IConv = {
                         },
                         IsPresent: false
                     },
+                    GeneratedColumn: {
+                      Value: {
+                        Statement: "",
+                        ExpressionId: ""
+                      },
+                      IsPresent: false,
+                      Type: ''
+                    }
                 }
             },
             PrimaryKeys: [],
@@ -231,6 +247,14 @@ export const mockIConv2: IConv = {
                             ExpressionId: ""
                         },
                         IsPresent: false
+                    },
+                    GeneratedColumn: {
+                      Value: {
+                        Statement: "",
+                        ExpressionId: ""
+                      },
+                      IsPresent: false,
+                      Type: ''
                     }
                 }
             },
