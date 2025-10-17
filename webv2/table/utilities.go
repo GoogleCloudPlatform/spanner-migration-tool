@@ -34,15 +34,15 @@ const (
 )
 
 var SpannerToCassandra = map[string]string{
-	ddl.Bool:     "boolean",
-	ddl.Bytes:    "blob",
-	ddl.Date:     "date",
-	ddl.Float32:  "float",
-	ddl.Float64:  "double",
-	ddl.Int64:    "bigint",
-	ddl.Numeric:  "decimal",
-	ddl.String:   "text",
-	ddl.Timestamp:"timestamp",
+	ddl.Bool:      "boolean",
+	ddl.Bytes:     "blob",
+	ddl.Date:      "date",
+	ddl.Float32:   "float",
+	ddl.Float64:   "double",
+	ddl.Int64:     "bigint",
+	ddl.Numeric:   "decimal",
+	ddl.String:    "text",
+	ddl.Timestamp: "timestamp",
 }
 
 // GetCassandraType returns default cassandra type for specified Spanner type
@@ -74,7 +74,6 @@ func GetSpannerTableDDL(spannerTable ddl.CreateTable, spDialect string, driver s
 
 	return ddl
 }
-
 
 func UpdateNotNull(notNullChange, tableId, colId string, conv *internal.Conv) {
 
@@ -168,6 +167,42 @@ func getSequenceId(sequenceName string, spSeq map[string]ddl.Sequence) string {
 	return ""
 }
 
+// Add, deletes and updates generated column associated with a column during edit column functionality
+func UpdateGeneratedCol(gc ddl.GeneratedColumn, tableId, colId string, conv *internal.Conv) {
+	col := conv.SpSchema[tableId].ColDefs[colId]
+	if !gc.IsPresent {
+		col.GeneratedColumn = ddl.GeneratedColumn{}
+		conv.SpSchema[tableId].ColDefs[colId] = col
+		return
+	}
+
+	var expressionId string
+	if gc.Value.ExpressionId == "" {
+		if _, exists := conv.SrcSchema[tableId]; exists {
+			if column, exists := conv.SrcSchema[tableId].ColDefs[colId]; exists {
+				if column.GeneratedColumn.Value.ExpressionId != "" {
+					expressionId = column.GeneratedColumn.Value.ExpressionId
+				}
+			}
+		}
+		if expressionId == "" {
+			expressionId = internal.GenerateExpressionId()
+		}
+	} else {
+		expressionId = gc.Value.ExpressionId
+	}
+	re := regexp.MustCompile(`\([^)]*\)`)
+	col.GeneratedColumn = ddl.GeneratedColumn{
+		Value: ddl.Expression{
+			ExpressionId: expressionId,
+			Statement:    common.SanitizeExpressionsValue(gc.Value.Statement, col.T.Name, re.MatchString(gc.Value.Statement)),
+		},
+		IsPresent: true,
+		Type:      gc.Type,
+	}
+	conv.SpSchema[tableId].ColDefs[colId] = col
+}
+
 // Add, deletes and updates default value associated with a column during edit column functionality
 func UpdateDefaultValue(dv ddl.DefaultValue, tableId, colId string, conv *internal.Conv) {
 	col := conv.SpSchema[tableId].ColDefs[colId]
@@ -196,7 +231,7 @@ func UpdateDefaultValue(dv ddl.DefaultValue, tableId, colId string, conv *intern
 	col.DefaultValue = ddl.DefaultValue{
 		Value: ddl.Expression{
 			ExpressionId: expressionId,
-			Statement:    common.SanitizeDefaultValue(dv.Value.Statement, col.T.Name, re.MatchString(dv.Value.Statement)),
+			Statement:    common.SanitizeExpressionsValue(dv.Value.Statement, col.T.Name, re.MatchString(dv.Value.Statement)),
 		},
 		IsPresent: true,
 	}
@@ -238,7 +273,6 @@ func IsInterleavingImpacted(v updateCol, tableId string, colId string, conv *int
 
 		if isModification {
 			isParent, _ := utilities.IsParent(tableId)
-			
 			isChild := conv.SpSchema[tableId].ParentTable.Id != ""
 
 			// Rule 1: If it's a parent table, any change to a PK column is disallowed.

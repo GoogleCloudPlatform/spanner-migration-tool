@@ -50,13 +50,14 @@ type Table struct {
 // Column represents a database column.
 // TODO: add support for foreign keys.
 type Column struct {
-	Name         string
-	Type         Type
-	NotNull      bool
-	Ignored      Ignored
-	Id           string
-	AutoGen      ddl.AutoGenCol
-	DefaultValue ddl.DefaultValue
+	Name            string
+	Type            Type
+	NotNull         bool
+	Ignored         Ignored
+	Id              string
+	AutoGen         ddl.AutoGenCol
+	DefaultValue    ddl.DefaultValue
+	GeneratedColumn ddl.GeneratedColumn
 }
 
 // ForeignKey represents a foreign key.

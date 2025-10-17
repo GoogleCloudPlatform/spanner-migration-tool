@@ -174,6 +174,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 			sequences := UpdateAutoGenCol(v.AutoGen, tableId, colId, conv)
 			conv.SpSequences = sequences
 			UpdateDefaultValue(v.DefaultValue, tableId, colId, conv)
+			UpdateGeneratedCol(v.GeneratedColumn, tableId, colId, conv)
 		}
 	}
 
