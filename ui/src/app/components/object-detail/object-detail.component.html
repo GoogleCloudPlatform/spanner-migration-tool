@@ -276,7 +276,12 @@
                         </ng-container>
                         <ng-container *ngIf="element.get('spDataType').value as spDataType">
                           <ng-container *ngFor="let typeGroup of (processedAutoGenMap[spDataType] | keyvalue)">
-                            <mat-optgroup *ngIf="typeGroup.key !== ''" [label]="typeGroup.key">
+                            <ng-container *ngIf="typeGroup.key === 'Identity'">
+                              <mat-option *ngFor="let autoGen of typeGroup.value" [value]="autoGen">
+                                {{ autoGen.Name }}
+                              </mat-option>
+                            </ng-container>
+                            <mat-optgroup *ngIf="typeGroup.key !== '' && typeGroup.key !== 'Identity'" [label]="typeGroup.key">
                               <mat-option *ngFor="let autoGen of typeGroup.value" [value]="autoGen">
                                 {{ autoGen.Name }}
                               </mat-option>
