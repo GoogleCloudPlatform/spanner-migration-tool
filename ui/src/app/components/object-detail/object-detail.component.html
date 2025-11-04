@@ -297,6 +297,55 @@
                 </div>
               </td>
             </ng-container>
+
+            <ng-container matColumnDef="spSkipRangeMin" *ngIf="mySqlSource">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Skip Range Min</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="isEditMode && element.get('spAutoGen').value.GenerationType === 'Identity'">
+                  <input
+                    matInput
+                    class="name_input"
+                    type="text"
+                    [formControl]="element.get('spSkipRangeMin')"
+                    matTooltip="Should be a number and both min and max must be set or neither"
+                    [matTooltipDisabled]="!element.get('spSkipRangeMin')?.hasError('pattern')" />
+                </div>
+                <p *ngIf="!isEditMode">{{ element.get('spSkipRangeMin').value }}</p>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="spSkipRangeMax" *ngIf="mySqlSource">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Skip Range Max</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="isEditMode && element.get('spAutoGen').value.GenerationType === 'Identity'">
+                  <input
+                    matInput
+                    class="name_input"
+                    type="text"
+                    [formControl]="element.get('spSkipRangeMax')"
+                    matTooltip="Should be a number and both min and max must be set or neither"
+                    [matTooltipDisabled]="!element.get('spSkipRangeMax')?.hasError('pattern')" />
+                </div>
+                <p *ngIf="!isEditMode">{{ element.get('spSkipRangeMax').value }}</p>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="spStartCounterWith" *ngIf="mySqlSource">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Start Counter With</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="isEditMode && element.get('spAutoGen').value.GenerationType === 'Identity'">
+                  <input
+                    matInput
+                    class="name_input"
+                    type="text"
+                    [formControl]="element.get('spStartCounterWith')"
+                    matTooltip="Should be a number"
+                    [matTooltipDisabled]="!element.get('spStartCounterWith')?.hasError('pattern')" />
+                </div>
+                <p *ngIf="!isEditMode">{{ element.get('spStartCounterWith').value }}</p>
+              </td>
+            </ng-container>
+
             <ng-container matColumnDef="spColMaxLength">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Max Length</th>
               <td mat-cell *matCellDef="let element">

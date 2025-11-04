@@ -404,22 +404,22 @@ describe('Utils', () => {
   describe('groupAutoGenByType', () => {
     it('should group auto gens by type correctly', () => {
       const autoGens = [
-        { GenerationType: 'type1', Name: 'gen1' },
-        { GenerationType: 'type1', Name: 'gen2' },
-        { GenerationType: 'type2', Name: 'gen3' },
-        { GenerationType: 'type1', Name: 'gen4' }
+        { GenerationType: 'type1', Name: 'gen1', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } },
+        { GenerationType: 'type1', Name: 'gen2', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } },
+        { GenerationType: 'type2', Name: 'gen3', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } },
+        { GenerationType: 'type1', Name: 'gen4', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } }
       ];
 
       const result = groupAutoGenByType(autoGens);
 
       expect(result).toEqual({
         type1: [
-          { GenerationType: 'type1', Name: 'gen1' },
-          { GenerationType: 'type1', Name: 'gen2' },
-          { GenerationType: 'type1', Name: 'gen4' }
+          { GenerationType: 'type1', Name: 'gen1', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } },
+          { GenerationType: 'type1', Name: 'gen2', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } },
+          { GenerationType: 'type1', Name: 'gen4', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } }
         ],
         type2: [
-          { GenerationType: 'type2', Name: 'gen3' }
+          { GenerationType: 'type2', Name: 'gen3', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } }
         ]
       });
     });
@@ -434,11 +434,11 @@ describe('Utils', () => {
     it('should process auto gen map correctly', () => {
       const autoGenMap = {
         'table1': [
-          { GenerationType: 'type1', Name: 'gen1' },
-          { GenerationType: 'type2', Name: 'gen2' }
+          { GenerationType: 'type1', Name: 'gen1', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } },
+          { GenerationType: 'type2', Name: 'gen2', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } }
         ],
         'table2': [
-          { GenerationType: 'type1', Name: 'gen3' }
+          { GenerationType: 'type1', Name: 'gen3', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } }
         ]
       };
 
@@ -446,11 +446,11 @@ describe('Utils', () => {
 
       expect(result).toEqual({
         'table1': {
-          type1: [{ GenerationType: 'type1', Name: 'gen1' }],
-          type2: [{ GenerationType: 'type2', Name: 'gen2' }]
+          type1: [{ GenerationType: 'type1', Name: 'gen1', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } }],
+          type2: [{ GenerationType: 'type2', Name: 'gen2', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } }]
         },
         'table2': {
-          type1: [{ GenerationType: 'type1', Name: 'gen3' }]
+          type1: [{ GenerationType: 'type1', Name: 'gen3', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } }]
         }
       });
     });

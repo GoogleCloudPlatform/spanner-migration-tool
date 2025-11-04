@@ -197,6 +197,13 @@ export interface IPrimaryKey {
 export interface IAutoGen {
   Name: string
   GenerationType: string
+  IdentityOptions: IIdentityOptions;
+}
+
+export interface IIdentityOptions {
+  SkipRangeMin: string;
+  SkipRangeMax: string;
+  StartCounterWith: string;
 }
 
 export interface ISessionSummary {
