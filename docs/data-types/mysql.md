@@ -170,9 +170,57 @@ maps `UNIQUE` constraint into `UNIQUE` secondary index. Note that due to limitat
 mysqldump parser, we are not able to handle key column ordering (i.e. ASC/DESC) in
 mysqldump files. All key columns in mysqldump files will be treated as ASC.
 
-## Auto-Increment and Sequences
+## Auto-Increment Columns
 
-The tool creates a new sequence for auto-increment columns and maps the auto-generation of these columns to this sequence. The sequence type is of *bit reversed positive*. Users need to set skip range and/or start with counter to avoid duplicate key errors.
+The tool maps auto-increment columns to [Spanner IDENTITY
+columns](https://cloud.google.com/spanner/docs/primary-key-default-value#identity-columns).
+Users need to set the SKIP RANGE and/or START COUNTER WITH values to avoid duplicate key errors.
+
+The SKIP RANGE and START COUNTER WITH values can be set most via both the web UI (recommended) and the CLI.
+
+The Column tab of the web UI exposes fields to set the SKIP RANGE and START COUNTER WITH values. For more details, see [here](../ui/schema-conv/spanner-draft.md).
+
+To set the SKIP RANGE and/or START COUNTER WITH values via the CLI, the recommended steps are as follows:
+- Do a dry-run schema-only migration to generate a session JSON file:
+```sh
+    spanner-migration-tool schema -dry-run ...
+```
+- Open the resulting session file and find the relevant column definition(s) in the `ColDefs` collection of the table
+  it belongs to
+- Set the appropriate fields in that column's `AutoGen.AutoIncrementOptions` node. All three values are expected to be
+  strings containing a numeric value. For example:
+```json
+    {
+        "SpSchema": {
+            "table1": {
+                "Name": "SomeTable",
+                "ColDefs": {
+                    "column1": {
+                        "Name": "some_column",
+                        "AutoGen": {
+                            "Name": "Auto Increment",
+                            "GenerationType": "Auto Increment",
+                            "AutoIncrementOptions": {
+                                "SkipRangeMin": "1000",
+                                "SkipRangeMax": "10000",
+                                "StartCounterWith": "500"
+                            }
+                        },
+                        ...
+                    },
+                    ...
+                },
+                ...
+            },
+            ...
+        },
+        ...
+    }
+```
+- Save the session file and run your desired migration using the updated session file:
+```sh
+    spanner-migration-tool schema -session=<path to session file> ...
+```
 
 ## Other MySQL features
 
