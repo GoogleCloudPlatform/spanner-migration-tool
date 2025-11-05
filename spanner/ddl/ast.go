@@ -526,7 +526,7 @@ func (agc AutoGenCol) PGPrintAutoGenCol() string {
 
 func (agc AutoGenCol) PrintIdentityCol() string {
 	var options []string
-	options = append(options, "BIT REVERSED POSITIVE")
+	options = append(options, "BIT_REVERSED_POSITIVE")
 	if agc.IdentityOptions.SkipRangeMin != "" && agc.IdentityOptions.SkipRangeMax != "" {
 		options = append(options, fmt.Sprintf("SKIP RANGE %s %s", agc.IdentityOptions.SkipRangeMin, agc.IdentityOptions.SkipRangeMax))
 	}
