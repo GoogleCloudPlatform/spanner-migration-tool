@@ -343,6 +343,10 @@
                 <span><b>Spanner Instance: </b>{{ instance }} (Nodes: {{nodeCount}}, Processing Units:
                     {{processingUnits}})</span>
             </p>
+            <p class="point">
+                <span class="bullet">5</span>
+                <span><b>Default Timezone: </b>{{ targetDetails.DefaultTimezone || 'None' }}</span>
+            </p>
         </mat-card>
     </div>
     <div *ngIf="hasSchemaMigrationStarted" class="progress_bar">
