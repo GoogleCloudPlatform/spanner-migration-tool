@@ -1006,7 +1006,7 @@ func TestGetDDL(t *testing.T) {
 			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 		},
 	}
-	tablesOnly := GetDDL(Config{Tables: true, ForeignKeys: false}, s, make(map[string]Sequence))
+	tablesOnly := GetDDL(Config{Tables: true, ForeignKeys: false}, s, make(map[string]Sequence), DatabaseOptions{})
 	e := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT64,\n" +
@@ -1034,14 +1034,14 @@ func TestGetDDL(t *testing.T) {
 	}
 	assert.ElementsMatch(t, e, tablesOnly)
 
-	fksOnly := GetDDL(Config{Tables: false, ForeignKeys: true}, s, make(map[string]Sequence))
+	fksOnly := GetDDL(Config{Tables: false, ForeignKeys: true}, s, make(map[string]Sequence), DatabaseOptions{})
 	e2 := []string{
 		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
 	assert.ElementsMatch(t, e2, fksOnly)
 
-	tablesAndFks := GetDDL(Config{Tables: true, ForeignKeys: true}, s, make(map[string]Sequence))
+	tablesAndFks := GetDDL(Config{Tables: true, ForeignKeys: true}, s, make(map[string]Sequence), DatabaseOptions{})
 	e3 := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT64,\n" +
@@ -1083,8 +1083,18 @@ func TestGetDDL(t *testing.T) {
 	e4 := []string{
 		"CREATE SEQUENCE sequence1 OPTIONS (sequence_kind='bit_reversed_positive', skip_range_min = 0, skip_range_max = 5, start_with_counter = 7) ",
 	}
-	sequencesOnly := GetDDL(Config{}, Schema{}, sequences)
+	sequencesOnly := GetDDL(Config{}, Schema{}, sequences, DatabaseOptions{})
 	assert.ElementsMatch(t, e4, sequencesOnly)
+
+	databaseOptions := DatabaseOptions{
+		DbName: "test-db",
+		DefaultTimezone: "America/New_York",
+	}
+	e5 := []string{
+		"ALTER DATABASE `test-db` SET OPTIONS (default_time_zone = 'America/New_York')",
+	}
+	dbOptionsOnly := GetDDL(Config{}, Schema{}, make(map[string]Sequence), databaseOptions)
+	assert.ElementsMatch(t, e5, dbOptionsOnly)
 }
 
 func TestGetPGDDL(t *testing.T) {
@@ -1139,7 +1149,7 @@ func TestGetPGDDL(t *testing.T) {
 			ParentTable: InterleavedParent{Id: "t1", OnDelete: constants.FK_NO_ACTION, InterleaveType: "IN"},
 		},
 	}
-	tablesOnly := GetDDL(Config{Tables: true, ForeignKeys: false, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence))
+	tablesOnly := GetDDL(Config{Tables: true, ForeignKeys: false, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence), DatabaseOptions{})
 	e := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT8,\n" +
@@ -1169,14 +1179,14 @@ func TestGetPGDDL(t *testing.T) {
 	}
 	assert.ElementsMatch(t, e, tablesOnly)
 
-	fksOnly := GetDDL(Config{Tables: false, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence))
+	fksOnly := GetDDL(Config{Tables: false, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence), DatabaseOptions{})
 	e2 := []string{
 		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b) ON DELETE CASCADE",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c) ON DELETE NO ACTION",
 	}
 	assert.ElementsMatch(t, e2, fksOnly)
 
-	tablesAndFks := GetDDL(Config{Tables: true, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence))
+	tablesAndFks := GetDDL(Config{Tables: true, ForeignKeys: true, SpDialect: constants.DIALECT_POSTGRESQL}, s, make(map[string]Sequence), DatabaseOptions{})
 	e3 := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT8,\n" +
@@ -1220,8 +1230,18 @@ func TestGetPGDDL(t *testing.T) {
 	e4 := []string{
 		"CREATE SEQUENCE sequence1 BIT_REVERSED_POSITIVE SKIP RANGE 0 5 START COUNTER WITH 7",
 	}
-	sequencesOnly := GetDDL(Config{SpDialect: constants.DIALECT_POSTGRESQL}, Schema{}, sequences)
+	sequencesOnly := GetDDL(Config{SpDialect: constants.DIALECT_POSTGRESQL}, Schema{}, sequences, DatabaseOptions{})
 	assert.ElementsMatch(t, e4, sequencesOnly)
+
+	databaseOptions := DatabaseOptions{
+		DbName: "test-db",
+		DefaultTimezone: "America/New_York",
+	}
+	e5 := []string{
+		"ALTER DATABASE \"test-db\" SET spanner.default_time_zone = 'America/New_York'",
+	}
+	dbOptionsOnly := GetDDL(Config{SpDialect: constants.DIALECT_POSTGRESQL}, Schema{}, make(map[string]Sequence), databaseOptions)
+	assert.ElementsMatch(t, e5, dbOptionsOnly)
 }
 
 func TestGetSortedTableIdsBySpName(t *testing.T) {
@@ -1393,5 +1413,77 @@ func TestFormatCheckConstraintsPG(t *testing.T) {
 			actual := FormatCheckConstraints(tc.cks, constants.DIALECT_POSTGRESQL)
 			assert.Equal(t, tc.expected, actual)
 		})
+	}
+}
+
+func TestPrintDatabaseOptions(t *testing.T) {
+	tests := []struct {
+		dbOptions DatabaseOptions
+		expected  string
+	}{
+		{
+			dbOptions: DatabaseOptions{},
+			expected:  "",
+		},
+		{
+			dbOptions: DatabaseOptions{
+				DbName: "test-db",
+				DefaultTimezone: "",
+			},
+			expected:  "",
+		},
+		{
+			dbOptions: DatabaseOptions{
+				DbName: "",
+				DefaultTimezone: "America/New_York",
+			},
+			expected:  "",
+		},
+		{
+			dbOptions: DatabaseOptions{
+				DbName: "test-db",
+				DefaultTimezone: "America/New_York",
+			},
+			expected:  "ALTER DATABASE `test-db` SET OPTIONS (default_time_zone = 'America/New_York')",
+		},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.dbOptions.PrintDatabaseOptions())
+	}
+}
+
+func TestPGPrintDatabaseOptions(t *testing.T) {
+	tests := []struct {
+		dbOptions DatabaseOptions
+		expected  []string
+	}{
+		{
+			dbOptions: DatabaseOptions{},
+			expected:  nil,
+		},
+		{
+			dbOptions: DatabaseOptions{
+				DbName: "test-db",
+				DefaultTimezone: "",
+			},
+			expected:  nil,
+		},
+		{
+			dbOptions: DatabaseOptions{
+				DbName: "",
+				DefaultTimezone: "America/New_York",
+			},
+			expected:  nil,
+		},
+		{
+			dbOptions: DatabaseOptions{
+				DbName: "test-db",
+				DefaultTimezone: "America/New_York",
+			},
+			expected:  []string{"ALTER DATABASE \"test-db\" SET spanner.default_time_zone = 'America/New_York'"},
+		},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, tc.dbOptions.PGPrintDatabaseOptions())
 	}
 }

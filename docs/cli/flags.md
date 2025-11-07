@@ -76,4 +76,5 @@ for PostgreSQL dialect in Cloud Spanner [here](https://cloud.google.com/spanner/
 * **`defaultTimezone`**: Specifies the default timezone of the Spanner database. Must be a valid entry from the [IANA
 Time Zone Database](https://www.iana.org/time-zones). If not specified, the default timezone is not set when creating
 the Spanner database, and the database will therefore default to `America/Los_Angeles` (the default timezone for
-Spanner databases).
+Spanner databases). Note, the default timezone can only be set on an empty Spanner database without any tables; a
+warning will be logged and this setting will be ignored if the database already includes tables.
