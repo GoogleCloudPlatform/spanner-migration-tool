@@ -25,7 +25,8 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v2
         with:
-          go-version: '^1.22.7'
+          # Need to use a version less than 1.25 due to https://github.com/golang/go/issues/74462.
+          go-version: '>=1.23.0 <1.25.0'
       - uses: actions/setup-node@v2
         with:
           node-version: 18
