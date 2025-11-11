@@ -1437,7 +1437,7 @@ func TestPrintDatabaseOptions(t *testing.T) {
 				DbName: "",
 				DefaultTimezone: "America/New_York",
 			},
-			expected:  "",
+			expected:  "ALTER DATABASE db SET OPTIONS (default_time_zone = 'America/New_York')",
 		},
 		{
 			dbOptions: DatabaseOptions{
@@ -1473,7 +1473,7 @@ func TestPGPrintDatabaseOptions(t *testing.T) {
 				DbName: "",
 				DefaultTimezone: "America/New_York",
 			},
-			expected:  nil,
+			expected:  []string{"ALTER DATABASE db SET spanner.default_time_zone = 'America/New_York'"},
 		},
 		{
 			dbOptions: DatabaseOptions{

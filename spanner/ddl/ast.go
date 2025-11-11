@@ -788,29 +788,37 @@ type DatabaseOptions struct {
 }
 
 func (dbOptions DatabaseOptions) PrintDatabaseOptions() string {
+	dbName := "db"
+	if dbOptions.DbName != "" {
+		dbName = fmt.Sprintf("`%s`", dbOptions.DbName)
+	}
+
 	var options []string
 	if dbOptions.DefaultTimezone != "" {
 		options = append(options, fmt.Sprintf("default_time_zone = '%s'", dbOptions.DefaultTimezone))
 	}
 
 	dbOptionsDdl := ""
-	if dbOptions.DbName != "" && len(options) > 0 {
-		dbOptionsDdl = fmt.Sprintf("ALTER DATABASE `%s` SET OPTIONS (%s)", dbOptions.DbName, strings.Join(options, ", "))
+	if len(options) > 0 {
+		dbOptionsDdl = fmt.Sprintf("ALTER DATABASE %s SET OPTIONS (%s)", dbName, strings.Join(options, ", "))
 	}
 	return dbOptionsDdl
 }
 
 func (dbOptions DatabaseOptions) PGPrintDatabaseOptions() []string {
+	dbName := "db"
+	if dbOptions.DbName != "" {
+		dbName = fmt.Sprintf("\"%s\"", dbOptions.DbName)
+	}
+
 	var options []string
 	if dbOptions.DefaultTimezone != "" {
 		options = append(options, fmt.Sprintf("spanner.default_time_zone = '%s'", dbOptions.DefaultTimezone))
 	}
 
 	var dbOptionsDdls []string
-	if (dbOptions.DbName != "") {
-		for _, option := range options {
-			dbOptionsDdls = append(dbOptionsDdls, fmt.Sprintf("ALTER DATABASE \"%s\" SET %s", dbOptions.DbName, option))
-		}
+	for _, option := range options {
+		dbOptionsDdls = append(dbOptionsDdls, fmt.Sprintf("ALTER DATABASE %s SET %s", dbName, option))
 	}
 	return dbOptionsDdls
 }
