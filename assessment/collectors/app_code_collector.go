@@ -370,9 +370,11 @@ func (m *MigrationCodeSummarizer) parseJSONWithRetries(model generativeModel, or
 		newPrompt := fmt.Sprintf(jsonFixPromptTemplate, err.Error(), trimmedResponse)
 
 		logger.Log.Debug("JSON Parsing Retry Prompt: ", zap.String("prompt", newPrompt))
-		resp, err := model.GenerateContent(context.Background(), genai.Text(newPrompt))
+
+		retryClient := utils.DefaultLLMRetryClient{}
+		resp, err := retryClient.GenerateContentWithRetry(context.Background(), model.(*genaiModelWrapper).GenerativeModel, genai.Text(newPrompt), 5, logger.Log)
 		if err != nil {
-			logger.Log.Fatal("Failed to get response from LLM for JSON parsing retry: ", zap.Error(err))
+			logger.Log.Warn("Failed to get response from LLM for JSON parsing retry: ", zap.Error(err))
 		}
 		logger.Log.Debug("LLM Token Usage (JSON Parsing Retry): ",
 			zap.Int32("Prompt Tokens", resp.UsageMetadata.PromptTokenCount),
@@ -391,7 +393,7 @@ func (m *MigrationCodeSummarizer) parseJSONWithRetries(model generativeModel, or
 func (m *MigrationCodeSummarizer) fetchFileContent(filepath string) (string, error) {
 	content, err := utils.ReadFileWithExplicitBuffer(filepath, bufio.MaxScanTokenSize*10)
 	if err != nil {
-		logger.Log.Fatal("Failed to read file: ", zap.Error(err), zap.String("filepath", filepath))
+		logger.Log.Warn("Failed to read file: ", zap.Error(err), zap.String("filepath", filepath))
 		return "", err
 	}
 	return content, nil
