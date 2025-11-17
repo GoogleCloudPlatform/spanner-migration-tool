@@ -273,7 +273,7 @@ func combineAndDeduplicateQueries(
 				key = q.OriginalQuery
 				q.NormalizedQuery = q.OriginalQuery
 			}
-			if existingQuery, ok := queryMap[key]; ok {
+			if existingQuery, ok := queryMap[key]; ok && existingQuery.AssessmentSource == "performance_schema" {
 				q.AssessmentSource = "app_code, performance_schema"
 				q.ExecutionCount = existingQuery.ExecutionCount
 				queryMap[key] = q
