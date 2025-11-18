@@ -318,6 +318,64 @@ func TestToExperimentalSpannerType(t *testing.T) {
 	assert.Equal(t, expectedIssues, actualIssues)
 }
 
+func Test_GetColumnAutoGen(t *testing.T) {
+	conv := internal.MakeConv()
+	tc := []struct {
+		conv               *internal.Conv
+		autoGenCol         ddl.AutoGenCol
+		expectedAutoGenCol ddl.AutoGenCol
+		expectErr          bool
+		colId              string
+		tableId            string
+	}{
+		{
+			conv: conv,
+			autoGenCol: ddl.AutoGenCol{
+				Name:           constants.SERIAL,
+				GenerationType: constants.SERIAL,
+			},
+			expectedAutoGenCol: ddl.AutoGenCol{
+				Name:           constants.IDENTITY,
+				GenerationType: constants.IDENTITY,
+			},
+			expectErr: false,
+			colId:   "c1",
+			tableId: "t1",
+		},
+		{
+			conv: conv,
+			autoGenCol: ddl.AutoGenCol{
+				Name:           "Column1",
+				GenerationType: constants.SEQUENCE,
+			},
+			expectedAutoGenCol: ddl.AutoGenCol{},
+			expectErr: true,
+			colId:   "c1",
+			tableId: "t1",
+		},
+		{
+			conv: conv,
+			autoGenCol: ddl.AutoGenCol{},
+			expectedAutoGenCol: ddl.AutoGenCol{},
+			expectErr: true,
+			colId:   "c1",
+			tableId: "t1",
+		},
+	}
+
+	for _, tt := range tc {
+		var toddl = ToDdlImpl{}
+		autoGenCol, err := toddl.GetColumnAutoGen(tt.conv, tt.autoGenCol, tt.colId, tt.tableId)
+		assert.Equal(t, tt.expectedAutoGenCol, *autoGenCol)
+		if tt.expectErr {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+		}
+	}
+
+}
+
 func dropComments(t *ddl.CreateTable) {
 	t.Comment = ""
 	for _, c := range t.ColIds {
