@@ -16,6 +16,8 @@
 package postgres
 
 import (
+	"fmt"
+
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
@@ -51,7 +53,12 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 }
 
 func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
-	return nil, nil
+	switch autoGenCol.GenerationType {
+	case constants.SERIAL:
+		return &ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}, nil
+	default:
+		return &ddl.AutoGenCol{}, fmt.Errorf("auto generation not supported")
+	}
 }
 
 // toSpannerTypeInternal defines the mapping of source types into Spanner
