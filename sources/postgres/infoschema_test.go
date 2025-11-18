@@ -78,6 +78,11 @@ func TestProcessSchema(t *testing.T) {
 			},
 		},
 		{
+			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.user"},
+			cols:  []string{"attname"},
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "user"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -108,6 +113,11 @@ func TestProcessSchema(t *testing.T) {
 			rows: [][]driver.Value{
 				{"public", "product", "productid", "product_id", "fk_test2", constants.FK_NO_ACTION, constants.FK_SET_NULL},
 				{"public", "user", "userid", "user_id", "fk_test3", constants.FK_SET_NULL, constants.FK_RESTRICT}},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.cart"},
+			cols:  []string{"attname"},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -143,6 +153,11 @@ func TestProcessSchema(t *testing.T) {
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
 		},
 		{
+			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.product"},
+			cols:  []string{"attname"},
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "product"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -171,11 +186,17 @@ func TestProcessSchema(t *testing.T) {
 		},
 
 		{
+			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.test"},
+			cols:  []string{"attname"},
+			rows: [][]driver.Value{{"id"}},
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
 			rows: [][]driver.Value{
-				{"id", "bigint", nil, "NO", nil, nil, 64, 0},
+				{"id", "bigint", nil, "NO", "nextval('public.test_id_seq'::regclass)", nil, 64, 0},
 				{"aint", "ARRAY", "integer", "YES", nil, nil, nil, nil},
 				{"atext", "ARRAY", "text", "YES", nil, nil, nil, nil},
 				{"b", "boolean", nil, "YES", nil, nil, nil, nil},
@@ -215,6 +236,11 @@ func TestProcessSchema(t *testing.T) {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "test_ref"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.test_ref"},
+			cols:  []string{"attname"},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -285,7 +311,7 @@ func TestProcessSchema(t *testing.T) {
 			Name:   "test",
 			ColIds: []string{"id", "aint", "atext", "b", "bs", "by", "c", "c_8", "d", "f8", "f4", "i8", "i4", "i2", "num", "s", "ts", "tz", "txt", "vc", "vc6"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"id":    ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+				"id":    ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
 				"aint":  ddl.ColumnDef{Name: "aint", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}},
 				"atext": ddl.ColumnDef{Name: "atext", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}},
 				"b":     ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Bool}},
@@ -324,6 +350,7 @@ func TestProcessSchema(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.Equal(t, len(conv.SchemaIssues[cartTableId].ColumnLevelIssues), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
+		"id":  []internal.SchemaIssue{internal.IdentitySkipRange},
 		"aint":  []internal.SchemaIssue{internal.Widened, internal.ArrayTypeNotSupported},
 		"bs":    []internal.SchemaIssue{internal.DefaultValue},
 		"i4":    []internal.SchemaIssue{internal.Widened},
@@ -504,6 +531,11 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+) JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE (.+) JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME", "ON_DELETE", "ON_UPDATE"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_attribute (.+)",
+			args:  []driver.Value{"public.test"},
+			cols:  []string{"attname"},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",

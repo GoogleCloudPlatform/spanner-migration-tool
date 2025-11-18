@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/bits"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -290,6 +291,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
                  ON ((c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
                      = (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier))
               where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
+	serialCols := isi.getSerialColumns(conv, table)
 	cols, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
@@ -318,7 +320,8 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				// Nothing to do here -- these are handled elsewhere.
 			}
 		}
-		ignored.Default = colDefault.Valid
+		isSerialColumn := slices.Contains(serialCols, colName)
+		ignored.Default = colDefault.Valid && !isSerialColumn
 		colId := internal.GenerateColumnId()
 		c := schema.Column{
 			Id:      colId,
@@ -326,11 +329,37 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			Type:    toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale),
 			NotNull: common.ToNotNull(conv, isNullable),
 			Ignored: ignored,
+			AutoGen: toAutoGen(isSerialColumn),
 		}
 		colDefs[colId] = c
 		colIds = append(colIds, colId)
 	}
 	return colDefs, colIds, nil
+}
+
+func (isi InfoSchemaImpl) getSerialColumns(conv *internal.Conv, table common.SchemaAndName) []string {
+	serialColsQuery := `SELECT a.attname FROM pg_attribute a
+        WHERE  attrelid = $1::regclass AND attnum > 0 AND a.atttypid = ANY ('{int,int8,int2}'::regtype[]) AND EXISTS (
+            SELECT FROM pg_attrdef ad
+            WHERE  ad.adrelid = a.attrelid
+            AND    ad.adnum   = a.attnum
+            AND    pg_get_expr(ad.adbin, ad.adrelid) = 'nextval('''
+                || (pg_get_serial_sequence(a.attrelid::regclass::text, a.attname))::regclass
+                || '''::regclass)'
+        );`
+	serialColsResult, err := isi.Db.Query(serialColsQuery, table.Schema + "." + table.Name)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Couldn't get information about serial columns for table %s.%s: %s", table.Schema, table.Name, err))
+		return []string{}
+	}
+	defer serialColsResult.Close()
+	serialCols := []string{}
+	var serialColName string
+	for serialColsResult.Next() {
+		serialColsResult.Scan(&serialColName)
+		serialCols = append(serialCols, serialColName)
+	}
+	return serialCols
 }
 
 // GetConstraints returns a list of primary keys and by-column map of
@@ -523,6 +552,15 @@ func toType(dataType string, elementDataType sql.NullString, charLen sql.NullInt
 	default:
 		return schema.Type{Name: dataType}
 	}
+}
+
+func toAutoGen(isSerial bool) ddl.AutoGenCol {
+	autoGen := ddl.AutoGenCol{}
+	if isSerial {
+		autoGen.Name = constants.SERIAL
+		autoGen.GenerationType = constants.SERIAL
+	}
+	return autoGen;
 }
 
 func cvtSQLArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
