@@ -17,6 +17,7 @@ package postgres
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 )
 
 // DbDumpImpl Postgres specific implementation for DdlDumpImpl.
@@ -119,6 +121,9 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 		}
 	}
 	internal.ResolveForeignKeyIds(conv.SrcSchema)
+	// We don't actually support migration of sequences for Postgres, but some get set in order to properly
+	// identify SERIAL columns. In order to avoid migrating these sequences, we unset them here.
+	conv.SrcSequences = make(map[string]ddl.Sequence)
 	return nil
 }
 
@@ -236,6 +241,14 @@ func processStatements(conv *internal.Conv, rawStmts []*pg_query.RawStmt) *copyO
 			if conv.SchemaMode() {
 				processIndexStmt(conv, n.IndexStmt)
 			}
+		case *pg_query.Node_CreateSeqStmt:
+			if conv.SchemaMode() {
+				processCreateSeqStmt(conv, n.CreateSeqStmt)
+			}
+		case *pg_query.Node_AlterSeqStmt:
+			if conv.SchemaMode() {
+				processAlterSeqStmt(conv, n.AlterSeqStmt)
+			}
 		default:
 			conv.SkipStatement(printNodeType(n))
 		}
@@ -297,6 +310,15 @@ func processAlterTableStmt(conv *internal.Conv, n *pg_query.AlterTableStmt) {
 						conv.SchemaStatement(strings.Join([]string{printNodeType(n), printNodeType(t), printNodeType(at)}, "."))
 					default:
 						conv.SkipStatement(strings.Join([]string{printNodeType(n), printNodeType(t), printNodeType(at)}, "."))
+					}
+				case a.Subtype == pg_query.AlterTableType_AT_ColumnDefault && a.Name != "" && a.Def != nil:
+					seqName := getSeqNameFromDefaultExpression(a.Def)
+					if seqName != "" {
+						c := constraint{ct: pg_query.ConstrType_CONSTR_DEFAULT, cols: []string{a.Name}, sequenceName: seqName}
+						updateSchema(conv, tbl.Id, []constraint{c}, "ALTER TABLE")
+						conv.SchemaStatement(strings.Join([]string{printNodeType(n), printNodeType(t)}, "."))
+					} else {
+						conv.SkipStatement(strings.Join([]string{printNodeType(n), printNodeType(t)}, "."))
 					}
 				default:
 					conv.SkipStatement(strings.Join([]string{printNodeType(n), printNodeType(t)}, "."))
@@ -390,7 +412,20 @@ func processColumn(conv *internal.Conv, n *pg_query.ColumnDef, table string) (st
 		Name:        tid,
 		Mods:        mods,
 		ArrayBounds: getArrayBounds(conv, n.TypeName.ArrayBounds)}
-	return name, schema.Column{Name: name, Type: ty}, analyzeColDefConstraints(conv, printNodeType(n), table, n.Constraints, name), nil
+	autoGen := getAutoGenFromTypeName(tid)
+	return name, schema.Column{Name: name, Type: ty, AutoGen: autoGen}, analyzeColDefConstraints(conv, printNodeType(n), table, n.Constraints, name), nil
+}
+
+func getAutoGenFromTypeName(typeName string) ddl.AutoGenCol {
+	switch typeName {
+	case "bigserial", "serial", "smallserial":
+		return ddl.AutoGenCol{
+			Name: constants.SERIAL,
+			GenerationType: constants.SERIAL,
+		}
+	default:
+		return ddl.AutoGenCol{}
+	}
 }
 
 func processInsertStmt(conv *internal.Conv, n *pg_query.InsertStmt) *copyOrInsert {
@@ -501,6 +536,124 @@ func processVariableSetStmt(conv *internal.Conv, n *pg_query.VariableSetStmt) {
 	}
 }
 
+func processCreateSeqStmt(conv *internal.Conv, n *pg_query.CreateSeqStmt) {
+	name := getSeqName(n.GetSequence())
+	conv.ConvLock.Lock()
+	defer conv.ConvLock.Unlock()
+	seq := ddl.Sequence{
+		Id: internal.GenerateSequenceId(),
+		Name: name,
+	}
+	addOwnedBy(&seq, n.Options)
+	conv.SrcSequences[name] = seq
+	checkSerialForOwningColumns(conv, seq)
+}
+
+func processAlterSeqStmt(conv *internal.Conv, n *pg_query.AlterSeqStmt) {
+	name := getSeqName(n.Sequence)
+	conv.ConvLock.Lock()
+	defer conv.ConvLock.Unlock()
+	seq := conv.SrcSequences[name]
+	addOwnedBy(&seq, n.Options)
+	conv.SrcSequences[name] = seq
+	checkSerialForOwningColumns(conv, seq)
+}
+
+func getSeqName(n *pg_query.RangeVar) string {
+	var parts []string
+	if n.Schemaname != "" {
+		parts = append(parts, n.Schemaname)
+	}
+	parts = append(parts, n.Relname)
+	return strings.Join(parts, ".")
+}
+
+func addOwnedBy(seq *ddl.Sequence, options []*pg_query.Node) {
+	if seq.ColumnsOwningSeq == nil {
+		seq.ColumnsOwningSeq = make(map[string][]string)
+	}
+
+	for _, opt := range options {
+		if opt.GetDefElem().Defname == "owned_by" {
+			colNameItems := opt.GetDefElem().Arg.GetList().Items
+			if len(colNameItems) >= 2 {
+				tableName, _ := getString(colNameItems[len(colNameItems)-2])
+				if len(colNameItems) >= 3 {
+					schemaName, _ := getString(colNameItems[len(colNameItems)-3])
+					if (schemaName != "" && schemaName != "public") {
+						tableName = schemaName + "." + tableName
+					}
+				}
+				columnName, _ := getString(colNameItems[len(colNameItems)-1])
+				seq.ColumnsOwningSeq[tableName] = []string{columnName}
+			}
+			break
+		}
+	}
+}
+
+// checkSerialForOwningColumns goes through all the columns that own the given sequence (there shouldn't ever be
+// more than one) and checks if we now have enough information to identify that column as a serial column
+func checkSerialForOwningColumns(conv *internal.Conv, seq ddl.Sequence) {
+	for tblName, colNames := range seq.ColumnsOwningSeq {
+		tbl, _ := internal.GetSrcTableByName(conv.SrcSchema, tblName)
+		if tbl != nil {
+			checkForSerial(seq.Name, tblName, colNames, tbl.ColDefs, tbl.ColNameIdMap, conv.SrcSequences)
+		}
+	}
+}
+
+// checkForSerial determines whether a column is a serial column, and if so updates the AutoGen for that
+// column. Serial columns are identified by three things: the column must be an integer type, it must have its value
+// generated by a sequence, and it must own that sequence.
+func checkForSerial(sequenceName, tableName string, colNames []string, colDef map[string]schema.Column, colNameIdMap map[string]string, srcSequences map[string]ddl.Sequence) {
+	for _, cn := range colNames {
+		cid := colNameIdMap[cn]
+		cd := colDef[cid]
+		switch cd.Type.Name {
+		case "int", "int2", "int4", "int8":
+			if isOwnedBy(srcSequences[sequenceName], tableName, cn) && isUsedBy(cd, sequenceName) {
+				cd.AutoGen = ddl.AutoGenCol{
+					Name: constants.SERIAL,
+					GenerationType: constants.SERIAL,
+				}
+				cd.Ignored.Default = false
+			}
+		}
+		colDef[cid] = cd
+	}
+}
+
+func isOwnedBy(seq ddl.Sequence, tableName, columnName string) bool {
+	return slices.Contains(seq.ColumnsOwningSeq[tableName], columnName)
+}
+
+func isUsedBy(cd schema.Column, sequenceName string) bool {
+	return cd.AutoGen.GenerationType == constants.SEQUENCE && cd.AutoGen.Name == sequenceName
+}
+
+// getSeqNameFromDefaultExpression extracts the sequence name from a DEFAULT expression that uses a sequence via
+// nextval('<seqName>'::regclass). If the DEFAULT expression does not use a sequence this returns an empty string.
+func getSeqNameFromDefaultExpression(node *pg_query.Node) string {
+	switch f := node.GetNode().(type) {
+	case *pg_query.Node_FuncCall:
+		var funcName string
+		if len(f.FuncCall.Funcname) > 0 {
+			funcName, _ = getString(f.FuncCall.Funcname[0])
+		}
+
+		if funcName == "nextval" {
+			for _, arg := range f.FuncCall.Args {
+				seqName := arg.GetTypeCast().Arg.GetAConst().GetSval().Sval
+				if seqName != "" {
+					return seqName
+				}
+			}
+		}
+	}
+	return ""
+}
+
 func getTypeMods(conv *internal.Conv, t []*pg_query.Node) (l []int64) {
 	for _, x := range t {
 		switch t1 := x.GetNode().(type) {
@@ -589,6 +742,8 @@ type constraint struct {
 	referTable string
 	onDelete   string
 	onUpdate   string
+	/* Fields used for DEFAULT constraint: */
+	sequenceName string // only when value is generated from sequence using nextval()
 }
 
 // extractConstraints traverses a list of nodes (expecting them to be
@@ -600,7 +755,7 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 			c := d.Constraint
 			var cols, referCols []string
 			var referTable, onDelete, onUpdate string
-			var conName string
+			var conName, sequenceName string
 			switch c.Contype {
 			case pg_query.ConstrType_CONSTR_FOREIGN:
 				t, err := getTableName(conv, c.Pktable)
@@ -667,6 +822,8 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 					onUpdate = "UNKNOWN"
 				}
 
+			case pg_query.ConstrType_CONSTR_DEFAULT:
+				sequenceName = getSeqNameFromDefaultExpression(c.RawExpr)
 			default:
 				if c.Conname != "" {
 					conName = c.Conname
@@ -681,7 +838,7 @@ func extractConstraints(conv *internal.Conv, stmtType, table string, l []*pg_que
 					cols = append(cols, k)
 				}
 			}
-			cs = append(cs, constraint{ct: c.Contype, cols: cols, name: conName, referCols: referCols, referTable: referTable, onDelete: onDelete, onUpdate: onUpdate})
+			cs = append(cs, constraint{ct: c.Contype, cols: cols, name: conName, referCols: referCols, referTable: referTable, onDelete: onDelete, onUpdate: onUpdate, sequenceName: sequenceName})
 		default:
 			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node while processing constraints\n", stmtType, printNodeType(d)))
 		}
@@ -735,6 +892,15 @@ func updateSchema(conv *internal.Conv, tableId string, cs []constraint, stmtType
 			ct := conv.SrcSchema[tableId]
 			ct.Indexes = append(ct.Indexes, schema.Index{Name: c.name, Unique: true, Keys: toSchemaKeys(conv, tableId, c.cols, colNameIdMap)})
 			conv.SrcSchema[tableId] = ct
+		case pg_query.ConstrType_CONSTR_DEFAULT:
+			ct := conv.SrcSchema[tableId]
+			if c.sequenceName != "" {
+				updateColsAutoGen(c.sequenceName, c.cols, ct.ColDefs, colNameIdMap)
+				checkForSerial(c.sequenceName, ct.Name, c.cols, ct.ColDefs, colNameIdMap, conv.SrcSequences)
+			} else {
+				updateCols(c.ct, c.cols, ct.ColDefs, colNameIdMap)
+			}
+			conv.SrcSchema[tableId] = ct
 		default:
 			ct := conv.SrcSchema[tableId]
 			updateCols(c.ct, c.cols, ct.ColDefs, colNameIdMap)
@@ -756,6 +922,20 @@ func updateCols(ct pg_query.ConstrType, colNames []string, colDef map[string]sch
 		case pg_query.ConstrType_CONSTR_DEFAULT:
 			cd.Ignored.Default = true
 		}
+		colDef[cid] = cd
+	}
+}
+
+// updateColsAutoGen updates the AutoGen for the specified columns, setting the sequence name used to generate values.
+func updateColsAutoGen(sequenceName string, colNames []string, colDef map[string]schema.Column, colNameIdMap map[string]string) {
+	for _, cn := range colNames {
+		cid := colNameIdMap[cn]
+		cd := colDef[cid]
+		cd.AutoGen = ddl.AutoGenCol{
+			Name: sequenceName,
+			GenerationType: constants.SEQUENCE,
+		}
+		cd.Ignored.Default = true
 		colDef[cid] = cd
 	}
 }
