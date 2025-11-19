@@ -29,7 +29,7 @@ import { AddNewSequenceComponent } from '../add-new-sequence/add-new-sequence.co
 import { linkedFieldsValidatorSequence } from 'src/app/utils/utils';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ICreateSequence from 'src/app/model/auto-gen'
-import { autoGenSupportedDbs } from 'src/app/app.constants'
+import { defaultAndSequenceSupportedDbs, identitySupportedDbs } from 'src/app/app.constants'
 import ICcTabData from 'src/app/model/cc-tab-data'
 import { title } from 'process'
 @Component({
@@ -78,7 +78,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
   isPostgreSQLDialect: boolean = false
   processedAutoGenMap: GroupedAutoGens = {};
   sequenceKinds: string[] = []
-  mySqlSource: boolean = false
+  supportsDefaultAndSequence: boolean = false
+  supportsAutoGen: boolean = false
   foreignKeyActionsSupported: boolean = false
   spTablesForInterleaving: { id: string; name: string }[] = [];
 
@@ -91,7 +92,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           if (this.conv.DatabaseType) {
             this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
           }
-          this.mySqlSource = autoGenSupportedDbs.includes(this.srcDbName)
+          this.supportsDefaultAndSequence = defaultAndSequenceSupportedDbs.includes(this.srcDbName)
+          this.supportsAutoGen = identitySupportedDbs.includes(this.srcDbName)
           if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres) {
             this.foreignKeyActionsSupported = true
           }
@@ -246,15 +248,19 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
       this.spDisplayedColumns.splice(3, 0, 'spCassandraOption');
     }
 
-    if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
+    if (this.supportsAutoGen && !this.spDisplayedColumns.includes("spAutoGen")) {
       this.spDisplayedColumns.splice(2, 0, "spAutoGen", "spSkipRangeMin", "spSkipRangeMax", "spStartCounterWith");
       this.displayedPkColumns.splice(8, 0, "spAutoGen");
-      this.srcDisplayedColumns.splice(2, 0, "srcAutoGen");
-      this.displayedPkColumns.splice(2, 0, "srcAutoGen");
+      this.srcDisplayedColumns.splice(3, 0, "srcAutoGen");
+      this.displayedPkColumns.splice(3, 0, "srcAutoGen");
+      this.spColspan+=1;
+      this.srcColspan+=1;
+    }
+    if (this.supportsDefaultAndSequence && !this.spDisplayedColumns.includes("spAutoGen")) {
       this.srcDisplayedColumns.push("srcDefaultValue");;
       this.spDisplayedColumns.splice(7, 0,"spDefaultValue");
-      this.spColspan+=2;
-      this.srcColspan+=2;
+      this.spColspan+=1;
+      this.srcColspan+=1;
     }
     if (this.foreignKeyActionsSupported && !this.displayedFkColumns.includes('srcOnDelete') ) {
       this.displayedFkColumns.splice(4, 0, 'srcOnDelete', 'srcOnUpdate');

@@ -80,13 +80,6 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		default:
 			return ddl.Type{Name: ddl.Bool}, nil
 		}
-	case "bigserial":
-		switch spType {
-		case ddl.String:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.Serial}
-		default:
-			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
-		}
 	case "bpchar", "character": // Note: Postgres internal name for char is bpchar (aka blank padded char).
 		switch spType {
 		case ddl.Bytes:
@@ -131,21 +124,21 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 		default:
 			return ddl.Type{Name: ddl.Float32}, nil
 		}
-	case "int8", "bigint":
+	case "int8", "bigint", "bigserial":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Int64}, nil
 		}
-	case "int4", "integer":
+	case "int4", "integer", "serial":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		}
-	case "int2", "smallint":
+	case "int2", "smallint", "smallserial":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
@@ -160,13 +153,6 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 			// TODO: check mod[0] and mod[1] and generate a warning
 			// if this numeric won't fit in Spanner's NUMERIC.
 			return ddl.Type{Name: ddl.Numeric}, nil
-		}
-	case "serial":
-		switch spType {
-		case ddl.String:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.Serial}
-		default:
-			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
 		}
 	case "text":
 		switch spType {
