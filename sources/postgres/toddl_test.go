@@ -95,6 +95,10 @@ func TestToSpannerTypeInternal(t *testing.T) {
 	if errCheck == nil {
 		t.Errorf("Error in serial to string conversion")
 	}
+	_, errCheck = toSpannerTypeInternal(schema.Type{"smallserial", []int64{}, []int64{1, 2, 3}}, "STRING")
+	if errCheck == nil {
+		t.Errorf("Error in smallserial to string conversion")
+	}
 	_, errCheck = toSpannerTypeInternal(schema.Type{"text", []int64{}, []int64{1, 2, 3}}, "BYTES")
 	if errCheck != nil {
 		t.Errorf("Error in text to bytes conversion")

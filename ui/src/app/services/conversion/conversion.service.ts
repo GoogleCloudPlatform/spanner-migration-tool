@@ -10,7 +10,7 @@ import IConv, {
 } from '../../model/conv'
 import IColumnTabData, { IIndexData, ISequenceData } from '../../model/edit-table'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ColLength, Dialect, ObjectExplorerNodeType, SourceDbNames, StorageKeys, autoGenSupportedDbs } from 'src/app/app.constants'
+import { ColLength, Dialect, ObjectExplorerNodeType, SourceDbNames, StorageKeys, defaultAndSequenceSupportedDbs } from 'src/app/app.constants'
 import { BehaviorSubject } from 'rxjs'
 import { FetchService } from '../fetch/fetch.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
@@ -180,7 +180,7 @@ export class ConversionService {
     this.sortNodeChildren(sequenceNode, sortOrder)
 
     let mainNodeChildren :ISchemaObjectNode[] = [parentNode]
-    if (autoGenSupportedDbs.includes(this.srcDbName)) {
+    if (defaultAndSequenceSupportedDbs.includes(this.srcDbName)) {
       mainNodeChildren.push(sequenceNode)
     }
     return [
