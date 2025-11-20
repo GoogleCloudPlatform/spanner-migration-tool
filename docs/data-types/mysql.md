@@ -180,33 +180,42 @@ The SKIP RANGE and START COUNTER WITH values can be set most via both the web UI
 
 The Column tab of the web UI exposes fields to set the SKIP RANGE and START COUNTER WITH values. For more details, see [here](../ui/schema-conv/spanner-draft.md).
 
-To set the SKIP RANGE and/or START COUNTER WITH values via the CLI, the recommended steps are as follows:
+To set the SKIP RANGE and/or START COUNTER WITH values via the CLI, there are two options: either specify default
+values to be used by all IDENTITY columns, or specify values on a per-column basis. Both options can be used in
+conjuction with one another.
+
+To specify default SKIP RANGE and/or START COUNTER WITH values to be used by all columns, include the following flags
+in the `targetProfile` parameter: `defaultIdentitySkipRange` and `defaultIdentityStartCounterWith`, for example:
+```sh
+--targetProfile="instance=my-instance,defaultIdentitySkipRange=1000-5000,defaultIdentityStartCounterWith=100"
+```
+For more details on both flags, see [here](../cli/flags.md#target-profile).
+
+To specify SKIP RANGE and/or START COUNTER WITH values on per-column basis via the CLI, do the following:
 - Do a dry-run schema-only migration to generate a session JSON file:
 ```sh
-    spanner-migration-tool schema -dry-run ...
+spanner-migration-tool schema -dry-run ...
 ```
 - Open the resulting session file and find the relevant column definition(s) in the `ColDefs` collection of the table
   it belongs to
 - Set the appropriate fields in that column's `AutoGen.AutoIncrementOptions` node. All three values are expected to be
   strings containing a numeric value. For example:
 ```json
-    {
-        "SpSchema": {
-            "table1": {
-                "Name": "SomeTable",
-                "ColDefs": {
-                    "column1": {
-                        "Name": "some_column",
-                        "AutoGen": {
-                            "Name": "Auto Increment",
-                            "GenerationType": "Auto Increment",
-                            "AutoIncrementOptions": {
-                                "SkipRangeMin": "1000",
-                                "SkipRangeMax": "10000",
-                                "StartCounterWith": "500"
-                            }
-                        },
-                        ...
+{
+    "SpSchema": {
+        "table1": {
+            "Name": "SomeTable",
+            "ColDefs": {
+                "column1": {
+                    "Name": "some_column",
+                    "AutoGen": {
+                        "Name": "Auto Increment",
+                        "GenerationType": "Auto Increment",
+                        "AutoIncrementOptions": {
+                            "SkipRangeMin": "1000",
+                            "SkipRangeMax": "10000",
+                            "StartCounterWith": "500"
+                        }
                     },
                     ...
                 },
@@ -215,11 +224,13 @@ To set the SKIP RANGE and/or START COUNTER WITH values via the CLI, the recommen
             ...
         },
         ...
-    }
+    },
+    ...
+}
 ```
 - Save the session file and run your desired migration using the updated session file:
 ```sh
-    spanner-migration-tool schema -session=<path to session file> ...
+spanner-migration-tool schema -session=<path to session file> ...
 ```
 
 ## Other MySQL features
