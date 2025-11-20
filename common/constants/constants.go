@@ -111,6 +111,7 @@ const (
 	UUID           string = "UUID"
 	SEQUENCE       string = "Sequence"
 	AUTO_INCREMENT string = "Auto Increment"
+	IDENTITY       string = "Identity"
 	// Default gcs path of the Dataflow template.
 	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner"
 

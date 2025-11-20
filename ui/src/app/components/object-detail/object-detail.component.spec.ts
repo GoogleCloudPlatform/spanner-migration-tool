@@ -94,11 +94,24 @@ describe('ObjectDetailComponent', () => {
         spCassandraOption: '',
         spAutoGen: {
           Name: '',
-          GenerationType: ''
+          GenerationType: '',
+          IdentityOptions: {
+            SkipRangeMin: '',
+            SkipRangeMax: '',
+            StartCounterWith: ''
+          }
         },
+        spSkipRangeMin: '',
+        spSkipRangeMax: '',
+        spStartCounterWith: '',
         srcAutoGen: {
           Name: '',
-          GenerationType: ''
+          GenerationType: '',
+          IdentityOptions: {
+            SkipRangeMin: '',
+            SkipRangeMax: '',
+            StartCounterWith: ''
+          }
         },
         srcDefaultValue: '',
         spDefaultValue: {
@@ -127,11 +140,24 @@ describe('ObjectDetailComponent', () => {
         spCassandraOption: '',
         spAutoGen: {
           Name: '',
-          GenerationType: ''
+          GenerationType: '',
+          IdentityOptions: {
+            SkipRangeMin: '',
+            SkipRangeMax: '',
+            StartCounterWith: ''
+          }
         },
+        spSkipRangeMin: '',
+        spSkipRangeMax: '',
+        spStartCounterWith: '',
         srcAutoGen: {
           Name: '',
-          GenerationType: ''
+          GenerationType: '',
+          IdentityOptions: {
+            SkipRangeMin: '',
+            SkipRangeMax: '',
+            StartCounterWith: ''
+          }
         },
         srcDefaultValue: '',
         spDefaultValue: {
@@ -469,8 +495,11 @@ describe('ObjectDetailComponent', () => {
         spIsPk: true,
         spIsNotNull: true,
         spColMaxLength: '',
-        spCassandraOption: 'list<bigint>', 
-        spAutoGen: { Name: '', GenerationType: '' },
+        spCassandraOption: 'list<bigint>',
+        spAutoGen: { Name: '', GenerationType: '', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } },
+        spSkipRangeMin: '',
+        spSkipRangeMax: '',
+        spStartCounterWith: '',
         spDefaultValue: '',
       }),
     ])
@@ -492,7 +521,7 @@ describe('ObjectDetailComponent', () => {
           Removed: false,
           ToType: 'INT64',
           MaxColLength: '',
-          AutoGen: { Name: '', GenerationType: '' },
+          AutoGen: { Name: '', GenerationType: '', IdentityOptions: { SkipRangeMin: '', SkipRangeMax: '', StartCounterWith: '' } },
           DefaultValue: { IsPresent: false, Value: { ExpressionId: '', Statement: '' } },
         },
       },

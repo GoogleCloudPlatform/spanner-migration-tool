@@ -427,49 +427,44 @@ func dropComments(t *ddl.CreateTable) {
 
 func Test_GetColumnAutoGen(t *testing.T) {
 	conv := internal.MakeConv()
-	conv.SrcSequences["s1"] = ddl.Sequence{
-		Name:             "Sequence1",
-		Id:               "s1",
-		SequenceKind:     "BIT REVERSED POSITIVE",
-		SkipRangeMin:     "1",
-		SkipRangeMax:     "2",
-		StartWithCounter: "3",
-	}
-	conv.SpSequences["s1"] = ddl.Sequence{
-		Name:             "Sequence1",
-		Id:               "s1",
-		SequenceKind:     "BIT REVERSED POSITIVE",
-		SkipRangeMin:     "1",
-		SkipRangeMax:     "2",
-		StartWithCounter: "3",
-	}
-	autoGenCol := ddl.AutoGenCol{
-		Name:           "Sequence1",
-		GenerationType: constants.AUTO_INCREMENT,
-	}
 	tc := []struct {
 		conv               *internal.Conv
-		srcSequence        ddl.Sequence
 		autoGenCol         ddl.AutoGenCol
 		expectedAutoGenCol ddl.AutoGenCol
+		expectErr          bool
 		colId              string
 		tableId            string
 	}{
 		{
 			conv: conv,
-			srcSequence: ddl.Sequence{
-				Name:             "Sequence1",
-				Id:               "s1",
-				SequenceKind:     "Auto Increment",
-				SkipRangeMin:     "1",
-				SkipRangeMax:     "2",
-				StartWithCounter: "3",
+			autoGenCol: ddl.AutoGenCol{
+				Name:           "Column1",
+				GenerationType: constants.AUTO_INCREMENT,
 			},
-			autoGenCol: autoGenCol,
 			expectedAutoGenCol: ddl.AutoGenCol{
-				Name:           "Sequence1",
+				Name:           constants.IDENTITY,
+				GenerationType: constants.IDENTITY,
+			},
+			expectErr: false,
+			colId:   "c1",
+			tableId: "t1",
+		},
+		{
+			conv: conv,
+			autoGenCol: ddl.AutoGenCol{
+				Name:           "Column1",
 				GenerationType: constants.SEQUENCE,
 			},
+			expectedAutoGenCol: ddl.AutoGenCol{},
+			expectErr: true,
+			colId:   "c1",
+			tableId: "t1",
+		},
+		{
+			conv: conv,
+			autoGenCol: ddl.AutoGenCol{},
+			expectedAutoGenCol: ddl.AutoGenCol{},
+			expectErr: true,
 			colId:   "c1",
 			tableId: "t1",
 		},
@@ -477,9 +472,13 @@ func Test_GetColumnAutoGen(t *testing.T) {
 
 	for _, tt := range tc {
 		var toddl = ToDdlImpl{}
-		autoGenCol, _ := toddl.GetColumnAutoGen(tt.conv, tt.autoGenCol, tt.colId, tt.tableId)
-		assert.Equal(t, &tt.expectedAutoGenCol, autoGenCol)
-		assert.Equal(t, len(tt.conv.SpSequences[tt.srcSequence.Id].ColumnsUsingSeq[tt.tableId]), 1)
+		autoGenCol, err := toddl.GetColumnAutoGen(tt.conv, tt.autoGenCol, tt.colId, tt.tableId)
+		assert.Equal(t, tt.expectedAutoGenCol, *autoGenCol)
+		if tt.expectErr {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+		}
 	}
 
 }
