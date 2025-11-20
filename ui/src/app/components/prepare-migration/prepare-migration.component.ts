@@ -129,6 +129,7 @@ export class PrepareMigrationComponent implements OnInit {
       GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
       GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) || '',
     },
+    DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
   }
 
   datastreamConfig: IDatastreamConfig = {
@@ -472,6 +473,7 @@ export class PrepareMigrationComponent implements OnInit {
           GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
           GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
         },
+        DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
       }
       this.isSourceConnectionProfileSet =
         (localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string) === 'true'
@@ -511,6 +513,7 @@ export class PrepareMigrationComponent implements OnInit {
           GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
           GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
         },
+        DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
       }
       if (localStorage.getItem(MigrationDetails.NumberOfShards) != null) {
         this.numberOfShards = localStorage.getItem(MigrationDetails.NumberOfShards) as string
@@ -712,6 +715,7 @@ export class PrepareMigrationComponent implements OnInit {
           GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
           GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
         },
+        DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
       }
       this.isTargetDetailSet =
         (localStorage.getItem(MigrationDetails.IsTargetDetailSet) as string) === 'true'
@@ -756,6 +760,7 @@ export class PrepareMigrationComponent implements OnInit {
           GcsBucketName: localStorage.getItem(TargetDetails.GcsMetadataName) as string,
           GcsBucketRootPath: localStorage.getItem(TargetDetails.GcsMetadataRootPath) as string,
         },
+        DefaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone) as string,
       }
     })
   }

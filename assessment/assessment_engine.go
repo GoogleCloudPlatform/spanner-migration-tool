@@ -139,7 +139,8 @@ func performQueryAssessment(ctx context.Context, collectors assessmentCollectors
 		ddl.GetDDL(
 			ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"},
 			conv.SpSchema,
-			conv.SpSequences),
+			conv.SpSequences,
+			conv.DatabaseOptions),
 		"\n")
 
 	for _, query := range queries {
@@ -216,7 +217,8 @@ func initializeCollectors(conv *internal.Conv, sourceProfile profiles.SourceProf
 			ddl.GetDDL(
 				ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"},
 				conv.SpSchema,
-				conv.SpSequences),
+				conv.SpSequences,
+				conv.DatabaseOptions),
 			"\n")
 
 		logger.Log.Debug("mysqlSchema", zap.String("schema", mysqlSchema))

@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { NgSelectModule } from '@ng-select/ng-select';
 
 import { TargetDetailsFormComponent } from './target-details-form.component';
 
@@ -12,7 +13,7 @@ describe('TargetDetailsFormComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       declarations: [ TargetDetailsFormComponent ],
-      imports: [ReactiveFormsModule, MatSnackBarModule],
+      imports: [ReactiveFormsModule, MatSnackBarModule, NgSelectModule],
       providers: [
         {
           provide: MatDialogRef,

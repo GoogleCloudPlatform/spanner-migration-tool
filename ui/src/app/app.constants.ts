@@ -86,7 +86,8 @@ export enum TargetDetails {
   ReplicationSlot = 'replicationSlot',
   Publication = 'publication',
   GcsMetadataName = 'gcsName',
-  GcsMetadataRootPath = 'gcsRootPath'
+  GcsMetadataRootPath = 'gcsRootPath',
+  DefaultTimezone = 'defaultTimezone'
 }
 
 export const Profile = {

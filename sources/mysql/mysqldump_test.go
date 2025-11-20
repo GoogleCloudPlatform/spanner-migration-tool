@@ -903,7 +903,7 @@ func TestProcessMySQLDump_GetDDL(t *testing.T) {
 			"	quantity INT64,\n" +
 			") PRIMARY KEY (productid, userid)"
 	c := ddl.Config{Tables: true}
-	assert.Equal(t, expected, strings.Join(ddl.GetDDL(c, conv.SpSchema, conv.SpSequences), " "))
+	assert.Equal(t, expected, strings.Join(ddl.GetDDL(c, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions), " "))
 }
 
 func TestProcessMySQLDump_Rows(t *testing.T) {

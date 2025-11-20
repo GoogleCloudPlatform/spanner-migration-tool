@@ -85,7 +85,7 @@ func GetDSpannerDDL(w http.ResponseWriter, r *http.Request) {
 	defer sessionState.Conv.ConvLock.RUnlock()
 	conv := sessionState.Conv
 	now := time.Now()
-	spDDL := ddl.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: sessionState.Driver}, conv.SpSchema, conv.SpSequences)
+	spDDL := ddl.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: sessionState.Driver}, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions)
 	if len(spDDL) == 0 {
 		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
 	}
@@ -105,7 +105,7 @@ func GetSpannerDDLWoComments(w http.ResponseWriter, r *http.Request) {
 	defer sessionState.Conv.ConvLock.RUnlock()
 	conv := sessionState.Conv
 	now := time.Now()
-	spDDL := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: sessionState.Driver}, conv.SpSchema, conv.SpSequences)
+	spDDL := ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: sessionState.Driver}, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions)
 	if len(spDDL) == 0 {
 		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
 	}

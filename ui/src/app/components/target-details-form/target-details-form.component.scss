@@ -7,3 +7,16 @@
     overflow: auto;
     text-overflow: ellipsis;
 }
+
+::ng-deep {
+  .ng-select[appearance=outline] {
+    &.ng-select-single .ng-select-container {
+      .ng-value-container .ng-input {
+        position: absolute;
+        bottom: auto;
+        left: auto;
+        padding: 0 .25em;
+      }
+    }
+  }
+}

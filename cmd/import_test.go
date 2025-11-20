@@ -844,7 +844,8 @@ func fetchDDLString(conv *internal.Conv) string {
 		ddl.GetDDL(
 			ddl.Config{Comments: false, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: "mysql"},
 			conv.SpSchema,
-			conv.SpSequences), ";"), "\n", " ", -1)
+			conv.SpSequences,
+			conv.DatabaseOptions), ";"), "\n", " ", -1)
 }
 
 func TestGetDialectWithDefaults(t *testing.T) {
