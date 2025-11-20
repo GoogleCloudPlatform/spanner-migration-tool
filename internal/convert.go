@@ -58,6 +58,7 @@ type Conv struct {
 	SpProjectId        string                  // Spanner Project Id
 	SpInstanceId       string                  // Spanner Instance Id
 	Source             string                  // Source Database type being migrated
+	DefaultIdentityOptions ddl.IdentityOptions // Default values to use for IDENTITY columns
 }
 
 type InvalidCheckExp struct {
