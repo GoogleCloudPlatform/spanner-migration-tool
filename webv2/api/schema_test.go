@@ -2548,10 +2548,10 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		"DATE":        {types.AutoGen{Name: "", GenerationType: ""}},
 		"FLOAT32":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"FLOAT4":      {types.AutoGen{Name: "", GenerationType: ""}},
-		"FLOAT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
-		"FLOAT8":      {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
-		"INT64":       {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
-		"INT8":        {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"FLOAT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Identity", GenerationType: "Identity"}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"FLOAT8":      {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Identity", GenerationType: "Identity"}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"INT64":       {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Identity", GenerationType: "Identity"}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"INT8":        {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Identity", GenerationType: "Identity"}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
 		"JSONB":       {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"TIMESTAMPTZ": {types.AutoGen{Name: "", GenerationType: ""}},
@@ -2562,27 +2562,41 @@ func TestGetAutoGenMapMySQL(t *testing.T) {
 		"BYTES":     {types.AutoGen{Name: "", GenerationType: ""}},
 		"DATE":      {types.AutoGen{Name: "", GenerationType: ""}},
 		"FLOAT32":   {types.AutoGen{Name: "", GenerationType: ""}},
-		"FLOAT64":   {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
-		"INT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"FLOAT64":   {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Identity", GenerationType: "Identity"}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
+		"INT64":     {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "Identity", GenerationType: "Identity"}, types.AutoGen{Name: "Sequence1", GenerationType: "Sequence"}},
 		"JSON":      {types.AutoGen{Name: "", GenerationType: ""}},
 		"NUMERIC":   {types.AutoGen{Name: "", GenerationType: ""}},
 		"STRING":    {types.AutoGen{Name: "", GenerationType: ""}, types.AutoGen{Name: "UUID", GenerationType: "Pre-defined"}},
 		"TIMESTAMP": {types.AutoGen{Name: "", GenerationType: ""}}}
 	tests := []struct {
 		dialect            string
+		driver             string
 		expectedAutoGenMap map[string][]types.AutoGen
 	}{
 		{
 			dialect:            constants.DIALECT_POSTGRESQL,
+			driver:             constants.MYSQL,
 			expectedAutoGenMap: expectedAutoGenMapPostgres,
 		},
 		{
 			dialect:            constants.DIALECT_GOOGLESQL,
+			driver:             constants.MYSQL,
+			expectedAutoGenMap: expectedAutoGenMapMySql,
+		},
+		{
+			dialect:            constants.DIALECT_POSTGRESQL,
+			driver:             constants.MYSQLDUMP,
+			expectedAutoGenMap: expectedAutoGenMapPostgres,
+		},
+		{
+			dialect:            constants.DIALECT_GOOGLESQL,
+			driver:             constants.MYSQLDUMP,
 			expectedAutoGenMap: expectedAutoGenMapMySql,
 		},
 	}
 	for _, tc := range tests {
 		var autoGenMap map[string][]types.AutoGen
+		sessionState.Driver = tc.driver
 		sessionState.Conv.SpDialect = tc.dialect
 		req, err := http.NewRequest("GET", "/autoGenMap", nil)
 		if err != nil {

@@ -346,6 +346,15 @@ export class ConversionService {
         spannerTypeName = 'ARRAY<'+spannerTypeName+'>'
       }
       let pgSQLDatatype = spannerColDef ? standardTypeToPGSQLTypeMap.get(spannerColDef.T.Name) : ''
+      let spAutoGen = spannerColDef?.AutoGen != null ? spannerColDef?.AutoGen : {
+        Name: '',
+        GenerationType: '',
+        IdentityOptions: {
+          SkipRangeMin: '',
+          SkipRangeMax: '',
+          StartCounterWith: '',
+        }
+      }
       return {
         spOrder: spannerColDef ? i + 1 : '',
         srcOrder: i + 1,
@@ -365,13 +374,18 @@ export class ConversionService {
         spId: spannerColDef ? colId : '',
         spColMaxLength: spannerColDef?.T.Len != 0 ? (spannerColDef?.T.Len != spColMax ? spannerColDef?.T.Len: 'MAX') : '',
         srcColMaxLength: data.SrcSchema[tableId].ColDefs[colId].Type.Mods != null ? data.SrcSchema[tableId].ColDefs[colId].Type.Mods[0] : '',
-        spAutoGen: spannerColDef?.AutoGen != null ? spannerColDef?.AutoGen : {
-          Name: '',
-          GenerationType: ''
-        },
+        spAutoGen: spAutoGen,
+        spSkipRangeMin: spAutoGen.IdentityOptions != null ? spAutoGen.IdentityOptions.SkipRangeMin : '',
+        spSkipRangeMax: spAutoGen.IdentityOptions != null ? spAutoGen.IdentityOptions.SkipRangeMax : '',
+        spStartCounterWith: spAutoGen.IdentityOptions != null ? spAutoGen.IdentityOptions.StartCounterWith : '',
         srcAutoGen: data.SrcSchema[tableId].ColDefs[colId].AutoGen ? data.SrcSchema[tableId].ColDefs[colId].AutoGen : {
           Name: '',
-          GenerationType: ''
+          GenerationType: '',
+          IdentityOptions: {
+            SkipRangeMin: '',
+            SkipRangeMax: '',
+            StartCounterWith: '',
+          }
         },
         spDefaultValue: spannerColDef?.DefaultValue != null ? spannerColDef?.DefaultValue : {
           IsPresent: false,
@@ -407,9 +421,17 @@ export class ConversionService {
             spColMaxLength: spannerColDef?.T.Len,
             spCassandraOption: spannerColDef?.Opts?.["cassandra_type"] || '',
             spAutoGen: spColumn.AutoGen,
+            spSkipRangeMin: spColumn.AutoGen.IdentityOptions.SkipRangeMin,
+            spSkipRangeMax: spColumn.AutoGen.IdentityOptions.SkipRangeMax,
+            spStartCounterWith: spColumn.AutoGen.IdentityOptions.StartCounterWith,
             srcAutoGen: {
               Name: '',
-              GenerationType: ''
+              GenerationType: '',
+              IdentityOptions: {
+                SkipRangeMin: '',
+                SkipRangeMax: '',
+                StartCounterWith: ''
+              }
             },
             spDefaultValue: spannerColDef?.DefaultValue != null ? spannerColDef?.DefaultValue : {
               IsPresent: false,
