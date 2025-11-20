@@ -143,7 +143,7 @@
               </td>
             </ng-container>
 
-            <ng-container matColumnDef="srcAutoGen" *ngIf="mySqlSource">
+            <ng-container matColumnDef="srcAutoGen" *ngIf="supportsAutoGen">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
               <td mat-cell *matCellDef="let element">
                 {{ element.get('srcAutoGen').value.GenerationType !== '' ? element.get('srcAutoGen').value.GenerationType : 'None' }}
@@ -170,7 +170,7 @@
               </td>
             </ng-container>
 
-            <ng-container matColumnDef="srcDefaultValue" *ngIf="mySqlSource">
+            <ng-container matColumnDef="srcDefaultValue" *ngIf="supportsDefaultAndSequence">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Default Value</th>
               <td mat-cell *matCellDef="let element">
                 <div
@@ -207,7 +207,7 @@
                       ADD COLUMN
                     </button>
                   </div>
-                  <div *ngIf="!isEditMode && !currentObject.isDeleted && mySqlSource">
+                  <div *ngIf="!isEditMode && !currentObject.isDeleted && supportsDefaultAndSequence">
                     <button mat-stroked-button color="primary" (click)="addNewSequence()"
                       *ngIf="currentObject!.isSpannerNode">
                       <mat-icon class="edit-icon">edit</mat-icon>
@@ -262,7 +262,7 @@
               </td>
             </ng-container>
 
-            <ng-container matColumnDef="spAutoGen" *ngIf="mySqlSource">
+            <ng-container matColumnDef="spAutoGen" *ngIf="supportsAutoGen">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
               <td mat-cell *matCellDef="let element; let i = index">
                 <div class="sp-autogen-data-cells">
@@ -276,7 +276,12 @@
                         </ng-container>
                         <ng-container *ngIf="element.get('spDataType').value as spDataType">
                           <ng-container *ngFor="let typeGroup of (processedAutoGenMap[spDataType] | keyvalue)">
-                            <mat-optgroup *ngIf="typeGroup.key !== ''" [label]="typeGroup.key">
+                            <ng-container *ngIf="typeGroup.key === 'Identity'">
+                              <mat-option *ngFor="let autoGen of typeGroup.value" [value]="autoGen">
+                                {{ autoGen.Name }}
+                              </mat-option>
+                            </ng-container>
+                            <mat-optgroup *ngIf="typeGroup.key !== '' && typeGroup.key !== 'Identity'" [label]="typeGroup.key">
                               <mat-option *ngFor="let autoGen of typeGroup.value" [value]="autoGen">
                                 {{ autoGen.Name }}
                               </mat-option>
@@ -292,6 +297,55 @@
                 </div>
               </td>
             </ng-container>
+
+            <ng-container matColumnDef="spSkipRangeMin" *ngIf="supportsAutoGen">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Skip Range Min</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="isEditMode && element.get('spAutoGen').value.GenerationType === 'Identity'">
+                  <input
+                    matInput
+                    class="name_input"
+                    type="text"
+                    [formControl]="element.get('spSkipRangeMin')"
+                    matTooltip="Should be a number and both min and max must be set or neither"
+                    [matTooltipDisabled]="!element.get('spSkipRangeMin')?.hasError('pattern')" />
+                </div>
+                <p *ngIf="!isEditMode">{{ element.get('spSkipRangeMin').value }}</p>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="spSkipRangeMax" *ngIf="supportsAutoGen">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Skip Range Max</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="isEditMode && element.get('spAutoGen').value.GenerationType === 'Identity'">
+                  <input
+                    matInput
+                    class="name_input"
+                    type="text"
+                    [formControl]="element.get('spSkipRangeMax')"
+                    matTooltip="Should be a number and both min and max must be set or neither"
+                    [matTooltipDisabled]="!element.get('spSkipRangeMax')?.hasError('pattern')" />
+                </div>
+                <p *ngIf="!isEditMode">{{ element.get('spSkipRangeMax').value }}</p>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="spStartCounterWith" *ngIf="supportsAutoGen">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Start Counter With</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="isEditMode && element.get('spAutoGen').value.GenerationType === 'Identity'">
+                  <input
+                    matInput
+                    class="name_input"
+                    type="text"
+                    [formControl]="element.get('spStartCounterWith')"
+                    matTooltip="Should be a number"
+                    [matTooltipDisabled]="!element.get('spStartCounterWith')?.hasError('pattern')" />
+                </div>
+                <p *ngIf="!isEditMode">{{ element.get('spStartCounterWith').value }}</p>
+              </td>
+            </ng-container>
+
             <ng-container matColumnDef="spColMaxLength">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Max Length</th>
               <td mat-cell *matCellDef="let element">
@@ -321,7 +375,7 @@
               </ng-container>
             </ng-container>
 
-            <ng-container matColumnDef="spDefaultValue" *ngIf="mySqlSource">
+            <ng-container matColumnDef="spDefaultValue" *ngIf="supportsDefaultAndSequence">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Default Value</th>
               <td mat-cell *matCellDef="let element">
                 <div *ngIf="!isEditMode" class="trimmed-text"
@@ -485,7 +539,7 @@
             </td>
           </ng-container>
 
-          <ng-container matColumnDef="srcAutoGen" *ngIf="mySqlSource">
+          <ng-container matColumnDef="srcAutoGen" *ngIf="supportsAutoGen">
             <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
             <td mat-cell *matCellDef="let element">
               {{ element.get('srcAutoGen').value.GenerationType !== '' ? element.get('srcAutoGen').value.GenerationType : 'None' }}
@@ -523,7 +577,7 @@
             </td>
           </ng-container>
 
-          <ng-container matColumnDef="spAutoGen" *ngIf="mySqlSource">
+          <ng-container matColumnDef="spAutoGen" *ngIf="supportsAutoGen">
             <th mat-header-cell class="table_header" *matHeaderCellDef>Auto-Generated</th>
             <td mat-cell *matCellDef="let element">
               <p>{{ element.get('spAutoGen').value.Name !== '' ? element.get('spAutoGen').value.Name : 'None' }}</p>
@@ -1022,7 +1076,7 @@
     </div>
   </div>
 
-  <div *ngIf="currentObject!.type === 'sequenceName' && mySqlSource" class="sequence-tab-container">
+  <div *ngIf="currentObject!.type === 'sequenceName' && supportsDefaultAndSequence" class="sequence-tab-container">
     <table mat-table [dataSource]="spDataSource">
       <ng-container matColumnDef="spDatabase">
         <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">

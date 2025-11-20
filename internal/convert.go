@@ -155,6 +155,7 @@ const (
 	CassandraTIMEUUID
 	CassandraMAP
 	PossibleOverflow
+	IdentitySkipRange
 )
 
 const (

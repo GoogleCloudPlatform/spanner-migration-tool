@@ -29,7 +29,7 @@ import { AddNewSequenceComponent } from '../add-new-sequence/add-new-sequence.co
 import { linkedFieldsValidatorSequence } from 'src/app/utils/utils';
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ICreateSequence from 'src/app/model/auto-gen'
-import { autoGenSupportedDbs } from 'src/app/app.constants'
+import { defaultAndSequenceSupportedDbs, identitySupportedDbs } from 'src/app/app.constants'
 import ICcTabData from 'src/app/model/cc-tab-data'
 import { title } from 'process'
 @Component({
@@ -78,7 +78,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
   isPostgreSQLDialect: boolean = false
   processedAutoGenMap: GroupedAutoGens = {};
   sequenceKinds: string[] = []
-  mySqlSource: boolean = false
+  supportsDefaultAndSequence: boolean = false
+  supportsAutoGen: boolean = false
   foreignKeyActionsSupported: boolean = false
   spTablesForInterleaving: { id: string; name: string }[] = [];
 
@@ -91,7 +92,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           if (this.conv.DatabaseType) {
             this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
           }
-          this.mySqlSource = autoGenSupportedDbs.includes(this.srcDbName)
+          this.supportsDefaultAndSequence = defaultAndSequenceSupportedDbs.includes(this.srcDbName)
+          this.supportsAutoGen = identitySupportedDbs.includes(this.srcDbName)
           if (this.srcDbName == SourceDbNames.MySQL || this.srcDbName == SourceDbNames.Postgres) {
             this.foreignKeyActionsSupported = true
           }
@@ -246,15 +248,19 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
       this.spDisplayedColumns.splice(3, 0, 'spCassandraOption');
     }
 
-    if (this.srcDbName == SourceDbNames.MySQL && !this.spDisplayedColumns.includes("spAutoGen")) {
-      this.spDisplayedColumns.splice(2, 0, "spAutoGen");
+    if (this.supportsAutoGen && !this.spDisplayedColumns.includes("spAutoGen")) {
+      this.spDisplayedColumns.splice(2, 0, "spAutoGen", "spSkipRangeMin", "spSkipRangeMax", "spStartCounterWith");
       this.displayedPkColumns.splice(8, 0, "spAutoGen");
-      this.srcDisplayedColumns.splice(2, 0, "srcAutoGen");
-      this.displayedPkColumns.splice(2, 0, "srcAutoGen");
+      this.srcDisplayedColumns.splice(3, 0, "srcAutoGen");
+      this.displayedPkColumns.splice(3, 0, "srcAutoGen");
+      this.spColspan+=1;
+      this.srcColspan+=1;
+    }
+    if (this.supportsDefaultAndSequence && !this.spDisplayedColumns.includes("spAutoGen")) {
       this.srcDisplayedColumns.push("srcDefaultValue");;
-      this.spDisplayedColumns.splice(4, 0,"spDefaultValue");
-      this.spColspan+=2;
-      this.srcColspan+=2;
+      this.spDisplayedColumns.splice(7, 0,"spDefaultValue");
+      this.spColspan+=1;
+      this.srcColspan+=1;
     }
     if (this.foreignKeyActionsSupported && !this.displayedFkColumns.includes('srcOnDelete') ) {
       this.displayedFkColumns.splice(4, 0, 'srcOnDelete', 'srcOnUpdate');
@@ -315,8 +321,11 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             Validators.required]),
           spCassandraOption: new FormControl(row.spCassandraOption),
           spAutoGen: new FormControl(row.spAutoGen),
+          spSkipRangeMin: new FormControl(row.spSkipRangeMin, Validators.pattern('^[0-9]+$')),
+          spSkipRangeMax: new FormControl(row.spSkipRangeMax, Validators.pattern('^[0-9]+$')),
+          spStartCounterWith: new FormControl(row.spStartCounterWith, Validators.pattern('^[0-9]+$')),
           spDefaultValue: new FormControl(row.spDefaultValue ? row.spDefaultValue.Value.Statement : ''),
-        })
+        }, { validators: linkedFieldsValidatorSequence('spSkipRangeMin', 'spSkipRangeMax') })
         // Disable spDefaultValue if spAutoGen is set
         if (row.spAutoGen.Name !== '') {
           fb.get('spDefaultValue')?.disable();
@@ -460,6 +469,16 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
       pgSQLToStandardTypeTypemap = typemap
     })
     this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
+      let autoGen = {
+        Name: col.spAutoGen.Name,
+        GenerationType: col.spAutoGen.GenerationType,
+        IdentityOptions: {
+          SkipRangeMin: col.spSkipRangeMin,
+          SkipRangeMax: col.spSkipRangeMax,
+          StartCounterWith: col.spStartCounterWith,
+        }
+      }
+
       for (let j = 0; j < this.tableData.length; j++) {
         let oldRow = this.tableData[j]
         let newSpDataType: String
@@ -491,7 +510,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             Removed: false,
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
             MaxColLength: col.spColMaxLength,
-            AutoGen: col.spAutoGen,
+            AutoGen: autoGen,
             DefaultValue: {
               IsPresent: col.spDefaultValue ? true : false,
               Value: {
@@ -510,7 +529,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             Removed: false,
             ToType: (this.conv.SpDialect === Dialect.PostgreSQLDialect) ? (standardDataType === undefined ? col.spDataType : standardDataType) : col.spDataType,
             MaxColLength: col.spColMaxLength,
-            AutoGen: col.spAutoGen,
+            AutoGen: autoGen,
             DefaultValue: {
               IsPresent: col.spDefaultValue ? true : false,
               Value: {
@@ -533,7 +552,12 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
         MaxColLength: '',
         AutoGen: {
           Name : '',
-          GenerationType : ''
+          GenerationType : '',
+          IdentityOptions: {
+            SkipRangeMin: '',
+            SkipRangeMax: '',
+            StartCounterWith: '',
+          }
         },
         DefaultValue: {
           IsPresent: false,
@@ -748,7 +772,12 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
         col.spCassandraOption = ''
         col.spAutoGen = {
           Name : '',
-          GenerationType : ''
+          GenerationType : '',
+          IdentityOptions: {
+            SkipRangeMin: '',
+            SkipRangeMax: '',
+            StartCounterWith: '',
+          }
         },
         col.spDefaultValue = {
           Value: {

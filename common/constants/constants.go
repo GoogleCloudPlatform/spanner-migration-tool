@@ -111,6 +111,8 @@ const (
 	UUID           string = "UUID"
 	SEQUENCE       string = "Sequence"
 	AUTO_INCREMENT string = "Auto Increment"
+	SERIAL         string = "Serial" // For PostgreSQL source DBs (the Postgres dialect uses IDENTITY for auto-gen)
+	IDENTITY       string = "Identity"
 	// Default gcs path of the Dataflow template.
 	DEFAULT_TEMPLATE_PATH string = "gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner"
 

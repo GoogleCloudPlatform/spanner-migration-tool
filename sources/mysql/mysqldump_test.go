@@ -784,7 +784,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 					Name:   "Reviews",
 					ColIds: []string{"review_id", "rating"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"review_id":     {Name: "review_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"review_id":     {Name: "review_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
 						"rating":        {Name: "rating", T: ddl.Type{Name: ddl.Int64}},
 						"restaurant_id": {Name: "restaurant_id", T: ddl.Type{Name: ddl.Int64}},
 					},
