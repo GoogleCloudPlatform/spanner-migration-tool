@@ -127,8 +127,8 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 	sessionState.Conv = conv
 
 	if sessionState.IsSharded {
-		setShardIdColumnAsPrimaryKey(true)
-		addShardIdColumnToForeignKeys(true)
+		SetShardIdColumnAsPrimaryKey(true)
+		AddShardIdColumnToForeignKeys(true)
 		ruleId := internal.GenerateRuleId()
 		rule := internal.Rule{
 			Id:                ruleId,
@@ -1540,7 +1540,7 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 	return l
 }
 
-func setShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
+func SetShardIdColumnAsPrimaryKey(isAddedAtFirst bool) {
 	sessionState := session.GetSessionState()
 	for _, table := range sessionState.Conv.SpSchema {
 		setShardIdColumnAsPrimaryKeyPerTable(isAddedAtFirst, table)
@@ -1568,7 +1568,7 @@ func setShardIdColumnAsPrimaryKeyPerTable(isAddedAtFirst bool, table ddl.CreateT
 	primarykey.UpdatePrimaryKey(pkRequest)
 }
 
-func addShardIdColumnToForeignKeys(isAddedAtFirst bool) {
+func AddShardIdColumnToForeignKeys(isAddedAtFirst bool) {
 	sessionState := session.GetSessionState()
 	for _, table := range sessionState.Conv.SpSchema {
 		addShardIdToForeignKeyPerTable(isAddedAtFirst, table)
