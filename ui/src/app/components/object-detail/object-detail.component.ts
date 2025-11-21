@@ -225,7 +225,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     this.interleaveType = this.getInterleaveTypeFromConv()
     this.onDeleteAction = this.getInterleaveOnDeleteActionFromConv() ?? ''
 
-  
+
     this.isEditMode = false
     this.isFkEditMode = false
     this.isIndexEditMode = false
@@ -251,8 +251,10 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
       this.displayedPkColumns.splice(8, 0, "spAutoGen");
       this.srcDisplayedColumns.splice(2, 0, "srcAutoGen");
       this.displayedPkColumns.splice(2, 0, "srcAutoGen");
-      this.srcDisplayedColumns.push("srcDefaultValue");;
+      this.srcDisplayedColumns.push("srcGeneratedColExp");
+      this.srcDisplayedColumns.push("srcDefaultValue");
       this.spDisplayedColumns.splice(4, 0,"spDefaultValue");
+      this.spDisplayedColumns.splice(4, 0,"spGeneratedColumn");
       this.spColspan+=2;
       this.srcColspan+=2;
     }
@@ -300,6 +302,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           srcIsPk: new FormControl(row.srcIsPk),
           srcIsNotNull: new FormControl(row.srcIsNotNull),
           srcDefaultValue: new FormControl(row.srcDefaultValue),
+          srcGeneratedColExp: new FormControl(row.srcGeneratedColExp),
           srcColMaxLength: new FormControl(row.srcColMaxLength),
           srcAutoGen: new FormControl(row.srcAutoGen),
           spOrder: new FormControl(row.srcOrder),
@@ -316,8 +319,9 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           spCassandraOption: new FormControl(row.spCassandraOption),
           spAutoGen: new FormControl(row.spAutoGen),
           spDefaultValue: new FormControl(row.spDefaultValue ? row.spDefaultValue.Value.Statement : ''),
+          spGeneratedColumn: new FormControl(row.spGeneratedColumn ? row.spGeneratedColumn.Value.Statement : ''),
         })
-        // Disable spDefaultValue if spAutoGen is set
+        // Disable spDefaultValue and spGeneratedColumn if spAutoGen is set
         if (row.spAutoGen.Name !== '') {
           fb.get('spDefaultValue')?.disable();
         }
@@ -369,6 +373,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
             srcDefaultValue: new FormControl(col.srcDefaultValue),
+            srcGeneratedColExp: new FormControl(col.srcGeneratedColExp),
             srcColMaxLength: new FormControl(col.srcColMaxLength),
             srcAutoGen: new FormControl(col.srcAutoGen),
             spOrder: new FormControl(col.spOrder),
@@ -382,6 +387,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             spCassandraOption: new FormControl(col.spCassandraOption),
             spAutoGen: new FormControl(col.spAutoGen),
             spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
+            spGeneratedColumn: new FormControl(col.spGeneratedColumn ? col.spGeneratedColumn.Value.Statement : ''),
           })
         )
       } else {
@@ -408,6 +414,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             srcIsPk: new FormControl(col.srcIsPk),
             srcIsNotNull: new FormControl(col.srcIsNotNull),
             srcDefaultValue: new FormControl(col.srcDefaultValue),
+            srcGeneratedColExp: new FormControl(col.srcGeneratedColExp),
             srcColMaxLength: new FormControl(col.srcColMaxLength),
             srcAutoGen: new FormControl(col.srcAutoGen),
             spOrder: new FormControl(col.srcOrder),
@@ -421,6 +428,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             spCassandraOption: new FormControl(col.spCassandraOption),
             spAutoGen: new FormControl(col.spAutoGen),
             spDefaultValue: new FormControl(col.spDefaultValue ? col.spDefaultValue.Value.Statement : ''),
+            spGeneratedColumn: new FormControl(col.spGeneratedColumn ? col.spGeneratedColumn.Value.Statement : ''),
           })
         )
       }
@@ -498,6 +506,14 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
                 ExpressionId: '',
                 Statement: String(col.spDefaultValue)
               }
+            },
+            GeneratedColumn: {
+              IsPresent: col.spGeneratedColumn ? true : false,
+              Value: {
+                ExpressionId: '',
+                Statement: String(col.spGeneratedColumn)
+              },
+              Type: 'STORED'
             }
           }
           break
@@ -517,6 +533,14 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
                 ExpressionId: '',
                 Statement:  col.spDefaultValue? col.spDefaultValue.Value.Statement: ''
               }
+            },
+            GeneratedColumn: {
+              IsPresent: col.spGeneratedColumn ? true : false,
+              Value: {
+                ExpressionId: '',
+                Statement: String(col.spGeneratedColumn)
+              },
+              Type: 'STORED'
             }
           }
         }
@@ -541,6 +565,14 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             ExpressionId: '',
             Statement: ''
           }
+        },
+        GeneratedColumn: {
+          IsPresent: col.spGeneratedColumn ? true : false,
+          Value: {
+            ExpressionId: '',
+            Statement: String(col.spGeneratedColumn)
+          },
+          Type: 'STORED'
         }
       }
     })
@@ -603,6 +635,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
     this.localTableData[index].spCassandraOption = this.droppedColumns[addedRowIndex].spCassandraOption
     this.localTableData[index].spAutoGen = this.droppedColumns[addedRowIndex].spAutoGen
     this.localTableData[index].spDefaultValue = this.droppedColumns[addedRowIndex].spDefaultValue
+    this.localTableData[index].spGeneratedColumn = this.droppedColumns[addedRowIndex].spGeneratedColumn
     let ind = this.droppedColumns
       .map((col: IColumnTabData) => col.spColName)
       .indexOf(this.addedColumnName)
@@ -756,6 +789,14 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
             Statement: ''
           },
           IsPresent: false
+        },
+        col.spGeneratedColumn = {
+          Value: {
+            ExpressionId: '',
+            Statement: ''
+          },
+          IsPresent: false,
+          Type: '',
         }
       }
     })
@@ -816,7 +857,8 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           spOrder: row.spOrder,
           spId: row.spId,
           spAutoGen: row.spAutoGen,
-          spDefaultValue: row.spDefaultValue
+          spDefaultValue: row.spDefaultValue,
+          spGeneratedColumn: row.spGeneratedColumn,
         })
       }
     })
@@ -847,6 +889,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
           spId: new FormControl(spArr[i].spId),
           spAutoGen: new FormControl(spArr[i].spAutoGen),
           spDefaultValue: new FormControl(spArr[i].spDefaultValue),
+          spGeneratedColumn: new FormControl(spArr[i].spGeneratedColumn),
         })
       )
     }
@@ -1512,7 +1555,7 @@ export class ObjectDetailComponent implements OnInit, OnDestroy {
         console.error('Interleave type cannot be empty');
         return;
       }
-      
+
       let tableId = this.currentObject!.id;
 
       this.data
