@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	cloud.google.com/go v0.120.0
-	cloud.google.com/go/aiplatform v1.74.0
+	cloud.google.com/go/aiplatform v1.109.0
 	cloud.google.com/go/dataflow v0.10.5
 	cloud.google.com/go/datastream v1.13.0
 	cloud.google.com/go/monitoring v1.24.2
