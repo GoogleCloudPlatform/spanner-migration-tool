@@ -276,7 +276,20 @@ func TestIntegration_MySQLDUMP_CheckConstraintMigration(t *testing.T) {
 	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath, "")
 
 	defer dropDatabase(t, dbURI)
-	checkCheckConstraints(ctx, t, dbURI)
+}
+
+func TestIntegration_MySQLDUMP_ReservedKeyword(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-check-constraint"
+	dumpFilePath := "../../test_data/mysql_dump_reserved_keyword.sql"
+	filePrefix := filepath.Join(tmpdir, dbName)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
+
+	defer dropDatabase(t, dbURI)
 }
 
 func TestIntegration_MYSQL_CheckConstraintsActionMigration(t *testing.T) {

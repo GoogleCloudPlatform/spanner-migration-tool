@@ -59,7 +59,7 @@ func TestGetColumnAutoGen(t *testing.T) {
 	tdi := &ToDdlImpl{}
 	autoGenCol, err := tdi.GetColumnAutoGen(nil, ddl.AutoGenCol{}, "", "")
 	assert.Nil(t, err)
-	assert.Equal(t, &ddl.AutoGenCol{}, autoGenCol)
+	assert.Nil(t, autoGenCol)
 }
 
 func TestGetTypeOption(t *testing.T) {

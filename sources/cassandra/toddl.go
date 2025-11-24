@@ -37,7 +37,7 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 }
 
 func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
-	return &ddl.AutoGenCol{}, nil
+	return nil, nil
 }
 
 func (tdi ToDdlImpl) GetTypeOption(srcTypeName string, spType ddl.Type) string {

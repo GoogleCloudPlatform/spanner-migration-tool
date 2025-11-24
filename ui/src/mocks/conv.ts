@@ -20,7 +20,12 @@ const mockIConv: IConv = {
                     Opts: {},
                     AutoGen: {
                         Name: "",
-                        GenerationType: ""
+                        GenerationType: "",
+                        IdentityOptions: {
+                          SkipRangeMin: '',
+                          SkipRangeMax: '',
+                          StartCounterWith: ''
+                        }
                     },
                     DefaultValue: {
                         Value: {
@@ -80,7 +85,12 @@ const mockIConv: IConv = {
                     },
                     AutoGen: {
                         Name: "",
-                        GenerationType: ""
+                        GenerationType: "",
+                        IdentityOptions: {
+                          SkipRangeMin: '',
+                          SkipRangeMax: '',
+                          StartCounterWith: ''
+                        }
                     },
                     DefaultValue: {
                         Value: {
@@ -223,7 +233,12 @@ export const mockIConv2: IConv = {
                     },
                     AutoGen: {
                         Name: "",
-                        GenerationType: ""
+                        GenerationType: "",
+                        IdentityOptions: {
+                          SkipRangeMin: '',
+                          SkipRangeMax: '',
+                          StartCounterWith: ''
+                        }
                     },
                     DefaultValue: {
                         Value: {

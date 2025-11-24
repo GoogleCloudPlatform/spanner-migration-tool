@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/logger"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/schema"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/sources/common"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/format"
@@ -555,7 +556,10 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 		case ast.ColumnOptionNotNull:
 			column.NotNull = true
 		case ast.ColumnOptionAutoIncrement:
-			column.Ignored.AutoIncrement = true
+			column.AutoGen = ddl.AutoGenCol{
+				Name:           constants.AUTO_INCREMENT,
+				GenerationType: constants.AUTO_INCREMENT,
+			}
 		case ast.ColumnOptionDefaultValue:
 			// If a data type specification includes no explicit DEFAULT
 			// value, MySQL determines if the column can take NULL as a value
