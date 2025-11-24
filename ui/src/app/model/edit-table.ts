@@ -8,6 +8,9 @@ export default interface IColumnTabData {
   spColName: string
   spDataType: string | String
   spAutoGen: AutoGen
+  spSkipRangeMin: string
+  spSkipRangeMax: string
+  spStartCounterWith: string
   spIsPk: boolean
   srcIsPk: boolean
   spIsNotNull: boolean
@@ -25,6 +28,13 @@ export default interface IColumnTabData {
 export interface AutoGen {
   Name: string;
   GenerationType: string;
+  IdentityOptions: IdentityOptions;
+}
+
+export interface IdentityOptions {
+  SkipRangeMin: string;
+  SkipRangeMax: string;
+  StartCounterWith: string;
 }
 
 export interface IIndexData {

@@ -400,8 +400,10 @@ func (ss *SchemaToSpannerImpl) SchemaToSpannerDDLHelper(conv *internal.Conv, tod
 				if err != nil {
 					srcCol.Ignored.AutoIncrement = true
 					issues = append(issues, internal.AutoIncrement)
-				} else {
+				} else if autoGenCol.GenerationType == constants.SEQUENCE {
 					issues = append(issues, internal.SequenceCreated)
+				} else if autoGenCol.GenerationType == constants.IDENTITY {
+					issues = append(issues, internal.IdentitySkipRange)
 				}
 			}
 		}

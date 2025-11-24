@@ -24,7 +24,12 @@ export class AddNewColumnComponent implements OnInit {
   autoGenMap : any = {}
   selectedAutoGen: AutoGen = {
     Name: '',
-    GenerationType: ''
+    GenerationType: '',
+    IdentityOptions: {
+      SkipRangeMin: '',
+      SkipRangeMax: '',
+      StartCounterWith: '',
+    }
   }
   processedAutoGenMap: GroupedAutoGens = {};
   srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
