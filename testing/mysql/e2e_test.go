@@ -27,6 +27,7 @@ import (
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/api/iterator"
 
 	"cloud.google.com/go/spanner"
 )
@@ -41,6 +42,7 @@ type TableLimitTestCase struct {
 	expectErrorMessageContains string
 
 	expectedNumberOfTablesCreated int64
+	expectedNumberOfColumnsPerTable map[string]int64
 }
 
 func TestE2E_CheckTableLimits(t *testing.T) {
@@ -131,6 +133,42 @@ func TestE2E_CheckTableLimits(t *testing.T) {
 
 			expectedNumberOfTablesCreated: 1,
 		},
+		{
+			name: "Spanner dialect with table with more than 1024 columns",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdlWithColumns("t1", 1025)},
+
+			expectError: true,
+			expectErrorMessageContains: "too many columns",
+		},
+		{
+			name: "Postgres dialect with table with more than 1024 columns",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdlWithColumns("t1", 1025)},
+
+			expectError: true,
+			expectErrorMessageContains: "too many columns",
+		},
+		{
+			name: "Spanner dialect with table with exactly 1024 columns",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdlWithColumns("t1", 1024)},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 1024},
+		},
+		{
+			name: "Postgres dialect with table with exactly 1024 columns",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdlWithColumns("t1", 1024)},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 1024},
+		},
 	}
 
 	tmpdir := prepareIntegrationTest(t)
@@ -205,6 +243,7 @@ func checkDatabaseSchema(t *testing.T, dbURI string, tc TableLimitTestCase) {
 	defer client.Close()
 
 	checkNumberOfTables(t, client, tc.expectedNumberOfTablesCreated, tc.name)
+	checkNumberOfColumns(t, client, tc.expectedNumberOfColumnsPerTable, tc.name)
 }
 
 func checkNumberOfTables(t *testing.T, client *spanner.Client, expectedNumberOfTablesCreated int64, testName string) {
@@ -221,6 +260,39 @@ func checkNumberOfTables(t *testing.T, client *spanner.Client, expectedNumberOfT
 	assert.Equal(t, expectedNumberOfTablesCreated, numberOfTablesCreated, testName)
 }
 
+func checkNumberOfColumns(t *testing.T, client *spanner.Client, expectedNumberOfColumnsPerTable map[string]int64, testName string) {
+	if len(expectedNumberOfColumnsPerTable) == 0 {
+		return
+	}
+
+	tableNames := make([]string, 0, len(expectedNumberOfColumnsPerTable))
+	for table := range expectedNumberOfColumnsPerTable {
+		tableNames = append(tableNames, table)
+	}
+
+	query := spanner.Statement{
+		SQL: fmt.Sprintf("SELECT TABLE_NAME, count(1) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME IN ('%s') GROUP BY TABLE_NAME", strings.Join(tableNames, "', '")),
+	}
+	iter := client.Single().Query(ctx, query)
+	defer iter.Stop()
+	var tableName string
+	var numberOfColumns int64
+	actualNumberOfColumnsPerTable := make(map[string]int64)
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		row.Columns(&tableName, &numberOfColumns)
+		actualNumberOfColumnsPerTable[tableName] = numberOfColumns
+	}
+
+	assert.Equal(t, expectedNumberOfColumnsPerTable, actualNumberOfColumnsPerTable, testName)
+}
+
 func generateCreateTableDdls(numTables int) []string {
 	tableDdls := make([]string, 0)
 	for i := 1; i <= numTables; i++ {
@@ -232,6 +304,14 @@ func generateCreateTableDdls(numTables int) []string {
 
 func generateCreateTableDdl(tableName string) string {
 	return fmt.Sprintf("CREATE TABLE %s (c1 int PRIMARY KEY);", tableName)
+}
+
+func generateCreateTableDdlWithColumns(tableName string, numColumns int) string {
+	colDdls := make([]string, 0)
+	for i := 1; i <= numColumns; i++ {
+		colDdls = append(colDdls, fmt.Sprintf("c%d int", i))
+	}
+	return fmt.Sprintf("CREATE TABLE %s (\n%s,\nPRIMARY KEY (c1));", tableName, strings.Join(colDdls, ",\n"))
 }
 
 func writeDumpFile(t *testing.T, dumpFilePath string, ddls []string) {
