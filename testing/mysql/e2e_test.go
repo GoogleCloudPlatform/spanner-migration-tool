@@ -27,6 +27,8 @@ import (
 
 	spanneraccessor "github.com/GoogleCloudPlatform/spanner-migration-tool/accessors/spanner"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/iterator"
 
@@ -41,6 +43,7 @@ type TableLimitTestCase struct {
 
 	expectError bool
 	expectErrorMessageContains string
+	expectedTableLevelSchemaIssues map[string][]internal.SchemaIssue
 
 	expectedNumberOfTablesCreated int64
 	expectedNumberOfColumnsPerTable map[string]int64
@@ -297,6 +300,44 @@ func TestE2E_CheckTableLimits(t *testing.T) {
 			expectedNumberOfTablesCreated: 1,
 			expectedNumberOfPrimaryKeyColumnsPerTable: map[string]int64{"t1": 2},
 		},
+		{
+			name: "Spanner dialect with table with non-key columns with size larger than 1600MiB",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdlLargeTable("t1", 160, 1)},
+
+			expectError: true,
+			expectedTableLevelSchemaIssues: map[string][]internal.SchemaIssue{
+				"t1": []internal.SchemaIssue{internal.RowLimitExceeded},
+			},
+		},
+		{
+			name: "Postgres dialect with table with non-key columns with size larger than 1600MiB",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdlLargeTable("t1", 160, 1)},
+
+			expectError: true,
+			expectedTableLevelSchemaIssues: map[string][]internal.SchemaIssue{
+				"t1": []internal.SchemaIssue{internal.RowLimitExceeded},
+			},
+		},
+		{
+			name: "Spanner dialect with table with non-key columns with size exactly 1600MiB",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdlLargeTable("t1", 160, 0)},
+
+			expectedNumberOfTablesCreated: 1,
+		},
+		{
+			name: "Postgres dialect with table with non-key columns with size exactly 1600MiB",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdlLargeTable("t1", 160, 0)},
+
+			expectedNumberOfTablesCreated: 1,
+		},
 	}
 
 	tmpdir := prepareIntegrationTest(t)
@@ -331,10 +372,23 @@ func runTableLimitTestCase(t *testing.T, tmpdir string, tc TableLimitTestCase, i
 		}
 
 		assert.Contains(t, output, tc.expectErrorMessageContains)
+		checkSchemaIssues(t, filePrefix, tc.expectedTableLevelSchemaIssues)
 		checkDatabaseNotCreatedOrEmpty(t, dbURI, tc.dialect)
 	} else {
 		assert.NoError(t, err)
+		checkSchemaIssues(t, filePrefix, tc.expectedTableLevelSchemaIssues)
 		checkDatabaseSchema(t, dbURI, tc)
+	}
+}
+
+func checkSchemaIssues(t *testing.T, filePrefix string, expectedTableLevelSchemaIssues map[string][]internal.SchemaIssue) {
+	conv := internal.MakeConv()
+	err := conversion.ReadSessionFile(conv, filePrefix + ".session.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for table, issues := range expectedTableLevelSchemaIssues {
+		assert.Equal(t, conv.SchemaIssues[table].TableLevelIssues, issues)
 	}
 }
 
@@ -496,6 +550,21 @@ func generateCreateTableDdlWithPrimaryKeys(tableName string, numPrimaryKeyColumn
 		primaryKeyColumns = append(primaryKeyColumns, columnName)
 	}
 	return generateCreateTableDdl(tableName, columns, primaryKeyColumns)
+}
+
+func generateCreateTableDdlLargeTable(tableName string, numberOfLargeColumns, numberOfSmallColumns int) string {
+	columns := make(map[string]string, numberOfLargeColumns + numberOfSmallColumns + 1)
+	columns["c1"] = "int"
+	for i := 1; i <= numberOfLargeColumns; i++ {
+		columnName := fmt.Sprintf("l%d", i)
+		columns[columnName] = "binary(10485760)"
+	}
+	for i := 1; i <= numberOfSmallColumns; i++ {
+		columnName := fmt.Sprintf("s%d", i)
+		columns[columnName] = "binary(1)"
+	}
+
+	return generateCreateTableDdl(tableName, columns, []string{"c1"})
 }
 
 func generateCreateTableDdl(tableName string, columns map[string]string, primaryKeyColumns []string) string {
