@@ -81,6 +81,56 @@ func TestE2E_CheckTableLimits(t *testing.T) {
 
 			expectedNumberOfTablesCreated: 5000,
 		},
+		{
+			name: "Spanner dialect with table name longer than 128 chars",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdl(strings.Repeat("t", 129))},
+
+			expectError: true,
+			expectErrorMessageContains: "table name not valid",
+		},
+		{
+			name: "Postgres dialect with table name longer than 128 chars",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdl(strings.Repeat("t", 129))},
+
+			expectError: true,
+			expectErrorMessageContains: "table name not valid",
+		},
+		{
+			name: "Spanner dialect with table name exactly 128 chars",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdl(strings.Repeat("t", 128))},
+
+			expectedNumberOfTablesCreated: 1,
+		},
+		{
+			name: "Postgres dialect with table name exactly 128 chars",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdl(strings.Repeat("t", 128))},
+
+			expectedNumberOfTablesCreated: 1,
+		},
+		{
+			name: "Spanner dialect with table name exactly 1 char",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdl(strings.Repeat("t", 1))},
+
+			expectedNumberOfTablesCreated: 1,
+		},
+		{
+			name: "Postgres dialect with table name exactly 1 char",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdl(strings.Repeat("t", 1))},
+
+			expectedNumberOfTablesCreated: 1,
+		},
 	}
 
 	tmpdir := prepareIntegrationTest(t)
@@ -107,7 +157,11 @@ func runTableLimitTestCase(t *testing.T, tmpdir string, tc TableLimitTestCase) {
 	if tc.expectError {
 		assert.Error(t, err, tc.name)
 
-		output := stdout + err.Error()
+		output := stdout
+		if err != nil {
+			output += err.Error()
+		}
+
 		assert.Contains(t, output, tc.expectErrorMessageContains, tc.name)
 		checkDatabaseNotCreatedOrEmpty(t, dbURI, tc.dialect, tc.name)
 	} else {
@@ -154,7 +208,7 @@ func checkDatabaseSchema(t *testing.T, dbURI string, tc TableLimitTestCase) {
 }
 
 func checkNumberOfTables(t *testing.T, client *spanner.Client, expectedNumberOfTablesCreated int64, testName string) {
-	query := spanner.Statement{SQL : `SELECT count(1) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS') AND TABLE_TYPE = 'BASE TABLE'`}
+	query := spanner.Statement{SQL: `SELECT count(1) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS') AND TABLE_TYPE = 'BASE TABLE'`}
 	iter := client.Single().Query(ctx, query)
 	defer iter.Stop()
 	var numberOfTablesCreated int64
