@@ -169,13 +169,69 @@ func TestE2E_CheckTableLimits(t *testing.T) {
 			expectedNumberOfTablesCreated: 1,
 			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 1024},
 		},
+		{
+			name: "Spanner dialect with table with column name longer than 128 chars",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdlWithColumnNames("t1", []string{"c1", strings.Repeat("c", 129)})},
+
+			expectError: true,
+			expectErrorMessageContains: "Column name not valid",
+		},
+		{
+			name: "Postgres dialect with table with column name longer than 128 chars",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdlWithColumnNames("t1", []string{"c1", strings.Repeat("c", 129)})},
+
+			expectError: true,
+			expectErrorMessageContains: "Column name not valid",
+		},
+		{
+			name: "Spanner dialect with table with column name exactly 128 chars",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdlWithColumnNames("t1", []string{"c1", strings.Repeat("c", 128)})},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 2},
+		},
+		{
+			name: "Postgres dialect with table with column name exactly 128 chars",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdlWithColumnNames("t1", []string{"c1", strings.Repeat("c", 128)})},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 2},
+		},
+		{
+			name: "Spanner dialect with table with column name exactly 1 char",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdlWithColumnNames("t1", []string{"c1", strings.Repeat("c", 1)})},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 2},
+		},
+		{
+			name: "Postgres dialect with table with column name exactly 1 char",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdlWithColumnNames("t1", []string{"c1", strings.Repeat("c", 1)})},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 2},
+		},
 	}
 
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
 	for _, tc := range testCases {
-		runTableLimitTestCase(t, tmpdir, tc)
+		t.Run(tc.name, func(t *testing.T) {
+			runTableLimitTestCase(t, tmpdir, tc)
+		})
 	}
 }
 
@@ -193,22 +249,22 @@ func runTableLimitTestCase(t *testing.T, tmpdir string, tc TableLimitTestCase) {
 	stdout, err := RunCommandReturningStdOut(args, projectID)
 
 	if tc.expectError {
-		assert.Error(t, err, tc.name)
+		assert.Error(t, err)
 
 		output := stdout
 		if err != nil {
 			output += err.Error()
 		}
 
-		assert.Contains(t, output, tc.expectErrorMessageContains, tc.name)
-		checkDatabaseNotCreatedOrEmpty(t, dbURI, tc.dialect, tc.name)
+		assert.Contains(t, output, tc.expectErrorMessageContains)
+		checkDatabaseNotCreatedOrEmpty(t, dbURI, tc.dialect)
 	} else {
-		assert.NoError(t, err, tc.name)
+		assert.NoError(t, err)
 		checkDatabaseSchema(t, dbURI, tc)
 	}
 }
 
-func checkDatabaseNotCreatedOrEmpty(t *testing.T, dbURI, dialect, testName string) {
+func checkDatabaseNotCreatedOrEmpty(t *testing.T, dbURI, dialect string) {
 	sp, err := spanneraccessor.NewSpannerAccessorClientImpl(ctx)
 	if err != nil {
 		log.Fatal(err)
@@ -221,7 +277,7 @@ func checkDatabaseNotCreatedOrEmpty(t *testing.T, dbURI, dialect, testName strin
 	// The Postgres dialect creates the DB and adds tables in two separate calls, so the DB will exist but it
 	// should be empty
 	if dialect == constants.DIALECT_POSTGRESQL {
-		assert.True(t, dbExists, testName)
+		assert.True(t, dbExists)
 
 		client, err := spanner.NewClient(ctx, dbURI)
 		if err != nil {
@@ -229,9 +285,9 @@ func checkDatabaseNotCreatedOrEmpty(t *testing.T, dbURI, dialect, testName strin
 		}
 		defer client.Close()
 
-		checkNumberOfTables(t, client, 0, testName)
+		checkNumberOfTables(t, client, 0)
 	} else {
-		assert.False(t, dbExists, testName)
+		assert.False(t, dbExists)
 	}
 }
 
@@ -242,11 +298,11 @@ func checkDatabaseSchema(t *testing.T, dbURI string, tc TableLimitTestCase) {
 	}
 	defer client.Close()
 
-	checkNumberOfTables(t, client, tc.expectedNumberOfTablesCreated, tc.name)
-	checkNumberOfColumns(t, client, tc.expectedNumberOfColumnsPerTable, tc.name)
+	checkNumberOfTables(t, client, tc.expectedNumberOfTablesCreated)
+	checkNumberOfColumns(t, client, tc.expectedNumberOfColumnsPerTable)
 }
 
-func checkNumberOfTables(t *testing.T, client *spanner.Client, expectedNumberOfTablesCreated int64, testName string) {
+func checkNumberOfTables(t *testing.T, client *spanner.Client, expectedNumberOfTablesCreated int64) {
 	query := spanner.Statement{SQL: `SELECT count(1) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS') AND TABLE_TYPE = 'BASE TABLE'`}
 	iter := client.Single().Query(ctx, query)
 	defer iter.Stop()
@@ -257,10 +313,10 @@ func checkNumberOfTables(t *testing.T, client *spanner.Client, expectedNumberOfT
 	}
 	row.Columns(&numberOfTablesCreated)
 
-	assert.Equal(t, expectedNumberOfTablesCreated, numberOfTablesCreated, testName)
+	assert.Equal(t, expectedNumberOfTablesCreated, numberOfTablesCreated)
 }
 
-func checkNumberOfColumns(t *testing.T, client *spanner.Client, expectedNumberOfColumnsPerTable map[string]int64, testName string) {
+func checkNumberOfColumns(t *testing.T, client *spanner.Client, expectedNumberOfColumnsPerTable map[string]int64) {
 	if len(expectedNumberOfColumnsPerTable) == 0 {
 		return
 	}
@@ -290,7 +346,7 @@ func checkNumberOfColumns(t *testing.T, client *spanner.Client, expectedNumberOf
 		actualNumberOfColumnsPerTable[tableName] = numberOfColumns
 	}
 
-	assert.Equal(t, expectedNumberOfColumnsPerTable, actualNumberOfColumnsPerTable, testName)
+	assert.Equal(t, expectedNumberOfColumnsPerTable, actualNumberOfColumnsPerTable)
 }
 
 func generateCreateTableDdls(numTables int) []string {
@@ -303,15 +359,23 @@ func generateCreateTableDdls(numTables int) []string {
 }
 
 func generateCreateTableDdl(tableName string) string {
-	return fmt.Sprintf("CREATE TABLE %s (c1 int PRIMARY KEY);", tableName)
+	return generateCreateTableDdlWithColumns(tableName, 1)
 }
 
 func generateCreateTableDdlWithColumns(tableName string, numColumns int) string {
-	colDdls := make([]string, 0)
+	columnNames := make([]string, 0, numColumns)
 	for i := 1; i <= numColumns; i++ {
-		colDdls = append(colDdls, fmt.Sprintf("c%d int", i))
+		columnNames = append(columnNames, fmt.Sprintf("c%d", i))
 	}
-	return fmt.Sprintf("CREATE TABLE %s (\n%s,\nPRIMARY KEY (c1));", tableName, strings.Join(colDdls, ",\n"))
+	return generateCreateTableDdlWithColumnNames(tableName, columnNames)
+}
+
+func generateCreateTableDdlWithColumnNames(tableName string, columnNames []string) string {
+	colDdls := make([]string, 0, len(columnNames))
+	for _, columnName := range columnNames {
+		colDdls = append(colDdls, fmt.Sprintf("%s int", columnName))
+	}
+	return fmt.Sprintf("CREATE TABLE %s (\n%s,\nPRIMARY KEY (%s));", tableName, strings.Join(colDdls, ",\n"), columnNames[0])
 }
 
 func writeDumpFile(t *testing.T, dumpFilePath string, ddls []string) {
