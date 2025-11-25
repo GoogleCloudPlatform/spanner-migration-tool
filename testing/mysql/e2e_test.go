@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -260,25 +261,61 @@ func TestE2E_CheckTableLimits(t *testing.T) {
 			expectedNumberOfTablesCreated: 1,
 			expectedNumberOfPrimaryKeyColumnsPerTable: map[string]int64{"t1": 16},
 		},
+		{
+			name: "Spanner dialect with table with primary key with size larger than 8KiB",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdl("t1", map[string]string{"c1": "binary(4096)", "c2": "binary(4096)", "c3": "binary(1)"}, []string{"c1", "c2", "c3"})},
+
+			expectError: true,
+			expectErrorMessageContains: "exceeds the maximum",
+		},
+		{
+			name: "Postgres dialect with table with primary key with size larger than 8KiB",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdl("t1", map[string]string{"c1": "binary(4096)", "c2": "binary(4096)", "c3": "binary(1)"}, []string{"c1", "c2", "c3"})},
+
+			expectError: true,
+			expectErrorMessageContains: "exceeds the maximum",
+		},
+		{
+			name: "Spanner dialect with table with primary key with size exactly 8KiB",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdl("t1", map[string]string{"c1": "binary(4096)", "c2": "binary(4096)", "c3": "binary(1)"}, []string{"c1", "c2"})},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfPrimaryKeyColumnsPerTable: map[string]int64{"t1": 2},
+		},
+		{
+			name: "Postgres dialect with table with primary key with size exactly 8KiB",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdl("t1", map[string]string{"c1": "binary(4096)", "c2": "binary(4096)", "c3": "binary(1)"}, []string{"c1", "c2"})},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfPrimaryKeyColumnsPerTable: map[string]int64{"t1": 2},
+		},
 	}
 
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	for _, tc := range testCases {
+	for idx, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			runTableLimitTestCase(t, tmpdir, tc)
+			runTableLimitTestCase(t, tmpdir, tc, idx)
 		})
 	}
 }
 
-func runTableLimitTestCase(t *testing.T, tmpdir string, tc TableLimitTestCase) {
+func runTableLimitTestCase(t *testing.T, tmpdir string, tc TableLimitTestCase, index int) {
 	dbName := "mysql-table-limits"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	defer dropDatabase(t, dbURI)
 
-	filePrefix := filepath.Join(tmpdir, dbName)
-	dumpFilePath := filepath.Join(tmpdir, dbName + "_dump.sql")
+	filePrefix := filepath.Join(tmpdir, dbName + strconv.Itoa(index))
+	dumpFilePath := filepath.Join(tmpdir, dbName + strconv.Itoa(index) + "_dump.sql")
 
 	writeDumpFile(t, dumpFilePath, tc.ddls)
 
