@@ -435,6 +435,74 @@ func TestE2E_CheckIndexLimits(t *testing.T) {
 
 			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 128},
 		},
+		{
+			name: "Spanner dialect with index name longer than 128 chars",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "bigint"}, []string{"p1"}),
+				generateCreateIndexDdl(strings.Repeat("i", 129), "t1", []string{"c1"}),
+			},
+
+			expectError: true,
+			expectErrorMessageContains: "index name not valid",
+		},
+		{
+			name: "Postgres dialect with index name longer than 128 chars",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "bigint"}, []string{"p1"}),
+				generateCreateIndexDdl(strings.Repeat("i", 129), "t1", []string{"c1"}),
+			},
+
+			expectError: true,
+			expectErrorMessageContains: "index name not valid",
+		},
+		{
+			name: "Spanner dialect with index name exactly 128 chars",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "bigint"}, []string{"p1"}),
+				generateCreateIndexDdl(strings.Repeat("i", 128), "t1", []string{"c1"}),
+			},
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+		},
+		{
+			name: "Postgres dialect with index name exactly 128 chars",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "bigint"}, []string{"p1"}),
+				generateCreateIndexDdl(strings.Repeat("i", 128), "t1", []string{"c1"}),
+			},
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+		},
+		{
+			name: "Spanner dialect with index name exactly 1 char",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "bigint"}, []string{"p1"}),
+				generateCreateIndexDdl(strings.Repeat("i", 1), "t1", []string{"c1"}),
+			},
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+		},
+		{
+			name: "Postgres dialect with index name exactly 1 char",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "bigint"}, []string{"p1"}),
+				generateCreateIndexDdl(strings.Repeat("i", 1), "t1", []string{"c1"}),
+			},
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+		},
 	}
 
 	tmpdir := prepareIntegrationTest(t)
