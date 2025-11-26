@@ -546,6 +546,56 @@ func TestE2E_CheckIndexLimits(t *testing.T) {
 			// only actually include N-1 columns in the index.
 			expectedNumberOfColumnsPerIndex: map[string]int64{"t1_idx": 15},
 		},
+		{
+			name: "Spanner dialect with table with index with size larger than 8KiB",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2":
+				"binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
+				generateCreateIndexDdl("t1_idx", "t1", []string{"c1", "c2", "c3"}),
+			},
+
+			expectError: true,
+			expectErrorMessageContains: "exceeds the maximum",
+		},
+		{
+			name: "Postgres dialect with table with index with size larger than 8KiB",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2":
+				"binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
+				generateCreateIndexDdl("t1_idx", "t1", []string{"c1", "c2", "c3"}),
+			},
+
+			expectError: true,
+			expectErrorMessageContains: "exceeds the maximum",
+		},
+		{
+			name: "Spanner dialect with table with index with size exactly 8KiB",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2":
+				"binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
+				generateCreateIndexDdl("t1_idx", "t1", []string{"c1", "c2"}),
+			},
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+		},
+		{
+			name: "Postgres dialect with table with index with size exactly 8KiB",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{
+				generateCreateTableDdl("t1", map[string]string{"p1": "bigint", "c1": "binary(4096)", "c2":
+				"binary(4096)", "c3": "binary(1)"}, []string{"p1"}),
+				generateCreateIndexDdl("t1_idx", "t1", []string{"c1", "c2"}),
+			},
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 1},
+		},
 	}
 
 	tmpdir := prepareIntegrationTest(t)
