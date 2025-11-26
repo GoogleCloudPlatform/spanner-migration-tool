@@ -29,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/common/constants"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/iterator"
 
@@ -62,6 +63,16 @@ type IndexLimitTestCase struct {
 	expectedTotalNumberOfIndexes int64
 	expectedNumberOfIndexesPerTable map[string]int64
 	expectedNumberOfColumnsPerIndex map[string]int64
+}
+
+type TableInterleaveLimitTestCase struct {
+	name string
+
+	dialect string
+	interleaveDepth int
+
+	expectError bool
+	expectErrorMessageContains string
 }
 
 func TestE2E_CheckTableLimits(t *testing.T) {
@@ -608,6 +619,46 @@ func TestE2E_CheckIndexLimits(t *testing.T) {
 	}
 }
 
+func TestE2E_CheckTableInterleaveLimit(t *testing.T) {
+	onlyRunForEndToEndTest(t)
+
+	testCases := []TableInterleaveLimitTestCase{
+		{
+			name: "Spanner dialect with depth greater than 7",
+			dialect: constants.DIALECT_GOOGLESQL,
+			interleaveDepth: 8,
+			expectError: true,
+			expectErrorMessageContains: "too deeply nested",
+		},
+		{
+			name: "Postgres dialect with depth greater than 7",
+			dialect: constants.DIALECT_POSTGRESQL,
+			interleaveDepth: 8,
+			expectError: true,
+			expectErrorMessageContains: "too deeply nested",
+		},
+		{
+			name: "Spanner dialect with depth exactly 7",
+			dialect: constants.DIALECT_GOOGLESQL,
+			interleaveDepth: 7,
+		},
+		{
+			name: "Postgres dialect with depth exactly 7",
+			dialect: constants.DIALECT_POSTGRESQL,
+			interleaveDepth: 7,
+		},
+	}
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	for idx, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			runTableInterleaveLimitTestCase(t, tmpdir, tc, idx)
+		})
+	}
+}
+
 func runTableLimitTestCase(t *testing.T, tmpdir string, tc TableLimitTestCase, index int) {
 	dbName := "mysql-table-limits"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
@@ -665,6 +716,51 @@ func runIndexLimitTestCase(t *testing.T, tmpdir string, tc IndexLimitTestCase, i
 	} else {
 		assert.NoError(t, err)
 		checkDatabaseIndexes(t, dbURI, tc)
+	}
+}
+
+func runTableInterleaveLimitTestCase(t *testing.T, tmpdir string, tc TableInterleaveLimitTestCase, index int) {
+	dbName := "mysql-interleave-limits"
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	defer dropDatabase(t, dbURI)
+
+	filePrefix := filepath.Join(tmpdir, dbName + strconv.Itoa(index))
+	dumpFilePath := filepath.Join(tmpdir, dbName + strconv.Itoa(index) + "_dump.sql")
+
+	ddls := generateCreateTableDdlsForInterleave(tc.interleaveDepth)
+
+	writeDumpFile(t, dumpFilePath, ddls)
+
+	// We can't create interleave tables directly from a dump file or DB connection, it can only be done using a session
+	// file that's been modified to include the interleave details (either via the web UI or by manually editing the
+	// file, which is what we'll do here).
+	createInitialSessionFile(filePrefix, dbName, tc.dialect, dumpFilePath)
+	sessionFileName := filePrefix + ".session.json"
+	updateSessionFileWithInterleaveDetails(sessionFileName, tc.interleaveDepth)
+
+	args := fmt.Sprintf("schema -prefix %s -source=mysql -target-profile='instance=%s,dbName=%s,project=%s,dialect=%s' -session=%s < %s", filePrefix, instanceID, dbName, projectID, tc.dialect, sessionFileName, dumpFilePath)
+	stdout, err := RunCommandReturningStdOut(args, projectID)
+
+	if tc.expectError {
+		assert.Error(t, err)
+
+		output := stdout
+		if err != nil {
+			output += err.Error()
+		}
+
+		assert.Contains(t, output, tc.expectErrorMessageContains)
+		checkDatabaseNotCreatedOrEmpty(t, dbURI, tc.dialect)
+	} else {
+		assert.NoError(t, err)
+
+		client, err := spanner.NewClient(ctx, dbURI)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer client.Close()
+
+		checkNumberOfTables(t, client, int64(tc.interleaveDepth))
 	}
 }
 
@@ -1026,11 +1122,66 @@ func generateCreateIndexDdl(indexName, tableName string, columns []string) strin
 	return fmt.Sprintf("CREATE INDEX %s ON %s (%s);", indexName, tableName, strings.Join(columns, ", "))
 }
 
+func generateCreateTableDdlsForInterleave(depth int) []string {
+	ddls := make([]string, 0, depth)
+	columns := make(map[string]string, depth)
+	pkColumnNames := make([]string, 0, depth)
+	for i := 1; i <= depth; i++ {
+		columnName := fmt.Sprintf("p%d", i)
+		columns[columnName] = "bigint"
+		pkColumnNames = append(pkColumnNames, columnName)
+
+		tableName := fmt.Sprintf("t%d", i)
+		ddls = append(ddls, generateCreateTableDdl(tableName, columns, pkColumnNames))
+	}
+	return ddls
+}
+
+func updateConvWithInterleave(conv *internal.Conv, depth int) {
+	for i := 1; i <= depth - 1; i++ {
+		parentTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, fmt.Sprintf("t%d", i))
+		if err != nil {
+			log.Fatal(err)
+		}
+		childTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, fmt.Sprintf("t%d", i + 1))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		childTable := conv.SpSchema[childTableId]
+		childTable.ParentTable = ddl.InterleavedParent{
+			Id: parentTableId,
+			InterleaveType: "IN PARENT",
+		}
+		conv.SpSchema[childTableId] = childTable
+	}
+}
+
 func writeDumpFile(t *testing.T, dumpFilePath string, ddls []string) {
 	writeDumpErr := os.WriteFile(dumpFilePath, []byte(strings.Join(ddls, "\n")), os.FileMode(0644))
 	if writeDumpErr != nil {
 		t.Fatal(writeDumpErr)
 	}
+}
+
+func createInitialSessionFile(filePrefix, dbName, dialect, dumpFilePath string) {
+	args := fmt.Sprintf("schema -dry-run -prefix %s -source=mysql -target-profile='instance=%s,dbName=%s,project=%s,dialect=%s' < %s", filePrefix, instanceID, dbName, projectID, dialect, dumpFilePath)
+	_, err := RunCommandReturningStdOut(args, projectID)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func updateSessionFileWithInterleaveDetails(sessionFileName string, interleaveDepth int) {
+	conv := internal.MakeConv()
+	err := conversion.ReadSessionFile(conv, sessionFileName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// We update the Conv object with the interleave details and then update the session file with this new Conv
+	updateConvWithInterleave(conv, interleaveDepth)
+	conversion.WriteSessionFile(conv, sessionFileName, os.Stdout)
 }
 
 func onlyRunForEndToEndTest(t *testing.T) {
