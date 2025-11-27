@@ -287,7 +287,7 @@ func TestIntegration_MySQLDUMP_ReservedKeyword(t *testing.T) {
 	dumpFilePath := "../../test_data/mysql_dump_reserved_keyword.sql"
 	filePrefix := filepath.Join(tmpdir, dbName)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
+	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath, "")
 
 	defer dropDatabase(t, dbURI)
 }
