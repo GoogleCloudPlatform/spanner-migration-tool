@@ -17,6 +17,16 @@
     </mat-form-field>
     <br>
     <br>
+    <ng-select appearance="outline"
+               [items]="timezones"
+               [searchFn]="customSearchFn"
+               placeholder="Default Timezone"
+               [clearable]="true"
+               formControlName="defaultTimezone"
+               bindLabel="timezone"
+               bindValue="timezone">
+    </ng-select>
+    <br>
     <b>Region:</b>
     {{region}}
     <br>
