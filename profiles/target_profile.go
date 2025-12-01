@@ -46,6 +46,7 @@ type TargetProfileConnectionSpanner struct {
 	Instance string
 	Dbname   string
 	Dialect  string
+	DefaultTimezone string
 }
 
 type TargetProfileConnection struct {
@@ -146,6 +147,9 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 	if dialect, ok := params["dialect"]; ok {
 		sp.Dialect = strings.ToLower(dialect)
 	}
+	if defaultTimezone, ok := params["defaultTimezone"]; ok {
+		sp.DefaultTimezone = defaultTimezone
+	}
 	if sp.Dialect == "" {
 		sp.Dialect = constants.DIALECT_GOOGLESQL
 	} else if sp.Dialect != constants.DIALECT_POSTGRESQL && sp.Dialect != constants.DIALECT_GOOGLESQL {
@@ -155,6 +159,13 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 	// if target-profile is not empty, it must contain spanner instance
 	if s != "" && sp.Instance == "" {
 		return TargetProfile{}, fmt.Errorf("found empty string for instance. please specify instance (spanner instance) in the target-profile")
+	}
+
+	if sp.DefaultTimezone != "" {
+		_, err := time.LoadLocation(sp.DefaultTimezone)
+		if err != nil {
+			return TargetProfile{}, err
+		}
 	}
 
 	conn := TargetProfileConnection{Ty: TargetProfileConnectionTypeSpanner, Sp: sp}

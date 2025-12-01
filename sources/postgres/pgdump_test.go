@@ -1670,7 +1670,7 @@ func TestProcessPgDump_GetDDL(t *testing.T) {
 			"	quantity INT64,\n" +
 			") PRIMARY KEY (productid, userid)"
 	c := ddl.Config{Tables: true}
-	assert.Equal(t, expected, strings.Join(ddl.GetDDL(c, conv.SpSchema, conv.SpSequences), " "))
+	assert.Equal(t, expected, strings.Join(ddl.GetDDL(c, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions), " "))
 }
 
 func TestProcessPgDump_GetPGDDL(t *testing.T) {
@@ -1684,7 +1684,7 @@ func TestProcessPgDump_GetPGDDL(t *testing.T) {
 			"	PRIMARY KEY (productid, userid)\n" +
 			")"
 	c := ddl.Config{Tables: true, SpDialect: conv.SpDialect}
-	assert.Equal(t, expected, strings.Join(ddl.GetDDL(c, conv.SpSchema, conv.SpSequences), " "))
+	assert.Equal(t, expected, strings.Join(ddl.GetDDL(c, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions), " "))
 }
 
 func TestProcessPgDump_Rows(t *testing.T) {

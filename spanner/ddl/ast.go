@@ -684,8 +684,17 @@ func GetSortedTableIdsBySpName(s Schema) []string {
 // Tables are printed in alphabetical order with one exception: interleaved
 // tables are potentially out of order since they must appear after the
 // definition of their parent table.
-func GetDDL(c Config, tableSchema Schema, sequenceSchema map[string]Sequence) []string {
+func GetDDL(c Config, tableSchema Schema, sequenceSchema map[string]Sequence, dbOptions DatabaseOptions) []string {
 	var ddl []string
+
+	if c.SpDialect == constants.DIALECT_POSTGRESQL {
+		ddl = append(ddl, dbOptions.PGPrintDatabaseOptions()...)
+	} else {
+		dbOptionsDdl := dbOptions.PrintDatabaseOptions()
+		if (dbOptionsDdl != "") {
+			ddl = append(ddl, dbOptionsDdl)
+		}
+	}
 
 	for _, seq := range sequenceSchema {
 		if c.SpDialect == constants.DIALECT_POSTGRESQL {
@@ -798,4 +807,45 @@ func (seq Sequence) PGPrintSequence(c Config) string {
 	}
 
 	return seqDDL
+}
+
+type DatabaseOptions struct {
+	DbName string
+	DefaultTimezone string
+}
+
+func (dbOptions DatabaseOptions) PrintDatabaseOptions() string {
+	dbName := "db"
+	if dbOptions.DbName != "" {
+		dbName = fmt.Sprintf("`%s`", dbOptions.DbName)
+	}
+
+	var options []string
+	if dbOptions.DefaultTimezone != "" {
+		options = append(options, fmt.Sprintf("default_time_zone = '%s'", dbOptions.DefaultTimezone))
+	}
+
+	dbOptionsDdl := ""
+	if len(options) > 0 {
+		dbOptionsDdl = fmt.Sprintf("ALTER DATABASE %s SET OPTIONS (%s)", dbName, strings.Join(options, ", "))
+	}
+	return dbOptionsDdl
+}
+
+func (dbOptions DatabaseOptions) PGPrintDatabaseOptions() []string {
+	dbName := "db"
+	if dbOptions.DbName != "" {
+		dbName = fmt.Sprintf("\"%s\"", dbOptions.DbName)
+	}
+
+	var options []string
+	if dbOptions.DefaultTimezone != "" {
+		options = append(options, fmt.Sprintf("spanner.default_time_zone = '%s'", dbOptions.DefaultTimezone))
+	}
+
+	var dbOptionsDdls []string
+	for _, option := range options {
+		dbOptionsDdls = append(dbOptionsDdls, fmt.Sprintf("ALTER DATABASE %s SET %s", dbName, option))
+	}
+	return dbOptionsDdls
 }
