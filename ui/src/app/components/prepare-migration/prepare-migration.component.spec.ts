@@ -64,6 +64,7 @@ describe('PrepareMigrationComponent', () => {
       [TargetDetails.Publication]: 'mockPublication',
       [TargetDetails.GcsMetadataName]: 'mockGcsMetadataName',
       [TargetDetails.GcsMetadataRootPath]: 'mockGcsMetadataRootPath',
+      [TargetDetails.DefaultTimezone]: 'mockDefaultTimezone',
       [MigrationDetails.IsGcsMetadataPathSet]: 'true'
     };
 
@@ -90,6 +91,7 @@ describe('PrepareMigrationComponent', () => {
           GcsBucketName: 'mockGcsMetadataName',
           GcsBucketRootPath: 'mockGcsMetadataRootPath',
         },
+        DefaultTimezone: 'mockDefaultTimezone',
       });
     });
   });

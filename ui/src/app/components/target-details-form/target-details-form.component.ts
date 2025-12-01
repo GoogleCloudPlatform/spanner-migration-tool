@@ -14,6 +14,8 @@ export class TargetDetailsFormComponent implements OnInit {
   spannerInstance: string = ''
   dialect: string = ''
 
+  timezones: { timezone: string }[] = Object.values(Intl.supportedValuesOf('timeZone')).map((timezone) => ({ timezone: timezone }))
+
   constructor(
     private formBuilder: FormBuilder,
     private dialogRef: MatDialogRef<TargetDetailsFormComponent>,
@@ -24,9 +26,11 @@ export class TargetDetailsFormComponent implements OnInit {
     this.dialect = data.Dialect
     this.targetDetailsForm = this.formBuilder.group({
       targetDb: ['', [Validators.required,Validators.pattern('^[a-z][a-z0-9-_]{0,28}[a-z0-9]$')]],
+      defaultTimezone: [''],
     })
     this.targetDetailsForm.setValue({
       targetDb: localStorage.getItem(TargetDetails.TargetDB),
+      defaultTimezone: localStorage.getItem(TargetDetails.DefaultTimezone),
     })
   }
 
@@ -37,7 +41,17 @@ export class TargetDetailsFormComponent implements OnInit {
     let formValue = this.targetDetailsForm.value
     localStorage.setItem(TargetDetails.TargetDB, formValue.targetDb)
     localStorage.setItem(TargetDetails.Dialect, formValue.dialect)
+    if (formValue.defaultTimezone) {
+      localStorage.setItem(TargetDetails.DefaultTimezone, formValue.defaultTimezone)
+    } else{
+      localStorage.removeItem(TargetDetails.DefaultTimezone)
+    }
     localStorage.setItem(MigrationDetails.IsTargetDetailSet, "true")
     this.dialogRef.close()
+  }
+
+  customSearchFn(term: string, item: { timezone: string }) {
+    term = term.toLocaleLowerCase()
+    return item.timezone.toLocaleLowerCase().indexOf(term) > -1
   }
 }

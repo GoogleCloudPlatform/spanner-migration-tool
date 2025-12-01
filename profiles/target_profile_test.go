@@ -33,7 +33,15 @@ func TestNewTargetProfile(t *testing.T) {
 			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
 				Dialect: constants.DIALECT_GOOGLESQL,
 			},
-			expectedDefaultIdentityOptions: DefaultIdentityOptions{},
+			expectedErr: false,
+		},
+		{
+			targetProfileString: "instance=test-instance,defaultTimezone=America/New_York",
+			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
+				Instance: "test-instance",
+				Dialect: constants.DIALECT_GOOGLESQL,
+				DefaultTimezone: "America/New_York",
+			},
 			expectedErr: false,
 		},
 		{
@@ -78,6 +86,10 @@ func TestNewTargetProfile(t *testing.T) {
 		},
 		{
 			targetProfileString: "instance=test-instance,dialect=not_a_real_dialect",
+			expectedErr: true,
+		},
+		{
+			targetProfileString: "instance=test-instance,defaultTimezone=not_a_real_timezone",
 			expectedErr: true,
 		},
 		{

@@ -58,6 +58,7 @@ type Conv struct {
 	SpProjectId        string                  // Spanner Project Id
 	SpInstanceId       string                  // Spanner Instance Id
 	Source             string                  // Source Database type being migrated
+	DatabaseOptions    ddl.DatabaseOptions
 	DefaultIdentityOptions ddl.IdentityOptions // Default values to use for IDENTITY columns
 }
 
@@ -376,6 +377,7 @@ func MakeConv() *Conv {
 		Rules:        []Rule{},
 		SpSequences:  make(map[string]ddl.Sequence),
 		SrcSequences: make(map[string]ddl.Sequence),
+		DatabaseOptions: ddl.DatabaseOptions{},
 	}
 }
 

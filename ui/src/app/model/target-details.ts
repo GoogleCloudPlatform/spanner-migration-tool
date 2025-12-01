@@ -5,6 +5,7 @@ export default interface ITargetDetails {
     ReplicationSlot: string
     Publication: string
     GcsMetadataPath: GcsMetadataPath
+    DefaultTimezone: string
 }
 
 export interface GcsMetadataPath {
