@@ -176,7 +176,7 @@ The tool maps auto-increment columns to [Spanner IDENTITY
 columns](https://cloud.google.com/spanner/docs/primary-key-default-value#identity-columns).
 Users need to set the SKIP RANGE and/or START COUNTER WITH values to avoid duplicate key errors.
 
-The SKIP RANGE and START COUNTER WITH values can be set most via both the web UI (recommended) and the CLI.
+The SKIP RANGE and START COUNTER WITH values can be set via both the web UI (recommended) and the CLI.
 
 The Column tab of the web UI exposes fields to set the SKIP RANGE and START COUNTER WITH values. For more details, see [here](../ui/schema-conv/spanner-draft.md).
 
