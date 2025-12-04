@@ -759,6 +759,7 @@ type Sequence struct {
 	SkipRangeMax     string
 	StartWithCounter string
 	ColumnsUsingSeq  map[string][]string
+	ColumnsOwningSeq  map[string][]string
 }
 
 func (seq Sequence) PrintSequence(c Config) string {
