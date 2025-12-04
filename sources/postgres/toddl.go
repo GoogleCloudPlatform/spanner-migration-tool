@@ -55,7 +55,12 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 func (tdi ToDdlImpl) GetColumnAutoGen(conv *internal.Conv, autoGenCol ddl.AutoGenCol, colId string, tableId string) (*ddl.AutoGenCol, error) {
 	switch autoGenCol.GenerationType {
 	case constants.SERIAL:
-		return &ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}, nil
+		autoGen := &ddl.AutoGenCol{
+			Name: constants.IDENTITY,
+			GenerationType: constants.IDENTITY,
+			IdentityOptions: conv.DefaultIdentityOptions,
+		}
+		return autoGen, nil
 	default:
 		return &ddl.AutoGenCol{}, fmt.Errorf("auto generation not supported")
 	}
