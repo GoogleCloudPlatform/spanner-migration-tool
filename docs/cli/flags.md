@@ -78,3 +78,11 @@ Time Zone Database](https://www.iana.org/time-zones). If not specified, the defa
 the Spanner database, and the database will therefore default to `America/Los_Angeles` (the default timezone for
 Spanner databases). Note, the default timezone can only be set on an empty Spanner database without any tables; a
 warning will be logged and this setting will be ignored if the database already includes tables.
+
+* **`defaultIdentitySkipRange`**: Optional flag. Specifies the default SKIP RANGE values to use for IDENTITY columns. Specified as `<min>-<max>`, where both `<min>` and `<max>` are positive integers and `<min>` must be less than `<max>`. For example, `defaultIdentitySkipRange=10-50`. For
+  instructions on setting SKIP RANGE values for individual columns, see
+  [here](../data-types/mysql.md#auto-increment-columns).
+
+* **`defaultIdentityStartCounterWith`**: Optional flag. Specifies the default START COUNTER WITH value to use for IDENTITY columns. This should be a positive integer. For example, `defaultIdentityStartCounterWith=1000`. For
+  instructions on setting the START COUNTER WITH value for individual columns, see
+  [here](../data-types/mysql.md#auto-increment-columns).

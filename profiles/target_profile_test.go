@@ -25,6 +25,7 @@ func TestNewTargetProfile(t *testing.T) {
 	testCases := []struct {
 		targetProfileString          string
 		expectedTargetProfileDetails TargetProfileConnectionSpanner
+		expectedDefaultIdentityOptions DefaultIdentityOptions
 		expectedErr                  bool
 	}{
 		{
@@ -44,18 +45,59 @@ func TestNewTargetProfile(t *testing.T) {
 			expectedErr: false,
 		},
 		{
+			targetProfileString: "instance=test-instance,defaultIdentitySkipRange=10-50",
+			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
+				Instance: "test-instance",
+				Dialect: constants.DIALECT_GOOGLESQL,
+			},
+			expectedDefaultIdentityOptions: DefaultIdentityOptions{
+				SkipRangeMin: "10",
+				SkipRangeMax: "50",
+			},
+			expectedErr: false,
+		},
+		{
+			targetProfileString: "instance=test-instance,defaultIdentityStartCounterWith=100",
+			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
+				Instance: "test-instance",
+				Dialect: constants.DIALECT_GOOGLESQL,
+			},
+			expectedDefaultIdentityOptions: DefaultIdentityOptions{
+				StartCounterWith: "100",
+			},
+			expectedErr: false,
+		},
+		{
+			targetProfileString: "instance=test-instance,defaultIdentitySkipRange=100-500,defaultIdentityStartCounterWith=10",
+			expectedTargetProfileDetails: TargetProfileConnectionSpanner{
+				Instance: "test-instance",
+				Dialect: constants.DIALECT_GOOGLESQL,
+			},
+			expectedDefaultIdentityOptions: DefaultIdentityOptions{
+				SkipRangeMin: "100",
+				SkipRangeMax: "500",
+				StartCounterWith: "10",
+			},
+			expectedErr: false,
+		},
+		{
 			targetProfileString: "project=test-project",
-			expectedTargetProfileDetails: TargetProfileConnectionSpanner{},
 			expectedErr: true,
 		},
 		{
 			targetProfileString: "instance=test-instance,dialect=not_a_real_dialect",
-			expectedTargetProfileDetails: TargetProfileConnectionSpanner{},
 			expectedErr: true,
 		},
 		{
 			targetProfileString: "instance=test-instance,defaultTimezone=not_a_real_timezone",
-			expectedTargetProfileDetails: TargetProfileConnectionSpanner{},
+			expectedErr: true,
+		},
+		{
+			targetProfileString: "instance=test-instance,defaultIdentitySkipRange=",
+			expectedErr: true,
+		},
+		{
+			targetProfileString: "instance=test-instance,defaultIdentityStartCounterWith=",
 			expectedErr: true,
 		},
 	}
@@ -72,10 +114,106 @@ func TestNewTargetProfile(t *testing.T) {
 					Ty: TargetProfileConnectionTypeSpanner,
 					Sp: tc.expectedTargetProfileDetails,
 				},
+				DefaultIdentityOptions: tc.expectedDefaultIdentityOptions,
 			}
 
 			assert.Equal(t, expectedTargetProfile, actual)
 			assert.NoError(t, err)
+		}
+	}
+}
+
+func TestExtractDefaultIdentityOptions(t *testing.T) {
+	testCases := []struct {
+		defaultIdentitySkipRangeStr string
+		setEmptySkipRangeStr bool
+		defaultIdentityStartCounterWithStr string
+		setEmptyStartCounterWithStr bool
+		expectedDefaultIdentityOptions DefaultIdentityOptions
+		expectedErr                  bool
+	}{
+		{
+			defaultIdentitySkipRangeStr: "10-50",
+			expectedDefaultIdentityOptions: DefaultIdentityOptions{
+				SkipRangeMin: "10",
+				SkipRangeMax: "50",
+			},
+			expectedErr: false,
+		},
+		{
+			defaultIdentityStartCounterWithStr: "100",
+			expectedDefaultIdentityOptions: DefaultIdentityOptions{
+				StartCounterWith: "100",
+			},
+			expectedErr: false,
+		},
+		{
+			defaultIdentitySkipRangeStr: "100-500",
+			defaultIdentityStartCounterWithStr: "10",
+			expectedDefaultIdentityOptions: DefaultIdentityOptions{
+				SkipRangeMin: "100",
+				SkipRangeMax: "500",
+				StartCounterWith: "10",
+			},
+			expectedErr: false,
+		},
+		{
+			setEmptySkipRangeStr: true,
+			expectedErr: true,
+		},
+		{
+			defaultIdentitySkipRangeStr: "10",
+			expectedErr: true,
+		},
+		{
+			defaultIdentitySkipRangeStr: "10-100-1000",
+			expectedErr: true,
+		},
+		{
+			defaultIdentitySkipRangeStr: "-10-100",
+			expectedErr: true,
+		},
+		{
+			defaultIdentitySkipRangeStr: "abc-100",
+			expectedErr: true,
+		},
+		{
+			defaultIdentitySkipRangeStr: "10-abc",
+			expectedErr: true,
+		},
+		{
+			setEmptyStartCounterWithStr: true,
+			expectedErr: true,
+		},
+		{
+			defaultIdentityStartCounterWithStr: "abc",
+			expectedErr: true,
+		},
+		{
+			defaultIdentityStartCounterWithStr: "0",
+			expectedErr: true,
+		},
+		{
+			defaultIdentityStartCounterWithStr: "-100",
+			expectedErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		params := make(map[string]string)
+		if tc.defaultIdentitySkipRangeStr != "" || tc.setEmptySkipRangeStr {
+			params["defaultIdentitySkipRange"] = tc.defaultIdentitySkipRangeStr
+		}
+		if tc.defaultIdentityStartCounterWithStr != "" || tc.setEmptyStartCounterWithStr {
+			params["defaultIdentityStartCounterWith"] = tc.defaultIdentityStartCounterWithStr
+		}
+		actual, err := extractDefaultIdentityOptions(params)
+		if tc.expectedErr {
+			assert.Error(t, err)
+			assert.Equal(t, DefaultIdentityOptions{}, actual)
+		} else {
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedDefaultIdentityOptions, actual)
 		}
 	}
 }

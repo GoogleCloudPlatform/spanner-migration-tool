@@ -327,6 +327,7 @@ func Test_GetColumnAutoGen(t *testing.T) {
 	tc := []struct {
 		conv               *internal.Conv
 		autoGenCol         ddl.AutoGenCol
+		defaultIdentityOptions ddl.IdentityOptions
 		expectedAutoGenCol ddl.AutoGenCol
 		expectErr          bool
 		colId              string
@@ -341,6 +342,30 @@ func Test_GetColumnAutoGen(t *testing.T) {
 			expectedAutoGenCol: ddl.AutoGenCol{
 				Name:           constants.IDENTITY,
 				GenerationType: constants.IDENTITY,
+			},
+			expectErr: false,
+			colId:   "c1",
+			tableId: "t1",
+		},
+		{
+			conv: conv,
+			autoGenCol: ddl.AutoGenCol{
+				Name:           constants.SERIAL,
+				GenerationType: constants.SERIAL,
+			},
+			defaultIdentityOptions: ddl.IdentityOptions{
+				SkipRangeMin: "100",
+				SkipRangeMax: "1000",
+				StartCounterWith: "10",
+			},
+			expectedAutoGenCol: ddl.AutoGenCol{
+				Name:           constants.IDENTITY,
+				GenerationType: constants.IDENTITY,
+				IdentityOptions: ddl.IdentityOptions{
+					SkipRangeMin: "100",
+					SkipRangeMax: "1000",
+					StartCounterWith: "10",
+				},
 			},
 			expectErr: false,
 			colId:   "c1",
@@ -369,6 +394,7 @@ func Test_GetColumnAutoGen(t *testing.T) {
 
 	for _, tt := range tc {
 		var toddl = ToDdlImpl{}
+		tt.conv.DefaultIdentityOptions = tt.defaultIdentityOptions
 		autoGenCol, err := toddl.GetColumnAutoGen(tt.conv, tt.autoGenCol, tt.colId, tt.tableId)
 		assert.Equal(t, tt.expectedAutoGenCol, *autoGenCol)
 		if tt.expectErr {
