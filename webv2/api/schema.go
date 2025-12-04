@@ -385,7 +385,9 @@ func GetAutoGenMap(w http.ResponseWriter, r *http.Request) {
 	defer sessionState.Conv.ConvLock.Unlock()
 	switch sessionState.Driver {
 	case constants.MYSQL, constants.MYSQLDUMP:
-		initializeAutoGenMap()
+		initializeAutoGenMap(true)
+	case constants.POSTGRES, constants.PGDUMP:
+		initializeAutoGenMap(false)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(autoGenMap)
@@ -1435,7 +1437,7 @@ func initializeTypeMap() {
 	}
 	// Initialize postgresTypeMap.
 	toddl = postgres.InfoSchemaImpl{}.GetToDdl()
-	for _, srcTypeName := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying", "path"} {
+	for _, srcTypeName := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "smallserial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying", "path"} {
 		var l []types.TypeIssue
 		srcType := schema.MakeType()
 		srcType.Name = srcTypeName
@@ -1590,20 +1592,20 @@ func addShardIdToForeignKeyPerTable(isAddedAtFirst bool, table ddl.CreateTable) 
 	}
 }
 
-func initializeAutoGenMap() {
+func initializeAutoGenMap(supportsUuidGeneration bool) {
 	sessionState := session.GetSessionState()
 	autoGenMap = make(map[string][]types.AutoGen)
 	switch sessionState.Conv.SpDialect {
 	case constants.DIALECT_POSTGRESQL:
-		makePostgresDialectAutoGenMap(sessionState.Conv.SpSequences)
+		makePostgresDialectAutoGenMap(sessionState.Conv.SpSequences, supportsUuidGeneration)
 		return
 	default:
-		makeGoogleSqlDialectAutoGenMap(sessionState.Conv.SpSequences)
+		makeGoogleSqlDialectAutoGenMap(sessionState.Conv.SpSequences, supportsUuidGeneration)
 		return
 	}
 }
 
-func makePostgresDialectAutoGenMap(sequences map[string]ddl.Sequence) {
+func makePostgresDialectAutoGenMap(sequences map[string]ddl.Sequence, supportsUuidGeneration bool) {
 	for _, srcTypeName := range []string{ddl.Bool, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.PGBytea, ddl.PGFloat4, ddl.PGFloat8, ddl.PGInt8, ddl.PGJSONB, ddl.PGTimestamptz, ddl.PGVarchar, ddl.Numeric} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
@@ -1612,11 +1614,13 @@ func makePostgresDialectAutoGenMap(sequences map[string]ddl.Sequence) {
 			},
 		}
 	}
-	autoGenMap[ddl.PGVarchar] = append(autoGenMap[ddl.PGVarchar],
-		types.AutoGen{
-			Name:           "UUID",
-			GenerationType: "Pre-defined",
-		})
+	if supportsUuidGeneration {
+		autoGenMap[ddl.PGVarchar] = append(autoGenMap[ddl.PGVarchar],
+			types.AutoGen{
+				Name:           "UUID",
+				GenerationType: "Pre-defined",
+			})
+	}
 
 	typesSupportingSequences := []string{ddl.Float64, ddl.Int64, ddl.PGFloat8, ddl.PGInt8}
 	for _, srcTypeName := range typesSupportingSequences {
@@ -1636,7 +1640,7 @@ func makePostgresDialectAutoGenMap(sequences map[string]ddl.Sequence) {
 	}
 }
 
-func makeGoogleSqlDialectAutoGenMap(sequences map[string]ddl.Sequence) {
+func makeGoogleSqlDialectAutoGenMap(sequences map[string]ddl.Sequence, supportsUuidGeneration bool) {
 	for _, srcTypeName := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float32, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 		autoGenMap[srcTypeName] = []types.AutoGen{
 			{
@@ -1645,11 +1649,13 @@ func makeGoogleSqlDialectAutoGenMap(sequences map[string]ddl.Sequence) {
 			},
 		}
 	}
-	autoGenMap[ddl.String] = append(autoGenMap[ddl.String],
-		types.AutoGen{
-			Name:           "UUID",
-			GenerationType: "Pre-defined",
-		})
+	if supportsUuidGeneration {
+		autoGenMap[ddl.String] = append(autoGenMap[ddl.String],
+			types.AutoGen{
+				Name:           "UUID",
+				GenerationType: "Pre-defined",
+			})
+	}
 
 	typesSupportingSequences := []string{ddl.Float64, ddl.Int64}
 	for _, srcTypeName := range typesSupportingSequences {
