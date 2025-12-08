@@ -205,6 +205,8 @@ func extractDefaultIdentityOptions(params map[string]string) (DefaultIdentityOpt
 	return defaultIdentityOptions, nil
 }
 
+// This attempts to parse the skip range assuming the following format: "<min>-<max>" where both <min> and <max> are
+// positive integers and <min> is less than <max>.
 func parseDefaultSkipRange(defaultSkipRangeStr string) (string, string, error) {
 	parts := strings.Split(defaultSkipRangeStr, "-")
 	if len(parts) < 2 {
