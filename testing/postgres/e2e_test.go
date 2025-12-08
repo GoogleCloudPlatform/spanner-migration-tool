@@ -156,6 +156,44 @@ func TestE2E_CheckTableLimits(t *testing.T) {
 			expectedNumberOfTablesCreated: 1,
 			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 1024},
 		},
+		// Max column name length for Postgres is 63 characters unless manually re-compiled, and pg_query parser
+		// appears to ignore any characters beyond the first 63; limiting tests to max 63 characters
+		{
+			name: "Spanner dialect with table with column name exactly 63 chars",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdlWithColumnNames("t1", []string{"c1", strings.Repeat("c", 63)})},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 2},
+		},
+		{
+			name: "Postgres dialect with table with column name exactly 63 chars",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdlWithColumnNames("t1", []string{"c1", strings.Repeat("c", 63)})},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 2},
+		},
+		{
+			name: "Spanner dialect with table with column name exactly 1 char",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdlWithColumnNames("t1", []string{"c1", strings.Repeat("c", 1)})},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 2},
+		},
+		{
+			name: "Postgres dialect with table with column name exactly 1 char",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdlWithColumnNames("t1", []string{"c1", strings.Repeat("c", 1)})},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 2},
+		},
 	}
 
 	tmpdir := prepareIntegrationTest(t)
