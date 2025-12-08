@@ -45,6 +45,7 @@ type TableLimitTestCase struct {
 	expectErrorMessageContains string
 
 	expectedNumberOfTablesCreated int64
+	expectedNumberOfColumnsPerTable map[string]int64
 }
 
 func TestE2E_CheckTableLimits(t *testing.T) {
@@ -118,6 +119,42 @@ func TestE2E_CheckTableLimits(t *testing.T) {
 			ddls: []string{generateCreateTableDdlWithName(strings.Repeat("t", 1))},
 
 			expectedNumberOfTablesCreated: 1,
+		},
+		{
+			name: "Spanner dialect with table with more than 1024 columns",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdlWithColumns("t1", 1025)},
+
+			expectError: true,
+			expectErrorMessageContains: "too many columns",
+		},
+		{
+			name: "Postgres dialect with table with more than 1024 columns",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdlWithColumns("t1", 1025)},
+
+			expectError: true,
+			expectErrorMessageContains: "too many columns",
+		},
+		{
+			name: "Spanner dialect with table with exactly 1024 columns",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdlWithColumns("t1", 1024)},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 1024},
+		},
+		{
+			name: "Postgres dialect with table with exactly 1024 columns",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdlWithColumns("t1", 1024)},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfColumnsPerTable: map[string]int64{"t1": 1024},
 		},
 	}
 
@@ -195,6 +232,7 @@ func checkDatabaseSchema(t *testing.T, dbURI string, tc TableLimitTestCase) {
 	defer client.Close()
 
 	checkNumberOfTables(t, client, tc.expectedNumberOfTablesCreated)
+	checkNumberOfColumns(t, client, tc.expectedNumberOfColumnsPerTable)
 }
 
 func checkNumberOfTables(t *testing.T, client *spanner.Client, expectedNumberOfTablesCreated int64) {
@@ -209,6 +247,39 @@ func checkNumberOfTables(t *testing.T, client *spanner.Client, expectedNumberOfT
 	row.Columns(&numberOfTablesCreated)
 
 	assert.Equal(t, expectedNumberOfTablesCreated, numberOfTablesCreated)
+}
+
+func checkNumberOfColumns(t *testing.T, client *spanner.Client, expectedNumberOfColumnsPerTable map[string]int64) {
+	if len(expectedNumberOfColumnsPerTable) == 0 {
+		return
+	}
+
+	tableNames := make([]string, 0, len(expectedNumberOfColumnsPerTable))
+	for table := range expectedNumberOfColumnsPerTable {
+		tableNames = append(tableNames, table)
+	}
+
+	query := spanner.Statement{
+		SQL: fmt.Sprintf("SELECT TABLE_NAME, count(1) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME IN ('%s') GROUP BY TABLE_NAME", strings.Join(tableNames, "', '")),
+	}
+	iter := client.Single().Query(ctx, query)
+	defer iter.Stop()
+	var tableName string
+	var numberOfColumns int64
+	actualNumberOfColumnsPerTable := make(map[string]int64)
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		row.Columns(&tableName, &numberOfColumns)
+		actualNumberOfColumnsPerTable[tableName] = numberOfColumns
+	}
+
+	assert.Equal(t, expectedNumberOfColumnsPerTable, actualNumberOfColumnsPerTable)
 }
 
 func generateCreateTableDdls(numTables int) []string {
