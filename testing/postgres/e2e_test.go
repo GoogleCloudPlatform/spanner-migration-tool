@@ -85,6 +85,40 @@ func TestE2E_CheckTableLimits(t *testing.T) {
 
 			expectedNumberOfTablesCreated: 5000,
 		},
+		// Max table name length for Postgres is 63 characters unless manually re-compiled, and pg_query parser
+		// appears to ignore any characters beyond the first 63; limiting tests to max 63 characters
+		{
+			name: "Spanner dialect with table name exactly 63 chars",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdlWithName(strings.Repeat("t", 63))},
+
+			expectedNumberOfTablesCreated: 1,
+		},
+		{
+			name: "Postgres dialect with table name exactly 63 chars",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdlWithName(strings.Repeat("t", 63))},
+
+			expectedNumberOfTablesCreated: 1,
+		},
+		{
+			name: "Spanner dialect with table name exactly 1 char",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdlWithName(strings.Repeat("t", 1))},
+
+			expectedNumberOfTablesCreated: 1,
+		},
+		{
+			name: "Postgres dialect with table name exactly 1 char",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdlWithName(strings.Repeat("t", 1))},
+
+			expectedNumberOfTablesCreated: 1,
+		},
 	}
 
 	tmpdir := prepareIntegrationTest(t)
