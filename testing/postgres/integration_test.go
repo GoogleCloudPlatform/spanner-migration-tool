@@ -155,6 +155,8 @@ func TestIntegration_PGDUMP_SchemaSubcommand(t *testing.T) {
 			}
 			// Drop the database later.
 			defer dropDatabase(t, dbURI)
+
+			checkSerialForDbURI(ctx, t, dbURI)
 		})
 	}
 }
@@ -202,6 +204,8 @@ func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
 	}
 
 	defer dropDatabase(t, dbURI)
+
+	checkSerialForDbURI(ctx, t, dbURI)
 }
 
 func TestIntegration_PGDUMP_ForeignKeyActionMigration(t *testing.T) {
@@ -264,6 +268,7 @@ func checkResults(t *testing.T, dbURI string) {
 	checkTimestamps(ctx, t, client)
 	checkCoreTypes(ctx, t, client)
 	checkArrays(ctx, t, client)
+	checkSerial(ctx, t, client)
 }
 
 func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
@@ -379,6 +384,29 @@ func checkArrays(ctx context.Context, t *testing.T, client *spanner.Client) {
 	if got, want := strs, "{1,nice,foo}"; !reflect.DeepEqual(got, want) {
 		t.Fatalf("string array is not correct: got %v, want %v", got, want)
 	}
+}
+
+func checkSerialForDbURI(ctx context.Context, t *testing.T, dbURI string) {
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
+	checkSerial(ctx, t, client)
+}
+
+func checkSerial(ctx context.Context, t *testing.T, client *spanner.Client) {
+	stmt := spanner.Statement{SQL: `SELECT IS_IDENTITY, IDENTITY_GENERATION, IDENTITY_KIND FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'test' AND COLUMN_NAME = 'id'`}
+	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+	row, _ := iter.Next()
+
+	var isIdentity, identityGeneration, identityKind string
+	row.Columns(&isIdentity, &identityGeneration, &identityKind)
+
+	assert.Equal(t, "YES", isIdentity)
+	assert.Equal(t, "BY DEFAULT", identityGeneration)
+	assert.Equal(t, "BIT_REVERSED_POSITIVE_SEQUENCE", identityKind)
 }
 
 func checkForeignKeyActions(ctx context.Context, t *testing.T, dbURI string) {

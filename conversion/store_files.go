@@ -42,7 +42,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 	// and doesn't add backticks around table and column names. This file is
 	// intended for explanatory and documentation purposes, and is not strictly
 	// legal Cloud Spanner DDL (Cloud Spanner doesn't currently support comments).
-	spDDL := ddl.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences)
+	spDDL := ddl.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions)
 	if len(spDDL) == 0 {
 		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
 	}
@@ -69,7 +69,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 
 	// We change 'Comments' to false and 'ProtectIds' to true below to write out a
 	// schema file that is a legal Cloud Spanner DDL.
-	spDDL = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences)
+	spDDL = ddl.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, SpDialect: conv.SpDialect, Source: driver}, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions)
 	if len(spDDL) == 0 {
 		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
 	}

@@ -36,6 +36,7 @@ import (
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/conversion"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/internal"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/profiles"
+	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/ddl"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/spanner/writer"
 	"github.com/GoogleCloudPlatform/spanner-migration-tool/webv2/helpers"
 	"google.golang.org/grpc/metadata"
@@ -162,6 +163,11 @@ func MigrateDatabase(ctx context.Context, migrationProjectId string, targetProfi
 	}
 	defer adminClient.Close()
 	defer client.Close()
+	// Before this point, the actual DB name to use isn't finalized...
+	conv.DatabaseOptions = ddl.DatabaseOptions{
+		DbName: targetProfile.Conn.Sp.Dbname,
+		DefaultTimezone: targetProfile.Conn.Sp.DefaultTimezone,
+	}
 	switch v := cmd.(type) {
 	case *SchemaCmd:
 		err = migrateSchema(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client)

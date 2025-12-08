@@ -43,6 +43,224 @@ type spannerData struct {
 	vals  []interface{}
 }
 
+func TestProcessPgDump_Serial(t *testing.T) {
+	serialColTests := []struct {
+		name           string
+		input          string
+		expectedSchema map[string]ddl.CreateTable
+		expectIssues   bool // True if we expect to encounter issues during conversion.
+	}{
+		{
+			name: "Serial column",
+			input: "CREATE TABLE public.serial_test (id serial NOT NULL PRIMARY KEY, col character varying(255));",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Bigserial column",
+			input: "CREATE TABLE public.serial_test (id bigserial NOT NULL PRIMARY KEY, col character varying(255));",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Smallserial column",
+			input: "CREATE TABLE public.serial_test (id smallserial NOT NULL PRIMARY KEY, col character varying(255));",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Serial column with owned by set in CREATE SEQUENCE statement",
+			input: "CREATE TABLE public.serial_test (id integer NOT NULL PRIMARY KEY, col character varying(255));\n" +
+				"CREATE SEQUENCE public.serial_test_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1 OWNED BY public.serial_test.id;\n" +
+				"ALTER TABLE ONLY public.serial_test ALTER COLUMN id SET DEFAULT nextval('public.serial_test_id_seq'::regclass);",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Serial column with owned by set in ALTER SEQUENCE statement",
+			input: "CREATE TABLE public.serial_test (id integer NOT NULL PRIMARY KEY, col character varying(255));\n" +
+				"CREATE SEQUENCE public.serial_test_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;\n" +
+				"ALTER SEQUENCE public.serial_test_id_seq OWNED BY public.serial_test.id;\n" +
+				"ALTER TABLE ONLY public.serial_test ALTER COLUMN id SET DEFAULT nextval('public.serial_test_id_seq'::regclass);",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Serial column with default value set in CREATE TABLE statement",
+			input: "CREATE SEQUENCE public.serial_test_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;\n" +
+				"CREATE TABLE public.serial_test (id integer NOT NULL PRIMARY KEY DEFAULT nextval('public.serial_test_id_seq'::regclass), col character varying(255));\n" +
+				"ALTER SEQUENCE public.serial_test_id_seq OWNED BY public.serial_test.id;",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Serial column in non-public schema",
+			input: "CREATE TABLE custom.serial_test (id integer NOT NULL PRIMARY KEY, col character varying(255));\n" +
+				"CREATE SEQUENCE custom.serial_test_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1 OWNED BY custom.serial_test.id;\n" +
+				"ALTER TABLE ONLY custom.serial_test ALTER COLUMN id SET DEFAULT nextval('custom.serial_test_id_seq'::regclass);",
+			expectedSchema: map[string]ddl.CreateTable{
+				"custom_serial_test": ddl.CreateTable{
+					Name:   "custom_serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true, AutoGen: ddl.AutoGenCol{Name: constants.IDENTITY, GenerationType: constants.IDENTITY}},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Column using sequence without owning it",
+			input: "CREATE TABLE public.serial_test (id integer NOT NULL PRIMARY KEY, col character varying(255));\n" +
+				"CREATE SEQUENCE public.serial_test_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;\n" +
+				"ALTER TABLE ONLY public.serial_test ALTER COLUMN id SET DEFAULT nextval('public.serial_test_id_seq'::regclass);",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Column owning sequence but not using it",
+			input: "CREATE TABLE public.serial_test (id integer NOT NULL PRIMARY KEY, col character varying(255));\n" +
+				"CREATE SEQUENCE public.serial_test_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;\n" +
+				"ALTER SEQUENCE public.serial_test_id_seq OWNED BY public.serial_test.id;\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Create column with non-sequence default value",
+			input: "CREATE TABLE public.serial_test (id integer NOT NULL PRIMARY KEY DEFAULT 10, col character varying(255));",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Alter column with non-sequence default value",
+			input: "CREATE TABLE public.serial_test (id integer NOT NULL PRIMARY KEY, col character varying(255));\n" +
+				"ALTER TABLE ONLY public.serial_test ALTER COLUMN id SET DEFAULT 10;",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+		{
+			name: "Column with non-integer type",
+			input: "CREATE TABLE public.serial_test (id double precision NOT NULL PRIMARY KEY, col character varying(255));\n" +
+				"CREATE SEQUENCE public.serial_test_id_seq AS integer START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;\n" +
+				"ALTER SEQUENCE public.serial_test_id_seq OWNED BY public.serial_test.id;\n" +
+				"ALTER TABLE ONLY public.serial_test ALTER COLUMN id SET DEFAULT nextval('public.serial_test_id_seq'::regclass);",
+			expectedSchema: map[string]ddl.CreateTable{
+				"serial_test": ddl.CreateTable{
+					Name:   "serial_test",
+					ColIds: []string{"id", "col"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"id": ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Float64}, NotNull: true},
+						"col": ddl.ColumnDef{Name: "col", T: ddl.Type{Name: ddl.String, Len: 255}},
+					},
+					PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
+				},
+			},
+		},
+	}
+	for _, tc := range serialColTests {
+		t.Run(tc.name, func(t *testing.T) {
+			conv, _ := runProcessPgDump(tc.input)
+			if !tc.expectIssues {
+				noIssues(conv, t, tc.name)
+			}
+			if tc.expectedSchema != nil {
+				internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
+			}
+		})
+	}
+}
+
 func TestProcessPgDump(t *testing.T) {
 	// First, test scalar types.
 	scalarTests := []struct {
@@ -1452,7 +1670,7 @@ func TestProcessPgDump_GetDDL(t *testing.T) {
 			"	quantity INT64,\n" +
 			") PRIMARY KEY (productid, userid)"
 	c := ddl.Config{Tables: true}
-	assert.Equal(t, expected, strings.Join(ddl.GetDDL(c, conv.SpSchema, conv.SpSequences), " "))
+	assert.Equal(t, expected, strings.Join(ddl.GetDDL(c, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions), " "))
 }
 
 func TestProcessPgDump_GetPGDDL(t *testing.T) {
@@ -1466,7 +1684,7 @@ func TestProcessPgDump_GetPGDDL(t *testing.T) {
 			"	PRIMARY KEY (productid, userid)\n" +
 			")"
 	c := ddl.Config{Tables: true, SpDialect: conv.SpDialect}
-	assert.Equal(t, expected, strings.Join(ddl.GetDDL(c, conv.SpSchema, conv.SpSequences), " "))
+	assert.Equal(t, expected, strings.Join(ddl.GetDDL(c, conv.SpSchema, conv.SpSequences, conv.DatabaseOptions), " "))
 }
 
 func TestProcessPgDump_Rows(t *testing.T) {
