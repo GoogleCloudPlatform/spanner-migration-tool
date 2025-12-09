@@ -17,6 +17,7 @@ package profiles
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,6 +58,13 @@ type TargetProfileConnection struct {
 type TargetProfile struct {
 	Ty   TargetProfileType
 	Conn TargetProfileConnection
+	DefaultIdentityOptions DefaultIdentityOptions
+}
+
+type DefaultIdentityOptions struct {
+	SkipRangeMin string
+	SkipRangeMax string
+	StartCounterWith string
 }
 
 // This expects that GetResourceIds has already been called once and the project, instance and dbName
@@ -156,6 +164,11 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 		return TargetProfile{}, fmt.Errorf("dialect not supported %v", sp.Dialect)
 	}
 
+	defaultIdentityOptions, err := extractDefaultIdentityOptions(params)
+	if err != nil {
+		return TargetProfile{}, err
+	}
+
 	// if target-profile is not empty, it must contain spanner instance
 	if s != "" && sp.Instance == "" {
 		return TargetProfile{}, fmt.Errorf("found empty string for instance. please specify instance (spanner instance) in the target-profile")
@@ -169,5 +182,51 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 	}
 
 	conn := TargetProfileConnection{Ty: TargetProfileConnectionTypeSpanner, Sp: sp}
-	return TargetProfile{Ty: TargetProfileTypeConnection, Conn: conn}, nil
+	return TargetProfile{Ty: TargetProfileTypeConnection, Conn: conn, DefaultIdentityOptions: defaultIdentityOptions}, nil
+}
+
+func extractDefaultIdentityOptions(params map[string]string) (DefaultIdentityOptions, error) {
+	defaultIdentityOptions := DefaultIdentityOptions{}
+	if defaultSkipRangeStr, ok := params["defaultIdentitySkipRange"]; ok {
+		skipRangeMin, skipRangeMax, err := parseDefaultSkipRange(defaultSkipRangeStr)
+		if err != nil {
+			return DefaultIdentityOptions{}, fmt.Errorf(fmt.Sprintf("Invalid value for defaultIdentitySkipRange: %s, expected <min>-<max> where both <min> and <max> are integers and <min> is less than <max>. %s", defaultSkipRangeStr, err))
+		}
+		defaultIdentityOptions.SkipRangeMin = skipRangeMin
+		defaultIdentityOptions.SkipRangeMax = skipRangeMax
+	}
+	if defaultStartCounterWith, ok := params["defaultIdentityStartCounterWith"]; ok {
+		startCounterWithInt, err := strconv.Atoi(defaultStartCounterWith)
+		if err != nil || startCounterWithInt <= 0 {
+			return DefaultIdentityOptions{}, fmt.Errorf("Invalid value for defaultIdentityStartCounterWith: %s, expected a positive integer.", defaultStartCounterWith)
+		}
+		defaultIdentityOptions.StartCounterWith = defaultStartCounterWith
+	}
+	return defaultIdentityOptions, nil
+}
+
+// This attempts to parse the skip range assuming the following format: "<min>-<max>" where both <min> and <max> are
+// positive integers and <min> is less than <max>.
+func parseDefaultSkipRange(defaultSkipRangeStr string) (string, string, error) {
+	parts := strings.Split(defaultSkipRangeStr, "-")
+	if len(parts) < 2 {
+		return "", "", fmt.Errorf("No range specified")
+	}
+	if len(parts) > 2 {
+		return "", "", fmt.Errorf("Too many elements in range")
+	}
+	skipRangeMinStr := parts[0]
+	skipRangeMaxStr := parts[1]
+	skipRangeMinInt, err := strconv.Atoi(skipRangeMinStr)
+	if err != nil {
+		return "", "", fmt.Errorf("Failed to convert min value to integer: %s", err)
+	}
+	skipRangeMaxInt, err := strconv.Atoi(skipRangeMaxStr)
+	if err != nil {
+		return "", "", fmt.Errorf("Failed to convert max value to integer: %s", err)
+	}
+	if skipRangeMinInt >= skipRangeMaxInt {
+		return "", "", fmt.Errorf("Min value must be less than max value")
+	}
+	return skipRangeMinStr, skipRangeMaxStr, nil
 }
