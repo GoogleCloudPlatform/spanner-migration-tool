@@ -244,14 +244,14 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 			s += " NOT NULL "
 		}
 		s += cd.DefaultValue.PGPrintDefaultValue(cd.T)
-		s += cd.AutoGen.PGPrintAutoGenCol()
+		s += cd.AutoGen.PGPrintAutoGenCol(c)
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
 		if cd.NotNull {
 			s += " NOT NULL "
 		}
 		s += cd.DefaultValue.PrintDefaultValue(cd.T)
-		s += cd.AutoGen.PrintAutoGenCol()
+		s += cd.AutoGen.PrintAutoGenCol(c)
 	}
 	var  opts []string
 	if cd.Opts != nil {
@@ -498,7 +498,7 @@ func (dv DefaultValue) PGPrintDefaultValue(ty Type) string {
 	return value
 }
 
-func (agc AutoGenCol) PrintAutoGenCol() string {
+func (agc AutoGenCol) PrintAutoGenCol(c Config) string {
 	if agc.Name == constants.UUID && agc.GenerationType == "Pre-defined" {
 		return " DEFAULT (GENERATE_UUID())"
 	}
@@ -506,12 +506,12 @@ func (agc AutoGenCol) PrintAutoGenCol() string {
 		return fmt.Sprintf(" DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE %s))", agc.Name)
 	}
 	if agc.GenerationType == constants.IDENTITY {
-		return agc.PrintIdentityCol()
+		return agc.PrintIdentityCol(c)
 	}
 	return ""
 }
 
-func (agc AutoGenCol) PGPrintAutoGenCol() string {
+func (agc AutoGenCol) PGPrintAutoGenCol(c Config) string {
 	if agc.Name == constants.UUID && agc.GenerationType == "Pre-defined" {
 		return " DEFAULT (spanner.generate_uuid())"
 	}
@@ -519,16 +519,22 @@ func (agc AutoGenCol) PGPrintAutoGenCol() string {
 		return fmt.Sprintf(" DEFAULT NEXTVAL('%s')", agc.Name)
 	}
 	if agc.GenerationType == constants.IDENTITY {
-		return agc.PrintIdentityCol()
+		return agc.PrintIdentityCol(c)
 	}
 	return ""
 }
 
-func (agc AutoGenCol) PrintIdentityCol() string {
+func (agc AutoGenCol) PrintIdentityCol(c Config) string {
 	var options []string
 	options = append(options, "BIT_REVERSED_POSITIVE")
 	if agc.IdentityOptions.SkipRangeMin != "" && agc.IdentityOptions.SkipRangeMax != "" {
-		options = append(options, fmt.Sprintf("SKIP RANGE %s %s", agc.IdentityOptions.SkipRangeMin, agc.IdentityOptions.SkipRangeMax))
+		var separator string
+		if c.SpDialect == constants.DIALECT_POSTGRESQL {
+			separator = " "
+		} else {
+			separator = ", "
+		}
+		options = append(options, fmt.Sprintf("SKIP RANGE %s%s%s", agc.IdentityOptions.SkipRangeMin, separator, agc.IdentityOptions.SkipRangeMax))
 	}
 	if agc.IdentityOptions.StartCounterWith != "" {
 		options = append(options, fmt.Sprintf("START COUNTER WITH %s", agc.IdentityOptions.StartCounterWith))

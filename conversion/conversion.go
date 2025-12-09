@@ -84,7 +84,7 @@ func (ci *ConvImpl) SchemaConv(migrationProjectId string, sourceProfile profiles
 		conv, err = schemaFromSource.schemaFromDatabase(migrationProjectId, sourceProfile, targetProfile, &GetInfoImpl{}, &common.ProcessSchemaImpl{})
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		expressionVerificationAccessor, _ := expressions_api.NewExpressionVerificationAccessorImpl(context.Background(), targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance)
-		conv, err = schemaFromSource.SchemaFromDump(targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper, &ProcessDumpByDialectImpl{ExpressionVerificationAccessor: expressionVerificationAccessor})
+		conv, err = schemaFromSource.SchemaFromDump(targetProfile.Conn.Sp.Project, targetProfile.Conn.Sp.Instance, sourceProfile.Driver, targetProfile.Conn.Sp.Dialect, ioHelper, &ProcessDumpByDialectImpl{ExpressionVerificationAccessor: expressionVerificationAccessor}, targetProfile.DefaultIdentityOptions)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", sourceProfile.Driver)
 	}

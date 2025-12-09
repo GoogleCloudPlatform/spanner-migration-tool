@@ -192,7 +192,7 @@ func (expressionVerificationHandler *ExpressionsVerificationHandler) ConvertSche
 	sessionState := session.GetSessionState()
 	SpProjectId := sessionState.SpannerProjectId
 	SpInstanceId := sessionState.SpannerInstanceID
-	conv, err := schemaFromSource.SchemaFromDump(SpProjectId, SpInstanceId, sourceProfile.Driver, dc.SpannerDetails.Dialect, &utils.IOStreams{In: f, Out: os.Stdout}, &conversion.ProcessDumpByDialectImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor})
+	conv, err := schemaFromSource.SchemaFromDump(SpProjectId, SpInstanceId, sourceProfile.Driver, dc.SpannerDetails.Dialect, &utils.IOStreams{In: f, Out: os.Stdout}, &conversion.ProcessDumpByDialectImpl{ExpressionVerificationAccessor: expressionVerificationHandler.ExpressionVerificationAccessor}, profiles.DefaultIdentityOptions{})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
