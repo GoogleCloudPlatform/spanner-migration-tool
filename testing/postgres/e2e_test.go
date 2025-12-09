@@ -60,6 +60,7 @@ type IndexLimitTestCase struct {
 	expectErrorMessageContains string
 
 	expectedTotalNumberOfIndexes int64
+	expectedNumberOfIndexesPerTable map[string]int64
 }
 
 func TestE2E_CheckTableLimits(t *testing.T) {
@@ -368,6 +369,40 @@ func TestE2E_CheckIndexLimits(t *testing.T) {
 
 			expectedTotalNumberOfIndexes: 10000,
 		},
+		{
+			name: "Spanner dialect with table with more than 128 indexes",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: generateCreateTableDdlWithIndexDdls("t1", 129),
+
+			expectError: true,
+			expectErrorMessageContains: "too many indices",
+		},
+		{
+			name: "Postgres dialect with table with more than 128 indexes",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: generateCreateTableDdlWithIndexDdls("t1", 129),
+
+			expectError: true,
+			expectErrorMessageContains: "too many indices",
+		},
+		{
+			name: "Spanner dialect with table with exactly 128 indexes",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: generateCreateTableDdlWithIndexDdls("t1", 128),
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 128},
+		},
+		{
+			name: "Postgres dialect with table with exactly 128 indexes",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: generateCreateTableDdlWithIndexDdls("t1", 128),
+
+			expectedNumberOfIndexesPerTable: map[string]int64{"t1": 128},
+		},
 	}
 
 	tmpdir := prepareIntegrationTest(t)
@@ -578,7 +613,10 @@ func checkDatabaseIndexes(t *testing.T, dbURI string, tc IndexLimitTestCase) {
 	}
 	defer client.Close()
 
-	checkTotalNumberOfIndexes(t, client, tc.expectedTotalNumberOfIndexes)
+	if tc.expectedTotalNumberOfIndexes != 0 {
+		checkTotalNumberOfIndexes(t, client, tc.expectedTotalNumberOfIndexes)
+	}
+	checkNumberOfIndexesPerTable(t, client, tc.expectedNumberOfIndexesPerTable)
 }
 
 func checkTotalNumberOfIndexes(t *testing.T, client *spanner.Client, expectedTotalNumberOfIndexes int64) {
@@ -593,6 +631,40 @@ func checkTotalNumberOfIndexes(t *testing.T, client *spanner.Client, expectedTot
 	row.Columns(&totalNumberOfIndexes)
 
 	assert.Equal(t, expectedTotalNumberOfIndexes, totalNumberOfIndexes)
+}
+
+func checkNumberOfIndexesPerTable(t *testing.T, client *spanner.Client, expectedNumberOfIndexesPerTable map[string]int64) {
+	if len(expectedNumberOfIndexesPerTable) == 0 {
+		return
+	}
+
+	tableNames := make([]string, 0, len(expectedNumberOfIndexesPerTable))
+	for table := range expectedNumberOfIndexesPerTable {
+		tableNames = append(tableNames, table)
+	}
+
+	var query spanner.Statement
+	query = spanner.Statement{
+		SQL: fmt.Sprintf("SELECT TABLE_NAME, count(1) FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME IN ('%s') AND INDEX_TYPE != 'PRIMARY_KEY' GROUP BY TABLE_NAME", strings.Join(tableNames, "', '")),
+	}
+	iter := client.Single().Query(ctx, query)
+	defer iter.Stop()
+	var tableName string
+	var numberOfIndexes int64
+	actualNumberOfIndexesPerTable := make(map[string]int64)
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		row.Columns(&tableName, &numberOfIndexes)
+		actualNumberOfIndexesPerTable[tableName] = numberOfIndexes
+	}
+
+	assert.Equal(t, expectedNumberOfIndexesPerTable, actualNumberOfIndexesPerTable)
 }
 
 func generateCreateTableDdls(numTables int) []string {
