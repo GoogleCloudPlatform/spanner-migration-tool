@@ -231,6 +231,42 @@ func TestE2E_CheckTableLimits(t *testing.T) {
 			expectedNumberOfTablesCreated: 1,
 			expectedNumberOfPrimaryKeyColumnsPerTable: map[string]int64{"t1": 16},
 		},
+		{
+			name: "Spanner dialect with table with primary key with size larger than 8KiB",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdl("t1", map[string]string{"c1": "char(4096)", "c2": "char(4096)", "c3": "char(1)"}, []string{"c1", "c2", "c3"})},
+
+			expectError: true,
+			expectErrorMessageContains: "exceeds the maximum",
+		},
+		{
+			name: "Postgres dialect with table with primary key with size larger than 8KiB",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdl("t1", map[string]string{"c1": "char(4096)", "c2": "char(4096)", "c3": "char(1)"}, []string{"c1", "c2", "c3"})},
+
+			expectError: true,
+			expectErrorMessageContains: "exceeds the maximum",
+		},
+		{
+			name: "Spanner dialect with table with primary key with size exactly 8KiB",
+
+			dialect: constants.DIALECT_GOOGLESQL,
+			ddls: []string{generateCreateTableDdl("t1", map[string]string{"c1": "char(4096)", "c2": "char(4096)", "c3": "char(1)"}, []string{"c1", "c2"})},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfPrimaryKeyColumnsPerTable: map[string]int64{"t1": 2},
+		},
+		{
+			name: "Postgres dialect with table with primary key with size exactly 8KiB",
+
+			dialect: constants.DIALECT_POSTGRESQL,
+			ddls: []string{generateCreateTableDdl("t1", map[string]string{"c1": "char(4096)", "c2": "char(4096)", "c3": "char(1)"}, []string{"c1", "c2"})},
+
+			expectedNumberOfTablesCreated: 1,
+			expectedNumberOfPrimaryKeyColumnsPerTable: map[string]int64{"t1": 2},
+		},
 	}
 
 	tmpdir := prepareIntegrationTest(t)
